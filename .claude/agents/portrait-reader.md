@@ -18,7 +18,7 @@ Read, under the repository root you are given:
 3. `content/descriptions.json`: `ageBands`, `pronouns`, `stations`, `tempers` and `callings` (with
    the Traits each `suits` and `clashes` with).
 4. `content/portrait-appearances.json`: the `features`, and every row, as the style to match.
-5. For a Hero's picture, `content/classes.json` and `content/traits.json`.
+5. For a Hero's picture, `content/classes.json` and `content/hero-traits.json`.
 
 Then open each picture with the Read tool, which shows it. Look at the whole of it, and again at
 the face.

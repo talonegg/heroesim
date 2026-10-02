@@ -4,7 +4,7 @@
 // order is DL-19 items 6 and 7; changing it changes every seed's Guilds.
 
 import type { EngineDeps, GameConfig } from '../config.js';
-import type { BackgroundKey, ContentSet, DispositionKey, PortraitKey, Trait, TraitKey } from '../content-types.js';
+import type { BackgroundKey, ContentSet, DispositionKey, GuildmasterTrait, PortraitKey, TraitKey } from '../content-types.js';
 import {
   facilityKeys,
   takeId,
@@ -25,6 +25,7 @@ import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../event
 import { guildmasterTraitsOf } from '../guildmaster.js';
 import { ageIntoPortrait, choosePortrait, guildmasterPortraitsInUse, portraitRowOf } from '../portraits.js';
 import { int, pick } from '../rng.js';
+import { excludeEachOther } from '../traits.js';
 import {
   checkName,
   clamp,
@@ -353,17 +354,17 @@ function drawTraits(state: Stream, config: GameConfig, content: ContentSet): Tra
  * `size`, those of the largest smaller size that has one, down to the empty set, which is always
  * legal, whatever the budget. `rows` are distinct, and a Guildmaster holds each at most once.
  */
-function legalTraitSets(rows: readonly Trait[], size: number, budget: number): Trait[][] {
+function legalTraitSets(rows: readonly GuildmasterTrait[], size: number, budget: number): GuildmasterTrait[][] {
   for (let wanted = size; wanted > 0; wanted -= 1) {
-    const sets: Trait[][] = [];
-    const extend = (from: number, held: Trait[], cost: number): void => {
+    const sets: GuildmasterTrait[][] = [];
+    const extend = (from: number, held: GuildmasterTrait[], cost: number): void => {
       if (held.length === wanted) {
         if (cost <= budget) sets.push([...held]);
         return;
       }
       for (let index = from; index <= rows.length - (wanted - held.length); index += 1) {
-        const row = rows[index] as Trait;
-        if (held.some((mine) => mine.excludes.includes(row.key) || row.excludes.includes(mine.key))) continue;
+        const row = rows[index] as GuildmasterTrait;
+        if (held.some((mine) => excludeEachOther(mine, row))) continue;
         held.push(row);
         extend(index + 1, held, cost + row.cost);
         held.pop();

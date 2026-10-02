@@ -9,8 +9,8 @@ import {
   sexes,
   type ContentSet,
   type DescriptiveAttribute,
+  type GuildmasterTrait,
   type SetupRefusal,
-  type Trait,
 } from '@heroesim/engine';
 
 /** The flag that sets each descriptive Attribute. */
@@ -21,21 +21,21 @@ const attributeFlags: Readonly<Record<DescriptiveAttribute, string>> = Object.fr
 });
 
 /** A Trait's cost in words: `costs 2`, `refunds 1`, `costs nothing`. */
-function costWords(trait: Pick<Trait, 'cost'>): string {
+function costWords(trait: Pick<GuildmasterTrait, 'cost'>): string {
   if (trait.cost > 0) return `costs ${trait.cost}`;
   return trait.cost < 0 ? `refunds ${-trait.cost}` : 'costs nothing';
 }
 
 /** Every Guildmaster Trait by key, with its name and cost: `miser (Miser, refunds 2)`, in key order. */
-export function guildmasterTraitChoices(content: Pick<ContentSet, 'traits'>): string {
+export function guildmasterTraitChoices(content: Pick<ContentSet, 'guildmasterTraits'>): string {
   return guildmasterTraitsOf(content)
     .map((trait) => `${trait.key} (${trait.name}, ${costWords(trait)})`)
     .join(', ');
 }
 
-/** A Trait's name, or its key when content lacks it. */
-function traitName(content: Pick<ContentSet, 'traits'>, key: string): string {
-  return Object.hasOwn(content.traits, key) ? (content.traits[key]?.name ?? key) : key;
+/** A Guildmaster Trait's name, or its key when content lacks it. */
+function traitName(content: Pick<ContentSet, 'guildmasterTraits'>, key: string): string {
+  return Object.hasOwn(content.guildmasterTraits, key) ? (content.guildmasterTraits[key]?.name ?? key) : key;
 }
 
 /** `a, b and c`: words joined as a list. */
@@ -59,7 +59,7 @@ export function unknownStatWords(stats: Readonly<Record<string, number>>, conten
 }
 
 /** Why `new` refuses a setup, in one sentence naming what to change. */
-export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSet, 'traits' | 'backgrounds' | 'portraits' | 'stats'>): string {
+export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSet, 'guildmasterTraits' | 'backgrounds' | 'portraits' | 'stats'>): string {
   switch (refusal.reason) {
     case 'guild-name-blank':
       return 'The Guild needs a name: --guild <name>.';

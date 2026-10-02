@@ -1,0 +1,6 @@
+{
+  "scarred": { "name": "Scarred", "excludes": [], "effects": [] },
+  "lame": { "name": "Lame", "excludes": [], "effects": [] },
+  "one-eyed": { "name": "One-eyed", "excludes": [], "effects": [] },
+  "short-winded": { "name": "Short-winded", "excludes": [], "effects": [] }
+}

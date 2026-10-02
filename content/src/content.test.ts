@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { EncounterKind, StatArea, TraitEffect } from '@heroesim/engine';
+import type { EncounterKind, GuildmasterTraitEffect, StatArea } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { contentFiles, contentWarnings, descriptionBounds, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 22 since v1.1.4-S6's partyMargin for each Disposition (DL-157)", () => {
+  test('is the core content set, version 23 since v1.1.4-S7 moved the Traits into two lists of effect lists (DL-158)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(22);
+    expect(content.version).toBe(23);
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
@@ -123,7 +123,7 @@ describe('loadContent()', () => {
     const { descriptions } = content;
     const bands = descriptions.ageBands.map((band) => band.key);
     const guildBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'guild').map((row) => row.key);
-    const guildmasterTraits = Object.values(content.traits).filter((row) => row.owner === 'guildmaster').map((row) => row.key);
+    const guildmasterTraits = Object.keys(content.guildmasterTraits);
 
     test('has three age bands for the Guildmasters of 21 to 50, and at least thirty Birthplaces', () => {
       expect(descriptions.ageBands).toEqual([
@@ -174,7 +174,7 @@ describe('loadContent()', () => {
       const { stationOrigins, callingCareers, temperClosings } = descriptions.biography;
       const hero = descriptions.heroBiography;
       const heroBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'hero').map((row) => row.key);
-      const heroTraits = Object.values(content.traits).filter((row) => row.owner === 'hero').map((row) => row.key);
+      const heroTraits = Object.keys(content.heroTraits);
       const lists: [string, string[] | undefined][] = [
         ...descriptions.stations.map((key): [string, string[] | undefined] => [`stationOrigins.${key}`, stationOrigins[key]]),
         ...Object.keys(descriptions.callings).flatMap((key) =>
@@ -271,8 +271,8 @@ describe('loadContent()', () => {
       const { thrifty = [], miser = [] } = descriptions.biography.traits;
       const pairs = thrifty.flatMap((one) => miser.map((other) => [one, other])).filter(([one = '', other = '']) => money.test(one) && money.test(other));
       expect(pairs).toEqual([]);
-      expect(content.traits.thrifty?.excludes).not.toContain('miser');
-      expect(content.traits.miser?.excludes).not.toContain('thrifty');
+      expect(content.guildmasterTraits.thrifty?.excludes).not.toContain('miser');
+      expect(content.guildmasterTraits.miser?.excludes).not.toContain('thrifty');
     });
 
     test("writes each Guildmaster Trait's sentences for any age, so a young career and a Trait never disagree", () => {
@@ -290,16 +290,12 @@ describe('loadContent()', () => {
     });
   });
 
-  test("gives each Guildmaster Trait DL-100 item 3's cost, a buff costing and a penalty refunding, and its three exclusions both ways; Hero Traits cost 0 and exclude nothing (M9-S2)", () => {
-    const costs = Object.fromEntries(
-      Object.values(content.traits)
-        .filter((trait) => trait.owner === 'guildmaster')
-        .map((trait) => [trait.key, trait.cost]),
-    );
+  test("gives each Guildmaster Trait DL-100 item 3's cost, a buff costing and a penalty refunding, and its three exclusions both ways; Hero Traits exclude nothing yet (M9-S2, v1.1.4-S7)", () => {
+    const costs = Object.fromEntries(Object.values(content.guildmasterTraits).map((trait) => [trait.key, trait.cost]));
     expect(costs).toEqual({ 'well-liked': 2, thrifty: 2, 'old-soldier': 1, miser: -2, spendthrift: -2, 'mistrusts-magic': -1 });
 
-    const excludes = Object.fromEntries(Object.values(content.traits).map((trait) => [trait.key, [...trait.excludes].sort()]));
-    expect(excludes).toMatchObject({
+    const excludes = Object.fromEntries(Object.values(content.guildmasterTraits).map((trait) => [trait.key, [...trait.excludes].sort()]));
+    expect(excludes).toEqual({
       thrifty: ['spendthrift'],
       spendthrift: ['miser', 'thrifty'],
       'well-liked': ['miser'],
@@ -307,9 +303,7 @@ describe('loadContent()', () => {
       'old-soldier': [],
       'mistrusts-magic': [],
     });
-    for (const trait of Object.values(content.traits)) {
-      if (trait.owner === 'hero') expect([trait.key, trait.cost, trait.excludes]).toEqual([trait.key, 0, []]);
-    }
+    for (const trait of Object.values(content.heroTraits)) expect([trait.key, trait.excludes]).toEqual([trait.key, []]);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -394,20 +388,24 @@ describe('loadContent()', () => {
     }
   });
 
-  test('has six Guildmaster Traits, three buffs and three penalties, each kind of effect among them; Hero Traits have none (M4-S5)', () => {
-    const traits = Object.values(content.traits);
-    const guildmaster = traits.filter((trait) => trait.owner === 'guildmaster');
-    const buff = (effect: TraitEffect): boolean =>
+  test('has six Guildmaster Traits, three buffs and three penalties, one effect each and each kind of effect among them; Hero Traits have none yet (M4-S5, v1.1.4-S7)', () => {
+    const guildmaster = Object.values(content.guildmasterTraits);
+    const buff = (effect: GuildmasterTraitEffect): boolean =>
       effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0;
 
     expect(guildmaster).toHaveLength(6);
-    const effects = guildmaster.map((trait) => trait.effect).filter((effect) => effect !== null);
-    expect(effects).toHaveLength(6);
+    for (const trait of guildmaster) expect(trait.effects, trait.key).toHaveLength(1);
+    const effects = guildmaster.flatMap((trait) => trait.effects);
     expect(effects.filter(buff)).toHaveLength(3);
     expect(new Set(effects.map((effect) => effect.kind))).toEqual(new Set(['classStatBonus', 'guildMoraleShift', 'upkeepFactor']));
-    expect(content.traits['old-soldier']?.effect).toEqual({ kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 });
-    expect(traits.filter((trait) => trait.owner === 'hero').length).toBeGreaterThan(0);
-    for (const trait of traits) if (trait.owner === 'hero') expect(trait.effect).toBeNull();
+    expect(content.guildmasterTraits['old-soldier']?.effects).toEqual([{ kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }]);
+    expect(Object.keys(content.heroTraits).sort()).toEqual(['lame', 'one-eyed', 'scarred', 'short-winded']);
+    for (const trait of Object.values(content.heroTraits)) expect(trait.effects, trait.key).toEqual([]);
+  });
+
+  test('keys every Trait in one of the two lists, Guildmaster and Hero, never both (v1.1.4-S7, DL-150 item 1)', () => {
+    const both = Object.keys(content.heroTraits).filter((key) => Object.hasOwn(content.guildmasterTraits, key));
+    expect(both).toEqual([]);
   });
 
   test('has eight Hero and four Guild Backgrounds, and six Spheres', () => {
@@ -701,10 +699,10 @@ describe('loadContent()', () => {
 
     test('leave a Hero Trait or none, and between them leave every Hero Trait', () => {
       const left = types.flatMap((it) => (it.leavesTrait === null ? [] : [it.leavesTrait]));
-      const heroTraits = Object.values(content.traits).filter((trait) => trait.owner === 'hero');
+      const heroTraits = Object.keys(content.heroTraits);
 
       expect(types.some((it) => it.leavesTrait === null)).toBe(true);
-      expect([...new Set(left)].sort()).toEqual(heroTraits.map((trait) => trait.key).sort());
+      expect([...new Set(left)].sort()).toEqual(heroTraits.sort());
     });
   });
 

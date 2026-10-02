@@ -362,7 +362,7 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
   });
 
   test('with "Choose for me", names the sex, age, Stats, Traits and Portrait "Start the game" makes, over many seeds', () => {
-    const traitNames = (keys: readonly string[]) => keys.map((key) => content.traits[key]?.name);
+    const traitNames = (keys: readonly string[]) => keys.map((key) => content.guildmasterTraits[key]?.name);
     for (let n = 0; n < 40; n += 1) {
       const seed = `form-preview-${n}`;
       const guildmaster = made(seed, fields);
@@ -391,7 +391,7 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
       kind: 'chosen',
       whoWords: null,
       statsWords: null,
-      traitsWords: `Traits: ${traits.length === 0 ? 'None' : traits.map((key) => content.traits[key]?.name).join(' and ')}`,
+      traitsWords: `Traits: ${traits.length === 0 ? 'None' : traits.map((key) => content.guildmasterTraits[key]?.name).join(' and ')}`,
       portrait: null,
     });
     expect(previewOf({ ...mine, guildmasterTraitKeys: [] }, 'seed-a', 'myself')).toBeNull();
@@ -474,7 +474,7 @@ describe('the setup grid and the notes beside a Portrait chosen (v1.1.3-S7)', ()
     const age = Math.min(Math.max(picture.row.apparentAge[0], Math.min(...ages)), Math.max(...ages));
     const setup = { ...fields, guildmasterPortraitKey: picture.key, guildmasterAge: age, guildmasterTraitKeys: [traitKey] };
     const words = portraitFitWords(setup, 'fit-seed');
-    expect(words).toContain(`This Portrait's Calling, ${capitalised(callingKey)}, clashes with the Trait ${content.traits[traitKey]?.name}.`);
+    expect(words).toContain(`This Portrait's Calling, ${capitalised(callingKey)}, clashes with the Trait ${content.guildmasterTraits[traitKey]?.name}.`);
     expect(words).toHaveLength(portraitFit({ ...setup, createdAt: '' }, 'fit-seed', { config: defaultConfig, content }).length);
 
     // None while no Portrait is chosen, or the seed is blank; and none is a refusal.

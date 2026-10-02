@@ -70,7 +70,8 @@ export function validateContent(set: ContentSet): ContentSet {
     stats: set.stats,
     classes: set.classes,
     skills: set.skills,
-    traits: set.traits,
+    guildmasterTraits: set.guildmasterTraits,
+    heroTraits: set.heroTraits,
     backgrounds: set.backgrounds,
     spheres: set.spheres,
     questTemplates: set.questTemplates,
@@ -167,18 +168,14 @@ export function validateContent(set: ContentSet): ContentSet {
     const where = `injuries.${key}`;
     checkRange(where, 'healDays', type.healDaysMin, type.healDaysMax, 1, problems);
     const trait = type.leavesTrait;
-    const row = trait === null || !Object.hasOwn(set.traits, trait) ? undefined : set.traits[trait];
-    if (trait !== null && row?.owner !== 'hero') {
-      problems.push(`${where}.leavesTrait: "${trait}" is not a Hero Trait`);
-    }
+    if (trait !== null && !Object.hasOwn(set.heroTraits, trait)) problems.push(`${where}.leavesTrait: "${trait}" is not a Hero Trait`);
   }
 
   checkDispositions(set.dispositions, problems);
   checkImprovements(set.improvements, problems);
   const keys = queryKeys(set);
   checkEncounters(set, keys, problems);
-  checkTraitEffects(set.traits, classes, heroStats, problems);
-  checkTraitCosts(set.traits, problems);
+  checkTraits(set, classes, heroStats, problems);
   checkSynergies(set.synergies, keys, problems);
   checkItems(set.items, heroStats, problems);
   checkLootTables(set, problems);
@@ -307,12 +304,12 @@ function picturesOf(portraits: ContentSet['portraits']): Map<string, { role: Por
  * A feature no picture uses is allowed.
  */
 function checkPortraitAppearances(
-  set: Pick<ContentSet, 'portraits' | 'portraitAppearances' | 'descriptions' | 'classes' | 'traits'>,
+  set: Pick<ContentSet, 'portraits' | 'portraitAppearances' | 'descriptions' | 'classes' | 'heroTraits'>,
   problems: string[],
 ): void {
   const { features, portraits: rows } = set.portraitAppearances;
   const { descriptions } = set;
-  const heroTraits = new Set(Object.values(set.traits).filter((trait) => trait.owner === 'hero').map((trait) => trait.key));
+  const heroTraits = new Set(Object.keys(set.heroTraits));
   for (const [key, feature] of Object.entries(features)) {
     if (!lowerAndHyphens.test(key)) problems.push(`portraitAppearances.features: "${key}" is not lower case and hyphens`);
     checkReferences(`portraitAppearances.features.${key}.shows`, feature.shows, heroTraits, 'a Hero Trait', problems);
@@ -610,7 +607,7 @@ export function longestDescriptions(set: Pick<ContentSet, 'descriptions' | 'port
  *   Guildmaster's and a Hero's, hooks included, are within 60, 280 and 1,000 characters.
  */
 function checkDescriptions(
-  set: Pick<ContentSet, 'descriptions' | 'backgrounds' | 'traits' | 'classes' | 'portraits' | 'portraitAppearances'>,
+  set: Pick<ContentSet, 'descriptions' | 'backgrounds' | 'guildmasterTraits' | 'heroTraits' | 'classes' | 'portraits' | 'portraitAppearances'>,
   problems: string[],
 ): void {
   const { ageBands, pronouns, birthplaces, appearance, biography, stations, tempers, callings, heroBiography } = set.descriptions;
@@ -696,7 +693,7 @@ function checkDescriptions(
     sentences(texts, `descriptions.biography.backgrounds.${key}`, 'guildmaster');
   }
   for (const [key, texts] of Object.entries(biography.traits)) {
-    if (own(set.traits, key)?.owner !== 'guildmaster') problems.push(`descriptions.biography.traits: "${key}" is not a Guildmaster Trait`);
+    if (own(set.guildmasterTraits, key) === undefined) problems.push(`descriptions.biography.traits: "${key}" is not a Guildmaster Trait`);
     sentences(texts, `descriptions.biography.traits.${key}`, 'guildmaster');
   }
   sentences(biography.successors, 'descriptions.biography.successors', 'guildmaster');
@@ -707,7 +704,7 @@ function checkDescriptions(
     for (const key of list) if (!lowerAndHyphens.test(key)) problems.push(`descriptions.${name}: "${key}" is not lower case and hyphens`);
     for (const key of repeated(list)) problems.push(`descriptions.${name}: "${key}" is listed twice`);
   }
-  const guildmasterTraits = new Set(Object.values(set.traits).filter((trait) => trait.owner === 'guildmaster').map((trait) => trait.key));
+  const guildmasterTraits = new Set(Object.keys(set.guildmasterTraits));
   if (Object.keys(callings).length === 0) problems.push('descriptions.callings is empty');
   for (const [key, calling] of Object.entries(callings)) {
     const where = `descriptions.callings.${key}`;
@@ -756,7 +753,7 @@ function checkDescriptions(
     for (const [band, texts] of Object.entries(byBand)) sentences(texts, `${where}.${key}.${band}`, 'hero');
   }
   for (const [key, texts] of Object.entries(heroBiography.traits)) {
-    if (own(set.traits, key)?.owner !== 'hero') problems.push(`descriptions.heroBiography.traits: "${key}" is not a Hero Trait`);
+    if (own(set.heroTraits, key) === undefined) problems.push(`descriptions.heroBiography.traits: "${key}" is not a Hero Trait`);
     sentences(texts, `descriptions.heroBiography.traits.${key}`, 'hero');
   }
   everyBand(heroBiography.closings, 'descriptions.heroBiography.closings');
@@ -1007,83 +1004,81 @@ function checkStatList(where: string, statKeys: readonly string[], keys: QueryKe
 }
 
 /**
- * Trait effects (M4-S5, pre-M0 review B2, DL-43): a Guildmaster Trait carries one effect of the
- * closed union and a Hero Trait none, since no rule reads a Hero Trait in the first build. A
- * `classStatBonus` names a Class and a Hero Stat and moves it by a whole number other than 0; a
+ * The two lists of Traits (v1.1.4-S7, DL-150 items 1 to 3): a key is a Guildmaster Trait's or a Hero
+ * Trait's, never both, so that a key read anywhere names one Trait. Each list's exclusions name Traits
+ * of the same list other than the Trait itself, each once, and hold both ways, so that a rule reads the
+ * same pairs from either side (M9-S2, DL-100 item 3, DL-102). A Guildmaster Trait's cost is a whole
+ * number, a buff's positive and a penalty's negative, though the sign is the author's to choose.
+ *
+ * Effects (M4-S5, pre-M0 review B2, DL-43; DL-150 item 2): a Guildmaster Trait carries one or more,
+ * each of the closed union; a Hero Trait none or more, of a union no kind joins until S7's next step.
+ * A `classStatBonus` names a Class and a Hero Stat and moves it by a whole number other than 0; a
  * `guildMoraleShift` moves the baseline by a number other than 0; an `upkeepFactor` is above 0.
  */
-function checkTraitEffects(
-  traits: ContentSet['traits'],
+function checkTraits(
+  set: Pick<ContentSet, 'guildmasterTraits' | 'heroTraits'>,
   classes: ReadonlySet<string>,
   heroStats: ReadonlySet<string>,
   problems: string[],
 ): void {
-  for (const [key, trait] of Object.entries(traits)) {
-    const where = `traits.${key}.effect`;
-    const { effect } = trait;
-    if (trait.owner === 'hero') {
-      if (effect !== null) problems.push(`${where}: a Hero Trait has no effect in the first build; it is null`);
-      continue;
+  for (const key of Object.keys(set.heroTraits)) {
+    if (Object.hasOwn(set.guildmasterTraits, key)) {
+      problems.push(`heroTraits.${key}: "${key}" is also a Guildmaster Trait; a Trait's key is in guildmaster-traits.json or hero-traits.json, not both`);
     }
-    if (effect === null) {
-      problems.push(`${where}: a Guildmaster Trait carries one effect (classStatBonus, guildMoraleShift or upkeepFactor)`);
-      continue;
+  }
+  checkExclusions('guildmasterTraits', set.guildmasterTraits, 'a Guildmaster Trait', problems);
+  checkExclusions('heroTraits', set.heroTraits, 'a Hero Trait', problems);
+
+  for (const [key, trait] of Object.entries(set.guildmasterTraits)) {
+    const where = `guildmasterTraits.${key}`;
+    if (!Number.isSafeInteger(trait.cost)) problems.push(`${where}.cost is ${trait.cost}; it is a whole number`);
+    if (trait.effects.length === 0) {
+      problems.push(`${where}.effects is empty; a Guildmaster Trait carries one effect or more (classStatBonus, guildMoraleShift or upkeepFactor)`);
     }
-    switch (effect.kind) {
-      case 'classStatBonus':
-        if (!classes.has(effect.classKey)) problems.push(`${where}.classKey: "${effect.classKey}" is not a Class`);
-        if (!heroStats.has(effect.statKey)) problems.push(`${where}.statKey: "${effect.statKey}" is not a Hero Stat`);
-        if (!(Number.isInteger(effect.delta) && effect.delta !== 0)) {
-          problems.push(`${where}.delta is ${effect.delta}; it is a whole number other than 0`);
-        }
-        break;
-      case 'guildMoraleShift':
-        if (!(Number.isFinite(effect.delta) && effect.delta !== 0)) {
-          problems.push(`${where}.delta is ${effect.delta}; it is a number other than 0`);
-        }
-        break;
-      case 'upkeepFactor':
-        if (!(Number.isFinite(effect.factor) && effect.factor > 0)) {
-          problems.push(`${where}.factor is ${effect.factor}; it is a number above 0`);
-        }
-        break;
+    for (const [index, effect] of trait.effects.entries()) {
+      const at = `${where}.effects.${index}`;
+      switch (effect.kind) {
+        case 'classStatBonus':
+          if (!classes.has(effect.classKey)) problems.push(`${at}.classKey: "${effect.classKey}" is not a Class`);
+          if (!heroStats.has(effect.statKey)) problems.push(`${at}.statKey: "${effect.statKey}" is not a Hero Stat`);
+          if (!(Number.isInteger(effect.delta) && effect.delta !== 0)) {
+            problems.push(`${at}.delta is ${effect.delta}; it is a whole number other than 0`);
+          }
+          break;
+        case 'guildMoraleShift':
+          if (!(Number.isFinite(effect.delta) && effect.delta !== 0)) {
+            problems.push(`${at}.delta is ${effect.delta}; it is a number other than 0`);
+          }
+          break;
+        case 'upkeepFactor':
+          if (!(Number.isFinite(effect.factor) && effect.factor > 0)) {
+            problems.push(`${at}.factor is ${effect.factor}; it is a number above 0`);
+          }
+          break;
+      }
     }
   }
 }
 
-/**
- * The Trait budget's content (M9-S2, DL-100 item 3, DL-102). A Guildmaster Trait's cost is a whole
- * number, a buff's positive and a penalty's negative, though the sign is the author's to choose.
- * Its exclusions name Guildmaster Traits other than itself, each once, and hold both ways, so that
- * the draw and the player's choice read the same pairs from either side. A Hero Trait is never
- * chosen or drawn against the budget: it costs 0 and excludes nothing.
- */
-function checkTraitCosts(traits: ContentSet['traits'], problems: string[]): void {
-  const guildmasterTraits = new Set(
-    Object.entries(traits)
-      .filter(([, trait]) => trait.owner === 'guildmaster')
-      .map(([key]) => key),
-  );
-  for (const [key, trait] of Object.entries(traits)) {
-    const where = `traits.${key}`;
-    if (trait.owner === 'hero') {
-      if (trait.cost !== 0) {
-        problems.push(`${where}.cost is ${trait.cost}; a Hero Trait is never chosen against the budget, and costs 0`);
-      }
-      if (trait.excludes.length > 0) problems.push(`${where}.excludes: a Hero Trait excludes nothing`);
-      continue;
-    }
-    if (!Number.isSafeInteger(trait.cost)) problems.push(`${where}.cost is ${trait.cost}; it is a whole number`);
+/** `list`'s exclusions, at `table`: each names another Trait of `list`, once, which excludes it in return. */
+function checkExclusions(
+  table: string,
+  list: Readonly<Record<string, { excludes: readonly string[] }>>,
+  what: string,
+  problems: string[],
+): void {
+  for (const [key, trait] of Object.entries(list)) {
+    const where = `${table}.${key}.excludes`;
     for (const other of trait.excludes) {
       if (other === key) {
-        problems.push(`${where}.excludes: a Trait cannot exclude itself`);
-      } else if (!guildmasterTraits.has(other)) {
-        problems.push(`${where}.excludes: "${other}" is not a Guildmaster Trait`);
-      } else if (!(traits[other]?.excludes.includes(key) ?? false)) {
-        problems.push(`${where}.excludes: "${other}" does not exclude "${key}" in return`);
+        problems.push(`${where}: a Trait cannot exclude itself`);
+      } else if (!Object.hasOwn(list, other)) {
+        problems.push(`${where}: "${other}" is not ${what}`);
+      } else if (!(list[other]?.excludes.includes(key) ?? false)) {
+        problems.push(`${where}: "${other}" does not exclude "${key}" in return`);
       }
     }
-    for (const other of repeated(trait.excludes)) problems.push(`${where}.excludes: "${other}" is listed twice`);
+    for (const other of repeated(trait.excludes)) problems.push(`${where}: "${other}" is listed twice`);
   }
 }
 
@@ -1357,7 +1352,7 @@ function queryKeys(set: ContentSet): QueryKeys {
     skills: new Set(Object.keys(set.skills)),
     classes: new Set(Object.keys(set.classes)),
     heroBackgrounds: owned(set.backgrounds),
-    heroTraits: owned(set.traits),
+    heroTraits: new Set(Object.keys(set.heroTraits)),
     sexFilters: true,
   };
 }

@@ -712,7 +712,7 @@ describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
       where: { why: 'injured', words: 'Injured, healing on the night of Day 6' },
       injury: content.injuries['deep-cut']?.name,
       xp: 45,
-      traits: [content.traits.scarred?.name ?? 'scarred'],
+      traits: [content.heroTraits.scarred?.name ?? 'scarred'],
       fee: null,
     });
     expect(heroPage(document, other.id)).toMatchObject({ where: { why: null, words: 'At the Hall' }, injury: null, traits: [] });

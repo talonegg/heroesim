@@ -183,7 +183,8 @@ export function corpus(root: string, options: { run?: string | null; draft?: str
   const appearances = parsed(files, 'portrait-appearances.json');
   const descriptions = parsed(files, 'descriptions.json');
   const classesJson = parsed(files, 'classes.json');
-  const traitsJson = parsed(files, 'traits.json');
+  const guildmasterTraitsJson = parsed(files, 'guildmaster-traits.json');
+  const heroTraitsJson = parsed(files, 'hero-traits.json');
   const backgroundsJson = parsed(files, 'backgrounds.json');
   const rows = objectAt(appearances, 'portraits');
   const registry = readRegistry(root);
@@ -311,7 +312,7 @@ export function corpus(root: string, options: { run?: string | null; draft?: str
   for (const band of bandKeys) count('biography.origins', band, objectAt(biography, 'origins')[band]);
   for (const band of bandKeys) count('biography.careers', band, objectAt(biography, 'careers')[band]);
   for (const key of ownedBy(backgroundsJson, 'guild')) count('biography.backgrounds', key, objectAt(biography, 'backgrounds')[key]);
-  for (const key of ownedBy(traitsJson, 'guildmaster')) count('biography.traits', key, objectAt(biography, 'traits')[key]);
+  for (const key of Object.keys(guildmasterTraitsJson)) count('biography.traits', key, objectAt(biography, 'traits')[key]);
   for (const band of bandKeys) count('biography.closings', band, objectAt(biography, 'closings')[band]);
   count('biography.successors', '', biography.successors);
   for (const station of strings(descriptions.stations)) count('biography.stationOrigins', station, objectAt(biography, 'stationOrigins')[station]);
@@ -323,7 +324,7 @@ export function corpus(root: string, options: { run?: string | null; draft?: str
   for (const classKey of classKeys) {
     for (const band of bandKeys) count('heroBiography.classes', `${classKey}.${band}`, objectAt(heroBiography, 'classes', classKey)[band]);
   }
-  for (const key of ownedBy(traitsJson, 'hero')) count('heroBiography.traits', key, objectAt(heroBiography, 'traits')[key]);
+  for (const key of Object.keys(heroTraitsJson)) count('heroBiography.traits', key, objectAt(heroBiography, 'traits')[key]);
   for (const band of bandKeys) count('heroBiography.closings', band, objectAt(heroBiography, 'closings')[band]);
 
   // Pairs in the register within the fingerprint's distance.

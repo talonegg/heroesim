@@ -301,7 +301,7 @@ describe('the Guildmaster Trait effects, each through the selector it lives in a
     expect(traitFootprint(traited.world, player)).toEqual(playerBefore);
   });
 
-  test('a Trait content does not define, or one with no effect, bears on nothing (data-model rule 5)', () => {
+  test('a Trait content does not define, or a Hero Trait, of the other list (v1.1.4-S7), bears on nothing (data-model rule 5)', () => {
     const plain = withTraits([]);
     const unknown = withTraits(['luck-of-the-draw', 'scarred']);
     expect(traitFootprint(unknown.world, unknown.guild)).toEqual(traitFootprint(plain.world, plain.guild));
@@ -318,7 +318,7 @@ describe('guildmasterTraitsOf (the M9 review)', () => {
       'thrifty',
       'well-liked',
     ]);
-    expect(guildmasterTraitsOf(testContent)[0]).toBe(testContent.traits.miser);
-    expect(guildmasterTraitsOf({ traits: {} })).toEqual([]);
+    expect(guildmasterTraitsOf(testContent)[0]).toBe(testContent.guildmasterTraits.miser);
+    expect(guildmasterTraitsOf({ guildmasterTraits: {} })).toEqual([]);
   });
 });

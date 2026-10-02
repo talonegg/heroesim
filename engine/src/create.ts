@@ -29,6 +29,7 @@ import { marketRefresh } from './phases/market-refresh.js';
 import { phaseContext } from './phases/phase.js';
 import { portraitNotes, portraitSexOf, type PortraitNote } from './portraits.js';
 import { createStreams, streamNames } from './rng.js';
+import { excludedPair } from './traits.js';
 
 /**
  * What the player chooses before a game begins. Whatever of the Guildmaster is left unset is drawn
@@ -126,8 +127,9 @@ export type SetupRefusal =
  * content cost, a penalty's refund taken off; a key content does not define costs nothing. The sum
  * `setupRefusal` holds to `guildmasterTraitBudget`, for a front end to show beside the budget.
  */
-export function guildmasterTraitCost(traitKeys: readonly TraitKey[], content: Pick<ContentSet, 'traits'>): number {
-  return traitKeys.reduce((sum, key) => sum + (Object.hasOwn(content.traits, key) ? (content.traits[key]?.cost ?? 0) : 0), 0);
+export function guildmasterTraitCost(traitKeys: readonly TraitKey[], content: Pick<ContentSet, 'guildmasterTraits'>): number {
+  const traits = content.guildmasterTraits;
+  return traitKeys.reduce((sum, key) => sum + (Object.hasOwn(traits, key) ? (traits[key]?.cost ?? 0) : 0), 0);
 }
 
 /** The characters of `text`, trimmed: Unicode code points, so an accented letter or an emblem counts once. */
@@ -172,20 +174,13 @@ export function setupRefusal(setup: WorldSetup, deps: Pick<EngineDeps, 'config' 
   const keys = setup.guildmasterTraitKeys ?? [];
   const seen = new Set<TraitKey>();
   for (const traitKey of keys) {
-    const row = Object.hasOwn(content.traits, traitKey) ? content.traits[traitKey] : undefined;
-    if (row?.owner !== 'guildmaster') return { reason: 'unknown-trait', traitKey };
+    if (!Object.hasOwn(content.guildmasterTraits, traitKey)) return { reason: 'unknown-trait', traitKey };
     if (seen.has(traitKey)) return { reason: 'repeated-trait', traitKey };
     seen.add(traitKey);
   }
   if (keys.length > config.guildmasterTraitsMax) return { reason: 'too-many-traits', count: keys.length, max: config.guildmasterTraitsMax };
-  const rows = keys.map((key) => content.traits[key]).filter((row) => row !== undefined);
-  for (const [index, row] of rows.entries()) {
-    for (const other of rows.slice(index + 1)) {
-      if (row.excludes.includes(other.key) || other.excludes.includes(row.key)) {
-        return { reason: 'excluded-pair', traitKey: row.key, otherKey: other.key };
-      }
-    }
-  }
+  const pair = excludedPair(keys.map((key) => content.guildmasterTraits[key]).filter((row) => row !== undefined));
+  if (pair !== null) return { reason: 'excluded-pair', traitKey: pair[0].key, otherKey: pair[1].key };
   const cost = guildmasterTraitCost(keys, content);
   if (cost > config.guildmasterTraitBudget) return { reason: 'over-budget', cost, budget: config.guildmasterTraitBudget };
 

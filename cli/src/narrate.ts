@@ -254,7 +254,7 @@ function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {
     }
     case 'hero.healed': {
       const { heroId, typeKey, traitKey } = event.payload;
-      const left = traitKey === null ? '' : `, left ${nameIn(content.traits, traitKey)}`;
+      const left = traitKey === null ? '' : `, left ${nameIn(content.heroTraits, traitKey)}`;
       return `${hero(event, heroId)} recovered from ${nameIn(content.injuries, typeKey)}${left}.`;
     }
     case 'hero.retired':

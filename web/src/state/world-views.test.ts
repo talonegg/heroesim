@@ -231,7 +231,7 @@ describe('guildmasterView', () => {
     );
     // Each a cell of its own, beginning with a capital (DL-125 item 9).
     for (const row of view?.stats ?? []) expect(row.bearsOn).toMatch(/^[A-Z]/);
-    expect(view?.traits.map((row) => row.name)).toEqual(guildmaster.traits.map((key) => content.traits[key]?.name));
+    expect(view?.traits.map((row) => row.name)).toEqual(guildmaster.traits.map((key) => content.guildmasterTraits[key]?.name));
     expect(view?.patrons.map((row) => row.regard)).toEqual(
       Object.values(document.world.patrons).map((patron) => regardBand(regardValue(guildmaster.regard, patron.id), defaultConfig)),
     );

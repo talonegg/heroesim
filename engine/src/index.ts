@@ -295,6 +295,7 @@ export * from './selectors.js';
 export * from './serialise.js';
 export * from './stops.js';
 export * from './time.js';
+export * from './traits.js';
 export {
   offerExpiresBy,
   offerExpiresOnTurn,

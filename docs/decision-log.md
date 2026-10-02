@@ -18448,6 +18448,134 @@ demand); the epic's S6 boxes and status.
 
 ---
 
+## DL-158 — v1.1.4-S7, first step built: the Traits moved into two lists, `guildmaster-traits.json` and `hero-traits.json`, each Trait's `effect` into a list of `effects`, its `owner` gone, and the same games played
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-150 items 1 to 4
+as the epic's S7 bullets "Two lists" and "The same games first" describe. Where the plan was silent,
+the calls are the agent's, in item 6, for the owner to change. S7's effects, the Injury Traits, the
+`trait` consequence, the conflicts and the events are its next step, for a second agent.
+
+**Context.** One `content/traits.json` held both owners' Traits, each with an `owner`, a `cost` (0 for
+a Hero's), `excludes` (empty for a Hero's) and one `effect` or `null` (always `null` for a Hero's).
+DL-150 item 1 makes them two lists, item 2 a list of effects per Trait, item 3 restates who holds what,
+and item 4 makes the move a step of its own that plays the same games. It was built on `v1.1.4-dev`
+at `1769b30` (S6, DL-157), and every comparison below is with that tree and its sweep,
+`harness/reports/m9-v114-s6-2026-10-02.md`.
+
+**Decision.**
+
+1. **The two files** (DL-150 item 1). `content/guildmaster-traits.json` holds the six Guildmaster
+   Traits, each `name`, `cost`, `excludes` and `effects`; `content/hero-traits.json` the four Hero
+   Traits, each `name`, `excludes` and `effects`. `traits.json` is gone, and a set that still has it
+   is not read: `contentFiles` names the two in its place, and both front ends, the gate and the
+   portrait tool read `contentFiles` (the page's glob, `content/*.json`, takes both). No row has
+   `owner`; the list says it. A key is in one list only: `validateContent` refuses
+   `heroTraits.<key>: "<key>" is also a Guildmaster Trait; a Trait's key is in guildmaster-traits.json
+   or hero-traits.json, not both`.
+2. **A list of effects** (DL-150 item 2). Each Trait's `effect` is `effects`, a list; the six
+   Guildmaster Traits hold one each, their old one, and the four Hero Traits none. Every reader applies
+   each effect of each Trait held, in the Traits' order and then each Trait's: `traitEffects` flattens
+   them, so `traitMoraleShift` sums, `traitUpkeepFactor` multiplies and `traitStatBonuses` adds as
+   before, effect by effect.
+3. **Holding Traits** (DL-150 item 3). A Guildmaster or a Hero holds none or more of their own list,
+   never two of which one excludes the other. The rule is one function, `excludedPair`
+   (`engine/src/traits.ts`), which `setupRefusal` (`excluded-pair`, as before) and the drawn
+   Guildmaster's legal sets (`excludeEachOther`) now share, and the document validator reads too: a new
+   warning, `excluded-traits`, names a Guildmaster or a Hero holding such a pair, keyed by the later
+   Trait of the first pair. A warning, as a Portrait of another sex is, since content may add an
+   exclusion under a live save (rule 5). `unknown-trait` now reads each owner's own list.
+   `guildmasterTraitBudget`, `guildmasterTraitsMin` and `guildmasterTraitsMax` are unchanged.
+4. **The types** (`engine/src/content-types.ts`). `ContentSet.traits` is `guildmasterTraits:
+   Record<TraitKey, GuildmasterTrait>` and `heroTraits: Record<TraitKey, HeroTrait>`. `TraitEffect` is
+   `GuildmasterTraitEffect | HeroTraitEffect`; `GuildmasterTraitEffect` is the old union, its three
+   kinds as now (DL-150 item 8). `HeroTraitEffect` is `never` for now, the seam S7's next step widens
+   with `statModifiers` and `encounterBonus`: the parser's `heroTraitEffectKinds`, keyed by
+   `HeroTraitEffectKind`, and `heroTraitEffect` are where it reads them, and the compiler then asks
+   every switch over `TraitEffect` (both front ends' `traitEffectWords`) for the new kinds. `Trait` is
+   `GuildmasterTrait | HeroTrait`; `TraitOwner` is gone. `traitOf(content, key)` finds a key in
+   either list, for a front end that names a Trait whatever its list.
+5. **Every reader** takes the two lists: `create.ts` (`setupRefusal`, `guildmasterTraitCost`),
+   `guildmaster.ts`, `generators/guilds.ts`, `morale.ts`, `regard.ts`, `selectors.ts`,
+   `quest-engine/query.ts` (`has-trait` reads `heroTraits`), `validate.ts`; the content's
+   `parse.ts` and `validate.ts`; the CLI's `commands/setup.ts`, `render.ts`, `narrate.ts` and
+   `query-words.ts`; the page's `names.ts`, `narrate.ts`, `rejections.ts`, `selectors.ts`, `setup.ts`,
+   `world-views.ts` and `query-words.ts`; and the portrait tool's `corpus.ts`, which counts the
+   Biography's Trait sentences by each list's keys. `hero-state.ts`, `descriptions.ts` and
+   `portraits.ts`, which the epic names, read only a person's keys, never a Trait's row, and are
+   unchanged. The two portrait agents read `content/hero-traits.json` for a Hero's picture.
+6. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *How many effects.* A Guildmaster Trait carries **one or more**, as its one effect was required
+     before: a cost with no effect would buy nothing. A Hero Trait carries **none or more**, since all
+     four hold none until the Injury Traits' effects are written. Neither has an upper bound; content
+     holds one each for now, and a content test pins the six at one each.
+   - *A Hero Trait has no `cost`*, which only the budget reads (DL-150 item 9 names "a Guildmaster
+     Trait's cost"): it is refused as not a field of a Hero Trait.
+   - *A Hero Trait may exclude,* each exclusion a Hero Trait, other than itself, listed once and held
+     both ways, as a Guildmaster Trait's (DL-150 items 3 and 5). None does yet.
+   - *A Hero Trait's effect* of any kind is refused as `expected none: no kind is defined yet`, the
+     reader's words for a choice of no members.
+   - *Where a refusal names a Trait.* The parser names the file (`hero-traits.json: scarred.cost is
+     not a field of a Hero Trait`); `validateContent` the table and the effect's place
+     (`guildmasterTraits.thrifty.effects.1.factor is -1; it is a number above 0`), as every other table.
+   - *The words for several effects.* `traitEffectWords` takes the list and joins its words with
+     commas; for one effect it says what it said, and for none "No effect" ("no effect" in the CLI).
+   - *The content version* is 23 (S6 made it 22).
+   - `RowReader.nullableChild`, whose only reader was the old `effect`, is removed.
+
+**The checks.**
+1. **Creation, 1,000 seeds, two setups** (the harness's age 30, and a bare one), against `1769b30`,
+   hashed in the clean tree before the change: with `meta.content.version` set aside, all 2,000
+   documents hash equal, combined `2bda2d28…` (age 30) and `37a9f37e…` (bare) at both. Taken whole,
+   every one differs, by that field alone ("22" and "23" are the same length).
+2. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s7a npm run harness`, core only, 20
+   years, content 23, config 13, not validated: `harness/reports/m9-v114-s7a-2026-10-02.md`, to be
+   force-added. Against S6's, every line is equal but the title, the run's start and content version,
+   the timings (`advance` mean 3.301 ms a Turn, p99 7.848, against 3.573 and 8.633; 663.6 s in all
+   against 701.6), and the fingerprint: `d712173e…` against `56d55d93…`. Every counter, yearly table,
+   ending and save length is equal: 335,682 of the player's Quests resolved and 831,148 of the Rivals',
+   13,446 and 24,630 Injuries, 2 bankruptcies, 181 Rival folds, `seed-0001` 116,493,963 characters.
+3. **Why the fingerprint moved.** Every save records `meta.content.version`, now 23, so every last
+   save's hash differs by that field, as DL-151's did. Three seeds were played 20 years at both trees,
+   the player idle with a Wealth of 10⁹ so the four Rivals quest for all 21,600 Turns (the tree at
+   `1769b30` a `git archive` in the scratchpad): with the field set aside the saves hash equal at both,
+   `184ed2a1…`, `6ae30f9b…` and `4a7c132a…`, over 18,024, 18,480 and 20,099 Quests resolved, and are
+   92,046,289, 95,104,859 and 103,067,237 characters at both.
+4. **The refusals** (`content/src/refusals.test.ts`): each Guildmaster Trait refusal of before on the
+   new file and path; no effect; a second effect held to its rule; the old `effect` and an `owner`
+   refused as not fields; a Hero Trait's effect, cost, owner, one-way, foreign and self exclusion; a
+   key in both lists; a both-ways Hero exclusion accepted; the old `traits.json` not read; a
+   Guildmaster Trait of two effects accepted in memory. `engine/src/traits.test.ts`: `traitOf`,
+   `excludeEachOther`, `excludedPair`, a Trait's two effects both applied, a Hero Trait on a
+   Guildmaster bearing on nothing. `validate.test.ts`: `excluded-traits` for a Guildmaster and a Hero.
+5. **The script.** `npm run build -w web`'s check-bundle passes. The script is 767,877 bytes (767.88
+   kB, 223.90 kB gzipped), 715 more than S6's 767,162: `traits.ts`, the new warning and the effect
+   lists' words. 32.12 kB is left under 800 kB.
+6. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,435 tests in 175 files, with no flake.
+   - `npm run e2e -w web` passes all 96 specs.
+
+**Consequences.**
+- Content is the two files from version 23; a content set with `traits.json` is refused for want of
+  them. Saves are unchanged (schema 6): a Hero's and a Guildmaster's `traits` are keys, as before.
+- S7's next step adds the Hero effect kinds to `HeroTraitEffect` and the parser's reader, the Injury
+  Traits' effects to `hero-traits.json`, and uses `excludedPair`/`excludeEachOther` for the
+  conflicts (DL-150 item 5) and the earned Traits.
+- S12's register will list these readers: the two lists' readers named in item 5.
+
+**Actioned in:** `content/guildmaster-traits.json`, `content/hero-traits.json` (`traits.json` removed),
+`content/src/parse.ts` (version 23), `validate.ts` and their tests; `engine/src/content-types.ts`,
+`traits.ts` (new) and its test, `create.ts`, `guildmaster.ts`, `generators/guilds.ts`, `morale.ts`,
+`regard.ts`, `selectors.ts`, `quest-engine/query.ts`, `validate.ts`, `index.ts`,
+`world.test-support.ts` and the engine's tests; `cli/src/commands/setup.ts`, `render.ts`,
+`narrate.ts`, `query-words.ts` and a test; `web/src/state/names.ts`, `narrate.ts`, `rejections.ts`,
+`selectors.ts`, `setup.ts`, `world-views.ts`, `query-words.ts` and their tests;
+`tools/portraits/src/corpus.ts`; `.claude/agents/portrait-reader.md`, `portrait-checker.md`;
+`harness/reports/m9-v114-s7a-2026-10-02.md`; `CONTEXT.md` (Trait); `docs/data-model.md` (a person's
+`traits`, the warnings); the epic's first S7 box and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

@@ -15,7 +15,7 @@
 // validated, so validating every Turn of a game is not quadratic in its History (DL-34).
 
 import type { EngineDeps, GameConfig } from './config.js';
-import type { ContentSet, ItemDefinition } from './content-types.js';
+import type { ContentSet, ItemDefinition, Trait } from './content-types.js';
 import {
   isId,
   maxIdNumber,
@@ -46,6 +46,7 @@ import { sexes } from './generators/draw.js';
 import { findJsonUnsafe, formatPath } from './json-safe.js';
 import { sliceFailures, unknownSlices } from './modules.js';
 import { dispositionOf } from './selectors.js';
+import { excludedPair } from './traits.js';
 
 // ── Results ──────────────────────────────────────────────────────────────────────────────────
 
@@ -81,14 +82,16 @@ export const refusalChecks = [
 export type RefusalCheck = (typeof refusalChecks)[number];
 
 /**
- * The checks that warn: a content key the content in use does not define (rule 5), and a module
- * slice no installed module owns (`unknown-module`, M8-S1).
+ * The checks that warn: a content key the content in use does not define (rule 5), or holds against
+ * its rules (a Portrait of another sex, two Traits that exclude each other), and a module slice no
+ * installed module owns (`unknown-module`, M8-S1).
  */
 export const warningChecks = [
   'unknown-stat',
   'unknown-class',
   'unknown-skill',
   'unknown-trait',
+  'excluded-traits',
   'unknown-background',
   'unknown-sphere',
   'unknown-item',
@@ -204,6 +207,7 @@ const contentChecks: readonly ContentCheck[] = [
   unknownClass,
   unknownSkill,
   unknownTrait,
+  excludedTraits,
   unknownBackground,
   unknownSphere,
   unknownItem,
@@ -1364,14 +1368,33 @@ function unknownSkill({ world }: WorldDocument, content: ContentSet): Validation
   return warnings;
 }
 
+/** A Hero's Traits are Hero Traits, and a Guildmaster's Guildmaster Traits: each its own list (v1.1.4-S7). */
 function unknownTrait({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
   const { warnings, known } = keyWarnings('unknown-trait', 'a Trait of its owner');
   for (const [id, hero] of Object.entries(world.heroes)) {
-    for (const key of hero.traits) known(id, 'traits', content.traits, key, 'hero');
+    for (const key of hero.traits) known(id, 'traits', content.heroTraits, key);
   }
   for (const [id, guildmaster] of Object.entries(world.guildmasters)) {
-    for (const key of guildmaster.traits) known(id, 'traits', content.traits, key, 'guildmaster');
+    for (const key of guildmaster.traits) known(id, 'traits', content.guildmasterTraits, key);
   }
+  return warnings;
+}
+
+/**
+ * A Guildmaster or a Hero holds no two Traits of which one excludes the other (v1.1.4-S7, DL-150
+ * item 3), read from their own list. The key is the later of the first such pair. A warning, since
+ * content may add an exclusion under a live save (rule 5); a key content lacks is `unknown-trait`'s.
+ */
+function excludedTraits({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+  const warnings: ValidationWarning[] = [];
+  const check = (id: string, keys: readonly string[], list: Readonly<Record<string, Trait>>): void => {
+    const pair = excludedPair(keys.flatMap((key) => (has(list, key) ? [list[key] as Trait] : [])));
+    if (pair === null) return;
+    const detail = `${id}'s traits name ${q(pair[0].key)} and ${q(pair[1].key)}, which the content says exclude each other`;
+    warnings.push({ check: 'excluded-traits', id, key: pair[1].key, detail });
+  };
+  for (const [id, hero] of Object.entries(world.heroes)) check(id, hero.traits, content.heroTraits);
+  for (const [id, guildmaster] of Object.entries(world.guildmasters)) check(id, guildmaster.traits, content.guildmasterTraits);
   return warnings;
 }
 

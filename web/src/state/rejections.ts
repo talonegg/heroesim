@@ -12,6 +12,7 @@ import {
   descriptiveAttributeLabels,
   playerGuild,
   sexes,
+  traitOf,
   type ContentSet,
   type EndingReason,
   type FacilityKey,
@@ -203,14 +204,15 @@ const sentences: Sentences = {
   'newGame stat-out-of-range': ({ statKey, value, min, max }, { content }) =>
     `A Guildmaster's ${nameIn(content.stats, statKey)} is ${min} to ${max} when chosen, in whole numbers; ${value} is not.`,
   'newGame stats-over-points': ({ spent, points }) => `Those Stats spend ${spent} points, and the Stat points are ${points}: lower one to raise another.`,
-  'newGame unknown-trait': ({ traitKey }, { content }) =>
-    rowOf(content.traits, traitKey) === undefined
-      ? `No Guildmaster Trait is called "${traitKey}".`
-      : `${nameIn(content.traits, traitKey)} is not a Guildmaster Trait.`,
-  'newGame repeated-trait': ({ traitKey }, { content }) => `${nameIn(content.traits, traitKey)} is chosen twice.`,
+  'newGame unknown-trait': ({ traitKey }, { content }) => {
+    // A Hero Trait is of the other list (v1.1.4-S7), named as it is.
+    const trait = traitOf(content, traitKey);
+    return trait === undefined ? `No Guildmaster Trait is called "${traitKey}".` : `${trait.name} is not a Guildmaster Trait.`;
+  },
+  'newGame repeated-trait': ({ traitKey }, { content }) => `${nameIn(content.guildmasterTraits, traitKey)} is chosen twice.`,
   'newGame too-many-traits': ({ count, max }) => `A Guildmaster holds at most ${max} Traits; ${count} are chosen.`,
   'newGame excluded-pair': ({ traitKey, otherKey }, { content }) =>
-    `${nameIn(content.traits, traitKey)} and ${nameIn(content.traits, otherKey)} exclude each other: a Guildmaster holds one or the other.`,
+    `${nameIn(content.guildmasterTraits, traitKey)} and ${nameIn(content.guildmasterTraits, otherKey)} exclude each other: a Guildmaster holds one or the other.`,
   'newGame over-budget': ({ cost, budget }) =>
     `Those Traits cost ${cost} points and the budget is ${budget}: a buff costs points and a penalty refunds them.`,
   'newGame text-too-long': ({ attribute, length, max }) =>

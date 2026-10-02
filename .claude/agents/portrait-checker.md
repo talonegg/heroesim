@@ -17,7 +17,7 @@ Read, under the repository root you are given:
 2. `CONTEXT.md`: the entries Portrait, Station, Calling, Temper, Feature, Class and Trait.
 3. `content/descriptions.json`: `ageBands`, `pronouns`, `stations`, `tempers` and `callings`.
 4. `content/portrait-appearances.json`: the `features`, and the rows as the style to match.
-5. For a Hero's picture, `content/classes.json` and `content/traits.json`.
+5. For a Hero's picture, `content/classes.json` and `content/hero-traits.json`.
 
 Then open the picture with the Read tool. Form your own reading of the age, Station, Temper,
 Callings or Classes and Features before you read the draft's, so that the draft does not lead you.

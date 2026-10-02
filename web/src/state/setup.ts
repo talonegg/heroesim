@@ -425,7 +425,7 @@ export function portraitFitWords(setup: SetupFields, seed: string, set: ContentS
   return portraitFit({ ...factsOf(setup), createdAt: '' }, seed.trim(), { config, content: set }).map((note) =>
     note.kind === 'age'
       ? `This Portrait looks ${note.apparentAge[0]} to ${note.apparentAge[1]}: ${note.looks} than your Guildmaster's ${note.age}.`
-      : `This Portrait's Calling, ${capitalised(note.callingKey)}, clashes with the Trait ${nameIn(set.traits, note.traitKey)}.`,
+      : `This Portrait's Calling, ${capitalised(note.callingKey)}, clashes with the Trait ${nameIn(set.guildmasterTraits, note.traitKey)}.`,
   );
 }
 
@@ -513,7 +513,7 @@ export function guildmasterPreviewView(
     kind: 'chosen',
     whoWords: whole ? `${capitalised(sex)}, ${age}` : null,
     statsWords: whole ? statsLine(stats, set) : null,
-    traitsWords: `Traits: ${traitKeys.length === 0 ? 'None' : listed(traitKeys.map((key) => nameIn(set.traits, key)))}`,
+    traitsWords: `Traits: ${traitKeys.length === 0 ? 'None' : listed(traitKeys.map((key) => nameIn(set.guildmasterTraits, key)))}`,
     portrait: whole ? { sex, portraitKey, words: `Portrait: ${pictured}` } : null,
   };
 }

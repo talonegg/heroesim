@@ -65,7 +65,7 @@ export interface OnQuest {
 }
 
 /** What a Query reads of content: whether a key it names is still defined. */
-export type QueryContent = Pick<ContentSet, 'skills' | 'classes' | 'backgrounds' | 'traits'>;
+export type QueryContent = Pick<ContentSet, 'skills' | 'classes' | 'backgrounds' | 'heroTraits'>;
 
 /** The Party a Query is evaluated over: its members in Party order, and the content they are read by. */
 export interface QueryParty {
@@ -234,7 +234,7 @@ export function is(query: PredQuery, member: QueryMember, content: QueryContent)
     case 'has-skill':
       return ratingOf(hero, query[1], content) >= (query[2] ?? 1);
     case 'has-trait':
-      return Object.hasOwn(content.traits, query[1]) && hero.traits.includes(query[1]);
+      return Object.hasOwn(content.heroTraits, query[1]) && hero.traits.includes(query[1]);
     case 'hurt':
       return member.hurt;
     case '>=':

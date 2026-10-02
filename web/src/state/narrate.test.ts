@@ -338,7 +338,7 @@ const exactly: { [Type in EngineEventType]: string } = {
   'hero.died': `Brenna Ashcombe died on ${barrow}.`,
   'hero.xp-gained': 'Brenna Ashcombe gained 30 XP.',
   'hero.morale-changed': "Brenna Ashcombe's Morale went from 45 to 35, low.",
-  'hero.healed': `Brenna Ashcombe recovered from ${named(content.injuries, 'deep-cut')}, left ${named(content.traits, 'scarred')}.`,
+  'hero.healed': `Brenna Ashcombe recovered from ${named(content.injuries, 'deep-cut')}, left ${named(content.heroTraits, 'scarred')}.`,
   'hero.retired': 'Brenna Ashcombe retired from The Kestrel Guild at 51.',
   'hero.declined': `Brenna Ashcombe, at 41, lost 1 ${named(content.stats, 'endurance')} to age.`,
   'game.ended': 'The game ended: The Kestrel Guild went bankrupt.',

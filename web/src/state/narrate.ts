@@ -311,7 +311,7 @@ const sentences: Sentences = {
   },
   'hero.healed': (event, { content }) => {
     const { heroId, typeKey, traitKey } = event.payload;
-    const left = traitKey === null ? '' : `, left ${nameIn(content.traits, traitKey)}`;
+    const left = traitKey === null ? '' : `, left ${nameIn(content.heroTraits, traitKey)}`;
     return say`${called(event, heroId)} recovered from ${nameIn(content.injuries, typeKey)}${left}.`;
   },
   'hero.retired': (event) =>

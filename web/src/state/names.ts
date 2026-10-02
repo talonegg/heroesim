@@ -65,11 +65,17 @@ export function signed(n: number): string {
 }
 
 /**
- * A Guildmaster Trait's effect in words (the CLI's `traitEffectWords`): `+1 Weaponry to Warriors`,
- * `Morale baseline -5`, `Upkeep ×0.9`; the Guildmaster's page's and the new-game form's (M9-S2).
+ * A Trait's effects in words (the CLI's `traitEffectWords`), each in the Trait's order and joined by
+ * commas (v1.1.4-S7): `+1 Weaponry to Warriors`, `Morale baseline -5`, `Upkeep ×0.9`; `No effect` for
+ * none. The Guildmaster's page's and the new-game form's (M9-S2).
  */
-export function traitEffectWords(effect: TraitEffect | null, set: Pick<ContentSet, 'stats' | 'classes'>): string {
-  if (effect === null) return 'No effect';
+export function traitEffectWords(effects: readonly TraitEffect[], set: Pick<ContentSet, 'stats' | 'classes'>): string {
+  if (effects.length === 0) return 'No effect';
+  return effects.map((effect) => effectWords(effect, set)).join(', ');
+}
+
+/** One effect of a Trait in words, as `traitEffectWords` joins them. */
+function effectWords(effect: TraitEffect, set: Pick<ContentSet, 'stats' | 'classes'>): string {
   switch (effect.kind) {
     case 'classStatBonus':
       return `${signed(effect.delta)} ${nameIn(set.stats, effect.statKey)} to ${nameIn(set.classes, effect.classKey)}s`;

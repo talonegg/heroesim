@@ -496,7 +496,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
         : `${nameIn(content.injuries, hero.injury.typeKey)}, healing on the night of Day ${dayOf(hero.injury.healsOnTurn)} ` +
           `(Turn ${hero.injury.healsOnTurn})`,
     ],
-    ['Traits', none(hero.traits.map((key) => nameIn(content.traits, key)))],
+    ['Traits', none(hero.traits.map((key) => nameIn(content.heroTraits, key)))],
     // A Hero's two descriptive Attributes, written as they were generated (v1.1.3-S6); none is shown when empty.
     ...heroAttributes.flatMap((attribute): [string, string][] => (hero[attribute] === '' ? [] : [[descriptiveAttributeLabels[attribute], hero[attribute]]])),
   ];
@@ -663,9 +663,17 @@ const guildmasterRules: Readonly<Record<string, string>> = Object.freeze({
   judgement: 'How sharp the Potential hints read',
 });
 
-/** A Guildmaster Trait's effect in words (M4-S5): `+1 Weaponry to Warriors`, `Upkeep ×0.9`. */
-export function traitEffectWords(effect: TraitEffect | null, content: ContentSet): string {
-  if (effect === null) return 'no effect';
+/**
+ * A Trait's effects in words (M4-S5), each in the Trait's order and joined by commas (v1.1.4-S7):
+ * `+1 Weaponry to Warriors`, `Upkeep ×0.9`; `no effect` for none.
+ */
+export function traitEffectWords(effects: readonly TraitEffect[], content: ContentSet): string {
+  if (effects.length === 0) return 'no effect';
+  return effects.map((effect) => effectWords(effect, content)).join(', ');
+}
+
+/** One effect of a Trait in words, as `traitEffectWords` joins them. */
+function effectWords(effect: TraitEffect, content: ContentSet): string {
   const signed = (n: number): string => (n > 0 ? `+${n}` : String(n));
   switch (effect.kind) {
     case 'classStatBonus':
@@ -695,8 +703,8 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
     .filter((stat) => stat.owner === 'guildmaster')
     .map((stat) => [stat.name, String(baseStat(guildmaster.stats, stat)), guildmasterRules[stat.key] ?? '']);
   const traits = guildmaster.traits.map((key) => [
-    nameIn(content.traits, key),
-    traitEffectWords(rowIn(content.traits, key)?.effect ?? null, content),
+    nameIn(content.guildmasterTraits, key),
+    traitEffectWords(rowIn(content.guildmasterTraits, key)?.effects ?? [], content),
   ]);
   const patrons = Object.values(world.patrons).map((patron) => [
     patron.id,

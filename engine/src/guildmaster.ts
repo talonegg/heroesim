@@ -13,7 +13,7 @@
 // Guildmaster Stat has no effect; one the row lacks reads as the content's default (rule 5).
 
 import type { GameConfig, PotentialHint } from './config.js';
-import type { ClassKey, ContentSet, Stat, StatKey, Trait, TraitEffect } from './content-types.js';
+import type { ClassKey, ContentSet, GuildmasterTrait, GuildmasterTraitEffect, Stat, StatKey } from './content-types.js';
 import type { Guild, Guildmaster, World } from './document.js';
 import { sortedRows } from './generators/draw.js';
 import { baseStat } from './selectors.js';
@@ -30,10 +30,10 @@ export const guildmasterStatKeys = Object.freeze({
 /**
  * Every Guildmaster Trait of `content`, in key order (M9-S2): those a drawn Guildmaster's are drawn
  * from, and a setup may choose from, as the front ends list them (the M9 review). A Hero's Trait is
- * not among them.
+ * not among them: it is of the other list (v1.1.4-S7).
  */
-export function guildmasterTraitsOf(content: Pick<ContentSet, 'traits'>): Trait[] {
-  return sortedRows(content.traits, (row) => row.owner === 'guildmaster');
+export function guildmasterTraitsOf(content: Pick<ContentSet, 'guildmasterTraits'>): GuildmasterTrait[] {
+  return sortedRows(content.guildmasterTraits);
 }
 
 /**
@@ -49,7 +49,7 @@ export function guildmasterStatsOf(content: Pick<ContentSet, 'stats'>): Stat[] {
 export type GuildmasterRule = keyof typeof guildmasterStatKeys;
 
 /** What the Guildmaster rules read of content. */
-export type GuildmasterContent = Pick<ContentSet, 'stats' | 'traits'>;
+export type GuildmasterContent = Pick<ContentSet, 'stats' | 'guildmasterTraits'>;
 
 /** A Guildmaster as the rules read one: their Stats and Traits. */
 export type GuildmasterTraits = Pick<Guildmaster, 'stats' | 'traits'>;
@@ -174,28 +174,31 @@ export function judgedHintBands(
 // ── Traits ───────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The effects of `guildmaster`'s Traits, in the order the Traits are held. A Trait content does not
- * define, or one with no effect (a Hero Trait held by mistake), contributes none (rule 5).
+ * The effects of `guildmaster`'s Traits, in the order the Traits are held and each Trait's in its own
+ * order (v1.1.4-S7, DL-150 item 2). A key that is no Guildmaster Trait of content, such as a Hero
+ * Trait held by mistake, contributes none (rule 5).
  */
-export function traitEffects(guildmaster: Pick<Guildmaster, 'traits'> | undefined, content: Pick<ContentSet, 'traits'>): TraitEffect[] {
+export function traitEffects(
+  guildmaster: Pick<Guildmaster, 'traits'> | undefined,
+  content: Pick<ContentSet, 'guildmasterTraits'>,
+): GuildmasterTraitEffect[] {
   if (guildmaster === undefined) return [];
-  const effects: TraitEffect[] = [];
+  const effects: GuildmasterTraitEffect[] = [];
   for (const key of guildmaster.traits) {
-    const effect = Object.hasOwn(content.traits, key) ? content.traits[key]?.effect : undefined;
-    if (effect !== undefined && effect !== null) effects.push(effect);
+    if (Object.hasOwn(content.guildmasterTraits, key)) effects.push(...(content.guildmasterTraits[key]?.effects ?? []));
   }
   return effects;
 }
 
 /** The sum of `guildMoraleShift` effects among `guildmaster`'s Traits: added to the Morale baseline. */
-export function traitMoraleShift(guildmaster: Pick<Guildmaster, 'traits'> | undefined, content: Pick<ContentSet, 'traits'>): number {
+export function traitMoraleShift(guildmaster: Pick<Guildmaster, 'traits'> | undefined, content: Pick<ContentSet, 'guildmasterTraits'>): number {
   let shift = 0;
   for (const effect of traitEffects(guildmaster, content)) if (effect.kind === 'guildMoraleShift') shift += effect.delta;
   return shift;
 }
 
 /** The product of `upkeepFactor` effects among `guildmaster`'s Traits: what Upkeep is multiplied by. */
-export function traitUpkeepFactor(guildmaster: Pick<Guildmaster, 'traits'> | undefined, content: Pick<ContentSet, 'traits'>): number {
+export function traitUpkeepFactor(guildmaster: Pick<Guildmaster, 'traits'> | undefined, content: Pick<ContentSet, 'guildmasterTraits'>): number {
   let factor = 1;
   for (const effect of traitEffects(guildmaster, content)) if (effect.kind === 'upkeepFactor') factor *= effect.factor;
   return factor;
@@ -208,7 +211,7 @@ export function traitUpkeepFactor(guildmaster: Pick<Guildmaster, 'traits'> | und
 export function traitStatBonuses(
   guildmaster: Pick<Guildmaster, 'traits'> | undefined,
   classKey: ClassKey,
-  content: Pick<ContentSet, 'traits'>,
+  content: Pick<ContentSet, 'guildmasterTraits'>,
 ): Record<StatKey, number> {
   const bonuses: Record<StatKey, number> = {};
   for (const effect of traitEffects(guildmaster, content)) {

@@ -667,7 +667,7 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
       expect(value).toBeGreaterThanOrEqual(deps.config.guildmasterStatMin);
       expect(value).toBeLessThanOrEqual(deps.config.guildmasterStatMax);
     }
-    const cost = successor.traits.reduce((sum, key) => sum + (deps.content.traits[key]?.cost ?? Number.NaN), 0);
+    const cost = successor.traits.reduce((sum, key) => sum + (deps.content.guildmasterTraits[key]?.cost ?? Number.NaN), 0);
     expect(cost).toBeLessThanOrEqual(deps.config.guildmasterTraitBudget);
 
     expect(ofType(events, 'guildmaster.succeeded')).toEqual([

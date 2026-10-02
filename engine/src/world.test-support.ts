@@ -21,6 +21,9 @@ import type {
   EncounterAggregate,
   EncounterCheck,
   EncounterKind,
+  GuildmasterTrait,
+  GuildmasterTraitEffect,
+  HeroTraitEffect,
   Improvement,
   InjuryType,
   ItemDefinition,
@@ -37,8 +40,6 @@ import type {
   StatOwner,
   Synergy,
   SynergyRequires,
-  Trait,
-  TraitEffect,
 } from './content-types.js';
 import {
   emptyDocument,
@@ -289,11 +290,11 @@ function synergy(
 }
 
 /**
- * A Guildmaster Trait with its one effect (M4-S5), its cost and what it excludes (M9-S2), keyed by
- * `key` and named after it.
+ * A Guildmaster Trait with its one effect (M4-S5), as its list of effects (v1.1.4-S7), its cost and
+ * what it excludes (M9-S2), keyed by `key` and named after it.
  */
-function guildmasterTrait(key: string, effect: TraitEffect, cost: number, excludes: string[] = []): Record<string, Trait> {
-  return { [key]: { key, name: title(key), owner: 'guildmaster', cost, excludes, effect } };
+function guildmasterTrait(key: string, effect: GuildmasterTraitEffect, cost: number, excludes: string[] = []): Record<string, GuildmasterTrait> {
+  return { [key]: { key, name: title(key), cost, excludes, effects: [effect] } };
 }
 
 /**
@@ -408,15 +409,16 @@ export const testContent: ContentSet = deepFreeze({
   ),
   // The core's six Guildmaster Traits and their effects (M4-S5, DL-43): three buffs, three penalties;
   // with the core's costs and exclusions (M9-S2, DL-100 item 3).
-  traits: {
+  guildmasterTraits: {
     ...guildmasterTrait('old-soldier', { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }, 1),
     ...guildmasterTrait('well-liked', { kind: 'guildMoraleShift', delta: 5 }, 2, ['miser']),
     ...guildmasterTrait('thrifty', { kind: 'upkeepFactor', factor: 0.9 }, 2, ['spendthrift']),
     ...guildmasterTrait('miser', { kind: 'guildMoraleShift', delta: -5 }, -2, ['well-liked', 'spendthrift']),
     ...guildmasterTrait('spendthrift', { kind: 'upkeepFactor', factor: 1.1 }, -2, ['thrifty', 'miser']),
     ...guildmasterTrait('mistrusts-magic', { kind: 'classStatBonus', classKey: 'mage', statKey: 'arcana', delta: -1 }, -1),
-    ...keyed({ owner: 'hero' as const, cost: 0, excludes: [] as string[], effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
   },
+  // The core's four Hero Traits, each an Injury's, with no effect yet (v1.1.4-S7).
+  heroTraits: keyed({ excludes: [] as string[], effects: [] as HeroTraitEffect[] }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
   backgrounds: {
     ...keyed({ owner: 'hero' as const, station: 'common' }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
     ...keyed({ owner: 'guild' as const }, 'old-charter', 'breakaway', 'newly-founded'),

@@ -6,6 +6,8 @@ import type {
   Descriptions,
   Disposition,
   Encounter,
+  GuildmasterTrait,
+  HeroTrait,
   InjuryType,
   Names,
   PortraitAppearance,
@@ -17,7 +19,6 @@ import type {
   LootTable,
   Stat,
   Synergy,
-  Trait,
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { ContentError, contentFiles, contentWarnings, longestDescriptions, parseContent, validateContent } from './index.js';
@@ -33,7 +34,8 @@ interface Files {
   'stats.json': Rows<Stat>;
   'classes.json': Rows<Class>;
   'skills.json': Rows<Skill>;
-  'traits.json': Rows<Trait>;
+  'guildmaster-traits.json': Rows<GuildmasterTrait>;
+  'hero-traits.json': Rows<HeroTrait>;
   'backgrounds.json': Rows<Background>;
   'spheres.json': Rows<Sphere>;
   'names.json': Names;
@@ -942,7 +944,8 @@ describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S
 
 describe('a key that is not kebab-case', () => {
   test.each([
-    ['traits.json', 'Old_Soldier'],
+    ['guildmaster-traits.json', 'Old_Soldier'],
+    ['hero-traits.json', 'Short_Winded'],
     ['skills.json', 'fieldSurgery'],
     ['spheres.json', 'the crown'],
     ['backgrounds.json', '-farm-born'],
@@ -1624,88 +1627,149 @@ describe('a file', () => {
     expect(refusalOf(() => parseContent(files)).message).toMatch(/dispositions\.json: steady\.riskAppetite/);
   });
 
-  // M4-S5: a Guildmaster Trait carries one effect of the closed union, a Hero Trait none (DL-43).
-  const traitRefusals: [string, (json: Files['traits.json']) => void, RegExp][] = [
+  // M4-S5, v1.1.4-S7: a Guildmaster Trait carries one effect or more, each of the closed union (DL-43,
+  // DL-150 item 2), in `guildmaster-traits.json`.
+  const traitRefusals: [string, (json: Files['guildmaster-traits.json']) => void, RegExp][] = [
     [
       'an effect of no kind the union knows',
-      (json) => Object.assign(json['miser'] ?? {}, { effect: { upkeepFactor: 0.9 } }),
-      /traits\.json: miser\.effect\.kind.*classStatBonus, guildMoraleShift, upkeepFactor/,
+      (json) => Object.assign(json['miser'] ?? {}, { effects: [{ upkeepFactor: 0.9 }] }),
+      /guildmaster-traits\.json: miser\.effects\.0\.kind.*classStatBonus, guildMoraleShift, upkeepFactor/,
     ],
     [
       'an effect with a field its kind does not have',
-      (json) => Object.assign(json['miser'] ?? {}, { effect: { kind: 'guildMoraleShift', delta: -5, factor: 2 } }),
-      /traits\.json: miser\.effect\.factor is not a field/,
+      (json) => Object.assign(json['miser'] ?? {}, { effects: [{ kind: 'guildMoraleShift', delta: -5, factor: 2 }] }),
+      /guildmaster-traits\.json: miser\.effects\.0\.factor is not a field/,
     ],
     [
       'a classStatBonus naming an unknown Class',
-      (json) => Object.assign(json['old-soldier'] ?? {}, { effect: { kind: 'classStatBonus', classKey: 'paladin', statKey: 'weaponry', delta: 1 } }),
-      /traits\.old-soldier\.effect\.classKey: "paladin" is not a Class/,
+      (json) => Object.assign(json['old-soldier'] ?? {}, { effects: [{ kind: 'classStatBonus', classKey: 'paladin', statKey: 'weaponry', delta: 1 }] }),
+      /guildmasterTraits\.old-soldier\.effects\.0\.classKey: "paladin" is not a Class/,
     ],
     [
       'a classStatBonus naming a Stat that is no Hero Stat',
-      (json) => Object.assign(json['old-soldier'] ?? {}, { effect: { kind: 'classStatBonus', classKey: 'warrior', statKey: 'judgement', delta: 1 } }),
-      /traits\.old-soldier\.effect\.statKey: "judgement" is not a Hero Stat/,
+      (json) => Object.assign(json['old-soldier'] ?? {}, { effects: [{ kind: 'classStatBonus', classKey: 'warrior', statKey: 'judgement', delta: 1 }] }),
+      /guildmasterTraits\.old-soldier\.effects\.0\.statKey: "judgement" is not a Hero Stat/,
     ],
     [
       'a classStatBonus of 0',
-      (json) => Object.assign(json['old-soldier'] ?? {}, { effect: { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 0 } }),
-      /traits\.old-soldier\.effect\.delta is 0/,
+      (json) => Object.assign(json['old-soldier'] ?? {}, { effects: [{ kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 0 }] }),
+      /guildmasterTraits\.old-soldier\.effects\.0\.delta is 0/,
     ],
     [
       'an upkeepFactor of 0',
-      (json) => Object.assign(json['thrifty'] ?? {}, { effect: { kind: 'upkeepFactor', factor: 0 } }),
-      /traits\.thrifty\.effect\.factor is 0/,
+      (json) => Object.assign(json['thrifty'] ?? {}, { effects: [{ kind: 'upkeepFactor', factor: 0 }] }),
+      /guildmasterTraits\.thrifty\.effects\.0\.factor is 0/,
     ],
     [
-      'a Guildmaster Trait with no effect',
-      (json) => Object.assign(json['well-liked'] ?? {}, { effect: null }),
-      /traits\.well-liked\.effect: a Guildmaster Trait carries one effect/,
+      'a second effect that breaks its rule, each effect of the list held to its own',
+      (json) => Object.assign(json['thrifty'] ?? {}, { effects: [{ kind: 'upkeepFactor', factor: 0.9 }, { kind: 'upkeepFactor', factor: -1 }] }),
+      /guildmasterTraits\.thrifty\.effects\.1\.factor is -1/,
     ],
     [
-      'a Hero Trait with an effect',
-      (json) => Object.assign(json['scarred'] ?? {}, { effect: { kind: 'guildMoraleShift', delta: -1 } }),
-      /traits\.scarred\.effect: a Hero Trait has no effect/,
+      'no effect',
+      (json) => Object.assign(json['well-liked'] ?? {}, { effects: [] }),
+      /guildmasterTraits\.well-liked\.effects is empty; a Guildmaster Trait carries one effect or more/,
     ],
+    [
+      'its effect written as before, one `effect`',
+      (json) => {
+        const miser = json['miser'] as unknown as Record<string, unknown>;
+        miser.effect = (miser.effects as unknown[])[0];
+        delete miser.effects;
+      },
+      /guildmaster-traits\.json: miser\.effects is missing; expected a list of objects[\s\S]*miser\.effect is not a field of a Guildmaster Trait/,
+    ],
+    ['an owner, which the list now says', (json) => Object.assign(json['miser'] ?? {}, { owner: 'guildmaster' }), /guildmaster-traits\.json: miser\.owner is not a field of a Guildmaster Trait/],
   ];
 
-  test.each(traitRefusals)('with %s is refused, naming the Trait (M4-S5)', (_, change, message) => {
-    expect(refusalOf(() => parseContent(withJson('traits.json', change))).message).toMatch(message);
+  test.each(traitRefusals)('with %s is refused, naming the Trait (M4-S5, v1.1.4-S7)', (_, change, message) => {
+    expect(refusalOf(() => parseContent(withJson('guildmaster-traits.json', change))).message).toMatch(message);
   });
 
   // M9-S2: a Guildmaster Trait's cost against the Trait budget is a whole number, and its
-  // exclusions name Guildmaster Traits and hold both ways; a Hero Trait costs 0 and excludes
-  // nothing (DL-100 item 3, DL-102).
-  const costAndExclusionRefusals: [string, (json: Files['traits.json']) => void, RegExp][] = [
-    ['a cost missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'cost'), /traits\.json: miser\.cost is missing; expected a whole number/],
-    ['a cost that is not a whole number', (json) => Object.assign(json['miser'] ?? {}, { cost: -1.5 }), /traits\.json: miser\.cost is -1\.5; expected a whole number/],
-    ['exclusions missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'excludes'), /traits\.json: miser\.excludes is missing; expected a list of strings/],
+  // exclusions name Guildmaster Traits and hold both ways (DL-100 item 3, DL-102).
+  const costAndExclusionRefusals: [string, (json: Files['guildmaster-traits.json']) => void, RegExp][] = [
+    ['a cost missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'cost'), /guildmaster-traits\.json: miser\.cost is missing; expected a whole number/],
+    ['a cost that is not a whole number', (json) => Object.assign(json['miser'] ?? {}, { cost: -1.5 }), /guildmaster-traits\.json: miser\.cost is -1\.5; expected a whole number/],
+    ['exclusions missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'excludes'), /guildmaster-traits\.json: miser\.excludes is missing; expected a list of strings/],
     [
       'an exclusion that does not hold both ways',
       (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'old-soldier'] }),
-      /traits\.thrifty\.excludes: "old-soldier" does not exclude "thrifty" in return/,
+      /guildmasterTraits\.thrifty\.excludes: "old-soldier" does not exclude "thrifty" in return/,
     ],
     [
       'an exclusion naming a Trait content lacks',
       (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'cursed'] }),
-      /traits\.thrifty\.excludes: "cursed" is not a Guildmaster Trait/,
+      /guildmasterTraits\.thrifty\.excludes: "cursed" is not a Guildmaster Trait/,
     ],
     [
       'an exclusion naming a Hero Trait',
       (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'scarred'] }),
-      /traits\.thrifty\.excludes: "scarred" is not a Guildmaster Trait/,
+      /guildmasterTraits\.thrifty\.excludes: "scarred" is not a Guildmaster Trait/,
     ],
-    ['a Trait excluding itself', (json) => Object.assign(json['old-soldier'] ?? {}, { excludes: ['old-soldier'] }), /traits\.old-soldier\.excludes: a Trait cannot exclude itself/],
+    ['a Trait excluding itself', (json) => Object.assign(json['old-soldier'] ?? {}, { excludes: ['old-soldier'] }), /guildmasterTraits\.old-soldier\.excludes: a Trait cannot exclude itself/],
     [
       'an exclusion listed twice',
       (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'spendthrift'] }),
-      /traits\.thrifty\.excludes: "spendthrift" is listed twice/,
+      /guildmasterTraits\.thrifty\.excludes: "spendthrift" is listed twice/,
     ],
-    ['a Hero Trait with a cost', (json) => Object.assign(json['scarred'] ?? {}, { cost: 1 }), /traits\.scarred\.cost is 1; a Hero Trait is never chosen against the budget, and costs 0/],
-    ['a Hero Trait with an exclusion', (json) => Object.assign(json['scarred'] ?? {}, { excludes: ['lame'] }), /traits\.scarred\.excludes: a Hero Trait excludes nothing/],
   ];
 
   test.each(costAndExclusionRefusals)('with %s is refused, naming the Trait (M9-S2)', (_, change, message) => {
-    expect(refusalOf(() => parseContent(withJson('traits.json', change))).message).toMatch(message);
+    expect(refusalOf(() => parseContent(withJson('guildmaster-traits.json', change))).message).toMatch(message);
+  });
+
+  // v1.1.4-S7: a Hero Trait in `hero-traits.json` has no cost, effects of no kind yet, and exclusions
+  // of Hero Traits, both ways (DL-150 items 1 to 3).
+  const heroTraitRefusals: [string, (json: Files['hero-traits.json']) => void, RegExp][] = [
+    [
+      'an effect, of a kind no Hero Trait has yet',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'guildMoraleShift', delta: -1 }] }),
+      /hero-traits\.json: scarred\.effects\.0\.kind is "guildMoraleShift"; expected none: no kind is defined yet/,
+    ],
+    ['effects missing', (json) => Reflect.deleteProperty(json['scarred'] ?? {}, 'effects'), /hero-traits\.json: scarred\.effects is missing; expected a list of objects/],
+    ['a cost, which only a Guildmaster Trait has', (json) => Object.assign(json['scarred'] ?? {}, { cost: 0 }), /hero-traits\.json: scarred\.cost is not a field of a Hero Trait/],
+    ['an owner, which the list now says', (json) => Object.assign(json['scarred'] ?? {}, { owner: 'hero' }), /hero-traits\.json: scarred\.owner is not a field of a Hero Trait/],
+    [
+      'an exclusion that does not hold both ways',
+      (json) => Object.assign(json['scarred'] ?? {}, { excludes: ['lame'] }),
+      /heroTraits\.scarred\.excludes: "lame" does not exclude "scarred" in return/,
+    ],
+    [
+      'an exclusion naming a Guildmaster Trait',
+      (json) => Object.assign(json['scarred'] ?? {}, { excludes: ['miser'] }),
+      /heroTraits\.scarred\.excludes: "miser" is not a Hero Trait/,
+    ],
+    ['a Trait excluding itself', (json) => Object.assign(json['lame'] ?? {}, { excludes: ['lame'] }), /heroTraits\.lame\.excludes: a Trait cannot exclude itself/],
+    [
+      'a key that is also a Guildmaster Trait',
+      (json) => Object.assign(json, { miser: { name: 'Miser', excludes: [], effects: [] } }),
+      /heroTraits\.miser: "miser" is also a Guildmaster Trait; a Trait's key is in guildmaster-traits\.json or hero-traits\.json, not both/,
+    ],
+  ];
+
+  test.each(heroTraitRefusals)('with %s is refused, naming the Trait (v1.1.4-S7)', (_, change, message) => {
+    expect(refusalOf(() => parseContent(withJson('hero-traits.json', change))).message).toMatch(message);
+  });
+
+  test('a Hero Trait may exclude another that excludes it in return (v1.1.4-S7, DL-150 item 3)', () => {
+    const files = withJson('hero-traits.json', (json) => {
+      Object.assign(json['scarred'] ?? {}, { excludes: ['lame'] });
+      Object.assign(json['lame'] ?? {}, { excludes: ['scarred'] });
+    });
+
+    expect(parseContent(files).heroTraits.scarred?.excludes).toEqual(['lame']);
+  });
+
+  test('the old `traits.json` is not read, and the two lists are wanted in its place (v1.1.4-S7)', () => {
+    const files = realFiles();
+    const old = { scarred: { name: 'Scarred', owner: 'hero', cost: 0, excludes: [], effect: null } };
+    delete files['hero-traits.json'];
+
+    const { message } = refusalOf(() => parseContent({ ...files, 'traits.json': JSON.stringify(old) }));
+
+    expect(message).toContain('hero-traits.json: missing');
+    expect(message).not.toMatch(/(^|\s)traits\.json/);
   });
 });
 
@@ -1742,9 +1806,16 @@ describe('validateContent on a set built in memory', () => {
 
   test('refuses a Trait cost that is not a whole number, which the parser cannot see in memory (M9-S2)', () => {
     const content = loadContent();
-    Object.assign(content.traits['thrifty'] ?? {}, { cost: 1.5 });
+    Object.assign(content.guildmasterTraits['thrifty'] ?? {}, { cost: 1.5 });
 
-    expect(refusalOf(() => validateContent(content)).message).toMatch(/traits\.thrifty\.cost is 1\.5; it is a whole number/);
+    expect(refusalOf(() => validateContent(content)).message).toMatch(/guildmasterTraits\.thrifty\.cost is 1\.5; it is a whole number/);
+  });
+
+  test('accepts a Guildmaster Trait of two effects, a list of effects being one or more (v1.1.4-S7, DL-150 item 2)', () => {
+    const content = loadContent();
+    content.guildmasterTraits['miser']?.effects.push({ kind: 'upkeepFactor', factor: 0.95 });
+
+    expect(validateContent(content).guildmasterTraits['miser']?.effects).toHaveLength(2);
   });
 
   test('reports every problem at once', () => {

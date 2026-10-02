@@ -295,7 +295,7 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
   // both sexes chosen in turn (since v1.1.4-S11, each sex chosen in its field).
   test('in the setup grid, each sex chosen, and a Calling that clashes with a Trait chosen', () => {
     const clashing = Object.values(content.descriptions.callings).find((calling) => calling.clashes.length > 0);
-    const traitName = content.traits[clashing?.clashes[0] ?? '']?.name;
+    const traitName = content.guildmasterTraits[clashing?.clashes[0] ?? '']?.name;
     if (traitName === undefined) throw new Error('no Calling clashes with a Trait');
     render(<App />);
     const reader = new Reader([]);

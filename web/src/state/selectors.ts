@@ -961,7 +961,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
     where: { why: unavailability(hero), words: whereabouts(hero, world) },
     injury: hero.injury === null ? null : nameIn(content.injuries, hero.injury.typeKey),
     xp: hero.xp,
-    traits: hero.traits.map((key) => nameIn(content.traits, key)),
+    traits: hero.traits.map((key) => nameIn(content.heroTraits, key)),
     fee,
     areas,
     gear,
@@ -1181,9 +1181,9 @@ export function guildmasterSetupChoices(set: ContentSet = content, config: GameC
     traits: traits.map((trait) => ({
       key: trait.key,
       name: trait.name,
-      effect: traitEffectWords(trait.effect, set),
+      effect: traitEffectWords(trait.effects, set),
       cost: trait.cost,
-      excludes: [...trait.excludes].sort(compareByCodeUnit).map((key) => ({ key, name: nameIn(set.traits, key) })),
+      excludes: [...trait.excludes].sort(compareByCodeUnit).map((key) => ({ key, name: nameIn(set.guildmasterTraits, key) })),
     })),
     attributes: descriptiveAttributes.map((attribute) => ({
       attribute,

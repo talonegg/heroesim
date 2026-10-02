@@ -307,8 +307,8 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
       .filter((stat) => stat.owner === 'guildmaster')
       .map((stat) => ({ name: stat.name, value: baseStat(guildmaster.stats, stat), bearsOn: guildmasterStatBearsOn[stat.key] ?? '' })),
     traits: guildmaster.traits.map((key) => ({
-      name: nameIn(content.traits, key),
-      effect: traitEffectWords(rowOf(content.traits, key)?.effect ?? null, content),
+      name: nameIn(content.guildmasterTraits, key),
+      effect: traitEffectWords(rowOf(content.guildmasterTraits, key)?.effects ?? [], content),
     })),
     patrons: Object.values(world.patrons).map((patron) =>
       regardRow(patron.name, nameIn(content.spheres, patron.sphereKey), regardValue(guildmaster.regard, patron.id), config),

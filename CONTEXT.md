@@ -206,11 +206,14 @@ _Avoid_: Ability, Talent, Trait (on a Hero), Perk
 
 **Trait**:
 A named binary mark: on a Guildmaster, a buff or penalty to the Guild or to a Class; on a Hero,
-a lasting mark such as one left by a healed Injury. A Guildmaster Trait has a cost, a buff
-costing points and a penalty refunding them, and may exclude others, each exclusion holding both
-ways (DL-87 item 5, DL-88 item 4, DL-100). Hero Traits have no effect yet: DL-85 gives them
-effects, and DL-87 lets one Trait carry several, so a Trait may trade a buff for a penalty (both
-to be built).
+a lasting mark such as one left by a healed Injury. Guildmaster Traits and Hero Traits are two
+lists in content, a key in one only, and each Trait carries a list of effects, so that a Trait may
+later trade a buff for a penalty (DL-87 item 6, DL-150 items 1 and 2; v1.1.4-S7). A Guildmaster or
+a Hero holds none or more of their own list, never two of which one excludes the other, each
+exclusion holding both ways. A Guildmaster Trait has a cost, a buff costing points and a penalty
+refunding them, and one effect or more (DL-87 item 5, DL-88 item 4, DL-100). Hero Traits have no
+effect yet: DL-148 and DL-150 item 8 give them Stat changes and an Encounter bonus (to be built,
+v1.1.4-S7).
 _Avoid_: Perk, Flaw, Buff, Modifier (as a noun)
 
 **Earned Trait**:

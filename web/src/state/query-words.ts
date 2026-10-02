@@ -29,7 +29,7 @@ export const chanceWords: Readonly<Record<ChanceBand, string>> = {
 };
 
 /** The content a Query's keys are named from. */
-export type QueryNames = Pick<ContentSet, 'stats' | 'skills' | 'classes' | 'backgrounds' | 'traits'>;
+export type QueryNames = Pick<ContentSet, 'stats' | 'skills' | 'classes' | 'backgrounds' | 'heroTraits'>;
 
 /**
  * A chance as the detail gives it (DL-148 item 15, v1.1.4-S6): its percentage floored to a multiple
@@ -136,7 +136,7 @@ export function queryWords(account: QueryAccount, names: QueryNames): string {
         return it.atLeast === 1 ? [`who have ${skill}`, `who lack ${skill}`] : [`who have ${skill} at ${it.atLeast} or more`, `who have ${skill} below ${it.atLeast}`];
       }
       case 'has-trait': {
-        const trait = nameIn(names.traits, it.traitKey);
+        const trait = nameIn(names.heroTraits, it.traitKey);
         return [`who have the ${trait} Trait`, `who lack the ${trait} Trait`];
       }
       case 'hurt':

@@ -844,6 +844,19 @@ describe('a key the content does not define warns and never refuses', () => {
     expect(warnings(mutate)).toEqual([{ check, id, key }]);
   });
 
+  test('two Traits held of which one excludes the other warn, naming the later of the first pair (v1.1.4-S7, DL-150 item 3)', () => {
+    // Miser excludes Well liked; Thrifty excludes neither.
+    expect(warnings((d) => (guildmaster(d, gm).traits = ['miser', 'thrifty', 'well-liked']))).toEqual([
+      { check: 'excluded-traits', id: gm, key: 'well-liked' },
+    ]);
+    const exclusive = (key: string, other: string) => ({ key, name: key, excludes: [other], effects: [] });
+    const content: ContentSet = { ...testContent, heroTraits: { ...testContent.heroTraits, scarred: exclusive('scarred', 'lame'), lame: exclusive('lame', 'scarred') } };
+    expect(warnings((d) => (hero(d, idleHero).traits = ['lame', 'one-eyed', 'scarred']), content)).toEqual([
+      { check: 'excluded-traits', id: idleHero, key: 'scarred' },
+    ]);
+    expect(warnings((d) => (hero(d, idleHero).traits = ['lame', 'one-eyed']), content)).toEqual([]);
+  });
+
   test("a Hero's Portrait of their sex warns of nothing, nor does none, the Silhouette (v1.1.3-S6)", () => {
     expect(warnings((d) => Object.assign(hero(d, ids.partyHero), { sex: 'female', portraitKey: 'hero-female-01' }))).toEqual([]);
     expect(warnings((d) => Object.assign(hero(d, ids.partyHero), { portraitKey: null }))).toEqual([]);

@@ -97,13 +97,10 @@ export interface Skill {
   name: string;
 }
 
-/** Whose Trait it is: a Hero's lasting mark (R16) or a Guildmaster's buff or penalty (R8). */
-export type TraitOwner = 'hero' | 'guildmaster';
-
 /**
- * What a Guildmaster Trait does (M4-S5, R8, pre-M0 review B2, DL-43): one effect from a closed
- * union, each applied inside the one selector that already works its quantity out, for every Guild
- * alike (ADR-0002). A new kind is an engine change and earns a decision-log entry.
+ * What a Guildmaster Trait does (M4-S5, R8, pre-M0 review B2, DL-43): each effect is one of a closed
+ * union, applied inside the one selector that already works its quantity out, for every Guild alike
+ * (ADR-0002). A new kind is an engine change and earns a decision-log entry (DL-150 item 8).
  *
  * - `classStatBonus`: `delta` added to the Stat `statKey` of each Hero of the Class `classKey` on
  *   the Guildmaster's Guild, in `effectiveStats`, held inside the Stat's range;
@@ -111,37 +108,74 @@ export type TraitOwner = 'hero' | 'guildmaster';
  *   `moraleBaselineFor`;
  * - `upkeepFactor`: the Guild's Upkeep multiplied by `factor`, in `upkeep`.
  */
-export type TraitEffect =
+export type GuildmasterTraitEffect =
   | { kind: 'classStatBonus'; classKey: ClassKey; statKey: StatKey; delta: number }
   | { kind: 'guildMoraleShift'; delta: number }
   | { kind: 'upkeepFactor'; factor: number };
 
+/** The kinds of `GuildmasterTraitEffect`. */
+export type GuildmasterTraitEffectKind = GuildmasterTraitEffect['kind'];
+
+/**
+ * What a Hero Trait does (DL-150 item 8): a closed union like a Guildmaster Trait's, which no kind
+ * joins yet. v1.1.4-S7 moved the Traits into two lists first, playing the same games (DL-158), and
+ * its next step adds `statModifiers` and `encounterBonus` here; until then a Hero Trait's `effects`
+ * is empty.
+ */
+export type HeroTraitEffect = never;
+
+/** The kinds of `HeroTraitEffect`. */
+export type HeroTraitEffectKind = HeroTraitEffect['kind'];
+
+/** An effect of either list's Traits. */
+export type TraitEffect = GuildmasterTraitEffect | HeroTraitEffect;
+
 /** The kinds of `TraitEffect`. */
 export type TraitEffectKind = TraitEffect['kind'];
 
-/** A Trait (R8, R16; `traits.json`). */
-export interface Trait {
+/**
+ * A Guildmaster Trait (R8; `guildmaster-traits.json`, v1.1.4-S7, DL-150 item 1): a Guildmaster's
+ * buff or penalty, chosen at setup or drawn on the budget. Its key is no Hero Trait's.
+ */
+export interface GuildmasterTrait {
   key: TraitKey;
   name: string;
-  owner: TraitOwner;
   /**
-   * A Guildmaster Trait's cost against the Trait budget, `guildmasterTraitBudget` (DL-88 item 4,
-   * DL-100 item 3): a whole number, positive for a buff and negative for a penalty, which refunds
-   * points. 0 for a Hero Trait, which is never chosen or drawn against the budget.
+   * Its cost against the Trait budget, `guildmasterTraitBudget` (DL-88 item 4, DL-100 item 3): a
+   * whole number, positive for a buff and negative for a penalty, which refunds points.
    */
   cost: number;
   /**
    * The Guildmaster Traits a Guildmaster holding this one may not also hold (DL-87 item 5, DL-100
-   * item 3). Each exclusion holds both ways: every Trait listed lists this one. Empty for a Hero
-   * Trait. Content validation holds both rules.
+   * item 3). Each exclusion holds both ways: every Trait listed lists this one. Content validation
+   * holds both rules.
    */
   excludes: TraitKey[];
   /**
-   * A Guildmaster Trait's one effect (M4-S5); `null` for a Hero Trait, which no rule reads in the
-   * first build. Content validation holds each owner to its own.
+   * What it does, each effect applied in turn (DL-150 item 2): one or more; content holds one each
+   * for now.
    */
-  effect: TraitEffect | null;
+  effects: GuildmasterTraitEffect[];
 }
+
+/**
+ * A Hero Trait (R16; `hero-traits.json`, v1.1.4-S7, DL-150 item 1): a Hero's lasting mark, such as
+ * the one an Injury leaves. Its key is no Guildmaster Trait's.
+ */
+export interface HeroTrait {
+  key: TraitKey;
+  name: string;
+  /**
+   * The Hero Traits a Hero holding this one may not also hold (DL-150 items 3 and 5), each exclusion
+   * both ways, as a Guildmaster Trait's. Empty for every Hero Trait content holds yet.
+   */
+  excludes: TraitKey[];
+  /** What it does (DL-150 items 2 and 8): none or more; none yet, until a kind is defined. */
+  effects: HeroTraitEffect[];
+}
+
+/** A Trait of either list. */
+export type Trait = GuildmasterTrait | HeroTrait;
 
 /** Whose Background it is: a Hero's, or the narrative history of a Guild (INPUTS 3.10). */
 export type BackgroundOwner = 'hero' | 'guild';
@@ -860,7 +894,10 @@ export interface ContentSet {
   stats: Record<StatKey, Stat>;
   classes: Record<ClassKey, Class>;
   skills: Record<SkillKey, Skill>;
-  traits: Record<TraitKey, Trait>;
+  /** The Guildmaster Traits (v1.1.4-S7, DL-150 item 1), keyed apart from the Hero Traits. */
+  guildmasterTraits: Record<TraitKey, GuildmasterTrait>;
+  /** The Hero Traits (v1.1.4-S7, DL-150 item 1), keyed apart from the Guildmaster Traits. */
+  heroTraits: Record<TraitKey, HeroTrait>;
   backgrounds: Record<BackgroundKey, Background>;
   spheres: Record<SphereKey, Sphere>;
   names: Names;

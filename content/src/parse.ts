@@ -25,8 +25,14 @@ import type {
   FacilityKey,
   Feature,
   GearDefinition,
+  GuildmasterTrait,
+  GuildmasterTraitEffect,
+  GuildmasterTraitEffectKind,
   HarmReads,
   HeroBiographySentences,
+  HeroTrait,
+  HeroTraitEffect,
+  HeroTraitEffectKind,
   Improvement,
   InjuryType,
   ItemDefinition,
@@ -55,10 +61,6 @@ import type {
   Synergy,
   SynergyBonus,
   SynergyRequires,
-  Trait,
-  TraitEffect,
-  TraitEffectKind,
-  TraitOwner,
 } from '@heroesim/engine';
 import { findDuplicateKeys } from './duplicate-keys.js';
 import { checkDemands, checkReferences, ContentError, validateContent } from './validate.js';
@@ -94,15 +96,18 @@ export const contentSetId = 'core';
  * requirements into Queries over the Party (DL-151); the files keep their old form, and nothing is re-authored.
  * v1.1.4-S2's new form of an Encounter, `checks` and `pass`, keeps 21: no file is written in it yet (DL-152).
  * 22 from v1.1.4-S6, which gives each Disposition its `partyMargin` (DL-157).
+ * 23 from v1.1.4-S7, which moves `traits.json` into `guildmaster-traits.json` and `hero-traits.json`,
+ * each Trait's `effect` into `effects`, a list, and drops `owner` (DL-158); the same games are played.
  */
-export const contentVersion = 22;
+export const contentVersion = 23;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
   'stats.json',
   'classes.json',
   'skills.json',
-  'traits.json',
+  'guildmaster-traits.json',
+  'hero-traits.json',
   'backgrounds.json',
   'spheres.json',
   'names.json',
@@ -125,8 +130,8 @@ export type ContentFileName = (typeof contentFiles)[number];
 // a list that misses or invents a member.
 const statAreas: Record<StatArea, true> = { physical: true, mental: true, magical: true, social: true };
 const statOwners: Record<StatOwner, true> = { hero: true, guildmaster: true };
-const traitOwners: Record<TraitOwner, true> = { hero: true, guildmaster: true };
-const traitEffectKinds: Record<TraitEffectKind, true> = { classStatBonus: true, guildMoraleShift: true, upkeepFactor: true };
+const guildmasterTraitEffectKinds: Record<GuildmasterTraitEffectKind, true> = { classStatBonus: true, guildMoraleShift: true, upkeepFactor: true };
+const heroTraitEffectKinds: Record<HeroTraitEffectKind, true> = {};
 const backgroundOwners: Record<BackgroundOwner, true> = { hero: true, guild: true };
 const facilities: Record<FacilityKey, true> = { infirmary: true, trainingYard: true, quarters: true };
 const encounterKinds: Record<EncounterKind, true> = { combat: true, travel: true, social: true, arcane: true, stealth: true };
@@ -201,12 +206,17 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
     stats,
     classes,
     skills,
-    traits: table<Trait>('traits.json', json('traits.json'), problems, 'a Trait', (row) => ({
+    // The two lists of Traits (v1.1.4-S7, DL-150 item 1); that a key is in one list only is `validateContent`'s rule.
+    guildmasterTraits: table<GuildmasterTrait>('guildmaster-traits.json', json('guildmaster-traits.json'), problems, 'a Guildmaster Trait', (row) => ({
       name: row.string('name'),
-      owner: row.oneOf('owner', traitOwners),
       cost: row.integer('cost'),
       excludes: row.strings('excludes'),
-      effect: traitEffect(row.nullableChild('effect')),
+      effects: row.children('effects').map(guildmasterTraitEffect),
+    })),
+    heroTraits: table<HeroTrait>('hero-traits.json', json('hero-traits.json'), problems, 'a Hero Trait', (row) => ({
+      name: row.string('name'),
+      excludes: row.strings('excludes'),
+      effects: row.children('effects').flatMap(heroTraitEffect),
     })),
     backgrounds: table<Background>(
       'backgrounds.json',
@@ -597,13 +607,12 @@ function descriptions(json: unknown, problems: string[]): Descriptions {
 }
 
 /**
- * A Trait's `effect` (M4-S5): `null`, or one of the closed union's kinds with exactly its fields.
- * Which owner may carry which is `validateContent`'s rule.
+ * One of a Guildmaster Trait's `effects` (M4-S5, v1.1.4-S7): one of the closed union's kinds with
+ * exactly its fields. How many a Trait carries, and the values, are `validateContent`'s rules.
  */
-function traitEffect(reader: RowReader | null): TraitEffect | null {
-  if (reader === null) return null;
-  const kind = reader.oneOf('kind', traitEffectKinds);
-  let effect: TraitEffect;
+function guildmasterTraitEffect(reader: RowReader): GuildmasterTraitEffect {
+  const kind = reader.oneOf('kind', guildmasterTraitEffectKinds);
+  let effect: GuildmasterTraitEffect;
   switch (kind) {
     case 'classStatBonus':
       effect = { kind, classKey: reader.string('classKey'), statKey: reader.string('statKey'), delta: reader.integer('delta') };
@@ -617,6 +626,16 @@ function traitEffect(reader: RowReader | null): TraitEffect | null {
   }
   reader.refuseUnknown(`a ${kind} effect`);
   return effect;
+}
+
+/**
+ * One of a Hero Trait's `effects` (v1.1.4-S7, DL-150 item 8): no kind is defined yet, so `oneOf`
+ * refuses every one, and it reads as none. S7's next step adds `statModifiers` and `encounterBonus`
+ * to `HeroTraitEffect` and reads each here, as `guildmasterTraitEffect` reads a Guildmaster Trait's.
+ */
+function heroTraitEffect(reader: RowReader): HeroTraitEffect[] {
+  reader.oneOf('kind', heroTraitEffectKinds);
+  return [];
 }
 
 /**
@@ -883,7 +902,8 @@ class RowReader {
   oneOf<Choice extends string>(field: string, choices: Record<Choice, true>): Choice {
     const value = this.field(field);
     if (typeof value === 'string' && Object.hasOwn(choices, value)) return value as Choice;
-    this.wrong(field, value, `one of ${Object.keys(choices).join(', ')}`);
+    const listed = Object.keys(choices);
+    this.wrong(field, value, listed.length === 0 ? 'none: no kind is defined yet' : `one of ${listed.join(', ')}`);
     return Object.keys(choices)[0] as Choice;
   }
 
@@ -980,15 +1000,6 @@ class RowReader {
     if (isObject(value)) return value;
     this.wrong(field, value, 'an object');
     return {};
-  }
-
-  /** A reader for the object in `field`, or `null` when the field is `null`: present either way. */
-  nullableChild(field: string): RowReader | null {
-    const value = this.field(field);
-    if (value === null) return null;
-    if (isObject(value)) return new RowReader(this.file, [...this.prefix, field], value, this.problems);
-    this.wrong(field, value, 'an object or null');
-    return null;
   }
 
   /** A reader for the object in `field`, reporting its problems under this row's path. */

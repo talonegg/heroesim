@@ -481,14 +481,14 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
 describe("seeded worlds' drawn Guildmaster Traits, a whole legal set (DL-109 item 1)", () => {
   const deps = testDeps();
   const seeds = Array.from({ length: 40 }, (_, index) => `seed-${String(index + 1).padStart(4, '0')}`);
-  const order = Object.keys(deps.content.traits).sort();
+  const order = Object.keys(deps.content.guildmasterTraits).sort();
 
   test("every Guildmaster, the player's left to the draw among them, holds a legal set in the content's Trait order", () => {
     const held = new Set<string>();
     for (const seed of seeds) {
       for (const { traits } of Object.values(createWorld(seed, setup, deps).document.world.guildmasters)) {
-        const rows = traits.map((key) => deps.content.traits[key]);
-        expect(rows.every((row) => row?.owner === 'guildmaster'), traits.join(' ')).toBe(true);
+        const rows = traits.map((key) => deps.content.guildmasterTraits[key]);
+        expect(rows.every((row) => row !== undefined), traits.join(' ')).toBe(true);
         expect(new Set(traits).size).toBe(traits.length);
         expect(rows.some((row) => traits.some((key) => row?.excludes.includes(key))), traits.join(' ')).toBe(false);
         expect(rows.reduce((sum, row) => sum + (row?.cost ?? Number.NaN), 0)).toBeLessThanOrEqual(deps.config.guildmasterTraitBudget);
@@ -503,7 +503,7 @@ describe("seeded worlds' drawn Guildmaster Traits, a whole legal set (DL-109 ite
   test("the costs and exclusions move nothing else: each world is the one drawn with every Trait free, but for the Guildmasters' Traits", () => {
     const free = testDeps({}, {
       ...deps.content,
-      traits: Object.fromEntries(Object.entries(deps.content.traits).map(([key, trait]) => [key, { ...trait, cost: 0, excludes: [] }])),
+      guildmasterTraits: Object.fromEntries(Object.entries(deps.content.guildmasterTraits).map(([key, trait]) => [key, { ...trait, cost: 0, excludes: [] }])),
     });
     for (const seed of seeds) {
       const priced = picturesAside(createWorld(seed, setup, deps).document);

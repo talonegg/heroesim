@@ -27,7 +27,7 @@ import { describe, expect, test } from 'vitest';
 const content = loadContent();
 const deps = { config: defaultConfig, content };
 const guildBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'guild').map((row) => row.key);
-const guildmasterTraits = Object.values(content.traits).filter((row) => row.owner === 'guildmaster').map((row) => row.key);
+const guildmasterTraits = Object.keys(content.guildmasterTraits);
 
 describe("the content validator's bounds are the engine's", () => {
   test('60, 280 and 1,000 characters, and two Trait sentences', () => {
@@ -108,7 +108,7 @@ describe('describeGuildmaster over the core', () => {
 describe('describeHero over the core', () => {
   const longest = longestDescriptions(content);
   const heroBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'hero').map((row) => row.key);
-  const heroTraits = Object.values(content.traits).filter((row) => row.owner === 'hero').map((row) => row.key);
+  const heroTraits = Object.keys(content.heroTraits);
 
   test("writes nothing past the longest the validator proves, over every sex, age, Background and Class, with and without Traits", () => {
     let index = 0;

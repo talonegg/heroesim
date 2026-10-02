@@ -37,7 +37,7 @@ export function moraleBaselineFor(
     GameConfig,
     'moraleBaseline' | 'quartersMoraleBonus' | 'moraleMin' | 'moraleMax' | 'inspirationMoraleShift'
   >,
-  content: Pick<ContentSet, 'stats' | 'traits'>,
+  content: Pick<ContentSet, 'stats' | 'guildmasterTraits'>,
 ): number {
   const guild = hero.guildId !== null && Object.hasOwn(world.guilds, hero.guildId) ? world.guilds[hero.guildId] : undefined;
   if (guild === undefined) return Math.min(config.moraleMax, Math.max(config.moraleMin, config.moraleBaseline));
