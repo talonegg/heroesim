@@ -9,7 +9,7 @@
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
 // Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
 // gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57); M9-S2
-// the Trait budget (DL-102). Every
+// the Trait budget (DL-102); v1.1.4-S2 the Degrees (DL-152). Every
 // "Min/Max" pair is an inclusive range drawn with `int`. A field holding an object or a list is
 // frozen with `defaultConfig`.
 
@@ -40,7 +40,9 @@ export interface GameConfig {
    * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
    * with that 5, so that no save made under either reads as current (DL-63); 10 from the M6 close's
    * Transfer lock of a season (DL-69); 11 from M9-S2's Trait budget, `guildmasterTraitBudget`
-   * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114).
+   * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114);
+   * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
+   * v1.1.4's later stories add their fields under before the release.
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -183,11 +185,23 @@ export interface GameConfig {
    */
   skillBonusPerRating: number;
   /**
-   * A Quest's band from the share of its Encounters succeeded: `strong` at `strongAtLeast` or more,
-   * `success` above `successAbove`, else `fail` (M4-S2: all strong, a majority success). An
-   * Encounter a Party wiped out never reached counts as not succeeded.
+   * A Quest's band from the share of its Encounters at Success or better: `strong` at
+   * `strongAtLeast` or more, with `strongTriumphShare` of them Triumphs, `success` above
+   * `successAbove`, else `fail` (M4-S2: all strong, a majority success). An Encounter a Party wiped
+   * out never reached counts as not succeeded.
    */
   bandBySuccessShare: Readonly<{ successAbove: number; strongAtLeast: number }>;
+  /**
+   * A Check's Degree from its roll ÷ its target (v1.1.4-S2, DL-148 item 8): a Triumph at `triumph`
+   * or more, a Success at `success` or more, a Setback at `setback` or more, else a Failure.
+   */
+  checkDegrees: Readonly<{ triumph: number; success: number; setback: number }>;
+  /**
+   * The share of a Quest's Encounters that must be Triumphs for a strong success, beside every one
+   * at Success or better (v1.1.4-S2, DL-148 item 8: DL-83 item 17's margin, a share of Triumphs).
+   * The share is of the whole sequence, as `bandBySuccessShare`'s is.
+   */
+  strongTriumphShare: number;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -483,7 +497,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 6,
-  configVersion: 12,
+  configVersion: 13,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -537,6 +551,8 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   checkVariance: 0.2,
   skillBonusPerRating: 2,
   bandBySuccessShare: Object.freeze({ successAbove: 0.5, strongAtLeast: 1 }),
+  checkDegrees: Object.freeze({ triumph: 1.25, success: 1, setback: 0.75 }),
+  strongTriumphShare: 0.5,
 
   moraleMin: 0,
   moraleMax: 100,
@@ -618,4 +634,21 @@ export interface EngineDeps {
    * which is every game the front ends and the harness play.
    */
   modules?: readonly Module[];
+}
+
+/**
+ * What is wrong with `config`'s Quest Engine fields, each a sentence naming its field; none for a
+ * sound one (v1.1.4-S2's verification, DL-152). A Degree means something only while its thresholds
+ * are ordered, `triumph` > `success` > `setback` > 0, and `strongTriumphShare` is a share from 0 to
+ * 1. The Quest Engine refuses to resolve under a config with a problem (`resolveQuest`).
+ */
+export function configProblems(config: Pick<GameConfig, 'checkDegrees' | 'strongTriumphShare'>): string[] {
+  const problems: string[] = [];
+  const { triumph, success, setback } = config.checkDegrees;
+  if (!(triumph > success && success > setback && setback > 0)) {
+    problems.push(`checkDegrees is ${JSON.stringify(config.checkDegrees)}; triumph > success > setback > 0`);
+  }
+  const share = config.strongTriumphShare;
+  if (!(share >= 0 && share <= 1)) problems.push(`strongTriumphShare is ${share}; it is a share from 0 to 1`);
+  return problems;
 }

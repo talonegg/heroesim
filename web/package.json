@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build && node scripts/check-bundle.mjs",
-    "preview": "vite preview",
+    "dev": "vite --configLoader runner",
+    "build": "vite build --configLoader runner && node scripts/check-bundle.mjs",
+    "preview": "vite preview --configLoader runner",
     "e2e": "npm run build && playwright test",
     "measure": "npm run build && playwright test -c playwright.measure.config.ts",
     "e2e:live": "playwright test -c playwright.live.config.ts",

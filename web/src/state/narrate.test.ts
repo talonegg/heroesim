@@ -6,6 +6,8 @@ import {
   milestoneTypes,
   offerTransfer,
   playerGuild,
+  type Encounter,
+  type EncounterCheck,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
@@ -328,7 +330,7 @@ const exactly: { [Type in EngineEventType]: string } = {
   'quest.offered': `Lady Maud offered ${barrow}.`,
   'quest.expired': `Lady Maud's ${barrow} expired untaken.`,
   'quest.taken': `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Day 7, carrying ${named(content.items, 'whetstone')} ×2.`,
-  'quest.encounter': `The Kestrel Guild's Party failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2): Brenna Ashcombe was injured.`,
+  'quest.encounter': `The Kestrel Guild's Party failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Failure: Brenna Ashcombe was injured.`,
   'quest.resolved': `The Kestrel Guild's Party came home from ${named(content.questTemplates, 'guard-the-caravan')} and failed: Wealth 0, Fame -2.`,
   'quest.loot': `The Kestrel Guild found Loot on ${barrow}: ${named(content.items, 'barrow-kings-blade')}.`,
   'hero.injured': `Brenna Ashcombe was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Day 13.`,
@@ -523,13 +525,50 @@ describe("the CLI's words, adapted for the page", () => {
     expect(narrate(samples['quest.taken'], narration)).toBe(
       `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Day 7, carrying Whetstone ×2.`,
     );
+    // An entry written before v1.1.4-S2 reads as its outcome, a Failure or a Success.
     expect(narrate(samples['quest.encounter'], narration)).toBe(
-      `The Kestrel Guild's Party failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2): Brenna Ashcombe was injured.`,
+      `The Kestrel Guild's Party failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Failure: Brenna Ashcombe was injured.`,
     );
     expect(narrate(samples['quest.resolved'], narration)).toMatch(/came home from .+ and failed: Wealth 0, Fame -2\.$/);
     expect(narrate(samples['item.bought'], narration)).toBe('The Kestrel Guild bought 3 × Whetstone at the Market for 75 Wealth.');
     expect(narrate(samples['hero.transferred'], narration)).toBe(
       'The Iron Wardens took Brenna Ashcombe from The Kestrel Guild for 420 Wealth, accepting its Transfer Offer.',
+    );
+  });
+
+  test("gives an Encounter's Degree and, of several Checks, the name of the one that decided it (v1.1.4-S2)", () => {
+    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
+    const [front] = ambush.checks as [EncounterCheck];
+    const several: Narration = {
+      ...narration,
+      content: {
+        ...content,
+        encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [front, { ...front, key: 'nerve', name: 'Nerve' }], pass: ['and', front.key, 'nerve'] } },
+      },
+    };
+    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
+    const payload = {
+      ...samples['quest.encounter'].payload,
+      degree: 'setback' as const,
+      decidedBy: 'nerve',
+      checks: [
+        { key: front.key, ...roll, roll: 30, margin: 12, degree: 'triumph' as const },
+        { key: 'nerve', ...roll, degree: 'setback' as const },
+      ],
+    };
+
+    expect(narrate({ ...samples['quest.encounter'], payload }, several)).toBe(
+      `The Kestrel Guild's Party failed at ${ambush.name} (Encounter 2), a Setback, decided by Nerve: Brenna Ashcombe was injured.`,
+    );
+    const one = { ...payload, decidedBy: front.key, degree: 'triumph' as const, outcome: 'success' as const, injured: [], checks: payload.checks.slice(0, 1) };
+    expect(narrate({ ...samples['quest.encounter'], payload: one }, narration)).toBe(`The Kestrel Guild's Party came through ${ambush.name} (Encounter 2), a Triumph.`);
+    // One Check named otherwise than its Encounter is named (v1.1.4-S2's verification, DL-152).
+    const renamed: Narration = {
+      ...narration,
+      content: { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: 'Steel' }] } } },
+    };
+    expect(narrate({ ...samples['quest.encounter'], payload: one }, renamed)).toBe(
+      `The Kestrel Guild's Party came through ${ambush.name} (Encounter 2), a Triumph, decided by Steel.`,
     );
   });
 

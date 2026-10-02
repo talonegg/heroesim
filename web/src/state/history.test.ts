@@ -558,6 +558,33 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
     expect(outcome?.kind === 'entry' ? outcome.stepsWords : null).toBe('2 Encounters and 1 Consumable used');
   });
 
+  test("reads each Encounter's Degree, and one written before v1.1.4-S2 as its outcome, a Success or a Failure", () => {
+    const written = withReturn(withPartyOut(started('history-degrees')), {
+      band: 'success',
+      encounters: [
+        { encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'failure', degree: 'setback' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'success' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'failure' },
+      ],
+    });
+    // The Guild handed to a Rival's Disposition, whose History folds a Party's steps under its outcome.
+    const { document } = changed(written.state, (next, player) => {
+      const other = Object.values(next.world.guilds).find((each) => each.id !== player.id);
+      if (other === undefined) throw new Error('no Rival');
+      other.controller = player.controller;
+      player.controller = { kind: 'rival', disposition: 'steady' };
+    });
+    const guildId = written.state.document === null ? undefined : playerOf(written.state.document).id;
+    if (document === null || guildId === undefined) throw new Error('no game in hand');
+
+    const rows = historyView(document, [], guildId, 0).groups.flatMap((group) => group.rows);
+    const outcome = rows.find((row) => row.kind === 'entry' && row.steps.length > 0);
+    const steps = outcome?.kind === 'entry' ? outcome.steps.map((line) => line.sentence) : [];
+
+    expect(steps.map((sentence) => / \(Encounter \d\), a (\w+)/.exec(sentence)?.[1])).toEqual(['Triumph', 'Setback', 'Success', 'Failure']);
+  });
+
   test('says on which page an entry stands, that the home view can open it there, and null where it is not', () => {
     for (const whose of ['all' as const, null]) {
       everyPage(whose).forEach((view, page) => {

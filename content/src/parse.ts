@@ -35,6 +35,7 @@ import type {
   Names,
   NumQuery,
   PartyCondition,
+  PassFormula,
   PatronName,
   PortraitAppearance,
   PortraitAppearances,
@@ -89,6 +90,7 @@ export const contentSetId = 'core';
  * 20 from the portrait tool's apply of analysis run 2026-10-02 (`docs/portraits/analysis/2026-10-02.md`).
  * 21 from v1.1.4-S1, which loads each Encounter into a list of Checks scored by Queries and each Synergy's
  * requirements into Queries over the Party (DL-151); the files keep their old form, and nothing is re-authored.
+ * v1.1.4-S2's new form of an Encounter, `checks` and `pass`, keeps 21: no file is written in it yet (DL-152).
  */
 export const contentVersion = 21;
 
@@ -150,6 +152,18 @@ const portraitRoles: Record<PortraitRole, true> = { guildmaster: true, hero: tru
  * @throws ContentError naming the file and key of every problem found
  */
 export function parseContent(files: Readonly<Record<string, string>>): ContentSet {
+  return validateContent(readContent(files));
+}
+
+/**
+ * Parse a content set from the text of its files, checking each row's shape but not the rules
+ * across rows (`validateContent`). Only for text already validated: the page's build runs
+ * `parseContent` on the same files and fails on any problem, so the script need not carry the
+ * checks (v1.1.4-S2's verification, DL-152). Everything else calls `parseContent`.
+ *
+ * @throws ContentError naming the file and key of every problem of shape found
+ */
+export function readContent(files: Readonly<Record<string, string>>): ContentSet {
   const problems: string[] = [];
   const json = (file: ContentFileName): unknown => readJson(file, files[file], problems);
 
@@ -261,12 +275,13 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
     ),
     encounters: table<Encounter>('encounters.json', json('encounters.json'), problems, 'an Encounter', (row, key) => {
       const name = row.string('name');
-      return {
-        name,
-        kind: row.oneOf('kind', encounterKinds),
-        checks: [oldFormCheck(row, key, name, known)],
-        consequences: outcomes(row.child('consequences')),
-      };
+      const shape = { name, kind: row.oneOf('kind', encounterKinds) };
+      // v1.1.4-S2: the new form, `checks` and `pass`, or the old, which loads into one Check.
+      const consequences = (): Encounter['consequences'] => outcomes(row.child('consequences'));
+      if (row.value('checks') === undefined) return { ...shape, checks: [oldFormCheck(row, key, name, known)], consequences: consequences() };
+      const checks = row.children('checks').map(encounterCheck);
+      const pass = row.optional('pass', (field) => row.value(field) as PassFormula);
+      return { ...shape, checks, ...(pass === undefined ? {} : { pass }), consequences: consequences() };
     }),
     synergies: table<Synergy>('synergies.json', json('synergies.json'), problems, 'a Synergy', (row) => {
       const shape = {
@@ -287,7 +302,7 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
   };
 
   if (problems.length > 0) throw new ContentError(problems);
-  return validateContent(set);
+  return set;
 }
 
 /** The byte-order mark some Windows editors write at the start of a UTF-8 file; JSON.parse refuses it. */
@@ -732,14 +747,44 @@ function synergyBonus(reader: RowReader): SynergyBonus {
   return { ...(flat === undefined ? {} : { flat }), ...(factor === undefined ? {} : { factor }) };
 }
 
-/** An Encounter's consequences: a list for each outcome, and nothing else (M4-S1). */
+/**
+ * One Check of an Encounter in the new form (v1.1.4-S2): its `key`, `name`, `score` (a Query, held by
+ * `validateContent`), `skills` and `difficultyFactor`, and optionally `flat`, `variance` and `raw`
+ * (DL-152), and nothing else.
+ */
+function encounterCheck(reader: RowReader): EncounterCheck {
+  const shape: EncounterCheck = {
+    key: reader.string('key'),
+    name: reader.string('name'),
+    score: reader.value('score') as NumQuery,
+    skills: reader.strings('skills'),
+    difficultyFactor: reader.number('difficultyFactor'),
+  };
+  const flat = reader.optional('flat', (field) => reader.number(field));
+  const variance = reader.optional('variance', (field) => reader.number(field));
+  const raw = reader.optional('raw', (field) => reader.boolean(field));
+  reader.refuseUnknown("an Encounter's Check");
+  return {
+    ...shape,
+    ...(flat === undefined ? {} : { flat }),
+    ...(variance === undefined ? {} : { variance }),
+    ...(raw === undefined ? {} : { raw }),
+  };
+}
+
+/**
+ * An Encounter's consequences: a list for each outcome, `success` and `failure`, and optionally
+ * `triumph` and `setback` (v1.1.4-S2), and nothing else (M4-S1).
+ */
 function outcomes(reader: RowReader): Encounter['consequences'] {
   const result = {
     success: reader.children('success').map(consequence),
     failure: reader.children('failure').map(consequence),
   };
+  const triumph = reader.optional('triumph', (field) => reader.children(field).map(consequence));
+  const setback = reader.optional('setback', (field) => reader.children(field).map(consequence));
   reader.refuseUnknown("an Encounter's consequences");
-  return result;
+  return { ...result, ...(triumph === undefined ? {} : { triumph }), ...(setback === undefined ? {} : { setback }) };
 }
 
 /** One consequence: its `kind`, then the fields that kind has, and no others (M4-S1). */

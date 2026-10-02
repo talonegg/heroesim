@@ -11,10 +11,12 @@
 import {
   compareByCodeUnit,
   dayOf,
+  encounterDegree,
   isId,
   isModuleEvent,
   regardBandNames,
   type ContentSet,
+  type Degree,
   type EndingReason,
   type EngineDeps,
   type EngineEvent,
@@ -57,6 +59,9 @@ function night(turn: number): string {
 }
 
 const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'failed', success: 'succeeded', strong: 'succeeded strongly' };
+
+/** A Degree, a glossary term in each (v1.1.4-S2, `CONTEXT.md` Degree). */
+const degreeWords: Readonly<Record<Degree, string>> = { triumph: 'Triumph', success: 'Success', setback: 'Setback', failure: 'Failure' };
 
 /** What befell a Guild at its ending, after its name. */
 const endingWords: Readonly<Record<EndingReason, string>> = {
@@ -196,14 +201,20 @@ function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {
     case 'quest.encounter': {
       // The roll and target are the engine's; the CLI says only how it went and what it cost, and
       // which Encounter it was, counted from 1 as a consumable's line counts them (item.expended).
-      const { partyId, index, encounterKey, outcome, injured, died } = event.payload;
+      // Its Degree, and the Check that decided it when there are several or it is named otherwise
+      // than its Encounter (v1.1.4-S2, DL-152); an entry written before then reads as its outcome, a
+      // Success or a Failure.
+      const { partyId, index, encounterKey, outcome, injured, died, decidedBy, checks = [] } = event.payload;
       const went = outcome === 'success' ? 'came through' : 'failed at';
       const hurt = [
         ...injured.map((id) => `${hero(event, id)} was injured`),
         ...died.map((id) => `${hero(event, id)} was killed`),
       ];
       const which = `${nameIn(content.encounters, encounterKey)} (Encounter ${index + 1})`;
-      return `${partyId} ${went} ${which}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
+      const encounterName = nameIn(content.encounters, encounterKey);
+      const decider = rowIn(content.encounters, encounterKey)?.checks.find((it) => it.key === decidedBy)?.name ?? decidedBy;
+      const by = decider !== undefined && (checks.length > 1 || decider !== encounterName) ? `, decided by ${decider}` : '';
+      return `${partyId} ${went} ${which}, a ${degreeWords[encounterDegree(event.payload)]}${by}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
     }
     case 'quest.resolved': {
       const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta, synergyKeys = [] } = event.payload;

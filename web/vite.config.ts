@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
+import { contentGate } from './content-gate';
 
 // Harvested from v1 (feature/poc, E8-S1) and adapted (M7-S1, DL-64): the build is one classic
 // script so that it opens from the filesystem. v2's content is JSON, bundled as text. Its pictures
@@ -89,7 +90,8 @@ export default defineConfig({
   // Relative asset URLs, so the built folder works from any path, Cloudflare Pages's root and
   // the filesystem included (M7-S1).
   base: './',
-  plugins: [noNodeBuiltins, compactContent, react(), classicScript],
+  // The content gate validates the content the script carries, which reads it unchecked (DL-152).
+  plugins: [noNodeBuiltins, contentGate(contentDir), compactContent, react(), classicScript],
   build: {
     // Each Silhouette inlined into the one script, and nothing else: a picture is a hashed file in
     // dist/assets/ (DL-125 item 1).

@@ -753,11 +753,19 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
   /**
    * Seeded games of 120 Days with every Rival sending Parties. The player's Guild is idle and rich,
    * so no Bankruptcy ends a game early, and a failed Encounter may kill and costs Morale, so every
-   * cause above comes up. The Guildmasters' ages are those before DL-113, so that the fingerprints
-   * below, recorded at `86c7afa` before M9-F1, still hold.
+   * cause above comes up. The Guildmasters' ages are those before DL-113, and the band's rule the one
+   * before v1.1.4-S2, with no share of Triumphs asked for a strong success (DL-152), so that the
+   * fingerprints below, recorded at `86c7afa` before M9-F1, still hold: with that rule, an Encounter's
+   * Checks, Degrees and formula, on content in the old form, draw and resolve as one Check did.
    */
   const deps = testDeps(
-    { guildmasterStartingAgeMin: 30, guildmasterStartingAgeMax: 45, guildmasterRetirementAge: 65, startingWealth: 100_000 },
+    {
+      guildmasterStartingAgeMin: 30,
+      guildmasterStartingAgeMax: 45,
+      guildmasterRetirementAge: 65,
+      startingWealth: 100_000,
+      strongTriumphShare: 0,
+    },
     withEncounters({ failure: [{ kind: 'death', chance: 0.15 }, { kind: 'morale', delta: -2 }] }),
   );
   const seeds = ['named-a', 'named-b', 'named-c'] as const;
@@ -771,9 +779,17 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
 
   /**
    * A History entry as it was before M9-F1: the new `questId` and the Quest's participation taken out;
-   * and, from M9-F7 (DL-120 item 4, DL-121), a founding's Wealth.
+   * from M9-F7 (DL-120 item 4, DL-121), a founding's Wealth; and from v1.1.4-S2 (DL-152), an
+   * Encounter's Degree, the Check that decided it and its Checks.
    */
   function unnamed(entry: WorldDocument['history']['entries'][number]): object {
+    if (entry.type === 'quest.encounter') {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      delete payload.degree;
+      delete payload.decidedBy;
+      delete payload.checks;
+      return { ...entry, payload };
+    }
     if (entry.type === 'guild.founded') {
       const payload = { ...(entry.payload as Record<string, unknown>) };
       delete payload.wealth;
@@ -874,11 +890,26 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     });
     // SHA-256 of each seed's History, recorded at 86c7afa (v1.1-dev before M9-F1), where the
     // stripping above took nothing out. M9-F7 added the founding Wealth to the stripping, not new
-    // values: with it set aside, the History is unchanged (DL-121).
+    // values: with it set aside, the History is unchanged (DL-121). v1.1.4-S2 added an Encounter's
+    // Degree, deciding Check and Checks, and, under the band's rule before it, nothing else (DL-152).
     expect(fingerprints).toEqual([
       'a85e889aec1df8341984e146796c9f761387ce6c7d08946fce9fc688a4494b82',
       'c5afab2df5c747649e2c0d39c977cb36b08dec94829ed3d82d8ced72917d72a9',
       '55432d24ff8cb68d4608f49a4da7ab9d10d8b02edeb0bf3abd3ebfe09c9434f7',
     ]);
+  });
+
+  test('what v1.1.4-S2 added to each Encounter of the games says what its one Check said: decided by it, its Degree its outcome (DL-152)', () => {
+    const encounters = seeds.flatMap((seed) =>
+      (played.get(seed) as WorldDocument).history.entries.filter((entry): entry is EngineEventOf<'quest.encounter'> => entry.type === 'quest.encounter'),
+    );
+    expect(encounters.length).toBeGreaterThan(100);
+    for (const { payload } of encounters) {
+      const { encounterKey, roll, target, margin, outcome, degree, decidedBy, checks } = payload;
+      expect(decidedBy).toBe(encounterKey);
+      expect(checks).toEqual([{ key: encounterKey, capability: expect.any(Number), roll, target, margin, degree }]);
+      expect(degree === 'success' || degree === 'triumph').toBe(outcome === 'success');
+    }
+    expect(new Set(encounters.map((entry) => entry.payload.degree))).toEqual(new Set(['triumph', 'success', 'setback', 'failure']));
   });
 });

@@ -310,17 +310,20 @@ effects on each Hero, reward or penalty, Loot, and what the world learns from it
 _Avoid_: Mission Engine, Combat system, Resolver
 
 **Encounter**:
-One typed step of a Quest, resolved by its Checks with typed consequences. By DL-148 an
-Encounter has one to four Checks, combined by its pass formula, and its consequences may differ
-by Degree (to be built, v1.1.4-S2); until then it has one.
+One typed step of a Quest, resolved by its Checks with typed consequences. An Encounter has one
+to four Checks, combined by its pass formula (`and`, `or` and `at-least`, every Check named once)
+into its Degree, and its consequences may differ by Degree: a Triumph's are Success's unless it
+has its own, and a Setback's Failure's (DL-148 item 7, built in v1.1.4-S2, DL-152).
 _Avoid_: Beat, Scene, Event
 
 **Check**:
 The comparison of a Party's capability against an Encounter's difficulty. Its score is a Query
 over the Party since v1.1.4-S1 (DL-151), an Encounter written the old way loading into one Check
-whose score is the same weighted sum of Stats. By DL-148 item 7 an Encounter has one to four
-Checks, each named for the narration and the Board, each rolled every time (to be built,
-v1.1.4-S2).
+whose score is the same weighted sum of Stats. An Encounter has one to four Checks, each named for
+the narration and the Board, each rolled every time, and each with its own target, a flat part
+and a part that grows with the Quest's difficulty (DL-148 item 7, built in v1.1.4-S2, DL-152). A
+raw Check's capability is its score alone, with no Skill, Synergy, teamwork or consumable added: a
+gate, such as a count of the Heroes strong enough against a flat target (DL-152).
 _Avoid_: Roll (for the whole), Test, Save
 
 **Query**:
@@ -338,8 +341,9 @@ _Avoid_: Formula, Expression, Script, Filter (for the whole)
 **Degree**:
 How a Check came out, read from its roll against its target: a **Triumph**, a Success, a
 **Setback** or a Failure. A Triumph is a Success by a wide margin, a Setback a Failure by a narrow
-one. An Encounter takes the Degree its pass formula gives, and a strong success needs Triumphs
-(DL-148 item 8; to be built, v1.1.4-S2).
+one. An Encounter takes the Degree its pass formula gives: the worst of an `and`, the best of an
+`or`, the k-th best of an `at-least` k; the Check that set it decided it. A strong success needs
+Triumphs (DL-148 item 8, built in v1.1.4-S2, DL-152).
 _Avoid_: Tier, Grade, Result (alone)
 
 **Form**:
@@ -357,8 +361,9 @@ _Avoid_: Boss, Climax, Final Encounter
 
 **Quest band**:
 How well a Quest went: failure, success or strong success, read from the share of its
-Encounters the Party succeeded at (DL-42). By DL-83 a strong success needs a margin, and by
-DL-85 it pays a premium (both to be built).
+Encounters the Party came through at Success or better (DL-42). A strong success needs every
+Encounter at Success or better and half of them Triumphs: DL-83's margin, made a share of
+Triumphs (DL-148 item 8, v1.1.4-S2, DL-152). By DL-85 it pays a premium (to be built).
 _Avoid_: Result, Grade, Tier
 
 **Board**:

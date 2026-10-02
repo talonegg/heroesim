@@ -1,39 +1,45 @@
 // The Quest Engine (M4-S2, approach §1, R24, DL-42): a Quest resolves as its sequence of typed
-// Encounters, each a Check (check.ts) with typed consequences (content-types.ts, `Consequence`).
-// For each Encounter in order the Party's living members are checked, and the consequences of the
-// outcome are applied to a working outcome: an Injury or a Death drawn, Morale, Regard and Fame
+// Encounters, each one to four Checks (check.ts) combined by its pass formula into a Degree
+// (v1.1.4-S2, degree.ts), with typed consequences by Degree (content-types.ts, `Consequence`).
+// For each Encounter in order the Party's living members are checked, and the consequences of its
+// Degree are applied to a working outcome: an Injury or a Death drawn, Morale, Regard and Fame
 // summed, XP and Wealth factors multiplied. A Hero who dies takes no part in the rest of the
 // sequence, and a Party with no one left stops. The Quest's band is read from the share of its
-// Encounters succeeded (`bandBySuccessShare`), so M2's Wealth and Fame rules and M3's XP rule still
-// apply through it (DL-29 item 4, DL-36 item 5), each then moved by the consequences. The outcome
-// names the Synergies that added to any Check (M4-S3, DL-45), once for the Quest.
+// Encounters at Success or better (`bandBySuccessShare`) and the share of Triumphs
+// (`strongTriumphShare`), so M2's Wealth and Fame rules and M3's XP rule still apply through it
+// (DL-29 item 4, DL-36 item 5), each then moved by the consequences. The outcome names the
+// Synergies that added to any Check (M4-S3, DL-45), once for the Quest.
 //
 // Every draw is from the `quests` stream, except the sequence of a Quest generated before M4, which
-// is drawn from `encounters` (`sequenceFor`). The draws are a Check's one, then for each of the
-// outcome's consequences in order: an Injury three per `count` (whether it lands, on whom, its
-// Days), a Death two (whether, on whom); taken whether or not they land, so tuning a chance never
-// shifts a later draw, as `chance` promises for one (rng.ts).
+// is drawn from `encounters` (`sequenceFor`). The draws are one for each Check, in the order the
+// Encounter lists them, whether or not the formula is already decided (DL-148 item 7), then for
+// each of its Degree's consequences in order: an Injury three per `count` (whether it lands, on
+// whom, its Days), a Death two (whether, on whom); taken whether or not they land, so tuning a
+// chance never shifts a later draw, as `chance` promises for one (rng.ts).
 // After the sequence, Loot's two draws for a Quest with a Loot table, whatever the band (M5-S5,
 // loot.ts, DL-52).
 //
-// The consumables the Party carries (M5-S3, DL-50, consumables.ts) add a bonus to a Check, roll a
-// failed Check again, and shorten the Injuries once the sequence is over. Only a reroll draws: one
-// more from `quests`, straight after the Check it rolls again, so a Party carrying none draws as
-// above. The Items used are returned beside the outcome, for `questsConclude` to expend.
+// The consumables the Party carries (M5-S3, DL-50, consumables.ts) add a bonus to every Check of an
+// Encounter (DL-148 item 13), roll the Checks of a failed Encounter again, and shorten the Injuries
+// once the sequence is over. Only a reroll draws: one more from `quests` for each Check that fell
+// short of Success, in the order listed, straight after the Encounter's Checks, so a Party carrying
+// none draws as above. The Items used are returned beside the outcome, for `questsConclude` to
+// expend.
 //
 // It reads the World State and changes nothing but the streams: applying the outcome is the night
 // phase `questsConclude`'s. Rivals' Parties resolve through it exactly as the player's do
 // (ADR-0002 as amended by pre-M0 review A1).
 
-import type { GameConfig, QuestBand } from '../config.js';
-import type { Consequence, EncounterKey, EncounterKind, InjuryTypeKey, SynergyKey } from '../content-types.js';
+import { configProblems, type GameConfig, type QuestBand } from '../config.js';
+import type { CheckKey, Consequence, Degree, Encounter, EncounterKey, EncounterKind, InjuryTypeKey, SynergyKey } from '../content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Party, type Quest, type World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { healDays } from '../injuries.js';
 import { chance, int } from '../rng.js';
 import { healFactor } from '../selectors.js';
-import { check, type CheckDeps, type EncounterOutcome } from './check.js';
+import { check, type CheckDeps, type CheckResult, type EncounterOutcome } from './check.js';
 import { kitOf, type ConsumableUse } from './consumables.js';
+import { passDegree, passOf, succeeded } from './degree.js';
 import { sequenceFor } from './encounters.js';
 import { drawLoot, type LootDraw } from './loot.js';
 import { queryParty } from './query.js';
@@ -46,16 +52,34 @@ export interface QuestInjury {
   healDays: number;
 }
 
+/** One Check of an Encounter, rolled (v1.1.4-S2): its key, then `CheckResult`'s numbers and its Degree. */
+export interface CheckRoll {
+  key: CheckKey;
+  capability: number;
+  roll: number;
+  target: number;
+  margin: number;
+  degree: Degree;
+}
+
 /** One Encounter of the sequence, checked: what `quest.encounter` records. */
 export interface EncounterResult {
   /** Its place in the sequence, from 0. */
   index: number;
   encounterKey: EncounterKey;
   kind: EncounterKind;
+  /** The deciding Check's roll, target and margin (v1.1.4-S2), as an Encounter's one Check's were. */
   roll: number;
   target: number;
   margin: number;
+  /** `success` at a Success or a Triumph, else `failure`: the Degree as an entry before v1.1.4 has it. */
   outcome: EncounterOutcome;
+  /** The Encounter's Degree, by its pass formula (v1.1.4-S2, `passDegree`). */
+  degree: Degree;
+  /** The Check that set the Degree. */
+  decidedBy: CheckKey;
+  /** Each Check, in the order the Encounter lists them; a reroll's rolls in place of the first. */
+  checks: CheckRoll[];
   /** The Heroes its consequences injured, in the order they were. */
   injured: HeroId[];
   /** The Heroes its consequences killed. */
@@ -65,7 +89,7 @@ export interface EncounterResult {
 /** What a Quest's resolution comes to (DL-29's outcome, its score and ratio now the Encounters'). */
 export interface QuestOutcome {
   band: QuestBand;
-  /** Encounters whose Check succeeded. */
+  /** Encounters at Success or better: whose Check succeeded, before v1.1.4-S2. */
   successes: number;
   /** Encounters in the sequence, those a Party wiped out never reached included. */
   encounterCount: number;
@@ -103,18 +127,21 @@ export interface Resolution {
 }
 
 /**
- * The band `successes` of `encounterCount` Encounters come to (M4-S2): `strong` when their share is
- * at least `strongAtLeast`, `success` when it is above `successAbove`, else `fail`. No Encounters is
- * a share of 0.
+ * The band `successes` of `encounterCount` Encounters at Success or better, `triumphs` of them
+ * Triumphs, come to (M4-S2, v1.1.4-S2): `strong` when their share is at least `strongAtLeast` and the
+ * Triumphs' at least `strongTriumphShare`, `success` when it is above `successAbove`, else `fail`.
+ * No Encounters is a share of 0.
  */
 export function questBand(
   successes: number,
+  triumphs: number,
   encounterCount: number,
-  config: Pick<GameConfig, 'bandBySuccessShare'>,
+  config: Pick<GameConfig, 'bandBySuccessShare' | 'strongTriumphShare'>,
 ): QuestBand {
   const share = encounterCount > 0 ? successes / encounterCount : 0;
+  const triumphShare = encounterCount > 0 ? triumphs / encounterCount : 0;
   const { successAbove, strongAtLeast } = config.bandBySuccessShare;
-  if (share >= strongAtLeast) return 'strong';
+  if (share >= strongAtLeast && triumphShare >= config.strongTriumphShare) return 'strong';
   if (share > successAbove) return 'success';
   return 'fail';
 }
@@ -134,22 +161,25 @@ interface Working {
 
 /**
  * Resolves `party`'s attempt at `quest` (M4-S2) through its Encounter sequence (`sequenceFor`): for
- * each Encounter in order, a Check of the members still alive, then the consequences of its outcome
- * applied in the order content lists them. The band follows the share succeeded
- * (`questBand`); the Wealth is the reward times the wealth factors, rounded, on a success and
+ * each Encounter in order, each of its Checks of the members still alive, then the consequences of
+ * its Degree (v1.1.4-S2) applied in the order content lists them. The band follows the shares at
+ * Success or better and of Triumphs (`questBand`); the Wealth is the reward times the wealth factors, rounded, on a success and
  * nothing on a failure; the Fame the Fame effect, won or lost by the band, plus the Encounters'; the
  * XP the difficulty × `xpPerDifficultyPoint` × the band's `xpBandFactor` × the XP factors, rounded
  * down. An Injury's Days are drawn from its type's range and multiplied by `infirmaryHealFactor` at
  * the Guild's infirmary grade now (`healFactor`, DL-53), rounded to the nearest Day and at least 1
- * (INPUTS 4.5). The consumables the Party carries add to a Check, roll a failed one again, and then
- * shorten the Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
+ * (INPUTS 4.5). The consumables the Party carries add to each Check, roll a failed Encounter's again,
+ * and then shorten the Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
  *
  * Changes nothing but the streams. Throws on a programming error: a Hero or Guild not in the world, a
- * difficulty that is not above 0, an Encounter with no Check, an Injury type content lacks, or a world
- * without the `quests` stream.
+ * configuration whose Degrees are unsound (`configProblems`), a difficulty that is not above 0, an
+ * Encounter with no Check, or with several and no pass formula, or a formula naming a Check it
+ * lacks, an Injury type content lacks, or a world without the `quests` stream.
  */
 export function resolveQuest(world: World, quest: Quest, party: Party, deps: CheckDeps): Resolution {
   const { config } = deps;
+  const [problem] = configProblems(config);
+  if (problem !== undefined) throw new RangeError(`The Quest Engine's configuration: ${problem}`);
   if (!(quest.difficulty > 0)) throw new RangeError(`${quest.id} has difficulty ${quest.difficulty}; it is above 0`);
   const heroes = party.heroIds.map((heroId) => row(world.heroes, heroId, 'heroes'));
   const guild = row<Guild>(world.guilds, party.guildId, 'guilds');
@@ -176,45 +206,59 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     const party = queryParty(working.alive, world, deps, hurt);
     // The Synergies the Check adds, from the same members: recorded for the Quest, not the Encounter.
     for (const synergy of synergiesOn(party, encounter, deps.content)) synergyKeys.add(synergy.key);
-    // One Check an Encounter until v1.1.4-S2.
-    const [encounterCheck] = encounter.checks;
-    if (encounterCheck === undefined) throw new RangeError(`Encounter ${JSON.stringify(encounter.key)} has no Check`);
-    // M5-S3: a bonus the Party carries adds to the Check; a reroll it carries rolls a failure again, once.
+    if (encounter.checks.length === 0) throw new RangeError(`Encounter ${JSON.stringify(encounter.key)} has no Check`);
+    const pass = passOf(encounter);
+    // v1.1.4-S2: every Check rolled, one draw each in the order listed, the bonus the Party carries
+    // added to each (M5-S3, DL-148 item 13); a reroll it carries rolls again each Check of a failed
+    // Encounter that fell short of Success, once, and the new rolls stand.
     const bonus = kit.bonus(encounter.kind, index);
-    let result = check(party, encounter, encounterCheck, quest, world, deps, bonus);
-    if (result.outcome === 'failure' && kit.reroll(encounter.kind, index, result.roll)) {
-      result = check(party, encounter, encounterCheck, quest, world, deps, bonus);
+    let results = encounter.checks.map((it) => check(party, encounter, it, quest, world, deps, bonus));
+    let decided = passDegree(pass, degreesOf(encounter, results));
+    if (!succeeded(decided.degree) && kit.reroll(encounter.kind, index, rollOf(encounter, results, decided.decidedBy).roll)) {
+      results = encounter.checks.map((it, at) => {
+        const first = results[at] as CheckResult;
+        return succeeded(first.degree) ? first : check(party, encounter, it, quest, world, deps, bonus);
+      });
+      decided = passDegree(pass, degreesOf(encounter, results));
     }
     const harm: Harm = { injured: [], died: [] };
-    for (const consequence of encounter.consequences[result.outcome]) {
+    for (const consequence of consequencesOf(encounter, decided.degree)) {
       apply(consequence, working, harm, state, guild, deps);
     }
+    const deciding = rollOf(encounter, results, decided.decidedBy);
     encounters.push({
       index,
       encounterKey: encounter.key,
       kind: encounter.kind,
-      roll: result.roll,
-      target: result.target,
-      margin: result.margin,
-      outcome: result.outcome,
+      roll: deciding.roll,
+      target: deciding.target,
+      margin: deciding.margin,
+      outcome: deciding.outcome,
+      degree: decided.degree,
+      decidedBy: decided.decidedBy,
+      checks: encounter.checks.map(({ key }, at) => {
+        const { capability, roll, target, margin, degree } = results[at] as CheckResult;
+        return { key, capability, roll, target, margin, degree };
+      }),
       ...harm,
     });
   }
   // M5-S3: the heals the Party carries shorten the Injuries it comes home with.
   kit.heal(working.injuries);
 
-  const successes = encounters.filter((result) => result.outcome === 'success').length;
-  const band = questBand(successes, sequence.length, config);
-  const succeeded = band !== 'fail';
+  const successes = encounters.filter((result) => succeeded(result.degree)).length;
+  const triumphs = encounters.filter((result) => result.degree === 'triumph').length;
+  const band = questBand(successes, triumphs, sequence.length, config);
+  const paid = band !== 'fail';
   const xp = quest.difficulty * config.xpPerDifficultyPoint * config.xpBandFactor[band] * working.xpFactor;
   return {
     outcome: {
       band,
       successes,
       encounterCount: sequence.length,
-      wealthDelta: succeeded ? Math.round(quest.reward * working.wealthFactor) : 0,
+      wealthDelta: paid ? Math.round(quest.reward * working.wealthFactor) : 0,
       // `0 -` rather than unary minus: a Fame effect of 0 then loses 0, not −0, which is not JSON-safe.
-      fameDelta: (succeeded ? quest.fameEffect : 0 - quest.fameEffect) + working.fameDelta,
+      fameDelta: (paid ? quest.fameEffect : 0 - quest.fameEffect) + working.fameDelta,
       xpPerHero: Math.floor(xp),
       moraleDelta: working.moraleDelta,
       regardDelta: working.regardDelta,
@@ -226,6 +270,33 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     consumables: kit.used,
     loot: drawLoot(world, quest, band, deps), // M5-S5: Loot, the sequence's last draws (loot.ts, DL-52)
   };
+}
+
+/** Each of `encounter`'s Checks' Degrees in `results`, by its key. */
+function degreesOf(encounter: Pick<Encounter, 'checks'>, results: readonly CheckResult[]): Record<CheckKey, Degree> {
+  return Object.fromEntries(encounter.checks.map(({ key }, at) => [key, (results[at] as CheckResult).degree]));
+}
+
+/** The result in `results` of `encounter`'s Check `key`. */
+function rollOf(encounter: Pick<Encounter, 'checks'>, results: readonly CheckResult[], key: CheckKey): CheckResult {
+  return results[encounter.checks.findIndex((it) => it.key === key)] as CheckResult;
+}
+
+/**
+ * The consequences of `encounter` at `degree` (v1.1.4-S2): a Triumph's own list, or else
+ * Success's; a Setback's own, or else Failure's.
+ */
+function consequencesOf({ consequences }: Pick<Encounter, 'consequences'>, degree: Degree): Consequence[] {
+  switch (degree) {
+    case 'triumph':
+      return consequences.triumph ?? consequences.success;
+    case 'success':
+      return consequences.success;
+    case 'setback':
+      return consequences.setback ?? consequences.failure;
+    case 'failure':
+      return consequences.failure;
+  }
 }
 
 /** Who one Encounter's consequences hurt. */

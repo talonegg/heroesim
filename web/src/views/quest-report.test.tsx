@@ -75,7 +75,7 @@ describe('the Quest report (M9-F5)', () => {
       wealth: 180,
       fame: 4,
       xp: 60,
-      encounters: [{ encounterKey: 'ambush-on-the-road', outcome: 'success' }],
+      encounters: [{ encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph' }],
       loot: [{ definitionKey: 'whetstone', quantity: 3 }],
       levels: [{ hero: 0, level: 2 }],
     });
@@ -84,7 +84,8 @@ describe('the Quest report (M9-F5)', () => {
     expect(sectionHeadings(region)).toEqual(['Encounters', 'Rewards', 'Heroes', 'The Patron']);
     expect(region.textContent).toContain('Strong success');
     expect(region.textContent).toContain(`Offered by ${report.patron?.name}`);
-    expect(within(region).getByText("The Lantern's Party came through Ambush on the road (Encounter 1).")).toBeDefined();
+    // v1.1.4-S2: the Encounter's Degree, in its sentence.
+    expect(within(region).getByText("The Lantern's Party came through Ambush on the road (Encounter 1), a Triumph.")).toBeDefined();
     expect(within(region).getByText('Wealth +180')).toBeDefined();
     expect(within(region).getByText('Fame +4')).toBeDefined();
     expect(within(region).getByText('XP +60 each')).toBeDefined();

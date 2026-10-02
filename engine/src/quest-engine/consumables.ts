@@ -2,10 +2,12 @@
 // §3.3), moved there from its Guild's holding by `dispatch`. The Quest Engine uses them as it
 // resolves the Party's Encounters (resolve.ts), through the kit `kitOf` makes of them:
 //
-// - a `bonus` adds its `flat` to the capability of the first Check of an Encounter of one of its
-//   kinds: one Item of each such definition a Check, so a second Item goes to the next one;
-// - a `reroll` has the first failed Check of an Encounter of one of its kinds rolled again, once: one
-//   Item, and one more draw from `quests`, straight after the failed roll; the second roll stands;
+// - a `bonus` adds its `flat` to the capability of every Check of an Encounter of one of its kinds
+//   (DL-148 item 13): one Item of each such definition an Encounter, so a second Item goes to the
+//   next one;
+// - a `reroll` has a failed Encounter of one of its kinds rolled again, once: one Item, and one more
+//   draw from `quests` for each of its Checks that fell short of Success, in the order listed,
+//   straight after its Checks; the new rolls stand (v1.1.4-S2);
 // - a `heal`, once the sequence is over, shortens an Injury the Quest inflicted by its `days`, to no
 //   fewer than 1 Day: the longest Injury first, one Item an Injury.
 //
@@ -45,14 +47,15 @@ interface Healable {
 /** What a Party carries into its Quest, and uses as it goes: made by `kitOf`. */
 export interface Kit {
   /**
-   * The flat bonus the Check of Encounter `index`, of `kind`, gains: one Item of each bonus
+   * The flat bonus each Check of Encounter `index`, of `kind`, gains: one Item of each bonus
    * definition carried that has one left and names `kind`, each Item's `flat` summed. 0 when none.
    */
   bonus(kind: EncounterKind, index: number): number;
   /**
-   * Whether the failed Check of Encounter `index`, of `kind`, is rolled again: true when a reroll
-   * definition carried has an Item left and names `kind`, the first in key order giving it. The
-   * caller rolls again, once; `firstRoll` is the failed roll, which the use records.
+   * Whether the failed Encounter `index`, of `kind`, is rolled again: true when a reroll definition
+   * carried has an Item left and names `kind`, the first in key order giving it. The caller rolls
+   * again, once, each Check that fell short of Success; `firstRoll` is the failed roll of the Check
+   * that decided the Encounter (v1.1.4-S2), which the use records.
    */
   reroll(kind: EncounterKind, index: number, firstRoll: number): boolean;
   /**

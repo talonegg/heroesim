@@ -304,11 +304,11 @@ export type CheckKey = string;
 
 /**
  * One Check of an Encounter (v1.1.4-S1, DL-148 item 7): the Party's capability is its `score`, a
- * Num Query, plus a bonus for the best rating held of each of its `skills`, against
- * `difficultyFactor` times the Quest's difficulty. The old form of an Encounter (`demands`,
- * `aggregate`, `skillKeys`, `difficultyFactor`) loads into one, keyed and named as its Encounter,
- * whose score is `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order of its
- * demands. v1.1.4-S2 adds several to an Encounter, with `pass`, `flat` and `variance`.
+ * Num Query, plus a bonus for the best rating held of each of its `skills`, against its target,
+ * `flat` plus `difficultyFactor` times the Quest's difficulty. The old form of an Encounter
+ * (`demands`, `aggregate`, `skillKeys`, `difficultyFactor`) loads into one, keyed and named as its
+ * Encounter, whose score is `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order
+ * of its demands. An Encounter has one to four since v1.1.4-S2, combined by its `pass`.
  */
 export interface EncounterCheck {
   key: CheckKey;
@@ -316,9 +316,39 @@ export interface EncounterCheck {
   score: NumQuery;
   /** The Skills that help; may be none. */
   skills: SkillKey[];
-  /** The Check's target is this times the Quest's difficulty; above 0. */
+  /** The target's part that grows with the Quest's difficulty: this times it; 0 or more. */
   difficultyFactor: number;
+  /** The target's part that ignores the difficulty (v1.1.4-S2), 0 when absent: "at least one Hero with Strength 12". */
+  flat?: number;
+  /** The roll's spread for this Check in place of `checkVariance` (v1.1.4-S2); 0 makes a gate with no luck in it. */
+  variance?: number;
+  /**
+   * A raw Check's capability is its score alone (v1.1.4-S2's verification, DL-152): no Skill term,
+   * Synergy, teamwork or consumable's bonus, so that a count against a `flat` is a true gate. It
+   * lists no `skills`.
+   */
+  raw?: boolean;
 }
+
+/**
+ * How an Encounter's Checks combine (v1.1.4-S2, DL-148 items 7 and 8): a Check's key, or `and`
+ * (the worst of its parts' Degrees), `or` (the best) or `at-least` k (the k-th best) of two or
+ * more parts. Every Check of the Encounter is named in it once.
+ */
+export type PassFormula =
+  | CheckKey
+  | ['and', ...PassFormula[]]
+  | ['or', ...PassFormula[]]
+  | ['at-least', number, ...PassFormula[]];
+
+/**
+ * How a Check, or an Encounter, came out (v1.1.4-S2, DL-148 item 8, `CONTEXT.md` Degree), worst
+ * first: a Failure, a Setback (a Failure by a narrow margin), a Success or a Triumph (a Success by
+ * a wide one), read from the roll against the target by `checkDegrees`.
+ */
+export const degrees = ['failure', 'setback', 'success', 'triumph'] as const;
+
+export type Degree = (typeof degrees)[number];
 
 /**
  * Up to `count` Heroes of the Party are injured with `typeKey`, each with probability `chance`,
@@ -381,16 +411,20 @@ export type Consequence =
 export type ConsequenceKind = Consequence['kind'];
 
 /**
- * One typed step of a Quest (M4-S1, `encounters.json`), resolved by its Check (M4-S2; `checks`, one
- * until v1.1.4-S2). Its `consequences` are applied by outcome.
+ * One typed step of a Quest (M4-S1, `encounters.json`), resolved by its Checks (M4-S2; v1.1.4-S2).
+ * Its `consequences` are applied by its Degree: a Triumph's are `triumph`, or `success` when it has
+ * none, and a Setback's `setback`, or `failure` when it has none, so an Encounter written before
+ * v1.1.4 runs as it did.
  */
 export interface Encounter {
   key: EncounterKey;
   name: string;
   kind: EncounterKind;
-  /** Its Checks (v1.1.4-S1): one, loaded from the old form, until v1.1.4-S2 allows up to four. */
+  /** Its Checks, one to four (v1.1.4-S2), each rolled every time, in this order. */
   checks: EncounterCheck[];
-  consequences: { success: Consequence[]; failure: Consequence[] };
+  /** How its Checks combine into its Degree (v1.1.4-S2); may be absent when it has one Check, which then decides. */
+  pass?: PassFormula;
+  consequences: { success: Consequence[]; failure: Consequence[]; triumph?: Consequence[]; setback?: Consequence[] };
 }
 
 /**
@@ -501,8 +535,10 @@ export type ItemKind = 'gear' | 'consumable';
  * What a consumable does when the Quest Engine expends it (M5-S1, M5-S3): a closed union, so a new
  * kind is an engine change and earns a decision (M5 risks).
  *
- * - `reroll`: the first failed Check of an Encounter of one of `kinds` is rolled again, once;
- * - `bonus`: `flat` is added to the capability of the first Check of an Encounter of one of `kinds`;
+ * - `reroll`: the first failed Encounter of one of `kinds` has each Check that fell short of Success
+ *   rolled again, once (v1.1.4-S2);
+ * - `bonus`: `flat` is added to the capability of every Check of the first Encounter of one of
+ *   `kinds` (v1.1.4-S2, DL-148 item 13);
  * - `heal`: an Injury taken on the Quest heals `days` Days sooner.
  *
  * `kinds` holds one or more Encounter kinds, none twice; `flat` is above 0; `days` a whole number

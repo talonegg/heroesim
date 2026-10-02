@@ -8,6 +8,7 @@ import type {
   ConsumableEffect,
   ContentSet,
   Descriptions,
+  EncounterCheck,
   EncounterKind,
   FacilityKey,
   PortraitAppearance,
@@ -848,15 +849,16 @@ function checkEncounterDraw(
   checkRange(where, 'encounters', template.encountersMin, template.encountersMax, 1, problems);
 }
 
-/** How many Checks an Encounter has (v1.1.4-S1): one, loaded from the old form, until v1.1.4-S2 allows up to four. */
-export const encounterChecksMax = 1;
+/** How many Checks an Encounter has at most (v1.1.4-S2, DL-148 item 7). */
+export const encounterChecksMax = 4;
 
 /**
- * The Encounters (M4-S1): Checks (v1.1.4-S1), one, each keyed in kebab-case once, named, scored by a
- * Num Query (`checkQuery`), helped by Skills that exist and aimed at a difficulty factor above 0;
- * and consequences each within its kind's bounds, an Injury naming a type content defines. The
- * epic's first box: an unknown Stat, Skill or Injury type is refused. The old form's demands are
- * held as they load (`parseContent`).
+ * The Encounters (M4-S1): one to four Checks (v1.1.4-S1, v1.1.4-S2), each keyed in kebab-case once,
+ * named, scored by a Num Query (`checkQuery`), helped by Skills that exist, and aimed at a target
+ * above 0 (`checkTarget`); a pass formula naming every Check once (`checkPass`), which one Check may
+ * leave out; and consequences by Degree, each within its kind's bounds, an Injury naming a type
+ * content defines. The epic's first box: an unknown Stat, Skill or Injury type is refused. The old
+ * form's demands are held as they load (`parseContent`).
  */
 function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): void {
   for (const [key, encounter] of Object.entries(set.encounters)) {
@@ -873,16 +875,73 @@ function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): 
       if (it.name.trim() === '') problems.push(`${at}.name is empty: a Check is named for the narration and the Board`);
       checkQuery(`${at}.score`, it.score, 'num', keys, problems);
       checkReferences(`${at}.skills`, it.skills, keys.skills, 'a Skill', problems);
-      if (!(Number.isFinite(it.difficultyFactor) && it.difficultyFactor > 0)) {
-        problems.push(`${at}.difficultyFactor is ${it.difficultyFactor}; it is a number above 0`);
+      checkTarget(at, it, problems);
+      if (it.raw === true && it.skills.length > 0) {
+        problems.push(`${at}.skills lists ${it.skills.length}; a raw Check is its score alone, and lists no Skills`);
       }
     });
-    for (const outcome of ['success', 'failure'] as const) {
-      encounter.consequences[outcome].forEach((consequence, index) => {
-        checkConsequence(`${where}.consequences.${outcome}.${index}`, consequence, set, problems);
+    if (encounter.pass !== undefined) checkPass(`${where}.pass`, encounter.pass, checks.map((it) => it.key), problems);
+    else if (checks.length > 1) problems.push(`${where}.pass is missing: an Encounter of several Checks combines them by a pass formula`);
+    for (const degree of ['success', 'failure', 'triumph', 'setback'] as const) {
+      encounter.consequences[degree]?.forEach((consequence, index) => {
+        checkConsequence(`${where}.consequences.${degree}.${index}`, consequence, set, problems);
       });
     }
   }
+}
+
+/**
+ * A Check's target and spread (v1.1.4-S2): a difficulty factor above 0, or of 0 beside a `flat`
+ * above 0, which then ignores the difficulty; a `flat`, if it has one, of 0 or more; and a
+ * `variance`, if it has one, from 0, a gate with no luck in it, to 1.
+ */
+function checkTarget(at: string, check: EncounterCheck, problems: string[]): void {
+  const { difficultyFactor, flat, variance } = check;
+  if (flat !== undefined && !(Number.isFinite(flat) && flat >= 0)) problems.push(`${at}.flat is ${flat}; it is a number of 0 or more`);
+  const flatAbove0 = flat !== undefined && flat > 0;
+  if (!(Number.isFinite(difficultyFactor) && (difficultyFactor > 0 || (flatAbove0 && difficultyFactor === 0)))) {
+    const why = flatAbove0 ? 'it is a number of 0 or more' : 'it is a number above 0, or 0 beside a flat above 0';
+    problems.push(`${at}.difficultyFactor is ${difficultyFactor}; ${why}`);
+  }
+  if (variance !== undefined && !(variance >= 0 && variance <= 1)) problems.push(`${at}.variance is ${variance}; it is a number from 0 to 1`);
+}
+
+/** The pass formula's operators (v1.1.4-S2). */
+const passOperators: ReadonlySet<string> = new Set(['and', 'or', 'at-least']);
+
+/**
+ * An Encounter's pass formula (v1.1.4-S2, DL-148 item 7), each refusal naming its path: a Check's
+ * key, or `and` or `or` of two or more parts, or `at-least` k of two or more parts, k a whole number
+ * from 1 to their number; naming every one of `checkKeys` once, and nothing else.
+ */
+function checkPass(where: string, pass: unknown, checkKeys: readonly string[], problems: string[]): void {
+  const named: string[] = [];
+  const visit = (at: string, part: unknown): void => {
+    if (typeof part === 'string') {
+      if (checkKeys.includes(part)) named.push(part);
+      else problems.push(`${at}: ${JSON.stringify(part)} is not a Check of this Encounter`);
+      return;
+    }
+    if (!Array.isArray(part)) {
+      problems.push(`${at} is ${JSON.stringify(part)}; a part of a pass formula is a Check's key or a list`);
+      return;
+    }
+    const [operator, k] = part as unknown[];
+    if (typeof operator !== 'string' || !passOperators.has(operator)) {
+      problems.push(`${at}.0 is ${JSON.stringify(operator)}; a pass formula's operator is and, or or at-least`);
+      return;
+    }
+    const counted = operator === 'at-least';
+    const parts = part.slice(counted ? 2 : 1);
+    if (parts.length < 2) problems.push(`${at} has ${parts.length} part${parts.length === 1 ? '' : 's'}; ${operator} combines two or more`);
+    if (counted && !(typeof k === 'number' && Number.isInteger(k) && k >= 1 && k <= parts.length)) {
+      problems.push(`${at}.1 is ${JSON.stringify(k)}; at-least's k is a whole number from 1 to the number of its parts, ${parts.length}`);
+    }
+    parts.forEach((each, index) => visit(`${at}.${index + (counted ? 2 : 1)}`, each));
+  };
+  visit(where, pass);
+  for (const twice of repeated(named)) problems.push(`${where}: "${twice}" is named twice; every Check is named once`);
+  for (const key of checkKeys) if (!named.includes(key)) problems.push(`${where}: "${key}" is not named; every Check is named once`);
 }
 
 /** One consequence's fields, by its kind. */

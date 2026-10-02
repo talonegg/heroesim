@@ -243,11 +243,13 @@ export { potentialHint } from './potential.js';
 export * from './preview.js';
 export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome } from './quest-engine/check.js';
 export { expendUsed, kitOf, sendHome, type ConsumableUse, type Kit } from './quest-engine/consumables.js';
+export { degreeOf, passDegree, passOf, succeeded, type Decided } from './quest-engine/degree.js';
 export { encounterCount, sequenceFor } from './quest-engine/encounters.js';
 export { teamwork } from './quest-engine/teamwork.js';
 export {
   questBand,
   resolveQuest,
+  type CheckRoll,
   type EncounterResult,
   type QuestInjury,
   type QuestOutcome,

@@ -16,10 +16,12 @@
 // now is the engine's `regardBand` of `patronRegardFor`.
 
 import {
+  encounterDegree,
   entriesFor,
   patronRegardFor,
   playerGuild,
   regardBand,
+  type Degree,
   type EncounterOutcome,
   type Entry,
   type EngineEventOf,
@@ -56,6 +58,8 @@ export interface ReturnLine {
 export interface ReturnEncounter extends ReturnLine {
   key: string;
   outcome: EncounterOutcome;
+  /** Its Degree (v1.1.4-S2); an entry written before then reads as its outcome, a Success or a Failure. */
+  degree: Degree;
   used: ReturnLine[];
 }
 
@@ -316,6 +320,7 @@ function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null
     .map((entry): ReturnEncounter => ({
       key: `encounter-${entry.payload.index}`,
       outcome: entry.payload.outcome,
+      degree: encounterDegree(entry.payload),
       ...lineOf(entry, narration),
       used: expended.filter((use) => 'encounterIndex' in use.payload && use.payload.encounterIndex === entry.payload.index).map((use) => lineOf(use, narration)),
     }));

@@ -1338,7 +1338,8 @@ describe('a Query (v1.1.4-S1)', () => {
     const steward = content.encounters['the-patrons-steward'] as Encounter;
     Object.assign(first, { score: ['+', ['ranked', 'party', ['stat', 'strength'], [1, Number.POSITIVE_INFINITY, Number.NaN]], Number.NEGATIVE_INFINITY, ['stat', 'wits']] });
     reeve.checks = [];
-    steward.checks.push({ ...(steward.checks[0] as Encounter['checks'][number]), key: 'Second', name: ' ' });
+    const stewardCheck = steward.checks[0] as Encounter['checks'][number];
+    steward.checks.push({ ...stewardCheck, key: 'Second', name: ' ' }, ...['third', 'fourth', 'fifth'].map((key) => ({ ...stewardCheck, key })));
 
     const { message } = refusalOf(() => validateContent(content));
 
@@ -1347,7 +1348,7 @@ describe('a Query (v1.1.4-S1)', () => {
     expect(message).toMatch(/encounters\.ambush-on-the-road\.checks\.0\.score\.2 is -Infinity; a number in a Query is finite/);
     expect(message).toMatch(/encounters\.ambush-on-the-road\.checks\.0\.score\.3: "stat" makes a Val, where a Num is expected/);
     expect(message).toMatch(/encounters\.a-hostile-reeve\.checks is empty: an Encounter is resolved by a Check/);
-    expect(message).toMatch(/encounters\.the-patrons-steward\.checks has 2; an Encounter has at most 1/);
+    expect(message).toMatch(/encounters\.the-patrons-steward\.checks has 5; an Encounter has at most 4/);
     expect(message).toMatch(/encounters\.the-patrons-steward\.checks\.1\.key: "Second" is not kebab-case/);
     expect(message).toMatch(/encounters\.the-patrons-steward\.checks\.1\.name is empty/);
   });
@@ -1749,5 +1750,92 @@ describe('validateContent on a set built in memory', () => {
     expect(refusal.problems).toHaveLength(2);
     expect(refusal.message).toContain('names.guild');
     expect(refusal.message).toContain('names.patron');
+  });
+});
+
+// v1.1.4-S2 (DL-148 items 7 and 8): an Encounter written in the new form, `checks` and `pass`, with
+// consequences by Degree. `encounters.json` may hold either form; the old one still loads.
+describe('an Encounter in the new form (v1.1.4-S2)', () => {
+  /** A Check as the new form writes it. */
+  const checkRow = (key: string, fields: Record<string, unknown> = {}): Record<string, unknown> => ({
+    key,
+    name: `The ${key}`,
+    score: ['max', ['where', 'party', ['class', 'warrior']], ['stat', 'strength']],
+    skills: ['shieldwork'],
+    difficultyFactor: 0.2,
+    ...fields,
+  });
+  /** `ambush-on-the-road` rewritten in the new form, with `fields` in place of its own. */
+  const rewritten = (fields: Record<string, unknown> = {}) =>
+    withJson('encounters.json', (json) => {
+      const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
+      (json as Record<string, unknown>)['ambush-on-the-road'] = {
+        name,
+        kind,
+        checks: [checkRow('front'), checkRow('nerve', { score: ['min', 'party', ['stat', 'courage']], skills: [] }), checkRow('wits', { flat: 4, variance: 0 })],
+        pass: ['or', ['and', 'front', 'nerve'], 'wits'],
+        consequences: { ...consequences, triumph: [{ kind: 'fame', delta: 2 }], setback: [{ kind: 'morale', delta: -1 }] },
+        ...fields,
+      };
+    });
+
+  test('loads as written, beside Encounters in the old form', () => {
+    const content = parseContent(rewritten());
+    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
+
+    expect(ambush.checks.map((it) => it.key)).toEqual(['front', 'nerve', 'wits']);
+    expect(ambush.checks[2]).toEqual({ ...checkRow('wits', { flat: 4, variance: 0 }) });
+    expect(ambush.pass).toEqual(['or', ['and', 'front', 'nerve'], 'wits']);
+    expect(ambush.consequences).toMatchObject({ triumph: [{ kind: 'fame', delta: 2 }], setback: [{ kind: 'morale', delta: -1 }] });
+    // An old one beside it loads as before: one Check, no formula, no lists by Degree.
+    const reeve = content.encounters['a-hostile-reeve'] as Encounter;
+    expect(reeve.checks).toHaveLength(1);
+    expect(reeve.pass).toBeUndefined();
+    expect(Object.keys(reeve.consequences)).toEqual(['success', 'failure']);
+  });
+
+  test('of one Check, may leave out its pass formula, and a raw gate of a flat and no difficulty factor is accepted', () => {
+    const content = parseContent(rewritten({ checks: [checkRow('front', { difficultyFactor: 0, flat: 1, variance: 0, raw: true, skills: [] })], pass: undefined }));
+    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
+    expect(ambush.pass).toBeUndefined();
+    expect(ambush.checks[0]).toMatchObject({ raw: true, flat: 1, variance: 0, skills: [] });
+  });
+
+  const path = (rest: string) => new RegExp(`encounters\\.ambush-on-the-road\\.${rest.replace(/[.[\]()]/g, (char) => `\\${char}`)}`);
+  test.each<[string, Record<string, unknown>, RegExp]>([
+    ['several Checks and no pass formula', { pass: undefined }, path('pass is missing: an Encounter of several Checks combines them by a pass formula')],
+    ['a part naming no Check of the Encounter', { pass: ['or', ['and', 'front', 'nerve'], 'wits', 'luck'] }, path('pass.3: "luck" is not a Check of this Encounter')],
+    ['a Check named twice', { pass: ['or', ['and', 'front', 'nerve'], 'wits', 'front'] }, path('pass: "front" is named twice; every Check is named once')],
+    ['a Check not named', { pass: ['or', 'front', 'wits'] }, path('pass: "nerve" is not named; every Check is named once')],
+    ['an operator no formula has', { pass: ['or', ['xor', 'front', 'nerve'], 'wits'] }, path('pass.1.0 is "xor"; a pass formula\'s operator is and, or or at-least')],
+    ['an `and` of one part', { pass: ['or', ['and', 'front'], 'nerve', 'wits'] }, path('pass.1 has 1 part; and combines two or more')],
+    ['an `at-least` of 0', { pass: ['at-least', 0, 'front', 'nerve', 'wits'] }, path("pass.1 is 0; at-least's k is a whole number from 1 to the number of its parts, 3")],
+    ['an `at-least` of more than its parts', { pass: ['at-least', 4, 'front', 'nerve', 'wits'] }, path("pass.1 is 4; at-least's k")],
+    ['an `at-least` of a fraction', { pass: ['at-least', 1.5, 'front', 'nerve', 'wits'] }, path("pass.1 is 1.5; at-least's k")],
+    ['a part that is a number', { pass: ['or', 'front', 'nerve', 'wits', 3] }, path("pass.4 is 3; a part of a pass formula is a Check's key or a list")],
+    ['five Checks', { checks: ['a', 'b', 'c', 'd', 'e'].map((key) => checkRow(key)), pass: ['and', 'a', 'b', 'c', 'd', 'e'] }, path('checks has 5; an Encounter has at most 4')],
+    ['a negative flat', { checks: [checkRow('front', { flat: -1 })], pass: 'front' }, path('checks.0.flat is -1; it is a number of 0 or more')],
+    ['a factor of 0 with no flat', { checks: [checkRow('front', { difficultyFactor: 0 })], pass: 'front' }, path('checks.0.difficultyFactor is 0; it is a number above 0, or 0 beside a flat above 0')],
+    ['a negative factor beside a flat', { checks: [checkRow('front', { difficultyFactor: -0.1, flat: 2 })], pass: 'front' }, path('checks.0.difficultyFactor is -0.1; it is a number of 0 or more')],
+    ['a variance above 1', { checks: [checkRow('front', { variance: 1.5 })], pass: 'front' }, path('checks.0.variance is 1.5; it is a number from 0 to 1')],
+    ['a Check with a field it lacks', { checks: [checkRow('front', { aggregate: 'sum' })], pass: 'front' }, /encounters\.json: ambush-on-the-road\.checks\.0\.aggregate is not a field of an Encounter's Check/],
+    ['a Check with no score', { checks: [checkRow('front', { score: undefined })], pass: 'front' }, path('checks.0.score')],
+    ['a Check with a Skill content lacks', { checks: [checkRow('front', { skills: ['axemanship'] })], pass: 'front' }, path('checks.0.skills: "axemanship" is not a Skill')],
+    ['the old form beside the new', { demands: [['strength', 1]] }, /encounters\.json: ambush-on-the-road\.demands is not a field of an Encounter/],
+    ['a raw Check with Skills', { checks: [checkRow('front', { raw: true })], pass: 'front' }, path('checks.0.skills lists 1; a raw Check is its score alone, and lists no Skills')],
+    ['a raw that is not true or false', { checks: [checkRow('front', { raw: 'yes', skills: [] })], pass: 'front' }, /ambush-on-the-road\.checks\.0\.raw is "yes"; expected true or false/],
+  ])('with %s is refused, naming its path', (_, fields, problem) => {
+    expect(refusalOf(() => parseContent(rewritten(fields))).message).toMatch(problem);
+  });
+
+  test('with consequences by Degree out of bounds, or of a field they lack, is refused, naming them', () => {
+    const { consequences } = { consequences: { success: [], failure: [] } };
+    const bad = rewritten({ consequences: { ...consequences, triumph: [{ kind: 'death', chance: 2 }], setback: [{ kind: 'xp', factor: -1 }] } });
+    const odd = rewritten({ consequences: { ...consequences, glory: [] } });
+
+    const { message } = refusalOf(() => parseContent(bad));
+    expect(message).toMatch(path('consequences.triumph.0.chance is 2'));
+    expect(message).toMatch(path('consequences.setback.0.factor is -1'));
+    expect(refusalOf(() => parseContent(odd)).message).toMatch(/ambush-on-the-road\.consequences\.glory is not a field of an Encounter's consequences/);
   });
 });

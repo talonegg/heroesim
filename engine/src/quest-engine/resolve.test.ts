@@ -1,12 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import { defaultConfig, type EngineDeps } from '../config.js';
-import type { Consequence, ContentSet, Encounter } from '../content-types.js';
+import { degrees, type Consequence, type ContentSet, type Degree, type Encounter, type EncounterCheck, type PassFormula } from '../content-types.js';
 import { createWorld } from '../create.js';
+import { addStack } from '../items.js';
 import { makeId, type Guild, type Hero, type Party, type Quest, type World } from '../document.js';
 import { streamOf } from '../generators/draw.js';
 import { next } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { encounterCapability as capability, heroStatKeys, oldFormCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
+import { drawLoot } from './loot.js';
 import { queryParty } from './query.js';
 import { questBand, resolveQuest } from './resolve.js';
 import { synergyBonus } from './synergy.js';
@@ -75,19 +77,57 @@ function scene(seed: string, content: ContentSet, keys: string[], { size = 3, di
 }
 
 describe('questBand', () => {
-  const config = { bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 } };
+  const config = { bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 }, strongTriumphShare: 0.5 };
+  /** The band with every Encounter at Success or better a Triumph: the share of Triumphs is never short. */
+  const allTriumphs = (successes: number, count: number, using: Parameters<typeof questBand>[3] = config) =>
+    questBand(successes, successes, count, using);
 
   test('is strong when every Encounter succeeded, success for a majority, and fail for half or fewer', () => {
-    expect([0, 1, 2].map((n) => questBand(n, 2, config))).toEqual(['fail', 'fail', 'strong']);
-    expect([0, 1, 2, 3].map((n) => questBand(n, 3, config))).toEqual(['fail', 'fail', 'success', 'strong']);
-    expect([0, 1, 2, 3, 4].map((n) => questBand(n, 4, config))).toEqual(['fail', 'fail', 'fail', 'success', 'strong']);
-    expect([2, 3, 4, 5].map((n) => questBand(n, 5, config))).toEqual(['fail', 'success', 'success', 'strong']);
+    expect([0, 1, 2].map((n) => allTriumphs(n, 2))).toEqual(['fail', 'fail', 'strong']);
+    expect([0, 1, 2, 3].map((n) => allTriumphs(n, 3))).toEqual(['fail', 'fail', 'success', 'strong']);
+    expect([0, 1, 2, 3, 4].map((n) => allTriumphs(n, 4))).toEqual(['fail', 'fail', 'fail', 'success', 'strong']);
+    expect([2, 3, 4, 5].map((n) => allTriumphs(n, 5))).toEqual(['fail', 'success', 'success', 'strong']);
   });
 
   test('reads bandBySuccessShare, and no Encounters is a share of 0', () => {
-    const lenient = { bandBySuccessShare: { successAbove: 0.3, strongAtLeast: 0.75 } };
-    expect([1, 2, 3, 4].map((n) => questBand(n, 4, lenient))).toEqual(['fail', 'success', 'strong', 'strong']);
-    expect(questBand(0, 0, config)).toBe('fail');
+    const lenient = { bandBySuccessShare: { successAbove: 0.3, strongAtLeast: 0.75 }, strongTriumphShare: 0.5 };
+    expect([1, 2, 3, 4].map((n) => allTriumphs(n, 4, lenient))).toEqual(['fail', 'success', 'strong', 'strong']);
+    expect(questBand(0, 0, 0, config)).toBe('fail');
+  });
+
+  // v1.1.4-S2's band boxes (DL-148 item 8): DL-83 item 17's margin, a share of Triumphs.
+  test('a majority at Success or better, Triumphs or not, is a success', () => {
+    expect(questBand(2, 0, 3, config)).toBe('success');
+    expect(questBand(3, 1, 4, config)).toBe('success');
+    expect(questBand(2, 2, 4, config)).toBe('fail');
+  });
+
+  test('every Encounter at Success or better with half or more of them Triumphs is a strong success', () => {
+    expect(questBand(2, 1, 2, config)).toBe('strong');
+    expect(questBand(4, 2, 4, config)).toBe('strong');
+    expect(questBand(3, 3, 3, config)).toBe('strong');
+    expect(questBand(3, 2, 3, config)).toBe('strong');
+  });
+
+  test('every Encounter at Success or better with fewer than half Triumphs is a plain success', () => {
+    expect(questBand(4, 1, 4, config)).toBe('success');
+    expect(questBand(3, 1, 3, config)).toBe('success');
+    expect(questBand(2, 0, 2, config)).toBe('success');
+    expect(questBand(5, 2, 5, config)).toBe('success');
+  });
+
+  test('strongTriumphShare 0 is the rule before v1.1.4: every Encounter at Success or better is strong', () => {
+    const before = { ...config, strongTriumphShare: 0 };
+    for (const count of [1, 2, 3, 4, 5]) {
+      for (let successes = 0; successes <= count; successes += 1) {
+        expect(questBand(successes, 0, count, before)).toBe(successes === count ? 'strong' : successes / count > 0.5 ? 'success' : 'fail');
+      }
+    }
+  });
+
+  test('strongTriumphShare is read', () => {
+    expect(questBand(4, 3, 4, { ...config, strongTriumphShare: 0.75 })).toBe('strong');
+    expect(questBand(4, 2, 4, { ...config, strongTriumphShare: 0.75 })).toBe('success');
   });
 });
 
@@ -237,17 +277,21 @@ describe("the Quest Engine's config (DL-42)", () => {
   test("defaults to INPUTS 6.2's ±20% and Skill rating × 2, all strong and a majority success, and the stub's fields are gone", () => {
     // configVersion 4 from DL-42; 8 on the main line by the M5 close (DL-62) and 5 on M6's from M6-S1,
     // which moved two Rival fields to content (DL-56); 9 from their merge (DL-63); 10 from the M6 close's
-    // Transfer lock (DL-69); 11 from M9-S2's Trait budget (DL-102); 12 from M9-F1's Guildmasters' ages (DL-113).
+    // Transfer lock (DL-69); 11 from M9-S2's Trait budget (DL-102); 12 from M9-F1's Guildmasters' ages (DL-113);
+    // 13 from v1.1.4-S2's Degrees (DL-152).
     expect(defaultConfig).toMatchObject({
-      configVersion: 12,
+      configVersion: 13,
       checkVariance: 0.2,
       skillBonusPerRating: 2,
       bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
+      checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
+      strongTriumphShare: 0.5,
     });
     for (const field of ['stubBands', 'stubVariance', 'stubSkillBonusPerRating', 'stubInjuryChance', 'stubDeathChance']) {
       expect(Object.hasOwn(defaultConfig, field), field).toBe(false);
     }
     expect(Object.isFrozen(defaultConfig.bandBySuccessShare)).toBe(true);
+    expect(Object.isFrozen(defaultConfig.checkDegrees)).toBe(true);
   });
 });
 
@@ -289,5 +333,206 @@ describe("the Check's seams", () => {
     const any = testContent.encounters['ambush-on-the-road'] as Encounter;
     expect(synergyBonus(queryParty(heroes, world, deps), any, 30, deps)).toBe(0);
     expect(teamwork(heroes, world, deps)).toBe(1);
+  });
+});
+
+// v1.1.4-S2 (DL-148 items 7 and 8): an Encounter of one to four Checks, combined by its pass formula
+// into a Degree, with consequences by Degree. The scene's Party of three has Strength 24 in all and
+// the Quest a difficulty of 40, so with no variance a Check's factor sets its Degree: 0.25 a Triumph
+// (a target of 10), 0.55 a Success (22), 0.7 a Setback (28) and 2 a Failure (80).
+describe('several Checks (v1.1.4-S2)', () => {
+  const factors: Record<Degree, number> = { triumph: 0.25, success: 0.55, setback: 0.7, failure: 2 };
+
+  /** A Check keyed `key` of the Party's summed Strength, coming out `degree`, with `fields` beside. */
+  function strength(key: string, degree: Degree, fields: Partial<EncounterCheck> = {}): EncounterCheck {
+    return { key, name: `The ${key}`, score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: factors[degree], ...fields };
+  }
+
+  /** An Encounter keyed `key` of `checks` and `pass`, with `consequences`. */
+  function several(key: string, checks: EncounterCheck[], pass?: PassFormula, consequences: Encounter['consequences'] = { success: [], failure: [] }): Encounter {
+    return { key, name: key, kind: 'combat', checks, ...(pass === undefined ? {} : { pass }), consequences };
+  }
+
+  // v1.1.4-S2's second box.
+  test.each<[string, PassFormula]>([
+    ['decided by its first Check', ['or', 'a', ['and', 'b', 'c']]],
+    ['decided by its last', ['and', 'b', 'a', 'c']],
+    ['decided by the k-th best', ['at-least', 2, 'c', 'b', 'a']],
+  ])("a Quest draws one `next` for each Check, its formula %s, and Loot's draws follow as before", (_, pass) => {
+    const harm: Consequence[] = [
+      { kind: 'injury', typeKey: 'deep-cut', chance: 0, count: 1 },
+      { kind: 'death', chance: 0 },
+    ];
+    const trio = several('trio', [strength('a', 'triumph'), strength('b', 'failure'), strength('c', 'setback')], pass, { success: harm, failure: harm });
+    const s = scene('per-check', contentWith(trio), ['trio', 'trio', 'trio']);
+    const quest = { ...s.quest, lootTableKey: 'lesser-loot' };
+    const twin = structuredClone(s.world);
+
+    const { encounters, outcome, loot } = resolveQuest(s.world, quest, s.party, s.deps);
+
+    // Three Checks and the five draws of the harm, an Encounter; then Loot's two, as a twin draws them.
+    expect(encounters).toHaveLength(3);
+    for (let draw = 0; draw < 3 * (3 + 3 + 2); draw += 1) next(streamOf(twin, 'quests'));
+    expect(loot).toEqual(drawLoot(twin, quest, outcome.band, s.deps));
+    expect(streamOf(s.world, 'quests')).toEqual(streamOf(twin, 'quests'));
+  });
+
+  test("records its Degree, the Check that decided it and each Check, the roll, target, margin and outcome the deciding one's", () => {
+    const pair = several('pair', [strength('first', 'success'), strength('second', 'setback')], ['or', 'second', 'first']);
+    const s = scene('recorded', contentWith(pair), ['pair']);
+
+    const [result] = resolveQuest(s.world, s.quest, s.party, s.deps).encounters;
+
+    expect(result).toMatchObject({ degree: 'success', decidedBy: 'first', roll: 24, target: 22, margin: 2, outcome: 'success' });
+    expect(result?.checks).toEqual([
+      { key: 'first', capability: 24, roll: 24, target: 22, margin: 2, degree: 'success' },
+      { key: 'second', capability: 24, roll: 24, target: 28, margin: -4, degree: 'setback' },
+    ]);
+  });
+
+  test("applies its Degree's consequences: a Triumph's own or else Success's, a Setback's own or else Failure's", () => {
+    const morale = (delta: number): Consequence[] => [{ kind: 'morale', delta }];
+    const full = { success: morale(1), failure: morale(-1), triumph: morale(5), setback: morale(-3) };
+    const plain = { success: morale(1), failure: morale(-1) };
+    const moraleOf = (degree: Degree, consequences: Encounter['consequences']) => {
+      const encounter = several(degree, [strength('only', degree)], undefined, consequences);
+      const s = scene(`by-${degree}`, contentWith(encounter), [degree]);
+      const { encounters, outcome } = resolveQuest(s.world, s.quest, s.party, s.deps);
+      expect(encounters[0]?.degree).toBe(degree);
+      return outcome.moraleDelta;
+    };
+
+    expect(degrees.map((degree) => moraleOf(degree, full))).toEqual([-1, -3, 1, 5]);
+    expect(degrees.map((degree) => moraleOf(degree, plain))).toEqual([-1, -1, 1, 1]);
+  });
+
+  test("a Check's target is its flat plus its factor times the difficulty, and its own variance replaces checkVariance", () => {
+    // A count of the Heroes with Strength 12 or more against a flat 1: a gate, with no luck in it.
+    const gate = several('gate', [
+      {
+        key: 'strong-one',
+        name: 'A strong one',
+        score: ['count', ['where', 'party', ['>=', ['stat', 'strength'], 12]]],
+        skills: [],
+        difficultyFactor: 0,
+        flat: 1,
+        variance: 0,
+      },
+    ]);
+    const resolved = (strongest: number) => {
+      // No Synergies, whose flat bonus would add to the count.
+      const s = scene(`gate-${strongest}`, { ...contentWith(gate), synergies: {} }, ['gate', 'gate'], { difficulty: 90 });
+      const deps = { ...s.deps, config: { ...s.deps.config, checkVariance: 0.9 } };
+      (s.heroes[0] as Hero).stats['strength'] = strongest;
+      return resolveQuest(s.world, s.quest, s.party, deps).encounters;
+    };
+
+    expect(resolved(12).map((it) => [it.roll, it.target, it.degree])).toEqual([
+      [1, 1, 'success'],
+      [1, 1, 'success'],
+    ]);
+    expect(resolved(11).map((it) => [it.roll, it.target, it.degree])).toEqual([
+      [0, 1, 'failure'],
+      [0, 1, 'failure'],
+    ]);
+    // A flat beside a factor: 5 + 0.25 × 40.
+    const both = several('both', [strength('both', 'triumph', { flat: 5 })]);
+    const s = scene('flat-and-factor', contentWith(both), ['both']);
+    expect(resolveQuest(s.world, s.quest, s.party, s.deps).encounters[0]?.target).toBe(15);
+  });
+
+  // v1.1.4-S2's verification (DL-152): a gate on a count is a gate only when nothing but the count
+  // reaches the roll. A raw Check's capability is its score alone.
+  test('a raw Check is its score alone: no teamwork, Synergy, Skill or consumable moves a count past its flat', () => {
+    const counting = (raw: boolean): Encounter =>
+      several('gate', [
+        {
+          key: 'strong-one',
+          name: 'A strong one',
+          score: ['count', ['where', 'party', ['>=', ['stat', 'strength'], 12]]],
+          skills: [],
+          difficultyFactor: 0,
+          flat: 1,
+          variance: 0,
+          ...(raw ? { raw: true } : {}),
+        },
+      ]);
+    /** The gate's Degree with one Hero at `strongest` Strength, every pair of the Party at the worst Regard, carrying a Whetstone. */
+    const degreeOf = (raw: boolean, strongest: number) => {
+      const s = scene(`raw-${raw}-${strongest}`, contentWith(counting(raw)), ['gate']);
+      (s.heroes[0] as Hero).stats['strength'] = strongest;
+      for (const hero of s.heroes) {
+        hero.regard = Object.fromEntries(s.heroes.filter((other) => other.id !== hero.id).map((other) => [other.id, { value: s.deps.config.regardMin, since: 0, reason: 'test' }]));
+      }
+      addStack(s.world, 'whetstone', 1, { kind: 'party', id: s.party.id });
+      return resolveQuest(s.world, s.quest, s.party, s.deps).encounters[0]?.degree;
+    };
+
+    // Not raw: with no Hero of Strength 12, the Whetstone's 3 alone is a Triumph.
+    expect(degreeOf(false, 11)).toBe('triumph');
+    // Raw: the count, 1 or 0, against the flat 1.
+    expect(degreeOf(true, 12)).toBe('success');
+    expect(degreeOf(true, 11)).toBe('failure');
+  });
+
+  test('a raw Check is not scaled by teamwork', () => {
+    const counted = (raw: boolean) =>
+      several('counted', [
+        { key: 'one', name: 'One', score: ['count', ['where', 'party', ['>=', ['stat', 'strength'], 12]]], skills: [], difficultyFactor: 0, flat: 1, variance: 0, ...(raw ? { raw: true } : {}) },
+      ]);
+    const degreeOf = (raw: boolean) => {
+      const s = scene(`raw-teamwork-${raw}`, { ...contentWith(counted(raw)), synergies: {} }, ['counted']);
+      (s.heroes[0] as Hero).stats['strength'] = 12;
+      for (const hero of s.heroes) {
+        hero.regard = Object.fromEntries(s.heroes.filter((other) => other.id !== hero.id).map((other) => [other.id, { value: s.deps.config.regardMin, since: 0, reason: 'test' }]));
+      }
+      expect(teamwork(s.heroes, s.world, s.deps)).toBeLessThan(1);
+      return resolveQuest(s.world, s.quest, s.party, s.deps).encounters[0]?.degree;
+    };
+
+    expect(degreeOf(false)).toBe('setback');
+    expect(degreeOf(true)).toBe('success');
+  });
+
+  // v1.1.4-S2's third box, through the resolver (`questBand`'s own tests are above).
+  test('the band: a majority at Success is a success; every Encounter at Success or better, half Triumphs, strong; fewer, not', () => {
+    const triumph = several('won-well', [strength('only', 'triumph')]);
+    const success = several('won', [strength('only', 'success')]);
+    const setback = several('lost-narrowly', [strength('only', 'setback')]);
+    const bandOf = (keys: string[]) => {
+      const s = scene(`band-${keys.join('-')}`, contentWith(triumph, success, setback), keys);
+      return resolveQuest(s.world, s.quest, s.party, s.deps).outcome;
+    };
+
+    expect(bandOf(['won-well', 'won'])).toMatchObject({ band: 'strong', successes: 2 });
+    expect(bandOf(['won-well', 'won', 'won'])).toMatchObject({ band: 'success', successes: 3 });
+    expect(bandOf(['won-well', 'won-well', 'lost-narrowly'])).toMatchObject({ band: 'success', successes: 2 });
+    expect(bandOf(['won', 'lost-narrowly', 'lost-narrowly'])).toMatchObject({ band: 'fail', successes: 1 });
+  });
+
+  test("a Check's margin is its roll less the Success threshold times its target, so 0 or more is a Success at any threshold (DL-152)", () => {
+    const one = several('one', [strength('only', 'success')]);
+    const marginOf = (success: number) => {
+      const s = scene(`margin-${success}`, contentWith(one), ['one']);
+      const deps = { ...s.deps, config: { ...s.deps.config, checkDegrees: { triumph: 2, success, setback: 0.5 } } };
+      return resolveQuest(s.world, s.quest, s.party, deps).encounters[0];
+    };
+
+    expect(marginOf(1)).toMatchObject({ roll: 24, target: 22, margin: 2, degree: 'success' });
+    expect(marginOf(1.1)).toMatchObject({ roll: 24, target: 22, degree: 'setback' });
+    expect(marginOf(1.1)?.margin).toBeCloseTo(24 - 1.1 * 22);
+  });
+
+  test('throws on a configuration whose Degrees are out of order', () => {
+    const one = several('one', [strength('only', 'success')]);
+    const s = scene('disordered', contentWith(one), ['one']);
+    const deps = { ...s.deps, config: { ...s.deps.config, checkDegrees: { triumph: 0.9, success: 1, setback: 0.75 } } };
+    expect(() => resolveQuest(s.world, s.quest, s.party, deps)).toThrow(/checkDegrees is .*; triumph > success > setback > 0/);
+  });
+
+  test('throws on several Checks with no pass formula', () => {
+    const loose = several('loose', [strength('a', 'success'), strength('b', 'success')]);
+    const s = scene('loose', contentWith(loose), ['loose']);
+    expect(() => resolveQuest(s.world, s.quest, s.party, s.deps)).toThrow(/2 Checks and no pass formula/);
   });
 });

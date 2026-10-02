@@ -107,11 +107,13 @@ describe('questReturn (M9-F5)', () => {
     expect(report.band).toBe('fail');
     expect(report.bandWords).toBe('Failure');
     expect(report.reward).toEqual({ wealth: 0, fame: -2, xp: 10 });
-    expect(report.encounters.map((encounter) => [encounter.outcome, encounter.sentence, encounter.used.map((used) => used.sentence)])).toEqual([
-      ['success', "The Lantern's Party came through Ambush on the road (Encounter 1).", []],
+    // Written as before v1.1.4-S2, with no Degree: each reads as its outcome, a Success or a Failure.
+    expect(report.encounters.map((encounter) => [encounter.outcome, encounter.degree, encounter.sentence, encounter.used.map((used) => used.sentence)])).toEqual([
+      ['success', 'success', "The Lantern's Party came through Ambush on the road (Encounter 1), a Success.", []],
       [
         'failure',
-        `The Lantern's Party failed at Ambush on the road (Encounter 2): ${second} was injured.`,
+        'failure',
+        `The Lantern's Party failed at Ambush on the road (Encounter 2), a Failure: ${second} was injured.`,
         ["The Lantern's Party used one Whetstone on Encounter 2: +2 to its Check."],
       ],
     ]);

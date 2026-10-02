@@ -17086,6 +17086,274 @@ These checks were run on the working tree over `8987cd5`, before the commit.
 
 ---
 
+## DL-152 — v1.1.4-S2 built: several Checks to an Encounter, combined by a pass formula into a Degree, consequences by Degree, and a strong success that needs Triumphs
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 items 7, 8
+and 13 as the epic's S2 describes. Where the plan was silent, the calls are the agent's, each in
+item 8, for the owner to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** S2 is the spine every later engine story builds on. An Encounter may now hold up to
+four named Checks, each rolled, combined by a pass formula into a Degree; consequences may differ
+by Degree; and a strong success needs Triumphs. It was built on `v1.1.4-dev` at `de7284d` (S1,
+DL-151), and every comparison below is with that commit and its sweep,
+`harness/reports/m9-v114-s1-2026-10-02.md`. Play changes by one rule, the band's, and S2 shows
+that it is the only one before it changes it.
+
+**Decision.**
+
+1. **The Encounter's shape** (`engine/src/content-types.ts`).
+   - `EncounterCheck` gains optional `flat` and `variance`. The target is `flat` (0 when absent)
+     plus `difficultyFactor` × the Quest's difficulty. `variance` replaces `checkVariance` for that
+     Check; 0 is a gate with no luck in it.
+   - `PassFormula` is a Check's key, `["and", …]`, `["or", …]` or `["at-least", k, …]`.
+     `Encounter.pass` is optional: one Check needs none, and then decides.
+   - `degrees` (`failure`, `setback`, `success`, `triumph`, worst first) and `Degree`.
+   - `consequences` gains optional `triumph` and `setback` lists.
+2. **Degrees** (`engine/src/quest-engine/degree.ts`, new, pure).
+   - `degreeOf(roll, target)` is a Triumph at `checkDegrees.triumph` × the target or more, a
+     Success at `success` ×, a Setback at `setback` ×, else a Failure.
+   - `passDegree(pass, byKey)` gives the Degree and the Check that decided it: `and` the worst,
+     `or` the best, `at-least` k the k-th best.
+   - `passOf` reads an Encounter's formula, or its one Check's key.
+3. **The Check** (`check.ts`). `check` rolls with the Check's own variance or `checkVariance`,
+   aims at `flat + difficultyFactor × difficulty`, and returns the roll's `degree` beside
+   `outcome`, which is `success` at a Success or a Triumph. The capability is as S1 left it: the
+   score, the Skill term and the Synergy term, times teamwork, plus the consumable's bonus.
+4. **The resolver** (`resolve.ts`).
+   - *The draws.* Every Check is rolled, one `next` from `quests` each, in the order the Encounter
+     lists them, however the formula falls. Then the Degree's consequences draw as before, and
+     Loot's two draws come last.
+   - *A consumable's bonus* adds to every Check of its Encounter, one Item for the Encounter
+     (DL-148 item 13).
+   - *A reroll.* When the Encounter's Degree is below Success and a reroll applies, each Check that
+     fell short of Success is rolled again, one draw each in the order listed, straight after the
+     Checks. The new rolls stand, and the formula is read again.
+   - *Consequences.* A Triumph applies `triumph`, or `success` when it has none; a Setback
+     `setback`, or `failure`.
+   - *The band* (`questBand(successes, triumphs, encounterCount)`). A success needs more than
+     `successAbove` of the sequence at Success or better, as before. A strong success needs
+     `strongAtLeast` (1) of it at Success or better and `strongTriumphShare` (0.5) of it Triumphs.
+     Both shares are of the whole sequence, an Encounter a wiped-out Party never reached counting
+     as neither.
+5. **Events.** `quest.encounter` gains `degree`, `decidedBy` and `checks`, each with its key,
+   capability, roll, target, margin and Degree. `roll`, `target`, `margin` and `outcome` are the
+   deciding Check's. The three new fields are optional in the payload's type, and
+   `encounterDegree(payload)` reads an entry written before v1.1.4 as its outcome, a Success or a
+   Failure. A reroll's `item.expended` records the deciding Check's failed roll as `firstRoll`.
+6. **The words.**
+   - The CLI's and the page's narration give each Encounter's Degree, and, for an Encounter of
+     several Checks, the name of the one that decided it: "The Kestrel Guild's Party failed at
+     Ambush on the road (Encounter 2), a Setback, decided by Nerve: Brenna Ashcombe was injured."
+     An entry written before v1.1.4 reads "…, a Failure" or "…, a Success". Triumph, Success,
+     Setback and Failure are written with their capitals (`docs/agents/ui-text.md`).
+   - The Quest report gives each Encounter its `degree` and its sentence, and marks a Triumph with
+     a star where a Success has a tick. The History's lines are the narration's.
+7. **Content and configuration.**
+   - `encounters.json` may hold either form. The new form is `checks` (`key`, `name`, `score`,
+     `skills`, `difficultyFactor`, optionally `flat` and `variance`) and `pass`; the old one
+     loads into one Check as in S1. An Encounter written in the new form refuses the old form's
+     fields beside it.
+   - The content checks refuse, each naming its path:
+     - none, or more than four, Checks (`encounterChecksMax`, now 4);
+     - several Checks and no pass formula;
+     - a part naming no Check of the Encounter;
+     - a Check named twice, or not named;
+     - an operator other than `and`, `or` or `at-least`;
+     - `and` or `or` of fewer than two parts;
+     - `at-least`'s k not a whole number from 1 to the number of its parts;
+     - a part that is neither a key nor a list;
+     - a negative `flat`;
+     - a factor not above 0 with no `flat` above 0, or a negative one beside it;
+     - a variance outside 0 to 1;
+     - consequences by Degree out of their bounds, or of a field they lack.
+   - `configVersion` goes from 12 to 13, with `checkDegrees` (triumph 1.25, success 1, setback
+     0.75) and `strongTriumphShare` (0.5).
+   - The content version stays 21: no file is written in the new form yet.
+8. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The thresholds compare products.* A Degree compares the roll with the threshold × the target,
+     not roll ÷ target with the threshold. They are the same in arithmetic, but a division can
+     round a roll a hair below the target up to 1. The product keeps a Success exactly the old
+     `roll >= target`.
+   - *Ties.* The Check that decides is the first listed, in the formula, of those with the Degree
+     the Encounter takes.
+   - *`strongAtLeast` stays.* The band keeps `bandBySuccessShare` and adds the share of Triumphs
+     to its strong rule, so that `strongTriumphShare: 0` is exactly the rule before S2.
+   - *Several Checks need a formula.* Only an Encounter of one Check may leave `pass` out. Two or
+     more with none is refused, and the resolver throws on it.
+   - *A formula's parts.* `and` and `or` take two parts or more, `at-least` two or more after its
+     k. A formula of a single key is allowed.
+   - *A target with no difficulty.* A factor of 0 is allowed only beside a `flat` above 0, so that
+     every target is above 0. A variance is held to 0 to 1, so the roll's spread never reaches
+     below nothing, which the roll's floor of 0 would otherwise hide.
+   - *A reroll's `firstRoll`* is the deciding Check's failed roll. The Item rerolls the Encounter
+     once, however many of its Checks it rolls again.
+   - *Naming the deciding Check.* The narration names it for an Encounter of several Checks, or
+     of one named otherwise than the Encounter (the verification, item 2).
+   - *No new glossary term.* "Pass formula" stays lower case, as S1's glossary wrote it. The
+     Encounter, Check, Degree and Quest band entries say what is now built.
+9. **The tests,** 52 new.
+   - `degree.test.ts`, 10 tests:
+     - the thresholds, and a Success exactly where the roll reaches the target;
+     - `(a and b) or c` against all 64 combinations of three Checks' Degrees, the Degree and the
+       Check that decided it;
+     - `and`, `or` and `at-least` 1 to 4 against all 256 combinations of four;
+     - the deciding Check on ties;
+     - the throws.
+   - `resolve.test.ts`:
+     - one draw a Check, for three formulas each decided at a different Check, with Loot's draws
+       following as a twin draws them;
+     - the Degree, the deciding Check and every Check recorded;
+     - consequences by Degree, with and without the Triumph and Setback lists;
+     - `flat` and `variance` 0 as a gate on a count;
+     - the band through the resolver;
+     - five band tests of `questBand`: a majority at Success; strong with half Triumphs; not
+       strong with fewer; `strongTriumphShare` 0 as the old rule; the share read.
+   - `consumables.test.ts`: a reroll of each Check short of Success, one draw each; a reroll kept
+     when the Encounter succeeds; a bonus on every Check, one Item.
+   - `quests-conclude.test.ts`: see the checks, item 1.
+   - `refusals.test.ts`, 22: the new form loads beside the old; one Check without a formula, and
+     a gate of a flat, are accepted; each refusal of item 7 names its path.
+   - The CLI's and the page's narration, the Quest report and the History each read a Degree, and
+     an entry written before v1.1.4 as Success or Failure.
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first,
+each call the agent's, for the owner to change:
+1. **A gate was not a gate.** A count against a `flat` with `variance: 0` still took the Skill
+   term, the Synergy term, teamwork and a consumable's bonus. So "at least one Hero with Strength
+   12" could be a Setback with the Hero there (teamwork 0.9 × 1), or a Triumph with no such Hero
+   (a Whetstone's +3).
+   - *The fix.* A Check may be `raw: true`. Its capability is its score alone: no Skill term,
+     Synergy, teamwork or consumable's bonus. Content refuses a `raw` that is not true or false, and
+     a raw Check that lists Skills. `resolve.test.ts` holds both cases, refused when not raw and
+     right when raw. `CONTEXT.md`'s Check says so.
+   - *For S3.* Form scales only the Stat values a Hero adds into a score (DL-148 item 11), so a raw
+     count is not scaled by form either.
+   - *By design.* A count of 2 against a `flat` of 1 is a Triumph, at 2 ÷ 1 ≥ 1.25. An author sets
+     `flat` to the count the Check is about.
+2. **The deciding Check went unnamed when it was renamed.** An Encounter of one Check named
+   otherwise than the Encounter (the new form allows it) read as one named as it. The CLI's and the
+   page's narration now name the deciding Check when there are several Checks, or when its name
+   differs from the Encounter's. The Quest report and the History read the narration's sentence.
+   Tested in both narrations.
+3. **The configuration was unchecked.** `configProblems(config)` (`config.ts`) refuses
+   `checkDegrees` unless triumph > success > setback > 0, and a `strongTriumphShare` outside 0 to 1,
+   naming the field. No config was validated before, so `resolveQuest` throws a `RangeError` on the
+   first problem as a programming error, beside its other throws. A Check's `margin` is now
+   `roll − checkDegrees.success × target`, so 0 or more is a Success at any threshold. At the
+   default of 1 it is the old `roll − target` exactly. Tested in `degree.test.ts` and
+   `resolve.test.ts`.
+4. **The script carried every content check.** `web/src/content.ts` called `parseContent`, which
+   runs `validateContent` in the browser. DL-17 item 2 ("no path from text yields an unvalidated
+   set") and DL-64 item 4 (the browser "runs the Node path exactly") decided that deliberately.
+   - *The fix.* The content package splits `readContent`, which checks each row's shape, from
+     `parseContent`, which is `validateContent(readContent(files))` as before.
+     - The page reads with `readContent`.
+     - A build-only Vite plugin (`web/content-gate.ts`) validates the very files the script
+       bundles with `parseContent` as the build starts, and fails the build on any problem.
+     - Content's tests validate them too, and `web/src/content.test.ts` holds the page's set
+       deep-equal to the Node entry's validated one.
+   - *What it supersedes.* DL-64 item 4 is superseded, and DL-17 item 2 is kept in substance: no
+     script is built from an unvalidated set, though the check now runs at the build, not in the
+     player's browser. The shipped content is fixed text, so checking it again at every page load
+     proved nothing new. It cost 31 kB of the 800 kB script, which S3 to S13 need.
+   - *The test.* A Stat whose default is beyond its maximum, which `readContent` takes, fails the
+     gate and its plugin.
+   - *The loader.* The configuration now imports the content package's TypeScript, so the web
+     scripts and the bundle test run Vite with `--configLoader runner`. The default loader leaves a
+     workspace package to Node, which cannot resolve its `.js` imports of `.ts` files.
+5. **No play changed.** Core content writes no raw Check, no renamed Check and no other threshold,
+   and the margin is unchanged at a threshold of 1, so the sweep was not run again. The History
+   fingerprints of `quests-conclude.test.ts` still hold.
+
+After the fixes:
+- `npm run typecheck` and `npm run lint` are clean.
+- `npm test` passes 4,073 tests in 167 files, 14 more than below, with no flake.
+- `npm run e2e -w web` passes all 86 specs, the `file://` spec's two among them.
+- The script is 754.00 kB (754,009 bytes, 216.79 kB gzipped), down from 784,825: 46 kB left under
+  800 kB.
+
+**The checks.**
+These checks were run on the working tree over `de7284d`, before the verification's fixes.
+1. **Everything but the band plays as before.**
+   - *A test.* `quests-conclude.test.ts`'s three seeded games of 120 Days, every Rival questing,
+     run with `strongTriumphShare: 0`. With the new fields set aside, each seed's History hashes
+     equal to the SHA-256s recorded at `86c7afa`. A new test holds every one of their Encounters to
+     one Check that decides it, its Degree its outcome, all four Degrees appearing.
+   - *A sweep.* The core-only 50 × 20 sweep was run with `strongTriumphShare: 0` set for the run
+     and put back after. Its report was not kept.
+     - Lines 27 to 592, the Counters through the Rivals, hash equal to S1's report (`bd097c10…`),
+       as do the Portraits' and the Heroes' sections. Every play counter, yearly table and ending
+       is the same.
+     - Only the timings and the saves moved. The mean save at year 20 is 118,409,123 characters
+       against 104,915,999 (+12.9%), from each Encounter's three new fields. `seed-0001` is
+       120,291,709 against 106,422,611, and gzipped saves average 12.54 MiB against 11.13.
+2. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s2 npm run harness`, core only,
+   content 21, config 13, not validated. Its report is `harness/reports/m9-v114-s2-2026-10-02.md`,
+   to be force-added.
+   - *The one rule changed.* A strong success now needs half its Encounters Triumphs, at a roll of
+     1.25 × the target. The player's strong successes fall from 71.6% to 67.0%, and plain successes
+     rise from 13.6% to 18.3%. Failures stay 14.7% (14.8%). The Rivals' strong successes fall from
+     75.1% to 71.3%, and their failures are 13.2% (13.0%).
+   - *Why the fall is small.* Parties today carry capability far above their targets (DL-148's
+     analysis), so most Encounters already roll a Triumph. S10 tunes the factors, and
+     `checkDegrees` and `strongTriumphShare` are its controls.
+   - *What follows from fewer strong successes.*
+     - Loot needs a strong success: the player's awards fall from 47,860 to 43,763 (0.136 to 0.125
+       a Quest), and the Rivals' from 79,115 to 68,387.
+     - The +5 Morale on a strong success comes less often.
+     - From the first band that differs, every later draw moves, so the rest differs as a
+       different game does, not by a rule:
+       - Rival folds are 151 (138), Successions 32 (37);
+       - the player's Quests resolved are 349,411 (352,121);
+       - Injuries are 18,986 (19,635), Deaths 1,610 (1,708);
+       - Levels a Guild-year are 11.13 (11.44);
+       - Encounters' success rates by kind are within 2.5 points of S1's.
+   - *Unchanged.* Every game ran 20 years, with no player ending and no refused action. One seed
+     played twice is byte-identical, at 113,022,191 characters. 50 of 50 saves round trip.
+   - *Saves.* The mean at year 20 is 116,213,625 characters (110.83 MiB), against S1's 104,915,999
+     (100.06 MiB). Item 1's sweep puts 12.9% of it on the new fields.
+3. **The script.** `npm run build -w web`'s check-bundle passes. The script is 784.83 kB (784,825
+   bytes, 225.54 kB gzipped), 5.2 kB more than S1's 779,636 bytes:
+   - the pass formula's and target's content checks and their words, about 2 kB;
+   - `degree.ts`, about 1 kB;
+   - the resolver's several Checks, the parser's new form and the words for the rest.
+
+   15.2 kB is left under 800 kB.
+4. **The rest.**
+   - `npm run typecheck` and `npm run lint`: clean.
+   - `npm test`: 4,059 tests in 167 files, all passing, with no load flake (S1: 4,007 in 166).
+   - `npm run e2e -w web`: all 86 specs pass.
+
+**Consequences.**
+- Play changes by the band's strong rule alone, as the epic said it would. DL-83 item 17's margin
+  is now a share of Triumphs. The Quest target (failed 20 to 30%, strong at most 50%) is not met
+  yet. S10's balance pass tunes the factors, `checkDegrees` and `strongTriumphShare`.
+- Content may write Encounters in the new form from now; S10 writes them. Every later engine story
+  reads `Degree`, `passDegree` and the per-Check results: S3 scales a Check's adds by form and sets
+  `formDecided` on its `checks`, S5 counts every combination of Checks' Degrees, S7 grants an
+  earned Trait on a Triumph, and S8's finale needs a Triumph.
+- `configVersion` is 13; S3 to S11 add their fields under it. Saves need no migration (the
+  owner's rule).
+- Each `quest.encounter` entry carries its Checks, which makes a 20-year save about 13% longer. A
+  leaner entry, as DL-81 considered, is left to the owner. Data-model §7's save target was already
+  unmet.
+- The script is 754.00 kB after the verification, the content's checks having moved to the build,
+  with 46 kB left for S3 to S13.
+- S3: a raw Check is not scaled by form.
+
+**Actioned in:** `engine/src/content-types.ts`; `engine/src/config.ts`; `engine/src/events.ts`;
+`engine/src/index.ts`; `engine/src/quest-engine/degree.ts` and `degree.test.ts` (new); `check.ts`,
+`resolve.ts`, `consumables.ts` and their tests; `engine/src/phases/quests-conclude.test.ts`; the
+tests pinned to configVersion 12; `content/src/parse.ts`, `validate.ts` and `refusals.test.ts`;
+`cli/src/narrate.ts` and its test; `web/src/state/narrate.ts`, `quest-return.ts`,
+`game.test-support.ts` and their tests; `web/src/views/quest-report.tsx` and its test;
+`web/src/state/history.test.ts`; `web/src/content.ts`, `content.test.ts` and `bundle.test.ts`;
+`web/content-gate.ts` (new); `web/vite.config.ts`, `package.json` and `tsconfig.json`;
+`content/src/index.ts`; `CONTEXT.md` (Encounter, Check, Degree, Quest band);
+`harness/reports/m9-v114-s2-2026-10-02.md`; the epic's S2 boxes and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

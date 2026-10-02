@@ -1,5 +1,7 @@
 import {
   milestoneTypes,
+  type Encounter,
+  type EncounterCheck,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
@@ -285,11 +287,12 @@ describe('narrate', () => {
     const withSynergies = { ...samples['quest.resolved'], payload: { ...samples['quest.resolved'].payload, synergyKeys: ['shield-wall', 'sword-and-salve'] } };
     expect(narrate(withSynergies, content)).toMatch(/and failed: Wealth 0, Fame -2\. Synergies: Shield wall, Sword and salve\.$/);
     expect(narrate({ ...withSynergies, payload: { ...withSynergies.payload, synergyKeys: [] } }, content)).toMatch(/Fame -2\.$/);
+    // The sample is an entry written before v1.1.4-S2: it reads as its outcome, a Failure or a Success.
     expect(narrate(samples['quest.encounter'], content)).toBe(
-      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2): Brenna Ashcombe (hero-000007) was injured.`,
+      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Failure: Brenna Ashcombe (hero-000007) was injured.`,
     );
     expect(narrate({ ...samples['quest.encounter'], payload: { ...samples['quest.encounter'].payload, outcome: 'success', injured: [] } }, content)).toBe(
-      `party-000004 came through ${content.encounters['ambush-on-the-road']?.name} (Encounter 2).`,
+      `party-000004 came through ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Success.`,
     );
     expect(narrate(samples['guild.improved'], content)).toBe(
       `The Kestrel Guild built ${content.improvements['training-yard-2']?.name} for 500 Wealth: its training yard is now grade 2.`,
@@ -313,6 +316,35 @@ describe('narrate', () => {
     expect(narrate({ ...samples['quest.loot'], payload: { ...common, quantity: 1 } }, content)).toBe(
       `The Kestrel Guild found Loot on quest-000003: ${content.items['healing-draught']?.name} (stack-000008).`,
     );
+  });
+
+  test("gives an Encounter's Degree and, of several Checks, the name of the one that decided it (v1.1.4-S2)", () => {
+    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
+    const [front] = ambush.checks as [EncounterCheck];
+    const several = {
+      ...content,
+      encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [front, { ...front, key: 'nerve', name: 'Nerve' }], pass: ['and', front.key, 'nerve'] } },
+    } satisfies typeof content;
+    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
+    const payload = {
+      ...samples['quest.encounter'].payload,
+      degree: 'setback' as const,
+      decidedBy: 'nerve',
+      checks: [
+        { key: front.key, ...roll, roll: 30, margin: 12, degree: 'triumph' as const },
+        { key: 'nerve', ...roll, degree: 'setback' as const },
+      ],
+    };
+
+    expect(narrate({ ...samples['quest.encounter'], payload }, several)).toBe(
+      `party-000004 failed at ${ambush.name} (Encounter 2), a Setback, decided by Nerve: Brenna Ashcombe (hero-000007) was injured.`,
+    );
+    // One Check named as its Encounter names none: it is the Encounter's own.
+    const one = { ...payload, decidedBy: front.key, degree: 'triumph' as const, outcome: 'success' as const, injured: [], checks: payload.checks.slice(0, 1) };
+    expect(narrate({ ...samples['quest.encounter'], payload: one }, content)).toBe(`party-000004 came through ${ambush.name} (Encounter 2), a Triumph.`);
+    // One Check named otherwise is named (v1.1.4-S2's verification, DL-152).
+    const renamed = { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: 'Steel' }] } } } satisfies typeof content;
+    expect(narrate({ ...samples['quest.encounter'], payload: one }, renamed)).toBe(`party-000004 came through ${ambush.name} (Encounter 2), a Triumph, decided by Steel.`);
   });
 
   test('says a Regard band crossed, never the number, and what moved a Patron (M4-S5)', () => {

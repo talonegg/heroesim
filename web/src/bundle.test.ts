@@ -50,7 +50,7 @@ describe('the production build', { timeout: 120_000 }, () => {
 
   beforeAll(() => {
     outDir = temporaryDir();
-    built = run([vite, 'build', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
+    built = run([vite, 'build', '--configLoader', 'runner', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
   });
 
   test('builds', () => {
@@ -115,7 +115,7 @@ describe('a Node built-in the page imports', { timeout: 120_000 }, () => {
     writeFileSync(path.join(root, 'index.html'), '<!doctype html><div id="root"></div><script type="module" src="./probe.ts"></script>');
     writeFileSync(path.join(root, 'probe.ts'), script);
     const config = path.join(webDir, 'vite.config.ts');
-    return run([vite, 'build', root, '--config', config, '--outDir', temporaryDir(), '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
+    return run([vite, 'build', root, '--configLoader', 'runner', '--config', config, '--outDir', temporaryDir(), '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
   }
 
   // Vite would put an empty stub in its place, with only a warning, and the gate would pass the
