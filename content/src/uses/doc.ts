@@ -4,7 +4,7 @@
 // freshness test fails when the file holds anything else there.
 
 import type { ContentEntry, EngineEntry, RegisterEntry, SourcePlace } from './register.js';
-import { contentEntries, engineEntriesOf, register } from './register.js';
+import { contentEntries, engineEntriesOf, register, traitHelpers } from './register.js';
 
 /** The line the generated part begins after. */
 export const docBegins = '<!-- The register\'s part begins: written by `npm run edit -- traits doc` from content/src/uses/register.ts. Do not edit it by hand. -->';
@@ -79,6 +79,8 @@ export function registerDoc(entries: readonly RegisterEntry[] = register): strin
     '',
     ...content.flatMap(contentSection),
     '## In the engine and the content\'s checks',
+    '',
+    `The Trait helpers, whose call is a read of a Trait to the drift test: ${places(traitHelpers)}.`,
     '',
     ...engine.flatMap(engineSection),
     docEnds,

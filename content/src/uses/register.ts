@@ -525,10 +525,10 @@ const engineEntries: readonly EngineEntry[] = [
     lists: ['guildmaster', 'hero'],
     reads: 'A Trait by its key, in either list or in its own (rule 5: a key no list defines bears on nothing); the Guildmaster Traits in order, for setup and the draw.',
     sources: [
-      { file: 'engine/src/traits.ts', names: ['traitOf', 'heroTraitOf'] },
+      { file: 'engine/src/traits.ts', names: ['traitOf', 'heroTraitOf', 'heroTraitEffects', 'excludedPair'] },
       { file: 'engine/src/guildmaster.ts', names: ['guildmasterTraitsOf'] },
     ],
-    through: [{ file: 'engine/src/traits.ts', names: ['excludeEachOther', 'excludedPair', 'heroTraitEffects'] }],
+    through: [{ file: 'engine/src/traits.ts', names: ['excludeEachOther'] }],
   }),
   engine({
     id: 'effective-stats',
@@ -536,8 +536,10 @@ const engineEntries: readonly EngineEntry[] = [
     lists: ['hero'],
     effectKinds: ['statModifiers'],
     reads: "The sum of the `statModifiers` of the Hero Traits a Hero holds, added to the base beside the Guildmaster's Class bonus and gear, so it shows wherever a Stat shows: every Check, Query, harm share, the estimate and a Hero's page (DL-148 item 24).",
-    sources: [{ file: 'engine/src/traits.ts', names: ['traitStatModifiers'] }],
-    through: [{ file: 'engine/src/selectors.ts', names: ['effectiveStats'] }],
+    sources: [
+      { file: 'engine/src/traits.ts', names: ['traitStatModifiers'] },
+      { file: 'engine/src/selectors.ts', names: ['effectiveStats'] },
+    ],
   }),
   engine({
     id: 'encounter-bonus',
@@ -545,8 +547,10 @@ const engineEntries: readonly EngineEntry[] = [
     lists: ['hero'],
     effectKinds: ['encounterBonus'],
     reads: "The `flat` of each `encounterBonus` of a Hero Trait any Hero still in the sequence holds, once for the Party, on an Encounter of its `kinds` or `tags`, added to every Check's capability but a raw one's (DL-148 item 26).",
-    sources: [{ file: 'engine/src/traits.ts', names: ['traitEncounterBonus'] }],
-    through: [{ file: 'engine/src/quest-engine/check.ts', names: ['capability'] }],
+    sources: [
+      { file: 'engine/src/traits.ts', names: ['traitEncounterBonus'] },
+      { file: 'engine/src/quest-engine/check.ts', names: ['capability'] },
+    ],
   }),
   engine({
     id: 'guildmaster-effects',
@@ -554,8 +558,8 @@ const engineEntries: readonly EngineEntry[] = [
     lists: ['guildmaster'],
     effectKinds: ['classStatBonus', 'guildMoraleShift', 'upkeepFactor'],
     reads: "Each effect of the Guildmaster's Traits: a Class Stat bonus in `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).",
-    sources: [{ file: 'engine/src/guildmaster.ts', names: ['traitEffects', 'traitMoraleShift', 'traitUpkeepFactor', 'traitStatBonuses'] }],
-    through: [
+    sources: [
+      { file: 'engine/src/guildmaster.ts', names: ['traitEffects', 'traitMoraleShift', 'traitUpkeepFactor', 'traitStatBonuses'] },
       { file: 'engine/src/morale.ts', names: ['moraleBaselineFor'] },
       { file: 'engine/src/selectors.ts', names: ['upkeepParts', 'effectiveStats'] },
     ],
@@ -565,8 +569,10 @@ const engineEntries: readonly EngineEntry[] = [
     title: "Setup's Trait budget, and the drawn Guildmaster's Traits",
     lists: ['guildmaster'],
     reads: "A Guildmaster Trait's `cost` against `guildmasterTraitBudget`, at most `guildmasterTraitsMax` of them, no two of which exclude each other: refused at setup (`setupRefusal`), drawn whole for a Rival and for \"Choose for me\" (DL-102, DL-110).",
-    sources: [{ file: 'engine/src/create.ts', names: ['guildmasterTraitCost', 'setupRefusal', 'previewGuildmaster'] }],
-    through: [{ file: 'engine/src/generators/guilds.ts', names: ['drawTraits', 'legalTraitSets'] }],
+    sources: [
+      { file: 'engine/src/create.ts', names: ['guildmasterTraitCost', 'setupRefusal', 'previewGuildmaster'] },
+      { file: 'engine/src/generators/guilds.ts', names: ['drawTraits', 'legalTraitSets'] },
+    ],
   }),
   engine({
     id: 'injury-traits',
@@ -574,8 +580,10 @@ const engineEntries: readonly EngineEntry[] = [
     lists: ['hero'],
     events: ['hero.trait-lost'],
     reads: "An Injury's `leavesTrait`, given as it heals, replacing each Trait held that it excludes or that excludes it, each with `hero.trait-lost` (R16, DL-150 item 5).",
-    sources: [{ file: 'engine/src/phases/hero-state.ts', names: ['heal'] }],
-    through: [{ file: 'engine/src/traits.ts', names: ['replacedBy'] }],
+    sources: [
+      { file: 'engine/src/phases/hero-state.ts', names: ['heal'] },
+      { file: 'engine/src/traits.ts', names: ['replacedBy'] },
+    ],
   }),
   engine({
     id: 'earned-trait',
@@ -586,8 +594,8 @@ const engineEntries: readonly EngineEntry[] = [
     sources: [
       { file: 'engine/src/quest-engine/resolve.ts', names: ['apply', 'earn'] },
       { file: 'engine/src/phases/quests-conclude.ts', names: ['conclude'] },
+      { file: 'engine/src/traits.ts', names: ['mayEarn'] },
     ],
-    through: [{ file: 'engine/src/traits.ts', names: ['mayEarn'] }],
   }),
   engine({
     id: 'trait-events',
@@ -655,6 +663,22 @@ const engineEntries: readonly EngineEntry[] = [
       },
     ],
   }),
+];
+
+/**
+ * The engine's Trait helpers: the declarations whose job is to read a Trait. A call or other
+ * reference of one is a read of a Trait for the drift test, as the lists and kinds themselves are
+ * (the verification of v1.1.4-S12), so a rule that reads a Trait only through a helper is listed too.
+ * The rules that call those rules in turn (every caller of `effectiveStats`, say) are not: they read
+ * Stats, not Traits.
+ */
+export const traitHelpers: readonly SourcePlace[] = [
+  {
+    file: 'engine/src/traits.ts',
+    names: ['traitOf', 'excludeEachOther', 'excludedPair', 'heroTraitOf', 'heroTraitEffects', 'traitStatModifiers', 'traitEncounterBonus', 'mayEarn', 'replacedBy'],
+  },
+  { file: 'engine/src/guildmaster.ts', names: ['guildmasterTraitsOf', 'traitEffects', 'traitMoraleShift', 'traitUpkeepFactor', 'traitStatBonuses'] },
+  { file: 'engine/src/create.ts', names: ['guildmasterTraitCost'] },
 ];
 
 /** Every place a Trait is used, in content and in the engine (DL-150 item 14). */

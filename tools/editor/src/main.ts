@@ -2,6 +2,7 @@
 // one it runs it. See cli.ts, server.ts and the README.
 
 import { parse, run, UsageError } from './cli.js';
+import { onSignals } from './finish-journal.js';
 import { serve } from './server.js';
 
 const argv = process.argv.slice(2);
@@ -13,6 +14,9 @@ try {
   // `run` says what is wrong with the line.
   if (!(error instanceof UsageError)) throw error;
 }
+
+// Ctrl+C or SIGTERM during "Finish" puts every file it wrote back before the process ends.
+onSignals(process, (text) => process.stderr.write(`${text}\n`));
 
 if (page === null) {
   process.exitCode = await run(argv, {

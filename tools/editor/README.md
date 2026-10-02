@@ -10,23 +10,32 @@ npm run edit                                        # the page, at http://127.0.
 npm run edit -- traits <command> [--root <dir>] [--json]
 ```
 
-- **`--root <dir>`** works on another copy of the repository; this one by default.
-- **`--json`** prints one JSON object on stdout, for a skill to read.
+- **`--root <dir>`** works on another copy of the repository; this one by default. It must hold a
+  `package.json`, so that "Finish"'s `npm test` runs there and never climbs above it.
+- **`--json`** prints one JSON object on stdout, for a skill to read. A skill runs
+  `npm run --silent edit -- traits <command> --json`: without `--silent`, npm writes its own lines
+  before the JSON.
 - **`--port <n>`** serves the page on another port.
 - **Exit codes:** `0` done; `1` a check failed, or a change was refused or undone, so nothing
   changed; `2` a command line the editor could not read.
-- **A failure in JSON** is `{ "ok": false, "kind": "usage" | "refused" | "undone" | "not-undone" |
-  "failed", "problems": ["…"], "uses"?: [...] }`. A removal refused while the Trait is used carries
-  `uses`, each `{ entry, file, path, at, blocksRemoval }`.
+- **A failure in JSON** is `{ "ok": false, "kind": "usage" | "refused" | "busy" | "undone" |
+  "not-undone" | "failed", "problems": ["…"], "uses"?: [...] }`. A removal refused while the Trait is
+  used carries `uses`, each `{ entry, file, path, at, blocksRemoval }`. `busy` is a call made while
+  "Finish" runs.
+- **`recovered`**, in any command's JSON, lists the files it first put back from a "Finish" cut off.
 
 ## Pending edits
 
 Each `add`, `change` and `remove` is checked with the content's own checks (`@heroesim/content`) as
-it is made, and held as pending in `.editor/traits.json` under the root, which git ignores. The file
-holds each edit as it was made, a row whole; whenever it is read, the edits are made again on the
-content as it is on disk, so the page and separate command lines share them, and nothing in the
-content's files changes before `finish`. An edit that no longer applies, because the content changed
-under it, is named, to be dropped with `discard`.
+it is made, and held as pending in `.editor/traits.json` under the root, which git ignores, written
+whole or not at all. The file holds each edit as it was made: a row added whole, a change as the
+fields it gave (so it never carries an exclusion another edit wrote into it), a removal by its key.
+Whenever it is read, the edits are made again on the content as it is on disk, so the page and
+separate command lines share them, and nothing in the content's files changes before `finish`. Every
+list of edits is checked before it is saved, a removal's and a discard's too. An edit that no longer
+applies, because the content changed under it, is named, to be dropped with `discard`; a file that
+cannot be read is dropped whole by `discard`. The doctor holds the pending edits to the content's
+checks and names their problems.
 
 ## Commands
 
@@ -43,6 +52,7 @@ under it, is named, to be dropped with `discard`.
 | `traits discard [<key>]` | Drops one Trait's pending edits, or all |
 | `traits finish` | Writes the pending edits, raises the content version, runs `npm test` |
 | `traits doctor` | The drift and freshness checks, the content's checks, and whether the pending edits apply |
+| `traits recover` | Puts back the files of a "Finish" cut off; every command does it first |
 | `traits doc` | Writes `docs/agents/traits.md`'s register part from the register |
 
 `add` and `change` take the fields as flags: `--name <text>`, `--cost <n>` (a Guildmaster Trait's),
@@ -59,7 +69,9 @@ npm run edit -- traits add hero brave --name Brave --excludes scarred \
   `encounterBonus`. A new kind is an engine change.
 - **An exclusion is held both ways,** as the content's checks require: setting a Trait's `excludes`
   writes the other Trait's too, and removing a Trait takes it out of every other's.
-- **A Trait added and removed** in one session goes with its edits, as if never made.
+- **A Trait added and removed** in one session goes with its edits, as if never made, where the
+  edits left pass the content's checks; where another edit still names it, its removal is held
+  after them.
 
 ## Finish
 
@@ -68,11 +80,20 @@ npm run edit -- traits add hero brave --name Brave --excludes scarred \
 2. It raises the content version by one, with a line in its comment naming the edits.
 3. It runs `npm test`, its lines shown as they come (on stderr, or on the page).
 4. If any test fails, every file is put back and the edits stay pending; the failures are reported.
-   Otherwise the edits are cleared.
+   Otherwise the edits it read are cleared.
 
 It never commits: read `git diff`, and commit it yourself. The test run is a dependency
 (`TestRunner`, `npm test` by default), so the editor's own tests run a planted `npm test` in their
 scratch copy rather than the whole suite inside itself.
+
+- **Its journal is a lock.** Before it writes a file it writes `.editor/finish.json`, whole or not at
+  all: the bytes of every file it will write, the content version and its process. While that process
+  runs, every command and every call of the page's API is refused as `busy`, and the page's controls
+  wait. The journal goes when "Finish" ends, passed or put back.
+- **Cut off,** by a crash or a kill, it leaves the content written and untested, and its journal. The
+  next command, whichever it is, the doctor included, first puts every file back from the journal and
+  says so (`recovered`); `traits recover` does only that. Ctrl+C and SIGTERM put the files back at
+  once, before the process ends.
 
 ## The page
 
@@ -80,7 +101,12 @@ scratch copy rather than the whole suite inside itself.
 JSON API (`src/server.ts`) over the same core as the commands. A table of each list shows each
 Trait's effects, excludes, cost, uses and the rules that read it; forms add and change a Trait, the
 effects offered from its list's kinds and its key fixed once made; Remove names every use when it is
-refused; "Finish" shows the test run's lines and its result.
+refused; "Finish" shows the test run's lines and its result, every control waiting while it runs.
+
+Only its own page may call the API: a request whose Host is not `127.0.0.1:<port>` or
+`localhost:<port>` (a name rebound to this machine) or whose Origin is another page's is refused
+(403), and a request that changes anything must be sent as `application/json` (415), which no other
+site's form can send without asking first.
 
 ## The register and its checks
 
@@ -88,7 +114,8 @@ refused; "Finish" shows the test run's lines and its result.
   use is found, added and removed there, and every rule of the engine and check of the content that
   reads a Trait.
 - **The drift test** (`src/drift.test.ts`) reads `engine/src/` and `content/src/validate.ts`, tests
-  left out, with TypeScript's parser (`src/reads.ts`), and fails on a read of a Trait in a
+  left out, with TypeScript's parser (`src/reads.ts`), a call of one of the register's Trait helpers
+  counting as a read, and fails on a read of a Trait in a
   declaration the register does not list, on a listed declaration that reads none, and on a
   declaration the register runs through that is gone.
 - **The freshness test** (`src/freshness.test.ts`) fails when `docs/agents/traits.md`'s register

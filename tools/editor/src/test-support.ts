@@ -11,6 +11,7 @@ import type { ContentFileName } from '@heroesim/content';
 import { formatJson } from '@heroesim/portraits';
 import { run, type Deps } from './cli.js';
 import { repositoryRoot } from './content-files.js';
+import { isBoundaryProbe } from './reads.js';
 
 export const root = repositoryRoot;
 
@@ -24,10 +25,19 @@ export function status(dir: string): string {
   return git(dir, 'status', '--porcelain', '--untracked-files=all');
 }
 
-/** The planted `npm test`: it prints a Vitest-like line and passes, or fails, as `test-outcome.txt` says. */
-const plantedTest = `import { readFileSync } from 'node:fs';
+/**
+ * The planted `npm test`: it prints a Vitest-like line and passes, or fails, as `test-outcome.txt`
+ * says; or, for "hang", writes `tests-started.txt` and fails only 20 s later, so that a test may kill
+ * the "Finish" waiting on it.
+ */
+const plantedTest = `import { readFileSync, writeFileSync } from 'node:fs';
 const outcome = readFileSync('test-outcome.txt', 'utf8').trim();
 console.log(' RUN  the planted tests');
+if (outcome === 'hang') {
+  writeFileSync('tests-started.txt', String(process.pid));
+  await new Promise((resolve) => setTimeout(resolve, 20000));
+  process.exit(1);
+}
 if (outcome === 'fail') {
   console.log(' FAIL  |content| src/planted.test.ts > a planted test fails');
   console.log('   × a planted test fails');
@@ -50,13 +60,16 @@ export function scratchRepository(): { dir: string; remove: () => void } {
       return relative === '' || relative.endsWith('.json') || ['src', 'src/parse.ts', 'src/content.test.ts', 'src/validate.ts'].includes(relative);
     },
   });
-  // engine/src/boundary.test.ts writes and deletes probe files in each package's src/ while other tests run.
-  cpSync(path.join(root, 'engine', 'src'), path.join(dir, 'engine', 'src'), { recursive: true, filter: (source) => !/boundary-probe-/.test(source) });
+  // engine/src/boundary.test.ts writes and deletes probe files in engine/src/ while other tests run.
+  cpSync(path.join(root, 'engine', 'src'), path.join(dir, 'engine', 'src'), {
+    recursive: true,
+    filter: (source) => !isBoundaryProbe(path.relative(root, source).replace(/\\/g, '/')),
+  });
   cpSync(path.join(root, 'docs', 'agents', 'traits.md'), path.join(dir, 'docs', 'agents', 'traits.md'));
   writeFileSync(path.join(dir, 'package.json'), `${JSON.stringify({ name: 'scratch', private: true, scripts: { test: 'node planted-test.mjs' } }, null, 2)}\n`);
   writeFileSync(path.join(dir, 'planted-test.mjs'), plantedTest);
   writeFileSync(path.join(dir, 'test-outcome.txt'), 'pass\n');
-  writeFileSync(path.join(dir, '.gitignore'), '.editor/\n');
+  writeFileSync(path.join(dir, '.gitignore'), '.editor/\ntests-started.txt\n');
   git(dir, 'init', '--quiet');
   git(dir, 'add', '--all');
   git(dir, 'commit', '--quiet', '-m', 'scratch');
@@ -65,7 +78,7 @@ export function scratchRepository(): { dir: string; remove: () => void } {
 }
 
 /** Sets whether the scratch copy's planted `npm test` passes, committed so `git status` stays clean. */
-export function plantOutcome(dir: string, outcome: 'pass' | 'fail'): void {
+export function plantOutcome(dir: string, outcome: 'pass' | 'fail' | 'hang'): void {
   writeFileSync(path.join(dir, 'test-outcome.txt'), `${outcome}\n`);
   git(dir, 'commit', '--quiet', '--allow-empty', '-am', `the planted tests ${outcome}`);
 }

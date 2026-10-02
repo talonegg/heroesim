@@ -18954,6 +18954,65 @@ and no content file.
      `web/src/state/reducer.test.ts`), each passing alone. The next full run passed every test.
    - No e2e was run: no page of the game changed.
 
+**The verification.** A second Opus agent read the story and found six faults. Each fix has its tests,
+and each of those tests was run against the first commit's code and failed there: the API's (2), the
+pending edits' (5) and the drift forms' (14).
+1. *Edits made while "Finish" ran were lost,* since it cleared every pending edit at its end, and the
+   page blocked only a second "Finish". Now "Finish"'s journal is a lock held for its whole run: every
+   command and every API call, reads included, refuses as `busy` (409 on the API), the doctor says
+   "Finish" is running, and the page disables its controls while it runs, a page opened then following
+   it. Only the edits it read are cleared. `server.test.ts` holds five calls and a command line refused
+   mid-run; the Chromium pass sees six controls disabled, and enabled again after.
+2. *A crash or Ctrl+C during "Finish" left the content written and untested, and the editor stuck.*
+   Now, before its first write, "Finish" writes `.editor/finish.json` atomically: every file's bytes
+   before, the content version, its process and the edits it read. It goes when "Finish" ends, passed
+   or put back. A journal whose process is gone is a "Finish" cut off. The call made (the agent's): the
+   next command, whichever it is, the doctor included, puts every file back from it first and says so
+   in `recovered`; `traits recover` does only that. SIGINT and SIGTERM put the files back at once
+   (`onSignals`). `recovery.test.ts` runs `traits finish` in a process of its own against a planted test
+   that hangs, kills its whole process tree once the content is written, and then `traits list` puts
+   the three files back, the version too, with the edit still pending. The signals are tested through a
+   stand-in process, since Windows sends a child no SIGINT.
+3. *The API took any page's requests.* Now a request is refused (403) unless its Host is
+   `127.0.0.1:<port>` or `localhost:<port>`, the page included, so DNS rebinding reaches nothing, and
+   unless its Origin, where there is one, is the page's own. A change must be sent as
+   `application/json` (415), and the page sends every change so. Tested with raw requests: a rebound
+   Host on the API and the page, another site's POST, a `text/plain` POST, a `finish` sent with no
+   type, and the page's own two names accepted.
+4. *`remove` saved edits it never checked, and a change stored the whole row,* carrying an exclusion
+   another edit had written. Now a change is held as the fields it gave, and replayed on the row as the
+   edits before it leave it. Every list of edits is checked with the content's checks before it is
+   saved, a removal's and a discard's too. A Trait added in the session is dropped with its edits only
+   where what is left passes the checks; otherwise its removal is held after them, the verifier's case
+   (add `foo`; change `lame` to exclude it; remove `foo`). The doctor holds the pending edits to the
+   content's checks and names their problems.
+5. *The drift scanner missed reads through Trait helpers, and some forms of a kind.*
+   - *Helpers.* The register gains `traitHelpers`, 15 declarations of `traits.ts`, `guildmaster.ts` and
+     `create.ts`; a call or other reference of one, imported, renamed or through a namespace, is a read.
+     The call made (the agent's): the helpers themselves, not every declaration the register lists,
+     since `effectiveStats` and `capability`, which run through them, have dozens of callers that read
+     Stats, not Traits. The callers this found, such as `effectiveStats`, `capability`,
+     `moraleBaselineFor`, `upkeepParts`, `drawTraits` and `legalTraitSets`, moved from `through` to
+     `sources`, and the drift test holds each helper to be there. 110 reads now, not 84.
+   - *Kinds.* A kind is now found through `as`, `satisfies`, `!`, `<T>` and parentheses; with `==` and
+     `!=`; in a list, which is how `.includes` and `new Set(…).has` read kinds; and as an object's keys
+     (a Guildmaster kind or the Encounter bonus, or two kinds, so gear's lone `statModifiers` is not).
+     Any string or template naming `hero.trait-` is a read too.
+   - *Probes.* A file is left out as `boundary.test.ts`'s probe only where that test writes one,
+     `<package>/src/boundary-probe-<uuid>.ts`.
+
+   `drift.test.ts` plants each form: four helper forms, five kind forms, an object, two event forms and
+   the probe names.
+6. *The minor ones.* The pending file is written atomically (a temporary file, then a rename). One that
+   cannot be read is named, and `discard` drops it. `--root` without a `package.json` is refused (exit
+   2), so "Finish"'s `npm test` cannot climb above the copy. `npm run --silent edit -- … --json` is in
+   the usage, the README and `docs/agents/traits.md`.
+
+After the fixes: `npm run typecheck` and `npm run lint` are clean, and `npm test` passes 4,584 tests in
+182 files, in one clean run. `npm run edit -- traits doctor` reports no drift (110 reads), a fresh doc,
+the content passing and no pending edits. `npm run build`'s check-bundle passes, and the script is
+still `index-BtcPuyMc.js`, 772,072 bytes.
+
 **Consequences.**
 - S13 builds the three skills on the commands, and `assign`/`unassign` on each content entry's `add`
   and `remove`; it completes `docs/agents/traits.md`'s guardrails and AGENTS.md's "Traits" section.

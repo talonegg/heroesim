@@ -204,6 +204,69 @@ describe('editing, held as pending between command lines', () => {
   });
 });
 
+// The verification of v1.1.4-S12: every list of edits saved passes the content's checks, a change
+// holds only the fields it gave, and the pending file is written whole and dropped when unreadable.
+describe('the pending edits, checked as saved', () => {
+  test('a Trait added, excluded by another and removed leaves edits that apply and pass (the verifier\'s case)', async () => {
+    const dir = scratch();
+    expect((await json(dir, 'traits', 'add', 'hero', 'foo', '--name', 'Foo')).code).toBe(0);
+    expect((await json(dir, 'traits', 'change', 'lame', '--excludes', 'foo')).code).toBe(0);
+    const removed = await json<{ stripped: { at: string }[] }>(dir, 'traits', 'remove', 'foo');
+
+    expect(removed.code).toBe(0);
+    expect(removed.json.stripped.map((use) => use.at)).toEqual(['hero-traits.json: lame.excludes.0']);
+    expect((await json<Row>(dir, 'traits', 'show', 'lame')).json.row.excludes).toEqual([]);
+    expect((await json<{ ok: boolean; pending: { ok: boolean; problems: string[] } }>(dir, 'traits', 'doctor')).json).toMatchObject({ ok: true, pending: { ok: true, problems: [] } });
+    // Its edits could not go as if never made (lame's change names it), so its removal is held after them.
+    expect((await json<{ edits: { op: string; key: string }[] }>(dir, 'traits', 'pending')).json.edits.map((edit) => `${edit.op} ${edit.key}`)).toEqual(['add foo', 'change lame', 'remove foo']);
+  });
+
+  test('a change holds the fields it gave, not an exclusion another edit wrote beside them', async () => {
+    const dir = scratch();
+    await json(dir, 'traits', 'add', 'hero', 'brave', ...brave, '--excludes', 'scarred');
+    await json(dir, 'traits', 'change', 'scarred', '--name', 'Marked');
+    const held = JSON.parse(readFileSync(pendingPath(dir, 'traits'), 'utf8')) as { edits: unknown[] };
+    expect(held.edits[1]).toEqual({ op: 'change', list: 'hero', key: 'scarred', fields: { name: 'Marked' } });
+
+    // Dropping brave leaves scarred's change applying, and excluding nothing.
+    expect((await json(dir, 'traits', 'discard', 'brave')).json).toEqual({ ok: true, discarded: 1, left: 1 });
+    expect((await json<Row>(dir, 'traits', 'show', 'scarred')).json.row).toMatchObject({ name: 'Marked', excludes: [] });
+  });
+
+  test('the doctor holds the pending edits to the content\'s checks, and names their problems', async () => {
+    const dir = scratch();
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    mkdirSync(path.dirname(pendingPath(dir, 'traits')), { recursive: true });
+    writeFileSync(pendingPath(dir, 'traits'), JSON.stringify({ kind: 'traits', edits: [{ op: 'change', list: 'hero', key: 'lame', fields: { excludes: ['nobody'] } }] }));
+    const report = await json<{ ok: boolean; pending: { ok: boolean; problems: string[] } }>(dir, 'traits', 'doctor');
+
+    expect(report.code).toBe(1);
+    expect(report.json.pending.problems).toEqual(['heroTraits.lame.excludes: "nobody" is not a Hero Trait']);
+  });
+
+  test('a pending file that cannot be read is named, and discard drops it', async () => {
+    const dir = scratch();
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    mkdirSync(path.dirname(pendingPath(dir, 'traits')), { recursive: true });
+    writeFileSync(pendingPath(dir, 'traits'), '{ "kind": "traits", "edits": [');
+    const listed = await json<{ kind: string; problems: string[] }>(dir, 'traits', 'list');
+
+    expect(listed.code).toBe(1);
+    expect(listed.json.problems[0]).toMatch(/^\.editor\/traits\.json cannot be read \(.*\); `traits discard` drops it$/);
+    expect((await json(dir, 'traits', 'discard')).json).toEqual({ ok: true, discarded: 0, left: 0, unreadable: true });
+    expect((await json(dir, 'traits', 'list')).code).toBe(0);
+  });
+
+  test('a root without a package.json is refused, so that npm test cannot climb above it', async () => {
+    const dir = scratch();
+    const { rmSync } = await import('node:fs');
+    rmSync(path.join(dir, 'package.json'));
+    const result = await command(['traits', 'list', '--root', dir]);
+    expect(result.code).toBe(2);
+    expect(result.err).toContain('holds no package.json');
+  });
+});
+
 describe('a refused removal names every use', () => {
   // For each content entry of the register: a new Trait with no use, given one use of that entry
   // through the register's own `add`. Removing it is refused naming that use; for other Traits'

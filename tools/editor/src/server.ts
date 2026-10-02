@@ -13,7 +13,13 @@
 //   POST   /api/finish               start "Finish"; 409 while one runs
 //   GET    /api/finish               its state, its lines so far and its result
 //
-// A refusal is `{ ok: false, kind, problems, uses? }`, with 422, or 409 for a removal refused by its uses.
+// A refusal is `{ ok: false, kind, problems, uses? }`, with 422, or 409 for a removal refused by its
+// uses and for any call while "Finish" runs (`busy`).
+//
+// Only this page may call it (the verification of v1.1.4-S12): a request is refused (403) unless its
+// Host is 127.0.0.1:<port> or localhost:<port>, so a name rebound to this machine reaches nothing, and
+// unless its Origin, where it has one, is this page's; and a request that changes anything must be
+// JSON (415), which no other site's form can send without asking first.
 
 import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
@@ -23,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 import { NotUndone, Undone } from '@heroesim/portraits';
 import { doctor } from './doctor.js';
 import { Editor, Refused, type Finished } from './editor.js';
+import { Busy } from './finish-journal.js';
 import { npmTest, type TestRunner } from './tests-run.js';
 import { readContentFiles } from './content-files.js';
 
@@ -117,7 +124,7 @@ export async function serve({ root, port = 4180, runTests = npmTest }: { root: s
         })
         .catch((error: unknown) => {
           const problems =
-            error instanceof Refused || error instanceof Undone
+            error instanceof Refused || error instanceof Undone || error instanceof Busy
               ? [...error.problems]
               : error instanceof NotUndone
                 ? [...error.problems, ...error.left.map((file) => `not put back: ${file}`)]
@@ -129,7 +136,23 @@ export async function serve({ root, port = 4180, runTests = npmTest }: { root: s
     return send(response, 404, { ok: false, kind: 'usage', problems: [`${method} ${url.pathname} is not part of the editor's API`] });
   }
 
+  /** Why a request is refused before it is read, or `null`: not to this page, from another page, or a change not in JSON. */
+  const refusal = (request: IncomingMessage): { status: number; problem: string } | null => {
+    const port = (server.address() as AddressInfo).port;
+    const hosts = [`127.0.0.1:${port}`, `localhost:${port}`];
+    if (!hosts.includes(request.headers.host ?? '')) return { status: 403, problem: `the Host is ${request.headers.host ?? 'missing'}: the editor answers ${hosts.join(' or ')} alone` };
+    const origin = request.headers.origin;
+    if (origin !== undefined && !hosts.some((host) => origin === `http://${host}`)) return { status: 403, problem: `a request from ${origin} is not the editor's page` };
+    const method = request.method ?? 'GET';
+    if (!['GET', 'HEAD'].includes(method) && !/^application\/json(;|\s*$)/i.test(request.headers['content-type'] ?? '')) {
+      return { status: 415, problem: `a ${method} is sent as application/json` };
+    }
+    return null;
+  };
+
   const server = createServer((request, response) => {
+    const refused = refusal(request);
+    if (refused !== null) return send(response, refused.status, { ok: false, kind: 'refused', problems: [refused.problem] });
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
     if (!url.pathname.startsWith('/api/')) {
       const page = pageFiles[url.pathname];
@@ -139,7 +162,8 @@ export async function serve({ root, port = 4180, runTests = npmTest }: { root: s
       return;
     }
     api(request, response, url).catch((error: unknown) => {
-      if (error instanceof Refused) {
+      if (error instanceof Busy) send(response, 409, { ok: false, kind: 'busy', problems: error.problems });
+      else if (error instanceof Refused) {
         const status = error.uses.length > 0 ? 409 : 422;
         send(response, status, { ok: false, kind: 'refused', problems: error.problems, ...(error.uses.length > 0 ? { uses: error.uses } : {}) });
       } else if (error instanceof BadRequest) send(response, 400, { ok: false, kind: 'usage', problems: [error.message] });

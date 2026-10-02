@@ -1,9 +1,10 @@
 import { existsSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { chromium } from '@playwright/test';
 import { readContentVersion } from '@heroesim/portraits';
 import { afterEach, describe, expect, test } from 'vitest';
 import { serve, type Served } from './server.js';
-import { plantOutcome, readContentJson, scratchRepository, status } from './test-support.js';
+import { json, plantOutcome, readContentJson, scratchRepository, status } from './test-support.js';
 import { npmTest, type TestRunner } from './tests-run.js';
 
 // The editor's page (v1.1.4-S12, DL-150 item 7): each of its actions driven through the API it calls,
@@ -20,10 +21,11 @@ async function served(runTests: TestRunner = npmTest): Promise<{ dir: string; pa
   cleanups.push(remove);
   const page = await serve({ root: dir, port: 0, runTests });
   cleanups.push(() => page.close());
+  // As the page calls it: every change in JSON.
   const api = async (method: string, path: string, body?: unknown) => {
     const response = await fetch(new URL(path, page.url), {
       method,
-      ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+      ...(method === 'GET' ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body ?? {}) }),
     });
     return { status: response.status, json: (await response.json()) as Record<string, unknown> };
   };
@@ -117,24 +119,82 @@ describe('the API', () => {
     expect((await api('GET', '/api/traits')).json.pending).toEqual([]);
   });
 
-  test('refuses a second "Finish" while one runs', async () => {
-    let release: () => void = () => {};
-    const held: TestRunner = (_root, onLine) =>
-      new Promise((resolve) => {
-        onLine('Running…');
-        release = () => resolve({ ok: true, exitCode: 0, failures: [], tail: [] });
-      });
-    const { page, api } = await served(held);
+  test('refuses a second "Finish", and every other call, while one runs; and clears only the edits it read', async () => {
+    const { runner, release } = heldRunner();
+    const { dir, page, api } = await served(runner);
     await api('PUT', '/api/traits/thrifty', { cost: 3 });
     expect((await api('POST', '/api/finish')).status).toBe(202);
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect((await api('GET', '/api/finish')).json).toMatchObject({ state: 'running', lines: [expect.stringContaining('Running the tests'), 'Running…'] });
     expect((await api('POST', '/api/finish')).status).toBe(409);
-    release();
+
+    // Each edit, and each read of the rows, waits for it: one made now would be cleared with the rest.
+    for (const [method, path, body] of [
+      ['POST', '/api/traits', { list: 'hero', key: 'brave', name: 'Brave' }],
+      ['PUT', '/api/traits/lame', { name: 'Limping' }],
+      ['DELETE', '/api/traits/scarred', undefined],
+      ['POST', '/api/discard', {}],
+      ['GET', '/api/traits', undefined],
+    ] as const) {
+      const refused = await api(method, path, body);
+      expect([method, path, refused.status, refused.json.kind]).toEqual([method, path, 409, 'busy']);
+    }
+    // So does a command line, in another process or this one.
+    const cli = await json<{ kind: string; problems: string[] }>(dir, 'traits', 'change', 'lame', '--name', 'Limping');
+    expect(cli.code).toBe(1);
+    expect(cli.json).toMatchObject({ kind: 'busy', problems: [expect.stringContaining('"Finish" is running')] });
+    expect((await json<{ finish: { running: boolean }; ok: boolean }>(dir, 'traits', 'doctor')).json).toMatchObject({ ok: false, finish: { running: true } });
+
+    release(true);
     await page.finishing();
     expect((await api('GET', '/api/finish')).json.state).toBe('passed');
+    expect(readContentJson<Record<string, { name: string }>>(dir, 'hero-traits.json').lame?.name).toBe('Lame');
+    expect((await api('GET', '/api/traits')).json.pending).toEqual([]);
+  });
+
+  test('answers only its own page: another Host, another Origin, or a change not sent as JSON is refused', async () => {
+    const { page, api } = await served();
+    const port = new URL(page.url).port;
+    const raw = (method: string, path: string, headers: Record<string, string>, body?: string) =>
+      new Promise<{ status: number; body: string }>((resolve, reject) => {
+        const request = httpRequest({ host: '127.0.0.1', port, method, path, headers }, (response) => {
+          let text = '';
+          response.on('data', (chunk: Buffer) => (text += chunk.toString('utf8')));
+          response.on('end', () => resolve({ status: response.statusCode ?? 0, body: text }));
+        });
+        request.on('error', reject);
+        request.end(body);
+      });
+    const add = JSON.stringify({ list: 'hero', key: 'brave', name: 'Brave' });
+
+    // A name rebound to this machine (DNS rebinding) reaches nothing, the page included.
+    expect((await raw('GET', '/api/traits', { host: `evil.example:${port}` })).status).toBe(403);
+    expect((await raw('GET', '/', { host: `evil.example:${port}` })).status).toBe(403);
+    // Another site's page may not post, even as JSON.
+    const evil = await raw('POST', '/api/traits', { host: `127.0.0.1:${port}`, origin: 'http://evil.example', 'content-type': 'application/json' }, add);
+    expect(evil.status).toBe(403);
+    expect(JSON.parse(evil.body)).toMatchObject({ ok: false, problems: ['a request from http://evil.example is not the editor\'s page'] });
+    // A form's text/plain, which needs no leave to cross origins, is refused.
+    expect((await raw('POST', '/api/traits', { host: `127.0.0.1:${port}`, 'content-type': 'text/plain' }, add)).status).toBe(415);
+    expect((await raw('POST', '/api/finish', { host: `localhost:${port}` })).status).toBe(415);
+    expect((await api('GET', '/api/traits')).json.pending).toEqual([]);
+
+    // Its own page, by either name, may.
+    expect((await raw('POST', '/api/traits', { host: `localhost:${port}`, origin: `http://localhost:${port}`, 'content-type': 'application/json' }, add)).status).toBe(200);
+    expect((await raw('GET', '/api/traits', { host: `127.0.0.1:${port}`, origin: `http://127.0.0.1:${port}` })).status).toBe(200);
   });
 });
+
+/** A test run that waits until released, passing or failing as it is told. */
+function heldRunner(): { runner: TestRunner; release: (ok: boolean) => void } {
+  let release: (ok: boolean) => void = () => {};
+  const runner: TestRunner = (_root, onLine) =>
+    new Promise((resolve) => {
+      onLine('Running…');
+      release = (ok) => resolve({ ok, exitCode: ok ? 0 : 1, failures: ok ? [] : ['× held'], tail: [] });
+    });
+  return { runner, release: (ok) => release(ok) };
+}
 
 function chromiumInstalled(): boolean {
   try {
@@ -148,7 +208,8 @@ function chromiumInstalled(): boolean {
 // a removal refused naming each use, and "Finish". Skipped where Chromium is not installed.
 describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
   test('shows the tables, adds through the form, names the uses of a refused removal, and finishes', async () => {
-    const { dir, page } = await served();
+    const { runner, release } = heldRunner();
+    const { dir, page } = await served(runner);
     const browser = await chromium.launch();
     cleanups.push(() => browser.close());
     const tab = await browser.newPage({ viewport: { width: 1280, height: 900 } });
@@ -182,8 +243,15 @@ describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
     await tab.getByRole('button', { name: 'Cancel' }).click();
 
     await tab.getByRole('button', { name: 'Finish' }).click();
+    // While it runs, every control that changes anything waits.
+    await tab.locator('#finish-state', { hasText: 'The tests are running' }).waitFor();
+    for (const control of ['#add-hero', '#add-guildmaster', '#discard', '#finish', 'tr[data-key=lame] button[data-action=remove]', 'tr[data-key=brave] button[data-action=change]']) {
+      expect([control, await tab.locator(control).isDisabled()]).toEqual([control, true]);
+    }
+    release(true);
     await tab.locator('#finish-state', { hasText: 'Finished: the tests passed.' }).waitFor();
-    expect(await tab.locator('#finish-lines').innerText()).toContain('RUN  the planted tests');
+    expect(await tab.locator('#finish-lines').innerText()).toContain('Running…');
+    expect(await tab.locator('#add-hero').isDisabled()).toBe(false);
     expect(readContentJson<Record<string, unknown>>(dir, 'hero-traits.json').brave).toEqual({ name: 'Brave', excludes: ['scarred'], effects: [{ kind: 'statModifiers', modifiers: { courage: 2 } }] });
     expect(await tab.locator('#pending').innerText()).toBe('No pending edits');
   });

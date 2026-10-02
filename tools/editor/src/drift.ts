@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { engineEntriesOf, register, type RegisterEntry } from '@heroesim/content/uses';
+import { engineEntriesOf, register, traitHelpers, type RegisterEntry, type SourcePlace } from '@heroesim/content/uses';
 import ts from 'typescript';
 import { traitReads, type TraitRead } from './reads.js';
 
@@ -31,8 +31,8 @@ function declarations(file: string, text: string): Set<string> {
 }
 
 /** The register's engine entries held against the code under `root`. */
-export function drift(root: string, entries: readonly RegisterEntry[] = register): Drift {
-  const found = traitReads(root);
+export function drift(root: string, entries: readonly RegisterEntry[] = register, helpers: readonly SourcePlace[] = traitHelpers): Drift {
+  const found = traitReads(root, helpers);
   const engine = engineEntriesOf(entries);
   const listed = new Set(engine.flatMap((entry) => entry.sources.flatMap((place) => place.names.map((name) => `${place.file}#${name}`))));
   const reading = new Set(found.map((read) => `${read.file}#${read.name}`));
@@ -41,13 +41,13 @@ export function drift(root: string, entries: readonly RegisterEntry[] = register
   const stale = engine.flatMap((entry) =>
     entry.sources.flatMap((place) => place.names.filter((name) => !reading.has(`${place.file}#${name}`)).map((name) => ({ entry: entry.id, file: place.file, name }))),
   );
-  const missing = engine.flatMap((entry) =>
-    entry.through.flatMap((place) => {
-      const full = path.join(root, place.file);
-      const names = existsSync(full) ? declarations(place.file, readFileSync(full, 'utf8')) : new Set<string>();
-      return place.names.filter((name) => !names.has(name)).map((name) => ({ entry: entry.id, file: place.file, name }));
-    }),
-  );
+  const absent = (entry: string, place: SourcePlace): { entry: string; file: string; name: string }[] => {
+    const full = path.join(root, place.file);
+    const names = existsSync(full) ? declarations(place.file, readFileSync(full, 'utf8')) : new Set<string>();
+    return place.names.filter((name) => !names.has(name)).map((name) => ({ entry, file: place.file, name }));
+  };
+  // Each declaration an entry runs through, and each Trait helper, is there.
+  const missing = [...engine.flatMap((entry) => entry.through.flatMap((place) => absent(entry.id, place))), ...helpers.flatMap((place) => absent('traitHelpers', place))];
 
   const problems = [
     ...unlisted.map((read) => `${read.file}:${read.line}: ${read.name} reads ${read.reads}, which no entry of the register lists`),

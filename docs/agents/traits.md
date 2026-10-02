@@ -32,7 +32,11 @@ npm run edit -- traits <command> [--root <dir>] [--json]
 - **The doctor first.** `npm run edit -- traits doctor` runs the drift and freshness checks and the
   content's checks. When it reports drift, update the register (`content/src/uses/register.ts`), run
   `npm run edit -- traits doc`, and include both in the change.
-- **A trial** runs on a scratch copy: every command takes `--root <dir>`.
+- **A trial** runs on a scratch copy: every command takes `--root <dir>`, a copy holding a
+  `package.json`.
+- **For a skill,** `npm run --silent edit -- traits <command> --json`: stdout is then one JSON object.
+- **While "Finish" runs** every other command is refused as `busy`. A "Finish" cut off by a crash or
+  a kill is put back by the next command, which says so (`recovered`).
 
 <!-- The register's part begins: written by `npm run edit -- traits doc` from content/src/uses/register.ts. Do not edit it by hand. -->
 
@@ -142,54 +146,50 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 
 ## In the engine and the content's checks
 
+The Trait helpers, whose call is a read of a Trait to the drift test: `engine/src/traits.ts`: `traitOf`, `excludeEachOther`, `excludedPair`, `heroTraitOf`, `heroTraitEffects`, `traitStatModifiers`, `traitEncounterBonus`, `mayEarn`, `replacedBy`; `engine/src/guildmaster.ts`: `guildmasterTraitsOf`, `traitEffects`, `traitMoraleShift`, `traitUpkeepFactor`, `traitStatBonuses`; `engine/src/create.ts`: `guildmasterTraitCost`.
+
 ### `trait-lists`: The two lists, and a key's Trait
 
 - **Reads:** A Trait by its key, in either list or in its own (rule 5: a key no list defines bears on nothing); the Guildmaster Traits in order, for setup and the draw.
 - **Traits:** Guildmaster and Hero.
-- **Where it reads them:** `engine/src/traits.ts`: `traitOf`, `heroTraitOf`; `engine/src/guildmaster.ts`: `guildmasterTraitsOf`.
-- **Through:** `engine/src/traits.ts`: `excludeEachOther`, `excludedPair`, `heroTraitEffects`.
+- **Where it reads them:** `engine/src/traits.ts`: `traitOf`, `heroTraitOf`, `heroTraitEffects`, `excludedPair`; `engine/src/guildmaster.ts`: `guildmasterTraitsOf`.
+- **Through:** `engine/src/traits.ts`: `excludeEachOther`.
 
 ### `effective-stats`: A Hero Trait's Stat changes, in effectiveStats
 
 - **Reads:** The sum of the `statModifiers` of the Hero Traits a Hero holds, added to the base beside the Guildmaster's Class bonus and gear, so it shows wherever a Stat shows: every Check, Query, harm share, the estimate and a Hero's page (DL-148 item 24).
 - **Traits:** Hero; effects `statModifiers`.
-- **Where it reads them:** `engine/src/traits.ts`: `traitStatModifiers`.
-- **Through:** `engine/src/selectors.ts`: `effectiveStats`.
+- **Where it reads them:** `engine/src/traits.ts`: `traitStatModifiers`; `engine/src/selectors.ts`: `effectiveStats`.
 
 ### `encounter-bonus`: The Check's Encounter bonus
 
 - **Reads:** The `flat` of each `encounterBonus` of a Hero Trait any Hero still in the sequence holds, once for the Party, on an Encounter of its `kinds` or `tags`, added to every Check's capability but a raw one's (DL-148 item 26).
 - **Traits:** Hero; effects `encounterBonus`.
-- **Where it reads them:** `engine/src/traits.ts`: `traitEncounterBonus`.
-- **Through:** `engine/src/quest-engine/check.ts`: `capability`.
+- **Where it reads them:** `engine/src/traits.ts`: `traitEncounterBonus`; `engine/src/quest-engine/check.ts`: `capability`.
 
 ### `guildmaster-effects`: The Guildmaster's Trait readers
 
 - **Reads:** Each effect of the Guildmaster's Traits: a Class Stat bonus in `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).
 - **Traits:** Guildmaster; effects `classStatBonus`, `guildMoraleShift`, `upkeepFactor`.
-- **Where it reads them:** `engine/src/guildmaster.ts`: `traitEffects`, `traitMoraleShift`, `traitUpkeepFactor`, `traitStatBonuses`.
-- **Through:** `engine/src/morale.ts`: `moraleBaselineFor`; `engine/src/selectors.ts`: `upkeepParts`, `effectiveStats`.
+- **Where it reads them:** `engine/src/guildmaster.ts`: `traitEffects`, `traitMoraleShift`, `traitUpkeepFactor`, `traitStatBonuses`; `engine/src/morale.ts`: `moraleBaselineFor`; `engine/src/selectors.ts`: `upkeepParts`, `effectiveStats`.
 
 ### `guildmaster-setup`: Setup's Trait budget, and the drawn Guildmaster's Traits
 
 - **Reads:** A Guildmaster Trait's `cost` against `guildmasterTraitBudget`, at most `guildmasterTraitsMax` of them, no two of which exclude each other: refused at setup (`setupRefusal`), drawn whole for a Rival and for "Choose for me" (DL-102, DL-110).
 - **Traits:** Guildmaster.
-- **Where it reads them:** `engine/src/create.ts`: `guildmasterTraitCost`, `setupRefusal`, `previewGuildmaster`.
-- **Through:** `engine/src/generators/guilds.ts`: `drawTraits`, `legalTraitSets`.
+- **Where it reads them:** `engine/src/create.ts`: `guildmasterTraitCost`, `setupRefusal`, `previewGuildmaster`; `engine/src/generators/guilds.ts`: `drawTraits`, `legalTraitSets`.
 
 ### `injury-traits`: The Hero State Engine's Injury Traits
 
 - **Reads:** An Injury's `leavesTrait`, given as it heals, replacing each Trait held that it excludes or that excludes it, each with `hero.trait-lost` (R16, DL-150 item 5).
 - **Traits:** Hero; events `hero.trait-lost`.
-- **Where it reads them:** `engine/src/phases/hero-state.ts`: `heal`.
-- **Through:** `engine/src/traits.ts`: `replacedBy`.
+- **Where it reads them:** `engine/src/phases/hero-state.ts`: `heal`; `engine/src/traits.ts`: `replacedBy`.
 
 ### `earned-trait`: The earned-Trait consequence
 
 - **Reads:** A `trait` consequence: drawn on a Triumph and granted on a strong success, or falling on a Hero the Encounter injured on a Failure; never one held, one in conflict, or a second on a Quest. Granted at the Quest's end with `hero.trait-gained` (DL-148 item 25).
 - **Traits:** Hero; events `hero.trait-gained`.
-- **Where it reads them:** `engine/src/quest-engine/resolve.ts`: `apply`, `earn`; `engine/src/phases/quests-conclude.ts`: `conclude`.
-- **Through:** `engine/src/traits.ts`: `mayEarn`.
+- **Where it reads them:** `engine/src/quest-engine/resolve.ts`: `apply`, `earn`; `engine/src/phases/quests-conclude.ts`: `conclude`; `engine/src/traits.ts`: `mayEarn`.
 
 ### `trait-events`: hero.trait-gained and hero.trait-lost
 

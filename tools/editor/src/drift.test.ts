@@ -55,13 +55,49 @@ describe('the drift test', () => {
   test('fails when a listed declaration reads no Trait, or one it runs through is gone', () => {
     const dir = scratch();
     const file = path.join(dir, 'engine', 'src', 'traits.ts');
-    writeFileSync(file, readFileSync(file, 'utf8').replace(/export function mayEarn/, 'export function mayEarnRenamed'));
+    writeFileSync(file, readFileSync(file, 'utf8').replace(/export function excludeEachOther/, 'export function excludeEachOtherRenamed'));
     const events = path.join(dir, 'engine', 'src', 'events.ts');
     writeFileSync(events, readFileSync(events, 'utf8').replace(/'hero\.trait-gained': true,\s*'hero\.trait-lost': true,/, ''));
 
     const report = drift(dir);
     expect(report.stale).toEqual([{ entry: 'trait-events', file: 'engine/src/events.ts', name: 'milestoneTypes' }]);
-    expect(report.missing).toEqual([{ entry: 'earned-trait', file: 'engine/src/traits.ts', name: 'mayEarn' }]);
+    expect(report.missing).toEqual([
+      { entry: 'trait-lists', file: 'engine/src/traits.ts', name: 'excludeEachOther' },
+      { entry: 'traitHelpers', file: 'engine/src/traits.ts', name: 'excludeEachOther' },
+    ]);
+  });
+
+  // The verification of v1.1.4-S12: a rule may read a Trait through a helper, or name a kind or an
+  // event in a way the first scanner missed. Each form, planted in a new file, is drift.
+  test.each([
+    ['a helper called', "import { traitOf } from '../traits.js';\nexport function planted(c: never, k: string): unknown {\n  return traitOf(c, k);\n}\n", 'planted traitOf()'],
+    ['a helper renamed on import', "import { replacedBy as swap } from '../traits.js';\nexport const planted = (c: never): unknown =>\n  swap([], 'x', c);\n", 'planted replacedBy()'],
+    ['a helper through a namespace', "import * as traits from '../traits.js';\nexport const planted = (c: never): unknown =>\n  traits.mayEarn([], 'x', c);\n", 'planted mayEarn()'],
+    ['a helper passed, not called', "import { traitMoraleShift } from '../guildmaster.js';\nexport const planted = [\n  traitMoraleShift];\n", 'planted traitMoraleShift()'],
+    ['a kind compared through as const', "export function planted(e: { kind: string }): boolean {\n  return e.kind === ('statModifiers' as const);\n}\n", "planted 'statModifiers'"],
+    ['a kind compared through satisfies and !', "export function planted(e: { kind: string }): boolean {\n  return e.kind !== (('upkeepFactor' satisfies string)!);\n}\n", "planted 'upkeepFactor'"],
+    ['a kind compared with ==', "export function planted(e: { kind: string }): boolean {\n  return e.kind == 'encounterBonus';\n}\n", "planted 'encounterBonus'"],
+    ['a kind listed for includes', "export function planted(e: { kind: string }): boolean {\n  return ['classStatBonus'].includes(e.kind);\n}\n", "planted 'classStatBonus'"],
+    ['a kind in a Set for has', "const kinds = new Set(\n  ['trait']);\nexport const planted = (k: string): boolean => kinds.has(k);\n", "kinds 'trait'"],
+    ['an object keyed by effect kinds', "export const planted = {\n  statModifiers: 'Stats', encounterBonus: 'a bonus' };\n", 'planted { statModifiers, encounterBonus }'],
+    ['an event named by a template', "export const planted = (what: string): string =>\n  `hero.trait-${what}`;\n", 'planted `hero.trait-${…}`'],
+    ['an event named by its prefix', "export const planted = (type: string): boolean =>\n  type.startsWith('hero.trait-');\n", "planted 'hero.trait-'"],
+  ])('fails on %s', (_name, text, reads) => {
+    const dir = scratch();
+    writeFileSync(path.join(dir, 'engine', 'src', 'quest-engine', 'planted.ts'), text);
+
+    expect(drift(dir).unlisted.map((read) => `${read.file} ${read.name} ${read.reads}`)).toEqual([`engine/src/quest-engine/planted.ts ${reads}`]);
+  });
+
+  test("reads a file named as boundary.test.ts's probes, except where that test writes them", () => {
+    const dir = scratch();
+    const probe = 'boundary-probe-0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d.ts';
+    const text = 'export const planted = (c: { heroTraits: object }): object => c.heroTraits;\n';
+    writeFileSync(path.join(dir, 'engine', 'src', probe), text);
+    writeFileSync(path.join(dir, 'engine', 'src', 'quest-engine', probe), text);
+    writeFileSync(path.join(dir, 'engine', 'src', 'boundary-probe-planted.ts'), text);
+
+    expect(drift(dir).unlisted.map((read) => read.file)).toEqual(['engine/src/boundary-probe-planted.ts', `engine/src/quest-engine/${probe}`]);
   });
 });
 
@@ -81,6 +117,11 @@ describe('a read of a Trait', () => {
     expect(reads("function a(e) { return e.kind === 'statModifiers'; }")).toEqual(["a 'statModifiers'"]);
     expect(reads("function b(e) { switch (e.kind) { case 'upkeepFactor': return 1; } }")).toEqual(["b 'upkeepFactor'"]);
     expect(reads("const c = { kind: 'trait', traitKey: 'x' };")).toEqual(["c 'trait'"]);
+  });
+
+  test("is none in an object with gear's statModifiers alone, or a kind's name not standing as a kind", () => {
+    expect(reads('export const a = { name: "x", statModifiers: { strength: 1 } };')).toEqual([]);
+    expect(reads("export const b = (item) => item.slot === 'statModifiers ' || 'trait'.length > 0;")).toEqual([]);
   });
 
   test('is none in a comment, a type, an import, or gear\'s statModifiers as a field', () => {

@@ -10,6 +10,7 @@ export {
   register,
   rulesFor,
   traitFiles,
+  traitHelpers,
   usesOf,
   type ContentEntry,
   type EngineEntry,

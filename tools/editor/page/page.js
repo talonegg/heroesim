@@ -22,11 +22,16 @@ function element(tag, attributes = {}, ...children) {
   return node;
 }
 
+/** Whether "Finish" runs: every control that changes anything waits for it. */
+let busy = false;
+
 async function call(method, url, body) {
+  // A change is always JSON: the server refuses any other (server.ts).
+  const changes = method !== 'GET';
   const response = await fetch(url, {
     method,
-    headers: body === undefined ? {} : { 'content-type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: changes ? { 'content-type': 'application/json' } : {},
+    body: changes ? JSON.stringify(body ?? {}) : undefined,
   });
   const json = await response.json();
   return { status: response.status, json };
@@ -81,7 +86,22 @@ function render() {
   $('pending').textContent = count === 0 ? 'No pending edits' : `${count} pending ${count === 1 ? 'edit' : 'edits'}`;
   $('discard').disabled = count === 0;
   $('finish').disabled = count === 0;
+  setBusy(busy);
   filter();
+}
+
+/** While "Finish" runs, every control that changes anything is disabled, the open form closed. */
+function setBusy(running) {
+  busy = running;
+  for (const control of document.querySelectorAll('#add-guildmaster, #add-hero, #discard, #finish, #lists button, #form button')) {
+    if (running) control.disabled = true;
+  }
+  if (!running) {
+    for (const control of document.querySelectorAll('#add-guildmaster, #add-hero, #lists button, #form button')) control.disabled = false;
+    $('discard').disabled = data.pending.length === 0;
+    $('finish').disabled = data.pending.length === 0;
+  }
+  if (running && $('form-dialog').open) $('form-dialog').close();
 }
 
 function rowOf(view, hasCost) {
@@ -123,6 +143,8 @@ async function filter() {
   if (text === '') found = null;
   else {
     const { json } = await call('GET', `/api/find?text=${encodeURIComponent(text)}`);
+    // Refused while "Finish" runs: the table stays as it is.
+    if (!Array.isArray(json.found)) return;
     found = new Set(json.found.map((each) => each.key));
   }
   for (const row of document.querySelectorAll('tr[data-key]')) row.classList.toggle('is-hidden', found !== null && !found.has(row.dataset.key));
@@ -314,8 +336,13 @@ async function finish() {
   if (!window.confirm('Finish: write the pending edits, raise the content version and run the tests? It takes as long as the tests.')) return;
   const { json } = await call('POST', '/api/finish');
   if (json.ok === false) return say('Not finished.', 'bad', json.problems);
+  await follow();
+}
+
+/** Shows a running "Finish"'s lines until it ends, every control waiting for it. */
+async function follow() {
   $('finish-panel').hidden = false;
-  $('finish').disabled = true;
+  setBusy(true);
   const poll = async () => {
     const { json: state } = await call('GET', '/api/finish');
     $('finish-lines').textContent = state.lines.join('\n');
@@ -333,7 +360,10 @@ async function finish() {
       $('finish-state').textContent = 'Not finished: every file is put back, and the edits stay pending.';
       say('Not finished: every file is put back, and the edits stay pending. The failures:', 'bad', state.problems);
     }
+    busy = false;
     await load();
+// A page opened while "Finish" runs follows it.
+if ((await call('GET', '/api/finish')).json.state === 'running') await follow();
   };
   await poll();
 }
@@ -347,3 +377,5 @@ $('finish').addEventListener('click', () => void finish());
 $('form').addEventListener('submit', (event) => void save(event));
 $('form-cancel').addEventListener('click', () => $('form-dialog').close());
 await load();
+// A page opened while "Finish" runs follows it.
+if ((await call('GET', '/api/finish')).json.state === 'running') await follow();

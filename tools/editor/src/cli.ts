@@ -11,6 +11,7 @@ import { NotUndone, Undone } from '@heroesim/portraits';
 import { repositoryRoot } from './content-files.js';
 import { doctor, doctorText } from './doctor.js';
 import { Editor, Refused, type RowView } from './editor.js';
+import { Busy } from './finish-journal.js';
 import type { Use } from './kind.js';
 import { npmTest, type TestRunner } from './tests-run.js';
 import { writeTraitsDoc } from './traits-doc.js';
@@ -32,7 +33,10 @@ export const usage = `Usage: npm run edit -- [traits <command>] [--root <dir>] [
   traits finish                   Write the pending edits, raise the content version, run npm test;
                                   every file is put back if a test fails
   traits doctor                   The drift and freshness checks, the content's checks
+  traits recover                  Put back the files of a "Finish" cut off (every command does first)
   traits doc                      Write docs/agents/traits.md's register part from the register
+
+A skill runs them as \`npm run --silent edit -- traits <command> --json\`, so that stdout is the JSON alone.
 
 Exit codes: 0 done, 1 failed or refused (nothing changed), 2 a command line not understood.`;
 
@@ -107,6 +111,8 @@ export function parse(argv: readonly string[]): Parsed {
   }
   parsed.fields = { ...row, ...flags };
   if (!existsSync(parsed.root)) throw new UsageError(`--root ${parsed.root} does not exist`);
+  // "Finish" runs `npm test` in the root, which would climb to a package.json above one without its own.
+  if (!existsSync(path.join(parsed.root, 'package.json'))) throw new UsageError(`--root ${parsed.root} holds no package.json: it is not a copy of the repository`);
   return parsed;
 }
 
@@ -129,9 +135,8 @@ function useLines(uses: readonly Use[]): string[] {
 
 type Result = { code: number; json: unknown; text: string[] };
 
-async function dispatch(options: Parsed, deps: Deps, io: Io): Promise<Result> {
+async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Promise<Result> {
   if (options.kind !== 'traits') throw new UsageError(options.kind === '' ? 'a kind is wanted: traits' : `${options.kind} is not a kind the editor knows: traits`);
-  const editor = new Editor(options.root);
   switch (options.command) {
     case 'list': {
       const rows = editor.rows();
@@ -192,7 +197,16 @@ async function dispatch(options: Parsed, deps: Deps, io: Io): Promise<Result> {
     }
     case 'doctor': {
       const report = doctor(options.root);
+      editor.recovered = report.finish.recovered;
       return { code: report.ok ? 0 : 1, json: report, text: doctorText(report) };
+    }
+    case 'recover': {
+      const recovered = editor.recover();
+      return {
+        code: 0,
+        json: { ok: true, recovered },
+        text: [recovered.length === 0 ? 'No "Finish" was cut off: nothing to put back' : `A "Finish" was cut off: ${recovered.length} files are put back as they were`],
+      };
     }
     case 'doc': {
       const written = writeTraitsDoc(options.root);
@@ -214,7 +228,13 @@ export async function run(argv: readonly string[], io: Io, deps: Deps = { runTes
       io.out(usage);
       return 0;
     }
-    const result = await dispatch(options, deps, io);
+    const editor = new Editor(options.root);
+    const result = await dispatch(options, deps, io, editor);
+    // A "Finish" cut off is put back by whatever command came next, which says so.
+    if (editor.recovered.length > 0 && options.command !== 'recover') {
+      if (typeof result.json === 'object' && result.json !== null) result.json = { ...result.json, recovered: editor.recovered };
+      result.text.unshift(`A "Finish" was cut off: ${editor.recovered.length} files are put back as they were`);
+    }
     if (options.json) io.out(JSON.stringify(result.json, null, 2));
     else for (const line of result.text) (result.code === 0 ? io.out : io.err)(line);
     return result.code;
@@ -222,12 +242,12 @@ export async function run(argv: readonly string[], io: Io, deps: Deps = { runTes
     const json = options?.json ?? argv.includes('--json');
     const code = error instanceof UsageError ? 2 : 1;
     const problems =
-      error instanceof Refused || error instanceof Undone
+      error instanceof Refused || error instanceof Undone || error instanceof Busy
         ? [...error.problems]
         : error instanceof NotUndone
           ? [...error.problems, ...error.left.map((file) => `not put back: ${file}`)]
           : [error instanceof Error ? error.message : String(error)];
-    const kind = error instanceof UsageError ? 'usage' : error instanceof Refused ? 'refused' : error instanceof Undone ? 'undone' : error instanceof NotUndone ? 'not-undone' : 'failed';
+    const kind = error instanceof UsageError ? 'usage' : error instanceof Busy ? 'busy' : error instanceof Refused ? 'refused' : error instanceof Undone ? 'undone' : error instanceof NotUndone ? 'not-undone' : 'failed';
     if (json) io.out(JSON.stringify({ ok: false, kind, problems, ...(error instanceof Refused && error.uses.length > 0 ? { uses: error.uses } : {}) }, null, 2));
     else {
       for (const problem of problems) io.err(problem);
