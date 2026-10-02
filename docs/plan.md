@@ -328,14 +328,17 @@ the agents recommended that story features be modules and rule extensions core i
     the Stats;
   - the chances shown as words on the Board and in the Party builder, and the Rivals choosing their
     Parties by the same estimate;
-  - Hero Traits with effects, and Traits rarely earned on Quests;
+  - Guildmaster and Hero Traits in two lists, each Trait a list of effects; Hero Traits with
+    effects, and Traits rarely earned on Quests;
   - the Encounters widened, with a `lore` kind and finales, so that every Hero Stat is read by at
     least three Checks;
   - the Guildmaster's setup: "Choose for me" for the whole Guildmaster, or the player's own sex,
-    age, picture and Stats from a pool of points.
+    age, picture and Stats from a pool of points;
+  - a local content editor for the owner, Traits its first kind, and Claude Code skills for Traits,
+    kept current by a register of every use of a Trait that CI checks.
 
   *Added 2026-10-02 (DL-148): the owner put it inside the v1.1 line, before Random Events. The
-  setup added the same day (DL-149).*
+  setup (DL-149), and Traits with their editor and skills (DL-150), added the same day.*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.*

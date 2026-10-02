@@ -142,7 +142,13 @@ Every system in the game must serve at least one of these:
   Not every Stat is read by every rule in every release.
 - R15. Skills are named proficiencies rated 1 to 5. The rating is in the data model from the
   first build; the stub Quest Engine reads it as a flat modifier. Skill growth is deferred.
-- R16. Traits on a Hero are binary marks left by history, such as a healed Injury.
+- R16. A Hero's Traits are marks left by their history: an Injury that heals may leave one, and a
+  Quest may rarely earn one, a positive one on an Encounter's Triumph when the Quest ends a strong
+  success, a negative one to a Hero a failed Encounter injured. Hero Traits and Guildmaster Traits
+  are two separate lists in content; each Trait carries a list of effects, and a Hero or a
+  Guildmaster holds any number of Traits, never two that conflict. A Trait an Injury leaves
+  replaces one it conflicts with. (Reworded 2026-10-02, DL-148 and DL-150; it read "Traits on a
+  Hero are binary marks left by history, such as a healed Injury.")
 - R17. Progression: XP from Quests and training raises a Hero's Level; each Level raises Stats
   along the Class's growth profile up to the Hero's Potential. Potential is a hidden per-Stat
   ceiling, shown only as a hint. Stats decline past an age.
@@ -166,16 +172,10 @@ Every system in the game must serve at least one of these:
   Synergies, Items and further qualifiers as they are added. It produces the outcome: XP,
   Injuries or Death, Morale and Regard changes, reward or penalty, Fame effect, Loot, and typed
   events the front end narrates and the World Engine feeds back into the world. A Hero's Stats
-  change through the Levels that XP brings and through ageing, and a Hero gains a Trait when
-  certain Injuries heal (R18); Hero Traits gain effects (decided, to be built). (Amended
-  2026-09-28, DL-85: originally the outcome also listed "Stat changes" and "new Traits", which
-  no Quest outcome was built to produce. This rewording to what is built is the owner's stated
-  intent, made provisionally; its exact words await the owner's confirmation, DL-85 item 10.)
-  (Amended 2026-10-02, DL-148 items 24 and 25: from `v1.1.4`, Hero Traits have effects, Stat
-  changes or a bonus on an Encounter's Checks, and a Quest's outcome may give a Hero a new
-  Trait, rarely: a positive one, drawn on an Encounter's Triumph, only when the Quest ends a
-  strong success, and a negative one only to a Hero a failed Encounter injured. The words are
-  the agent's, for the owner to confirm.)
+  change through the Levels that XP brings, through ageing, and through their Traits' effects,
+  and a Hero gains a Trait as R16 says. (Reworded 2026-10-02, DL-148 and DL-150: the owner's
+  confirmation of DL-85 item 10's provisional wording, which had taken "Stat changes" and "new
+  Traits" out of the outcome on 2026-09-28 because no Quest outcome was built to produce them.)
 - R25. First build: a stub Quest Engine that compares difficulty against the Party's summed
   Stats and applies simple outcomes. Target: a sequence of typed encounters, each a check with
   typed consequences. (Amended 2026-09-28, DL-86: the first build reached the target. M2 built

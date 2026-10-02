@@ -16757,6 +16757,109 @@ S12, §2, §3 and §4); `docs/planning/epics/README.md`; `docs/plan.md` §4.
 
 ---
 
+## DL-150 — Traits in two lists, each a list of effects; a content editor for the owner with Traits as its first kind; and Claude Code skills for Traits that keep themselves current
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the owner, in an interview on issues #22
+and #29 against DL-148, and in two requests of their own: Traits that can be extended, and skills for
+future sessions. The options and the recommendations were the agent's; every answer is the owner's,
+and each says whether it took the recommendation. Names and readings marked as the agent's are for
+the owner to change.
+
+**Context.** DL-148 gives Hero Traits effects and lets Heroes earn them, on today's shape: one
+`traits.json` holding both owners' Traits, each with one `effect` or none. #29 carries DL-87 item 6, a
+list of effects per Trait, with Miser's two effects and Thrifty's fate left to the owner. #22 carries
+DL-83 item 17's margin, which DL-148 item 8 settles, with DL-85's premium and the Board's scaling still
+open.
+
+**Decision.**
+
+1. **Two lists.** Guildmaster Traits and Hero Traits are two separate lists in content. The owner's
+   design, which also answered the agent's question (whether S7 builds DL-87 item 6's list of effects).
+   The agent's choice is that keys stay unique across both lists.
+2. **A list of effects per Trait,** each Trait holding one for now, so that Traits can be extended
+   later. Miser keeps its one effect, and Thrifty is unchanged: DL-87 item 6's two-effect Miser waits.
+   The agent's reading: one Stat-change effect may name several Stats, so DL-148 item 24's values stand.
+3. **Holding Traits.** A Guildmaster or a Hero holds 0 to many Traits, never two of which one excludes
+   the other, as before. A Guildmaster's Trait budget and its maximum stay.
+4. **The same games first.** Moving today's Traits into the new shape is its own step, playing the same
+   games (the agent's).
+5. **Conflicts.**
+   - An earned Trait that conflicts with one the Hero holds is not granted (DL-148).
+   - A Trait an Injury leaves replaces one it conflicts with. The wound is a fact of the body; a new
+     event, `hero.trait-lost`, a Milestone, says so.
+
+   Option (b), as recommended.
+6. **R16 and R24 reworded** in the owner's confirmed words. This closes DL-85 item 10's provisional
+   wording. Option (a), as recommended.
+7. **A content editor for the owner.**
+   - It is a local page (`npm run edit`) with commands underneath, for tests and for Claude.
+   - It is never part of the deployed game.
+   - Option (b), as recommended: not a command-line tool alone, nor a modding page for players.
+8. **The kinds of effect** the editor offers are each list's known kinds. For Guildmasters: a Class Stat
+   bonus, a Morale shift and an Upkeep factor. For Heroes: Stat changes and an Encounter bonus. A new
+   kind is an engine change, made on request. Option (a), as recommended.
+9. **Keys are fixed.** Everything else about a Trait can change: its name, its effects, its excludes and
+   a Guildmaster Trait's cost. Option (a), as recommended.
+10. **Removing a Trait still in use is refused,** and every use is listed. The Trait is stripped from
+    other Traits' `excludes` lists by the editor itself. Option (a), with the agent's "Retire" button
+    not taken.
+11. **Finishing an edit** runs the test suite; individual changes do not. This is the owner's design,
+    beyond the recommendation, which ran only the content checks.
+    - Each add, change and removal is checked against the content rules as it is made, and held as
+      pending.
+    - "Finish" writes the files, runs `npm test`, and if any test fails puts the files back and
+      saves nothing.
+    - On success the content version rises by one.
+    - It never commits.
+12. **A content editor, Traits first.** The table, the pending edits, the checks, the Finish and the
+    in-use search are built once. Other kinds, Encounters first, are added when the owner asks.
+    Option (b), as recommended.
+13. **Skills for Traits** (the owner's request): Claude Code skills in this repository, for future
+    sessions, to search, edit, remove and assign Traits to other content.
+    - The other content is an Injury's `leavesTrait`, an Encounter's earned-Trait consequence, a
+      `has-trait` condition in a Check or a Synergy, the Biography sentences, and the Portrait
+      vocabulary's suits and clashes.
+    - The agent's names: `trait-find`, `trait-edit` and `trait-assign`.
+14. **They heal themselves.** Option (c), as recommended.
+    - *A register.* One register in code lists every place a Trait is used, in content and in the
+      engine's rules and events. The editor's in-use search and `docs/agents/traits.md`'s generated part
+      come from it.
+    - *A drift test* fails CI when content's checks or the engine read a Trait somewhere the register
+      does not list.
+    - *A freshness test* fails when the doc does not match the register.
+    - *A doctor.* `npm run edit -- traits doctor` runs both, and the skills run it first.
+    - *Each story's close.* Every story that touches the engine runs the doctor, and its DL entry says
+      what changed for Traits.
+15. **The only route.** AGENTS.md gains a "Traits" section: Traits are added, changed, removed and
+    assigned only through the editor, its commands or the `trait-*` skills, as Portraits are. Option
+    (a), as recommended.
+16. **Content only.** The skills and the editor change what the game ships, never a saved game: every
+    change to a world is an event in its History. Option (a), as recommended.
+17. **Left on the issues for v1.2** (the agent's, not disputed):
+    - #22's strong-success premium, and the Board's difficulty scaling by mean Level or by year;
+    - #29's decline lowering Potential, and injury history in the Retirement chance.
+
+    Each changes the economy or Heroes' careers, which DL-148 item 3 leaves until after Random Events.
+18. **The plan.**
+    - v1.1.4-S7 grows to take items 1 to 6.
+    - v1.1.4-S12, the register and the content editor with Traits, is new.
+    - v1.1.4-S13, the Trait skills, is new.
+    - The close becomes S14, and the stories are numbered from DL-151.
+
+**Consequences.**
+- Content gains `guildmaster-traits.json` and `hero-traits.json` in place of `traits.json`, and each
+  Trait's `effect` becomes `effects`.
+- New event `hero.trait-lost`, a Milestone.
+- New files outside the game: the editor (`tools/editor/`), `.claude/skills/trait-*`,
+  `docs/agents/traits.md`, and AGENTS.md's section.
+- The editor's Finish takes a few minutes, the length of `npm test`.
+- The estimate rises to 22 to 27 sessions.
+
+**Actioned in:** `docs/requirements.md` (R16, R24); `docs/planning/epics/v1.1.4-release.md`;
+`docs/planning/epics/README.md`; `docs/plan.md` §4.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
