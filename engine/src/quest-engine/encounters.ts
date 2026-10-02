@@ -68,6 +68,16 @@ export function drawSequence(state: Stream, pools: readonly (readonly Encounter[
 }
 
 /**
+ * The Encounters of `quest`'s own `encounterKeys`, drawn when it was generated (M4-S1), in order, each
+ * key content no longer defines left out (data-model rule 5). Draws nothing: what the estimate reads
+ * before a Party sets out (v1.1.4-S5, estimate.ts), and what `sequenceFor` resolves through when it
+ * holds any.
+ */
+export function storedSequence(quest: Pick<Quest, 'encounterKeys'>, content: Pick<ContentSet, 'encounters'>): Encounter[] {
+  return quest.encounterKeys.flatMap((key) => (Object.hasOwn(content.encounters, key) ? [content.encounters[key] as Encounter] : []));
+}
+
+/**
  * The Encounters `quest` is resolved through, in order (M4-S2). A Quest's own `encounterKeys`, drawn
  * when it was generated; for a Quest with none, generated before M4 (DL-42), a sequence drawn now
  * from the `encounters` stream as the Quest Generator would have drawn it, by its template's kinds
@@ -84,9 +94,7 @@ export function sequenceFor(
   deps: { config: GameConfig; content: ContentSet },
 ): Encounter[] {
   const { config, content } = deps;
-  const known = (key: EncounterKey): Encounter | undefined =>
-    Object.hasOwn(content.encounters, key) ? content.encounters[key] : undefined;
-  const stored = quest.encounterKeys.map(known).filter((encounter): encounter is Encounter => encounter !== undefined);
+  const stored = storedSequence(quest, content);
   if (stored.length > 0) return stored;
   const template = Object.hasOwn(content.questTemplates, quest.templateKey)
     ? content.questTemplates[quest.templateKey]
@@ -98,5 +106,5 @@ export function sequenceFor(
     return [pick(state, all)];
   }
   const keys = drawSequence(state, encounterPools(template, content), encounterCount(template, quest.difficulty, config));
-  return keys.map((key) => known(key) as Encounter);
+  return keys.map((key) => content.encounters[key] as Encounter);
 }

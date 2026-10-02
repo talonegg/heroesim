@@ -393,6 +393,16 @@ Encounter at Success or better and half of them Triumphs: DL-83's margin, made a
 Triumphs (DL-148 item 8, v1.1.4-S2, DL-152). By DL-85 it pays a premium (to be built).
 _Avoid_: Result, Grade, Tier
 
+**Chance band**:
+The word an estimated chance is shown in: Hopeless below 10%, Unlikely to 35%, Even to 65%, Likely
+to 90% and Near certain from 90% (`chanceBands`). The estimate reads what each Check reads of a
+proposed Party as it will come home, its Morale, Regard and Injuries moved by each night away, on
+the Quest's own Encounters, drawn when it was posted. It reads the Guild as it is when the Party
+sets out, and assumes no one falls: no Hero hurt or killed on the way, and no Morale moved by an
+Encounter. So the words come with "if no one falls", and the numbers stay in the detail (DL-148
+item 15; built in v1.1.4-S5, DL-156; shown from v1.1.4-S6).
+_Avoid_: Odds (for the word), Rating, Difficulty
+
 **Board**:
 Where the Quests currently on offer are posted. Every Guild draws from it.
 _Avoid_: Quest log, Noticeboard, Job board

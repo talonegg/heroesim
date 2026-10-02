@@ -17959,6 +17959,238 @@ status.
 
 ---
 
+## DL-156 — v1.1.4-S5 built: the chance estimate, worked out exactly from what the resolver draws, the chance bands, and the typed account of what a Check reads, worded by both front ends
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 items 15 and
+16 (the estimate and the words; item 17's Rivals are S6's) as the epic's S5 describes. Where the plan
+was silent, the calls are the agent's, in item 6, for the owner to change. Opus built it; a second
+Opus agent verifies it.
+
+**Context.** S6 shows a chance word for each Encounter and the Quest on the Board and in the Party
+builder, and the Rivals choose their Parties by it; both need an estimate that reads everything a
+Check reads (S1 to S4) and draws nothing. The Board's cards also show what each Check reads, which
+the engine may not word (ADR-0003). It was built on `v1.1.4-dev` at `103fcf4` (S4, DL-155). No play
+changes: nothing in the game calls the estimate or the account yet.
+
+**Decision.**
+
+1. **The estimate** (`engine/src/quest-engine/estimate.ts`, new): `estimateQuest(world, quest,
+   heroes, deps, carried)`, a selector that draws nothing. `heroes` are the proposed Party in the
+   order named, read as they will come home on the Quest's return night (the verification, item 1);
+   `carried` the consumables they would carry, as `dispatch` is asked for them
+   (`ConsumableRequest`).
+   - *One Check* (`chanceToReach`). The roll is C × (1 + v × (2u − 1)), never below 0, so the chance
+     it reaches x is 1 − clamp((x ÷ C − 1 + v) ÷ 2v, 0, 1); at v = 0 it is a step, and with no
+     capability 0. Each Degree's chance is the chance of reaching its threshold × the target less
+     the next one's, the thresholds `checkDegrees`'. The capability is `capability`'s, form and all,
+     plus the bonus carried (none to a raw Check); the target is `targetOf`'s (check.ts, now shared
+     with `check`).
+   - *An Encounter.* Every combination of its Checks' Degrees with a chance above 0, at most 256, is
+     read through its pass formula (`passDegree`). A reroll is folded in as the resolver rolls one:
+     for each combination short of Success, every combination of fresh rolls of the Checks short of
+     Success, the others kept. So an Encounter has two distributions, with a reroll then and without.
+   - *The Quest.* The Encounters are walked in order, keeping the chance of each count of Successes
+     and Triumphs with each stock of rerolls left, since a reroll used on one Encounter is not there
+     for the next. A bonus is spent whatever the rolls, so it is taken in order before the walk.
+     Each Encounter's estimate is its chance across the walk, of each Degree and of Success or
+     better. The Quest's is each Quest band's chance, by `questBand` of each count, and a success's
+     (a success or a strong success).
+   - *The kit's rules are shared.* `takeBonuses` and `rerollFor` (consumables.ts, new, pure) are what
+     the kit spends and what the estimate reads. `storedSequence` (encounters.ts) gives the Quest's
+     own Encounters, and `sequenceFor` now reads it too.
+   - *It says what it assumes:* `ifNoOneFalls: true` on every result. No Hero is hurt or killed on
+     the way, and no Encounter's Morale moves anyone's form; the front ends say "if no one falls".
+   - It is `null` for a Quest whose Encounters are drawn on the way (none of its `encounterKeys`
+     defined). It throws where `resolveQuest` throws: a configuration with a problem, a difficulty
+     not above 0, an Encounter with no Check, or several and no formula.
+   - Each chance carries its word, `chance`.
+2. **Chance bands.** `chanceBandNames` (`hopeless`, `unlikely`, `even`, `likely`, `near-certain`) and
+   `chanceBand(chance, config)`, from `chanceBands` in the configuration, where each band starts:
+   `{ unlikely: 0.1, even: 0.35, likely: 0.65, 'near-certain': 0.9 }`, `hopeless` below `unlikely`
+   (DL-148 item 15). It is under `configVersion` 13, not raised. `configProblems` refuses starts that
+   are missing, or not strictly increasing, each above 0 and below 1, naming the field;
+   `resolveQuest` and `estimateQuest` throw on it.
+3. **What a Check reads** (`engine/src/quest-engine/describe.ts`, new). `describeQuery(query)` is a
+   typed account of a Num Query, each node a `kind`:
+   - what it aggregates (`sum`, `avg`, `max`, `min`), counts, ranks with its weights, or which Hero
+     it reads (`best`, `worst`, and by what);
+   - its Set and filters (`where`, `top`, `bottom`);
+   - each Val: a Stat, a Skill, Level, Morale, age, a weighting with each Stat's weight, arithmetic;
+   - each Pred: Class, Background, Sex, a Skill at a rating, a Trait, hurt, the five comparisons,
+     `and`, `or` and `not`;
+   - and the Nums' arithmetic, `least` and `greatest`.
+
+   Keys stay keys, and there is no prose (ADR-0003). ADR-0010 says so.
+4. **The words.** `queryWords(account, content)` and `chanceWords`, in the CLI
+   (`cli/src/query-words.ts`) and the page (`web/src/state/query-words.ts`), the same words: "the
+   total Intelligence of the Mages and Healers", "Strength of the Warrior with the highest Strength",
+   "the number of Heroes whose Strength is at least 12", "0.5 × the total Strength of the Party +
+   0.5 × the highest Wits in the Party"; and Hopeless, Unlikely, Even, Likely and Near certain.
+   Nothing shows them yet: S6 puts them in `preview`, on the Board and in the Party builder.
+5. **The glossary.** `CONTEXT.md` gains Chance band.
+6. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The configuration's shape.* `chanceBands` names where each band above `hopeless` starts, as
+     `moraleBands` names its bands' starts, so that a save's `meta.config` says which is which.
+   - *An Encounter's estimate* is its chance as the Party meets it on this Quest. A reroll the
+     Encounters before may have used is folded in, so the same Encounter can read differently at
+     another place in the sequence. Each Check's first roll is given beside it, for the detail.
+   - *"No one falls" covers Morale.* A Morale consequence moves form in the later Encounters (S3).
+     The estimate reads no Morale an Encounter moves, and the flag covers it.
+   - *A Party of no one* has an estimate, the Quest a sure failure, as the resolver fails it, rather
+     than `null`, which means the Encounters are not known. It meets none of the Encounters, so each
+     has no chance of any Degree (the verification, item 2).
+   - *The words.* A Class's plural adds "s" to its name, as the page's Trait effects already do ("to
+     Warriors"). A Background is "of the Farm-born Background". A negated filter follows De Morgan
+     ("who are not hurt or who lack Stealth"). The words are written to stand inside a sentence
+     ("the total…"); S6 capitalises them where they stand alone (`capitalised`,
+     `docs/agents/ui-text.md`).
+   - *The probe* is a harness probe, as M9-F1's Succession probe is, and not part of `npm test`: four
+     million resolutions take three minutes. `npm test` holds the estimate to the resolver over a few
+     samples (the checks, item 1).
+7. **Where the Encounters come from, for S6.** A Quest's Encounters are drawn when it is posted.
+   `generateQuest` draws them from the `encounters` stream and stores them as `encounterKeys`, and
+   `resolveQuest` resolves through exactly those (`sequenceFor`, through `storedSequence`). So the
+   estimate estimates the Encounters the Quest will run, and S6 changes nothing for it. Only a Quest
+   generated before M4 draws its sequence on the way; it has no estimate (`null`), and S6's card says
+   so. *For S8:* a finale must be stored in `encounterKeys` when the Quest is generated, as the epic's
+   §2 says, or the estimate will not see it.
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first,
+each call the agent's, for the owner to change:
+1. **The estimate read the Party as it set out; the resolver meets it on the night it comes home.**
+   `questsConclude` resolves a Party on its return night, and on each night away before it the Hero
+   State Engine has moved each Hero's Morale a point toward their baseline, decayed their Regard
+   (their teamwork) and healed an Injury whose night came, perhaps leaving a Trait; and an age is
+   read on the return night. On a Quest of two to ten Days a Hero's band, so their form, can move.
+   - *The fix.* None of it draws: the Retirement check, which does, is never due for a Hero away, and
+     the `ageing` phase's decline falls only on its nights. So the estimate projects the whole step.
+     `heroNight` (hero-state.ts) is the Hero State Engine's own night of a Hero before the Retirement
+     check, healing, drift and decay, which `heroState` now calls; `returnNightOf` (time.ts) is the
+     return night `dispatch` now sets. `estimateQuest` runs `heroNight` on copies of the Heroes for
+     each night after the Turn it is asked on and before the return night, and reads them in a world
+     at the return night's Turn. The quest it reads takes `durationTurns` too.
+   - *What is not foreseen,* in the file's head, `CONTEXT.md` and here: what the Guild does while the
+     Party is away (a Hall Improvement built, which moves the baseline; a new Guildmaster). Nothing
+     in the Heroes' own nights draws, so the flag stays `ifNoOneFalls`.
+   - *The tests.* `estimate.test.ts`: a wretched Hero at Morale 19, the baseline 50, is sent by
+     `dispatch` on a five-Day Quest and the world advanced until it resolves; the capability its
+     `quest.encounter` records is exactly the estimate's, made before dispatch, and above the
+     capability as they set out (low, 0.93, against wretched, 0.85). The resolver's rates in the
+     test's scenes are taken on the return night, the `heroState` phase itself run on each night
+     away, with Morale at 19, 38, 76 and 91 so that bands move on the way.
+   - *The probe* now sends each Party by `dispatch` and plays every phase to the afternoon before its
+     return night, then resolves on that night's Turn. Its Parties are the player's Heroes, which no
+     policy plays. With the projection taken out, 40 samples × 5,000 seeds miss by up to 100 points;
+     with it, by 1.67.
+2. **A Party of no one met its Encounters.** A score with a floor, `["greatest", ["sum", "party",
+   ["stat", "strength"]], 10]`, gave no one a chance, where the resolver meets no Encounter and
+   fails. Now every Encounter of a Party of no one has every Degree's chance 0, and the Quest fails
+   at 1, tested against `resolveQuest` with that score.
+3. **`checkVariance` was unchecked.** `configProblems` now refuses one outside 0 to 1, as a Check's
+   own `variance` is refused, so that the formula holds (a roll never below 0). Tested at 0, 1,
+   −0.1, 1.5 and NaN.
+4. **The words and the request.**
+   - "Age" is capitalised, as `docs/agents/ui-text.md`'s settled table writes it.
+   - "with the most Level" read badly: a choice of a Hero, `top` and `bottom` now say "with the
+     highest" and "with the lowest": "Strength of the Warrior with the highest Strength".
+   - A filter's `and` or `or` within another is bracketed in both front ends: "the number of Heroes
+     (who are hurt or who have Stealth) and whose Level is above 2"; a negation's too. Four cases
+     more in each front end's test, an `and` of one part and a `not` within an `or` left bare.
+   - `estimateQuest` throws, as `dispatch` does and with its words, on a Hero named twice, a
+     consumable named twice, or a quantity not a whole number from 1: `checkProposedParty`
+     (dispatch.ts), which `dispatch` now calls too. Tested.
+
+After the fixes:
+- `npm run typecheck` and `npm run lint` are clean.
+- `npm test` passes 4,390 tests in 174 files, 10 more than below, with no flake.
+- *The probe,* rerun as item 1 sends it: 200 samples × 20,000 seeds, 588 Encounters of 1,226 Checks,
+  339 of several, 103 Parties carrying; 81 Heroes in 71 Parties changed Morale band between setting
+  out and the night home. Every one of 3,740 chances is within 2 points: each Encounter's Degrees
+  within 1.15 points (3.39 standard errors), its Success or better within 1.03, the Quest's bands
+  and success within 0.71. 202 s. The report, `harness/reports/m9-estimate-2026-10-02.md`, is this
+  run's.
+- The script is 764,473 bytes (764.47 kB), 142 more: 35.53 kB is left under 800 kB.
+
+**The checks.**
+These were run before the verification's fixes; the section above gives the numbers after them.
+1. **The estimate against the resolver** (the epic's first box). `HEROESIM_PROBE=estimate npm run
+   harness` (`harness/src/estimate.ts`, `estimate.harness.test.ts`); its report,
+   `harness/reports/m9-estimate-2026-10-02.md`, to be force-added, is the verification's rerun.
+   - *The samples.* 200 Parties and Quests, each from its own seed:
+     - a world of the core content and `defaultConfig`;
+     - one to four Heroes of any Roster, each at a Morale drawn from 0 to 100, so that every band's
+       form comes up;
+     - a Quest of difficulty 10 to 100 and one to five Encounters, a quarter of them the core's and
+       the rest written for the sample. Each has one to four Checks, scored by every shape of Query
+       (sums, the best of a Class, weightings, rankings, Skills, arithmetic, `top`, a raw count
+       against a flat), each at a target 0.6 to 1.5 times the Party's capability on it, at the
+       default variance, its own or 0, combined by nested `and`, `or` and `at-least`;
+     - for half of them, Whetstones, lockpicks, grappling lines or blessed candles carried.
+
+     In all, 574 Encounters of 1,176 Checks, 321 of them of several Checks, and 97 Parties carrying.
+   - *No one falls.* Every Encounter's Injuries, Deaths and Morale are taken out of the content
+     (`harmless`). The rest is kept, since it changes neither who meets the next Encounter nor their
+     form. The probe throws if anyone is hurt or dies.
+   - *The seeds.* Each sample is resolved once for each of 20,000 seeds of its own, the `quests`
+     stream set from the SHA-256 of the seed's name. A first trial gave every sample the same 20,000
+     seeds, whose first draws fell below 0.5 51.1% of the time: a 3σ fluke, shared by every sample.
+     So each sample has its own.
+   - *The result.* Every one of 3,670 chances is within 2 points of its rate:
+     - each Encounter's Degrees, 2,296 (920 of them from 1% to 99%), within 1.03 points, the widest
+       3.18 standard errors;
+     - each Encounter's Success or better, 574, within 1.03;
+     - the Quest's bands, 600, within 0.90;
+     - the Quest's success, 200, within 0.78.
+
+     The mean gaps are 0.08 to 0.10 points. The run took 182 s.
+   - *In `npm test`.* `harness/src/estimate.test.ts` runs 6 samples × 2,000 seeds within 4 points.
+     `engine/src/quest-engine/estimate.test.ts` holds two scenes of 3 and 5 Encounters (formulas,
+     every Morale band, a raw gate, Synergies, a bonus and three rerolls) within 3 points of 3,000
+     seeds, Degree by Degree and band by band.
+2. **The estimate's parts** (`estimate.test.ts`, 11):
+   - the formula and its step;
+   - each Degree from its threshold, a bonus on a Check and none on a raw gate;
+   - the bands' words at each boundary, and `configProblems` for `chanceBands`, sound and seven ways
+     unsound;
+   - no draw, the flag, `null` without Encounters, and a missing key left out;
+   - a Party of no one;
+   - a reroll folded in exactly: the first Encounter p + (1 − p)p, the second p + (1 − p)p²;
+   - the bands equal to a walk of every path.
+3. **`describeQuery` and the words** (the epic's second box). `describe.test.ts`, 43: every operator
+   of the five types, nested, and a throw for an unknown one of each. `cli/src/query-words.test.ts`
+   and `web/src/state/query-words.test.ts`, 32 each: the same 31 Queries, every operator worded, and
+   the five chance words.
+4. **The script.** `npm run build -w web`'s check-bundle passes. The script is 764,331 bytes (764.33
+   kB, 220.01 kB gzipped), 616 more than S4's 763,715: `chanceBands`, its check and the shared kit
+   rules. The estimate, the account and the page's words are not in it yet, since no view reads them;
+   S6 brings them, about 6 kB unminified. 35.67 kB is left under 800 kB.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,380 tests in 174 files, 121 more than S4's 4,259 in 169, with no flake.
+   - `npm run e2e -w web` passes all 93 specs, though no view changed.
+   - The estimate takes 0.10 ms on average over the probe's samples, and 1.9 ms at most, for S6's
+     Rivals to call freely.
+
+**Consequences.**
+- S6 can show a word for each Encounter and the Quest, the numbers in the detail, and what each Check
+  reads; the Rivals' `partyFor` can call the estimate. No play changes until then.
+- Each new Query operator now needs its node in `describeQuery` and its words in both front ends.
+- The probe can be run again once S10 writes the content: `HEROESIM_PROBE=estimate npm run harness`.
+- No save row gains a field; schema 6 and configuration 13 hold, with `chanceBands`.
+
+**Actioned in:** `engine/src/quest-engine/estimate.ts`, `estimate.test.ts`, `describe.ts` and
+`describe.test.ts` (new); `check.ts` (`targetOf`), `consumables.ts` (`takeBonuses`, `rerollFor`,
+`bonusOf`) and `encounters.ts` (`storedSequence`); `engine/src/phases/hero-state.ts` (`heroNight`),
+`engine/src/actions/dispatch.ts` (`checkProposedParty`) and `engine/src/time.ts`
+(`returnNightOf`); `engine/src/config.ts` and `index.ts`;
+`cli/src/query-words.ts` and its test (new); `web/src/state/query-words.ts` and its test (new);
+`harness/src/estimate.ts`, `estimate.test.ts` and `estimate.harness.test.ts` (new), and
+`succession.ts` (`probeNames`); `harness/reports/m9-estimate-2026-10-02.md`; `CONTEXT.md` (Chance
+band); `docs/adr/0010-checks-and-synergy-requirements-are-queries-over-the-party.md`; the epic's S5
+boxes and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

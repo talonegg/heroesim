@@ -25,7 +25,7 @@ import {
 import { eventEmitter } from '../emit.js';
 import { guildmasterOf, negotiatedReward } from '../guildmaster.js';
 import { findStack, itemDefinition, moveStack } from '../items.js';
-import { dayOf, durationDaysOf, nightOf } from '../time.js';
+import { returnNightOf } from '../time.js';
 import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
 
 export interface DispatchAction {
@@ -174,7 +174,7 @@ export function applyDispatch(
 
   const quest = world.quests[questId] as Quest;
   const partyId = takeId(world, 'parties');
-  const returnsOnTurn = nightOf(dayOf(world.turn) + durationDaysOf(quest));
+  const returnsOnTurn = returnNightOf(world.turn, quest);
   world.parties[partyId] = {
     id: partyId,
     questId,
@@ -257,6 +257,16 @@ function requestedGuild(world: World, request: DispatchRequest): Guild {
   const { guildId, heroIds, consumables = [] } = request;
   const guild = own(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`${guildId} is not in world.guilds`);
+  checkProposedParty(heroIds, consumables);
+  return guild;
+}
+
+/**
+ * Throws, as `dispatch` does, on a Party that names a Hero twice, or a consumable twice or in a
+ * quantity that is not a whole number from 1: a programming error, which the validator would refuse.
+ * The chance estimate holds a proposed Party to it too (v1.1.4-S5's verification, estimate.ts).
+ */
+export function checkProposedParty(heroIds: readonly HeroId[], consumables: readonly ConsumableRequest[]): void {
   const repeated = heroIds.find((heroId, index) => heroIds.indexOf(heroId) !== index);
   if (repeated !== undefined) throw new RangeError(`A Party names ${repeated} twice`);
   const keys = consumables.map((it) => it.definitionKey);
@@ -264,7 +274,6 @@ function requestedGuild(world: World, request: DispatchRequest): Guild {
   if (twice !== undefined) throw new RangeError(`A Party's consumables name ${twice} twice`);
   const odd = consumables.find(({ quantity }) => !Number.isSafeInteger(quantity) || quantity < 1);
   if (odd !== undefined) throw new RangeError(`A Party carries a whole number of ${odd.definitionKey} from 1, not ${odd.quantity}`);
-  return guild;
 }
 
 /** The first check `request` fails, in the order `dispatch` gives, or `null` when it passes them all. */

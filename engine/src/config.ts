@@ -43,8 +43,8 @@ export interface GameConfig {
    * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114);
    * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
    * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
-   * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), and S4's
-   * `exposureRange` and `guardRange` (DL-148, DL-155).
+   * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's
+   * `exposureRange` and `guardRange` (DL-148, DL-155), and S5's `chanceBands` (DL-148, DL-156).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -233,6 +233,12 @@ export interface GameConfig {
    * those Stats' content range. A share from 0 to 1; at 0.5, the strongest halve it.
    */
   guardRange: number;
+  /**
+   * Where each chance band above `hopeless` starts (v1.1.4-S5, DL-148 item 15, `chanceBand`): an
+   * estimated chance below `unlikely` is `hopeless`, and one at a start or above, up to the next, is
+   * that band. Strictly increasing, each above 0 and below 1.
+   */
+  chanceBands: Readonly<Record<Exclude<ChanceBand, 'hopeless'>, number>>;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -516,6 +522,14 @@ export const moraleBandNames = ['wretched', 'low', 'steady', 'high', 'elated'] a
 
 export type MoraleBand = (typeof moraleBandNames)[number];
 
+/**
+ * The words an estimated chance is shown in, least likely first (v1.1.4-S5, DL-148 item 15): the
+ * engine gives the key, and the front ends word it.
+ */
+export const chanceBandNames = ['hopeless', 'unlikely', 'even', 'likely', 'near-certain'] as const;
+
+export type ChanceBand = (typeof chanceBandNames)[number];
+
 /** The words a Potential hint can be, for the narrowest gap first (M3-S3, INPUTS 5.4). */
 export const potentialHints = ['modest', 'promising', 'exceptional'] as const;
 
@@ -589,6 +603,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   hurtCheckFactor: 0.85,
   exposureRange: 2,
   guardRange: 0.5,
+  chanceBands: Object.freeze({ unlikely: 0.1, even: 0.35, likely: 0.65, 'near-certain': 0.9 }),
 
   moraleMin: 0,
   moraleMax: 100,
@@ -674,22 +689,34 @@ export interface EngineDeps {
 
 /**
  * What is wrong with `config`'s Quest Engine fields, each a sentence naming its field; none for a
- * sound one (v1.1.4-S2's verification, DL-152). A Degree means something only while its thresholds
- * are ordered, `triumph` > `success` > `setback` > 0, and `strongTriumphShare` is a share from 0 to
- * 1. A form factor is a finite number above 0, one for every Morale band, `steady`'s 1 and the rest
- * in the bands' order, so that better spirits never bring less; and `hurtCheckFactor` is at most 1,
+ * sound one (v1.1.4-S2's verification, DL-152). `checkVariance` is a share from 0 to 1, as a Check's
+ * own `variance` is held to, so that a roll never reaches below nothing (v1.1.4-S5's verification,
+ * DL-156). A Degree means something only while its thresholds are ordered, `triumph` > `success` >
+ * `setback` > 0, and `strongTriumphShare` is a share from 0 to 1. A form factor is a finite number
+ * above 0, one for every Morale band, `steady`'s 1 and the rest in the bands' order, so that better spirits never bring less; and `hurtCheckFactor` is at most 1,
  * so that a wound never helps (v1.1.4-S3, DL-154). `exposureRange` is a finite number of 0 or more,
  * so that no weight in the draw of who is hit falls below 1, and `guardRange` a share from 0 to 1, so
- * that a guard never raises a chance nor turns it below 0 (v1.1.4-S4, DL-155). The Quest Engine
- * refuses to resolve under a config with a problem (`resolveQuest`).
+ * that a guard never raises a chance nor turns it below 0 (v1.1.4-S4, DL-155). `chanceBands`' starts
+ * are finite, strictly increasing and each above 0 and below 1, so that every band holds some chances
+ * (v1.1.4-S5, DL-156). The Quest Engine refuses to resolve, and to estimate, under a config with a
+ * problem (`resolveQuest`, `estimateQuest`).
  */
 export function configProblems(
   config: Pick<
     GameConfig,
-    'checkDegrees' | 'strongTriumphShare' | 'moraleCheckFactor' | 'hurtCheckFactor' | 'exposureRange' | 'guardRange'
+    | 'checkVariance'
+    | 'checkDegrees'
+    | 'strongTriumphShare'
+    | 'moraleCheckFactor'
+    | 'hurtCheckFactor'
+    | 'exposureRange'
+    | 'guardRange'
+    | 'chanceBands'
   >,
 ): string[] {
   const problems: string[] = [];
+  const { checkVariance } = config;
+  if (!(checkVariance >= 0 && checkVariance <= 1)) problems.push(`checkVariance is ${checkVariance}; it is a share from 0 to 1`);
   const { triumph, success, setback } = config.checkDegrees;
   if (!(triumph > success && success > setback && setback > 0)) {
     problems.push(`checkDegrees is ${JSON.stringify(config.checkDegrees)}; triumph > success > setback > 0`);
@@ -714,6 +741,17 @@ export function configProblems(
   }
   if (!(Number.isFinite(guardRange) && guardRange >= 0 && guardRange <= 1)) {
     problems.push(`guardRange is ${guardRange}; it is a share from 0 to 1`);
+  }
+  const starts: Readonly<Partial<Record<ChanceBand, number>>> = config.chanceBands ?? {};
+  let floor = 0;
+  const rising = chanceBandNames.slice(1).every((band) => {
+    const start = Object.hasOwn(starts, band) ? starts[band] : undefined;
+    if (!(typeof start === 'number' && start > floor && start < 1)) return false;
+    floor = start;
+    return true;
+  });
+  if (!rising) {
+    problems.push(`chanceBands is ${JSON.stringify(config.chanceBands)}; unlikely < even < likely < near-certain, each above 0 and below 1`);
   }
   return problems;
 }

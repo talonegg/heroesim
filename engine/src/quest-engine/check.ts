@@ -91,6 +91,11 @@ export function capability(
   return (base + synergyBonus(party, encounter, base, deps)) * teamwork(heroes, world, deps);
 }
 
+/** What `encounterCheck`'s roll must reach on `quest` (v1.1.4-S2): its `flat`, 0 when it has none, plus `difficultyFactor` times the difficulty. */
+export function targetOf(encounterCheck: Pick<EncounterCheck, 'flat' | 'difficultyFactor'>, quest: Pick<Quest, 'difficulty'>): number {
+  return (encounterCheck.flat ?? 0) + encounterCheck.difficultyFactor * quest.difficulty;
+}
+
 /**
  * Checks `party` on `encounterCheck`, a Check of `encounter`, on `quest` (M4-S2): the roll is the
  * capability times `1 + r`, `r` one draw from −v up to +v from `world.rng.quests` (and never below
@@ -119,7 +124,7 @@ export function check(
   const variance = encounterCheck.variance ?? deps.config.checkVariance;
   const spread = 1 + (next(state) * 2 - 1) * variance;
   const roll = Math.max(0, capable * spread);
-  const target = (encounterCheck.flat ?? 0) + encounterCheck.difficultyFactor * quest.difficulty;
+  const target = targetOf(encounterCheck, quest);
   const degree = degreeOf(roll, target, deps.config);
   const margin = roll - deps.config.checkDegrees.success * target;
   const result: CheckResult = { capability: capable, roll, target, margin, degree, outcome: succeeded(degree) ? 'success' : 'failure' };

@@ -241,11 +241,28 @@ export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';
 export * from './preview.js';
-export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './quest-engine/check.js';
+export { capability, check, targetOf, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './quest-engine/check.js';
+export {
+  describeQuery,
+  type HeroAccount,
+  type PredAccount,
+  type QueryAccount,
+  type SetAccount,
+  type ValAccount,
+} from './quest-engine/describe.js';
+export {
+  chanceBand,
+  chanceToReach,
+  estimateQuest,
+  type CheckEstimate,
+  type DegreeChances,
+  type EncounterEstimate,
+  type QuestEstimate,
+} from './quest-engine/estimate.js';
 export { formEffect, formEffects, formOf, meanForm, workingMorale, type FormConfig, type FormEffect } from './quest-engine/form.js';
 export { expendUsed, kitOf, sendHome, type ConsumableUse, type Kit } from './quest-engine/consumables.js';
 export { degreeOf, passDegree, passOf, succeeded, type Decided } from './quest-engine/degree.js';
-export { encounterCount, sequenceFor } from './quest-engine/encounters.js';
+export { encounterCount, sequenceFor, storedSequence } from './quest-engine/encounters.js';
 export { teamwork } from './quest-engine/teamwork.js';
 export {
   questBand,

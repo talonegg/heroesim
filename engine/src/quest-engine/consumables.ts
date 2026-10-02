@@ -11,6 +11,9 @@
 // - a `heal`, once the sequence is over, shortens an Injury the Quest inflicted by its `days`, to no
 //   fewer than 1 Day: the longest Injury first, one Item an Injury.
 //
+// Which Items an Encounter takes is `takeBonuses`' and `rerollFor`'s, which the chance estimate reads
+// too (v1.1.4-S5, estimate.ts), so that it spends them as the kit does.
+//
 // The kit only records what it used; the world changes as the Party comes home. `questsConclude`
 // expends the Items used from their stacks, emitting `item.expended` (`expendUsed`), and sends the
 // rest home to the Guild's holding (`sendHome`), as a fold does for a Party it disbands (M2-S10,
@@ -68,12 +71,31 @@ export interface Kit {
   readonly used: ConsumableUse[];
 }
 
-/** A stack the Party carries, with how many of it are left to use. */
-interface Carried {
-  stackId: StackId;
-  definitionKey: ItemDefinitionKey;
+/** A consumable carried, with how many of it are left to use: what the kit's rules read, and the estimate's (estimate.ts). */
+export interface Left {
   effect: ConsumableEffect;
   left: number;
+}
+
+/** A stack the Party carries, with how many of it are left to use. */
+interface Carried extends Left {
+  stackId: StackId;
+  definitionKey: ItemDefinitionKey;
+}
+
+/**
+ * The bonus Items an Encounter of `kind` uses of `carried`, in key order: one of each bonus
+ * definition that has one left and names `kind`, each taken from its `left` (DL-148 item 13).
+ */
+export function takeBonuses<Each extends Left>(carried: readonly Each[], kind: EncounterKind): Each[] {
+  const taken = carried.filter(({ effect, left }) => effect.kind === 'bonus' && left > 0 && effect.kinds.includes(kind));
+  for (const it of taken) it.left -= 1;
+  return taken;
+}
+
+/** The reroll a failed Encounter of `kind` would use of `carried`: the first in key order with an Item left that names `kind`. */
+export function rerollFor<Each extends Left>(carried: readonly Each[], kind: EncounterKind): Each | undefined {
+  return carried.find(({ effect, left }) => effect.kind === 'reroll' && left > 0 && effect.kinds.includes(kind));
 }
 
 /**
@@ -95,17 +117,15 @@ export function kitOf(world: Pick<World, 'items' | 'stacks'>, party: Pick<Party,
     used,
     bonus(kind, index) {
       let flat = 0;
-      for (const it of carried) {
-        const { effect } = it;
-        if (effect.kind !== 'bonus' || it.left === 0 || !effect.kinds.includes(kind)) continue;
-        it.left -= 1;
-        flat += effect.flat;
-        used.push({ stackId: it.stackId, definitionKey: it.definitionKey, effect: 'bonus', encounterIndex: index, flat: effect.flat });
+      for (const it of takeBonuses(carried, kind)) {
+        const bonus = bonusOf(it);
+        flat += bonus;
+        used.push({ stackId: it.stackId, definitionKey: it.definitionKey, effect: 'bonus', encounterIndex: index, flat: bonus });
       }
       return flat;
     },
     reroll(kind, index, firstRoll) {
-      const it = carried.find(({ effect, left }) => effect.kind === 'reroll' && left > 0 && effect.kinds.includes(kind));
+      const it = rerollFor(carried, kind);
       if (it === undefined) return false;
       it.left -= 1;
       used.push({ stackId: it.stackId, definitionKey: it.definitionKey, effect: 'reroll', encounterIndex: index, firstRoll });
@@ -132,6 +152,11 @@ export function kitOf(world: Pick<World, 'items' | 'stacks'>, party: Pick<Party,
       }
     },
   };
+}
+
+/** The flat a bonus definition adds; 0 for any other effect. */
+export function bonusOf({ effect }: Left): number {
+  return effect.kind === 'bonus' ? effect.flat : 0;
 }
 
 /** The Days a heal definition takes off; 0 for any other effect. */

@@ -47,8 +47,15 @@ all, and narrowed to the Heroes the harm can fall on; when that leaves no one, a
 hit. The Stats that expose to harm and guard against it are lists of Hero Stat keys beside it, not
 Queries.
 
+What a Check reads is shown to the player from the same Queries (v1.1.4-S5, DL-156). The engine
+gives a typed account of a Query (`describeQuery`): each node names what it aggregates, the Set it
+reads and its filters, the Stats with their weights, and the Skills, Classes, Backgrounds and
+Traits by key. It returns no prose (ADR-0003); the CLI and the page word it from content's names.
+So a new operator needs its node in the account and its words in both front ends.
+
 A text form, compiled when content is built, is not part of this decision. It is added only if
 writing the arrays proves painful (DL-148 item 4).
 
 *Recorded 2026-10-02* in v1.1.4-S1 (DL-151), from DL-148 items 4 to 6 and 20; the refusal of a
-subtracted Stat added in v1.1.4-S3 (DL-154), and harm's `among` in v1.1.4-S4 (DL-155).
+subtracted Stat added in v1.1.4-S3 (DL-154), harm's `among` in v1.1.4-S4 (DL-155), and the account
+of a Query in v1.1.4-S5 (DL-156).
