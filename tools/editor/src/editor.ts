@@ -80,6 +80,25 @@ export function pendingPath(root: string, kind: string): string {
 
 const keyPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/**
+ * `why` for the content version's comment, wrapped to the source's 100 columns: its first line after
+ * ` * <n> from `, the rest each a line of the comment, in the file's own line ends.
+ */
+function commentLines(parseFile: string, why: string): string {
+  const eol = existsSync(parseFile) && readFileSync(parseFile, 'utf8').includes('\r\n') ? '\r\n' : '\n';
+  const lines: string[] = [];
+  let line = '';
+  for (const word of why.split(' ')) {
+    const room = 100 - (lines.length === 0 ? ' * 999 from '.length : ' * '.length) - 1;
+    if (line !== '' && line.length + 1 + word.length > room) {
+      lines.push(line);
+      line = word;
+    } else line = line === '' ? word : `${line} ${word}`;
+  }
+  lines.push(line);
+  return lines.join(`${eol} * `);
+}
+
 function today(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -296,7 +315,7 @@ export class Editor {
   }
 
   /** Changes the fields given of a row; its key stays, and the rest of it is as other edits leave it. */
-  change(key: string, values: Readonly<Record<string, unknown>>): RowView {
+  change(key: string, values: Readonly<Record<string, unknown>>): RowView & { unchanged?: true } {
     if (Object.hasOwn(values, 'key') && values.key !== key) throw new Refused(['a key is fixed once made: add a new row instead']);
     const { key: _key, ...fields } = values;
     void _key;
@@ -304,8 +323,10 @@ export class Editor {
     const list = this.#listOf(before, key);
     const previous = list === null ? undefined : this.#rowOf(before, list, key);
     if (list === null || previous === undefined) throw new Refused([`"${key}" is not a key of ${this.kind.title}`]);
-    const { problems } = this.kind.rowFrom(list, fields, previous);
+    const { row, problems } = this.kind.rowFrom(list, fields, previous);
     if (problems.length > 0) throw new Refused(problems);
+    // A change that changes nothing is not held (the verification of v1.1.4-S13).
+    if (JSON.stringify(this.kind.put(before, list, key, row)) === JSON.stringify(before)) return { ...this.#view(before, this.edits(), list, key, previous), unchanged: true };
     const content = this.#make({ op: 'change', list, key, fields });
     return this.#view(content, this.edits(), list, key, this.#rowOf(content, list, key) ?? previous);
   }
@@ -347,9 +368,9 @@ export class Editor {
     const list = this.#listOf(before, key);
     if (list === null) throw new Refused([`"${key}" is not a key of ${this.kind.title}`]);
     const content = this.#make({ op: 'assign', list, key, entry, target: { ...target } });
-    const uses = this.kind.uses(content, key);
-    const had = new Set(this.kind.uses(before, key).map((use) => use.at));
-    return { key, list, entry, added: uses.filter((use) => !had.has(use.at)), uses };
+    // The use the entry says it added, where it stands: a filter wrapped round an older one moves that one.
+    const made = this.kind.assign(before, key, entry, target);
+    return { key, list, entry, added: made.content === null || made.added === undefined ? [] : [made.added], uses: this.kind.uses(content, key) };
   }
 
   /**
@@ -386,10 +407,19 @@ export class Editor {
     return { discarded: edits.length - left.length, left: left.length };
   }
 
-  /** The pending edits in words. */
+  /**
+   * The pending edits in a few words, for the content version's comment (the verification of
+   * v1.1.4-S13): the rows added, changed and removed by key, and the uses assigned and unassigned
+   * counted, with their keys.
+   */
   summary(edits: readonly Edit[] = this.edits()): string {
-    const done = { add: 'added', change: 'changed', remove: 'removed', assign: 'assigned', unassign: 'unassigned' } as const;
-    return edits.map((edit) => `${done[edit.op]} ${edit.list} ${edit.key}${'entry' in edit ? ` (${edit.entry})` : ''}`).join('; ');
+    const keys = (op: Edit['op']): string[] => [...new Set(edits.filter((edit) => edit.op === op).map((edit) => edit.key))];
+    const rows = (['add', 'change', 'remove'] as const).flatMap((op) => (keys(op).length === 0 ? [] : [`${{ add: 'added', change: 'changed', remove: 'removed' }[op]} ${keys(op).join(', ')}`]));
+    const uses = (['assign', 'unassign'] as const).flatMap((op) => {
+      const count = edits.filter((edit) => edit.op === op).length;
+      return count === 0 ? [] : [`${count} ${count === 1 ? 'use' : 'uses'} ${op}ed, of ${keys(op).join(', ')}`];
+    });
+    return [...rows, ...uses].join('; ');
   }
 
   // ── Finish ────────────────────────────────────────────────────────────────────────────────
@@ -415,7 +445,7 @@ export class Editor {
     try {
       const finished = await transaction(async (transaction) => {
         for (const file of files) transaction.write(contentPath(this.root, file), changed[file] ?? '');
-        const contentVersion = files.length === 0 ? null : raiseContentVersion(this.root, transaction, `the content editor's Finish of ${today()} (${this.summary(edits)})`);
+        const contentVersion = files.length === 0 ? null : raiseContentVersion(this.root, transaction, commentLines(parse, `the content editor's Finish of ${today()} (${this.summary(edits)})`));
         onLine(`Wrote ${files.join(', ') || 'nothing'}${contentVersion === null ? '' : `; content version ${contentVersion.from} → ${contentVersion.to}`}. Running the tests…`);
         const tests = await runTests(this.root, onLine);
         if (!tests.ok) {

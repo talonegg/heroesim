@@ -12,6 +12,7 @@ export {
   traitFiles,
   traitHelpers,
   usesOf,
+  type AddedUse,
   type ContentEntry,
   type EngineEntry,
   type RegisterEntry,

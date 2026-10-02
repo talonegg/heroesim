@@ -42,6 +42,12 @@ function passes(content: ContentJson): true {
   return true;
 }
 
+/** Each Biography sentence of a key, as its use's place: `descriptions.json: heroBiography.traits.scarred.0`. */
+function sentences(content: Record<ContentFileName, unknown>, place: 'biography' | 'heroBiography', key: string): string[] {
+  const list = (content['descriptions.json'] as Record<string, { traits: Record<string, string[]> }>)[place]?.traits[key] ?? [];
+  return list.map((_, index) => `descriptions.json: ${place}.traits.${key}.${index}`);
+}
+
 function entry(id: string): ContentEntry {
   const found = contentEntries().find((each) => each.id === id);
   if (found === undefined) throw new Error(`no entry ${id}`);
@@ -71,16 +77,17 @@ describe('the register', () => {
     const content = shipped();
     expect(usesOf(content, 'scarred').map((use) => use.at)).toEqual([
       'injuries.json: deep-cut.leavesTrait',
-      'descriptions.json: heroBiography.traits.scarred',
+      ...sentences(content, 'heroBiography', 'scarred'),
       'portrait-appearances.json: features.scar.shows.0',
     ]);
     expect(usesOf(content, 'miser').map((use) => use.at)).toEqual([
       'guildmaster-traits.json: well-liked.excludes.0',
       'guildmaster-traits.json: spendthrift.excludes.1',
-      'descriptions.json: biography.traits.miser',
+      ...sentences(content, 'biography', 'miser'),
       'descriptions.json: callings.merchant.suits.1',
     ]);
-    expect(usesOf(content, 'mistrusts-magic').map((use) => use.entry)).toEqual(['biography-sentences', 'portrait-callings', 'portrait-callings']);
+    expect(sentences(content, 'heroBiography', 'scarred').length).toBeGreaterThan(1);
+    expect(new Set(usesOf(content, 'mistrusts-magic').map((use) => use.entry))).toEqual(new Set(['biography-sentences', 'portrait-callings']));
     expect(usesOf(content, 'no-such-trait')).toEqual([]);
   });
 
@@ -109,16 +116,17 @@ describe('a use added and removed', () => {
 
   test.each(cases)('%s', (id, key, target) => {
     const content = withQueries();
-    // A Biography's use is the key's list of sentences: one is added where the key has none.
-    delete ((content['descriptions.json'] as { heroBiography: { traits: Record<string, unknown> } }).heroBiography.traits)['short-winded'];
     const before = usesOf(content, key).filter((use) => use.entry === id);
-    const added = { ...content, ...entry(id).add?.apply(content, key, target) };
+    const made = entry(id).add?.apply(content, key, target);
+    const added = { ...content, ...made?.change };
 
     expect(passes(added)).toBe(true);
     const found = usesOf(added, key).filter((use) => use.entry === id);
     expect(found.length).toBe(before.length + 1);
-    const use = found.find((each) => !before.some((old) => old.at === each.at)) ?? found.at(-1);
-    if (use === undefined) throw new Error('no use found');
+    // The use `add` says it made is one the register finds, and the one taken out.
+    const use = made?.use;
+    if (use === undefined) throw new Error('no use reported');
+    expect(found).toContainEqual(use);
     const removed = { ...added, ...entry(id).remove?.apply(added, use) };
 
     expect(passes(removed)).toBe(true);
@@ -129,7 +137,7 @@ describe('a use added and removed', () => {
 
   test("a Synergy's condition on the Party added where no path is given", () => {
     const content = withQueries();
-    const changed = entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'shield-wall' });
+    const changed = entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'shield-wall' }).change;
     const synergy = (changed?.['synergies.json'] as Record<string, { requires: unknown[] }>)['shield-wall'];
     expect(synergy?.requires.at(-1)).toEqual(['>=', ['count', ['where', 'party', ['has-trait', 'lame']]], 1]);
     expect(passes({ ...content, ...changed })).toBe(true);
@@ -140,7 +148,7 @@ describe('a use added and removed', () => {
   // is taken out whole by `remove`, so an assignment and its unassignment leave the content as it was.
   test("a Synergy's condition on the Party, added without a path, is taken out whole", () => {
     const content = withQueries();
-    const added = { ...content, ...entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'shield-wall' }) };
+    const added = { ...content, ...entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'shield-wall' }).change };
     const [use] = usesOf(added, 'lame').filter((each) => each.entry === 'synergy-has-trait');
     if (use === undefined) throw new Error('no use');
 
@@ -149,16 +157,62 @@ describe('a use added and removed', () => {
 
   test("a Triumph's list copied from the Success's goes again with the Trait added to it", () => {
     const content = withQueries();
-    const added = { ...content, ...entry('encounter-trait').add?.apply(content, 'scarred', { encounter: 'ambush-on-the-road', degree: 'triumph', chance: 0.05 }) };
+    const added = { ...content, ...entry('encounter-trait').add?.apply(content, 'scarred', { encounter: 'ambush-on-the-road', degree: 'triumph', chance: 0.05 }).change };
     const [use] = usesOf(added, 'scarred').filter((each) => each.entry === 'encounter-trait');
     if (use === undefined) throw new Error('no use');
 
     expect({ ...added, ...entry('encounter-trait').remove?.apply(added, use) }).toEqual(content);
   });
 
+  // The verification of v1.1.4-S13: a sentence is a use of its own, a use is never added twice in one
+  // place, and `add` names the use it made even where an older one moved.
+  test('a Biography sentence added is the one taken out, the others standing', () => {
+    const content = withQueries();
+    const made = entry('biography-sentences').add?.apply(content, 'lame', { sentence: '{He} limps, and does not say why.' });
+    if (made === undefined) throw new Error('no add');
+    const before = sentences(content, 'heroBiography', 'lame');
+    expect(made.use.at).toBe(`descriptions.json: heroBiography.traits.lame.${before.length}`);
+    const added = { ...content, ...made.change };
+
+    expect({ ...added, ...entry('biography-sentences').remove?.apply(added, made.use) }).toEqual(content);
+  });
+
+  test.each([
+    ['encounter-has-trait', 'scarred', { encounter: 'ambush-on-the-road', path: 'checks.0.score.1' }, 'is filtered by "scarred" already'],
+    ['synergy-has-trait', 'scarred', { synergy: 'shield-wall' }, 'holds the condition on "scarred" already'],
+    ['synergy-has-trait', 'scarred', { synergy: 'shield-wall', path: 'requires.0.1.1' }, 'is filtered by "scarred" already'],
+    ['encounter-trait', 'scarred', { encounter: 'ambush-on-the-road', degree: 'failure', chance: 0.1 }, 'gives "scarred" already'],
+    ['portrait-callings', 'well-liked', { calling: 'explorer', side: 'suits' }, 'names "well-liked" already'],
+    ['portrait-features', 'lame', { feature: 'grey-hair' }, 'names "lame" already'],
+    ['excludes', 'lame', { trait: 'one-eyed' }, 'excludes "lame" already'],
+  ])('%s refuses the same use twice in one place', (id, key, target, problem) => {
+    const content = withQueries();
+    const once = { ...content, ...entry(id).add?.apply(content, key, target).change };
+    expect(() => entry(id).add?.apply(once, key, target)).toThrow(problem);
+  });
+
+  test('names the use it added by where it stands, where it moved an older one of the key', () => {
+    const content = withQueries();
+    const at = { encounter: 'ambush-on-the-road', path: 'checks.0.score.1' };
+    let next: typeof content = content;
+    for (const key of ['scarred', 'one-eyed']) next = { ...next, ...entry('encounter-has-trait').add?.apply(next, key, at).change };
+    const made = entry('encounter-has-trait').add?.apply(next, 'scarred', at);
+
+    expect(made?.use.at).toBe('encounters.json: ambush-on-the-road.checks.0.score.1.2');
+    expect(usesOf({ ...next, ...made?.change }, 'scarred').map((use) => use.at)).toContain('encounters.json: ambush-on-the-road.checks.0.score.1.1.1.2');
+  });
+
+  test('refuses an Encounter or a Synergy in the old form, saying so and what to do', () => {
+    const content = shipped();
+    expect(() => entry('encounter-has-trait').add?.apply(content, 'lame', { encounter: 'ambush-on-the-road', path: 'checks.0.score.1' })).toThrow(
+      'encounters.json: ambush-on-the-road is an Encounter in the old form, with no Query to filter: ask the owner',
+    );
+    expect(() => entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'shield-wall' })).toThrow('synergies.json: shield-wall is a Synergy in the old form');
+  });
+
   test("a Triumph's list is copied from the Success's before a positive Trait is added to it", () => {
     const content = withQueries();
-    const changed = entry('encounter-trait').add?.apply(content, 'scarred', { encounter: 'ambush-on-the-road', degree: 'triumph', chance: 0.05 });
+    const changed = entry('encounter-trait').add?.apply(content, 'scarred', { encounter: 'ambush-on-the-road', degree: 'triumph', chance: 0.05 }).change;
     const consequences = (changed?.['encounters.json'] as Record<string, { consequences: Record<string, unknown[]> }>)['ambush-on-the-road']?.consequences;
     expect(consequences?.triumph).toEqual([...(consequences?.success ?? []), { kind: 'trait', traitKey: 'scarred', chance: 0.05 }]);
     expect(passes({ ...content, ...changed })).toBe(true);

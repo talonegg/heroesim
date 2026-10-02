@@ -67,9 +67,18 @@ npm run edit -- traits add hero brave --name Brave --excludes scarred \
   --effects '[{ "kind": "encounterBonus", "flat": 2, "kinds": ["combat"] }]'
 ```
 
-- **The effects** are each list's known kinds (DL-150 item 8): a Guildmaster Trait's
-  `classStatBonus`, `guildMoraleShift` and `upkeepFactor`; a Hero Trait's `statModifiers` and
-  `encounterBonus`. A new kind is an engine change.
+- **The effects** are each list's known kinds (DL-150 item 8), a new kind being an engine change.
+  Each is an object with its `kind` and these fields, as the content's checks hold them:
+
+  | List | `kind` | Fields | Example |
+  | --- | --- | --- | --- |
+  | Guildmaster | `classStatBonus` | `classKey`, a Class; `statKey`, a Hero Stat; `delta`, a whole number other than 0 | `{ "kind": "classStatBonus", "classKey": "warrior", "statKey": "weaponry", "delta": 1 }` |
+  | Guildmaster | `guildMoraleShift` | `delta`, a number other than 0, added to the Morale baseline | `{ "kind": "guildMoraleShift", "delta": 5 }` |
+  | Guildmaster | `upkeepFactor` | `factor`, above 0, times Upkeep | `{ "kind": "upkeepFactor", "factor": 0.9 }` |
+  | Hero | `statModifiers` | `modifiers`, Hero Stats each with a whole number other than 0 | `{ "kind": "statModifiers", "modifiers": { "dexterity": -2, "endurance": -1 } }` |
+  | Hero | `encounterBonus` | `flat`, a number other than 0 added to every Check; `kinds`, Encounter kinds, and `tags`, kebab-case Encounter tags, one of them at least | `{ "kind": "encounterBonus", "flat": 2, "kinds": ["combat"] }` |
+
+  A Guildmaster Trait's `cost` follows DL-100 item 3: a buff costs, and a penalty refunds.
 - **An exclusion is held both ways,** as the content's checks require: setting a Trait's `excludes`
   writes the other Trait's too, and removing a Trait takes it out of every other's.
 - **A Trait added and removed** in one session goes with its edits, as if never made, where the

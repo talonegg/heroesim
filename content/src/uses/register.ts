@@ -50,6 +50,12 @@ export interface TraitUse {
 /** What an `add` is told: the fields its entry's `target` names, each as a string, a number or a path. */
 export type UseTarget = Readonly<Record<string, unknown>>;
 
+/** What an `add` makes: the files it changes, and the use it adds, by where it stands (v1.1.4-S13). */
+export interface AddedUse {
+  change: ContentChange;
+  use: TraitUse;
+}
+
 /** A place in content where a Trait's key stands. */
 export interface ContentEntry {
   place: 'content';
@@ -66,7 +72,7 @@ export interface ContentEntry {
   blocksRemoval: boolean;
   find(content: ContentJson, key: string): TraitUse[];
   /** How a use is added, where it is safe: the target's fields, and the change. `null` where it is not. */
-  add: { how: string; target: Readonly<Record<string, string>>; apply(content: ContentJson, key: string, target: UseTarget): ContentChange } | null;
+  add: { how: string; target: Readonly<Record<string, string>>; apply(content: ContentJson, key: string, target: UseTarget): AddedUse } | null;
   /** How a use is removed, where it is safe. `null` where it is not. */
   remove: { how: string; apply(content: ContentJson, use: TraitUse): ContentChange } | null;
 }
@@ -141,7 +147,7 @@ function listOf(content: ContentJson, key: string): TraitList {
 /**
  * The file `file` with `["has-trait", key]` at `path` taken out, where its Query keeps a meaning
  * without it: a `where` it filters is its Set unfiltered; an `and` or an `or` of three or more keeps
- * the rest, and of two becomes the other. Anywhere else it is refused, to be changed by hand.
+ * the rest, and of two becomes the other. Anywhere else it is refused: the owner says how the Query reads without it.
  */
 function withoutHasTrait(content: ContentJson, file: ContentFileName, path: JsonPath): ContentChange {
   const root = copyOf(content, file);
@@ -162,17 +168,30 @@ function withoutHasTrait(content: ContentJson, file: ContentFileName, path: Json
     }
   }
   throw new UseRefusal(
-    `${file}: ${pathText(path)} stands where its Query means something else without it; it is changed by hand, not taken out`,
+    `${file}: ${pathText(path)} stands where its Query means something else without it: ask the owner how the Query should read, rather than take it out`,
   );
 }
 
-/** The file `file` with the Set Query at `path` filtered to the Heroes holding `key`: `["where", <Set>, ["has-trait", key]]`. */
-function filteredByTrait(content: ContentJson, file: ContentFileName, path: JsonPath, key: string): ContentChange {
+/**
+ * The file `file` with the Set Query at `path` filtered to the Heroes holding `key`: `["where", <Set>,
+ * ["has-trait", key]]`; refused where that Set is filtered by the key already.
+ */
+function filteredByTrait(entry: string, content: ContentJson, file: ContentFileName, path: JsonPath, key: string): AddedUse {
   const root = copyOf(content, file);
   const set = at(root, path);
   if (!isSetQuery(set)) throw new UseRefusal(`${file}: ${pathText(path)} is not a Set Query ("party", where, top or bottom)`);
+  if (Array.isArray(set) && set[0] === 'where' && hasTrait(key)(set[2])) throw new UseRefusal(`${file}: ${pathText(path)} is filtered by "${key}" already`);
   setAt(root, path, ['where', set, ['has-trait', key]], file);
-  return { [file]: root };
+  return { change: { [file]: root }, use: use(entry, file, [...path, 2]) };
+}
+
+/** Refuses a row of `file` that is not there, or is in the old form with no Query (v1.1.4-S1), saying what to do. */
+function queryRow(content: ContentJson, file: ContentFileName, key: string, written: (row: Record<string, unknown>) => boolean, what: string): void {
+  const row = at(content[file], [key]);
+  if (!isObject(row)) throw new UseRefusal(`${file}: ${key} is not there`);
+  if (!written(row)) {
+    throw new UseRefusal(`${file}: ${key} is ${what} in the old form, with no Query to filter: ask the owner to have it written in Queries (as v1.1.4-S10 writes the shipped content), then assign`);
+  }
 }
 
 // ── The content ────────────────────────────────────────────────────────────────────────────────
@@ -204,11 +223,12 @@ const excludes: ContentEntry = {
       if (other === key) throw new UseRefusal('a Trait cannot exclude itself');
       const file = traitFiles[list];
       const root = copyOf(content, file);
+      if (listAt(root, [other, 'excludes'], file).includes(key)) throw new UseRefusal(`"${other}" excludes "${key}" already`);
       for (const [one, two] of [[key, other], [other, key]] as const) {
         const listed = listAt(root, [one, 'excludes'], file);
         if (!listed.includes(two)) listed.push(two);
       }
-      return { [file]: root };
+      return { change: { [file]: root }, use: use('excludes', file, [other, 'excludes', listAt(root, [other, 'excludes'], file).indexOf(key)]) };
     },
   },
   remove: {
@@ -249,11 +269,11 @@ const injuryLeavesTrait: ContentEntry = {
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: an Injury leaves a Hero Trait`);
       const root = copyOf(content, 'injuries.json');
       const row = objectAt(root, [injury], 'injuries.json');
-      if (row.leavesTrait !== null && row.leavesTrait !== undefined && row.leavesTrait !== key) {
+      if (row.leavesTrait !== null && row.leavesTrait !== undefined) {
         throw new UseRefusal(`injuries.json: ${injury} leaves "${String(row.leavesTrait)}" already`);
       }
       row.leavesTrait = key;
-      return { 'injuries.json': root };
+      return { change: { 'injuries.json': root }, use: use('injury-leaves-trait', 'injuries.json', [injury, 'leavesTrait']) };
     },
   },
   remove: {
@@ -305,8 +325,9 @@ const encounterTraitConsequence: ContentEntry = {
       const consequences = objectAt(root, [encounter, 'consequences'], 'encounters.json');
       if (degree === 'triumph' && !Array.isArray(consequences.triumph)) consequences.triumph = structuredClone(Array.isArray(consequences.success) ? consequences.success : []);
       const list = listAt(root, [encounter, 'consequences', degree], 'encounters.json');
+      if (list.some((each) => isObject(each) && each.kind === 'trait' && each.traitKey === key)) throw new UseRefusal(`encounters.json: ${encounter}.consequences.${degree} gives "${key}" already`);
       list.push({ kind: 'trait', traitKey: key, chance, ...(target.among === undefined ? {} : { among: target.among }) });
-      return { 'encounters.json': root };
+      return { change: { 'encounters.json': root }, use: use('encounter-trait', 'encounters.json', [encounter, 'consequences', degree, list.length - 1]) };
     },
   },
   remove: {
@@ -323,7 +344,7 @@ const encounterTraitConsequence: ContentEntry = {
 };
 
 const hasTraitRemoval = {
-  how: 'Where it filters a `where`, the `where` becomes its Set unfiltered; in an `and` or `or`, it is taken out (one of two left stands alone). Anywhere else it is refused, to be changed by hand.',
+  how: 'Where it filters a `where`, the `where` becomes its Set unfiltered; in an `and` or `or`, it is taken out (one of two left stands alone). Anywhere else it is refused: ask the owner how the Query should read without it.',
   apply(content: ContentJson, found: TraitUse): ContentChange {
     return withoutHasTrait(content, found.file, found.path);
   },
@@ -349,7 +370,8 @@ const encounterHasTrait: ContentEntry = {
     apply(content, key, target) {
       const encounter = named(target, 'encounter');
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: a Query reads a Hero's Traits`);
-      return filteredByTrait(content, 'encounters.json', [encounter, ...targetPath(target, 'path')], key);
+      queryRow(content, 'encounters.json', encounter, (row) => Array.isArray(row.checks), 'an Encounter');
+      return filteredByTrait('encounter-has-trait', content, 'encounters.json', [encounter, ...targetPath(target, 'path')], key);
     },
   },
   remove: hasTraitRemoval,
@@ -380,12 +402,13 @@ const synergyHasTrait: ContentEntry = {
     apply(content, key, target) {
       const synergy = named(target, 'synergy');
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: a Query reads a Hero's Traits`);
-      if (target.path !== undefined) return filteredByTrait(content, 'synergies.json', [synergy, ...targetPath(target, 'path')], key);
+      queryRow(content, 'synergies.json', synergy, (row) => Array.isArray(row.requires), 'a Synergy');
+      if (target.path !== undefined) return filteredByTrait('synergy-has-trait', content, 'synergies.json', [synergy, ...targetPath(target, 'path')], key);
       const root = copyOf(content, 'synergies.json');
-      const requires = at(root, [synergy, 'requires']);
-      if (!Array.isArray(requires)) throw new UseRefusal(`synergies.json: ${synergy}.requires is in the old form; write it as Queries first`);
+      const requires = listAt(root, [synergy, 'requires'], 'synergies.json');
+      if (requires.some((each) => JSON.stringify(each) === JSON.stringify(partyHolding(key)))) throw new UseRefusal(`synergies.json: ${synergy}.requires holds the condition on "${key}" already`);
       requires.push(partyHolding(key));
-      return { 'synergies.json': root };
+      return { change: { 'synergies.json': root }, use: use('synergy-has-trait', 'synergies.json', [synergy, 'requires', requires.length - 1, 1, 1, 2]) };
     },
   },
   remove: {
@@ -415,12 +438,13 @@ const biographySentences: ContentEntry = {
   files: ['descriptions.json'],
   lists: ['guildmaster', 'hero'],
   reads: "The sentences a Biography draws for a Trait held: a Guildmaster's under `biography.traits`, a Hero's under `heroBiography.traits` (v1.1.3-S1). Read by the Biography (`biography-and-portrait`).",
-  finds: "The key's list of sentences under `biography.traits` or `heroBiography.traits`.",
+  finds: "Each sentence of the key's list under `biography.traits` or `heroBiography.traits`.",
   blocksRemoval: true,
   find(content, key) {
-    return (['guildmaster', 'hero'] as const).flatMap((list) =>
-      Array.isArray(at(content['descriptions.json'], [...biographyPlace[list], key])) ? [use('biography-sentences', 'descriptions.json', [...biographyPlace[list], key])] : [],
-    );
+    return (['guildmaster', 'hero'] as const).flatMap((list) => {
+      const sentences = at(content['descriptions.json'], [...biographyPlace[list], key]);
+      return (Array.isArray(sentences) ? sentences : []).map((_, index) => use('biography-sentences', 'descriptions.json', [...biographyPlace[list], key, index]));
+    });
   },
   add: {
     how: "The sentence is added at the end of the key's list, under its own list's place, which is made where there is none.",
@@ -433,14 +457,17 @@ const biographySentences: ContentEntry = {
       const sentences = Array.isArray(byTrait[key]) ? byTrait[key] : (byTrait[key] = []);
       if (sentences.includes(sentence)) throw new UseRefusal(`descriptions.json: ${pathText([...place, key])} holds that sentence already`);
       sentences.push(sentence);
-      return { 'descriptions.json': root };
+      return { change: { 'descriptions.json': root }, use: use('biography-sentences', 'descriptions.json', [...place, key, sentences.length - 1]) };
     },
   },
   remove: {
-    how: "The key's list of sentences is taken out, every sentence in it.",
+    how: "The sentence is taken out of the key's list, and the list with it once empty.",
     apply(content, found) {
       const root = copyOf(content, 'descriptions.json');
       removeAt(root, found.path, 'descriptions.json');
+      const byTrait = at(root, found.path.slice(0, -2));
+      const key = found.path.at(-2);
+      if (isObject(byTrait) && typeof key === 'string' && Array.isArray(byTrait[key]) && byTrait[key].length === 0) delete byTrait[key];
       return { 'descriptions.json': root };
     },
   },
@@ -476,8 +503,9 @@ const portraitCallings: ContentEntry = {
       const other = side === 'suits' ? 'clashes' : 'suits';
       if (Array.isArray(row[other]) && row[other].includes(key)) throw new UseRefusal(`descriptions.json: callings.${calling}.${other} names "${key}" already`);
       const listed = Array.isArray(row[side]) ? row[side] : (row[side] = []);
-      if (!listed.includes(key)) listed.push(key);
-      return { 'descriptions.json': root };
+      if (listed.includes(key)) throw new UseRefusal(`descriptions.json: callings.${calling}.${side} names "${key}" already`);
+      listed.push(key);
+      return { change: { 'descriptions.json': root }, use: use('portrait-callings', 'descriptions.json', ['callings', calling, side, listed.length - 1]) };
     },
   },
   remove: {
@@ -514,8 +542,9 @@ const portraitFeatures: ContentEntry = {
       const root = copyOf(content, 'portrait-appearances.json');
       const row = objectAt(root, ['features', feature], 'portrait-appearances.json');
       const listed = Array.isArray(row.shows) ? row.shows : (row.shows = []);
-      if (!listed.includes(key)) listed.push(key);
-      return { 'portrait-appearances.json': root };
+      if (listed.includes(key)) throw new UseRefusal(`portrait-appearances.json: features.${feature}.shows names "${key}" already`);
+      listed.push(key);
+      return { change: { 'portrait-appearances.json': root }, use: use('portrait-features', 'portrait-appearances.json', ['features', feature, 'shows', listed.length - 1]) };
     },
   },
   remove: {

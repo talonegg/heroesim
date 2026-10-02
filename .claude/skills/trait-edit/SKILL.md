@@ -33,12 +33,14 @@ Done when: the doctor reports `"ok": true`, and any pending edits are ones the o
 ## 2. The Trait as it stands
 
 - **A change or a removal:** `traits show <key> --json`, its fields, effects and uses.
-- **An addition:** `traits find <word> --json` for a Trait like it, and `traits show <key>` to see
-  that the key is free. A key is lower case letters and digits joined by hyphens, fixed once made.
-  The list is `guildmaster` or `hero`; a Guildmaster Trait has a `cost`.
-- **The effects** are the list's known kinds (`tools/editor/README.md`): a Guildmaster Trait's
-  `classStatBonus`, `guildMoraleShift`, `upkeepFactor`; a Hero Trait's `statModifiers`,
-  `encounterBonus`. A kind not there is an engine change: stop, and tell the owner.
+- **An addition:** `traits find <word> --json` for a Trait like it, and `traits show <key> --json`,
+  which exits 1, `refused`, "is not a key of Traits", where the key is free. A key is lower case
+  letters and digits joined by hyphens, fixed once made. The list is `guildmaster` or `hero`; a
+  Guildmaster Trait has a `cost`: a buff costs, a penalty refunds (a negative cost).
+- **The effects** are the list's known kinds, each with its fields as `tools/editor/README.md`'s
+  "Effects" table gives them: a Guildmaster Trait's `classStatBonus`, `guildMoraleShift`,
+  `upkeepFactor`; a Hero Trait's `statModifiers`, `encounterBonus`. A kind not there is an engine
+  change: stop, and tell the owner.
 
 Done when: the key, the list and every field the owner asked for are known.
 
@@ -57,6 +59,10 @@ traits remove <key> --json
 
 - **Exit 0.** Note the row as the editor shows it. An exclusion is written on both sides.
 - **Exit 1, `refused`.** Nothing is held. Fix what each problem names and run it again.
+- **A new Trait** wants its Biography sentences before "Finish", three at least: the content's tests
+  hold a list for every Hero Trait, and the portrait tool's corpus test three sentences to every key
+  that has one (`docs/agents/portraits.md`, "The rules for a sentence"). Give them with
+  `trait-assign` (`biography-sentences`), in the same session.
 - **A removal refused** carries `uses`: list each use's `at` to the owner as the uses to change first.
   Each is taken out with `trait-assign` (`traits unassign`), or changed as the owner says; then the
   removal is run again. Other Traits' `excludes` never refuse it: the editor takes the key out itself.

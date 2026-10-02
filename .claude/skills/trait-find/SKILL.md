@@ -36,14 +36,14 @@ Pick each command the question needs:
 
 | The question | The command |
 | --- | --- |
-| A Trait by a word of its key, name or effect, or by a place it is used (`deep-cut`, `morale`, `courage`) | `traits find <text> --json` |
+| A Trait by a word of its key, name or effect, or by a place it is used (`deep-cut`, `morale`, `perception`) | `traits find <text> --json` |
 | Every Trait of both lists | `traits list --json` |
 | One Trait: its fields, effects, uses and the rules that read it | `traits show <key> --json` |
 | Every use of a Trait in content | `traits uses <key> --json` |
 | The rules and events that read Traits, and where in the code | the register part of `docs/agents/traits.md`: "In the engine and the content's checks" |
 
-Each prefixed `npm run --silent edit -- `. An effect is found in words (`+2 courage`, `Upkeep ×`) and
-as JSON (`encounterBonus`). `find` gives each match's `matched` (key, name, effects, uses); follow each
+Each prefixed `npm run --silent edit -- `. An effect is found in its words (`courage`, `-2 perception`,
+`Upkeep ×`) and as JSON (`encounterBonus`). `find` gives each match's `matched` (key, name, effects, uses); follow each
 with `show`.
 
 Done when: every Trait the question names, or the search finds, has its `show`, and each part of the

@@ -79,8 +79,8 @@ export interface UseEntry {
   remove: { how: string } | null;
 }
 
-/** The content a use's assignment or unassignment makes, or each problem where the entry refuses it. */
-export type UseChange = { content: ContentJson; problems: [] } | { content: null; problems: string[] };
+/** The content a use's assignment or unassignment makes, and an assignment's use where it stands; or each problem where the entry refuses it. */
+export type UseChange = { content: ContentJson; problems: []; added?: Use } | { content: null; problems: string[] };
 
 export interface Kind {
   name: string;

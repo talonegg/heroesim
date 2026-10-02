@@ -197,8 +197,12 @@ async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Pr
     }
     case 'change': {
       if (Object.keys(options.fields).length === 0) throw new UsageError('traits change wants a field to change: --name, --cost, --excludes, --effects or --row');
-      const view = editor.change(arg(options, 0, 'a key'), options.fields);
-      return { code: 0, json: { ok: true, row: view, pending: editor.edits().length }, text: [`Changed, pending: ${rowLine(view)}`] };
+      const { unchanged, ...view } = editor.change(arg(options, 0, 'a key'), options.fields);
+      return {
+        code: 0,
+        json: { ok: true, row: view, pending: editor.edits().length, ...(unchanged === true ? { unchanged } : {}) },
+        text: [unchanged === true ? `Nothing to change, nothing held: ${rowLine(view)}` : `Changed, pending: ${rowLine(view)}`],
+      };
     }
     case 'remove': {
       const removed = editor.remove(arg(options, 0, 'a key'));

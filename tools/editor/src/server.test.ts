@@ -36,7 +36,7 @@ type Rows = { rows: { key: string; list: string; row: Record<string, unknown>; u
 
 describe('the API', () => {
   test('serves the page, and the table: the forms, every row with its uses, and the pending edits', async () => {
-    const { page, api } = await served();
+    const { dir, page, api } = await served();
     const html = await (await fetch(page.url)).text();
     expect(html).toContain('<title>Content editor: Traits</title>');
     expect((await fetch(new URL('page.js', page.url))).status).toBe(200);
@@ -49,7 +49,8 @@ describe('the API', () => {
       ['guildmaster', ['name', 'cost', 'excludes', 'effects'], ['classStatBonus', 'guildMoraleShift', 'upkeepFactor']],
       ['hero', ['name', 'excludes', 'effects'], ['statModifiers', 'encounterBonus']],
     ]);
-    expect((json as unknown as Rows).rows).toHaveLength(10);
+    const shipped = ['guildmaster-traits.json', 'hero-traits.json'] as const;
+    expect((json as unknown as Rows).rows).toHaveLength(shipped.reduce((sum, file) => sum + Object.keys(readContentJson(dir, file)).length, 0));
     expect((await api('GET', '/api/traits/lame')).json).toMatchObject({ key: 'lame', list: 'hero' });
   });
 
@@ -74,7 +75,9 @@ describe('the API', () => {
     expect(refused.status).toBe(409);
     expect((refused.json.uses as { at: string }[]).map((use) => use.at)).toEqual([
       'injuries.json: deep-cut.leavesTrait',
-      'descriptions.json: heroBiography.traits.scarred',
+      'descriptions.json: heroBiography.traits.scarred.0',
+      'descriptions.json: heroBiography.traits.scarred.1',
+      'descriptions.json: heroBiography.traits.scarred.2',
       'portrait-appearances.json: features.scar.shows.0',
     ]);
     const removed = await api('DELETE', '/api/traits/brave');
@@ -236,7 +239,10 @@ describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
     await tab.locator('tr[data-key=lame] button[data-action=remove]').click();
     await tab.locator('#message li').first().waitFor();
     expect(await tab.locator('#message').innerText()).toContain('Not removed: lame is used.');
-    expect(await tab.locator('#message li').allInnerTexts()).toEqual(['injuries.json: shattered-knee.leavesTrait', 'descriptions.json: heroBiography.traits.lame']);
+    expect(await tab.locator('#message li').allInnerTexts()).toEqual([
+      'injuries.json: shattered-knee.leavesTrait',
+      ...[0, 1, 2].map((index) => `descriptions.json: heroBiography.traits.lame.${index}`),
+    ]);
 
     await tab.locator('tr[data-key=brave] button[data-action=change]').click();
     expect(await tab.locator('#form input[name=key]').getAttribute('readonly')).not.toBeNull();

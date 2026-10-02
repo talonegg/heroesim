@@ -7,7 +7,7 @@
 // (`content/src/uses/`), and a use is added or taken out there (`assign`, `unassign`, v1.1.4-S13,
 // item 13) where the register's entry says how, and only so.
 
-import { contentEntries, rulesFor, traitFiles, usesOf, UseRefusal, type ContentEntry, type ContentJson, type TraitList } from '@heroesim/content/uses';
+import { contentEntries, rulesFor, traitFiles, usesOf, UseRefusal, type ContentEntry, type ContentJson, type TraitList, type TraitUse } from '@heroesim/content/uses';
 import { encounterKinds, type GuildmasterTraitEffectKind, type HeroTraitEffectKind } from '@heroesim/engine';
 import type { EffectForm, FieldForm, Kind, ListForm, Row, Rule, Use, UseChange } from './kind.js';
 
@@ -75,10 +75,12 @@ function entryOf(id: string): { entry: ContentEntry; problems: [] } | { entry: n
   return entry === undefined ? { entry: null, problems: [`"${id}" is not a use the register lists: ${entries.map((each) => each.id).join(', ')}`] } : { entry, problems: [] };
 }
 
-/** The content with `change` made, or the register's refusal as a problem. */
-function changed(content: ContentJson, change: () => Partial<Record<string, unknown>>): UseChange {
+/** The content with `change` made, and the use it added, if any; or the register's refusal as a problem. */
+function changed(content: ContentJson, change: () => { change: Partial<Record<string, unknown>>; use?: TraitUse }): UseChange {
   try {
-    return { content: { ...content, ...change() } as ContentJson, problems: [] };
+    const made = change();
+    const added = made.use === undefined ? undefined : { ...made.use, blocksRemoval: contentEntries().find((entry) => entry.id === made.use?.entry)?.blocksRemoval ?? true };
+    return { content: { ...content, ...made.change } as ContentJson, problems: [], ...(added === undefined ? {} : { added }) };
   } catch (error) {
     if (error instanceof UseRefusal) return { content: null, problems: [error.message] };
     throw error;
@@ -251,6 +253,6 @@ export const traitsKind: Kind = {
     if (remove === null) return { content: null, problems: [`the register says of ${id} that a use is not taken out there safely`] };
     const use = entry.find(content, key).find((each) => each.at === at);
     if (use === undefined) return { content: null, problems: [`"${key}" has no use in ${id} at ${at}`] };
-    return changed(content, () => remove.apply(content, use));
+    return changed(content, () => ({ change: remove.apply(content, use) }));
   },
 };

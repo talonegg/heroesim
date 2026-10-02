@@ -51,15 +51,19 @@ names to its entry in the doc's register part:
 Each target field the entry names takes a key the content defines: read it from the content file the
 entry names (`content/injuries.json`, `encounters.json`, `synergies.json`, `descriptions.json`,
 `portrait-appearances.json`). A `path` is the place of a Set Query inside the Encounter or Synergy
-(`checks.0.score.1`, `consequences.failure.0.among`): read the Encounter to find it. An Encounter or a
-Synergy still in the old form, with no Query, has no Set Query to filter, and the register refuses
-it: writing it in Queries is content work outside the editor's kinds, for the owner to ask for. A Biography sentence keeps
-`docs/agents/portraits.md`'s rules for a sentence: the pronoun slots, a capital first, a full stop
-last, the glossary's terms capitalised.
+(`checks.0.score.1`, `consequences.failure.0.among`): read the Encounter to find it.
+
+- **The old form.** An Encounter with no `checks`, or a Synergy whose `requires` is an object of
+  Classes and Skills, is in the old form: it has no Query to filter, and the refusal says "in the old
+  form". Writing it in Queries is content work outside the editor's kinds (v1.1.4-S10 writes the
+  shipped content so): tell the owner, and assign once it is written.
+- **A Biography sentence** keeps `docs/agents/portraits.md`'s rules for a sentence: the pronoun
+  slots, a capital first, a full stop last, the glossary's terms capitalised.
 
 **Taking a use out** needs its entry and its place: `traits uses <key> --json` gives each use's
-`entry` and `at`. A Biography use is the key's whole list of sentences: unassigning it takes out
-every sentence, so to drop one, unassign the list and assign back the others.
+`entry` and `at`. Each Biography sentence is a use of its own (`…traits.lame.2`). Taking a use out
+of a list moves those after it: take several out of one list from the last, or read `uses` again
+after each.
 
 Done when: each use to add has its entry and every target field the doc marks as wanted, and each use
 to take out has its entry and `at`.

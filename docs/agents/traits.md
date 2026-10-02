@@ -58,8 +58,8 @@ branch, from the repository's root.
   - *the edit at fault* (a value a rule refuses): change the edit, or discard it, and finish again;
   - *a use the tests want* (`content/src/content.test.ts` holds a Biography sentence for every Hero
     Trait, say): add it with `trait-assign`, and finish again;
-  - *a test that pins the content as shipped* (the Trait lists' keys or values, which Injuries leave
-    which Trait): show it to the owner. With their word the test is changed, as code, in the same
+  - *a test that pins the content as shipped* (a value a decision fixed, such as the four Injury
+    Traits' Stat changes, DL-148 item 24): show it to the owner. With their word the test is changed, as code, in the same
     change, and "Finish" run again; without it the edit is discarded.
 - **Nothing is committed or pushed** by the editor or a skill. Read `git diff`, and commit it
   yourself.
@@ -162,7 +162,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 - **Its uses of a key:** Each `["has-trait", key]` anywhere in an Encounter.
 - **Removal:** a use here refuses the Trait's removal, naming it.
 - **Adding a use:** The Set Query at the path is filtered to the Heroes holding the key: `["where", <Set>, ["has-trait", key]]`. The target: `encounter`, the Encounter's key; `path`, the path, within the Encounter, of a Set Query: `checks.0.score.1`. `traits assign <key> encounter-has-trait encounter=… path=…`.
-- **Removing a use:** Where it filters a `where`, the `where` becomes its Set unfiltered; in an `and` or `or`, it is taken out (one of two left stands alone). Anywhere else it is refused, to be changed by hand. `traits unassign <key> encounter-has-trait <at>`, its place as `traits uses` gives it.
+- **Removing a use:** Where it filters a `where`, the `where` becomes its Set unfiltered; in an `and` or `or`, it is taken out (one of two left stands alone). Anywhere else it is refused: ask the owner how the Query should read without it. `traits unassign <key> encounter-has-trait <at>`, its place as `traits uses` gives it.
 
 ### `synergy-has-trait`: has-trait in a Synergy's requires
 
@@ -171,16 +171,16 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 - **Its uses of a key:** Each `["has-trait", key]` anywhere in a Synergy.
 - **Removal:** a use here refuses the Trait's removal, naming it.
 - **Adding a use:** With a path, the Set Query there is filtered as an Encounter's is. Without one, the condition `[">=", ["count", ["where", "party", ["has-trait", key]]], 1]` is added to `requires`, which must be written as Queries. The target: `synergy`, the Synergy's key; `path`, optional: the path, within the Synergy, of a Set Query. `traits assign <key> synergy-has-trait synergy=… [path=…]`.
-- **Removing a use:** Where it filters a `where`, the `where` becomes its Set unfiltered; in an `and` or `or`, it is taken out (one of two left stands alone). Anywhere else it is refused, to be changed by hand. The condition `add` makes without a path is taken out of `requires` whole. `traits unassign <key> synergy-has-trait <at>`, its place as `traits uses` gives it.
+- **Removing a use:** Where it filters a `where`, the `where` becomes its Set unfiltered; in an `and` or `or`, it is taken out (one of two left stands alone). Anywhere else it is refused: ask the owner how the Query should read without it. The condition `add` makes without a path is taken out of `requires` whole. `traits unassign <key> synergy-has-trait <at>`, its place as `traits uses` gives it.
 
 ### `biography-sentences`: Biography sentences by Trait
 
 - **Where:** `content/descriptions.json`, holding Guildmaster and Hero Traits' keys.
 - **What reads it:** The sentences a Biography draws for a Trait held: a Guildmaster's under `biography.traits`, a Hero's under `heroBiography.traits` (v1.1.3-S1). Read by the Biography (`biography-and-portrait`).
-- **Its uses of a key:** The key's list of sentences under `biography.traits` or `heroBiography.traits`.
+- **Its uses of a key:** Each sentence of the key's list under `biography.traits` or `heroBiography.traits`.
 - **Removal:** a use here refuses the Trait's removal, naming it.
 - **Adding a use:** The sentence is added at the end of the key's list, under its own list's place, which is made where there is none. The target: `sentence`, the sentence, with the slots a Biography fills: `{He}`, `{his}`. `traits assign <key> biography-sentences sentence=…`.
-- **Removing a use:** The key's list of sentences is taken out, every sentence in it. `traits unassign <key> biography-sentences <at>`, its place as `traits uses` gives it.
+- **Removing a use:** The sentence is taken out of the key's list, and the list with it once empty. `traits unassign <key> biography-sentences <at>`, its place as `traits uses` gives it.
 
 ### `portrait-callings`: A Calling's suits and clashes
 
