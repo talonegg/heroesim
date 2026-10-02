@@ -16530,6 +16530,182 @@ texts checked on load as strings only) and T3 (Chromium without its sandbox) for
 
 ---
 
+## DL-148 — Richer Quests as v1.1.4: Checks as Queries over the Party, several named Checks to an Encounter with Degrees, a Hero's form, harm that reads the Stats, the chances shown and the Rivals choosing by them, Hero Traits with effects and earned, and every Stat put to work
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the owner, in an interview on an agent's
+analysis of the Quest Engine and the Hero Stats. The analysis, its three tiers of recommendations, the
+options and the recommendations were the agent's; every answer below is the owner's, and each says
+whether it took the recommendation. The owner agreed every approach of the first tier, asked that a
+Check's score be a query over the Party's Heroes, "SQL like", with one or many Checks to an Encounter
+combined as "(check 1 and check 2) or check 3", and took the second tier with the answers below.
+Where a name or a reading is the agent's, it says so, for the owner to change.
+
+**Context.** The analysis read the Quest Engine (`engine/src/quest-engine/`), the Hero and Quest
+content, the Rival controller and the Board, and simulated about 290,000 Checks against the shipped
+content.
+
+- *Headcount decides the Checks.* A Check's capability is a weighted sum of Stats, each the Party's
+  `best` or its `sum`. On a `sum` Encounter at difficulty 60, a Party of one passed 1 to 5% of the
+  time, a Party of two 45 to 56%, and a Party of four 100%. Levels 1 to 5 added 5 to 12 points; the
+  fourth Hero added about 45. XP is not split, and Injuries come per failure, not per Hero, so the
+  largest Party is always the best.
+- *Any Stat stands in for any other.* The sum is linear, and `best` takes each Stat's best member
+  separately, a composite of the Party. Nothing rewards the right Hero for a task or punishes a weak
+  link.
+- *Coverage is uneven.* Perception and Wits are read by four Encounters each. Intelligence,
+  Knowledge, Arcana, Power, Spelllore, Spirit and Resistance are read by one each, Intelligence at a
+  weight of 0.2. The Mage's four leading Stats appear in two of the twelve Encounters. No Social
+  Encounter uses `sum`, and no gear touches Intelligence, Knowledge, Leadership, Charisma or
+  Diplomacy. The Patron's steward passed 0 to 1% at difficulty 90 at any size.
+- *Systems with no effect on a Quest.* Morale is read by no rule. The Hero Traits have
+  `effect: null` (DL-85 item 10 decided they get effects). Backgrounds have none. Skills never grow.
+  Defensive Stats only add capability: an Injury or a Death falls on a uniformly random member. The
+  Check's margin is recorded and never read.
+- *The Board shows other Stats than the Check reads.* A card shows the template's `demands`, and
+  the Rivals choose by them (`strengthFor`), while each Check reads its Encounter's.
+
+**Decision.** In the order of the release, then the Check, then the page, then the content.
+
+1. **The release.** A v1.1.x patch, `v1.1.4`, on `v1.1.4-dev`, cut from `main`. Random Events stays
+   M10, on v1.2. Against the recommendation, which made this v1.2's first milestone before Random
+   Events. Dependabot's `target-branch`es move to `v1.1.4-dev` (DL-147 item 6).
+2. **One release** holds the first tier and the second's content work. As recommended.
+3. **The balance pass** tunes only this release's own controls toward DL-83 item 4's Quest target
+   (failed 20 to 30%, strong at most 50%; 14.8% and 71.5% at M8). The controls are the Encounters'
+   factors, the Degrees' thresholds and `strongTriumphShare`, the form factors, the harm ranges, the
+   Rivals' margins and the earned Traits' chances. The economy (DL-83 items 8 and 9) and Loot wait
+   for Random Events, as DL-83 item 1 orders. The other DL-83 targets are measured and recorded, not
+   tuned. As recommended.
+4. **Queries are written as JSON arrays**, operator first. A SQL-like text form, compiled when
+   content is built, comes only if writing the arrays proves painful. As recommended.
+5. **What a Query reads.** Of the Party's Heroes, on this Quest:
+   - Values: effective Stats, Skill ratings, Level, working Morale and age.
+   - Facts: Class, Background, Sex, Traits, and whether hurt on this Quest.
+   - Never the Guildmaster or the Guild's dealings (M4's rule), nor Regard between particular Heroes.
+
+   Sex was added against the recommendation, which left it out under R12.
+6. **Sex decides who takes part, never a value.** Content may filter by Sex where the story calls for
+   it (a convent's inner rooms, a lord's hall), and never scales a Stat or a score by it. R12 is
+   amended. As recommended. The agent's reading, for validation, is that Sex appears only in a `where`
+   filter, and a Set filtered by it is never counted.
+7. **Several Checks to an Encounter.** Each Encounter has one to four Checks.
+   - Each Check has a `name`, its score as a Query, its Skills, its target (`flat` plus
+     `difficultyFactor` × the difficulty) and optionally its own `variance`. A name is used by the
+     narration and the Board, and written under the page's capitals rule (the recommendation, taken).
+   - A `pass` formula combines the Checks with `and`, `or` and `at-least`.
+   - Every Check is rolled every time, one draw each, so that a formula never moves a later draw.
+8. **Degrees.**
+   - A Check comes out a Triumph, a Success, a Setback or a Failure, from its roll ÷ target. An
+     Encounter takes the worst of an `and`, the best of an `or`, and the k-th best of an `at-least`.
+   - Consequences can differ by Degree. A missing Triumph list uses Success's, and a missing Setback
+     list uses Failure's.
+   - A success still needs more than half the Encounters at Success or better. A strong success needs
+     every one at Success or better and at least half Triumphs (`strongTriumphShare`, option (c),
+     as recommended). This is DL-83 item 17's margin, the share of Triumphs answering whether it is a
+     mean or a minimum.
+   - The analysis called them tiers. "Degree" is the agent's word, since `CONTEXT.md`'s Quest band
+     avoids "Tier", for the owner to change.
+9. **A Hero's form.** Each Hero's own Morale band sets a factor on what they add, not the Party's
+   mean. Against the recommendation, the Party's mean, which explains in one line.
+10. **Wounds weaken.** A Hero hurt earlier on the Quest adds 0.85 of their values for the rest of it
+    (`hurtCheckFactor`). As recommended.
+11. **What form scales.** Only what a Hero adds into a score. Filters, the choice of the best or worst
+    Hero, Synergy requirements, Skills, Level, age and counts read the Hero unscaled. As recommended.
+12. **Morale shown without naming each Hero.** The owner asked that the display not name each Hero.
+    - The Party builder gives one Morale line for the Party, worded from its mean form.
+    - An Encounter's narration names no Hero's Morale. It says once, for the Party, when form changed a
+      Check's Degree ("Low spirits told against them").
+    - As recommended.
+13. **A consumable's bonus** adds to every Check of its Encounter, one Item an Encounter. As
+    recommended.
+14. **Harm reads the Stats.** Injury and Death gain `among` (a Set Query, which falls back to the
+    whole unhurt Party when it matches no one), `exposedBy` and `guardedBy`. Morale gains
+    `steadiedBy`. Which Stats protect and expose is content's. The draws keep their number and order.
+    As recommended.
+15. **The chances shown as words,** with the numbers in the detail. Against the recommendation, which
+    put percentages on the Party builder. The words are:
+
+    | Word | Chance |
+    | --- | --- |
+    | Hopeless | below 10% |
+    | Unlikely | 10–35% |
+    | Even | 35–65% |
+    | Likely | 65–90% |
+    | Near certain | 90% and above |
+
+    The detail gives each Encounter's and the Quest's percentage rounded to 5%, "if no one falls".
+    The Board's card says "Your best Party:" with a word, for the Party the engine would send from
+    the free Heroes. As recommended.
+16. **The Board shows the Encounters' Checks.** A card shows each drawn Encounter, its Checks' names
+    and what they read. The template's `demands` are shown nowhere and left unused, on templates and
+    Quest rows, until a later rule gives them a job. As recommended.
+17. **The Rivals choose by the estimate.** `partyFor` starts from the Heroes who meet the
+    requirements, adds whoever most raises the chance of success up to the minimum size, then keeps
+    adding while each Hero raises it by the Disposition's `partyMargin`. The harness's automatic
+    policy shares it. As recommended.
+18. **A Party's order** breaks ties only. A marching order waits for the third tier. As recommended.
+19. **Splitting XP** across the Party is decided after the balance pass's numbers. As recommended.
+20. **Synergies are written as Queries.** `requires` is a list of Party-level conditions, and the old
+    Class and Skill form loads into it. As recommended.
+21. **Coverage.**
+    - Every Hero Stat is read by at least three Checks across at least two kinds.
+    - A new Encounter kind, `lore`, for Intelligence and Knowledge.
+    - About six gear Items for the Mental and Social Stats.
+    - About 24 Encounters: the agent drafts, and the owner approves the names.
+
+    As recommended.
+22. **Encounter draws weighted by tags,** and **finales**: a fixed last Encounter on the four hardest
+    templates (Break the sealed vault, Hold the border fort, The counting-house job, Lay the restless
+    dead). Option (c), as recommended.
+23. **Finales and Loot.** Loot keeps its rule, a strong band at difficulty 35 or more. On a Quest with
+    a finale it also needs the finale to end a Triumph. Loot grows rarer, and the owner accepts that,
+    with Loot to be tuned later. Against the recommendation, which also drew Loot on a finale's
+    Triumph whatever the band.
+24. **Hero Traits' effects.** They are Stat changes through `effectiveStats`, as gear, and readable by
+    `has-trait`. Lame is Dexterity −2, Endurance −1. One-eyed is Perception −2, Weaponry −1.
+    Short-winded is Endurance −2, Constitution −1. Scarred is Courage +1, Charisma −1. As proposed.
+    This answers DL-85's open "which effects Hero Traits get".
+25. **Earned Traits.**
+    - A `trait` consequence grants a Trait to one Hero drawn from its `among`. Four are positive and
+      two negative. A Trait may change Stats or give an Encounter bonus (below). As recommended.
+    - The owner added the eligibility. A positive Trait is drawn on an Encounter's Triumph and granted
+      only if the Quest ends a strong success. A negative one falls only on a Hero injured by the same
+      failed Encounter.
+    - Traits stay rare: chances of about 5 to 10%, at most one new Trait a Hero a Quest, and none twice.
+    - R24 is amended.
+26. **A Trait's Encounter bonus** is the Party's. If any member holds it, every Check of a matching
+    Encounter gains it, once however many hold it. As recommended.
+27. **A Trait gained is a Milestone,** positive or negative. As recommended.
+28. **Backgrounds** keep no effect in this release, only the `background` predicate, and their effects
+    go to the backlog as a GitHub issue. Against the recommendation, which gave them small Stat
+    changes. It keeps DL-85 item 10's "Backgrounds stay flavour".
+29. **Saves.** Backward compatibility of saves across releases is not a requirement until the owner
+    says it will be. No migration is built and no old save tested. The schema stays 6, since no row
+    gains a field.
+30. **The content is reviewed before it is built.** The agent drafts every Encounter, finale, Trait,
+    Item and Synergy with its calibrated rates on one page the owner can comment on, and the owner's
+    answers come before the content is written. As recommended.
+31. **The plan.** The stories, their order and their acceptance are the agent's, in
+    `docs/planning/epics/v1.1.4-release.md`, for the owner to change.
+
+**Consequences.**
+- Play changes from S2 on. S1 holds a parity sweep against `v1.1.3`, and each later change of play
+  is explained in its DL entry.
+- `configVersion` goes from 12 to 13 with the new fields (the epic's §2). The content version rises
+  with each content change.
+- New events: `hero.trait-gained`, a Milestone. Additions to `quest.encounter` (`degree`,
+  `decidedBy`, `checks`) and `quest.resolved` (`moraleByHero`).
+- The script is at 770 of 800 kB, so its size is read at each story's close.
+- R12, R24, R25 and R26 are amended with dated notes. R24's words are the agent's, for the owner to
+  confirm, closing DL-85 item 10's provisional rewording.
+- ADR-0010, Checks and Synergy requirements as Queries over the Party, is written in S1.
+
+**Actioned in:** `docs/planning/epics/v1.1.4-release.md` (new); `docs/planning/epics/README.md`;
+`docs/plan.md` §4; `docs/requirements.md` (R12, R24, R25, R26); `.github/dependabot.yml`; the branch
+`v1.1.4-dev`.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

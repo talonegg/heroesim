@@ -122,7 +122,9 @@ Every system in the game must serve at least one of these:
 ### 3.3 Heroes
 
 - R12. A Hero has Attributes (name, sex, age, Background, Class), Stats, Skills, Traits and
-  States. Sex affects narration and names only in the first build.
+  States. Sex affects narration and names only in the first build. (Amended 2026-10-02, DL-148
+  item 6: from `v1.1.4`, content may also read Sex to decide which Heroes a Check or a harm
+  reads, where the story calls for it, and never to set a Stat's value or a score.)
 - R13. Classes are Warrior, Rogue, Mage and Healer, fixed at generation, defined as content.
   A Class biases starting Stats, gates Skills, sets the growth profile per Level, and is an
   input to Synergies.
@@ -169,13 +171,21 @@ Every system in the game must serve at least one of these:
   2026-09-28, DL-85: originally the outcome also listed "Stat changes" and "new Traits", which
   no Quest outcome was built to produce. This rewording to what is built is the owner's stated
   intent, made provisionally; its exact words await the owner's confirmation, DL-85 item 10.)
+  (Amended 2026-10-02, DL-148 items 24 and 25: from `v1.1.4`, Hero Traits have effects, Stat
+  changes or a bonus on an Encounter's Checks, and a Quest's outcome may give a Hero a new
+  Trait, rarely: a positive one, drawn on an Encounter's Triumph, only when the Quest ends a
+  strong success, and a negative one only to a Hero a failed Encounter injured. The words are
+  the agent's, for the owner to confirm.)
 - R25. First build: a stub Quest Engine that compares difficulty against the Party's summed
   Stats and applies simple outcomes. Target: a sequence of typed encounters, each a check with
   typed consequences. (Amended 2026-09-28, DL-86: the first build reached the target. M2 built
   the stub, scoring weighted Stat demands carried on the Quest (DL-06), and M4 replaced it with
-  typed encounters (DL-42).)
+  typed encounters (DL-42).) (Amended 2026-10-02, DL-148 items 7 and 8: from `v1.1.4`, an
+  encounter holds one to four named checks, each a query over the Party written in content, and
+  each check and encounter comes out a Degree: Triumph, Success, Setback or Failure.)
 - R26. Synergies are authored bonuses for combinations of Classes or Skills, defined as
-  content.
+  content. (Amended 2026-10-02, DL-148 item 20: from `v1.1.4`, for any condition on the Party a
+  query can state, its Classes, Skills, Stats and more, the old combinations among them.)
 
 ### 3.5 Recruitment and transfers
 
