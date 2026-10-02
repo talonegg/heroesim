@@ -140,7 +140,8 @@ describe('a Quest card', () => {
     fireEvent.click(toggle);
 
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    // Each Encounter in the order it meets them, with its kind's icon, and what its one Check reads: no demands.
+    // Each Encounter in the order it meets them, with its kind's icon, and each Check's name and what it reads:
+    // no demands. Every Encounter of the content has several Checks (v1.1.4-S10).
     expect(within(card).queryByText(/Demands/)).toBeNull();
     const encounters = within(card).getByTestId('encounters');
     const met = [...encounters.children] as HTMLElement[];
@@ -152,20 +153,22 @@ describe('a Quest card', () => {
       'The long march',
     ]);
     for (const item of met) expect(item.querySelector('.reads__name svg.icon[aria-hidden="true"]')).not.toBeNull();
-    expect(met[0]?.querySelector('p')?.textContent).toBe(
-      'Reads 0.4 × the highest Dexterity in the Party + 0.3 × the highest Wits in the Party + 0.3 × the highest Perception in the Party',
-    );
-    expect(met[1]?.querySelector('p')?.textContent).toBe(
-      'Reads 0.4 × the total Weaponry of the Party + 0.3 × the total Strength of the Party + 0.3 × the total Courage of the Party',
-    );
+    const checksOf = (item: HTMLElement | undefined) => [...(item?.querySelectorAll('li') ?? [])].map((check) => check.textContent);
+    expect(met[0]?.querySelector('p')).toBeNull();
+    expect(checksOf(met[0])).toEqual(['Quiet feet: the lowest Dexterity in the Party', 'Timing: the highest (0.5 Wits + 0.5 Perception) in the Party']);
+    expect(checksOf(met[1])).toEqual([
+      'Steel: the (0.6 Weaponry + 0.4 Strength) of the Party, highest first, weighted 1, 0.5 and 0.25',
+      'Nerve: the lowest Courage in the Party',
+      'Rallying: the highest Leadership in the Party',
+    ]);
 
     const skills = within(card).getByRole('heading', { level: 4, name: 'Skills that help' }).parentElement as HTMLElement;
     expect(within(skills).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       'Stealth',
-      'Lockpicking',
       'Swordcraft',
       'Tactics',
       'Trapcraft',
+      'Lockpicking',
       'Shieldwork',
       'Field surgery',
       'Herbalism',
@@ -278,7 +281,7 @@ describe('the Party builder', () => {
       expect(within(row).getByText(/^(Warrior|Rogue|Mage|Healer), Level \d+$/)).toBeDefined();
       const stats = row.querySelector('dl') as HTMLElement;
       // The Stats its Encounters' Checks read, in the order it meets them (v1.1.4-S6), where the template's demands stood.
-      const read = ['Dexterity', 'Wits', 'Perception', 'Weaponry', 'Strength', 'Courage', 'Constitution', 'Endurance', 'Leadership', 'Willpower'];
+      const read = ['Dexterity', 'Wits', 'Perception', 'Weaponry', 'Strength', 'Courage', 'Leadership', 'Constitution', 'Endurance', 'Knowledge'];
       expect([...stats.querySelectorAll('div')].map((pair) => pair.textContent)).toEqual(
         read.map((name) => `${name}${hero.stats[name.toLowerCase()]}`),
       );

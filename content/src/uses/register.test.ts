@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { contentFiles, parseContent, type ContentFileName } from '../index.js';
 import { contentDir } from '../node.js';
@@ -17,9 +18,22 @@ function shipped(): Record<ContentFileName, unknown> {
 }
 
 /**
+ * The shipped content with its Encounters, Synergies and Quest templates as content 25 wrote them, in
+ * the old form (`content/src/old-form/`), which the register refuses to filter (v1.1.4-S10).
+ */
+function oldForm(): Record<ContentFileName, unknown> {
+  const content = shipped();
+  for (const file of ['encounters.json', 'synergies.json', 'quest-templates.json'] as const) {
+    content[file] = JSON.parse(readFileSync(fileURLToPath(new URL(`../old-form/${file}`, import.meta.url)), 'utf8'));
+  }
+  return content;
+}
+
+/**
  * The shipped content with an Encounter and a Synergy in the new form (v1.1.4-S1, S2), whose Queries
  * a `has-trait` may filter: `ambush-on-the-road` one Check scored by the strongest Warrior, and
- * `shield-wall` requiring three Warriors.
+ * `shield-wall` requiring three Warriors. The Encounter has no Triumph list of its own, so that its
+ * Triumph reads its Success list.
  */
 function withQueries(): Record<ContentFileName, unknown> {
   const content = shipped();
@@ -29,7 +43,7 @@ function withQueries(): Record<ContentFileName, unknown> {
     name: ambush.name,
     kind: ambush.kind,
     checks: [{ key: 'front', name: 'The front', score: ['max', ['where', 'party', ['class', 'warrior']], ['stat', 'strength']], skills: [], difficultyFactor: 0.2 }],
-    consequences: ambush.consequences,
+    consequences: { success: (ambush.consequences as Record<string, unknown>).success, failure: (ambush.consequences as Record<string, unknown>).failure },
   };
   const synergies = content['synergies.json'] as Record<string, Record<string, unknown>>;
   (synergies['shield-wall'] as Record<string, unknown>).requires = [['>=', ['count', ['where', 'party', ['class', 'warrior']]], 3]];
@@ -203,7 +217,7 @@ describe('a use added and removed', () => {
   });
 
   test('refuses an Encounter or a Synergy in the old form, saying so and what to do', () => {
-    const content = shipped();
+    const content = oldForm();
     expect(() => entry('encounter-has-trait').add?.apply(content, 'lame', { encounter: 'ambush-on-the-road', path: 'checks.0.score.1' })).toThrow(
       'encounters.json: ambush-on-the-road is an Encounter in the old form, with no Query to filter: ask the owner',
     );
@@ -247,7 +261,7 @@ describe('a use added and removed', () => {
     expect(() => entry('portrait-callings').add?.apply(content, 'scarred', { calling: 'soldier', side: 'suits' })).toThrow('is not a Guildmaster Trait');
     expect(() => entry('portrait-callings').add?.apply(content, 'spendthrift', { calling: 'merchant', side: 'suits' })).toThrow('clashes names "spendthrift" already');
     expect(() => entry('encounter-has-trait').add?.apply(content, 'lame', { encounter: 'ambush-on-the-road', path: 'checks.0.score.2' })).toThrow('is not a Set Query');
-    expect(() => entry('synergy-has-trait').add?.apply(shipped(), 'lame', { synergy: 'shield-wall' })).toThrow('old form');
+    expect(() => entry('synergy-has-trait').add?.apply(oldForm(), 'lame', { synergy: 'shield-wall' })).toThrow('old form');
     expect(() => entry('excludes').add?.apply(content, 'lame', { trait: 'miser' })).toThrow('not of the same list');
   });
 });

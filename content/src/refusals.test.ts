@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type {
   Background,
   Class,
@@ -73,6 +74,25 @@ function realFiles(): Record<string, string> {
   return Object.fromEntries(
     contentFiles.map((name) => [name, readFileSync(join(contentDir, name), 'utf8')]),
   );
+}
+
+/** The files `oldFiles` takes from `old-form/`. */
+const oldFormFiles = ['encounters.json', 'synergies.json', 'quest-templates.json'] as const;
+
+/**
+ * The real files with the Encounters, Synergies and Quest templates as content 25 wrote them
+ * (v1.1.4-S8): every Encounter and Synergy in the old form, which still loads (v1.1.4-S1), two arcane
+ * Encounters, no lore and no Finale. The old form's refusals, and S2's and S8's tests written on that
+ * content, keep it as their fixture since v1.1.4-S10 wrote the content in the new form (DL-165).
+ */
+function oldFiles(): Record<string, string> {
+  const dir = fileURLToPath(new URL('./old-form/', import.meta.url));
+  return { ...realFiles(), ...Object.fromEntries(oldFormFiles.map((name) => [name, readFileSync(join(dir, name), 'utf8')])) };
+}
+
+/** `oldFiles` with one of them changed as JSON. */
+function withOldJson<File extends keyof Files>(file: File, change: (json: Files[File]) => void): Record<string, string> {
+  return changed(oldFiles(), file, change);
 }
 
 /** The real files with one of them changed as JSON. */
@@ -1129,19 +1149,19 @@ describe('an Encounter (M4-S1)', () => {
       /ambush-on-the-road\.consequences\.success\.1\.factor is -1/,
     ],
   ])('with %s is refused, naming the Encounter', (_, change, problem) => {
-    const files = withJson('encounters.json', (json) => change(ambush(json)));
+    const files = withOldJson('encounters.json', (json) => change(ambush(json)));
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
   });
 
   test('with a consequence of an unknown kind, or a field its kind lacks, is refused, naming it', () => {
-    const unknown = withJson('encounters.json', (json) => {
+    const unknown = withOldJson('encounters.json', (json) => {
       Object.assign(ambush(json).consequences, { success: [{ kind: 'loot', table: 'hoard' }] });
     });
-    const extra = withJson('encounters.json', (json) => {
+    const extra = withOldJson('encounters.json', (json) => {
       Object.assign(ambush(json).consequences, { success: [{ kind: 'fame', delta: 1, factor: 2 }] });
     });
-    const outcome = withJson('encounters.json', (json) => {
+    const outcome = withOldJson('encounters.json', (json) => {
       Object.assign(ambush(json).consequences, { draw: [] });
     });
 
@@ -1153,7 +1173,7 @@ describe('an Encounter (M4-S1)', () => {
   });
 
   test('of a kind or aggregate outside the choices is refused, naming the choices', () => {
-    const files = withJson('encounters.json', (json) => {
+    const files = withOldJson('encounters.json', (json) => {
       Object.assign(ambush(json), { kind: 'naval', aggregate: 'worst' });
     });
 
@@ -1188,13 +1208,13 @@ describe('a Synergy (M4-S3)', () => {
     ['no kinds, listed empty', (it) => (it.kinds = []), /sword-and-salve\.kinds is empty/],
     ['a kind listed twice', (it) => (it.kinds = ['combat', 'combat']), /sword-and-salve\.kinds: "combat" is listed twice/],
   ])('with %s is refused, naming the Synergy', (_, change, problem) => {
-    const files = withJson('synergies.json', (json) => change(salve(json)));
+    const files = withOldJson('synergies.json', (json) => change(salve(json)));
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
   });
 
   test('with a kind that is not one of the six is refused, naming the field and the choices', () => {
-    const files = withJson('synergies.json', (json) => {
+    const files = withOldJson('synergies.json', (json) => {
       Object.assign(salve(json), { kinds: ['combat', 'naval'] });
     });
 
@@ -1204,10 +1224,10 @@ describe('a Synergy (M4-S3)', () => {
   });
 
   test('with a field its row, requirement or bonus lacks, or a count that is not a number, is refused, naming it', () => {
-    const row = withJson('synergies.json', (json) => void Object.assign(salve(json), { chance: 0.5 }));
-    const requires = withJson('synergies.json', (json) => void Object.assign(salve(json).requires, { traits: ['scarred'] }));
-    const bonus = withJson('synergies.json', (json) => void Object.assign(salve(json).bonus, { delta: 2 }));
-    const count = withJson('synergies.json', (json) => void Object.assign(salve(json).requires, { classes: { warrior: 'two' } }));
+    const row = withOldJson('synergies.json', (json) => void Object.assign(salve(json), { chance: 0.5 }));
+    const requires = withOldJson('synergies.json', (json) => void Object.assign(salve(json).requires, { traits: ['scarred'] }));
+    const bonus = withOldJson('synergies.json', (json) => void Object.assign(salve(json).bonus, { delta: 2 }));
+    const count = withOldJson('synergies.json', (json) => void Object.assign(salve(json).requires, { classes: { warrior: 'two' } }));
 
     expect(refusalOf(() => parseContent(row)).message).toMatch(/synergies\.json: sword-and-salve\.chance is not a field of a Synergy/);
     expect(refusalOf(() => parseContent(requires)).message).toMatch(/sword-and-salve\.requires\.traits is not a field of what a Synergy requires/);
@@ -1216,11 +1236,11 @@ describe('a Synergy (M4-S3)', () => {
   });
 
   test('with no requires or bonus is refused, and without kinds is accepted, for every kind', () => {
-    const missing = withJson('synergies.json', (json) => {
+    const missing = withOldJson('synergies.json', (json) => {
       Reflect.deleteProperty(salve(json), 'requires');
       Reflect.deleteProperty(salve(json), 'bonus');
     });
-    const everyKind = withJson('synergies.json', (json) => {
+    const everyKind = withOldJson('synergies.json', (json) => {
       Reflect.deleteProperty(salve(json), 'kinds');
     });
 
@@ -1232,8 +1252,8 @@ describe('a Synergy (M4-S3)', () => {
 
   test('with its requirement as conditions on the Party, is read as written; and an empty list is refused', () => {
     const written = [['>=', ['count', ['where', 'party', ['class', 'warrior']]], 2]];
-    const files = withJson('synergies.json', (json) => void (salve(json).requires = written as unknown as OldRequires));
-    const empty = withJson('synergies.json', (json) => void (salve(json).requires = [] as unknown as OldRequires));
+    const files = withOldJson('synergies.json', (json) => void (salve(json).requires = written as unknown as OldRequires));
+    const empty = withOldJson('synergies.json', (json) => void (salve(json).requires = [] as unknown as OldRequires));
 
     expect(parseContent(files).synergies['sword-and-salve']?.requires).toEqual(written);
     expect(refusalOf(() => parseContent(empty)).message).toMatch(/synergies\.sword-and-salve\.requires is empty/);
@@ -1342,7 +1362,7 @@ describe('a Query (v1.1.4-S1)', () => {
     Object.assign(first, { score: ['+', ['ranked', 'party', ['stat', 'strength'], [1, Number.POSITIVE_INFINITY, Number.NaN]], Number.NEGATIVE_INFINITY, ['stat', 'wits']] });
     reeve.checks = [];
     const stewardCheck = steward.checks[0] as Encounter['checks'][number];
-    steward.checks.push({ ...stewardCheck, key: 'Second', name: ' ' }, ...['third', 'fourth', 'fifth'].map((key) => ({ ...stewardCheck, key })));
+    steward.checks = [stewardCheck, { ...stewardCheck, key: 'Second', name: ' ' }, ...['third', 'fourth', 'fifth'].map((key) => ({ ...stewardCheck, key }))];
 
     const { message } = refusalOf(() => validateContent(content));
 
@@ -1916,7 +1936,7 @@ describe('an Encounter in the new form (v1.1.4-S2)', () => {
   });
   /** `ambush-on-the-road` rewritten in the new form, with `fields` in place of its own. */
   const rewritten = (fields: Record<string, unknown> = {}) =>
-    withJson('encounters.json', (json) => {
+    withOldJson('encounters.json', (json) => {
       const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
       (json as Record<string, unknown>)['ambush-on-the-road'] = {
         name,
@@ -2204,9 +2224,9 @@ describe('an earned Trait (v1.1.4-S7)', () => {
 
 describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
   /** The real files with `ambush-on-the-road` changed. */
-  const ambushed = (change: (it: EncounterRow) => void) => withJson('encounters.json', (json) => change(json['ambush-on-the-road'] as EncounterRow));
+  const ambushed = (change: (it: EncounterRow) => void) => withOldJson('encounters.json', (json) => change(json['ambush-on-the-road'] as EncounterRow));
   /** `files` with the barrow's template changed. */
-  const barrowed = (change: (it: Template) => void, files = realFiles()) => changed(files, 'quest-templates.json', (json) => change(barrow(json)));
+  const barrowed = (change: (it: Template) => void, files = oldFiles()) => changed(files, 'quest-templates.json', (json) => change(barrow(json)));
   /** A lore Encounter keyed `a-riddle`, the sealed door's Check. */
   const riddle = (files: Record<string, string>) =>
     changed(files, 'encounters.json', (json) => {
@@ -2252,12 +2272,12 @@ describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
   });
 
   test("a Finale may be of any kind, one its template's places are not drawn from", () => {
-    const files = barrowed((it) => (it.finale = 'a-riddle'), riddle(realFiles()));
+    const files = barrowed((it) => (it.finale = 'a-riddle'), riddle(oldFiles()));
     expect(parseContent(files).questTemplates['clear-the-barrow']?.finale).toBe('a-riddle');
   });
 
   test('lore is a kind an Encounter, a template, a Synergy, a consumable and a Hero Trait may name', () => {
-    let files = riddle(realFiles());
+    let files = riddle(oldFiles());
     files = barrowed((it) => (it.encounterKinds = [...it.encounterKinds, 'lore']), files);
     files = changed(files, 'synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).kinds = ['lore']));
     files = changed(files, 'items.json', (json) => void Object.assign(json['whetstone'] ?? {}, { effect: { kind: 'bonus', flat: 3, kinds: ['lore'] } }));

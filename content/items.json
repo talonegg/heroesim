@@ -11,6 +11,13 @@
   "silver-amulet": { "name": "Silver amulet", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "willpower": 2, "spirit": 1 }, "buyPrice": 120, "tags": ["fine"] },
   "runed-circlet": { "name": "Runed circlet", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "arcana": 3, "spelllore": 2 }, "buyPrice": 300, "tags": ["masterwork"] },
 
+  "commonplace-book": { "name": "Commonplace book", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "knowledge": 1 }, "buyPrice": 35, "tags": ["plain"] },
+  "reading-glass": { "name": "Reading glass", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "intelligence": 2, "perception": 1 }, "buyPrice": 100, "tags": ["fine"] },
+  "signet-ring": { "name": "Signet ring", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "diplomacy": 2, "charisma": 1 }, "buyPrice": 105, "tags": ["fine"] },
+  "officers-sash": { "name": "Officer's sash", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "leadership": 2, "courage": 1 }, "buyPrice": 110, "tags": ["fine"] },
+  "courtiers-brooch": { "name": "Courtier's brooch", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "charisma": 2, "diplomacy": 1 }, "buyPrice": 115, "tags": ["fine"] },
+  "scholars-almanac": { "name": "Scholar's almanac", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "knowledge": 3, "intelligence": 2 }, "buyPrice": 280, "tags": ["masterwork"] },
+
   "whetstone": { "name": "Whetstone", "kind": "consumable", "unique": false, "effect": { "kind": "bonus", "flat": 3, "kinds": ["combat"] }, "buyPrice": 25, "tags": ["tool"] },
   "lockpicks": { "name": "Set of lockpicks", "kind": "consumable", "unique": false, "effect": { "kind": "bonus", "flat": 3, "kinds": ["stealth"] }, "buyPrice": 25, "tags": ["tool"] },
   "grappling-line": { "name": "Grappling line", "kind": "consumable", "unique": false, "effect": { "kind": "reroll", "kinds": ["travel", "stealth"] }, "buyPrice": 45, "tags": ["tool"] },

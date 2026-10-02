@@ -2,66 +2,263 @@
   "ambush-on-the-road": {
     "name": "Ambush on the road",
     "kind": "combat",
-    "tags": ["escort"],
-    "demands": [["weaponry", 0.4], ["strength", 0.3], ["courage", 0.3]],
-    "aggregate": "sum",
-    "skillKeys": ["swordcraft", "tactics"],
-    "difficultyFactor": 0.25,
+    "tags": ["escort","wilds"],
+    "checks": [
+      {
+        "key": "steel",
+        "name": "Steel",
+        "score": ["ranked","party",["weighted",[["weaponry",0.6],["strength",0.4]]],[1,0.5,0.25]],
+        "skills": ["swordcraft","tactics"],
+        "flat": 6.41,
+        "difficultyFactor": 0.16
+      },
+      {
+        "key": "nerve",
+        "name": "Nerve",
+        "score": ["min","party",["stat","courage"]],
+        "skills": [],
+        "flat": 2.18,
+        "difficultyFactor": 0.054
+      },
+      {
+        "key": "rally",
+        "name": "Rallying",
+        "score": ["max","party",["stat","leadership"]],
+        "skills": ["tactics"],
+        "flat": 3.75,
+        "difficultyFactor": 0.094
+      }
+    ],
+    "pass": ["and","steel",["or","nerve","rally"]],
     "consequences": {
-      "success": [{ "kind": "xp", "factor": 1.1 }],
+      "success": [{"kind":"xp","factor":1.1}],
+      "triumph": [{"kind":"xp","factor":1.2}],
+      "setback": [
+        {
+          "kind": "injury",
+          "typeKey": "deep-cut",
+          "chance": 0.1,
+          "count": 1,
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        }
+      ],
       "failure": [
-        { "kind": "injury", "typeKey": "deep-cut", "chance": 0.2, "count": 1 },
-        { "kind": "death", "chance": 0.03 }
+        {
+          "kind": "injury",
+          "typeKey": "deep-cut",
+          "chance": 0.2,
+          "count": 1,
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"death","chance":0.03,"guardedBy":["constitution"]}
       ]
     }
   },
   "the-restless-dead": {
     "name": "The restless dead",
     "kind": "combat",
-    "tags": ["dark"],
-    "demands": [["spirit", 0.4], ["courage", 0.3], ["weaponry", 0.3]],
-    "aggregate": "sum",
-    "skillKeys": ["benediction", "swordcraft"],
-    "difficultyFactor": 0.25,
+    "tags": ["dark","holy"],
+    "checks": [
+      {
+        "key": "blessing",
+        "name": "Blessing",
+        "score": ["max","party",["weighted",[["spirit",0.7],["willpower",0.3]]]],
+        "skills": ["benediction"],
+        "flat": 4.32,
+        "difficultyFactor": 0.108
+      },
+      {
+        "key": "blades",
+        "name": "Blades",
+        "score": ["ranked","party",["stat","weaponry"],[1,0.5]],
+        "skills": ["swordcraft"],
+        "flat": 6.12,
+        "difficultyFactor": 0.153
+      },
+      {
+        "key": "fire",
+        "name": "Fire",
+        "score": ["max","party",["stat","power"]],
+        "skills": ["evocation"],
+        "flat": 4.62,
+        "difficultyFactor": 0.116
+      },
+      {
+        "key": "dread",
+        "name": "Dread",
+        "score": ["avg","party",["weighted",[["courage",0.5],["resistance",0.5]]]],
+        "skills": [],
+        "flat": 3.26,
+        "difficultyFactor": 0.082
+      }
+    ],
+    "pass": ["and",["or","blessing","blades","fire"],"dread"],
     "consequences": {
-      "success": [{ "kind": "fame", "delta": 1 }],
+      "success": [{"kind":"fame","delta":1}],
+      "triumph": [{"kind":"fame","delta":2}],
+      "setback": [{"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}],
       "failure": [
-        { "kind": "injury", "typeKey": "broken-arm", "chance": 0.15, "count": 1 },
-        { "kind": "death", "chance": 0.03 },
-        { "kind": "morale", "delta": -3 }
+        {
+          "kind": "injury",
+          "typeKey": "broken-arm",
+          "chance": 0.15,
+          "count": 1,
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"death","chance":0.03,"guardedBy":["constitution"]},
+        {"kind":"morale","delta":-3,"steadiedBy":["courage","willpower"]}
       ]
     }
   },
   "hold-the-line": {
     "name": "Hold the line",
     "kind": "combat",
-    "tags": ["guard"],
-    "demands": [["strength", 0.3], ["constitution", 0.3], ["endurance", 0.2], ["leadership", 0.2]],
-    "aggregate": "sum",
-    "skillKeys": ["shieldwork", "tactics"],
-    "difficultyFactor": 0.25,
+    "tags": ["guard","fight"],
+    "checks": [
+      {
+        "key": "wall",
+        "name": "Shield wall",
+        "score": ["sum",["top","party",3,["stat","constitution"]],["weighted",[["constitution",0.5],["strength",0.5]]]],
+        "skills": ["shieldwork"],
+        "flat": 9.74,
+        "difficultyFactor": 0.243
+      },
+      {
+        "key": "command",
+        "name": "Command",
+        "score": ["max","party",["stat","leadership"]],
+        "skills": ["tactics"],
+        "flat": 4.02,
+        "difficultyFactor": 0.1
+      },
+      {
+        "key": "stamina",
+        "name": "Stamina",
+        "score": ["min","party",["stat","endurance"]],
+        "skills": [],
+        "flat": 2.02,
+        "difficultyFactor": 0.05
+      }
+    ],
+    "pass": ["at-least",2,"wall","command","stamina"],
     "consequences": {
-      "success": [{ "kind": "regard", "between": "party", "delta": 1 }],
+      "success": [{"kind":"regard","between":"party","delta":1}],
+      "triumph": [{"kind":"regard","between":"party","delta":2}],
+      "setback": [
+        {
+          "kind": "injury",
+          "typeKey": "bruised-ribs",
+          "chance": 0.15,
+          "count": 1,
+          "among": ["where","party",["class","warrior"]],
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        }
+      ],
       "failure": [
-        { "kind": "injury", "typeKey": "bruised-ribs", "chance": 0.25, "count": 2 },
-        { "kind": "death", "chance": 0.03 }
+        {
+          "kind": "injury",
+          "typeKey": "bruised-ribs",
+          "chance": 0.25,
+          "count": 2,
+          "among": ["where","party",["class","warrior"]],
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"death","chance":0.03,"guardedBy":["constitution"]},
+        { "kind": "trait", "traitKey": "battle-shy", "chance": 0.08 }
       ]
     }
   },
-
+  "wolves-at-dusk": {
+    "name": "Wolves at dusk",
+    "kind": "combat",
+    "tags": ["hunt","wilds"],
+    "checks": [
+      {
+        "key": "spears",
+        "name": "Spears",
+        "score": ["ranked","party",["weighted",[["weaponry",0.5],["dexterity",0.5]]],[1,0.5,0.25]],
+        "skills": ["swordcraft"],
+        "flat": 5.56,
+        "difficultyFactor": 0.139
+      },
+      {
+        "key": "watch",
+        "name": "The watch",
+        "score": ["max","party",["stat","perception"]],
+        "skills": [],
+        "flat": 3.88,
+        "difficultyFactor": 0.097
+      }
+    ],
+    "pass": ["and","spears","watch"],
+    "consequences": {
+      "success": [{"kind":"xp","factor":1.1}],
+      "triumph": [{"kind":"xp","factor":1.2}],
+      "setback": [
+        {
+          "kind": "injury",
+          "typeKey": "deep-cut",
+          "chance": 0.1,
+          "count": 1,
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        }
+      ],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "deep-cut",
+          "chance": 0.2,
+          "count": 1,
+          "exposedBy": ["perception"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}
+      ]
+    }
+  },
   "the-long-march": {
     "name": "The long march",
     "kind": "travel",
-    "tags": ["escort", "guard"],
-    "demands": [["endurance", 0.5], ["constitution", 0.3], ["willpower", 0.2]],
-    "aggregate": "sum",
-    "skillKeys": ["field-surgery", "herbalism"],
-    "difficultyFactor": 0.25,
+    "tags": ["escort","guard"],
+    "checks": [
+      {
+        "key": "pace",
+        "name": "The pace",
+        "score": ["min","party",["weighted",[["endurance",0.7],["constitution",0.3]]]],
+        "skills": [],
+        "flat": 1.96,
+        "difficultyFactor": 0.049
+      },
+      {
+        "key": "care",
+        "name": "Care on the road",
+        "score": ["max","party",["stat","knowledge"]],
+        "skills": ["field-surgery","herbalism"],
+        "flat": 3.98,
+        "difficultyFactor": 0.1
+      }
+    ],
+    "pass": ["and","pace","care"],
     "consequences": {
       "success": [],
+      "triumph": [{"kind":"xp","factor":1.1}],
+      "setback": [{"kind":"morale","delta":-1,"steadiedBy":["endurance","willpower"]}],
       "failure": [
-        { "kind": "injury", "typeKey": "lung-fever", "chance": 0.12, "count": 1 },
-        { "kind": "morale", "delta": -2 }
+        {
+          "kind": "injury",
+          "typeKey": "lung-fever",
+          "chance": 0.12,
+          "count": 1,
+          "exposedBy": ["endurance"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"morale","delta":-2,"steadiedBy":["endurance","willpower"]}
       ]
     }
   },
@@ -69,48 +266,202 @@
     "name": "The flooded ford",
     "kind": "travel",
     "tags": ["water"],
-    "demands": [["strength", 0.3], ["perception", 0.3], ["adaptability", 0.4]],
-    "aggregate": "best",
-    "skillKeys": ["tactics"],
-    "difficultyFactor": 0.15,
+    "checks": [
+      {
+        "key": "ford",
+        "name": "Finding the ford",
+        "score": ["max","party",["stat","perception"]],
+        "skills": [],
+        "flat": 5.75,
+        "difficultyFactor": 0.144
+      },
+      {
+        "key": "crossing",
+        "name": "The crossing",
+        "score": ["min","party",["weighted",[["strength",0.5],["constitution",0.5]]]],
+        "skills": [],
+        "flat": 3.1,
+        "difficultyFactor": 0.078
+      }
+    ],
+    "pass": ["or","ford","crossing"],
     "consequences": {
       "success": [],
+      "triumph": [{"kind":"xp","factor":1.1}],
+      "setback": [{"kind":"wealth","factor":0.95}],
       "failure": [
-        { "kind": "injury", "typeKey": "sprained-ankle", "chance": 0.15, "count": 1 },
-        { "kind": "wealth", "factor": 0.9 }
+        {
+          "kind": "injury",
+          "typeKey": "sprained-ankle",
+          "chance": 0.15,
+          "count": 1,
+          "among": ["bottom","party",1,["stat","strength"]],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"wealth","factor":0.9}
       ]
     }
   },
   "lost-in-the-fells": {
     "name": "Lost in the fells",
     "kind": "travel",
-    "tags": ["wilds", "hunt"],
-    "demands": [["perception", 0.4], ["wits", 0.3], ["knowledge", 0.3]],
-    "aggregate": "best",
-    "skillKeys": ["herbalism", "stealth"],
-    "difficultyFactor": 0.15,
+    "tags": ["wilds","hunt"],
+    "checks": [
+      {
+        "key": "bearings",
+        "name": "Bearings",
+        "score": ["max","party",["weighted",[["knowledge",0.5],["perception",0.5]]]],
+        "skills": ["herbalism"],
+        "flat": 3.6,
+        "difficultyFactor": 0.09
+      },
+      {
+        "key": "footing",
+        "name": "Footing",
+        "score": ["of",["worst","party",["stat","dexterity"]],["stat","wits"]],
+        "skills": [],
+        "flat": 2.62,
+        "difficultyFactor": 0.065
+      }
+    ],
+    "pass": ["and","bearings","footing"],
     "consequences": {
-      "success": [{ "kind": "xp", "factor": 1.1 }],
+      "success": [{"kind":"xp","factor":1.1}],
+      "triumph": [{ "kind": "xp", "factor": 1.2 }, { "kind": "trait", "traitKey": "wayfinder", "chance": 0.05 }],
+      "setback": [{"kind":"morale","delta":-1,"steadiedBy":["endurance","willpower"]}],
       "failure": [
-        { "kind": "injury", "typeKey": "shattered-knee", "chance": 0.08, "count": 1 },
-        { "kind": "morale", "delta": -2 }
+        {
+          "kind": "injury",
+          "typeKey": "shattered-knee",
+          "chance": 0.08,
+          "count": 1,
+          "exposedBy": ["perception"],
+          "guardedBy": ["dexterity"]
+        },
+        {"kind":"morale","delta":-2,"steadiedBy":["endurance","willpower"]}
       ]
     }
   },
-
+  "short-of-supplies": {
+    "name": "Short of supplies",
+    "kind": "travel",
+    "tags": ["escort","guard"],
+    "checks": [
+      {
+        "key": "forage",
+        "name": "Foraging",
+        "score": ["max","party",["weighted",[["knowledge",0.4],["adaptability",0.6]]]],
+        "skills": ["herbalism"],
+        "flat": 5.45,
+        "difficultyFactor": 0.136
+      },
+      {
+        "key": "making-do",
+        "name": "Making do",
+        "score": ["avg","party",["stat","adaptability"]],
+        "skills": [],
+        "flat": 4.25,
+        "difficultyFactor": 0.106
+      }
+    ],
+    "pass": ["or","forage","making-do"],
+    "consequences": {
+      "success": [],
+      "triumph": [{"kind":"xp","factor":1.1}],
+      "setback": [{"kind":"morale","delta":-2,"steadiedBy":["endurance","willpower"]}],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "lung-fever",
+          "chance": 0.08,
+          "count": 1,
+          "exposedBy": ["endurance"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"morale","delta":-3,"steadiedBy":["endurance","willpower"]}
+      ]
+    }
+  },
+  "the-old-shaft": {
+    "name": "The old shaft",
+    "kind": "travel",
+    "tags": ["delve","dark"],
+    "checks": [
+      {
+        "key": "climb",
+        "name": "The climb",
+        "score": ["min","party",["weighted",[["strength",0.5],["dexterity",0.5]]]],
+        "skills": [],
+        "flat": 3.19,
+        "difficultyFactor": 0.08
+      },
+      {
+        "key": "rope",
+        "name": "The rope",
+        "score": ["max","party",["stat","strength"]],
+        "skills": [],
+        "flat": 5.27,
+        "difficultyFactor": 0.132
+      }
+    ],
+    "pass": ["or","climb","rope"],
+    "consequences": {
+      "success": [],
+      "triumph": [{"kind":"xp","factor":1.1}],
+      "setback": [
+        {
+          "kind": "injury",
+          "typeKey": "bruised-ribs",
+          "chance": 0.1,
+          "count": 1,
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        }
+      ],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "broken-arm",
+          "chance": 0.12,
+          "count": 1,
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"death","chance":0.02,"guardedBy":["dexterity"]}
+      ]
+    }
+  },
   "a-hostile-reeve": {
     "name": "A hostile reeve",
     "kind": "social",
     "tags": ["town"],
-    "demands": [["diplomacy", 0.4], ["charisma", 0.3], ["wits", 0.3]],
-    "aggregate": "best",
-    "skillKeys": ["benediction"],
-    "difficultyFactor": 0.15,
+    "checks": [
+      {
+        "key": "parley",
+        "name": "Parley",
+        "score": ["max","party",["weighted",[["diplomacy",0.6],["charisma",0.4]]]],
+        "skills": [],
+        "flat": 2.89,
+        "difficultyFactor": 0.072
+      },
+      {
+        "key": "firm",
+        "name": "Standing firm",
+        "score": ["avg","party",["weighted",[["courage",0.5],["charisma",0.5]]]],
+        "skills": [],
+        "flat": 2.73,
+        "difficultyFactor": 0.068
+      }
+    ],
+    "pass": ["and","parley","firm"],
     "consequences": {
-      "success": [{ "kind": "fame", "delta": 1 }],
+      "success": [{"kind":"fame","delta":1}],
+      "triumph": [{"kind":"fame","delta":2}],
+      "setback": [{"kind":"morale","delta":-1,"steadiedBy":["adaptability"]}],
       "failure": [
-        { "kind": "fame", "delta": -1 },
-        { "kind": "regard", "between": "party", "delta": -1 }
+        {"kind":"fame","delta":-1},
+        {"kind":"regard","between":"party","delta":-1},
+        {"kind":"morale","delta":-2,"steadiedBy":["adaptability"]}
       ]
     }
   },
@@ -118,59 +469,298 @@
     "name": "The Patron's steward",
     "kind": "social",
     "tags": ["talk"],
-    "demands": [["leadership", 0.3], ["diplomacy", 0.3], ["charisma", 0.2], ["adaptability", 0.2]],
-    "aggregate": "best",
-    "skillKeys": [],
-    "difficultyFactor": 0.15,
+    "checks": [
+      {
+        "key": "terms",
+        "name": "Terms",
+        "score": ["max","party",["weighted",[["diplomacy",0.7],["wits",0.3]]]],
+        "skills": [],
+        "flat": 4.06,
+        "difficultyFactor": 0.102
+      },
+      {
+        "key": "standing",
+        "name": "Standing",
+        "score": ["max","party",["stat","leadership"]],
+        "skills": [],
+        "flat": 4.15,
+        "difficultyFactor": 0.104
+      }
+    ],
+    "pass": ["or","terms","standing"],
     "consequences": {
-      "success": [{ "kind": "wealth", "factor": 1.1 }],
-      "failure": [{ "kind": "wealth", "factor": 0.9 }]
+      "success": [{"kind":"wealth","factor":1.1}],
+      "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "silver-tongued", "chance": 0.05 }],
+      "setback": [{"kind":"wealth","factor":0.95}],
+      "failure": [{"kind":"wealth","factor":0.9}]
     }
   },
-
+  "frightened-villagers": {
+    "name": "Frightened villagers",
+    "kind": "social",
+    "tags": ["town","recover"],
+    "checks": [
+      {
+        "key": "reassurance",
+        "name": "Reassurance",
+        "score": ["max","party",["weighted",[["charisma",0.6],["spirit",0.4]]]],
+        "skills": ["benediction"],
+        "flat": 5.15,
+        "difficultyFactor": 0.129
+      },
+      {
+        "key": "fitting-in",
+        "name": "Fitting in",
+        "score": ["avg","party",["stat","adaptability"]],
+        "skills": [],
+        "flat": 4.14,
+        "difficultyFactor": 0.103
+      }
+    ],
+    "pass": ["or","reassurance","fitting-in"],
+    "consequences": {
+      "success": [{"kind":"fame","delta":1}],
+      "triumph": [{"kind":"fame","delta":1},{"kind":"xp","factor":1.1}],
+      "setback": [{"kind":"morale","delta":-1,"steadiedBy":["adaptability"]}],
+      "failure": [{"kind":"fame","delta":-1},{"kind":"morale","delta":-2,"steadiedBy":["adaptability"]}]
+    }
+  },
+  "a-word-with-the-fence": {
+    "name": "A word with the fence",
+    "kind": "social",
+    "tags": ["town","dark","talk"],
+    "checks": [
+      {
+        "key": "haggling",
+        "name": "Haggling",
+        "score": ["max","party",["weighted",[["diplomacy",0.5],["wits",0.5]]]],
+        "skills": [],
+        "flat": 2.96,
+        "difficultyFactor": 0.074
+      },
+      {
+        "key": "reading",
+        "name": "Reading him",
+        "score": ["max","party",["stat","perception"]],
+        "skills": [],
+        "flat": 3.72,
+        "difficultyFactor": 0.093
+      }
+    ],
+    "pass": ["and","haggling","reading"],
+    "consequences": {
+      "success": [{"kind":"wealth","factor":1.05}],
+      "triumph": [{"kind":"wealth","factor":1.15}],
+      "setback": [{"kind":"wealth","factor":0.95}],
+      "failure": [{"kind":"wealth","factor":0.85},{"kind":"fame","delta":-1}]
+    }
+  },
   "the-sealed-door": {
     "name": "The sealed door",
     "kind": "arcane",
-    "tags": ["delve"],
-    "demands": [["arcana", 0.4], ["spelllore", 0.4], ["intelligence", 0.2]],
-    "aggregate": "best",
-    "skillKeys": ["runecraft", "warding"],
-    "difficultyFactor": 0.15,
+    "tags": ["delve","study"],
+    "checks": [
+      {
+        "key": "unpicking",
+        "name": "Unpicking the ward",
+        "score": ["max","party",["weighted",[["arcana",0.6],["spelllore",0.4]]]],
+        "skills": ["runecraft","warding"],
+        "flat": 4.16,
+        "difficultyFactor": 0.104
+      },
+      {
+        "key": "insight",
+        "name": "Insight",
+        "score": ["max","party",["stat","intelligence"]],
+        "skills": [],
+        "flat": 3.75,
+        "difficultyFactor": 0.094
+      }
+    ],
+    "pass": ["and","unpicking","insight"],
     "consequences": {
-      "success": [{ "kind": "xp", "factor": 1.1 }],
-      "failure": [{ "kind": "injury", "typeKey": "eye-wound", "chance": 0.12, "count": 1 }]
+      "success": [{"kind":"xp","factor":1.1}],
+      "triumph": [{"kind":"xp","factor":1.2}],
+      "setback": [
+        {
+          "kind": "injury",
+          "typeKey": "eye-wound",
+          "chance": 0.06,
+          "count": 1,
+          "exposedBy": ["resistance"],
+          "guardedBy": ["resistance"]
+        }
+      ],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "eye-wound",
+          "chance": 0.12,
+          "count": 1,
+          "exposedBy": ["resistance"],
+          "guardedBy": ["resistance"]
+        }
+      ]
     }
   },
   "a-restless-power": {
     "name": "A restless power",
     "kind": "arcane",
     "tags": ["dark"],
-    "demands": [["power", 0.3], ["resistance", 0.4], ["willpower", 0.3]],
-    "aggregate": "sum",
-    "skillKeys": ["warding", "evocation"],
-    "difficultyFactor": 0.25,
+    "checks": [
+      {
+        "key": "binding",
+        "name": "Binding",
+        "score": ["ranked","party",["stat","power"],[1,0.5]],
+        "skills": ["evocation","warding"],
+        "flat": 5.2,
+        "difficultyFactor": 0.13
+      },
+      {
+        "key": "resisting",
+        "name": "Resisting",
+        "score": ["min","party",["stat","resistance"]],
+        "skills": [],
+        "flat": 1.59,
+        "difficultyFactor": 0.04
+      }
+    ],
+    "pass": ["and","binding","resisting"],
     "consequences": {
-      "success": [{ "kind": "fame", "delta": 1 }],
+      "success": [{"kind":"fame","delta":1}],
+      "triumph": [{"kind":"fame","delta":2}],
+      "setback": [{"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}],
       "failure": [
-        { "kind": "injury", "typeKey": "lung-fever", "chance": 0.15, "count": 1 },
-        { "kind": "death", "chance": 0.03 }
+        {
+          "kind": "injury",
+          "typeKey": "lung-fever",
+          "chance": 0.15,
+          "count": 1,
+          "exposedBy": ["resistance"],
+          "guardedBy": ["resistance"]
+        },
+        {"kind":"death","chance":0.03,"guardedBy":["resistance"]},
+        { "kind": "trait", "traitKey": "haunted", "chance": 0.08 }
       ]
     }
   },
-
+  "the-hungry-ward": {
+    "name": "The hungry ward",
+    "kind": "arcane",
+    "tags": ["delve","recover"],
+    "checks": [
+      {
+        "key": "counter",
+        "name": "Counter-spell",
+        "score": ["max","party",["weighted",[["spelllore",0.6],["arcana",0.2],["intelligence",0.2]]]],
+        "skills": ["warding"],
+        "flat": 5.36,
+        "difficultyFactor": 0.134
+      },
+      {
+        "key": "enduring",
+        "name": "Enduring",
+        "score": ["avg","party",["stat","resistance"]],
+        "skills": [],
+        "flat": 3.73,
+        "difficultyFactor": 0.093
+      }
+    ],
+    "pass": ["or","counter","enduring"],
+    "consequences": {
+      "success": [{"kind":"wealth","factor":1.05}],
+      "triumph": [{"kind":"wealth","factor":1.1}],
+      "setback": [{"kind":"morale","delta":-1,"steadiedBy":["willpower"]}],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "lung-fever",
+          "chance": 0.1,
+          "count": 1,
+          "exposedBy": ["resistance"],
+          "guardedBy": ["resistance"]
+        },
+        {"kind":"morale","delta":-2,"steadiedBy":["willpower"]}
+      ]
+    }
+  },
+  "the-dead-light": {
+    "name": "The dead-light",
+    "kind": "arcane",
+    "tags": ["dark","holy"],
+    "checks": [
+      {
+        "key": "consecration",
+        "name": "Consecration",
+        "score": ["sum",["where","party",["class","healer","mage"]],["weighted",[["spirit",0.5],["power",0.5]]]],
+        "skills": ["benediction","evocation"],
+        "flat": 4.84,
+        "difficultyFactor": 0.121
+      },
+      {
+        "key": "steadfast",
+        "name": "Steadfast",
+        "score": ["min","party",["weighted",[["willpower",0.5],["courage",0.5]]]],
+        "skills": [],
+        "flat": 2.06,
+        "difficultyFactor": 0.051
+      }
+    ],
+    "pass": ["and","consecration","steadfast"],
+    "consequences": {
+      "success": [{"kind":"fame","delta":1}],
+      "triumph": [{"kind":"fame","delta":2}],
+      "setback": [{"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "eye-wound",
+          "chance": 0.1,
+          "count": 1,
+          "exposedBy": ["resistance"],
+          "guardedBy": ["resistance"]
+        },
+        {"kind":"morale","delta":-3,"steadiedBy":["courage","willpower"]}
+      ]
+    }
+  },
   "past-the-watch": {
     "name": "Past the watch",
     "kind": "stealth",
     "tags": ["town"],
-    "demands": [["dexterity", 0.4], ["wits", 0.3], ["perception", 0.3]],
-    "aggregate": "best",
-    "skillKeys": ["stealth", "lockpicking"],
-    "difficultyFactor": 0.15,
+    "checks": [
+      {
+        "key": "quiet-feet",
+        "name": "Quiet feet",
+        "score": ["min","party",["stat","dexterity"]],
+        "skills": ["stealth"],
+        "flat": 1.99,
+        "difficultyFactor": 0.05
+      },
+      {
+        "key": "timing",
+        "name": "Timing",
+        "score": ["max","party",["weighted",[["wits",0.5],["perception",0.5]]]],
+        "skills": [],
+        "flat": 3.54,
+        "difficultyFactor": 0.089
+      }
+    ],
+    "pass": ["and","quiet-feet","timing"],
     "consequences": {
       "success": [],
+      "triumph": [{"kind":"xp","factor":1.1}],
+      "setback": [{"kind":"fame","delta":-1}],
       "failure": [
-        { "kind": "injury", "typeKey": "deep-cut", "chance": 0.15, "count": 1 },
-        { "kind": "fame", "delta": -1 }
+        {
+          "kind": "injury",
+          "typeKey": "deep-cut",
+          "chance": 0.15,
+          "count": 1,
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"fame","delta":-1}
       ]
     }
   },
@@ -178,15 +768,502 @@
     "name": "The trapped passage",
     "kind": "stealth",
     "tags": ["delve"],
-    "demands": [["dexterity", 0.3], ["perception", 0.4], ["wits", 0.3]],
-    "aggregate": "best",
-    "skillKeys": ["trapcraft", "lockpicking"],
-    "difficultyFactor": 0.15,
+    "checks": [
+      {
+        "key": "spotting",
+        "name": "Spotting",
+        "score": ["max","party",["stat","perception"]],
+        "skills": ["trapcraft"],
+        "flat": 4.26,
+        "difficultyFactor": 0.107
+      },
+      {
+        "key": "disarming",
+        "name": "Disarming",
+        "score": ["max","party",["stat","dexterity"]],
+        "skills": ["trapcraft","lockpicking"],
+        "flat": 4.39,
+        "difficultyFactor": 0.11
+      }
+    ],
+    "pass": ["and","spotting","disarming"],
     "consequences": {
-      "success": [{ "kind": "wealth", "factor": 1.1 }],
+      "success": [{"kind":"wealth","factor":1.1}],
+      "triumph": [{"kind":"wealth","factor":1.15}],
+      "setback": [
+        {
+          "kind": "injury",
+          "typeKey": "deep-cut",
+          "chance": 0.08,
+          "count": 1,
+          "exposedBy": ["perception"],
+          "guardedBy": ["dexterity"]
+        }
+      ],
       "failure": [
-        { "kind": "injury", "typeKey": "broken-arm", "chance": 0.15, "count": 1 },
-        { "kind": "death", "chance": 0.03 }
+        {
+          "kind": "injury",
+          "typeKey": "broken-arm",
+          "chance": 0.15,
+          "count": 1,
+          "among": ["bottom","party",1,["stat","perception"]],
+          "exposedBy": ["perception"],
+          "guardedBy": ["dexterity"]
+        },
+        {"kind":"death","chance":0.03,"guardedBy":["dexterity"]}
+      ]
+    }
+  },
+  "among-the-crowd": {
+    "name": "Among the crowd",
+    "kind": "stealth",
+    "tags": ["town","talk"],
+    "checks": [
+      {
+        "key": "blending-in",
+        "name": "Blending in",
+        "score": ["min","party",["stat","adaptability"]],
+        "skills": ["stealth"],
+        "flat": 2.21,
+        "difficultyFactor": 0.055
+      },
+      {
+        "key": "cover-story",
+        "name": "A cover story",
+        "score": ["max","party",["weighted",[["wits",0.6],["diplomacy",0.4]]]],
+        "skills": [],
+        "flat": 3.08,
+        "difficultyFactor": 0.077
+      }
+    ],
+    "pass": ["and","blending-in","cover-story"],
+    "consequences": {
+      "success": [],
+      "triumph": [{"kind":"xp","factor":1.1}],
+      "setback": [{"kind":"fame","delta":-1}],
+      "failure": [{"kind":"fame","delta":-1},{"kind":"regard","between":"party","delta":-1}]
+    }
+  },
+  "stalking-the-beast": {
+    "name": "Stalking the beast",
+    "kind": "stealth",
+    "tags": ["hunt","wilds"],
+    "checks": [
+      {
+        "key": "tracking",
+        "name": "Tracking",
+        "score": ["max","party",["weighted",[["perception",0.5],["knowledge",0.5]]]],
+        "skills": ["stealth"],
+        "flat": 4.02,
+        "difficultyFactor": 0.1
+      },
+      {
+        "key": "downwind",
+        "name": "Downwind",
+        "score": ["min","party",["stat","dexterity"]],
+        "skills": [],
+        "flat": 1.93,
+        "difficultyFactor": 0.048
+      },
+      {
+        "key": "the-shot",
+        "name": "The shot",
+        "score": ["max","party",["weighted",[["weaponry",0.5],["dexterity",0.5]]]],
+        "skills": [],
+        "flat": 3.75,
+        "difficultyFactor": 0.094
+      }
+    ],
+    "pass": ["and","tracking",["or","downwind","the-shot"]],
+    "consequences": {
+      "success": [{"kind":"xp","factor":1.1}],
+      "triumph": [{"kind":"xp","factor":1.2}],
+      "setback": [{"kind":"morale","delta":-1,"steadiedBy":["endurance","willpower"]}],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "deep-cut",
+          "chance": 0.15,
+          "count": 1,
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"morale","delta":-2,"steadiedBy":["endurance","willpower"]}
+      ]
+    }
+  },
+  "old-records": {
+    "name": "Old records",
+    "kind": "lore",
+    "tags": ["study","recover"],
+    "checks": [
+      {
+        "key": "reading",
+        "name": "Reading",
+        "score": ["max","party",["weighted",[["knowledge",0.6],["intelligence",0.4]]]],
+        "skills": ["runecraft"],
+        "flat": 5.2,
+        "difficultyFactor": 0.13
+      },
+      {
+        "key": "sifting",
+        "name": "Sifting",
+        "score": ["sum",["top","party",2,["stat","intelligence"]],["stat","intelligence"]],
+        "skills": [],
+        "flat": 8.75,
+        "difficultyFactor": 0.219
+      }
+    ],
+    "pass": ["or","reading","sifting"],
+    "consequences": {
+      "success": [{"kind":"xp","factor":1.1}],
+      "triumph": [{"kind":"xp","factor":1.2}],
+      "setback": [{"kind":"morale","delta":-1,"steadiedBy":["willpower"]}],
+      "failure": [{"kind":"wealth","factor":0.95},{"kind":"morale","delta":-1,"steadiedBy":["willpower"]}]
+    }
+  },
+  "a-riddle-at-the-gate": {
+    "name": "A riddle at the gate",
+    "kind": "lore",
+    "tags": ["delve","dark","study"],
+    "checks": [
+      {
+        "key": "answer",
+        "name": "The answer",
+        "score": ["max","party",["weighted",[["intelligence",0.6],["arcana",0.4]]]],
+        "skills": [],
+        "flat": 5.12,
+        "difficultyFactor": 0.128
+      },
+      {
+        "key": "second-guess",
+        "name": "A second guess",
+        "score": ["max","party",["stat","wits"]],
+        "skills": [],
+        "flat": 5.19,
+        "difficultyFactor": 0.13
+      }
+    ],
+    "pass": ["or","answer","second-guess"],
+    "consequences": {
+      "success": [],
+      "triumph": [{"kind":"xp","factor":1.1}],
+      "setback": [{"kind":"morale","delta":-1,"steadiedBy":["willpower"]}],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "eye-wound",
+          "chance": 0.08,
+          "count": 1,
+          "exposedBy": ["resistance"],
+          "guardedBy": ["resistance"]
+        },
+        {"kind":"morale","delta":-2,"steadiedBy":["willpower"]}
+      ]
+    }
+  },
+  "the-cause-of-the-sickness": {
+    "name": "The cause of the sickness",
+    "kind": "lore",
+    "tags": ["recover","town","study"],
+    "checks": [
+      {
+        "key": "diagnosis",
+        "name": "Diagnosis",
+        "score": ["of",["best",["where","party",["class","healer"]],["stat","knowledge"]],["weighted",[["knowledge",0.7],["intelligence",0.3]]]],
+        "skills": ["herbalism","field-surgery"],
+        "flat": 4.57,
+        "difficultyFactor": 0.114
+      },
+      {
+        "key": "asking",
+        "name": "Asking around",
+        "score": ["max","party",["weighted",[["charisma",0.5],["wits",0.5]]]],
+        "skills": [],
+        "flat": 4.88,
+        "difficultyFactor": 0.122
+      }
+    ],
+    "pass": ["or","diagnosis","asking"],
+    "consequences": {
+      "success": [{"kind":"fame","delta":1}],
+      "triumph": [{"kind":"fame","delta":2}],
+      "setback": [
+        {
+          "kind": "injury",
+          "typeKey": "lung-fever",
+          "chance": 0.05,
+          "count": 1,
+          "exposedBy": ["endurance"],
+          "guardedBy": ["constitution"]
+        }
+      ],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "lung-fever",
+          "chance": 0.12,
+          "count": 1,
+          "exposedBy": ["endurance"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"fame","delta":-1}
+      ]
+    }
+  },
+  "the-names-of-the-dead": {
+    "name": "The names of the dead",
+    "kind": "lore",
+    "tags": ["dark","holy"],
+    "checks": [
+      {
+        "key": "rolls",
+        "name": "The parish rolls",
+        "score": ["max","party",["stat","knowledge"]],
+        "skills": [],
+        "flat": 3.51,
+        "difficultyFactor": 0.088
+      },
+      {
+        "key": "rites",
+        "name": "The old rites",
+        "score": ["max","party",["weighted",[["spelllore",0.5],["spirit",0.5]]]],
+        "skills": ["benediction"],
+        "flat": 3.5,
+        "difficultyFactor": 0.087
+      }
+    ],
+    "pass": ["and","rolls","rites"],
+    "consequences": {
+      "success": [{"kind":"xp","factor":1.1}],
+      "triumph": [{"kind":"xp","factor":1.2}],
+      "setback": [{"kind":"morale","delta":-1,"steadiedBy":["courage","willpower"]}],
+      "failure": [{"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}]
+    }
+  },
+  "the-wardens-seal": {
+    "name": "The Warden's seal",
+    "kind": "arcane",
+    "tags": ["delve","study"],
+    "checks": [
+      {
+        "key": "unbinding",
+        "name": "Unbinding",
+        "score": ["sum",["where","party",["class","mage"]],["weighted",[["arcana",0.5],["spelllore",0.5]]]],
+        "skills": ["runecraft","warding"],
+        "flat": 4.34,
+        "difficultyFactor": 0.081
+      },
+      {
+        "key": "holding",
+        "name": "Holding the power",
+        "score": ["max","party",["stat","power"]],
+        "skills": ["evocation"],
+        "flat": 4.12,
+        "difficultyFactor": 0.077
+      },
+      {
+        "key": "shielding",
+        "name": "Shielding",
+        "score": ["min","party",["stat","resistance"]],
+        "skills": [],
+        "flat": 1.78,
+        "difficultyFactor": 0.033
+      },
+      {
+        "key": "cipher",
+        "name": "The cipher",
+        "score": ["max","party",["stat","intelligence"]],
+        "skills": [],
+        "flat": 3.95,
+        "difficultyFactor": 0.074
+      }
+    ],
+    "pass": ["at-least",3,"unbinding","holding","shielding","cipher"],
+    "consequences": {
+      "success": [{"kind":"wealth","factor":1.1}],
+      "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "lettered", "chance": 0.05 }],
+      "setback": [
+        {
+          "kind": "injury",
+          "typeKey": "eye-wound",
+          "chance": 0.1,
+          "count": 1,
+          "exposedBy": ["resistance"],
+          "guardedBy": ["resistance"]
+        }
+      ],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "eye-wound",
+          "chance": 0.2,
+          "count": 2,
+          "exposedBy": ["resistance"],
+          "guardedBy": ["resistance"]
+        },
+        {"kind":"death","chance":0.05,"guardedBy":["resistance"]},
+        {"kind":"morale","delta":-3,"steadiedBy":["courage","willpower"]}
+      ]
+    }
+  },
+  "the-last-assault": {
+    "name": "The last assault",
+    "kind": "combat",
+    "tags": ["guard","fight"],
+    "checks": [
+      {
+        "key": "wall",
+        "name": "The wall",
+        "score": ["sum",["top","party",3,["stat","constitution"]],["weighted",[["constitution",0.4],["strength",0.3],["weaponry",0.3]]]],
+        "skills": ["shieldwork"],
+        "flat": 9.84,
+        "difficultyFactor": 0.211
+      },
+      {
+        "key": "command",
+        "name": "Command",
+        "score": ["of",["best",["where","party",["class","warrior"]],["stat","leadership"]],["stat","leadership"]],
+        "skills": ["tactics"],
+        "flat": 2.09,
+        "difficultyFactor": 0.045
+      },
+      {
+        "key": "holding-out",
+        "name": "Holding out",
+        "score": ["min","party",["weighted",[["endurance",0.5],["willpower",0.5]]]],
+        "skills": [],
+        "flat": 2.56,
+        "difficultyFactor": 0.055
+      }
+    ],
+    "pass": ["at-least",2,"wall","command","holding-out"],
+    "consequences": {
+      "success": [{"kind":"fame","delta":2}],
+      "triumph": [{ "kind": "fame", "delta": 3 }, { "kind": "trait", "traitKey": "battle-tried", "chance": 0.05 }],
+      "setback": [
+        {
+          "kind": "injury",
+          "typeKey": "bruised-ribs",
+          "chance": 0.2,
+          "count": 2,
+          "among": ["top","party",3,["stat","constitution"]],
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        }
+      ],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "deep-cut",
+          "chance": 0.25,
+          "count": 2,
+          "among": ["top","party",3,["stat","constitution"]],
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"death","chance":0.05,"guardedBy":["constitution"]},
+        {"kind":"morale","delta":-3,"steadiedBy":["courage","willpower"]},
+        { "kind": "trait", "traitKey": "battle-shy", "chance": 0.08 }
+      ]
+    }
+  },
+  "the-strongroom": {
+    "name": "The strongroom",
+    "kind": "stealth",
+    "tags": ["recover","town"],
+    "checks": [
+      {
+        "key": "lock",
+        "name": "The lock",
+        "score": ["max",["where","party",["has-skill","lockpicking"]],["stat","dexterity"]],
+        "skills": ["lockpicking"],
+        "flat": 5.53,
+        "difficultyFactor": 0.128
+      },
+      {
+        "key": "watchman",
+        "name": "The watchman",
+        "score": ["min","party",["weighted",[["dexterity",0.5],["wits",0.5]]]],
+        "skills": ["stealth"],
+        "flat": 2.56,
+        "difficultyFactor": 0.059
+      },
+      {
+        "key": "right-chest",
+        "name": "The right chest",
+        "score": ["max","party",["weighted",[["intelligence",0.5],["perception",0.5]]]],
+        "skills": [],
+        "flat": 3.92,
+        "difficultyFactor": 0.09
+      }
+    ],
+    "pass": ["and","lock",["or","watchman","right-chest"]],
+    "consequences": {
+      "success": [{"kind":"wealth","factor":1.1}],
+      "triumph": [{"kind":"wealth","factor":1.25}],
+      "setback": [{"kind":"fame","delta":-1}],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "deep-cut",
+          "chance": 0.2,
+          "count": 1,
+          "exposedBy": ["perception"],
+          "guardedBy": ["dexterity"]
+        },
+        {"kind":"death","chance":0.03,"guardedBy":["dexterity"]},
+        {"kind":"fame","delta":-2}
+      ]
+    }
+  },
+  "the-last-rite": {
+    "name": "The last rite",
+    "kind": "arcane",
+    "tags": ["dark","holy"],
+    "checks": [
+      {
+        "key": "rite",
+        "name": "The rite",
+        "score": ["of",["best",["where","party",["class","healer"]],["stat","spirit"]],["weighted",[["spirit",0.6],["willpower",0.4]]]],
+        "skills": ["benediction"],
+        "flat": 2.93,
+        "difficultyFactor": 0.073
+      },
+      {
+        "key": "holding-off",
+        "name": "Holding them off",
+        "score": ["ranked","party",["stat","weaponry"],[1,0.5,0.25]],
+        "skills": ["swordcraft"],
+        "flat": 5.4,
+        "difficultyFactor": 0.135
+      },
+      {
+        "key": "nerve",
+        "name": "Nerve",
+        "score": ["min","party",["stat","courage"]],
+        "skills": [],
+        "flat": 1.8,
+        "difficultyFactor": 0.045
+      }
+    ],
+    "pass": ["and","rite",["or","holding-off","nerve"]],
+    "consequences": {
+      "success": [{"kind":"fame","delta":2}],
+      "triumph": [{"kind":"fame","delta":3}],
+      "setback": [{"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}],
+      "failure": [
+        {
+          "kind": "injury",
+          "typeKey": "broken-arm",
+          "chance": 0.2,
+          "count": 1,
+          "exposedBy": ["dexterity"],
+          "guardedBy": ["constitution"]
+        },
+        {"kind":"death","chance":0.04,"guardedBy":["constitution"]},
+        {"kind":"morale","delta":-3,"steadiedBy":["courage","willpower"]},
+        { "kind": "trait", "traitKey": "haunted", "chance": 0.08 }
       ]
     }
   }

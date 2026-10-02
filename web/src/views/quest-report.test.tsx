@@ -84,8 +84,8 @@ describe('the Quest report (M9-F5)', () => {
     expect(sectionHeadings(region)).toEqual(['Encounters', 'Rewards', 'Heroes', 'The Patron']);
     expect(region.textContent).toContain('Strong success');
     expect(region.textContent).toContain(`Offered by ${report.patron?.name}`);
-    // v1.1.4-S2: the Encounter's Degree, in its sentence.
-    expect(within(region).getByText("The Lantern's Party came through Ambush on the road (Encounter 1), a Triumph.")).toBeDefined();
+    // v1.1.4-S2: the Encounter's Degree, in its sentence, and the Check of its several that decided it.
+    expect(within(region).getByText("The Lantern's Party came through Ambush on the road (Encounter 1), a Triumph, decided by Steel.")).toBeDefined();
     expect(within(region).getByText('Wealth +180')).toBeDefined();
     expect(within(region).getByText('Fame +4')).toBeDefined();
     expect(within(region).getByText('XP +60 each')).toBeDefined();
@@ -107,9 +107,9 @@ describe('the Quest report (M9-F5)', () => {
 
     const lines = Array.from(region.querySelectorAll('.report__list > li')).map((item) => item.textContent);
     expect(lines).toEqual([
-      "The Lantern's Party failed at Ambush on the road (Encounter 1), a Setback. Low spirits told against them.",
-      "The Lantern's Party came through Ambush on the road (Encounter 2), a Success.",
-      "The Lantern's Party came through Ambush on the road (Encounter 3), a Triumph. Their high spirits carried them through.",
+      "The Lantern's Party failed at Ambush on the road (Encounter 1), a Setback, decided by Steel. Low spirits told against them.",
+      "The Lantern's Party came through Ambush on the road (Encounter 2), a Success, decided by Steel.",
+      "The Lantern's Party came through Ambush on the road (Encounter 3), a Triumph, decided by Steel. Their high spirits carried them through.",
     ]);
   });
 

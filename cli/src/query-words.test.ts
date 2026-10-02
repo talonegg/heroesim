@@ -118,13 +118,18 @@ describe('the Board and the detail (v1.1.4-S6)', () => {
     const quest = { encounterKeys: ['ambush-on-the-road', 'no-such-encounter'] };
     const [ambush, unknown] = encounterReadings(quest, content);
 
+    // Ambush on the road in its three Checks (v1.1.4-S10), each named, in order.
+    const checks = content.encounters['ambush-on-the-road']?.checks ?? [];
+    expect(checks.map((check) => check.key)).toEqual(['steel', 'nerve', 'rally']);
     expect(ambush).toEqual({
       encounterKey: 'ambush-on-the-road',
       name: 'Ambush on the road',
       kind: 'combat',
-      checks: [{ key: 'ambush-on-the-road', name: 'Ambush on the road', reads: queryWords(describeQuery(content.encounters['ambush-on-the-road']?.checks[0]?.score ?? 0), content) }],
+      checks: checks.map((check) => ({ key: check.key, name: check.name, reads: queryWords(describeQuery(check.score), content) })),
     });
-    expect(ambush && readsAsOne(ambush)).toBe(true);
+    expect(ambush && readsAsOne(ambush)).toBe(false);
+    // One Check of its Encounter's own name, as the old form loads (v1.1.4-S1), reads as one.
+    expect(readsAsOne({ encounterKey: 'one', name: 'One', kind: 'combat', checks: [{ key: 'one', name: 'One', reads: 'x' }] })).toBe(true);
     expect(unknown).toEqual({ encounterKey: 'no-such-encounter', name: 'no-such-encounter', kind: null, checks: [] });
     expect(unknown && readsAsOne(unknown)).toBe(false);
     expect(readsAsOne({ encounterKey: 'two', name: 'Two', kind: 'combat', checks: [{ key: 'lift', name: 'Lift', reads: 'x' }, { key: 'hold', name: 'Hold', reads: 'y' }] })).toBe(false);

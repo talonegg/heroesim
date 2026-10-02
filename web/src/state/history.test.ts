@@ -15,6 +15,7 @@ import {
   type Entry,
   type Guild,
   type GuildId,
+  type Hero,
   type HeroId,
   type TurnEvent,
   type WorldDocument,
@@ -164,11 +165,14 @@ function inYourGuild(document: WorldDocument, guildId: GuildId): Entry[] {
 
 describe("the Guilds' filters (M9-F4, DL-111 item 4)", () => {
   // A purchase and its sale, then a Party sent and fifty Days played: every type the filters name.
-  const bought = playedState(started('app-test'), { kind: 'buy', definitionKey: 'padded-jack', quantity: 1 });
+  const bought = playedState(started('app-test'), { kind: 'buy', definitionKey: 'short-sword', quantity: 1 });
   const guildId = playerOf(bought.document as WorldDocument).id;
-  const jack = holdings((bought.document as WorldDocument).world, { kind: 'guild', id: guildId }).stacks.find((stack) => stack.definitionKey === 'padded-jack');
+  const jack = holdings((bought.document as WorldDocument).world, { kind: 'guild', id: guildId }).stacks.find((stack) => stack.definitionKey === 'short-sword');
   const sold = playedState(bought, { kind: 'sell', stackId: jack?.id ?? ('stack-000000' as never), quantity: 1 });
-  const state = playedState(withPartyOut(sold), { kind: 'advance', turns: 150 });
+  // One Hero's Morale a point above the high band's floor of 75, so that its drift toward the baseline
+  // crosses into steady within the fifty Days whatever the Quests do (v1.1.4-S10: they are the content's).
+  const elated = changed(sold, (it, player) => void ((it.world.heroes[player.rosterIds.at(-1) as HeroId] as Hero).morale = 76));
+  const state = playedState(withPartyOut(elated), { kind: 'advance', turns: 150 });
   // Games share their History as it is appended (ADR-0008), so another game for a Party's return.
   const home = cameHome(started('history-home'));
   const document = state.document as WorldDocument;

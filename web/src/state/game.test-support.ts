@@ -317,6 +317,8 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
       const hurt = injured.map(hero);
       const killed = died.map(hero);
       const rolled = { roll: 10, target: 10, margin: 0 };
+      // Decided by the Encounter's first Check, as the resolver names it (v1.1.4-S2).
+      const decidedBy = content.encounters[encounterKey]?.checks[0]?.key ?? encounterKey;
       write('quest.encounter', [questId, partyId, guildId, ...hurt, ...killed], {
         questId,
         partyId,
@@ -330,9 +332,9 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
           ? {}
           : {
               degree,
-              decidedBy: encounterKey,
+              decidedBy,
               ...(formDecided === undefined ? {} : { formDecided }),
-              checks: [{ key: encounterKey, capability: 10, ...rolled, degree, ...(formDecided === undefined ? {} : { formDecided }) }],
+              checks: [{ key: decidedBy, capability: 10, ...rolled, degree, ...(formDecided === undefined ? {} : { formDecided }) }],
             }),
         injured: hurt,
         died: killed,

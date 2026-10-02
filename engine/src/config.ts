@@ -45,7 +45,9 @@ export interface GameConfig {
    * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
    * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's
    * `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), S6's
-   * `playerPartyMargin` (DL-148, DL-157), and S8's `encounterTagWeight` (DL-148, DL-160).
+   * `playerPartyMargin` (DL-148, DL-157), and S8's `encounterTagWeight` (DL-148, DL-160). S10's
+   * balance pass changes defaults under it too, `checkVariance` 0.2 to 0.4 first (DL-165), as no
+   * game has been released under 13.
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -195,7 +197,9 @@ export interface GameConfig {
   // `stubInjuryChance`/`stubDeathChance` for each Encounter's consequences, which are content.
   /**
    * A Check's roll: the Party's capability times 1 + a draw from −`checkVariance` up to
-   * +`checkVariance`, from the `quests` stream (INPUTS 6.2: ±20%).
+   * +`checkVariance`, from the `quests` stream: INPUTS 6.2's ±20% to v1.1.4-S10, then ±40%, so that all
+   * four Degrees can happen to a Party whose capability is near the target (DL-162, DL-165). A Check
+   * keeps its own `variance` only where it truly differs from the rest.
    */
   checkVariance: number;
   /**
@@ -610,7 +614,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   questDifficultyMax: 100,
   encounterTagWeight: 3,
 
-  checkVariance: 0.2,
+  checkVariance: 0.4,
   skillBonusPerRating: 2,
   bandBySuccessShare: Object.freeze({ successAbove: 0.5, strongAtLeast: 1 }),
   checkDegrees: Object.freeze({ triumph: 1.25, success: 1, setback: 0.75 }),

@@ -174,7 +174,7 @@ describe('one Check', () => {
     const capable = capability(queryParty(s.heroes, s.world, s.deps), { kind: 'combat' }, s.deps.content.encounters.one?.checks[0] as EncounterCheck, s.world, s.deps);
     // The Whetstone's +3 is on the first Encounter's Check, and the raw gate's capability is its count.
     expect(check.capability).toBe(capable + 3);
-    const reach = (threshold: number): number => chanceToReach(capable + 3, 0.2, threshold * check.target);
+    const reach = (threshold: number): number => chanceToReach(capable + 3, s.deps.config.checkVariance, threshold * check.target);
     expect(check.degrees).toEqual({
       failure: 1 - reach(0.75),
       setback: reach(0.75) - reach(1),

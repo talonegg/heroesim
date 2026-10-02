@@ -62,19 +62,19 @@ function cells(row: HTMLElement): string[] {
 describe('the Market', () => {
   test('buys what it has for sale at its price, and the Guild then holds it', async () => {
     render_(started());
-    const jack = rowOf(section('Market'), 'Padded jack');
+    const sword = rowOf(section('Market'), 'Short sword');
     // Kind, Effect, Price, Stock (M9-S6's table).
-    const price = Number(cells(jack)[2]);
+    const price = Number(cells(sword)[2]);
     const before = wealth();
 
-    fireEvent.change(within(jack).getByLabelText('How many Padded jack'), { target: { value: '2' } });
-    fireEvent.click(within(jack).getByRole('button', { name: 'Buy Padded jack' }));
+    fireEvent.change(within(sword).getByLabelText('How many Short sword'), { target: { value: '2' } });
+    fireEvent.click(within(sword).getByRole('button', { name: 'Buy Short sword' }));
     await idle();
 
     expect(wealth()).toBe(before - 2 * price);
     // Kind, Effect, Held, Sells for.
-    expect(cells(rowOf(section('Sell'), 'Padded jack')).slice(0, 3)).toEqual(['Armour Gear', 'Constitution +1', '2']);
-    debugSays(new RegExp(`^The Lantern bought 2 × Padded jack at the Market for ${2 * price} Wealth\\.$`));
+    expect(cells(rowOf(section('Sell'), 'Short sword')).slice(0, 3)).toEqual(['Weapon Gear', 'Weaponry +1', '2']);
+    debugSays(new RegExp(`^The Lantern bought 2 × Short sword at the Market for ${2 * price} Wealth\\.$`));
   });
 
   test('sells from a stack the Guild holds for what the Market pays', async () => {

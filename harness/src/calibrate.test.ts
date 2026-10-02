@@ -57,16 +57,17 @@ describe('loadDrafts', () => {
   // The verification (DL-162): the automatic buyer (`gearPurchase`) takes the dearest piece for a slot,
   // the lowest key on a tie, and the harness's player buys armour alone; so a new piece in the armour
   // slot, or at a core piece's price, would take the place of the Constitution armour it buys.
-  test("the drafts' new gear never takes the armour slot, nor ties a core piece's price in its slot", () => {
+  test("the gear the drafts added, the core's since v1.1.4-S10, never takes the armour slot, nor ties another piece's price in its slot", () => {
     const core = deps.content.items;
     const drafted = loadDrafts(draftsDir).content.items;
-    const added = Object.values(drafted).filter((it) => !Object.hasOwn(core, it.key));
-    expect(added.length).toBeGreaterThan(0);
-    for (const it of added) {
+    const added = ['commonplace-book', 'reading-glass', 'signet-ring', 'officers-sash', 'courtiers-brooch', 'scholars-almanac'];
+    for (const key of added) {
+      const it = core[key] ?? expect.fail(key);
+      expect(drafted[key], key).toEqual(it);
       if (it.kind !== 'gear') continue;
-      expect(it.slot, it.key).not.toBe('armour');
-      const prices = Object.values(core).filter((other) => other.kind === 'gear' && other.slot === it.slot).map((other) => other.buyPrice);
-      expect(prices, it.key).not.toContain(it.buyPrice);
+      expect(it.slot, key).not.toBe('armour');
+      const prices = Object.values(core).filter((other) => other.kind === 'gear' && other.slot === it.slot && other.key !== key).map((other) => other.buyPrice);
+      expect(prices, key).not.toContain(it.buyPrice);
     }
   });
 
@@ -89,8 +90,13 @@ describe('a play shard with drafts (HEROESIM_DRAFTS)', { timeout: 60_000 }, () =
   test('plays the content with the drafts its job names, as this process plays it, and otherwise the core', () => {
     const years = 120 / deps.config.turnsPerYear;
     const job = { seeds: ['seed-0001'], config: deps.config, years, validate: false, policy: defaultPolicyConfig };
-    const drafted = runShard({ ...job, drafts: draftsDir });
-    const here = recordGame('seed-0001', { config: deps.config, content: loadDrafts(draftsDir).content }, { years });
+    // Drafts that differ from the core, which holds S9's since v1.1.4-S10: every Check twice as hard.
+    const dir = mkdtempSync(join(scratch, 'harder-'));
+    const encounters = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<string, { checks: { difficultyFactor: number }[] }>;
+    for (const encounter of Object.values(encounters)) for (const check of encounter.checks) check.difficultyFactor *= 2;
+    writeFileSync(join(dir, 'encounters.json'), JSON.stringify(encounters), 'utf8');
+    const drafted = runShard({ ...job, drafts: dir });
+    const here = recordGame('seed-0001', { config: deps.config, content: loadDrafts(dir).content }, { years });
     expect(drafted.games[0]?.measures.fingerprint).toBe(here.record.measures.fingerprint);
     expect(runShard(job).games[0]?.measures.fingerprint).not.toBe(here.record.measures.fingerprint);
   });
@@ -119,13 +125,20 @@ describe('coverageGrid', () => {
     expect([checksAtLeast, kindsAtLeast]).toEqual([3, 2]);
     const grid = coverageGrid(deps.content);
     expect(grid.map((it) => it.statKey)).toEqual(Object.values(deps.content.stats).filter((it) => it.owner === 'hero').map((it) => it.key));
-    // Today's content: Strength is read by Ambush on the road and Hold the line (combat) and The flooded ford (travel).
-    const strength = grid.find((it) => it.statKey === 'strength');
-    expect(strength?.byKind.combat).toEqual(['ambush-on-the-road/ambush-on-the-road', 'hold-the-line/hold-the-line']);
-    expect(strength?.byKind.travel).toEqual(['the-flooded-ford/the-flooded-ford']);
-    expect([strength?.checks, strength?.kinds, strength?.met]).toEqual([3, 2, true]);
-    const intelligence = grid.find((it) => it.statKey === 'intelligence');
-    expect([intelligence?.checks, intelligence?.kinds, intelligence?.met]).toEqual([1, 1, false]);
+    // The content as v1.1.4-S10 wrote it: Endurance, the least read, by Hold the line's Stamina and The
+    // last assault's Holding out (combat) and The long march's Pace (travel); every Stat meets the gate.
+    const endurance = grid.find((it) => it.statKey === 'endurance');
+    expect(endurance?.byKind.combat).toEqual(['hold-the-line/stamina', 'the-last-assault/holding-out']);
+    expect(endurance?.byKind.travel).toEqual(['the-long-march/pace']);
+    expect([endurance?.checks, endurance?.kinds, endurance?.met]).toEqual([3, 2, true]);
+    expect(grid.filter((it) => !it.met)).toEqual([]);
+    // One Encounter alone meets it for no Stat: Ambush on the road's Steel reads Strength once, in combat.
+    const ambush = deps.content.encounters['ambush-on-the-road'] ?? expect.fail('ambush-on-the-road');
+    const alone = coverageGrid({ ...deps.content, encounters: { 'ambush-on-the-road': ambush } });
+    const strength = alone.find((it) => it.statKey === 'strength');
+    expect(strength?.byKind.combat).toEqual(['ambush-on-the-road/steel']);
+    expect([strength?.checks, strength?.kinds, strength?.met]).toEqual([1, 1, false]);
+    expect(alone.filter((it) => it.met)).toEqual([]);
   });
 });
 

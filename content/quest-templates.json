@@ -29,13 +29,14 @@
     "requires": { "classKey": "warrior" },
     "lootTableKey": "greater-loot",
     "encounterKinds": ["combat", "travel"],
-    "encountersMin": 3, "encountersMax": 5
+    "encountersMin": 3, "encountersMax": 5,
+    "finale": "the-last-assault"
   },
 
   "escort-the-tithe": {
     "name": "Escort the tithe",
     "sphereKeys": ["church"],
-    "tags": ["escort", "wilds"],
+    "tags": ["escort", "wilds", "holy"],
     "difficultyMin": 10, "difficultyMax": 35,
     "durationDaysMin": 2, "durationDaysMax": 4,
     "rewardPerDifficulty": 4,
@@ -51,7 +52,7 @@
   "lay-the-restless-dead": {
     "name": "Lay the restless dead",
     "sphereKeys": ["church"],
-    "tags": ["dark", "fight"],
+    "tags": ["dark", "fight", "holy"],
     "difficultyMin": 40, "difficultyMax": 80,
     "durationDaysMin": 3, "durationDaysMax": 6,
     "rewardPerDifficulty": 4,
@@ -61,8 +62,9 @@
     "skillKeys": ["benediction", "warding"],
     "requires": { "classKey": "healer" },
     "lootTableKey": "lesser-loot",
-    "encounterKinds": ["combat", "arcane"],
-    "encountersMin": 3, "encountersMax": 4
+    "encounterKinds": ["combat", "arcane", "lore"],
+    "encountersMin": 3, "encountersMax": 4,
+    "finale": "the-last-rite"
   },
 
   "guard-the-caravan": {
@@ -117,7 +119,7 @@
   "the-sickness-at-the-mill": {
     "name": "The sickness at the mill",
     "sphereKeys": ["villages"],
-    "tags": ["recover", "town"],
+    "tags": ["recover", "town", "study"],
     "difficultyMin": 10, "difficultyMax": 30,
     "durationDaysMin": 2, "durationDaysMax": 3,
     "rewardPerDifficulty": 4,
@@ -127,14 +129,14 @@
     "skillKeys": ["herbalism", "field-surgery"],
     "requires": {},
     "lootTableKey": null,
-    "encounterKinds": ["social", "arcane"],
+    "encounterKinds": ["social", "lore"],
     "encountersMin": 2, "encountersMax": 2
   },
 
   "survey-the-old-workings": {
     "name": "Survey the old workings",
     "sphereKeys": ["scholars"],
-    "tags": ["delve", "dark"],
+    "tags": ["delve", "dark", "study"],
     "difficultyMin": 25, "difficultyMax": 60,
     "durationDaysMin": 3, "durationDaysMax": 6,
     "rewardPerDifficulty": 4,
@@ -144,13 +146,13 @@
     "skillKeys": ["runecraft", "trapcraft"],
     "requires": {},
     "lootTableKey": null,
-    "encounterKinds": ["travel", "arcane", "stealth"],
+    "encounterKinds": ["travel", "arcane", "stealth", "lore"],
     "encountersMin": 2, "encountersMax": 4
   },
   "break-the-sealed-vault": {
     "name": "Break the sealed vault",
     "sphereKeys": ["scholars"],
-    "tags": ["delve", "dark", "recover"],
+    "tags": ["delve", "dark", "recover", "study"],
     "difficultyMin": 60, "difficultyMax": 100,
     "durationDaysMin": 5, "durationDaysMax": 10,
     "rewardPerDifficulty": 4,
@@ -160,8 +162,9 @@
     "skillKeys": ["warding", "runecraft"],
     "requires": { "classKey": "mage" },
     "lootTableKey": "greater-loot",
-    "encounterKinds": ["arcane", "stealth", "combat"],
-    "encountersMin": 4, "encountersMax": 5
+    "encounterKinds": ["arcane", "stealth", "combat", "lore"],
+    "encountersMin": 4, "encountersMax": 5,
+    "finale": "the-wardens-seal"
   },
 
   "a-quiet-word": {
@@ -194,6 +197,7 @@
     "requires": { "skillKey": "lockpicking" },
     "lootTableKey": "greater-loot",
     "encounterKinds": ["stealth", "social"],
-    "encountersMin": 3, "encountersMax": 5
+    "encountersMin": 3, "encountersMax": 5,
+    "finale": "the-strongroom"
   }
 }

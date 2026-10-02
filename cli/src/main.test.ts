@@ -497,14 +497,15 @@ describe('show', () => {
       const quest = world.quests[id] as Quest;
       const at = lines.indexOf(`${id}, ${content.questTemplates[quest.templateKey]?.name}`);
       expect(at, id).toBeGreaterThan(0);
-      const block = lines.slice(at + 1, at + 1 + quest.encounterKeys.length + 1);
-      quest.encounterKeys.forEach((key, index) => {
+      // Each Encounter of the core content has several Checks (v1.1.4-S10): its name and kind on a line,
+      // then each Check's name and what it reads on a line of its own.
+      const expected = quest.encounterKeys.flatMap((key) => {
         const encounter = content.encounters[key];
-        const [only] = encounter?.checks ?? [];
-        // Each Encounter in the core content is in the old form: one Check of its own name, on one line.
-        expect(encounter?.checks).toHaveLength(1);
-        expect(block[index]).toBe(`  ${encounter?.name} (${encounter?.kind}): ${queryWords(describeQuery(only?.score ?? 0), content)}`);
+        expect(encounter?.checks.length, key).toBeGreaterThan(1);
+        return [`  ${encounter?.name} (${encounter?.kind})`, ...(encounter?.checks ?? []).map((check) => `    ${check.name}: ${queryWords(describeQuery(check.score), content)}`)];
       });
+      const block = lines.slice(at + 1, at + 1 + expected.length + 1);
+      expect(block.slice(0, -1), id).toEqual(expected);
       const heroIds = partyFor(world, guild, quest, availableHeroes(world, guild), deps);
       const best = block.at(-1) ?? '';
       if (heroIds === null) {

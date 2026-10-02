@@ -351,9 +351,10 @@ describe('narrate', () => {
     expect(narrate({ ...samples['quest.encounter'], payload }, several)).toBe(
       `party-000004 failed at ${ambush.name} (Encounter 2), a Setback, decided by Nerve: Brenna Ashcombe (hero-000007) was injured.`,
     );
-    // One Check named as its Encounter names none: it is the Encounter's own.
+    // One Check named as its Encounter names none: it is the Encounter's own (the old form's, v1.1.4-S1).
     const one = { ...payload, decidedBy: front.key, degree: 'triumph' as const, outcome: 'success' as const, injured: [], checks: payload.checks.slice(0, 1) };
-    expect(narrate({ ...samples['quest.encounter'], payload: one }, content)).toBe(`party-000004 came through ${ambush.name} (Encounter 2), a Triumph.`);
+    const own = { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: ambush.name }] } } } satisfies typeof content;
+    expect(narrate({ ...samples['quest.encounter'], payload: one }, own)).toBe(`party-000004 came through ${ambush.name} (Encounter 2), a Triumph.`);
     // One Check named otherwise is named (v1.1.4-S2's verification, DL-152).
     const renamed = { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: 'Steel' }] } } } satisfies typeof content;
     expect(narrate({ ...samples['quest.encounter'], payload: one }, renamed)).toBe(`party-000004 came through ${ambush.name} (Encounter 2), a Triumph, decided by Steel.`);

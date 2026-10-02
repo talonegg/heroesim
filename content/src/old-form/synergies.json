@@ -1,0 +1,37 @@
+{
+  "sword-and-salve": {
+    "name": "Sword and salve",
+    "requires": { "classes": { "warrior": 1, "healer": 1 } },
+    "bonus": { "flat": 2 },
+    "kinds": ["combat", "travel"]
+  },
+  "shadow-and-spell": {
+    "name": "Shadow and spell",
+    "requires": { "classes": { "rogue": 1, "mage": 1 } },
+    "bonus": { "factor": 1.1 },
+    "kinds": ["stealth", "arcane"]
+  },
+  "shield-wall": {
+    "name": "Shield wall",
+    "requires": { "classes": { "warrior": 3 } },
+    "bonus": { "factor": 1.15 },
+    "kinds": ["combat"]
+  },
+  "a-full-company": {
+    "name": "A full company",
+    "requires": { "classes": { "warrior": 1, "rogue": 1, "mage": 1, "healer": 1 } },
+    "bonus": { "flat": 1, "factor": 1.05 }
+  },
+  "wards-and-blessings": {
+    "name": "Wards and blessings",
+    "requires": { "skills": ["warding", "benediction"] },
+    "bonus": { "flat": 3 },
+    "kinds": ["arcane", "combat"]
+  },
+  "scouting-ahead": {
+    "name": "Scouting ahead",
+    "requires": { "skills": ["tactics", "stealth"] },
+    "bonus": { "flat": 2 },
+    "kinds": ["travel", "stealth"]
+  }
+}

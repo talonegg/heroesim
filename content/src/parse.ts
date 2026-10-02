@@ -102,8 +102,16 @@ export const contentSetId = 'core';
  * item 24, DL-159).
  * 25 from v1.1.4-S8, which gives today's Encounters their `tags`, matched to the templates' (DL-148
  * item 22, DL-160); no template names a Finale and no Encounter is of the `lore` kind until S10.
+ * 26 from v1.1.4-S10, which writes the drafts the owner approved (DL-162, DL-165): 29 Encounters in
+ * Checks, among them four `lore` and four Finales, each Check rolling within `checkVariance`; the
+ * templates' Finales, `lore` kinds and the tags `holy` and `study`; six Mental and Social trinkets;
+ * and the Synergies written as Queries, three of them new. The earned Traits, and their uses in the
+ * Encounters, come through the content editor.
+ * 27 from the content editor's Finish of 2026-10-03 (added battle-tried, wayfinder,
+ * silver-tongued, lettered, battle-shy, haunted; 26 uses assigned, of battle-tried, wayfinder,
+ * silver-tongued, lettered, battle-shy, haunted).
  */
-export const contentVersion = 25;
+export const contentVersion = 27;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [

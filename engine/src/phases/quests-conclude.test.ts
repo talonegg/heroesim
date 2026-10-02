@@ -958,11 +958,14 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     // Degree, deciding Check and Checks, and, under the band's rule before it, nothing else (DL-152).
     // v1.1.4-S6's Rivals choose their Parties by the chance estimate (DL-157), which changes who goes:
     // these are its fingerprints. With M2-S9's rule by the demands put back in its place, for one run
-    // and not kept, the three were 86c7afa's again: a85e889a…, c5afab2d… and 55432d24….
+    // and not kept, the three were 86c7afa's again: a85e889a…, c5afab2d… and 55432d24…. v1.1.4-S10
+    // writes the content in Checks, its Finales, lore and earned Traits, and rolls each Check within
+    // `checkVariance` 0.4 (DL-165), which changes every Quest: these are its fingerprints; S6's were
+    // 00de1d95…, db199b7c… and c5519e67….
     expect(fingerprints).toEqual([
-      '00de1d954f3c7cf0c11cfdb770ac0336a9da9004139da1b3134d2f7e4213e377',
-      'db199b7cf4d2ef8326060e4d3f21c5bae3726ad0631e6e8fc522d51134be663e',
-      'c5519e6731b18cacb6cd5e1b9929e57351185c9435fc2fb0e695be137223e180',
+      '6ba3f04043830ebf6e696eee4327a4587862f1d43e815d0a7c3899bdfc12692f',
+      'd1b905819e0a371e225c79205417ce255c0751a4dbeb180f6cce58488c86239a',
+      'a72002b40e33c8f79d5f33d38331a699a5f231917209cc06b9e1a9a81369790b',
     ]);
   });
 

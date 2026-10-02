@@ -110,7 +110,9 @@ describe('the four Dispositions over 100 seeds (M6-S1)', () => {
     // Heroes to them. By a margin, not a hair: two Rivals of the same row differ a little by
     // where they act in the afternoon's order alone, and this is to be the rows' difference.
     expect(mean(reckless.difficulties)).toBeGreaterThan(mean(miserly.difficulties) + 10);
-    expect(reckless.deaths).toBeGreaterThan(1.25 * miserly.deaths);
+    // A quarter more until v1.1.4-S10, whose harm the Stats guard (S4) and whose Quests are the drafts':
+    // 217 Deaths to 178 there, a fifth more (DL-165).
+    expect(reckless.deaths).toBeGreaterThan(1.15 * miserly.deaths);
 
     // ambitious builds first: in every seed it builds, and no Rival of another Disposition builds
     // before it; over the sweep its first Improvement comes earliest on average.

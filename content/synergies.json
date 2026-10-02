@@ -1,37 +1,54 @@
 {
   "sword-and-salve": {
     "name": "Sword and salve",
-    "requires": { "classes": { "warrior": 1, "healer": 1 } },
+    "requires": [[">=", ["count", ["where", "party", ["class", "warrior"]]], 1], [">=", ["count", ["where", "party", ["class", "healer"]]], 1]],
     "bonus": { "flat": 2 },
     "kinds": ["combat", "travel"]
   },
   "shadow-and-spell": {
     "name": "Shadow and spell",
-    "requires": { "classes": { "rogue": 1, "mage": 1 } },
+    "requires": [[">=", ["count", ["where", "party", ["class", "rogue"]]], 1], [">=", ["count", ["where", "party", ["class", "mage"]]], 1]],
     "bonus": { "factor": 1.1 },
     "kinds": ["stealth", "arcane"]
   },
   "shield-wall": {
     "name": "Shield wall",
-    "requires": { "classes": { "warrior": 3 } },
+    "requires": [[">=", ["count", ["where", "party", ["class", "warrior"]]], 3]],
     "bonus": { "factor": 1.15 },
     "kinds": ["combat"]
   },
   "a-full-company": {
     "name": "A full company",
-    "requires": { "classes": { "warrior": 1, "rogue": 1, "mage": 1, "healer": 1 } },
+    "requires": [[">=", ["count", ["where", "party", ["class", "warrior"]]], 1], [">=", ["count", ["where", "party", ["class", "rogue"]]], 1], [">=", ["count", ["where", "party", ["class", "mage"]]], 1], [">=", ["count", ["where", "party", ["class", "healer"]]], 1]],
     "bonus": { "flat": 1, "factor": 1.05 }
   },
   "wards-and-blessings": {
     "name": "Wards and blessings",
-    "requires": { "skills": ["warding", "benediction"] },
+    "requires": [[">=", ["max", "party", ["skill", "warding"]], 1], [">=", ["max", "party", ["skill", "benediction"]], 1]],
     "bonus": { "flat": 3 },
     "kinds": ["arcane", "combat"]
   },
   "scouting-ahead": {
     "name": "Scouting ahead",
-    "requires": { "skills": ["tactics", "stealth"] },
+    "requires": [[">=", ["max", "party", ["skill", "tactics"]], 1], [">=", ["max", "party", ["skill", "stealth"]], 1]],
     "bonus": { "flat": 2 },
     "kinds": ["travel", "stealth"]
+  },
+  "two-learned-heads": {
+    "name": "Two learned heads",
+    "requires": [[">=", ["count", ["where", "party", [">=", ["stat", "intelligence"], 13]]], 2]],
+    "bonus": { "flat": 2 },
+    "kinds": ["lore", "arcane"]
+  },
+  "under-a-captain": {
+    "name": "Under a captain",
+    "requires": [[">=", ["max", "party", ["stat", "leadership"]], 14], [">=", ["count", "party"], 3]],
+    "bonus": { "factor": 1.1 },
+    "kinds": ["combat", "travel"]
+  },
+  "old-hands": {
+    "name": "Old hands",
+    "requires": [[">=", ["min", "party", ["level"]], 6]],
+    "bonus": { "flat": 2 }
   }
 }

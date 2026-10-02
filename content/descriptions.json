@@ -743,6 +743,36 @@
         "{He} has been short of breath since a bad Injury, and resents every hill between {him} and a Quest.",
         "A crushed chest on a Quest left {him} short of breath, and {he} has learned to do everything in short, hard bursts.",
         "{He} breathed too much smoke on a Quest gone wrong, and {his} rasping breath gives {him} away in any quiet place."
+      ],
+      "battle-tried": [
+        "{He} held a breaking wall once, and has met every fight calmly since.",
+        "{He} reads a fight as it unfolds, and calls each blow before it falls.",
+        "{He} came through a siege that broke better fighters than {him}."
+      ],
+      "wayfinder": [
+        "{He} once led a lost Party out of the fells by the stars alone.",
+        "{He} reads a hillside as a clerk reads a ledger, and never loses the road.",
+        "Fog and fallen bridges barely slow {him}: {he} always finds another way."
+      ],
+      "silver-tongued": [
+        "{He} once won better terms from a Patron's steward than the Guild had asked.",
+        "{He} agrees with people until they find that they have agreed with {him}.",
+        "Reeves and innkeepers warm to {him} at once, and give more than they meant to."
+      ],
+      "lettered": [
+        "{He} broke a warden's cipher that had kept a vault shut for a century.",
+        "{He} copies every inscription {he} sees, and can name most ruins on sight.",
+        "{He} came to letters late and in earnest, and argues with scholars as an equal."
+      ],
+      "battle-shy": [
+        "Since a fight went badly wrong, {he} hesitates too long when steel is drawn.",
+        "{He} flinches at the clash of shields, and will not say why.",
+        "{He} was hurt when a line broke around {him}, and keeps to the back now."
+      ],
+      "haunted": [
+        "{He} saw something in the dark that {he} will not name, and sleeps with a lamp lit.",
+        "Since a rite that failed, {he} hears whispers in empty rooms.",
+        "{He} came back from a haunted place quieter, and starts at shadows."
       ]
     },
     "closings": {

@@ -37,7 +37,7 @@ describe('the rail keeps to what the Guild’s History shows (M9-F4)', () => {
   });
 
   test('a purchase is not in it, and nothing is new', () => {
-    render(<App initial={played(started(), { kind: 'buy', definitionKey: 'padded-jack', quantity: 1 })} />);
+    render(<App initial={played(started(), { kind: 'buy', definitionKey: 'short-sword', quantity: 1 })} />);
 
     expect(railSentences().some((sentence) => / bought /.test(sentence))).toBe(false);
     expect(within(rail()).queryByText('New')).toBeNull();

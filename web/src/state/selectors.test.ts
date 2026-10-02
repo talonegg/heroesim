@@ -263,18 +263,21 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
 
     const [card] = boardView(document);
 
-    expect(card?.skills).toEqual(['Stealth', 'Lockpicking', 'Swordcraft', 'Tactics', 'Trapcraft', 'Shieldwork', 'Field surgery', 'Herbalism']);
+    // Each Encounter's Checks' Skills, in order, each once (v1.1.4-S10's content).
+    expect(card?.skills).toEqual(['Stealth', 'Swordcraft', 'Tactics', 'Trapcraft', 'Lockpicking', 'Shieldwork', 'Field surgery', 'Herbalism']);
     expect(card?.encounters.map(({ name, kind, one }) => [name, kind, one])).toEqual([
-      ['Past the watch', 'stealth', true],
-      ['Ambush on the road', 'combat', true],
-      ['The trapped passage', 'stealth', true],
-      ['Hold the line', 'combat', true],
-      ['The long march', 'travel', true],
+      ['Past the watch', 'stealth', false],
+      ['Ambush on the road', 'combat', false],
+      ['The trapped passage', 'stealth', false],
+      ['Hold the line', 'combat', false],
+      ['The long march', 'travel', false],
     ]);
     expect(card?.encounters[0]?.checks).toEqual([
-      { key: 'past-the-watch', name: 'Past the watch', reads: '0.4 × the highest Dexterity in the Party + 0.3 × the highest Wits in the Party + 0.3 × the highest Perception in the Party' },
+      { key: 'quiet-feet', name: 'Quiet feet', reads: 'the lowest Dexterity in the Party' },
+      { key: 'timing', name: 'Timing', reads: 'the highest (0.5 Wits + 0.5 Perception) in the Party' },
     ]);
-    expect(card?.encounters[1]?.checks[0]?.reads).toBe('0.4 × the total Weaponry of the Party + 0.3 × the total Strength of the Party + 0.3 × the total Courage of the Party');
+    expect(card?.encounters[1]?.checks[0]?.reads).toBe('the (0.6 Weaponry + 0.4 Strength) of the Party, highest first, weighted 1, 0.5 and 0.25');
+    expect(card?.encounters[3]?.checks[0]?.reads).toBe('the total (0.5 Constitution + 0.5 Strength) of the 3 Heroes with the highest Constitution');
     expect(Object.keys(card ?? {})).not.toContain('demands');
   });
 
@@ -415,8 +418,8 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
 describe('the Party builder (M9-S4, DL-104)', () => {
   /**
    * A new game whose first Quest requires Herbalism and meets the restless dead and a hostile reeve,
-   * whose Checks read Spirit, Courage and Weaponry, then Diplomacy, Charisma and Wits, and the Skills
-   * Benediction and Swordcraft; its four Heroes are Bram (a Healer with Herbalism 1 and Benediction 2),
+   * whose Checks read Spirit, Willpower, Weaponry, Power, Courage and Resistance, then Diplomacy and
+   * Charisma (v1.1.4-S10's content), and the Skills Benediction, Swordcraft and Evocation; its four Heroes are Bram (a Healer with Herbalism 1 and Benediction 2),
    * Liv (a Warrior with Swordcraft 2 and Tactics 1), Cenric (a Rogue) and Ragnvald (a Mage).
    */
   function builder(): { document: WorldDocument; quest: Quest; bram: Hero; liv: Hero; cenric: Hero; ragnvald: Hero } {
@@ -447,7 +450,7 @@ describe('the Party builder (M9-S4, DL-104)', () => {
       why: null,
       unavailable: null,
       // The Stats the Checks read, in the order the Quest meets them (v1.1.4-S6, `statsRead`), not the template's demands.
-      stats: (['spirit', 'courage', 'weaponry', 'diplomacy', 'charisma', 'wits'] as const).map((key) => ({
+      stats: (['spirit', 'willpower', 'weaponry', 'power', 'courage', 'resistance', 'diplomacy', 'charisma'] as const).map((key) => ({
         name: content.stats[key]?.name,
         value: bram.stats[key],
       })),

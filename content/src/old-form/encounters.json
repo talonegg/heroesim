@@ -1,0 +1,193 @@
+{
+  "ambush-on-the-road": {
+    "name": "Ambush on the road",
+    "kind": "combat",
+    "tags": ["escort"],
+    "demands": [["weaponry", 0.4], ["strength", 0.3], ["courage", 0.3]],
+    "aggregate": "sum",
+    "skillKeys": ["swordcraft", "tactics"],
+    "difficultyFactor": 0.25,
+    "consequences": {
+      "success": [{ "kind": "xp", "factor": 1.1 }],
+      "failure": [
+        { "kind": "injury", "typeKey": "deep-cut", "chance": 0.2, "count": 1 },
+        { "kind": "death", "chance": 0.03 }
+      ]
+    }
+  },
+  "the-restless-dead": {
+    "name": "The restless dead",
+    "kind": "combat",
+    "tags": ["dark"],
+    "demands": [["spirit", 0.4], ["courage", 0.3], ["weaponry", 0.3]],
+    "aggregate": "sum",
+    "skillKeys": ["benediction", "swordcraft"],
+    "difficultyFactor": 0.25,
+    "consequences": {
+      "success": [{ "kind": "fame", "delta": 1 }],
+      "failure": [
+        { "kind": "injury", "typeKey": "broken-arm", "chance": 0.15, "count": 1 },
+        { "kind": "death", "chance": 0.03 },
+        { "kind": "morale", "delta": -3 }
+      ]
+    }
+  },
+  "hold-the-line": {
+    "name": "Hold the line",
+    "kind": "combat",
+    "tags": ["guard"],
+    "demands": [["strength", 0.3], ["constitution", 0.3], ["endurance", 0.2], ["leadership", 0.2]],
+    "aggregate": "sum",
+    "skillKeys": ["shieldwork", "tactics"],
+    "difficultyFactor": 0.25,
+    "consequences": {
+      "success": [{ "kind": "regard", "between": "party", "delta": 1 }],
+      "failure": [
+        { "kind": "injury", "typeKey": "bruised-ribs", "chance": 0.25, "count": 2 },
+        { "kind": "death", "chance": 0.03 }
+      ]
+    }
+  },
+
+  "the-long-march": {
+    "name": "The long march",
+    "kind": "travel",
+    "tags": ["escort", "guard"],
+    "demands": [["endurance", 0.5], ["constitution", 0.3], ["willpower", 0.2]],
+    "aggregate": "sum",
+    "skillKeys": ["field-surgery", "herbalism"],
+    "difficultyFactor": 0.25,
+    "consequences": {
+      "success": [],
+      "failure": [
+        { "kind": "injury", "typeKey": "lung-fever", "chance": 0.12, "count": 1 },
+        { "kind": "morale", "delta": -2 }
+      ]
+    }
+  },
+  "the-flooded-ford": {
+    "name": "The flooded ford",
+    "kind": "travel",
+    "tags": ["water"],
+    "demands": [["strength", 0.3], ["perception", 0.3], ["adaptability", 0.4]],
+    "aggregate": "best",
+    "skillKeys": ["tactics"],
+    "difficultyFactor": 0.15,
+    "consequences": {
+      "success": [],
+      "failure": [
+        { "kind": "injury", "typeKey": "sprained-ankle", "chance": 0.15, "count": 1 },
+        { "kind": "wealth", "factor": 0.9 }
+      ]
+    }
+  },
+  "lost-in-the-fells": {
+    "name": "Lost in the fells",
+    "kind": "travel",
+    "tags": ["wilds", "hunt"],
+    "demands": [["perception", 0.4], ["wits", 0.3], ["knowledge", 0.3]],
+    "aggregate": "best",
+    "skillKeys": ["herbalism", "stealth"],
+    "difficultyFactor": 0.15,
+    "consequences": {
+      "success": [{ "kind": "xp", "factor": 1.1 }],
+      "failure": [
+        { "kind": "injury", "typeKey": "shattered-knee", "chance": 0.08, "count": 1 },
+        { "kind": "morale", "delta": -2 }
+      ]
+    }
+  },
+
+  "a-hostile-reeve": {
+    "name": "A hostile reeve",
+    "kind": "social",
+    "tags": ["town"],
+    "demands": [["diplomacy", 0.4], ["charisma", 0.3], ["wits", 0.3]],
+    "aggregate": "best",
+    "skillKeys": ["benediction"],
+    "difficultyFactor": 0.15,
+    "consequences": {
+      "success": [{ "kind": "fame", "delta": 1 }],
+      "failure": [
+        { "kind": "fame", "delta": -1 },
+        { "kind": "regard", "between": "party", "delta": -1 }
+      ]
+    }
+  },
+  "the-patrons-steward": {
+    "name": "The Patron's steward",
+    "kind": "social",
+    "tags": ["talk"],
+    "demands": [["leadership", 0.3], ["diplomacy", 0.3], ["charisma", 0.2], ["adaptability", 0.2]],
+    "aggregate": "best",
+    "skillKeys": [],
+    "difficultyFactor": 0.15,
+    "consequences": {
+      "success": [{ "kind": "wealth", "factor": 1.1 }],
+      "failure": [{ "kind": "wealth", "factor": 0.9 }]
+    }
+  },
+
+  "the-sealed-door": {
+    "name": "The sealed door",
+    "kind": "arcane",
+    "tags": ["delve"],
+    "demands": [["arcana", 0.4], ["spelllore", 0.4], ["intelligence", 0.2]],
+    "aggregate": "best",
+    "skillKeys": ["runecraft", "warding"],
+    "difficultyFactor": 0.15,
+    "consequences": {
+      "success": [{ "kind": "xp", "factor": 1.1 }],
+      "failure": [{ "kind": "injury", "typeKey": "eye-wound", "chance": 0.12, "count": 1 }]
+    }
+  },
+  "a-restless-power": {
+    "name": "A restless power",
+    "kind": "arcane",
+    "tags": ["dark"],
+    "demands": [["power", 0.3], ["resistance", 0.4], ["willpower", 0.3]],
+    "aggregate": "sum",
+    "skillKeys": ["warding", "evocation"],
+    "difficultyFactor": 0.25,
+    "consequences": {
+      "success": [{ "kind": "fame", "delta": 1 }],
+      "failure": [
+        { "kind": "injury", "typeKey": "lung-fever", "chance": 0.15, "count": 1 },
+        { "kind": "death", "chance": 0.03 }
+      ]
+    }
+  },
+
+  "past-the-watch": {
+    "name": "Past the watch",
+    "kind": "stealth",
+    "tags": ["town"],
+    "demands": [["dexterity", 0.4], ["wits", 0.3], ["perception", 0.3]],
+    "aggregate": "best",
+    "skillKeys": ["stealth", "lockpicking"],
+    "difficultyFactor": 0.15,
+    "consequences": {
+      "success": [],
+      "failure": [
+        { "kind": "injury", "typeKey": "deep-cut", "chance": 0.15, "count": 1 },
+        { "kind": "fame", "delta": -1 }
+      ]
+    }
+  },
+  "the-trapped-passage": {
+    "name": "The trapped passage",
+    "kind": "stealth",
+    "tags": ["delve"],
+    "demands": [["dexterity", 0.3], ["perception", 0.4], ["wits", 0.3]],
+    "aggregate": "best",
+    "skillKeys": ["trapcraft", "lockpicking"],
+    "difficultyFactor": 0.15,
+    "consequences": {
+      "success": [{ "kind": "wealth", "factor": 1.1 }],
+      "failure": [
+        { "kind": "injury", "typeKey": "broken-arm", "chance": 0.15, "count": 1 },
+        { "kind": "death", "chance": 0.03 }
+      ]
+    }
+  }
+}
