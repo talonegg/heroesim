@@ -244,6 +244,42 @@ describe("M3's counters, from the History", () => {
     expect(counters.traitsGained).toEqual({ player: 1, rival: 1 });
     expect(counters.traitsLost).toEqual({ player: 1, rival: 0 });
     expect(counters.questingHeroes).toEqual({ player: 2, rival: 1 });
+    expect(counters.traitsGainedByKey).toEqual({ player: { scarred: 1 }, rival: { lame: 1 } });
+  });
+
+  // v1.1.4-S10: the Party sizes and the XP each Hero took, for the owner's decision on splitting XP.
+  test('Quests resolved by controller and the size of the Party sent, their bands, and the XP each Hero who came home took', () => {
+    const { document, player, rivals } = fixture('counters-parties');
+    const [a, b, c] = player.rosterIds as [HeroId, HeroId, HeroId];
+    const rivalHero = firstHero(rivals[0]);
+    const partyId = makeId('parties', 950);
+    const resolved = (turn: number, guild: Guild, heroIds: HeroId[], band: string, xpPerHero: number, deaths: HeroId[] = []): void => {
+      const questId = makeId('quests', 950 + turn);
+      add(document, turn, 'quest.resolved', [questId, partyId, guild.id], {
+        band,
+        wealthDelta: 0,
+        xpPerHero,
+        deaths,
+        questId,
+        partyId,
+        guildId: guild.id,
+        heroIds,
+        templateKey: 'escort-the-tithe',
+      });
+    };
+    resolved(2, player, [a, b], 'strong', 60);
+    resolved(4, player, [a, b], 'fail', 30, [b]);
+    resolved(6, player, [a, b, c], 'success', 50);
+    resolved(8, rivals[0], [rivalHero], 'success', 40);
+    document.world.turn = 20;
+
+    expect(countGame(document, shortYears).partySizes).toEqual({
+      player: {
+        2: { quests: 2, fail: 1, strong: 1, xpPerHero: 90, heroesHome: 3, xpTaken: 150 },
+        3: { quests: 1, fail: 0, strong: 0, xpPerHero: 50, heroesHome: 3, xpTaken: 150 },
+      },
+      rival: { 1: { quests: 1, fail: 0, strong: 0, xpPerHero: 40, heroesHome: 1, xpTaken: 40 } },
+    });
   });
 
   test('Improvement grades by year 10: the highest each Guild founded before it reached before it, by controller', () => {

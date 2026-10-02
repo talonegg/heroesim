@@ -33,6 +33,7 @@ import {
   noGear,
   noOffers,
   noHeroes,
+  noPartySize,
   noPortraits,
   noPurchases,
   noTransfers,
@@ -56,6 +57,7 @@ import {
   type LootTally,
   type MarketTally,
   type OfferTally,
+  type PartySizeTally,
   type HeroTally,
   type PortraitTally,
   type RegardSnapshot,
@@ -236,6 +238,9 @@ export interface SweepTotals {
   traitsGained: ByController;
   traitsLost: ByController;
   questingHeroes: ByController;
+  /** `hero.trait-gained` by the Trait's key, and the Quests resolved by the size of the Party sent (v1.1.4-S10). */
+  traitsGainedByKey: Record<ControllerKind, Record<string, number>>;
+  partySizes: Record<ControllerKind, Record<string, PartySizeTally>>;
   rivalFolds: Record<string, number>;
   /** `guildmaster.succeeded` across the games (M9-S2, DL-102). */
   rivalSuccessions: number;
@@ -428,6 +433,8 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     traitsGained: zero(),
     traitsLost: zero(),
     questingHeroes: zero(),
+    traitsGainedByKey: { player: {}, rival: {} },
+    partySizes: { player: {}, rival: {} },
     rivalFolds: Object.fromEntries(endingReasons.map((reason) => [reason, 0])),
     rivalSuccessions: 0,
     endings: { ...Object.fromEntries(endingReasons.map((reason) => [reason, 0])), survived: 0 },
@@ -537,6 +544,8 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
       totals.traitsGained[kind] += counters.traitsGained[kind];
       totals.traitsLost[kind] += counters.traitsLost[kind];
       totals.questingHeroes[kind] += counters.questingHeroes[kind];
+      addFields(totals.traitsGainedByKey[kind], counters.traitsGainedByKey[kind]);
+      for (const [size, tally] of Object.entries(counters.partySizes[kind])) addFields((totals.partySizes[kind][size] ??= noPartySize()), tally);
       totals.belowFloor[kind] += counters.belowFloor[kind];
       totals.floorRecovered[kind] += counters.floorRecovered[kind];
       addFields(totals.portraits[kind], counters.portraits[kind]);
@@ -847,6 +856,47 @@ function dispositionKeys(totals: SweepTotals, deps: EngineDeps): string[] {
 type EncounterTally = EncounterCounts[keyof EncounterCounts];
 
 /**
+ * v1.1.4-S10's counters: the Quests resolved by the size of the Party sent, their bands and the XP
+ * each Hero took (DL-148 item 19, the owner's decision on splitting XP), and the Traits earned by key.
+ */
+function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
+  const sizeRows = controllerKinds.flatMap((kind) => {
+    const bySize = totals.partySizes[kind];
+    const all = noPartySize();
+    for (const tally of Object.values(bySize)) addFields(all, tally);
+    const cells = (tally: PartySizeTally): string[] => [
+      `${whole(tally.quests)} (${percent(tally.quests, all.quests)})`,
+      percent(tally.fail, tally.quests),
+      percent(tally.strong, tally.quests),
+      ratio(tally.xpPerHero, tally.quests, 1),
+      ratio(tally.xpTaken, tally.quests, 1),
+    ];
+    const sizes = Object.keys(bySize).sort((a, b) => Number(a) - Number(b));
+    return [
+      ...sizes.map((size) => [`${kindLabel(kind)}: ${size}`, ...cells(bySize[size] as PartySizeTally)]),
+      [`${kindLabel(kind)}: every size (mean ${ratio(sum(sizes.map((size) => Number(size) * (bySize[size] as PartySizeTally).quests)), all.quests)})`, ...cells(all)],
+    ];
+  });
+  const traitKeys = keysOf(Object.keys(deps.content.heroTraits), totals.traitsGainedByKey.player, totals.traitsGainedByKey.rival);
+  const traitRows = traitKeys.map((key) => [`\`${key}\``, ...controllerKinds.map((kind) => whole(totals.traitsGainedByKey[kind][key] ?? 0))]);
+  return [
+    'Quests resolved by the size of the Party sent (`quest.resolved`\'s `heroIds`), with the XP each Hero who came home took ' +
+      "(`xpPerHero`: XP is not split, DL-148 item 19) and the XP the Party took in all, a Quest:",
+    '',
+    markdownTable(
+      ['Controller: Party size', 'Quests resolved', 'Failed', 'Strong', 'XP a Hero', 'XP the Party took'],
+      sizeRows,
+      ['left', 'right', 'right', 'right', 'right', 'right'],
+    ),
+    '',
+    'Traits earned by key (`hero.trait-gained`), by the Guild the Hero was on:',
+    '',
+    markdownTable(['Trait', "Player's", "Rivals'"], traitRows, ['left', 'right', 'right']),
+    '',
+  ];
+}
+
+/**
  * M4's counters (the epic's §2, DL-55): the Encounters' outcomes by kind, the Synergies applied a
  * Quest, Injuries by type, the Patrons silent in a year, and the player's Guild's Regard by band
  * after 10 years.
@@ -948,6 +998,7 @@ function questEngineSection(totals: SweepTotals, deps: EngineDeps): string[] {
     '',
     markdownTable(['Quests applying it', "Player's", "Rivals'"], byKeyRows, ['left', 'right', 'right']),
     '',
+    ...partiesAndTraits(totals, deps),
     'Injuries by type (`hero.injured`), by the Guild the Hero was on:',
     '',
     markdownTable(['Injury type', "Player's", "Rivals'"], injuryRows, ['left', 'right', 'right']),

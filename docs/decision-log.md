@@ -19950,6 +19950,51 @@ the tests named above); `tools/editor/src/` (`test-support.ts`, `reads.ts`, `cli
 
 ---
 
+## DL-165 — v1.1.4: the owner's answers to S9's review: the Quest target deferred, `checkVariance` 0.4 in configuration, and the drafts approved as drafted
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the owner, answering the calls of
+S9's review page (`docs/quests/v1.1.4-review.html`, DL-162). The words below are the owner's answers
+as the orchestrator relayed them; S10 (DL-166) starts from them.
+
+**Context.** S9 drafted every Encounter, Finale, Item, earned Trait and Synergy of the release under
+`docs/quests/drafts/`, calibrated them, and put them before the owner with three calls (DL-162, the
+review page's "Calls for the owner"):
+- *The Quest target* (DL-83 item 4, DL-148 item 3: the player's Quests failing 20 to 30% of the time
+  and strong at most 50%). The drafts reach it only with heavy bankruptcy: 20.2% failed and 45.3%
+  strong cost 24 of the 50 harness Guilds, 13 of them in their first two years, against 2 of 50 with
+  today's content. Every trial that kept bankruptcies few left the player's Quests failing about 16%
+  of the time and strong over 50%. S9 asked for one of: the harness's player choosing its Quests by
+  their chance, the economy looked at before Random Events, or the target set aside.
+- *The variance.* Every drafted Check rolls within 40% either way, by its own `variance` 0.4, where
+  `checkVariance` is 0.2; S9 proposed `checkVariance` 0.4 in configuration, and a Check's own
+  `variance` only where that Check truly differs.
+- *The drafts themselves:* the Encounters, Finales, tags, Items, Traits, Synergies and the Stats harm
+  reads, for the owner's comments.
+
+**Decision.**
+
+1. **The Quest target is deferred.** S10 ships the drafts tuned for few bankruptcies (S9's trials:
+   about 16% of the player's Quests failed, over 50% strong), and records the DL-83 target as unmet,
+   for a later release. The harness's policy and the economy are not changed. The epic's Gate item
+   "The Quest target" and S10's balance pass and first acceptance box now say so: the target is
+   measured and recorded, not met.
+2. **`checkVariance` becomes 0.4 in configuration**, and joins S10's tuned controls. A Check keeps
+   its own `variance` only where it truly differs from the rest.
+3. **The drafts are approved as drafted.** S10 writes them into content as they are, and tunes only
+   the numbers.
+
+**Consequences.**
+- S10's balance pass aims at few player bankruptcies, near the 2 of 50 of S8's sweep, keeping the
+  player's failures as near the 20% floor and the strong share as low as that allows; the Traits
+  earned per Hero career stay about one or fewer (the Gate's "Rare Traits").
+- The DL-83 Quest target stays open, with the economy (DL-83 items 8 and 9) after Random Events
+  (DL-148 item 3), or with a policy that chooses Quests by their chance.
+
+**Actioned in:** the epic (`docs/planning/epics/v1.1.4-release.md`): the Gate's "The Quest target",
+S10's balance pass and its first box; v1.1.4-S10 (DL-166).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

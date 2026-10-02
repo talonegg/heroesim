@@ -192,6 +192,32 @@ describe('sweepPlay', () => {
     expect(report).toContain('| Back to it or more (`guild.floor-recovered`) | 1 | 0.50 | 4 | 2.00 |');
   });
 
+  test("totals and renders v1.1.4-S10's Party sizes with the XP each Hero took, and the Traits earned by key (DL-148 item 19)", () => {
+    const games = sweep.games.map((game) => ({
+      ...game,
+      counters: {
+        ...game.counters,
+        partySizes: {
+          player: { 2: { quests: 2, fail: 1, strong: 1, xpPerHero: 90, heroesHome: 3, xpTaken: 150 } },
+          rival: { 1: { quests: 1, fail: 0, strong: 0, xpPerHero: 40, heroesHome: 1, xpTaken: 40 } },
+        },
+        traitsGainedByKey: { player: { lame: 1 }, rival: {} },
+      },
+    }));
+    const parties = { ...sweep, games };
+    const summed = sweepTotals(parties, deps.config.turnsPerYear);
+
+    expect(summed.partySizes.player).toEqual({ 2: { quests: 4, fail: 2, strong: 2, xpPerHero: 180, heroesHome: 6, xpTaken: 300 } });
+    expect(summed.traitsGainedByKey).toEqual({ player: { lame: 2 }, rival: {} });
+    const report = playReport(parties, { deps, machine: machine(), startedAt: new Date(2026, 9, 3, 12), milestone: 'm9-v114-s10' });
+    expect(report).toContain('| Controller: Party size | Quests resolved | Failed | Strong | XP a Hero | XP the Party took |');
+    expect(report).toContain("| The player's Guild: 2 | 4 (100.0%) | 50.0% | 50.0% | 45.0 | 75.0 |");
+    expect(report).toContain("| The player's Guild: every size (mean 2.00) | 4 (100.0%) | 50.0% | 50.0% | 45.0 | 75.0 |");
+    expect(report).toContain('| The Rivals: 1 | 2 (100.0%) | 0.0% | 0.0% | 40.0 | 40.0 |');
+    expect(report).toContain('| `lame` | 2 | 0 |');
+    expect(report).toContain('| `scarred` | 0 | 0 |');
+  });
+
   test("totals and renders v1.1.3-S5's Portrait counters, by controller and in all (DL-134 item 9)", () => {
     const games = sweep.games.map((game) => ({
       ...game,
