@@ -16706,6 +16706,57 @@ content.
 
 ---
 
+## DL-149 — The Guildmaster's setup in v1.1.4: "Choose for me" for the whole Guildmaster, or the player's own sex, age, picture and Stats
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the owner, asking for it to be added to
+v1.1.4's plan (DL-148). Items 1 to 4 and 6 to 7 are the owner's words. Where the request left a detail
+open, the agent proposed one, marked "the agent's", for the owner to change: item 5's pool, item 8 and
+item 9.
+
+**Context.** Today the setup's "Your Guildmaster" offers the sex, the age, the Portrait and the Traits,
+each "Drawn from the seed" unless the player picks (M9-S7, v1.1.2-S4, v1.1.3-S7). The five Guildmaster
+Stats are always drawn, each from 5 to 15, and the player cannot set them.
+
+**Decision.**
+
+1. **Two ways.** The player either has the whole Guildmaster chosen for them, or chooses.
+2. **"Choose for me"** draws every Guildmaster attribute from the seed. The agent's reading: the sex,
+   the age, the Portrait, the Stats and the Traits, with the Birthplace, Appearance and Biography
+   written when the game starts. The Guildmaster's name stays the player's to type, since it stands
+   outside "Your Guildmaster".
+3. **Choosing.** The player chooses the sex and the age, and neither offers a draw from the seed.
+4. **The Portrait while choosing.** It offers no draw from the seed, and no picture is read until a sex
+   is chosen. The agent's reading: the grid then shows that sex's pictures only, and a picture must be
+   chosen to start, since leaving it to the engine would be a draw.
+5. **The Stats while choosing.** The player allocates points to the five Guildmaster Stats. The pool is
+   the agent's: `guildmasterStatPoints`, 50, the drawn Stats' mean of 10 each. Each Stat is held to the
+   drawn range, 5 to 15, and starts at 10. The pool may not be overspent, and points left unspent are
+   lost, with a note.
+6. **The rest kept.** The Traits keep their two ways, and the few words their buttons.
+7. **"Choose for me" for "Drawn from the seed"** on the initial setup screen: the Background's option
+   and the Traits' way, and the words around them. The Seed field keeps its name. The CLI's help keeps
+   "drawn from the seed".
+8. **"Choose for me" is chosen at first** (the agent's), so a game starts as quickly as today.
+   Switching ways keeps the player's choices for when they come back.
+9. **The CLI** (the agent's). `new` gains `--stats`, every Guildmaster Stat or none, within the pool;
+   whatever is left out is drawn, as now.
+10. **The plan.** v1.1.4-S11, the setup, 1.5 sessions. It is apart from the Quest Engine and may be
+    built at any point, best beside S1. The close becomes S12, and the epic's stories are numbered from
+    DL-150.
+
+**Consequences.**
+- `WorldSetup` gains `guildmasterStats`, and `setupRefusal` gains `stats-incomplete`,
+  `stat-out-of-range` and `stats-over-points`. What is chosen replaces what is drawn after the draw,
+  so the rest of the world a seed makes is unchanged.
+- `configVersion` 13, already raised by v1.1.4, gains `guildmasterStatPoints`.
+- A chosen Guildmaster can set two Stats at 15 where a drawn one averages 10. The automatic policy
+  plays a drawn Guildmaster, so S11 records the best allocation's effect beside a drawn one's.
+
+**Actioned in:** `docs/planning/epics/v1.1.4-release.md` (the objective, the gate, the order, S11 and
+S12, §2, §3 and §4); `docs/planning/epics/README.md`; `docs/plan.md` §4.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

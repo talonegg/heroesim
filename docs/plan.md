@@ -330,9 +330,12 @@ the agents recommended that story features be modules and rule extensions core i
     Parties by the same estimate;
   - Hero Traits with effects, and Traits rarely earned on Quests;
   - the Encounters widened, with a `lore` kind and finales, so that every Hero Stat is read by at
-    least three Checks.
+    least three Checks;
+  - the Guildmaster's setup: "Choose for me" for the whole Guildmaster, or the player's own sex,
+    age, picture and Stats from a pool of points.
 
-  *Added 2026-10-02 (DL-148): the owner put it inside the v1.1 line, before Random Events.*
+  *Added 2026-10-02 (DL-148): the owner put it inside the v1.1 line, before Random Events. The
+  setup added the same day (DL-149).*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.*
