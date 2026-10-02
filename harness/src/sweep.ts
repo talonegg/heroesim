@@ -167,9 +167,19 @@ export function sweepFingerprint(games: readonly GameRecord[]): string {
   return createHash('sha256').update(lines.join('')).digest('hex');
 }
 
-/** Processes a parallel sweep uses by default: half the logical processors, one a core with SMT. */
-export function defaultWorkers(): number {
-  return Math.max(1, Math.floor(availableParallelism() / 2));
+/**
+ * Processes a parallel sweep uses by default: `HEROESIM_WORKERS`, a whole number from 1 (v1.1.4-S10:
+ * each game's save nears 120 MB by year 20, so a machine short of memory plays fewer at once), or
+ * half the logical processors, one a core with SMT, when it is unset or blank. Throws on anything
+ * else, so a mistyped count fails the run.
+ */
+export function defaultWorkers(value: string | undefined = process.env.HEROESIM_WORKERS): number {
+  if (value === undefined || value.trim() === '') return Math.max(1, Math.floor(availableParallelism() / 2));
+  const workers = Number(value.trim());
+  if (!Number.isSafeInteger(workers) || workers < 1) {
+    throw new RangeError(`HEROESIM_WORKERS must be a whole number from 1, not ${JSON.stringify(value)}`);
+  }
+  return workers;
 }
 
 /**

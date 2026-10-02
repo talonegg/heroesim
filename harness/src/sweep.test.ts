@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { availableParallelism } from 'node:os';
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
@@ -14,7 +15,7 @@ import {
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { playReport, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { defaultWorkers, playReport, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (M2-S12, DL-34).
@@ -28,6 +29,23 @@ function tickingClock(): () => number {
   let t = 0;
   return () => (t += 1);
 }
+
+// v1.1.4-S10: a sweep plays fewer games at once when HEROESIM_WORKERS says so, on a machine short of memory.
+describe('defaultWorkers', () => {
+  test('plays on half the logical processors when HEROESIM_WORKERS is unset or blank, and on its count when set', () => {
+    const half = Math.max(1, Math.floor(availableParallelism() / 2));
+    expect(defaultWorkers(undefined)).toBe(half);
+    expect(defaultWorkers(' ')).toBe(half);
+    expect(defaultWorkers('8')).toBe(8);
+    expect(defaultWorkers(' 1 ')).toBe(1);
+  });
+
+  test('refuses a count that is not a whole number from 1', () => {
+    for (const value of ['0', '-2', '2.5', 'eight']) {
+      expect(() => defaultWorkers(value)).toThrow(`HEROESIM_WORKERS must be a whole number from 1, not ${JSON.stringify(value)}`);
+    }
+  });
+});
 
 describe('sweepPlay', () => {
   const seeds = seedNames(2);
