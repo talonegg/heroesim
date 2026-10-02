@@ -29,12 +29,13 @@ function runChild(jobPath: string, resultPath: string): Promise<void> {
 }
 
 /**
- * Plays each job in a child process of its own, all at once, and returns their results in the
- * jobs' order. The job and result files live in a temporary directory, removed after.
+ * Plays each job in a child process of its own, at most `concurrency` at once (all at once by
+ * default), each next job starting as a child finishes, and returns their results in the jobs'
+ * order. The job and result files live in a temporary directory, removed after.
  *
  * @throws Error when a child fails: a broken run, not a finding
  */
-export async function runShardJobs(jobs: readonly ShardJob[]): Promise<ShardResult[]> {
+export async function runShardJobs(jobs: readonly ShardJob[], concurrency: number = jobs.length): Promise<ShardResult[]> {
   const dir = mkdtempSync(join(tmpdir(), 'heroesim-play-'));
   try {
     const paths = jobs.map((job, shard) => {
@@ -42,7 +43,16 @@ export async function runShardJobs(jobs: readonly ShardJob[]): Promise<ShardResu
       writeFileSync(jobPath, JSON.stringify(job), 'utf8');
       return { jobPath, resultPath: join(dir, `result-${shard}.json`) };
     });
-    await Promise.all(paths.map(({ jobPath, resultPath }) => runChild(jobPath, resultPath)));
+    // v1.1.4-S10: each lane takes the next job when its child is done, so a game that ends early
+    // frees its process for another rather than leaving it idle to the slowest lane's end.
+    let next = 0;
+    const lane = async (): Promise<void> => {
+      while (next < paths.length) {
+        const { jobPath, resultPath } = paths[next++] as (typeof paths)[number];
+        await runChild(jobPath, resultPath);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, paths.length)) }, lane));
     return paths.map(({ resultPath }) => JSON.parse(readFileSync(resultPath, 'utf8')) as ShardResult);
   } finally {
     rmSync(dir, { recursive: true, force: true });

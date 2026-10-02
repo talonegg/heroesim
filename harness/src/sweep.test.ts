@@ -86,6 +86,18 @@ describe('sweepPlay', () => {
     expect(parallel.replay).toMatchObject({ seed: 'seed-0001', identical: true, length: sweep.replay?.length });
   });
 
+  // v1.1.4-S10: each seed is a child of its own, at most `workers` at once, the next as one ends.
+  test('plays the same games with more seeds than processes, one seed a child, and skips the replay when asked', { timeout: 120_000 }, async () => {
+    const three = seedNames(3);
+    const serial = sweepPlay(three, deps, { years, replay: false });
+    const parallel = await sweepPlayInParallel(three, deps, { years, workers: 2, replay: false });
+    expect(serial.replay).toBeNull();
+    expect(parallel.replay).toBeNull();
+    expect(parallel.workers).toBe(2);
+    expect(parallel.games.map((game) => [game.seed, game.measures.fingerprint])).toEqual(serial.games.map((game) => [game.seed, game.measures.fingerprint]));
+    expect(parallel.advance.count).toBe(180);
+  });
+
   test("totals the games' counters", () => {
     expect(totals.games).toBe(2);
     // Two short games: no founding Guildmaster reaches 65 (M9-S2).

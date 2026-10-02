@@ -65,6 +65,18 @@ export function validatingEveryTurn(value: string | undefined = process.env.HERO
   throw new RangeError(`HEROESIM_VALIDATE is 1 or 0, not ${JSON.stringify(value)}`);
 }
 
+/**
+ * Whether `HEROESIM_REPLAY` asks a play sweep to replay one seed after it (v1.1.4-S10): unset, blank,
+ * `1` or `true` does, `0` or `false` does not, for a tuning trial that wants only the counters and
+ * not the replay's check and timing. Throws on anything else, so a mistyped flag fails the run.
+ */
+export function replayingAfterSweep(value: string | undefined = process.env.HEROESIM_REPLAY): boolean {
+  const flag = (value ?? '').trim().toLowerCase();
+  if (flag === '' || flag === '1' || flag === 'true') return true;
+  if (flag === '0' || flag === 'false') return false;
+  throw new RangeError(`HEROESIM_REPLAY is 1 or 0, not ${JSON.stringify(value)}`);
+}
+
 export interface PlayOptions {
   /** Years to play unless the game ends first: `years × turnsPerYear` Turns at most. */
   years?: number;

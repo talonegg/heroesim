@@ -19,7 +19,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import { regardSnapshot } from './counters.js';
 import { harnessSetup } from './creation.js';
-import { markHistory, measureDocument, playerTransferred, playGame, readAdvance, recordGame, validatingEveryTurn } from './play.js';
+import { markHistory, measureDocument, playerTransferred, playGame, readAdvance, recordGame, replayingAfterSweep, validatingEveryTurn } from './play.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { machine } from './report.js';
 import { summarise } from './stats.js';
@@ -62,6 +62,23 @@ describe('validatingEveryTurn reads HEROESIM_VALIDATE (INPUTS §9)', () => {
 
   test('refuses anything else rather than not validating', () => {
     expect(() => validatingEveryTurn('yes')).toThrow(/HEROESIM_VALIDATE/);
+  });
+});
+
+describe('replayingAfterSweep reads HEROESIM_REPLAY (v1.1.4-S10)', () => {
+  test.each([
+    [undefined, true],
+    ['', true],
+    ['1', true],
+    [' TRUE ', true],
+    ['0', false],
+    ['false', false],
+  ])('%j is %s', (value, expected) => {
+    expect(replayingAfterSweep(value)).toBe(expected);
+  });
+
+  test('refuses anything else rather than guessing', () => {
+    expect(() => replayingAfterSweep('no')).toThrow('HEROESIM_REPLAY is 1 or 0, not "no"');
   });
 });
 

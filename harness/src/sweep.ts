@@ -73,7 +73,7 @@ import { idsOf } from './modules.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { defaultYears, playGame, type GameRecord, type PlayOptions } from './play.js';
 import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
-import { dealSeeds, runShardJobs } from './children.js';
+import { runShardJobs } from './children.js';
 import { playSeeds, type PlayedSeeds, type ShardJob } from './shard.js';
 import { summarise, type Summary } from './stats.js';
 
@@ -107,6 +107,8 @@ export interface PlaySweep {
 export interface SweepOptions extends PlayOptions {
   /** A millisecond clock for the sweep's own wall-clock timings. */
   now?: () => number;
+  /** Replay one seed after the sweep (`PlaySweep.replay`); true unless false (v1.1.4-S10, `HEROESIM_REPLAY`). */
+  replay?: boolean;
 }
 
 /** Plays `seed` twice in this process and compares the two last documents, timing the first. */
@@ -126,7 +128,7 @@ function sweepOf(
   timing: { workers: number; started: number; gamesMs: number; now: () => number },
 ): PlaySweep {
   // The longest game makes the most of the comparison, and its timing the fairest of one game.
-  const replayed = replay(played.games.find((game) => game.ranFullLength)?.seed ?? seeds[0], deps, options);
+  const replayed = options.replay === false ? null : replay(played.games.find((game) => game.ranFullLength)?.seed ?? seeds[0], deps, options);
   return {
     seeds,
     years: options.years ?? defaultYears,
@@ -183,10 +185,11 @@ export function defaultWorkers(value: string | undefined = process.env.HEROESIM_
 }
 
 /**
- * `sweepPlay`, with the seeds dealt in turn among `workers` child processes (`shard.ts`), each
- * loading the core content and playing under `deps.config` with `deps.modules`, installed by id
- * (M8-S3, DL-78); the records come back in seed order and the replay is played in this process once
- * they are done. The children load the core content themselves, so `deps.content` must be it: a
+ * `sweepPlay`, with each seed played in a child process of its own (`shard.ts`), `workers` at once
+ * and the next starting as one finishes (v1.1.4-S10: dealt in turn before, a lane of early endings
+ * sat idle to the slowest lane's end), each loading the core content and playing under
+ * `deps.config` with `deps.modules`, installed by id (M8-S3, DL-78); the records come back in seed
+ * order and the replay, unless `replay` is false, is played in this process once they are done. The children load the core content themselves, so `deps.content` must be it: a
  * child that loads another refuses the sweep; and each module must be the harness's own of its id
  * (`idsOf`), which is checked before any child starts.
  *
@@ -202,9 +205,9 @@ export async function sweepPlayInParallel(
   const workers = Math.max(1, Math.min(options.workers ?? defaultWorkers(), seeds.length));
   const modules = idsOf(deps.modules);
   const started = now();
-  const jobs = dealSeeds(seeds, workers).map(
-    (shardSeeds): ShardJob => ({
-      seeds: shardSeeds,
+  const jobs = seeds.map(
+    (seed): ShardJob => ({
+      seeds: [seed],
       config: deps.config,
       years: options.years ?? defaultYears,
       validate: options.validate ?? false,
@@ -213,7 +216,7 @@ export async function sweepPlayInParallel(
       ...(options.drafts === undefined ? {} : { drafts: options.drafts }),
     }),
   );
-  const results = await runShardJobs(jobs);
+  const results = await runShardJobs(jobs, workers);
   const gamesMs = now() - started;
 
   const played: PlayedSeeds = { games: [], advanceMs: [], validateMs: [] };
@@ -224,9 +227,9 @@ export async function sweepPlayInParallel(
     for (const ms of result.advanceMs) played.advanceMs.push(ms);
     for (const ms of result.validateMs) played.validateMs.push(ms);
   }
-  // Seed i went to shard i mod workers, as its (i div workers)th game.
+  // Seed i was job i's one game.
   played.games = seeds.map((seed, index) => {
-    const game = results[index % workers]?.games[Math.floor(index / workers)];
+    const game = results[index]?.games[0];
     if (game?.seed !== seed) throw new Error(`A play shard returned no record for ${seed}`);
     return game;
   });
