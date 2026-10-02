@@ -17,8 +17,8 @@ const gate = path.join(webDir, 'scripts', 'check-bundle.mjs');
 const mediaDir = path.join(webDir, '..', 'media');
 const contentDir = path.join(webDir, '..', 'content');
 
-/** The bytes a built script may hold (scripts/check-bundle.mjs; DL-134 item 9): 800 kB. */
-const scriptLimit = 800_000;
+/** The bytes a built script may hold (scripts/check-bundle.mjs; DL-134 item 9, raised by DL-166): 850 kB. */
+const scriptLimit = 850_000;
 
 const temporaries: string[] = [];
 function temporaryDir(): string {
@@ -88,7 +88,7 @@ describe('the production build', { timeout: 120_000 }, () => {
   });
 
   // v1.1.3-S7 (DL-134 item 9, DL-143): the content's JSON is bundled as data, not as it is written,
-  // so its indentation and line breaks do not count against the script's 800 kB.
+  // so its indentation and line breaks do not count against the script's 850 kB.
   test("bundles each content file's JSON without its whitespace", () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
     const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
@@ -123,7 +123,7 @@ describe('the production build', { timeout: 120_000 }, () => {
     for (const picture of pictures) expect(text.includes(`new URL(\`${picture}\`,${base})`), picture).toBe(true);
   });
 
-  test('builds a script under the 800 kB the gate allows', () => {
+  test('builds a script under the 850 kB the gate allows', () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
     expect(statSync(path.join(outDir, 'assets', script)).size).toBeLessThan(scriptLimit);
   });
@@ -216,15 +216,15 @@ describe('the bundle gate', () => {
     expect(gated.status).toBe(1);
   });
 
-  // v1.1.3-S7 (DL-134 item 9): the one script is held under 800 kB, so the page stays as quick to open
+  // v1.1.3-S7 (DL-134 item 9; 850 kB since DL-166): the one script is held under 850 kB, so the page stays as quick to open
   // as it is. A stylesheet or the page itself is not a script, and is not held to it.
-  test('fails a script over 800 kB, naming its size, and passes one of 800 kB', () => {
+  test('fails a script over 850 kB, naming its size, and passes one of 850 kB', () => {
     // `const pad = '` and `';` are 15 characters. Padded with digits: a long run of letters would
     // keep the gate's search for a URL's scheme at every letter of it.
     const over = run([gate, bundleOf(`const pad = '${'0'.repeat(scriptLimit - 14)}';`)]);
     const at = run([gate, bundleOf(`const pad = '${'0'.repeat(scriptLimit - 15)}';`)]);
 
-    expect(over.output).toContain(`${path.join('assets', 'index.js')}: a script of 800.00 kB (800,001 bytes), over the 800 kB a script may be`);
+    expect(over.output).toContain(`${path.join('assets', 'index.js')}: a script of 850.00 kB (850,001 bytes), over the 850 kB a script may be`);
     expect(over.status).toBe(1);
     expect(at.output).toContain('no network or filesystem reference');
     expect(at.status).toBe(0);
