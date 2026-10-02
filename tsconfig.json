@@ -6,6 +6,7 @@
     { "path": "harness" },
     { "path": "cli" },
     { "path": "web" },
-    { "path": "tools/portraits" }
+    { "path": "tools/portraits" },
+    { "path": "tools/editor" }
   ]
 }

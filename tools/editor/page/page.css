@@ -1,0 +1,155 @@
+/* The content editor's page (v1.1.4-S12): a local tool at desktop widths, never part of the game. */
+
+:root {
+  color-scheme: light dark;
+  --line: #8884;
+  --muted: #888;
+  --accent: #2f6fb3;
+  --bad: #b3261e;
+  --good: #2e7d32;
+  font-family: system-ui, sans-serif;
+  font-size: 15px;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 1400px;
+  padding: 16px 24px 48px;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 4px;
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin: 24px 0 8px;
+}
+
+.note {
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+button {
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 10px;
+}
+
+button.primary {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: white;
+}
+
+input,
+select {
+  font: inherit;
+}
+
+#find {
+  width: 22em;
+}
+
+.pending {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+tr.is-pending td:first-child {
+  border-left: 3px solid var(--accent);
+}
+
+tr.is-hidden {
+  display: none;
+}
+
+td ul {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.uses li.free {
+  color: var(--muted);
+}
+
+#message:not(:empty),
+.problems:not(:empty) {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  margin: 8px 0;
+  padding: 8px 12px;
+}
+
+#message.bad,
+.problems:not(:empty) {
+  border-left-color: var(--bad);
+}
+
+#message.good {
+  border-left-color: var(--good);
+}
+
+dialog {
+  max-width: 760px;
+  width: 90vw;
+}
+
+.field {
+  display: grid;
+  gap: 4px 12px;
+  grid-template-columns: 9em 1fr;
+  margin: 8px 0;
+}
+
+.effect {
+  border: 1px solid var(--line);
+  margin: 6px 0;
+  padding: 6px 8px;
+}
+
+.choices label {
+  margin-right: 12px;
+  white-space: nowrap;
+}
+
+#finish-lines {
+  border: 1px solid var(--line);
+  max-height: 24em;
+  overflow: auto;
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
+td details summary {
+  white-space: nowrap;
+}

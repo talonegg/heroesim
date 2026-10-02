@@ -1,0 +1,85 @@
+// A kind of content the editor edits (DL-150 item 12): one or more lists of keyed rows, each list a
+// content file, and the forms its rows are made in. The editor's core (`editor.ts`) holds the pending
+// edits, checks them with the content's checks, finds uses and finishes, the same for every kind;
+// a kind says only what its rows are. Traits are the first kind and, in v1.1.4, the only one
+// (`traits-kind.ts`); Encounters come when the owner asks.
+
+import type { ContentFileName } from '@heroesim/content';
+import type { ContentJson, JsonPath } from '@heroesim/content/uses';
+
+/** A JSON object: a row. */
+export type Row = Record<string, unknown>;
+
+/** One list of a kind: its rows are the members of one content file. */
+export interface KindList {
+  id: string;
+  title: string;
+  file: ContentFileName;
+}
+
+/** A field of a row's form. `key` and `effects` are the editor's own; the rest are plain values. */
+export interface FieldForm {
+  name: string;
+  label: string;
+  type: 'text' | 'integer' | 'keys' | 'effects';
+  required: boolean;
+}
+
+/** A field of an effect's form, with the values it may take where they are few. */
+export interface EffectFieldForm {
+  name: string;
+  label: string;
+  type: 'choice' | 'choices' | 'integer' | 'number' | 'stat-changes' | 'tags';
+  choices?: readonly string[];
+  optional?: boolean;
+}
+
+/** One kind of effect a list offers (DL-150 item 8). */
+export interface EffectForm {
+  kind: string;
+  label: string;
+  fields: readonly EffectFieldForm[];
+}
+
+/** A list's form: its fields, and the effects it offers. */
+export interface ListForm {
+  list: string;
+  title: string;
+  fields: readonly FieldForm[];
+  effects: readonly EffectForm[];
+}
+
+/** One use of a row's key elsewhere in content. */
+export interface Use {
+  entry: string;
+  file: ContentFileName;
+  path: JsonPath;
+  at: string;
+  /** Whether it refuses the row's removal; one that does not, the editor takes out itself. */
+  blocksRemoval: boolean;
+}
+
+/** A rule that reads a row of the kind, as the register names it. */
+export interface Rule {
+  id: string;
+  title: string;
+  reads: string;
+}
+
+export interface Kind {
+  name: string;
+  title: string;
+  lists: readonly KindList[];
+  /** The forms, their choices read from `content`. */
+  forms(content: ContentJson): ListForm[];
+  /** A row from a form's values, `previous` giving any not given, in its list's field order; each problem where a value is not of its field's type. */
+  rowFrom(list: string, values: Readonly<Record<string, unknown>>, previous: Row | undefined): { row: Row; problems: string[] };
+  /** The content with `key`'s row in `list` set to `row`, or removed where it is `null`, and what the kind keeps beside it changed with it. */
+  put(content: ContentJson, list: string, key: string, row: Row | null): ContentJson;
+  /** Every use of `key` in `content`. */
+  uses(content: ContentJson, key: string): Use[];
+  /** The rules that read the row `row` of `list`. */
+  rules(list: string, row: Row): Rule[];
+  /** A row's words for a search and a table: its effects, say. */
+  words(list: string, row: Row): string[];
+}

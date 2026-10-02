@@ -118,6 +118,21 @@ describe('editJson()', () => {
     expect(editJson(text, value).split('\n')).toEqual([...lines.slice(0, at), (lines[at] ?? '').replace('"male": []', '"male": ["hero-male-01"]'), ...lines.slice(at + 1)]);
   });
 
+  test("with keepLines, keeps a row on its one line however long, and adds one beside it on one line (the content editor's, v1.1.4-S12)", () => {
+    const text = content('hero-traits.json');
+    const value = JSON.parse(text) as Record<string, { excludes: string[] }>;
+    value.scarred?.excludes.push('brave');
+    const brave = { name: 'Brave', excludes: ['scarred'], effects: [{ kind: 'statModifiers', modifiers: { courage: 2 } }] };
+    const lines = text.split('\n');
+    const written = editJson(text, { ...value, brave }, { keepLines: true }).split('\n');
+
+    expect(written).toHaveLength(lines.length + 1);
+    expect(written[1]).toBe((lines[1] ?? '').replace('"excludes": []', '"excludes": ["brave"]'));
+    expect(written.at(-3)).toBe('  "brave": { "name": "Brave", "excludes": ["scarred"], "effects": [{ "kind": "statModifiers", "modifiers": { "courage": 2 } }] }');
+    // Without it, the changed row is opened out, as a new file's would be past 100 columns.
+    expect(editJson(text, value).split('\n').length).toBeGreaterThan(lines.length);
+  });
+
   test('writes text it cannot read as the tool lays out a new file', () => {
     expect(editJson('not json', { a: [1] })).toBe(formatJson({ a: [1] }));
     expect(editJson('', { a: [1] })).toBe(formatJson({ a: [1] }));

@@ -12,7 +12,7 @@
 // - any other value that changes is laid out as the tool lays out a new file, where it starts;
 // - the file's line ends, LF or CRLF, are kept.
 
-import { format, formatJson } from './json-format.js';
+import { compact, format, formatJson } from './json-format.js';
 
 interface Member {
   key: string;
@@ -125,8 +125,12 @@ function matched(before: readonly string[], after: readonly string[]): number[] 
  * `value` written into `text`, a JSON file's text, keeping the text's layout wherever the value's
  * parts are unchanged, and laying out what is new as its siblings are. Text that is not JSON is
  * replaced by the value as the tool lays out a new file.
+ *
+ * With `keepLines` (the content editor's, v1.1.4-S12), a value written on one line stays on one line
+ * however long it grows, as a Hero Trait's row is, and a member added beside such a sibling is
+ * written on one line too.
  */
-export function editJson(text: string, value: unknown): string {
+export function editJson(text: string, value: unknown, { keepLines = false }: { keepLines?: boolean } = {}): string {
   let root: Node;
   try {
     JSON.parse(text);
@@ -152,6 +156,7 @@ export function editJson(text: string, value: unknown): string {
     const opened = source(node).includes('\n');
     if (node.kind === 'object' && isObject(next) && opened && node.members.length > 0) return renderObject(node.members, node, next);
     if (node.kind === 'array' && Array.isArray(next) && opened && node.items.length > 0) return renderArray(node.items, node, next);
+    if (keepLines && !opened) return compact(next);
     return fresh(next, indent, at);
   }
 

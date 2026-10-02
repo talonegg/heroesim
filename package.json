@@ -9,7 +9,8 @@
     "harness",
     "cli",
     "web",
-    "tools/portraits"
+    "tools/portraits",
+    "tools/editor"
   ],
   "engines": {
     "node": ">=22"
@@ -25,7 +26,8 @@
     "harness": "node harness/run.mjs",
     "harness:sample": "tsx harness/src/sample.ts",
     "play": "tsx cli/src/main.ts",
-    "portraits": "tsx tools/portraits/src/main.ts"
+    "portraits": "tsx tools/portraits/src/main.ts",
+    "edit": "tsx tools/editor/src/main.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

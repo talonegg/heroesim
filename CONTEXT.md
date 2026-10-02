@@ -803,3 +803,21 @@ The harness's stand-in for the player: fixed rules that play the player's Guild 
 actions a human would. DL-83 adds an active policy beside it, and the harness reports both (to be
 built).
 _Avoid_: AI, Bot, Autoplayer
+
+### Tools
+
+**Content editor**:
+The owner's local page and commands for changing the content the game ships, `npm run edit`; never
+part of the deployed game, and never touching a saved game. A kind of content is edited as a list
+of keyed rows through its forms; Traits are the first kind (DL-150 items 7 to 12; v1.1.4-S12). Each
+change is checked with the content's checks and held as a pending edit until "Finish", which writes
+the files, raises the content version by one and runs the tests, putting every file back if one
+fails. It never commits.
+_Avoid_: Mod tool, Admin page, Trait editor (for the whole)
+
+**Uses register**:
+The one list, in code (`content/src/uses/`), of every place a Trait is used: where its key stands in
+content, and which rules of the engine and checks of the content read Traits. The content editor
+finds a Trait's uses through it; the drift test holds it to the code, and `docs/agents/traits.md`
+is written from it (DL-150 item 14; v1.1.4-S12).
+_Avoid_: Index, Catalogue, Usage map

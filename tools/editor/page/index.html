@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Content editor: Traits</title>
+    <link rel="stylesheet" href="/page.css" />
+    <script type="module" src="/page.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>Content editor: Traits</h1>
+      <p class="note">
+        Each edit is checked as it is made and held as pending. "Finish" writes them, raises the content version and runs
+        the tests; if a test fails, every file is put back. Nothing is committed.
+      </p>
+      <div class="bar">
+        <label>Find <input id="find" type="search" placeholder="A key, a name, an effect or a use" /></label>
+        <button id="add-guildmaster" type="button">Add a Guildmaster Trait</button>
+        <button id="add-hero" type="button">Add a Hero Trait</button>
+        <span id="pending" class="pending"></span>
+        <button id="discard" type="button">Discard the pending edits</button>
+        <button id="doctor" type="button">Doctor</button>
+        <button id="finish" type="button" class="primary">Finish</button>
+      </div>
+      <div id="message" role="status" aria-live="polite"></div>
+    </header>
+    <main id="lists"></main>
+    <dialog id="form-dialog">
+      <form id="form" method="dialog">
+        <h2 id="form-title">Add a Trait</h2>
+        <div id="form-fields"></div>
+        <div id="form-problems" class="problems" role="alert"></div>
+        <div class="bar">
+          <button id="form-save" type="submit" value="save" class="primary">Save as pending</button>
+          <button id="form-cancel" type="button">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+    <section id="finish-panel" hidden>
+      <h2>Finish</h2>
+      <p id="finish-state"></p>
+      <pre id="finish-lines"></pre>
+    </section>
+  </body>
+</html>

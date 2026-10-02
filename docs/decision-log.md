@@ -18818,6 +18818,161 @@ Milestone); `docs/data-model.md` (a Hero's `traits`); the epic's S7 boxes and st
 
 ---
 
+## DL-161 — v1.1.4-S12 built: the register of a Trait's uses, the drift and freshness tests, and the content editor with Traits as its first kind, its commands and its page
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agent, building the epic's S12 on
+DL-150 items 6 to 16. Where the plan was silent, the calls are the agent's, in item 7, for the owner
+to change. Built in a worktree beside S8 (DL-160), on `v1.1.4-dev` at `a0a8ec1` (S7, DL-159); the
+orchestrator merges the two.
+
+**Context.** DL-150 gives the owner a content editor, Traits its first kind (items 7 to 12), and a
+register of every use of a Trait that keeps the Trait skills (S13) current (item 14). S7 (DL-158,
+DL-159) made the two lists of effect lists, the Hero effect kinds, the `trait` consequence and the
+two Trait events that the register lists. No play changes in this story: no engine file is touched,
+and no content file.
+
+**Decision.**
+
+1. **The register** (`content/src/uses/`, `@heroesim/content/uses`). `register` lists 8 content
+   entries and 12 engine entries.
+   - *A content entry* names its files and the list whose keys it holds, what reads it, how a key's
+     uses are found (`find`, on the content as JSON, so a use is a key at a path of a file), whether
+     a use refuses the Trait's removal, and, where safe, `add` and `remove` for S13's `assign` and
+     `unassign`. The entries: other Traits' `excludes` (not refusing: the editor strips them); an
+     Injury's `leavesTrait`; an Encounter's `trait` consequence; `has-trait` in an Encounter's
+     Queries (Checks, harm, a trait consequence's `among`); `has-trait` in a Synergy's `requires`;
+     the Biography sentences by Trait (`biography.traits` and `heroBiography.traits`); a Calling's
+     `suits` and `clashes`; a Feature's `shows`.
+   - *An engine entry* names its lists, effect kinds and events, what it reads, its `sources` (the
+     top-level declarations whose code reads a Trait) and its `through` (those its rule runs through
+     that read none themselves, such as `effectiveStats` and `capability`). The entries:
+     `trait-lists`, `effective-stats`, `encounter-bonus`, `guildmaster-effects`, `guildmaster-setup`,
+     `injury-traits`, `earned-trait`, `trait-events`, `has-trait`, `biography-and-portrait`,
+     `document-validator` and `content-checks` (`content/src/validate.ts`).
+2. **The drift test** (`tools/editor/src/reads.ts`, `drift.ts`, `drift.test.ts`). It parses
+   `engine/src/` and `content/src/validate.ts`, tests left out, with TypeScript's own parser, and
+   names each read of a Trait in code (never a comment or a type) by its file, line and top-level
+   declaration: `guildmasterTraits`, `heroTraits`, `.traits` and `.leavesTrait` read or
+   destructured; `has-trait` and the two events as values; and the effect kinds and the `trait`
+   consequence's kind where a kind is compared, is a `case` or is a row's `kind` (so gear's
+   `statModifiers` field is no read). It fails on a read in a declaration no entry lists, on a listed
+   declaration that reads none, and on a `through` declaration that is gone. 84 reads in 37
+   declarations today.
+3. **The freshness test** (`traits-doc.ts`, `freshness.test.ts`). `docs/agents/traits.md` holds the
+   guardrails by hand, and the register's part between two markers, written by `registerDoc`
+   (`content/src/uses/doc.ts`). The test fails when the part differs; `npm run edit -- traits doc`
+   writes it, leaving the rest byte for byte.
+4. **The editor's core** (`tools/editor/`, a workspace). A `Kind` is one or more lists of keyed rows
+   and their forms (`kind.ts`); Traits are the one kind (`traits-kind.ts`), their effect forms keyed
+   by the engine's unions so a new kind is asked for there. The core (`editor.ts`) checks each `add`,
+   `change` and `remove` with the content's own checks (`parseContent`) and holds it pending; finds
+   uses through the register; and finishes. A key is fixed once made. An exclusion is held both ways
+   by the editor, and a removed Trait is taken out of every other's `excludes`. A removal is refused
+   while any other use stands, naming every one.
+5. **The commands:** `npm run edit -- traits list | show <key> | find <text> | uses <key> | add
+   <list> <key> | change <key> | remove <key> | pending | discard [<key>] | finish | doctor | doc`,
+   each with `--json` and `--root <dir>`, and the portrait tool's exit codes and failure shape (a
+   refused removal carries its `uses`). `find` searches keys, names, effects (in words and as JSON)
+   and uses. `doctor` runs the drift and freshness checks, the content's checks, and whether the
+   pending edits still apply.
+6. **The page** (`npm run edit`): `tools/editor/page/`, plain HTML, CSS and a JavaScript module served
+   by a small Node server on 127.0.0.1 (`server.ts`) over a JSON API on the same core; no new
+   dependency. A table of each list with each Trait's effects, excludes, cost, uses and the rules
+   that read it; forms to add and change, the effects offered from the list's kinds, the key
+   read-only once made; Remove naming every use when refused; Find; Discard; Doctor; and "Finish",
+   whose run's lines the page polls and shows, then its result.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *How pending edits persist:* `.editor/traits.json` under the root, ignored by git, holding each
+     edit as made (a row whole). Whenever read they are made again on the content as it is on disk,
+     so separate command lines and the page share them; one that no longer applies is named, to be
+     dropped with `discard`. `pending` and `discard` are commands beyond the epic's list, as is `doc`,
+     the regenerate command. A Trait added and removed in one session goes with its edits.
+   - *Finish's test run is injectable:* `finish` takes a `TestRunner`, `npm test` in the root by
+     default. The tests do not inject a fake: each scratch copy has a planted `npm test` (`node
+     planted-test.mjs`) that prints Vitest's `FAIL` and `×` lines and fails, or passes, so "Finish"
+     runs a real command line without the suite running inside itself. Its failures are read from
+     those lines. The content version is raised before the run, inside the transaction, so the tests
+     see it and a failure puts it back with the rest; edits stay pending on a failure.
+   - *The register is a subpath, `@heroesim/content/uses`,* not the content's entry. Exported from the
+     entry it added 6,243 bytes to the page's script (772,072 → 778,315), since its module-level calls
+     are not shaken out; as a subpath, which lint lets only the tools import, the script is
+     byte-identical. `eslint.config.js` and `content/src/imports.test.ts` say so.
+   - *A row on one line stays on one line.* The portrait tool's `editJson` gains `keepLines` (default
+     off, so the portrait tool is unchanged): a value written on one line is rewritten on one line
+     however long, and a member added beside such a sibling too. Without it a Hero Trait's row, one
+     line past 100 columns, opened out on any change. `@heroesim/portraits` now exports a light
+     entry, `src/index.ts` (no Chromium), for the editor: `editJson`, the transaction, the content
+     version and the content's checks.
+   - *The register's reach:* beyond the epic's list, the engine entries `trait-lists`, `has-trait`,
+     `document-validator` and `content-checks`, since the drift test finds reads there; and both
+     lists' Biography sentences and the Callings, since a Guildmaster Trait's key stands there too.
+   - *What `add` and `remove` do* where a use's meaning is at stake: a `has-trait` is added by
+     filtering a Set Query at a path (`["where", <Set>, ["has-trait", key]]`), or, in a Synergy
+     written as Queries, as `[">=", ["count", ["where", "party", ["has-trait", key]]], 1]`; it is
+     removed from a `where` (the Set unfiltered) or an `and`/`or`, and refused elsewhere. A positive
+     `trait` consequence added to an Encounter with no `triumph` list gives it one copied from its
+     `success` list first, so a Triumph still brings what it brought.
+   - *Keys* are lower case letters and digits joined by hyphens.
+
+**The checks.**
+1. **The boxes, each on a scratch copy** (`tools/editor/src/test-support.ts`: the content, its
+   version's source, `engine/src/` and the doc, made a git repository so `git status` shows what each
+   command left).
+   - *Each command and page action* (box 1): `cli.test.ts` drives `list`, `show`, `find`, `uses`,
+     `add` (and eight refusals), `change` (an exclusion moved on both sides, a key refused, a broken
+     effect refused), `remove`, `pending`, `discard`, `finish`, `doctor`, `doc` and the usage errors;
+     `server.test.ts` drives every API route, a second "Finish" refused while one runs, and one pass
+     through the page in Chromium at 1280 px: the tables, a Trait added through its form with a
+     Stat change and an exclusion, a removal refused naming both uses, the key read-only on Change,
+     and "Finish".
+   - *A refused removal names every use, for each content entry* (box 2): for each of the 8 entries a
+     new Trait is given one use through the register's own `add`; removing it is refused naming
+     exactly that use, or, for `excludes`, goes through with the key stripped. One Trait used in six
+     places is refused naming each. `register.test.ts` adds and removes a use of each entry on the
+     shipped content, the content passing its checks both times and coming back equal.
+   - *Finish* (box 3): with the planted test failing, `finish` exits 1, `undone`, naming the two
+     failure lines; `git status` is clean, the version unchanged, the edit still pending. With it
+     passing, the two Trait files, `parse.ts` and `content.test.ts` change, the version rises by one,
+     HEAD is unchanged, `git diff --numstat` shows 1/1 and 3/2 lines, and a second `finish` changes
+     nothing. The page's "Finish" does both through the API.
+   - *Drift and freshness* (box 4): no drift and a fresh doc on this repository; drift fails on a
+     planted read in a new file and in a known file, on a listed declaration that no longer reads, and
+     on a `through` declaration renamed; freshness fails on a stale part and on missing markers, and
+     `traits doc` mends it with the guardrails untouched. The doctor fails on all three, and on
+     content that breaks its checks.
+   - *The built game* (box 5): `npm run build` passes check-bundle; the script is `index-BtcPuyMc.js`,
+     772,072 bytes, the same file as with the register's subpath taken out; no text of the editor or
+     the register is in `web/dist/`, which holds `index.html` and `assets/` alone.
+2. **The rest** (box 6). `npm run typecheck` and `npm run lint` are clean. `npm test` passes 4,561
+   tests in 181 files (4,490 in 176 at S7; 71 new). `npm run edit -- traits doctor` reports no drift,
+   a fresh doc, the content passing and no pending edits.
+   - *Flakes, each mended or passing alone.* One run failed a scratch copy's copy of `engine/src/`
+     while `engine/src/boundary.test.ts`'s probe file came and went; the copy and the scanner now
+     leave the probes out. Another, under load from a concurrent agent, failed a scratch copy's
+     removal on Windows (`ENOTEMPTY`), now retried, and timed out at 5 s in three files
+     (`engine/src/selectors.test.ts`, `harness/src/succession.test.ts`,
+     `web/src/state/reducer.test.ts`), each passing alone. The next full run passed every test.
+   - No e2e was run: no page of the game changed.
+
+**Consequences.**
+- S13 builds the three skills on the commands, and `assign`/`unassign` on each content entry's `add`
+  and `remove`; it completes `docs/agents/traits.md`'s guardrails and AGENTS.md's "Traits" section.
+- From now on a Trait read in the engine or the content's checks that the register does not list
+  fails `npm test`; the fix is an entry, then `npm run edit -- traits doc`. S8's (DL-160) merge runs
+  the doctor: a read it adds, such as an Encounter bonus matched by tags, lands in a listed
+  declaration or needs an entry.
+- "Finish" takes as long as `npm test`.
+
+**Actioned in:** `content/src/uses/` (new: `register.ts`, `json.ts`, `doc.ts`, `index.ts`,
+`register.test.ts`), `content/package.json` (the `./uses` subpath), `content/src/imports.test.ts`;
+`tools/editor/` (new workspace: `src/`, `page/`, `README.md`); `tools/portraits/src/index.ts` (new),
+`package.json`, `json-edit.ts` (`keepLines`), `json-format.ts`, `json-edit.test.ts`;
+`docs/agents/traits.md` (new); `package.json` (workspace, `npm run edit`), `package-lock.json`, `tsconfig.json`,
+`vitest.config.ts`, `eslint.config.js`, `.gitignore`; `README.md`; `CONTEXT.md` (Content editor, Uses
+register); the epic's S12 boxes.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
