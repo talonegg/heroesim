@@ -66,6 +66,22 @@ export interface Rule {
   reads: string;
 }
 
+/**
+ * A place in other content where a row's key is used, as the register names it (v1.1.4-S13): whether
+ * the editor adds a use there (`assign`), with the target's fields in words, and takes one out
+ * (`unassign`). `null` where it does neither.
+ */
+export interface UseEntry {
+  id: string;
+  title: string;
+  lists: readonly string[];
+  add: { how: string; target: Readonly<Record<string, string>> } | null;
+  remove: { how: string } | null;
+}
+
+/** The content a use's assignment or unassignment makes, or each problem where the entry refuses it. */
+export type UseChange = { content: ContentJson; problems: [] } | { content: null; problems: string[] };
+
 export interface Kind {
   name: string;
   title: string;
@@ -82,4 +98,10 @@ export interface Kind {
   rules(list: string, row: Row): Rule[];
   /** A row's words for a search and a table: its effects, say. */
   words(list: string, row: Row): string[];
+  /** The places in other content where a key is used, and whether a use is added and removed there. */
+  useEntries(): UseEntry[];
+  /** The content with a use of `key` added in `entry`, at `target` (the fields its entry names). */
+  assign(content: ContentJson, key: string, entry: string, target: Readonly<Record<string, unknown>>): UseChange;
+  /** The content with the use of `key` in `entry` at `at` (a `Use`'s `at`) taken out. */
+  unassign(content: ContentJson, key: string, entry: string, at: string): UseChange;
 }

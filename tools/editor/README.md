@@ -26,10 +26,11 @@ npm run edit -- traits <command> [--root <dir>] [--json]
 
 ## Pending edits
 
-Each `add`, `change` and `remove` is checked with the content's own checks (`@heroesim/content`) as
-it is made, and held as pending in `.editor/traits.json` under the root, which git ignores, written
+Each `add`, `change`, `remove`, `assign` and `unassign` is checked with the content's own checks
+(`@heroesim/content`) as it is made, and held as pending in `.editor/traits.json` under the root, which git ignores, written
 whole or not at all. The file holds each edit as it was made: a row added whole, a change as the
-fields it gave (so it never carries an exclusion another edit wrote into it), a removal by its key.
+fields it gave (so it never carries an exclusion another edit wrote into it), a removal by its key,
+an assignment by its entry and target, an unassignment by its entry and place.
 Whenever it is read, the edits are made again on the content as it is on disk, so the page and
 separate command lines share them, and nothing in the content's files changes before `finish`. Every
 list of edits is checked before it is saved, a removal's and a discard's too. An edit that no longer
@@ -48,6 +49,8 @@ checks and names their problems.
 | `traits add <list> <key>` | Adds a Trait to `guildmaster` or `hero`. Its key, lower case and hyphens, is fixed from now on |
 | `traits change <key>` | Changes the fields given; the key never changes |
 | `traits remove <key>` | Removes a Trait; refused while it is used, naming every use |
+| `traits assign <key> <entry> [<field>=<value> ...]` | Adds a use of a Trait in other content, through the register's entry; `--target <json or @file>` gives the fields too |
+| `traits unassign <key> <entry> <at>` | Takes a use out, by its place as `uses` gives it (`injuries.json: deep-cut.leavesTrait`, or `deep-cut.leavesTrait`) |
 | `traits pending` | The pending edits |
 | `traits discard [<key>]` | Drops one Trait's pending edits, or all |
 | `traits finish` | Writes the pending edits, raises the content version, runs `npm test` |
@@ -72,6 +75,31 @@ npm run edit -- traits add hero brave --name Brave --excludes scarred \
 - **A Trait added and removed** in one session goes with its edits, as if never made, where the
   edits left pass the content's checks; where another edit still names it, its removal is held
   after them.
+
+## Assigning a use
+
+A Trait's key stands in other content: an Injury's `leavesTrait`, an Encounter's `trait` consequence,
+a `has-trait` in a Check, a harm or a Synergy, the Biography sentences, a Calling's `suits` and
+`clashes`, a Feature's `shows`, and other Traits' `excludes`. `assign` and `unassign` (v1.1.4-S13,
+DL-150 item 13) add and take out such a use through the register's entry for it, which says how, and
+are pending edits like the rest: checked with the content's checks as they are made, written by
+"Finish". [`docs/agents/traits.md`](../../docs/agents/traits.md) gives each entry, what it does and its
+target's fields, as `traits assign <key> <entry> <field>=…`.
+
+```sh
+npm run edit -- traits assign lame injury-leaves-trait injury=broken-arm
+npm run edit -- traits assign scarred encounter-trait encounter=ambush-on-the-road degree=triumph chance=0.05
+npm run edit -- traits assign short-winded biography-sentences "sentence={He} wheezes on the stairs."
+npm run edit -- traits unassign lame injury-leaves-trait shattered-knee.leavesTrait
+```
+
+- **A field's value** is read as JSON where it is JSON (`chance=0.05`) and as text where it is not
+  (`path=checks.0.score.1`). A value of JSON with quotes in it (`among`) goes through a file:
+  `--target @target.json`, the shell then having nothing to strip.
+- **A field the entry does not name** is refused, as is a Trait of the other list (an Injury leaves a
+  Hero Trait), and anything the content's checks refuse.
+- **Taking out a `has-trait`** the register cannot take out with its Query keeping a meaning (one
+  inside a `not`, say) is refused: the owner decides how that Query is rewritten.
 
 ## Finish
 

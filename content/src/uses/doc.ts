@@ -29,13 +29,19 @@ function contentSection(entry: ContentEntry): string[] {
     `- **Its uses of a key:** ${entry.finds}`,
     `- **Removal:** ${entry.blocksRemoval ? 'a use here refuses the Trait\'s removal, naming it.' : 'the editor takes the key out itself when the Trait is removed.'}`,
     entry.add === null
-      ? '- **Adding a use:** not safe; by hand only.'
+      ? '- **Adding a use:** the register gives no safe way: give its entry an `add` first.'
       : `- **Adding a use:** ${entry.add.how} The target: ${Object.entries(entry.add.target)
           .map(([field, words]) => `\`${field}\`, ${words}`)
-          .join('; ')}.`,
-    entry.remove === null ? '- **Removing a use:** not safe; by hand only.' : `- **Removing a use:** ${entry.remove.how}`,
+          .join('; ')}. ${assignLine(entry.id, entry.add.target)}`,
+    entry.remove === null ? '- **Removing a use:** the register gives no safe way: give its entry a `remove` first.' : `- **Removing a use:** ${entry.remove.how} \`traits unassign <key> ${entry.id} <at>\`, its place as \`traits uses\` gives it.`,
     '',
   ];
+}
+
+/** The command that adds a use of an entry (v1.1.4-S13), an optional field in brackets. */
+function assignLine(id: string, target: Readonly<Record<string, string>>): string {
+  const fields = Object.entries(target).map(([field, words]) => (words.startsWith('optional') ? `[${field}=…]` : `${field}=…`));
+  return `\`traits assign <key> ${id} ${fields.join(' ')}\`.`;
 }
 
 function engineSection(entry: EngineEntry): string[] {

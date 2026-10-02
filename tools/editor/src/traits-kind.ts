@@ -4,11 +4,12 @@
 // offered are each list's known kinds (item 8). An exclusion is held both ways, as the content's
 // checks require, so the editor writes it into the other Trait too; a Trait removed is taken out of
 // every other Trait's `excludes` (item 10). Its uses are found through the register
-// (`content/src/uses/`).
+// (`content/src/uses/`), and a use is added or taken out there (`assign`, `unassign`, v1.1.4-S13,
+// item 13) where the register's entry says how, and only so.
 
-import { contentEntries, rulesFor, traitFiles, usesOf, type ContentJson, type TraitList } from '@heroesim/content/uses';
+import { contentEntries, rulesFor, traitFiles, usesOf, UseRefusal, type ContentEntry, type ContentJson, type TraitList } from '@heroesim/content/uses';
 import { encounterKinds, type GuildmasterTraitEffectKind, type HeroTraitEffectKind } from '@heroesim/engine';
-import type { EffectForm, FieldForm, Kind, ListForm, Row, Rule, Use } from './kind.js';
+import type { EffectForm, FieldForm, Kind, ListForm, Row, Rule, Use, UseChange } from './kind.js';
 
 const lists: Record<TraitList, { title: string }> = {
   guildmaster: { title: 'Guildmaster Traits' },
@@ -65,6 +66,23 @@ function effectForms(content: ContentJson): Record<TraitList, EffectForm[]> {
   };
   const forms = (byKind: Record<string, Omit<EffectForm, 'kind'>>): EffectForm[] => Object.entries(byKind).map(([kind, form]) => ({ kind, ...form }));
   return { guildmaster: forms(guildmaster), hero: forms(hero) };
+}
+
+/** The register's content entry `id`, or the problem naming the entries there are. */
+function entryOf(id: string): { entry: ContentEntry; problems: [] } | { entry: null; problems: string[] } {
+  const entries = contentEntries();
+  const entry = entries.find((each) => each.id === id);
+  return entry === undefined ? { entry: null, problems: [`"${id}" is not a use the register lists: ${entries.map((each) => each.id).join(', ')}`] } : { entry, problems: [] };
+}
+
+/** The content with `change` made, or the register's refusal as a problem. */
+function changed(content: ContentJson, change: () => Partial<Record<string, unknown>>): UseChange {
+  try {
+    return { content: { ...content, ...change() } as ContentJson, problems: [] };
+  } catch (error) {
+    if (error instanceof UseRefusal) return { content: null, problems: [error.message] };
+    throw error;
+  }
 }
 
 const nameField: FieldForm = { name: 'name', label: 'Name', type: 'text', required: true };
@@ -203,5 +221,36 @@ export const traitsKind: Kind = {
 
   words(_list, row) {
     return Array.isArray(row.effects) ? row.effects.map(effectWords) : [];
+  },
+
+  useEntries() {
+    return contentEntries().map((entry) => ({
+      id: entry.id,
+      title: entry.title,
+      lists: entry.lists,
+      add: entry.add === null ? null : { how: entry.add.how, target: entry.add.target },
+      remove: entry.remove === null ? null : { how: entry.remove.how },
+    }));
+  },
+
+  assign(content, key, id, target) {
+    const { entry, problems } = entryOf(id);
+    if (entry === null) return { content: null, problems };
+    const add = entry.add;
+    if (add === null) return { content: null, problems: [`the register says of ${id} that a use is not added there safely`] };
+    // A field the entry does not name is named, for the register would pass it by.
+    const unknown = Object.keys(target).filter((field) => !Object.hasOwn(add.target, field));
+    if (unknown.length > 0) return { content: null, problems: unknown.map((field) => `${field}: not a field of ${id}'s target, which takes ${Object.keys(add.target).join(', ')}`) };
+    return changed(content, () => add.apply(content, key, target));
+  },
+
+  unassign(content, key, id, at) {
+    const { entry, problems } = entryOf(id);
+    if (entry === null) return { content: null, problems };
+    const remove = entry.remove;
+    if (remove === null) return { content: null, problems: [`the register says of ${id} that a use is not taken out there safely`] };
+    const use = entry.find(content, key).find((each) => each.at === at);
+    if (use === undefined) return { content: null, problems: [`"${key}" has no use in ${id} at ${at}`] };
+    return changed(content, () => remove.apply(content, use));
   },
 };

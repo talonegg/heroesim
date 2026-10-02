@@ -28,6 +28,11 @@ export const usage = `Usage: npm run edit -- [traits <command>] [--root <dir>] [
           [--row <json or @file>]
   traits change <key>             Change a Trait's fields, pending; the same flags as add
   traits remove <key>             Remove a Trait, pending; refused while it is used, naming each use
+  traits assign <key> <entry> [<field>=<value> ...] [--target <json or @file>]
+                                  Add a use of a Trait in other content, pending, through the
+                                  register's entry (docs/agents/traits.md names each, and its fields)
+  traits unassign <key> <entry> <at>
+                                  Take a use out, pending: <at> as \`traits uses\` gives it
   traits pending                  The pending edits
   traits discard [<key>]          Drop the pending edits, or one Trait's
   traits finish                   Write the pending edits, raise the content version, run npm test;
@@ -61,6 +66,8 @@ export interface Parsed {
   root: string;
   port: number;
   fields: Record<string, unknown>;
+  /** An assignment's target, from `--target`; its `<field>=<value>` words are read by the command. */
+  target: Record<string, unknown>;
 }
 
 function parseJson(flag: string, text: string): unknown {
@@ -73,7 +80,7 @@ function parseJson(flag: string, text: string): unknown {
 }
 
 export function parse(argv: readonly string[]): Parsed {
-  const parsed: Parsed = { kind: '', command: '', args: [], json: false, root: repositoryRoot, port: 4180, fields: {} };
+  const parsed: Parsed = { kind: '', command: '', args: [], json: false, root: repositoryRoot, port: 4180, fields: {}, target: {} };
   const value = (flag: string, index: number): string => {
     const next = argv[index + 1];
     if (next === undefined || next.startsWith('--')) throw new UsageError(`${flag} wants a value`);
@@ -104,6 +111,10 @@ export function parse(argv: readonly string[]): Parsed {
       const given = parseJson(arg, value(arg, index++));
       if (typeof given !== 'object' || given === null || Array.isArray(given)) throw new UsageError('--row wants a JSON object of fields');
       row = given as Record<string, unknown>;
+    } else if (arg === '--target') {
+      const given = parseJson(arg, value(arg, index++));
+      if (typeof given !== 'object' || given === null || Array.isArray(given)) throw new UsageError("--target wants a JSON object of the target's fields");
+      parsed.target = given as Record<string, unknown>;
     } else if (arg.startsWith('--')) throw new UsageError(`${arg} is not a flag the editor knows`);
     else if (parsed.kind === '') parsed.kind = arg;
     else if (parsed.command === '') parsed.command = arg;
@@ -120,6 +131,28 @@ function arg(options: Parsed, index: number, what: string): string {
   const value = options.args[index];
   if (value === undefined) throw new UsageError(`traits ${options.command} wants ${what}`);
   return value;
+}
+
+/**
+ * An assignment's target: `--target`'s fields, then each `<field>=<value>` word, its value read as JSON
+ * where it is JSON (`chance=0.05`, `among=["where","party",["class","mage"]]`) and as text where not
+ * (`sentence={He} limps.`, `path=checks.0.score.1`).
+ */
+function targetOf(options: Parsed, words: readonly string[]): Record<string, unknown> {
+  const target: Record<string, unknown> = { ...options.target };
+  for (const word of words) {
+    const split = word.indexOf('=');
+    if (split <= 0) throw new UsageError(`traits assign wants each field of the target as <field>=<value>, not "${word}"`);
+    const text = word.slice(split + 1);
+    let value: unknown = text;
+    try {
+      value = JSON.parse(text);
+    } catch {
+      // Text, as written.
+    }
+    target[word.slice(0, split)] = value;
+  }
+  return target;
 }
 
 function rowLine(view: RowView): string {
@@ -175,9 +208,35 @@ async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Pr
         text: [`Removed, pending: ${removed.key}`, ...removed.stripped.map((use) => `  Taken out of ${use.at}`)],
       };
     }
+    case 'assign': {
+      const key = arg(options, 0, 'a key');
+      const entry = arg(options, 1, `an entry of the register: ${editor.kind.useEntries().map((each) => each.id).join(', ')}`);
+      const assigned = editor.assign(key, entry, targetOf(options, options.args.slice(2)));
+      return {
+        code: 0,
+        json: { ok: true, ...assigned, pending: editor.edits().length },
+        text: [`Assigned, pending: ${key} in ${entry}`, ...(assigned.added.length === 0 ? ['  At a place it was used already'] : assigned.added.map((use) => `  Now used at ${use.at}`))],
+      };
+    }
+    case 'unassign': {
+      const key = arg(options, 0, 'a key');
+      const entry = arg(options, 1, 'an entry of the register');
+      const at = options.args.slice(2).join(' ');
+      if (at === '') throw new UsageError('traits unassign wants the place of the use, as `traits uses` gives it');
+      const unassigned = editor.unassign(key, entry, at);
+      return {
+        code: 0,
+        json: { ok: true, ...unassigned, pending: editor.edits().length },
+        text: [`Unassigned, pending: ${key} no longer used at ${unassigned.at}`, `  ${unassigned.uses.length} ${unassigned.uses.length === 1 ? 'use' : 'uses'} left`],
+      };
+    }
     case 'pending': {
       const edits = editor.edits();
-      return { code: 0, json: { edits }, text: edits.length === 0 ? ['No pending edits'] : edits.map((edit, index) => `${index + 1}. ${edit.op} ${edit.list} ${edit.key}`) };
+      return {
+        code: 0,
+        json: { edits },
+        text: edits.length === 0 ? ['No pending edits'] : edits.map((edit, index) => `${index + 1}. ${edit.op} ${edit.list} ${edit.key}${'entry' in edit ? ` (${edit.entry})` : ''}`),
+      };
     }
     case 'discard': {
       const result = editor.discard(options.args[0]);

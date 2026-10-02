@@ -5,7 +5,8 @@
 //
 // The pending edits are held between commands in `.editor/<kind>.json` under the root, which git
 // ignores, written whole or not at all: each edit as it was made, a row added whole, a change as the
-// fields it gave, a removal by its key. They are made again on the content as it is on disk whenever
+// fields it gave, a removal by its key, and a use assigned or unassigned in other content by its
+// register entry and its target or place (v1.1.4-S13, DL-150 item 13). They are made again on the content as it is on disk whenever
 // they are read, so the page and the commands share them, a session may span several commands,
 // nothing in the content's own files changes before "Finish", and a change never carries what another
 // edit wrote beside it (an exclusion written into the other Trait, say). Every list of edits is checked
@@ -24,11 +25,16 @@ import { traitsKind } from './traits-kind.js';
 import { npmTest, type TestResult, type TestRunner } from './tests-run.js';
 import path from 'node:path';
 
-/** An edit held until "Finish": a row added whole, the fields a change gave, or a row removed. */
+/**
+ * An edit held until "Finish": a row added whole, the fields a change gave, a row removed, or a use of
+ * a row's key added in other content (its register entry and target) or taken out (its entry and place).
+ */
 export type Edit =
   | { op: 'add'; list: string; key: string; row: Row }
   | { op: 'change'; list: string; key: string; fields: Row }
-  | { op: 'remove'; list: string; key: string };
+  | { op: 'remove'; list: string; key: string }
+  | { op: 'assign'; list: string; key: string; entry: string; target: Row }
+  | { op: 'unassign'; list: string; key: string; entry: string; at: string };
 
 /** What the pending file holds. */
 interface PendingFile {
@@ -157,9 +163,16 @@ export class Editor {
         if (held !== edit.list) throw new Refused([`"${edit.key}" is not a key of ${edit.list}`]);
         const blocking = this.kind.uses(content, edit.key).filter((use) => use.blocksRemoval);
         if (blocking.length > 0) {
-          throw new Refused([`"${edit.key}" is used, and is not removed while it is: change each use first`, ...blocking.map((use) => `used at ${use.at}`)], blocking);
+          throw new Refused([`"${edit.key}" is used, and is not removed while it is: change or unassign each use first`, ...blocking.map((use) => `used at ${use.at}`)], blocking);
         }
         return this.kind.put(content, edit.list, edit.key, null);
+      }
+      case 'assign':
+      case 'unassign': {
+        if (held !== edit.list) throw new Refused([`"${edit.key}" is not a key of ${edit.list}`]);
+        const made = edit.op === 'assign' ? this.kind.assign(content, edit.key, edit.entry, edit.target) : this.kind.unassign(content, edit.key, edit.entry, edit.at);
+        if (made.content === null) throw new Refused(made.problems);
+        return made.content;
       }
     }
   }
@@ -325,6 +338,38 @@ export class Editor {
     return { key, list, stripped };
   }
 
+  /**
+   * Adds a use of `key` in other content (v1.1.4-S13): in the register's `entry`, at `target`, the
+   * fields the entry names. Held as pending, checked with the content's checks as every edit is.
+   */
+  assign(key: string, entry: string, target: Readonly<Record<string, unknown>>): { key: string; list: string; entry: string; added: Use[]; uses: Use[] } {
+    const before = this.working();
+    const list = this.#listOf(before, key);
+    if (list === null) throw new Refused([`"${key}" is not a key of ${this.kind.title}`]);
+    const content = this.#make({ op: 'assign', list, key, entry, target: { ...target } });
+    const uses = this.kind.uses(content, key);
+    const had = new Set(this.kind.uses(before, key).map((use) => use.at));
+    return { key, list, entry, added: uses.filter((use) => !had.has(use.at)), uses };
+  }
+
+  /**
+   * Takes out a use of `key` (v1.1.4-S13): the one of the register's `entry` at `at`, a use's `at` as
+   * `uses` gives it (`injuries.json: deep-cut.leavesTrait`) or its path alone (`deep-cut.leavesTrait`).
+   * Refused, naming the key's uses, where it has none there.
+   */
+  unassign(key: string, entry: string, at: string): { key: string; list: string; entry: string; at: string; uses: Use[] } {
+    const before = this.working();
+    const list = this.#listOf(before, key);
+    if (list === null) throw new Refused([`"${key}" is not a key of ${this.kind.title}`]);
+    const uses = this.kind.uses(before, key);
+    const use = uses.find((each) => each.entry === entry && (each.at === at.trim() || each.path.join('.') === at.trim()));
+    if (use === undefined) {
+      throw new Refused([`"${key}" has no use in ${entry} at ${at}; its uses:`, ...(uses.length === 0 ? ['none'] : uses.map((each) => `${each.entry} at ${each.at}`))]);
+    }
+    const content = this.#make({ op: 'unassign', list, key, entry, at: use.at });
+    return { key, list, entry, at: use.at, uses: this.kind.uses(content, key) };
+  }
+
   /** Drops the pending edits of `key`, or every one, where those left pass the content's checks. A file that cannot be read is dropped whole. */
   discard(key?: string): { discarded: number; left: number; unreadable?: true } {
     this.#guard();
@@ -343,8 +388,8 @@ export class Editor {
 
   /** The pending edits in words. */
   summary(edits: readonly Edit[] = this.edits()): string {
-    const done = { add: 'added', change: 'changed', remove: 'removed' } as const;
-    return edits.map((edit) => `${done[edit.op]} ${edit.list} ${edit.key}`).join('; ');
+    const done = { add: 'added', change: 'changed', remove: 'removed', assign: 'assigned', unassign: 'unassigned' } as const;
+    return edits.map((edit) => `${done[edit.op]} ${edit.list} ${edit.key}${'entry' in edit ? ` (${edit.entry})` : ''}`).join('; ');
   }
 
   // ── Finish ────────────────────────────────────────────────────────────────────────────────

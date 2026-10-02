@@ -136,6 +136,26 @@ describe('a use added and removed', () => {
     expect(usesOf({ ...content, ...changed }, 'lame').map((use) => use.at)).toContain('synergies.json: shield-wall.requires.1.1.1.2');
   });
 
+  // The verification of v1.1.4-S13's skill runs: a use `add` made without a path, or a list it made,
+  // is taken out whole by `remove`, so an assignment and its unassignment leave the content as it was.
+  test("a Synergy's condition on the Party, added without a path, is taken out whole", () => {
+    const content = withQueries();
+    const added = { ...content, ...entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'shield-wall' }) };
+    const [use] = usesOf(added, 'lame').filter((each) => each.entry === 'synergy-has-trait');
+    if (use === undefined) throw new Error('no use');
+
+    expect({ ...added, ...entry('synergy-has-trait').remove?.apply(added, use) }).toEqual(content);
+  });
+
+  test("a Triumph's list copied from the Success's goes again with the Trait added to it", () => {
+    const content = withQueries();
+    const added = { ...content, ...entry('encounter-trait').add?.apply(content, 'scarred', { encounter: 'ambush-on-the-road', degree: 'triumph', chance: 0.05 }) };
+    const [use] = usesOf(added, 'scarred').filter((each) => each.entry === 'encounter-trait');
+    if (use === undefined) throw new Error('no use');
+
+    expect({ ...added, ...entry('encounter-trait').remove?.apply(added, use) }).toEqual(content);
+  });
+
   test("a Triumph's list is copied from the Success's before a positive Trait is added to it", () => {
     const content = withQueries();
     const changed = entry('encounter-trait').add?.apply(content, 'scarred', { encounter: 'ambush-on-the-road', degree: 'triumph', chance: 0.05 });

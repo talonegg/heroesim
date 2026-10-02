@@ -310,10 +310,13 @@ const encounterTraitConsequence: ContentEntry = {
     },
   },
   remove: {
-    how: 'The consequence is taken out of its list.',
+    how: "The consequence is taken out of its list. A `triumph` list left equal to the `success` list goes with it, as the Encounter's Triumph then reads the `success` list.",
     apply(content, found) {
       const root = copyOf(content, 'encounters.json');
       removeAt(root, found.path, 'encounters.json');
+      // A Triumph's list `add` copied from the Success's, and the same again, goes: it means nothing more.
+      const consequences = at(root, found.path.slice(0, -2));
+      if (found.path.at(-2) === 'triumph' && isObject(consequences) && JSON.stringify(consequences.triumph) === JSON.stringify(consequences.success)) delete consequences.triumph;
       return { 'encounters.json': root };
     },
   },
@@ -352,6 +355,11 @@ const encounterHasTrait: ContentEntry = {
   remove: hasTraitRemoval,
 };
 
+/** The condition on the Party that `synergy-has-trait` adds where it is given no path. */
+function partyHolding(key: string): unknown[] {
+  return ['>=', ['count', ['where', 'party', ['has-trait', key]]], 1];
+}
+
 const synergyHasTrait: ContentEntry = {
   place: 'content',
   id: 'synergy-has-trait',
@@ -376,11 +384,25 @@ const synergyHasTrait: ContentEntry = {
       const root = copyOf(content, 'synergies.json');
       const requires = at(root, [synergy, 'requires']);
       if (!Array.isArray(requires)) throw new UseRefusal(`synergies.json: ${synergy}.requires is in the old form; write it as Queries first`);
-      requires.push(['>=', ['count', ['where', 'party', ['has-trait', key]]], 1]);
+      requires.push(partyHolding(key));
       return { 'synergies.json': root };
     },
   },
-  remove: hasTraitRemoval,
+  remove: {
+    how: `${hasTraitRemoval.how} The condition \`add\` makes without a path is taken out of \`requires\` whole.`,
+    apply(content, found) {
+      // `[synergy, "requires", n, 1, 1, 2]`: the has-trait of a condition `add` made, which goes whole.
+      const [synergy, field, index] = found.path;
+      const key = at(content['synergies.json'], [...found.path, 1]);
+      const condition = at(content['synergies.json'], found.path.slice(0, 3));
+      if (field === 'requires' && typeof index === 'number' && found.path.length === 6 && typeof key === 'string' && JSON.stringify(condition) === JSON.stringify(partyHolding(key))) {
+        const root = copyOf(content, 'synergies.json');
+        removeAt(root, [synergy as string, 'requires', index], 'synergies.json');
+        return { 'synergies.json': root };
+      }
+      return hasTraitRemoval.apply(content, found);
+    },
+  },
 };
 
 /** Where a list's Biography sentences by Trait stand in `descriptions.json`. */

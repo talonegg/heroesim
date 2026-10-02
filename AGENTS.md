@@ -21,3 +21,7 @@ Standalone text begins with a capital, and glossary terms are capitalised wherev
 ### Portraits
 
 Pictures come into the game, and their rows and sentences are analysed and applied, through the skills `portrait-intake`, `portrait-analyse` and `portrait-apply` and the portrait tool's commands only. See `docs/agents/portraits.md`.
+
+### Traits
+
+Traits are added, changed, removed and assigned to other content only through the content editor (`npm run edit`), its commands, or the skills `trait-find`, `trait-edit` and `trait-assign`; never by hand, and never in a saved game. Run `npm run edit -- traits doctor` before and after, and at the close of every story that touches the engine. See `docs/agents/traits.md`.

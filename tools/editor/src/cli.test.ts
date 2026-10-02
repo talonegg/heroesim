@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { contentEntries, usesOf } from '@heroesim/content/uses';
 import { readContentVersion } from '@heroesim/portraits';
@@ -318,7 +318,7 @@ describe('a refused removal names every use', () => {
       expect(removed.code).toBe(1);
       expect(removed.json.kind).toBe('refused');
       expect(removed.json.uses?.map((use) => use.at)).toEqual(expected.map((use) => use.at));
-      expect(removed.json.problems).toEqual(['"fresh" is used, and is not removed while it is: change each use first', ...expected.map((use) => `used at ${use.at}`)]);
+      expect(removed.json.problems).toEqual(['"fresh" is used, and is not removed while it is: change or unassign each use first', ...expected.map((use) => `used at ${use.at}`)]);
       expect(existsSync(pendingPath(dir, 'traits'))).toBe(false);
     }
   });
@@ -333,6 +333,157 @@ describe('a refused removal names every use', () => {
     expect(text.err).toContain('used at injuries.json: broken-arm.leavesTrait');
     expect(text.err).toContain('used at encounters.json: ambush-on-the-road.consequences.triumph.1');
     expect(text.err).toContain('used at synergies.json: shield-wall.requires.1.1.1.2');
+  });
+});
+
+// The Trait skills' `assign` and `unassign` (v1.1.4-S13, DL-150 item 13): a use of a Trait added in
+// other content, and taken out, through each content entry of the register, held as pending and
+// checked with the content's checks as every edit is.
+describe('assign and unassign', () => {
+  type Assigned = { ok: true; key: string; entry: string; at?: string; added: { at: string }[]; uses: { at: string; entry: string }[]; pending: number };
+
+  // For each content entry: a shipped Trait, the words of its target, and the place its new use stands.
+  const cases: [string, string, string[], string][] = [
+    ['excludes', 'lame', ['trait=one-eyed'], 'hero-traits.json: one-eyed.excludes.0'],
+    ['injury-leaves-trait', 'lame', ['injury=broken-arm'], 'injuries.json: broken-arm.leavesTrait'],
+    ['encounter-trait', 'one-eyed', ['encounter=ambush-on-the-road', 'degree=failure', 'chance=0.1'], 'encounters.json: ambush-on-the-road.consequences.failure.2'],
+    ['encounter-has-trait', 'scarred', ['encounter=ambush-on-the-road', 'path=checks.0.score.1'], 'encounters.json: ambush-on-the-road.checks.0.score.1.2'],
+    ['synergy-has-trait', 'scarred', ['synergy=shield-wall'], 'synergies.json: shield-wall.requires.1.1.1.2'],
+    ['biography-sentences', 'short-winded', ['sentence={He} wheezes on the stairs.'], 'descriptions.json: heroBiography.traits.short-winded'],
+    ['portrait-callings', 'well-liked', ['calling=explorer', 'side=suits'], 'descriptions.json: callings.explorer.suits.0'],
+    ['portrait-features', 'lame', ['feature=grey-hair'], 'portrait-appearances.json: features.grey-hair.shows.0'],
+  ];
+
+  test('the table covers every content entry', () => {
+    expect(cases.map(([id]) => id).sort()).toEqual(contentEntries().map((entry) => entry.id).sort());
+  });
+
+  /** A scratch copy with the Queries planted, and short-winded's Biography sentences gone, so a use is added there. */
+  function prepared(): string {
+    const dir = scratch();
+    plantQueries(dir);
+    const descriptions = readContentJson(dir, 'descriptions.json') as { heroBiography: { traits: Record<string, unknown> } };
+    delete descriptions.heroBiography.traits['short-winded'];
+    writeContentJson(dir, 'descriptions.json', descriptions);
+    git(dir, 'commit', '--quiet', '-am', 'short-winded has no sentences');
+    return dir;
+  }
+
+  test.each(cases)('%s: a use added, pending, then taken out', async (id, key, words, at) => {
+    const dir = prepared();
+    const before = (await json<{ uses: { at: string }[] }>(dir, 'traits', 'uses', key)).json.uses.map((use) => use.at);
+    const assigned = await json<Assigned>(dir, 'traits', 'assign', key, id, ...words);
+
+    expect(assigned.code).toBe(0);
+    expect(assigned.json).toMatchObject({ ok: true, key, entry: id, pending: 1 });
+    expect(assigned.json.added.map((use) => use.at)).toContain(at);
+    expect(assigned.json.uses.map((use) => use.at)).toEqual(expect.arrayContaining([...before, at]));
+    // Nothing is written before "Finish"; the next command line reads the use.
+    expect(status(dir)).toBe('');
+    expect((await json<{ uses: { at: string }[] }>(dir, 'traits', 'uses', key)).json.uses.map((use) => use.at)).toContain(at);
+    expect((await json<{ edits: unknown[] }>(dir, 'traits', 'pending')).json.edits).toEqual([{ op: 'assign', list: expect.any(String), key, entry: id, target: expect.any(Object) }]);
+
+    // Taken out again by its place, as `uses` gives it.
+    const unassigned = await json<Assigned>(dir, 'traits', 'unassign', key, id, at);
+    expect(unassigned.code).toBe(0);
+    expect(unassigned.json).toMatchObject({ ok: true, at, pending: 2 });
+    expect((await json<{ uses: { at: string }[] }>(dir, 'traits', 'uses', key)).json.uses.map((use) => use.at)).toEqual(before);
+    expect((await json<{ ok: boolean }>(dir, 'traits', 'doctor')).json.ok).toBe(true);
+    // The two leave the content as it was: "Finish" writes nothing (the verification of the skill runs).
+    expect((await json<{ changed: string[]; contentVersion: unknown }>(dir, 'traits', 'finish')).json).toMatchObject({ changed: [], contentVersion: null });
+    expect(status(dir)).toBe('');
+  });
+
+  test('a shipped use is taken out by its path alone, and the Trait is then removed', async () => {
+    const dir = scratch();
+    const refused = await json<Failure>(dir, 'traits', 'remove', 'lame');
+    expect(refused.json.uses?.map((use) => use.at)).toEqual(['injuries.json: shattered-knee.leavesTrait', 'descriptions.json: heroBiography.traits.lame']);
+
+    for (const use of refused.json.uses ?? []) {
+      expect((await json(dir, 'traits', 'unassign', 'lame', use.entry, use.at.split(': ')[1] ?? '')).code).toBe(0);
+    }
+    const removed = await json<{ ok: boolean; pending: number }>(dir, 'traits', 'remove', 'lame');
+    expect(removed.json).toMatchObject({ ok: true, pending: 3 });
+    expect(readContentJson(dir, 'injuries.json')['shattered-knee']).toMatchObject({ leavesTrait: 'lame' });
+
+    const finished = await json<{ changed: string[] }>(dir, 'traits', 'finish');
+    expect(finished.code).toBe(0);
+    expect([...finished.json.changed].sort()).toEqual(['descriptions.json', 'hero-traits.json', 'injuries.json']);
+    expect(readContentJson(dir, 'injuries.json')['shattered-knee']).toMatchObject({ leavesTrait: null });
+    expect(readContentJson(dir, 'hero-traits.json').lame).toBeUndefined();
+    expect(readFileSync(path.join(dir, 'content', 'src', 'parse.ts'), 'utf8')).toContain(
+      'unassigned hero lame (injury-leaves-trait); unassigned hero lame (biography-sentences); removed hero lame',
+    );
+  });
+
+  test('"Finish" writes each assignment into its file, changing only those lines', async () => {
+    const dir = prepared();
+    const among = path.join(dir, 'among.json');
+    writeFileSync(among, JSON.stringify({ encounter: 'ambush-on-the-road', degree: 'triumph', chance: 0.05, among: ['where', 'party', ['class', 'warrior']] }));
+    expect((await json(dir, 'traits', 'assign', 'scarred', 'encounter-trait', '--target', `@${among}`)).code).toBe(0);
+    rmSync(among);
+    expect((await json(dir, 'traits', 'assign', 'lame', 'injury-leaves-trait', 'injury=broken-arm')).code).toBe(0);
+    expect((await json(dir, 'traits', 'assign', 'lame', 'portrait-features', 'feature=grey-hair')).code).toBe(0);
+    expect((await json(dir, 'traits', 'assign', 'miser', 'portrait-callings', 'calling=explorer', 'side=clashes')).code).toBe(0);
+
+    const finished = await json<{ changed: string[]; contentVersion: { from: number; to: number } }>(dir, 'traits', 'finish');
+    expect(finished.code).toBe(0);
+    expect([...finished.json.changed].sort()).toEqual(['descriptions.json', 'encounters.json', 'injuries.json', 'portrait-appearances.json']);
+    expect(finished.json.contentVersion.to).toBe(finished.json.contentVersion.from + 1);
+    expect(readContentJson<Record<string, { consequences: { triumph: unknown[] } }>>(dir, 'encounters.json')['ambush-on-the-road']?.consequences.triumph.at(-1)).toEqual({
+      kind: 'trait',
+      traitKey: 'scarred',
+      chance: 0.05,
+      among: ['where', 'party', ['class', 'warrior']],
+    });
+    expect(readContentJson(dir, 'injuries.json')['broken-arm']).toMatchObject({ leavesTrait: 'lame' });
+    const numstat = git(dir, 'diff', '--numstat', '--', 'content/injuries.json', 'content/portrait-appearances.json', 'content/descriptions.json');
+    expect(numstat.trim().split('\n')).toHaveLength(3);
+    for (const line of numstat.trim().split('\n')) expect(Number(line.split('\t')[0])).toBeLessThanOrEqual(3);
+  });
+
+  test.each([
+    ['an entry the register lacks', ['lame', 'injury', 'injury=broken-arm'], '"injury" is not a use the register lists: excludes, injury-leaves-trait'],
+    ['a field its target lacks', ['lame', 'injury-leaves-trait', 'injury=broken-arm', 'wound=deep'], "wound: not a field of injury-leaves-trait's target, which takes injury"],
+    ['a Trait of the other list, by the register', ['miser', 'injury-leaves-trait', 'injury=broken-arm'], '"miser" is not a Hero Trait: an Injury leaves a Hero Trait'],
+    ['an Injury that leaves another Trait, by the register', ['lame', 'injury-leaves-trait', 'injury=deep-cut'], 'injuries.json: deep-cut leaves "scarred" already'],
+    ['a sentence the content checks refuse', ['lame', 'biography-sentences', 'sentence={He} limps'], 'heroBiography.traits.lame'],
+    ['a Trait there is not', ['brave', 'injury-leaves-trait', 'injury=broken-arm'], '"brave" is not a key of Traits'],
+  ])('assign refuses %s, naming why, and holds nothing', async (_name, args, problem) => {
+    const dir = scratch();
+    const refused = await json<Failure>(dir, 'traits', 'assign', ...args);
+
+    expect(refused.code).toBe(1);
+    expect(refused.json.kind).toBe('refused');
+    expect(refused.json.problems.join('\n')).toContain(problem);
+    expect(existsSync(pendingPath(dir, 'traits'))).toBe(false);
+  });
+
+  test('unassign refuses a place the Trait is not used, naming its uses; a line it cannot read exits 2', async () => {
+    const dir = scratch();
+    const refused = await json<Failure>(dir, 'traits', 'unassign', 'lame', 'injury-leaves-trait', 'broken-arm.leavesTrait');
+    expect(refused.code).toBe(1);
+    expect(refused.json.problems).toEqual([
+      '"lame" has no use in injury-leaves-trait at broken-arm.leavesTrait; its uses:',
+      'injury-leaves-trait at injuries.json: shattered-knee.leavesTrait',
+      'biography-sentences at descriptions.json: heroBiography.traits.lame',
+    ]);
+    expect(existsSync(pendingPath(dir, 'traits'))).toBe(false);
+
+    expect((await command(['traits', 'unassign', 'lame', 'injury-leaves-trait', '--root', dir])).code).toBe(2);
+    expect((await command(['traits', 'assign', 'lame', 'injury-leaves-trait', 'broken-arm', '--root', dir])).code).toBe(2);
+    expect((await command(['traits', 'assign', 'lame', '--root', dir])).code).toBe(2);
+    expect((await command(['traits', 'assign', 'lame', 'excludes', '--target', '[1]', '--root', dir])).code).toBe(2);
+  });
+
+  test("the text says what was assigned, and pending names each edit's entry", async () => {
+    const dir = scratch();
+    const text = await command(['traits', 'assign', 'lame', 'injury-leaves-trait', 'injury=broken-arm', '--root', dir]);
+    expect(text.code).toBe(0);
+    expect(text.out).toBe('Assigned, pending: lame in injury-leaves-trait\n  Now used at injuries.json: broken-arm.leavesTrait');
+    const unassigned = await command(['traits', 'unassign', 'lame', 'injury-leaves-trait', 'injuries.json:', 'shattered-knee.leavesTrait', '--root', dir]);
+    expect(unassigned.out).toBe('Unassigned, pending: lame no longer used at injuries.json: shattered-knee.leavesTrait\n  2 uses left');
+    expect((await command(['traits', 'pending', '--root', dir])).out).toBe('1. assign hero lame (injury-leaves-trait)\n2. unassign hero lame (injury-leaves-trait)');
   });
 });
 
