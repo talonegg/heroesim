@@ -351,26 +351,52 @@ export const degrees = ['failure', 'setback', 'success', 'triumph'] as const;
 export type Degree = (typeof degrees)[number];
 
 /**
- * Up to `count` Heroes of the Party are injured with `typeKey`, each with probability `chance`,
- * each among the living who carry no Injury from this Quest yet.
+ * Who harm falls on, and who shrugs it off (v1.1.4-S4, DL-148 item 14), for an Injury and a Death;
+ * each optional, and with none of them every Hero is as likely to be hit, and the chance is as
+ * written.
  */
-export interface InjuryConsequence {
+export interface HarmReads {
+  /**
+   * The Heroes it may fall on, a Set Query over the Party, narrowed to those it can fall on; when
+   * that leaves no one, it falls on any of them, so that leaving the front rank at home never dodges
+   * its harm.
+   */
+  among?: SetQuery;
+  /** Stats whose weakness draws the harm: the less of their range a Hero has, the likelier it is them (`exposureRange`). */
+  exposedBy?: StatKey[];
+  /** Stats whose strength shrugs it off: the chance is less for a Hero with more of their range (`guardRange`). */
+  guardedBy?: StatKey[];
+}
+
+/**
+ * Up to `count` Heroes of the Party are injured with `typeKey`, each with probability `chance`,
+ * each among the living who carry no Injury from this Quest yet, and of them `among` (v1.1.4-S4).
+ */
+export interface InjuryConsequence extends HarmReads {
   kind: 'injury';
   typeKey: InjuryTypeKey;
   chance: number;
   count: number;
 }
 
-/** With probability `chance` one living Hero of the Party dies, and takes no part in what follows. */
-export interface DeathConsequence {
+/**
+ * With probability `chance` one living Hero of the Party dies, and takes no part in what follows;
+ * of them `among` (v1.1.4-S4).
+ */
+export interface DeathConsequence extends HarmReads {
   kind: 'death';
   chance: number;
 }
 
-/** Each Hero who comes home has their Morale moved by `delta`. */
+/**
+ * Each Hero who comes home has their Morale moved by `delta`. A loss is less for a Hero with more of
+ * the range of the Stats it is `steadiedBy`, by `guardRange` (v1.1.4-S4, DL-148 item 14); a gain is
+ * as written.
+ */
 export interface MoraleConsequence {
   kind: 'morale';
   delta: number;
+  steadiedBy?: StatKey[];
 }
 
 /** Every pair in the Party has its Regard for each other moved by `delta` (applied from M4-S4). */

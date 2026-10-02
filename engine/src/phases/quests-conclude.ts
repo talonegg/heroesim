@@ -7,7 +7,7 @@
 // DL-52); the Guild's Wealth and Fame move (Fame's floor is the Guild State Engine's, later the same
 // night); a Hero injured carries the Injury until its night; a Hero who died leaves
 // the Roster and keeps their row (data-model rule 8); each Hero who came home gains the XP; Morale
-// moves by the Encounters' Morale, on a strong success and on a Death in the Roster, each change
+// moves by each Hero's own of the Encounters' Morale (v1.1.4-S4), on a strong success and on a Death in the Roster, each change
 // emitting `hero.morale-changed`; the Patron's and the Guildmaster's Regard move, once for the
 // resolved Quest (M4-S5, regard.ts, events only on a band crossing); each Hero home alive gains
 // Regard for each other, the Encounters' Regard (`outcome.regardDelta`) with it, once for the
@@ -117,10 +117,10 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
     );
   }
 
-  if (outcome.moraleDelta !== 0) {
-    for (const hero of survivors) {
-      events.push(changeMorale(hero, outcome.moraleDelta, 'encounters', config, emit, quest.id));
-    }
+  // v1.1.4-S4: each Hero's own Morale from the Encounters, a loss `steadiedBy` their Stats less for some.
+  for (const hero of survivors) {
+    const delta = Object.hasOwn(outcome.moraleByHero, hero.id) ? (outcome.moraleByHero[hero.id] ?? 0) : 0;
+    if (delta !== 0) events.push(changeMorale(hero, delta, 'encounters', config, emit, quest.id));
   }
   if (outcome.band === 'strong') {
     for (const hero of survivors) {

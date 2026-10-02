@@ -17772,6 +17772,193 @@ boxes and status.
 
 ---
 
+## DL-155 — v1.1.4-S4 built: harm that reads the Stats, an Injury's and a Death's `among`, `exposedBy` and `guardedBy`, a Morale loss `steadiedBy`, and each Hero's own Morale from the Quest, with play unchanged where content names none
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 item 14 as the
+epic's S4 describes, DL-148 winning where the two differ. Where the plan was silent, the calls are
+the agent's, in item 7, for the owner to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** Before S4, an Injury fell on any unhurt living Hero alike and a Death on any living
+Hero, at the chance content wrote, whatever their Stats; and an Encounter's Morale moved every Hero
+by the same sum (DL-148's analysis). DL-148 item 14 lets content say who harm falls on and which
+Stats expose to it and guard against it, keeping the draws' number and order. It was built on
+`v1.1.4-dev` at `3bcd990` (S3, DL-154), and every comparison below is with that commit and S3's
+sweep, `harness/reports/m9-v114-s3-2026-10-02.md`.
+
+**Decision.**
+
+1. **The content** (`content-types.ts`, `HarmReads`; `parse.ts`).
+   - An Injury and a Death may name `among` (a Set Query), `exposedBy` and `guardedBy` (lists of
+     Stat keys); a Morale may name `steadiedBy`. Each is optional, and a consequence with none reads
+     as before. A field on a kind that lacks it is refused as any unknown field is.
+2. **Harm** (`engine/src/quest-engine/harm.ts`, new, pure).
+   - `meanShare`: a Hero's mean share of the listed Stats' content range, each from 0 at `min` to 1
+     at `max`, of their effective Stats (`QueryMember.stats`), so armour's Constitution protects.
+     A Stat content does not define counts for nothing; none defined is no share, and the field
+     then reads as absent (data-model rule 5).
+   - `exposure`: 1 + `exposureRange` × (1 − share); 1 with no `exposedBy`.
+   - `guard`: 1 − `guardRange` × share; 1 with no `guardedBy` or `steadiedBy`.
+   - `narrowed`: of the Heroes a harm can fall on, those `among` names, in Party order; all of them
+     when it names none of them.
+3. **The resolver** (`resolve.ts`).
+   - *An Injury*, each count: `u` (one `next`), then who (one draw: `weightedPick` over the unhurt
+     living Heroes `among` narrows, each weighted by `exposure`, or one `next` when there is no
+     one), then the Days (`int`, as before). It lands if `u` < chance × the chosen Hero's `guard`.
+   - *A Death*: `u`, then who, from the living Party `among` narrows. It lands if `u` < chance ×
+     guard.
+   - The Party the fields read is taken at that consequence (`queryParty` over the living, with the
+     hurt and each Hero's Morale so far), and only when a field is present, so a consequence with
+     none costs nothing more.
+   - *A Morale consequence* adds its delta, as written, to `moraleDelta`, and to each living Hero's
+     own sum: a loss `steadiedBy` some Stats times that Hero's `guard`, unrounded; a gain, or a loss
+     with no `steadiedBy`, as written.
+   - With none of the fields every weight and guard is 1, and the draws are exactly what `chance`
+     and `int` (`pick`'s draw) drew: `weightedPick` at every weight 1 returns `floor(r × n)`, as
+     `int(0, n − 1)` does, on the same single `next`.
+4. **The outcome.** `QuestOutcome` gains `moraleByHero`: each Hero home alive, by id in Party order,
+   with their own sum rounded once to a whole number (0 included). `moraleDelta` stays, the sum as written. `quest.resolved`
+   carries it (optional in the event's type: an entry before S4 has none, and its Heroes brought
+   `moraleDelta`). `questsConclude` moves each survivor by their own when it is not 0, where it
+   moved every survivor by `moraleDelta` when that was not 0: the same events wherever no
+   `steadiedBy` stands.
+5. **Working Morale** (S3) reads each Hero's own: `queryParty`'s `OnQuest` takes `moraleByHero` in
+   place of S3's summed `moraleDelta`, so a steadied Hero keeps a better band, and better form, in
+   the next Encounter. It reads the unrounded sum, so 40 less a steadied half is 39.5, the `low`
+   band. With no `steadiedBy`, each Hero's own is the sum, as before.
+6. **Configuration and content validation.**
+   - `exposureRange` (2) and `guardRange` (0.5), under `configVersion` 13 (not raised).
+     `configProblems` refuses an `exposureRange` that is not a finite number of 0 or more and a
+     `guardRange` outside 0 to 1, naming each; `resolveQuest` throws on it.
+   - Content (`validate.ts`, `checkHarmReads`): `among` is held as a Check's score is, as a Set
+     (`checkQuery`, Sex allowed in its filters as in a Check); `exposedBy`, `guardedBy` and
+     `steadiedBy` list one or more Hero Stats content defines, none twice; and `steadiedBy` stands
+     only beside a loss. Each refusal names its path, as
+     `encounters.<key>.consequences.failure.0.guardedBy: "endurance" is listed twice`.
+   - Core content names none of the fields, so content stays 21.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *Form does not scale a share.* The plan says shares read effective Stats; form is what a Hero
+     adds to a Check (DL-148 item 11). A hurt or low-spirited Hero is no less armoured, so the
+     shares read `stats`, never `form`.
+   - *A Death's `among` reads the living Party, hurt included.* DL-148 item 14 and the epic say
+     `among` falls back to "the whole unhurt Party"; that is the Injury's pool, since a Hero takes
+     at most one Injury a Quest. A Death today falls on any living Hero, wounded or not; narrowing
+     it to the unhurt would make a wound a shield, and leave a Death with `among` unable to land
+     when every Hero is hurt. So a Death's pool is the living Party, `among` narrows it, and it
+     falls back to the whole living Party. For an Injury, as the plan says. This departs from
+     DL-148 item 14's words, and is kept for the owner to confirm; the epic's S4 bullet now says
+     so.
+   - *`among` is read of the Party, then narrowed.* The Set is evaluated over the living Party as
+     it stands (hurt flags included), then narrowed to those the harm can fall on. So
+     `["top", "party", 1, ["stat", "constitution"]]` names the toughest, and a second count finding
+     them hurt falls back to everyone unhurt; content that wants the next-toughest writes
+     `["top", ["where", "party", ["not", ["hurt"]]], 1, …]`. *For S10's content:* a `top N`
+     `among` falls back to every unhurt Hero, not to the next in line; for "next in line", write
+     the `["where", …, ["not", ["hurt"]]]` inside the `top`.
+   - *`steadiedBy` uses `guardRange`.* "By the same rule" is read as the guard's rule: the loss is
+     times 1 − `guardRange` × share. No third field.
+   - *Rounding.* Each Hero's sum is kept as it is on the Quest and rounded once, to a whole number,
+     in `moraleByHero` (`Math.round`, −0 made 0), so stored Morale stays whole. `Math.round` takes
+     .5 up, toward the smaller loss. (Built first as a rounding of each loss; the verification's
+     item 1.)
+   - *`moraleByHero` holds every Hero home alive*, 0 included, in Party order, so the History says
+     each Hero's Morale from the Encounters plainly. A Hero who died is left out, as `moraleDelta`'s
+     "each Hero who comes home alive" leaves them.
+   - *A refusal the plan did not ask for*: a `steadiedBy` beside a Morale gain does nothing, so it
+     is refused rather than kept as a field that reads as something; and an empty list is refused
+     ("leave it out to read none").
+   - *No page change.* The Quest report does not show Morale today, so `moraleByHero` reaches no
+     words; the narration and the page are unchanged.
+
+**The verification.** A second Opus agent verified the story and found no correctness bug. Its three
+requests were made, the first test first:
+1. **A small steadied loss vanished.** Each steadied loss was rounded as it was applied, so −1 at a
+   guard of 0.5 came to 0, and any number of them to nothing. Now each Hero's working sum stays as it
+   is on the Quest, their Morale on the Quest (and so their band and form) reads it unrounded, and
+   their total is rounded once when `moraleByHero` is built. Two tests in `resolve.test.ts`, red
+   before the change: two −1 losses steadied to −0.5 each come to −1 (and −2 at the bottom of the
+   range), and a Hero at 40 who loses a steadied half is in the `low` band in the next Encounter.
+   With no `steadiedBy` every delta is whole, so play is unchanged: the parity tests of the checks'
+   item 1 still pass, and the sweep was not rerun.
+2. **A Death's pool** is recorded in the epic's S4 bullet as well as item 7: an Injury's `among` is
+   narrowed to the unhurt with the whole unhurt Party as its fallback; a Death's to the living, with
+   the whole living Party as its fallback, so that a wound never shields a Hero from a Death. A
+   departure from DL-148 item 14's wording, kept for the owner to confirm.
+3. **For S10's content**, item 7 says how a `top N` `among` falls back, and how to write "next in
+   line".
+
+**The checks.**
+These were run before the verification's changes, except the counts in item 6, which are after.
+1. **The draws, with none of the fields.**
+   - *`weightedPick` is `pick`.* `rng.test.ts`: for every length from 1 to 8, 20,000 draws each, with
+     every weight 1, `weightedPick` returns what `int(0, n − 1)` and `pick` return from the same
+     state, and leaves the state where `int` does.
+   - *The resolver.* `resolve.test.ts`: over 40 seeds, two Encounters each of an Injury of three
+     counts at 0.5 and a Death at 0.4, who is hurt and who dies are what S3's `chance` and `int`
+     draw from a twin stream, and the stream ends where it does. Over 30 seeds, every field present
+     at no effect (`exposureRange` and `guardRange` 0, `among` the whole Party) resolves, and leaves
+     the stream, exactly as none.
+   - *The History fingerprints.* `quests-conclude.test.ts`'s three seeded games of 120 Days still
+     hash as recorded at `86c7afa`, `moraleByHero` taken out of `quest.resolved` beside the fields
+     taken out before.
+2. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s4 npm run harness`, core only,
+   content 21, config 13, not validated. Its report is `harness/reports/m9-v114-s4-2026-10-02.md`,
+   to be force-added. Against S3's (`m9-v114-s3-2026-10-02.md`), every counter, yearly table and
+   ending is equal: the player's 348,218 Quests resolved (15.2% failed, 66.7% strong), the Rivals'
+   805,084, Injuries 19,361 and 38,878, Deaths 1,648 and 3,298, two bankruptcies, 163 Rival folds,
+   28 Successions, no refused action, 50 of 50 saves round trip. Only these differ:
+   - the timings (`advance` mean 3.564 ms against 3.214, the run 675.2 s against 608.9);
+   - the saves' length, by `moraleByHero` on every `quest.resolved`: `seed-0001` played twice is
+     byte-identical at 120,738,315 characters (119,714,257), the mean save at year 20 is 113.77 MiB
+     (112.83), the largest 122.25 MiB (121.23), gzipped 12.73 MiB mean (12.58);
+   - and so the fingerprint, `33e03181…` (`6f0fcbb5…`).
+3. **The epic's boxes**, in `resolve.test.ts`.
+   - *`among` falls back.* Over 40 seeds, an Injury among the Warriors on a Party with none lands
+     every time, on each of the three Heroes at some seed. Among the Warriors with one, it is them
+     every time; a second count finds them hurt and falls on the other two.
+   - *Exposure.* 20,000 Quests, two Heroes at Constitution 1 and 20, one certain Injury
+     `exposedBy` Constitution: the one at the bottom is hit between 2.85 and 3.15 times as often as
+     the one at the top (the expectation is 3).
+   - *Guard.* 20,000 Quests each: an Injury at 0.8 `guardedBy` Constitution lands within 0.015 of
+     0.4 on a Hero at 20 and of 0.8 on one at 1; a Death at 0.8 within 0.015 of 0.4 at 20.
+   - Also: a Death among the Warriors falls on a hurt Warrior; `steadiedBy` Courage at 20, 1 and 11
+     gives −5, −10 and −7 of a −10, a gain of 3 as written, `moraleDelta` the sum as written; each
+     Hero's own Morale sets their form in the next Encounter; and armour's +3 Constitution takes a
+     Hero at 17 to the top of the range, so they keep half of a loss, hurt and wretched as they are.
+4. **The return.** `quests-conclude.test.ts`: a `steadiedBy` loss and a gain move each Hero home by
+   their own, one `hero.morale-changed` each, and `quest.resolved` carries `moraleByHero` in Party
+   order with `moraleDelta` the sum as written.
+5. **The script** is 763,715 bytes (763.72 kB) after the verification's changes (763,719 before
+   them), up 2,208 from S3's 761,507: harm.ts, the resolver's draw and the content checks. 36.29 kB
+   is left under 800 kB.
+6. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,259 tests in 169 files after the verification's changes, 46 more than
+     S3's 4,213: `harm.test.ts` (new) 18, `resolve.test.ts` 13, `refusals.test.ts` 12 (each field at its fullest; nine refusals by
+     path; Sex in `among`; a field on a kind that lacks it), and one each in `rng.test.ts`,
+     `query.test.ts` and `quests-conclude.test.ts`. A run made while the sweep shared the machine
+     timed out `harness/src/succession.test.ts`'s parallel probe; the run after the sweep passed
+     every test, with no flake.
+   - `npm run e2e -w web` passes all 93 specs, though no page changed.
+
+**Consequences.**
+- Play is unchanged where content names none of the fields, which core content does not: S10
+  writes them. From then, Stats such as Constitution, Endurance, Courage and Willpower decide who is
+  hurt and how much Morale a hard Encounter costs, and armour does more than add to Checks.
+- S5's estimate says "if no one falls", so harm's fields do not enter it. S10 tunes
+  `exposureRange` and `guardRange` with the rest.
+- No save row gains a field; schema 6 and configuration 13 hold. `quest.resolved` gains
+  `moraleByHero`, so a save grows by its length on each resolved Quest.
+
+**Actioned in:** `engine/src/quest-engine/harm.ts` and `harm.test.ts` (new); `resolve.ts`,
+`query.ts` and their tests; `engine/src/content-types.ts`, `config.ts`, `events.ts`;
+`engine/src/phases/quests-conclude.ts` and its test; `engine/src/rng.test.ts`;
+`content/src/parse.ts`, `validate.ts` and `refusals.test.ts`;
+`docs/adr/0010-checks-and-synergy-requirements-are-queries-over-the-party.md`; `CONTEXT.md`
+(Form, Exposure, Guard); `harness/reports/m9-v114-s4-2026-10-02.md`; the epic's S4 boxes and
+status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

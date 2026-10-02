@@ -43,7 +43,8 @@ export interface GameConfig {
    * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114);
    * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
    * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
-   * (DL-149, DL-153), and S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154).
+   * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), and S4's
+   * `exposureRange` and `guardRange` (DL-148, DL-155).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -219,6 +220,19 @@ export interface GameConfig {
   moraleCheckFactor: Readonly<Record<MoraleBand, number>>;
   /** Their form is also multiplied by this once they are hurt on the Quest (DL-148 item 10). */
   hurtCheckFactor: number;
+  /**
+   * How much more often harm falls on a Hero weak in the Stats an Injury or a Death is `exposedBy`
+   * (v1.1.4-S4, DL-148 item 14): their weight in the draw of who is hit is 1 + this × (1 − their
+   * mean share of those Stats' content range). At 2, the weakest is hit three times as often as the
+   * strongest; 0 weights everyone alike.
+   */
+  exposureRange: number;
+  /**
+   * How much a Hero strong in the Stats a harm is `guardedBy`, or a Morale loss `steadiedBy`, shrugs
+   * off (v1.1.4-S4, DL-148 item 14): the chance, or the loss, is times 1 − this × their mean share of
+   * those Stats' content range. A share from 0 to 1; at 0.5, the strongest halve it.
+   */
+  guardRange: number;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -573,6 +587,8 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   strongTriumphShare: 0.5,
   moraleCheckFactor: Object.freeze({ wretched: 0.85, low: 0.93, steady: 1, high: 1.04, elated: 1.08 }),
   hurtCheckFactor: 0.85,
+  exposureRange: 2,
+  guardRange: 0.5,
 
   moraleMin: 0,
   moraleMax: 100,
@@ -662,11 +678,16 @@ export interface EngineDeps {
  * are ordered, `triumph` > `success` > `setback` > 0, and `strongTriumphShare` is a share from 0 to
  * 1. A form factor is a finite number above 0, one for every Morale band, `steady`'s 1 and the rest
  * in the bands' order, so that better spirits never bring less; and `hurtCheckFactor` is at most 1,
- * so that a wound never helps (v1.1.4-S3, DL-154). The Quest Engine refuses to resolve under a
- * config with a problem (`resolveQuest`).
+ * so that a wound never helps (v1.1.4-S3, DL-154). `exposureRange` is a finite number of 0 or more,
+ * so that no weight in the draw of who is hit falls below 1, and `guardRange` a share from 0 to 1, so
+ * that a guard never raises a chance nor turns it below 0 (v1.1.4-S4, DL-155). The Quest Engine
+ * refuses to resolve under a config with a problem (`resolveQuest`).
  */
 export function configProblems(
-  config: Pick<GameConfig, 'checkDegrees' | 'strongTriumphShare' | 'moraleCheckFactor' | 'hurtCheckFactor'>,
+  config: Pick<
+    GameConfig,
+    'checkDegrees' | 'strongTriumphShare' | 'moraleCheckFactor' | 'hurtCheckFactor' | 'exposureRange' | 'guardRange'
+  >,
 ): string[] {
   const problems: string[] = [];
   const { triumph, success, setback } = config.checkDegrees;
@@ -687,6 +708,13 @@ export function configProblems(
   }
   const hurt = config.hurtCheckFactor;
   if (!(isFactor(hurt) && hurt <= 1)) problems.push(`hurtCheckFactor is ${hurt}; it is above 0 and at most 1, so that a wound never helps`);
+  const { exposureRange, guardRange } = config;
+  if (!(Number.isFinite(exposureRange) && exposureRange >= 0)) {
+    problems.push(`exposureRange is ${exposureRange}; it is a finite number of 0 or more`);
+  }
+  if (!(Number.isFinite(guardRange) && guardRange >= 0 && guardRange <= 1)) {
+    problems.push(`guardRange is ${guardRange}; it is a share from 0 to 1`);
+  }
   return problems;
 }
 

@@ -516,7 +516,8 @@ describe('form: what it scales, and what it does not', () => {
 describe("queryParty's Morale on the Quest (v1.1.4-S3)", () => {
   test('is the stored Morale plus the Morale consequences so far, held to the scale, and sets the band of the form', () => {
     const { world, all } = scene('working');
-    const at = (moraleDelta: number) => queryParty(all, world, deps, { moraleDelta }).members.map((it) => [it.morale, it.form]);
+    const at = (delta: number) =>
+      queryParty(all, world, deps, { moraleByHero: Object.fromEntries(all.map((hero) => [hero.id, delta])) }).members.map((it) => [it.morale, it.form]);
     const { moraleCheckFactor: factor } = deps.config;
 
     // aric 60, bryn 40, cass 70, dara 20, edda 50.
@@ -530,10 +531,27 @@ describe("queryParty's Morale on the Quest (v1.1.4-S3)", () => {
   test("hurt on the Quest multiplies the band's factor by hurtCheckFactor", () => {
     const { world, all } = scene('hurt-form');
     const [aric, bryn] = all as [Hero, Hero];
-    const taken = queryParty(all, world, deps, { hurt: new Set([aric.id, bryn.id]), moraleDelta: 30 });
+    const taken = queryParty(all, world, deps, { hurt: new Set([aric.id, bryn.id]), moraleByHero: { [aric.id]: 30, [bryn.id]: 30 } });
 
     expect(taken.members[0]?.form).toBe(deps.config.moraleCheckFactor.elated * deps.config.hurtCheckFactor);
     expect(taken.members[1]?.form).toBe(deps.config.hurtCheckFactor);
     expect(taken.members.map((it) => it.hurt)).toEqual([true, true, false, false, false]);
+  });
+
+  // v1.1.4-S4 (DL-155): a Morale loss `steadiedBy` some Stats is less for some Heroes, so each Hero's
+  // Morale on the Quest is their own.
+  test("reads each Hero's own Morale consequences, and 0 for a Hero with none", () => {
+    const { world, all } = scene('own-morale');
+    const [aric, bryn, cass] = all as [Hero, Hero, Hero];
+    const taken = queryParty(all, world, deps, { moraleByHero: { [aric.id]: -50, [bryn.id]: 35, [cass.id]: 0 } });
+
+    expect(taken.members.map((it) => it.morale)).toEqual([10, 75, 70, 20, 50]);
+    expect(taken.members.map((it) => it.form)).toEqual([
+      deps.config.moraleCheckFactor.wretched,
+      deps.config.moraleCheckFactor.high,
+      1,
+      deps.config.moraleCheckFactor.low,
+      1,
+    ]);
   });
 });

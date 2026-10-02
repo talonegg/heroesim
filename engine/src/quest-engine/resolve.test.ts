@@ -1,11 +1,21 @@
 import { describe, expect, test } from 'vitest';
 import { defaultConfig, type EngineDeps } from '../config.js';
-import { degrees, type Consequence, type ContentSet, type Degree, type Encounter, type EncounterCheck, type PassFormula } from '../content-types.js';
+import {
+  degrees,
+  type Consequence,
+  type ContentSet,
+  type Degree,
+  type Encounter,
+  type EncounterCheck,
+  type InjuryConsequence,
+  type PassFormula,
+  type SetQuery,
+} from '../content-types.js';
 import { createWorld } from '../create.js';
 import { addStack } from '../items.js';
 import { makeId, type Guild, type Hero, type Party, type Quest, type World } from '../document.js';
 import { streamOf } from '../generators/draw.js';
-import { next } from '../rng.js';
+import { chance, int, next } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { encounterCapability as capability, heroStatKeys, oldFormCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { drawLoot } from './loot.js';
@@ -278,7 +288,8 @@ describe("the Quest Engine's config (DL-42)", () => {
     // configVersion 4 from DL-42; 8 on the main line by the M5 close (DL-62) and 5 on M6's from M6-S1,
     // which moved two Rival fields to content (DL-56); 9 from their merge (DL-63); 10 from the M6 close's
     // Transfer lock (DL-69); 11 from M9-S2's Trait budget (DL-102); 12 from M9-F1's Guildmasters' ages (DL-113);
-    // 13 from v1.1.4-S2's Degrees (DL-152), which v1.1.4-S3's form factors join (DL-154).
+    // 13 from v1.1.4-S2's Degrees (DL-152), which v1.1.4-S3's form factors (DL-154) and v1.1.4-S4's harm
+    // ranges (DL-155) join.
     expect(defaultConfig).toMatchObject({
       configVersion: 13,
       checkVariance: 0.2,
@@ -288,6 +299,8 @@ describe("the Quest Engine's config (DL-42)", () => {
       strongTriumphShare: 0.5,
       moraleCheckFactor: { wretched: 0.85, low: 0.93, steady: 1, high: 1.04, elated: 1.08 },
       hurtCheckFactor: 0.85,
+      exposureRange: 2,
+      guardRange: 0.5,
     });
     for (const field of ['stubBands', 'stubVariance', 'stubSkillBonusPerRating', 'stubInjuryChance', 'stubDeathChance']) {
       expect(Object.hasOwn(defaultConfig, field), field).toBe(false);
@@ -681,5 +694,263 @@ describe('form on the Quest (v1.1.4-S3)', () => {
       /moraleCheckFactor\.low is 0; it is a finite number above 0/,
     );
     expect(() => resolvedAt('bad-hurt', 60, [one], { hurtCheckFactor: Number.POSITIVE_INFINITY })).toThrow(/hurtCheckFactor is Infinity/);
+  });
+});
+
+// v1.1.4-S4 (DL-148 item 14, DL-155): harm that reads the Stats. Who an Injury or a Death falls on
+// follows its `among` and `exposedBy`, whether it lands its `guardedBy`, and a Morale loss is each
+// Hero's own by its `steadiedBy`. The draws keep their number and order. A Stat's range is 1 to 20.
+describe('harm that reads the Stats (v1.1.4-S4)', () => {
+  /** An Encounter keyed `key` the Party of 8s always fails, with `failure`. */
+  const failing = (key: string, failure: Consequence[]): Encounter => encounter(key, false, failure);
+  const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1, ...fields });
+  const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
+
+  /** The scene through `encounters`, of `size` Heroes, each set by `set` before they set out. */
+  function harmed(seed: string, encounters: Encounter[], { size = 3, set = (() => undefined) as (heroes: Hero[]) => void, config = {} as Partial<EngineDeps['config']> } = {}) {
+    const s = scene(seed, { ...contentWith(...encounters), synergies: {} }, encounters.map((it) => it.key), { size });
+    set(s.heroes);
+    const deps = { ...s.deps, config: { ...s.deps.config, ...config } };
+    return { ...s, deps, resolve: () => resolveQuest(s.world, s.quest, s.party, deps) };
+  }
+
+  /** Sets the Heroes' Classes, in order. */
+  const classes =
+    (...keys: string[]) =>
+    (heroes: Hero[]): void => {
+      heroes.forEach((hero, index) => (hero.classKey = keys[index] ?? hero.classKey));
+    };
+
+  test('with none of the fields, whether it lands and on whom are what chance and pick drew, and the Days follow', () => {
+    const harm: Consequence[] = [injury({ chance: 0.5, count: 3 }), { kind: 'death', chance: 0.4 }];
+    for (let seed = 0; seed < 40; seed += 1) {
+      const h = harmed(`plain-${seed}`, [failing('harm', harm), failing('again', harm)]);
+      h.quest.lootTableKey = null; // No Loot's draws after the sequence.
+      const twin = structuredClone(streamOf(h.world, 'quests'));
+      const { encounters } = h.resolve();
+
+      // Each Encounter: one draw for its Check, then three an Injury and two a Death, as before v1.1.4-S4.
+      let alive = [...h.heroes];
+      const hurt = new Set<string>();
+      for (const result of encounters) {
+        const injured: string[] = [];
+        const died: string[] = [];
+        next(twin);
+        for (let time = 0; time < 3; time += 1) {
+          const lands = chance(twin, 0.5);
+          const unhurt = alive.filter((hero) => !hurt.has(hero.id));
+          const who = unhurt[int(twin, 0, Math.max(0, unhurt.length - 1))];
+          int(twin, 6, 12);
+          if (lands && who !== undefined) {
+            hurt.add(who.id);
+            injured.push(who.id);
+          }
+        }
+        const lands = chance(twin, 0.4);
+        const dead = alive[int(twin, 0, Math.max(0, alive.length - 1))];
+        if (lands && dead !== undefined) {
+          died.push(dead.id);
+          alive = alive.filter((hero) => hero.id !== dead.id);
+          hurt.delete(dead.id);
+        }
+        expect([result.injured, result.died]).toEqual([injured, died]);
+      }
+      expect(streamOf(h.world, 'quests')).toEqual(twin);
+    }
+  });
+
+  test('the fields at no effect, exposureRange and guardRange 0 and among the whole Party, draw and resolve exactly as none', () => {
+    const plain: Consequence[] = [injury({ chance: 0.6, count: 2 }), { kind: 'death', chance: 0.3 }, { kind: 'morale', delta: -7 }];
+    const reading: Consequence[] = [
+      injury({ chance: 0.6, count: 2, among: 'party', exposedBy: ['constitution'], guardedBy: ['endurance'] }),
+      { kind: 'death', chance: 0.3, among: 'party', exposedBy: ['strength'], guardedBy: ['constitution'] },
+      { kind: 'morale', delta: -7, steadiedBy: ['courage'] },
+    ];
+    const none = { exposureRange: 0, guardRange: 0 };
+    const vary = (heroes: Hero[]): void => {
+      heroes.forEach((hero, index) => Object.assign(hero.stats, { constitution: 1 + 9 * index, endurance: 20 - 7 * index, courage: 3 + 8 * index }));
+    };
+    for (let seed = 0; seed < 30; seed += 1) {
+      const a = harmed(`neutral-${seed}`, [failing('harm', plain), failing('again', plain)], { set: vary, config: none });
+      const b = harmed(`neutral-${seed}`, [failing('harm', reading), failing('again', reading)], { set: vary, config: none });
+      expect(b.resolve()).toEqual(a.resolve());
+      expect(streamOf(b.world, 'quests')).toEqual(streamOf(a.world, 'quests'));
+    }
+  });
+
+  test('among narrows who an Injury falls on, and a count it finds hurt falls on the others', () => {
+    for (let seed = 0; seed < 20; seed += 1) {
+      const h = harmed(`among-${seed}`, [failing('front', [injury({ among: warriors })])], { set: classes('mage', 'warrior', 'mage') });
+      expect(h.resolve().encounters[0]?.injured).toEqual([h.heroes[1]?.id]);
+    }
+    const twice = harmed('among-twice', [failing('front', [injury({ count: 3, among: warriors })])], { set: classes('mage', 'warrior', 'mage') });
+    const [first, ...rest] = twice.resolve().encounters[0]?.injured ?? [];
+    expect(first).toBe(twice.heroes[1]?.id);
+    expect(new Set(rest)).toEqual(new Set([twice.heroes[0]?.id, twice.heroes[2]?.id]));
+  });
+
+  // The epic's second box.
+  test('among falls back to the whole unhurt Party when it matches no one, so leaving the Warriors at home dodges nothing', () => {
+    const hit = new Set<string>();
+    for (let seed = 0; seed < 40; seed += 1) {
+      const h = harmed(`fallback-${seed}`, [failing('front', [injury({ among: warriors })])], { set: classes('mage', 'rogue', 'mage') });
+      const { encounters, outcome } = h.resolve();
+      expect(encounters[0]?.injured).toHaveLength(1);
+      expect(outcome.injuries).toHaveLength(1);
+      hit.add(encounters[0]?.injured[0] as string);
+    }
+    expect(hit.size).toBe(3);
+  });
+
+  test('a Death among the Warriors may fall on a hurt one, since a wound makes no one safer', () => {
+    for (let seed = 0; seed < 20; seed += 1) {
+      const harm: Consequence[] = [injury({ among: warriors }), { kind: 'death', chance: 1, among: warriors }];
+      const h = harmed(`death-among-${seed}`, [failing('front', harm)], { set: classes('mage', 'warrior', 'mage') });
+      const [result] = h.resolve().encounters;
+      expect(result?.injured).toEqual([h.heroes[1]?.id]);
+      expect(result?.died).toEqual([h.heroes[1]?.id]);
+    }
+  });
+
+  // The epic's third box.
+  test('over 20,000 draws, the Hero at the bottom of exposedBy is hit about three times as often as the one at the top', () => {
+    const h = harmed('exposure', [failing('front', [injury({ exposedBy: ['constitution'] })])], {
+      size: 2,
+      set: (heroes) => heroes.forEach((hero, index) => (hero.stats['constitution'] = index === 0 ? 1 : 20)),
+    });
+    const [low, high] = h.heroes as [Hero, Hero];
+    const hits = new Map<string, number>();
+    for (let draw = 0; draw < 20_000; draw += 1) {
+      const hurt = h.resolve().encounters[0]?.injured[0] ?? 'no one';
+      hits.set(hurt, (hits.get(hurt) ?? 0) + 1);
+    }
+    expect(hits.get('no one')).toBeUndefined();
+    const ratio = (hits.get(low.id) ?? 0) / (hits.get(high.id) ?? 1);
+    expect(ratio).toBeGreaterThan(2.85);
+    expect(ratio).toBeLessThan(3.15);
+  });
+
+  test('over 20,000 draws, guardedBy at the top halves the chance, and at the bottom leaves it', () => {
+    const rate = (constitution: number, kind: 'injury' | 'death'): number => {
+      const harm: Consequence = kind === 'injury' ? injury({ chance: 0.8, guardedBy: ['constitution'] }) : { kind, chance: 0.8, guardedBy: ['constitution'] };
+      const h = harmed(`guard-${constitution}-${kind}`, [failing('front', [harm])], {
+        size: 1,
+        set: (heroes) => heroes.forEach((hero) => (hero.stats['constitution'] = constitution)),
+      });
+      let landed = 0;
+      for (let draw = 0; draw < 20_000; draw += 1) {
+        const [result] = h.resolve().encounters;
+        landed += (result?.injured.length ?? 0) + (result?.died.length ?? 0);
+      }
+      return landed / 20_000;
+    };
+
+    expect(Math.abs(rate(20, 'injury') - 0.4)).toBeLessThan(0.015);
+    expect(Math.abs(rate(1, 'injury') - 0.8)).toBeLessThan(0.015);
+    expect(Math.abs(rate(20, 'death') - 0.4)).toBeLessThan(0.015);
+  });
+
+  test("steadiedBy makes each Hero's Morale loss their own, a gain as written, and moraleDelta stays the sum as written", () => {
+    const steadied: Consequence[] = [
+      { kind: 'morale', delta: -10, steadiedBy: ['courage'] },
+      { kind: 'morale', delta: 3, steadiedBy: ['courage'] },
+    ];
+    const h = harmed('steadied', [failing('gloom', steadied)], {
+      set: (heroes) => heroes.forEach((hero, index) => (hero.stats['courage'] = [20, 1, 11][index] ?? 10)),
+    });
+    const { outcome } = h.resolve();
+
+    // −10 × (1 − 0.5 × share): −5 at the top, −10 at the bottom, −7.37 at 11; then +3 each, the total rounded.
+    expect(outcome.moraleDelta).toBe(-7);
+    expect(outcome.moraleByHero).toEqual(Object.fromEntries(h.heroes.map((hero, index) => [hero.id, [-2, -7, -4][index]])));
+    expect(Object.keys(outcome.moraleByHero)).toEqual(h.heroes.map((hero) => hero.id));
+  });
+
+  // The verification of v1.1.4-S4: a steadied loss rounded as it was applied let a small one vanish.
+  test("steadied losses are summed as they are and each Hero's total rounded once: two −1s halved are −1, not 0", () => {
+    const small: Consequence = { kind: 'morale', delta: -1, steadiedBy: ['courage'] };
+    const h = harmed('small-losses', [failing('chill', [small, small])], {
+      set: (heroes) => heroes.forEach((hero, index) => (hero.stats['courage'] = index === 0 ? 20 : 1)),
+    });
+
+    expect(h.resolve().outcome.moraleByHero).toEqual(Object.fromEntries(h.heroes.map((hero, index) => [hero.id, index === 0 ? -1 : -2])));
+  });
+
+  test("each Hero's Morale on the Quest reads their steadied losses unrounded: 40 less a half is the low band", () => {
+    const after: Encounter = {
+      key: 'after',
+      name: 'after',
+      kind: 'combat',
+      checks: [{ key: 'after', name: 'after', score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: 0.25 }],
+      consequences: { success: [], failure: [] },
+    };
+    const h = harmed('half-a-point', [failing('chill', [{ kind: 'morale', delta: -1, steadiedBy: ['courage'] }]), after], {
+      set: (heroes) => {
+        heroes.forEach((hero, index) => {
+          hero.morale = index === 0 ? 40 : 60;
+          hero.stats['courage'] = 20;
+        });
+      },
+    });
+
+    // The first Hero at 39.5 is low; the others, at 59.5, steady.
+    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * defaultConfig.moraleCheckFactor.low + 16, 10);
+  });
+
+  test('moraleByHero names each Hero home alive, and with no steadiedBy is moraleDelta for each', () => {
+    const h = harmed('by-hero', [failing('grim', [{ kind: 'morale', delta: -4 }, { kind: 'death', chance: 1 }]), failing('grimmer', [{ kind: 'morale', delta: -2 }])]);
+    const { outcome } = h.resolve();
+    const [dead] = outcome.deaths;
+
+    expect(dead).toBeDefined();
+    expect(outcome.moraleDelta).toBe(-6);
+    expect(outcome.moraleByHero).toEqual(Object.fromEntries(h.heroes.filter((hero) => hero.id !== dead).map((hero) => [hero.id, -6])));
+  });
+
+  test("each Hero's own Morale sets their form in the next Encounter", () => {
+    const after: Encounter = {
+      key: 'after',
+      name: 'after',
+      kind: 'combat',
+      checks: [{ key: 'after', name: 'after', score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: 0.25 }],
+      consequences: { success: [], failure: [] },
+    };
+    // From 60: −30 at the bottom of Courage, to 30, low; −15 at the top, to 45, steady.
+    const h = harmed('own-form', [failing('gloom', [{ kind: 'morale', delta: -30, steadiedBy: ['courage'] }]), after], {
+      set: (heroes) => {
+        heroes.forEach((hero, index) => {
+          hero.morale = 60;
+          hero.stats['courage'] = index === 0 ? 1 : 20;
+        });
+      },
+    });
+
+    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * defaultConfig.moraleCheckFactor.low + 16, 10);
+  });
+
+  test("a share reads effective Stats, so armour's Constitution steadies, and never form", () => {
+    const battered: Consequence[] = [
+      injury({ among: warriors }),
+      { kind: 'morale', delta: -40, steadiedBy: ['constitution'] },
+      { kind: 'morale', delta: -10, steadiedBy: ['constitution'] },
+    ];
+    const h = harmed('armoured', [failing('battered', battered)], {
+      size: 2,
+      set: (heroes) => {
+        for (const hero of heroes) {
+          hero.morale = 10;
+          hero.stats['constitution'] = 17;
+        }
+        classes('warrior', 'mage')(heroes);
+      },
+    });
+    const [plated, bare] = h.heroes as [Hero, Hero];
+    addStack(h.world, 'plate-harness', 1, { kind: 'hero', id: plated.id, slot: 'armour' }); // Constitution +3, to 20
+
+    const { encounters, outcome } = h.resolve();
+    // Hurt and wretched, the plated Hero keeps half of each: −20 and −5. Bare, at 17, 1 − 0.5 × 16/19 of each.
+    expect(encounters[0]?.injured).toEqual([plated.id]);
+    const kept = 1 - 0.5 * (16 / 19);
+    expect(outcome.moraleByHero).toEqual({ [plated.id]: -25, [bare.id]: Math.round(-50 * kept) });
   });
 });

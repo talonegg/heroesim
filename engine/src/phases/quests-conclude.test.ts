@@ -15,7 +15,7 @@ import { xpForLevel } from '../progression.js';
 import { encounterCount } from '../quest-engine/encounters.js';
 import { regardValue } from '../regard.js';
 import { createStreams } from '../rng.js';
-import { playerGuild } from '../selectors.js';
+import { effectiveStats, playerGuild } from '../selectors.js';
 import { dayOf, nightOf, timeOfDay } from '../time.js';
 import {
   certainHarmContent,
@@ -363,6 +363,36 @@ describe('questsConclude', () => {
     expect(own.map((event) => event.payload.heroId)).toEqual([survivor]);
     expect(own[0]?.payload.after).toBe((own[0]?.payload.before ?? NaN) - 6);
     expect(ofType(events, 'quest.resolved')[0]?.payload.moraleDelta).toBe(-6);
+    withValid({ ...eve, world }, deps);
+  });
+
+  // v1.1.4-S4 (DL-148 item 14, DL-155): a Morale loss `steadiedBy` some Stats is each Hero's own.
+  test("each Hero home takes their own Morale from the Encounters, a loss steadiedBy their Stats less for the steadier", () => {
+    const deps = soloDeps(
+      { moraleMin: 0, moraleMax: 100 },
+      withEncounters({ success: [], failure: [{ kind: 'morale', delta: -10, steadiedBy: ['courage'] }, { kind: 'morale', delta: 4, steadiedBy: ['courage'] }] }),
+    );
+    const { eve, heroIds } = sentAway('steadied', deps, { size: 3, difficulty: 5000, encounterKeys: ['hold-the-line'] });
+    const heroes = heroIds.map((id) => eve.world.heroes[id] as Hero);
+    for (const [hero, courage] of heroes.map((hero, index) => [hero, [20, 1, 11][index] as number] as const)) {
+      hero.stats['courage'] = courage;
+      hero.morale = 50;
+    }
+    // The loss is times 1 − guardRange × the share of Courage's range; the gain as written; the total rounded.
+    const own = (hero: Hero): number => {
+      const courage = effectiveStats(hero, eve.world, deps.content)['courage'] ?? Number.NaN;
+      return Math.round(-10 * (1 - deps.config.guardRange * ((courage - 1) / 19)) + 4);
+    };
+
+    const { world, events } = concludeAlone(eve, deps);
+
+    const [resolved] = ofType(events, 'quest.resolved');
+    expect(resolved?.payload.moraleDelta).toBe(-6);
+    expect(resolved?.payload.moraleByHero).toEqual(Object.fromEntries(heroes.map((hero) => [hero.id, own(hero)])));
+    expect(Object.keys(resolved?.payload.moraleByHero ?? {})).toEqual(heroIds);
+    expect(heroes.map(own)).toEqual([-1, -6, -3]);
+    const changes = ofType(events, 'hero.morale-changed').filter((event) => event.payload.cause === 'encounters');
+    expect(changes.map(({ payload }) => [payload.heroId, payload.before, payload.after])).toEqual(heroes.map((hero) => [hero.id, 50, 50 + own(hero)]));
     withValid({ ...eve, world }, deps);
   });
 
@@ -782,10 +812,16 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
 
   /**
    * A History entry as it was before M9-F1: the new `questId` and the Quest's participation taken out;
-   * from M9-F7 (DL-120 item 4, DL-121), a founding's Wealth; and from v1.1.4-S2 (DL-152), an
-   * Encounter's Degree, the Check that decided it and its Checks.
+   * from M9-F7 (DL-120 item 4, DL-121), a founding's Wealth; from v1.1.4-S2 (DL-152), an
+   * Encounter's Degree, the Check that decided it and its Checks; and from v1.1.4-S4 (DL-155), each
+   * Hero's own Morale from the Encounters, which with no `steadiedBy` is every Hero's `moraleDelta`.
    */
   function unnamed(entry: WorldDocument['history']['entries'][number]): object {
+    if (entry.type === 'quest.resolved') {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      delete payload.moraleByHero;
+      return { ...entry, payload };
+    }
     if (entry.type === 'quest.encounter') {
       const payload = { ...(entry.payload as Record<string, unknown>) };
       delete payload.degree;

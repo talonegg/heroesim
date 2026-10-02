@@ -25,6 +25,7 @@ import type {
   FacilityKey,
   Feature,
   GearDefinition,
+  HarmReads,
   HeroBiographySentences,
   Improvement,
   InjuryType,
@@ -43,6 +44,7 @@ import type {
   Portraits,
   QuestTemplate,
   QuestTemplateRequires,
+  SetQuery,
   Skill,
   Sex,
   SlotKey,
@@ -787,17 +789,23 @@ function outcomes(reader: RowReader): Encounter['consequences'] {
   return { ...result, ...(triumph === undefined ? {} : { triumph }), ...(setback === undefined ? {} : { setback }) };
 }
 
-/** One consequence: its `kind`, then the fields that kind has, and no others (M4-S1). */
+/**
+ * One consequence: its `kind`, then the fields that kind has, and no others (M4-S1). An Injury and a
+ * Death may also name `among` (a Set Query, held by `validateContent`), `exposedBy` and `guardedBy`,
+ * and a Morale `steadiedBy` (v1.1.4-S4, DL-148 item 14).
+ */
 function consequence(reader: RowReader): Consequence {
   const kind = reader.oneOf('kind', consequenceKinds);
   const read = ((): Consequence => {
     switch (kind) {
       case 'injury':
-        return { kind, typeKey: reader.string('typeKey'), chance: reader.number('chance'), count: reader.integer('count') };
+        return { kind, typeKey: reader.string('typeKey'), chance: reader.number('chance'), count: reader.integer('count'), ...harmReads(reader) };
       case 'death':
-        return { kind, chance: reader.number('chance') };
-      case 'morale':
-        return { kind, delta: reader.integer('delta') };
+        return { kind, chance: reader.number('chance'), ...harmReads(reader) };
+      case 'morale': {
+        const steadiedBy = reader.optional('steadiedBy', (field) => reader.strings(field));
+        return { kind, delta: reader.integer('delta'), ...(steadiedBy === undefined ? {} : { steadiedBy }) };
+      }
       case 'regard':
         return { kind, between: reader.oneOf('between', regardBetween), delta: reader.number('delta') };
       case 'xp':
@@ -809,6 +817,18 @@ function consequence(reader: RowReader): Consequence {
   })();
   reader.refuseUnknown(`a consequence of kind ${kind}`);
   return read;
+}
+
+/** What an Injury or a Death reads to fall on someone (v1.1.4-S4): `among`, `exposedBy` and `guardedBy`, each optional. */
+function harmReads(reader: RowReader): HarmReads {
+  const among = reader.optional('among', (field) => reader.value(field) as SetQuery);
+  const exposedBy = reader.optional('exposedBy', (field) => reader.strings(field));
+  const guardedBy = reader.optional('guardedBy', (field) => reader.strings(field));
+  return {
+    ...(among === undefined ? {} : { among }),
+    ...(exposedBy === undefined ? {} : { exposedBy }),
+    ...(guardedBy === undefined ? {} : { guardedBy }),
+  };
 }
 
 /**

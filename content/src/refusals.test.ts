@@ -1884,3 +1884,65 @@ describe("a Check's score that subtracts a Stat (v1.1.4-S3)", () => {
     expect(parseContent(files).synergies['sword-and-salve']?.requires).toEqual([condition]);
   });
 });
+
+// v1.1.4-S4 (DL-148 item 14, DL-155): harm that reads the Stats. An Injury's and a Death's `among`
+// is a Set Query, held as a Check's score is, Sex allowed in its filters; their `exposedBy` and
+// `guardedBy`, and a Morale's `steadiedBy`, list Hero Stats. Each refusal names its path.
+describe('harm that reads the Stats (v1.1.4-S4)', () => {
+  /** The real files with `ambush-on-the-road`'s failure consequences as given. */
+  const failing = (...failure: Record<string, unknown>[]) =>
+    withJson('encounters.json', (json) => {
+      const ambush = json['ambush-on-the-road'] as EncounterRow;
+      (ambush.consequences as { failure: unknown[] }).failure = failure;
+    });
+  const injury = { kind: 'injury', typeKey: 'deep-cut', chance: 0.2, count: 1 };
+  const escaped = (rest: string) => rest.replace(/[.[\]()"]/g, (char) => `\\${char}`);
+  /** A refusal of validation, at the path's end `rest`. */
+  const at = (rest: string) => new RegExp(`encounters\\.ambush-on-the-road\\.consequences\\.failure\\.${escaped(rest)}`);
+  /** A refusal as the file is read, which names the file and then the row. */
+  const read = (rest: string) => new RegExp(`encounters\\.json: ambush-on-the-road\\.consequences\\.failure\\.${escaped(rest)}`);
+
+  test('every field, at its fullest, loads as written', () => {
+    const among = ['top', ['where', 'party', ['and', ['class', 'warrior'], ['sex', 'male']]], 2, ['stat', 'constitution']];
+    const files = failing(
+      { ...injury, among, exposedBy: ['constitution', 'endurance'], guardedBy: ['constitution'] },
+      { kind: 'death', chance: 0.03, among: 'party', exposedBy: ['dexterity'], guardedBy: ['endurance'] },
+      { kind: 'morale', delta: -4, steadiedBy: ['courage', 'willpower'] },
+    );
+
+    expect(parseContent(files).encounters['ambush-on-the-road']?.consequences.failure).toEqual([
+      { ...injury, among, exposedBy: ['constitution', 'endurance'], guardedBy: ['constitution'] },
+      { kind: 'death', chance: 0.03, among: 'party', exposedBy: ['dexterity'], guardedBy: ['endurance'] },
+      { kind: 'morale', delta: -4, steadiedBy: ['courage', 'willpower'] },
+    ]);
+  });
+
+  test.each<[string, Record<string, unknown>, RegExp]>([
+    ['an among that is not a Set', { ...injury, among: ['count', 'party'] }, at('0.among: "count" makes a Num, where a Set is expected')],
+    ['an among naming a Class content lacks', { kind: 'death', chance: 0.1, among: ['where', 'party', ['class', 'paladin']] }, at('0.among.2.1: "paladin" is not a Class')],
+    ['an among that is a number', { ...injury, among: 3 }, at('0.among is 3; a number stands for a Val or a Num, not a Set')],
+    ['an exposedBy naming a Stat content lacks', { ...injury, exposedBy: ['toughness'] }, at('0.exposedBy: "toughness" is not a Hero Stat')],
+    ['an exposedBy naming a Guildmaster Stat', { ...injury, exposedBy: ['judgement'] }, at('0.exposedBy: "judgement" is not a Hero Stat')],
+    ['a guardedBy naming a Stat twice', { kind: 'death', chance: 0.1, guardedBy: ['endurance', 'endurance'] }, at('0.guardedBy: "endurance" is listed twice')],
+    ['an empty guardedBy', { ...injury, guardedBy: [] }, at('0.guardedBy lists no Stat')],
+    ['a steadiedBy naming a Stat content lacks', { kind: 'morale', delta: -2, steadiedBy: ['nerve'] }, at('0.steadiedBy: "nerve" is not a Hero Stat')],
+    ['a steadiedBy beside a gain', { kind: 'morale', delta: 2, steadiedBy: ['courage'] }, at('0.steadiedBy steadies a loss; delta is 2')],
+  ])('with %s is refused, naming its path', (_, consequence, problem) => {
+    expect(refusalOf(() => parseContent(failing(consequence))).message).toMatch(problem);
+  });
+
+  test('an among filtered by Sex is allowed, as in a Check, and one that is not a list of Stats is refused as a field of the wrong type', () => {
+    const bySex = failing({ ...injury, among: ['where', 'party', ['sex', 'female']] });
+    expect(parseContent(bySex).encounters['ambush-on-the-road']?.consequences.failure[0]).toMatchObject({ among: ['where', 'party', ['sex', 'female']] });
+    expect(refusalOf(() => parseContent(failing({ ...injury, exposedBy: 'constitution' }))).message).toMatch(read('0.exposedBy is "constitution"; expected a list of strings'));
+  });
+
+  test("a field on a kind that lacks it is refused: an Injury's steadiedBy, a Morale's among", () => {
+    expect(refusalOf(() => parseContent(failing({ ...injury, steadiedBy: ['courage'] }))).message).toMatch(
+      read('0.steadiedBy is not a field of a consequence of kind injury'),
+    );
+    expect(refusalOf(() => parseContent(failing({ kind: 'morale', delta: -1, among: 'party' }))).message).toMatch(
+      read('0.among is not a field of a consequence of kind morale'),
+    );
+  });
+});

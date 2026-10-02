@@ -40,8 +40,15 @@ in a Check's score, any `-` whose right operand reads a Stat a Hero adds: a `sta
 a Num of such a Val, at any depth. A raw Check, read without form, and a Synergy's requirement, read
 as the Heroes are, may still subtract one.
 
+Harm reads the Party in the same language (v1.1.4-S4, DL-155). An Injury's or a Death's `among` is
+a Set Query, held as a Check's score is, Sex allowed in its filters, since it decides who takes part
+in the harm and never a number. It is read of the Party as it stands at that consequence, hurt and
+all, and narrowed to the Heroes the harm can fall on; when that leaves no one, any of them may be
+hit. The Stats that expose to harm and guard against it are lists of Hero Stat keys beside it, not
+Queries.
+
 A text form, compiled when content is built, is not part of this decision. It is added only if
 writing the arrays proves painful (DL-148 item 4).
 
 *Recorded 2026-10-02* in v1.1.4-S1 (DL-151), from DL-148 items 4 to 6 and 20; the refusal of a
-subtracted Stat added in v1.1.4-S3 (DL-154).
+subtracted Stat added in v1.1.4-S3 (DL-154), and harm's `among` in v1.1.4-S4 (DL-155).

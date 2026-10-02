@@ -229,12 +229,18 @@ export function encounterForm(payload: Pick<QuestEncounter['payload'], 'formDeci
  */
 export type QuestResolved = Entry<
   'quest.resolved',
-  Omit<QuestOutcome, 'synergyKeys'> & {
+  Omit<QuestOutcome, 'synergyKeys' | 'moraleByHero'> & {
     /**
      * The Synergies that added to any of the Quest's Checks, in key order (M4-S3, DL-45): none is
      * `[]`. Absent from an entry written before M4-S3, which reads as none.
      */
     synergyKeys?: SynergyKey[];
+    /**
+     * The Morale each Hero who came home brought from the Encounters, by id (v1.1.4-S4, DL-148 item
+     * 14), which a loss `steadiedBy` their Stats makes their own. Absent from an entry written before
+     * v1.1.4-S4, whose every Hero brought `moraleDelta`.
+     */
+    moraleByHero?: QuestOutcome['moraleByHero'];
     questId: QuestId;
     partyId: PartyId;
     guildId: GuildId;

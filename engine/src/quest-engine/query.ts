@@ -57,8 +57,11 @@ export interface QueryMember {
 export interface OnQuest {
   /** The Heroes hurt earlier on the Quest; none when absent. */
   hurt?: ReadonlySet<HeroId>;
-  /** The Morale consequences applied so far, summed; 0 when absent. */
-  moraleDelta?: number;
+  /**
+   * The Morale consequences applied so far to each Hero, by id: their own since v1.1.4-S4, a loss
+   * `steadiedBy` their Stats being less for some (harm.ts). 0 for a Hero absent, and for all when absent.
+   */
+  moraleByHero?: Readonly<Record<HeroId, number>>;
 }
 
 /** What a Query reads of content: whether a key it names is still defined. */
@@ -73,7 +76,7 @@ export interface QueryParty {
 /**
  * `heroes`, the members still in the sequence in Party order, as Queries read them on one Encounter:
  * each Hero's effective Stats read once (`effectiveStats`); their Morale on the Quest, their stored
- * Morale plus `onQuest.moraleDelta` held to the scale (`workingMorale`); their age at `world.turn`;
+ * Morale plus their own of `onQuest.moraleByHero` held to the scale (`workingMorale`); their age at `world.turn`;
  * whether `onQuest.hurt` holds their id; and their form from those two (`formOf`, v1.1.4-S3). With
  * nothing `onQuest`, the Party as it sets out.
  */
@@ -84,10 +87,11 @@ export function queryParty(
   onQuest: OnQuest = {},
 ): QueryParty {
   const { config, content } = deps;
-  const { hurt = new Set(), moraleDelta = 0 } = onQuest;
+  const { hurt = new Set(), moraleByHero = {} } = onQuest;
   return {
     members: heroes.map((hero) => {
-      const morale = workingMorale(hero.morale, moraleDelta, config);
+      const delta = Object.hasOwn(moraleByHero, hero.id) ? (moraleByHero[hero.id] ?? 0) : 0;
+      const morale = workingMorale(hero.morale, delta, config);
       const isHurt = hurt.has(hero.id);
       return {
         hero,

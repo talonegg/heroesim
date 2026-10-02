@@ -417,6 +417,25 @@ describe('weightedPick (M4-S5, DL-43)', () => {
     }
   });
 
+  // v1.1.4-S4 (DL-155): who harm falls on is drawn by weightedPick, where before it was `int` from 0
+  // to the last of the Heroes it could fall on, `pick`'s draw; with no field that reads the Stats,
+  // every weight is 1 and the draw must be the same, for any Party's size.
+  test('with every weight 1, for every length from 1 to 8, picks the item int and pick pick from the same state', () => {
+    for (let length = 1; length <= 8; length += 1) {
+      const items = Array.from({ length }, (_, index) => index);
+      const ones = items.map(() => 1);
+      const weighted = generation(`weighted-ones-${length}`);
+      const byInt = generation(`weighted-ones-${length}`);
+      const byPick = generation(`weighted-ones-${length}`);
+      for (let i = 0; i < 20_000; i += 1) {
+        const drawn = weightedPick(weighted, items, ones);
+        expect(drawn).toBe(int(byInt, 0, length - 1));
+        expect(drawn).toBe(pick(byPick, items));
+      }
+      expect(weighted).toEqual(byInt);
+    }
+  });
+
   test('draws in proportion to the weights, never a weight of 0, and uniformly when every weight is 0', () => {
     const state = generation('weighted-rate');
     const counts = { a: 0, b: 0, c: 0 };

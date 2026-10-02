@@ -16,6 +16,14 @@
 // each of its Degree's consequences in order: an Injury three per `count` (whether it lands, on
 // whom, its Days), a Death two (whether, on whom); taken whether or not they land, so tuning a
 // chance never shifts a later draw, as `chance` promises for one (rng.ts).
+//
+// Harm reads the Stats (v1.1.4-S4, DL-148 item 14, harm.ts). An Injury or a Death falls on those its
+// `among` names, if any of them it can fall on; on whom is drawn by `weightedPick`, each Hero's weight
+// their exposure by `exposedBy`; and it lands if its first draw is below the chance times the chosen
+// Hero's guard by `guardedBy`. The draws keep their number and order: with none of the fields every
+// weight and guard is 1, and the draws are what `chance` and `pick` drew. A Morale loss
+// `steadiedBy` some Stats is less for a Hero with more of them, so each Hero's Morale on the Quest,
+// and what they bring home (`moraleByHero`), is their own.
 // After the sequence, Loot's two draws for a Quest with a Loot table, whatever the band (M5-S5,
 // loot.ts, DL-52).
 //
@@ -38,18 +46,19 @@
 // (ADR-0002 as amended by pre-M0 review A1).
 
 import { configProblems, type GameConfig, type QuestBand } from '../config.js';
-import type { CheckKey, Consequence, Degree, Encounter, EncounterKey, EncounterKind, InjuryTypeKey, PassFormula, SynergyKey } from '../content-types.js';
+import type { CheckKey, Consequence, Degree, Encounter, EncounterKey, EncounterKind, HarmReads, InjuryTypeKey, PassFormula, SynergyKey } from '../content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Party, type Quest, type World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { healDays } from '../injuries.js';
-import { chance, int } from '../rng.js';
+import { int, next, weightedPick } from '../rng.js';
 import { healFactor } from '../selectors.js';
 import { check, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './check.js';
 import { kitOf, type ConsumableUse } from './consumables.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { sequenceFor } from './encounters.js';
+import { exposure, guard, narrowed } from './harm.js';
 import { drawLoot, type LootDraw } from './loot.js';
-import { queryParty } from './query.js';
+import { queryParty, type OnQuest, type QueryMember, type QueryParty } from './query.js';
 import { synergiesOn } from './synergy.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
@@ -116,8 +125,17 @@ export interface QuestOutcome {
   fameDelta: number;
   /** XP to each Hero who comes home alive: M3-S2's by band, times the Encounters' XP factors. */
   xpPerHero: number;
-  /** Morale to each Hero who comes home alive, summed over the Encounters; 0 moves no one. */
+  /**
+   * The Encounters' Morale consequences as written, summed; 0 moves no one. What each Hero brings
+   * home is `moraleByHero`'s, which differs from this only by a loss `steadiedBy` their Stats.
+   */
   moraleDelta: number;
+  /**
+   * Morale to each Hero who comes home alive, by id in Party order (v1.1.4-S4, DL-148 item 14): the
+   * Encounters' Morale consequences summed, each loss `steadiedBy` some Stats times their guard, and
+   * the total rounded once to a whole number (v1.1.4-S4's verification). 0 moves them not at all.
+   */
+  moraleByHero: Record<HeroId, number>;
   /** Regard between every pair of the Party, summed over the Encounters; applied from M4-S4. */
   regardDelta: number;
   /** At most one per Hero, and none on a Hero who died. */
@@ -173,6 +191,12 @@ interface Working {
   wealthFactor: number;
   fameDelta: number;
   moraleDelta: number;
+  /**
+   * Each Hero's own Morale consequences so far, by id (v1.1.4-S4): `moraleDelta`'s, a loss steadied
+   * for some. Not rounded until the outcome, so that small steadied losses add up, and their Morale on
+   * the Quest reads it as it is.
+   */
+  moraleByHero: Record<HeroId, number>;
   regardDelta: number;
 }
 
@@ -212,6 +236,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     wealthFactor: 1,
     fameDelta: 0,
     moraleDelta: 0,
+    moraleByHero: Object.fromEntries(heroes.map((hero) => [hero.id, 0])),
     regardDelta: 0,
   };
   const encounters: EncounterResult[] = [];
@@ -219,9 +244,9 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
   for (const [index, encounter] of sequence.entries()) {
     if (working.alive.length === 0) break;
     // v1.1.4-S1: the members as the Queries read them on this Encounter, their effective Stats read
-    // once; from v1.1.4-S3 their Morale on the Quest and their form, from the harm so far.
-    const hurt = new Set(working.injuries.map((injury) => injury.heroId));
-    const party = queryParty(working.alive, world, deps, { hurt, moraleDelta: working.moraleDelta });
+    // once; from v1.1.4-S3 their Morale on the Quest and their form, from the harm so far; from
+    // v1.1.4-S4 each Hero's own Morale consequences.
+    const party = queryParty(working.alive, world, deps, onQuestOf(working));
     // The Synergies the Check adds, from the same members: recorded for the Quest, not the Encounter.
     for (const synergy of synergiesOn(party, encounter, deps.content)) synergyKeys.add(synergy.key);
     if (encounter.checks.length === 0) throw new RangeError(`Encounter ${JSON.stringify(encounter.key)} has no Check`);
@@ -241,7 +266,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     }
     const harm: Harm = { injured: [], died: [] };
     for (const consequence of consequencesOf(encounter, decided.degree)) {
-      apply(consequence, working, harm, state, guild, deps);
+      apply(consequence, working, harm, { state, guild, world }, deps);
     }
     const deciding = rollOf(encounter, results, decided.decidedBy);
     const formDecided = formDecidedOf(encounter, pass, results, decided.degree);
@@ -281,6 +306,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       fameDelta: (paid ? quest.fameEffect : 0 - quest.fameEffect) + working.fameDelta,
       xpPerHero: Math.floor(xp),
       moraleDelta: working.moraleDelta,
+      moraleByHero: Object.fromEntries(working.alive.map((hero) => [hero.id, whole(working.moraleByHero[hero.id] ?? 0)])),
       regardDelta: working.regardDelta,
       injuries: working.injuries,
       deaths: working.deaths,
@@ -346,23 +372,36 @@ function consequencesOf({ consequences }: Pick<Encounter, 'consequences'>, degre
 /** Who one Encounter's consequences hurt. */
 type Harm = Pick<EncounterResult, 'injured' | 'died'>;
 
+/** Where a consequence is applied: the `quests` stream, the Party's Guild and the world. */
+interface Applying {
+  state: Stream;
+  guild: Guild;
+  world: World;
+}
+
+/** What has happened to the Party so far, as the Queries read it: who is hurt, and each Hero's Morale. */
+function onQuestOf(working: Working): OnQuest {
+  return { hurt: new Set(working.injuries.map((injury) => injury.heroId)), moraleByHero: working.moraleByHero };
+}
+
 /**
  * Applies one consequence to the working outcome, recording in `harm` whom it injured or killed, and
  * taking its draws whether or not it lands.
  */
-function apply(consequence: Consequence, working: Working, harm: Harm, state: Stream, guild: Guild, deps: CheckDeps): void {
+function apply(consequence: Consequence, working: Working, harm: Harm, at: Applying, deps: CheckDeps): void {
   const { config, content } = deps;
+  const { state } = at;
   switch (consequence.kind) {
     case 'injury': {
       const type = Object.hasOwn(content.injuries, consequence.typeKey) ? content.injuries[consequence.typeKey] : undefined;
       if (type === undefined) throw new RangeError(`Content defines no Injury type ${JSON.stringify(consequence.typeKey)}`);
-      const factor = healFactor(guild, config);
+      const factor = healFactor(at.guild, config);
       for (let time = 0; time < consequence.count; time += 1) {
-        const lands = chance(state, consequence.chance);
+        const u = next(state);
         const unhurt = working.alive.filter((hero) => !working.injuries.some((injury) => injury.heroId === hero.id));
-        const hurt = unhurt[int(state, 0, Math.max(0, unhurt.length - 1))];
+        const { hero: hurt, guarded } = struck(consequence, unhurt, working, at, deps);
         const days = int(state, type.healDaysMin, type.healDaysMax);
-        if (lands && hurt !== undefined) {
+        if (hurt !== undefined && u < consequence.chance * guarded) {
           working.injuries.push({ heroId: hurt.id, typeKey: type.key, healDays: healDays(days, factor) });
           harm.injured.push(hurt.id);
         }
@@ -370,9 +409,9 @@ function apply(consequence: Consequence, working: Working, harm: Harm, state: St
       return;
     }
     case 'death': {
-      const lands = chance(state, consequence.chance);
-      const dead = working.alive[int(state, 0, Math.max(0, working.alive.length - 1))];
-      if (lands && dead !== undefined) {
+      const u = next(state);
+      const { hero: dead, guarded } = struck(consequence, working.alive, working, at, deps);
+      if (dead !== undefined && u < consequence.chance * guarded) {
         working.deaths.push(dead.id);
         working.alive = working.alive.filter((hero) => hero.id !== dead.id);
         working.injuries = working.injuries.filter((injury) => injury.heroId !== dead.id);
@@ -380,9 +419,17 @@ function apply(consequence: Consequence, working: Working, harm: Harm, state: St
       }
       return;
     }
-    case 'morale':
+    case 'morale': {
       working.moraleDelta += consequence.delta;
+      // v1.1.4-S4: a loss steadied by some Stats is each Hero's own, times their guard; a gain is as written.
+      const steadied = consequence.delta < 0 && consequence.steadiedBy !== undefined ? byId(partyNow(working, at, deps)) : undefined;
+      for (const hero of working.alive) {
+        const member = steadied?.get(hero.id);
+        const own = member === undefined ? consequence.delta : consequence.delta * guard(member, consequence.steadiedBy, content, config);
+        working.moraleByHero[hero.id] = (working.moraleByHero[hero.id] ?? 0) + own;
+      }
       return;
+    }
     case 'regard':
       working.regardDelta += consequence.delta;
       return;
@@ -396,6 +443,53 @@ function apply(consequence: Consequence, working: Working, harm: Harm, state: St
       working.fameDelta += consequence.delta;
       return;
   }
+}
+
+/**
+ * Who of `pool`, the Heroes it can fall on in Party order, a harm falls on (v1.1.4-S4, harm.ts): those
+ * its `among` names, or all of `pool` when it names none of them; drawn by `weightedPick`, each Hero's
+ * weight their exposure by `exposedBy`; and that Hero's guard by `guardedBy`, which the chance is
+ * times. One draw, even from no one. With none of the fields every weight and the guard are 1, and
+ * the draw is `pick`'s, which `weightedPick` draws exactly at every weight 1.
+ */
+function struck(
+  consequence: HarmReads,
+  pool: readonly Hero[],
+  working: Working,
+  at: Applying,
+  deps: CheckDeps,
+): { hero: Hero | undefined; guarded: number } {
+  const { among, exposedBy, guardedBy } = consequence;
+  const reads = among !== undefined || exposedBy !== undefined || guardedBy !== undefined;
+  const party = reads ? partyNow(working, at, deps) : undefined;
+  const within = party === undefined ? pool : narrowed(pool, among, party);
+  if (within.length === 0) {
+    next(at.state);
+    return { hero: undefined, guarded: 1 };
+  }
+  const members = party === undefined ? undefined : byId(party);
+  const weightOf = (hero: Hero): number => {
+    const member = members?.get(hero.id);
+    return member === undefined ? 1 : exposure(member, exposedBy, deps.content, deps.config);
+  };
+  const hero = weightedPick(at.state, within, within.map(weightOf));
+  const member = members?.get(hero.id);
+  return { hero, guarded: member === undefined ? 1 : guard(member, guardedBy, deps.content, deps.config) };
+}
+
+/** A Hero's Morale from the Quest, rounded to a whole number, and never −0, which is not JSON-safe. */
+function whole(delta: number): number {
+  return Math.round(delta) + 0;
+}
+
+/** The Party's living members as the Queries read them now, its harm so far applied. */
+function partyNow(working: Working, at: Applying, deps: CheckDeps): QueryParty {
+  return queryParty(working.alive, at.world, deps, onQuestOf(working));
+}
+
+/** `party`'s members by their Hero's id. */
+function byId(party: QueryParty): Map<HeroId, QueryMember> {
+  return new Map(party.members.map((member) => [member.hero.id, member]));
 }
 
 /** The row `id` names in `rows`, which must be there. */

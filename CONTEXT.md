@@ -358,11 +358,27 @@ _Avoid_: Tier, Grade, Result (alone)
 How much of themselves a Hero brings to a Check on a Quest: a factor on the Stats they add to a
 score, from their Morale band, and lower once they are hurt on the Quest. The band is read from
 their Morale on the Quest: their Morale as they set out plus the Morale the Quest's Encounters have
-cost or given so far. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
+cost or given them so far, their own since a loss may be steadied (v1.1.4-S4). Form never changes
+their Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
 Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
 one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12; built in
 v1.1.4-S3, DL-154).
 _Avoid_: Condition, Fitness, Mood
+
+**Exposure**:
+How likely harm on a Quest is to fall on a Hero rather than another. An Injury or a Death may name
+the Heroes it falls on, a Set Query (`among`), and the Stats that expose to it (`exposedBy`): of
+those it can fall on, the less of those Stats' range a Hero has, the likelier it is them: the
+weakest three times as likely as the strongest at the first `exposureRange`. When `among` names no one it can fall on, any of them may be
+hit, so leaving the front rank at home dodges nothing (DL-148 item 14; built in v1.1.4-S4, DL-155).
+_Avoid_: Aggro, Threat, Targeting
+
+**Guard**:
+How much of a harm a Hero shrugs off: an Injury's or a Death's chance on them, or a Morale loss,
+less for a Hero with more of the range of the Stats it names (`guardedBy`, `steadiedBy`): half for
+the strongest at the first `guardRange`. Exposure and Guard read a Hero's effective Stats, so armour
+protects (DL-148 item 14; built in v1.1.4-S4, DL-155).
+_Avoid_: Defence, Armour (for the whole), Resistance, Save
 
 **Finale**:
 A fixed last Encounter a Quest template names, met after the drawn ones. The four hardest

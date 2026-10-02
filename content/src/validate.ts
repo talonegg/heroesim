@@ -11,6 +11,7 @@ import type {
   EncounterCheck,
   EncounterKind,
   FacilityKey,
+  HarmReads,
   PortraitAppearance,
   PortraitRole,
   Sex,
@@ -885,7 +886,7 @@ function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): 
     else if (checks.length > 1) problems.push(`${where}.pass is missing: an Encounter of several Checks combines them by a pass formula`);
     for (const degree of ['success', 'failure', 'triumph', 'setback'] as const) {
       encounter.consequences[degree]?.forEach((consequence, index) => {
-        checkConsequence(`${where}.consequences.${degree}.${index}`, consequence, set, problems);
+        checkConsequence(`${where}.consequences.${degree}.${index}`, consequence, set, keys, problems);
       });
     }
   }
@@ -945,8 +946,13 @@ function checkPass(where: string, pass: unknown, checkKeys: readonly string[], p
   for (const key of checkKeys) if (!named.includes(key)) problems.push(`${where}: "${key}" is not named; every Check is named once`);
 }
 
-/** One consequence's fields, by its kind. */
-function checkConsequence(where: string, consequence: Consequence, set: ContentSet, problems: string[]): void {
+/**
+ * One consequence's fields, by its kind. An Injury's and a Death's `among` is a Set Query, held as a
+ * Check's score is, Sex allowed in its filters; their `exposedBy` and `guardedBy`, and a Morale's
+ * `steadiedBy`, list one or more Hero Stats, none twice (v1.1.4-S4, DL-148 item 14), and a Morale's
+ * `steadiedBy` stands only beside a loss, since a gain is never steadied.
+ */
+function checkConsequence(where: string, consequence: Consequence, set: ContentSet, keys: QueryKeys, problems: string[]): void {
   const probability = (value: number): void => {
     if (!(value >= 0 && value <= 1)) problems.push(`${where}.chance is ${value}; it is a probability from 0 to 1`);
   };
@@ -962,19 +968,41 @@ function checkConsequence(where: string, consequence: Consequence, set: ContentS
       if (!(Number.isInteger(consequence.count) && consequence.count >= 1)) {
         problems.push(`${where}.count is ${consequence.count}; it is a whole number from 1`);
       }
+      checkHarmReads(where, consequence, keys, problems);
       return;
     case 'death':
       probability(consequence.chance);
+      checkHarmReads(where, consequence, keys, problems);
       return;
     case 'xp':
     case 'wealth':
       factor(consequence.factor);
       return;
     case 'morale':
+      if (consequence.steadiedBy !== undefined) {
+        checkStatList(`${where}.steadiedBy`, consequence.steadiedBy, keys, problems);
+        if (!(consequence.delta < 0)) {
+          problems.push(`${where}.steadiedBy steadies a loss; delta is ${consequence.delta}, and a gain is never steadied`);
+        }
+      }
+      return;
     case 'regard':
     case 'fame':
       return;
   }
+}
+
+/** An Injury's or a Death's `among`, `exposedBy` and `guardedBy` (v1.1.4-S4), each where it stands. */
+function checkHarmReads(where: string, consequence: HarmReads, keys: QueryKeys, problems: string[]): void {
+  if (consequence.among !== undefined) checkQuery(`${where}.among`, consequence.among, 'set', keys, problems);
+  if (consequence.exposedBy !== undefined) checkStatList(`${where}.exposedBy`, consequence.exposedBy, keys, problems);
+  if (consequence.guardedBy !== undefined) checkStatList(`${where}.guardedBy`, consequence.guardedBy, keys, problems);
+}
+
+/** A list of the Stats harm reads (v1.1.4-S4): one or more Hero Stats, none twice. */
+function checkStatList(where: string, statKeys: readonly string[], keys: QueryKeys, problems: string[]): void {
+  if (statKeys.length === 0) problems.push(`${where} lists no Stat; leave it out to read none`);
+  checkReferences(where, statKeys, keys.heroStats, 'a Hero Stat', problems);
 }
 
 /**
