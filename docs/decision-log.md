@@ -20222,6 +20222,33 @@ wage that ends the late Guilds above.
   1.12, about one.
 - S14 closes the epic.
 
+**The verification.** A second Opus agent verified `2af7e25..c1b8513` and found nothing to fix:
+1. *The content is the drafts.* Compared as JSON with `docs/quests/drafts/`: the templates, Items,
+   Synergies and Hero Traits are equal, and every drafted Encounter, Finale, tag and Trait is in
+   place; the Encounters differ only in each Check's `flat` and `difficultyFactor` (median target
+   0.91 of S9's at difficulty 60), the 68 per-Check `variance` 0.4s dropped for `checkVariance` 0.4,
+   and the four positive Traits' chances 0.05 → 0.02. One order differs: the editor's `assign` adds a
+   consequence at its list's end, so `the-last-assault`'s Failure list holds `battle-shy` after the
+   Morale loss rather than before it. No draw or outcome moves, since a Morale consequence takes no
+   draw and reads no earned Trait. No other content file changed but `descriptions.json`.
+2. *Traits.* The six Traits are as drafted; the doctor reports `ok` before and after. The 18
+   Biography sentences, which S10 wrote and the drafts did not hold, keep the page's words' rules.
+3. *The controls.* Only S10's moved: `checkVariance`, the Triumph, `strongTriumphShare`, form and
+   the Checks' numbers. `configVersion` stays 13, as `v1.1.3` shipped 12.
+4. *The coverage test* fails when it should. Planted on a scratch change of the content, then put
+   back: Endurance's third Check reading Courage gave "endurance: 2 Checks across 2 kinds", and The
+   long march made `combat` gave "endurance: 3 Checks across 1 kinds".
+5. *The tests and the harness.* Each changed test pins a moved default, keeps a hand-worked scene on
+   its own configuration, or follows the content; none hides a regression. The old-form fixtures are
+   `2af7e25`'s files byte for byte. The pooled sweep is held to the serial one by `sweep.test.ts`.
+6. *The numbers.* DL-166's figures match the closing report.
+7. *The checks.* `lint`, `typecheck`, `npm test` (4,726 tests in 184 files) and `e2e -w web` (96)
+   pass; check-bundle passes at 799,867 bytes, still 133 under the old 800 kB.
+
+For the owner: 1.12 Traits a career is "about one", not fewer; and the Market's dilution DL-162's
+verification noted (10 stacks a day from 21 priced common Items, not 15) stands, `marketSize` being
+the economy's.
+
 **Actioned in:** `content/encounters.json` (every Check's `flat` and `difficultyFactor`; the four
 positive earned Traits' chances, through the editor); `content/src/parse.ts` (31) and
 `content.test.ts`; `engine/src/config.ts`; `engine/src/quest-engine/degree.test.ts`,
