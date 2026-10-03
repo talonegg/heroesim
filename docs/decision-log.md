@@ -21532,10 +21532,52 @@ start together and end together, so their peaks are taken as coinciding.
 3. *The next lever is time, not memory:* the per-Turn copy of the world allocates 0.7 MiB and takes
    1.6 ms of a late Turn; #34's historical set would shrink it, with a schema change.
 
+**The verification** (a second Opus agent, at `3d4d485`). The save is the same to the byte and the
+game's record the same; one gap in the tests, closed.
+- *The writer against the old one.* `cfeb872`'s `write`, copied into a scratch script behind
+  `findJsonUnsafe` as `serialise` had it, against the new `serialise`: the same text, or the same
+  throw with the same message, for 40,094 values, hand-picked and fuzzed (every ASCII character,
+  U+2028 and U+2029, lone and paired surrogates, quotes and backslashes, in keys and values; 0, -0,
+  1e21, 1e-7, 5e-324, 2^53 and beyond, NaN and the infinities; `undefined` in objects and arrays,
+  holes, null, booleans, empty objects and arrays, objects of 17 to 36 keys; the keys `"0"`, `"01"`,
+  `"1.5"`, `"-1"`, `"4294967294"`, `"4294967295"`, `"99999999999999999999"`, an own `__proto__`,
+  `constructor` and `toJSON`, and keys whose code-unit order is not their locale order;
+  prototype-less objects, shared objects, cycles, class instances, Dates, Maps, Sets, functions and
+  bigints), and for 36 real documents: new games of five seeds with and without the harness's
+  module, games of 0.3 to 3 years, and each loaded back. None holds an array-index or `__proto__`
+  key, so no game brings the old writer in. On `seed-0001`'s 20-year game the two writers' texts are
+  the same at years 1, 10 and 20 and for the last save loaded back.
+- *`savedLength`* equals `serialise(x).length` for every one of those values that serialises, and at
+  each of `seed-0001`'s 20 years' ends (5,861,363 to 116,207,395 characters).
+- *The game again,* `seed-0001` played alone by `shard.ts` as a sweep plays it, at `3d4d485` and with
+  `cfeb872`'s three changed source files checked out in their place, then put back: fingerprint
+  `401d81ba…` both times, 116,207,395 characters, round-tripping, the last year's gzipped length
+  15,131,016; the whole record equal but for its timings and the new `measures.gzipped`. Peak
+  1,621.3 MiB and 70.6 s before, 1,047.6 MiB and 60.8 s after, within the builder's ranges.
+- *The tests.* Mutations, each put back: the old writer in `serialise` fails the allocation test,
+  which runs here (Node 26.9 counts `total_allocated_bytes`; 4.80 to 4.84 times the text's length in
+  four runs, against 8); the old writer's fallback dropped fails the array-index test; more than 16
+  keys left unsorted, or the insertion sort reversed, fail two older tests; the yearly save written
+  in the loop, or the last year's gzipped length taken wherever the game stops, fails the play
+  test; surrogates taken out of `savedLength`'s escapes fails its test. Three survived: `"0"` not
+  taken as an array index, array indexes stopped at 2^31, and an own `__proto__` no longer sending
+  the document to the old writer, since the test's one object also held `"10"` and `"9"`. Each
+  changes the bytes: the index written first, or the `__proto__` member lost as the copy's
+  prototype. *Fixed* with a test of each key alone in its object (`"0"`, `"4294967294"`,
+  `"4294967295"`, an own `__proto__` holding an object), red under all three.
+- *A reading.* The title's and the workers' 1.03 GiB is the highest of the three runs after
+  (1,052.6 MiB); their mean, 1,038 MiB, is 1.01 GiB, while the 1.65 GiB before is a mean. The
+  workers' count, 11, stands on the higher figure.
+- *The rest.* Every changed file keeps its CRLF endings. The doctor before and after: no drift, 110
+  reads of a Trait. Lint and typecheck pass; `npm test` twice, 185 files, 4,796 tests, one more, both
+  passing whole (130 s and 125 s), no flake; `npm run e2e -w web`, 100 passed; `check-bundle`, every
+  script within 850 kB.
+
 **Actioned in:** `engine/src/serialise.ts` (`writeOnce`, `sortKeys`, `isArrayIndex`), its tests;
 `harness/src/counters.ts` (`savedLength`, `observeSave` by length), its tests; `harness/src/play.ts`
 (the yearly save counted, `measureDocument` one text at a time with `gzipped`, `recordGame` the last
-year's gzipped length), `play.test.ts`; the epic's S1 boxes and status.
+year's gzipped length), `play.test.ts`; the epic's S1 boxes and status; the verification,
+`serialise.test.ts`'s test of each array-index and `__proto__` key alone in its object.
 
 ---
 

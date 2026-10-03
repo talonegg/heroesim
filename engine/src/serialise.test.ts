@@ -110,6 +110,22 @@ describe('serialise', () => {
     expect(text).toBe(serialise(JSON.parse(text) as WorldDocument));
   });
 
+  // v1.1.5-S1's verification (DL-174): each such key alone in its object, so that no other key
+  // brings the old writer in: the first and the last array index, the first number that is not one,
+  // and an own `__proto__` holding an object, which a copy would take as its prototype.
+  test('sorts each array-index key and an own __proto__ key by its code units when it is the only one in its object', () => {
+    const cases: [written: string, sorted: string][] = [
+      ['{"~":1,"0":2,"!":3}', '{"!":3,"0":2,"~":1}'],
+      ['{"~":1,"4294967294":2,"!":3}', '{"!":3,"4294967294":2,"~":1}'],
+      ['{"~":1,"4294967295":2,"!":3}', '{"!":3,"4294967295":2,"~":1}'],
+      ['{"~":1,"__proto__":{"b":2,"a":1},"!":3}', '{"!":3,"__proto__":{"a":1,"b":2},"~":1}'],
+    ];
+    for (const [written, sorted] of cases) {
+      const document = { ...built(), odd: JSON.parse(written) as unknown } as WorldDocument;
+      expect(serialise(document)).toContain(`"odd":${sorted}`);
+    }
+  });
+
   // v1.1.5-S1 (DL-174): a 20-year game's save of 116 MB was built from a string for every value at
   // every depth, each copied into its parent's, and allocated 22 times its length, the garbage that
   // grew a sweep's process to 1.65 GB. The text is now written in one pass.
