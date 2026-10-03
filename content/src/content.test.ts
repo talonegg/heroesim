@@ -17,7 +17,7 @@ describe('loadContent()', () => {
 
   test("is the core content set, at the version its last change raised it to (parse.ts's comment says why)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(27);
+    expect(content.version).toBe(31);
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {

@@ -36,6 +36,12 @@ const pinned = {
   checkVariance: 0,
   skillBonusPerRating: 2,
   bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
+  // v1.1.4-S2's Degrees and S3's form factors, which these scenes' numbers were worked out under;
+  // S10's balance pass moved the defaults (DL-166).
+  checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
+  strongTriumphShare: 0.5,
+  moraleCheckFactor: { wretched: 0.85, low: 0.93, steady: 1, high: 1.04, elated: 1.08 },
+  hurtCheckFactor: 0.85,
   xpPerDifficultyPoint: 1,
   xpBandFactor: { fail: 0.5, success: 1, strong: 1 },
   infirmaryHealFactor: [1, 1 / 2, 1 / 3],
@@ -292,16 +298,17 @@ describe("the Quest Engine's config (DL-42)", () => {
     // which moved two Rival fields to content (DL-56); 9 from their merge (DL-63); 10 from the M6 close's
     // Transfer lock (DL-69); 11 from M9-S2's Trait budget (DL-102); 12 from M9-F1's Guildmasters' ages (DL-113);
     // 13 from v1.1.4-S2's Degrees (DL-152), which v1.1.4-S3's form factors (DL-154) and v1.1.4-S4's harm
-    // ranges (DL-155) join.
+    // ranges (DL-155) join. v1.1.4-S10's balance pass sets the Triumph, the share of Triumphs and the
+    // form factors under 13 (DL-166): 1.25, 0.5, 0.85 to 1.08 and 0.85 before it.
     expect(defaultConfig).toMatchObject({
       configVersion: 13,
       checkVariance: 0.4,
       skillBonusPerRating: 2,
       bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
-      checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
-      strongTriumphShare: 0.5,
-      moraleCheckFactor: { wretched: 0.85, low: 0.93, steady: 1, high: 1.04, elated: 1.08 },
-      hurtCheckFactor: 0.85,
+      checkDegrees: { triumph: 1.35, success: 1, setback: 0.75 },
+      strongTriumphShare: 0.6,
+      moraleCheckFactor: { wretched: 0.93, low: 0.97, steady: 1, high: 1.03, elated: 1.06 },
+      hurtCheckFactor: 0.93,
       exposureRange: 2,
       guardRange: 0.5,
     });
@@ -587,7 +594,7 @@ describe('form on the Quest (v1.1.4-S3)', () => {
       expect(outcome.moraleDelta).toBe(delta);
       return encounters.map((it) => it.checks[0]?.capability ?? Number.NaN);
     };
-    const { moraleCheckFactor: factor } = defaultConfig;
+    const { moraleCheckFactor: factor } = pinned;
 
     // Steady at 60 in the first, as they set out; in the second at 60 + delta, held to the scale.
     expect(capabilities(0)).toEqual([24, 24]);
@@ -605,14 +612,14 @@ describe('form on the Quest (v1.1.4-S3)', () => {
     const { encounters } = resolvedAt('hurt-form', 60, [wounding, summed('after', 0.25)]);
 
     expect(encounters[0]?.injured).toHaveLength(1);
-    expect(encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * defaultConfig.hurtCheckFactor + 16, 10);
+    expect(encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * pinned.hurtCheckFactor + 16, 10);
   });
 
   test("sets a Check's formDecided exactly when the same roll with every form at 1 falls on the other side of the Success line, and which way", () => {
     // A target of 22: 24 is a Success at form 1, and 20.4, wretched, a Setback.
     const lowered = resolvedAt('lowered', 10, [summed('one', 0.55)]).encounters[0];
     expect(lowered).toMatchObject({ degree: 'setback', formDecided: 'lowered', checks: [{ degree: 'setback', formDecided: 'lowered' }] });
-    expect(lowered?.checks[0]?.roll).toBeCloseTo(24 * defaultConfig.moraleCheckFactor.wretched, 10);
+    expect(lowered?.checks[0]?.roll).toBeCloseTo(24 * pinned.moraleCheckFactor.wretched, 10);
     // A target of 25.2: 24 is a Setback at form 1, and 25.92, elated, a Success.
     expect(resolvedAt('raised', 95, [summed('one', 0.63)]).encounters[0]).toMatchObject({
       degree: 'success',
@@ -899,7 +906,7 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
     });
 
     // The first Hero at 39.5 is low; the others, at 59.5, steady.
-    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * defaultConfig.moraleCheckFactor.low + 16, 10);
+    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * pinned.moraleCheckFactor.low + 16, 10);
   });
 
   test('moraleByHero names each Hero home alive, and with no steadiedBy is moraleDelta for each', () => {
@@ -930,7 +937,7 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
       },
     });
 
-    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * defaultConfig.moraleCheckFactor.low + 16, 10);
+    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * pinned.moraleCheckFactor.low + 16, 10);
   });
 
   test("a share reads effective Stats, so armour's Constitution steadies, and never form", () => {

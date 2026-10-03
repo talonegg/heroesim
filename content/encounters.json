@@ -9,24 +9,24 @@
         "name": "Steel",
         "score": ["ranked","party",["weighted",[["weaponry",0.6],["strength",0.4]]],[1,0.5,0.25]],
         "skills": ["swordcraft","tactics"],
-        "flat": 6.41,
-        "difficultyFactor": 0.16
+        "flat": 5.73,
+        "difficultyFactor": 0.143
       },
       {
         "key": "nerve",
         "name": "Nerve",
         "score": ["min","party",["stat","courage"]],
         "skills": [],
-        "flat": 2.18,
-        "difficultyFactor": 0.054
+        "flat": 1.88,
+        "difficultyFactor": 0.047
       },
       {
         "key": "rally",
         "name": "Rallying",
         "score": ["max","party",["stat","leadership"]],
         "skills": ["tactics"],
-        "flat": 3.75,
-        "difficultyFactor": 0.094
+        "flat": 3.39,
+        "difficultyFactor": 0.085
       }
     ],
     "pass": ["and","steel",["or","nerve","rally"]],
@@ -66,32 +66,32 @@
         "name": "Blessing",
         "score": ["max","party",["weighted",[["spirit",0.7],["willpower",0.3]]]],
         "skills": ["benediction"],
-        "flat": 4.32,
-        "difficultyFactor": 0.108
+        "flat": 3.86,
+        "difficultyFactor": 0.097
       },
       {
         "key": "blades",
         "name": "Blades",
         "score": ["ranked","party",["stat","weaponry"],[1,0.5]],
         "skills": ["swordcraft"],
-        "flat": 6.12,
-        "difficultyFactor": 0.153
+        "flat": 5.52,
+        "difficultyFactor": 0.138
       },
       {
         "key": "fire",
         "name": "Fire",
         "score": ["max","party",["stat","power"]],
         "skills": ["evocation"],
-        "flat": 4.62,
-        "difficultyFactor": 0.116
+        "flat": 4.13,
+        "difficultyFactor": 0.103
       },
       {
         "key": "dread",
         "name": "Dread",
         "score": ["avg","party",["weighted",[["courage",0.5],["resistance",0.5]]]],
         "skills": [],
-        "flat": 3.26,
-        "difficultyFactor": 0.082
+        "flat": 2.99,
+        "difficultyFactor": 0.075
       }
     ],
     "pass": ["and",["or","blessing","blades","fire"],"dread"],
@@ -123,24 +123,24 @@
         "name": "Shield wall",
         "score": ["sum",["top","party",3,["stat","constitution"]],["weighted",[["constitution",0.5],["strength",0.5]]]],
         "skills": ["shieldwork"],
-        "flat": 9.74,
-        "difficultyFactor": 0.243
+        "flat": 9.03,
+        "difficultyFactor": 0.226
       },
       {
         "key": "command",
         "name": "Command",
         "score": ["max","party",["stat","leadership"]],
         "skills": ["tactics"],
-        "flat": 4.02,
-        "difficultyFactor": 0.1
+        "flat": 3.71,
+        "difficultyFactor": 0.093
       },
       {
         "key": "stamina",
         "name": "Stamina",
         "score": ["min","party",["stat","endurance"]],
         "skills": [],
-        "flat": 2.02,
-        "difficultyFactor": 0.05
+        "flat": 1.82,
+        "difficultyFactor": 0.046
       }
     ],
     "pass": ["at-least",2,"wall","command","stamina"],
@@ -183,16 +183,16 @@
         "name": "Spears",
         "score": ["ranked","party",["weighted",[["weaponry",0.5],["dexterity",0.5]]],[1,0.5,0.25]],
         "skills": ["swordcraft"],
-        "flat": 5.56,
-        "difficultyFactor": 0.139
+        "flat": 5.12,
+        "difficultyFactor": 0.128
       },
       {
         "key": "watch",
         "name": "The watch",
         "score": ["max","party",["stat","perception"]],
         "skills": [],
-        "flat": 3.88,
-        "difficultyFactor": 0.097
+        "flat": 3.53,
+        "difficultyFactor": 0.088
       }
     ],
     "pass": ["and","spears","watch"],
@@ -232,16 +232,16 @@
         "name": "The pace",
         "score": ["min","party",["weighted",[["endurance",0.7],["constitution",0.3]]]],
         "skills": [],
-        "flat": 1.96,
-        "difficultyFactor": 0.049
+        "flat": 1.79,
+        "difficultyFactor": 0.045
       },
       {
         "key": "care",
         "name": "Care on the road",
         "score": ["max","party",["stat","knowledge"]],
         "skills": ["field-surgery","herbalism"],
-        "flat": 3.98,
-        "difficultyFactor": 0.1
+        "flat": 3.54,
+        "difficultyFactor": 0.088
       }
     ],
     "pass": ["and","pace","care"],
@@ -272,16 +272,16 @@
         "name": "Finding the ford",
         "score": ["max","party",["stat","perception"]],
         "skills": [],
-        "flat": 5.75,
-        "difficultyFactor": 0.144
+        "flat": 5.29,
+        "difficultyFactor": 0.132
       },
       {
         "key": "crossing",
         "name": "The crossing",
         "score": ["min","party",["weighted",[["strength",0.5],["constitution",0.5]]]],
         "skills": [],
-        "flat": 3.1,
-        "difficultyFactor": 0.078
+        "flat": 2.81,
+        "difficultyFactor": 0.07
       }
     ],
     "pass": ["or","ford","crossing"],
@@ -312,22 +312,22 @@
         "name": "Bearings",
         "score": ["max","party",["weighted",[["knowledge",0.5],["perception",0.5]]]],
         "skills": ["herbalism"],
-        "flat": 3.6,
-        "difficultyFactor": 0.09
+        "flat": 3.26,
+        "difficultyFactor": 0.082
       },
       {
         "key": "footing",
         "name": "Footing",
         "score": ["of",["worst","party",["stat","dexterity"]],["stat","wits"]],
         "skills": [],
-        "flat": 2.62,
-        "difficultyFactor": 0.065
+        "flat": 2.29,
+        "difficultyFactor": 0.057
       }
     ],
     "pass": ["and","bearings","footing"],
     "consequences": {
       "success": [{"kind":"xp","factor":1.1}],
-      "triumph": [{ "kind": "xp", "factor": 1.2 }, { "kind": "trait", "traitKey": "wayfinder", "chance": 0.05 }],
+      "triumph": [{ "kind": "xp", "factor": 1.2 }, { "kind": "trait", "traitKey": "wayfinder", "chance": 0.02 }],
       "setback": [{"kind":"morale","delta":-1,"steadiedBy":["endurance","willpower"]}],
       "failure": [
         {
@@ -352,16 +352,16 @@
         "name": "Foraging",
         "score": ["max","party",["weighted",[["knowledge",0.4],["adaptability",0.6]]]],
         "skills": ["herbalism"],
-        "flat": 5.45,
-        "difficultyFactor": 0.136
+        "flat": 5.03,
+        "difficultyFactor": 0.126
       },
       {
         "key": "making-do",
         "name": "Making do",
         "score": ["avg","party",["stat","adaptability"]],
         "skills": [],
-        "flat": 4.25,
-        "difficultyFactor": 0.106
+        "flat": 3.92,
+        "difficultyFactor": 0.098
       }
     ],
     "pass": ["or","forage","making-do"],
@@ -392,16 +392,16 @@
         "name": "The climb",
         "score": ["min","party",["weighted",[["strength",0.5],["dexterity",0.5]]]],
         "skills": [],
-        "flat": 3.19,
-        "difficultyFactor": 0.08
+        "flat": 2.85,
+        "difficultyFactor": 0.071
       },
       {
         "key": "rope",
         "name": "The rope",
         "score": ["max","party",["stat","strength"]],
         "skills": [],
-        "flat": 5.27,
-        "difficultyFactor": 0.132
+        "flat": 4.71,
+        "difficultyFactor": 0.118
       }
     ],
     "pass": ["or","climb","rope"],
@@ -441,16 +441,16 @@
         "name": "Parley",
         "score": ["max","party",["weighted",[["diplomacy",0.6],["charisma",0.4]]]],
         "skills": [],
-        "flat": 2.89,
-        "difficultyFactor": 0.072
+        "flat": 2.66,
+        "difficultyFactor": 0.066
       },
       {
         "key": "firm",
         "name": "Standing firm",
         "score": ["avg","party",["weighted",[["courage",0.5],["charisma",0.5]]]],
         "skills": [],
-        "flat": 2.73,
-        "difficultyFactor": 0.068
+        "flat": 2.51,
+        "difficultyFactor": 0.063
       }
     ],
     "pass": ["and","parley","firm"],
@@ -475,22 +475,22 @@
         "name": "Terms",
         "score": ["max","party",["weighted",[["diplomacy",0.7],["wits",0.3]]]],
         "skills": [],
-        "flat": 4.06,
-        "difficultyFactor": 0.102
+        "flat": 3.79,
+        "difficultyFactor": 0.095
       },
       {
         "key": "standing",
         "name": "Standing",
         "score": ["max","party",["stat","leadership"]],
         "skills": [],
-        "flat": 4.15,
-        "difficultyFactor": 0.104
+        "flat": 3.82,
+        "difficultyFactor": 0.095
       }
     ],
     "pass": ["or","terms","standing"],
     "consequences": {
       "success": [{"kind":"wealth","factor":1.1}],
-      "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "silver-tongued", "chance": 0.05 }],
+      "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "silver-tongued", "chance": 0.02 }],
       "setback": [{"kind":"wealth","factor":0.95}],
       "failure": [{"kind":"wealth","factor":0.9}]
     }
@@ -505,16 +505,16 @@
         "name": "Reassurance",
         "score": ["max","party",["weighted",[["charisma",0.6],["spirit",0.4]]]],
         "skills": ["benediction"],
-        "flat": 5.15,
-        "difficultyFactor": 0.129
+        "flat": 4.72,
+        "difficultyFactor": 0.118
       },
       {
         "key": "fitting-in",
         "name": "Fitting in",
         "score": ["avg","party",["stat","adaptability"]],
         "skills": [],
-        "flat": 4.14,
-        "difficultyFactor": 0.103
+        "flat": 3.82,
+        "difficultyFactor": 0.096
       }
     ],
     "pass": ["or","reassurance","fitting-in"],
@@ -535,16 +535,16 @@
         "name": "Haggling",
         "score": ["max","party",["weighted",[["diplomacy",0.5],["wits",0.5]]]],
         "skills": [],
-        "flat": 2.96,
-        "difficultyFactor": 0.074
+        "flat": 2.71,
+        "difficultyFactor": 0.068
       },
       {
         "key": "reading",
         "name": "Reading him",
         "score": ["max","party",["stat","perception"]],
         "skills": [],
-        "flat": 3.72,
-        "difficultyFactor": 0.093
+        "flat": 3.36,
+        "difficultyFactor": 0.084
       }
     ],
     "pass": ["and","haggling","reading"],
@@ -565,16 +565,16 @@
         "name": "Unpicking the ward",
         "score": ["max","party",["weighted",[["arcana",0.6],["spelllore",0.4]]]],
         "skills": ["runecraft","warding"],
-        "flat": 4.16,
-        "difficultyFactor": 0.104
+        "flat": 3.55,
+        "difficultyFactor": 0.089
       },
       {
         "key": "insight",
         "name": "Insight",
         "score": ["max","party",["stat","intelligence"]],
         "skills": [],
-        "flat": 3.75,
-        "difficultyFactor": 0.094
+        "flat": 3.33,
+        "difficultyFactor": 0.083
       }
     ],
     "pass": ["and","unpicking","insight"],
@@ -613,16 +613,16 @@
         "name": "Binding",
         "score": ["ranked","party",["stat","power"],[1,0.5]],
         "skills": ["evocation","warding"],
-        "flat": 5.2,
-        "difficultyFactor": 0.13
+        "flat": 4.74,
+        "difficultyFactor": 0.118
       },
       {
         "key": "resisting",
         "name": "Resisting",
         "score": ["min","party",["stat","resistance"]],
         "skills": [],
-        "flat": 1.59,
-        "difficultyFactor": 0.04
+        "flat": 1.4,
+        "difficultyFactor": 0.035
       }
     ],
     "pass": ["and","binding","resisting"],
@@ -654,16 +654,16 @@
         "name": "Counter-spell",
         "score": ["max","party",["weighted",[["spelllore",0.6],["arcana",0.2],["intelligence",0.2]]]],
         "skills": ["warding"],
-        "flat": 5.36,
-        "difficultyFactor": 0.134
+        "flat": 4.78,
+        "difficultyFactor": 0.12
       },
       {
         "key": "enduring",
         "name": "Enduring",
         "score": ["avg","party",["stat","resistance"]],
         "skills": [],
-        "flat": 3.73,
-        "difficultyFactor": 0.093
+        "flat": 3.42,
+        "difficultyFactor": 0.085
       }
     ],
     "pass": ["or","counter","enduring"],
@@ -694,16 +694,16 @@
         "name": "Consecration",
         "score": ["sum",["where","party",["class","healer","mage"]],["weighted",[["spirit",0.5],["power",0.5]]]],
         "skills": ["benediction","evocation"],
-        "flat": 4.84,
-        "difficultyFactor": 0.121
+        "flat": 3.95,
+        "difficultyFactor": 0.099
       },
       {
         "key": "steadfast",
         "name": "Steadfast",
         "score": ["min","party",["weighted",[["willpower",0.5],["courage",0.5]]]],
         "skills": [],
-        "flat": 2.06,
-        "difficultyFactor": 0.051
+        "flat": 1.84,
+        "difficultyFactor": 0.046
       }
     ],
     "pass": ["and","consecration","steadfast"],
@@ -734,16 +734,16 @@
         "name": "Quiet feet",
         "score": ["min","party",["stat","dexterity"]],
         "skills": ["stealth"],
-        "flat": 1.99,
-        "difficultyFactor": 0.05
+        "flat": 1.68,
+        "difficultyFactor": 0.042
       },
       {
         "key": "timing",
         "name": "Timing",
         "score": ["max","party",["weighted",[["wits",0.5],["perception",0.5]]]],
         "skills": [],
-        "flat": 3.54,
-        "difficultyFactor": 0.089
+        "flat": 3.21,
+        "difficultyFactor": 0.08
       }
     ],
     "pass": ["and","quiet-feet","timing"],
@@ -774,16 +774,16 @@
         "name": "Spotting",
         "score": ["max","party",["stat","perception"]],
         "skills": ["trapcraft"],
-        "flat": 4.26,
-        "difficultyFactor": 0.107
+        "flat": 3.74,
+        "difficultyFactor": 0.094
       },
       {
         "key": "disarming",
         "name": "Disarming",
         "score": ["max","party",["stat","dexterity"]],
         "skills": ["trapcraft","lockpicking"],
-        "flat": 4.39,
-        "difficultyFactor": 0.11
+        "flat": 3.78,
+        "difficultyFactor": 0.094
       }
     ],
     "pass": ["and","spotting","disarming"],
@@ -824,16 +824,16 @@
         "name": "Blending in",
         "score": ["min","party",["stat","adaptability"]],
         "skills": ["stealth"],
-        "flat": 2.21,
-        "difficultyFactor": 0.055
+        "flat": 1.85,
+        "difficultyFactor": 0.046
       },
       {
         "key": "cover-story",
         "name": "A cover story",
         "score": ["max","party",["weighted",[["wits",0.6],["diplomacy",0.4]]]],
         "skills": [],
-        "flat": 3.08,
-        "difficultyFactor": 0.077
+        "flat": 2.81,
+        "difficultyFactor": 0.07
       }
     ],
     "pass": ["and","blending-in","cover-story"],
@@ -854,24 +854,24 @@
         "name": "Tracking",
         "score": ["max","party",["weighted",[["perception",0.5],["knowledge",0.5]]]],
         "skills": ["stealth"],
-        "flat": 4.02,
-        "difficultyFactor": 0.1
+        "flat": 3.67,
+        "difficultyFactor": 0.092
       },
       {
         "key": "downwind",
         "name": "Downwind",
         "score": ["min","party",["stat","dexterity"]],
         "skills": [],
-        "flat": 1.93,
-        "difficultyFactor": 0.048
+        "flat": 1.68,
+        "difficultyFactor": 0.042
       },
       {
         "key": "the-shot",
         "name": "The shot",
         "score": ["max","party",["weighted",[["weaponry",0.5],["dexterity",0.5]]]],
         "skills": [],
-        "flat": 3.75,
-        "difficultyFactor": 0.094
+        "flat": 3.45,
+        "difficultyFactor": 0.086
       }
     ],
     "pass": ["and","tracking",["or","downwind","the-shot"]],
@@ -902,16 +902,16 @@
         "name": "Reading",
         "score": ["max","party",["weighted",[["knowledge",0.6],["intelligence",0.4]]]],
         "skills": ["runecraft"],
-        "flat": 5.2,
-        "difficultyFactor": 0.13
+        "flat": 4.77,
+        "difficultyFactor": 0.119
       },
       {
         "key": "sifting",
         "name": "Sifting",
         "score": ["sum",["top","party",2,["stat","intelligence"]],["stat","intelligence"]],
         "skills": [],
-        "flat": 8.75,
-        "difficultyFactor": 0.219
+        "flat": 7.98,
+        "difficultyFactor": 0.199
       }
     ],
     "pass": ["or","reading","sifting"],
@@ -932,16 +932,16 @@
         "name": "The answer",
         "score": ["max","party",["weighted",[["intelligence",0.6],["arcana",0.4]]]],
         "skills": [],
-        "flat": 5.12,
-        "difficultyFactor": 0.128
+        "flat": 4.73,
+        "difficultyFactor": 0.118
       },
       {
         "key": "second-guess",
         "name": "A second guess",
         "score": ["max","party",["stat","wits"]],
         "skills": [],
-        "flat": 5.19,
-        "difficultyFactor": 0.13
+        "flat": 4.78,
+        "difficultyFactor": 0.12
       }
     ],
     "pass": ["or","answer","second-guess"],
@@ -972,16 +972,16 @@
         "name": "Diagnosis",
         "score": ["of",["best",["where","party",["class","healer"]],["stat","knowledge"]],["weighted",[["knowledge",0.7],["intelligence",0.3]]]],
         "skills": ["herbalism","field-surgery"],
-        "flat": 4.57,
-        "difficultyFactor": 0.114
+        "flat": 5.31,
+        "difficultyFactor": 0.133
       },
       {
         "key": "asking",
         "name": "Asking around",
         "score": ["max","party",["weighted",[["charisma",0.5],["wits",0.5]]]],
         "skills": [],
-        "flat": 4.88,
-        "difficultyFactor": 0.122
+        "flat": 3.93,
+        "difficultyFactor": 0.098
       }
     ],
     "pass": ["or","diagnosis","asking"],
@@ -1021,16 +1021,16 @@
         "name": "The parish rolls",
         "score": ["max","party",["stat","knowledge"]],
         "skills": [],
-        "flat": 3.51,
-        "difficultyFactor": 0.088
+        "flat": 3.18,
+        "difficultyFactor": 0.08
       },
       {
         "key": "rites",
         "name": "The old rites",
         "score": ["max","party",["weighted",[["spelllore",0.5],["spirit",0.5]]]],
         "skills": ["benediction"],
-        "flat": 3.5,
-        "difficultyFactor": 0.087
+        "flat": 3.18,
+        "difficultyFactor": 0.08
       }
     ],
     "pass": ["and","rolls","rites"],
@@ -1051,38 +1051,38 @@
         "name": "Unbinding",
         "score": ["sum",["where","party",["class","mage"]],["weighted",[["arcana",0.5],["spelllore",0.5]]]],
         "skills": ["runecraft","warding"],
-        "flat": 4.34,
-        "difficultyFactor": 0.081
+        "flat": 2.8,
+        "difficultyFactor": 0.052
       },
       {
         "key": "holding",
         "name": "Holding the power",
         "score": ["max","party",["stat","power"]],
         "skills": ["evocation"],
-        "flat": 4.12,
-        "difficultyFactor": 0.077
+        "flat": 3.71,
+        "difficultyFactor": 0.07
       },
       {
         "key": "shielding",
         "name": "Shielding",
         "score": ["min","party",["stat","resistance"]],
         "skills": [],
-        "flat": 1.78,
-        "difficultyFactor": 0.033
+        "flat": 1.53,
+        "difficultyFactor": 0.029
       },
       {
         "key": "cipher",
         "name": "The cipher",
         "score": ["max","party",["stat","intelligence"]],
         "skills": [],
-        "flat": 3.95,
-        "difficultyFactor": 0.074
+        "flat": 3.58,
+        "difficultyFactor": 0.067
       }
     ],
     "pass": ["at-least",3,"unbinding","holding","shielding","cipher"],
     "consequences": {
       "success": [{"kind":"wealth","factor":1.1}],
-      "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "lettered", "chance": 0.05 }],
+      "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "lettered", "chance": 0.02 }],
       "setback": [
         {
           "kind": "injury",
@@ -1117,30 +1117,30 @@
         "name": "The wall",
         "score": ["sum",["top","party",3,["stat","constitution"]],["weighted",[["constitution",0.4],["strength",0.3],["weaponry",0.3]]]],
         "skills": ["shieldwork"],
-        "flat": 9.84,
-        "difficultyFactor": 0.211
+        "flat": 8.26,
+        "difficultyFactor": 0.177
       },
       {
         "key": "command",
         "name": "Command",
         "score": ["of",["best",["where","party",["class","warrior"]],["stat","leadership"]],["stat","leadership"]],
         "skills": ["tactics"],
-        "flat": 2.09,
-        "difficultyFactor": 0.045
+        "flat": 3.01,
+        "difficultyFactor": 0.064
       },
       {
         "key": "holding-out",
         "name": "Holding out",
         "score": ["min","party",["weighted",[["endurance",0.5],["willpower",0.5]]]],
         "skills": [],
-        "flat": 2.56,
-        "difficultyFactor": 0.055
+        "flat": 2.13,
+        "difficultyFactor": 0.046
       }
     ],
     "pass": ["at-least",2,"wall","command","holding-out"],
     "consequences": {
       "success": [{"kind":"fame","delta":2}],
-      "triumph": [{ "kind": "fame", "delta": 3 }, { "kind": "trait", "traitKey": "battle-tried", "chance": 0.05 }],
+      "triumph": [{ "kind": "fame", "delta": 3 }, { "kind": "trait", "traitKey": "battle-tried", "chance": 0.02 }],
       "setback": [
         {
           "kind": "injury",
@@ -1178,24 +1178,24 @@
         "name": "The lock",
         "score": ["max",["where","party",["has-skill","lockpicking"]],["stat","dexterity"]],
         "skills": ["lockpicking"],
-        "flat": 5.53,
-        "difficultyFactor": 0.128
+        "flat": 4.97,
+        "difficultyFactor": 0.115
       },
       {
         "key": "watchman",
         "name": "The watchman",
         "score": ["min","party",["weighted",[["dexterity",0.5],["wits",0.5]]]],
         "skills": ["stealth"],
-        "flat": 2.56,
-        "difficultyFactor": 0.059
+        "flat": 2.29,
+        "difficultyFactor": 0.053
       },
       {
         "key": "right-chest",
         "name": "The right chest",
         "score": ["max","party",["weighted",[["intelligence",0.5],["perception",0.5]]]],
         "skills": [],
-        "flat": 3.92,
-        "difficultyFactor": 0.09
+        "flat": 3.63,
+        "difficultyFactor": 0.084
       }
     ],
     "pass": ["and","lock",["or","watchman","right-chest"]],
@@ -1227,16 +1227,16 @@
         "name": "The rite",
         "score": ["of",["best",["where","party",["class","healer"]],["stat","spirit"]],["weighted",[["spirit",0.6],["willpower",0.4]]]],
         "skills": ["benediction"],
-        "flat": 2.93,
-        "difficultyFactor": 0.073
+        "flat": 4.39,
+        "difficultyFactor": 0.11
       },
       {
         "key": "holding-off",
         "name": "Holding them off",
         "score": ["ranked","party",["stat","weaponry"],[1,0.5,0.25]],
         "skills": ["swordcraft"],
-        "flat": 5.4,
-        "difficultyFactor": 0.135
+        "flat": 5.65,
+        "difficultyFactor": 0.141
       },
       {
         "key": "nerve",

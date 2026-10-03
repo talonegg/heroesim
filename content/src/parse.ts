@@ -110,8 +110,21 @@ export const contentSetId = 'core';
  * 27 from the content editor's Finish of 2026-10-03 (added battle-tried, wayfinder,
  * silver-tongued, lettered, battle-shy, haunted; 26 uses assigned, of battle-tried, wayfinder,
  * silver-tongued, lettered, battle-shy, haunted).
+ * 28 from v1.1.4-S10's balance pass, which tunes every Check's flat term and difficulty
+ * factor so that random Parties of 3 at Level 5 meet each Encounter at difficulty 60 with a
+ * chance of 0.5, not S9's 0.44, 40% of each target still its flat term: about 5% easier
+ * (DL-166).
+ * 29 from the content editor's Finish of 2026-10-03 (4 uses assigned, of wayfinder, battle-tried,
+ * silver-tongued, lettered; 4 uses unassigned, of wayfinder, battle-tried, silver-tongued,
+ * lettered).
+ * 30 from v1.1.4-S10's balance pass again, which tunes every Check's flat term and difficulty
+ * factor to a chance of 0.56 at the same aim, about 5% easier again, since the rarer earned
+ * Traits left more Guilds bankrupt (DL-166).
+ * 31 from the content editor's Finish of 2026-10-03 (4 uses assigned, of wayfinder, battle-tried,
+ * silver-tongued, lettered; 4 uses unassigned, of wayfinder, battle-tried, silver-tongued,
+ * lettered).
  */
-export const contentVersion = 27;
+export const contentVersion = 31;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [

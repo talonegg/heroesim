@@ -175,11 +175,13 @@ describe('one Check', () => {
     // The Whetstone's +3 is on the first Encounter's Check, and the raw gate's capability is its count.
     expect(check.capability).toBe(capable + 3);
     const reach = (threshold: number): number => chanceToReach(capable + 3, s.deps.config.checkVariance, threshold * check.target);
+    // Each threshold as configured (the Triumph's 1.25 became 1.35 in v1.1.4-S10, DL-166).
+    const { triumph, success, setback } = s.deps.config.checkDegrees;
     expect(check.degrees).toEqual({
-      failure: 1 - reach(0.75),
-      setback: reach(0.75) - reach(1),
-      success: reach(1) - reach(1.25),
-      triumph: reach(1.25),
+      failure: 1 - reach(setback),
+      setback: reach(setback) - reach(success),
+      success: reach(success) - reach(triumph),
+      triumph: reach(triumph),
     });
     expect(gate.checks[0]?.capability).toBe(queryParty(s.heroes, s.world, s.deps).members.filter((member) => (member.stats.strength ?? 0) >= 6).length);
     expect(gate.success === 0 || gate.success === 1).toBe(true);

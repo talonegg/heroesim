@@ -960,11 +960,13 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     // these are its fingerprints. With M2-S9's rule by the demands put back in its place, for one run
     // and not kept, the three were 86c7afa's again: a85e889a…, c5afab2d… and 55432d24…. v1.1.4-S10
     // writes the content in Checks, its Finales, lore and earned Traits, and rolls each Check within
-    // `checkVariance` 0.4 (DL-165), which changes every Quest: these are its fingerprints; S6's were
-    // 00de1d95…, db199b7c… and c5519e67….
+    // `checkVariance` 0.4 (DL-165), which changes every Quest; its balance pass then tunes the Checks'
+    // factors, the Triumph, the share of Triumphs, form and the earned Traits' chances (DL-166): these
+    // are its fingerprints. S6's were 00de1d95…, db199b7c… and c5519e67…; before the balance pass,
+    // 6ba3f040…, d1b90581… and a72002b4…, the third's game unchanged by it.
     expect(fingerprints).toEqual([
-      '6ba3f04043830ebf6e696eee4327a4587862f1d43e815d0a7c3899bdfc12692f',
-      'd1b905819e0a371e225c79205417ce255c0751a4dbeb180f6cce58488c86239a',
+      'f1e65b3b9056560ede5de290762634b269f16cb55c2747a021462a2acb9564c3',
+      '096c92a2385d20caf681ce2a8729defa1b0618ae6ffbf4beb69f22e5dd79989f',
       'a72002b40e33c8f79d5f33d38331a699a5f231917209cc06b9e1a9a81369790b',
     ]);
   });

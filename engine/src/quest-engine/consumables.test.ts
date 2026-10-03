@@ -22,6 +22,9 @@ const pinned: Partial<GameConfig> = {
   checkVariance: 0,
   skillBonusPerRating: 2,
   bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
+  // v1.1.4-S2's Degrees, as these Quests were written under; S10 moved the defaults (DL-166).
+  checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
+  strongTriumphShare: 0.5,
   xpPerDifficultyPoint: 1,
   xpBandFactor: { fail: 0.5, success: 1, strong: 1 },
   infirmaryHealFactor: [1, 1 / 2, 1 / 3],

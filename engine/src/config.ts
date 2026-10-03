@@ -46,8 +46,8 @@ export interface GameConfig {
    * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's
    * `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), S6's
    * `playerPartyMargin` (DL-148, DL-157), and S8's `encounterTagWeight` (DL-148, DL-160). S10's
-   * balance pass changes defaults under it too, `checkVariance` 0.2 to 0.4 first (DL-165), as no
-   * game has been released under 13.
+   * balance pass changes defaults under it too, `checkVariance` 0.2 to 0.4 first (DL-165), then the
+   * Degrees, `strongTriumphShare` and the form factors (DL-166), as no game has been released under 13.
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -216,7 +216,9 @@ export interface GameConfig {
   bandBySuccessShare: Readonly<{ successAbove: number; strongAtLeast: number }>;
   /**
    * A Check's Degree from its roll ÷ its target (v1.1.4-S2, DL-148 item 8): a Triumph at `triumph`
-   * or more, a Success at `success` or more, a Setback at `setback` or more, else a Failure.
+   * or more, a Success at `success` or more, a Setback at `setback` or more, else a Failure. The
+   * Triumph's 1.25 became 1.35 in v1.1.4-S10's balance pass, with `strongTriumphShare` 0.5 to 0.6, so
+   * that fewer Quests are strong successes at no cost in bankruptcies (DL-166).
    */
   checkDegrees: Readonly<{ triumph: number; success: number; setback: number }>;
   /**
@@ -227,10 +229,15 @@ export interface GameConfig {
   strongTriumphShare: number;
   /**
    * A Hero's form on a Quest (v1.1.4-S3, DL-148 items 9 to 11, `CONTEXT.md` Form): the factor on the
-   * Stat values they add into a Check's score, by the band of their Morale on the Quest.
+   * Stat values they add into a Check's score, by the band of their Morale on the Quest. S3's first
+   * values (0.85, 0.93, 1, 1.04, 1.08) were narrowed in v1.1.4-S10's balance pass, so that a Guild
+   * failing and losing Morale is not driven down as fast (DL-166).
    */
   moraleCheckFactor: Readonly<Record<MoraleBand, number>>;
-  /** Their form is also multiplied by this once they are hurt on the Quest (DL-148 item 10). */
+  /**
+   * Their form is also multiplied by this once they are hurt on the Quest (DL-148 item 10): 0.85
+   * until v1.1.4-S10's balance pass, then 0.93 (DL-166).
+   */
   hurtCheckFactor: number;
   /**
    * How much more often harm falls on a Hero weak in the Stats an Injury or a Death is `exposedBy`
@@ -617,10 +624,10 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   checkVariance: 0.4,
   skillBonusPerRating: 2,
   bandBySuccessShare: Object.freeze({ successAbove: 0.5, strongAtLeast: 1 }),
-  checkDegrees: Object.freeze({ triumph: 1.25, success: 1, setback: 0.75 }),
-  strongTriumphShare: 0.5,
-  moraleCheckFactor: Object.freeze({ wretched: 0.85, low: 0.93, steady: 1, high: 1.04, elated: 1.08 }),
-  hurtCheckFactor: 0.85,
+  checkDegrees: Object.freeze({ triumph: 1.35, success: 1, setback: 0.75 }),
+  strongTriumphShare: 0.6,
+  moraleCheckFactor: Object.freeze({ wretched: 0.93, low: 0.97, steady: 1, high: 1.03, elated: 1.06 }),
+  hurtCheckFactor: 0.93,
   exposureRange: 2,
   guardRange: 0.5,
   chanceBands: Object.freeze({ unlikely: 0.1, even: 0.35, likely: 0.65, 'near-certain': 0.9 }),

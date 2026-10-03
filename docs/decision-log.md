@@ -19995,6 +19995,244 @@ S10's balance pass and its first box; v1.1.4-S10 (DL-166).
 
 ---
 
+## DL-166 — v1.1.4-S10 built: the approved drafts in content, the balance pass tuned for few bankruptcies, the Quest target measured and unmet, the earned Traits rarer, and the script's limit raised to 850 kB by the owner
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agents, building S10 as the epic's S10
+bullets describe, on the owner's answers of DL-165: few bankruptcies first, the player's failures as
+near 20% and the strong share as low as that allows, the Quest target measured and recorded unmet.
+Items 1 and 7 are the owner's, relayed by the orchestrator. The tuned values are the agent's, for the
+owner to change. Opus built it in two halves (`9304985`, then this change).
+
+**Context.** S9 drafted the release's content and calibrated it (DL-162), and the owner approved the
+drafts as drafted, deferred the Quest target and put `checkVariance` 0.4 into configuration (DL-165).
+The first half of S10 (`9304985`) wrote the drafts into content (26), the six earned Traits through the
+content editor (27), `checkVariance` 0.4 and the coverage test. Played as written, the content was
+S9's drafts at their defaults, game for game: the player's Quests failed 19.9% and were strong 59.5%,
+and 20 of the 50 harness Guilds went bankrupt, 11 of them in their first two years, against 2 of 50 at
+S8 and none at `v1.1.3` (`m9-v114-s10-t0`, below). This half is the balance pass.
+
+**Decision.**
+
+1. **The script's limit is 850 kB** (the owner, 2026-10-03), in place of v1.1.3-S7's 800 kB (DL-134
+   item 9): S10's content left the script 145 bytes under it. `web/scripts/check-bundle.mjs`,
+   `web/src/bundle.test.ts`, and the epic's Gate and §4 Risks say so (`bd2e92e`). No trimming was done.
+2. **The Encounters' factors and flat terms** are tuned again with S9's calibration
+   (`HEROESIM_DRAFTS=<a scratch copy> HEROESIM_TUNE=0.56 HEROESIM_FLAT=0.4 npm run harness --
+   calibrate`): random Parties of 3 at Level 5 meet each Encounter at difficulty 60 with a chance of
+   0.56, not S9's 0.44, 40% of each target still its flat term; each Finale at the middle of its
+   template's range, as before. Each target falls by about a tenth at the median. A Check that needs a
+   Hero of a Class or a Skill takes a different share of its Encounter's target than before (the tuner
+   aims each Encounter, then splits it), so a few such Checks (the last assault's Command, the last
+   rite's Rite, Diagnosis) are harder alone and the others of their Encounters easier. Only the numbers change: a script wrote each Check's `flat` and
+   `difficultyFactor` in place and confirmed nothing else moved.
+3. **The Degrees:** `checkDegrees.triumph` 1.25 → 1.35, and `strongTriumphShare` 0.5 → 0.6. A strong
+   success pays as a success does (Loot aside; the policy never sells it), so this lowers the strong
+   share and the positive Traits with no cost in Guilds: at the same factors, 14 bankruptcies of 50
+   with them and 14 without, the strong share 53.2% against 66.8% (t4, t5).
+4. **Form:** `moraleCheckFactor` wretched 0.85 → 0.93, low 0.93 → 0.97, steady 1, high 1.04 → 1.03,
+   elated 1.08 → 1.06; `hurtCheckFactor` 0.85 → 0.93. A failing Guild loses Morale and is driven down
+   less fast: 11 bankruptcies with it, 14 without (t7, t4).
+5. **Left as they are,** each tried: `checkVariance` 0.4 (0.5 failed 24.2% and bankrupted 34, t3);
+   `checkDegrees.setback` 0.75 (0.6 and 0.85 both worse, t1, t2: harm on a Failure cascades within a
+   Quest through wounds and Morale, and too little harm leaves Rosters to grow old and dear);
+   `exposureRange` 2 and `guardRange` 0.5 (0.25 left Deaths unchanged and bankrupted 18, t6); the
+   Dispositions' `partyMargin` (0.02, `reckless` 0.05, changed the Rival folds by noise, 6.18 a game
+   against 6.38, t11). `configVersion` stays 13: `v1.1.3` was released under 12 and no game under 13.
+6. **The earned Traits' chances,** through the content editor (`traits unassign` and `traits assign`,
+   then Finish, as the `trait-assign` skill does): the four positive ones, on a Triumph, 0.05 →
+   0.02 (`wayfinder`, `battle-tried`, `silver-tongued`, `lettered`); the two negative ones stay 0.08
+   on a Failure. DL-148's "about 5 to 10%" is a chance for each use; at 0.05 the player's Heroes
+   earned 1.6 to 1.9 a career, at 0.025 1.25 and at 0.02 1.12 (the 0.56 tuning). Rarer Traits also mean fewer Stat bonuses: at
+   the 0.50 tuning, 0.025 raised the player's failures from 14.4% to 16.7% and the bankruptcies from
+   11 to 18, which is why the factors went on to 0.56.
+7. **How the sweeps ran** (the owner's choices). `HEROESIM_WORKERS` caps a play sweep's processes
+   (`d0e94ef`); each seed is a process of its own, the next starting as one ends, and
+   `HEROESIM_REPLAY=0` skips the replay (`6b34163`). The trials ran one at a time, 50 seeds × 20 years
+   with the replay skipped, in 8 processes and from t5 in 12. The orchestrator offered 3-year sweeps
+   for exploring; they were not used, since past the first trials most bankruptcies came after year
+   9, which a 3-year sweep cannot see. A first closing run, on content 29, ran in 12 processes; a second,
+   on content 31, was stopped for memory in 12; the closing sweep ran in 8, with the replay.
+8. **Content** 27 → 31: 28 the factors tuned to 0.50, 29 the editor's Finish at 0.025, 30 the factors
+   tuned to 0.56, 31 the editor's Finish at 0.02 (`parse.ts`'s comment).
+
+**The trials** (50 seeds × 20 years, the replay skipped; the player's Quests failed and strong; the
+player's Guilds bankrupt of 50, those in their first two years in brackets; Traits earned per Hero
+career; not kept):
+
+| Trial | What changed | Failed | Strong | Bankrupt | Traits a career |
+| --- | --- | ---: | ---: | ---: | ---: |
+| t0 | content as written (S9's 0.44 tuning) | 19.9% | 59.5% | 20 (11) | 1.339 |
+| t1 | Setback 0.6, `guardRange` 0.6, item 4's form, item 3's Degrees | 16.9% | 48.4% | 29 (9) | 1.672 |
+| t2 | Setback 0.85, `guardRange` 0.3, item 4's form, item 3's Degrees | 26.2% | 38.4% | 31 (23) | 0.677 |
+| t3 | `checkVariance` 0.5 alone | 24.2% | 53.2% | 34 (21) | 0.941 |
+| t4 | factors tuned to 0.50, item 3's Degrees | 15.3% | 53.2% | 14 (3) | 1.551 |
+| t5 | factors tuned to 0.50, the Degrees as they were | 15.0% | 66.8% | 14 (4) | 1.773 |
+| t6 | t4 and `guardRange` 0.25 | 16.1% | 51.7% | 18 (9) | 1.353 |
+| t7 | t4 and item 4's form | 14.4% | 54.2% | 11 (3) | 1.632 |
+| t8 | t7, factors tuned to 0.56 | 11.2% | 59.9% | 10 (1) | 1.875 |
+| t9 | t7, factors tuned to 0.60 | 8.0% | 67.1% | 13 (0) | 2.138 |
+| t10 | t7, factors tuned to 0.50 with a flat share of 0.6 | 19.8% | 46.9% | 24 (5) | 1.389 |
+| t11 | t7 and the Dispositions' `partyMargin` 0.02 (`reckless` 0.05) | 15.4% | 53.1% | 15 (5) | 1.532 |
+| — | t7 with the positive Traits at 0.025 (content 29, the first closing run) | 16.7% | 50.3% | 18 (3) | 0.971 |
+| t12 | that, factors tuned to 0.56 | 12.4% | 57.8% | 12 (1) | 1.245 |
+| **Closing** | **t12 with the positive Traits at 0.02 (content 31)** | **12.4%** | **57.1%** | **13 (1)** | **1.117** |
+
+- *The trade-off, failures against bankruptcies:* 19.9% → 20, 16.7% → 18, 15.3% → 14, 14.4% → 11,
+  12.4% → 12 and 13, 11.2% → 10, 8.0% → 13. Easier Quests end the early bankruptcies (11 in the first
+  two years at 19.9%, 1 at 12.4%, none at 8.0%), but the late ones stay at 8 to 13 whatever the
+  failure rate. Fifty seeds hold a count of bankruptcies to about ±3.
+- *The late bankruptcies* are weak Rosters, not unlucky ones. A diagnosis of t4's settings, the
+  player's Guild year by year over 20 seeds (not kept), found each Guild that went bankrupt after its
+  second year still failing 15 to 30% of its Quests from its third year on, its Wealth never above
+  53,000, and its Quest income level with its Upkeep. Its Heroes still levelled, since a failure pays
+  half the XP, and the wage grows with Level (`wagePerLevel` 20) while a Quest's reward does not. The
+  strong Rosters fell to 3 to 5% failed and held 100,000 to 400,000. Deaths, 0 to 2 a year in every
+  game, were no lever. The wage, the economy and the policy are outside S10's controls (DL-165).
+- *Plainly:* at about 12% failed, 13 of 50 harness Guilds still go bankrupt, and no setting of this
+  release's controls brought it near S8's 2 of 50, even at 8% failed. What would is the economy
+  (DL-83 items 8, 9 and 12), the policy choosing Quests by their chance, or the XP split below.
+
+**The closing sweep** (`HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s10 npm run
+harness -- play.harness`, core only, 20 years, content 31, config 13, not validated, 1,371 s):
+`harness/reports/m9-v114-s10-2026-10-03.md`, force-added. `seed-0001` played twice is identical
+(116,207,395 characters); 50 of 50 saves load and serialise back alike. Against the first half's
+content (t0), S8's sweep, `v1.1.3`'s (`m9-v113-close-2026-10-02.md`) and the M8 baseline DL-83
+measures against (1,000 seeds):
+
+| | Closing | t0 | S8 | `v1.1.3` | M8 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Player failed | 12.4% | 19.9% | 10.1% | 14.8% | 14.8% |
+| Player succeeded | 30.6% | 20.5% | 15.0% | 13.6% | 13.7% |
+| Player strong | 57.1% | 59.5% | 74.9% | 71.6% | 71.5% |
+| Rivals failed, strong | 11.7%, 58.1% | 19.3%, 60.7% | 6.4%, 81.3% | 13.0%, 75.1% | 12.9%, 75.0% |
+| Player bankrupt | 13 of 50 (26%) | 20 of 50 | 2 of 50 | 0 of 50 | 0.4% |
+| … by year (year 0 first) | 0: 1, 9: 1, 12: 1, 14: 1, 15: 4, 18: 4, 19: 1 | 0: 7, 1: 4, then 9 | 14: 1, 18: 1 | — | 16 to 19 |
+| Years survived, mean | 18.65 | 14.68 | 19.86 | 20.00 | 19.99 |
+| Rival folds a game | 5.40 | 8.10 | 3.56 | 2.76 | 2.78 |
+| Player Deaths a game | 7.98 | 10.36 | 21.70 | 34.16 | 33.56 |
+| Player Injuries a game | 129.2 | 159.0 | 267.4 | 392.7 | 393.4 |
+| Player recruits a game | 12.4 | 14.5 | 25.9 | 38.3 | — |
+| Player first in the Rankings, by Fame, by Wealth | 82.3%, 80.5% | — | 77.4%, 86.9% | 89.5%, 92.2% | 88.8%, 91.4% |
+| Player's Wealth after 10 years | 92,001 | 73,910 | 121,287 | 121,024 | 125,897 |
+| Upkeep, Quest rewards a player Guild-year | 54,825, 63,011 | 50,811, 57,750 | 46,580, 59,981 | 42,268, 57,488 | — |
+| Mean Level of the player's Roster after 10 years | 10.05 | 9.61 | 8.30 | 7.33 | — |
+| Loot a player's Quest | 0.142 | 0.150 | 0.180 | 0.136 | — |
+| Traits earned per Hero career, player's and Rivals' | 1.117, 0.594 | 1.339, 0.663 | none | none | none |
+
+- *The Quest target* (DL-83 item 4: failed 20 to 30%, strong at most 50%): **unmet**, deferred by the
+  owner (DL-165). The player's Quests fail 12.4% and are strong 57.1%. As the calibration sees it
+  (below), the best Party fails 10% at Level 1, 6% at Level 5 and 1% at Level 10.
+- *The other DL-83 targets, measured, not tuned:*
+  - item 2, the player's Bankruptcy or wiped Roster in 5 to 15% of games: 26%, above;
+  - item 3, first in the Rankings at 40 to 60% of year-starts: 82.3% by Fame and 80.5% by Wealth, above;
+  - item 5, 1.5 to 3.5 Rival folds a game: 5.40, above;
+  - item 6, 25 to 40 of the player's Hero Deaths a game: 7.98, below;
+  - item 7, Wealth held at 6 to 12 months' Upkeep after year 2: 92,001 after 10 years against 4,569 of
+    Upkeep a month, 20 months, and 102,864 after 20 over the 37 games still in play, 22.5 months; above,
+    as `v1.1.3`'s 34 and 48 were.
+- *Every difference from `v1.1.3`, explained:*
+  - *More failures and fewer strong successes.* `v1.1.3`'s twelve Encounters had one Check each,
+    rolled within 20%; S10's 29 have up to four, by a pass formula, rolled within 40% (DL-165), with
+    four Finales and the `lore` kind, and a strong success needs every Encounter at Success or better
+    with 60% of them Triumphs at 1.35 times the target (item 3). The strong share falls from 71.6% to
+    57.1%, the plain successes rise from 13.6% to 30.6%; the failures fall from 14.8% to 12.4%, since
+    the factors were eased for the bankruptcies.
+  - *Bankruptcies, 0 to 13.* Above: weak Rosters whose wage outgrows their income. A Hero's Level is
+    higher (10.05 after 10 years against 7.33), as Deaths are rarer (7.98 against 34.16) and recruits
+    fewer (12.4 against 38.3), so Upkeep takes 87% of the Quest income, against 74%. Deaths are rarer
+    because only eleven Encounters kill, on a Failure, at 2 to 5%, and harm reads the Stats (DL-155).
+  - *Rival folds, 2.76 to 5.40,* the likeliest reading the same way: a Rival's Quests fail 11.7%
+    (13.0%), its Heroes die far less (15.20 a game against 74.28), and its Upkeep takes 96.5% of its
+    Quest income (95.1%); the harness does not count a fold's cause beyond Bankruptcy.
+  - *Injuries, 392.7 to 129.2 a game,* by the content's chances and harm's `guardedBy`.
+  - *Rankings, Wealth:* the player's Guild leads less often and holds less, by its higher Upkeep and
+    the Guilds that fold.
+  - *Loot,* 0.136 to 0.142 a Quest, about as before: rarer strong successes and the Finale's Triumph
+    (DL-160) against Quests a little harder on average (47.3 against 46.1), whose tables give more.
+  - *Earned Traits* are new (DL-159): 918 for the player's Heroes, `wayfinder` 373, `battle-tried`
+    218, `silver-tongued` 139, `lettered` 138, `battle-shy` 35, `haunted` 15.
+  - *Quests resolved,* 352,121 to 312,418: fewer Guild-years in play (932 against 1,000), as Guilds
+    went bankrupt.
+- *Against S9's trials* (DL-162): S9 brought failures to 20% only with 20 to 24 of 50 bankrupt, and
+  kept bankruptcies few only near 16% failed and over 50% strong; S10's controls bring the early
+  bankruptcies from 11 to 1, but not the late ones.
+- *The harness's policy since the M8 baseline* (§4 Risks). M8's sent "the strongest Party of the size
+  it requires", the fewest Heroes a Quest allowed, by its demands (DL-34). From v1.1.4-S6 it sends
+  `partyFor`'s Party by the chance estimate at `playerPartyMargin` 0.05 (DL-157): the Board's "Your
+  best Party", 1.72 Heroes on average. The rest is M8's (INPUTS 4.14, DL-62): the highest-reward Quest
+  it can staff, whatever its chance, one purchase a Turn, never selling or transferring. DL-165 left it
+  so.
+- *The time,* 8 processes: `advance` mean 4.701 ms a Turn, p99 23.276 ms; 1,371.2 s in all.
+
+**For the owner: Party sizes and XP a Hero** (DL-148 item 19, the closing sweep; XP is not split, so
+each Hero of a Party takes the Quest's XP):
+
+| The player's Party | Quests | Failed | Strong | XP a Hero | XP the Party took |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 Hero | 130,425 (41.7%) | 17.6% | 53.8% | 31.0 | 31.0 |
+| 2 | 139,956 (44.8%) | 9.0% | 60.9% | 66.7 | 133.4 |
+| 3 | 40,114 (12.8%) | 7.3% | 56.0% | 90.8 | 272.2 |
+| 4 | 1,875 (0.6%) | 11.0% | 25.4% | 88.2 | 352.6 |
+| 5 | 48 (0.0%) | 12.5% | 18.8% | 94.3 | 471.4 |
+| Every size (mean 1.72) | 312,418 | 12.4% | 57.1% | 55.0 | 109.8 |
+
+The Rivals' are alike (mean 1.69, 49.2 XP a Hero). A larger Party takes harder Quests, so its XP a
+Hero rises with its size, and the Party in all takes the XP times its size: three Heroes take nine
+times a solo Hero's in all. Splitting the XP would slow Levels in larger Parties, and with them the
+wage that ends the late Guilds above.
+
+**The checks.**
+1. **The calibration on the shipped content** (`HEROESIM_DRAFTS=none HEROESIM_SEEDS=10000 npm run
+   harness -- calibrate`, 63 s; `docs/quests/calibration.md` and `.json`, content 31): coverage 20 of
+   20 Stats; the best Party fails 10% and is strong 44% at Level 1 (17% and 29% in the hardest third),
+   6% and 49% at Level 5, 1% and 79% at Level 10; the spot-check's widest gap 1.46 points (2.95
+   standard errors) over 284 chances. The review page (`docs/quests/v1.1.4-review.html`) and the
+   drafts stay as S9 left them, the record of what the owner reviewed.
+2. **The tests,** changed with the values, none weakened:
+   - pinning the new defaults: `degree.test.ts`, `resolve.test.ts`'s defaults test, and
+     `content.test.ts`'s version (31);
+   - scenes worked out by hand under S2's Degrees and S3's form keep those values in their own
+     configuration: `resolve.test.ts`'s `pinned` and `consumables.test.ts`'s; `estimate.test.ts` reads
+     the thresholds from configuration; `form.test.ts` takes its low and wretched cases at the new
+     factors;
+   - the three `quests-conclude` fingerprints, the first two moved (`f1e65b3b…`, `096c92a2…`), the
+     third's game unchanged;
+   - the app's Quest report seed `report-f` → `report-l`, the first whose Party still comes home hurt;
+   - `dispositions.test.ts`: `reckless` loses a quarter more Heroes than `miserly` again, 1.25 as before
+     S10 (239 Deaths to 161), in place of the first half's 1.15;
+   - `modules.test.ts`'s "differs from the same seeds with no module" is given 60 s: 0.6 s alone, it ran
+     past the 5 s default twice under the whole suite's load. A timeout, not an assertion (approved by
+     the orchestrator).
+3. **The script.** `npm run build -w web`'s check-bundle passes: 799,867 bytes, 12 more than the first
+   half's (the numbers' digits), within 850 kB.
+4. **For Traits.** The four positive earned Traits' Encounter uses changed through the editor's Finish
+   twice (content 29 and 31), each running `npm test`; no Trait was added or removed, and the register
+   is unchanged. `npm run edit -- traits doctor` reported no drift before, between and after, with no
+   pending edit left.
+5. **The rest.** `npm run typecheck` and `npm run lint` are clean; `npm test` passes 4,726 tests in 184
+   files; `npm run e2e -w web` passes all 96 specs.
+
+**Consequences.**
+- The Quest target stays open, as DL-165 deferred it. Most Guilds' Quests are now easy late, hard
+  early, and 13 of 50 harness Guilds end bankrupt, most after their ninth year.
+- *For the owner:* the late bankruptcies, and the DL-83 targets the sweep misses, wait on the economy
+  (the wage's shape, DL-83 item 12), the policy, or the XP split (DL-148 item 19), each outside this
+  release's tuned controls; the Party sizes above are for the last.
+- The positive earned Traits' chance, 0.02, is under DL-148's "about 5 to 10%"; the career mean is
+  1.12, about one.
+- S14 closes the epic.
+
+**Actioned in:** `content/encounters.json` (every Check's `flat` and `difficultyFactor`; the four
+positive earned Traits' chances, through the editor); `content/src/parse.ts` (31) and
+`content.test.ts`; `engine/src/config.ts`; `engine/src/quest-engine/degree.test.ts`,
+`resolve.test.ts`, `consumables.test.ts`, `estimate.test.ts`, `form.test.ts`;
+`engine/src/phases/quests-conclude.test.ts`; `engine/src/controllers/dispositions.test.ts`;
+`harness/src/modules.test.ts`; `web/src/app.test.tsx`; `docs/quests/calibration.md` and `.json`;
+`harness/reports/m9-v114-s10-2026-10-03.md`; the epic's S10 boxes, §2's configuration and its
+status. The script's limit: `bd2e92e`; the harness's workers and replay: `d0e94ef`, `6b34163`.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

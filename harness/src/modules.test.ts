@@ -140,7 +140,9 @@ describe('a sweep with a module installed', () => {
     expect(shard.games[0]?.measures.fingerprint).toBe(sweep.games[0]?.measures.fingerprint);
   });
 
-  test('differs from the same seeds with no module, whose saves hold no slice', () => {
+  // It plays the sweep again in this process: 0.6 s alone, and over 5 s under the whole suite's load
+  // from v1.1.4-S10's content, so it is given its time as DL-164 gave the long tests theirs (DL-166).
+  test('differs from the same seeds with no module, whose saves hold no slice', { timeout: 60_000 }, () => {
     const none = sweepPlay(seeds, deps, { years });
     const fingerprints = (of: PlaySweep) => of.games.map((game) => game.measures.fingerprint);
 

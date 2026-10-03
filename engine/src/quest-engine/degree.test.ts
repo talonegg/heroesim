@@ -37,8 +37,9 @@ describe('degreeOf', () => {
     }
   });
 
-  test('reads checkDegrees, whose defaults are 1.25, 1 and 0.75', () => {
-    expect(defaultConfig.checkDegrees).toEqual({ triumph: 1.25, success: 1, setback: 0.75 });
+  // The Triumph at 1.25 until v1.1.4-S10's balance pass, then 1.35 (DL-166).
+  test('reads checkDegrees, whose defaults are 1.35, 1 and 0.75', () => {
+    expect(defaultConfig.checkDegrees).toEqual({ triumph: 1.35, success: 1, setback: 0.75 });
     const strict = { checkDegrees: { triumph: 2, success: 1.1, setback: 1 } };
     expect([150, 105, 100].map((roll) => degreeOf(roll, 100, strict))).toEqual(['success', 'setback', 'setback']);
     expect(degreeOf(99, 100, strict)).toBe('failure');

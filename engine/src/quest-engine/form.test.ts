@@ -39,7 +39,10 @@ describe('the Party builder\'s line, from the mean form', () => {
     [[1.04, 1], 'raises'],
     [[1.08, 0.93], 'raises'],
     [[1.04, 0.93], 'lowers-a-little'],
-    [[0.93, 0.93, 0.93], 'lowers-a-little'],
+    // Every Hero in low spirits, at the low band's factor (0.93 until v1.1.4-S10, then 0.97, DL-166),
+    // lowers it a little; every one wretched (0.93 from v1.1.4-S10), badly.
+    [[0.97, 0.97, 0.97], 'lowers-a-little'],
+    [[0.93, 0.93, 0.93], 'lowers-badly'],
     [[0.85, 1], 'lowers-badly'],
     [[0.85, 0.85, 1.08], 'lowers-badly'],
   ])('a Party of forms %j: %s', (forms, effect) => {
