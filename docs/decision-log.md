@@ -20974,6 +20974,155 @@ above; `docs/planning/epics/v1.1.5-release.md` (S11's boxes).
 
 ---
 
+## DL-171 — v1.1.5-S12 built: the Roster as Tiles or a Table of effective Stats, its columns chosen in a panel on a wide screen and by five tabs on a phone, one "Sort by" for both views with the headings in step, each Hero's Traits and Items, and every choice kept in the browser
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agents, building S12 as the epic's
+S12 bullets and DL-169 items 5 to 12 describe. The readings marked as the agent's are for the owner to
+change. Opus built it, test first; a second Opus agent verifies it.
+
+**Context.** DL-169 items 6 to 12: the Roster switches between Tiles and a Table, Tiles the first
+time; the tiles add each Hero's Traits with their effects and their Items, and no Stats; the Table
+shows Name with the thumbnail pinned, Class, Level, Age, Morale, where the Hero is, the 20 effective
+Stats, Traits and Items; a Columns panel on a wide screen and five tabs on a phone; one "Sort by" for
+both views, the headings in step, ties by S11's default order (DL-170); the view, the columns, the tab
+and the sort remembered in the browser, never in the save; Potential never shown. At `c74c1bd` the
+Roster was cards only, in the order the Heroes joined.
+
+**What was built.**
+
+1. **The selectors** (`web/src/state/selectors.ts`). `rosterView(document, order)` sorts by the
+   order given, the default order when none is (DL-169 item 5), ties always in the default order,
+   whichever way the sort runs; `rosterIds` and the save are untouched (its test sorts by every
+   choice and compares the document before and after). Each `RosterRow` gains `traits` (name and
+   effect, the same words as a Hero's page, through one helper `traitsOf` both now read), `items`
+   (the Gear the Hero carries in their own slots, by name, with `modifierWords`) and `stats`: the 20
+   Stats in content's order, each with its `base`, the `value` `effectiveStats` gives, `change`
+   (`up`, `down` or `null` by the net change after the Stat's bounds), the `sources` that move it,
+   in the order `effectiveStats` adds them, from the engine's exported `traitStatBonuses`,
+   `gearModifiers` and `traitStatModifiers`, and `words`: "Base 10, +1 from the Guildmaster's Class
+   bonus, +2 from Gear, -1 from Traits", with ", held at 20" when a bound holds the value.
+   `rosterSortChoices()` gives Default, Name, Class, Level, Age, Morale, When free and the 20 Stats
+   with their first directions and areas; `orderWords(key, direction)` the direction's words;
+   `rosterColumnGroups()` the Table's columns as Hero and the four areas, each with the sort its
+   heading orders by. `defaultHeroOrder`'s Class comparison is now a helper, `byClass`, which the
+   Class sort shares. No engine change.
+2. **The switch and the sort** (`web/src/views/roster.tsx`). Above the Roster: "Tiles | Table" as the
+   page's filter chips (`FilterChips`, `aria-pressed`), Tiles the first time; "Sort by", a dropdown
+   with the Stats in an option group by area; a button that reverses the direction, its words the
+   direction ("Highest first", "A to Z", "Warrior first", "Youngest first", "At the Hall first",
+   "Default order" and "Reversed"); and, with the Table on a wide screen, "Columns". The sort is one
+   value: the dropdown, the button and the Table's headings (`SortHeader`) all set it; a heading
+   pressed sorts by its column in its first direction and pressed again reverses it. The sort serves
+   the tiles and the Table alike. The Offers and the Unattached pool below are as they were.
+3. **The tiles.** As they were, with each Trait as a chip, "Lame: -2 Dexterity, -1 Endurance", as on a
+   Hero's page, and each Item as a chip by name, its effect its `title` and, with `Chip`'s `spoken`
+   (S11), its screen reader's words "Arming sword: Weaponry +2, Strength +1". No Stat.
+4. **The Table** (`web/src/views/roster-table.tsx`, new). `table--first-sticky` in a `table-wrap`, as
+   the Unattached pool: Name with the thumbnail pinned, then the columns shown. A raised Stat is
+   green (`--good`) and bold with "▲" after it, a lowered one red (`--bad`) with "▼"; the figure and
+   mark are `aria-hidden`, and a `visually-hidden` span reads "13, raised: Base 10, +1 from the
+   Guildmaster's Class bonus, +2 from Gear"; the cell's `title` is the words. A Stat nothing moves is
+   its figure alone. Morale is its band's chip, "60, steady"; where the Hero is the Roster's full
+   words with the Day; Traits and Items by name, each effect its `title` and the screen reader's
+   words, "None" for none.
+5. **The Columns panel**, on a wide screen: a group of boxes for Hero (Class, Level, Age, Morale,
+   Where, Traits, Items) and each area, each with All and None ("All the Mental columns", "None of
+   the Mental columns"), and Reset; "Name is always shown." Every column on by default.
+6. **The phone's tabs**, below 600px: `useNarrow()` (`ui.tsx`, new) reads `matchMedia('(max-width:
+   599px)')`, the style sheet's breakpoint, and follows it as the window changes. The Table is then in
+   the page's `Tabs`, Hero, Physical, Mental, Magical and Social, Name pinned in each; the Columns
+   button and panel are not drawn; a column hidden on a wide screen stays hidden in its tab, and a tab
+   whose every column is hidden says "The columns of this tab are hidden: show them from Columns on a
+   wider screen."
+7. **Remembered** (`remembered.ts`): `heroesim.rosterView` (`tiles`, `table`), `heroesim.rosterTab`
+   (the group's key), `heroesim.rosterOrder` (`level:descending`) through `rememberedChoice`, and
+   `heroesim.rosterColumns`, the hidden columns as a comma list in the columns' order, through a new
+   `rememberedList` and `rememberList`, each read and write in try/catch. Nothing of them in the save;
+   the Roster calls no play.
+8. **The words and the help.** Every label is made capitalised where it is written; the Roster's
+   "About this view" gains a sentence on Tiles, the Table, its colours and marks, Columns, the tabs,
+   "Sort by" and the browser's memory.
+9. **The script** (DL-169 item 12): 813,752 bytes against 850 kB (801,082 before, 12,670 bytes
+   added). The limit stays at 850 kB; `check-bundle.mjs` and `bundle.test.ts` are unchanged.
+10. **Unchanged.** A Hero's page (`hero-page.tsx` untouched; `heroPage` gives the same Traits through
+   `traitsOf`, its tests unchanged and passing); the Offers and the Unattached pool; no file under
+   `engine/src/` or `content/`; no save field, configuration or schema.
+
+**The tests.**
+- `selectors.test.ts`: `rosterView` in the default order (Bram the Healer, who joined first, now
+  last); the 20 Stats' keys, names, bases and values against `effectiveStats`; each source named, up
+  and down by the net change, plain at nothing; the bound held ("held at 20"), sources summed, and
+  sources that cancel plain with their words kept; Traits and Items with their effects, the Guild's
+  holding no Hero's, and no `potential` or `outlook` in the rows; the sort choices and their first
+  directions; the direction's words; Name, Class, Level, Age and Morale either way, a Stat by its
+  effective value, and when free, with ties in the default order against the order of joining; the
+  world unchanged by every sort; the columns' groups.
+- `roster.test.tsx`: the switch and its memory, the pool still below; the tiles' Traits, Items and no
+  Stat; the Table's headings, pinned Name with thumbnail, values and full whereabouts; ▲ and ▼ with
+  their class, `title` and screen reader's words, and a plain Stat; Traits and Items with tooltips and
+  "None"; a name opening the Hero's page, unchanged, and back returning the keyboard; no Potential in
+  either view; the panel's groups, boxes, All, None, Reset, Name always, and its memory; the panel not
+  on the tiles; the phone's tabs (`matchMedia` stubbed), hidden columns kept hidden in them, the tab
+  remembered, and an empty tab's sentence; the dropdown's options and groups; the dropdown, the
+  direction and the headings in step, a heading pressed again reversing, ties in the default order,
+  the tiles in the same order; the sort remembered; a browser that refuses storage opening as by
+  default with its choices still working (as the pool's test does); and the four keys alone kept.
+- *Updated for the default order:* `roster.test.tsx`'s `openFirstHero` opens the Hero who joined first
+  by name, whom the setups change; `pictures.test.tsx` opens the blade's carrier by the Item on their
+  tile; `selectors.test.ts`' two `rosterView` tests find their Heroes by id.
+- `remembered.test.ts`: a list kept and read, unknown keys left out, an empty list, and blocked storage.
+- `capitals.test.tsx`: the guard now reads the Table with its Columns panel open and "Sort by", the
+  Table sorted by when free, each of the phone's five tabs, and the tiles with a Trait and a carried
+  Item (`busyGame` gains an arming sword carried); it passes.
+- `e2e/layout.spec.ts`, a new spec on every project: at 360 and 390px on the phone and at 820 and
+  1280px, in light and dark, with Old soldier and Mistrusts magic chosen so a Stat is raised and one
+  lowered: no page overflow and 44px targets for the Table, the Table scrolled to its end (its Name
+  pinned at the box's edge), each tab on the phone, the Columns panel on a wide screen, the Roster
+  sorted and the tiles; the Table wider than its box on a wide screen; the green and the red each at
+  4.5:1 or more against the first opaque background under them (`textContrast`); the dark scheme the
+  page's own. Screenshots kept in its output.
+
+**Verification** (the builder's). `npm run lint` and `npm run typecheck` pass; `npm test` passes 185
+files and 4,782 tests (4,753 at S11, 29 added); `npm run e2e -w web` passes 100 specs (97 at S11, 3
+added); check-bundle passes, the script 813,752 bytes against 850 kB; `npm run edit -- traits doctor`
+reports no drift before and after. Each changed file keeps its CRLF endings; the new file is CRLF.
+
+**The agent's readings,** for the owner to change.
+1. *The sources' words* are "the Guildmaster's Class bonus", "Gear" and "Traits", in the order the
+   engine adds them; a bound that holds the value is said, "held at 20"; sources that cancel leave the
+   Stat plain, their words kept in its tooltip and the screen reader's.
+2. *The mark and its colour* are on the figure and its mark together, the figure bold; the screen
+   reader hears "raised" or "lowered" in place of the mark.
+3. *The direction's button* says the direction, not "Ascending": "Highest first", "Lowest first", "A to
+   Z", "Warrior first", "Healer first", "Youngest first", "Oldest first", "At the Hall first", "At the
+   Hall last"; Default reverses too, "Reversed".
+4. *Reversed, "when free"* reverses the whole comparison: a Hero with no Day to read, last at first,
+   comes first; ties stay in the default order, not reversed.
+5. *The Where column* is headed "Where" and sorts by when free; Morale shows as its band's chip,
+   "60, steady", as on the tiles.
+6. *The Columns panel* opens in the page below the bar, closed each time the Roster opens; whether it
+   is open is not remembered. The memory keeps the hidden columns, so a column the content adds later
+   shows.
+7. *A phone* is a window under 600px, read by `matchMedia` and followed as it changes; a tab whose
+   every column is hidden says so and how to show them.
+8. *The Roster's order* is the default order from the start, on the tiles too, where it was the order
+   of joining; the CLI's `show roster` is unchanged.
+9. *Tooltips* are `title`s on text no keyboard or touch can focus, as S11's chip: a sighted player
+   without a mouse reads a Stat's sources and an Item's effect on the Hero's page, and a screen reader
+   reads them in place.
+
+**For the owner.** Nothing is open; the readings above are the agent's to change. The script's limit
+was not raised.
+
+**Actioned in:** `web/src/state/selectors.ts` (`rosterView`, `RosterRow`, `RosterStat`,
+`rosterSortChoices`, `orderWords`, `rosterColumnGroups`, `traitsOf`, `byClass`);
+`web/src/views/roster.tsx`; `web/src/views/roster-table.tsx` (new); `web/src/views/ui.tsx`
+(`useNarrow`); `web/src/views/remembered.ts` (`rememberedList`, `rememberList`);
+`web/src/views/section.tsx` (the Roster's help); `web/src/styles.css`; the tests named above;
+`docs/planning/epics/v1.1.5-release.md` (S12's boxes).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

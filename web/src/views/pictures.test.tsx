@@ -326,8 +326,11 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     const state = holdingUnique(holding(carryingUnique(started(), 'barrow-kings-blade', 'weapon'), 'arming-sword', 1), 'lantern-of-stannary');
     const { world } = documentOf(state);
     render(<App initial={state} />);
-    const [first] = within(rosterList()).getAllByRole('button');
-    fireEvent.click(first as HTMLElement);
+    // The Hero who carries the blade, by the Item on their tile (v1.1.5-S12): the Roster lists in the default order.
+    const carrier = within(rosterList())
+      .getAllByRole('listitem')
+      .find((card) => card.textContent?.includes("The Barrow King's blade") === true);
+    fireEvent.click(within(carrier as HTMLElement).getByRole('button'));
     const page = within(section('Roster')).getByRole('article');
     const name = within(page).getByRole('heading', { level: 3 }).textContent ?? '';
     const hero = Object.values(world.heroes).find((each) => each.name === name);

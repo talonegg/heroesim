@@ -28,6 +28,7 @@ import {
   descriptiveAttributes,
   durationDaysOf,
   effectiveStats,
+  gearModifiers,
   bestParty,
   entriesFor,
   guildmasterOf,
@@ -50,6 +51,8 @@ import {
   skillsThatHelp,
   statsRead,
   timeOfDay,
+  traitStatBonuses,
+  traitStatModifiers,
   transferFee,
   unavailability,
   yearOf,
@@ -78,6 +81,7 @@ import {
   type Sex,
   type SlotKey,
   type Stack,
+  type StatKey,
   type StackId,
   type StopCondition,
   type StopReason,
@@ -371,18 +375,22 @@ function hardnessWords(difficulty: number, difficulties: readonly number[]): str
 export function defaultHeroOrder(document: WorldDocument): (a: Hero, b: Hero) => number {
   const { turn } = document.world;
   const { config } = playDeps(document);
+  return (a, b) =>
+    byClass(a, b) ||
+    b.level - a.level ||
+    ageOf(a, turn, config) - ageOf(b, turn, config) ||
+    compareByCodeUnit(a.name, b.name) ||
+    compareByCodeUnit(a.id, b.id);
+}
+
+/** Two Heroes by Class in the content's order, a Class the content does not define after the four, by its key. */
+function byClass(a: Hero, b: Hero): number {
   const classes = Object.keys(content.classes);
   const place = (hero: Hero): number => {
     const index = classes.indexOf(hero.classKey);
     return index === -1 ? classes.length : index;
   };
-  return (a, b) =>
-    place(a) - place(b) ||
-    compareByCodeUnit(a.classKey, b.classKey) ||
-    b.level - a.level ||
-    ageOf(a, turn, config) - ageOf(b, turn, config) ||
-    compareByCodeUnit(a.name, b.name) ||
-    compareByCodeUnit(a.id, b.id);
+  return place(a) - place(b) || compareByCodeUnit(a.classKey, b.classKey);
 }
 
 // ── Choosing a Party ─────────────────────────────────────────────────────────────────────────
@@ -681,6 +689,24 @@ type Taken = EngineEventOf<'quest.taken'>;
 
 // ── The Roster ───────────────────────────────────────────────────────────────────────────────
 
+/**
+ * A Hero's Stat as the Roster's Table shows it (v1.1.5-S12, DL-169 item 8): its base, the effective
+ * value a Check reads (`effectiveStats`), and each source that changes it, by the engine's own sums
+ * (`traitStatBonuses`, `gearModifiers`, `traitStatModifiers`). `change` is the net change, the value
+ * less the base after the Stat's bounds: `up`, `down`, or `null` at nothing. Never its Potential.
+ */
+export interface RosterStat {
+  key: StatKey;
+  name: string;
+  base: number;
+  value: number;
+  change: 'up' | 'down' | null;
+  /** Each source that moves the Stat, in the order `effectiveStats` adds them; none that moves it by nothing. */
+  sources: { from: string; change: number }[];
+  /** The base and each source in words, `Base 10, +2 from Gear`, and the bound when it holds the value; `null` when nothing moves it. */
+  words: string | null;
+}
+
 export interface RosterRow {
   heroId: HeroId;
   name: string;
@@ -696,6 +722,126 @@ export interface RosterRow {
   why: Unavailability | null;
   /** Where the Hero is: at the Hall, injured, or away with a Party, and until when: `At the Hall`. */
   whereabouts: string;
+  /** Each Trait the Hero holds, by name, with what it does, as their page gives it (v1.1.5-S12, DL-169 item 9). */
+  traits: { name: string; effect: string }[];
+  /** Their Items: the Gear they carry, by name, with what it does (DL-169 item 9, the agent's reading). */
+  items: { name: string; effect: string }[];
+  /** The 20 Stats in content's order, for the Table (DL-169 item 8); the tiles show none (Q12). */
+  stats: RosterStat[];
+}
+
+/** Which way a list is sorted: A to Z, lowest first, or the content's order; or the other way. */
+export type SortDirection = 'ascending' | 'descending';
+
+/** What the Roster sorts by (DL-169 item 10): the default order, a Hero's field, when they are free, or a Stat by its key. */
+export type RosterSortKey = 'default' | 'name' | 'class' | 'level' | 'age' | 'morale' | 'free' | StatKey;
+
+/** The Roster's sort: one value, which the "Sort by" dropdown and the Table's headings share. */
+export interface RosterOrder {
+  key: RosterSortKey;
+  direction: SortDirection;
+}
+
+/** The Roster as it first opens: the default order (DL-169 item 5). */
+export const defaultRosterOrder: RosterOrder = { key: 'default', direction: 'ascending' };
+
+/** A choice of "Sort by": its words, the direction it first sorts in, and a Stat's area, for its group. */
+export interface RosterSortChoice {
+  key: RosterSortKey;
+  label: string;
+  first: SortDirection;
+  /** `Physical`, for a Stat; `null` for the rest. */
+  area: string | null;
+}
+
+/** The sorts that are not a Stat's, in the dropdown's order, with their first directions (DL-169 item 10). */
+const heroSorts: readonly RosterSortChoice[] = [
+  { key: 'default', label: 'Default', first: 'ascending', area: null },
+  { key: 'name', label: 'Name', first: 'ascending', area: null },
+  { key: 'class', label: 'Class', first: 'ascending', area: null },
+  { key: 'level', label: 'Level', first: 'descending', area: null },
+  { key: 'age', label: 'Age', first: 'ascending', area: null },
+  { key: 'morale', label: 'Morale', first: 'descending', area: null },
+  { key: 'free', label: 'When free', first: 'ascending', area: null },
+];
+
+/** The Hero Stats of `set`, in its order. */
+function heroStats(set: ContentSet): ContentSet['stats'][string][] {
+  return Object.values(set.stats).filter((stat) => stat.owner === 'hero');
+}
+
+/**
+ * The choices of "Sort by" (DL-169 item 10): Default, Name, Class, Level, Age, Morale, When free,
+ * then each of the 20 Stats, highest first. Age first sorts youngest first, a name A to Z, Class in
+ * the content's order and when free those at the Hall first.
+ */
+export function rosterSortChoices(set: ContentSet = content): RosterSortChoice[] {
+  return [...heroSorts, ...heroStats(set).map((stat): RosterSortChoice => ({ key: stat.key, label: stat.name, first: 'descending', area: capitalised(stat.area) }))];
+}
+
+/** The direction of a sort in words, as its button says it: `Highest first`, `A to Z`, `Warrior first`. */
+export function orderWords(key: RosterSortKey, direction: SortDirection, set: ContentSet = content): string {
+  const up = direction === 'ascending';
+  switch (key) {
+    case 'default':
+      return up ? 'Default order' : 'Reversed';
+    case 'name':
+      return up ? 'A to Z' : 'Z to A';
+    case 'class': {
+      const classes = Object.values(set.classes);
+      return `${(up ? classes[0] : classes.at(-1))?.name ?? 'Class'} first`;
+    }
+    case 'age':
+      return up ? 'Youngest first' : 'Oldest first';
+    case 'free':
+      return up ? 'At the Hall first' : 'At the Hall last';
+    default:
+      return up ? 'Lowest first' : 'Highest first';
+  }
+}
+
+/** A column of the Roster's Table: its key, its heading, the sort its heading orders by, and whether it holds a number. */
+export interface RosterColumn {
+  key: string;
+  label: string;
+  sort: RosterSortKey | null;
+  number: boolean;
+}
+
+/** A group of the Table's columns, which the Columns panel and the phone's tabs show together: Hero, then each area. */
+export interface RosterColumnGroup {
+  key: string;
+  label: string;
+  columns: RosterColumn[];
+}
+
+/**
+ * The Table's columns after Name, which always shows (DL-169 item 7): Hero (Class, Level, Age,
+ * Morale, where the Hero is, Traits, Items), then the Stats by area, each area a group, in content's
+ * order.
+ */
+export function rosterColumnGroups(set: ContentSet = content): RosterColumnGroup[] {
+  const hero: RosterColumnGroup = {
+    key: 'hero',
+    label: 'Hero',
+    columns: [
+      { key: 'class', label: 'Class', sort: 'class', number: false },
+      { key: 'level', label: 'Level', sort: 'level', number: true },
+      { key: 'age', label: 'Age', sort: 'age', number: true },
+      { key: 'morale', label: 'Morale', sort: 'morale', number: true },
+      { key: 'where', label: 'Where', sort: 'free', number: false },
+      { key: 'traits', label: 'Traits', sort: null, number: false },
+      { key: 'items', label: 'Items', sort: null, number: false },
+    ],
+  };
+  const areas: RosterColumnGroup[] = [];
+  for (const stat of heroStats(set)) {
+    const column: RosterColumn = { key: stat.key, label: stat.name, sort: stat.key, number: true };
+    const area = areas.find((each) => each.key === stat.area);
+    if (area === undefined) areas.push({ key: stat.area, label: capitalised(stat.area), columns: [column] });
+    else area.columns.push(column);
+  }
+  return [hero, ...areas];
 }
 
 /**
@@ -742,31 +888,97 @@ function unavailableUntil(hero: Hero, world: World): string | null {
   }
 }
 
-/** `show roster`: the player's Roster in its own order. */
-export function rosterView(document: WorldDocument): RosterRow[] {
+/** Each Trait a Hero holds, by name, with what its effects do in words (v1.1.4-S7, `traitEffectWords`): a Hero's page's and the Roster's. */
+function traitsOf(hero: Hero): { name: string; effect: string }[] {
+  return hero.traits.map((key) => ({ name: nameIn(content.heroTraits, key), effect: traitEffectWords(rowOf(content.heroTraits, key)?.effects ?? [], content) }));
+}
+
+/** The Gear a Hero carries in their own slots, by name, with its Stat modifiers in words (DL-169 item 9). */
+function itemsOf(hero: Hero, world: World): { name: string; effect: string }[] {
+  return carriedGear(world, hero.id)
+    .filter((row) => row.holder.kind === 'hero')
+    .map((row) => {
+      const definition = itemDefinition(content, row.definitionKey);
+      return { name: nameIn(content.items, row.definitionKey), effect: definition?.kind === 'gear' ? modifierWords(definition) : '' };
+    });
+}
+
+/**
+ * Each of a Hero's 20 Stats with its base, effective value and sources (DL-169 item 8): the sums are
+ * the engine's, which `effectiveStats` adds in this order, the Guildmaster's Class bonus, the Gear
+ * and the Hero's Traits, and the value is `effectiveStats`', within the Stat's bounds.
+ */
+function rosterStats(hero: Hero, world: World): RosterStat[] {
+  const guild = hero.guildId === null ? undefined : rowOf(world.guilds, hero.guildId);
+  const sums: [from: string, by: Record<StatKey, number>][] = [
+    ["the Guildmaster's Class bonus", guild === undefined ? {} : traitStatBonuses(guildmasterOf(guild, world), hero.classKey, content)],
+    ['Gear', gearModifiers(hero.id, world, content)],
+    ['Traits', traitStatModifiers(hero, content)],
+  ];
+  const values = statValues(hero, world);
+  return heroStats(content).map((stat): RosterStat => {
+    const { base, effective: value } = values.get(stat.key) ?? { base: 0, effective: 0 };
+    const sources = sums.flatMap(([from, by]) => {
+      const change = Object.hasOwn(by, stat.key) ? (by[stat.key] ?? 0) : 0;
+      return change === 0 ? [] : [{ from, change }];
+    });
+    const held = base + sources.reduce((sum, { change }) => sum + change, 0) !== value;
+    const words =
+      sources.length === 0 && !held ? null : [`Base ${base}`, ...sources.map(({ from, change }) => `${signed(change)} from ${from}`), ...(held ? [`held at ${value}`] : [])].join(', ');
+    return { key: stat.key, name: stat.name, base, value, change: value > base ? 'up' : value < base ? 'down' : null, sources, words };
+  });
+}
+
+/** Two numbers, lower first, either of which may be infinite. */
+function compareNumbers(a: number, b: number): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * `show roster`: the player's Roster, sorted by `order` (v1.1.5-S12, DL-169 item 10), the default
+ * order when none is given, ties always in the default order (DL-169 item 5), whichever way the sort
+ * runs. For display only: `rosterIds` keeps the order the Heroes joined.
+ */
+export function rosterView(document: WorldDocument, order: RosterOrder = defaultRosterOrder): RosterRow[] {
   const { world } = document;
   const guild = playerGuild(world);
   if (guild === undefined) return [];
   const { config } = playDeps(document);
-  return guild.rosterIds.flatMap((heroId): RosterRow[] => {
+  const byDefault = defaultHeroOrder(document);
+  const entries = guild.rosterIds.flatMap((heroId) => {
     const hero = rowOf(world.heroes, heroId);
     if (hero === undefined) return [];
-    return [
-      {
-        heroId,
-        name: hero.name,
-        sex: hero.sex,
-        portraitKey: hero.portraitKey,
-        className: nameIn(content.classes, hero.classKey),
-        level: hero.level,
-        age: ageOf(hero, world.turn, config),
-        morale: hero.morale,
-        moraleBand: moraleBand(hero.morale, config),
-        why: unavailability(hero),
-        whereabouts: whereabouts(hero, world),
-      },
-    ];
+    const row: RosterRow = {
+      heroId,
+      name: hero.name,
+      sex: hero.sex,
+      portraitKey: hero.portraitKey,
+      className: nameIn(content.classes, hero.classKey),
+      level: hero.level,
+      age: ageOf(hero, world.turn, config),
+      morale: hero.morale,
+      moraleBand: moraleBand(hero.morale, config),
+      why: unavailability(hero),
+      whereabouts: whereabouts(hero, world),
+      traits: traitsOf(hero),
+      items: itemsOf(hero, world),
+      stats: rosterStats(hero, world),
+    };
+    return [{ hero, row, free: freeFrom(hero, world) ?? Infinity }];
   });
+  type Sorted = (typeof entries)[number];
+  const statOf = (entry: Sorted): number => entry.row.stats.find((stat) => stat.key === order.key)?.value ?? 0;
+  const primary: (a: Sorted, b: Sorted) => number =
+    order.key === 'default' ? (a, b) => byDefault(a.hero, b.hero)
+    : order.key === 'name' ? (a, b) => compareByCodeUnit(a.hero.name, b.hero.name)
+    : order.key === 'class' ? (a, b) => byClass(a.hero, b.hero)
+    : order.key === 'level' ? (a, b) => a.row.level - b.row.level
+    : order.key === 'age' ? (a, b) => a.row.age - b.row.age
+    : order.key === 'morale' ? (a, b) => a.row.morale - b.row.morale
+    : order.key === 'free' ? (a, b) => compareNumbers(a.free, b.free)
+    : (a, b) => statOf(a) - statOf(b);
+  const sign = order.direction === 'ascending' ? 1 : -1;
+  return entries.sort((a, b) => sign * primary(a, b) || byDefault(a.hero, b.hero)).map((entry) => entry.row);
 }
 
 // ── A Hero's page ────────────────────────────────────────────────────────────────────────────
@@ -1033,7 +1245,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
     where: { why: unavailability(hero), words: whereabouts(hero, world) },
     injury: hero.injury === null ? null : nameIn(content.injuries, hero.injury.typeKey),
     xp: hero.xp,
-    traits: hero.traits.map((key) => ({ name: nameIn(content.heroTraits, key), effect: traitEffectWords(rowOf(content.heroTraits, key)?.effects ?? [], content) })),
+    traits: traitsOf(hero),
     fee,
     areas,
     gear,

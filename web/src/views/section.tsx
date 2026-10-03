@@ -117,7 +117,10 @@ export const help: Readonly<Record<SectionId, string>> = {
     'Your Heroes, each with their Class, Level and Age, their Morale and where they are. Open a Hero’s page for ' +
     'their Stats by area, with what Gear adds and a hint of how far each may grow, their Gear and Skills, their ' +
     'Relationships and their History; from it, put Gear the Guild holds on them, take it off, or transfer them to ' +
-    'another Guild, which asks first.',
+    'another Guild, which asks first. Show them as Tiles, with their Traits and Items, or as a Table of their Stats ' +
+    'as Quests check them, raised by Gear, Traits or your Guildmaster in green with ▲ and lowered in red with ▼; ' +
+    'choose its columns under Columns, or by tab on a phone. Sort by any column, from "Sort by" or a heading; this ' +
+    'browser keeps your choices.',
   hall:
     'Your Guild’s premises: each facility’s grade, what it does, and Build, which raises it one grade for the cost ' +
     'on the button. Each grade does more than the one below it, and each adds to the Upkeep, which the Treasury gives.',

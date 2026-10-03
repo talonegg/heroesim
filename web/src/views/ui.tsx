@@ -414,6 +414,27 @@ export function useReturn(): { opened: (id: string) => void; closed: () => void 
   };
 }
 
+/** A phone's width, as the style sheet's own breakpoint writes it: under 600px. */
+export const narrowQuery = '(max-width: 599px)';
+
+/**
+ * Whether the page is a phone's width, under 600px (v1.1.5-S12): for what a phone shows in place of
+ * what a wide screen does, as the Roster's Table shows tabs for its Columns panel. `false` where the
+ * browser cannot say.
+ */
+export function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => globalThis.matchMedia?.(narrowQuery).matches ?? false);
+  useEffect(() => {
+    const query = globalThis.matchMedia?.(narrowQuery);
+    if (query === undefined) return undefined;
+    const changed = (): void => setNarrow(query.matches);
+    changed();
+    query.addEventListener('change', changed);
+    return () => query.removeEventListener('change', changed);
+  }, []);
+  return narrow;
+}
+
 /** A tab: its key, which names its panel, and its words. */
 export interface TabItem<Key extends string> {
   key: Key;
