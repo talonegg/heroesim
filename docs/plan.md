@@ -350,11 +350,17 @@ the agents recommended that story features be modules and rule extensions core i
     chance of 0.05, each measured by its own sweep;
   - `partyFor` adding a Hero only for a real gain, the estimate's harness test with Morale's
     consequences in, and the words of the Earned Trait and the Chance band;
-  - an information-only sweep with the XP split across the Party, for the owner's decision.
+  - an information-only sweep with the XP split across the Party, for the owner's decision;
+  - on the Board, the Heroes who cannot go, Away or Injured, listed last in the Party builder, their
+    chips reading just "Away" and "Injured";
+  - the Roster as Tiles or a Table of each Hero's effective Stats, its columns chosen, sorted by any
+    of them, with each Hero's Traits and Items.
 
-  *Added 2026-10-03 (DL-168).* At its close, the owner's rule picks what follows (DL-168 item 16):
-  if the new harness player brings the player's Bankruptcies within 5 to 15% of games, Random
-  Events next and the economy pass (#51) after; if not, the economy pass first, as `v1.1.6`.
+  *Added 2026-10-03 (DL-168); the Board and the Roster added the same day, and the build order
+  optimised: the screens and the words first, then the engine's chain (DL-169).* At its close, the owner's rule picks
+  what follows (DL-168 item 16): if the new harness player brings the player's Bankruptcies within
+  5 to 15% of games, Random Events next and the economy pass (#51) after; if not, the economy pass
+  first, as `v1.1.6`.
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.* *Amended 2026-10-03 (DL-168): after `v1.1.5`, or after a `v1.1.6`

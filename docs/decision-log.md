@@ -20681,6 +20681,193 @@ register's row); `docs/plan.md` §4 (v1.1.4 released, v1.1.5 added); GitHub issu
 
 ---
 
+## DL-169 — The owner's answers on the Board's unavailable Heroes and the Roster's Table: the Away and the Injured last on the Board with short chips, the Roster as Tiles or a Table of effective Stats with its columns, its sort and each Hero's Traits and Items, as S11 and S12; and v1.1.5's build order optimised
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the owner, adding two features to v1.1.5
+and answering a grilling on them, Q1 to Q20, as the orchestrator relayed them (items 1 to 13); then
+asking the agent to "analyse plan, optimise build plan and reorder as necessary" (items 14 to 18).
+The readings marked as the agent's, items 14 to 18, the stories, their acceptance and the sessions
+are the agent's, in `docs/planning/epics/v1.1.5-release.md`, for the owner to change.
+
+**Context.** The owner's request, in their words: "On the quest board screen, grey out the Heroes
+away on quest and place them at the bottom of the player's [list], change the label describing 'away
+with party, returning on day #' to just 'Away'. Roster view can switch between tiles or table of
+stats. Show traits and items for Heroes too." What is there, at `d135e1c`:
+- *The Board's Party builder* (`web/src/views/board.tsx`, `Builder` and `HeroRow`; its rows
+  `partyRows`, `web/src/state/selectors.ts`) lists only the player's Roster, in `guild.rosterIds`'
+  order, the order the Heroes joined, unsorted. A row that cannot go, Away or Injured, has the CSS class
+  `party-row is-away`, a disabled checkbox and a warn Chip with `unavailableUntil`'s words: "Away with
+  a Party, back on the night of Day 5", "Injured, healing on the night of Day 6".
+- *The Roster* (`web/src/views/roster.tsx`, `rosterView`) is cards only: the Portrait, the name, Class
+  · Level · Age, a Morale chip and a whereabouts chip. No Stat, Trait or Item.
+- *Traits and Gear* are shown only on a Hero's page (`hero-page.tsx`, `heroPage()`).
+- *A Hero's Stats* are 20, in four areas: Physical 5, Mental 6, Magical 5, Social 4. The engine's
+  `effectiveStats` adds the Guildmaster's Class bonus (`traitStatBonuses`), the Gear
+  (`gearModifiers`) and the Hero's Traits (`traitStatModifiers`) to the base, within the Stat's
+  bounds; all three are exported.
+- *No switch between tiles and a table* exists anywhere. A view's preferences live only in the
+  browser, through `web/src/views/remembered.ts`, "display only, never game state", as
+  `heroesim.boardOrder`, `heroesim.poolOrder` and `heroesim.guildsOrder` are. Sortable headings are
+  `SortHeader` (`web/src/views/ui.tsx`); the Unattached pool (`pool.tsx`) is the nearest model of a
+  table.
+- *The script* is 800,111 bytes against its 850 kB limit (DL-166, DL-167).
+- *Dependabot's* `target-branch`es were moved to `v1.1.5-dev` (`d135e1c`), on the owner's word, as
+  DL-147 item 6 has each new dev branch do. This supersedes DL-168's "whether they move … is the
+  owner's, to be asked".
+
+**Decision.**
+
+*The Board* (story S11).
+
+1. **The Injured are treated as the Away** (Q1): both cannot go, both keep today's look (item 3),
+   both go to the bottom, both have a short chip.
+2. **Only the Board's chips are short** (Q2, Q5): "Away" and "Injured". The full words, "Away with a
+   Party, back on the night of Day 5" and "Injured, healing on the night of Day 6", stay as the
+   chip's tooltip and for screen readers. The Roster and a Hero's page keep the full words with their
+   Days; the owner noted that the Days stay to be seen on the Roster.
+3. **The look stays** (Q6): today's faded `is-away` style and the disabled checkbox. Only the order
+   and the words change. "Open", the Hero's page, still works.
+4. **The order** (Q3; Q4 as amended by Q20). The Heroes who can go come first, in the default order
+   (item 5). The unavailable come below them, the soonest free first: the Away by their Party's
+   `returnsOnTurn`, the Injured by their Injury's `healsOnTurn`. Ties among them go to the default
+   order; Q20's answer replaces Q4's here.
+
+*The default order* (the owner's addition after Q18; Q19, Q20).
+
+5. **The Roster's default order is by Class, then Level, then Age, then Name.** Class in the
+   content's order (`content/classes.json`: Warrior, Rogue, Mage, Healer); Level highest first and Age
+   youngest first (Q19); Name A–Z. It breaks the ties of every sort the player chooses (item 10), and
+   the Board's Party builder uses it wherever it used the Roster's order (Q20).
+   - *The agent's readings,* for the owner to change. The default order is for display only: the
+     engine's `rosterIds` order and the save do not change. After Name, the Hero's id breaks any last
+     tie, so the order is total. A Hero whose free Day is unknown, with no Party or Injury row to
+     read, sorts after those with a Day.
+
+*The Roster* (story S12).
+
+6. **Tiles or a Table** (Q16). The Roster opens in Tiles the first time, with a "Tiles | Table"
+   switch at its top; after that, the last choice is remembered (item 11). The Offers and the
+   Unattached pool below it are unchanged.
+7. **The Table's columns** (Q7, Q14, Q15).
+   - *On a wide screen* the Table shows all 20 Stats (Q7 a), and the player chooses which columns
+     show. A "Columns" button opens a panel of checkboxes, grouped as Hero (Class, Level, Age, Morale,
+     where the Hero is, Traits, Items) and the four areas, with All and None for each group and a
+     Reset. Name, with the Portrait's thumbnail, is always shown. Every column is on by default
+     (Q14).
+   - *On a phone,* below 600px, the Table has five tabs, Hero, Physical, Mental, Magical and Social,
+     one area at a time (Q7 b), with Name pinned. The Columns panel is hidden on a phone, but the
+     columns hidden on a wide screen stay hidden within each tab (Q15).
+8. **The Table's Stats** (Q10, Q11, Q12).
+   - *Effective values,* what Quests check (Q10). A value raised by Gear, Traits or the Guildmaster's
+     Class bonus is green, one lowered is red (the owner's addition). Potential is never shown.
+   - *Besides the colour,* a ▲ for raised or a ▼ for lowered after the figure. The tooltip and the
+     screen reader's words give the base and the change, as "Base 10, +2 from Gear". Both colours
+     pass the layout tests' contrast in light and in dark (Q11).
+   - *The agent's readings,* for the owner to change. The colour and the mark follow the net change,
+     the effective value less the base, after the Stat's bounds; a net change of nothing is shown
+     plain. The words name each source that changes the Stat, and leave out one that changes nothing.
+   - *The tiles show no Stats* (Q12).
+9. **Traits and Items** (Q9). In the Table, their names only, each effect in a tooltip and for
+   screen readers. On the tiles, each Trait's name and its effect, and each Item. *The agent's
+   reading:* a Hero's Items are the Gear they carry, by name, its effect in a tooltip as in the
+   Table; a consumable is the Guild's, not a Hero's.
+10. **The sort** (the owner's addition at Q7; Q13). A "Sort by" dropdown above the Roster serves both
+    views: Default, Name, Class, Level, Age, Morale, when free, and each of the 20 Stats, with a
+    button for the direction. The Table's headings sort too, kept in step with the dropdown: one
+    value, remembered (item 11). A first choice sorts a Stat highest first and text A–Z. Ties go to
+    the default order (item 5).
+    - *The agent's readings,* for the owner to change. Class sorts in the content's order, as the
+      default order does, not A–Z, its names being an ordered set. Level's first choice is highest
+      first and Age's youngest first, as in the default order (Q19); Morale's is highest first, as a
+      number. "When free" sorts by the Day a Hero is free, those at the Hall first and an unknown Day
+      last. A heading pressed sorts by its column in its first direction, and pressed again reverses
+      it, where the Unattached pool's goes back to its own order; the pool stays as it is.
+11. **Remembered in the browser** (Q8): the view, the columns, the phone's tab and the sort with its
+    direction, in `localStorage` through `remembered.ts`, with every read and write in try/catch as
+    there; never in the save. *The agent's names:* `heroesim.rosterView`, `heroesim.rosterColumns`,
+    `heroesim.rosterTab` and `heroesim.rosterOrder`.
+12. **The script's limit** (Q17). If the Roster's work takes the script past 850 kB, the limit is
+    raised to 900 kB (`web/scripts/check-bundle.mjs`, `web/src/bundle.test.ts`) and recorded in that
+    story's DL entry. This supersedes DL-166's 850 kB only if it is needed.
+13. **Two new stories, first** (Q18): S11, the Board, and S12, the Roster, built before the engine's
+    stories. S12 reuses S11's default order.
+
+*The build order, optimised* (the agent's, at the owner's request, for the owner to change). Story
+numbers are kept, since DL-168 and issues #51 and #52 cite them; only the order changes.
+
+14. **The screens and the words first, then the engine's chain.**
+    - *Phase 1, no sweeps:* S11, the Board; S12, the Roster; S8, the words; S7, the estimate's Morale
+      check, its run on the shipped content repeated at the close. None of them changes play, so no
+      sweep waits on them, and they hang on neither the engine's chain nor each other's play.
+      Grouped first, they leave the sweeps a chain uninterrupted, and their test and `e2e` runs
+      never overlap a sweep.
+    - *Phase 2, the engine's chain, each sweep alone:* S1, one game's memory, profiled before and
+      after, with no full sweep of its own; S6, `partyFor`'s real gain; one fingerprint sweep with
+      S1 and S6 in (item 15); S2, the player by chance, with a short probe of its cost (item 17);
+      S3, the baseline; S4 and its sweep; S5 and its sweep; S9, the trial, on S5's commit; S10, the
+      close.
+    - DL-168 item 15's order of the engine's work is kept, with S6 between S1 and S2 as planned. The
+      epic's former order, which let S7 and S8 come "at any point", is superseded.
+15. **One fingerprint sweep for S1 and S6.** S1's profile plays `seed-0001` before and after its fix;
+    the two last saves' fingerprints must be equal, one game at no extra cost. The 50 × 20 sweep runs
+    once, after S6, with both in (`m9-v115-s6`, the replay skipped), held to `v1.1.4`'s close by
+    every seed's fingerprint and the report's play counters. If it differs, a second sweep at S1's
+    commit attributes the difference: S1's must equal `v1.1.4`'s close, and S6's is then measured
+    alone against it. This supersedes the epic's S1 sweep and S6's "held to S1's".
+16. **The replay on the baseline and the close only.** The replay (`HEROESIM_REPLAY`) plays one seed
+    twice more in one process after the games, compares the two last saves and times one game
+    alone. It is kept on S3's baseline, the new player's first sweep, and on S10's closing sweep.
+    S6's fingerprint sweep skips it, its fingerprints held to `v1.1.4`'s close being the stronger
+    check of the same thing. S4's and S5's skip it, the play counters being what they measure and
+    the close's replay checking the shipped code. S9's trial skips it, as before. Each story's
+    `npm test` still plays a seed twice and compares the saves byte for byte (`play.test.ts`,
+    `sweep.test.ts`), and S4's tests hold its draws as a twin's. This supersedes the epic's "a
+    story's measuring sweep keeps the replay"; DL-168 item 17 named the replay's skip for trials only.
+17. **S2's cost probed before S3.** Before S3, `HEROESIM_WORKERS=8 HEROESIM_SEEDS=8 HEROESIM_REPLAY=0`
+    for 20 years: its `advance` time a Turn read against S6's sweep and `v1.1.4`'s close (4.701 ms
+    mean, p99 23.276 ms). If it more than doubles, S2 estimates each Quest's Party once a choice, not
+    once a Hero, before S3, so that the baseline is not swept twice. Its report is not kept. This
+    supersedes the epic's reading of the cost in S3's sweep.
+18. **What it saves.** The plan had seven full sweeps (S1, S6, S3, S4, S5, S9 and S10), six of them
+    with the replay. It now has six (S6's, S3's, S4's, S5's, S9's and S10's), two with the replay,
+    plus S2's probe of 8 seeds and, only if S6's sweep differs, one attributing sweep. The replay is
+    a tenth of a sweep, not half: `v1.1.4`'s close took 1,448.2 s, the games 1,301.6 s of it, and
+    S10's 1,371.2 s, the games 1,235.7 s (the replay 146.6 s and 135.5 s). At the close's times,
+    the sweeps take about 135 minutes in place of about 167, about 139 with the probe: about 28
+    minutes saved, or about 6 if the attributing sweep is needed. S1's fix and S2's player will
+    change these times. The larger gains are a sweep chain no other work interrupts, and S3's
+    baseline not swept twice. Sessions: 10 to 12, from 8 to 10: S11 0.5 to 1 and S12 2 added, S1 a
+    half-session lighter without its sweep.
+
+**For the owner.**
+1. *More workers.* Whether sweeps may use more than 8 processes once S1's memory fix is measured: the
+   machine has 32 logical processors and 27.6 GB. `HEROESIM_WORKERS` stays 8 until the owner says
+   (DL-166 item 7); S1 records how many the machine can then run.
+2. *The agent's readings* above: the default order for display only, the id breaking the last tie
+   and an unknown Day last (item 5); the net change after the Stat's bounds, plain at nothing, and
+   the sources named (item 8); a Hero's Items as their Gear (item 9); Class sorting in the content's
+   order, the first directions of Level, Age, Morale and "when free", and a heading pressed again
+   reversing (item 10); the browser's key names (item 11); and the build order, the fingerprint
+   sweep, the replay's two runs and the probe (items 14 to 17).
+
+**Consequences.**
+- v1.1.5 gains two stories of the page, S11 and S12, built first. Neither changes the engine, the
+  content, the configuration or the save; the browser gains four keys.
+- The Board's Party builder and the Roster share one default order, a selector's comparator in
+  `web/src/state/`. The Rival Rosters' tables and the Unattached pool keep their own orders, and a
+  Hero's page is unchanged.
+- The script may reach 900 kB (item 12).
+- Six full sweeps where seven were planned, two with the replay. A nondeterminism brought in by S4
+  or S5 would surface only at the close, costing their sweeps again; the tests of each story guard it
+  (item 16).
+- Stories as built are recorded from DL-170.
+
+**Actioned in:** `docs/planning/epics/v1.1.5-release.md` (S11 and S12 added, the order, the sweeps,
+S1, S2, S6 and S10 amended); `docs/planning/epics/README.md` (the register's row);
+`docs/plan.md` §4 (v1.1.5's lines).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
