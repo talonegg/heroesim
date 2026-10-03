@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { carrying, changed, holding, started, withOffer, withPartyOut, withRichRivals, withTraitNews } from '../state/game.test-support';
@@ -821,5 +821,121 @@ describe("the Roster's choices in a browser that refuses its storage (v1.1.5-S12
       // The view and the Guild's part open, as the page has always kept them.
       .filter((key) => key !== 'heroesim.view' && key !== 'heroesim.guildPart');
     expect(kept.sort()).toEqual(['heroesim.rosterColumns', 'heroesim.rosterOrder', 'heroesim.rosterTab', 'heroesim.rosterView']);
+  });
+});
+
+// The verification of v1.1.5-S12 (DL-171): a Stat moved by sources whose net change is nothing, a
+// browser that keeps stale or corrupt choices, and a window that crosses 600px while the Table is open.
+
+describe("the Roster's Table, a Stat whose net change is nothing (v1.1.5-S12, DL-169 item 8)", () => {
+  test("is plain, its figure alone, the sources and the bound still in its tooltip and the screen reader's words", () => {
+    const { state, warrior } = stocked();
+    render_(
+      changed(carrying(state, 'signet-ring', 'trinket'), (document, player) => {
+        const first = document.world.heroes[player.rosterIds[0] as never];
+        if (first === undefined) throw new Error('no Hero');
+        // At the top: Weaponry 20, +1 from the Class bonus and +2 from the sword, held at 20.
+        first.stats['weaponry'] = 20;
+        // The ring's +1 Charisma against Scarred's -1: they cancel.
+        first.traits = ['lame', 'scarred'];
+      }),
+    );
+    showAs('Table');
+
+    const weaponry = cellOf(warrior, 'weaponry');
+    expect(weaponry.className).toBe('number');
+    expect(weaponry.querySelector('[aria-hidden="true"]')).toBeNull();
+    expect(weaponry.textContent).toBe("20, Base 20, +1 from the Guildmaster's Class bonus, +2 from Gear, held at 20");
+    expect(weaponry.title).toBe("Base 20, +1 from the Guildmaster's Class bonus, +2 from Gear, held at 20");
+    expect(weaponry.querySelector('.visually-hidden')?.textContent).toBe(", Base 20, +1 from the Guildmaster's Class bonus, +2 from Gear, held at 20");
+
+    const charisma = cellOf(warrior, 'charisma');
+    expect(charisma.className).toBe('number');
+    expect(charisma.title).toBe('Base 10, +1 from Gear, -1 from Traits');
+    expect(charisma.querySelector('.visually-hidden')?.textContent).toBe(', Base 10, +1 from Gear, -1 from Traits');
+    expect(charisma.textContent).not.toMatch(/[▲▼]/);
+  });
+});
+
+describe("the Roster's choices kept stale or corrupt in this browser (v1.1.5-S12, DL-169 item 11)", () => {
+  test('open as by default: an unknown view, sort, direction or tab is forgotten, and an unknown column is left out', () => {
+    localStorage.setItem('heroesim.rosterView', 'grid');
+    localStorage.setItem('heroesim.rosterOrder', 'potential:descending');
+    localStorage.setItem('heroesim.rosterColumns', 'luck,,strength,Strength');
+    localStorage.setItem('heroesim.rosterTab', 'skills');
+    render_(started());
+
+    const group = within(section('Roster')).getByRole('group', { name: 'Show the Roster as' });
+    expect(within(group).getByRole('button', { name: 'Tiles' }).getAttribute('aria-pressed')).toBe('true');
+    expect(cards()).toHaveLength(4);
+    expect(sortBy().value).toBe('default');
+    expect(direction().textContent).toBe('Default order');
+    showAs('Table');
+    expect(headings()).toEqual(['Name', ...heroColumns, ...physical.filter((name) => name !== 'Strength'), ...mental, ...magical, ...social]);
+
+    // A sort the page knows, in a direction it does not.
+    cleanup();
+    localStorage.setItem('heroesim.rosterOrder', 'strength:sideways');
+    render_(started());
+    expect(sortBy().value).toBe('default');
+    expect(direction().textContent).toBe('Default order');
+
+    // On a phone, the unknown tab is the first.
+    cleanup();
+    const restore = asPhone();
+    try {
+      render_(started());
+      const tabs = within(section('Roster')).getByRole('tablist', { name: 'Columns of the Table' });
+      expect(within(tabs).getByRole('tab', { name: 'Hero' }).getAttribute('aria-selected')).toBe('true');
+      expect(headings()).toEqual(['Name', ...heroColumns]);
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe("the Roster's Table as the window crosses 600px (v1.1.5-S12, DL-169 item 7)", () => {
+  test('shows its tabs when the window narrows to a phone, its Columns again when it widens, and stops listening when the Roster closes', () => {
+    const listeners = new Set<() => void>();
+    let narrow = false;
+    const before = Object.getOwnPropertyDescriptor(globalThis, 'matchMedia');
+    Object.defineProperty(globalThis, 'matchMedia', {
+      configurable: true,
+      value: (query: string) => ({
+        get matches() {
+          return query === '(max-width: 599px)' && narrow;
+        },
+        media: query,
+        addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+        removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
+      }),
+    });
+    const resize = (to: boolean): void =>
+      act(() => {
+        narrow = to;
+        for (const listener of listeners) listener();
+      });
+    try {
+      localStorage.setItem('heroesim.rosterView', 'table');
+      render_(started());
+      expect(within(section('Roster')).getByRole('button', { name: 'Columns' })).toBeDefined();
+      expect(within(section('Roster')).queryByRole('tablist', { name: 'Columns of the Table' })).toBeNull();
+
+      resize(true);
+      expect(within(section('Roster')).queryByRole('button', { name: 'Columns' })).toBeNull();
+      expect(within(section('Roster')).getByRole('tablist', { name: 'Columns of the Table' })).toBeDefined();
+      expect(headings()).toEqual(['Name', ...heroColumns]);
+
+      resize(false);
+      expect(within(section('Roster')).getByRole('button', { name: 'Columns' })).toBeDefined();
+      expect(headings()).toEqual(['Name', ...heroColumns, ...physical, ...mental, ...magical, ...social]);
+
+      expect(listeners.size).toBeGreaterThan(0);
+      cleanup();
+      expect(listeners.size).toBe(0);
+    } finally {
+      if (before === undefined) Reflect.deleteProperty(globalThis, 'matchMedia');
+      else Object.defineProperty(globalThis, 'matchMedia', before);
+    }
   });
 });

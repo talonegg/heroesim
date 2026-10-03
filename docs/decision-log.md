@@ -21114,6 +21114,38 @@ reports no drift before and after. Each changed file keeps its CRLF endings; the
 **For the owner.** Nothing is open; the readings above are the agent's to change. The script's limit
 was not raised.
 
+**The verification** (a second Opus agent, at `6e48230`). Every S12 box and DL-169 items 5 to 12 for
+the Roster are met by the code, and no file under `engine/src/` or `content/` changed. The Table's
+figures were checked in three real games of 1,500 Turns each (seeds `v1` to `v3`), every Guild's
+Roster read in turn as the player's, 80 Heroes: each Stat's value equal to `effectiveStats`, its base
+and value equal to the Hero's page's and its mark to the page's lift, each source equal to the
+engine's three sums with the Guildmaster's Class bonus that of the Hero's own Guild (5 Stats moved by
+it, 265 by Gear, 40 by Traits, 16 by sources both ways), and, with the bases forced to their bounds,
+41 Stats held and said "held at"; the scratch test was deleted. Fourteen mutations of the
+comparators, the colour, the bound, the phone's hidden columns, the panel, the heading's reversal and
+the storage's try/catch each failed a test. Five survived, in three gaps of the tests, none a defect
+of the code. *Fixed* in `roster.test.tsx`, each new test failing on its mutations and passing on the
+code:
+1. *A plain Stat with words.* No test drew a Stat whose sources cancel or a bound holds: drawing such
+   a Stat with the mark's branch, which throws on `marks[null]` and breaks the Roster, passed
+   every test. A new test draws Weaponry held at 20 and Charisma's ring and Scarred cancelling: plain,
+   the figure alone, the words in the `title` and the screen reader's.
+2. *The window crossing 600px.* `useNarrow` not listening for `change`, or not ceasing when the
+   Roster closes, passed every test, the stub firing no event. A new test narrows and widens the
+   window with the Table open, the tabs and Columns trading places, and finds no listener left after.
+3. *Stale or corrupt choices.* No Roster test kept an unknown view, sort, direction, column or tab:
+   reading the sort unvalidated (try/catch kept) showed "Highest first" for a sort that no longer
+   exists, and an unknown view drew the Table. A new test keeps `grid`, `potential:descending`,
+   `strength:sideways`, `luck,,strength,Strength` and `skills`: the page opens as by default, the
+   unknown column left out and Strength hidden, and the Hero tab on a phone. An unknown key in the
+   hidden list read unvalidated changes nothing shown, the list being only hidden columns.
+*Noted for the owner, unchanged:* the Columns button's `aria-controls` names the panel while it is
+not drawn; `byClass` reads the content's Classes at each comparison, of no cost at a Roster's size;
+and a Stat's sources and an Item's effect are `title`s no keyboard or touch can reach, as the
+builder's reading 9 says. DL-171's record above matches the code. Rechecked: lint and typecheck pass;
+`npm test` 185 files and 4,785 tests; `e2e -w web` 100 specs; check-bundle at 813,752 bytes; the
+doctor reports no drift.
+
 **Actioned in:** `web/src/state/selectors.ts` (`rosterView`, `RosterRow`, `RosterStat`,
 `rosterSortChoices`, `orderWords`, `rosterColumnGroups`, `traitsOf`, `byClass`);
 `web/src/views/roster.tsx`; `web/src/views/roster-table.tsx` (new); `web/src/views/ui.tsx`
