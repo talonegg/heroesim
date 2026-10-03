@@ -415,12 +415,13 @@ _Avoid_: Result, Grade, Tier
 **Chance band**:
 The word an estimated chance is shown in: Hopeless below 10%, Unlikely to 35%, Even to 65%, Likely
 to 90% and Near certain from 90% (`chanceBands`). The numbers in the detail are floored to a
-multiple of 5, between 5 and 95 unless the chance is certain (DL-157, DL-168 item 10). The estimate reads what each Check reads of a
-proposed Party as it will come home, its Morale, Regard and Injuries moved by each night away, on
-the Quest's own Encounters, drawn when it was posted. It reads the Guild as it is when the Party
-sets out, and assumes no one falls: no Hero hurt or killed on the way, and no Morale moved by an
-Encounter. So the words come with "if no one falls", and the numbers stay in the detail (DL-148
-item 15; built in v1.1.4-S5, DL-156; shown from v1.1.4-S6).
+multiple of 5, between 5 and 95 unless the chance is 0 or 1, which show 0 and 100 (DL-157, DL-168
+item 10). The estimate reads what each Check reads of a proposed Party as it will come home, its
+Morale, Regard and Injuries moved by each night away, on the Quest's own Encounters, drawn when it
+was posted. It reads the Guild as it is when the Party sets out, and assumes no one falls: no Hero
+hurt or killed on the way, and no Morale moved by an Encounter. So the words come with "if no one
+falls", and the numbers stay in the detail (DL-148 item 15; built in v1.1.4-S5, DL-156; shown from
+v1.1.4-S6).
 _Avoid_: Odds (for the word), Rating, Difficulty
 
 **Best Party**:

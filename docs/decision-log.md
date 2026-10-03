@@ -21182,10 +21182,37 @@ Item 9: the Degrees' values are the design's and the form factors provisional.
 `docs/requirements.md` or `cli/src/` (the one hit is the new test's negative assertion). The doctor passed
 before and after; lint and typecheck pass; `npm test` 185 files, 4,786 tests.
 
-**For the owner.** Nothing is open.
+**The verification** (a second Opus agent, at `b7e0b4e`). Every S8 box and DL-168 items 5, 9 and 10
+are met. Each text was read against the engine:
+- *The Earned Trait.* `earn` in `engine/src/quest-engine/resolve.ts` returns, its two draws taken,
+  at any Degree that is neither a success nor `failure`, so a Setback reading the Failure's list
+  grants nothing, and draws a negative one only from `harm.injured`, the Heroes this Encounter
+  injured; the reroll reads `!succeeded`, which takes in a Setback. `CONTEXT.md`, R16 and the review
+  page say so.
+- *The Chance band.* `shownPercent` (`web/src/state/query-words.ts`, `cli/src/query-words.ts`)
+  floors to a multiple of 5 within 5 to 95, but returns 0 for a chance of 0 and 100 for 1. *Fixed*
+  in `CONTEXT.md`: "unless the chance is certain" read as though a chance of 0 showed 5, so it reads
+  "unless the chance is 0 or 1, which show 0 and 100"; its one line of 130 columns rewrapped.
+- *The configuration.* `git diff fcdf755..b7e0b4e -- engine/src/config.ts` changes comment lines
+  only; `configVersion` stays 13; the values are `triumph` 1.35, `strongTriumphShare` 0.6,
+  `moraleCheckFactor` 0.93, 0.97, 1, 1.03, 1.06 and `hurtCheckFactor` 0.93, as the comments and
+  DL-168 item 9 say.
+
+The new test fails with the old sentence put back in a scratch edit ("the same failed Encounter
+injured"), and passes restored. Every changed file keeps CRLF. A grep of the whole repository for the
+rule's old words found one beyond S8's three places, left as it stands (the agent's reading: S8 names
+`CONTEXT.md`, R16 and `cli/src/`): the comment on `TraitConsequence` in
+`engine/src/content-types.ts` still says "a Setback that reads the Failure's list may bring it",
+untrue since v1.1.4-S14 (DL-167, E1). The rest are history: the decision log, the v1.1.4 epic and
+the committed `docs/quests/v1.1.4-review.html` (S9's record, DL-166). Lint and typecheck pass;
+`npm test` 185 files, 4,786 tests; the doctor passed before and after.
+
+**For the owner.** Nothing is open. The stale comment in `content-types.ts` is a one-line fix for any
+later story that touches `engine/src/`.
 
 **Actioned in:** `CONTEXT.md`; `docs/requirements.md` (R16); `cli/src/quest-review.ts` and its test;
-`engine/src/config.ts` (comments); `docs/planning/epics/v1.1.5-release.md` (S8's boxes).
+`engine/src/config.ts` (comments); `docs/planning/epics/v1.1.5-release.md` (S8's boxes); the
+verification, `CONTEXT.md`'s Chance band.
 
 ---
 
