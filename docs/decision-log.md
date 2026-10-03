@@ -21216,6 +21216,112 @@ verification, `CONTEXT.md`'s Chance band.
 
 ---
 
+## DL-173 — v1.1.5-S7 built: the estimate probe's second measure with Morale's consequences left in, run on the shipped content and stopped at its check, 23.65 points against a limit of 3, for the owner
+
+**Status:** Accepted, the gap open for the owner · **Date:** 2026-10-03 · **Decided by:** the agent,
+building S7 as the epic's S7 and DL-168 item 7 (E2) describe. Where the plan was silent, the calls are
+the agent's, in item 4, for the owner to change. Opus built it; a second Opus agent verifies it. The
+story stopped where the epic says it must: the shipped content's Morale measure passes 3 points.
+
+**Context.** The estimate reads the Party "if no one falls" (DL-156): it follows no Injury, Death or
+Morale consequence on the way, and its probe took all three out (`harmless`) before measuring it. The
+v1.1.4 review's E2 (DL-167) noted that 17 of the 29 Encounters carry a Morale consequence, so the
+estimate is a little optimistic after a Setback or a Failure. The owner kept the estimate as it is
+and asked for a second, measured check with Morale's consequences left in, failing past 3 points
+(DL-168 item 7). Built on `v1.1.5-dev` at `2e6770f` (S8's verification, DL-172).
+
+**What was built** (test first, `harness/src/estimate.ts`, `estimate.test.ts`,
+`estimate.harness.test.ts`; no file under `engine/src/` or `content/` changes).
+1. **The second measure.** `unhurt(content)` takes out every Encounter's Injuries and Deaths and leaves
+   Morale and the rest; `harmless` is now `without` all three, the same filter. `moraleIn(drawn,
+   content)` gives a drawn sample its deps with Morale back. `compareSample` resolves each sample
+   twice on the same seeds, once with no one falling (`compared`, as before) and once under
+   `moraleIn` (`moraleIn`), both against the same estimate, made once. `widest(samples, measure)`
+   reads either.
+2. **The limits, named.** `estimateTolerance` 0.02, as before, and `estimateMoraleTolerance` 0.03,
+   beside it in `estimate.ts`; the harness test asserts each by name: every chance of the measure,
+   each Encounter's Degrees and Success or better and the Quest's bands and success, within its
+   limit.
+3. **The report** writes both measures under "No one falls" and "Morale in", each with its widest gap
+   in points and in standard errors, its mean gap, a new column of the chances beyond its limit, and
+   its widest gap's line saying "within" or "beyond the limit of N points". The Morale section counts
+   the Encounters that carry a Morale consequence. Its name is HEROESIM_MILESTONE's, or
+   `m9-estimate` as before, so that a story's run does not overwrite `m9-estimate-2026-10-03.md`,
+   v1.1.4's close's.
+4. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The written Encounters carry Morale too.* Three quarters of a sample's Encounters are written
+     for it, with no Morale consequence. Each is given the Morale consequences of a core Encounter of
+     its kind, added to each Degree's list as the resolver reads it (a Triumph's from the Success's,
+     a Setback's from the Failure's, where the core Encounter has none of its own). The one lent is
+     chosen by the SHA-256 of the written key, drawing nothing, so the samples, the estimate and the
+     no-one-falls measure are unchanged. 349 of the 588 Encounters then carry one, about the
+     content's share (17 of 29 in E2's count).
+   - *A Morale consequence draws nothing,* so where no Hero's band moves the two measures are equal
+     to the last digit; the test holds `estimate-0003` so (every resolution loses Morale, no band
+     moves) and `estimate-0023` apart (a loss takes a Hero below a band's floor).
+   - *The limit is strictly below,* as the 2 points' check was: a gap of exactly 3 points fails.
+
+**The checks.**
+- *The tests.* `estimate.test.ts` gains four: `unhurt` keeps every Morale consequence and no harm;
+  `moraleIn` keeps the core's Encounters as shipped less harm and gives the written ones only Morale;
+  Morale moves the rates only where a band moves; the limits named, 2 and 3 points. The test of the
+  few samples holds both measures (the Morale one within 5 points over 6 samples × 2,000 seeds) and the
+  report's two sections, columns and limits. Each was red first.
+- *A planted gap* (a scratch change, put back). One chance of the Morale measure raised by 3.5
+  points in `compareSample`: `HEROESIM_PROBE=estimate HEROESIM_SAMPLES=10 npm run harness` failed,
+  "expected 0.0384 to be less than 0.03", the widest gap 3.84 points, the no-one-falls measure's 0.77
+  passing. Put back, the same run passes. Neither report was kept.
+- *The probe on the shipped content,* run alone, nothing else running:
+  `HEROESIM_PROBE=estimate HEROESIM_MILESTONE=m9-v115-s7-estimate npm run harness`, 200 samples ×
+  20,000 seeds, the same 588 Encounters of 1,418 Checks as v1.1.4's close; 457.0 s (465.5 s the first
+  time, before the column of chances beyond the limit was added; the same gaps). The report,
+  `harness/reports/m9-v115-s7-estimate-2026-10-03.md`, is force-added.
+
+  | Measure | Encounter's Degrees | Success or better | Quest's bands | Quest's success | Beyond the limit |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | No one falls (limit 2) | 0.99 (3.02 SE) | 1.18 (3.36 SE) | 0.92 (3.01 SE) | 0.92 (3.01 SE) | 0 of 3,740 |
+  | Morale in (limit 3) | 23.65 (68.07 SE) | 4.64 (14.55 SE) | 1.61 (4.79 SE) | 1.61 (4.79 SE) | 8 of 3,740 |
+
+  The widest gaps in points, the widest in standard errors beside them. The mean gaps are 0.11 to 0.14
+  points with no one falling, 0.13 to 0.17 with Morale in. The no-one-falls measure equals v1.1.4's
+  close's to the digit (DL-167), as it must: the same samples and seeds.
+- *Lint and typecheck* are clean; `npm test` passes 4,790 tests in 185 files, four more than DL-172's.
+  The doctor was not run: no file under `engine/src/` or `content/src/validate.ts` changed.
+
+**Why the gap** (the agent's reading of `estimate-0064`, the widest). A lone Hero comes home at Morale
+21, one point above `low`'s floor of 20. Encounter 3, the core's `the-last-assault`, they always fail
+(the estimate gives its Failure 1.0), and it costs 3 Morale: they meet Encounters 4 and 5 `wretched`,
+form 0.93 in place of 0.97. Encounter 4, the core's `among-the-crowd` at the default variance, falls
+from 71.62% Success or better to 66.98% (4.64 points, the row's widest; its Triumph, estimated
+22.08%, resolved 15.16%). Encounter 5, a social Check written for the sample at a variance of 0.088,
+nearly a step, goes from 40.76% Failure to 64.42% (23.65 points). So the shipped content alone, one
+core Encounter's Morale moving the form of the core Encounter after it, passes 3 points. A Check of
+small variance turns a form change of 4% into a large change of its Degrees. The gaps are rare (8
+chances of 3,740, mean gaps up by 0.02 to 0.05 points) and smaller on the Quest, within 1.61 points,
+since a later Encounter's Degree moves the Quest's band only in part.
+
+**For the owner.** The Morale check fails on the shipped content, 23.65 points at its widest against
+the limit of 3 (DL-168 item 7). As the epic says, the story stopped: the limit, the content and the
+estimate are unchanged, and the harness test fails until the owner decides. The `npm test` suite
+does not run the probe and passes. The owner's choices, none of them taken:
+- *Raise the limit,* or hold the Morale measure only on the Quest's chances (within 1.61), which the
+  page shows first, leaving each Encounter's Degrees to the 2-point check without Morale.
+- *Fold Morale into the estimate* (E2's first option, set aside by DL-168 item 7): its walk would
+  follow each Encounter's Morale consequences into the next Encounters' form. It changes the
+  estimate and so the page and the Rivals' choices.
+- *Word it:* "if no one falls or loses heart" (E2's second option), with a looser check.
+- *Measure only the shipped content's Morale,* not lending it to the written Encounters (item 4). The
+  widest Success-or-better gap, 4.64 points, is core Encounters only, so this alone does not pass.
+S10 runs the probe again at the close, after S4 and S5 change harm and the content; whatever the owner
+decides is in place before then.
+
+**Actioned in:** `harness/src/estimate.ts` (`unhurt`, `moraleIn`, `estimateMoraleTolerance`, the
+second measure and the report), `estimate.test.ts`, `estimate.harness.test.ts` (the Morale check and
+HEROESIM_MILESTONE); `harness/reports/m9-v115-s7-estimate-2026-10-03.md`; the epic's S7 boxes and
+status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

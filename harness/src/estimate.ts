@@ -26,6 +26,14 @@
 // found in the first set tried) is not every sample's. The probe proper is 200 samples × 20,000 seeds
 // (`HEROESIM_PROBE=estimate npm run harness`, estimate.harness.test.ts), held within 2 points;
 // estimate.test.ts runs a few.
+//
+// Morale in (v1.1.5-S7, DL-173, DL-168 item 7): the same samples, the same estimate and the same seeds
+// are measured a second time with only Injuries and Deaths taken out (`unhurt`), Morale's consequences
+// left in, so that a Setback or a Failure may move a Hero's form in the Encounters after it, which the
+// estimate, "if no one falls", does not follow. The core's Encounters carry their Morale as shipped; each
+// Encounter written for a sample carries that of a core Encounter of its kind, chosen by its key's hash
+// and drawing nothing (`moraleIn`), so that it meets Morale about as often as the content's do. Every
+// chance of that measure is held within 3 points of the resolver's rate.
 
 import { createHash } from 'node:crypto';
 import {
@@ -66,6 +74,14 @@ export const defaultEstimateSamples = 200;
 export const defaultEstimateRuns = 20_000;
 /** How far, in chance, the estimate may stand from the resolver's rate (the epic's S5: 2 points). */
 export const estimateTolerance = 0.02;
+/**
+ * How far, in chance, the estimate may stand from the resolver's rate with Morale's consequences left in
+ * (v1.1.5-S7, DL-168 item 7: 3 points, the owner's example).
+ */
+export const estimateMoraleTolerance = 0.03;
+
+/** The probe's two measures: no one falling (`compared`), and with Morale's consequences left in (`moraleIn`). */
+export type Measure = 'compared' | 'moraleIn';
 
 /** The consumables a sample's Party may carry: the core's bonuses and rerolls. */
 const carriable = ['whetstone', 'lockpicks', 'grappling-line', 'blessed-candle'] as const;
@@ -91,7 +107,12 @@ export interface Sample {
   carried: number;
   /** Its Heroes whose Morale band moved between setting out and the night home. */
   bandsMoved: number;
+  /** Its Encounters carrying a Morale consequence in the second measure. */
+  moraleEncounters: number;
+  /** Each chance against the resolver's rate with no one falling: Injuries, Deaths and Morale taken out. */
   compared: Compared[];
+  /** The same chances against the resolver's rate with Injuries and Deaths taken out and Morale left in. */
+  moraleIn: Compared[];
 }
 
 /** A small deterministic stream for drawing the samples (mulberry32), apart from the game's. */
@@ -115,7 +136,17 @@ export function questsStream(name: string): [number, number, number, number] {
 
 /** `content` with every Encounter's Injuries, Deaths and Morale taken out, so that no one falls. */
 export function harmless(content: ContentSet): ContentSet {
-  const strip = (list: readonly Consequence[]): Consequence[] => list.filter((it) => it.kind !== 'injury' && it.kind !== 'death' && it.kind !== 'morale');
+  return without(content, ['injury', 'death', 'morale']);
+}
+
+/** `content` with every Encounter's Injuries and Deaths taken out, and its Morale left in (v1.1.5-S7). */
+export function unhurt(content: ContentSet): ContentSet {
+  return without(content, ['injury', 'death']);
+}
+
+/** `content` with every Encounter's consequences of the `kinds` taken out, and the rest kept. */
+function without(content: ContentSet, kinds: readonly Consequence['kind'][]): ContentSet {
+  const strip = (list: readonly Consequence[]): Consequence[] => list.filter((it) => !kinds.includes(it.kind));
   const encounters = Object.fromEntries(
     Object.entries(content.encounters).map(([key, encounter]) => {
       const { success, failure, triumph, setback } = encounter.consequences;
@@ -234,6 +265,41 @@ export function drawSample(seed: string, deps: EngineDeps): Drawn {
   return { estimate, world: home, heroes: heroes.length, quest: home.quests[questId] as Quest, party, carried, deps: sampled, bandsMoved };
 }
 
+/**
+ * `drawn`'s deps with Morale's consequences put back (v1.1.5-S7): the core's Encounters as `content`
+ * ships them, Injuries and Deaths taken out (`unhurt`); and each Encounter written for the sample with
+ * the Morale consequences of a core Encounter of its kind added to each Degree's list, the one chosen
+ * by its key's SHA-256, so that nothing is drawn and the sample stays the same.
+ */
+export function moraleIn(drawn: Drawn, content: ContentSet): EngineDeps {
+  const shipped = unhurt(content);
+  const core = Object.values(shipped.encounters);
+  const encounters: Record<string, Encounter> = { ...drawn.deps.content.encounters, ...shipped.encounters };
+  for (const [key, encounter] of Object.entries(drawn.deps.content.encounters)) {
+    if (Object.hasOwn(shipped.encounters, key)) continue;
+    const kin = core.filter((it) => it.kind === encounter.kind);
+    const lent = kin[createHash('sha256').update(key).digest().readUInt32LE(0) % Math.max(1, kin.length)];
+    if (lent !== undefined) encounters[key] = withMoraleOf(encounter, lent);
+  }
+  return { ...drawn.deps, content: { ...drawn.deps.content, encounters } };
+}
+
+/** `encounter` with `lent`'s Morale consequences added to each Degree's list, as the resolver reads them. */
+function withMoraleOf(encounter: Encounter, lent: Encounter): Encounter {
+  const morale = (list: readonly Consequence[]): Consequence[] => list.filter((it) => it.kind === 'morale');
+  const own = encounter.consequences;
+  const theirs = lent.consequences;
+  return {
+    ...encounter,
+    consequences: {
+      success: [...own.success, ...morale(theirs.success)],
+      failure: [...own.failure, ...morale(theirs.failure)],
+      triumph: [...(own.triumph ?? own.success), ...morale(theirs.triumph ?? theirs.success)],
+      setback: [...(own.setback ?? own.failure), ...morale(theirs.setback ?? theirs.failure)],
+    },
+  };
+}
+
 /** A pass formula naming each of `keys` once: `and`, `or` or `at-least` over them, some of them nested in a part of their own. */
 function formula(keys: readonly string[], draw: () => number): PassFormula {
   if (keys.length === 1) return keys[0] as string;
@@ -245,9 +311,35 @@ function formula(keys: readonly string[], draw: () => number): PassFormula {
   return ['at-least', 1 + Math.floor(draw() * parts.length), ...parts];
 }
 
-/** Estimates `drawn` and resolves it once for each of `seeds`, and compares each chance with its rate. */
-export function compareSample(seed: string, drawn: Drawn, seeds: readonly (readonly [number, number, number, number])[]): Sample {
-  const { estimate, world, heroes, quest, party, carried, deps, bandsMoved } = drawn;
+/**
+ * Resolves `drawn` once for each of `seeds` under its own deps, no one falling, and again under
+ * `withMorale` (`moraleIn`), and compares each chance its estimate gives with both rates.
+ */
+export function compareSample(seed: string, drawn: Drawn, seeds: readonly (readonly [number, number, number, number])[], withMorale: EngineDeps): Sample {
+  const { estimate, heroes, quest, carried, deps, bandsMoved } = drawn;
+  const counts = quest.encounterKeys.map((key) => deps.content.encounters[key]?.checks.length ?? 0);
+  const checks = counts.reduce((total, count) => total + count, 0);
+  const moraleEncounters = quest.encounterKeys.filter((key) => {
+    const encounter = withMorale.content.encounters[key];
+    return encounter !== undefined && Object.values(encounter.consequences).some((list) => list?.some((it) => it.kind === 'morale'));
+  }).length;
+  return {
+    seed,
+    heroes,
+    encounters: estimate.encounters.length,
+    checks,
+    several: counts.filter((count) => count > 1).length,
+    carried: carried.length,
+    bandsMoved,
+    moraleEncounters,
+    compared: measure(seed, drawn, seeds, deps),
+    moraleIn: measure(seed, drawn, seeds, withMorale),
+  };
+}
+
+/** Resolves `drawn` once for each of `seeds` under `deps`, and compares each chance its estimate gives with its rate. */
+function measure(seed: string, drawn: Drawn, seeds: readonly (readonly [number, number, number, number])[], deps: EngineDeps): Compared[] {
+  const { estimate, world, quest, party } = drawn;
   const encounterRates = estimate.encounters.map((): Record<Degree, number> => ({ failure: 0, setback: 0, success: 0, triumph: 0 }));
   const bandRates = { fail: 0, success: 0, strong: 0 };
   for (const state of seeds) {
@@ -268,29 +360,29 @@ export function compareSample(seed: string, drawn: Drawn, seeds: readonly (reado
   }
   for (const band of questBands) compared.push({ of: 'quest', what: band, estimate: estimate.bands[band], rate: bandRates[band] / runs });
   compared.push({ of: 'quest', what: 'succeeded', estimate: estimate.success, rate: (bandRates.success + bandRates.strong) / runs });
-  const counts = quest.encounterKeys.map((key) => deps.content.encounters[key]?.checks.length ?? 0);
-  const checks = counts.reduce((total, count) => total + count, 0);
-  return { seed, heroes, encounters: estimate.encounters.length, checks, several: counts.filter((count) => count > 1).length, carried: carried.length, bandsMoved, compared };
+  return compared;
 }
 
 /**
  * The probe: `samples` samples from `estimate-0001` on, under `deps`, each resolved for `runs` seeds of
- * its own, `<sample>/seed-0001` on, so that no fluke of one set of seeds is shared by every sample.
+ * its own, `<sample>/seed-0001` on, so that no fluke of one set of seeds is shared by every sample;
+ * each sample measured with no one falling and again, on the same seeds, with Morale in (`moraleIn`).
  */
 export function estimateProbe(samples: number, runs: number, deps: EngineDeps): Sample[] {
   const base: EngineDeps = { ...deps, content: harmless(deps.content) };
   return Array.from({ length: samples }, (_, n) => {
     const seed = `estimate-${String(n + 1).padStart(4, '0')}`;
     const seeds = Array.from({ length: runs }, (_, at) => questsStream(`${seed}/seed-${String(at + 1).padStart(4, '0')}`));
-    return compareSample(seed, drawSample(seed, base), seeds);
+    const drawn = drawSample(seed, base);
+    return compareSample(seed, drawn, seeds, moraleIn(drawn, deps.content));
   });
 }
 
-/** The furthest any estimate stands from its rate across `samples`, and that comparison. */
-export function widest(samples: readonly Sample[]): { gap: number; sample: string; compared: Compared } | null {
+/** The furthest any estimate stands from its rate across `samples` in the measure `of`, and that comparison. */
+export function widest(samples: readonly Sample[], of: Measure = 'compared'): { gap: number; sample: string; compared: Compared } | null {
   let found: { gap: number; sample: string; compared: Compared } | null = null;
   for (const sample of samples) {
-    for (const compared of sample.compared) {
+    for (const compared of sample[of]) {
       const gap = Math.abs(compared.estimate - compared.rate);
       if (found === null || gap > found.gap) found = { gap, sample: sample.seed, compared };
     }
@@ -298,49 +390,66 @@ export function widest(samples: readonly Sample[]): { gap: number; sample: strin
   return found;
 }
 
-/** The probe's report, in Markdown. */
+/** The probe's report, in Markdown: each measure's gaps, widest and mean, in points and in standard errors, against its limit. */
 export function estimateReport(
   samples: readonly Sample[],
   { runs, machine, startedAt, seconds }: { runs: number; machine: Machine; startedAt: Date; seconds: number },
 ): string {
-  const all = samples.flatMap((sample) => sample.compared);
   // A gap in standard errors of the rate over `runs` seeds, for a chance strictly between 0 and 1.
   const errors = (it: Compared): number => Math.abs(it.estimate - it.rate) / Math.sqrt((it.estimate * (1 - it.estimate)) / runs);
   const open = (it: Compared): boolean => it.estimate > 0.01 && it.estimate < 0.99;
-  const row = (label: string, of: (it: Compared) => boolean): string[] => {
-    const list = all.filter(of);
-    const gaps = list.map((it) => Math.abs(it.estimate - it.rate));
-    const between = list.filter(open);
+  const count = (of: (sample: Sample) => number) => samples.reduce((total, sample) => total + of(sample), 0);
+  const section = (measured: Measure, title: string, note: string, limit: number): string[] => {
+    const all = samples.flatMap((sample) => sample[measured]);
+    const row = (label: string, of: (it: Compared) => boolean): string[] => {
+      const list = all.filter(of);
+      const gaps = list.map((it) => Math.abs(it.estimate - it.rate));
+      const between = list.filter(open);
+      return [
+        label,
+        whole(list.length),
+        whole(between.length),
+        fixed(100 * Math.max(0, ...gaps), 2),
+        fixed((100 * gaps.reduce((a, b) => a + b, 0)) / Math.max(1, gaps.length), 3),
+        fixed(Math.max(0, ...between.map(errors)), 2),
+        whole(gaps.filter((gap) => gap >= limit).length),
+      ];
+    };
+    const most = widest(samples, measured);
     return [
-      label,
-      whole(list.length),
-      whole(between.length),
-      fixed(100 * Math.max(0, ...gaps), 2),
-      fixed((100 * gaps.reduce((a, b) => a + b, 0)) / Math.max(1, gaps.length), 3),
-      fixed(Math.max(0, ...between.map(errors)), 2),
+      `## ${title}`,
+      '',
+      note,
+      '',
+      markdownTable(
+        ['Compared', 'Chances', 'From 1% to 99%', 'Widest gap (points)', 'Mean gap (points)', 'Widest gap (standard errors)', 'Beyond the limit'],
+        [
+          row("Each Encounter's Degrees", (it) => it.of !== 'quest' && it.what !== 'succeeded'),
+          row("Each Encounter's Success or better", (it) => it.of !== 'quest' && it.what === 'succeeded'),
+          row("The Quest's bands", (it) => it.of === 'quest' && it.what !== 'succeeded'),
+          row("The Quest's success", (it) => it.of === 'quest' && it.what === 'succeeded'),
+        ],
+        ['left', 'right', 'right', 'right', 'right', 'right', 'right'],
+      ),
+      '',
+      most === null
+        ? 'Nothing was compared.'
+        : `The widest gap: ${most.sample}, ${most.compared.of === 'quest' ? 'the Quest' : `Encounter ${most.compared.of + 1}`}, ${most.compared.what}: estimated ${fixed(100 * most.compared.estimate, 2)}%, resolved ${fixed(100 * most.compared.rate, 2)}%, ${fixed(100 * most.gap, 2)} points, ${most.gap < limit ? 'within' : 'beyond'} the limit of ${fixed(100 * limit, 0)} points.`,
     ];
   };
-  const most = widest(samples);
-  const count = (of: (sample: Sample) => number) => samples.reduce((total, sample) => total + of(sample), 0);
   return [
-    `# The chance estimate against the resolver (v1.1.4-S5, DL-156)`,
+    `# The chance estimate against the resolver (v1.1.4-S5, DL-156; v1.1.5-S7, DL-173)`,
     '',
     `Run ${startedAt.toISOString()} on ${machine.cpu} (${machine.cores} cores), Node ${machine.node}, in ${fixed(seconds, 1)} s.`,
-    `${whole(samples.length)} samples × ${whole(runs)} seeds; ${whole(count((it) => it.encounters))} Encounters of ${whole(count((it) => it.checks))} Checks, ${whole(count((it) => it.several))} of them of several; ${whole(samples.filter((it) => it.carried > 0).length)} Parties carrying consumables; ${whole(count((it) => it.bandsMoved))} Heroes in ${whole(samples.filter((it) => it.bandsMoved > 0).length)} Parties whose Morale band moved between setting out and the night home. No one falls: Injuries, Deaths and Morale are taken out of every Encounter.`,
+    `${whole(samples.length)} samples × ${whole(runs)} seeds; ${whole(count((it) => it.encounters))} Encounters of ${whole(count((it) => it.checks))} Checks, ${whole(count((it) => it.several))} of them of several; ${whole(samples.filter((it) => it.carried > 0).length)} Parties carrying consumables; ${whole(count((it) => it.bandsMoved))} Heroes in ${whole(samples.filter((it) => it.bandsMoved > 0).length)} Parties whose Morale band moved between setting out and the night home. Each sample is measured twice, on the same seeds and against the same estimate.`,
     '',
-    markdownTable(
-      ['Compared', 'Chances', 'From 1% to 99%', 'Widest gap (points)', 'Mean gap (points)', 'Widest gap (standard errors)'],
-      [
-        row("Each Encounter's Degrees", (it) => it.of !== 'quest' && it.what !== 'succeeded'),
-        row("Each Encounter's Success or better", (it) => it.of !== 'quest' && it.what === 'succeeded'),
-        row("The Quest's bands", (it) => it.of === 'quest' && it.what !== 'succeeded'),
-        row("The Quest's success", (it) => it.of === 'quest' && it.what === 'succeeded'),
-      ],
-      ['left', 'right', 'right', 'right', 'right', 'right'],
+    ...section('compared', 'No one falls', 'Injuries, Deaths and Morale are taken out of every Encounter.', estimateTolerance),
+    '',
+    ...section(
+      'moraleIn',
+      'Morale in',
+      `Injuries and Deaths are taken out of every Encounter, and Morale's consequences left in: the core's as shipped, and each Encounter written for a sample given those of a core Encounter of its kind. ${whole(count((it) => it.moraleEncounters))} of the ${whole(count((it) => it.encounters))} Encounters carry one.`,
+      estimateMoraleTolerance,
     ),
-    '',
-    most === null
-      ? 'Nothing was compared.'
-      : `The widest gap: ${most.sample}, ${most.compared.of === 'quest' ? 'the Quest' : `Encounter ${most.compared.of + 1}`}, ${most.compared.what}: estimated ${fixed(100 * most.compared.estimate, 2)}%, resolved ${fixed(100 * most.compared.rate, 2)}%.`,
   ].join('\n');
 }
