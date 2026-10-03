@@ -68,11 +68,16 @@ export function writeAtomically(file: string, text: string): void {
   renameSync(temporary, file);
 }
 
-/** The roots this process is finishing now. */
-const finishing = new Set<string>();
+/** The roots this process is finishing now: each by `same`, to its path as given, which is the one to read and write by. */
+const finishing = new Map<string, string>();
 
+/**
+ * A root as the filesystem may match it: Windows' and macOS's ignore case, Linux's do not. Only a key:
+ * a lowercased path names another folder, or none, on Linux, where Ctrl+C then put nothing back (DL-167).
+ */
 function same(root: string): string {
-  return path.resolve(root).toLowerCase();
+  const resolved = path.resolve(root);
+  return process.platform === 'win32' || process.platform === 'darwin' ? resolved.toLowerCase() : resolved;
 }
 
 /** Whether a process runs. */
@@ -103,7 +108,7 @@ export function journalState(root: string): 'none' | 'live' | 'cut-off' {
 
 /** Writes the journal and holds the lock for this process. */
 export function beginJournal(root: string, journal: Omit<Journal, 'pid' | 'startedAt'>): void {
-  finishing.add(same(root));
+  finishing.set(same(root), path.resolve(root));
   writeAtomically(journalPath(root), `${JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), ...journal } satisfies Journal)}\n`);
 }
 
@@ -140,7 +145,7 @@ export function restoreJournal(root: string): string[] {
 
 /** Puts back every file of every "Finish" this process is running: what Ctrl+C and SIGTERM do. */
 export function restoreRunning(): string[] {
-  return [...finishing].flatMap((root) => restoreJournal(root));
+  return [...finishing.values()].flatMap((root) => restoreJournal(root));
 }
 
 /** On Ctrl+C or SIGTERM, every running "Finish"'s files are put back, and the process ends. */

@@ -20498,6 +20498,26 @@ For the owner: E1 reads DL-148 item 25's "the same failed Encounter" as the Fail
 glossary's Earned Trait, `requirements.md` and the quest-review page still say "failed Encounter",
 which elsewhere, for a reroll, takes in a Setback. No shipped game turns on it.
 
+**After the push.** `check` failed on Linux, where the editor's tests had never run, and passed on
+Windows. Both causes were Linux's alone, and both were reproduced in WSL on Node 26.9.0:
+1. *Ctrl+C put back nothing.* "Finish" kept each running root lowercased, so that Windows' paths
+   would match whatever their case, and `restoreRunning` read the journal at that lowercased root.
+   On Linux that names no folder, so the files stayed written and the journal stayed: the
+   SIGINT test's `[]` in both jobs. Now each root is kept under its key, lowercased only on Windows
+   and macOS, and restored from the path it was given (`finish-journal.ts`). The test fails at
+   `72cfdfa` on Linux and passes after the fix.
+2. *A scratch copy failed with ENOENT on `.git/objects`, once in one job.* On Linux, `git commit`
+   leaves `git maintenance run --auto --detach` behind it. That run holds
+   `.git/objects/maintenance.lock`, and can repack, after the commit returns. The template's copy
+   follows its commit at once, so a copy taken in that moment met a file that had gone. Git for
+   Windows runs the maintenance before the commit ends. With the run given work (`gc.auto=1`), 95 of
+   1,524 copies failed with CI's error. With `maintenance.auto=false`, 0 of 668 failed. Both test
+   helpers' `git` now pass it (`tools/editor/src/test-support.ts`, and
+   `tools/portraits/src/test-support.ts`, whose copies run git the same way).
+Nothing the tests check was loosened, and none is skipped on any platform. On Linux the editor's
+and portraits' tests passed three runs in three. Then, on Windows: `npm run lint`,
+`npm run typecheck`, `npm test` (4,746 tests) and the doctor all passed.
+
 **Actioned in:** `engine/src/quest-engine/resolve.ts` and its test, `consumables.test.ts`;
 `engine/src/stops.ts` (comment); `content/src/validate.ts`, `refusals.test.ts`;
 `cli/src/commands/setup.ts`, `args.ts`, `main.ts`, `main.test.ts`; `harness/src/children.ts`,
@@ -20509,7 +20529,9 @@ guardrails); `web/src/views/new-game.tsx`, `web/src/styles.css`; `web/src/bundle
 `app.test.tsx`, `state/game.test-support.ts`, `views/` (`board`, `history`, `new-game`,
 `quest-report`, `roster` tests); `web/e2e/file.spec.ts`, `portrait.spec.ts`;
 `harness/reports/m9-v114-close-2026-10-03.md` and `m9-estimate-2026-10-03.md` (force-added); `docs/planning/epics/v1.1.4-release.md` (the status, S14's first box);
-`docs/planning/epics/README.md` (the register's row); `docs/plan.md` (§4).
+`docs/planning/epics/README.md` (the register's row); `docs/plan.md` (§4). After the push:
+`tools/editor/src/finish-journal.ts`, `tools/editor/src/test-support.ts`,
+`tools/portraits/src/test-support.ts`.
 
 ---
 

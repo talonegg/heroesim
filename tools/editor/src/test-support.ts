@@ -16,9 +16,14 @@ import { isBoundaryProbe } from './reads.js';
 
 export const root = repositoryRoot;
 
-/** Runs git in a scratch repository, and gives its output. */
+/**
+ * Runs git in a scratch repository, and gives its output. Never its automatic maintenance: on Linux a
+ * commit leaves `git maintenance run --auto --detach` behind it, holding `.git/objects/maintenance.lock`
+ * a moment after the commit ends, and a copy of the template taken in that moment fails with ENOENT
+ * on the lock it saw go (DL-167). Git for Windows runs it before the commit ends.
+ */
 export function git(dir: string, ...args: string[]): string {
-  return execFileSync('git', ['-c', 'core.autocrlf=false', '-c', 'user.name=editor test', '-c', 'user.email=test@example.invalid', ...args], { cwd: dir, encoding: 'utf8' });
+  return execFileSync('git', ['-c', 'maintenance.auto=false', '-c', 'core.autocrlf=false', '-c', 'user.name=editor test', '-c', 'user.email=test@example.invalid', ...args], { cwd: dir, encoding: 'utf8' });
 }
 
 /** `git status --porcelain` of a scratch repository, untracked files named one by one. */

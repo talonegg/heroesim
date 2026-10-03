@@ -12,11 +12,14 @@ import { formatJson } from './json-format.js';
 /** The repository the tests read: this one. */
 export const root = repositoryRoot;
 
-/** Runs git in a scratch repository, and gives its output. */
+/**
+ * Runs git in a scratch repository, and gives its output. Never its automatic maintenance, which on
+ * Linux outlives the commit, detached, and writes in `.git/objects` while the test goes on (DL-167).
+ */
 export function git(dir: string, ...args: string[]): string {
   return execFileSync(
     'git',
-    ['-c', 'core.autocrlf=false', '-c', 'user.name=portrait tool test', '-c', 'user.email=test@example.invalid', ...args],
+    ['-c', 'maintenance.auto=false', '-c', 'core.autocrlf=false', '-c', 'user.name=portrait tool test', '-c', 'user.email=test@example.invalid', ...args],
     { cwd: dir, encoding: 'utf8' },
   );
 }
