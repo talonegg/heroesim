@@ -6,6 +6,9 @@ import {
   milestoneTypes,
   offerTransfer,
   playerGuild,
+  type CheckRoll,
+  type Encounter,
+  type EncounterCheck,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
@@ -145,6 +148,14 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     bandAfter: 'low',
   }),
   'hero.healed': event('hero.healed', [heroId], { heroId, typeKey: 'deep-cut', traitKey: 'scarred' }),
+  'hero.trait-gained': event('hero.trait-gained', [heroId, questId], {
+    heroId,
+    traitKey: 'scarred',
+    questId,
+    encounterIndex: 1,
+    encounterKey: 'ambush-on-the-road',
+  }),
+  'hero.trait-lost': event('hero.trait-lost', [heroId], { heroId, traitKey: 'lame', replacedBy: 'scarred' }),
   'hero.retired': event('hero.retired', [heroId, guildId], { heroId, guildId, age: 51 }),
   'hero.declined': event('hero.declined', [heroId, guildId], { heroId, statKey: 'endurance', delta: -1, age: 41 }),
   'game.ended': event('game.ended', [guildId, guildmasterId], { guildId, reason: 'bankruptcy' }),
@@ -328,14 +339,16 @@ const exactly: { [Type in EngineEventType]: string } = {
   'quest.offered': `Lady Maud offered ${barrow}.`,
   'quest.expired': `Lady Maud's ${barrow} expired untaken.`,
   'quest.taken': `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Day 7, carrying ${named(content.items, 'whetstone')} ×2.`,
-  'quest.encounter': `The Kestrel Guild's Party failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2): Brenna Ashcombe was injured.`,
+  'quest.encounter': `The Kestrel Guild's Party failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Failure: Brenna Ashcombe was injured.`,
   'quest.resolved': `The Kestrel Guild's Party came home from ${named(content.questTemplates, 'guard-the-caravan')} and failed: Wealth 0, Fame -2.`,
   'quest.loot': `The Kestrel Guild found Loot on ${barrow}: ${named(content.items, 'barrow-kings-blade')}.`,
   'hero.injured': `Brenna Ashcombe was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Day 13.`,
   'hero.died': `Brenna Ashcombe died on ${barrow}.`,
   'hero.xp-gained': 'Brenna Ashcombe gained 30 XP.',
   'hero.morale-changed': "Brenna Ashcombe's Morale went from 45 to 35, low.",
-  'hero.healed': `Brenna Ashcombe recovered from ${named(content.injuries, 'deep-cut')}, left ${named(content.traits, 'scarred')}.`,
+  'hero.healed': `Brenna Ashcombe recovered from ${named(content.injuries, 'deep-cut')}, left ${named(content.heroTraits, 'scarred')}.`,
+  'hero.trait-gained': `Brenna Ashcombe earned the Trait ${named(content.heroTraits, 'scarred')} on ${barrow}, at ${named(content.encounters, 'ambush-on-the-road')}.`,
+  'hero.trait-lost': `Brenna Ashcombe lost the Trait ${named(content.heroTraits, 'lame')}, replaced by ${named(content.heroTraits, 'scarred')}.`,
   'hero.retired': 'Brenna Ashcombe retired from The Kestrel Guild at 51.',
   'hero.declined': `Brenna Ashcombe, at 41, lost 1 ${named(content.stats, 'endurance')} to age.`,
   'game.ended': 'The game ended: The Kestrel Guild went bankrupt.',
@@ -523,14 +536,86 @@ describe("the CLI's words, adapted for the page", () => {
     expect(narrate(samples['quest.taken'], narration)).toBe(
       `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Day 7, carrying Whetstone ×2.`,
     );
+    // An entry written before v1.1.4-S2 reads as its outcome, a Failure or a Success.
     expect(narrate(samples['quest.encounter'], narration)).toBe(
-      `The Kestrel Guild's Party failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2): Brenna Ashcombe was injured.`,
+      `The Kestrel Guild's Party failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Failure: Brenna Ashcombe was injured.`,
     );
     expect(narrate(samples['quest.resolved'], narration)).toMatch(/came home from .+ and failed: Wealth 0, Fame -2\.$/);
     expect(narrate(samples['item.bought'], narration)).toBe('The Kestrel Guild bought 3 × Whetstone at the Market for 75 Wealth.');
     expect(narrate(samples['hero.transferred'], narration)).toBe(
       'The Iron Wardens took Brenna Ashcombe from The Kestrel Guild for 420 Wealth, accepting its Transfer Offer.',
     );
+  });
+
+  test("gives an Encounter's Degree and, of several Checks, the name of the one that decided it (v1.1.4-S2)", () => {
+    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
+    const [front] = ambush.checks as [EncounterCheck];
+    const several: Narration = {
+      ...narration,
+      content: {
+        ...content,
+        encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [front, { ...front, key: 'nerve', name: 'Nerve' }], pass: ['and', front.key, 'nerve'] } },
+      },
+    };
+    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
+    const payload = {
+      ...samples['quest.encounter'].payload,
+      degree: 'setback' as const,
+      decidedBy: 'nerve',
+      checks: [
+        { key: front.key, ...roll, roll: 30, margin: 12, degree: 'triumph' as const },
+        { key: 'nerve', ...roll, degree: 'setback' as const },
+      ],
+    };
+
+    expect(narrate({ ...samples['quest.encounter'], payload }, several)).toBe(
+      `The Kestrel Guild's Party failed at ${ambush.name} (Encounter 2), a Setback, decided by Nerve: Brenna Ashcombe was injured.`,
+    );
+    // One Check named as its Encounter names none: it is the Encounter's own (the old form's, v1.1.4-S1).
+    const one = { ...payload, decidedBy: front.key, degree: 'triumph' as const, outcome: 'success' as const, injured: [], checks: payload.checks.slice(0, 1) };
+    const own: Narration = {
+      ...narration,
+      content: { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: ambush.name }] } } },
+    };
+    expect(narrate({ ...samples['quest.encounter'], payload: one }, own)).toBe(`The Kestrel Guild's Party came through ${ambush.name} (Encounter 2), a Triumph.`);
+    // One Check named otherwise than its Encounter is named (v1.1.4-S2's verification, DL-152).
+    const renamed: Narration = {
+      ...narration,
+      content: { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: 'Steel' }] } } },
+    };
+    expect(narrate({ ...samples['quest.encounter'], payload: one }, renamed)).toBe(
+      `The Kestrel Guild's Party came through ${ambush.name} (Encounter 2), a Triumph, decided by Steel.`,
+    );
+  });
+
+  test("says once, for the Party, when form decided whether the Encounter succeeded, exactly when its formDecided is set, naming no Hero (v1.1.4-S3)", () => {
+    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
+    const front: CheckRoll = { key: 'front', ...roll, degree: 'setback' };
+    const base = { ...samples['quest.encounter'].payload, degree: 'setback' as const, decidedBy: 'front', checks: [front] };
+    const line = (payload: EngineEventOf<'quest.encounter'>['payload']) => narrate({ ...samples['quest.encounter'], payload }, narration);
+    const plain = line(base);
+
+    expect(plain).not.toMatch(/spirits/);
+    // Lowered from a Success to a Setback: the Encounter failed by form.
+    expect(line({ ...base, formDecided: 'lowered', checks: [{ ...front, formDecided: 'lowered' }] })).toBe(`${plain} Low spirits told against them.`);
+    // Raised from a Setback to a Success: the Encounter succeeded by form.
+    const won = { ...base, outcome: 'success' as const, degree: 'success' as const, injured: [], checks: [{ ...front, degree: 'success' as const }] };
+    expect(line({ ...won, formDecided: 'raised', checks: [{ ...front, degree: 'success', formDecided: 'raised' }] })).toBe(`${line(won)} Their high spirits carried them through.`);
+    // A Check form moved across the Success line, in an Encounter it did not decide: no sentence.
+    const other: CheckRoll = { key: 'other', ...roll, degree: 'success', formDecided: 'raised' };
+    expect(line({ ...base, checks: [other, front] })).toBe(plain);
+    // An entry written before v1.1.4-S3, or before v1.1.4-S2, has no such sentence.
+    const older = { ...base };
+    Reflect.deleteProperty(older, 'checks');
+    expect(line(older)).not.toMatch(/spirits/);
+    // The sentence is words alone: no Hero's name is a segment of it.
+    const segments = narrateSegments({ ...samples['quest.encounter'], payload: { ...base, formDecided: 'lowered' as const } }, narration);
+    const after = segments.slice(segments.findIndex((segment) => segment.text.includes('Low spirits')));
+    expect(after.length).toBeGreaterThan(0);
+    expect(namesIn(after)).toEqual([]);
+    for (const sentence of ['Low spirits told against them.', 'Their high spirits carried them through.']) {
+      expect(sentence).not.toMatch(/Brenna|hero-/);
+    }
   });
 
   test('says a Regard band crossed, never the number', () => {

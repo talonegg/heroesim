@@ -15,7 +15,7 @@ import { xpForLevel } from '../progression.js';
 import { encounterCount } from '../quest-engine/encounters.js';
 import { regardValue } from '../regard.js';
 import { createStreams } from '../rng.js';
-import { playerGuild } from '../selectors.js';
+import { effectiveStats, playerGuild } from '../selectors.js';
 import { dayOf, nightOf, timeOfDay } from '../time.js';
 import {
   certainHarmContent,
@@ -366,6 +366,61 @@ describe('questsConclude', () => {
     withValid({ ...eve, world }, deps);
   });
 
+  // v1.1.4-S4 (DL-148 item 14, DL-155): a Morale loss `steadiedBy` some Stats is each Hero's own.
+  test("each Hero home takes their own Morale from the Encounters, a loss steadiedBy their Stats less for the steadier", () => {
+    const deps = soloDeps(
+      { moraleMin: 0, moraleMax: 100 },
+      withEncounters({ success: [], failure: [{ kind: 'morale', delta: -10, steadiedBy: ['courage'] }, { kind: 'morale', delta: 4, steadiedBy: ['courage'] }] }),
+    );
+    const { eve, heroIds } = sentAway('steadied', deps, { size: 3, difficulty: 5000, encounterKeys: ['hold-the-line'] });
+    const heroes = heroIds.map((id) => eve.world.heroes[id] as Hero);
+    for (const [hero, courage] of heroes.map((hero, index) => [hero, [20, 1, 11][index] as number] as const)) {
+      hero.stats['courage'] = courage;
+      hero.morale = 50;
+    }
+    // The loss is times 1 − guardRange × the share of Courage's range; the gain as written; the total rounded.
+    const own = (hero: Hero): number => {
+      const courage = effectiveStats(hero, eve.world, deps.content)['courage'] ?? Number.NaN;
+      return Math.round(-10 * (1 - deps.config.guardRange * ((courage - 1) / 19)) + 4);
+    };
+
+    const { world, events } = concludeAlone(eve, deps);
+
+    const [resolved] = ofType(events, 'quest.resolved');
+    expect(resolved?.payload.moraleDelta).toBe(-6);
+    expect(resolved?.payload.moraleByHero).toEqual(Object.fromEntries(heroes.map((hero) => [hero.id, own(hero)])));
+    expect(Object.keys(resolved?.payload.moraleByHero ?? {})).toEqual(heroIds);
+    expect(heroes.map(own)).toEqual([-1, -6, -3]);
+    const changes = ofType(events, 'hero.morale-changed').filter((event) => event.payload.cause === 'encounters');
+    expect(changes.map(({ payload }) => [payload.heroId, payload.before, payload.after])).toEqual(heroes.map((hero) => [hero.id, 50, 50 + own(hero)]));
+    withValid({ ...eve, world }, deps);
+  });
+
+  // v1.1.4-S7 (DL-148 items 25 and 27): a Trait earned on the Quest joins the Hero's, a Milestone.
+  test('a Trait earned joins the Hero\'s Traits with hero.trait-gained, a Milestone naming the Hero, the Trait, the Quest and the Encounter', () => {
+    const deps = soloDeps(
+      {},
+      withEncounters({ success: [], failure: [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }, { kind: 'trait', traitKey: 'one-eyed', chance: 1 }] }),
+    );
+    const { eve, quest } = sentAway('earned', deps, { size: 2, difficulty: 5000, encounterKeys: ['hold-the-line'] });
+
+    const { world, events } = concludeAlone(eve, deps);
+
+    const [encounter] = ofType(events, 'quest.encounter');
+    const heroId = encounter?.payload.injured[0] as HeroId;
+    const gained = ofType(events, 'hero.trait-gained');
+    expect(gained.map((event) => [event.payload, event.milestone])).toEqual([
+      [{ heroId, traitKey: 'one-eyed', questId: quest.id, encounterIndex: 0, encounterKey: 'hold-the-line' }, true],
+    ]);
+    expect(gained[0]?.participants.slice(0, 2)).toEqual([heroId, quest.id]);
+    // After the Injuries and Deaths, before the XP.
+    const order = events.map((event) => event.type);
+    expect(order.indexOf('hero.trait-gained')).toBeGreaterThan(order.indexOf('hero.injured'));
+    expect(order.indexOf('hero.trait-gained')).toBeLessThan(order.indexOf('hero.xp-gained'));
+    expect(hero(world, heroId).traits).toContain('one-eyed');
+    withValid({ ...eve, world }, deps);
+  });
+
   test('resolves a Quest saved before M4, with no Encounters, through a sequence drawn from the encounters stream', () => {
     const deps = soloDeps({}, harmlessContent);
     const { eve, party, quest } = sentAway('pre-m4', deps, { encounterKeys: [] });
@@ -615,7 +670,7 @@ describe('questsConclude writes Regard once for each resolved Quest (M4-S5, DL-4
       ...structuredClone(base),
       key,
       name: key,
-      difficultyFactor,
+      checks: base.checks.map((it) => ({ ...structuredClone(it), difficultyFactor })),
       consequences: { success: [], failure },
     });
     const content: ContentSet = {
@@ -753,11 +808,22 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
   /**
    * Seeded games of 120 Days with every Rival sending Parties. The player's Guild is idle and rich,
    * so no Bankruptcy ends a game early, and a failed Encounter may kill and costs Morale, so every
-   * cause above comes up. The Guildmasters' ages are those before DL-113, so that the fingerprints
-   * below, recorded at `86c7afa` before M9-F1, still hold.
+   * cause above comes up. The Guildmasters' ages are those before DL-113, and the band's rule the one
+   * before v1.1.4-S2, with no share of Triumphs asked for a strong success (DL-152), so that the
+   * fingerprints below, recorded at `86c7afa` before M9-F1, still hold: with that rule, an Encounter's
+   * Checks, Degrees and formula, on content in the old form, draw and resolve as one Check did. Every
+   * form factor is 1, as before v1.1.4-S3 (DL-154), so that form is shown to change nothing else.
    */
   const deps = testDeps(
-    { guildmasterStartingAgeMin: 30, guildmasterStartingAgeMax: 45, guildmasterRetirementAge: 65, startingWealth: 100_000 },
+    {
+      guildmasterStartingAgeMin: 30,
+      guildmasterStartingAgeMax: 45,
+      guildmasterRetirementAge: 65,
+      startingWealth: 100_000,
+      strongTriumphShare: 0,
+      moraleCheckFactor: { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 },
+      hurtCheckFactor: 1,
+    },
     withEncounters({ failure: [{ kind: 'death', chance: 0.15 }, { kind: 'morale', delta: -2 }] }),
   );
   const seeds = ['named-a', 'named-b', 'named-c'] as const;
@@ -771,9 +837,23 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
 
   /**
    * A History entry as it was before M9-F1: the new `questId` and the Quest's participation taken out;
-   * and, from M9-F7 (DL-120 item 4, DL-121), a founding's Wealth.
+   * from M9-F7 (DL-120 item 4, DL-121), a founding's Wealth; from v1.1.4-S2 (DL-152), an
+   * Encounter's Degree, the Check that decided it and its Checks; and from v1.1.4-S4 (DL-155), each
+   * Hero's own Morale from the Encounters, which with no `steadiedBy` is every Hero's `moraleDelta`.
    */
   function unnamed(entry: WorldDocument['history']['entries'][number]): object {
+    if (entry.type === 'quest.resolved') {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      delete payload.moraleByHero;
+      return { ...entry, payload };
+    }
+    if (entry.type === 'quest.encounter') {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      delete payload.degree;
+      delete payload.decidedBy;
+      delete payload.checks;
+      return { ...entry, payload };
+    }
     if (entry.type === 'guild.founded') {
       const payload = { ...(entry.payload as Record<string, unknown>) };
       delete payload.wealth;
@@ -867,18 +947,41 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     expect(loaded.ok && loaded.warnings).toEqual([]);
   });
 
-  test("nothing else moves: the same seed gives the History of 86c7afa, entry for entry, but for the new fields and participants (M9-F1's questId, M9-F7's founding Wealth)", () => {
+  test("nothing else moves: the same seed gives the History of 86c7afa, entry for entry, but for the new fields and participants (M9-F1's questId, M9-F7's founding Wealth) and the Rivals' Parties (v1.1.4-S6)", () => {
     const fingerprints = seeds.map((seed) => {
       const { history } = played.get(seed) as WorldDocument;
       return createHash('sha256').update(JSON.stringify(history.entries.map(unnamed))).digest('hex');
     });
     // SHA-256 of each seed's History, recorded at 86c7afa (v1.1-dev before M9-F1), where the
     // stripping above took nothing out. M9-F7 added the founding Wealth to the stripping, not new
-    // values: with it set aside, the History is unchanged (DL-121).
+    // values: with it set aside, the History is unchanged (DL-121). v1.1.4-S2 added an Encounter's
+    // Degree, deciding Check and Checks, and, under the band's rule before it, nothing else (DL-152).
+    // v1.1.4-S6's Rivals choose their Parties by the chance estimate (DL-157), which changes who goes:
+    // these are its fingerprints. With M2-S9's rule by the demands put back in its place, for one run
+    // and not kept, the three were 86c7afa's again: a85e889a…, c5afab2d… and 55432d24…. v1.1.4-S10
+    // writes the content in Checks, its Finales, lore and earned Traits, and rolls each Check within
+    // `checkVariance` 0.4 (DL-165), which changes every Quest; its balance pass then tunes the Checks'
+    // factors, the Triumph, the share of Triumphs, form and the earned Traits' chances (DL-166): these
+    // are its fingerprints. S6's were 00de1d95…, db199b7c… and c5519e67…; before the balance pass,
+    // 6ba3f040…, d1b90581… and a72002b4…, the third's game unchanged by it.
     expect(fingerprints).toEqual([
-      'a85e889aec1df8341984e146796c9f761387ce6c7d08946fce9fc688a4494b82',
-      'c5afab2df5c747649e2c0d39c977cb36b08dec94829ed3d82d8ced72917d72a9',
-      '55432d24ff8cb68d4608f49a4da7ab9d10d8b02edeb0bf3abd3ebfe09c9434f7',
+      'f1e65b3b9056560ede5de290762634b269f16cb55c2747a021462a2acb9564c3',
+      '096c92a2385d20caf681ce2a8729defa1b0618ae6ffbf4beb69f22e5dd79989f',
+      'a72002b40e33c8f79d5f33d38331a699a5f231917209cc06b9e1a9a81369790b',
     ]);
+  });
+
+  test('what v1.1.4-S2 added to each Encounter of the games says what its one Check said: decided by it, its Degree its outcome (DL-152)', () => {
+    const encounters = seeds.flatMap((seed) =>
+      (played.get(seed) as WorldDocument).history.entries.filter((entry): entry is EngineEventOf<'quest.encounter'> => entry.type === 'quest.encounter'),
+    );
+    expect(encounters.length).toBeGreaterThan(100);
+    for (const { payload } of encounters) {
+      const { encounterKey, roll, target, margin, outcome, degree, decidedBy, checks } = payload;
+      expect(decidedBy).toBe(encounterKey);
+      expect(checks).toEqual([{ key: encounterKey, capability: expect.any(Number), roll, target, margin, degree }]);
+      expect(degree === 'success' || degree === 'triumph').toBe(outcome === 'success');
+    }
+    expect(new Set(encounters.map((entry) => entry.payload.degree))).toEqual(new Set(['triumph', 'success', 'setback', 'failure']));
   });
 });

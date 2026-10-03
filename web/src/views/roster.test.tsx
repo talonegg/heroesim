@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
-import { changed, holding, started, withOffer, withPartyOut, withRichRivals } from '../state/game.test-support';
+import { changed, holding, started, withOffer, withPartyOut, withRichRivals, withTraitNews } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { rosterList, section } from './page.test-support';
 
@@ -106,6 +106,53 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
     expect(lift?.textContent).toBe(`+2 on its base of ${base}`);
     expect(value?.firstChild?.textContent).toBe(String(base + 2));
     expect(document.body.innerHTML).not.toMatch(/potential/i);
+  });
+
+  // v1.1.4-S7 (DL-148 item 24): a Hero Trait's effects beside its name, and its Stat changes in the blocks.
+  test("gives each Trait with what it does, and a Trait's Stat change lowers the Stat where it shows", () => {
+    const state = changed(started(), (document, player) => {
+      const first = document.world.heroes[player.rosterIds[0] as never];
+      if (first === undefined) throw new Error('an empty Roster');
+      first.traits = ['lame'];
+      first.stats['dexterity'] = 12;
+    });
+    render_(state);
+    const { name, page } = openFirstHero();
+
+    const chips = within(page()).getByRole('list', { name: `${name}'s State` });
+    expect(chip(chips, 'Lame: -2 Dexterity, -1 Endurance').title).toBe('Trait');
+    const dexterity = within(within(page()).getByRole('table', { name: 'Physical' })).getByRole('rowheader', { name: 'Dexterity' }).closest('tr') as HTMLElement;
+    const [value] = within(dexterity).getAllByRole('cell');
+    expect(value?.firstChild?.textContent).toBe('10');
+    expect(value?.querySelector('.lift')?.textContent).toBe('-2 on its base of 12');
+  });
+
+  // v1.1.4-S14: a Trait's Encounter bonus in words on its chip.
+  test("gives a Trait's Encounter bonus in words, on the Trait's chip", () => {
+    const state = changed(started(), (document, player) => {
+      const first = document.world.heroes[player.rosterIds[0] as never];
+      if (first === undefined) throw new Error('an empty Roster');
+      first.traits = ['battle-tried'];
+    });
+    render_(state);
+    const { name, page } = openFirstHero();
+
+    const chips = within(page()).getByRole('list', { name: `${name}'s State` });
+    expect(chip(chips, 'Battle-tried: +2 to every Check of combat Encounters').title).toBe('Trait');
+  });
+
+  // v1.1.4-S14: a Trait earned on a Quest and one lost to another, among the Hero's Milestones.
+  test('lists a Trait earned and a Trait lost among the Milestones', () => {
+    render_(withTraitNews(started()));
+    const { name, page } = openFirstHero();
+
+    const heading = within(page()).getByRole('heading', { name: 'Milestones' });
+    const milestones = heading.nextElementSibling as HTMLElement;
+    const lines = within(milestones)
+      .getAllByRole('listitem')
+      .map((line) => line.textContent ?? '');
+    expect(lines.some((line) => new RegExp(`${name} earned the Trait Scarred on .+, at Ambush on the road\\.$`).test(line)), lines.join('\n')).toBe(true);
+    expect(lines.some((line) => line.endsWith(`${name} lost the Trait Scarred, replaced by Lame.`)), lines.join('\n')).toBe(true);
   });
 
   test('shows the Relationships as bands, a ramp of tones, and folds those neutral both ways under their count', () => {

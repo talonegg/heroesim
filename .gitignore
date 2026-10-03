@@ -23,5 +23,8 @@ media/inbox/**
 !media/inbox/*/
 !media/inbox/*/.gitkeep
 
+# The content editor's pending edits (v1.1.4-S12, DL-161), held between its commands until "Finish"
+.editor/
+
 # Agent worktrees are separate checkouts, never part of this one
 .claude/worktrees/

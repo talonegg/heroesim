@@ -9,7 +9,7 @@
 // The child processes are run by `children.ts`.
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { loadContent } from '@heroesim/content/node';
+import { loadContent, loadDrafts } from '@heroesim/content/node';
 import type { EngineDeps, GameConfig } from '@heroesim/engine';
 import { modulesFor } from './modules.js';
 import { recordGame, type GameRecord, type PlayOptions } from './play.js';
@@ -46,6 +46,8 @@ export interface ShardJob {
   modules?: string[];
   /** Play the seeds as the Succession probe, the first Rival's Guildmaster at `age` (M9-F1). */
   probe?: { age: number };
+  /** A directory of draft content files, each in place of the core file of its name (v1.1.4-S9, `loadDrafts`). */
+  drafts?: string;
 }
 
 /** What it plays, and the content it played with, which the parent checks is its own. */
@@ -55,9 +57,9 @@ export interface ShardResult extends PlayedSeeds {
   probes?: ProbeGame[];
 }
 
-/** Plays a job with the core content and the job's modules, as the child process does. */
+/** Plays a job with the core content, or its drafts, and the job's modules, as the child process does. */
 export function runShard(job: ShardJob): ShardResult {
-  const content = loadContent();
+  const content = job.drafts === undefined ? loadContent() : loadDrafts(job.drafts).content;
   const { seeds, config, years, validate, policy, modules = [], probe } = job;
   const deps: EngineDeps = modules.length === 0 ? { config, content } : { config, content, modules: modulesFor(modules) };
   if (probe !== undefined) {

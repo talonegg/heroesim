@@ -57,6 +57,15 @@ export function durationDaysOf(quest: Pick<Quest, 'durationTurns'>): number {
   return Math.ceil(quest.durationTurns / turnsPerDay);
 }
 
+/**
+ * The night a Party sent on `quest` on `turn` comes home (pre-M0 review C4): the night of the Day
+ * `durationDaysOf(quest)` Days after `turn`'s. `dispatch` sets it as `returnsOnTurn`, and the chance
+ * estimate reads the Party as it will be then (v1.1.4-S5's verification).
+ */
+export function returnNightOf(turn: Turn, quest: Pick<Quest, 'durationTurns'>): Turn {
+  return nightOf(dayOf(turn) + durationDaysOf(quest));
+}
+
 /** Anyone with an age: a Hero or a Guildmaster, who store it the same way. */
 export type Aged = Pick<Hero, 'ageAtEntry' | 'enteredTurn'>;
 

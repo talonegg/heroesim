@@ -17,6 +17,11 @@ export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: st
   return rowOf(rows, key)?.name ?? key;
 }
 
+/** A list as a sentence gives one: `a`, `a and b`, `a, b and c`. */
+export function listed(items: readonly string[]): string {
+  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
+}
+
 export function capitalised(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
@@ -60,11 +65,18 @@ export function signed(n: number): string {
 }
 
 /**
- * A Guildmaster Trait's effect in words (the CLI's `traitEffectWords`): `+1 Weaponry to Warriors`,
- * `Morale baseline -5`, `Upkeep ×0.9`; the Guildmaster's page's and the new-game form's (M9-S2).
+ * A Trait's effects in words (the CLI's `traitEffectWords`), each in the Trait's order and joined by
+ * commas (v1.1.4-S7): `+1 Weaponry to Warriors`, `Morale baseline -5`, `Upkeep ×0.9`, a Hero Trait's
+ * `-2 Dexterity, -1 Endurance` and `+2 to every Check of combat or travel Encounters`; `No effect` for
+ * none. The Guildmaster's page's, the new-game form's (M9-S2) and a Hero's page's (v1.1.4-S7).
  */
-export function traitEffectWords(effect: TraitEffect | null, set: Pick<ContentSet, 'stats' | 'classes'>): string {
-  if (effect === null) return 'No effect';
+export function traitEffectWords(effects: readonly TraitEffect[], set: Pick<ContentSet, 'stats' | 'classes'>): string {
+  if (effects.length === 0) return 'No effect';
+  return effects.map((effect) => effectWords(effect, set)).join(', ');
+}
+
+/** One effect of a Trait in words, as `traitEffectWords` joins them. */
+function effectWords(effect: TraitEffect, set: Pick<ContentSet, 'stats' | 'classes'>): string {
   switch (effect.kind) {
     case 'classStatBonus':
       return `${signed(effect.delta)} ${nameIn(set.stats, effect.statKey)} to ${nameIn(set.classes, effect.classKey)}s`;
@@ -72,5 +84,15 @@ export function traitEffectWords(effect: TraitEffect | null, set: Pick<ContentSe
       return `Morale baseline ${signed(effect.delta)}`;
     case 'upkeepFactor':
       return `Upkeep ×${effect.factor}`;
+    case 'statModifiers':
+      return Object.entries(effect.modifiers)
+        .map(([statKey, delta]) => `${signed(delta)} ${nameIn(set.stats, statKey)}`)
+        .join(', ');
+    case 'encounterBonus': {
+      const kinds = effect.kinds ?? [];
+      const tags = effect.tags ?? [];
+      const on = [...(kinds.length === 0 ? [] : [`${kinds.join(' or ')} Encounters`]), ...(tags.length === 0 ? [] : [`Encounters tagged ${tags.join(' or ')}`])];
+      return `${signed(effect.flat)} to every Check of ${on.join(' or ')}`;
+    }
   }
 }

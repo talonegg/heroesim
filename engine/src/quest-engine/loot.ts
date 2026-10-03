@@ -15,9 +15,12 @@
 // nothing. A unique definition already in `world.items`, whoever holds it, is drawn with weight 0: a
 // unique Item is an individual, and a world holds one of it (DL-52). When every entry is such, the
 // draw is still taken and awards nothing.
+//
+// A Finale (v1.1.4-S8, DL-148 item 23): on a Quest whose template names one, Loot also needs the
+// Finale to end a Triumph. Loot keeps its band rule, and its two draws are taken whatever happens.
 
 import type { EngineDeps, QuestBand } from '../config.js';
-import type { ItemDefinitionKey, LootTableKey } from '../content-types.js';
+import type { Degree, ItemDefinitionKey, LootTableKey } from '../content-types.js';
 import type { Guild, Party, Quest, World } from '../document.js';
 import type { Emit } from '../emit.js';
 import type { QuestLoot } from '../events.js';
@@ -36,11 +39,18 @@ export interface LootDraw {
 }
 
 /**
+ * How a Quest's Finale went, for Loot (v1.1.4-S8): `none` for a Quest without one; the Degree it ended
+ * at; or `unmet` when the Party never reached it, no one being left.
+ */
+export type FinaleOutcome = 'none' | 'unmet' | Degree;
+
+/**
  * The Loot `quest` leaves on `band` (M5-S5): one entry of its Loot table drawn from the `quests`
  * stream in proportion to the entries' weights, a unique definition already in `world.items` weighted
  * 0, and its quantity drawn from the entry's range; or `null` when the Quest has no table content
- * defines, the band is not in `lootOnBands`, or every entry is a unique Item the world already holds.
- * The draws are taken for any band (see above). Changes nothing but the `quests` stream. Throws on a
+ * defines, the band is not in `lootOnBands`, its `finale` did not end a Triumph (v1.1.4-S8), or every
+ * entry is a unique Item the world already holds. The draws are taken for any band and any Finale
+ * (see above). Changes nothing but the `quests` stream. Throws on a
  * programming error: a table with no entries, which content validation refuses.
  */
 export function drawLoot(
@@ -48,6 +58,7 @@ export function drawLoot(
   quest: Pick<Quest, 'lootTableKey'>,
   band: QuestBand,
   deps: Pick<EngineDeps, 'config' | 'content'>,
+  finale: FinaleOutcome = 'none',
 ): LootDraw | null {
   const { config, content } = deps;
   const lootTableKey = quest.lootTableKey;
@@ -63,6 +74,7 @@ export function drawLoot(
 
   // Every weight 0 makes the draw uniform, so it may fall on a unique Item the world already holds.
   if (!config.lootOnBands.includes(band) || weights[drawn.index] === 0) return null;
+  if (finale !== 'none' && finale !== 'triumph') return null;
   const { definitionKey } = drawn.entry;
   return { lootTableKey, definitionKey, quantity, unique: isUnique(definitionKey) };
 }

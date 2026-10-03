@@ -7,19 +7,25 @@
 // Hero who cannot go, the Synergies the Party would have and on how many of the Quest's Encounters
 // (M4-S3, DL-45), what it would carry, the reward its `negotiatedReward` for the player's
 // Guildmaster, and the verdict `dispatch`'s own checks. The preview is a list of sections of words.
+// From v1.1.4-S3, one line for the Party's Morale, from its mean form, naming no Hero (DL-148 item 12).
+// From v1.1.4-S6, the chance of each Encounter and of the Quest in a word, with its percentage floored to 5,
+// if no one falls: the engine's estimate (`estimateQuest`, through the preview; DL-148 item 15).
 
 import {
   playerGuild,
   previewDispatch,
   unmetRequirements,
+  type ChanceBand,
   type ConsumableEffect,
   type DispatchPreview,
   type EngineDeps,
+  type FormEffect,
   type Hero,
   type Synergy,
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
+import { chanceWords, shownPercent } from '../query-words.js';
 import { nameIn } from '../render.js';
 import { explain, requirementWords, unavailableWords } from './dispatch.js';
 
@@ -81,6 +87,35 @@ function synergyLines(preview: DispatchPreview): string[] {
     return `  ${synergy.name}: ${bonusWords(synergy.bonus)} ${where}; ${reachWords(encounters, preview)}.`;
   });
   return ['Synergies', ...lines];
+}
+
+/** What a Party's mean form does to its odds (v1.1.4-S3, `formEffect`): the page's words too. */
+const formEffectWords: Readonly<Record<FormEffect, string>> = {
+  raises: 'Raises the odds',
+  none: 'Makes no difference',
+  'lowers-a-little': 'Lowers the odds a little',
+  'lowers-badly': 'Lowers the odds badly',
+};
+
+/** The Party's Morale, one line for the Party from its mean form, naming no Hero (DL-148 item 12); none for no one. */
+function moraleLines({ form }: DispatchPreview): string[] {
+  return form === null ? [] : ['Morale', `  ${formEffectWords[form.effect]}.`];
+}
+
+/**
+ * How likely the Party is to come through each Encounter and the Quest (v1.1.4-S6, DL-148 item 15):
+ * each in a word and its percentage floored to 5 (`shownPercent`), if no one falls, carrying what it would carry. None for a
+ * Party of no one; a line saying so when the Encounters are drawn on the way.
+ */
+function chanceLines({ chances, heroes }: DispatchPreview, deps: EngineDeps): string[] {
+  if (heroes.length === 0) return [];
+  if (chances === null) return ['Chances', "  Not known: this Quest's Encounters are drawn on the way."];
+  const line = (name: string, chance: ChanceBand, success: number) => `  ${name}: ${chanceWords[chance]}, ${shownPercent(success)}%`;
+  return [
+    'Chances, if no one falls',
+    ...chances.encounters.map((it) => line(nameIn(deps.content.encounters, it.encounterKey), it.chance, it.success)),
+    line('The Quest', chances.chance, chances.success),
+  ];
 }
 
 /** What a consumable does, in words (M5-S3, DL-50). */
@@ -150,6 +185,8 @@ export function previewParty(
     requirementLines(preview, deps),
     heroLines(preview, guild.name),
     synergyLines(preview),
+    moraleLines(preview),
+    chanceLines(preview, deps),
     consumableLines(preview, deps),
     [`Reward agreed on a success: ${preview.agreedReward} Wealth, ${preview.offeredReward} offered.`],
     [

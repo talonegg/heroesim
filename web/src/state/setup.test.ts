@@ -15,13 +15,19 @@ import {
   setupFormChoices,
   setupNotice,
   setupRefusalWords,
+  startingStats,
+  statPicksView,
+  statsWords,
   traitPicksView,
   textsView,
   textsWritten,
   textTyped,
+  unchosenWords,
   unseededWords,
+  unsexedGridWords,
   writtenDescription,
   type SetupFields,
+  type SetupWay,
   type TextsHeld,
 } from './setup';
 
@@ -41,9 +47,9 @@ function choosable(chosen: Parameters<typeof traitPicksView>[0]): string[] {
   return traitPicksView(chosen).traits.filter((trait) => trait.choosable).map(({ key }) => key);
 }
 
-/** The preview's words for `setup` and `seed`, from the engine's preview, as the form makes them. */
-function previewOf(setup: SetupFields, seed: string) {
-  return guildmasterPreviewView(guildmasterPreview(setup, seed), seed);
+/** The preview's words for `setup` and `seed`, from the engine's preview, as the form makes them with `way`. */
+function previewOf(setup: SetupFields, seed: string, way: SetupWay = 'for-me') {
+  return guildmasterPreviewView(guildmasterPreview(setup, seed), seed, way);
 }
 
 /** The texts written for `setup` and `seed`, from the engine's preview, as the form writes them. */
@@ -231,6 +237,92 @@ describe("what else the form offers for the Guildmaster, and the engine's refusa
     expect(setupNotice(play, true)).toBeNull();
     expect(setupNotice(play, false)).toBeNull();
   });
+
+  // v1.1.4-S11 (DL-149 items 3 and 4): "Choose myself" holds "Start the game" until the sex, the age and a
+  // picture are chosen, after the names; the engine would draw them, so the hold is the form's.
+  test('with "Choose myself", holds the start until the sex, the age and a picture are chosen, saying which', () => {
+    const empty: NewGame = { ...play, guildName: '', guildmasterName: '' };
+    const all = ['sex', 'age', 'portrait'] as const;
+
+    expect(unchosenWords(all)).toBe("Choose your Guildmaster's Sex, Age and Portrait to start.");
+    expect(unchosenWords(['age', 'portrait'])).toBe("Choose your Guildmaster's Age and Portrait to start.");
+    expect(unchosenWords(['portrait'])).toBe("Choose your Guildmaster's Portrait to start.");
+    expect(unchosenWords([])).toBeNull();
+    // The names first, as a hint and then as the refusal; then what is still to choose, as a hint.
+    expect(setupNotice(empty, false, all)).toEqual({ kind: 'hint', words: 'Name your Guild and its Guildmaster to start.' });
+    expect(setupNotice(empty, true, all)).toEqual({ kind: 'refusal', words: 'The Guild needs a name.' });
+    expect(setupNotice(play, true, all)).toEqual({ kind: 'hint', words: "Choose your Guildmaster's Sex, Age and Portrait to start." });
+    expect(setupNotice(play, false, ['sex'])).toEqual({ kind: 'hint', words: "Choose your Guildmaster's Sex to start." });
+    expect(setupNotice(play, true, [])).toBeNull();
+    // An engine refusal of a choice stands before the hold.
+    expect(setupNotice({ ...play, guildmasterTraitKeys: ['thrifty'] }, true, ['portrait'])?.kind).toBe('refusal');
+  });
+});
+
+// v1.1.4-S11 (DL-149 item 5): the five Guildmaster Stats set within the Stat points, each step the
+// engine's verdict, and what each does in the Guildmaster view's words.
+describe('the Stats "Choose myself" sets, within the Stat points (v1.1.4-S11)', () => {
+  const play: NewGame = { kind: 'newGame', seed: 'setup', guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '' };
+
+  test("start at 10 each, all 50 Stat points spent, each said in the Guildmaster view's words, in its order", () => {
+    const view = statPicksView(startingStats());
+
+    expect(startingStats()).toEqual({ inspiration: 10, influence: 10, negotiation: 10, coaching: 10, judgement: 10 });
+    expect(view.points).toEqual({
+      points: 50,
+      spent: 50,
+      left: 0,
+      over: false,
+      leftWords: 'Stat points left: 0',
+      spentWords: 'The Stats spend 50 of 50 Stat points.',
+      unspentWords: null,
+    });
+    expect(view.stats.map(({ name, value, min, max, bearsOn }) => [name, value, min, max, bearsOn])).toEqual([
+      ['Inspiration', 10, 5, 15, 'The Morale baseline of the Heroes'],
+      ['Influence', 10, 5, 15, "The Regard a Patron's Quest earns"],
+      ['Negotiation', 10, 5, 15, 'The reward agreed and the fees paid'],
+      ['Coaching', 10, 5, 15, 'The XP of the training yard'],
+      ['Judgement', 10, 5, 15, 'How sharp the Potential hints read'],
+    ]);
+    // With every point spent, none can be raised until one is lowered.
+    expect(view.stats.every((pick) => !pick.canRaise && pick.canLower)).toBe(true);
+    expect(statsWords()).toBe('Each 5 to 15, sharing 50 Stat points; each starts at 10.');
+  });
+
+  test('a point taken from one may be given to another, never past 15 or below 5, and points left unspent are noted as lost', () => {
+    const lowered = statPicksView({ ...startingStats(), coaching: 5 });
+    expect(lowered.points).toMatchObject({ left: 5, leftWords: 'Stat points left: 5', unspentWords: 'Stat points left unspent are lost.' });
+    expect(lowered.stats.find((pick) => pick.key === 'coaching')).toMatchObject({ canLower: false, canRaise: true });
+    expect(lowered.stats.find((pick) => pick.key === 'negotiation')).toMatchObject({ canLower: true, canRaise: true });
+
+    const best = { inspiration: 10, influence: 15, negotiation: 15, coaching: 5, judgement: 5 };
+    const top = statPicksView(best);
+    expect(top.points.left).toBe(0);
+    expect(top.stats.find((pick) => pick.key === 'negotiation')).toMatchObject({ value: 15, canRaise: false, canLower: true });
+    // Unspent points are allowed: the game starts with them.
+    expect(setupRefusalWords({ ...play, guildmasterStats: { ...best, inspiration: 5 } })).toBeNull();
+    expect(setupRefusalWords({ ...play, guildmasterStats: best })).toBeNull();
+  });
+
+  test('marks the points overspent, as the engine refuses them, and says each refusal of the Stats in words', () => {
+    expect(statPicksView({ ...startingStats(), negotiation: 12 }).points).toMatchObject({ over: true, leftWords: 'Over the Stat points by 2' });
+    expect(setupRefusalWords({ ...play, guildmasterStats: { ...startingStats(), negotiation: 12 } })).toBe(
+      'Those Stats spend 52 points, and the Stat points are 50: lower one to raise another.',
+    );
+    expect(setupRefusalWords({ ...play, guildmasterStats: { ...startingStats(), coaching: 4 } })).toBe(
+      "A Guildmaster's Coaching is 5 to 15 when chosen, in whole numbers; 4 is not.",
+    );
+    expect(setupRefusalWords({ ...play, guildmasterStats: { inspiration: 10, influence: 10, negotiation: 10 } })).toBe(
+      'Every Guildmaster Stat is chosen, or none; Coaching and Judgement are not.',
+    );
+  });
+
+  test('reads the bounds and the points from the config it is given', () => {
+    const other = { ...defaultConfig, guildmasterStatMin: 8, guildmasterStatMax: 12, guildmasterStatPoints: 45 };
+    expect(startingStats(content, other)).toEqual({ inspiration: 9, influence: 9, negotiation: 9, coaching: 9, judgement: 9 });
+    expect(statPicksView(startingStats(content, other), content, other).stats[0]).toMatchObject({ min: 8, max: 12, canRaise: false });
+    expect(statsWords(content, other)).toBe('Each 8 to 12, sharing 45 Stat points; each starts at 9.');
+  });
 });
 
 describe('when the Guildmaster retires, on the form (M9-F2, DL-113 item 5)', () => {
@@ -269,57 +361,55 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
     expect(portraitPick('gm-male-21')).toBeUndefined();
   });
 
-  test('names the sex, age, Traits and Portrait "Start the game" makes, over many seeds, each line only for what is drawn', () => {
-    const traitNames = (keys: readonly string[]) => keys.map((key) => content.traits[key]?.name);
+  test('with "Choose for me", names the sex, age, Stats, Traits and Portrait "Start the game" makes, over many seeds', () => {
+    const traitNames = (keys: readonly string[]) => keys.map((key) => content.guildmasterTraits[key]?.name);
     for (let n = 0; n < 40; n += 1) {
       const seed = `form-preview-${n}`;
       const guildmaster = made(seed, fields);
       const view = previewOf(fields, seed);
-      if (guildmaster === undefined || view?.kind !== 'drawn') throw new Error(`${seed}: no preview`);
-      expect(view.drawnWords).toBe(`Drawn: ${guildmaster.sex === 'female' ? 'Female' : 'Male'}, ${guildmaster.ageAtEntry}`);
+      if (guildmaster === undefined || view?.kind !== 'chosen') throw new Error(`${seed}: no preview`);
+      expect(view.whoWords).toBe(`${guildmaster.sex === 'female' ? 'Female' : 'Male'}, ${guildmaster.ageAtEntry}`);
+      const { inspiration, influence, negotiation, coaching, judgement } = guildmaster.stats;
+      expect(view.statsWords).toBe(`Inspiration ${inspiration}, Influence ${influence}, Negotiation ${negotiation}, Coaching ${coaching} and Judgement ${judgement}`);
       const names = traitNames(guildmaster.traits);
-      expect(view.traitsWords).toBe(names.length === 0 ? 'Drawn Traits: None' : `Drawn Traits: ${names.length === 1 ? names[0] : `${names[0]} and ${names[1]}`}`);
+      expect(view.traitsWords).toBe(names.length === 0 ? 'Traits: None' : `Traits: ${names.length === 1 ? names[0] : `${names[0]} and ${names[1]}`}`);
       // Chosen to fit them since v1.1.3-S5: a picture of the sex, named by its place in content's list,
       // or the Silhouette where none fits their age.
       const place = guildmaster.portraitKey === null ? 0 : content.portraits.guildmaster[guildmaster.sex].indexOf(guildmaster.portraitKey) + 1;
       expect(view.portrait).toEqual({
         sex: guildmaster.sex,
         portraitKey: guildmaster.portraitKey,
-        words:
-          guildmaster.portraitKey === null
-            ? 'Drawn Portrait: None: the Silhouette'
-            : `Drawn Portrait: ${guildmaster.sex === 'female' ? 'Female' : 'Male'} Portrait ${place}`,
+        words: guildmaster.portraitKey === null ? 'Portrait: None, the Silhouette' : `Portrait: ${guildmaster.sex === 'female' ? 'Female' : 'Male'} Portrait ${place}`,
       });
     }
   });
 
-  test('says only what is drawn: the age alone, the sex alone, or nothing at all when everything is chosen', () => {
-    const chosenSex = previewOf({ ...fields, guildmasterSex: 'male' }, 'seed-a');
-    expect(chosenSex).toMatchObject({ kind: 'drawn', drawnWords: `Drawn: Age ${made('seed-a', { ...fields, guildmasterSex: 'male' })?.ageAtEntry}` });
-    // A male of 46 for 'seed-a': gm-male-17, of 38 to 48, fits him (v1.1.3-S5).
-    expect(chosenSex?.kind === 'drawn' && chosenSex.portrait?.words).toBe('Drawn Portrait: Male Portrait 17');
-
-    const chosenAge = previewOf({ ...fields, guildmasterAge: 40, guildmasterTraitKeys: [] }, 'seed-a');
-    expect(chosenAge).toMatchObject({ kind: 'drawn', drawnWords: `Drawn: ${capitalised(made('seed-a', fields)?.sex ?? '')}`, traitsWords: null });
-
-    // A Portrait chosen chooses its sex: nothing of the sex is drawn, and no Portrait.
-    const pictured = previewOf({ ...fields, guildmasterPortraitKey: 'gm-female-01', guildmasterAge: 30 }, 'seed-a');
-    expect(pictured).toMatchObject({ kind: 'drawn', drawnWords: null, portrait: null });
-
-    const all = { ...fields, guildmasterSex: 'female', guildmasterAge: 30, guildmasterTraitKeys: [], guildmasterPortraitKey: 'gm-female-01' } as const;
-    expect(previewOf(all, 'seed-a')).toBeNull();
+  test('with "Choose myself", says only the Traits chosen for the player, and nothing once they are chosen', () => {
+    const mine = { ...fields, guildmasterSex: 'male', guildmasterAge: 40, guildmasterPortraitKey: 'gm-male-03', guildmasterStats: startingStats() } as const;
+    const traits = made('seed-a', mine)?.traits ?? [];
+    expect(previewOf(mine, 'seed-a', 'myself')).toEqual({
+      kind: 'chosen',
+      whoWords: null,
+      statsWords: null,
+      traitsWords: `Traits: ${traits.length === 0 ? 'None' : traits.map((key) => content.guildmasterTraits[key]?.name).join(' and ')}`,
+      portrait: null,
+    });
+    expect(previewOf({ ...mine, guildmasterTraitKeys: [] }, 'seed-a', 'myself')).toBeNull();
+    expect(previewOf({ ...mine, guildmasterTraitKeys: [] }, '  ', 'myself')).toBeNull();
+    expect(previewOf(mine, '  ', 'myself')).toEqual({ kind: 'unseeded', words: unseededWords.myself });
   });
 
   test('follows the seed, says a blank one is made up at the start, and shows nothing while the engine would refuse', () => {
-    const drawnOf = (seed: string) => {
+    const whoOf = (seed: string) => {
       const view = previewOf(fields, seed);
-      return view?.kind === 'drawn' ? view.drawnWords : null;
+      return view?.kind === 'chosen' ? `${view.whoWords} ${view.statsWords}` : null;
     };
-    expect(new Set(Array.from({ length: 20 }, (_, n) => drawnOf(`follow-${n}`))).size).toBeGreaterThan(1);
+    expect(new Set(Array.from({ length: 20 }, (_, n) => whoOf(`follow-${n}`))).size).toBeGreaterThan(1);
     // The seed as the click sends it, trimmed.
     expect(previewOf(fields, '  follow-1  ')).toEqual(previewOf(fields, 'follow-1'));
-    expect(previewOf(fields, '  ')).toEqual({ kind: 'unseeded', words: unseededWords });
-    expect(previewOf({ ...fields, guildmasterSex: 'female', guildmasterPortraitKey: 'gm-male-01' }, 'seed-a')).toBeNull();
+    expect(previewOf(fields, '  ')).toEqual({ kind: 'unseeded', words: unseededWords['for-me'] });
+    expect(unseededWords['for-me']).toBe('The seed is blank, so one is made up when the game starts, and your Guildmaster is chosen for you then.');
+    expect(previewOf({ ...fields, guildmasterSex: 'female', guildmasterPortraitKey: 'gm-male-01' }, 'seed-a', 'myself')).toBeNull();
     // Before the names are typed, the preview shows: no name is drawn.
     expect(previewOf({ guildName: '', guildmasterName: '' }, 'seed-a')).toEqual(previewOf(fields, 'seed-a'));
   });
@@ -332,76 +422,24 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
   });
 });
 
-// v1.1.3-S7 (DL-134 items 7 and 9, DL-143): the setup grid, one sex's thumbnails at a time, "Drawn from
-// the seed" showing the picture the seed chooses, and `portraitFit`'s notes in words.
+// v1.1.3-S7 (DL-134 items 7 and 9, DL-143): the setup grid, one sex's thumbnails at a time, since
+// v1.1.4-S11 the sex chosen's and none before (DL-149 item 4), and `portraitFit`'s notes in words.
 describe('the setup grid and the notes beside a Portrait chosen (v1.1.3-S7)', () => {
   const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
-  const drawnSex = { fieldSex: null, lookAt: null };
 
-  function made(seed: string, setup: SetupFields) {
-    const { world } = createWorld(seed, { ...setup, createdAt: '' }, { config: defaultConfig, content }).document;
-    const guild = Object.values(world.guilds).find((each) => each.controller.kind === 'player');
-    return guild === undefined ? undefined : world.guildmasters[guild.guildmasterId];
-  }
-
-  test('shows one sex at a time: the sex the seed draws, and "Drawn from the seed" the picture it chooses, over many seeds', () => {
-    for (let n = 0; n < 30; n += 1) {
-      const seed = `grid-${n}`;
-      const guildmaster = made(seed, fields);
-      if (guildmaster === undefined) throw new Error(`${seed}: no Guildmaster`);
-      const grid = portraitGrid(fields, seed, drawnSex);
-      expect(grid.sex, seed).toBe(guildmaster.sex);
-      expect(grid.pictures.map((pick) => pick.key), seed).toEqual(content.portraits.guildmaster[guildmaster.sex]);
-      expect(grid.drawn, seed).toEqual({ sex: guildmaster.sex, portraitKey: guildmaster.portraitKey });
-      expect(grid.sexes, seed).toEqual([
-        { sex: 'female', label: 'Female', shown: guildmaster.sex === 'female' },
-        { sex: 'male', label: 'Male', shown: guildmaster.sex === 'male' },
-      ]);
+  test("shows no picture before a sex is chosen, saying so, and then that sex's pictures only, with no draw among them", () => {
+    expect(portraitGrid(null)).toEqual({ sex: null, words: 'Choose a Sex to see the pictures.' });
+    expect(unsexedGridWords).toBe('Choose a Sex to see the pictures.');
+    for (const sex of ['female', 'male'] as const) {
+      const grid = portraitGrid(sex);
+      if (grid.sex === null) throw new Error('no pictures');
+      expect(grid.sex).toBe(sex);
+      expect(grid.pictures.map((pick) => pick.key)).toEqual(content.portraits.guildmaster[sex]);
+      expect(grid.pictures.every((pick) => pick.sex === sex)).toBe(true);
     }
-  });
-
-  test('shows the sex asked to see, the Sex field’s, or the picture chosen’s; "Drawn from the seed" is what the seed would draw without it', () => {
-    const seed = 'grid-chosen';
-    const seedSex = made(seed, fields)?.sex;
-    const other: Sex = seedSex === 'female' ? 'male' : 'female';
-    expect(portraitGrid(fields, seed, { fieldSex: null, lookAt: other })).toMatchObject({ sex: other, sexes: [{ shown: other === 'female' }, { shown: other === 'male' }] });
-
-    // The Sex field chooses the sex shown, and offers no other.
-    const male = portraitGrid({ ...fields, guildmasterSex: 'male' }, seed, { fieldSex: 'male', lookAt: 'female' });
-    expect(male.sex).toBe('male');
-    expect(male.sexes).toBeNull();
-    expect(male.pictures.map((pick) => pick.key)).toEqual(content.portraits.guildmaster.male);
-    const madeMale = made(seed, { ...fields, guildmasterSex: 'male' });
-    expect(male.drawn).toEqual({ sex: 'male', portraitKey: madeMale?.portraitKey });
-
-    // A picture chosen with the sex drawn: its sex is shown, and "Drawn from the seed" is still the seed's own.
-    const chosen = `gm-${other}-02`;
-    const pictured = portraitGrid({ ...fields, guildmasterSex: other, guildmasterPortraitKey: chosen }, seed, drawnSex);
-    expect(pictured.sex).toBe(other);
-    expect(pictured.drawn).toEqual(portraitGrid(fields, seed, drawnSex).drawn);
-    expect(pictured.sexes).not.toBeNull();
-    expect(pictured.chosen).toBeNull();
-  });
-
-  // DL-147 (DL-146 W1): a radio button of the grid is always checked.
-  test('keeps the picture chosen in the grid while the other sex is shown, and only then', () => {
-    const seed = 'grid-chosen';
-    const chosen = 'gm-female-02';
-    const setup = { ...fields, guildmasterSex: 'female' as const, guildmasterPortraitKey: chosen };
-    const other = portraitGrid(setup, seed, { fieldSex: null, lookAt: 'male' });
-    expect(other.sex).toBe('male');
-    expect(other.pictures.map((pick) => pick.key)).toEqual(content.portraits.guildmaster.male);
-    expect(other.chosen).toEqual(portraitPick(chosen));
-    expect(portraitGrid(setup, seed, { fieldSex: null, lookAt: 'female' }).chosen).toBeNull();
-    expect(portraitGrid(setup, seed, drawnSex).chosen).toBeNull();
-    expect(portraitGrid(fields, seed, { fieldSex: null, lookAt: 'male' }).chosen).toBeNull();
-  });
-
-  test('shows nothing drawn while the seed is blank, and the first sex with pictures', () => {
-    const grid = portraitGrid(fields, '  ', drawnSex);
-    expect(grid.drawn).toBeNull();
-    expect(grid.sex).toBe('female');
-    expect(grid.pictures).toHaveLength(content.portraits.guildmaster.female.length);
+    // A sex with no picture offers none: a Silhouette is never offered (DL-125 item 3).
+    const none = { female: [], male: [] };
+    expect(portraitGrid('male', { ...content, portraits: { ...content.portraits, guildmaster: none } })).toEqual({ sex: 'male', pictures: [] });
   });
 
   /** A Guildmaster picture whose row `test` passes, and its row. */
@@ -436,7 +474,7 @@ describe('the setup grid and the notes beside a Portrait chosen (v1.1.3-S7)', ()
     const age = Math.min(Math.max(picture.row.apparentAge[0], Math.min(...ages)), Math.max(...ages));
     const setup = { ...fields, guildmasterPortraitKey: picture.key, guildmasterAge: age, guildmasterTraitKeys: [traitKey] };
     const words = portraitFitWords(setup, 'fit-seed');
-    expect(words).toContain(`This Portrait's Calling, ${capitalised(callingKey)}, clashes with the Trait ${content.traits[traitKey]?.name}.`);
+    expect(words).toContain(`This Portrait's Calling, ${capitalised(callingKey)}, clashes with the Trait ${content.guildmasterTraits[traitKey]?.name}.`);
     expect(words).toHaveLength(portraitFit({ ...setup, createdAt: '' }, 'fit-seed', { config: defaultConfig, content }).length);
 
     // None while no Portrait is chosen, or the seed is blank; and none is a refusal.
@@ -500,18 +538,17 @@ describe("the Guildmaster's texts written for the new-game form (v1.1.2-S5)", ()
 describe("the new-game form's preview, read from the engine's (v1.1.2-S6)", () => {
   const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
 
-  test("says what is drawn as the engine's preview says it, not by the fields left blank", () => {
+  test("says what is chosen for the player as the engine's preview says it, not by the fields left blank", () => {
     const preview = guildmasterPreview(fields, 'seed-a');
     if (preview === null) throw new Error('no preview');
-    const nothing = { sex: false, age: false, traits: false, portrait: false };
-    expect(guildmasterPreviewView({ ...preview, drawn: nothing }, 'seed-a')).toBeNull();
-    expect(guildmasterPreviewView({ ...preview, drawn: { ...nothing, age: true } }, 'seed-a')).toMatchObject({
-      kind: 'drawn',
-      drawnWords: `Drawn: Age ${preview.age}`,
-      traitsWords: null,
+    const nothing = { sex: false, age: false, traits: false, portrait: false, stats: false };
+    expect(guildmasterPreviewView({ ...preview, drawn: nothing }, 'seed-a', 'myself')).toBeNull();
+    expect(guildmasterPreviewView({ ...preview, drawn: { ...nothing, traits: true } }, 'seed-a', 'myself')).toMatchObject({
+      kind: 'chosen',
+      whoWords: null,
       portrait: null,
     });
-    expect(guildmasterPreviewView(null, 'seed-a')).toBeNull();
+    expect(guildmasterPreviewView(null, 'seed-a', 'for-me')).toBeNull();
   });
 
   test('writes the first texts from the preview, as "Start the game" would, and asks the engine again only for "Again"', () => {

@@ -5,7 +5,8 @@
 //
 // Deterministic: it reads the document and draws no random number, so a seed played twice under
 // it plays the same game (ADR-0001). It sends Parties through the engine's own staffing rule,
-// `partyFor`, the one `steady` uses (DL-30), rather than keeping a copy of it.
+// `partyFor`, the one the Rivals use (DL-30; by the chance estimate from v1.1.4-S6, DL-157), at the
+// player's margin, `playerPartyMargin`: the Party the Board gives as "Your best Party".
 
 import {
   affordableImprovement,
@@ -81,9 +82,10 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  * - **Equip** the gear the Guild holds onto its Heroes whose slot for it is empty, first, while
  *   they are home: the engine's `gearChoices`, the rule `steady` equips by (M5-S2, DL-49).
  * - **Dispatch.** The offered Quests on the Board by reward, highest first, then Quest id; to each
- *   in turn, the strongest Party of the size it requires that the Guild's available Heroes can
- *   make (`partyFor`: `partySizeMin`, or two when a Class and a Skill are required and no one
- *   Hero has both), until no Hero is left or no Quest can be staffed. A Quest it cannot staff is
+ *   in turn, the Party the engine would send from the Guild's available Heroes (`partyFor`: those
+ *   the requirements take, then whoever most raises the estimated chance of success up to
+ *   `partySizeMin`, then while each raises it by `playerPartyMargin`, v1.1.4-S6), until no Hero is
+ *   left or no Quest can be staffed. A Quest it cannot staff is
  *   passed over for the next. Each Party **carries one of each consumable** the Guild holds that
  *   could serve its Quest (`consumablesFor`, DL-62), while the Guild has one left after the Parties
  *   before it.
@@ -128,7 +130,7 @@ export function automaticPolicy(
   const left = heldConsumables(world, guild, deps);
   for (const quest of byReward(document)) {
     if (available.length === 0) break;
-    const heroIds = partyFor(quest, available, deps.content);
+    const heroIds = partyFor(world, guild, quest, available, deps);
     if (heroIds === null) continue;
     const consumables = consumablesFor(quest, heroIds, left, deps);
     actions.push({ kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds, ...(consumables.length > 0 ? { consumables } : {}) });

@@ -127,7 +127,8 @@ Upkeep is computed from the Roster and the Hall, not stored.
 id, name, sex, guildId                      a retired Guildmaster keeps their guildId
 enteredTurn, ageAtEntry
 stats:          Record<StatKey, number>
-traits:         TraitKey[]
+traits:         TraitKey[]                  Guildmaster Traits (`guildmaster-traits.json`), no two
+                                            of which one excludes the other (v1.1.4-S7, DL-150)
 birthplace, appearance, biography: string   the descriptive Attributes, which no rule reads: the
                                             player's at setup, trimmed and at most 60, 280 and
                                             1,000 characters; each left blank written from
@@ -173,7 +174,10 @@ partyId:        PartyId | null
 stats:          Record<StatKey, number>     base values only
 potential:      Record<StatKey, number>     hidden ceiling per Stat; stored plainly, the UI hides it
 skills:         Record<SkillKey, 1..5>      absent means the Hero does not have the Skill
-traits:         TraitKey[]
+traits:         TraitKey[]                  Hero Traits (`hero-traits.json`), no two of which one
+                                            excludes the other (v1.1.4-S7, DL-150); one an Injury
+                                            leaves replaces any it conflicts with, and one earned
+                                            on a Quest joins it (`hero.trait-gained`)
 xp, level
 injury:         { typeKey, healsOnTurn } | null
 morale:         number
@@ -225,7 +229,9 @@ difficulty, tags, reward, fameEffect
 durationTurns:  integer                     durationDays × 3, from the template's range
 demands:        [StatKey, weight][]         copied from the template at generation
 skillKeys:      SkillKey[]                  copied from the template at generation
-encounterKeys:  string[]                    drawn at generation (M4); empty before
+encounterKeys:  string[]                    drawn at generation (M4); empty before. Weighted by the tags
+                                            each shares with the template, and the last the template's
+                                            Finale when it names one (v1.1.4-S8, DL-160)
 requirements:   { partySizeMin, partySizeMax, classKey?, skillKey? }   copied from the template
 lootTableKey:   string | null               the template's, copied at generation when its difficultyMin is
                                             above lootDifficultyThreshold, else null (M5-S5, DL-52)
@@ -421,7 +427,8 @@ runs per Turn in play.
 | A History position outside `entries` | refuse |
 | A module slice its installed module refuses, or cannot migrate or read (DL-76) | refuse |
 | A Guildmaster's, Hero's or Patron's `sex` that is not `"female"` or `"male"` (a Patron's may be `null`): a shape error, since a front end finds a Portrait's folder by it (v1.1.2-S6, DL-133) | refuse |
-| A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define | warn |
+| A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define; a Guildmaster's Trait that is no Guildmaster Trait, or a Hero's that is no Hero Trait | warn |
+| Two Traits a Guildmaster or a Hero holds of which one excludes the other (`excluded-traits`, v1.1.4-S7, DL-150 item 3) | warn |
 | An Item a Hero holds in a slot `gearSlots` does not list, or that is not gear for its slot (DL-48) | warn |
 | A Guildmaster's `portraitKey` that names no Guildmaster picture in content, or one of the other sex (DL-130); a Hero's that names no Hero picture, or one of the other sex (v1.1.3-S6) | warn |
 | A module slice no installed module owns (DL-76) | warn |

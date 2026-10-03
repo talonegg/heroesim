@@ -16,6 +16,7 @@
 
 import {
   ageOf,
+  availableHeroes,
   bankruptcyCountdown,
   baseStat,
   carriedGear,
@@ -27,6 +28,7 @@ import {
   descriptiveAttributes,
   durationDaysOf,
   effectiveStats,
+  bestParty,
   entriesFor,
   guildmasterOf,
   guildmasterTraitCost,
@@ -46,6 +48,7 @@ import {
   signingFee,
   signingRefusal,
   skillsThatHelp,
+  statsRead,
   timeOfDay,
   transferFee,
   unavailability,
@@ -54,7 +57,6 @@ import {
   type ConsumableRequest,
   type ContentSet,
   type DescriptiveAttribute,
-  type EncounterKind,
   type EngineEventOf,
   type EngineDeps,
   type TurnEvent,
@@ -70,7 +72,7 @@ import {
   type MoraleBand,
   type Party,
   type PotentialHint,
-  type Quest,
+  type QuestEstimate,
   type QuestId,
   type RegardBand,
   type Sex,
@@ -80,6 +82,7 @@ import {
   type StopCondition,
   type StopReason,
   type Synergy,
+  type FormEffect,
   type TimeOfDay,
   type TraitKey,
   type Unavailability,
@@ -91,6 +94,7 @@ import { content } from '../content';
 import { capitalised, nameIn, nightOf, placeWords, rowOf, signed, traitEffectWords, transferCostWords } from './names';
 import { listed, narrate, narrateStop, narrationFor, questNamer, type Narration } from './narrate';
 import { playDeps, type GameState } from './reducer';
+import { chanceWords, encounterReadings, shownPercent, readsAsOne, type EncounterReading } from './query-words';
 import { endingWords, rejectionSentence } from './rejections';
 
 // ── Names ────────────────────────────────────────────────────────────────────────────────────
@@ -221,18 +225,14 @@ export interface QuestCard {
   lastDay: number;
   /** Whether that Day is the Day in hand: the next morning's refresh takes it off, if no Guild has (M9-S4). */
   leavesToday: boolean;
-  /**
-   * Its Stat demands in the Quest's order, each named, with its weight as a share of the work in
-   * hundredths: a Quest's weights sum to one, so the shares sum to about 100 (M9-S4, the review's C5).
-   */
-  demands: DemandShare[];
   /** The Skills its Encounters' Checks read (`skillsThatHelp`, DL-70), by name. */
   skills: string[];
   /**
-   * Its Encounters counted by kind, in the order each kind is first met, `Combat ×2` (M9-S4, the
-   * review's B2); none when they are drawn on the way.
+   * Its Encounters, drawn when it was posted, in the order it meets them, each with its Checks' names
+   * and what they read (v1.1.4-S6, DL-148 item 16), in place of the template's demands, which no view
+   * shows; none when they are drawn on the way.
    */
-  encounters: EncounterCount[];
+  encounters: EncounterView[];
   /**
    * Where its difficulty sits among the Quests on the Board now (M9-S4, the review's C6): display
    * only, and never called a band, which is how a Quest went (`CONTEXT.md`).
@@ -242,20 +242,18 @@ export interface QuestCard {
   hardness: string;
 }
 
-/** A Stat a Quest demands, and its weight as a share of the work in hundredths. */
-export interface DemandShare {
-  stat: string;
-  percent: number;
+/** One of a Quest's Encounters as its card shows it: `encounterReadings`', and whether its one Check is named as it is. */
+export interface EncounterView extends EncounterReading {
+  /** One Check of the Encounter's own name, as an Encounter in the old form loads: the card says what it reads beside the name. */
+  one: boolean;
 }
 
-/** How many of a Quest's Encounters are of one kind. */
-export interface EncounterCount {
-  /** The kind, or `null` for an Encounter content does not define, which counts under its key. */
-  kind: EncounterKind | null;
-  count: number;
-  /** `Combat ×2`, a chip's words (DL-125 item 9). */
-  words: string;
-}
+/**
+ * The Party the engine would send from the player's free Heroes (`bestParty`, v1.1.4-S6), as the card
+ * gives it: its chance in a word and the Heroes' names; its chance `null` while the Quest's
+ * Encounters are drawn on the way; or, when no Party of them meets the Quest's requirements, `null`.
+ */
+export type BestPartyView = { chance: string | null; names: string } | null;
 
 /** A Quest's difficulty placed against the Quests on the Board now, for a meter to draw. */
 export interface DifficultyMeter {
@@ -316,27 +314,35 @@ function questCards(document: WorldDocument): QuestCard[] {
       ],
       lastDay: dayOf(quest.expiresOnTurn),
       leavesToday: dayOf(quest.expiresOnTurn) === today,
-      demands: quest.demands.map(([key, weight]) => ({ stat: nameIn(content.stats, key), percent: Math.round(weight * 100) })),
       skills: skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)),
-      encounters: encounterCounts(quest),
+      encounters: encounterReadings(quest, content).map((reading) => ({ ...reading, one: readsAsOne(reading) })),
       meter: { lowest, highest, at: along(quest.difficulty), others: difficulties.filter((_, other) => other !== index).map(along) },
       hardness: hardnessWords(quest.difficulty, difficulties),
     };
   });
 }
 
-/** A Quest's Encounters counted by kind, in the order each kind is first met. */
-function encounterCounts(quest: Quest): EncounterCount[] {
-  const counts = new Map<string, EncounterCount>();
-  for (const key of quest.encounterKeys) {
-    const kind = rowOf(content.encounters, key)?.kind ?? null;
-    const label = kind ?? key;
-    const counted = counts.get(label) ?? { kind, count: 0, words: '' };
-    counted.count += 1;
-    counted.words = `${capitalised(label)} ×${counted.count}`;
-    counts.set(label, counted);
-  }
-  return [...counts.values()];
+/**
+ * "Your best Party" for each Quest on the Board, by Quest id in the Board's order (v1.1.4-S6): the
+ * engine's `bestParty` from the player's free Heroes, its chance the estimate the rule chose it by.
+ * The Board's alone, since it estimates many Parties of each Quest: `boardView`'s cards, which the
+ * digest and the stop read too, carry none (v1.1.4-S6's verification, DL-157).
+ */
+export function bestPartyView(document: WorldDocument): ReadonlyMap<QuestId, BestPartyView> {
+  const { world } = document;
+  const guild = playerGuild(world);
+  const deps = playDeps(document);
+  const available = guild === undefined ? [] : availableHeroes(world, guild);
+  return new Map(
+    world.board.flatMap((questId): [QuestId, BestPartyView][] => {
+      const quest = rowOf(world.quests, questId);
+      if (quest === undefined) return [];
+      const best = guild === undefined ? null : bestParty(world, guild, quest, available, deps);
+      if (best === null) return [[questId, null]];
+      const names = listed(best.heroIds.flatMap((id) => rowOf(world.heroes, id)?.name ?? []));
+      return [[questId, { chance: best.estimate === null ? null : chanceWords[best.estimate.chance], names }]];
+    }),
+  );
 }
 
 /** Where `difficulty` ranks among `difficulties`, its own among them, hardest first, in words. */
@@ -364,22 +370,22 @@ const unavailableWords = {
 
 /**
  * A Hero on the Roster as the Party builder shows them for one Quest (M9-S4, DL-99 item 3): whether
- * they can go, and when not why and until when; their Class and Level; their Morale and its band;
- * the effective values of the Stats the Quest demands; and the Skills the Quest names that they
- * have. Every value is one the Roster, a Hero's page and the Board already give: no fit and no odds.
+ * they can go, and when not why and until when; their Class and Level; the effective values of the
+ * Stats the Quest's Checks read (`statsRead`, v1.1.4-S6, in place of the template's demands); and
+ * the Skills the Quest names that they have. Every value is one the
+ * Roster, a Hero's page and the Board already give: no fit and no odds. No Hero's Morale: the
+ * builder says what the Party's does in one line (v1.1.4-S3's verification, DL-148 item 12).
  */
 export interface PartyRow {
   heroId: HeroId;
   name: string;
   className: string;
   level: number;
-  morale: number;
-  moraleBand: MoraleBand;
   /** The engine's `unavailability`: why the Hero cannot go now, or `null` when they can. */
   why: Unavailability | null;
   /** The same with until when, as the Roster words it: `Injured, healing on the night of Day 6`. */
   unavailable: string | null;
-  /** Each Stat the Quest demands, in its order, at the value a Check reads (`effectiveStats`). */
+  /** Each Stat the Quest's Checks read (`statsRead`), in the order it meets them, at the value a Check reads (`effectiveStats`). */
   stats: { name: string; value: number }[];
   /** The Skill the Quest requires, then those that help (`skillsThatHelp`), that the Hero has. */
   skills: { name: string; rating: number }[];
@@ -391,9 +397,9 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
   const guild = playerGuild(world);
   const quest = rowOf(world.quests, questId);
   if (guild === undefined || quest === undefined || !world.board.includes(questId)) return null;
-  const { config } = playDeps(document);
   const { skillKey } = quest.requirements;
   const named = [...new Set([...(skillKey === undefined ? [] : [skillKey]), ...skillsThatHelp(quest, content)])];
+  const read = statsRead(quest, content);
   return guild.rosterIds.flatMap((heroId): PartyRow[] => {
     const hero = rowOf(world.heroes, heroId);
     if (hero === undefined) return [];
@@ -405,11 +411,9 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
         name: hero.name,
         className: nameIn(content.classes, hero.classKey),
         level: hero.level,
-        morale: hero.morale,
-        moraleBand: moraleBand(hero.morale, config),
         why: unavailability(hero),
         unavailable: unavailableUntil(hero, world),
-        stats: quest.demands.map(([key]) => ({ name: nameIn(content.stats, key), value: values.get(key)?.effective ?? 0 })),
+        stats: read.map((key) => ({ name: nameIn(content.stats, key), value: values.get(key)?.effective ?? 0 })),
         skills: named.flatMap((key) => held.filter((skill) => skill.key === key).map(({ name, rating }) => ({ name, rating }))),
       },
     ];
@@ -453,12 +457,28 @@ function bonusWords({ flat, factor }: Synergy['bonus']): string {
   return listed([...(flat === undefined ? [] : [`+${flat}`]), ...(factor === undefined ? [] : [`×${factor}`])]);
 }
 
+/** What a Party's mean form does to its odds (v1.1.4-S3, `formEffect`): the CLI's words. */
+const formEffectWords: Readonly<Record<FormEffect, string>> = {
+  raises: 'Raises the odds',
+  none: 'Makes no difference',
+  'lowers-a-little': 'Lowers the odds a little',
+  'lowers-badly': 'Lowers the odds badly',
+};
+
 export interface PreviewView {
   requirements: { words: string; met: boolean }[];
   /** Each Hero chosen who cannot go. */
   problems: string[];
   /** Each Synergy the Party would have, or that it has none. */
   synergies: string[];
+  /** What the Party's Morale does to its odds, one line for the Party naming no Hero (DL-148 item 12); `null` for no one chosen. */
+  morale: string | null;
+  /**
+   * How likely the Party is to come through each Encounter and the Quest (v1.1.4-S6, DL-148 item 15):
+   * each a word, and in the detail its percentage floored to 5, if no one falls; `null` for no one chosen, or
+   * a Quest whose Encounters are drawn on the way.
+   */
+  chances: ChancesView | null;
   /** What the Party would carry. */
   consumables: string[];
   /** The reward agreed on a success and the reward offered. */
@@ -510,6 +530,8 @@ export function previewView(
             const where = synergy.kinds === undefined ? 'on every Encounter' : `on ${listed(synergy.kinds)} Encounters`;
             return `${synergy.name}: ${bonusWords(synergy.bonus)} ${where}; ${reach(encounters)}.`;
           }),
+    morale: preview.form === null ? null : `${formEffectWords[preview.form.effect]}.`,
+    chances: preview.chances === null ? null : chancesView(preview.chances),
     consumables:
       preview.consumables.length === 0
         ? ['None carried.']
@@ -523,6 +545,32 @@ export function previewView(
       preview.refusal === null
         ? { sends: true, words: 'Dispatch would send this Party.' }
         : { sends: false, words: `Dispatch would refuse it: ${rejectionSentence(preview.refusal, world, content)}` },
+  };
+}
+
+/** A chance as the Party builder shows it: what it is of, its word, and its percentage floored to 5 (`shownPercent`) for the detail. */
+export interface ChanceLine {
+  name: string;
+  chance: string;
+  percent: number;
+}
+
+/** Each Encounter's chance, then the Quest's (v1.1.4-S6). */
+export interface ChancesView {
+  encounters: ChanceLine[];
+  quest: ChanceLine;
+}
+
+/** `estimate` in the builder's words: each Encounter by name, and the Quest. */
+function chancesView(estimate: QuestEstimate): ChancesView {
+  const line = (name: string, it: { chance: QuestEstimate['chance']; success: number }): ChanceLine => ({
+    name,
+    chance: chanceWords[it.chance],
+    percent: shownPercent(it.success),
+  });
+  return {
+    encounters: estimate.encounters.map((it) => line(nameIn(content.encounters, it.encounterKey), it)),
+    quest: line('The Quest', estimate),
   };
 }
 
@@ -712,7 +760,8 @@ export interface HeroPageView {
   /** The Injury's name, while they have one; `where` says when it heals. */
   injury: string | null;
   xp: number;
-  traits: string[];
+  /** Each Trait the Hero holds, by name, with what its effects do in words (v1.1.4-S7, `traitEffectWords`). */
+  traits: { name: string; effect: string }[];
   /** What the player's Guild would pay to take in a Hero on another Guild's Roster (`transferFee`); `null` otherwise. */
   fee: number | null;
   /** The Stats by area, each area a block on the page (M9-S6, the review's B7). */
@@ -913,7 +962,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
     where: { why: unavailability(hero), words: whereabouts(hero, world) },
     injury: hero.injury === null ? null : nameIn(content.injuries, hero.injury.typeKey),
     xp: hero.xp,
-    traits: hero.traits.map((key) => nameIn(content.traits, key)),
+    traits: hero.traits.map((key) => ({ name: nameIn(content.heroTraits, key), effect: traitEffectWords(rowOf(content.heroTraits, key)?.effects ?? [], content) })),
     fee,
     areas,
     gear,
@@ -928,8 +977,8 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
 }
 
 /**
- * Each of a Hero's Stats as a Check reads it (`effectiveStats`: the Guildmaster's Class bonus and the
- * Hero's gear applied, M5-S2) beside its base, keyed by Stat: what a Hero's page and the Party
+ * Each of a Hero's Stats as a Check reads it (`effectiveStats`: the Guildmaster's Class bonus, the
+ * Hero's gear, M5-S2, and their Hero Traits' Stat changes, v1.1.4-S7, applied) beside its base, keyed by Stat: what a Hero's page and the Party
  * builder show alike.
  */
 function statValues(hero: Hero, world: World): Map<string, { base: number; effective: number }> {
@@ -1133,9 +1182,9 @@ export function guildmasterSetupChoices(set: ContentSet = content, config: GameC
     traits: traits.map((trait) => ({
       key: trait.key,
       name: trait.name,
-      effect: traitEffectWords(trait.effect, set),
+      effect: traitEffectWords(trait.effects, set),
       cost: trait.cost,
-      excludes: [...trait.excludes].sort(compareByCodeUnit).map((key) => ({ key, name: nameIn(set.traits, key) })),
+      excludes: [...trait.excludes].sort(compareByCodeUnit).map((key) => ({ key, name: nameIn(set.guildmasterTraits, key) })),
     })),
     attributes: descriptiveAttributes.map((attribute) => ({
       attribute,

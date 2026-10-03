@@ -20,11 +20,19 @@ import type {
   Disposition,
   Encounter,
   EncounterAggregate,
+  EncounterCheck,
   EncounterKind,
   FacilityKey,
   Feature,
   GearDefinition,
+  GuildmasterTrait,
+  GuildmasterTraitEffect,
+  GuildmasterTraitEffectKind,
+  HarmReads,
   HeroBiographySentences,
+  HeroTrait,
+  HeroTraitEffect,
+  HeroTraitEffectKind,
   Improvement,
   InjuryType,
   ItemDefinition,
@@ -32,6 +40,9 @@ import type {
   LootEntry,
   LootTable,
   Names,
+  NumQuery,
+  PartyCondition,
+  PassFormula,
   PatronName,
   PortraitAppearance,
   PortraitAppearances,
@@ -39,6 +50,7 @@ import type {
   Portraits,
   QuestTemplate,
   QuestTemplateRequires,
+  SetQuery,
   Skill,
   Sex,
   SlotKey,
@@ -49,13 +61,9 @@ import type {
   Synergy,
   SynergyBonus,
   SynergyRequires,
-  Trait,
-  TraitEffect,
-  TraitEffectKind,
-  TraitOwner,
 } from '@heroesim/engine';
 import { findDuplicateKeys } from './duplicate-keys.js';
-import { ContentError, validateContent } from './validate.js';
+import { checkDemands, checkReferences, ContentError, validateContent } from './validate.js';
 
 /** The content set this package holds, as `meta.content` records it. */
 export const contentSetId = 'core';
@@ -84,15 +92,47 @@ export const contentSetId = 'core';
  * 18 from the portrait tool's intake 2026-10-01 (`docs/portraits/intake/2026-10-01.md`).
  * 19 from the portrait tool's apply of analysis run 2026-10-01 (`docs/portraits/analysis/2026-10-01.md`).
  * 20 from the portrait tool's apply of analysis run 2026-10-02 (`docs/portraits/analysis/2026-10-02.md`).
+ * 21 from v1.1.4-S1, which loads each Encounter into a list of Checks scored by Queries and each Synergy's
+ * requirements into Queries over the Party (DL-151); the files keep their old form, and nothing is re-authored.
+ * v1.1.4-S2's new form of an Encounter, `checks` and `pass`, keeps 21: no file is written in it yet (DL-152).
+ * 22 from v1.1.4-S6, which gives each Disposition its `partyMargin` (DL-157).
+ * 23 from v1.1.4-S7, which moves `traits.json` into `guildmaster-traits.json` and `hero-traits.json`,
+ * each Trait's `effect` into `effects`, a list, and drops `owner` (DL-158); the same games are played.
+ * 24 from v1.1.4-S7's second step, which gives the four Injury Traits their `statModifiers` (DL-148
+ * item 24, DL-159).
+ * 25 from v1.1.4-S8, which gives today's Encounters their `tags`, matched to the templates' (DL-148
+ * item 22, DL-160); no template names a Finale and no Encounter is of the `lore` kind until S10.
+ * 26 from v1.1.4-S10, which writes the drafts the owner approved (DL-162, DL-165): 29 Encounters in
+ * Checks, among them four `lore` and four Finales, each Check rolling within `checkVariance`; the
+ * templates' Finales, `lore` kinds and the tags `holy` and `study`; six Mental and Social trinkets;
+ * and the Synergies written as Queries, three of them new. The earned Traits, and their uses in the
+ * Encounters, come through the content editor.
+ * 27 from the content editor's Finish of 2026-10-03 (added battle-tried, wayfinder,
+ * silver-tongued, lettered, battle-shy, haunted; 26 uses assigned, of battle-tried, wayfinder,
+ * silver-tongued, lettered, battle-shy, haunted).
+ * 28 from v1.1.4-S10's balance pass, which tunes every Check's flat term and difficulty
+ * factor so that random Parties of 3 at Level 5 meet each Encounter at difficulty 60 with a
+ * chance of 0.5, not S9's 0.44, 40% of each target still its flat term: about 5% easier
+ * (DL-166).
+ * 29 from the content editor's Finish of 2026-10-03 (4 uses assigned, of wayfinder, battle-tried,
+ * silver-tongued, lettered; 4 uses unassigned, of wayfinder, battle-tried, silver-tongued,
+ * lettered).
+ * 30 from v1.1.4-S10's balance pass again, which tunes every Check's flat term and difficulty
+ * factor to a chance of 0.56 at the same aim, about 5% easier again, since the rarer earned
+ * Traits left more Guilds bankrupt (DL-166).
+ * 31 from the content editor's Finish of 2026-10-03 (4 uses assigned, of wayfinder, battle-tried,
+ * silver-tongued, lettered; 4 uses unassigned, of wayfinder, battle-tried, silver-tongued,
+ * lettered).
  */
-export const contentVersion = 20;
+export const contentVersion = 31;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
   'stats.json',
   'classes.json',
   'skills.json',
-  'traits.json',
+  'guildmaster-traits.json',
+  'hero-traits.json',
   'backgrounds.json',
   'spheres.json',
   'names.json',
@@ -115,11 +155,11 @@ export type ContentFileName = (typeof contentFiles)[number];
 // a list that misses or invents a member.
 const statAreas: Record<StatArea, true> = { physical: true, mental: true, magical: true, social: true };
 const statOwners: Record<StatOwner, true> = { hero: true, guildmaster: true };
-const traitOwners: Record<TraitOwner, true> = { hero: true, guildmaster: true };
-const traitEffectKinds: Record<TraitEffectKind, true> = { classStatBonus: true, guildMoraleShift: true, upkeepFactor: true };
+const guildmasterTraitEffectKinds: Record<GuildmasterTraitEffectKind, true> = { classStatBonus: true, guildMoraleShift: true, upkeepFactor: true };
+const heroTraitEffectKinds: Record<HeroTraitEffectKind, true> = { statModifiers: true, encounterBonus: true };
 const backgroundOwners: Record<BackgroundOwner, true> = { hero: true, guild: true };
 const facilities: Record<FacilityKey, true> = { infirmary: true, trainingYard: true, quarters: true };
-const encounterKinds: Record<EncounterKind, true> = { combat: true, travel: true, social: true, arcane: true, stealth: true };
+const encounterKinds: Record<EncounterKind, true> = { combat: true, travel: true, social: true, arcane: true, stealth: true, lore: true };
 const aggregates: Record<EncounterAggregate, true> = { best: true, sum: true };
 const consequenceKinds: Record<ConsequenceKind, true> = {
   injury: true,
@@ -129,6 +169,7 @@ const consequenceKinds: Record<ConsequenceKind, true> = {
   xp: true,
   wealth: true,
   fame: true,
+  trait: true,
 };
 const regardBetween: Record<'party', true> = { party: true };
 const itemKinds: Record<ItemKind, true> = { gear: true, consumable: true };
@@ -145,35 +186,63 @@ const portraitRoles: Record<PortraitRole, true> = { guildmaster: true, hero: tru
  * @throws ContentError naming the file and key of every problem found
  */
 export function parseContent(files: Readonly<Record<string, string>>): ContentSet {
+  return validateContent(readContent(files));
+}
+
+/**
+ * Parse a content set from the text of its files, checking each row's shape but not the rules
+ * across rows (`validateContent`). Only for text already validated: the page's build runs
+ * `parseContent` on the same files and fails on any problem, so the script need not carry the
+ * checks (v1.1.4-S2's verification, DL-152). Everything else calls `parseContent`.
+ *
+ * @throws ContentError naming the file and key of every problem of shape found
+ */
+export function readContent(files: Readonly<Record<string, string>>): ContentSet {
   const problems: string[] = [];
   const json = (file: ContentFileName): unknown => readJson(file, files[file], problems);
+
+  const stats = table<Stat>('stats.json', json('stats.json'), problems, 'a Stat', (row) => ({
+    name: row.string('name'),
+    area: row.oneOf('area', statAreas),
+    min: row.integer('min'),
+    max: row.integer('max'),
+    default: row.integer('default'),
+    owner: row.oneOf('owner', statOwners),
+  }));
+  const classes = table<Class>('classes.json', json('classes.json'), problems, 'a Class', (row) => ({
+    name: row.string('name'),
+    leadingStats: row.strings('leadingStats'),
+    gatedSkills: row.strings('gatedSkills'),
+    growth: row.numbers('growth'),
+  }));
+  const skills = table<Skill>('skills.json', json('skills.json'), problems, 'a Skill', (row) => ({
+    name: row.string('name'),
+  }));
+  // What the old forms of an Encounter and a Synergy name is checked as they load (v1.1.4-S1), in the
+  // words of the form the author wrote; a Query's keys are `validateContent`'s.
+  const known: OldFormKeys = {
+    heroStats: new Set(Object.values(stats).flatMap((stat) => (stat.owner === 'hero' ? [stat.key] : []))),
+    classes: new Set(Object.keys(classes)),
+    skills: new Set(Object.keys(skills)),
+  };
 
   const set: ContentSet = {
     id: contentSetId,
     version: contentVersion,
-    stats: table<Stat>('stats.json', json('stats.json'), problems, 'a Stat', (row) => ({
+    stats,
+    classes,
+    skills,
+    // The two lists of Traits (v1.1.4-S7, DL-150 item 1); that a key is in one list only is `validateContent`'s rule.
+    guildmasterTraits: table<GuildmasterTrait>('guildmaster-traits.json', json('guildmaster-traits.json'), problems, 'a Guildmaster Trait', (row) => ({
       name: row.string('name'),
-      area: row.oneOf('area', statAreas),
-      min: row.integer('min'),
-      max: row.integer('max'),
-      default: row.integer('default'),
-      owner: row.oneOf('owner', statOwners),
-    })),
-    classes: table<Class>('classes.json', json('classes.json'), problems, 'a Class', (row) => ({
-      name: row.string('name'),
-      leadingStats: row.strings('leadingStats'),
-      gatedSkills: row.strings('gatedSkills'),
-      growth: row.numbers('growth'),
-    })),
-    skills: table<Skill>('skills.json', json('skills.json'), problems, 'a Skill', (row) => ({
-      name: row.string('name'),
-    })),
-    traits: table<Trait>('traits.json', json('traits.json'), problems, 'a Trait', (row) => ({
-      name: row.string('name'),
-      owner: row.oneOf('owner', traitOwners),
       cost: row.integer('cost'),
       excludes: row.strings('excludes'),
-      effect: traitEffect(row.nullableChild('effect')),
+      effects: row.children('effects').map(guildmasterTraitEffect),
+    })),
+    heroTraits: table<HeroTrait>('hero-traits.json', json('hero-traits.json'), problems, 'a Hero Trait', (row) => ({
+      name: row.string('name'),
+      excludes: row.strings('excludes'),
+      effects: row.children('effects').map(heroTraitEffect),
     })),
     backgrounds: table<Background>(
       'backgrounds.json',
@@ -196,26 +265,31 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
       json('quest-templates.json'),
       problems,
       'a Quest template',
-      (row) => ({
-        name: row.string('name'),
-        sphereKeys: row.strings('sphereKeys'),
-        tags: row.strings('tags'),
-        difficultyMin: row.integer('difficultyMin'),
-        difficultyMax: row.integer('difficultyMax'),
-        durationDaysMin: row.integer('durationDaysMin'),
-        durationDaysMax: row.integer('durationDaysMax'),
-        rewardPerDifficulty: row.number('rewardPerDifficulty'),
-        fameEffect: row.integer('fameEffect'),
-        partySizeMin: row.integer('partySizeMin'),
-        partySizeMax: row.integer('partySizeMax'),
-        demands: row.weightedKeys('demands'),
-        skillKeys: row.strings('skillKeys'),
-        requires: requires(row.child('requires')),
-        lootTableKey: row.stringOrNull('lootTableKey'),
-        encounterKinds: row.oneOfEach('encounterKinds', encounterKinds),
-        encountersMin: row.integer('encountersMin'),
-        encountersMax: row.integer('encountersMax'),
-      }),
+      (row) => {
+        // v1.1.4-S8: its Finale, none when absent.
+        const finale = row.optionalString('finale');
+        return {
+          name: row.string('name'),
+          sphereKeys: row.strings('sphereKeys'),
+          tags: row.strings('tags'),
+          difficultyMin: row.integer('difficultyMin'),
+          difficultyMax: row.integer('difficultyMax'),
+          durationDaysMin: row.integer('durationDaysMin'),
+          durationDaysMax: row.integer('durationDaysMax'),
+          rewardPerDifficulty: row.number('rewardPerDifficulty'),
+          fameEffect: row.integer('fameEffect'),
+          partySizeMin: row.integer('partySizeMin'),
+          partySizeMax: row.integer('partySizeMax'),
+          demands: row.weightedKeys('demands'),
+          skillKeys: row.strings('skillKeys'),
+          requires: requires(row.child('requires')),
+          lootTableKey: row.stringOrNull('lootTableKey'),
+          encounterKinds: row.oneOfEach('encounterKinds', encounterKinds),
+          encountersMin: row.integer('encountersMin'),
+          encountersMax: row.integer('encountersMax'),
+          ...(finale === undefined ? {} : { finale }),
+        };
+      },
     ),
     dispositions: table<Disposition>('dispositions.json', json('dispositions.json'), problems, 'a Disposition', (row) => ({
       name: row.string('name'),
@@ -224,6 +298,7 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
       buildThreshold: row.number('buildThreshold'),
       gearThreshold: row.number('gearThreshold'),
       transferAppetite: row.number('transferAppetite'),
+      partyMargin: row.number('partyMargin'),
     })),
     injuries: table<InjuryType>('injuries.json', json('injuries.json'), problems, 'an Injury type', (row) => ({
       name: row.string('name'),
@@ -243,19 +318,22 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
         cost: row.integer('cost'),
       }),
     ),
-    encounters: table<Encounter>('encounters.json', json('encounters.json'), problems, 'an Encounter', (row) => ({
-      name: row.string('name'),
-      kind: row.oneOf('kind', encounterKinds),
-      demands: row.weightedKeys('demands'),
-      aggregate: row.oneOf('aggregate', aggregates),
-      skillKeys: row.strings('skillKeys'),
-      difficultyFactor: row.number('difficultyFactor'),
-      consequences: outcomes(row.child('consequences')),
-    })),
+    encounters: table<Encounter>('encounters.json', json('encounters.json'), problems, 'an Encounter', (row, key) => {
+      const name = row.string('name');
+      // v1.1.4-S8: its tags, none when absent.
+      const tags = row.optional('tags', (field) => row.strings(field));
+      const shape = { name, kind: row.oneOf('kind', encounterKinds), ...(tags === undefined ? {} : { tags }) };
+      // v1.1.4-S2: the new form, `checks` and `pass`, or the old, which loads into one Check.
+      const consequences = (): Encounter['consequences'] => outcomes(row.child('consequences'));
+      if (row.value('checks') === undefined) return { ...shape, checks: [oldFormCheck(row, key, name, known)], consequences: consequences() };
+      const checks = row.children('checks').map(encounterCheck);
+      const pass = row.optional('pass', (field) => row.value(field) as PassFormula);
+      return { ...shape, checks, ...(pass === undefined ? {} : { pass }), consequences: consequences() };
+    }),
     synergies: table<Synergy>('synergies.json', json('synergies.json'), problems, 'a Synergy', (row) => {
       const shape = {
         name: row.string('name'),
-        requires: synergyRequires(row.child('requires')),
+        requires: synergyRequires(row, known),
         bonus: synergyBonus(row.child('bonus')),
       };
       const kinds = row.optional('kinds', (field) => row.oneOfEach(field, encounterKinds));
@@ -271,7 +349,7 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
   };
 
   if (problems.length > 0) throw new ContentError(problems);
-  return validateContent(set);
+  return set;
 }
 
 /** The byte-order mark some Windows editors write at the start of a UTF-8 file; JSON.parse refuses it. */
@@ -308,7 +386,7 @@ function table<Row extends { key: string }>(
   json: unknown,
   problems: string[],
   what: string,
-  shape: (row: RowReader) => Omit<Row, 'key'>,
+  shape: (row: RowReader, key: string) => Omit<Row, 'key'>,
 ): Record<string, Row> {
   const rows: Record<string, Row> = {};
   if (json === undefined) return rows;
@@ -322,7 +400,7 @@ function table<Row extends { key: string }>(
       continue;
     }
     const row = new RowReader(file, [key], raw, problems);
-    rows[key] = { key, ...shape(row) } as Row;
+    rows[key] = { key, ...shape(row, key) } as Row;
     row.refuseUnknown(what);
   }
   return rows;
@@ -562,13 +640,12 @@ function descriptions(json: unknown, problems: string[]): Descriptions {
 }
 
 /**
- * A Trait's `effect` (M4-S5): `null`, or one of the closed union's kinds with exactly its fields.
- * Which owner may carry which is `validateContent`'s rule.
+ * One of a Guildmaster Trait's `effects` (M4-S5, v1.1.4-S7): one of the closed union's kinds with
+ * exactly its fields. How many a Trait carries, and the values, are `validateContent`'s rules.
  */
-function traitEffect(reader: RowReader | null): TraitEffect | null {
-  if (reader === null) return null;
-  const kind = reader.oneOf('kind', traitEffectKinds);
-  let effect: TraitEffect;
+function guildmasterTraitEffect(reader: RowReader): GuildmasterTraitEffect {
+  const kind = reader.oneOf('kind', guildmasterTraitEffectKinds);
+  let effect: GuildmasterTraitEffect;
   switch (kind) {
     case 'classStatBonus':
       effect = { kind, classKey: reader.string('classKey'), statKey: reader.string('statKey'), delta: reader.integer('delta') };
@@ -579,6 +656,29 @@ function traitEffect(reader: RowReader | null): TraitEffect | null {
     case 'upkeepFactor':
       effect = { kind, factor: reader.number('factor') };
       break;
+  }
+  reader.refuseUnknown(`a ${kind} effect`);
+  return effect;
+}
+
+/**
+ * One of a Hero Trait's `effects` (v1.1.4-S7, DL-150 item 8): one of the closed union's kinds with
+ * exactly its fields, an `encounterBonus`'s `kinds` and `tags` each optional. The values, and that an
+ * Encounter bonus names a kind or a tag, are `validateContent`'s rules.
+ */
+function heroTraitEffect(reader: RowReader): HeroTraitEffect {
+  const kind = reader.oneOf('kind', heroTraitEffectKinds);
+  let effect: HeroTraitEffect;
+  switch (kind) {
+    case 'statModifiers':
+      effect = { kind, modifiers: reader.numbers('modifiers') };
+      break;
+    case 'encounterBonus': {
+      const kinds = reader.optional('kinds', (field) => reader.oneOfEach(field, encounterKinds));
+      const tags = reader.optional('tags', (field) => reader.strings(field));
+      effect = { kind, flat: reader.number('flat'), ...(kinds === undefined ? {} : { kinds }), ...(tags === undefined ? {} : { tags }) };
+      break;
+    }
   }
   reader.refuseUnknown(`a ${kind} effect`);
   return effect;
@@ -651,15 +751,61 @@ function requires(reader: RowReader): QuestTemplateRequires {
   return { ...(classKey === undefined ? {} : { classKey }), ...(skillKey === undefined ? {} : { skillKey }) };
 }
 
+/** The keys an old form may name, as content defines them (v1.1.4-S1). */
+interface OldFormKeys {
+  heroStats: ReadonlySet<string>;
+  classes: ReadonlySet<string>;
+  skills: ReadonlySet<string>;
+}
+
 /**
- * What a Synergy requires (M4-S3): a count for each Class it names, the Skills it names, either or
- * both, and nothing else. What they must name, and that they name something, is `validateContent`'s.
+ * The one Check an Encounter in the old form loads into (v1.1.4-S1, DL-151): keyed and named as its
+ * Encounter, its score `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order of its
+ * `demands`, `best` reading as `max`, its Skills its `skillKeys` and its `difficultyFactor` its own, so
+ * that every Check scores what it did to the last bit. The demands are held here as a Quest
+ * template's are, each a Hero Stat once with a weight above 0, the weights summing to 1, and each
+ * Skill one content defines, once; the Check itself is `validateContent`'s.
  */
-function synergyRequires(reader: RowReader): SynergyRequires {
-  const classes = reader.optional('classes', (field) => reader.numbers(field));
-  const skills = reader.optional('skills', (field) => reader.strings(field));
+function oldFormCheck(row: RowReader, key: string, name: string, known: OldFormKeys): EncounterCheck {
+  const demands = row.weightedKeys('demands');
+  const aggregate = row.oneOf('aggregate', aggregates);
+  const skillKeys = row.strings('skillKeys');
+  checkDemands(row.where('demands'), demands, known.heroStats, row.problems);
+  checkReferences(row.where('skillKeys'), skillKeys, known.skills, 'a Skill', row.problems);
+  const read = aggregate === 'best' ? 'max' : 'sum';
+  const terms = demands.map(([statKey, weight]): NumQuery => ['*', weight, [read, 'party', ['stat', statKey]]]);
+  return { key, name, score: ['+', ...terms], skills: skillKeys, difficultyFactor: row.number('difficultyFactor') };
+}
+
+/**
+ * What a Synergy requires (M4-S3; v1.1.4-S1, DL-148 item 20): a list of Party-level conditions,
+ * each a Num compared with another, read as written and held by `validateContent`; or the old form,
+ * a count for each Class it names and the Skills it names, either or both and nothing else, which
+ * loads into `[">=", ["count", ["where", "party", ["class", k]]], n]` for each Class, then
+ * `[">=", ["max", "party", ["skill", k]], 1]` for each Skill. The old form is held here: every Class
+ * and Skill one content defines, a count a whole number from 1, no Skill twice, and something named.
+ */
+function synergyRequires(row: RowReader, known: OldFormKeys): SynergyRequires {
+  if (Array.isArray(row.value('requires'))) return row.value('requires') as PartyCondition[];
+  const reader = row.child('requires');
+  const classes = reader.optional('classes', (field) => reader.numbers(field)) ?? {};
+  const skills = reader.optional('skills', (field) => reader.strings(field)) ?? [];
   reader.refuseUnknown('what a Synergy requires');
-  return { ...(classes === undefined ? {} : { classes }), ...(skills === undefined ? {} : { skills }) };
+  const counts = Object.entries(classes);
+  if (counts.length === 0 && skills.length === 0) {
+    row.problems.push(`${row.where('requires')} names no Class and no Skill: a Synergy is for a combination of them`);
+  }
+  checkReferences(reader.where('classes'), Object.keys(classes), known.classes, 'a Class', row.problems);
+  for (const [classKey, count] of counts) {
+    if (!(Number.isInteger(count) && count >= 1)) {
+      row.problems.push(`${reader.where('classes')}.${classKey} is ${count}; a count is a whole number from 1`);
+    }
+  }
+  checkReferences(reader.where('skills'), skills, known.skills, 'a Skill', row.problems);
+  return [
+    ...counts.map(([classKey, count]): PartyCondition => ['>=', ['count', ['where', 'party', ['class', classKey]]], count]),
+    ...skills.map((skillKey): PartyCondition => ['>=', ['max', 'party', ['skill', skillKey]], 1]),
+  ];
 }
 
 /** A Synergy's bonus (M4-S3): a `flat`, a `factor`, either or both, and nothing else. */
@@ -670,27 +816,63 @@ function synergyBonus(reader: RowReader): SynergyBonus {
   return { ...(flat === undefined ? {} : { flat }), ...(factor === undefined ? {} : { factor }) };
 }
 
-/** An Encounter's consequences: a list for each outcome, and nothing else (M4-S1). */
+/**
+ * One Check of an Encounter in the new form (v1.1.4-S2): its `key`, `name`, `score` (a Query, held by
+ * `validateContent`), `skills` and `difficultyFactor`, and optionally `flat`, `variance` and `raw`
+ * (DL-152), and nothing else.
+ */
+function encounterCheck(reader: RowReader): EncounterCheck {
+  const shape: EncounterCheck = {
+    key: reader.string('key'),
+    name: reader.string('name'),
+    score: reader.value('score') as NumQuery,
+    skills: reader.strings('skills'),
+    difficultyFactor: reader.number('difficultyFactor'),
+  };
+  const flat = reader.optional('flat', (field) => reader.number(field));
+  const variance = reader.optional('variance', (field) => reader.number(field));
+  const raw = reader.optional('raw', (field) => reader.boolean(field));
+  reader.refuseUnknown("an Encounter's Check");
+  return {
+    ...shape,
+    ...(flat === undefined ? {} : { flat }),
+    ...(variance === undefined ? {} : { variance }),
+    ...(raw === undefined ? {} : { raw }),
+  };
+}
+
+/**
+ * An Encounter's consequences: a list for each outcome, `success` and `failure`, and optionally
+ * `triumph` and `setback` (v1.1.4-S2), and nothing else (M4-S1).
+ */
 function outcomes(reader: RowReader): Encounter['consequences'] {
   const result = {
     success: reader.children('success').map(consequence),
     failure: reader.children('failure').map(consequence),
   };
+  const triumph = reader.optional('triumph', (field) => reader.children(field).map(consequence));
+  const setback = reader.optional('setback', (field) => reader.children(field).map(consequence));
   reader.refuseUnknown("an Encounter's consequences");
-  return result;
+  return { ...result, ...(triumph === undefined ? {} : { triumph }), ...(setback === undefined ? {} : { setback }) };
 }
 
-/** One consequence: its `kind`, then the fields that kind has, and no others (M4-S1). */
+/**
+ * One consequence: its `kind`, then the fields that kind has, and no others (M4-S1). An Injury and a
+ * Death may also name `among` (a Set Query, held by `validateContent`), `exposedBy` and `guardedBy`,
+ * and a Morale `steadiedBy` (v1.1.4-S4, DL-148 item 14); an earned Trait `among` (v1.1.4-S7).
+ */
 function consequence(reader: RowReader): Consequence {
   const kind = reader.oneOf('kind', consequenceKinds);
   const read = ((): Consequence => {
     switch (kind) {
       case 'injury':
-        return { kind, typeKey: reader.string('typeKey'), chance: reader.number('chance'), count: reader.integer('count') };
+        return { kind, typeKey: reader.string('typeKey'), chance: reader.number('chance'), count: reader.integer('count'), ...harmReads(reader) };
       case 'death':
-        return { kind, chance: reader.number('chance') };
-      case 'morale':
-        return { kind, delta: reader.integer('delta') };
+        return { kind, chance: reader.number('chance'), ...harmReads(reader) };
+      case 'morale': {
+        const steadiedBy = reader.optional('steadiedBy', (field) => reader.strings(field));
+        return { kind, delta: reader.integer('delta'), ...(steadiedBy === undefined ? {} : { steadiedBy }) };
+      }
       case 'regard':
         return { kind, between: reader.oneOf('between', regardBetween), delta: reader.number('delta') };
       case 'xp':
@@ -698,10 +880,27 @@ function consequence(reader: RowReader): Consequence {
         return { kind, factor: reader.number('factor') };
       case 'fame':
         return { kind, delta: reader.integer('delta') };
+      case 'trait': {
+        // v1.1.4-S7: an earned Trait; its `among` is a Set Query, held by `validateContent` as harm's is.
+        const among = reader.optional('among', (field) => reader.value(field) as SetQuery);
+        return { kind, traitKey: reader.string('traitKey'), chance: reader.number('chance'), ...(among === undefined ? {} : { among }) };
+      }
     }
   })();
   reader.refuseUnknown(`a consequence of kind ${kind}`);
   return read;
+}
+
+/** What an Injury or a Death reads to fall on someone (v1.1.4-S4): `among`, `exposedBy` and `guardedBy`, each optional. */
+function harmReads(reader: RowReader): HarmReads {
+  const among = reader.optional('among', (field) => reader.value(field) as SetQuery);
+  const exposedBy = reader.optional('exposedBy', (field) => reader.strings(field));
+  const guardedBy = reader.optional('guardedBy', (field) => reader.strings(field));
+  return {
+    ...(among === undefined ? {} : { among }),
+    ...(exposedBy === undefined ? {} : { exposedBy }),
+    ...(guardedBy === undefined ? {} : { guardedBy }),
+  };
 }
 
 /**
@@ -715,8 +914,19 @@ class RowReader {
     private readonly file: ContentFileName,
     private readonly prefix: readonly string[],
     private readonly raw: Record<string, unknown>,
-    private readonly problems: string[],
+    /** Where the problems found are recorded: a caller may record one of its own, with `where`. */
+    readonly problems: string[],
   ) {}
+
+  /** `field`'s value as it stands, of any type, then counted as read: for a value checked elsewhere. */
+  value(field: string): unknown {
+    return this.field(field);
+  }
+
+  /** Where `field` is, as a problem names it: `file: key.field`. */
+  where(field: string): string {
+    return this.path(field);
+  }
 
   string(field: string): string {
     const value = this.field(field);
@@ -743,7 +953,8 @@ class RowReader {
   oneOf<Choice extends string>(field: string, choices: Record<Choice, true>): Choice {
     const value = this.field(field);
     if (typeof value === 'string' && Object.hasOwn(choices, value)) return value as Choice;
-    this.wrong(field, value, `one of ${Object.keys(choices).join(', ')}`);
+    const listed = Object.keys(choices);
+    this.wrong(field, value, listed.length === 0 ? 'none: there is nothing to choose from' : `one of ${listed.join(', ')}`);
     return Object.keys(choices)[0] as Choice;
   }
 
@@ -840,15 +1051,6 @@ class RowReader {
     if (isObject(value)) return value;
     this.wrong(field, value, 'an object');
     return {};
-  }
-
-  /** A reader for the object in `field`, or `null` when the field is `null`: present either way. */
-  nullableChild(field: string): RowReader | null {
-    const value = this.field(field);
-    if (value === null) return null;
-    if (isObject(value)) return new RowReader(this.file, [...this.prefix, field], value, this.problems);
-    this.wrong(field, value, 'an object or null');
-    return null;
   }
 
   /** A reader for the object in `field`, reporting its problems under this row's path. */

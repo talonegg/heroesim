@@ -1,11 +1,11 @@
-import { loadContent } from '@heroesim/content/node';
+import { loadContent, loadDrafts } from '@heroesim/content/node';
 import { defaultConfig, type EngineDeps } from '@heroesim/engine';
 import { expect, test } from 'vitest';
 import { moduleIds } from './modules.js';
-import { validatingEveryTurn } from './play.js';
+import { replayingAfterSweep, validatingEveryTurn } from './play.js';
 import { machine, reportPath, writeReport } from './report.js';
 import { probeName } from './succession.js';
-import { defaultPlaySeedCount, seedCount, seedNames, yearCount } from './seeds.js';
+import { configChanges, defaultPlaySeedCount, seedCount, seedNames, yearCount } from './seeds.js';
 import { defaultWorkers, playReport, sweepFingerprint, sweepPlayInParallel, sweepTotals } from './sweep.js';
 
 // The milestone's harness run (M2-S12, DL-34; M3's counters, DL-40; M4's, DL-55; M5's, DL-62;
@@ -21,18 +21,30 @@ import { defaultWorkers, playReport, sweepFingerprint, sweepPlayInParallel, swee
 // HEROESIM_YEARS plays each game that many years in place of twenty, and HEROESIM_MILESTONE names
 // the report in place of the milestone's (M9-S2: a run past the slice to see Succession, DL-102).
 // Not run when HEROESIM_PROBE names a probe either: that run is its own (M9-F1, succession.harness.test.ts).
+// HEROESIM_DRAFTS plays the content with a directory of draft content files, each in place of the
+// core file of its name (v1.1.4-S9, `loadDrafts`), so that drafts can be played before they are
+// written into content/; the report says which files were drafts. HEROESIM_CONFIG, a JSON object of
+// config keys, plays those values in place of the defaults (v1.1.4-S9's verification, `configChanges`),
+// for trials of what a tuning step would set; the report says which. HEROESIM_WORKERS sets the child
+// processes, at most that many at once (v1.1.4-S10), and HEROESIM_REPLAY=0 skips the replay, for a
+// tuning trial that wants only the counters.
 
 const milestone = process.env.HEROESIM_MILESTONE ?? 'm8';
+const drafts = process.env.HEROESIM_DRAFTS?.trim() || undefined;
+const configured = configChanges();
 const seeds = seedNames(seedCount(process.env.HEROESIM_SEEDS, defaultPlaySeedCount));
 const years = yearCount();
 const validate = validatingEveryTurn();
+const replay = replayingAfterSweep();
 
 test.skipIf(moduleIds().length > 0 || probeName() !== null)(`${seeds.length} games of ${years} years play to an ending or their last Turn`, { timeout: 24 * 60 * 60_000 }, async () => {
   const startedAt = new Date();
-  const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
+  const drafted = drafts === undefined ? null : loadDrafts(drafts);
+  const deps: EngineDeps = { config: { ...defaultConfig, ...configured }, content: drafted?.content ?? loadContent() };
 
-  const sweep = await sweepPlayInParallel(seeds, deps, { validate, workers: defaultWorkers(), years });
-  const path = writeReport(reportPath(milestone, startedAt), playReport(sweep, { deps, machine: machine(), startedAt, milestone }));
+  const sweep = await sweepPlayInParallel(seeds, deps, { validate, replay, workers: defaultWorkers(), years, ...(drafts === undefined ? {} : { drafts }) });
+  const report = playReport(sweep, { deps, machine: machine(), startedAt, milestone, drafted: drafted?.drafted ?? [], configured });
+  const path = writeReport(reportPath(milestone, startedAt), report);
   const totals = sweepTotals(sweep, deps.config.turnsPerYear);
 
   // The report is written before anything is asserted, so a failing run leaves it to read.
@@ -50,5 +62,5 @@ test.skipIf(moduleIds().length > 0 || probeName() !== null)(`${seeds.length} gam
   expect(sweep.games.filter((game) => game.invalid !== null).map((game) => game.seed)).toEqual([]);
   expect(sweep.games.filter((game) => game.assertion !== null).map((game) => game.seed)).toEqual([]);
   expect(sweep.games.filter((game) => !game.measures.roundTrips).map((game) => game.seed)).toEqual([]);
-  expect(sweep.replay?.identical).toBe(true);
+  if (replay) expect(sweep.replay?.identical).toBe(true);
 });

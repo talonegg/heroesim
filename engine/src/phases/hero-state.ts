@@ -13,7 +13,9 @@
 // For each Hero, in this order:
 //
 // - **Healing.** An Injury whose `healsOnTurn` has come is cleared, and its type's `leavesTrait`
-//   joins the Hero's Traits unless already there, with `hero.healed`.
+//   joins the Hero's Traits unless already there, with `hero.healed`. It replaces any Trait they
+//   hold that it excludes or that excludes it, each with `hero.trait-lost` after (v1.1.4-S7, DL-150
+//   item 5): the wound is a fact of the body.
 // - **Morale drift.** Morale moves `moraleDrift` toward the Hero's baseline, `moraleBaselineFor`
 //   (`moraleBaseline`, raised by the Guild's quarters from M3-S6 and moved by its Guildmaster's
 //   Inspiration and Traits from M4-S5), and stops there. Drift emits
@@ -43,6 +45,7 @@ import { decayHeroRegard } from '../hero-regard.js';
 import { moraleBand, moraleBaselineFor, moraleChanged } from '../morale.js';
 import { chance } from '../rng.js';
 import { ageOf, dayOf, nightOf, turnsPerDay } from '../time.js';
+import { replacedBy } from '../traits.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
 
 export const heroState: PhaseRun = (world, ctx) => {
@@ -55,7 +58,7 @@ export const heroState: PhaseRun = (world, ctx) => {
       const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
       if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) continue;
 
-      events.push(...heal(hero, ctx), ...drift(hero, world, ctx), ...decayHeroRegard(hero, world, ctx));
+      events.push(...heroNight(hero, world, ctx));
       if (!retirementCheckDue(hero, ctx)) continue;
       const age = ageOf(hero, ctx.turn, ctx.config);
       if (!chance(streamOf(world, 'heroes'), retirementChance(hero, age, ctx.config))) continue;
@@ -69,23 +72,44 @@ export const heroState: PhaseRun = (world, ctx) => {
   return events;
 };
 
-/** Clears an Injury whose night has come, adding the Trait its type leaves if the Hero lacks it. */
-function heal(hero: Hero, ctx: PhaseContext): EngineEvent[] {
+/** What a Hero's night reads of the phase's context. */
+export type HeroNightContext = Pick<PhaseContext, 'config' | 'content' | 'turn' | 'emit'>;
+
+/**
+ * One night of `hero`'s State before the Retirement check: healing, Morale drift and Regard decay, in
+ * that order, as described above. It draws nothing. The chance estimate runs it on copies of a
+ * proposed Party for each night they would be away (v1.1.4-S5's verification, estimate.ts); the
+ * Retirement check, which draws, is never due for a Hero away on a Quest.
+ */
+export function heroNight(hero: Hero, world: World, ctx: HeroNightContext): EngineEvent[] {
+  return [...heal(hero, ctx), ...drift(hero, world, ctx), ...decayHeroRegard(hero, world, ctx)];
+}
+
+/**
+ * Clears an Injury whose night has come, adding the Trait its type leaves if the Hero lacks it, in
+ * place of each they hold that it conflicts with (`replacedBy`, v1.1.4-S7), each lost with
+ * `hero.trait-lost`.
+ */
+function heal(hero: Hero, ctx: HeroNightContext): EngineEvent[] {
   const { injury } = hero;
   if (injury === null || injury.healsOnTurn > ctx.turn) return [];
   // A type content no longer defines heals on its night and leaves nothing (data-model rule 5).
   const type = Object.hasOwn(ctx.content.injuries, injury.typeKey) ? ctx.content.injuries[injury.typeKey] : undefined;
   const leaves = type?.leavesTrait ?? null;
   const traitKey = leaves !== null && !hero.traits.includes(leaves) ? leaves : null;
-  if (traitKey !== null) hero.traits.push(traitKey);
+  const lost = traitKey === null ? [] : replacedBy(hero.traits, traitKey, ctx.content);
+  if (traitKey !== null) hero.traits = [...hero.traits.filter((held) => !lost.includes(held)), traitKey];
   hero.injury = null;
   return [
     ctx.emit({ type: 'hero.healed', participants: [hero.id], payload: { heroId: hero.id, typeKey: injury.typeKey, traitKey } }),
+    ...lost.map((held) =>
+      ctx.emit({ type: 'hero.trait-lost', participants: [hero.id], payload: { heroId: hero.id, traitKey: held, replacedBy: traitKey as string } }),
+    ),
   ];
 }
 
 /** Moves Morale toward the Hero's baseline without passing it; an event only when a band is crossed. */
-function drift(hero: Hero, world: World, ctx: PhaseContext): EngineEvent[] {
+function drift(hero: Hero, world: World, ctx: HeroNightContext): EngineEvent[] {
   const baseline = moraleBaselineFor(hero, world, ctx.config, ctx.content);
   const step = ctx.config.moraleDrift;
   const before = hero.morale;

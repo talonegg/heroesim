@@ -19,7 +19,9 @@
 
 import {
   ageOf,
+  availableHeroes,
   bankruptcyCountdown,
+  bestParty,
   baseStat,
   carriedGear,
   dayOf,
@@ -65,6 +67,7 @@ import {
   type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
+import { chanceWords, encounterReadings, shownPercent, readsAsOne } from './query-words.js';
 
 // ── Tables ───────────────────────────────────────────────────────────────────────────────────
 
@@ -460,7 +463,8 @@ const heroAttributes = ['appearance', 'biography'] as const;
 /**
  * `show hero <id>`: the Hero's Attributes, their Portrait, Appearance and Biography (v1.1.3-S6), State, Stats, gear and Skills. Never Potential (rule 9):
  * each Stat's base value, read through `baseStat`, and beside it its effective value, the engine's
- * `effectiveStats` with the Guildmaster's Class bonus and the Hero's gear (M5-S2), which is what a
+ * `effectiveStats` with the Guildmaster's Class bonus, the Hero's gear (M5-S2) and their Hero Traits'
+ * Stat changes (v1.1.4-S7), which is what a
  * Quest's Check reads; then its Potential hint under "Outlook", the word `potentialHint` gives (M3-S3) through the bands the player's
  * Guildmaster reads, narrowed by their Judgement (`judgedHintBands`, M4-S5). For a Hero on a
  * Roster, each other Hero on it with the Hero's Regard for them and the Relationship between the
@@ -493,7 +497,8 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
         : `${nameIn(content.injuries, hero.injury.typeKey)}, healing on the night of Day ${dayOf(hero.injury.healsOnTurn)} ` +
           `(Turn ${hero.injury.healsOnTurn})`,
     ],
-    ['Traits', none(hero.traits.map((key) => nameIn(content.traits, key)))],
+    // Each Trait with what it does (v1.1.4-S7): `Lame (-2 Dexterity, -1 Endurance)`.
+    ['Traits', none(hero.traits.map((key) => `${nameIn(content.heroTraits, key)} (${traitEffectWords(rowIn(content.heroTraits, key)?.effects ?? [], content)})`))],
     // A Hero's two descriptive Attributes, written as they were generated (v1.1.3-S6); none is shown when empty.
     ...heroAttributes.flatMap((attribute): [string, string][] => (hero[attribute] === '' ? [] : [[descriptiveAttributeLabels[attribute], hero[attribute]]])),
   ];
@@ -660,9 +665,18 @@ const guildmasterRules: Readonly<Record<string, string>> = Object.freeze({
   judgement: 'How sharp the Potential hints read',
 });
 
-/** A Guildmaster Trait's effect in words (M4-S5): `+1 Weaponry to Warriors`, `Upkeep ×0.9`. */
-export function traitEffectWords(effect: TraitEffect | null, content: ContentSet): string {
-  if (effect === null) return 'no effect';
+/**
+ * A Trait's effects in words (M4-S5), each in the Trait's order and joined by commas (v1.1.4-S7):
+ * `+1 Weaponry to Warriors`, `Upkeep ×0.9`, a Hero Trait's `-2 Dexterity, -1 Endurance` and `+2 to
+ * every Check of combat or travel Encounters`; `no effect` for none.
+ */
+export function traitEffectWords(effects: readonly TraitEffect[], content: ContentSet): string {
+  if (effects.length === 0) return 'no effect';
+  return effects.map((effect) => effectWords(effect, content)).join(', ');
+}
+
+/** One effect of a Trait in words, as `traitEffectWords` joins them. */
+function effectWords(effect: TraitEffect, content: ContentSet): string {
   const signed = (n: number): string => (n > 0 ? `+${n}` : String(n));
   switch (effect.kind) {
     case 'classStatBonus':
@@ -671,6 +685,16 @@ export function traitEffectWords(effect: TraitEffect | null, content: ContentSet
       return `Morale baseline ${signed(effect.delta)}`;
     case 'upkeepFactor':
       return `Upkeep ×${effect.factor}`;
+    case 'statModifiers':
+      return Object.entries(effect.modifiers)
+        .map(([statKey, delta]) => `${signed(delta)} ${nameIn(content.stats, statKey)}`)
+        .join(', ');
+    case 'encounterBonus': {
+      const kinds = effect.kinds ?? [];
+      const tags = effect.tags ?? [];
+      const on = [...(kinds.length === 0 ? [] : [`${kinds.join(' or ')} Encounters`]), ...(tags.length === 0 ? [] : [`Encounters tagged ${tags.join(' or ')}`])];
+      return `${signed(effect.flat)} to every Check of ${on.join(' or ')}`;
+    }
   }
 }
 
@@ -692,8 +716,8 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
     .filter((stat) => stat.owner === 'guildmaster')
     .map((stat) => [stat.name, String(baseStat(guildmaster.stats, stat)), guildmasterRules[stat.key] ?? '']);
   const traits = guildmaster.traits.map((key) => [
-    nameIn(content.traits, key),
-    traitEffectWords(rowIn(content.traits, key)?.effect ?? null, content),
+    nameIn(content.guildmasterTraits, key),
+    traitEffectWords(rowIn(content.guildmasterTraits, key)?.effects ?? [], content),
   ]);
   const patrons = Object.values(world.patrons).map((patron) => [
     patron.id,
@@ -766,8 +790,10 @@ function requiredOf(quest: Quest, content: ContentSet): string {
 
 /**
  * `show board`: the Quests on offer in the Board's order, each with its template's name, its
- * Patron, its terms and the last Day it stays on offer; then what each demands (M2-S3), the Skills
- * that help in its Encounters' Checks and the kinds of those Encounters (M4-S1, M4 verification).
+ * Patron, its terms and the last Day it stays on offer; then the Skills that help in its Encounters'
+ * Checks and the kinds of those Encounters (M4-S1, M4 verification); then each Quest's Encounters
+ * with each Check's name and what it reads, and the player's best Party with its chance (v1.1.4-S6,
+ * DL-148 items 15 to 17), where M2-S3's demands stood, which no view shows now.
  */
 export function renderBoard(document: WorldDocument, deps: EngineDeps): string[] {
   const { world } = document;
@@ -806,15 +832,45 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
     ),
     '',
     ...table(
-      [{ heading: 'Id' }, { heading: 'Demands' }, { heading: 'Skills that help' }, { heading: 'Encounters' }],
-      quests.map((quest) => [
-        quest.id,
-        quest.demands.map(([key, weight]) => `${nameIn(content.stats, key)} ${weight}`).join(', '),
-        skillsThatHelpWords(quest, content),
-        encounterKindsOf(quest, content),
-      ]),
+      [{ heading: 'Id' }, { heading: 'Skills that help' }, { heading: 'Encounters' }],
+      quests.map((quest) => [quest.id, skillsThatHelpWords(quest, content), encounterKindsOf(quest, content)]),
     ),
+    ...quests.flatMap((quest) => ['', ...questReadings(document, quest, deps)]),
   ];
+}
+
+/**
+ * A Quest's Encounters as the Board gives them (v1.1.4-S6): each with its kind and each Check's name
+ * and what it reads, an Encounter of one Check of its own name on one line; then the Party the engine
+ * would send from the player's free Heroes (`partyFor`) and its chance, if no one falls.
+ */
+function questReadings(document: WorldDocument, quest: Quest, deps: EngineDeps): string[] {
+  const { content } = deps;
+  const readings = encounterReadings(quest, content);
+  const lines = readings.flatMap((reading) => {
+    const kind = reading.kind === null ? '' : ` (${reading.kind})`;
+    if (readsAsOne(reading)) return [`  ${reading.name}${kind}: ${reading.checks[0]?.reads ?? ''}`];
+    return [`  ${reading.name}${kind}`, ...reading.checks.map((it) => `    ${it.name}: ${it.reads}`)];
+  });
+  return [
+    `${quest.id}, ${nameIn(content.questTemplates, quest.templateKey)}`,
+    ...(readings.length === 0 ? ['  Its Encounters are drawn on the way.'] : lines),
+    `  ${bestPartyWords(document, quest, deps)}`,
+  ];
+}
+
+/** "Your best Party": the Party `partyFor` names from the player's free Heroes, its chance in a word and floored to 5%, or why there is none. */
+function bestPartyWords(document: WorldDocument, quest: Quest, deps: EngineDeps): string {
+  const { world } = document;
+  const guild = playerGuild(world);
+  const available = guild === undefined ? [] : availableHeroes(world, guild);
+  const best = guild === undefined ? null : bestParty(world, guild, quest, available, deps);
+  if (best === null) return 'No Party of your free Heroes meets its requirements.';
+  const names = best.heroIds.flatMap((id) => rowIn(world.heroes, id)?.name ?? []).join(', ');
+  // The estimate the rule chose the Party by, which is `estimateQuest`'s for it: not worked out again.
+  const { estimate } = best;
+  if (estimate === null) return `Your best Party: ${names}; its chance is not known until its Encounters are drawn.`;
+  return `Your best Party: ${chanceWords[estimate.chance]} (${shownPercent(estimate.success)}% if no one falls), ${names}.`;
 }
 
 /** The Skills that help on a Quest, by name: the engine's `skillsThatHelp` (DL-70; moved there by M7-S3, DL-66). */

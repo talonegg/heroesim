@@ -612,7 +612,8 @@ function fastForwardCalls(): Parameters<typeof fastForward>[] {
 }
 
 describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
-  test('is fastForward calls of at most 30 Turns, a settle each, each from the game the step before it left', () => {
+  // A year fast forwarded, a step at a time: several seconds alone, as the cases below (DL-164).
+  test('is fastForward calls of at most 30 Turns, a settle each, each from the game the step before it left', { timeout: 30_000 }, () => {
     const before = withRosterReleased(started());
     const guildId = playerOf(before).id;
     const turn = documentOf(before).world.turn;
@@ -957,9 +958,10 @@ describe('the document is never mutated', () => {
       (state) => {
         const { world } = documentOf(state);
         const available = availableHeroes(world, playerOf(state));
-        const quest = offeredQuests(world).find((each) => partyFor(each, available, content) !== null);
+        const deps = playDeps(documentOf(state));
+        const quest = offeredQuests(world).find((each) => partyFor(world, playerOf(state), each, available, deps) !== null);
         if (quest === undefined) throw new Error('expected a Quest the Roster can staff');
-        const heroIds = partyFor(quest, available, content) ?? [];
+        const heroIds = partyFor(world, playerOf(state), quest, available, deps) ?? [];
         return { kind: 'dispatch', questId: quest.id, heroIds, consumables: [{ definitionKey: 'whetstone', quantity: 1 }] };
       },
       () => ({ kind: 'build', facility: 'infirmary' }),

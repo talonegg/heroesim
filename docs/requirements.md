@@ -109,7 +109,11 @@ Every system in the game must serve at least one of these:
   Guildmaster's Traits are then drawn as one whole legal set, uniformly among the sets of the count
   drawn, by the owner's DL-109 item 1; built in DL-110. Amended again 2026-09-29 by the owner's
   DL-113 item 4: every Guildmaster 21 to 50 at the start, originally 30 to 45, and retiring at 61,
-  originally 65; built in M9-F1, DL-114.)
+  originally 65; built in M9-F1, DL-114. Amended again 2026-10-02 by the owner's DL-149: from
+  `v1.1.4` the player either has the whole Guildmaster chosen for them from the seed, or chooses the
+  sex, the age and a Portrait of that sex, none of them drawn, and the five Guildmaster Stats, each 5
+  to 15, sharing the Stat points (`guildmasterStatPoints`, 50), points left unspent being lost; the
+  Traits are chosen or drawn as before; built in v1.1.4-S11, DL-153.)
 - R9. The Guildmaster holds Regard for Heroes, Guilds, other Guildmasters and Patrons.
 - R10. Rankings order every Guild by Fame and by Wealth. Fame rises and falls with Quest
   outcomes and, later, with dealings with Patrons, Contacts and Inciting Events. Fame is never
@@ -122,7 +126,9 @@ Every system in the game must serve at least one of these:
 ### 3.3 Heroes
 
 - R12. A Hero has Attributes (name, sex, age, Background, Class), Stats, Skills, Traits and
-  States. Sex affects narration and names only in the first build.
+  States. Sex affects narration and names only in the first build. (Amended 2026-10-02, DL-148
+  item 6: from `v1.1.4`, content may also read Sex to decide which Heroes a Check or a harm
+  reads, where the story calls for it, and never to set a Stat's value or a score.)
 - R13. Classes are Warrior, Rogue, Mage and Healer, fixed at generation, defined as content.
   A Class biases starting Stats, gates Skills, sets the growth profile per Level, and is an
   input to Synergies.
@@ -140,7 +146,13 @@ Every system in the game must serve at least one of these:
   Not every Stat is read by every rule in every release.
 - R15. Skills are named proficiencies rated 1 to 5. The rating is in the data model from the
   first build; the stub Quest Engine reads it as a flat modifier. Skill growth is deferred.
-- R16. Traits on a Hero are binary marks left by history, such as a healed Injury.
+- R16. A Hero's Traits are marks left by their history: an Injury that heals may leave one, and a
+  Quest may rarely earn one, a positive one on an Encounter's Triumph when the Quest ends a strong
+  success, a negative one to a Hero a failed Encounter injured. Hero Traits and Guildmaster Traits
+  are two separate lists in content; each Trait carries a list of effects, and a Hero or a
+  Guildmaster holds any number of Traits, never two that conflict. A Trait an Injury leaves
+  replaces one it conflicts with. (Reworded 2026-10-02, DL-148 and DL-150; it read "Traits on a
+  Hero are binary marks left by history, such as a healed Injury.")
 - R17. Progression: XP from Quests and training raises a Hero's Level; each Level raises Stats
   along the Class's growth profile up to the Hero's Potential. Potential is a hidden per-Stat
   ceiling, shown only as a hint. Stats decline past an age.
@@ -164,18 +176,20 @@ Every system in the game must serve at least one of these:
   Synergies, Items and further qualifiers as they are added. It produces the outcome: XP,
   Injuries or Death, Morale and Regard changes, reward or penalty, Fame effect, Loot, and typed
   events the front end narrates and the World Engine feeds back into the world. A Hero's Stats
-  change through the Levels that XP brings and through ageing, and a Hero gains a Trait when
-  certain Injuries heal (R18); Hero Traits gain effects (decided, to be built). (Amended
-  2026-09-28, DL-85: originally the outcome also listed "Stat changes" and "new Traits", which
-  no Quest outcome was built to produce. This rewording to what is built is the owner's stated
-  intent, made provisionally; its exact words await the owner's confirmation, DL-85 item 10.)
+  change through the Levels that XP brings, through ageing, and through their Traits' effects,
+  and a Hero gains a Trait as R16 says. (Reworded 2026-10-02, DL-148 and DL-150: the owner's
+  confirmation of DL-85 item 10's provisional wording, which had taken "Stat changes" and "new
+  Traits" out of the outcome on 2026-09-28 because no Quest outcome was built to produce them.)
 - R25. First build: a stub Quest Engine that compares difficulty against the Party's summed
   Stats and applies simple outcomes. Target: a sequence of typed encounters, each a check with
   typed consequences. (Amended 2026-09-28, DL-86: the first build reached the target. M2 built
   the stub, scoring weighted Stat demands carried on the Quest (DL-06), and M4 replaced it with
-  typed encounters (DL-42).)
+  typed encounters (DL-42).) (Amended 2026-10-02, DL-148 items 7 and 8: from `v1.1.4`, an
+  encounter holds one to four named checks, each a query over the Party written in content, and
+  each check and encounter comes out a Degree: Triumph, Success, Setback or Failure.)
 - R26. Synergies are authored bonuses for combinations of Classes or Skills, defined as
-  content.
+  content. (Amended 2026-10-02, DL-148 item 20: from `v1.1.4`, for any condition on the Party a
+  query can state, its Classes, Skills, Stats and more, the old combinations among them.)
 
 ### 3.5 Recruitment and transfers
 

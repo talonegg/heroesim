@@ -98,7 +98,9 @@ describe('useGame', () => {
     expect(turnOf(result.current[0])).toBe(turnOf(before) + 2);
   });
 
-  test('a fast forward is steps of at most 30 Turns, each settled after the step before it is rendered', async () => {
+  // Each of these plays steps of the real engine, each after a paint: under the whole suite's load,
+  // longer than waitFor's second and the default 5 s (M9-S4, DL-164).
+  test('a fast forward is steps of at most 30 Turns, each settled after the step before it is rendered', { timeout: 30_000 }, async () => {
     const engine = await vi.importActual<typeof Engine>('@heroesim/engine');
     const { result } = renderHook(() => useGame(withRosterReleased(started('use-game-test'))), { wrapper: StrictMode });
     // What the page had rendered of the fast forward as each step began: how far it had come.
@@ -140,7 +142,7 @@ describe('useGame', () => {
     expect(result.current[0]).toBe(stopped);
   });
 
-  test('a fast forward asked for again straight after a Stop is settled a step a render, the settle asked for before the Stop called off', async () => {
+  test('a fast forward asked for again straight after a Stop is settled a step a render, the settle asked for before the Stop called off', { timeout: 30_000 }, async () => {
     const engine = await vi.importActual<typeof Engine>('@heroesim/engine');
     const { result } = renderHook(() => useGame(withRosterReleased(started('use-game-test'))), { wrapper: StrictMode });
     act(() => result.current[1]({ kind: 'fastForward', until: [] }));
@@ -156,7 +158,8 @@ describe('useGame', () => {
         result.current[1]({ kind: 'stop' });
         result.current[1]({ kind: 'fastForward', until: [], maxTurns: 4 * fastForwardStepTurns });
       });
-      await waitFor(() => expect(result.current[0].busy).toBe(false));
+      // Four steps of the real engine, each after a paint, as above.
+      await waitFor(() => expect(result.current[0].busy).toBe(false), { timeout: 20_000 });
 
       expect(rendered).toEqual([null, 30, 60, 90]);
     } finally {
@@ -170,7 +173,7 @@ describe('useGame', () => {
   test.each([
     ['frames that fire at once', (callback: FrameRequestCallback) => (callback(0), 1)],
     ['no frames', undefined],
-  ])('with %s, a settle asked for before a Stop is called off as well', async (_frames, frame) => {
+  ])('with %s, a settle asked for before a Stop is called off as well', { timeout: 30_000 }, async (_frames, frame) => {
     vi.stubGlobal('requestAnimationFrame', frame);
     const engine = await vi.importActual<typeof Engine>('@heroesim/engine');
     const { result } = renderHook(() => useGame(withRosterReleased(started('use-game-test'))), { wrapper: StrictMode });
@@ -187,7 +190,8 @@ describe('useGame', () => {
         result.current[1]({ kind: 'stop' });
         result.current[1]({ kind: 'fastForward', until: [], maxTurns: 4 * fastForwardStepTurns });
       });
-      await waitFor(() => expect(result.current[0].busy).toBe(false));
+      // Four steps of the real engine, each after a paint, as above.
+      await waitFor(() => expect(result.current[0].busy).toBe(false), { timeout: 20_000 });
 
       expect(rendered).toEqual([null, 30, 60, 90]);
     } finally {

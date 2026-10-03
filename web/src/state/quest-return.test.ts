@@ -107,11 +107,13 @@ describe('questReturn (M9-F5)', () => {
     expect(report.band).toBe('fail');
     expect(report.bandWords).toBe('Failure');
     expect(report.reward).toEqual({ wealth: 0, fame: -2, xp: 10 });
-    expect(report.encounters.map((encounter) => [encounter.outcome, encounter.sentence, encounter.used.map((used) => used.sentence)])).toEqual([
-      ['success', "The Lantern's Party came through Ambush on the road (Encounter 1).", []],
+    // Written as before v1.1.4-S2, with no Degree: each reads as its outcome, a Success or a Failure.
+    expect(report.encounters.map((encounter) => [encounter.outcome, encounter.degree, encounter.sentence, encounter.used.map((used) => used.sentence)])).toEqual([
+      ['success', 'success', "The Lantern's Party came through Ambush on the road (Encounter 1), a Success.", []],
       [
         'failure',
-        `The Lantern's Party failed at Ambush on the road (Encounter 2): ${second} was injured.`,
+        'failure',
+        `The Lantern's Party failed at Ambush on the road (Encounter 2), a Failure: ${second} was injured.`,
         ["The Lantern's Party used one Whetstone on Encounter 2: +2 to its Check."],
       ],
     ]);
@@ -382,6 +384,28 @@ describe('the entry reads its Hero lines without building the whole report (M9-F
     const entry = returnEntry(documentOf(written), key);
     expect(narrated.mock.calls).toHaveLength(0);
     expect(entry?.heroes.map((hero) => hero.sentence)).toEqual(report?.outcomes.map((outcome) => `${outcome.name}: ${outcome.words.join('; ')}.`));
+  });
+});
+
+describe('a Trait earned on the Quest (v1.1.4-S7, DL-148 items 25 and 27)', () => {
+  test("is in the report's line of the Hero who earned it, and a Milestone that stands beside the return in the player's Guild's History", () => {
+    const written = withReturn(base, {
+      band: 'fail',
+      encounters: [{ outcome: 'failure', injured: [1] }],
+      injuries: [{ hero: 1, typeKey: 'deep-cut', healsOnTurn: 9999 }],
+      traits: [{ hero: 1, traitKey: 'one-eyed', encounterIndex: 0 }],
+    });
+    const [first, second] = read(written).outcomes;
+    expect(second?.trait).toBe(content.heroTraits['one-eyed']?.name);
+    expect(second?.words).toContain(`earned the Trait ${content.heroTraits['one-eyed']?.name}`);
+    expect(first?.trait).toBeNull();
+
+    const after = documentOf(written);
+    const guild = playerGuild(after.world);
+    if (guild === undefined) throw new Error("no player's Guild");
+    const night = after.history.entries.filter((entry) => entry.turn === written.turn && historyFilter(after, guild.id)(entry));
+    expect(night.map((entry) => entry.type)).toEqual(['quest.resolved', 'hero.injured', 'hero.trait-gained']);
+    expect(night.at(-1)?.milestone).toBe(true);
   });
 });
 

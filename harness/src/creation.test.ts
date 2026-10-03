@@ -1,7 +1,8 @@
 import { loadContent } from '@heroesim/content/node';
-import { createWorld, defaultConfig, playerGuild, validate, type EngineDeps, type Guild, type WorldDocument, type WorldSetup } from '@heroesim/engine';
+import { createWorld, defaultConfig, playerGuild, validate, type EngineDeps, type Guild, type WorldSetup } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { creationReport, harnessSetup, sweepCreation, type CreationSweep } from './creation.js';
+import { expectChosenAsNone, picturesAside } from './guildmaster-chosen.test-support.js';
 import { playGame } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
@@ -16,13 +17,6 @@ const deps: EngineDeps = { config: { ...defaultConfig }, content };
 function tickingClock(): () => number {
   let t = 0;
   return () => (t += 1);
-}
-
-/** `document` with every Guildmaster's Portrait, Appearance and Biography set aside (v1.1.3-S5). */
-function picturesAside(document: WorldDocument): WorldDocument {
-  const copy = structuredClone(document);
-  for (const guildmaster of Object.values(copy.world.guildmasters)) Object.assign(guildmaster, { portraitKey: null, appearance: '', biography: '' });
-  return copy;
 }
 
 describe('createWorld with the core content', () => {
@@ -60,6 +54,19 @@ describe("the harness's player's Guildmaster, 30", () => {
       // player's may change the Rivals' (v1.1.3-S5): every Guildmaster's three are set aside.
       expect(picturesAside(aged), seed).toEqual(picturesAside(drawn));
     }
+  });
+});
+
+// v1.1.4-S11 (DL-149): "Choose myself" sets every attribute of the player's Guildmaster, and what is
+// chosen replaces what is drawn after the draw, so the world a seed makes is otherwise the one "Choose
+// for me" makes: the creation hashes, but for the player's Guildmaster, are equal. Over 60 seeds: every
+// age, both sexes and both choices of Traits, the thirty settings the seeds go round, each twice; the
+// 1,000 of S11 are create.harness.test.ts's (DL-164). Half a second alone, several under the suite's load.
+describe('every Guildmaster attribute chosen, against none (v1.1.4-S11)', () => {
+  test('makes the same Rivals, Heroes, Patrons, Board and Market, and every stream where it was, over 60 seeds', { timeout: 30_000 }, () => {
+    const { rivalPictureMoved } = expectChosenAsNone(seedNames(60), deps);
+    // A Rival's picture fits them among those not in use (v1.1.3-S5), so the player's may move one.
+    expect(rivalPictureMoved).toBeGreaterThan(0);
   });
 });
 

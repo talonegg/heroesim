@@ -17,8 +17,8 @@ const gate = path.join(webDir, 'scripts', 'check-bundle.mjs');
 const mediaDir = path.join(webDir, '..', 'media');
 const contentDir = path.join(webDir, '..', 'content');
 
-/** The bytes a built script may hold (scripts/check-bundle.mjs; DL-134 item 9): 800 kB. */
-const scriptLimit = 800_000;
+/** The bytes a built script may hold (scripts/check-bundle.mjs; DL-134 item 9, raised by DL-166): 850 kB. */
+const scriptLimit = 850_000;
 
 const temporaries: string[] = [];
 function temporaryDir(): string {
@@ -50,7 +50,7 @@ describe('the production build', { timeout: 120_000 }, () => {
 
   beforeAll(() => {
     outDir = temporaryDir();
-    built = run([vite, 'build', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
+    built = run([vite, 'build', '--configLoader', 'runner', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
   });
 
   test('builds', () => {
@@ -88,7 +88,7 @@ describe('the production build', { timeout: 120_000 }, () => {
   });
 
   // v1.1.3-S7 (DL-134 item 9, DL-143): the content's JSON is bundled as data, not as it is written,
-  // so its indentation and line breaks do not count against the script's 800 kB.
+  // so its indentation and line breaks do not count against the script's 850 kB.
   test("bundles each content file's JSON without its whitespace", () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
     const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
@@ -102,9 +102,52 @@ describe('the production build', { timeout: 120_000 }, () => {
     }
   });
 
-  test('builds a script under the 800 kB the gate allows', () => {
+  // v1.1.4-S6's verification (DL-157): the content package's manifests are no content, and each
+  // picture's URL resolves against the script's address, worked out once.
+  test("bundles neither of the content package's manifests", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    expect(text).not.toContain('@heroesim/content');
+    expect(text).not.toContain('compilerOptions');
+  });
+
+  test("works out the script's address once, and resolves every picture's URL against it", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    const pictures = readdirSync(path.join(outDir, 'assets')).filter((file) => file.endsWith('.webp'));
+    expect(text.match(/document\.baseURI/g)).toHaveLength(1);
+    expect(pictures.length).toBeGreaterThanOrEqual(80);
+    // The one name, minified, as each picture's base: `new URL(\`gm-female-01-<hash>.webp\`,t)`.
+    const [, base] = /new URL\(`[\w.-]+\.webp`,(\w+)\)/.exec(text) ?? [];
+    expect(base).toBeDefined();
+    for (const picture of pictures) expect(text.includes(`new URL(\`${picture}\`,${base})`), picture).toBe(true);
+  });
+
+  test('builds a script under the 850 kB the gate allows', () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
     expect(statSync(path.join(outDir, 'assets', script)).size).toBeLessThan(scriptLimit);
+  });
+
+  // v1.1.4-S14 (DL-150 item 7, the epic's Gate: "The editor is in no file of the built game"), checked
+  // by hand at S12 (DL-161) and held here: words only the content editor's page and commands, or the
+  // register of a Trait's uses, hold are in no built file. Each is first found in its own source, so
+  // a word the editor stops using cannot leave the check empty.
+  test("holds no file of the content editor or the register of a Trait's uses", () => {
+    const repo = path.join(webDir, '..');
+    const register = readFileSync(path.join(repo, 'content', 'src', 'uses', 'register.ts'), 'utf8');
+    const page = readFileSync(path.join(repo, 'tools', 'editor', 'page', 'page.js'), 'utf8');
+    const html = readFileSync(path.join(repo, 'tools', 'editor', 'page', 'index.html'), 'utf8');
+    const doctor = readFileSync(path.join(repo, 'tools', 'editor', 'src', 'doctor.ts'), 'utf8');
+    const entries = [...register.matchAll(/^ {2}id: '([\w-]+)',$/gm)].map((hit) => hit[1] ?? '');
+    const marks = [...entries.filter((id) => id.includes('-')), '/api/traits', 'Save as pending', 'reads of a Trait'];
+    expect(entries.length).toBeGreaterThanOrEqual(8);
+    for (const mark of marks.slice(-3)) expect([page, html, doctor].some((text) => text.includes(mark)), mark).toBe(true);
+    const files = readdirSync(outDir, { recursive: true, encoding: 'utf8' }).filter((file) => /\.(js|html|css)$/.test(file));
+    expect(files.length).toBeGreaterThanOrEqual(2);
+    for (const file of files) {
+      const text = readFileSync(path.join(outDir, file), 'utf8');
+      expect(marks.filter((mark) => text.includes(mark)), file).toEqual([]);
+    }
   });
 });
 
@@ -115,7 +158,7 @@ describe('a Node built-in the page imports', { timeout: 120_000 }, () => {
     writeFileSync(path.join(root, 'index.html'), '<!doctype html><div id="root"></div><script type="module" src="./probe.ts"></script>');
     writeFileSync(path.join(root, 'probe.ts'), script);
     const config = path.join(webDir, 'vite.config.ts');
-    return run([vite, 'build', root, '--config', config, '--outDir', temporaryDir(), '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
+    return run([vite, 'build', root, '--configLoader', 'runner', '--config', config, '--outDir', temporaryDir(), '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
   }
 
   // Vite would put an empty stub in its place, with only a warning, and the gate would pass the
@@ -195,15 +238,15 @@ describe('the bundle gate', () => {
     expect(gated.status).toBe(1);
   });
 
-  // v1.1.3-S7 (DL-134 item 9): the one script is held under 800 kB, so the page stays as quick to open
+  // v1.1.3-S7 (DL-134 item 9; 850 kB since DL-166): the one script is held under 850 kB, so the page stays as quick to open
   // as it is. A stylesheet or the page itself is not a script, and is not held to it.
-  test('fails a script over 800 kB, naming its size, and passes one of 800 kB', () => {
+  test('fails a script over 850 kB, naming its size, and passes one of 850 kB', () => {
     // `const pad = '` and `';` are 15 characters. Padded with digits: a long run of letters would
     // keep the gate's search for a URL's scheme at every letter of it.
     const over = run([gate, bundleOf(`const pad = '${'0'.repeat(scriptLimit - 14)}';`)]);
     const at = run([gate, bundleOf(`const pad = '${'0'.repeat(scriptLimit - 15)}';`)]);
 
-    expect(over.output).toContain(`${path.join('assets', 'index.js')}: a script of 800.00 kB (800,001 bytes), over the 800 kB a script may be`);
+    expect(over.output).toContain(`${path.join('assets', 'index.js')}: a script of 850.00 kB (850,001 bytes), over the 850 kB a script may be`);
     expect(over.status).toBe(1);
     expect(at.output).toContain('no network or filesystem reference');
     expect(at.status).toBe(0);

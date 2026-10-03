@@ -4,6 +4,7 @@ import {
   closeGameMenu,
   debugHistory,
   expectNoHorizontalOverflow,
+  chooseGuildmaster,
   expectTargets,
   guildmasterSetup,
   guildPart,
@@ -116,7 +117,7 @@ test('the Board and the Party builder: no sideways scroll, 44px targets, Send in
     await expectNoHorizontalOverflow(page, `the Board's cards ${at}`);
     await expectTargets(page, `the Board's cards ${at}`);
 
-    // A card unfolded: its Demands, Skills, Encounters and its difficulty on its meter.
+    // A card unfolded: its Encounters and what each Check reads, Skills, and its difficulty on its meter.
     const quest = board.getByRole('article').first();
     await quest.getByRole('heading', { level: 3 }).getByRole('button').click();
     await expect(quest.getByRole('img', { name: /^Difficulty \d+: .+ Quests? on the Board/ })).toBeVisible();
@@ -569,6 +570,7 @@ test("the new-game form with the Guildmaster's setup open, a Trait chosen and ot
   await form.getByRole('textbox', { name: 'Guild name', exact: true }).fill(longGuild);
   await form.getByRole('textbox', { name: /Guildmaster/ }).fill(longMaster);
   const setup = await guildmasterSetup(page);
+  await chooseGuildmaster(setup);
   await setup.getByRole('radio', { name: 'Choose them' }).check();
   await traitBox(setup, 'Miser').check();
   // Miser excludes two; two pass the budget of 1 with it or alone.
@@ -579,6 +581,108 @@ test("the new-game form with the Guildmaster's setup open, a Trait chosen and ot
   await expect(page.getByTestId('setup-refusal')).toHaveText('The Birthplace is 61 characters long; it holds at most 60.');
   await expect(page.getByRole('button', { name: 'Start the game' })).toBeDisabled();
   await expectNoHorizontalOverflow(page, "the Guildmaster's setup refused");
+});
+
+// v1.1.4-S11 (DL-149): the setup screen's two ways at each width, in the light and the dark scheme: "Choose
+// for me" with the Guildmaster chosen for the player beside their Portrait, and "Choose myself" before a
+// sex is chosen, then with the grid, the Stats' steppers and a point left unspent, every control a 44px
+// target and the page never wider than the viewport.
+test('the setup screen, each way, in the light and the dark scheme: no sideways scroll, and 44px targets (v1.1.4-S11)', async ({ page }) => {
+  const backgrounds: string[] = [];
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.goto('/');
+    const form = page.getByRole('region', { name: 'A new game', exact: true });
+    await form.getByRole('textbox', { name: 'Guild name', exact: true }).fill(longGuild);
+    await form.getByRole('textbox', { name: /Guildmaster/ }).fill(longMaster);
+    await form.getByRole('textbox', { name: 'Seed', exact: true }).fill('e2e-layout-setup');
+    const forMe = await guildmasterSetup(page, 'Choose for me');
+    const preview = forMe.getByTestId('guildmaster-preview');
+    await expect(preview.locator('p').first()).toHaveText('Chosen for you');
+    await expect(preview.locator('p')).toHaveCount(5);
+    await expect(forMe.getByLabel('Sex', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Start the game' })).toBeEnabled();
+    await expectNoHorizontalOverflow(page, `"Choose for me", ${scheme}`);
+    await expectTargets(page, `"Choose for me", ${scheme}`);
+    await page.screenshot({ path: test.info().outputPath(`setup-for-me-${scheme}.png`), fullPage: true });
+
+    const mine = await guildmasterSetup(page, 'Choose myself');
+    await expect(mine.getByTestId('portrait-unsexed')).toHaveText('Choose a Sex to see the pictures.');
+    await expect(page.getByTestId('setup-hint')).toHaveText("Choose your Guildmaster's Sex, Age and Portrait to start.");
+    await expect(page.getByRole('button', { name: 'Start the game' })).toBeDisabled();
+    await expectNoHorizontalOverflow(page, `"Choose myself", no sex chosen, ${scheme}`);
+    await expectTargets(page, `"Choose myself", no sex chosen, ${scheme}`);
+    await chooseGuildmaster(mine, { sex: 'male', age: '44', picture: 'Male Portrait 5' });
+    const stats = mine.getByRole('group', { name: 'Stats', exact: true });
+    await stats.getByRole('button', { name: 'Lower Judgement' }).click();
+    await expect(stats.getByTestId('stat-points-unspent')).toHaveText('Stat points left unspent are lost.');
+    await expect(page.getByRole('button', { name: 'Start the game' })).toBeEnabled();
+    await expectNoHorizontalOverflow(page, `"Choose myself", chosen, ${scheme}`);
+    await expectTargets(page, `"Choose myself", chosen, ${scheme}`);
+    // Each Stat's stepper on one line with its name, at every width.
+    for (const row of await stats.locator('.stat-pick__line').all()) {
+      const name = await row.locator('.stat-pick__name').boundingBox();
+      const lower = await row.getByRole('button', { name: /^Lower / }).boundingBox();
+      const raise = await row.getByRole('button', { name: /^Raise / }).boundingBox();
+      if (name === null || lower === null || raise === null) throw new Error(`a Stat, ${scheme}: not drawn`);
+      expect(Math.abs(lower.y - raise.y), `a Stat's buttons side by side, ${scheme}`).toBeLessThan(2);
+    }
+    backgrounds.push(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
+    await page.screenshot({ path: test.info().outputPath(`setup-myself-${scheme}.png`), fullPage: true });
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+  // The dark scheme is the page's, not the test's: the body's background is the dark token's.
+  expect(new Set(backgrounds).size).toBe(2);
+});
+
+// v1.1.4-S6 (DL-148 items 15 to 17): the Board's card with "Your best Party:" and a chance word, unfolded to
+// each Encounter and what each Check reads, and the Party builder with a chance word for each Encounter and
+// the Quest and the numbers in its detail, opened, at each width, in the light and the dark scheme: no
+// sideways scroll and 44px targets.
+test('the Board’s chances and what each Check reads, and the Party builder’s, in the light and the dark scheme (v1.1.4-S6)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const backgrounds: string[] = [];
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.goto('/');
+    await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
+    const at = `${scheme}, ${page.viewportSize()?.width ?? 0}px`;
+    const board = await openView(page, 'Board');
+    const quest = board.getByRole('article').first();
+    await expect(quest.getByTestId('best-party')).toHaveText(
+      /^(Your best Party: (Hopeless|Unlikely|Even|Likely|Near certain|not known until its Encounters are drawn), .+|No Party of your free Heroes meets its requirements\.)$/,
+    );
+    await expectNoHorizontalOverflow(page, `the Board's cards, ${at}`);
+
+    // Unfolded: each Encounter, and what its Checks read.
+    await quest.getByRole('heading', { level: 3 }).getByRole('button').click();
+    const encounters = quest.getByTestId('encounters');
+    await expect(encounters.locator(':scope > li').first()).toBeVisible();
+    await expect(encounters.locator(':scope > li').first()).toContainText(/(Reads |: )(the |\d|Strength|Wits)/);
+    await expectNoHorizontalOverflow(page, `a card unfolded, ${at}`);
+    await expectTargets(page, `a card unfolded, ${at}`);
+
+    // The builder, two Heroes chosen: a word for each Encounter and for the Quest, and the numbers opened.
+    await quest.getByRole('button', { name: 'Choose a Party' }).click();
+    const form = quest.getByRole('form');
+    const boxes = form.getByRole('checkbox');
+    for (const index of [0, 1]) if (await boxes.nth(index).isEnabled()) await boxes.nth(index).check();
+    const chances = form.getByTestId('chances');
+    await expect(chances.getByRole('listitem').last()).toHaveText(/^The Quest: (Hopeless|Unlikely|Even|Likely|Near certain)$/);
+    await form.getByText('The numbers, if no one falls').click();
+    const numbers = form.getByTestId('chance-numbers');
+    await expect(numbers.getByRole('listitem').last()).toBeVisible();
+    for (const line of await numbers.getByRole('listitem').allTextContents()) expect(line).toMatch(/: (\d+)%$/);
+    for (const line of await numbers.getByRole('listitem').allTextContents()) expect(Number(/(\d+)%$/.exec(line)?.[1]) % 5).toBe(0);
+    await expect(form.getByTestId('party-morale')).toBeVisible();
+    await expectNoHorizontalOverflow(page, `the Party builder with its chances, ${at}`);
+    await expectTargets(page, `the Party builder with its chances, ${at}`);
+    await page.screenshot({ path: test.info().outputPath(`board-chances-${scheme}.png`), fullPage: true });
+    backgrounds.push(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+  // The dark scheme is the page's, not the test's: the body's background is the dark token's.
+  expect(new Set(backgrounds).size).toBe(2);
 });
 
 test("a view's first part, straight under its head, draws no rule above it, as the game menu's first part draws none (M9-S8)", async ({

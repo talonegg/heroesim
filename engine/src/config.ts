@@ -9,7 +9,7 @@
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
 // Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
 // gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57); M9-S2
-// the Trait budget (DL-102). Every
+// the Trait budget (DL-102); v1.1.4-S2 the Degrees (DL-152). Every
 // "Min/Max" pair is an inclusive range drawn with `int`. A field holding an object or a list is
 // frozen with `defaultConfig`.
 
@@ -40,7 +40,14 @@ export interface GameConfig {
    * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
    * with that 5, so that no save made under either reads as current (DL-63); 10 from the M6 close's
    * Transfer lock of a season (DL-69); 11 from M9-S2's Trait budget, `guildmasterTraitBudget`
-   * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114).
+   * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114);
+   * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
+   * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
+   * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's
+   * `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), S6's
+   * `playerPartyMargin` (DL-148, DL-157), and S8's `encounterTagWeight` (DL-148, DL-160). S10's
+   * balance pass changes defaults under it too, `checkVariance` 0.2 to 0.4 first (DL-165), then the
+   * Degrees, `strongTriumphShare` and the form factors (DL-166), as no game has been released under 13.
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -103,9 +110,18 @@ export interface GameConfig {
    */
   guildmasterStartingAgeMin: number;
   guildmasterStartingAgeMax: number;
-  /** Each Guildmaster Stat is drawn from this range (DL-19). */
+  /**
+   * Each Guildmaster Stat is drawn from this range (DL-19), and a player who chooses the Stats at
+   * setup sets each within it (v1.1.4-S11, DL-149 item 5).
+   */
   guildmasterStatMin: number;
   guildmasterStatMax: number;
+  /**
+   * The Stat points (v1.1.4-S11, DL-149 item 5): what a player who chooses their Guildmaster's Stats
+   * at setup shares among them, 50 by default, the drawn Stats' mean of 10 each. The Stats chosen may
+   * cost no more in all; points left unspent are lost. A drawn Guildmaster is not held to it.
+   */
+  guildmasterStatPoints: number;
   /**
    * How many Guildmaster Traits a Guildmaster is generated with (pre-M0 review B2): the count is
    * drawn from this range, and a smaller set is drawn when no legal set has that many
@@ -116,7 +132,7 @@ export interface GameConfig {
   guildmasterTraitsMax: number;
   /**
    * The Trait budget (M9-S2, DL-88 item 4, DL-100 item 3): the most a Guildmaster's Traits may cost
-   * in all, each Trait's cost being content's (`Trait.cost`), a buff costing and a penalty
+   * in all, each Trait's cost being content's (`GuildmasterTrait.cost`), a buff costing and a penalty
    * refunding. A drawn Guildmaster's Traits are one set drawn from every set within it (DL-109
    * item 1); a player's choice at setup is refused over it. At 1, the dearer buffs need a penalty
    * beside them.
@@ -167,6 +183,13 @@ export interface GameConfig {
    */
   questDifficultyMin: number;
   questDifficultyMax: number;
+  /**
+   * How much likelier an Encounter is drawn, within its kind, for each tag it shares with its Quest's
+   * template (v1.1.4-S8, DL-148 item 22): its weight in the one `weightedPick` is this to the power of
+   * the tags shared, so at 3 one shared tag draws it three times as often as one sharing none. A finite
+   * number of 1 or more, so that a tag shared never makes an Encounter rarer; at 1 tags change nothing.
+   */
+  encounterTagWeight: number;
 
   // ── The Quest Engine (M4-S2, INPUTS 6.2, DL-42) ────────────────────────────────────────────
   // The stub's fields (M2-S5, DL-29, DL-35) are gone: `stubBands` for `bandBySuccessShare`,
@@ -174,7 +197,9 @@ export interface GameConfig {
   // `stubInjuryChance`/`stubDeathChance` for each Encounter's consequences, which are content.
   /**
    * A Check's roll: the Party's capability times 1 + a draw from −`checkVariance` up to
-   * +`checkVariance`, from the `quests` stream (INPUTS 6.2: ±20%).
+   * +`checkVariance`, from the `quests` stream: INPUTS 6.2's ±20% to v1.1.4-S10, then ±40%, so that all
+   * four Degrees can happen to a Party whose capability is near the target (DL-162, DL-165). A Check
+   * keeps its own `variance` only where it truly differs from the rest.
    */
   checkVariance: number;
   /**
@@ -183,11 +208,63 @@ export interface GameConfig {
    */
   skillBonusPerRating: number;
   /**
-   * A Quest's band from the share of its Encounters succeeded: `strong` at `strongAtLeast` or more,
-   * `success` above `successAbove`, else `fail` (M4-S2: all strong, a majority success). An
-   * Encounter a Party wiped out never reached counts as not succeeded.
+   * A Quest's band from the share of its Encounters at Success or better: `strong` at
+   * `strongAtLeast` or more, with `strongTriumphShare` of them Triumphs, `success` above
+   * `successAbove`, else `fail` (M4-S2: all strong, a majority success). An Encounter a Party wiped
+   * out never reached counts as not succeeded.
    */
   bandBySuccessShare: Readonly<{ successAbove: number; strongAtLeast: number }>;
+  /**
+   * A Check's Degree from its roll ÷ its target (v1.1.4-S2, DL-148 item 8): a Triumph at `triumph`
+   * or more, a Success at `success` or more, a Setback at `setback` or more, else a Failure. The
+   * Triumph's 1.25 became 1.35 in v1.1.4-S10's balance pass, with `strongTriumphShare` 0.5 to 0.6, so
+   * that fewer Quests are strong successes at no cost in bankruptcies (DL-166).
+   */
+  checkDegrees: Readonly<{ triumph: number; success: number; setback: number }>;
+  /**
+   * The share of a Quest's Encounters that must be Triumphs for a strong success, beside every one
+   * at Success or better (v1.1.4-S2, DL-148 item 8: DL-83 item 17's margin, a share of Triumphs).
+   * The share is of the whole sequence, as `bandBySuccessShare`'s is.
+   */
+  strongTriumphShare: number;
+  /**
+   * A Hero's form on a Quest (v1.1.4-S3, DL-148 items 9 to 11, `CONTEXT.md` Form): the factor on the
+   * Stat values they add into a Check's score, by the band of their Morale on the Quest. S3's first
+   * values (0.85, 0.93, 1, 1.04, 1.08) were narrowed in v1.1.4-S10's balance pass, so that a Guild
+   * failing and losing Morale is not driven down as fast (DL-166).
+   */
+  moraleCheckFactor: Readonly<Record<MoraleBand, number>>;
+  /**
+   * Their form is also multiplied by this once they are hurt on the Quest (DL-148 item 10): 0.85
+   * until v1.1.4-S10's balance pass, then 0.93 (DL-166).
+   */
+  hurtCheckFactor: number;
+  /**
+   * How much more often harm falls on a Hero weak in the Stats an Injury or a Death is `exposedBy`
+   * (v1.1.4-S4, DL-148 item 14): their weight in the draw of who is hit is 1 + this × (1 − their
+   * mean share of those Stats' content range). At 2, the weakest is hit three times as often as the
+   * strongest; 0 weights everyone alike.
+   */
+  exposureRange: number;
+  /**
+   * How much a Hero strong in the Stats a harm is `guardedBy`, or a Morale loss `steadiedBy`, shrugs
+   * off (v1.1.4-S4, DL-148 item 14): the chance, or the loss, is times 1 − this × their mean share of
+   * those Stats' content range. A share from 0 to 1; at 0.5, the strongest halve it.
+   */
+  guardRange: number;
+  /**
+   * Where each chance band above `hopeless` starts (v1.1.4-S5, DL-148 item 15, `chanceBand`): an
+   * estimated chance below `unlikely` is `hopeless`, and one at a start or above, up to the next, is
+   * that band. Strictly increasing, each above 0 and below 1.
+   */
+  chanceBands: Readonly<Record<Exclude<ChanceBand, 'hopeless'>, number>>;
+  /**
+   * The `partyMargin` of a Guild with no Disposition, the player's (v1.1.4-S6, DL-148 item 17): the
+   * Party the engine would send from its free Heroes (`partyFor`), which the Board's card gives as
+   * "Your best Party" and the harness's automatic policy sends, keeps adding a Hero only while each
+   * raises the estimated chance of success by at least this. A share from 0 to 1.
+   */
+  playerPartyMargin: number;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -471,6 +548,14 @@ export const moraleBandNames = ['wretched', 'low', 'steady', 'high', 'elated'] a
 
 export type MoraleBand = (typeof moraleBandNames)[number];
 
+/**
+ * The words an estimated chance is shown in, least likely first (v1.1.4-S5, DL-148 item 15): the
+ * engine gives the key, and the front ends word it.
+ */
+export const chanceBandNames = ['hopeless', 'unlikely', 'even', 'likely', 'near-certain'] as const;
+
+export type ChanceBand = (typeof chanceBandNames)[number];
+
 /** The words a Potential hint can be, for the narrowest gap first (M3-S3, INPUTS 5.4). */
 export const potentialHints = ['modest', 'promising', 'exceptional'] as const;
 
@@ -483,7 +568,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 6,
-  configVersion: 12,
+  configVersion: 13,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -514,6 +599,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterStartingAgeMax: 50,
   guildmasterStatMin: 5,
   guildmasterStatMax: 15,
+  guildmasterStatPoints: 50,
   guildmasterTraitsMin: 0,
   guildmasterTraitsMax: 2,
   guildmasterTraitBudget: 1,
@@ -533,10 +619,19 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   questOfferDays: 3,
   questDifficultyMin: 10,
   questDifficultyMax: 100,
+  encounterTagWeight: 3,
 
-  checkVariance: 0.2,
+  checkVariance: 0.4,
   skillBonusPerRating: 2,
   bandBySuccessShare: Object.freeze({ successAbove: 0.5, strongAtLeast: 1 }),
+  checkDegrees: Object.freeze({ triumph: 1.35, success: 1, setback: 0.75 }),
+  strongTriumphShare: 0.6,
+  moraleCheckFactor: Object.freeze({ wretched: 0.93, low: 0.97, steady: 1, high: 1.03, elated: 1.06 }),
+  hurtCheckFactor: 0.93,
+  exposureRange: 2,
+  guardRange: 0.5,
+  chanceBands: Object.freeze({ unlikely: 0.1, even: 0.35, likely: 0.65, 'near-certain': 0.9 }),
+  playerPartyMargin: 0.05,
 
   moraleMin: 0,
   moraleMax: 100,
@@ -618,4 +713,96 @@ export interface EngineDeps {
    * which is every game the front ends and the harness play.
    */
   modules?: readonly Module[];
+}
+
+/**
+ * What is wrong with `config`'s Quest Engine fields, each a sentence naming its field; none for a
+ * sound one (v1.1.4-S2's verification, DL-152). `checkVariance` is a share from 0 to 1, as a Check's
+ * own `variance` is held to, so that a roll never reaches below nothing (v1.1.4-S5's verification,
+ * DL-156). A Degree means something only while its thresholds are ordered, `triumph` > `success` >
+ * `setback` > 0, and `strongTriumphShare` is a share from 0 to 1. A form factor is a finite number
+ * above 0, one for every Morale band, `steady`'s 1 and the rest in the bands' order, so that better spirits never bring less; and `hurtCheckFactor` is at most 1,
+ * so that a wound never helps (v1.1.4-S3, DL-154). `exposureRange` is a finite number of 0 or more,
+ * so that no weight in the draw of who is hit falls below 1, and `guardRange` a share from 0 to 1, so
+ * that a guard never raises a chance nor turns it below 0 (v1.1.4-S4, DL-155). `chanceBands`' starts
+ * are finite, strictly increasing and each above 0 and below 1, so that every band holds some chances
+ * (v1.1.4-S5, DL-156). `playerPartyMargin` is a share from 0 to 1, as a Disposition's `partyMargin` is
+ * (v1.1.4-S6, DL-157). `encounterTagWeight` is a finite number of 1 or more (v1.1.4-S8, DL-160). The
+ * Quest Engine refuses to resolve, and to estimate, under a config with a problem (`resolveQuest`,
+ * `estimateQuest`), and the Quest Generator to draw a sequence under an unsound `encounterTagWeight`
+ * (`drawSequence`).
+ */
+export function configProblems(
+  config: Pick<
+    GameConfig,
+    | 'checkVariance'
+    | 'checkDegrees'
+    | 'strongTriumphShare'
+    | 'moraleCheckFactor'
+    | 'hurtCheckFactor'
+    | 'exposureRange'
+    | 'guardRange'
+    | 'chanceBands'
+    | 'playerPartyMargin'
+    | 'encounterTagWeight'
+  >,
+): string[] {
+  const problems: string[] = [];
+  const { checkVariance } = config;
+  if (!(checkVariance >= 0 && checkVariance <= 1)) problems.push(`checkVariance is ${checkVariance}; it is a share from 0 to 1`);
+  const { triumph, success, setback } = config.checkDegrees;
+  if (!(triumph > success && success > setback && setback > 0)) {
+    problems.push(`checkDegrees is ${JSON.stringify(config.checkDegrees)}; triumph > success > setback > 0`);
+  }
+  const share = config.strongTriumphShare;
+  if (!(share >= 0 && share <= 1)) problems.push(`strongTriumphShare is ${share}; it is a share from 0 to 1`);
+  const factors: Readonly<Partial<Record<MoraleBand, number>>> = config.moraleCheckFactor ?? {};
+  const unsound = moraleBandNames.filter((band) => !isFactor(Object.hasOwn(factors, band) ? factors[band] : undefined));
+  for (const band of unsound) problems.push(`moraleCheckFactor.${band} is ${factors[band]}; it is a finite number above 0`);
+  if (unsound.length === 0) {
+    const { wretched, low, steady, high, elated } = config.moraleCheckFactor;
+    if (steady !== 1) problems.push(`moraleCheckFactor.steady is ${steady}; it is 1, the band that changes nothing`);
+    else if (!(wretched <= low && low <= steady && steady <= high && high <= elated)) {
+      problems.push(`moraleCheckFactor is ${JSON.stringify(config.moraleCheckFactor)}; wretched ≤ low ≤ steady ≤ high ≤ elated`);
+    }
+  }
+  const hurt = config.hurtCheckFactor;
+  if (!(isFactor(hurt) && hurt <= 1)) problems.push(`hurtCheckFactor is ${hurt}; it is above 0 and at most 1, so that a wound never helps`);
+  const { exposureRange, guardRange } = config;
+  if (!(Number.isFinite(exposureRange) && exposureRange >= 0)) {
+    problems.push(`exposureRange is ${exposureRange}; it is a finite number of 0 or more`);
+  }
+  if (!(Number.isFinite(guardRange) && guardRange >= 0 && guardRange <= 1)) {
+    problems.push(`guardRange is ${guardRange}; it is a share from 0 to 1`);
+  }
+  const starts: Readonly<Partial<Record<ChanceBand, number>>> = config.chanceBands ?? {};
+  let floor = 0;
+  const rising = chanceBandNames.slice(1).every((band) => {
+    const start = Object.hasOwn(starts, band) ? starts[band] : undefined;
+    if (!(typeof start === 'number' && start > floor && start < 1)) return false;
+    floor = start;
+    return true;
+  });
+  if (!rising) {
+    problems.push(`chanceBands is ${JSON.stringify(config.chanceBands)}; unlikely < even < likely < near-certain, each above 0 and below 1`);
+  }
+  const margin = config.playerPartyMargin;
+  if (!(margin >= 0 && margin <= 1)) problems.push(`playerPartyMargin is ${margin}; it is a share from 0 to 1`);
+  const tagProblem = encounterTagWeightProblem(config.encounterTagWeight);
+  if (tagProblem !== undefined) problems.push(tagProblem);
+  return problems;
+}
+
+/**
+ * What is wrong with `encounterTagWeight` (v1.1.4-S8, DL-160), a sentence naming it, or `undefined`
+ * for a finite number of 1 or more: the one `configProblems` and `drawSequence` both read.
+ */
+export function encounterTagWeightProblem(weight: number): string | undefined {
+  if (typeof weight === 'number' && Number.isFinite(weight) && weight >= 1) return undefined;
+  return `encounterTagWeight is ${weight}; it is a finite number of 1 or more, so that a tag shared never makes an Encounter rarer`;
+}
+
+/** Whether `value` is a finite number above 0: a form factor (DL-154). */
+function isFactor(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }

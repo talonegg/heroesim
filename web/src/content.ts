@@ -2,7 +2,7 @@
 // build time, so the browser reads nothing from disk and requests nothing over the network
 // (principle 12). Harvested from v1 (feature/poc) and trimmed to v2's flat directory of JSON.
 
-import { parseContent } from '@heroesim/content';
+import { readContent } from '@heroesim/content';
 import type { ContentSet } from '@heroesim/engine';
 
 /**
@@ -11,7 +11,9 @@ import type { ContentSet } from '@heroesim/engine';
  * bundle.
  */
 const bundled = import.meta.glob<string>(
-  ['../../content/*.json', '!**/package.json', '!**/tsconfig.json'],
+  // The negations name the files as the pattern does: `!**/package.json` matched no `../../content/` path,
+  // and both manifests were bundled until v1.1.4-S6's verification (DL-157).
+  ['../../content/*.json', '!../../content/package.json', '!../../content/tsconfig.json'],
   { query: '?raw', import: 'default', eager: true },
 );
 
@@ -26,8 +28,10 @@ export const bundledFiles: Readonly<Record<string, string>> = Object.fromEntries
 );
 
 /**
- * The parsed and validated content set: `parseContent` runs `validateContent` before it returns
- * (content/src/parse.ts), exactly as the Node entry's `loadContent` relies on, so it is not run a
- * second time here (DL-64).
+ * The content set, read with each row's shape checked (`readContent`). The checks across rows are
+ * not carried in the script: the build validates these very files with `parseContent` and fails on
+ * any problem (`content-gate.ts`), and content's tests validate them too (v1.1.4-S2's verification,
+ * DL-152, superseding DL-64 item 4's call of `parseContent` here). `content.test.ts` holds this set
+ * deep-equal to the Node entry's validated one.
  */
-export const content: ContentSet = parseContent(bundledFiles);
+export const content: ContentSet = readContent(bundledFiles);

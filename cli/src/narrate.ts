@@ -11,10 +11,14 @@
 import {
   compareByCodeUnit,
   dayOf,
+  encounterDegree,
+  encounterForm,
   isId,
   isModuleEvent,
   regardBandNames,
   type ContentSet,
+  type Degree,
+  type FormDecided,
   type EndingReason,
   type EngineDeps,
   type EngineEvent,
@@ -57,6 +61,12 @@ function night(turn: number): string {
 }
 
 const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'failed', success: 'succeeded', strong: 'succeeded strongly' };
+
+/** A Degree, a glossary term in each (v1.1.4-S2, `CONTEXT.md` Degree). */
+const degreeWords: Readonly<Record<Degree, string>> = { triumph: 'Triumph', success: 'Success', setback: 'Setback', failure: 'Failure' };
+
+/** The Encounter's one sentence when form decided a Check's Degree (v1.1.4-S3, `encounterForm`), for the Party, naming no Hero. */
+const formWords: Readonly<Record<FormDecided, string>> = { lowered: 'Low spirits told against them.', raised: 'Their high spirits carried them through.' };
 
 /** What befell a Guild at its ending, after its name. */
 const endingWords: Readonly<Record<EndingReason, string>> = {
@@ -196,14 +206,23 @@ function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {
     case 'quest.encounter': {
       // The roll and target are the engine's; the CLI says only how it went and what it cost, and
       // which Encounter it was, counted from 1 as a consumable's line counts them (item.expended).
-      const { partyId, index, encounterKey, outcome, injured, died } = event.payload;
+      // Its Degree, and the Check that decided it when there are several or it is named otherwise
+      // than its Encounter (v1.1.4-S2, DL-152); an entry written before then reads as its outcome, a
+      // Success or a Failure. When form decided a Check's Degree, one sentence more, for the Party,
+      // naming no Hero (v1.1.4-S3, DL-148 item 12).
+      const { partyId, index, encounterKey, outcome, injured, died, decidedBy, checks = [] } = event.payload;
       const went = outcome === 'success' ? 'came through' : 'failed at';
       const hurt = [
         ...injured.map((id) => `${hero(event, id)} was injured`),
         ...died.map((id) => `${hero(event, id)} was killed`),
       ];
       const which = `${nameIn(content.encounters, encounterKey)} (Encounter ${index + 1})`;
-      return `${partyId} ${went} ${which}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
+      const encounterName = nameIn(content.encounters, encounterKey);
+      const decider = rowIn(content.encounters, encounterKey)?.checks.find((it) => it.key === decidedBy)?.name ?? decidedBy;
+      const by = decider !== undefined && (checks.length > 1 || decider !== encounterName) ? `, decided by ${decider}` : '';
+      const form = encounterForm(event.payload);
+      const told = form === undefined ? '' : ` ${formWords[form]}`;
+      return `${partyId} ${went} ${which}, a ${degreeWords[encounterDegree(event.payload)]}${by}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.${told}`;
     }
     case 'quest.resolved': {
       const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta, synergyKeys = [] } = event.payload;
@@ -235,8 +254,18 @@ function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {
     }
     case 'hero.healed': {
       const { heroId, typeKey, traitKey } = event.payload;
-      const left = traitKey === null ? '' : `, left ${nameIn(content.traits, traitKey)}`;
+      const left = traitKey === null ? '' : `, left ${nameIn(content.heroTraits, traitKey)}`;
       return `${hero(event, heroId)} recovered from ${nameIn(content.injuries, typeKey)}${left}.`;
+    }
+    case 'hero.trait-gained': {
+      // v1.1.4-S7: an earned Trait (DL-148 item 25), named with the Encounter that gave it.
+      const { heroId, traitKey, questId, encounterKey } = event.payload;
+      return `${hero(event, heroId)} earned the Trait ${nameIn(content.heroTraits, traitKey)} on ${questId}, at ${nameIn(content.encounters, encounterKey)}.`;
+    }
+    case 'hero.trait-lost': {
+      // v1.1.4-S7: a Trait an Injury left replaced one it conflicts with (DL-150 item 5).
+      const { heroId, traitKey, replacedBy } = event.payload;
+      return `${hero(event, heroId)} lost the Trait ${nameIn(content.heroTraits, traitKey)}, replaced by ${nameIn(content.heroTraits, replacedBy)}.`;
     }
     case 'hero.retired':
       return `${hero(event, event.payload.heroId)} retired from ${called(event, event.payload.guildId)} at ${event.payload.age}.`;

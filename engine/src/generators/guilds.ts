@@ -4,7 +4,7 @@
 // order is DL-19 items 6 and 7; changing it changes every seed's Guilds.
 
 import type { EngineDeps, GameConfig } from '../config.js';
-import type { BackgroundKey, ContentSet, DispositionKey, PortraitKey, Trait, TraitKey } from '../content-types.js';
+import type { BackgroundKey, ContentSet, DispositionKey, GuildmasterTrait, PortraitKey, TraitKey } from '../content-types.js';
 import {
   facilityKeys,
   takeId,
@@ -25,6 +25,7 @@ import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../event
 import { guildmasterTraitsOf } from '../guildmaster.js';
 import { ageIntoPortrait, choosePortrait, guildmasterPortraitsInUse, portraitRowOf } from '../portraits.js';
 import { int, pick } from '../rng.js';
+import { excludeEachOther } from '../traits.js';
 import {
   checkName,
   clamp,
@@ -86,6 +87,11 @@ export interface GuildmasterChoices {
   age?: number;
   /** The Traits in the order given; an empty list is none. */
   traitKeys?: readonly TraitKey[];
+  /**
+   * Every Guildmaster Stat, by key (v1.1.4-S11, DL-149 item 5): each replaces the value drawn for it,
+   * after the draw, as the sex, the age and the Traits do.
+   */
+  stats?: Readonly<StatValues>;
   birthplace?: string;
   appearance?: string;
   biography?: string;
@@ -348,17 +354,17 @@ function drawTraits(state: Stream, config: GameConfig, content: ContentSet): Tra
  * `size`, those of the largest smaller size that has one, down to the empty set, which is always
  * legal, whatever the budget. `rows` are distinct, and a Guildmaster holds each at most once.
  */
-function legalTraitSets(rows: readonly Trait[], size: number, budget: number): Trait[][] {
+function legalTraitSets(rows: readonly GuildmasterTrait[], size: number, budget: number): GuildmasterTrait[][] {
   for (let wanted = size; wanted > 0; wanted -= 1) {
-    const sets: Trait[][] = [];
-    const extend = (from: number, held: Trait[], cost: number): void => {
+    const sets: GuildmasterTrait[][] = [];
+    const extend = (from: number, held: GuildmasterTrait[], cost: number): void => {
       if (held.length === wanted) {
         if (cost <= budget) sets.push([...held]);
         return;
       }
       for (let index = from; index <= rows.length - (wanted - held.length); index += 1) {
-        const row = rows[index] as Trait;
-        if (held.some((mine) => mine.excludes.includes(row.key) || row.excludes.includes(mine.key))) continue;
+        const row = rows[index] as GuildmasterTrait;
+        if (held.some((mine) => excludeEachOther(mine, row))) continue;
         held.push(row);
         extend(index + 1, held, cost + row.cost);
         held.pop();
@@ -398,7 +404,9 @@ function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: 
   const ageAtEntry = chosen.age ?? drawnAge;
   const stats: StatValues = {};
   for (const stat of sortedRows(content.stats, (row) => row.owner === 'guildmaster')) {
-    stats[stat.key] = clamp(int(state, config.guildmasterStatMin, config.guildmasterStatMax), stat.min, stat.max);
+    const drawnStat = clamp(int(state, config.guildmasterStatMin, config.guildmasterStatMax), stat.min, stat.max);
+    // Drawn whatever is chosen, so a choice moves no later draw (v1.1.4-S11).
+    stats[stat.key] = chosen.stats !== undefined && Object.hasOwn(chosen.stats, stat.key) ? (chosen.stats[stat.key] ?? drawnStat) : drawnStat;
   }
   const drawnTraits = drawTraits(state, config, content);
   const traits = chosen.traitKeys === undefined ? drawnTraits : [...chosen.traitKeys];

@@ -16530,6 +16530,4011 @@ texts checked on load as strings only) and T3 (Chromium without its sandbox) for
 
 ---
 
+## DL-148 — Richer Quests as v1.1.4: Checks as Queries over the Party, several named Checks to an Encounter with Degrees, a Hero's form, harm that reads the Stats, the chances shown and the Rivals choosing by them, Hero Traits with effects and earned, and every Stat put to work
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the owner, in an interview on an agent's
+analysis of the Quest Engine and the Hero Stats. The analysis, its three tiers of recommendations, the
+options and the recommendations were the agent's; every answer below is the owner's, and each says
+whether it took the recommendation. The owner agreed every approach of the first tier, asked that a
+Check's score be a query over the Party's Heroes, "SQL like", with one or many Checks to an Encounter
+combined as "(check 1 and check 2) or check 3", and took the second tier with the answers below.
+Where a name or a reading is the agent's, it says so, for the owner to change.
+
+**Context.** The analysis read the Quest Engine (`engine/src/quest-engine/`), the Hero and Quest
+content, the Rival controller and the Board, and simulated about 290,000 Checks against the shipped
+content.
+
+- *Headcount decides the Checks.* A Check's capability is a weighted sum of Stats, each the Party's
+  `best` or its `sum`. On a `sum` Encounter at difficulty 60, a Party of one passed 1 to 5% of the
+  time, a Party of two 45 to 56%, and a Party of four 100%. Levels 1 to 5 added 5 to 12 points; the
+  fourth Hero added about 45. XP is not split, and Injuries come per failure, not per Hero, so the
+  largest Party is always the best.
+- *Any Stat stands in for any other.* The sum is linear, and `best` takes each Stat's best member
+  separately, a composite of the Party. Nothing rewards the right Hero for a task or punishes a weak
+  link.
+- *Coverage is uneven.* Perception and Wits are read by four Encounters each. Intelligence,
+  Knowledge, Arcana, Power, Spelllore, Spirit and Resistance are read by one each, Intelligence at a
+  weight of 0.2. The Mage's four leading Stats appear in two of the twelve Encounters. No Social
+  Encounter uses `sum`, and no gear touches Intelligence, Knowledge, Leadership, Charisma or
+  Diplomacy. The Patron's steward passed 0 to 1% at difficulty 90 at any size.
+- *Systems with no effect on a Quest.* Morale is read by no rule. The Hero Traits have
+  `effect: null` (DL-85 item 10 decided they get effects). Backgrounds have none. Skills never grow.
+  Defensive Stats only add capability: an Injury or a Death falls on a uniformly random member. The
+  Check's margin is recorded and never read.
+- *The Board shows other Stats than the Check reads.* A card shows the template's `demands`, and
+  the Rivals choose by them (`strengthFor`), while each Check reads its Encounter's.
+
+**Decision.** In the order of the release, then the Check, then the page, then the content.
+
+1. **The release.** A v1.1.x patch, `v1.1.4`, on `v1.1.4-dev`, cut from `main`. Random Events stays
+   M10, on v1.2. Against the recommendation, which made this v1.2's first milestone before Random
+   Events. Dependabot's `target-branch`es move to `v1.1.4-dev` (DL-147 item 6).
+2. **One release** holds the first tier and the second's content work. As recommended.
+3. **The balance pass** tunes only this release's own controls toward DL-83 item 4's Quest target
+   (failed 20 to 30%, strong at most 50%; 14.8% and 71.5% at M8). The controls are the Encounters'
+   factors, the Degrees' thresholds and `strongTriumphShare`, the form factors, the harm ranges, the
+   Rivals' margins and the earned Traits' chances. The economy (DL-83 items 8 and 9) and Loot wait
+   for Random Events, as DL-83 item 1 orders. The other DL-83 targets are measured and recorded, not
+   tuned. As recommended.
+4. **Queries are written as JSON arrays**, operator first. A SQL-like text form, compiled when
+   content is built, comes only if writing the arrays proves painful. As recommended.
+5. **What a Query reads.** Of the Party's Heroes, on this Quest:
+   - Values: effective Stats, Skill ratings, Level, working Morale and age.
+   - Facts: Class, Background, Sex, Traits, and whether hurt on this Quest.
+   - Never the Guildmaster or the Guild's dealings (M4's rule), nor Regard between particular Heroes.
+
+   Sex was added against the recommendation, which left it out under R12.
+6. **Sex decides who takes part, never a value.** Content may filter by Sex where the story calls for
+   it (a convent's inner rooms, a lord's hall), and never scales a Stat or a score by it. R12 is
+   amended. As recommended. The agent's reading, for validation, is that Sex appears only in a `where`
+   filter, and a Set filtered by it is never counted.
+7. **Several Checks to an Encounter.** Each Encounter has one to four Checks.
+   - Each Check has a `name`, its score as a Query, its Skills, its target (`flat` plus
+     `difficultyFactor` × the difficulty) and optionally its own `variance`. A name is used by the
+     narration and the Board, and written under the page's capitals rule (the recommendation, taken).
+   - A `pass` formula combines the Checks with `and`, `or` and `at-least`.
+   - Every Check is rolled every time, one draw each, so that a formula never moves a later draw.
+8. **Degrees.**
+   - A Check comes out a Triumph, a Success, a Setback or a Failure, from its roll ÷ target. An
+     Encounter takes the worst of an `and`, the best of an `or`, and the k-th best of an `at-least`.
+   - Consequences can differ by Degree. A missing Triumph list uses Success's, and a missing Setback
+     list uses Failure's.
+   - A success still needs more than half the Encounters at Success or better. A strong success needs
+     every one at Success or better and at least half Triumphs (`strongTriumphShare`, option (c),
+     as recommended). This is DL-83 item 17's margin, the share of Triumphs answering whether it is a
+     mean or a minimum.
+   - The analysis called them tiers. "Degree" is the agent's word, since `CONTEXT.md`'s Quest band
+     avoids "Tier", for the owner to change.
+9. **A Hero's form.** Each Hero's own Morale band sets a factor on what they add, not the Party's
+   mean. Against the recommendation, the Party's mean, which explains in one line.
+10. **Wounds weaken.** A Hero hurt earlier on the Quest adds 0.85 of their values for the rest of it
+    (`hurtCheckFactor`). As recommended.
+11. **What form scales.** Only what a Hero adds into a score. Filters, the choice of the best or worst
+    Hero, Synergy requirements, Skills, Level, age and counts read the Hero unscaled. As recommended.
+12. **Morale shown without naming each Hero.** The owner asked that the display not name each Hero.
+    - The Party builder gives one Morale line for the Party, worded from its mean form.
+    - An Encounter's narration names no Hero's Morale. It says once, for the Party, when form changed a
+      Check's Degree ("Low spirits told against them").
+    - As recommended.
+13. **A consumable's bonus** adds to every Check of its Encounter, one Item an Encounter. As
+    recommended.
+14. **Harm reads the Stats.** Injury and Death gain `among` (a Set Query, which falls back to the
+    whole unhurt Party when it matches no one), `exposedBy` and `guardedBy`. Morale gains
+    `steadiedBy`. Which Stats protect and expose is content's. The draws keep their number and order.
+    As recommended.
+15. **The chances shown as words,** with the numbers in the detail. Against the recommendation, which
+    put percentages on the Party builder. The words are:
+
+    | Word | Chance |
+    | --- | --- |
+    | Hopeless | below 10% |
+    | Unlikely | 10–35% |
+    | Even | 35–65% |
+    | Likely | 65–90% |
+    | Near certain | 90% and above |
+
+    The detail gives each Encounter's and the Quest's percentage rounded to 5%, "if no one falls".
+    The Board's card says "Your best Party:" with a word, for the Party the engine would send from
+    the free Heroes. As recommended.
+16. **The Board shows the Encounters' Checks.** A card shows each drawn Encounter, its Checks' names
+    and what they read. The template's `demands` are shown nowhere and left unused, on templates and
+    Quest rows, until a later rule gives them a job. As recommended.
+17. **The Rivals choose by the estimate.** `partyFor` starts from the Heroes who meet the
+    requirements, adds whoever most raises the chance of success up to the minimum size, then keeps
+    adding while each Hero raises it by the Disposition's `partyMargin`. The harness's automatic
+    policy shares it. As recommended.
+18. **A Party's order** breaks ties only. A marching order waits for the third tier. As recommended.
+19. **Splitting XP** across the Party is decided after the balance pass's numbers. As recommended.
+20. **Synergies are written as Queries.** `requires` is a list of Party-level conditions, and the old
+    Class and Skill form loads into it. As recommended.
+21. **Coverage.**
+    - Every Hero Stat is read by at least three Checks across at least two kinds.
+    - A new Encounter kind, `lore`, for Intelligence and Knowledge.
+    - About six gear Items for the Mental and Social Stats.
+    - About 24 Encounters: the agent drafts, and the owner approves the names.
+
+    As recommended.
+22. **Encounter draws weighted by tags,** and **finales**: a fixed last Encounter on the four hardest
+    templates (Break the sealed vault, Hold the border fort, The counting-house job, Lay the restless
+    dead). Option (c), as recommended.
+23. **Finales and Loot.** Loot keeps its rule, a strong band at difficulty 35 or more. On a Quest with
+    a finale it also needs the finale to end a Triumph. Loot grows rarer, and the owner accepts that,
+    with Loot to be tuned later. Against the recommendation, which also drew Loot on a finale's
+    Triumph whatever the band.
+24. **Hero Traits' effects.** They are Stat changes through `effectiveStats`, as gear, and readable by
+    `has-trait`. Lame is Dexterity −2, Endurance −1. One-eyed is Perception −2, Weaponry −1.
+    Short-winded is Endurance −2, Constitution −1. Scarred is Courage +1, Charisma −1. As proposed.
+    This answers DL-85's open "which effects Hero Traits get".
+25. **Earned Traits.**
+    - A `trait` consequence grants a Trait to one Hero drawn from its `among`. Four are positive and
+      two negative. A Trait may change Stats or give an Encounter bonus (below). As recommended.
+    - The owner added the eligibility. A positive Trait is drawn on an Encounter's Triumph and granted
+      only if the Quest ends a strong success. A negative one falls only on a Hero injured by the same
+      failed Encounter.
+    - Traits stay rare: chances of about 5 to 10%, at most one new Trait a Hero a Quest, and none twice.
+    - R24 is amended.
+26. **A Trait's Encounter bonus** is the Party's. If any member holds it, every Check of a matching
+    Encounter gains it, once however many hold it. As recommended.
+27. **A Trait gained is a Milestone,** positive or negative. As recommended.
+28. **Backgrounds** keep no effect in this release, only the `background` predicate, and their effects
+    go to the backlog as a GitHub issue. Against the recommendation, which gave them small Stat
+    changes. It keeps DL-85 item 10's "Backgrounds stay flavour".
+29. **Saves.** Backward compatibility of saves across releases is not a requirement until the owner
+    says it will be. No migration is built and no old save tested. The schema stays 6, since no row
+    gains a field.
+30. **The content is reviewed before it is built.** The agent drafts every Encounter, finale, Trait,
+    Item and Synergy with its calibrated rates on one page the owner can comment on, and the owner's
+    answers come before the content is written. As recommended.
+31. **The plan.** The stories, their order and their acceptance are the agent's, in
+    `docs/planning/epics/v1.1.4-release.md`, for the owner to change.
+
+**Consequences.**
+- Play changes from S2 on. S1 holds a parity sweep against `v1.1.3`, and each later change of play
+  is explained in its DL entry.
+- `configVersion` goes from 12 to 13 with the new fields (the epic's §2). The content version rises
+  with each content change.
+- New events: `hero.trait-gained`, a Milestone. Additions to `quest.encounter` (`degree`,
+  `decidedBy`, `checks`) and `quest.resolved` (`moraleByHero`).
+- The script is at 770 of 800 kB, so its size is read at each story's close.
+- R12, R24, R25 and R26 are amended with dated notes. R24's words are the agent's, for the owner to
+  confirm, closing DL-85 item 10's provisional rewording.
+- ADR-0010, Checks and Synergy requirements as Queries over the Party, is written in S1.
+
+**Actioned in:** `docs/planning/epics/v1.1.4-release.md` (new); `docs/planning/epics/README.md`;
+`docs/plan.md` §4; `docs/requirements.md` (R12, R24, R25, R26); `.github/dependabot.yml`; the branch
+`v1.1.4-dev`.
+
+---
+
+## DL-149 — The Guildmaster's setup in v1.1.4: "Choose for me" for the whole Guildmaster, or the player's own sex, age, picture and Stats
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the owner, asking for it to be added to
+v1.1.4's plan (DL-148). Items 1 to 4 and 6 to 7 are the owner's words. Where the request left a detail
+open, the agent proposed one, marked "the agent's", for the owner to change: item 5's pool, item 8 and
+item 9.
+
+**Context.** Today the setup's "Your Guildmaster" offers the sex, the age, the Portrait and the Traits,
+each "Drawn from the seed" unless the player picks (M9-S7, v1.1.2-S4, v1.1.3-S7). The five Guildmaster
+Stats are always drawn, each from 5 to 15, and the player cannot set them.
+
+**Decision.**
+
+1. **Two ways.** The player either has the whole Guildmaster chosen for them, or chooses.
+2. **"Choose for me"** draws every Guildmaster attribute from the seed. The agent's reading: the sex,
+   the age, the Portrait, the Stats and the Traits, with the Birthplace, Appearance and Biography
+   written when the game starts. The Guildmaster's name stays the player's to type, since it stands
+   outside "Your Guildmaster".
+3. **Choosing.** The player chooses the sex and the age, and neither offers a draw from the seed.
+4. **The Portrait while choosing.** It offers no draw from the seed, and no picture is read until a sex
+   is chosen. The agent's reading: the grid then shows that sex's pictures only, and a picture must be
+   chosen to start, since leaving it to the engine would be a draw.
+5. **The Stats while choosing.** The player allocates points to the five Guildmaster Stats. The pool is
+   the agent's: `guildmasterStatPoints`, 50, the drawn Stats' mean of 10 each. Each Stat is held to the
+   drawn range, 5 to 15, and starts at 10. The pool may not be overspent, and points left unspent are
+   lost, with a note.
+6. **The rest kept.** The Traits keep their two ways, and the few words their buttons.
+7. **"Choose for me" for "Drawn from the seed"** on the initial setup screen: the Background's option
+   and the Traits' way, and the words around them. The Seed field keeps its name. The CLI's help keeps
+   "drawn from the seed".
+8. **"Choose for me" is chosen at first** (the agent's), so a game starts as quickly as today.
+   Switching ways keeps the player's choices for when they come back.
+9. **The CLI** (the agent's). `new` gains `--stats`, every Guildmaster Stat or none, within the pool;
+   whatever is left out is drawn, as now.
+10. **The plan.** v1.1.4-S11, the setup, 1.5 sessions. It is apart from the Quest Engine and may be
+    built at any point, best beside S1. The close becomes S12, and the epic's stories are numbered from
+    DL-150.
+
+**Consequences.**
+- `WorldSetup` gains `guildmasterStats`, and `setupRefusal` gains `stats-incomplete`,
+  `stat-out-of-range` and `stats-over-points`. What is chosen replaces what is drawn after the draw,
+  so the rest of the world a seed makes is unchanged.
+- `configVersion` 13, already raised by v1.1.4, gains `guildmasterStatPoints`.
+- A chosen Guildmaster can set two Stats at 15 where a drawn one averages 10. The automatic policy
+  plays a drawn Guildmaster, so S11 records the best allocation's effect beside a drawn one's.
+
+**Actioned in:** `docs/planning/epics/v1.1.4-release.md` (the objective, the gate, the order, S11 and
+S12, §2, §3 and §4); `docs/planning/epics/README.md`; `docs/plan.md` §4.
+
+---
+
+## DL-150 — Traits in two lists, each a list of effects; a content editor for the owner with Traits as its first kind; and Claude Code skills for Traits that keep themselves current
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the owner, in an interview on issues #22
+and #29 against DL-148, and in two requests of their own: Traits that can be extended, and skills for
+future sessions. The options and the recommendations were the agent's; every answer is the owner's,
+and each says whether it took the recommendation. Names and readings marked as the agent's are for
+the owner to change.
+
+**Context.** DL-148 gives Hero Traits effects and lets Heroes earn them, on today's shape: one
+`traits.json` holding both owners' Traits, each with one `effect` or none. #29 carries DL-87 item 6, a
+list of effects per Trait, with Miser's two effects and Thrifty's fate left to the owner. #22 carries
+DL-83 item 17's margin, which DL-148 item 8 settles, with DL-85's premium and the Board's scaling still
+open.
+
+**Decision.**
+
+1. **Two lists.** Guildmaster Traits and Hero Traits are two separate lists in content. The owner's
+   design, which also answered the agent's question (whether S7 builds DL-87 item 6's list of effects).
+   The agent's choice is that keys stay unique across both lists.
+2. **A list of effects per Trait,** each Trait holding one for now, so that Traits can be extended
+   later. Miser keeps its one effect, and Thrifty is unchanged: DL-87 item 6's two-effect Miser waits.
+   The agent's reading: one Stat-change effect may name several Stats, so DL-148 item 24's values stand.
+3. **Holding Traits.** A Guildmaster or a Hero holds 0 to many Traits, never two of which one excludes
+   the other, as before. A Guildmaster's Trait budget and its maximum stay.
+4. **The same games first.** Moving today's Traits into the new shape is its own step, playing the same
+   games (the agent's).
+5. **Conflicts.**
+   - An earned Trait that conflicts with one the Hero holds is not granted (DL-148).
+   - A Trait an Injury leaves replaces one it conflicts with. The wound is a fact of the body; a new
+     event, `hero.trait-lost`, a Milestone, says so.
+
+   Option (b), as recommended.
+6. **R16 and R24 reworded** in the owner's confirmed words. This closes DL-85 item 10's provisional
+   wording. Option (a), as recommended.
+7. **A content editor for the owner.**
+   - It is a local page (`npm run edit`) with commands underneath, for tests and for Claude.
+   - It is never part of the deployed game.
+   - Option (b), as recommended: not a command-line tool alone, nor a modding page for players.
+8. **The kinds of effect** the editor offers are each list's known kinds. For Guildmasters: a Class Stat
+   bonus, a Morale shift and an Upkeep factor. For Heroes: Stat changes and an Encounter bonus. A new
+   kind is an engine change, made on request. Option (a), as recommended.
+9. **Keys are fixed.** Everything else about a Trait can change: its name, its effects, its excludes and
+   a Guildmaster Trait's cost. Option (a), as recommended.
+10. **Removing a Trait still in use is refused,** and every use is listed. The Trait is stripped from
+    other Traits' `excludes` lists by the editor itself. Option (a), with the agent's "Retire" button
+    not taken.
+11. **Finishing an edit** runs the test suite; individual changes do not. This is the owner's design,
+    beyond the recommendation, which ran only the content checks.
+    - Each add, change and removal is checked against the content rules as it is made, and held as
+      pending.
+    - "Finish" writes the files, runs `npm test`, and if any test fails puts the files back and
+      saves nothing.
+    - On success the content version rises by one.
+    - It never commits.
+12. **A content editor, Traits first.** The table, the pending edits, the checks, the Finish and the
+    in-use search are built once. Other kinds, Encounters first, are added when the owner asks.
+    Option (b), as recommended.
+13. **Skills for Traits** (the owner's request): Claude Code skills in this repository, for future
+    sessions, to search, edit, remove and assign Traits to other content.
+    - The other content is an Injury's `leavesTrait`, an Encounter's earned-Trait consequence, a
+      `has-trait` condition in a Check or a Synergy, the Biography sentences, and the Portrait
+      vocabulary's suits and clashes.
+    - The agent's names: `trait-find`, `trait-edit` and `trait-assign`.
+14. **They heal themselves.** Option (c), as recommended.
+    - *A register.* One register in code lists every place a Trait is used, in content and in the
+      engine's rules and events. The editor's in-use search and `docs/agents/traits.md`'s generated part
+      come from it.
+    - *A drift test* fails CI when content's checks or the engine read a Trait somewhere the register
+      does not list.
+    - *A freshness test* fails when the doc does not match the register.
+    - *A doctor.* `npm run edit -- traits doctor` runs both, and the skills run it first.
+    - *Each story's close.* Every story that touches the engine runs the doctor, and its DL entry says
+      what changed for Traits.
+15. **The only route.** AGENTS.md gains a "Traits" section: Traits are added, changed, removed and
+    assigned only through the editor, its commands or the `trait-*` skills, as Portraits are. Option
+    (a), as recommended.
+16. **Content only.** The skills and the editor change what the game ships, never a saved game: every
+    change to a world is an event in its History. Option (a), as recommended.
+17. **Left on the issues for v1.2** (the agent's, not disputed):
+    - #22's strong-success premium, and the Board's difficulty scaling by mean Level or by year;
+    - #29's decline lowering Potential, and injury history in the Retirement chance.
+
+    Each changes the economy or Heroes' careers, which DL-148 item 3 leaves until after Random Events.
+18. **The plan.**
+    - v1.1.4-S7 grows to take items 1 to 6.
+    - v1.1.4-S12, the register and the content editor with Traits, is new.
+    - v1.1.4-S13, the Trait skills, is new.
+    - The close becomes S14, and the stories are numbered from DL-151.
+
+**Consequences.**
+- Content gains `guildmaster-traits.json` and `hero-traits.json` in place of `traits.json`, and each
+  Trait's `effect` becomes `effects`.
+- New event `hero.trait-lost`, a Milestone.
+- New files outside the game: the editor (`tools/editor/`), `.claude/skills/trait-*`,
+  `docs/agents/traits.md`, and AGENTS.md's section.
+- The editor's Finish takes a few minutes, the length of `npm test`.
+- The estimate rises to 22 to 27 sessions.
+
+**Actioned in:** `docs/requirements.md` (R16, R24); `docs/planning/epics/v1.1.4-release.md`;
+`docs/planning/epics/README.md`; `docs/plan.md` §4.
+
+---
+
+## DL-151 — v1.1.4-S1 built: Checks scored by Queries over the Party, Synergy requirements written in them, the old forms loading into them, and play unchanged
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 items 4 to 6
+and 20 as the epic's S1 describes. Where the plan was silent, the calls are the agent's, each in
+item 7, for the owner to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** S1 is the language every later engine story reads: a Check's score and a Synergy's
+requirements become Queries, written in content and evaluated by the engine. It must change no
+play. The files keep their old form, which loads into the new one. It was built on `v1.1.4-dev` at
+`8987cd5`, and every comparison below is with that commit.
+
+**Decision.**
+
+1. **The glossary and the ADR.** `CONTEXT.md` gains **Query**, **Degree** (with **Triumph** and
+   **Setback**), **Form**, **Finale** and **Earned Trait**. **Encounter** and **Check** say an
+   Encounter has one to four named Checks by DL-148, one until S2, and the Check's score is a Query.
+   **Synergy** says its requirements are Queries. ADR-0010, "Checks and Synergy requirements are
+   Queries over the Party, written in content", extends ADR-0006.
+2. **The types** (`engine/src/content-types.ts`). `SetQuery`, `HeroQuery`, `ValQuery`, `PredQuery`
+   and `NumQuery`, as the epic's table, with `QueryComparison` and `PartyCondition`, a Num compared
+   with a Num. An `EncounterCheck` has `key`, `name`, `score` (a Num), `skills` and
+   `difficultyFactor`. An `Encounter` has `checks` in place of `demands`, `aggregate`, `skillKeys`
+   and `difficultyFactor`. `SynergyRequires` is a list of `PartyCondition`s.
+3. **The evaluator** (`engine/src/quest-engine/query.ts`). It is pure and draws nothing.
+   - *The Party.* `queryParty(heroes, world, deps, hurt)` takes the members in Party order. It reads
+     each Hero's effective Stats once (`effectiveStats`), their Morale, their age at `world.turn`
+     (`ageOf`), and whether they are hurt on the Quest. `resolveQuest` takes it once an Encounter,
+     and a reroll reads the same.
+   - *The reading.* `evaluate` (Num), `holds` (a condition), `membersOf` (Set), `heroOf` (Hero),
+     `valueOf` (Val) and `is` (Pred).
+   - *Ties and order.* `best`, `worst`, `top`, `bottom` and `ranked` give a tie to the earlier Hero
+     in Party order. `top` and `bottom` keep their members in Party order, so a sum over them runs in
+     Party order too. Sums start from 0 and products from 1.
+   - *Nothing to read.* An empty Set gives 0 to every Num, and no Hero gives 0. A Stat, Skill, Class,
+     Background or Trait content does not define reads 0 or matches no one.
+   - *An operator no type has* throws, since validation refuses it.
+4. **The Check and the Synergies.**
+   - `capability(party, encounter, encounterCheck, world, deps)` is the score, plus the Skill term,
+     plus the Synergy term of the Encounter's kind, times teamwork. `check` takes the same and the
+     Quest. The Skill and Synergy terms are as they were.
+   - `meetsRequirement(party, requires)` holds when every condition does.
+   - `synergiesFor(party, content)`, `synergiesOn` and `synergyBonus` take the Party as Queries read
+     it. Their results are unchanged, and so is the preview's `synergies`.
+5. **The old forms load** (`content/src/parse.ts`).
+   - *An Encounter* loads into one Check, keyed and named as its Encounter. Its score is
+     `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order of `demands`, `best` read
+     as `max`. Its Skills are `skillKeys` and its factor its own.
+   - *A Synergy's* `requires` may be a list of conditions, read as written, or the old object, which
+     loads into `[">=", ["count", ["where", "party", ["class", k]]], n]` for each Class, then
+     `[">=", ["max", "party", ["skill", k]], 1]` for each Skill.
+   - *Why bit-identical.* The old capability added `weight × aggregate` for each demand, in order,
+     from 0. `best` was `Math.max(0, …values)` and `sum` a sum from 0 in Party order. The Query does
+     the same operations in the same order. `0 + x` is `x`, `1 × w` is `w`, and a `max` over a
+     non-empty Party equals `Math.max(0, …)`, since every effective Stat is at least its minimum, 1.
+     The old requirement was a count of each Class and a Skill held at a rating of 1 or more. The
+     conditions say the same.
+   - *The content version* goes from 20 to 21. No file changed.
+6. **The checks** (`content/src/validate.ts`).
+   - *Every Query* is held to its type at every node, its arguments' number, the keys content
+     defines, 64 nodes and 12 deep (`queryNodesMax`, `queryDepthMax`). `top` and `bottom`'s n must
+     be a whole number from 1, and `ranked`'s weights finite and 0 or more.
+   - *Sex.* `["sex", …]` stands only as the Pred of a `where` filter in a Check's score, and nowhere
+     in a Synergy's requirement (verification, below). A Set filtered by Sex, however deep within, is
+     refused when counted.
+   - *A Hero Stat's least value* is 0 or more (verification, below).
+   - *An Encounter* has one Check (`encounterChecksMax`, 1 until S2), keyed in kebab-case once and
+     named, its score a Num, its Skills ones content defines, its factor above 0.
+   - *A Synergy* has one or more conditions.
+   - *The old forms* are held as they load, in the words written. A demand's Stat and weights and an
+     Encounter's Skills keep their old refusals. So do a Synergy's Classes, counts and Skills, now
+     with the file's path (`synergies.json: sword-and-salve.requires.classes: "paladin" is not a
+     Class`). The difficulty factor's refusal names `checks.0.difficultyFactor`.
+   - *Each refusal names its path*, every argument by its place in its array:
+     `synergies.sword-and-salve.requires.0.1.1.2.1: "paladin" is not a Class`.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The internal shape.* An Encounter holds a list of Checks, one until S2, which adds `pass`,
+     `flat`, `variance` and up to four. `encounters.json` is read only in the old form until S2
+     writes `checks`. `synergies.json` takes either form now, since S1 is where the new one lands.
+   - *The old form's Check* is keyed and named as its Encounter.
+   - *A condition* compares a Num with a Num. The epic's `[">=", Num, n]` is the case where one side
+     is a number.
+   - *Arity.* `+`, `*`, `least`, `greatest`, `and`, `or`, `class` and `background` take one
+     operand or more. `-` takes two: there is no unary minus, and `["*", -1, x]` negates. `has-skill`'s
+     least rating is a whole number from 1, and 1 when left out.
+   - *What counts as a node.* Each operator, number and `"party"`. Keys, `weighted`'s pairs and
+     `ranked`'s weights are part of their node. A leaf is 1 deep.
+   - *Keys.* `stat` and `weighted` name Hero Stats, so a Guildmaster Stat is refused. `background`
+     names a Hero Background, and `has-trait` a Hero Trait.
+   - *Counting by Sex.* `["sum", S, 1]` counts S. So a Set filtered by Sex is also refused when
+     summed, averaged, ranked, maxed or minned by a Val that reads nothing of a Hero, or when its
+     Hero is read as a number alone. "Reads nothing" is a number, a read times a literal 0, or a
+     `weighted` of no weight but 0. A sum of a Stat over it, in a Check's score, is accepted: Sex
+     decides who takes part.
+   - *Morale.* `["morale"]` reads the stored Morale until S3's working Morale. `QueryMember.morale`
+     is the seam.
+   - *The owner's examples.* "Wits" is the core Stat `wits`. "The least agile" is the least
+     Dexterity, `dexterity`. Strength and Intelligence are `strength` and `intelligence`.
+   - *`synergiesFor`'s argument.* A requirement may read effective Stats, which need the world, so
+     `synergiesFor` takes the Party as `queryParty` makes it, not bare Heroes. Its result and the
+     preview's are unchanged. `SynergyMember` is gone.
+   - *The word "form".* The glossary's Form is a Hero's. The setup form is not the term, and keeps
+     its lower case.
+8. **The tests.**
+   - *`query.test.ts`,* 59 tests. The owner's three examples come first, each beside its SQL
+     reading:
+     - `SELECT MAX(strength) FROM party WHERE class = 'warrior'`;
+     - `SELECT SUM(intelligence) FROM party WHERE class IN ('mage', 'healer')`;
+     - `SELECT wits FROM party ORDER BY dexterity LIMIT 1`.
+
+     Then every operator, ties, empty Sets, unknown keys, Party-level conditions, the old forms
+     read to the last bit for both aggregates at every size, Stats read once, and no draw.
+   - *`check.test.ts`.* The source-reading test of M4's third risk covers `check.ts` and
+     `query.ts`. Neither mentions the Guildmaster, nor Wealth, Fame, the Treasury, Upkeep, a Patron
+     or a Rival. `query.ts` imports as values only `effectiveStats` and `ageOf`.
+   - *`refusals.test.ts`,* 49 new tests: 41 refusals of a Query, 4 Queries accepted at the bounds,
+     two sets held in memory, a requirement written as a list, and a demand listed twice. Each
+     refusal names its path:
+     - the wrong type, the wrong number of arguments, an unknown key of each kind;
+     - `top` or `bottom` below 1, not whole, or a word;
+     - `ranked`'s weights negative, empty, infinite or NaN;
+     - Sex outside a filter, and a Set filtered by it counted;
+     - 65 nodes and 13 deep refused, 64 and 12 accepted;
+     - an Encounter's Check in memory.
+   - *`content.test.ts`.* Each core Encounter and Synergy loads as item 5 says.
+   - The engine's tests write their Encounters in the old form through `oldFormCheck` and
+     `oldFormRequires` (`world.test-support.ts`), which load as the parser does.
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first:
+1. **Sex could still be read as a value.** Three Synergy conditions were accepted:
+   - `[">", ["max", F, ["level"]], 0]`, where F is a Set filtered by Sex;
+   - `[">", ["sum", F, ["+", 1, ["*", 0, ["level"]]]], 0]`, a constant disguised with × 0;
+   - `[">", ["of", ["best", F, ["level"]], ["level"]], 0]`.
+
+   Each tests whether anyone of a sex is in the Party.
+
+   *The fix.* A Synergy's requirement is a gate, so any reading of Sex in it is a value. `["sex", …]`
+   is now refused anywhere in one, naming its path: "stands in no Synergy's requirement". In a
+   Check's score, a Val that is a number, reads a Hero only times a literal 0, or is a `weighted` of
+   no weight but 0 now reads nothing. A Set filtered by Sex and aggregated by such a Val is refused as
+   counted. `CONTEXT.md` and ADR-0010 say exactly this.
+
+   `refusals.test.ts` holds the three probes and a sum of a Stat, each refused in a requirement. Six
+   scores held in memory are refused or accepted as the rule says.
+
+   *Left (the agent's).* A score can still turn a Set filtered by Sex into a near-presence test by
+   arithmetic validation does not follow: `["-", ["level"], ["level"]]`, or `least` clamping a `max`
+   of Levels to 1. Every such score still reads a Hero's value. No content writes Sex yet, and S9's
+   review shows the owner every Check.
+2. **`["hurt"]` through `resolveQuest` was untested.** `resolve.test.ts` now has the case. Encounter 1
+   injures a Hero with chance 1. Encounter 2's score is `["count", ["where", "party", ["hurt"]]]`
+   against a target of 0.5. It succeeds with the Injury, and fails, with a roll of 0, when the
+   chance is 0.
+3. **`best` and `max` agree only above 0.** The old `best` was `Math.max(0, …values)`, and it loads
+   as `["max", …]`. The two are equal only while no effective Stat is below 0. Content's Stats run
+   from 1 and `effectiveStats` holds every value within its Stat's range, so play is unchanged. A
+   Hero Stat whose `min` is below 0 is now refused, naming it: `stats.<key>.min is …; a Hero Stat's
+   least value is 0 or more`. A Guildmaster Stat is not held to it. Tested in `refusals.test.ts`.
+4. **A load flake.** `web/src/views/history.test.tsx` ("the rail opens the History… Quest report")
+   failed once under the full suite's load for the verifier. It passed alone and on a rerun.
+
+After the fixes, `npm run typecheck` and `npm run lint` are clean, and `npm test` passes 4,007 tests
+in 166 files, 11 more than below, with no flake. The sweep was not run again: no fix changes a rule
+that runs, only what content may be written.
+
+**The checks.**
+These checks were run on the working tree over `8987cd5`, before the commit.
+1. **The 50 × 20 sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s1 npm run harness`, core
+   only, content 21, not validated. Its report is `harness/reports/m9-v114-s1-2026-10-02.md`, to be
+   force-added.
+   - *Play is unchanged.* Lines 27 to 592, the Counters through the Rivals, hash equal
+     (`84d68609…`) to `m9-v113-close-2026-10-02.md`'s, DL-146's hash. The Portraits' and the Heroes'
+     sections are equal too.
+     - Every play counter, yearly table and ending is the same: 138 Rival folds, 37 Successions, no
+       player ending, no refused action.
+     - One seed played twice is byte-identical, at 106,422,611 characters as before.
+     - 50 of 50 saves round trip.
+   - *What moved,* with the line `diff` shows for each:
+     - the title and the run's start;
+     - the content version, 21;
+     - the machine's Windows build, 26300;
+     - the timings, which fell by half on an idle machine (`advance` 3.524 ms mean against 8.184 ms);
+     - the fingerprint of the last saves, `35588633…` against `deaf4d1e…`.
+   - *Why the fingerprint moved.* Every save records `meta.content.version`, now 21. "20" and "21"
+     are the same length, so the saves keep their length, and only that field differs. Three seeds
+     were played 20 years at both trees to show it: `seed-0001` to `seed-0003`, the player idle with
+     a Wealth of 10⁹, so the four Rivals quest through the Quest Engine for all 21,600 Turns. The
+     tree at `8987cd5` was a `git worktree`, since removed. With `meta.content.version` set aside,
+     the three saves hash equal at both trees. The run held 18,959, 18,981 and 19,570 Quests
+     resolved, and 54,014, 54,030 and 55,990 Encounters. The saves are 83,415,600, 83,780,550 and
+     87,096,899 characters at both.
+2. **Creation, 1,000 seeds, two setups** (the harness's age 30, and a bare one), against `8987cd5`,
+   hashed before the change:
+   - With `meta.content.version` set aside, all 2,000 documents hash equal: combined `7aaf9fe5…`
+     (age 30) and `eaadbeb2…` (bare) at both trees.
+   - Taken whole, every one differs, by that field alone.
+3. **The script.** `npm run build -w web`'s check-bundle passes, and the script is 779.64 kB
+   (779,636 bytes, 223.69 kB gzipped). The same build at `8987cd5` is 770.12 kB (770,120 bytes), so
+   S1 adds 9.5 kB: `query.ts` minifies to about 3.4 kB, and the rest is the content checks and
+   their words. That leaves 20.4 kB under 800 kB.
+4. **The rest.**
+   - `npm run typecheck` and `npm run lint`: clean.
+   - `npm test`: 3,996 tests in 166 files, all passing, with no load flake.
+   - `npm run e2e -w web`: all 86 specs pass.
+
+**Consequences.**
+- S2 extends `Encounter.checks` to four, with `pass` and Degrees, and lifts `encounterChecksMax`.
+  S3 sets `QueryMember.morale` to the working Morale and scales what a Hero adds by their Form.
+- Content may now write a Synergy's requirement as Queries. The old forms load until S10 rewrites
+  the content.
+- An old-form refusal keeps its words. A Query's names its path, which an author reads against the
+  array.
+- `meta.content.version` is 21 in every document created from here. Saves need no migration (the
+  owner's rule).
+- The script is 779.64 kB, 9.5 kB more than at `8987cd5`, with 20.4 kB left under the limit for
+  S2 to S13. The epic's risk expected 6 to 10 kB for the evaluator, the estimate and the words
+  together, so S5's and S6's sizes need watching.
+
+**Actioned in:** `CONTEXT.md`; `docs/adr/0010-checks-and-synergy-requirements-are-queries-over-the-party.md`;
+`engine/src/content-types.ts`; `engine/src/quest-engine/query.ts` and `query.test.ts`; `check.ts`,
+`synergy.ts`, `resolve.ts` and their tests; `engine/src/preview.ts`; `engine/src/index.ts`;
+`engine/src/world.test-support.ts`; `content/src/parse.ts`, `validate.ts`, `refusals.test.ts` and
+`content.test.ts`; the engine's and the CLI's tests that built Encounters;
+`harness/reports/m9-v114-s1-2026-10-02.md`; the epic's S1 boxes.
+
+---
+
+## DL-152 — v1.1.4-S2 built: several Checks to an Encounter, combined by a pass formula into a Degree, consequences by Degree, and a strong success that needs Triumphs
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 items 7, 8
+and 13 as the epic's S2 describes. Where the plan was silent, the calls are the agent's, each in
+item 8, for the owner to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** S2 is the spine every later engine story builds on. An Encounter may now hold up to
+four named Checks, each rolled, combined by a pass formula into a Degree; consequences may differ
+by Degree; and a strong success needs Triumphs. It was built on `v1.1.4-dev` at `de7284d` (S1,
+DL-151), and every comparison below is with that commit and its sweep,
+`harness/reports/m9-v114-s1-2026-10-02.md`. Play changes by one rule, the band's, and S2 shows
+that it is the only one before it changes it.
+
+**Decision.**
+
+1. **The Encounter's shape** (`engine/src/content-types.ts`).
+   - `EncounterCheck` gains optional `flat` and `variance`. The target is `flat` (0 when absent)
+     plus `difficultyFactor` × the Quest's difficulty. `variance` replaces `checkVariance` for that
+     Check; 0 is a gate with no luck in it.
+   - `PassFormula` is a Check's key, `["and", …]`, `["or", …]` or `["at-least", k, …]`.
+     `Encounter.pass` is optional: one Check needs none, and then decides.
+   - `degrees` (`failure`, `setback`, `success`, `triumph`, worst first) and `Degree`.
+   - `consequences` gains optional `triumph` and `setback` lists.
+2. **Degrees** (`engine/src/quest-engine/degree.ts`, new, pure).
+   - `degreeOf(roll, target)` is a Triumph at `checkDegrees.triumph` × the target or more, a
+     Success at `success` ×, a Setback at `setback` ×, else a Failure.
+   - `passDegree(pass, byKey)` gives the Degree and the Check that decided it: `and` the worst,
+     `or` the best, `at-least` k the k-th best.
+   - `passOf` reads an Encounter's formula, or its one Check's key.
+3. **The Check** (`check.ts`). `check` rolls with the Check's own variance or `checkVariance`,
+   aims at `flat + difficultyFactor × difficulty`, and returns the roll's `degree` beside
+   `outcome`, which is `success` at a Success or a Triumph. The capability is as S1 left it: the
+   score, the Skill term and the Synergy term, times teamwork, plus the consumable's bonus.
+4. **The resolver** (`resolve.ts`).
+   - *The draws.* Every Check is rolled, one `next` from `quests` each, in the order the Encounter
+     lists them, however the formula falls. Then the Degree's consequences draw as before, and
+     Loot's two draws come last.
+   - *A consumable's bonus* adds to every Check of its Encounter, one Item for the Encounter
+     (DL-148 item 13).
+   - *A reroll.* When the Encounter's Degree is below Success and a reroll applies, each Check that
+     fell short of Success is rolled again, one draw each in the order listed, straight after the
+     Checks. The new rolls stand, and the formula is read again.
+   - *Consequences.* A Triumph applies `triumph`, or `success` when it has none; a Setback
+     `setback`, or `failure`.
+   - *The band* (`questBand(successes, triumphs, encounterCount)`). A success needs more than
+     `successAbove` of the sequence at Success or better, as before. A strong success needs
+     `strongAtLeast` (1) of it at Success or better and `strongTriumphShare` (0.5) of it Triumphs.
+     Both shares are of the whole sequence, an Encounter a wiped-out Party never reached counting
+     as neither.
+5. **Events.** `quest.encounter` gains `degree`, `decidedBy` and `checks`, each with its key,
+   capability, roll, target, margin and Degree. `roll`, `target`, `margin` and `outcome` are the
+   deciding Check's. The three new fields are optional in the payload's type, and
+   `encounterDegree(payload)` reads an entry written before v1.1.4 as its outcome, a Success or a
+   Failure. A reroll's `item.expended` records the deciding Check's failed roll as `firstRoll`.
+6. **The words.**
+   - The CLI's and the page's narration give each Encounter's Degree, and, for an Encounter of
+     several Checks, the name of the one that decided it: "The Kestrel Guild's Party failed at
+     Ambush on the road (Encounter 2), a Setback, decided by Nerve: Brenna Ashcombe was injured."
+     An entry written before v1.1.4 reads "…, a Failure" or "…, a Success". Triumph, Success,
+     Setback and Failure are written with their capitals (`docs/agents/ui-text.md`).
+   - The Quest report gives each Encounter its `degree` and its sentence, and marks a Triumph with
+     a star where a Success has a tick. The History's lines are the narration's.
+7. **Content and configuration.**
+   - `encounters.json` may hold either form. The new form is `checks` (`key`, `name`, `score`,
+     `skills`, `difficultyFactor`, optionally `flat` and `variance`) and `pass`; the old one
+     loads into one Check as in S1. An Encounter written in the new form refuses the old form's
+     fields beside it.
+   - The content checks refuse, each naming its path:
+     - none, or more than four, Checks (`encounterChecksMax`, now 4);
+     - several Checks and no pass formula;
+     - a part naming no Check of the Encounter;
+     - a Check named twice, or not named;
+     - an operator other than `and`, `or` or `at-least`;
+     - `and` or `or` of fewer than two parts;
+     - `at-least`'s k not a whole number from 1 to the number of its parts;
+     - a part that is neither a key nor a list;
+     - a negative `flat`;
+     - a factor not above 0 with no `flat` above 0, or a negative one beside it;
+     - a variance outside 0 to 1;
+     - consequences by Degree out of their bounds, or of a field they lack.
+   - `configVersion` goes from 12 to 13, with `checkDegrees` (triumph 1.25, success 1, setback
+     0.75) and `strongTriumphShare` (0.5).
+   - The content version stays 21: no file is written in the new form yet.
+8. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The thresholds compare products.* A Degree compares the roll with the threshold × the target,
+     not roll ÷ target with the threshold. They are the same in arithmetic, but a division can
+     round a roll a hair below the target up to 1. The product keeps a Success exactly the old
+     `roll >= target`.
+   - *Ties.* The Check that decides is the first listed, in the formula, of those with the Degree
+     the Encounter takes.
+   - *`strongAtLeast` stays.* The band keeps `bandBySuccessShare` and adds the share of Triumphs
+     to its strong rule, so that `strongTriumphShare: 0` is exactly the rule before S2.
+   - *Several Checks need a formula.* Only an Encounter of one Check may leave `pass` out. Two or
+     more with none is refused, and the resolver throws on it.
+   - *A formula's parts.* `and` and `or` take two parts or more, `at-least` two or more after its
+     k. A formula of a single key is allowed.
+   - *A target with no difficulty.* A factor of 0 is allowed only beside a `flat` above 0, so that
+     every target is above 0. A variance is held to 0 to 1, so the roll's spread never reaches
+     below nothing, which the roll's floor of 0 would otherwise hide.
+   - *A reroll's `firstRoll`* is the deciding Check's failed roll. The Item rerolls the Encounter
+     once, however many of its Checks it rolls again.
+   - *Naming the deciding Check.* The narration names it for an Encounter of several Checks, or
+     of one named otherwise than the Encounter (the verification, item 2).
+   - *No new glossary term.* "Pass formula" stays lower case, as S1's glossary wrote it. The
+     Encounter, Check, Degree and Quest band entries say what is now built.
+9. **The tests,** 52 new.
+   - `degree.test.ts`, 10 tests:
+     - the thresholds, and a Success exactly where the roll reaches the target;
+     - `(a and b) or c` against all 64 combinations of three Checks' Degrees, the Degree and the
+       Check that decided it;
+     - `and`, `or` and `at-least` 1 to 4 against all 256 combinations of four;
+     - the deciding Check on ties;
+     - the throws.
+   - `resolve.test.ts`:
+     - one draw a Check, for three formulas each decided at a different Check, with Loot's draws
+       following as a twin draws them;
+     - the Degree, the deciding Check and every Check recorded;
+     - consequences by Degree, with and without the Triumph and Setback lists;
+     - `flat` and `variance` 0 as a gate on a count;
+     - the band through the resolver;
+     - five band tests of `questBand`: a majority at Success; strong with half Triumphs; not
+       strong with fewer; `strongTriumphShare` 0 as the old rule; the share read.
+   - `consumables.test.ts`: a reroll of each Check short of Success, one draw each; a reroll kept
+     when the Encounter succeeds; a bonus on every Check, one Item.
+   - `quests-conclude.test.ts`: see the checks, item 1.
+   - `refusals.test.ts`, 22: the new form loads beside the old; one Check without a formula, and
+     a gate of a flat, are accepted; each refusal of item 7 names its path.
+   - The CLI's and the page's narration, the Quest report and the History each read a Degree, and
+     an entry written before v1.1.4 as Success or Failure.
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first,
+each call the agent's, for the owner to change:
+1. **A gate was not a gate.** A count against a `flat` with `variance: 0` still took the Skill
+   term, the Synergy term, teamwork and a consumable's bonus. So "at least one Hero with Strength
+   12" could be a Setback with the Hero there (teamwork 0.9 × 1), or a Triumph with no such Hero
+   (a Whetstone's +3).
+   - *The fix.* A Check may be `raw: true`. Its capability is its score alone: no Skill term,
+     Synergy, teamwork or consumable's bonus. Content refuses a `raw` that is not true or false, and
+     a raw Check that lists Skills. `resolve.test.ts` holds both cases, refused when not raw and
+     right when raw. `CONTEXT.md`'s Check says so.
+   - *For S3.* Form scales only the Stat values a Hero adds into a score (DL-148 item 11), so a raw
+     count is not scaled by form either.
+   - *By design.* A count of 2 against a `flat` of 1 is a Triumph, at 2 ÷ 1 ≥ 1.25. An author sets
+     `flat` to the count the Check is about.
+2. **The deciding Check went unnamed when it was renamed.** An Encounter of one Check named
+   otherwise than the Encounter (the new form allows it) read as one named as it. The CLI's and the
+   page's narration now name the deciding Check when there are several Checks, or when its name
+   differs from the Encounter's. The Quest report and the History read the narration's sentence.
+   Tested in both narrations.
+3. **The configuration was unchecked.** `configProblems(config)` (`config.ts`) refuses
+   `checkDegrees` unless triumph > success > setback > 0, and a `strongTriumphShare` outside 0 to 1,
+   naming the field. No config was validated before, so `resolveQuest` throws a `RangeError` on the
+   first problem as a programming error, beside its other throws. A Check's `margin` is now
+   `roll − checkDegrees.success × target`, so 0 or more is a Success at any threshold. At the
+   default of 1 it is the old `roll − target` exactly. Tested in `degree.test.ts` and
+   `resolve.test.ts`.
+4. **The script carried every content check.** `web/src/content.ts` called `parseContent`, which
+   runs `validateContent` in the browser. DL-17 item 2 ("no path from text yields an unvalidated
+   set") and DL-64 item 4 (the browser "runs the Node path exactly") decided that deliberately.
+   - *The fix.* The content package splits `readContent`, which checks each row's shape, from
+     `parseContent`, which is `validateContent(readContent(files))` as before.
+     - The page reads with `readContent`.
+     - A build-only Vite plugin (`web/content-gate.ts`) validates the very files the script
+       bundles with `parseContent` as the build starts, and fails the build on any problem.
+     - Content's tests validate them too, and `web/src/content.test.ts` holds the page's set
+       deep-equal to the Node entry's validated one.
+   - *What it supersedes.* DL-64 item 4 is superseded, and DL-17 item 2 is kept in substance: no
+     script is built from an unvalidated set, though the check now runs at the build, not in the
+     player's browser. The shipped content is fixed text, so checking it again at every page load
+     proved nothing new. It cost 31 kB of the 800 kB script, which S3 to S13 need.
+   - *The test.* A Stat whose default is beyond its maximum, which `readContent` takes, fails the
+     gate and its plugin.
+   - *The loader.* The configuration now imports the content package's TypeScript, so the web
+     scripts and the bundle test run Vite with `--configLoader runner`. The default loader leaves a
+     workspace package to Node, which cannot resolve its `.js` imports of `.ts` files.
+5. **No play changed.** Core content writes no raw Check, no renamed Check and no other threshold,
+   and the margin is unchanged at a threshold of 1, so the sweep was not run again. The History
+   fingerprints of `quests-conclude.test.ts` still hold.
+
+After the fixes:
+- `npm run typecheck` and `npm run lint` are clean.
+- `npm test` passes 4,073 tests in 167 files, 14 more than below, with no flake.
+- `npm run e2e -w web` passes all 86 specs, the `file://` spec's two among them.
+- The script is 754.00 kB (754,009 bytes, 216.79 kB gzipped), down from 784,825: 46 kB left under
+  800 kB.
+
+**The checks.**
+These checks were run on the working tree over `de7284d`, before the verification's fixes.
+1. **Everything but the band plays as before.**
+   - *A test.* `quests-conclude.test.ts`'s three seeded games of 120 Days, every Rival questing,
+     run with `strongTriumphShare: 0`. With the new fields set aside, each seed's History hashes
+     equal to the SHA-256s recorded at `86c7afa`. A new test holds every one of their Encounters to
+     one Check that decides it, its Degree its outcome, all four Degrees appearing.
+   - *A sweep.* The core-only 50 × 20 sweep was run with `strongTriumphShare: 0` set for the run
+     and put back after. Its report was not kept.
+     - Lines 27 to 592, the Counters through the Rivals, hash equal to S1's report (`bd097c10…`),
+       as do the Portraits' and the Heroes' sections. Every play counter, yearly table and ending
+       is the same.
+     - Only the timings and the saves moved. The mean save at year 20 is 118,409,123 characters
+       against 104,915,999 (+12.9%), from each Encounter's three new fields. `seed-0001` is
+       120,291,709 against 106,422,611, and gzipped saves average 12.54 MiB against 11.13.
+2. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s2 npm run harness`, core only,
+   content 21, config 13, not validated. Its report is `harness/reports/m9-v114-s2-2026-10-02.md`,
+   to be force-added.
+   - *The one rule changed.* A strong success now needs half its Encounters Triumphs, at a roll of
+     1.25 × the target. The player's strong successes fall from 71.6% to 67.0%, and plain successes
+     rise from 13.6% to 18.3%. Failures stay 14.7% (14.8%). The Rivals' strong successes fall from
+     75.1% to 71.3%, and their failures are 13.2% (13.0%).
+   - *Why the fall is small.* Parties today carry capability far above their targets (DL-148's
+     analysis), so most Encounters already roll a Triumph. S10 tunes the factors, and
+     `checkDegrees` and `strongTriumphShare` are its controls.
+   - *What follows from fewer strong successes.*
+     - Loot needs a strong success: the player's awards fall from 47,860 to 43,763 (0.136 to 0.125
+       a Quest), and the Rivals' from 79,115 to 68,387.
+     - The +5 Morale on a strong success comes less often.
+     - From the first band that differs, every later draw moves, so the rest differs as a
+       different game does, not by a rule:
+       - Rival folds are 151 (138), Successions 32 (37);
+       - the player's Quests resolved are 349,411 (352,121);
+       - Injuries are 18,986 (19,635), Deaths 1,610 (1,708);
+       - Levels a Guild-year are 11.13 (11.44);
+       - Encounters' success rates by kind are within 2.5 points of S1's.
+   - *Unchanged.* Every game ran 20 years, with no player ending and no refused action. One seed
+     played twice is byte-identical, at 113,022,191 characters. 50 of 50 saves round trip.
+   - *Saves.* The mean at year 20 is 116,213,625 characters (110.83 MiB), against S1's 104,915,999
+     (100.06 MiB). Item 1's sweep puts 12.9% of it on the new fields.
+3. **The script.** `npm run build -w web`'s check-bundle passes. The script is 784.83 kB (784,825
+   bytes, 225.54 kB gzipped), 5.2 kB more than S1's 779,636 bytes:
+   - the pass formula's and target's content checks and their words, about 2 kB;
+   - `degree.ts`, about 1 kB;
+   - the resolver's several Checks, the parser's new form and the words for the rest.
+
+   15.2 kB is left under 800 kB.
+4. **The rest.**
+   - `npm run typecheck` and `npm run lint`: clean.
+   - `npm test`: 4,059 tests in 167 files, all passing, with no load flake (S1: 4,007 in 166).
+   - `npm run e2e -w web`: all 86 specs pass.
+
+**Consequences.**
+- Play changes by the band's strong rule alone, as the epic said it would. DL-83 item 17's margin
+  is now a share of Triumphs. The Quest target (failed 20 to 30%, strong at most 50%) is not met
+  yet. S10's balance pass tunes the factors, `checkDegrees` and `strongTriumphShare`.
+- Content may write Encounters in the new form from now; S10 writes them. Every later engine story
+  reads `Degree`, `passDegree` and the per-Check results: S3 scales a Check's adds by form and sets
+  `formDecided` on its `checks`, S5 counts every combination of Checks' Degrees, S7 grants an
+  earned Trait on a Triumph, and S8's finale needs a Triumph.
+- `configVersion` is 13; S3 to S11 add their fields under it. Saves need no migration (the
+  owner's rule).
+- Each `quest.encounter` entry carries its Checks, which makes a 20-year save about 13% longer. A
+  leaner entry, as DL-81 considered, is left to the owner. Data-model §7's save target was already
+  unmet.
+- The script is 754.00 kB after the verification, the content's checks having moved to the build,
+  with 46 kB left for S3 to S13.
+- S3: a raw Check is not scaled by form.
+
+**Actioned in:** `engine/src/content-types.ts`; `engine/src/config.ts`; `engine/src/events.ts`;
+`engine/src/index.ts`; `engine/src/quest-engine/degree.ts` and `degree.test.ts` (new); `check.ts`,
+`resolve.ts`, `consumables.ts` and their tests; `engine/src/phases/quests-conclude.test.ts`; the
+tests pinned to configVersion 12; `content/src/parse.ts`, `validate.ts` and `refusals.test.ts`;
+`cli/src/narrate.ts` and its test; `web/src/state/narrate.ts`, `quest-return.ts`,
+`game.test-support.ts` and their tests; `web/src/views/quest-report.tsx` and its test;
+`web/src/state/history.test.ts`; `web/src/content.ts`, `content.test.ts` and `bundle.test.ts`;
+`web/content-gate.ts` (new); `web/vite.config.ts`, `package.json` and `tsconfig.json`;
+`content/src/index.ts`; `CONTEXT.md` (Encounter, Check, Degree, Quest band);
+`harness/reports/m9-v114-s2-2026-10-02.md`; the epic's S2 boxes and status.
+
+---
+
+## DL-153 — v1.1.4-S11 built: "Choose for me" for the whole Guildmaster, or "Choose myself" with the sex, the age, a picture and the Stats within the Stat points
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-149 as the epic's
+S11 describes, DL-149 winning where the two differ. Where the plan was silent, the calls are the
+agent's, in item 6, for the owner to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** DL-149 lets the player have the whole Guildmaster chosen for them from the seed, or choose
+the sex, the age, a picture and the five Guildmaster Stats. Before S11 the Stats were always drawn, and
+the sex, the age, the Portrait and the Traits each offered "Drawn from the seed". S11 touches neither
+the Quest Engine nor content. It was built on `v1.1.4-dev` at `099f6e3` (S2, DL-152), and every
+comparison below is with that commit.
+
+**Decision.**
+
+1. **The engine** (`engine/src/create.ts`, `generators/guilds.ts`, `guildmaster.ts`, `config.ts`).
+   - `WorldSetup.guildmasterStats`: every Guildmaster Stat by key, or none (DL-149 item 5).
+   - `setupRefusal` checks the Stats after the age and before the Traits, with three new reasons:
+     - `stats-incomplete`, naming the Stats `missing` in content's order;
+     - `stat-out-of-range`, the first in content's order that is not a whole number within its bounds;
+     - `stats-over-points`, with what they `spent` and the `points`.
+   - `drawGuildmaster` draws every Stat as before, and a Stat chosen replaces its draw after it, as the
+     sex, the age and the Traits do. No draw moves. Rivals and successors are given none.
+   - `previewGuildmaster` gives the `stats` and `drawn.stats`.
+   - New exports: `guildmasterStatsOf` (content's order), `guildmasterStatBounds` and
+     `guildmasterStatCost` (the sum a front end shows beside the points).
+   - Configuration: `guildmasterStatPoints`, 50, under `configVersion` 13, not raised again.
+2. **The page** (`web/src/views/new-game.tsx`, `web/src/state/setup.ts`).
+   - "Your Guildmaster" opens on two ways, a radio group named "Who chooses": "Choose for me", chosen
+     at first, and "Choose myself" (DL-149 item 8).
+   - *"Choose for me".* No control of the Guildmaster shows. The preview, "Chosen for you", shows the
+     Portrait's thumbnail, `Female, 26`, the five Stats (`Inspiration 12, Influence 8, …`),
+     `Traits: …` and `Portrait: Female Portrait 13`, and it follows the Seed field. The game starts
+     with the names, the Background and the seed alone.
+   - *"Choose myself".* The Sex and Age fields open on a disabled "Choose" and offer no draw. "Start
+     the game" is held, after the names' hint or refusal and any refusal of the engine's, by a hint
+     naming what is still to choose: "Choose your Guildmaster's Sex, Age and Portrait to start."
+     (`unchosenWords`).
+   - *The Portrait.* Before a sex is chosen the grid reads no picture and says "Choose a Sex to see
+     the pictures." It then shows that sex's 20 thumbnails only, with no draw among them and no Female
+     or Male buttons. Changing the sex clears the picture. `portraitFit`'s notes stay.
+   - *The Stats.* A fieldset with the rules ("Each 5 to 15, sharing 50 Stat points; each starts at
+     10."), the points as the Trait budget's are ("Stat points left: 0" in a chip, "The Stats spend 50
+     of 50 Stat points."), and a stepper for each Stat: two 44px buttons, "Lower Coaching" and "Raise
+     Coaching", around its value. Each button is held where the engine's `setupRefusal` would refuse
+     the step. Each Stat says what it does in the Guildmaster view's words, `guildmasterStatBearsOn`,
+     now exported from `world-views.ts`. While points are left, "Stat points left unspent are lost."
+   - *The Traits* keep their two ways, now "Choose for me" and "Choose them". While they are chosen
+     for the player, the preview's `Traits: …` stands inside their fieldset.
+   - *The words* (DL-149 item 7). The Background's option is "Choose for me". The hint under "Your
+     Guildmaster" is "Chosen for you, or choose their Sex, Age, Portrait, Stats and Traits, and a few
+     words about them", and the view's help names what “Choose for me” chooses, their Sex, Age, Portrait, Stats and Traits. With the seed blank the preview says "…,
+     and your Guildmaster is chosen for you then." The Seed field keeps its name, and the CLI's help
+     keeps "drawn from the seed". Each new refusal has its page sentence.
+   - Switching ways keeps every choice for when the player comes back.
+3. **The CLI.** `new --stats inspiration=12,influence=8,…`: every Guildmaster Stat or none. `args.ts`
+   reads key=number pairs and refuses a pair of another form or a key named twice. `new` refuses a key
+   that is no Guildmaster Stat of the content, then the engine's three reasons, each in its own
+   sentence. The help names the flag, its range, the points and the keys.
+4. **The record.** `CONTEXT.md` gains **Stat points**. `docs/requirements.md` R8 is amended for
+   DL-149.
+5. **The tests,** 51 more in all (4,124 against DL-152's 4,073), and the page's rewritten.
+   - `create.test.ts`, 18: the config, each refusal, its order, the bounds read from the config,
+     the cost, the Stats given, the Rivals unchanged, no draw moved, and every attribute chosen.
+   - `guildmaster-preview.test.ts`: the preview names the Stats `createWorld` makes over 120 seeds,
+     and `drawn.stats`.
+   - `harness/src/creation.test.ts`: the creation hashes of 1,000 seeds, every attribute chosen
+     against none (the checks, item 2).
+   - The CLI's `--stats`: parsing, the world made, the seven refusals' sentences, and the help.
+   - `setup.test.ts` and `rejections.test.ts`: the hold's words, the Stats' view, the starting values,
+     the grid, the preview each way and the three sentences.
+   - `new-game.test.tsx` (35): both ways, the hold, switching, the Stats' steppers, the grid, no
+     "Drawn from the seed", and the Guildmaster view after each way.
+   - `capitals.test.tsx` reads "Choose myself" before and after a sex is chosen, with a point unspent.
+   - Playwright, each at 360, 820 and 1280px:
+     - `portrait.spec.ts`: no picture read before a sex is chosen, then the grid within 250 kB; "Choose
+       for me"'s Guildmaster is the game's; the Stats chosen are the game's.
+     - `layout.spec.ts`: the setup screen each way, light and dark, with no sideways scroll and 44px
+       targets.
+     - `file.spec.ts`: a game started each way from `file://`.
+     - `journey.spec.ts` and `described.spec.ts` now take "Choose myself".
+6. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The Background stays on the screen with "Choose for me".* It is the Guild's, not the
+     Guildmaster's, and DL-149 item 7 renames its option rather than removing it. The acceptance's "no
+     setup control but the names and the seed" is read as no control of the Guildmaster.
+   - *The Stats start at the points shared evenly*, ⌊50 ÷ 5⌋ = 10, held within the bounds. This comes
+     from the configuration, so the start never overspends, and with 10 each every point is spent: a
+     Stat is raised only after another is lowered.
+   - *A chosen Stat's bounds* are `guildmasterStatMin` to `Max` within the Stat's own content range (1
+     to 20 in the core), so no value chosen is one a draw would clamp.
+   - *A key that is no Guildmaster Stat* counts for nothing in the engine (data-model rule 5), so there
+     is no fourth reason. The CLI refuses it in its own words first, so a mistyped key is never
+     dropped in silence.
+   - *The hold is the form's.* The engine still draws a sex, an age or a Portrait left out, for the
+     CLI. The notice is a hint, not a refusal, and "Write them for me" waits for the same three, so
+     no text is written for a sex not yet chosen.
+   - *"Choose myself"'s preview* is the Traits alone, when they are chosen for the player.
+   - *Words.* "Choose a Sex to see the pictures." takes Sex's capital, the settled word
+     (`docs/agents/ui-text.md`), where the epic wrote it lower case. Also: "Choose" on the fields,
+     "Chosen for you", "Who chooses" (a name without "Guildmaster", which would shadow the name
+     field's label), and "Stat points left: N", "Over the Stat points by N" and "Stat points left
+     unspent are lost."
+   - *Clean-up.* `listed` moved to `state/names.ts`, and `narrate.ts` re-exports it, so the refusals
+     can list the missing Stats without an import cycle. The grid's Female and Male buttons, its
+     "Drawn from the seed" thumbnail, the Portrait's choosing of the sex and their CSS are gone.
+     `PortraitThumbnail`'s `labelShown` stays, with its own test.
+
+**The checks.**
+1. **The default path is unchanged.** 1,000 seeds (`seed-0001` to `seed-1000`) × 2 setups (the
+   harness's age 30, and bare), 2,000 worlds. Each document's SHA-256 is equal to `099f6e3`'s once
+   `meta.config`'s new field is set aside, the combined hash `0331bb1e…` both sides. No rule reads
+   `guildmasterStatPoints`, so play is unchanged and no sweep was run.
+2. **Every attribute chosen against none,** over the same 1,000 seeds. The chosen setup sets the sex,
+   the age, a Portrait, the Stats, the Traits and the three texts.
+   - The Guilds, the Heroes, the Board, the Patrons, the Market and every stream are identical
+     outright in 1,000 of 1,000.
+   - The whole world is identical in 1,000 of 1,000 once the player's Guildmaster and every
+     Guildmaster's Portrait and its texts are set aside (combined `0892a5fc…` both sides).
+   - Rival Guildmasters' Portraits moved in 441 of 4,000, in 355 worlds, and their Appearance and
+     Biography follow. That is v1.1.3-S5's rule: each picture is fitted among those no living
+     Guildmaster holds. A chosen sex, age, Trait or Portrait has moved them since then, and the Stats
+     alone move nothing at all.
+3. **The best allocation's effect on a year's Wealth** (the epic's §4), measured with a scratch harness script (not kept). It played 100 seeds (`seed-0001` to
+   `seed-0100`) for one year each, with the automatic policy and the harness's setup, once with the
+   Stats drawn and once for each of five allocations. The Stats are chosen after the draw, so each
+   seed makes the same world either way, and the games are paired.
+
+   | Stats (Insp., Infl., Neg., Coach., Judg.) | Wealth after a year | Against drawn (paired) | Higher in |
+   | --- | ---: | ---: | ---: |
+   | Drawn (means 10.5, 10.1, 9.7, 9.7, 9.4) | 19,448 | — | — |
+   | 10, 10, 10, 10, 10 | 19,254 | −194 (se 379) | 45 of 100 |
+   | 10, 15, 15, 5, 5 | 21,118 | +1,670 (se 424) | 67 of 100 |
+   | **15, 10, 15, 5, 5** | **21,407** | **+1,959 (se 403)** | 64 of 100 |
+   | 5, 10, 15, 15, 5 | 21,407 | +1,959 (se 403) | 64 of 100 |
+   | 15, 5, 10, 15, 5 | 19,665 | +217 (se 366) | 50 of 100 |
+
+   - *The best allocation* sets Negotiation at 15. It ends the first year about 1,960 Wealth ahead of
+     a drawn Guildmaster: the year's gain is 20,907 against 18,948 (+10.3%), as Negotiation's +10%
+     on rewards would have it.
+   - *Only Negotiation shows.* Inspiration and Coaching change nothing the policy's year shows: the two
+     allocations that trade them are equal in every seed. Morale decides nothing on a Quest yet (DL-148)
+     and the policy does not train. Influence at 15 shows no gain beside Negotiation alone within the
+     noise.
+   - S3 gives Morale a part in a Check, and S10 tunes the economy. A later sweep could play a chosen
+     Guildmaster to see the margin over twenty years.
+4. **The script** is 759,048 bytes (759.05 kB, 218.11 kB gzipped), up 5,039 bytes from 754,009,
+   leaving 40.95 kB under 800 kB. One sex's thumbnails are 216,854 bytes (female) and 217,884
+   (male), both within the grid's 250 kB.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,124 tests in 167 files, with no load flake.
+   - `npm run e2e -w web` passes all 93 specs, 7 more than S2's 86, the `file://` spec's three
+     among them.
+
+**Consequences.**
+- A player who chooses can set two Stats at 15. The automatic policy plays a drawn Guildmaster, so S10's
+  balance pass does not see it. Item 3 measures the effect.
+- No save row gains a field, so the schema stays 6. Configuration 13 gains `guildmasterStatPoints`.
+- Nothing changed for Traits: no rule, content check or event reads a Trait anew (DL-150 item 14's
+  doctor begins with S13).
+- The page's "Choose myself" is DL-149 items 3 and 4. The CLI still draws whatever it is not given,
+  as DL-149 item 9 says.
+
+**Actioned in:** `engine/src/config.ts`, `create.ts`, `generators/guilds.ts`, `guildmaster.ts`,
+`create.test.ts` and `guildmaster-preview.test.ts`; `cli/src/args.ts`, `main.ts`, `commands/setup.ts`
+and their tests; `harness/src/creation.test.ts`; `web/src/views/new-game.tsx`, `section.tsx` and
+`styles.css`; `web/src/state/setup.ts`, `reducer.ts`, `rejections.ts`, `world-views.ts`, `names.ts`
+and `narrate.ts`; `web/src/state/setup.test.ts` and `rejections.test.ts`;
+`web/src/views/new-game.test.tsx` and `capitals.test.tsx`; `web/e2e/support.ts`, `portrait.spec.ts`,
+`layout.spec.ts`, `file.spec.ts`, `journey.spec.ts` and `described.spec.ts`; `CONTEXT.md` (Stat
+points); `docs/requirements.md` (R8); the epic's S11 boxes and status.
+
+---
+
+## DL-154 — v1.1.4-S3 built: a Hero's form, from the band of their Morale on the Quest and their wounds, scaling the Stats they add to a Check, one Morale line for the Party, and a sentence when form decided a Check
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 items 9 to
+12 as the epic's S3 describes, DL-148 winning where the two differ. Where the plan was silent, the
+calls are the agent's, in item 7, for the owner to change. Opus built it; a second Opus agent
+verifies it.
+
+**Context.** Before S3, Morale was read by no rule on a Quest, and a wound taken on one changed
+nothing for the rest of it (DL-148's analysis). DL-148 items 9 to 12 give each Hero a form: their
+own Morale band's factor, lower once they are hurt, on the Stat values they add into a Check's
+score. It was built on `v1.1.4-dev` at `07a1c30` (S11, DL-153), and every comparison below is with
+that commit and S2's sweep, `harness/reports/m9-v114-s2-2026-10-02.md` (S11 changed no play).
+
+**Decision.**
+
+1. **Form** (`engine/src/quest-engine/form.ts`, new, pure).
+   - `workingMorale(morale, delta)`: the Hero's Morale as they set out plus the Morale consequences
+     applied so far on the Quest, held to `moraleMin` to `moraleMax`. Stored Morale still changes
+     only on the return, as before.
+   - `formOf(morale, hurt)`: the `moraleCheckFactor` of that Morale's band (`moraleBand`), times
+     `hurtCheckFactor` once the Hero is hurt on the Quest. Each Hero's own band, not the Party's
+     mean (item 9).
+   - `meanForm` and `formEffect`, for the Party builder's line (item 4 below).
+2. **The Queries** (`query.ts`).
+   - `queryParty` takes what has happened on the Quest, `{ hurt, moraleDelta }`, in place of S1's
+     set of the hurt. Each member gains `form`, and `morale` is now their Morale on the Quest, which
+     `["morale"]` reads.
+   - `evaluate` and `valueOf` take `withForm`. With it, only the Stat values a Hero adds into the
+     score are times their form (item 11):
+     - `["stat", k]`, and each Stat within a `weighted`, are scaled; so are the Stats within the
+       `+`, `-` and `*` of Vals, while a number, a Skill rating, Level, Morale and age are not. A
+       product of two Stats is scaled twice, as each Stat in it is.
+     - `sum` and `avg` add each Hero's scaled value; `of` adds the chosen Hero's; `ranked` weighs
+       each Hero's scaled value; the `+`, `-`, `*`, `least` and `greatest` of Nums carry it into
+       each Num.
+     - Every choice reads the Heroes as they are: `best`, `worst`, `top`, `bottom`, `ranked`'s
+       order, and the Hero whose value `max` or `min` adds, which are `of best` and `of worst`. So
+       does every filter and every `count`. A hurt Warrior is still the strongest Warrior, and adds
+       less.
+   - Without `withForm` every read is as before. `holds`, so every Synergy requirement, reads the
+     Heroes as they are.
+3. **The Check** (`check.ts`) and **the resolver** (`resolve.ts`).
+   - `capability` reads the score with form; the Skill term, the Synergy term, teamwork and a
+     consumable's bonus are as before. A raw Check (DL-152) is read without form.
+   - When any member's form is not 1, `check` also rolls the capability with every form at 1 by
+     the same draw. If the two fall on either side of the Success line, the result's `formDecided`
+     is `raised` (a Success or better by form) or `lowered` (below Success by form); the
+     verification's item 1. No draw is added: the second roll reuses the first's `next`.
+   - `resolveQuest` takes the Party for each Encounter with the Heroes hurt so far and the Morale
+     consequences summed so far. When a Check's `formDecided` is set, it reads the Encounter's
+     Degree again by its pass formula with every form at 1 and the same rolls; if that is on the
+     other side of the Success line, the Encounter's `formDecided` is set too. `quest.encounter`
+     and its Checks carry `formDecided` only when it is set.
+4. **The words.**
+   - *The Party builder* (`previewDispatch`'s `form`, the CLI's `preview` and the page's builder):
+     one "Morale" line for the Party chosen, from the mean of its Heroes' forms as they set out:
+     "Raises the odds", "Makes no difference", "Lowers the odds a little" or "Lowers the odds badly".
+     It names no Hero. No line for a Party of no one.
+   - *The narration* (`encounterForm`, the CLI's and the page's narration, so the Quest report and
+     the History): once per Encounter, after its sentence, "Low spirits told against them." or
+     "Their high spirits carried them through." when the Encounter's `formDecided` is set, that is
+     when form decided whether it succeeded, and never otherwise. It names no Hero.
+5. **Configuration.** `moraleCheckFactor` (`wretched` 0.85, `low` 0.93, `steady` 1, `high` 1.04,
+   `elated` 1.08) and `hurtCheckFactor` (0.85), under `configVersion` 13 (not raised). S2's
+   `configProblems` refuses a factor that is not a finite number above 0, a Morale band missing
+   from `moraleCheckFactor`, a `steady` factor other than 1, factors out of the bands' order, and a
+   `hurtCheckFactor` above 1, naming each (the verification's item 5); `resolveQuest` throws on it
+   as on S2's.
+6. **The glossary.** `CONTEXT.md`'s Form says what is built, and Morale band that Form is the first
+   rule to read the bands.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *Form scales the score, not the capability.* The epic's S2 wrote "times teamwork (and, from S3,
+     times form)"; DL-148 item 11 and the epic's S3 say only the Stat values a Hero adds are scaled.
+     The DL item wins: the Skill term, Synergies, teamwork and a consumable's bonus are untouched.
+   - *`max` and `min` are `of best` and `of worst`.* The Hero is chosen as they are, and adds their
+     value with form, so the max of the scaled values is not taken. Otherwise a hurt strongest
+     Warrior would stop being "the strongest Warrior" (the epic's own example). At every form 1 it
+     is the old `Math.max` exactly.
+   - *Arithmetic over Stats.* Within a Val, each Stat is scaled and nothing else, so
+     `["*", ["stat", a], ["stat", b]]` carries the form twice and `["+", ["stat", a], 2]` once on
+     the Stat alone. A Num's arithmetic carries `withForm` into each Num.
+   - *Working Morale and the band.* The sum of the Morale consequences so far is added to each
+     Hero's stored Morale, then held to the scale, as `questsConclude` applies the same sum on the
+     return. S4's `moraleByHero` can replace the sum by each Hero's own.
+   - *The Party builder's thresholds.* A mean form above 1 "Raises the odds"; exactly 1 "Makes no
+     difference"; from the `low` band's factor (0.93) up to 1 "Lowers the odds a little", a Party
+     no worse on the whole than every Hero in low spirits; below 0.93 "Lowers the odds badly". They
+     are read from `moraleCheckFactor`, so no new field; a tolerance of 1e-9 keeps a mean of
+     rounded factors at its threshold. The mean is as the Party sets out: no one is hurt then.
+   - *The sentence's way.* `formDecided` is `raised` or `lowered`, not true, so the sentence can say
+     which. A wound's 0.85 is form too, so "Low spirits told against them" covers it; no third
+     sentence was added.
+   - *Only when set.* `formDecided` is written only when form decided the Check, which keeps the
+     save as short as it was and an entry from before S3 reading as none.
+   - *The CLI's `preview`* gains the same line under "Morale", and its help says so.
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first,
+each call the agent's or the verifier's, for the owner to change:
+1. **The sentence could contradict the Degree.** `formDecided` was set for any change of Degree,
+   so a Failure made a Setback read "Their high spirits carried them through" of an Encounter that
+   still failed; and the sentence followed the deciding Check, or any Check, so in an `and` or an
+   `or` it could speak of a Check that decided nothing.
+   - *The fix.* A Check's `formDecided` is set only when form moved it across the Success line. The
+     Encounter's is set only when its pass formula, read again with every form at 1 and the same
+     rolls, would have put it on the other side of the Success line, and `encounterForm` reads the
+     Encounter's alone. A formula of `and`, `or` and `at-least` succeeds by which of its Checks did,
+     so a Check form raised stands as a Failure there, and one it lowered as a Success.
+   - *The tests.* A Failure made a Setback and a Success made a Triumph set none; an `and` whose
+     raised Check was undone by another's Failure says nothing; an `or` that succeeded through a
+     Check form did not touch, while it lowered another, says nothing, and says it when that Check
+     missed; the narrations say the sentence exactly when the Encounter's field is set. The epic's
+     S3 bullet and box now read "when form decided whether the Encounter succeeded".
+   - *No play changed:* nothing reads `formDecided`. Item 1 of the checks' three seeds, form on,
+     give the same world hashes before and after, and the History differs only in the fields.
+2. **The builder named each Hero's Morale.** Its rows showed "Morale 72, high", where DL-148 item
+   12 says no Hero's Morale is named. The chip is gone from the builder's rows, and `PartyRow` has
+   no Morale; the Roster's cards and a Hero's page keep theirs. `board.test.tsx`,
+   `selectors.test.ts` and the e2e support's Board walk hold that no row says "Morale". This
+   replaces the call that kept the chip.
+3. **A subtracted Stat inverts form.** In `["-", 40, ["sum", "party", ["stat", "strength"]]]` a
+   hurt Hero would subtract less and raise the score. Content now refuses, in a Check's score, a
+   `-` whose right operand reads a Stat a Hero adds, directly, within a `weighted`, or by a Num of
+   such a Val at any depth, naming the `-`'s path (`checkSubtractions`). A raw Check and a
+   Synergy's requirement, both read without form, may still subtract one. `refusals.test.ts` holds
+   seven refusals, four scores accepted (a Stat less a number or a Level, a sum less a count
+   filtered by a Stat, a sum less a Skill), and a requirement that subtracts. ADR-0010 says why: a
+   wound must never raise a score. Core content writes no `-`, so nothing is refused.
+   - *Left open:* a negative weight in a `weighted`, or a negative number times a Stat, inverts form
+     the same way; content allows both today, and S9 and S10 write the scores.
+4. **`least` and `greatest`** choose among Nums already read with form, so `["least", A, B]` may
+   take a different Num with form than without. Item 11 is about choosing a Hero, which stays
+   unscaled; a Num is a number of the Party, not a Hero, so this is by design.
+5. **The configuration was looser than form means.** `configProblems` now also requires `steady`
+   to be 1, the factors in the bands' order, `wretched` ≤ `low` ≤ `steady` ≤ `high` ≤ `elated`, and
+   `0 < hurtCheckFactor ≤ 1`, so that better spirits never bring less and a wound never helps. The
+   verifier asked for strict order; it is `≤`, so that every factor 1, the rule before S3, stays a
+   sound configuration, as the parity tests use it. Tested in `form.test.ts`.
+
+After the fixes, play is unchanged (items 1 and 4 by design; the defaults pass the new checks and
+core content has no `-`). In the three seeds of the checks' item 1, form on, form decided 624
+Encounters of 38,710 (1.6%) across the Success line, 542 raised and 82 lowered.
+- `npm run typecheck` and `npm run lint` are clean.
+- `npm test` passes 4,213 tests in 168 files, 24 more than before the fixes, with no load flake.
+- `npm run e2e -w web` passes all 93 specs.
+- The script is 761,507 bytes (761.51 kB), 376 more than before the fixes: 38.49 kB is left.
+
+**The checks.**
+These were run before the verification's fixes, so item 3 below, and the sweep's probe, count any
+change of a Check's Degree.
+1. **Form is the only change.**
+   - *The History fingerprints.* `quests-conclude.test.ts`'s three seeded games of 120 Days now set
+     every `moraleCheckFactor` and `hurtCheckFactor` to 1, beside S2's `strongTriumphShare: 0`, and
+     their SHA-256s still equal those recorded at `86c7afa`.
+   - *Seeded games.* Three seeds (`p-1` to `p-3`) played 5 years with the player idle and the
+     Rivals questing, every factor 1: the world and the History hash equal to `07a1c30`'s, game for
+     game. With form on, all three differ.
+   - *A short sweep.* `HEROESIM_SEEDS=10 HEROESIM_YEARS=5`, core only, at `07a1c30` and again with
+     every factor 1 as the default for the run (put back after; neither report kept). Every counter,
+     yearly table and ending is equal. Only the timings, the fingerprint and each save's length
+     moved, by 94 characters a save: the two new fields in the save's `meta.config`.
+   - *A test.* With every form 1, a score with form reads exactly as one without, in
+     `query.test.ts`; and the resolver's Checks with every factor 1 equal the old ones, with no
+     `formDecided`, in `resolve.test.ts`.
+2. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s3 npm run harness`, core only,
+   content 21, config 13, not validated. Its report is `harness/reports/m9-v114-s3-2026-10-02.md`,
+   to be force-added. Against S2's (`m9-v114-s2-2026-10-02.md`):
+   - *Form cuts both ways, by whose Heroes are in what spirits.* A probe of 4 seeds × 10 years under
+     the same policy, not kept, sampled each Hero as their Party set out:
+     - the player's were `steady` 95.6% of the time and `high` 4.4%. The policy never builds
+       quarters (it buys only the infirmary), so their Morale drifts to 60. Form only lowered them,
+       through wounds: it changed the Degree of 241 of 43,588 Checks (0.6%), 211 lowered;
+     - the Rivals' were `high` 87.6%, `steady` 11.9% and `elated` 0.5%. The Rivals build quarters,
+       +5 to the baseline a grade, so most set out at 75 or more and bring 1.04. Form changed the
+       Degree of 4,707 of 97,340 Checks (4.8%), 4,350 raised.
+   - *The player's Quests.* Failed 15.2% (14.7%), succeeded 18.1% (18.3%), strong 66.7% (67.0%);
+     349,411 resolved before, 348,218 now. Encounters at Success or better 83.3% (83.8%). Injuries
+     19,361 (18,986), Deaths 1,648 (1,610).
+   - *The Rivals' Quests.* Failed 11.3% (13.2%), succeeded 14.5% (15.6%), strong 74.1% (71.3%), and
+     805,084 resolved (791,431). Encounters at Success or better 87.0% (85.3%). Injuries 38,878
+     (43,341), Deaths 3,298 (3,720).
+   - *What follows.* Stronger Rivals take more of the Board: they took 805,850 Quests (792,150) and
+     the player 348,430 (349,604). Two of the player's games ended in bankruptcy, in years 18 and 19
+     (none before), and six fell below the floor (none). Rival folds are 163 (151), Successions 28
+     (32), Levels a player's Guild-year 11.24 (11.13). The player's Loot awards are 43,474 (43,763),
+     0.125 a Quest as before. From the first Check form moves, every later draw moves, so the rest
+     differs as a different game does.
+   - *Unchanged.* No refused action. One seed played twice is byte-identical, at 119,714,257
+     characters. 50 of 50 saves round trip. The mean save at year 20 is 112.83 MiB (110.83), from
+     the Rivals' extra Quests and each `formDecided`.
+   - *For S10.* The Quest target is still unmet for the player (failed 15.2%, strong 66.7%). Form
+     favours a Guild that builds quarters; the harness's policy does not, which S6's policy change
+     and S10's balance pass should weigh.
+3. **How often form decides, with the player idle.** In item 1's seeds `p-1` to `p-3`, 5 years with
+   form on, the Rivals met 38,710 Encounters of one Check each. Form decided 1,751 Checks (4.5%):
+   1,545 raised (88%), 747 of them to a Triumph, and 206 lowered.
+4. **The script** is 761,131 bytes (761.13 kB, 217.06 kB gzipped), up 2,083 bytes from S11's
+   759,048: form.ts, the Queries' `withForm`, the second roll, the line and the sentences.
+   38.87 kB is left under 800 kB.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,189 tests in 168 files, 65 more than S11's 4,124, with no load flake.
+   - `npm run e2e -w web` passes all 93 specs.
+   - The new tests:
+     - `form.test.ts` (new), 25: working Morale held to the scale; each band's factor, hurt and not;
+       the line's thresholds and eight Parties; `configProblems` for each band and the hurt factor
+       at 0, −1, NaN, Infinity and missing.
+     - `query.test.ts`, 19: each scaled read (`stat`, `weighted`, the Vals' arithmetic, `sum`,
+       `avg`, `of`, `max`, `min`, `ranked`, the Nums' arithmetic, `least`, `greatest`) and each
+       read as they are (a filter, `best` and `worst`, `top`, `bottom` and `ranked`'s order,
+       `count`, a Skill rating, Level, Morale, age and a number, a Synergy's requirement, and every
+       read without `withForm`); every form 1 reading exactly as none; the Morale on the Quest and
+       its band, and the hurt factor.
+     - `resolve.test.ts`, 6: a Morale consequence in Encounter 1 changes form in Encounter 2, at
+       each band, with stored Morale untouched; a Hero hurt in Encounter 1 adds 0.85 in Encounter 2;
+       `formDecided` exactly when the Degree at form 1 differs, each way; every factor 1 as before;
+       a raw Check without form; the throws.
+     - `preview.test.ts`, the CLI's `main.test.ts` (4), the page's `selectors.test.ts` (4) and
+       `board.test.tsx`: the Morale line, through the CLI's `preview` and the builder's checkboxes.
+     - The CLI's and the page's narration and `quest-report.test.tsx`: the sentence exactly when
+       `formDecided` is set, each way, the deciding Check's first, none for an older entry, and no
+       Hero's name in it. The capitals guard reads the builder with a Hero chosen.
+
+**Consequences.**
+- Play changes by form alone (the checks, item 1). It favours Heroes in high spirits, so Guilds
+  that build quarters, the Rivals in the harness, gain; the harness's player, steady and only ever
+  wounded, loses a little. The Quest target is not met yet.
+- S4 replaces the summed Morale consequences by each Hero's own (`moraleByHero`) where
+  `queryParty` takes `moraleDelta`. S5's estimate reads the Party as it sets out, with its forms,
+  through `queryParty` and `capability`, and says "if no one falls". S10 tunes
+  `moraleCheckFactor` and `hurtCheckFactor` with the rest.
+- No save row gains a field; schema 6 and configuration 13 hold. `quest.encounter`'s Checks gain
+  `formDecided` only where it is set.
+
+**Actioned in:** `engine/src/quest-engine/form.ts` and `form.test.ts` (new); `query.ts`,
+`check.ts`, `resolve.ts` and their tests; `engine/src/config.ts`, `events.ts`, `index.ts`,
+`preview.ts` and `preview.test.ts`; `engine/src/phases/quests-conclude.test.ts`;
+`cli/src/commands/preview.ts`, `args.ts`, `narrate.ts` and their tests; `web/src/state/narrate.ts`,
+`selectors.ts`, `game.test-support.ts` and their tests; `web/src/views/board.tsx`, `board.test.tsx`,
+`quest-report.test.tsx` and `capitals.test.tsx`; `web/e2e/support.ts`; `content/src/validate.ts`
+and `refusals.test.ts`; `docs/adr/0010-checks-and-synergy-requirements-are-queries-over-the-party.md`;
+`CONTEXT.md` (Form, Morale band); `harness/reports/m9-v114-s3-2026-10-02.md`; the epic's S3 bullet,
+boxes and status.
+
+---
+
+## DL-155 — v1.1.4-S4 built: harm that reads the Stats, an Injury's and a Death's `among`, `exposedBy` and `guardedBy`, a Morale loss `steadiedBy`, and each Hero's own Morale from the Quest, with play unchanged where content names none
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 item 14 as the
+epic's S4 describes, DL-148 winning where the two differ. Where the plan was silent, the calls are
+the agent's, in item 7, for the owner to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** Before S4, an Injury fell on any unhurt living Hero alike and a Death on any living
+Hero, at the chance content wrote, whatever their Stats; and an Encounter's Morale moved every Hero
+by the same sum (DL-148's analysis). DL-148 item 14 lets content say who harm falls on and which
+Stats expose to it and guard against it, keeping the draws' number and order. It was built on
+`v1.1.4-dev` at `3bcd990` (S3, DL-154), and every comparison below is with that commit and S3's
+sweep, `harness/reports/m9-v114-s3-2026-10-02.md`.
+
+**Decision.**
+
+1. **The content** (`content-types.ts`, `HarmReads`; `parse.ts`).
+   - An Injury and a Death may name `among` (a Set Query), `exposedBy` and `guardedBy` (lists of
+     Stat keys); a Morale may name `steadiedBy`. Each is optional, and a consequence with none reads
+     as before. A field on a kind that lacks it is refused as any unknown field is.
+2. **Harm** (`engine/src/quest-engine/harm.ts`, new, pure).
+   - `meanShare`: a Hero's mean share of the listed Stats' content range, each from 0 at `min` to 1
+     at `max`, of their effective Stats (`QueryMember.stats`), so armour's Constitution protects.
+     A Stat content does not define counts for nothing; none defined is no share, and the field
+     then reads as absent (data-model rule 5).
+   - `exposure`: 1 + `exposureRange` × (1 − share); 1 with no `exposedBy`.
+   - `guard`: 1 − `guardRange` × share; 1 with no `guardedBy` or `steadiedBy`.
+   - `narrowed`: of the Heroes a harm can fall on, those `among` names, in Party order; all of them
+     when it names none of them.
+3. **The resolver** (`resolve.ts`).
+   - *An Injury*, each count: `u` (one `next`), then who (one draw: `weightedPick` over the unhurt
+     living Heroes `among` narrows, each weighted by `exposure`, or one `next` when there is no
+     one), then the Days (`int`, as before). It lands if `u` < chance × the chosen Hero's `guard`.
+   - *A Death*: `u`, then who, from the living Party `among` narrows. It lands if `u` < chance ×
+     guard.
+   - The Party the fields read is taken at that consequence (`queryParty` over the living, with the
+     hurt and each Hero's Morale so far), and only when a field is present, so a consequence with
+     none costs nothing more.
+   - *A Morale consequence* adds its delta, as written, to `moraleDelta`, and to each living Hero's
+     own sum: a loss `steadiedBy` some Stats times that Hero's `guard`, unrounded; a gain, or a loss
+     with no `steadiedBy`, as written.
+   - With none of the fields every weight and guard is 1, and the draws are exactly what `chance`
+     and `int` (`pick`'s draw) drew: `weightedPick` at every weight 1 returns `floor(r × n)`, as
+     `int(0, n − 1)` does, on the same single `next`.
+4. **The outcome.** `QuestOutcome` gains `moraleByHero`: each Hero home alive, by id in Party order,
+   with their own sum rounded once to a whole number (0 included). `moraleDelta` stays, the sum as written. `quest.resolved`
+   carries it (optional in the event's type: an entry before S4 has none, and its Heroes brought
+   `moraleDelta`). `questsConclude` moves each survivor by their own when it is not 0, where it
+   moved every survivor by `moraleDelta` when that was not 0: the same events wherever no
+   `steadiedBy` stands.
+5. **Working Morale** (S3) reads each Hero's own: `queryParty`'s `OnQuest` takes `moraleByHero` in
+   place of S3's summed `moraleDelta`, so a steadied Hero keeps a better band, and better form, in
+   the next Encounter. It reads the unrounded sum, so 40 less a steadied half is 39.5, the `low`
+   band. With no `steadiedBy`, each Hero's own is the sum, as before.
+6. **Configuration and content validation.**
+   - `exposureRange` (2) and `guardRange` (0.5), under `configVersion` 13 (not raised).
+     `configProblems` refuses an `exposureRange` that is not a finite number of 0 or more and a
+     `guardRange` outside 0 to 1, naming each; `resolveQuest` throws on it.
+   - Content (`validate.ts`, `checkHarmReads`): `among` is held as a Check's score is, as a Set
+     (`checkQuery`, Sex allowed in its filters as in a Check); `exposedBy`, `guardedBy` and
+     `steadiedBy` list one or more Hero Stats content defines, none twice; and `steadiedBy` stands
+     only beside a loss. Each refusal names its path, as
+     `encounters.<key>.consequences.failure.0.guardedBy: "endurance" is listed twice`.
+   - Core content names none of the fields, so content stays 21.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *Form does not scale a share.* The plan says shares read effective Stats; form is what a Hero
+     adds to a Check (DL-148 item 11). A hurt or low-spirited Hero is no less armoured, so the
+     shares read `stats`, never `form`.
+   - *A Death's `among` reads the living Party, hurt included.* DL-148 item 14 and the epic say
+     `among` falls back to "the whole unhurt Party"; that is the Injury's pool, since a Hero takes
+     at most one Injury a Quest. A Death today falls on any living Hero, wounded or not; narrowing
+     it to the unhurt would make a wound a shield, and leave a Death with `among` unable to land
+     when every Hero is hurt. So a Death's pool is the living Party, `among` narrows it, and it
+     falls back to the whole living Party. For an Injury, as the plan says. This departs from
+     DL-148 item 14's words, and is kept for the owner to confirm; the epic's S4 bullet now says
+     so.
+   - *`among` is read of the Party, then narrowed.* The Set is evaluated over the living Party as
+     it stands (hurt flags included), then narrowed to those the harm can fall on. So
+     `["top", "party", 1, ["stat", "constitution"]]` names the toughest, and a second count finding
+     them hurt falls back to everyone unhurt; content that wants the next-toughest writes
+     `["top", ["where", "party", ["not", ["hurt"]]], 1, …]`. *For S10's content:* a `top N`
+     `among` falls back to every unhurt Hero, not to the next in line; for "next in line", write
+     the `["where", …, ["not", ["hurt"]]]` inside the `top`.
+   - *`steadiedBy` uses `guardRange`.* "By the same rule" is read as the guard's rule: the loss is
+     times 1 − `guardRange` × share. No third field.
+   - *Rounding.* Each Hero's sum is kept as it is on the Quest and rounded once, to a whole number,
+     in `moraleByHero` (`Math.round`, −0 made 0), so stored Morale stays whole. `Math.round` takes
+     .5 up, toward the smaller loss. (Built first as a rounding of each loss; the verification's
+     item 1.)
+   - *`moraleByHero` holds every Hero home alive*, 0 included, in Party order, so the History says
+     each Hero's Morale from the Encounters plainly. A Hero who died is left out, as `moraleDelta`'s
+     "each Hero who comes home alive" leaves them.
+   - *A refusal the plan did not ask for*: a `steadiedBy` beside a Morale gain does nothing, so it
+     is refused rather than kept as a field that reads as something; and an empty list is refused
+     ("leave it out to read none").
+   - *No page change.* The Quest report does not show Morale today, so `moraleByHero` reaches no
+     words; the narration and the page are unchanged.
+
+**The verification.** A second Opus agent verified the story and found no correctness bug. Its three
+requests were made, the first test first:
+1. **A small steadied loss vanished.** Each steadied loss was rounded as it was applied, so −1 at a
+   guard of 0.5 came to 0, and any number of them to nothing. Now each Hero's working sum stays as it
+   is on the Quest, their Morale on the Quest (and so their band and form) reads it unrounded, and
+   their total is rounded once when `moraleByHero` is built. Two tests in `resolve.test.ts`, red
+   before the change: two −1 losses steadied to −0.5 each come to −1 (and −2 at the bottom of the
+   range), and a Hero at 40 who loses a steadied half is in the `low` band in the next Encounter.
+   With no `steadiedBy` every delta is whole, so play is unchanged: the parity tests of the checks'
+   item 1 still pass, and the sweep was not rerun.
+2. **A Death's pool** is recorded in the epic's S4 bullet as well as item 7: an Injury's `among` is
+   narrowed to the unhurt with the whole unhurt Party as its fallback; a Death's to the living, with
+   the whole living Party as its fallback, so that a wound never shields a Hero from a Death. A
+   departure from DL-148 item 14's wording, kept for the owner to confirm.
+3. **For S10's content**, item 7 says how a `top N` `among` falls back, and how to write "next in
+   line".
+
+**The checks.**
+These were run before the verification's changes, except the counts in item 6, which are after.
+1. **The draws, with none of the fields.**
+   - *`weightedPick` is `pick`.* `rng.test.ts`: for every length from 1 to 8, 20,000 draws each, with
+     every weight 1, `weightedPick` returns what `int(0, n − 1)` and `pick` return from the same
+     state, and leaves the state where `int` does.
+   - *The resolver.* `resolve.test.ts`: over 40 seeds, two Encounters each of an Injury of three
+     counts at 0.5 and a Death at 0.4, who is hurt and who dies are what S3's `chance` and `int`
+     draw from a twin stream, and the stream ends where it does. Over 30 seeds, every field present
+     at no effect (`exposureRange` and `guardRange` 0, `among` the whole Party) resolves, and leaves
+     the stream, exactly as none.
+   - *The History fingerprints.* `quests-conclude.test.ts`'s three seeded games of 120 Days still
+     hash as recorded at `86c7afa`, `moraleByHero` taken out of `quest.resolved` beside the fields
+     taken out before.
+2. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s4 npm run harness`, core only,
+   content 21, config 13, not validated. Its report is `harness/reports/m9-v114-s4-2026-10-02.md`,
+   to be force-added. Against S3's (`m9-v114-s3-2026-10-02.md`), every counter, yearly table and
+   ending is equal: the player's 348,218 Quests resolved (15.2% failed, 66.7% strong), the Rivals'
+   805,084, Injuries 19,361 and 38,878, Deaths 1,648 and 3,298, two bankruptcies, 163 Rival folds,
+   28 Successions, no refused action, 50 of 50 saves round trip. Only these differ:
+   - the timings (`advance` mean 3.564 ms against 3.214, the run 675.2 s against 608.9);
+   - the saves' length, by `moraleByHero` on every `quest.resolved`: `seed-0001` played twice is
+     byte-identical at 120,738,315 characters (119,714,257), the mean save at year 20 is 113.77 MiB
+     (112.83), the largest 122.25 MiB (121.23), gzipped 12.73 MiB mean (12.58);
+   - and so the fingerprint, `33e03181…` (`6f0fcbb5…`).
+3. **The epic's boxes**, in `resolve.test.ts`.
+   - *`among` falls back.* Over 40 seeds, an Injury among the Warriors on a Party with none lands
+     every time, on each of the three Heroes at some seed. Among the Warriors with one, it is them
+     every time; a second count finds them hurt and falls on the other two.
+   - *Exposure.* 20,000 Quests, two Heroes at Constitution 1 and 20, one certain Injury
+     `exposedBy` Constitution: the one at the bottom is hit between 2.85 and 3.15 times as often as
+     the one at the top (the expectation is 3).
+   - *Guard.* 20,000 Quests each: an Injury at 0.8 `guardedBy` Constitution lands within 0.015 of
+     0.4 on a Hero at 20 and of 0.8 on one at 1; a Death at 0.8 within 0.015 of 0.4 at 20.
+   - Also: a Death among the Warriors falls on a hurt Warrior; `steadiedBy` Courage at 20, 1 and 11
+     gives −5, −10 and −7 of a −10, a gain of 3 as written, `moraleDelta` the sum as written; each
+     Hero's own Morale sets their form in the next Encounter; and armour's +3 Constitution takes a
+     Hero at 17 to the top of the range, so they keep half of a loss, hurt and wretched as they are.
+4. **The return.** `quests-conclude.test.ts`: a `steadiedBy` loss and a gain move each Hero home by
+   their own, one `hero.morale-changed` each, and `quest.resolved` carries `moraleByHero` in Party
+   order with `moraleDelta` the sum as written.
+5. **The script** is 763,715 bytes (763.72 kB) after the verification's changes (763,719 before
+   them), up 2,208 from S3's 761,507: harm.ts, the resolver's draw and the content checks. 36.29 kB
+   is left under 800 kB.
+6. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,259 tests in 169 files after the verification's changes, 46 more than
+     S3's 4,213: `harm.test.ts` (new) 18, `resolve.test.ts` 13, `refusals.test.ts` 12 (each field at its fullest; nine refusals by
+     path; Sex in `among`; a field on a kind that lacks it), and one each in `rng.test.ts`,
+     `query.test.ts` and `quests-conclude.test.ts`. A run made while the sweep shared the machine
+     timed out `harness/src/succession.test.ts`'s parallel probe; the run after the sweep passed
+     every test, with no flake.
+   - `npm run e2e -w web` passes all 93 specs, though no page changed.
+
+**Consequences.**
+- Play is unchanged where content names none of the fields, which core content does not: S10
+  writes them. From then, Stats such as Constitution, Endurance, Courage and Willpower decide who is
+  hurt and how much Morale a hard Encounter costs, and armour does more than add to Checks.
+- S5's estimate says "if no one falls", so harm's fields do not enter it. S10 tunes
+  `exposureRange` and `guardRange` with the rest.
+- No save row gains a field; schema 6 and configuration 13 hold. `quest.resolved` gains
+  `moraleByHero`, so a save grows by its length on each resolved Quest.
+
+**Actioned in:** `engine/src/quest-engine/harm.ts` and `harm.test.ts` (new); `resolve.ts`,
+`query.ts` and their tests; `engine/src/content-types.ts`, `config.ts`, `events.ts`;
+`engine/src/phases/quests-conclude.ts` and its test; `engine/src/rng.test.ts`;
+`content/src/parse.ts`, `validate.ts` and `refusals.test.ts`;
+`docs/adr/0010-checks-and-synergy-requirements-are-queries-over-the-party.md`; `CONTEXT.md`
+(Form, Exposure, Guard); `harness/reports/m9-v114-s4-2026-10-02.md`; the epic's S4 boxes and
+status.
+
+---
+
+## DL-156 — v1.1.4-S5 built: the chance estimate, worked out exactly from what the resolver draws, the chance bands, and the typed account of what a Check reads, worded by both front ends
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 items 15 and
+16 (the estimate and the words; item 17's Rivals are S6's) as the epic's S5 describes. Where the plan
+was silent, the calls are the agent's, in item 6, for the owner to change. Opus built it; a second
+Opus agent verifies it.
+
+**Context.** S6 shows a chance word for each Encounter and the Quest on the Board and in the Party
+builder, and the Rivals choose their Parties by it; both need an estimate that reads everything a
+Check reads (S1 to S4) and draws nothing. The Board's cards also show what each Check reads, which
+the engine may not word (ADR-0003). It was built on `v1.1.4-dev` at `103fcf4` (S4, DL-155). No play
+changes: nothing in the game calls the estimate or the account yet.
+
+**Decision.**
+
+1. **The estimate** (`engine/src/quest-engine/estimate.ts`, new): `estimateQuest(world, quest,
+   heroes, deps, carried)`, a selector that draws nothing. `heroes` are the proposed Party in the
+   order named, read as they will come home on the Quest's return night (the verification, item 1);
+   `carried` the consumables they would carry, as `dispatch` is asked for them
+   (`ConsumableRequest`).
+   - *One Check* (`chanceToReach`). The roll is C × (1 + v × (2u − 1)), never below 0, so the chance
+     it reaches x is 1 − clamp((x ÷ C − 1 + v) ÷ 2v, 0, 1); at v = 0 it is a step, and with no
+     capability 0. Each Degree's chance is the chance of reaching its threshold × the target less
+     the next one's, the thresholds `checkDegrees`'. The capability is `capability`'s, form and all,
+     plus the bonus carried (none to a raw Check); the target is `targetOf`'s (check.ts, now shared
+     with `check`).
+   - *An Encounter.* Every combination of its Checks' Degrees with a chance above 0, at most 256, is
+     read through its pass formula (`passDegree`). A reroll is folded in as the resolver rolls one:
+     for each combination short of Success, every combination of fresh rolls of the Checks short of
+     Success, the others kept. So an Encounter has two distributions, with a reroll then and without.
+   - *The Quest.* The Encounters are walked in order, keeping the chance of each count of Successes
+     and Triumphs with each stock of rerolls left, since a reroll used on one Encounter is not there
+     for the next. A bonus is spent whatever the rolls, so it is taken in order before the walk.
+     Each Encounter's estimate is its chance across the walk, of each Degree and of Success or
+     better. The Quest's is each Quest band's chance, by `questBand` of each count, and a success's
+     (a success or a strong success).
+   - *The kit's rules are shared.* `takeBonuses` and `rerollFor` (consumables.ts, new, pure) are what
+     the kit spends and what the estimate reads. `storedSequence` (encounters.ts) gives the Quest's
+     own Encounters, and `sequenceFor` now reads it too.
+   - *It says what it assumes:* `ifNoOneFalls: true` on every result. No Hero is hurt or killed on
+     the way, and no Encounter's Morale moves anyone's form; the front ends say "if no one falls".
+   - It is `null` for a Quest whose Encounters are drawn on the way (none of its `encounterKeys`
+     defined). It throws where `resolveQuest` throws: a configuration with a problem, a difficulty
+     not above 0, an Encounter with no Check, or several and no formula.
+   - Each chance carries its word, `chance`.
+2. **Chance bands.** `chanceBandNames` (`hopeless`, `unlikely`, `even`, `likely`, `near-certain`) and
+   `chanceBand(chance, config)`, from `chanceBands` in the configuration, where each band starts:
+   `{ unlikely: 0.1, even: 0.35, likely: 0.65, 'near-certain': 0.9 }`, `hopeless` below `unlikely`
+   (DL-148 item 15). It is under `configVersion` 13, not raised. `configProblems` refuses starts that
+   are missing, or not strictly increasing, each above 0 and below 1, naming the field;
+   `resolveQuest` and `estimateQuest` throw on it.
+3. **What a Check reads** (`engine/src/quest-engine/describe.ts`, new). `describeQuery(query)` is a
+   typed account of a Num Query, each node a `kind`:
+   - what it aggregates (`sum`, `avg`, `max`, `min`), counts, ranks with its weights, or which Hero
+     it reads (`best`, `worst`, and by what);
+   - its Set and filters (`where`, `top`, `bottom`);
+   - each Val: a Stat, a Skill, Level, Morale, age, a weighting with each Stat's weight, arithmetic;
+   - each Pred: Class, Background, Sex, a Skill at a rating, a Trait, hurt, the five comparisons,
+     `and`, `or` and `not`;
+   - and the Nums' arithmetic, `least` and `greatest`.
+
+   Keys stay keys, and there is no prose (ADR-0003). ADR-0010 says so.
+4. **The words.** `queryWords(account, content)` and `chanceWords`, in the CLI
+   (`cli/src/query-words.ts`) and the page (`web/src/state/query-words.ts`), the same words: "the
+   total Intelligence of the Mages and Healers", "Strength of the Warrior with the highest Strength",
+   "the number of Heroes whose Strength is at least 12", "0.5 × the total Strength of the Party +
+   0.5 × the highest Wits in the Party"; and Hopeless, Unlikely, Even, Likely and Near certain.
+   Nothing shows them yet: S6 puts them in `preview`, on the Board and in the Party builder.
+5. **The glossary.** `CONTEXT.md` gains Chance band.
+6. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The configuration's shape.* `chanceBands` names where each band above `hopeless` starts, as
+     `moraleBands` names its bands' starts, so that a save's `meta.config` says which is which.
+   - *An Encounter's estimate* is its chance as the Party meets it on this Quest. A reroll the
+     Encounters before may have used is folded in, so the same Encounter can read differently at
+     another place in the sequence. Each Check's first roll is given beside it, for the detail.
+   - *"No one falls" covers Morale.* A Morale consequence moves form in the later Encounters (S3).
+     The estimate reads no Morale an Encounter moves, and the flag covers it.
+   - *A Party of no one* has an estimate, the Quest a sure failure, as the resolver fails it, rather
+     than `null`, which means the Encounters are not known. It meets none of the Encounters, so each
+     has no chance of any Degree (the verification, item 2).
+   - *The words.* A Class's plural adds "s" to its name, as the page's Trait effects already do ("to
+     Warriors"). A Background is "of the Farm-born Background". A negated filter follows De Morgan
+     ("who are not hurt or who lack Stealth"). The words are written to stand inside a sentence
+     ("the total…"); S6 capitalises them where they stand alone (`capitalised`,
+     `docs/agents/ui-text.md`).
+   - *The probe* is a harness probe, as M9-F1's Succession probe is, and not part of `npm test`: four
+     million resolutions take three minutes. `npm test` holds the estimate to the resolver over a few
+     samples (the checks, item 1).
+7. **Where the Encounters come from, for S6.** A Quest's Encounters are drawn when it is posted.
+   `generateQuest` draws them from the `encounters` stream and stores them as `encounterKeys`, and
+   `resolveQuest` resolves through exactly those (`sequenceFor`, through `storedSequence`). So the
+   estimate estimates the Encounters the Quest will run, and S6 changes nothing for it. Only a Quest
+   generated before M4 draws its sequence on the way; it has no estimate (`null`), and S6's card says
+   so. *For S8:* a finale must be stored in `encounterKeys` when the Quest is generated, as the epic's
+   §2 says, or the estimate will not see it.
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first,
+each call the agent's, for the owner to change:
+1. **The estimate read the Party as it set out; the resolver meets it on the night it comes home.**
+   `questsConclude` resolves a Party on its return night, and on each night away before it the Hero
+   State Engine has moved each Hero's Morale a point toward their baseline, decayed their Regard
+   (their teamwork) and healed an Injury whose night came, perhaps leaving a Trait; and an age is
+   read on the return night. On a Quest of two to ten Days a Hero's band, so their form, can move.
+   - *The fix.* None of it draws: the Retirement check, which does, is never due for a Hero away, and
+     the `ageing` phase's decline falls only on its nights. So the estimate projects the whole step.
+     `heroNight` (hero-state.ts) is the Hero State Engine's own night of a Hero before the Retirement
+     check, healing, drift and decay, which `heroState` now calls; `returnNightOf` (time.ts) is the
+     return night `dispatch` now sets. `estimateQuest` runs `heroNight` on copies of the Heroes for
+     each night after the Turn it is asked on and before the return night, and reads them in a world
+     at the return night's Turn. The quest it reads takes `durationTurns` too.
+   - *What is not foreseen,* in the file's head, `CONTEXT.md` and here: what the Guild does while the
+     Party is away (a Hall Improvement built, which moves the baseline; a new Guildmaster). Nothing
+     in the Heroes' own nights draws, so the flag stays `ifNoOneFalls`.
+   - *The tests.* `estimate.test.ts`: a wretched Hero at Morale 19, the baseline 50, is sent by
+     `dispatch` on a five-Day Quest and the world advanced until it resolves; the capability its
+     `quest.encounter` records is exactly the estimate's, made before dispatch, and above the
+     capability as they set out (low, 0.93, against wretched, 0.85). The resolver's rates in the
+     test's scenes are taken on the return night, the `heroState` phase itself run on each night
+     away, with Morale at 19, 38, 76 and 91 so that bands move on the way.
+   - *The probe* now sends each Party by `dispatch` and plays every phase to the afternoon before its
+     return night, then resolves on that night's Turn. Its Parties are the player's Heroes, which no
+     policy plays. With the projection taken out, 40 samples × 5,000 seeds miss by up to 100 points;
+     with it, by 1.67.
+2. **A Party of no one met its Encounters.** A score with a floor, `["greatest", ["sum", "party",
+   ["stat", "strength"]], 10]`, gave no one a chance, where the resolver meets no Encounter and
+   fails. Now every Encounter of a Party of no one has every Degree's chance 0, and the Quest fails
+   at 1, tested against `resolveQuest` with that score.
+3. **`checkVariance` was unchecked.** `configProblems` now refuses one outside 0 to 1, as a Check's
+   own `variance` is refused, so that the formula holds (a roll never below 0). Tested at 0, 1,
+   −0.1, 1.5 and NaN.
+4. **The words and the request.**
+   - "Age" is capitalised, as `docs/agents/ui-text.md`'s settled table writes it.
+   - "with the most Level" read badly: a choice of a Hero, `top` and `bottom` now say "with the
+     highest" and "with the lowest": "Strength of the Warrior with the highest Strength".
+   - A filter's `and` or `or` within another is bracketed in both front ends: "the number of Heroes
+     (who are hurt or who have Stealth) and whose Level is above 2"; a negation's too. Four cases
+     more in each front end's test, an `and` of one part and a `not` within an `or` left bare.
+   - `estimateQuest` throws, as `dispatch` does and with its words, on a Hero named twice, a
+     consumable named twice, or a quantity not a whole number from 1: `checkProposedParty`
+     (dispatch.ts), which `dispatch` now calls too. Tested.
+
+After the fixes:
+- `npm run typecheck` and `npm run lint` are clean.
+- `npm test` passes 4,390 tests in 174 files, 10 more than below, with no flake.
+- *The probe,* rerun as item 1 sends it: 200 samples × 20,000 seeds, 588 Encounters of 1,226 Checks,
+  339 of several, 103 Parties carrying; 81 Heroes in 71 Parties changed Morale band between setting
+  out and the night home. Every one of 3,740 chances is within 2 points: each Encounter's Degrees
+  within 1.15 points (3.39 standard errors), its Success or better within 1.03, the Quest's bands
+  and success within 0.71. 202 s. The report, `harness/reports/m9-estimate-2026-10-02.md`, is this
+  run's.
+- The script is 764,473 bytes (764.47 kB), 142 more: 35.53 kB is left under 800 kB.
+
+**The checks.**
+These were run before the verification's fixes; the section above gives the numbers after them.
+1. **The estimate against the resolver** (the epic's first box). `HEROESIM_PROBE=estimate npm run
+   harness` (`harness/src/estimate.ts`, `estimate.harness.test.ts`); its report,
+   `harness/reports/m9-estimate-2026-10-02.md`, to be force-added, is the verification's rerun.
+   - *The samples.* 200 Parties and Quests, each from its own seed:
+     - a world of the core content and `defaultConfig`;
+     - one to four Heroes of any Roster, each at a Morale drawn from 0 to 100, so that every band's
+       form comes up;
+     - a Quest of difficulty 10 to 100 and one to five Encounters, a quarter of them the core's and
+       the rest written for the sample. Each has one to four Checks, scored by every shape of Query
+       (sums, the best of a Class, weightings, rankings, Skills, arithmetic, `top`, a raw count
+       against a flat), each at a target 0.6 to 1.5 times the Party's capability on it, at the
+       default variance, its own or 0, combined by nested `and`, `or` and `at-least`;
+     - for half of them, Whetstones, lockpicks, grappling lines or blessed candles carried.
+
+     In all, 574 Encounters of 1,176 Checks, 321 of them of several Checks, and 97 Parties carrying.
+   - *No one falls.* Every Encounter's Injuries, Deaths and Morale are taken out of the content
+     (`harmless`). The rest is kept, since it changes neither who meets the next Encounter nor their
+     form. The probe throws if anyone is hurt or dies.
+   - *The seeds.* Each sample is resolved once for each of 20,000 seeds of its own, the `quests`
+     stream set from the SHA-256 of the seed's name. A first trial gave every sample the same 20,000
+     seeds, whose first draws fell below 0.5 51.1% of the time: a 3σ fluke, shared by every sample.
+     So each sample has its own.
+   - *The result.* Every one of 3,670 chances is within 2 points of its rate:
+     - each Encounter's Degrees, 2,296 (920 of them from 1% to 99%), within 1.03 points, the widest
+       3.18 standard errors;
+     - each Encounter's Success or better, 574, within 1.03;
+     - the Quest's bands, 600, within 0.90;
+     - the Quest's success, 200, within 0.78.
+
+     The mean gaps are 0.08 to 0.10 points. The run took 182 s.
+   - *In `npm test`.* `harness/src/estimate.test.ts` runs 6 samples × 2,000 seeds within 4 points.
+     `engine/src/quest-engine/estimate.test.ts` holds two scenes of 3 and 5 Encounters (formulas,
+     every Morale band, a raw gate, Synergies, a bonus and three rerolls) within 3 points of 3,000
+     seeds, Degree by Degree and band by band.
+2. **The estimate's parts** (`estimate.test.ts`, 11):
+   - the formula and its step;
+   - each Degree from its threshold, a bonus on a Check and none on a raw gate;
+   - the bands' words at each boundary, and `configProblems` for `chanceBands`, sound and seven ways
+     unsound;
+   - no draw, the flag, `null` without Encounters, and a missing key left out;
+   - a Party of no one;
+   - a reroll folded in exactly: the first Encounter p + (1 − p)p, the second p + (1 − p)p²;
+   - the bands equal to a walk of every path.
+3. **`describeQuery` and the words** (the epic's second box). `describe.test.ts`, 43: every operator
+   of the five types, nested, and a throw for an unknown one of each. `cli/src/query-words.test.ts`
+   and `web/src/state/query-words.test.ts`, 32 each: the same 31 Queries, every operator worded, and
+   the five chance words.
+4. **The script.** `npm run build -w web`'s check-bundle passes. The script is 764,331 bytes (764.33
+   kB, 220.01 kB gzipped), 616 more than S4's 763,715: `chanceBands`, its check and the shared kit
+   rules. The estimate, the account and the page's words are not in it yet, since no view reads them;
+   S6 brings them, about 6 kB unminified. 35.67 kB is left under 800 kB.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,380 tests in 174 files, 121 more than S4's 4,259 in 169, with no flake.
+   - `npm run e2e -w web` passes all 93 specs, though no view changed.
+   - The estimate takes 0.10 ms on average over the probe's samples, and 1.9 ms at most, for S6's
+     Rivals to call freely.
+
+**Consequences.**
+- S6 can show a word for each Encounter and the Quest, the numbers in the detail, and what each Check
+  reads; the Rivals' `partyFor` can call the estimate. No play changes until then.
+- Each new Query operator now needs its node in `describeQuery` and its words in both front ends.
+- The probe can be run again once S10 writes the content: `HEROESIM_PROBE=estimate npm run harness`.
+- No save row gains a field; schema 6 and configuration 13 hold, with `chanceBands`.
+
+**Actioned in:** `engine/src/quest-engine/estimate.ts`, `estimate.test.ts`, `describe.ts` and
+`describe.test.ts` (new); `check.ts` (`targetOf`), `consumables.ts` (`takeBonuses`, `rerollFor`,
+`bonusOf`) and `encounters.ts` (`storedSequence`); `engine/src/phases/hero-state.ts` (`heroNight`),
+`engine/src/actions/dispatch.ts` (`checkProposedParty`) and `engine/src/time.ts`
+(`returnNightOf`); `engine/src/config.ts` and `index.ts`;
+`cli/src/query-words.ts` and its test (new); `web/src/state/query-words.ts` and its test (new);
+`harness/src/estimate.ts`, `estimate.test.ts` and `estimate.harness.test.ts` (new), and
+`succession.ts` (`probeNames`); `harness/reports/m9-estimate-2026-10-02.md`; `CONTEXT.md` (Chance
+band); `docs/adr/0010-checks-and-synergy-requirements-are-queries-over-the-party.md`; the epic's S5
+boxes and status.
+
+---
+
+## DL-157 — v1.1.4-S6 built: the Board's cards show each Encounter and what each Check reads with "Your best Party" and a chance word, the Party builder a chance word for each Encounter and the Quest with the numbers in its detail, and the Rivals choose their Parties by the estimate
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 items 15 to
+17 as the epic's S6 describes, DL-148 winning where the two differ. Where the plan was silent, the
+calls are the agent's, in item 7, for the owner to change. Opus built it; a second Opus agent
+verifies it.
+
+**Context.** S5 (DL-156) built the chance estimate, the chance bands and the typed account of what a
+Check reads, and nothing showed or used them. A Quest card showed its template's demands, which no
+Check reads, and the Rivals (and the harness's policy) chose their Parties by those demands
+(`strengthFor`), the fewest Heroes a Quest allowed. DL-148 item 16 puts each Encounter's Checks on
+the card in their place, item 15 the chance words on the Board and in the Party builder, and item 17
+has the Rivals choose by the estimate. It was built on `v1.1.4-dev` at `d0dab9f` (S5, DL-156), and
+every comparison of play below is with S4's sweep, `harness/reports/m9-v114-s4-2026-10-02.md`, since
+S5 changed no play.
+
+**Decision.**
+
+1. **The Rivals' Party** (`engine/src/controllers/rival.ts`, `partyFor`; DL-148 item 17).
+   `partyFor(world, guild, quest, available, deps)` weighs a Party by the chance estimate's chance of
+   success (a success or a strong success; the Party as it comes home, carrying nothing, if no one
+   falls):
+   - it starts with the Heroes the Quest's Class and Skill requirements take: while one is unmet, the
+     Hero who most raises the chance among those who meet every requirement still unmet, or, when no
+     one does, among those who meet one of them (so one Hero with both goes alone, and two only when
+     no one has both, as before);
+   - it adds whoever most raises the chance until `partySizeMin`;
+   - then keeps adding whoever most raises it while that Hero raises it by at least the Guild's margin
+     (`partyMarginOf`: its Disposition's `partyMargin`), up to `partySizeMax`.
+
+   `strengthFor` is gone, and with it the last rule that read a Quest's `demands`. The Party is in the
+   order its Heroes were added, which the Queries read for their ties (DL-148 item 18). It is `null`
+   exactly when `requiredParty`, its first step, is: the requirements' Heroes, then the first of the
+   rest up to `partySizeMin`, asking no estimate.
+2. **The margins.** Each Disposition in `content/dispositions.json` gains `partyMargin`: 0.05, and
+   `reckless` 0.10 (S10 tunes them). Content validation holds it, as the appetites, to a number from 0
+   to 1, and a row without it is refused. The content version is **22** (from 21). A Guild with no
+   Disposition, the player's, uses the configuration's `playerPartyMargin`, 0.05, held by
+   `configProblems` to a share from 0 to 1, under `configVersion` 13, not raised (as S5's
+   `chanceBands`, DL-156).
+3. **Who reads `partyFor`.**
+   - *A Rival* (`preferredQuest`) ranks the Quests it can staff by `requiredParty`, draws its Quest as
+     before (one draw on `rivals`, the same draw on the same candidates), and asks `partyFor` for the
+     chosen Quest only.
+   - *The harness's automatic policy* sends `partyFor`'s Party at `playerPartyMargin`: the Board's
+     "Your best Party". Its report says so in place of "the strongest Party of the size it requires".
+   - *The `quest-staffable` and `decision-needed` stops* (`staffableQuests`, `staffingParty`) search
+     the Board with `requiredParty` and judge the Party by `dispatchRefusal`, as before. `partyFor`
+     names a Party exactly when `requiredParty` does, and the estimate cannot change whether a Party can
+     go, so the stops ask no estimate of every Quest on the Board each Turn. A test holds
+     `staffableQuests` to the Quests for which `partyFor` names a Party `dispatch` would send.
+4. **The estimate, many times** (`questEstimator`, estimate.ts). The greedy rule estimates many
+   Parties of one pool. `questEstimator(world, quest, pool, deps)` brings each Hero of the pool home
+   once (`homecoming`) and reads each as a Query reads them (`queryParty`'s members, each of a Hero
+   alone) once, and builds each Party estimated from them; `estimateQuest` is now
+   `questEstimator(…)(heroes, carried)`, so the two cannot differ, and a test holds every Party of a
+   pool, in any order and carrying anything, to `estimateQuest`'s exactly. `synergiesFor` is worked
+   out once for a Party taken and a content's Synergies (a `WeakMap`), however many Checks read it.
+5. **The Board's cards** (`web/src/state/selectors.ts`, `boardView`; `web/src/views/board.tsx`;
+   DL-148 items 15 and 16).
+   - Under the terms: "Your best Party: **Likely**, Maud Pennock and Ingram Holloway", the Party
+     `partyFor` names from the player's free Heroes and its estimate's word; "not known until its
+     Encounters are drawn" for a Quest drawn before M4; and "No Party of your free Heroes meets its
+     requirements." when there is none.
+   - Unfolded, in the demands' place: each Encounter, drawn when the Quest was posted, in order, with
+     its kind's icon, and each Check's name and what it reads ("Name: the total Strength of the
+     Party"); an Encounter of one Check of its own name, as every Encounter in the old form loads,
+     says "Reads 0.4 × the total Weaponry of the Party + …" under its name. The counts of Encounters by
+     kind give way to it. No view shows a Quest's demands, and no rule reads them.
+6. **The Party builder.** Each Hero's row shows the effective values of the Stats the Quest's Checks
+   read (`statsRead`, preview.ts, through `statsIn`, describe.ts), in the order the Quest meets them,
+   where it showed the demands'. With a Party chosen, after S3's Morale line, "Chances": a word for each
+   Encounter and for "The Quest", and a detail, "The numbers, if no one falls", with each percentage
+   floored to a multiple of 5, between 5 and 95 unless certain (`shownPercent`; built rounded to the
+   nearest 5, corrected by the verification, item 1). The engine's `previewDispatch` carries the estimate (`chances`, with
+   the consumables chosen; `null` for no one, or Encounters drawn on the way), so the CLI's `preview`
+   gives the same: "Chances, if no one falls", then "Ambush on the road: Likely, 70%" for each
+   Encounter and "The Quest: Even, 50%". The CLI's `show board` drops its Demands column and gives each
+   Quest's Encounters and Checks and its best Party with its word and percentage.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The tie-breaks*, recorded: of Heroes who raise the chance of success alike, the one who raises
+     the chance of a strong success more, then the lower Hero id. A chance of success is held to at
+     most 1 against a sum's rounding, so that "no Hero can raise it by more than is left of it" ends
+     the third step without asking, exactly. A Quest with no estimate (Encounters drawn on the way)
+     raises nothing: its Party is the requirements' Heroes and then the lowest ids up to the least size,
+     and at a margin of 0 every Hero to the most.
+   - *The first step adds only the Heroes the requirements need,* not every Hero who meets them: one
+     Hero who holds both the Class and the Skill, else one of each. DL-148 item 17's "starts from the
+     Heroes who meet the requirements" is read as the fewest that meet them, since every Hero of a
+     common Class could otherwise pass `partySizeMax`; the others may join by the margin.
+   - *The estimate carries nothing.* `partyFor` weighs Parties without consumables: the Rivals carry
+     none (DL-83 item 20), and the policy chooses what to carry after its Party. The builder's chances
+     are for what the player has chosen to carry.
+   - *The player's margin* is a configuration field, `playerPartyMargin`, since the player's Guild has
+     no Disposition and principle 8 makes it a field; the Board's "Your best Party" and the policy
+     share it.
+   - *The Rival's Quest is chosen as before*, by `questRiskAppetite` among the Quests it can staff: the
+     estimate chooses who goes, not where. A Rival may still take a Quest its best Party is Hopeless on.
+   - *Where the card shows it.* The best Party on the card's face, the Encounters and what each Check
+     reads in what the card's name unfolds, as the demands were; at 360px a card stays a few lines.
+   - *The stops* read `partyFor`'s first step (item 3), on the measure in item 9.
+   - *Tests that fixed the old Party.* The harness policy's tests of two Parties of two, the web's
+     `withPartyOut` and the history test's seeded Parties set `playerPartyMargin` to 1, the fewest a
+     Quest allows, as they assumed. The Quest report's test of an Injury raises its Quest's difficulty,
+     since the Party sent now comes through its own Quest unhurt. The Transfer Generator's test holds
+     each year's median Roster size within the range and the mean of all twenty years' sizes, no longer
+     each year's mean: one of its sixteen Rivals, choosing by the estimate, hired to 18 Heroes and moved
+     years 14 to 18's means to 8.06 to 8.13, the median 6.5 to 7. The History fingerprints of
+     `quests-conclude.test.ts` are re-recorded (item 8).
+8. **Nothing else moves.** With M2-S9's rule by the demands put back in `partyFor`'s place, for one run
+   and not kept, `quests-conclude.test.ts`'s three fingerprints were 86c7afa's again and the Transfer
+   Generator's twenty years as before: the Rivals' Parties are the only change of play. The test now
+   holds S6's fingerprints, the old ones named in its comment.
+9. **The time it takes** (`advance` per Turn, the Rivals' choices within it; the policy outside it).
+   `seed-0001` and `seed-0002` played 3 years alone, before (the old rule, as in item 8) and after:
+   `advance` 0.799 and 0.714 ms a Turn before, 0.863 and 0.842 after (+0.06 and +0.13 ms); the whole
+   game, the policy's `partyFor` included, 1.310 and 1.190 ms a Turn before, 1.381 and 1.386 after. A
+   `partyFor` over a Rival's whole Roster, after 300 Turns of `seed-0001`, takes 0.22 ms; one
+   `estimateQuest`, 0.05 ms. The Transfer Generator's test of 4 × 20 years took 24 s by the old rule,
+   41 to 43 s with each Party's Heroes read afresh, and 38 s once each was read once (item 4). Bringing a Party home, a
+   `structuredClone` of each Hero and their nights away, is now the largest part; a per-Turn cache of it
+   across calls was not needed and is not built.
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first,
+each call the agent's, for the owner to change:
+1. **The word and the number disagreed.** The word is the unrounded chance's band, and the number
+   was rounded to the nearest 5: 0.64 read "Even, 65%", 0.976 "Near certain, 100%". Now the detail and
+   the CLI show each chance floored to a multiple of 5, held within 5 to 95 unless the chance is
+   exactly 0 or 1 (`shownPercent`, in both front ends' `query-words.ts`, which the builder, `preview`
+   and `show board` read). Every band starts at a multiple of 5, so the number always lies in its
+   word's band; the multiple is found against k ÷ 20, as a band's start is written, so a product's
+   rounding cannot carry it across a start. DL-148 item 15's "rounded to 5%" is read so; the epic's
+   S6 text and box say "floored to a multiple of 5, between 5 and 95 unless certain". Tested at 0,
+   0.03, 0.1, 0.349, 0.35, 0.64, 0.65, 0.899, 0.9, 0.976 and 1, and at every hundredth and the edges
+   a sum's rounding leaves, word and number agreeing, in each front end.
+2. **The best Party was worked out where nothing showed it.** `boardView`'s cards, which the
+   digest's leaving-today line and the stop view read too, each ran `partyFor` and then estimated
+   the chosen Party again. The cards carry none now: `bestPartyView` gives "Your best Party" for the
+   Board alone, once a document, and reads the engine's new `bestParty`, `partyFor`'s Party with the
+   estimate the rule chose it by (`partyFor` is `bestParty`'s Party). Tested: `bestParty`'s Party is
+   `partyFor`'s and its estimate `estimateQuest`'s for it, at three margins; no card carries `best`.
+   The CLI's `show board` reads `bestParty` too.
+3. **The content package's manifests were bundled.** `web/src/content.ts`'s negations,
+   `!**/package.json` and `!**/tsconfig.json`, matched no `../../content/` path, so both files rode
+   in the script (416 bytes). They are named as the pattern names them now; a build test holds the
+   script free of them.
+4. **A Check's line was keyed by its name**, which two Checks may share; it is keyed by the Check's
+   key, which `encounterReadings` now carries.
+5. **Every picture repeated the script's address.** Vite wrote each picture's URL as
+   `new URL(file, document.currentScript && … || document.baseURI)`, some 130 bytes, 80 times for the
+   Guildmasters' pictures. `web/vite.config.ts` now names the address once, in the IIFE's intro
+   (`output.intro`), and `experimental.renderBuiltUrl` resolves each picture in the script against it,
+   relative to the script, as Vite did; in the stylesheet and the page Vite's relative URL as before.
+   A build test holds one `document.baseURI` in the script and every picture resolved against the one
+   name. The page opened from `file://` and the deployed form both load their pictures: the e2e
+   `file.spec.ts` and `portrait.spec.ts` pass.
+
+After the fixes:
+- `npm run typecheck` and `npm run lint` are clean.
+- `npm test` passes 4,416 tests in 174 files, with no flake.
+- `npm run e2e -w web` passes all 96 specs.
+- The script is 767,162 bytes (767.16 kB, 223.65 kB gzipped), 9,822 fewer than the 776,984 below:
+  the pictures' one base took 9,779, the manifests 416, and the fixes' code added 373. 32.84 kB is
+  left under 800 kB, and 2,689 bytes more than S5's 764,473.
+- No play changed, so no sweep was run again: the sweep below stands.
+
+**The checks.**
+These were run before the verification's fixes; the section above gives the numbers after them.
+1. **The greedy rule** (`rival.test.ts`, "which Heroes: the greedy rule by the chance estimate").
+   `greedyParty` states the rule in the test from `estimateQuest` alone, a fresh estimate for every
+   Party weighed. For each of the four Dispositions at margins 0, 0.02, 0.05, 0.1, 0.3 and 1 set in its
+   row (`withDispositions({ partyMargin })`), on a Board of difficulty 70 to 95 and Parties of 1 to 4,
+   the Rival's Party is `greedyParty`'s; at 1 each sent one Hero, at 0 more than one, and no Party grew
+   as the margin rose. The player's Guild at each margin of `playerPartyMargin` likewise. Besides: the
+   Hero who most raises the chance goes first whatever the Roster's order; a Hero of a required Class
+   goes however weak; two Heroes go to a Quest of one for a Class and a Skill no one holds both of, and
+   one who holds both goes alone; a Quest drawn on the way sends the fewest by id; no unavailable Hero
+   goes; `partyFor` changes nothing in the world; every Party it names over 3 seeds × 6 Quests × 4
+   sizes × 4 requirement shapes is `greedyParty`'s and meets `unmetRequirements`; and `staffableQuests`
+   is the Quests `partyFor` staffs.
+2. **The estimator.** `estimate.test.ts`: every Party of a pool of four at Morale 19, 38, 76 and 91,
+   carrying nothing or a grappling line, equals `estimateQuest`'s; a Hero outside the pool; a Hero named
+   twice; `null` with no Encounters; a throw at difficulty 0. `playerPartyMargin` is 0.05 and refused
+   outside 0 to 1.
+3. **The detail's percentages equal S5's estimate, shown as the detail shows it** (the epic's second
+   box; as built, rounded to 5%, and from the verification floored, item 1): in `selectors.test.ts`
+   (`previewView`), `board.test.tsx` (through the page: two Heroes and a whetstone chosen, each
+   Encounter's and the Quest's word, and each percentage `shownPercent` of `estimateQuest`'s), and `cli/src/main.test.ts` (`preview`'s lines, and `show board`'s best Party).
+4. **The page** (the epic's first box). `web/e2e/layout.spec.ts`, "the Board's chances and what each
+   Check reads, and the Party builder's, in the light and the dark scheme (v1.1.4-S6)", at 360, 820
+   and 1280px in each scheme: the card's best Party and word, the card unfolded to its Encounters and
+   what they read, the builder with two Heroes, its words, its detail opened and every percentage a
+   multiple of 5, with no sideways scroll and every control a 44px target (the detail's summary among
+   them), and the dark scheme the page's own. The capitals guard (`capitals.test.tsx`) now reads the
+   best Party, the Encounters unfolded, the chances and the detail opened, and passes.
+5. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s6 npm run harness`, core only, 20
+   years, content 22, config 13, not validated: `harness/reports/m9-v114-s6-2026-10-02.md`, to be
+   force-added. Against S4's (`m9-v114-s4-2026-10-02.md`; S5 changed no play):
+   - *Both sides choose better Parties, a little larger.* Over 4 seeds × 5 years under the same policy
+     (a probe, not kept), the player's Parties averaged 1.72 Heroes (1.64 by the old rule) and the
+     Rivals' 1.75 (1.62); Parties of three rose from 10% to 15% of the player's and from 6% to 13% of
+     the Rivals', and of four appear (0.6% and 0.2%).
+   - *The player's Quests:* failed 9.9% (15.2%), succeeded 15.0% (18.1%), strong 75.2% (66.7%);
+     335,682 resolved (348,218). Encounters at Success or better 88.7% (83.3%). Injuries 13,446
+     (19,361), Deaths 1,153 (1,648). Loot 0.176 an award a Quest (0.125). Wealth after 20 years
+     167,490 a game (164,837).
+   - *The Rivals' Quests:* failed 6.0% (11.3%), succeeded 12.0% (14.5%), strong 82.0% (74.1%); 831,148
+     resolved (805,084). Encounters at Success or better 92.1% (87.0%). Injuries 24,630 (38,878),
+     Deaths 2,106 (3,298). Synergies on 24.0% of their Quests (17.0%), the player's 23.1% (15.4%): the
+     estimate reads them.
+   - *What follows.* Richer, safer Rivals hire more: a Rival's Roster at a year's start averages 6.44
+     (5.85), `reckless`'s 8.47 (6.89), 35.9% of its year-starts above `rivalRosterMax` (27.4%). Yet
+     181 Rivals folded (163) and 2 of the player's games ended in bankruptcy, as before (years 16 and
+     19). Rival-to-Rival Transfers 229 (208). The mean save at year 20 is 117.40 MiB (113.77).
+   - *For S10.* The Quest target moves away: the player's failed 9.9% against 20 to 30%, and strong
+     75.2% against at most 50%. The estimate makes every Guild's Parties fit the Checks; the content
+     and the margins S10 tunes must make the Quests harder to match.
+   - *Morale and quarters* (DL-154). The Rivals build quarters, and most of their Heroes set out in
+     the `high` band; the harness's policy never builds them, and its Heroes set out `steady`. The
+     estimate reads form, so a Rival's high spirits now also count in whom it sends; the policy's
+     Guild, choosing by the same rule, gains nothing from it. S10's balance pass should weigh the two
+     beside these numbers.
+   - *The time:* `advance` mean 3.573 ms a Turn, p99 8.633, under 16 processes' load (3.564 and 9.135);
+     `seed-0001` replayed alone 1.330 ms (1.284), a year's fast forward 1,437 ms (1,387), as before over
+     the 1 s the plan names. 701.6 s in all.
+6. **The script.** `npm run build -w web`'s check-bundle passes. The script is 776,984 bytes
+   (776.98 kB, 224.00 kB gzipped), 12,511 more than S5's 764,473: the estimate, the account of a
+   Query, both sets of words and `partyFor` reach the page for the first time. 23.02 kB is left under
+   800 kB, for S7 to S10's content and code: the content's JSON must be weighed at each story's close.
+7. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,413 tests in 174 files, 23 more than S5's 4,390, with no flake.
+   - `npm run e2e -w web` passes all 96 specs (93 before, and the new one at each of three widths).
+
+**Consequences.**
+- Play changes: the Rivals and the harness's policy send the Party the estimate names. The baseline
+  DL-83 measures against moved again; S10's DL entry records the policy beside its numbers.
+- A Quest's `demands` are read by no rule and shown by no view, on templates and Quest rows alike,
+  until a later rule gives them a job (DL-148 item 16). They stay in content and the save; schema 6.
+- Each new Query operator needs `statsIn`'s walk too, beside `describeQuery`'s node and both front
+  ends' words.
+- `partyFor`'s signature changed: `(world, guild, quest, available, deps)`.
+
+**Actioned in:** `engine/src/controllers/rival.ts` (`partyFor`, `requiredParty`, `partyMarginOf`;
+`strengthFor` removed) and its tests; `engine/src/quest-engine/estimate.ts` (`questEstimator`),
+`describe.ts` (`statsIn`), `synergy.ts` and their tests; `engine/src/preview.ts` (`chances`,
+`statsRead`) and its test; `engine/src/config.ts` (`playerPartyMargin`), `content-types.ts`,
+`index.ts`, `world.test-support.ts`; `content/dispositions.json`, `content/src/parse.ts` (version 22),
+`validate.ts` and their tests; `harness/src/policy.ts`, `sweep.ts`, `policy.test.ts`;
+`cli/src/query-words.ts`, `render.ts`, `commands/preview.ts`, `args.ts` and their tests;
+`web/src/state/query-words.ts`, `selectors.ts`, `game.test-support.ts`, `web/src/views/board.tsx`,
+`web/src/styles.css`, `web/e2e/layout.spec.ts` and the web's tests; the engine tests that called
+`partyFor`; `harness/reports/m9-v114-s6-2026-10-02.md`; `CONTEXT.md` (Best Party, Party margin; Stat
+demand); the epic's S6 boxes and status.
+
+---
+
+## DL-158 — v1.1.4-S7, first step built: the Traits moved into two lists, `guildmaster-traits.json` and `hero-traits.json`, each Trait's `effect` into a list of `effects`, its `owner` gone, and the same games played
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-150 items 1 to 4
+as the epic's S7 bullets "Two lists" and "The same games first" describe. Where the plan was silent,
+the calls are the agent's, in item 6, for the owner to change. S7's effects, the Injury Traits, the
+`trait` consequence, the conflicts and the events are its next step, for a second agent.
+
+**Context.** One `content/traits.json` held both owners' Traits, each with an `owner`, a `cost` (0 for
+a Hero's), `excludes` (empty for a Hero's) and one `effect` or `null` (always `null` for a Hero's).
+DL-150 item 1 makes them two lists, item 2 a list of effects per Trait, item 3 restates who holds what,
+and item 4 makes the move a step of its own that plays the same games. It was built on `v1.1.4-dev`
+at `1769b30` (S6, DL-157), and every comparison below is with that tree and its sweep,
+`harness/reports/m9-v114-s6-2026-10-02.md`.
+
+**Decision.**
+
+1. **The two files** (DL-150 item 1). `content/guildmaster-traits.json` holds the six Guildmaster
+   Traits, each `name`, `cost`, `excludes` and `effects`; `content/hero-traits.json` the four Hero
+   Traits, each `name`, `excludes` and `effects`. `traits.json` is gone, and a set that still has it
+   is not read: `contentFiles` names the two in its place, and both front ends, the gate and the
+   portrait tool read `contentFiles` (the page's glob, `content/*.json`, takes both). No row has
+   `owner`; the list says it. A key is in one list only: `validateContent` refuses
+   `heroTraits.<key>: "<key>" is also a Guildmaster Trait; a Trait's key is in guildmaster-traits.json
+   or hero-traits.json, not both`.
+2. **A list of effects** (DL-150 item 2). Each Trait's `effect` is `effects`, a list; the six
+   Guildmaster Traits hold one each, their old one, and the four Hero Traits none. Every reader applies
+   each effect of each Trait held, in the Traits' order and then each Trait's: `traitEffects` flattens
+   them, so `traitMoraleShift` sums, `traitUpkeepFactor` multiplies and `traitStatBonuses` adds as
+   before, effect by effect.
+3. **Holding Traits** (DL-150 item 3). A Guildmaster or a Hero holds none or more of their own list,
+   never two of which one excludes the other. The rule is one function, `excludedPair`
+   (`engine/src/traits.ts`), which `setupRefusal` (`excluded-pair`, as before) and the drawn
+   Guildmaster's legal sets (`excludeEachOther`) now share, and the document validator reads too: a new
+   warning, `excluded-traits`, names a Guildmaster or a Hero holding such a pair, keyed by the later
+   Trait of the first pair. A warning, as a Portrait of another sex is, since content may add an
+   exclusion under a live save (rule 5). `unknown-trait` now reads each owner's own list.
+   `guildmasterTraitBudget`, `guildmasterTraitsMin` and `guildmasterTraitsMax` are unchanged.
+4. **The types** (`engine/src/content-types.ts`). `ContentSet.traits` is `guildmasterTraits:
+   Record<TraitKey, GuildmasterTrait>` and `heroTraits: Record<TraitKey, HeroTrait>`. `TraitEffect` is
+   `GuildmasterTraitEffect | HeroTraitEffect`; `GuildmasterTraitEffect` is the old union, its three
+   kinds as now (DL-150 item 8). `HeroTraitEffect` is `never` for now, the seam S7's next step widens
+   with `statModifiers` and `encounterBonus`: the parser's `heroTraitEffectKinds`, keyed by
+   `HeroTraitEffectKind`, and `heroTraitEffect` are where it reads them, and the compiler then asks
+   every switch over `TraitEffect` (both front ends' `traitEffectWords`) for the new kinds. `Trait` is
+   `GuildmasterTrait | HeroTrait`; `TraitOwner` is gone. `traitOf(content, key)` finds a key in
+   either list, for a front end that names a Trait whatever its list.
+5. **Every reader** takes the two lists: `create.ts` (`setupRefusal`, `guildmasterTraitCost`),
+   `guildmaster.ts`, `generators/guilds.ts`, `morale.ts`, `regard.ts`, `selectors.ts`,
+   `quest-engine/query.ts` (`has-trait` reads `heroTraits`), `validate.ts`; the content's
+   `parse.ts` and `validate.ts`; the CLI's `commands/setup.ts`, `render.ts`, `narrate.ts` and
+   `query-words.ts`; the page's `names.ts`, `narrate.ts`, `rejections.ts`, `selectors.ts`, `setup.ts`,
+   `world-views.ts` and `query-words.ts`; and the portrait tool's `corpus.ts`, which counts the
+   Biography's Trait sentences by each list's keys. `hero-state.ts`, `descriptions.ts` and
+   `portraits.ts`, which the epic names, read only a person's keys, never a Trait's row, and are
+   unchanged. The two portrait agents read `content/hero-traits.json` for a Hero's picture.
+6. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *How many effects.* A Guildmaster Trait carries **one or more**, as its one effect was required
+     before: a cost with no effect would buy nothing. A Hero Trait carries **none or more**, since all
+     four hold none until the Injury Traits' effects are written. Neither has an upper bound; content
+     holds one each for now, and a content test pins the six at one each.
+   - *A Hero Trait has no `cost`*, which only the budget reads (DL-150 item 9 names "a Guildmaster
+     Trait's cost"): it is refused as not a field of a Hero Trait.
+   - *A Hero Trait may exclude,* each exclusion a Hero Trait, other than itself, listed once and held
+     both ways, as a Guildmaster Trait's (DL-150 items 3 and 5). None does yet.
+   - *A Hero Trait's effect* of any kind is refused as `expected none: no kind is defined yet`, the
+     reader's words for a choice of no members.
+   - *Where a refusal names a Trait.* The parser names the file (`hero-traits.json: scarred.cost is
+     not a field of a Hero Trait`); `validateContent` the table and the effect's place
+     (`guildmasterTraits.thrifty.effects.1.factor is -1; it is a number above 0`), as every other table.
+   - *The words for several effects.* `traitEffectWords` takes the list and joins its words with
+     commas; for one effect it says what it said, and for none "No effect" ("no effect" in the CLI).
+   - *The content version* is 23 (S6 made it 22).
+   - `RowReader.nullableChild`, whose only reader was the old `effect`, is removed.
+
+**The checks.**
+1. **Creation, 1,000 seeds, two setups** (the harness's age 30, and a bare one), against `1769b30`,
+   hashed in the clean tree before the change: with `meta.content.version` set aside, all 2,000
+   documents hash equal, combined `2bda2d28…` (age 30) and `37a9f37e…` (bare) at both. Taken whole,
+   every one differs, by that field alone ("22" and "23" are the same length).
+2. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s7a npm run harness`, core only, 20
+   years, content 23, config 13, not validated: `harness/reports/m9-v114-s7a-2026-10-02.md`, to be
+   force-added. Against S6's, every line is equal but the title, the run's start and content version,
+   the timings (`advance` mean 3.301 ms a Turn, p99 7.848, against 3.573 and 8.633; 663.6 s in all
+   against 701.6), and the fingerprint: `d712173e…` against `56d55d93…`. Every counter, yearly table,
+   ending and save length is equal: 335,682 of the player's Quests resolved and 831,148 of the Rivals',
+   13,446 and 24,630 Injuries, 2 bankruptcies, 181 Rival folds, `seed-0001` 116,493,963 characters.
+3. **Why the fingerprint moved.** Every save records `meta.content.version`, now 23, so every last
+   save's hash differs by that field, as DL-151's did. Three seeds were played 20 years at both trees,
+   the player idle with a Wealth of 10⁹ so the four Rivals quest for all 21,600 Turns (the tree at
+   `1769b30` a `git archive` in the scratchpad): with the field set aside the saves hash equal at both,
+   `184ed2a1…`, `6ae30f9b…` and `4a7c132a…`, over 18,024, 18,480 and 20,099 Quests resolved, and are
+   92,046,289, 95,104,859 and 103,067,237 characters at both.
+4. **The refusals** (`content/src/refusals.test.ts`): each Guildmaster Trait refusal of before on the
+   new file and path; no effect; a second effect held to its rule; the old `effect` and an `owner`
+   refused as not fields; a Hero Trait's effect, cost, owner, one-way, foreign and self exclusion; a
+   key in both lists; a both-ways Hero exclusion accepted; the old `traits.json` not read; a
+   Guildmaster Trait of two effects accepted in memory. `engine/src/traits.test.ts`: `traitOf`,
+   `excludeEachOther`, `excludedPair`, a Trait's two effects both applied, a Hero Trait on a
+   Guildmaster bearing on nothing. `validate.test.ts`: `excluded-traits` for a Guildmaster and a Hero.
+5. **The script.** `npm run build -w web`'s check-bundle passes. The script is 767,877 bytes (767.88
+   kB, 223.90 kB gzipped), 715 more than S6's 767,162: `traits.ts`, the new warning and the effect
+   lists' words. 32.12 kB is left under 800 kB.
+6. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,435 tests in 175 files, with no flake.
+   - `npm run e2e -w web` passes all 96 specs.
+
+**Consequences.**
+- Content is the two files from version 23; a content set with `traits.json` is refused for want of
+  them. Saves are unchanged (schema 6): a Hero's and a Guildmaster's `traits` are keys, as before.
+- S7's next step adds the Hero effect kinds to `HeroTraitEffect` and the parser's reader, the Injury
+  Traits' effects to `hero-traits.json`, and uses `excludedPair`/`excludeEachOther` for the
+  conflicts (DL-150 item 5) and the earned Traits.
+- S12's register will list these readers: the two lists' readers named in item 5.
+
+**Actioned in:** `content/guildmaster-traits.json`, `content/hero-traits.json` (`traits.json` removed),
+`content/src/parse.ts` (version 23), `validate.ts` and their tests; `engine/src/content-types.ts`,
+`traits.ts` (new) and its test, `create.ts`, `guildmaster.ts`, `generators/guilds.ts`, `morale.ts`,
+`regard.ts`, `selectors.ts`, `quest-engine/query.ts`, `validate.ts`, `index.ts`,
+`world.test-support.ts` and the engine's tests; `cli/src/commands/setup.ts`, `render.ts`,
+`narrate.ts`, `query-words.ts` and a test; `web/src/state/names.ts`, `narrate.ts`, `rejections.ts`,
+`selectors.ts`, `setup.ts`, `world-views.ts`, `query-words.ts` and their tests;
+`tools/portraits/src/corpus.ts`; `.claude/agents/portrait-reader.md`, `portrait-checker.md`;
+`harness/reports/m9-v114-s7a-2026-10-02.md`; `CONTEXT.md` (Trait); `docs/data-model.md` (a person's
+`traits`, the warnings); the epic's first S7 box and status.
+
+---
+
+## DL-159 — v1.1.4-S7 built: Hero Traits that change Stats and give the Party an Encounter bonus, the four Injury Traits' Stat changes, Traits earned on Quests, an Injury's Trait replacing one it conflicts with, and the two Milestones
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building S7's second step as
+the epic's S7 bullets "Each list's kinds of effect" to "Content" describe, on DL-148 items 24 to 27 and
+DL-150 items 5 and 8. Where the plan was silent, the calls are the agent's, in item 8, for the owner
+to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** S7's first step (DL-158, `7c09953`) moved the Traits into two lists of effect lists,
+playing the same games, and left `HeroTraitEffect` as `never`, the seam for this step. No Hero Trait
+did anything: the four an Injury leaves were names. DL-148 item 24 gives them Stat changes, item 25
+lets Heroes earn Traits on Quests, item 26 gives a Trait an Encounter bonus that is the Party's, item
+27 makes a Trait gained a Milestone, and DL-150 item 5 has a Trait an Injury leaves replace one it
+conflicts with. Every comparison of play below is with S7a's sweep,
+`harness/reports/m9-v114-s7a-2026-10-02.md`.
+
+**Decision.**
+
+1. **The Hero effect kinds** (`engine/src/content-types.ts`, `HeroTraitEffect`; DL-150 item 8).
+   - `{ "kind": "statModifiers", "modifiers": { <Hero Stat>: <whole number other than 0>, … } }`: one
+     effect may name several Stats (DL-150 item 2's reading). `effectiveStats` adds the sum of every
+     held Trait's modifiers (`traitStatModifiers`, `engine/src/traits.ts`) beside the Guildmaster's
+     Class bonus and gear, and holds the total inside the Stat's range once, as before (DL-49). So the
+     change shows wherever a Stat shows: a Hero's page (the lift beside the base, as gear's), `show
+     hero`, every Check and Query, the harm shares (`exposedBy`, `guardedBy`, `steadiedBy`), the chance
+     estimate and the Rivals' choice of Party.
+   - `{ "kind": "encounterBonus", "flat": <number other than 0>, "kinds"?: [...], "tags"?: [...] }`:
+     `flat` is added to the capability of every Check of an Encounter whose kind it names, or which
+     shares one of its tags, when any Hero still in the sequence holds the Trait, once for the Party
+     however many hold it (DL-148 item 26; `traitEncounterBonus`). Two Traits that match add both. It
+     is added in `capability` after the teamwork scalar, as a consumable's bonus is added, so the
+     resolver, the form check (`formDecided`) and the estimate all read it from the one place, and the
+     estimate stays exact. A raw Check is its score alone (DL-152) and takes no Trait's bonus, as it
+     takes no consumable's.
+   - *Tags.* Encounters gain `tags` in S8. `tags` is accepted and validated now (kebab-case, none
+     twice) and matched against `tags` on the Encounter when it has them (`BonusTarget`, the
+     Encounter's kind and optional tags); until S8 no Encounter has any, so only `kinds` match. An
+     Encounter bonus names at least one kind or tag.
+   - The parser reads each kind with exactly its fields (`heroTraitEffect`), and `validateContent`
+     holds the values (`checkTraits`): a refusal names the Trait and the effect's place.
+2. **The four Injury Traits** (DL-148 item 24; `content/hero-traits.json`), each one `statModifiers`:
+   Lame Dexterity −2, Endurance −1; One-eyed Perception −2, Weaponry −1; Short-winded Endurance −2,
+   Constitution −1; Scarred Courage +1, Charisma −1. The keys are content's `dexterity`, `endurance`,
+   `perception`, `weaponry`, `constitution`, `courage` and `charisma`. Deep cut leaves Scarred,
+   Shattered knee Lame, Eye wound One-eyed, Lung fever Short-winded. The content version is **24**.
+3. **The `trait` consequence** (DL-148 item 25; `TraitConsequence`):
+   `{ "kind": "trait", "traitKey", "chance", "among"? }`.
+   - *Positive or negative is where it is listed.* In an Encounter's `triumph` list it is positive:
+     drawn on the Triumph, held, and granted only if the Quest ends a strong success. In its `failure`
+     list it is negative: it falls only among the Heroes the same Encounter injured. Content
+     validation refuses one in `success` (which a Triumph without a list of its own reads too) or
+     `setback`, and a negative one with no Injury before it in its list (it could fall on no one).
+     A Setback that reads the Failure's list may bring a negative one: it is a failed Encounter.
+   - *Who.* A positive one falls among the Party still in the sequence, a negative one among those
+     the Encounter injured who are still in it; of them those `among` names, a Set Query over the
+     Party as harm's is; and of those only the Heroes who may take it: who do not hold it, and hold
+     none it excludes or that excludes it, read either way round (`mayEarn`, DL-150 item 5), and who
+     have drawn no Trait on this Quest, save that a negative one may fall on a Hero holding a positive
+     one (item 8).
+   - *Draws.* Two from `quests`, in the consequence's place in its list: whether it lands (`next`,
+     below `chance`), then on whom (`pick` among those who may take it, or one `next` when no one
+     may), taken whether or not it lands. Loot's two stay last, after the sequence.
+   - *Granted.* The resolution carries `traits` (`EarnedTrait`: the Hero, the Trait, the Encounter's
+     place and key), the positive ones only on a strong success, none for a Hero who died later on the
+     Quest, nor to a Hero who gained a negative one (item 8). `questsConclude` adds each to the Hero's
+     `traits` with `hero.trait-gained`, after the
+     Injuries and Deaths and before the XP. The outcome, `quest.resolved`'s payload, is unchanged.
+4. **Conflicts** (DL-150 item 5). An earned Trait that conflicts with one held, either way round, is
+   not granted (item 3). A Trait an Injury leaves as it heals replaces each held Trait it excludes or
+   that excludes it (`replacedBy`), the new Trait last: `heal` in `phases/hero-state.ts` emits
+   `hero.healed`, then a `hero.trait-lost` for each Trait replaced. Content's Hero Traits exclude
+   nothing yet, so no Trait is lost in play until S10 writes one that does. The estimate's projection
+   of the nights away, `heroNight`, is the same function run on copies, so it replaces Traits as the
+   night does and the estimate stays exact.
+5. **The events** (`engine/src/events.ts`), both Milestones (DL-148 item 27, DL-150 item 5).
+   - `hero.trait-gained` `{ heroId, traitKey, questId, encounterIndex, encounterKey }`, naming the
+     Hero and the Quest.
+   - `hero.trait-lost` `{ heroId, traitKey, replacedBy }`, naming the Hero.
+6. **The front ends.**
+   - *Words.* Both `traitEffectWords` word the new kinds: `-2 Dexterity, -1 Endurance` and `+2 to
+     every Check of combat or travel Encounters` (`… of Encounters tagged undead`); several effects
+     are joined by commas; none is "No effect" on the page and "no effect" in the CLI. Both narrate
+     the two events: "Brenna Ashcombe earned the Trait Scarred on Clear the barrow, at Ambush on the
+     road." and "Brenna Ashcombe lost the Trait Lame, replaced by Scarred."
+   - *The History.* Both are Milestones, so never routine, and on the Hero's page among their
+     Milestones. In the player's Guild's History and the rail a Trait gained stands beside its
+     return, as its Injuries and Deaths do (`besideAReturn`).
+   - *The Quest report.* Each Hero's line says "Earned the Trait One-eyed" (`HeroOutcome.trait`).
+   - *A Hero's page.* Each Trait's chip gives what it does: "Lame: -2 Dexterity, -1 Endurance"; the
+     Stat blocks show its change as a lift, as gear's. `show hero` gives "Lame (-2 Dexterity, -1
+     Endurance)".
+   - *A clamped Stat* (informational): the chip says what the Trait does, "-2 Dexterity", while the
+     Stat may show less of a change, since `effectiveStats` holds the total inside the Stat's range
+     once, after every modifier (DL-49): a Hero at Dexterity 2 shows 1, a lift of -1.
+7. **R16 and R24** stand as DL-150 reworded them; what is built is what they say.
+8. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *How positive and negative are known:* by the list the consequence stands in (item 3), not a
+     field of the Trait, so a Trait may be earned either way from different Encounters.
+   - *`among`'s default:* the Party still in the sequence for a positive Trait, the Heroes the
+     Encounter injured for a negative one. Unlike harm's, `among` has no fallback: one that names no
+     one who may take the Trait grants it to no one, since a Trait for, say, the Mages should never
+     fall on a Warrior.
+   - *One a Quest, granted* (the coordinator's call at the verification, replacing the agent's; **for
+     the owner to confirm**): a negative Trait may land on a Hero who holds a drawn but not yet granted
+     positive one, and at the Quest's end a Hero who gained a negative Trait on it does not also gain
+     their held positive one. So at most one Trait is granted a Hero a Quest, and a negative one always
+     lands when its Hero may take it. A Hero holding a negative one, or a positive one, takes no other
+     positive one, and no Hero two negative ones. (As first built, a Hero who had drawn any Trait took
+     no other, so a held positive Trait, which a band short of strong may void, kept a later negative
+     one off its Hero.)
+   - *An Encounter bonus may be negative,* a penalty, since a negative Trait may weaken the Party; it
+     is added after teamwork and never to a raw Check.
+   - *A Trait lost belongs to no Quest.* The epic says the Quest report shows both events. A Trait is
+     lost only as an Injury heals, on a later night that names no Quest, so the report shows the
+     Trait gained, and the History and the Hero's page show both.
+   - *The harness* counts `hero.trait-gained` and `hero.trait-lost` by controller, and the Heroes sent
+     on at least one Quest (`questingHeroes`), and reports the Traits earned per Hero career over them,
+     for the closing gate's "Rare Traits".
+   - *The nits.* `config.ts`'s Trait budget comment names `GuildmasterTrait.cost`; `RowReader.oneOf`'s
+     words for an empty set of choices are "none: there is nothing to choose from".
+
+**The checks.**
+1. **The boxes, test first.**
+   - *A Stat change shows on a Hero's page and in a Check, and a bonus applies once* (box 2):
+     `resolve.test.ts` ("a Hero Trait's effects in a Check"): a lame Hero adds 2 less Strength (times
+     their form and the teamwork) to a sum; a bonus of 5 on combat adds 5 with one holder and 5 with
+     three, nothing on travel, a tag shared adds and one not shared does not, and a raw Check takes
+     none. `selectors.test.ts` and `roster.test.tsx`: the chip "Lame: -2 Dexterity, -1 Endurance" and
+     Dexterity 10 with "-2 on its base of 12"; `render.test.ts`: `show hero`'s Traits and effective
+     Dexterity.
+   - *A positive Trait on a strong success and not a plain one* (box 3), *a negative one only on a
+     Hero that Encounter injured* (box 4), *no two, none held, none conflicting* (box 5):
+     `resolve.test.ts` ("earned Traits"), seven tests: granted on a strong success naming its
+     Encounter, nothing on a plain success; its two draws in place whether or not it lands, Loot
+     drawn from a twin two draws on; whether and whom as `chance` and `pick` draw over 20 seeds; a
+     negative one on the injured Hero over 20 seeds, and on no one when the Encounter injured no one
+     though a Hero was hurt earlier; granted on a failed Quest, and not to a Hero who died after; one a
+     Hero (three drawn for one Hero, four for three), only to the Hero who lacks it, none when all hold
+     it, none beside a conflicting one with the exclusion written on either side; `among` names who,
+     and naming no one grants nothing.
+   - *An Injury's Trait replaces one it conflicts with, recorded* (box 6): `hero-state.test.ts`, two
+     tests: Fearless (excluded both ways) and Vain (excluding Scarred from its side only) are replaced
+     by Scarred, Lucky kept, `hero.healed` then two `hero.trait-lost`, Milestones; a Trait held already,
+     or one conflicting with nothing, loses nothing.
+   - *Both Milestones in the History* (box 7): `quests-conclude.test.ts` (`hero.trait-gained`, a
+     Milestone after the Injury and before the XP, the Hero holding it, the document valid);
+     `quest-return.test.ts` (the report's line, the entry beside its return, a Milestone);
+     `selectors.test.ts` (both among a Hero's page's Milestones in their words); both front ends'
+     `narrate.test.ts`; `counters.test.ts`.
+   - *The estimate stays exact:* `estimate.test.ts`, a Hero holding a travel bonus Trait whose Injury
+     heals on the second night away leaving a Trait that replaces it: the estimate's capability
+     equals the resolver's met on the night home, Scarred's Strength −3 in and the bonus out.
+   - *Content:* `refusals.test.ts`, 13 refusals of a Hero Trait's effects and 9 of a `trait`
+     consequence, each naming its path, and both loaded as written; `content.test.ts` pins the four
+     Injury Traits' effects. `traitEffectWords` with several effects and with none in both front ends
+     (`render.test.ts`, the new `web/src/state/names.test.ts`).
+2. **The same games with the Injury Traits' effects emptied.** A copy of this tree with
+   `hero-traits.json`'s effects emptied and the content version set back to 23, and a `git archive`
+   of `7c09953` (S7a), each played `HEROESIM_SEEDS=6 HEROESIM_YEARS=6`, core only: the two reports
+   differ only in their titles and timings. Every counter is equal, and so is the fingerprint of
+   every seed's last save, `d767a87e…`: play is bit-identical, the new code drawing and changing
+   nothing while no Hero Trait has an effect and no Encounter a `trait` consequence.
+3. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s7 npm run harness`, core only, 20
+   years, content 24, config 13, not validated: `harness/reports/m9-v114-s7-2026-10-02.md`, to be
+   force-added. Against S7a's, play changes, by the Injury Traits alone (no content earns a Trait,
+   and no Hero Trait excludes another, so `hero.trait-gained` and `hero.trait-lost` are 0, and the
+   Traits earned per career 0.000 over 1,533 of the player's Heroes and 4,817 of the Rivals' sent on
+   a Quest):
+   - *The Heroes an Injury marked are weaker.* Lame, One-eyed and Short-winded each take three
+     points, Scarred trades Charisma for Courage, and every Check, the estimate and the Rivals'
+     choice read them.
+   - *The player's Quests:* failed 10.7% (9.9%), succeeded 15.7% (15.0%), strong 73.6% (75.2%);
+     338,559 resolved (335,682). Encounters at Success or better 87.9% (88.7%). Injuries 14,761
+     (13,446), Deaths 1,119 (1,153).
+   - *The Rivals' Quests:* failed 6.9% (6.0%), succeeded 12.9% (12.0%), strong 80.2% (82.0%); 836,871
+     resolved (831,148). Encounters at Success or better 91.1% (92.1%). Injuries 27,492 (24,630),
+     Deaths 2,235 (2,106). The Rivals recruited 2,567 (2,300).
+   - *What follows.* 180 Rivals folded (181); 2 of the player's games ended in bankruptcy, in years
+     18 and 19 (16 and 19). Wealth after 20 years 161,526 a game (167,490). The mean save at year 20 is
+     118.36 MiB (117.40); `seed-0001` played twice is identical, 121,813,183 characters.
+   - *For S10.* The Quest target moves a little toward DL-83 item 4's: the player's failed 10.7%
+     against 20 to 30%, strong 73.6% against at most 50%.
+   - *The time:* `advance` mean 6.134 ms a Turn, p99 22.895 (3.301 and 7.848), and 1,106.9 s in all
+     (663.6), measured while the two parity runs of check 2 and a Web test file shared the machine;
+     `seed-0001` replayed alone 1.769 ms (1.340). In check 2's runs, side by side under the same load,
+     the two trees' replay alone was 6.130 and 6.132 ms: the new code costs nothing measurable when no
+     Trait has an effect. S8's or S9's sweep, on a quiet machine, should read the time again.
+4. **The script.** `npm run build -w web`'s check-bundle passes. The script is 771,976 bytes (771.98
+   kB, 224.89 kB gzipped), 4,099 more than S7a's 767,877: the effects' words, the events' words and
+   the earned Traits' rules. 28.02 kB is left under 800 kB.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,488 tests in 176 files (4,435 in 175 at S7a). Two runs straight after the
+     sweep, with the machine still loaded, timed out in 8 or 9 tests, a different few each time
+     (`rng.test.ts`, `probe.test.ts`, `treasury.test.tsx`, `use-game.test.tsx` among them); each
+     passed alone, the whole suite passed at `--maxWorkers=6`, and then `npm test` itself passed
+     every test.
+   - `npm run e2e -w web` passes all 96 specs.
+
+**The verification.** A second Opus agent read the step and found no correctness bug. Its findings,
+fixed test first:
+1. *The draws from no one were not held by a test.* `resolve.test.ts` gains a test of the four ways
+   no Hero may take a Trait (all hold it; it conflicts with one each holds; `among` names no one; a
+   negative Trait when the Encounter injured no one): each grants nothing, leaves the outcome as
+   without it, and leaves the `quests` stream exactly two draws past a twin resolved without it.
+   With `earn`'s `next` for no one taken out, the test fails; put back, it passes.
+2. *A held positive Trait kept a negative one off its Hero.* The rule is item 8's "One a Quest,
+   granted". The test: one Hero, a positive Trait drawn at Encounter 1's Triumph, a Failure at
+   Encounter 3 injuring them and a negative Trait after it, the bands set so the Quest still ends
+   strong (`strongAtLeast` 0.6): the negative Trait is granted and the positive one not. It failed
+   before the fix (the positive one was granted) and passes after.
+3. *The epic's events bullet* now says `hero.trait-gained` shows in the History, the Quest report and
+   a Hero's page, and `hero.trait-lost` in the History and a Hero's page (item 8); the box stays
+   ticked.
+4. *The chip and a clamped Stat,* recorded in item 6.
+
+After the fixes: `npm run typecheck` and `npm run lint` are clean, and `npm test` passes 4,490 tests in 176 files.
+No sweep was run: no content has a `trait` consequence, so neither fix changes play, and S7's sweep
+stands.
+
+**Consequences.**
+- Play changes: a Hero an Injury marked is weaker for the rest of their career. S10's balance pass
+  starts from this sweep.
+- Content may now write earned Traits (S10, after the owner's review), Hero Traits that exclude each
+  other, and Encounter bonuses; an Encounter bonus by `tags` matches once S8 gives Encounters theirs.
+- S12's register will list these readers: `traitStatModifiers` (`effectiveStats`),
+  `traitEncounterBonus` (`capability`), `mayEarn` (the resolver's `trait` consequence), `replacedBy`
+  (`heal`), the two events, and the content checks of a `trait` consequence's `traitKey`.
+
+**Actioned in:** `engine/src/content-types.ts`, `traits.ts`, `selectors.ts` (`effectiveStats`),
+`events.ts`, `config.ts` (a comment), `quest-engine/check.ts`, `quest-engine/resolve.ts`,
+`phases/quests-conclude.ts`, `phases/hero-state.ts` and their tests (`traits`, `resolve`,
+`estimate`, `hero-state`, `quests-conclude`); `content/hero-traits.json`, `content/src/parse.ts`
+(version 24), `validate.ts`, `content.test.ts`, `refusals.test.ts`; `cli/src/render.ts`,
+`narrate.ts` and their tests; `web/src/state/names.ts` (and the new `names.test.ts`), `narrate.ts`,
+`history.ts`, `digest.ts`, `treasury.ts`, `quest-return.ts`, `selectors.ts`, `game.test-support.ts`,
+`history.test-support.ts`, `web/src/views/hero-page.tsx` and the web's tests (`narrate`,
+`selectors`, `quest-return`, `roster`, `capitals`); `harness/src/counters.ts`, `sweep.ts`,
+`counters.test.ts`; `harness/reports/m9-v114-s7-2026-10-02.md`; `CONTEXT.md` (Trait, Earned Trait,
+Milestone); `docs/data-model.md` (a Hero's `traits`); the epic's S7 boxes and status.
+
+---
+
+## DL-160 — v1.1.4-S8 built: the Encounter of a kind drawn by the tags it shares with its template, a template's Finale always last with Loot needing its Triumph, and the `lore` kind
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agent, building S8 as the epic's S8
+bullets describe, on DL-148 items 21 to 23. Where the plan was silent, the calls are the agent's, in
+item 7, for the owner to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** Until now a Quest's sequence was a kind drawn uniformly among its template's, then an
+Encounter drawn uniformly among that kind's (`drawSequence`, M4-S1, DL-42): the templates' `tags` were
+read by no rule (DL-82), so a vault drew the same arcane Encounters as a mill. DL-148 item 22 weights
+that draw by tags shared and gives the four hardest templates a fixed last Encounter, a Finale; item 23
+makes Loot on such a Quest also need the Finale's Triumph; item 21 adds a `lore` kind for Intelligence
+and Knowledge. S8 builds the rules and the tags on today's content; the Finales and the lore Encounters
+are written in S10, after the owner's review (S9). It was built on `v1.1.4-dev` at `a0a8ec1` (S7,
+DL-159), and every comparison of play below is with S7's sweep, `harness/reports/m9-v114-s7-2026-10-02.md`.
+
+**Decision.**
+
+1. **Tags on Encounters** (`engine/src/content-types.ts`, `Encounter.tags`; DL-148 item 22). An
+   Encounter may carry `tags`, written as a Quest template's are (kebab-case, none twice), absent for
+   none. Within its kind, an Encounter's weight in the draw is `encounterTagWeight` to the power of the
+   tags it shares with the template (`tagWeight`, `quest-engine/encounters.ts`): at 3, one tag shared
+   draws it three times as often as one sharing none, two shared nine times. The draw is still one
+   `weightedPick` from `encounters`, after the kind's one `pick`, so a Quest takes two draws a place as
+   before; with no tag shared every weight is 1, which `weightedPick` draws exactly as `pick` drew. The
+   Encounter bonus by `tags` that S7 validated on Hero Traits (DL-159) now matches an Encounter's own
+   tags: `BonusTarget` is `Pick<Encounter, 'kind' | 'tags'>`.
+2. **`encounterTagWeight`** (`engine/src/config.ts`), 3, under config version 13 as the epic's §2 has
+   it. `configProblems` holds it to a finite number of 1 or more, so that a shared tag never makes an
+   Encounter rarer (at 1 tags change nothing); `drawSequence` refuses an unsound one, drawing nothing,
+   and `generateQuest` refuses it before its first draw, so a throw changes nothing.
+3. **Finales** (`QuestTemplate.finale`; DL-148 item 22). A template may name a `finale`, an Encounter
+   content defines. It is always the last of the Quest's Encounters: the count is `encounterCount` as
+   before, its last place the Finale, which draws nothing, and the places before it drawn as before, so
+   a Quest with a Finale takes two `encounters` draws fewer and one without takes as many as it did. The
+   Finale is stored in `encounterKeys` when the Quest is posted (`generateQuest`), so the Board, the
+   chance estimate (S5, DL-156) and the Rivals' choice (S6, DL-157) all read it; a Quest posted before
+   M4, which draws its sequence as it resolves (`sequenceFor`), ends with it too.
+4. **Loot and the Finale** (DL-148 item 23; `quest-engine/loot.ts`, `resolve.ts`). Loot keeps its rule,
+   a band in `lootOnBands` on a Quest carrying a table. On a Quest whose sequence ends with its
+   template's Finale (`endsWithFinale`), it also needs the Finale to end a Triumph (`FinaleOutcome`:
+   `none`, a Degree, or `unmet` when the Party fell before reaching it). Loot's two draws are taken
+   whatever happens, last, as before.
+5. **The `lore` kind** (`encounterKinds`; DL-148 item 21). `lore` joins `combat`, `travel`, `social`,
+   `arcane` and `stealth`, for Intelligence and Knowledge: riddles, records and clues. Content's
+   Encounters, templates, Synergies, consumables and Hero Traits' Encounter bonuses may name it; the
+   compiler holds every enumeration of the kinds to the union (content's parser and validator, the
+   Board's icons). The page and the CLI word a kind by its key inside a sentence, as they do the others
+   ("+2 to every Check of lore Encounters", "on lore Encounters", "+3 on a lore Encounter"); the Board
+   gives a lore Encounter a scroll icon (`web/src/views/icons.tsx`). No text begins with a kind, so the
+   capitals guard has no new standalone word. `CONTEXT.md` says that `lore` names a kind of Encounter and
+   never a Background, whose entry avoids "Lore".
+6. **Content** (version **25**). Today's twelve Encounters gain one or two tags each, from the
+   vocabulary the templates already carry, every tag one some template carries (a content test holds
+   it): Ambush on the road `escort`; The restless dead `dark`; Hold the line `guard`; The long march
+   `escort`, `guard`; The flooded ford `water`; Lost in the fells `wilds`, `hunt`; A hostile reeve
+   `town`; The Patron's steward `talk`; The sealed door `delve`; A restless power `dark`; Past the watch
+   `town`; The trapped passage `delve`. The templates' tags are unchanged. No template names a Finale and
+   no Encounter is `lore` until S10. So, within a kind: the barrow, the vault and Lay the restless dead
+   draw The restless dead 60% of their combat places (a third before); the fort Hold the line 60%; the
+   tithe Ambush on the road 60%; the caravan The long march 69% of its travel; the beast Lost in the
+   fells 82%; the strongbox The flooded ford 60%; the mill and the counting-house A hostile reeve 75% of
+   their social places, so The Patron's steward 25% (half before); Lay the restless dead A restless
+   power 75%; the barrow, the old workings and the vault The trapped passage 75% of their stealth; A
+   quiet word and the counting-house Past the watch 75%.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *"For each tag it shares"* is read as a factor for each: `encounterTagWeight` to the power of the
+     tags shared, not a sum.
+   - *`encounterTagWeight` at least 1* (the coordinator's question): a weight below 1 would make a
+     shared tag a reason to draw an Encounter less, which is no tag's meaning; 1 turns tags off.
+   - *A Finale may be of any kind,* not only one its template draws: it is named, not drawn, and a
+     vault's Finale may be a riddle while its places are arcane, stealth and combat.
+   - *A Finale is never drawn into a place,* on its own template or another: an Encounter some template
+     names as its Finale is left out of every pool. So writing a Finale that is a new Encounter changes
+     no other Quest's draws, and no Quest meets its Finale twice. Naming an Encounter some template
+     already draws would change every draw of its kind, and would let a Quest posted before the change
+     have its Loot gated on a place it happened to draw last (the verifier's finding). So S10 writes
+     each Finale as a new Encounter. Content validation refuses a template kind whose every Encounter
+     is a Finale.
+   - *Whether a Quest has a Finale* is read from content when it resolves: its stored sequence ends with
+     its template's Finale. No row gains a field (the schema stays 6). A template that later drops its
+     Finale lets its Quests already posted take Loot by the band alone (data-model rule 5).
+   - *A Party that falls before its Finale* brings no Loot: the Finale did not end a Triumph.
+   - *Tags on an Encounter are optional,* none when absent, so a test's or a module's Encounter written
+     without them draws as before; the content test holds that each of today's has one or two.
+   - *The harness's Encounter table* gains a `lore` row, 0 until S10.
+   - *A Web test's seed:* `app.test.tsx`'s Quest report test moves from `report-d` to `report-f`, since
+     the tags draw `report-d`'s Quest so that its Party comes home unhurt and the test reads an Injury.
+
+**The checks.**
+1. **The boxes, test first.**
+   - *About three times as often over 20,000 draws* (box 1): `encounters.test.ts`, one kind of three
+     Encounters, one sharing a tag with the template: it takes 58 to 62% of 20,000 draws and 2.8 to 3.2
+     times either other's count. `tagWeight` gives 9 for two tags shared, 3 for one, 1 for none or at a
+     weight of 1.
+   - *No play change with no tag shared:* `drawSequence` draws exactly what M4-S1's `pick` then `pick`
+     drew, key for key and state for state, for every template of the test content over 200 seeds, and
+     tags at `encounterTagWeight` 1 draw exactly what no tags draw.
+   - *A Finale always last, the count unchanged* (box 2): `encounters.test.ts`, over 50 seeds at counts
+     1, 2 and 4, the last key is the Finale, the places before it are what M4-S1 drew for one fewer, and
+     the stream is two draws a drawn place on; a Finale of another template is never drawn into a place,
+     and the barrow draws as it did before the Finale was written; a Quest posted before M4 ends with it.
+     `quests.test.ts`: 60 Quests of the barrow with and without a Finale each have `encounterCount` keys,
+     the stream moved two draws a place (one place fewer with the Finale), the Finale last; the generator
+     refuses an unsound weight or an undefined Finale, changing nothing.
+   - *No Loot on a Quest whose Finale was not a Triumph* (box 3): `resolve.test.ts`, 120 seeds of a
+     Quest through an Encounter always a Triumph then a Finale aimed at the Triumph line: wherever the
+     Finale is not a Triumph there is no Loot, though the twin Quest without a Finale, the same rolls and
+     band, has it on every strong success; where it is a Triumph the Loot is the twin's; the `quests`
+     stream ends where the twin's does; both "Success, strong" and "Triumph, strong" were met. A Party
+     wiped out before its Finale brings none home on a strong band. `loot.test.ts`: `drawLoot` awards for
+     `none` and `triumph` only, two draws for each of the six outcomes. With the rule taken out, these
+     three tests fail; put back, they pass.
+   - *The Trait bonus by tag through the resolver:* `resolve.test.ts`, a Hero Trait with an Encounter
+     bonus on `dark` adds 3 to the Check of an Encounter tagged `dark` and `delve` and nothing to one
+     tagged `town`.
+   - *`encounterTagWeight`:* 3 by default, and `configProblems` names 0.99, 0, −3, NaN and Infinity.
+   - *Content:* `refusals.test.ts`, the tags and the Finale loaded as written, three refusals of an
+     Encounter's tags and two of a template's Finale, each naming its path, a kind whose every Encounter
+     is a Finale refused for each template drawing it, a Finale of a kind its template does not draw
+     accepted, `lore` accepted on an Encounter, a template, a Synergy, a consumable and a Hero Trait, and
+     a template drawing `lore` with no lore Encounter refused. `content.test.ts` pins version 25 and each
+     Encounter's tags. The kind lists in four refusal messages gain `lore`.
+   - *The words:* both front ends' `traitEffectWords` word "+2 to every Check of lore Encounters"; the
+     icon test holds the lore icon in the set.
+2. **The same games with the tags taken out.** `a0a8ec1` (S7, by `git stash`) and this tree with
+   `encounters.json`'s tags removed and the content version set back to 24, each played
+   `HEROESIM_SEEDS=6 HEROESIM_YEARS=6`, core only: every counter and every table is equal. The reports
+   differ only in their titles, the timings, two new `lore` rows of 0, and the saves: each is 23
+   characters longer, `"encounterTagWeight":3,` in the document's `config`, so the fingerprint differs
+   (`7ae8453a…` and `f6268cfa…`). The new code draws exactly as the old while no tag is shared.
+3. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s8 npm run harness`, core only, 20
+   years, content 25, config 13, not validated, on a quiet machine:
+   `harness/reports/m9-v114-s8-2026-10-03.md`, to be force-added. Against S7's (in brackets), play
+   changes by the Encounter mix alone (item 6):
+   - *The player's Quests:* failed 10.1% (10.7%), succeeded 15.0% (15.7%), strong 74.9% (73.6%);
+     339,051 resolved (338,559). Encounters at Success or better 88.6% (87.9%). Injuries 13,370
+     (14,761), Deaths 1,085 (1,119).
+   - *The Rivals' Quests:* failed 6.4% (6.9%), succeeded 12.3% (12.9%), strong 81.3% (80.2%); 844,746
+     resolved (836,871). Encounters at Success or better 91.8% (91.1%). Injuries 25,960 (27,492),
+     Deaths 2,382 (2,235).
+   - *Why, by kind.* The harness counts Checks by kind, not by Encounter, so the cause is read from the
+     mix (item 6) beside the rates: combat Checks succeed 94.6% (93.4%), travel 86.9% (85.5%), social
+     84.1% (83.5%), arcane 91.1% (90.2%); stealth is level at 86.6% (86.9%). Within each of the first
+     four, the Encounter a template's tags favour is, more often than not, one the Parties `partyFor`
+     sends pass more easily there: social, for one, meets The Patron's steward, DL-148's hardest
+     Encounter, on a quarter of the counting-house's and the mill's social places rather than half
+     (A quiet word, which tags neither, still meets it half the time).
+   - *Why, by Injury.* The Injury types follow the Encounters that inflict them: Bruised ribs, from Hold
+     the line, fall to 2,011 (2,994), now drawn mostly on the fort and the caravan; an Eye wound, from
+     The sealed door, to 398 (688), the door no longer half the arcane places of Lay the restless dead;
+     a Broken arm, from The restless dead and The trapped passage, rises to 3,262 (2,962); a Sprained
+     ankle, from The flooded ford on the strongbox, to 1,078 (879); a Shattered knee, from Lost in the
+     fells on the beast, to 784 (684). Fewer Injuries in all leave fewer Heroes marked by an Injury Trait.
+     The Rivals' Deaths rise, 2,382 (2,235), the player's fall, 1,085 (1,119): The restless dead and A
+     restless power, which kill on a failure, are now most of the combat and arcane places of the barrow,
+     the vault and Lay the restless dead, and the Rivals, whose Parties are chosen by their
+     Dispositions' margins, fail them more often (the harness does not split Deaths by template, so this
+     is the likeliest reading, not a count).
+   - *Loot.* 0.180 awards a Quest resolved for the player (0.175) and 0.167 for the Rivals (0.156), with
+     the strong successes; no Finale yet gates any.
+   - *What follows.* 178 Rivals folded (180); 2 of the player's games ended in bankruptcy, in years 14
+     and 18 (18 and 19). Wealth after 20 years 165,221 a game (161,526). The mean save at year 20 is
+     119.85 MiB; `seed-0001` played twice is identical, 120,383,971 characters.
+   - *The time,* alone on the machine: `advance` mean 4.043 ms a Turn, p99 12.670 (6.134 and 22.895,
+     measured under load), and 827.2 s in all (1,106.9); `seed-0001` replayed alone 1.761 ms (1.769).
+   - *For S10.* The Quest target is no nearer: the player's failed 10.1% against 20 to 30%, strong 74.9%
+     against at most 50%.
+4. **The script.** `npm run build -w web`'s check-bundle passes. The script is 774,039 bytes (774.04 kB,
+   225.48 kB gzipped), 2,063 more than S7's 771,976: the draw, the Finale's Loot rule and the lore
+   icon. 25.96 kB is left under 800 kB.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,523 tests in 176 files (4,490 at S7's verification).
+   - `npm run e2e -w web` passes all 96 specs.
+
+**Consequences.**
+- Play changes by the Encounter mix alone: tags move which Encounter of a kind a template meets.
+  S10's balance pass starts from this sweep.
+- S10 writes the four Finales and the lore Encounters with `finale` and `kind: "lore"`, and S9's drafts
+  may change the tags; a Finale's Triumph then gates Loot on the four hardest templates.
+- S12's register will list these readers: `tagWeight` (`drawSequence`), `finaleKeys` and
+  `sequencePlan` (the pools), `endsWithFinale` (Loot), and `traitEncounterBonus`'s tag match.
+
+**Actioned in:** `engine/src/content-types.ts`, `config.ts`, `traits.ts`, `generators/quests.ts`,
+`quest-engine/encounters.ts`, `loot.ts`, `resolve.ts` and their tests (`encounters`, `quests`, `loot`,
+`resolve`, `synergy`); `content/encounters.json`, `content/src/parse.ts` (version 25), `validate.ts`,
+`content.test.ts`, `refusals.test.ts`; `web/src/views/icons.tsx`, `board.tsx` and the web's tests
+(`icons`, `names`, `app`); `cli/src/render.test.ts`; `harness/src/counters.test.ts`;
+`harness/reports/m9-v114-s8-2026-10-03.md`; `CONTEXT.md` (Quest template, Encounter, Finale);
+`docs/data-model.md` (a Quest's `encounterKeys`); the epic's S8 boxes and status.
+
+---
+
+## DL-161 — v1.1.4-S12 built: the register of a Trait's uses, the drift and freshness tests, and the content editor with Traits as its first kind, its commands and its page
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agent, building the epic's S12 on
+DL-150 items 6 to 16. Where the plan was silent, the calls are the agent's, in item 7, for the owner
+to change. Built in a worktree beside S8 (DL-160), on `v1.1.4-dev` at `a0a8ec1` (S7, DL-159); the
+orchestrator merges the two.
+
+**Context.** DL-150 gives the owner a content editor, Traits its first kind (items 7 to 12), and a
+register of every use of a Trait that keeps the Trait skills (S13) current (item 14). S7 (DL-158,
+DL-159) made the two lists of effect lists, the Hero effect kinds, the `trait` consequence and the
+two Trait events that the register lists. No play changes in this story: no engine file is touched,
+and no content file.
+
+**Decision.**
+
+1. **The register** (`content/src/uses/`, `@heroesim/content/uses`). `register` lists 8 content
+   entries and 12 engine entries.
+   - *A content entry* names its files and the list whose keys it holds, what reads it, how a key's
+     uses are found (`find`, on the content as JSON, so a use is a key at a path of a file), whether
+     a use refuses the Trait's removal, and, where safe, `add` and `remove` for S13's `assign` and
+     `unassign`. The entries: other Traits' `excludes` (not refusing: the editor strips them); an
+     Injury's `leavesTrait`; an Encounter's `trait` consequence; `has-trait` in an Encounter's
+     Queries (Checks, harm, a trait consequence's `among`); `has-trait` in a Synergy's `requires`;
+     the Biography sentences by Trait (`biography.traits` and `heroBiography.traits`); a Calling's
+     `suits` and `clashes`; a Feature's `shows`.
+   - *An engine entry* names its lists, effect kinds and events, what it reads, its `sources` (the
+     top-level declarations whose code reads a Trait) and its `through` (those its rule runs through
+     that read none themselves, such as `effectiveStats` and `capability`). The entries:
+     `trait-lists`, `effective-stats`, `encounter-bonus`, `guildmaster-effects`, `guildmaster-setup`,
+     `injury-traits`, `earned-trait`, `trait-events`, `has-trait`, `biography-and-portrait`,
+     `document-validator` and `content-checks` (`content/src/validate.ts`).
+2. **The drift test** (`tools/editor/src/reads.ts`, `drift.ts`, `drift.test.ts`). It parses
+   `engine/src/` and `content/src/validate.ts`, tests left out, with TypeScript's own parser, and
+   names each read of a Trait in code (never a comment or a type) by its file, line and top-level
+   declaration: `guildmasterTraits`, `heroTraits`, `.traits` and `.leavesTrait` read or
+   destructured; `has-trait` and the two events as values; and the effect kinds and the `trait`
+   consequence's kind where a kind is compared, is a `case` or is a row's `kind` (so gear's
+   `statModifiers` field is no read). It fails on a read in a declaration no entry lists, on a listed
+   declaration that reads none, and on a `through` declaration that is gone. 84 reads in 37
+   declarations today.
+3. **The freshness test** (`traits-doc.ts`, `freshness.test.ts`). `docs/agents/traits.md` holds the
+   guardrails by hand, and the register's part between two markers, written by `registerDoc`
+   (`content/src/uses/doc.ts`). The test fails when the part differs; `npm run edit -- traits doc`
+   writes it, leaving the rest byte for byte.
+4. **The editor's core** (`tools/editor/`, a workspace). A `Kind` is one or more lists of keyed rows
+   and their forms (`kind.ts`); Traits are the one kind (`traits-kind.ts`), their effect forms keyed
+   by the engine's unions so a new kind is asked for there. The core (`editor.ts`) checks each `add`,
+   `change` and `remove` with the content's own checks (`parseContent`) and holds it pending; finds
+   uses through the register; and finishes. A key is fixed once made. An exclusion is held both ways
+   by the editor, and a removed Trait is taken out of every other's `excludes`. A removal is refused
+   while any other use stands, naming every one.
+5. **The commands:** `npm run edit -- traits list | show <key> | find <text> | uses <key> | add
+   <list> <key> | change <key> | remove <key> | pending | discard [<key>] | finish | doctor | doc`,
+   each with `--json` and `--root <dir>`, and the portrait tool's exit codes and failure shape (a
+   refused removal carries its `uses`). `find` searches keys, names, effects (in words and as JSON)
+   and uses. `doctor` runs the drift and freshness checks, the content's checks, and whether the
+   pending edits still apply.
+6. **The page** (`npm run edit`): `tools/editor/page/`, plain HTML, CSS and a JavaScript module served
+   by a small Node server on 127.0.0.1 (`server.ts`) over a JSON API on the same core; no new
+   dependency. A table of each list with each Trait's effects, excludes, cost, uses and the rules
+   that read it; forms to add and change, the effects offered from the list's kinds, the key
+   read-only once made; Remove naming every use when refused; Find; Discard; Doctor; and "Finish",
+   whose run's lines the page polls and shows, then its result.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *How pending edits persist:* `.editor/traits.json` under the root, ignored by git, holding each
+     edit as made (a row whole). Whenever read they are made again on the content as it is on disk,
+     so separate command lines and the page share them; one that no longer applies is named, to be
+     dropped with `discard`. `pending` and `discard` are commands beyond the epic's list, as is `doc`,
+     the regenerate command. A Trait added and removed in one session goes with its edits.
+   - *Finish's test run is injectable:* `finish` takes a `TestRunner`, `npm test` in the root by
+     default. The tests do not inject a fake: each scratch copy has a planted `npm test` (`node
+     planted-test.mjs`) that prints Vitest's `FAIL` and `×` lines and fails, or passes, so "Finish"
+     runs a real command line without the suite running inside itself. Its failures are read from
+     those lines. The content version is raised before the run, inside the transaction, so the tests
+     see it and a failure puts it back with the rest; edits stay pending on a failure.
+   - *The register is a subpath, `@heroesim/content/uses`,* not the content's entry. Exported from the
+     entry it added 6,243 bytes to the page's script (772,072 → 778,315), since its module-level calls
+     are not shaken out; as a subpath, which lint lets only the tools import, the script is
+     byte-identical. `eslint.config.js` and `content/src/imports.test.ts` say so.
+   - *A row on one line stays on one line.* The portrait tool's `editJson` gains `keepLines` (default
+     off, so the portrait tool is unchanged): a value written on one line is rewritten on one line
+     however long, and a member added beside such a sibling too. Without it a Hero Trait's row, one
+     line past 100 columns, opened out on any change. `@heroesim/portraits` now exports a light
+     entry, `src/index.ts` (no Chromium), for the editor: `editJson`, the transaction, the content
+     version and the content's checks.
+   - *The register's reach:* beyond the epic's list, the engine entries `trait-lists`, `has-trait`,
+     `document-validator` and `content-checks`, since the drift test finds reads there; and both
+     lists' Biography sentences and the Callings, since a Guildmaster Trait's key stands there too.
+   - *What `add` and `remove` do* where a use's meaning is at stake: a `has-trait` is added by
+     filtering a Set Query at a path (`["where", <Set>, ["has-trait", key]]`), or, in a Synergy
+     written as Queries, as `[">=", ["count", ["where", "party", ["has-trait", key]]], 1]`; it is
+     removed from a `where` (the Set unfiltered) or an `and`/`or`, and refused elsewhere. A positive
+     `trait` consequence added to an Encounter with no `triumph` list gives it one copied from its
+     `success` list first, so a Triumph still brings what it brought.
+   - *Keys* are lower case letters and digits joined by hyphens.
+
+**The checks.**
+1. **The boxes, each on a scratch copy** (`tools/editor/src/test-support.ts`: the content, its
+   version's source, `engine/src/` and the doc, made a git repository so `git status` shows what each
+   command left).
+   - *Each command and page action* (box 1): `cli.test.ts` drives `list`, `show`, `find`, `uses`,
+     `add` (and eight refusals), `change` (an exclusion moved on both sides, a key refused, a broken
+     effect refused), `remove`, `pending`, `discard`, `finish`, `doctor`, `doc` and the usage errors;
+     `server.test.ts` drives every API route, a second "Finish" refused while one runs, and one pass
+     through the page in Chromium at 1280 px: the tables, a Trait added through its form with a
+     Stat change and an exclusion, a removal refused naming both uses, the key read-only on Change,
+     and "Finish".
+   - *A refused removal names every use, for each content entry* (box 2): for each of the 8 entries a
+     new Trait is given one use through the register's own `add`; removing it is refused naming
+     exactly that use, or, for `excludes`, goes through with the key stripped. One Trait used in six
+     places is refused naming each. `register.test.ts` adds and removes a use of each entry on the
+     shipped content, the content passing its checks both times and coming back equal.
+   - *Finish* (box 3): with the planted test failing, `finish` exits 1, `undone`, naming the two
+     failure lines; `git status` is clean, the version unchanged, the edit still pending. With it
+     passing, the two Trait files, `parse.ts` and `content.test.ts` change, the version rises by one,
+     HEAD is unchanged, `git diff --numstat` shows 1/1 and 3/2 lines, and a second `finish` changes
+     nothing. The page's "Finish" does both through the API.
+   - *Drift and freshness* (box 4): no drift and a fresh doc on this repository; drift fails on a
+     planted read in a new file and in a known file, on a listed declaration that no longer reads, and
+     on a `through` declaration renamed; freshness fails on a stale part and on missing markers, and
+     `traits doc` mends it with the guardrails untouched. The doctor fails on all three, and on
+     content that breaks its checks.
+   - *The built game* (box 5): `npm run build` passes check-bundle; the script is `index-BtcPuyMc.js`,
+     772,072 bytes, the same file as with the register's subpath taken out; no text of the editor or
+     the register is in `web/dist/`, which holds `index.html` and `assets/` alone.
+2. **The rest** (box 6). `npm run typecheck` and `npm run lint` are clean. `npm test` passes 4,561
+   tests in 181 files (4,490 in 176 at S7; 71 new). `npm run edit -- traits doctor` reports no drift,
+   a fresh doc, the content passing and no pending edits.
+   - *Flakes, each mended or passing alone.* One run failed a scratch copy's copy of `engine/src/`
+     while `engine/src/boundary.test.ts`'s probe file came and went; the copy and the scanner now
+     leave the probes out. Another, under load from a concurrent agent, failed a scratch copy's
+     removal on Windows (`ENOTEMPTY`), now retried, and timed out at 5 s in three files
+     (`engine/src/selectors.test.ts`, `harness/src/succession.test.ts`,
+     `web/src/state/reducer.test.ts`), each passing alone. The next full run passed every test.
+   - No e2e was run: no page of the game changed.
+
+**The verification.** A second Opus agent read the story and found six faults. Each fix has its tests,
+and each of those tests was run against the first commit's code and failed there: the API's (2), the
+pending edits' (5) and the drift forms' (14).
+1. *Edits made while "Finish" ran were lost,* since it cleared every pending edit at its end, and the
+   page blocked only a second "Finish". Now "Finish"'s journal is a lock held for its whole run: every
+   command and every API call, reads included, refuses as `busy` (409 on the API), the doctor says
+   "Finish" is running, and the page disables its controls while it runs, a page opened then following
+   it. Only the edits it read are cleared. `server.test.ts` holds five calls and a command line refused
+   mid-run; the Chromium pass sees six controls disabled, and enabled again after.
+2. *A crash or Ctrl+C during "Finish" left the content written and untested, and the editor stuck.*
+   Now, before its first write, "Finish" writes `.editor/finish.json` atomically: every file's bytes
+   before, the content version, its process and the edits it read. It goes when "Finish" ends, passed
+   or put back. A journal whose process is gone is a "Finish" cut off. The call made (the agent's): the
+   next command, whichever it is, the doctor included, puts every file back from it first and says so
+   in `recovered`; `traits recover` does only that. SIGINT and SIGTERM put the files back at once
+   (`onSignals`). `recovery.test.ts` runs `traits finish` in a process of its own against a planted test
+   that hangs, kills its whole process tree once the content is written, and then `traits list` puts
+   the three files back, the version too, with the edit still pending. The signals are tested through a
+   stand-in process, since Windows sends a child no SIGINT.
+3. *The API took any page's requests.* Now a request is refused (403) unless its Host is
+   `127.0.0.1:<port>` or `localhost:<port>`, the page included, so DNS rebinding reaches nothing, and
+   unless its Origin, where there is one, is the page's own. A change must be sent as
+   `application/json` (415), and the page sends every change so. Tested with raw requests: a rebound
+   Host on the API and the page, another site's POST, a `text/plain` POST, a `finish` sent with no
+   type, and the page's own two names accepted.
+4. *`remove` saved edits it never checked, and a change stored the whole row,* carrying an exclusion
+   another edit had written. Now a change is held as the fields it gave, and replayed on the row as the
+   edits before it leave it. Every list of edits is checked with the content's checks before it is
+   saved, a removal's and a discard's too. A Trait added in the session is dropped with its edits only
+   where what is left passes the checks; otherwise its removal is held after them, the verifier's case
+   (add `foo`; change `lame` to exclude it; remove `foo`). The doctor holds the pending edits to the
+   content's checks and names their problems.
+5. *The drift scanner missed reads through Trait helpers, and some forms of a kind.*
+   - *Helpers.* The register gains `traitHelpers`, 15 declarations of `traits.ts`, `guildmaster.ts` and
+     `create.ts`; a call or other reference of one, imported, renamed or through a namespace, is a read.
+     The call made (the agent's): the helpers themselves, not every declaration the register lists,
+     since `effectiveStats` and `capability`, which run through them, have dozens of callers that read
+     Stats, not Traits. The callers this found, such as `effectiveStats`, `capability`,
+     `moraleBaselineFor`, `upkeepParts`, `drawTraits` and `legalTraitSets`, moved from `through` to
+     `sources`, and the drift test holds each helper to be there. 110 reads now, not 84.
+   - *Kinds.* A kind is now found through `as`, `satisfies`, `!`, `<T>` and parentheses; with `==` and
+     `!=`; in a list, which is how `.includes` and `new Set(…).has` read kinds; and as an object's keys
+     (a Guildmaster kind or the Encounter bonus, or two kinds, so gear's lone `statModifiers` is not).
+     Any string or template naming `hero.trait-` is a read too.
+   - *Probes.* A file is left out as `boundary.test.ts`'s probe only where that test writes one,
+     `<package>/src/boundary-probe-<uuid>.ts`.
+
+   `drift.test.ts` plants each form: four helper forms, five kind forms, an object, two event forms and
+   the probe names.
+6. *The minor ones.* The pending file is written atomically (a temporary file, then a rename). One that
+   cannot be read is named, and `discard` drops it. `--root` without a `package.json` is refused (exit
+   2), so "Finish"'s `npm test` cannot climb above the copy. `npm run --silent edit -- … --json` is in
+   the usage, the README and `docs/agents/traits.md`.
+
+After the fixes: `npm run typecheck` and `npm run lint` are clean, and `npm test` passes 4,584 tests in
+182 files, in one clean run. `npm run edit -- traits doctor` reports no drift (110 reads), a fresh doc,
+the content passing and no pending edits. `npm run build`'s check-bundle passes, and the script is
+still `index-BtcPuyMc.js`, 772,072 bytes.
+
+**Consequences.**
+- S13 builds the three skills on the commands, and `assign`/`unassign` on each content entry's `add`
+  and `remove`; it completes `docs/agents/traits.md`'s guardrails and AGENTS.md's "Traits" section.
+- From now on a Trait read in the engine or the content's checks that the register does not list
+  fails `npm test`; the fix is an entry, then `npm run edit -- traits doc`. S8's (DL-160) merge runs
+  the doctor: a read it adds, such as an Encounter bonus matched by tags, lands in a listed
+  declaration or needs an entry.
+- "Finish" takes as long as `npm test`.
+
+**Actioned in:** `content/src/uses/` (new: `register.ts`, `json.ts`, `doc.ts`, `index.ts`,
+`register.test.ts`), `content/package.json` (the `./uses` subpath), `content/src/imports.test.ts`;
+`tools/editor/` (new workspace: `src/`, `page/`, `README.md`); `tools/portraits/src/index.ts` (new),
+`package.json`, `json-edit.ts` (`keepLines`), `json-format.ts`, `json-edit.test.ts`;
+`docs/agents/traits.md` (new); `package.json` (workspace, `npm run edit`), `package-lock.json`, `tsconfig.json`,
+`vitest.config.ts`, `eslint.config.js`, `.gitignore`; `README.md`; `CONTEXT.md` (Content editor, Uses
+register); the epic's S12 boxes.
+
+---
+
+## DL-162 — v1.1.4-S9 built: a negative weight or factor on a Stat refused in a Check's score, the calibration, the drafts of every Encounter, Finale, Item, Trait and Synergy under `docs/quests/`, and the review page for the owner
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agent, building S9 as the epic's S9 bullets
+describe, on DL-148 items 20 to 25 and 30. Where the plan was silent, the calls are the agent's, in
+item 7, for the owner to change. The owner's answers to the review are not recorded here: none has
+been given yet, and S10 starts from them. Opus built it; a second Opus agent verifies it.
+
+**Context.** S1 to S8 (DL-151 to DL-160) built everything content can now say: Checks scored by
+Queries, several to an Encounter with a pass formula, Degrees and consequences by Degree, form,
+harm's `among`, `exposedBy`, `guardedBy` and `steadiedBy`, Hero Traits with effects and the `trait`
+consequence, tags, Finales and the `lore` kind. Today's content uses none of it: twelve Encounters in
+the old form, one Check each, and the player's Quests fail 10.1% of the time and are strong successes
+74.9% (S8's sweep, `harness/reports/m9-v114-s8-2026-10-03.md`), against DL-83 item 4's 20 to 30% and
+at most 50%. A Check's factor means nothing without calibration (the epic's §4), so S9 builds the
+calibration first, then drafts the content against it, then puts both before the owner (DL-148 item
+30). Nothing is written into `content/`: S10 does that after the owner's answers. It was built on
+`v1.1.4-dev` at `8232b11` (S8, DL-160).
+
+**Decision.**
+
+1. **A Stat turned against itself is refused** (`content/src/validate.ts`, `checkInversions`, test
+   first; DL-154's "left open"). Form scales each Stat a Hero adds into a score, so S3 refused a Stat
+   on the right of a `-`. A negative weight in a `weighted`, and a `*` whose constant operands multiply
+   to a negative number beside an operand that reads such a Stat, invert form the same way, and are
+   now refused in a Check's score, each naming its path: `encounters.<key>.checks.0.score.2.1.1.1:
+   weighted gives "wits" a negative weight; …` and `….score.2: "*" multiplies a Stat a Hero adds by a
+   negative number; …`. A constant is a number, or `+`, `-`, `*`, `least` or `greatest` of numbers
+   alone (`constantOf`), so `["*", ["-", 1, 3], …]` is caught; two negatives that cancel are accepted.
+   A raw Check and a Synergy's requirement, read without form, may still do either. ADR-0010 says so.
+   Core content writes neither, so nothing is refused.
+2. **The calibration** (`harness/src/calibrate.ts`; `npm run harness -- calibrate`,
+   `calibrate.harness.test.ts`). `harness/run.mjs` now reads a first argument that names a probe as
+   `HEROESIM_PROBE` and runs only its file, so the epic's command works in every shell;
+   `HEROESIM_PROBE=calibrate npm run harness` works too, and a test holds `run.mjs`'s list of probes
+   to `probeNames`.
+   - *Heroes.* For each of Levels 1, 5 and 10, 300 Heroes drawn by the Heroes Generator into a world of
+     their own and raised by the engine's own growth (`growOneLevel`, now exported), unattached, at the
+     Morale baseline, with no gear and no Regard between them.
+   - *Each Encounter and each of its Checks.* For each Level and Party size 1 to 5, 120 random Parties,
+     each estimated alone on a Quest of that one Encounter at difficulties 20, 40, 60, 80 and 100:
+     each Degree's rate, the mean of the estimate's chances.
+   - *Each template.* At each Level, 48 Quests drawn by the Quest Generator, their difficulty and
+     Encounters as the game draws them, binned by the third of the template's range: the Quest bands
+     of the best Party (`bestParty`) of a Roster of 8 drawn until it can staff the Quest, its mean
+     size, the positive Earned Traits a Quest draws, and random Parties of each size the template
+     allows that meet its requirements.
+   - *The spot-check.* 24 samples, half an Encounter met by a random Party, half a template's Quest
+     met by its best Party, each resolved for `HEROESIM_SEEDS` seeds (4,000 by default) with no one
+     falling, held to the estimate.
+   - *The coverage grid.* Each Hero Stat's Checks by kind: the Checks whose score adds the Stat
+     (`statsAdded`), not those that only choose or filter by it, against the gate's three Checks
+     across two kinds.
+   - *Drafts.* `HEROESIM_DRAFTS` names a directory of content files, each in place of the core file of
+     its name (`loadDrafts`, content's Node entry; `docs/quests/drafts/` by default, `none` for the
+     core). The play sweep takes it too, in its child processes, and its report names the files.
+   - *Tuning.* With `HEROESIM_TUNE` set to a chance, it first sets every Check's factor in the drafts'
+     `encounters.json` (`tunedFactors`): each Check alone so that at the aim (random Parties of 3 at
+     Level 5, difficulty 60) it succeeds with the chance, then every factor of the Encounter scaled by
+     one number so that the Encounter, by its pass formula (`encounterDegrees`, the estimate's own
+     combination, held to it to 12 places), succeeds with it. A Check that reads a Hero of a Class
+     scores nothing without one, so it is aimed at the Parties that score.
+   - It writes `docs/quests/calibration.md` and the data the review page reads,
+     `docs/quests/calibration.json`, in about a minute.
+3. **The drafts** (`docs/quests/drafts/`, content-shaped JSON that `loadDrafts` validates as the
+   game's content is, for S10 to copy into `content/`).
+   - *`encounters.json`: 29 Encounters, 68 Checks.* The twelve of today re-authored under their own
+     keys and names; thirteen new (Wolves at dusk, Short of supplies, The old shaft, Frightened
+     villagers, A word with the fence, The hungry ward, The dead-light, Among the crowd, Stalking the
+     beast, and the four `lore` ones: Old records, A riddle at the gate, The cause of the sickness, The
+     names of the dead); and four Finales, each a new Encounter as DL-160 requires: The Warden's seal
+     (Break the sealed vault), The last assault (Hold the border fort), The strongroom (The
+     counting-house job) and The last rite (Lay the restless dead). Each has two to four named Checks,
+     a pass formula of `and`, `or` or `at-least` (nested in five), consequences for all four Degrees,
+     and harm fields wherever harm falls. By kind: combat 5, travel 5, social 4, arcane 6, stealth 5,
+     lore 4, Finales included.
+   - *The Checks* read the right Hero and the weakest link: the best Hero's Stat (`max`, or `of` the
+     best of a Class or a Skill), the least of the Party's (`min`, "the weakest link"), the best few
+     with falling weights (`ranked`), the Party's average where everyone must manage, and a sum only
+     where Heroes truly add (the three sturdiest on a shield wall, the Mages' and Healers' joint
+     work). DL-148's example is The fells' Footing, "Wits of the Hero with the lowest Dexterity".
+   - *`quest-templates.json`*: the four Finales; the lore kind added to Lay the restless dead, Survey
+     the old workings and Break the sealed vault; The sickness at the mill draws social and lore in
+     place of social and arcane; two new tags, `holy` (Escort the tithe, Lay the restless dead) and
+     `study` (the mill, the old workings, the vault).
+   - *`items.json`*: six gear Items for the Mental and Social Stats: Commonplace book (Knowledge +1),
+     Reading glass (Intelligence +2, Perception +1), Signet ring (Diplomacy +2, Charisma +1), Officer's
+     sash (Leadership +2, Courage +1), Fine doublet (armour: Charisma +2, Diplomacy +1) and Scholar's
+     almanac (Knowledge +3, Intelligence +2). The verification made them all trinkets, the doublet a
+     Courtier's brooch, at prices that tie no core piece's (item 1 there).
+   - *`hero-traits.json`*: six earned Traits. Positive, each on one Encounter's Triumph at 5%:
+     Battle-tried (+2 to every Check of combat Encounters; The last assault), Wayfinder (+2 to travel;
+     Lost in the fells), Silver-tongued (Diplomacy +1, Charisma +1; The Patron's steward) and Lettered
+     (Intelligence +1, Knowledge +1; The Warden's seal). Negative, at 8% after an Injury in the same
+     Failure list: Battle-shy (Courage −1, Weaponry −1; Hold the line, The last assault), which
+     excludes Battle-tried both ways, and Haunted (Willpower −1, Spirit −1; A restless power, The last
+     rite).
+   - *`synergies.json`*: the six of today written as Queries, and three new that read Stats and Levels:
+     Two learned heads (two Heroes of Intelligence 13 or more: +2 on lore and arcane), Under a captain
+     (a Hero of Leadership 14 or more in a Party of three or more: ×1.1 on combat and travel) and Old
+     hands (every Hero Level 6 or more: +2 on every kind).
+   - *The Stats harm reads* (`notes.json`, and the review page): a blow falls likelier on the slow
+     (`exposedBy` Dexterity) and lands less on the hardy (`guardedBy` Constitution); a fall or a trap
+     on the unwatchful (Perception), less on the nimble (Dexterity); fever on the weary (Endurance),
+     less on the hardy (Constitution); magic on and against Resistance. A Death is guarded by the Stat
+     of its blow. A Morale loss is steadied by Courage and Willpower (dread), Endurance and Willpower
+     (hardship), Adaptability (shame) or Willpower (a puzzle). `among` names the Warriors on Hold the
+     line, the three sturdiest on The last assault, the weakest on The flooded ford and the least
+     watchful in The trapped passage.
+   - *`notes.json`*: a sentence for each new thing in the game's voice, the sweep's paragraphs and the
+     calls for the owner, which the page reads. Not a content file: `loadDrafts` passes it over.
+4. **The review page** (`docs/quests/v1.1.4-review.html`, 451 kB, written by `npm run quest-review`,
+   `cli/src/quest-review.ts`). One self-contained page: what is drafted and how to read the rates;
+   every new name (Encounters, Checks, Items, Traits, Synergies, tags); the Quest target as the
+   estimate sees it and in play; the coverage grid; the Stats harm reads; each Encounter by kind and
+   each Finale in words, with each Check worded by the CLI's `queryWords` ("The lowest Courage in the
+   Party", "Wits of the Hero with the lowest Dexterity"), its Skills and target, the pass formula in
+   words ("Steel and (Nerve or Rallying)"), the consequences of each Degree in words, and the rates by
+   Level and difficulty for Parties of 3, with each Check's and by Party size folded beneath; each
+   template, what changed and its best Party's bands; the Items, Traits (with where each is earned),
+   Synergies (their requirements worded) and tags; and the calls. Every Encounter, Check, template,
+   Item, Trait, Synergy and tag has an id to comment by (`#enc-ambush-on-the-road`).
+   - *The page contract.* Title "Quest content review"; colours as tokens on `:root`, again for dark
+     under `prefers-color-scheme` guarded by `:root:not([data-theme="light"])` and under
+     `:root[data-theme="dark"]`; `body` with its background; no script, stylesheet or font fetched;
+     each table in its own scroll box. Opened in Chromium at 360, 820 and 1280px in both schemes, no
+     width scrolls sideways.
+   - *Why in the CLI.* The words are the CLI's, and the harness and the tools may not import a front
+     end (eslint), so the generator sits beside `query-words.ts` and reads the harness's
+     `calibration.json`. S10 runs it again after the owner's answers.
+5. **The glossary.** No new term: the calibration and the coverage grid are the harness's, not the
+   game's.
+6. **Content and configuration** are unchanged in `content/` and `engine/src/config.ts`; content stays
+   25 and configuration 13. `docs/quests/` is not ignored by git.
+7. **Calls where the plan was silent** (the agent's, for the owner to change; the review page's
+   "Calls for the owner" gives them in plain words).
+   - *Every Check of the drafts rolls within 40% either way* (`variance` 0.4), where today's roll within
+     `checkVariance`'s 20%. At 20% a Party's chance runs from nothing to certain over a small change of
+     its Stats: in a first trial at 20%, three random Heroes came through the same Encounter 28% of
+     the time at Level 1 and 97% at Level 10 (A hostile reeve, difficulty 60). At 40% each end keeps a
+     chance.
+   - *Where the factors were tuned.* At random Parties of 3, Level 5, difficulty 60, to a chance of
+     0.44 (`HEROESIM_TUNE=0.44`), chosen from the trials in the checks' item 3. S10 tunes from there.
+   - *The mill's kinds, the lore kind's templates and the two tags,* as item 3 lists them.
+   - *Earned Traits on few Encounters.* The epic asks for chances of about 5 to 10% and a career mean of
+     about one or fewer. A first trial with the positive Traits on nine Encounters' Triumphs gave 3.1 a
+     career, since a Hero meets about 400 Quests; on one Encounter each, 1.15.
+   - *A Check that wants a Hero of a Class or a Skill* scores nothing without one (DL-151), so each
+     stands in an `or` or on a template that requires that Hero: Diagnosis (a Healer), Unbinding (the
+     Mages), the last assault's Command (a Warrior), The rite (a Healer) and The lock (Lockpicking).
+   - *The coverage counts a Check that adds the Stat,* not one that only chooses or filters by it, so
+     "Wits of the Hero with the lowest Dexterity" counts for Wits alone; S10's content test may count
+     either, and the drafts meet the gate both ways.
+   - *The Fine doublet is armour,* so a Hero dressed for a hall is not dressed for a fight. Withdrawn by
+     the verification (item 1 there): the automatic buyer took it in place of the Mail shirt.
+   - *The drafts live as content files* under `docs/quests/drafts/`, so `loadDrafts` validates them as
+     the game's content and S10 copies them; the Earned Traits go in through the editor or the
+     `trait-edit` skill (DL-150 item 15), the rest by hand.
+
+**The checks.**
+1. **The refusals, test first** (`refusals.test.ts`): six scores refused, each naming its path (a
+   negative weight; one deep in a Num; a Stat times −1; times `["-", 1, 3]`; a sum of a Stat times
+   −0.5; the best Hero's Stat times −2), red before the change; five accepted (a weight of 0, a
+   positive factor, a Level or a count times a negative number, two negatives that cancel); a raw
+   Check that does both, accepted.
+2. **The calibration** (`HEROESIM_TUNE=0.44 HEROESIM_SEEDS=10000 npm run harness -- calibrate`, 53.5 s;
+   `docs/quests/calibration.md`):
+   - *The coverage grid:* all 20 Hero Stats meet the gate. Endurance is read by 3 Checks across 2
+     kinds, Constitution, Willpower, Arcana, Power, Spelllore, Resistance, Leadership, Charisma,
+     Diplomacy and Adaptability by 4, and Dexterity, Intelligence, Perception and Wits by 8. Today's
+     content meets it for 3 Stats of 20.
+   - *The estimate held to the resolver:* 284 chances over 24 samples of 10,000 seeds each, the widest
+     1.21 points apart (2.47 standard errors).
+   - *The Quest target as the estimate sees it* (the best Party of a Roster of 8, if no one falls):
+     at Level 1, 18% fail and 58% strong over every template's Quests, 35% and 37% in the hardest
+     third of each range; at Level 5, 15% and 62% (25% and 42%); at Level 10, 2% and 80% (5% and 65%).
+     Today's content, so measured in a smaller run (12 Quests a template): 1%, 1% and 0% fail at
+     Levels 1, 5 and 10.
+   - *The hardest templates below Level 10:* Break the sealed vault's top third (difficulty 88 to 100)
+     fails 92% at Level 1 and 94% at Level 5, and 16% at Level 10.
+   - `harness/src/calibrate.test.ts`, 12 tests: drafts loaded in place of the core and validated, and
+     the core alone; the drafts meet the gate; `statsAdded` (DL-148's example adds Wits and not
+     Dexterity); the grid on today's content; the thirds; `formatJson` reads back as written;
+     `encounterDegrees` equals the estimate's Encounter to 12 places for every drafted Encounter;
+     a tuned Encounter at its aim within 0.005 of the chance; a small calibration's every cell, its
+     chances summing to 1, its spot-check within 5 standard errors; and a play shard with drafts plays
+     as this process plays them, and otherwise the core.
+3. **The drafts in play** (`HEROESIM_DRAFTS=…/docs/quests/drafts HEROESIM_SEEDS=50
+   HEROESIM_MILESTONE=m9-v114-s9-drafts npm run harness -- play.harness`, core only, 20 years, content
+   25 with the drafts, config 13, not validated, 590.6 s): `harness/reports/m9-v114-s9-drafts-2026-10-03.md`,
+   to be force-added. Against S8's (in brackets):
+   - *The player's Quests:* failed 16.2% (10.1%), succeeded 19.5% (15.0%), strong 64.3% (74.9%);
+     242,950 resolved (339,051).
+   - *The Rivals' Quests:* failed 11.9% (6.4%), succeeded 15.1% (12.3%), strong 73.0% (81.3%).
+   - *Traits earned per Hero career:* the player's 1.149, the Rivals' 0.740 (none before: no content
+     earned one).
+   - *The cost.* 19 of the 50 player's Guilds went bankrupt (2), 14 of them in their first two years;
+     the years survived average 14.18 (19.86). 378 Rivals folded (178), and 11 Rival Guildmasters were
+     succeeded (26). The player's Injuries were 9,311 (13,370) and Deaths 595 (1,085), over fewer
+     Guild-years. A Guild's Upkeep took 85% of its Quest income (49,111 of 58,081 a Guild-year; S8 78%,
+     46,580 of 59,981).
+   - *Why.* The harness's player takes the highest-reward Quest it can staff whatever its chance, so a
+     Guild of Level 1 Heroes takes the vault, the fort and the counting-house at the top of their
+     ranges and fails them (item 2's hardest templates); and with Upkeep near its income, a few more
+     failures tip it over.
+   - *The trials* that chose the variance and the tuning (16 seeds each, not kept; the drafts' Traits
+     on fewer Encounters from the second on):
+
+     | Variance, tuned to | Years | Player failed | Strong | Bankrupt of 16 | Traits a career |
+     | --- | ---: | ---: | ---: | ---: | ---: |
+     | 0.2, 0.7 | 10 | 5.1% | 84.8% | 0 | 3.149 |
+     | 0.2, 0.5 | 10 | 13.8% | 68.9% | 0 | 1.451 |
+     | 0.2, 0.35 | 10 | 25.4% | 54.9% | 10 | 0.535 |
+     | 0.4, 0.5 | 10 | 16.1% | 65.2% | 0 | 1.206 |
+     | 0.4, 0.42 | 10 | 22.9% | 56.7% | 5 | 0.894 |
+     | 0.4, 0.5 | 20 | 12.7% | 69.5% | 5 | 1.536 |
+     | 0.4, 0.47 | 20 | 14.7% | 65.9% | 7 | 1.334 |
+     | 0.4, 0.44 | 20 | 17.7% | 63.0% | 8 | 0.972 |
+     | 0.4, 0.40 | 20 | 23.2% | 56.6% | 10 | 0.772 |
+
+     The fifty-seed sweep of item 3 is the 0.44 row's drafts, byte for byte.
+4. **The review page:** `cli/src/quest-review.test.ts`, 3 tests: the page contract; an id for every
+   Encounter, template, new Item, new Trait and Synergy, and the owner's example worded; the pass
+   formulas and each kind of consequence in words. In Chromium, no width of 360, 820 or 1280px in either
+   scheme scrolls sideways.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,552 tests in 178 files (4,523 in 176 at S8), with no flake.
+   - `npm run build -w web`'s check-bundle passes; the script is 774,039 bytes, as at S8.
+   - No page of the game changed, so `e2e -w web` was not run.
+
+**Consequences.**
+- *The expected effect on the Quest target.* With these drafts the player's Quests fail 16.2% and are
+  strong 64.3%: nearer the target than today's 10.1% and 74.9%, and short of it on both counts. The
+  strong share moves least with the factors (every trial above 54%); S10's controls of the Degrees,
+  `checkDegrees.triumph` and `strongTriumphShare`, reach it more directly. The verification's drafts
+  (a flat term, the Finales at their ranges) fail 19.9% and are strong 59.5%, and 20.2% and 45.3% with
+  the stricter Degrees (its item 2).
+- *For the owner, before S10* (the review page's last call). In every trial that brought the player's
+  failures near 20%, a third to a half of its Guilds went bankrupt, most in their first two years. The
+  content alone cannot meet the target with the harness's player as it chooses Quests and the economy
+  as it stands (DL-83 items 8 and 9 wait for Random Events, DL-148 item 3). S10 needs one of: the
+  harness's player choosing its Quests by their chance (say, none its best Party finds Hopeless or
+  Unlikely); the economy looked at now; or the target set aside for this release.
+- S10 starts from the owner's answers, copies the drafts into `content/` (raising the content version),
+  writes the Earned Traits through the editor or the `trait-edit` skill, runs `npm run harness --
+  calibrate` with `HEROESIM_DRAFTS=none` once they are content, and `npm run quest-review` if the page
+  is wanted again.
+- The six Earned Traits have no Biography sentences in `descriptions.json` (drafted nowhere); a Hero
+  who holds one is written without one until S10, or the `trait-assign` skill, adds them.
+- *A finding outside S9:* S5's `estimate.harness.test.ts` reads `seedCount(process.env.HEROESIM_SAMPLES,
+  …)`, and `seedCount`'s default parameter reads `HEROESIM_SEEDS` when the variable is unset, so
+  `HEROESIM_SEEDS=20000` alone also sets 20,000 samples. The calibration passes `?? ''` to avoid it;
+  the estimate's probe is left as it is. The verification fixed it (its item 7).
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first
+where they were code, each call the agent's, for the owner to change:
+1. **The Fine doublet hijacked the armour.** The automatic buyer (`gearPurchase`) takes the dearest
+   piece the Market has for a slot whose price Wealth covers enough times, the lowest key on a tie;
+   the harness's player buys armour alone, and Rivals armour first. The doublet, armour at 120, tied
+   the Mail shirt and won on its key, so the Guilds bought Charisma in place of Constitution. The six
+   new Items are now all trinkets, the doublet a Courtier's brooch (Charisma +2, Diplomacy +1), each
+   priced a little below its tier's core trinket and tied with no core piece (Commonplace book 35;
+   Reading glass 100, Signet ring 105, Officer's sash 110, Courtier's brooch 115; Scholar's almanac
+   280; against 40, 120 and 300), so the buyer takes the core piece whenever it can afford it. A test
+   holds the drafts to it (`calibrate.test.ts`: no new piece in the armour slot, none at a core
+   piece's price in its slot). Found besides: the Market's ten stacks a day are drawn from every
+   priced common Item, so six more hold each one less often (10 of 21 in place of 10 of 15); S10 may
+   raise `marketSize`.
+2. **The levers the first build missed,** tried before concluding.
+   - *A flat term* (`HEROESIM_FLAT`, a share; `TuningAim.flatShare`): that share of each Check's target
+     at the aim is its `flat`, the rest its factor times the difficulty, so a target grows more slowly
+     than the difficulty, easy Quests harder and the hardest less hopeless. Tested: the share is kept
+     and the aim still met.
+   - *Each Finale tuned at its template's range* (`aimOf`): at the middle of its difficulties (70 to
+     80), with Parties of the aim's size brought within the template's sizes. Tested: each Finale at
+     its middle meets the aim.
+   - *The Degrees,* configuration S10 tunes: a play sweep now takes `HEROESIM_CONFIG`, a JSON object of
+     config keys in place of the defaults, checked as the Quest Engine checks the config
+     (`configChanges`, `seeds.ts`, tested); the calibration takes it too, and the report names it.
+   - *The trials* (16 seeds, 20 years; the drafts tuned to 0.44 with no flat term gave 15.8% failed,
+     65.1% strong, 6 bankrupt, 2 of them in the first two years):
+
+     | Flat share, tuned to | Config | Player failed | Strong | Bankrupt of 16 (first two years) | Traits a career |
+     | --- | --- | ---: | ---: | ---: | ---: |
+     | 0.4, 0.44 | defaults | 21.9% | 56.7% | 7 (4) | 1.332 |
+     | 0.6, 0.44 | defaults | 25.3% | 53.1% | 12 (7) | 1.096 |
+     | 0.4, 0.44 | Triumph 1.3, share 0.6 | 24.5% | 43.0% | 9 (5) | 1.027 |
+     | 0.4, 0.47 | Triumph 1.3, share 0.6 | 17.6% | 53.0% | 8 (5) | 1.294 |
+     | 0.4, 0.50 | Triumph 1.3, share 0.6 | 16.4% | 54.9% | 6 (0) | 1.683 |
+     | 0.4, 0.50 | Triumph 1.35, share 0.6 | 15.7% | 52.1% | 4 (1) | 1.474 |
+     | 0.4, 0.44 | Triumph 1.35, share 0.6 | 22.0% | 44.0% | 9 (5) | 0.887 |
+     | 0.4, 0.47 | Triumph 1.35, share 0.65 | 22.3% | 41.0% | 10 (5) | 1.004 |
+     | 0.5, 0.45 | Triumph 1.35, share 0.65 | 23.4% | 39.1% | 10 (6) | 0.980 |
+
+   - *The drafts now* are tuned so: `HEROESIM_TUNE=0.44 HEROESIM_FLAT=0.4 HEROESIM_SEEDS=10000 npm run
+     harness -- calibrate` (102.4 s). As the estimate sees it: at Level 1, 16% fail and 51% strong (28%
+     and 32% in the hardest third); at Level 5, 12% and 56% (18% and 41%); at Level 10, 1% and 80%
+     (2% and 66%). Break the sealed vault's top third fails 60% at Level 1 and 52% at Level 5, where it
+     failed 92% and 94%. The spot-check: 284 chances, the widest 1.20 points apart (2.41 standard
+     errors). Coverage unchanged, 20 of 20.
+   - *The fifty-seed sweeps* (50 seeds, 20 years, the drafts, run side by side):
+     `harness/reports/m9-v114-s9-drafts-2026-10-03.md` (the defaults; it replaces the first build's)
+     and `m9-v114-s9-drafts-degrees-2026-10-03.md` (Triumph 1.35, `strongTriumphShare` 0.6), both to be
+     force-added. Against S8's (in brackets):
+
+     | | Defaults | Stricter Degrees |
+     | --- | ---: | ---: |
+     | Player failed | 19.9% (10.1%) | 20.2% |
+     | Player succeeded | 20.5% (15.0%) | 34.5% |
+     | Player strong | 59.5% (74.9%) | 45.3% |
+     | Rivals failed, strong | 19.3%, 60.7% (6.4%, 81.3%) | 19.8%, 46.1% |
+     | Player's Guilds bankrupt of 50 | 20 (2) | 24 |
+     | … by year (year 0 first) | 0: 7, 1: 4, 4: 1, 8: 1, 12: 2, 16: 2, 17: 2, 19: 1 | 0: 7, 1: 6, 4: 1, 6: 1, 9: 1, 11: 1, 12: 2, 15: 1, 17: 2, 18: 2 |
+     | Years survived, mean | 14.68 (19.86) | 13.52 |
+     | Rivals folded | 405 (178) | 413 |
+     | Traits a career, player's and Rivals' | 1.339, 0.663 | 1.116, 0.532 |
+
+   - *Plainly:* the target is reachable, but only with the Degrees made stricter as well and with
+     heavy bankruptcy: 20.2% failed and 45.3% strong cost 24 of 50 Guilds, 13 of them in their first
+     two years. Every trial at 20% failed or more bankrupted two fifths of its games or more; every
+     trial with few bankruptcies left the failures near 16% and the strong share above 50%. That is
+     the owner's question for S10 (the review page's last call): the harness's player choosing its
+     Quests by their chance, the economy looked at before Random Events, or the target waiting.
+3. **The variance, a proposal.** The answer (A riddle at the gate) rolled within 50% against the
+   page's 40%; it rolls within 40% now, as every Check of the drafts does. Proposed for S10, not done
+   (configuration is S10's): `checkVariance` 0.4 in config, and a Check's own `variance` only where
+   that Check truly differs, with its reason. The argument: a Party whose capability equals the target
+   rolls between 0.8 and 1.2 times it at 20%, so it can only Setback (from 0.75) or succeed (below the
+   Triumph's 1.25); at 40% it rolls between 0.6 and 1.4 times it, so all four Degrees can happen.
+4. **The sign was read of constants alone.** `["*", ["*", -1, ["count", "party"]], …Stat]` and
+   `["*", ["-", 0, ["count", "party"]], …]` passed, though each is a Stat times a number never above
+   nought. `checkInversions` now carries the sign each node adds into the score with (its polarity)
+   down to every `stat` and `weighted` pair, multiplying it by the sign of each operand beside it
+   (`signOf`: a constant's own; a Stat, Skill rating, Level, Morale, age or count never below nought;
+   sums, differences, products, `least`, `greatest` and the aggregates following their operands; an
+   unknown operator any sign), and refuses a Stat whose polarity may be negative, naming the node that
+   last turned it so. A `*` beside an operand that may be negative (a count less 3) is refused as
+   such; so is a `ranked` with a negative weight. A Stat negated twice counts for the score again
+   and is accepted, `["*", -1, ["*", -1, …Stat]]` among them. Tests: six refused (the two forms
+   above, a count less 3, a Stat negated thrice, one negated then subtracted, a `ranked` weight of
+   −0.5), five accepted (negated twice; subtracted from nought, then negated; a negative weight,
+   negated; times the count; times a count less nought), each red before. ADR-0010 says so.
+5. **The page's words.** "When the highest Leadership in the Party at least 14" now reads "is at
+   least"; "among the 1 Hero with the lowest Strength" reads "among the Hero with the lowest
+   Strength"; the tags, standalone list text, begin with a capital ("Tags Escort, Wilds", and in the
+   names list); a template's changed kinds are named ("Combat, Arcane → Combat, Arcane, Lore"). Read
+   again whole, one more: "the highest Dexterity in the Heroes who have Lockpicking" (The lock, now
+   a `max` over them) reads "among" a Set less than the Party, in both front ends' `query-words.ts`,
+   tested. "A target is its factor times the Quest's difficulty" names the flat term. Tested.
+6. **`loadDrafts` took a mistyped directory for none.** It now throws when `HEROESIM_DRAFTS` names a
+   missing directory or one with no content file (tested both ways), so a typo cannot play the core
+   as the drafts.
+7. **`HEROESIM_SAMPLES` fell back to `HEROESIM_SEEDS`.** The estimate probe passes `?? ''`, and
+   `seedCount` takes the name of the variable it read for its message (tested); the calibration's
+   `HEROESIM_PARTIES` too. The first build's finding is closed.
+8. **A fragment to publish.** `npm run quest-review -- --fragment --out <path>` writes the page
+   without its document tags, the `<title>`, `<style>` and `<main>` alone in that order, for a
+   publisher that wraps them; the style pads only the block ends (`padding-block` on `main`), and the
+   whole page's side gutter is `padding-inline` on `body`, so a publisher's `:root` padding is never
+   overridden. Tested; opened in Chromium wrapped at 360, 820 and 1280px in both schemes, no width
+   scrolls sideways.
+
+The rest: `npm run typecheck` and `npm run lint` clean; `npm test` passes 4,580 tests in 178 files
+with `--maxWorkers=12`. With the default pool, 12 or 13 of the heaviest tests time out at 5 s on
+this machine, the same each run and untouched ones among them (`selectors`, `modules/probe`, `rng`,
+the reducer's fast forward): the suite now takes 124 s where it took 55 s at the first build, and
+another agent's run on the machine at the same hour failed so too.
+
+**Actioned in:** `content/src/validate.ts` (`checkInversions`, `signOf`, `constantOf`), `refusals.test.ts` and
+`node.ts` (`loadDrafts`); `docs/adr/0010-checks-and-synergy-requirements-are-queries-over-the-party.md`;
+`engine/src/index.ts` (`growOneLevel`); `harness/src/calibrate.ts`, `calibrate.test.ts` and
+`calibrate.harness.test.ts` (new); `harness/run.mjs`; `harness/src/succession.ts` (`probeNames`) and
+its test; `harness/src/estimate.ts` (`drawer`); `harness/src/shard.ts`, `sweep.ts`,
+`play.harness.test.ts` and `sweep.test.ts` (drafts in play); `cli/src/quest-review.ts` and its test
+(new); `package.json` (`quest-review`); `docs/quests/` (new: `calibration.md`, `calibration.json`,
+`v1.1.4-review.html`, `drafts/`); `harness/reports/m9-v114-s9-drafts-2026-10-03.md`; the epic's
+first S9 box and status. The verification: `harness/src/seeds.ts` (`seedCount`'s name,
+`configChanges`) and its test; `harness/src/estimate.harness.test.ts`; `calibrate.ts` (`aimOf`,
+`CheckTuning`, `flatShare`) and its tests; `play.harness.test.ts` and `sweep.ts` (`HEROESIM_CONFIG`);
+`cli/src/query-words.ts` and `web/src/state/query-words.ts` ("among") and their tests;
+`harness/reports/m9-v114-s9-drafts-degrees-2026-10-03.md`.
+## DL-163 — v1.1.4-S13 built: the Trait skills, `assign` and `unassign` for each use the register adds and takes out, the guardrails completed and kept current, and the doctor at each story's close
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agent, building the epic's S13 on
+DL-150 items 13 to 16 and S12's register and editor (DL-161). Where the plan was silent, the calls
+are the agent's, in item 6, for the owner to change. Built in a worktree on S12 (`3ff845e`, on
+`v1.1.4-dev` at `a0a8ec1`); DL-162 (S9) is merged in later by the orchestrator.
+
+**Context.** DL-150 item 13 asks for Claude Code skills that search, edit, remove and assign Traits
+for future sessions; item 14 for skills that keep themselves current through the register, the
+drift and freshness tests and the doctor; item 15 for one route; item 16 for content only. S12 built
+the register, whose content entries each say how a use is added and removed (`add`, `remove`), and
+the editor's commands, but no command for a use in other content.
+
+**Decision.**
+
+1. **The skills** (`.claude/skills/`), each model-invoked, in the portrait skills' form: numbered
+   steps, each ending on "Done when". Each reads `docs/agents/traits.md` first, runs
+   `npm run --silent edit -- traits doctor --json` before it acts (and, where it changes content,
+   again after "Finish"), works only through the editor's commands, passes `--root` on for a trial,
+   and changes content only.
+   - *`trait-find`*: the doctor; a table of question to command (`find`, `list`, `show`, `uses`, and
+     the register part for the rules and events); each match followed by `show`. Changes nothing.
+   - *`trait-edit`*: the doctor (pending edits already there are put to the owner); the Trait as it
+     stands; `add`, `change`, `remove`, the fields as one JSON object in a scratchpad file passed with
+     `--row @file`; a refused removal's `uses` listed to the owner as the uses to change first, each
+     taken out with `trait-assign`; "Finish"; the doctor again.
+   - *`trait-assign`*: the doctor; a table of the place the owner names to the register's entry; the
+     target's fields read from the content file; `assign` and `unassign`; "Finish"; the doctor again.
+2. **`assign` and `unassign`** (`tools/editor`), for each content entry the register gives an `add`
+   and a `remove`: an Injury's `leavesTrait`, an Encounter's `trait` consequence, `has-trait` in an
+   Encounter's Queries (a Check's score, a harm's `among`, a trait consequence's `among`) and in a
+   Synergy's `requires`, the Biography sentences, a Calling's `suits` and `clashes`, a Feature's
+   `shows`, and other Traits' `excludes`.
+   - `traits assign <key> <entry> [<field>=<value> ...] [--target <json or @file>]` and
+     `traits unassign <key> <entry> <at>`, each with `--json` and `--root`, the editor's exit codes
+     and failure shape.
+   - Both are pending edits like the rest (`{ op: "assign", entry, target }`, `{ op: "unassign",
+     entry, at }`), made again on the content as it is on disk whenever read, checked with the
+     content's checks as made, written by "Finish", named in `pending` and in the content version's
+     comment (`assigned hero steady-hand (encounter-trait)`). A Kind gains `useEntries`, `assign`
+     and `unassign`; the Traits kind runs them through the register, a register refusal becoming the
+     editor's.
+   - A Trait's removal refused now says "change or unassign each use first".
+3. **`docs/agents/traits.md`**, its hand part completed: the skills' table; the guardrails, with the
+   only route, the doctor before and after, what to do on drift (read each problem; update the
+   register; `traits doc`; the doctor again; both in the change), content only and never a save,
+   each session ending with "Finish" and what to do when it is undone, a use the register cannot
+   take out, and a trial's `--root`; and "Each story's close". The register's part now gives each
+   content entry's `assign` and `unassign` command line, written by `doc.ts`.
+4. **AGENTS.md** gains "Traits", in the style of "Portraits": Traits are added, changed, removed and
+   assigned only through the editor, its commands or the three skills, never by hand nor in a save;
+   the doctor before and after and at each engine story's close; `docs/agents/traits.md`.
+5. **Each story's close** (DL-150 item 14), set out in `docs/agents/traits.md` for this epic and
+   every one after: a story that touches `engine/src/` or `content/src/validate.ts` runs the doctor
+   at its close and mends drift in the same change; its DL entry says what changed for Traits, or
+   "Nothing changed for Traits; the doctor reports no drift"; a story that changes a Trait or a use
+   does it through the editor or the skills, its DL entry naming the "Finish" and the content
+   version; an epic's close runs the doctor among its checks.
+6. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *A target in words:* each `<field>=<value>` is read as JSON where it is JSON (`chance=0.05`)
+     and as text where not (`path=checks.0.score.1`, `sentence=…`). A value with quotes in it goes
+     in a file, `--target @file`, which the skills use for an `among` and a sentence, since npm and
+     PowerShell strip quotes. A field the entry's target does not name is refused.
+   - *A use taken out by its place:* `<at>` is a use's `at` as `uses` gives it
+     (`injuries.json: deep-cut.leavesTrait`) or its path alone; the edit holds the `at`. A place with
+     no use of the key is refused, naming every use the key has.
+   - *The page* offers no form for `assign` in v1.1.4. Its table shows the uses the pending edits
+     make, and its Discard and "Finish" take them; the commands and the skills assign.
+   - *A Biography use was the key's list* (S12's rule): unassigning it took out every sentence. The
+     verification made each sentence a use of its own (below, item 2).
+   - *When "Finish" is undone,* the guardrails sort each failure: the edit at fault (change or
+     discard it); a use the tests want (a Biography sentence for every Hero Trait: `trait-assign`);
+     or a test that pins the content as shipped, which is changed, as code, in the same change only
+     with the owner's word, the edit discarded without it.
+   - *A `has-trait` in content still in the old form* has no Query to filter, and is refused by the
+     register; writing it in Queries is content work outside the editor's kinds, for the owner.
+   - *The register's "no safe way" wording* in the doc says to give the entry an `add` or `remove`
+     first, rather than "by hand", which the only route rules out.
+7. **What the skill runs found, fixed test first** (both new register tests were run against the code
+   before the fix and failed there):
+   - *A Synergy condition left behind.* `synergy-has-trait` without a path adds
+     `[">=", ["count", ["where", "party", ["has-trait", key]]], 1]`; unassigning it unfiltered the
+     `where`, leaving `[">=", ["count", "party"], 1]` written by "Finish". Its `remove` now takes the
+     condition it made out of `requires` whole.
+   - *A Triumph's list left behind.* `encounter-trait` copies the `success` list into a missing
+     `triumph` before adding to it; taking the Trait out left the copy. A `triumph` list left equal
+     to `success` now goes with it, the Triumph reading `success` again.
+   - The CLI test of each entry now also runs "Finish" after the assignment and its unassignment and
+     holds that it writes nothing.
+
+**The checks.**
+1. **The skill runs, end to end** (box 1), each skill's SKILL.md followed step by step, every command
+   `npm run --silent edit -- traits … --json --root <copy>`, run from the copy itself.
+   - *The copy:* every file of the worktree with S13's work (585 files, and `media/`), made a git
+     repository, its `node_modules/@heroesim/*` junctions to its own packages and the rest of
+     `node_modules` reached from its parent folder, so that its editor imports its own register
+     (`import.meta.resolve('@heroesim/content/uses')` gives the copy's file). Its `npm test` was
+     planted as `vitest run --project content`, the content's own 447 tests in 5 s, for the
+     `trait-edit` sessions; and as a script printing one passing Vitest line (S12's planted test) for
+     the `trait-assign` session, whose planted Queries the content's tests pin in the old form.
+   - *`trait-find`:* the doctor `ok` (110 reads); `find eye-wound` gave `one-eyed` by its uses,
+     `find courage` gave `scarred` by its effects; `show one-eyed` its Stat changes, its 3 uses (all
+     refusing removal) and 9 rules; the register part's `effective-stats` its two declarations.
+     `git status` clean.
+   - *`trait-edit`, session 1:* the doctor `ok`; `steady-hand` free; added (`hero`, Steady hand,
+     an Encounter bonus of 2 on Encounters tagged `traps`, by `--row @file`); `scarred` changed to
+     +2 Courage; `thrifty` `--cost 2`; `remove one-eyed` refused (exit 1) naming its 3 uses. The
+     first "Finish" was undone (exit 1), naming 3 failures of `content.test.ts`, every file put back
+     and the 3 edits pending. Sorted as the guardrails say: `scarred`'s change against a pinned
+     value, discarded (the owner's trial word); a Biography sentence for `steady-hand`, assigned
+     (`biography-sentences`, `--target @file`); the pins of the Hero Traits' keys, values, the count
+     of sentence lists and "every Hero Trait left by an Injury", changed in the copy's test with the
+     owner's trial word. The second "Finish" passed: 3 edits, `hero-traits.json` and
+     `descriptions.json`, content version 24 → 25, 447 tests; the doctor after it `ok`, no pending
+     edits. The `thrifty` cost was 2 already, so that change wrote nothing.
+   - *`trait-edit`, session 2:* `short-winded` renamed "Short of breath"; "Finish" 25 → 26, one line
+     of `hero-traits.json`; the doctor `ok`.
+   - *`trait-assign`:* the trial's Queries planted and committed (`ambush-on-the-road` one Check
+     scored by the strongest Warrior and its Injury's `among` the Warriors; `shield-wall` requiring
+     three Warriors). The doctor `ok`. An assignment to each kind of use, each exit 0 with its new
+     `at`: `lame` left by `broken-arm`; `scarred` filtering the Check's Warriors
+     (`checks.0.score.1.2`); `one-eyed` filtering the harm's `among`
+     (`consequences.failure.0.among.2`); `steady-hand` as a Synergy condition
+     (`shield-wall.requires.1.1.1.2`); `well-liked` suiting `explorer`; `lame` shown by `grey-hair`;
+     `steady-hand` granted on a Triumph at 0.05 among the Rogues (`--target @file`, the `triumph`
+     list copied from `success`); and a second Biography sentence for `steady-hand`. Refused, each
+     exit 1 naming why: a `has-trait` in an Encounter of the old form, in a Synergy of the old form,
+     `miser` on an Injury, and an unassign at a place `lame` is not used. Then each of the eight
+     unassigned by its `at` or path, each exit 0. The first run's "Finish" wrote the Synergy's
+     leftover `[">=", ["count", "party"], 1]`: item 7's finding. Rerun on the fixed register, with 5
+     uses assigned again to keep: 21 edits, "Finish" 26 → 27, `encounters.json` (8 lines added, 1
+     changed), `synergies.json` and `descriptions.json` one line each, no line of the unassigned uses
+     left; the doctor after it `ok`.
+2. **Drift** (box 2): a rule planted in the copy's `engine/src/morale.ts` (`steadyHands`, reading
+   `hero.traits`). The doctor exited 1: `engine/src/morale.ts:101: steadyHands reads .traits, which
+   no entry of the register lists`. Following the guardrails: a `steady-hands` engine entry in the
+   copy's `content/src/uses/register.ts`; the doctor then said the doc was stale; `traits doc`; the
+   doctor `ok` with 111 reads. `git status` showed the register and the doc, both in the change.
+3. **AGENTS.md** (box 3): "Traits" names the editor, its commands, the three skills and
+   `docs/agents/traits.md`.
+4. **The rest** (box 4). `npm run typecheck` and `npm run lint` are clean. `npm test` passes 4,605 tests in 182 files (4,584 at S12; 21 new), in one clean run.
+   `npm run edit -- traits doctor` on the worktree reports no drift (110 reads), a fresh doc, the
+   content passing and no pending edits. The new tests: 19 in `tools/editor/src/cli.test.ts`
+   (assign and unassign through each of the 8 entries, each then finished to no change; a refused
+   removal cleared by unassigning and finished; "Finish" writing four assignments, one through
+   `--target @file`; six refusals of `assign`; `unassign` refusals and usage errors; the text) and 2
+   in `content/src/uses/register.test.ts`. No e2e was run: no page of the game changed.
+
+**The verification.** The orchestrator's review of the first commit found six things, each fixed
+here, tests beside each. The tests were written with the fixes, not run red first against the old
+code, whose `add` returned another shape.
+1. *The tests pinned the Traits as shipped,* so no "Finish" that adds a Trait could pass, which is
+   what the editor is for (DL-150 items 7 to 12). The pins are now rules:
+   - `content/src/content.test.ts`: DL-100 item 3's rule for a Guildmaster Trait's cost (a Trait of
+     buffs costs, one of penalties refunds) in place of the six costs and the three exclusions (the
+     content's checks hold an exclusion both ways); each Guildmaster Trait has an effect; the four
+     Injury Traits' Stat changes by key (`toMatchObject`), DL-148 item 24's, kept; "between them leave
+     every Hero Trait", which DL-148 item 25's earned Traits contradict, now "each `leavesTrait`
+     names a Hero Trait"; "Hero Traits exclude nothing" dropped; the count of sentence lists read
+     from the Hero Traits; the version's title no longer names 24.
+   - The same pins elsewhere, found by the proof below: `web/src/state/names.test.ts` (the four
+     Injury Traits' words, now by key), and the editor's own `cli.test.ts` and `server.test.ts`
+     (every Trait's key, and the row count, now read from the copy's files).
+   - The portrait tool's corpus test holds three sentences to every Biography key, a rule of
+     v1.1.3-S4's: `trait-edit` now says a new Trait wants three, given with `trait-assign`.
+   - *The proof:* a whole copy of the worktree, its `npm test` the content's own tests
+     (`vitest run --project content`). Following `trait-edit`: the doctor `ok`; `show steady-hand`
+     exits 1, `refused`, so the key is free; `add hero steady-hand` (an Encounter bonus of 2 on
+     stealth Encounters; one try with `kinds: ["trap"]` refused by the content's checks, naming the
+     kinds there are); three sentences by `assign … biography-sentences`; "Finish" passed, 459
+     content tests, version 24 → 25, `hero-traits.json` and `descriptions.json`; the doctor `ok`.
+     Then the whole suite on that copy: 4,607 passed, the 12 failing all `web/src/bundle.test.ts`,
+     whose build fails the same in the copy without the Trait (the copy's `node_modules` are
+     junctions to the worktree's).
+2. *Unassigning a Biography sentence did not undo its assignment:* the use was the key's list, so the
+   unassign took out every sentence, and the CLI test hid it by deleting `short-winded`'s sentences
+   first. Each sentence is now a use (`descriptions.json: heroBiography.traits.lame.3`), and its
+   removal takes out that sentence alone, and the list once empty. The test keeps the shipped
+   sentences and adds a fourth; another assigns and unassigns one sentence and finishes to no change.
+3. *A `has-trait` filter assigned twice in one place* was accepted, and the earlier filter, moved
+   inward, was reported as the one added. Now every entry refuses a use already there (the same
+   filter on the same Set, the same Synergy condition, the same Trait in an Encounter's list, a
+   Calling, a Feature, an exclusion, an Injury that leaves a Trait). Each `add` returns the use it
+   made (`AddedUse`: the change and the use), and `assign` reports that one: assigning `scarred`,
+   then `one-eyed`, then `scarred` again at one place names `….score.1.2`, with the first at
+   `….score.1.1.1.2`.
+4. *"Changed by hand"* in the register's words for a `has-trait` it will not take out contradicted
+   the only route: they now say to ask the owner how the Query should read, and the doc is
+   regenerated.
+5. *The skills and docs:*
+   - an Encounter or a Synergy in the old form is refused as "in the old form, with no Query to
+     filter: ask the owner to have it written in Queries (as v1.1.4-S10 writes the shipped content),
+     then assign", and `trait-assign` says how to know the old form and what to do;
+   - `trait-edit` says `show` exits 1, `refused`, where a key is free, gives the cost rule, and asks
+     for a new Trait's three Biography sentences before "Finish";
+   - `tools/editor/README.md` gives every effect kind's fields, as the content's checks hold them,
+     with an example of each;
+   - `trait-find`'s example of a word to find is one the content holds (`-2 perception`);
+   - AGENTS.md names the content's checks beside the engine, as `docs/agents/traits.md` does;
+   - `trait-assign` says that taking a use out of a list moves those after it: take several from the
+     last, or read `uses` again;
+   - a change that changes nothing is not held (`"unchanged": true`, "Nothing to change, nothing
+     held");
+   - "Finish"'s line in the content version's comment is a summary, wrapped to 100 columns: `25 from
+     the content editor's Finish of 2026-10-03 (added steady-hand; 3 uses assigned, of
+     steady-hand)`.
+6. *The scratch copy* (`e2e/`, and the proof's) was taken apart: every junction removed with `rmdir`
+   first (its `node_modules` and each `node_modules/@heroesim/*`), a walk that never enters a reparse
+   point finding none left in 331 and 327 folders, the worktree's `node_modules` (153 entries, its
+   seven `@heroesim` links to its own packages) and source checked, and then the rest deleted.
+
+After the fixes: `npm run typecheck` and `npm run lint` are clean; the doctor reports no drift (110
+reads), a fresh doc, the content passing and no pending edits. `npm test` holds 4,619 tests in 182
+files (14 new). Under load from other work on this machine (each run 150 to 217 s, against 66 s
+at the first commit, with the editor's tests left out too), five full runs each failed 8 to 14
+tests, every one a 5 s timeout or `validate.test.ts`'s 50 ms bound, in files this story does not
+touch: the engine's `probe`, `rng`, `selectors` and `validate`, the harness's `succession`,
+`estimate` and `creation`, and the web's state, views and `bundle`. Each of those 15 files passes
+alone (369 tests), and the content, editor and portraits projects pass whole (19 files, 631 tests).
+A clean full run is left to the merge.
+
+**What changed for Traits** (item 5's rule, applied to this story): no engine file is changed, and no
+content file. The register's removals of `encounter-trait`, `synergy-has-trait` and
+`biography-sentences` changed, a Biography sentence became a use of its own, and every `add` refuses
+a use already there and returns the use it made. Its part of `docs/agents/traits.md` gives each
+entry's command lines. The doctor reports no drift.
+
+**Consequences.**
+- *The owner can add a Trait and pass "Finish"* with three Biography sentences, the content's tests
+  now holding rules. A Trait added to the shipped lists still changes play where the draw reads the
+  list (a Guildmaster Trait, drawn for Rivals and "Choose for me"): the harness's creation hashes and
+  sweeps say so, which the owner judges.
+- From S14 on, each engine story's DL entry carries "What changed for Traits", and its close the
+  doctor.
+- The skills are read when a session starts: a session begun before this commit does not list them.
+
+**Actioned in:** `.claude/skills/trait-find/`, `trait-edit/`, `trait-assign/` (new);
+`tools/editor/src/` (`kind.ts`, `traits-kind.ts`, `editor.ts`, `cli.ts`, `cli.test.ts`),
+`tools/editor/README.md`; `content/src/uses/` (`register.ts`, `doc.ts`, `register.test.ts`);
+`docs/agents/traits.md`; `AGENTS.md`; the epic's S13 boxes. The verification: `content/src/uses/`
+(`register.ts`, `index.ts`, `register.test.ts`), `content/src/content.test.ts`; `tools/editor/src/`
+(`kind.ts`, `traits-kind.ts`, `editor.ts`, `cli.ts`, `cli.test.ts`, `server.test.ts`),
+`tools/editor/README.md`; `web/src/state/names.test.ts`; the three skills; `docs/agents/traits.md`;
+`AGENTS.md`.
+
+---
+
+## DL-164 — v1.1.4: the test suite's time restored: the Rivals' Party search made cheaper with the same games, the editor's tests copying one scratch repository, a sweep held to a representative size, and the long tests given their time
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agent, asked by the orchestrator to
+find what costs `npm test` its time on `v1.1.4-dev` at `470746f` and to fix it with the default pool.
+The calls in item 6 are the agent's, for the owner to change.
+
+**Context.** On `470746f`, `npm test` took 149 s and failed 12 or 13 tests, all timeouts but the
+1,000-Hero validation's 50 ms; each passed alone. v1.1.3 passed in 55 to 66 s. Measured the same
+morning on this machine, in worktrees at `v1.1.3` and `470746f` beside the owner's running tools:
+v1.1.3 88 s (2 failed: `upkeepParts` over a season, the probe over a year), `470746f` 150 s (12
+failed). The workers' summed file time rose from 653 s to 1,305 s: the editor's tests 283 s (none at
+v1.1.3), the web's 219 to 361 s, the engine's 181 to 233 s, the harness's 27 to 114 s. In the suite's
+first minute a test that takes a third of a second alone takes three to six.
+
+1. **Game code, the one regression.** The Rivals choose their Party by the estimate (S6, DL-157:
+   `bestParty`, `partyFor`), and Rival play took twice as long: a month of 100 seeds as
+   `dispositions.test.ts` plays it, 1.2 to 1.7 s at v1.1.3 and 2.7 to 3.4 s at `470746f`; one
+   twenty-year seed of `rivals-build-and-buy.test.ts`, 6.1 s and 11.8 s. `bestParty` was a third of a
+   played game, and three of its costs were not the estimate's own: each free Hero brought home by
+   `structuredClone`; `holdings` copying the whole Item and stack tables for every Hero a Query reads
+   (a fifth of a twenty-year game, through `effectiveStats`); and the search's last estimate asked
+   again. `validate` is not slower (a median of 16 ms of CPU time, v1.1.3's 15).
+2. **Test weight.** Each of the editor's 93 tests copied `engine/src/` and ran `git init`, `add` and
+   `commit` (0.65 s a test alone, 105 s in all); the "Choose myself" sweep held 1,000 seeds (8 s alone,
+   41 s in the suite); `weightedPick`'s test made 320,000 `expect` calls (5.6 s); the calibration's,
+   the estimate probe's and S4's 20,000-draw tests take 1 to 3 s alone under the default 5 s. The two
+   twenty-year sweeps (`rivals-build-and-buy`, `transfer-generator`, a `beforeAll` each) are the run's
+   critical path: 32 s each alone at v1.1.3, 60 s at `470746f`.
+
+**Decision.**
+
+1. **The same games, cheaper** (`engine/src/`). `bestParty` keeps each Party's chance by its Heroes in
+   order, so the Party the search ends on is not estimated again; `homecoming` copies the free Heroes
+   with a JSON copy (`copyOf`; the document is JSON-safe) at a third of `structuredClone`'s cost; and
+   `holdings` and `findStack` walk the tables in place (`rowsWhere`) instead of copying them. Nothing
+   draws or orders differently: the month plays its 83,204 events and the twenty-year seed its 204,971,
+   as before, and the History fingerprints (`quests-conclude.test.ts`) and the harness's fingerprint
+   tests pass. The month now takes 2.4 to 2.8 s, the twenty-year seed 9.2 to 9.4 s, each twenty-year
+   test file 49 s alone. The rest is the estimate S6 asks for: every candidate Party of every Rival,
+   every afternoon.
+2. **The editor's tests** (`tools/editor/src/test-support.ts`). Each test file makes its scratch
+   repository once (`git init --template=`, the content, the doc and the planted `npm test`, committed)
+   and each test copies that folder, `.git` and all, spawning no git; `engine/src/` is copied only with
+   `{ engine: true }`, for the tests that run the doctor or the drift check, and is ignored by git. The
+   drift check keeps each file's reads by its text (`reads.ts`), so a doctor run again parses only what
+   changed, in the page's server too. The same 93 tests: 105 s alone to 40 s.
+3. **A sweep held to a representative size.** "Choose myself" against "Choose for me" runs over 60
+   seeds in `npm test` (the thirty settings of age, sex and Traits the seeds go round, each twice) and
+   over `HEROESIM_SEEDS`, 1,000 by default, in `create.harness.test.ts`: `npm run harness --
+   create.harness`. Both call `harness/src/guildmaster-chosen.test-support.ts`. `weightedPick`'s test
+   compares its 160,000 draws without an `expect` each (65 ms).
+4. **The long tests given their time**, each with a comment saying why: the probe over a year,
+   `upkeepParts` over a season, S4's 20,000-draw tests, the estimate against the resolver, the
+   calibration's shard and rates, the estimate probe, the Succession probe's child processes, the
+   reducer's year of steps, the Treasury's 900 Turns, the History's scopes, `show hero` for every Hero
+   and the 60 seeds. The validator's speed test times up to 400 runs or 15 s, not 40 or 3 s, for one
+   under 50 ms: its fastest of forty was 62 and 63 ms in two loaded runs, its cost unchanged.
+5. **Three races a loaded machine found**, each fixed in its test: the History's test waits for the
+   keyboard to reach the Quest report, which an effect moves after the render `idle` waits for;
+   `useGame`'s fast forwards after a Stop wait up to 20 s, as their sibling did; and the recovery test
+   takes `taskkill`'s failure on a process of the tree already gone, the journal saying what counts.
+6. **Calls where the plan was silent.**
+   - *The twenty-year sweeps stay at four seeds.* They are M6's boxes and the run's critical path; a
+     smaller `npm test` set with the full one behind `HEROESIM_HARNESS`, as `transfer-generator` has
+     for its 100 seeds, is the owner's to choose.
+   - *The editor's tests stay in `npm test`*, made cheap rather than moved to an opt-in project: they
+     are the editor's only tests, and S13's skills rest on them.
+   - *No pool, worker count or global timeout changed.*
+
+Nothing changed for Traits; the doctor reports no drift (110 reads), a fresh doc, the content passing
+and no pending edits.
+
+**The checks.** `npm run typecheck` and `npm run lint` are clean. `npm test`, three runs in a row:
+4,709 of 4,709 passed each time, in 115.5, 115.3 and 116.6 s (from 149.6 s and 12 failed at
+`470746f`). The ten slowest files, `beforeAll` included, before → after: `transfer-generator` 138.3 →
+109.4 s, `rivals-build-and-buy` 135.4 → 112.3, the editor's `cli` 120.7 → 69.0, the portrait tool's
+`owner` 83.2 → 75.8, the editor's `drift` 58.5 → 46.2, `write-rows` 44.3 → 49.5, the editor's
+`server` 42.7 → 24.9, the CLI's `main` 36.2 → 44.5, `boundary` 36.0 (failed) → 6.9 and `imports`
+35.4 (failed) → 3.0; after, `refusals` 45.2, `chromium` 35.8 and `corpus` 35.7 are among the ten. The
+summed file time, `beforeAll` included: 1,461 s before, 1,363 s after. The 1,000 chosen seeds pass in
+`npm run harness -- create.harness`.
+
+**Consequences.**
+- The suite runs about 30 s longer than v1.1.3 beside it: the twenty-year sweeps' extra time, which is
+  S6's estimate, the cost the game asks for.
+- A test of v1.1.4 that plays, sweeps or spawns states its time, as the older ones do.
+
+**Actioned in:** `engine/src/` (`controllers/rival.ts`, `items.ts`, `quest-engine/estimate.ts`, and
+the tests named above); `tools/editor/src/` (`test-support.ts`, `reads.ts`, `cli.test.ts`,
+`drift.test.ts`, `server.test.ts`, `recovery.test.ts`); `harness/src/` (`creation.test.ts`,
+`create.harness.test.ts`, `guildmaster-chosen.test-support.ts`, `calibrate.test.ts`,
+`estimate.test.ts`, `succession.test.ts`); `web/src/` (`state/reducer.test.ts`,
+`state/use-game.test.tsx`, `views/history.test.tsx`, `views/treasury.test.tsx`);
+`cli/src/main.test.ts`.
+
+---
+
+## DL-165 — v1.1.4: the owner's answers to S9's review: the Quest target deferred, `checkVariance` 0.4 in configuration, and the drafts approved as drafted
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the owner, answering the calls of
+S9's review page (`docs/quests/v1.1.4-review.html`, DL-162). The words below are the owner's answers
+as the orchestrator relayed them; S10 (DL-166) starts from them.
+
+**Context.** S9 drafted every Encounter, Finale, Item, earned Trait and Synergy of the release under
+`docs/quests/drafts/`, calibrated them, and put them before the owner with three calls (DL-162, the
+review page's "Calls for the owner"):
+- *The Quest target* (DL-83 item 4, DL-148 item 3: the player's Quests failing 20 to 30% of the time
+  and strong at most 50%). The drafts reach it only with heavy bankruptcy: 20.2% failed and 45.3%
+  strong cost 24 of the 50 harness Guilds, 13 of them in their first two years, against 2 of 50 with
+  today's content. Every trial that kept bankruptcies few left the player's Quests failing about 16%
+  of the time and strong over 50%. S9 asked for one of: the harness's player choosing its Quests by
+  their chance, the economy looked at before Random Events, or the target set aside.
+- *The variance.* Every drafted Check rolls within 40% either way, by its own `variance` 0.4, where
+  `checkVariance` is 0.2; S9 proposed `checkVariance` 0.4 in configuration, and a Check's own
+  `variance` only where that Check truly differs.
+- *The drafts themselves:* the Encounters, Finales, tags, Items, Traits, Synergies and the Stats harm
+  reads, for the owner's comments.
+
+**Decision.**
+
+1. **The Quest target is deferred.** S10 ships the drafts tuned for few bankruptcies (S9's trials:
+   about 16% of the player's Quests failed, over 50% strong), and records the DL-83 target as unmet,
+   for a later release. The harness's policy and the economy are not changed. The epic's Gate item
+   "The Quest target" and S10's balance pass and first acceptance box now say so: the target is
+   measured and recorded, not met.
+2. **`checkVariance` becomes 0.4 in configuration**, and joins S10's tuned controls. A Check keeps
+   its own `variance` only where it truly differs from the rest.
+3. **The drafts are approved as drafted.** S10 writes them into content as they are, and tunes only
+   the numbers.
+
+**Consequences.**
+- S10's balance pass aims at few player bankruptcies, near the 2 of 50 of S8's sweep, keeping the
+  player's failures as near the 20% floor and the strong share as low as that allows; the Traits
+  earned per Hero career stay about one or fewer (the Gate's "Rare Traits").
+- The DL-83 Quest target stays open, with the economy (DL-83 items 8 and 9) after Random Events
+  (DL-148 item 3), or with a policy that chooses Quests by their chance.
+
+**Actioned in:** the epic (`docs/planning/epics/v1.1.4-release.md`): the Gate's "The Quest target",
+S10's balance pass and its first box; v1.1.4-S10 (DL-166).
+
+---
+
+## DL-166 — v1.1.4-S10 built: the approved drafts in content, the balance pass tuned for few bankruptcies, the Quest target measured and unmet, the earned Traits rarer, and the script's limit raised to 850 kB by the owner
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agents, building S10 as the epic's S10
+bullets describe, on the owner's answers of DL-165: few bankruptcies first, the player's failures as
+near 20% and the strong share as low as that allows, the Quest target measured and recorded unmet.
+Items 1 and 7 are the owner's, relayed by the orchestrator. The tuned values are the agent's, for the
+owner to change. Opus built it in two halves (`9304985`, then this change).
+
+**Context.** S9 drafted the release's content and calibrated it (DL-162), and the owner approved the
+drafts as drafted, deferred the Quest target and put `checkVariance` 0.4 into configuration (DL-165).
+The first half of S10 (`9304985`) wrote the drafts into content (26), the six earned Traits through the
+content editor (27), `checkVariance` 0.4 and the coverage test. Played as written, the content was
+S9's drafts at their defaults, game for game: the player's Quests failed 19.9% and were strong 59.5%,
+and 20 of the 50 harness Guilds went bankrupt, 11 of them in their first two years, against 2 of 50 at
+S8 and none at `v1.1.3` (`m9-v114-s10-t0`, below). This half is the balance pass.
+
+**Decision.**
+
+1. **The script's limit is 850 kB** (the owner, 2026-10-03), in place of v1.1.3-S7's 800 kB (DL-134
+   item 9): S10's content left the script 145 bytes under it. `web/scripts/check-bundle.mjs`,
+   `web/src/bundle.test.ts`, and the epic's Gate and §4 Risks say so (`bd2e92e`). No trimming was done.
+2. **The Encounters' factors and flat terms** are tuned again with S9's calibration
+   (`HEROESIM_DRAFTS=<a scratch copy> HEROESIM_TUNE=0.56 HEROESIM_FLAT=0.4 npm run harness --
+   calibrate`): random Parties of 3 at Level 5 meet each Encounter at difficulty 60 with a chance of
+   0.56, not S9's 0.44, 40% of each target still its flat term; each Finale at the middle of its
+   template's range, as before. Each target falls by about a tenth at the median. A Check that needs a
+   Hero of a Class or a Skill takes a different share of its Encounter's target than before (the tuner
+   aims each Encounter, then splits it), so a few such Checks (the last assault's Command, the last
+   rite's Rite, Diagnosis) are harder alone and the others of their Encounters easier. Only the numbers change: a script wrote each Check's `flat` and
+   `difficultyFactor` in place and confirmed nothing else moved.
+3. **The Degrees:** `checkDegrees.triumph` 1.25 → 1.35, and `strongTriumphShare` 0.5 → 0.6. A strong
+   success pays as a success does (Loot aside; the policy never sells it), so this lowers the strong
+   share and the positive Traits with no cost in Guilds: at the same factors, 14 bankruptcies of 50
+   with them and 14 without, the strong share 53.2% against 66.8% (t4, t5).
+4. **Form:** `moraleCheckFactor` wretched 0.85 → 0.93, low 0.93 → 0.97, steady 1, high 1.04 → 1.03,
+   elated 1.08 → 1.06; `hurtCheckFactor` 0.85 → 0.93. A failing Guild loses Morale and is driven down
+   less fast: 11 bankruptcies with it, 14 without (t7, t4).
+5. **Left as they are,** each tried: `checkVariance` 0.4 (0.5 failed 24.2% and bankrupted 34, t3);
+   `checkDegrees.setback` 0.75 (0.6 and 0.85 both worse, t1, t2: harm on a Failure cascades within a
+   Quest through wounds and Morale, and too little harm leaves Rosters to grow old and dear);
+   `exposureRange` 2 and `guardRange` 0.5 (0.25 left Deaths unchanged and bankrupted 18, t6); the
+   Dispositions' `partyMargin` (0.02, `reckless` 0.05, changed the Rival folds by noise, 6.18 a game
+   against 6.38, t11). `configVersion` stays 13: `v1.1.3` was released under 12 and no game under 13.
+6. **The earned Traits' chances,** through the content editor (`traits unassign` and `traits assign`,
+   then Finish, as the `trait-assign` skill does): the four positive ones, on a Triumph, 0.05 →
+   0.02 (`wayfinder`, `battle-tried`, `silver-tongued`, `lettered`); the two negative ones stay 0.08
+   on a Failure. DL-148's "about 5 to 10%" is a chance for each use; at 0.05 the player's Heroes
+   earned 1.6 to 1.9 a career, at 0.025 1.25 and at 0.02 1.12 (the 0.56 tuning). Rarer Traits also mean fewer Stat bonuses: at
+   the 0.50 tuning, 0.025 raised the player's failures from 14.4% to 16.7% and the bankruptcies from
+   11 to 18, which is why the factors went on to 0.56.
+7. **How the sweeps ran** (the owner's choices). `HEROESIM_WORKERS` caps a play sweep's processes
+   (`d0e94ef`); each seed is a process of its own, the next starting as one ends, and
+   `HEROESIM_REPLAY=0` skips the replay (`6b34163`). The trials ran one at a time, 50 seeds × 20 years
+   with the replay skipped, in 8 processes and from t5 in 12. The orchestrator offered 3-year sweeps
+   for exploring; they were not used, since past the first trials most bankruptcies came after year
+   9, which a 3-year sweep cannot see. A first closing run, on content 29, ran in 12 processes; a second,
+   on content 31, was stopped for memory in 12; the closing sweep ran in 8, with the replay.
+8. **Content** 27 → 31: 28 the factors tuned to 0.50, 29 the editor's Finish at 0.025, 30 the factors
+   tuned to 0.56, 31 the editor's Finish at 0.02 (`parse.ts`'s comment).
+
+**The trials** (50 seeds × 20 years, the replay skipped; the player's Quests failed and strong; the
+player's Guilds bankrupt of 50, those in their first two years in brackets; Traits earned per Hero
+career; not kept):
+
+| Trial | What changed | Failed | Strong | Bankrupt | Traits a career |
+| --- | --- | ---: | ---: | ---: | ---: |
+| t0 | content as written (S9's 0.44 tuning) | 19.9% | 59.5% | 20 (11) | 1.339 |
+| t1 | Setback 0.6, `guardRange` 0.6, item 4's form, item 3's Degrees | 16.9% | 48.4% | 29 (9) | 1.672 |
+| t2 | Setback 0.85, `guardRange` 0.3, item 4's form, item 3's Degrees | 26.2% | 38.4% | 31 (23) | 0.677 |
+| t3 | `checkVariance` 0.5 alone | 24.2% | 53.2% | 34 (21) | 0.941 |
+| t4 | factors tuned to 0.50, item 3's Degrees | 15.3% | 53.2% | 14 (3) | 1.551 |
+| t5 | factors tuned to 0.50, the Degrees as they were | 15.0% | 66.8% | 14 (4) | 1.773 |
+| t6 | t4 and `guardRange` 0.25 | 16.1% | 51.7% | 18 (9) | 1.353 |
+| t7 | t4 and item 4's form | 14.4% | 54.2% | 11 (3) | 1.632 |
+| t8 | t7, factors tuned to 0.56 | 11.2% | 59.9% | 10 (1) | 1.875 |
+| t9 | t7, factors tuned to 0.60 | 8.0% | 67.1% | 13 (0) | 2.138 |
+| t10 | t7, factors tuned to 0.50 with a flat share of 0.6 | 19.8% | 46.9% | 24 (5) | 1.389 |
+| t11 | t7 and the Dispositions' `partyMargin` 0.02 (`reckless` 0.05) | 15.4% | 53.1% | 15 (5) | 1.532 |
+| — | t7 with the positive Traits at 0.025 (content 29, the first closing run) | 16.7% | 50.3% | 18 (3) | 0.971 |
+| t12 | that, factors tuned to 0.56 | 12.4% | 57.8% | 12 (1) | 1.245 |
+| **Closing** | **t12 with the positive Traits at 0.02 (content 31)** | **12.4%** | **57.1%** | **13 (1)** | **1.117** |
+
+- *The trade-off, failures against bankruptcies:* 19.9% → 20, 16.7% → 18, 15.3% → 14, 14.4% → 11,
+  12.4% → 12 and 13, 11.2% → 10, 8.0% → 13. Easier Quests end the early bankruptcies (11 in the first
+  two years at 19.9%, 1 at 12.4%, none at 8.0%), but the late ones stay at 8 to 13 whatever the
+  failure rate. Fifty seeds hold a count of bankruptcies to about ±3.
+- *The late bankruptcies* are weak Rosters, not unlucky ones. A diagnosis of t4's settings, the
+  player's Guild year by year over 20 seeds (not kept), found each Guild that went bankrupt after its
+  second year still failing 15 to 30% of its Quests from its third year on, its Wealth never above
+  53,000, and its Quest income level with its Upkeep. Its Heroes still levelled, since a failure pays
+  half the XP, and the wage grows with Level (`wagePerLevel` 20) while a Quest's reward does not. The
+  strong Rosters fell to 3 to 5% failed and held 100,000 to 400,000. Deaths, 0 to 2 a year in every
+  game, were no lever. The wage, the economy and the policy are outside S10's controls (DL-165).
+- *Plainly:* at about 12% failed, 13 of 50 harness Guilds still go bankrupt, and no setting of this
+  release's controls brought it near S8's 2 of 50, even at 8% failed. What would is the economy
+  (DL-83 items 8, 9 and 12), the policy choosing Quests by their chance, or the XP split below.
+
+**The closing sweep** (`HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s10 npm run
+harness -- play.harness`, core only, 20 years, content 31, config 13, not validated, 1,371 s):
+`harness/reports/m9-v114-s10-2026-10-03.md`, force-added. `seed-0001` played twice is identical
+(116,207,395 characters); 50 of 50 saves load and serialise back alike. Against the first half's
+content (t0), S8's sweep, `v1.1.3`'s (`m9-v113-close-2026-10-02.md`) and the M8 baseline DL-83
+measures against (1,000 seeds):
+
+| | Closing | t0 | S8 | `v1.1.3` | M8 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Player failed | 12.4% | 19.9% | 10.1% | 14.8% | 14.8% |
+| Player succeeded | 30.6% | 20.5% | 15.0% | 13.6% | 13.7% |
+| Player strong | 57.1% | 59.5% | 74.9% | 71.6% | 71.5% |
+| Rivals failed, strong | 11.7%, 58.1% | 19.3%, 60.7% | 6.4%, 81.3% | 13.0%, 75.1% | 12.9%, 75.0% |
+| Player bankrupt | 13 of 50 (26%) | 20 of 50 | 2 of 50 | 0 of 50 | 0.4% |
+| … by year (year 0 first) | 0: 1, 9: 1, 12: 1, 14: 1, 15: 4, 18: 4, 19: 1 | 0: 7, 1: 4, then 9 | 14: 1, 18: 1 | — | 16 to 19 |
+| Years survived, mean | 18.65 | 14.68 | 19.86 | 20.00 | 19.99 |
+| Rival folds a game | 5.40 | 8.10 | 3.56 | 2.76 | 2.78 |
+| Player Deaths a game | 7.98 | 10.36 | 21.70 | 34.16 | 33.56 |
+| Player Injuries a game | 129.2 | 159.0 | 267.4 | 392.7 | 393.4 |
+| Player recruits a game | 12.4 | 14.5 | 25.9 | 38.3 | — |
+| Player first in the Rankings, by Fame, by Wealth | 82.3%, 80.5% | — | 77.4%, 86.9% | 89.5%, 92.2% | 88.8%, 91.4% |
+| Player's Wealth after 10 years | 92,001 | 73,910 | 121,287 | 121,024 | 125,897 |
+| Upkeep, Quest rewards a player Guild-year | 54,825, 63,011 | 50,811, 57,750 | 46,580, 59,981 | 42,268, 57,488 | — |
+| Mean Level of the player's Roster after 10 years | 10.05 | 9.61 | 8.30 | 7.33 | — |
+| Loot a player's Quest | 0.142 | 0.150 | 0.180 | 0.136 | — |
+| Traits earned per Hero career, player's and Rivals' | 1.117, 0.594 | 1.339, 0.663 | none | none | none |
+
+- *The Quest target* (DL-83 item 4: failed 20 to 30%, strong at most 50%): **unmet**, deferred by the
+  owner (DL-165). The player's Quests fail 12.4% and are strong 57.1%. As the calibration sees it
+  (below), the best Party fails 10% at Level 1, 6% at Level 5 and 1% at Level 10.
+- *The other DL-83 targets, measured, not tuned:*
+  - item 2, the player's Bankruptcy or wiped Roster in 5 to 15% of games: 26%, above;
+  - item 3, first in the Rankings at 40 to 60% of year-starts: 82.3% by Fame and 80.5% by Wealth, above;
+  - item 5, 1.5 to 3.5 Rival folds a game: 5.40, above;
+  - item 6, 25 to 40 of the player's Hero Deaths a game: 7.98, below;
+  - item 7, Wealth held at 6 to 12 months' Upkeep after year 2: 92,001 after 10 years against 4,569 of
+    Upkeep a month, 20 months, and 102,864 after 20 over the 37 games still in play, 22.5 months; above,
+    as `v1.1.3`'s 34 and 48 were.
+- *Every difference from `v1.1.3`, explained:*
+  - *More failures and fewer strong successes.* `v1.1.3`'s twelve Encounters had one Check each,
+    rolled within 20%; S10's 29 have up to four, by a pass formula, rolled within 40% (DL-165), with
+    four Finales and the `lore` kind, and a strong success needs every Encounter at Success or better
+    with 60% of them Triumphs at 1.35 times the target (item 3). The strong share falls from 71.6% to
+    57.1%, the plain successes rise from 13.6% to 30.6%; the failures fall from 14.8% to 12.4%, since
+    the factors were eased for the bankruptcies.
+  - *Bankruptcies, 0 to 13.* Above: weak Rosters whose wage outgrows their income. A Hero's Level is
+    higher (10.05 after 10 years against 7.33), as Deaths are rarer (7.98 against 34.16) and recruits
+    fewer (12.4 against 38.3), so Upkeep takes 87% of the Quest income, against 74%. Deaths are rarer
+    because only eleven Encounters kill, on a Failure, at 2 to 5%, and harm reads the Stats (DL-155).
+  - *Rival folds, 2.76 to 5.40,* the likeliest reading the same way: a Rival's Quests fail 11.7%
+    (13.0%), its Heroes die far less (15.20 a game against 74.28), and its Upkeep takes 96.5% of its
+    Quest income (95.1%); the harness does not count a fold's cause beyond Bankruptcy.
+  - *Injuries, 392.7 to 129.2 a game,* by the content's chances and harm's `guardedBy`.
+  - *Rankings, Wealth:* the player's Guild leads less often and holds less, by its higher Upkeep and
+    the Guilds that fold.
+  - *Loot,* 0.136 to 0.142 a Quest, about as before: rarer strong successes and the Finale's Triumph
+    (DL-160) against Quests a little harder on average (47.3 against 46.1), whose tables give more.
+  - *Earned Traits* are new (DL-159): 918 for the player's Heroes, `wayfinder` 373, `battle-tried`
+    218, `silver-tongued` 139, `lettered` 138, `battle-shy` 35, `haunted` 15.
+  - *Quests resolved,* 352,121 to 312,418: fewer Guild-years in play (932 against 1,000), as Guilds
+    went bankrupt.
+- *Against S9's trials* (DL-162): S9 brought failures to 20% only with 20 to 24 of 50 bankrupt, and
+  kept bankruptcies few only near 16% failed and over 50% strong; S10's controls bring the early
+  bankruptcies from 11 to 1, but not the late ones.
+- *The harness's policy since the M8 baseline* (§4 Risks). M8's sent "the strongest Party of the size
+  it requires", the fewest Heroes a Quest allowed, by its demands (DL-34). From v1.1.4-S6 it sends
+  `partyFor`'s Party by the chance estimate at `playerPartyMargin` 0.05 (DL-157): the Board's "Your
+  best Party", 1.72 Heroes on average. The rest is M8's (INPUTS 4.14, DL-62): the highest-reward Quest
+  it can staff, whatever its chance, one purchase a Turn, never selling or transferring. DL-165 left it
+  so.
+- *The time,* 8 processes: `advance` mean 4.701 ms a Turn, p99 23.276 ms; 1,371.2 s in all.
+
+**For the owner: Party sizes and XP a Hero** (DL-148 item 19, the closing sweep; XP is not split, so
+each Hero of a Party takes the Quest's XP):
+
+| The player's Party | Quests | Failed | Strong | XP a Hero | XP the Party took |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 Hero | 130,425 (41.7%) | 17.6% | 53.8% | 31.0 | 31.0 |
+| 2 | 139,956 (44.8%) | 9.0% | 60.9% | 66.7 | 133.4 |
+| 3 | 40,114 (12.8%) | 7.3% | 56.0% | 90.8 | 272.2 |
+| 4 | 1,875 (0.6%) | 11.0% | 25.4% | 88.2 | 352.6 |
+| 5 | 48 (0.0%) | 12.5% | 18.8% | 94.3 | 471.4 |
+| Every size (mean 1.72) | 312,418 | 12.4% | 57.1% | 55.0 | 109.8 |
+
+The Rivals' are alike (mean 1.69, 49.2 XP a Hero). A larger Party takes harder Quests, so its XP a
+Hero rises with its size, and the Party in all takes the XP times its size: three Heroes take nine
+times a solo Hero's in all. Splitting the XP would slow Levels in larger Parties, and with them the
+wage that ends the late Guilds above.
+
+**The checks.**
+1. **The calibration on the shipped content** (`HEROESIM_DRAFTS=none HEROESIM_SEEDS=10000 npm run
+   harness -- calibrate`, 63 s; `docs/quests/calibration.md` and `.json`, content 31): coverage 20 of
+   20 Stats; the best Party fails 10% and is strong 44% at Level 1 (17% and 29% in the hardest third),
+   6% and 49% at Level 5, 1% and 79% at Level 10; the spot-check's widest gap 1.46 points (2.95
+   standard errors) over 284 chances. The review page (`docs/quests/v1.1.4-review.html`) and the
+   drafts stay as S9 left them, the record of what the owner reviewed.
+2. **The tests,** changed with the values, none weakened:
+   - pinning the new defaults: `degree.test.ts`, `resolve.test.ts`'s defaults test, and
+     `content.test.ts`'s version (31);
+   - scenes worked out by hand under S2's Degrees and S3's form keep those values in their own
+     configuration: `resolve.test.ts`'s `pinned` and `consumables.test.ts`'s; `estimate.test.ts` reads
+     the thresholds from configuration; `form.test.ts` takes its low and wretched cases at the new
+     factors;
+   - the three `quests-conclude` fingerprints, the first two moved (`f1e65b3b…`, `096c92a2…`), the
+     third's game unchanged;
+   - the app's Quest report seed `report-f` → `report-l`, the first whose Party still comes home hurt;
+   - `dispositions.test.ts`: `reckless` loses a quarter more Heroes than `miserly` again, 1.25 as before
+     S10 (239 Deaths to 161), in place of the first half's 1.15;
+   - `modules.test.ts`'s "differs from the same seeds with no module" is given 60 s: 0.6 s alone, it ran
+     past the 5 s default twice under the whole suite's load. A timeout, not an assertion (approved by
+     the orchestrator).
+3. **The script.** `npm run build -w web`'s check-bundle passes: 799,867 bytes, 12 more than the first
+   half's (the numbers' digits), within 850 kB.
+4. **For Traits.** The four positive earned Traits' Encounter uses changed through the editor's Finish
+   twice (content 29 and 31), each running `npm test`; no Trait was added or removed, and the register
+   is unchanged. `npm run edit -- traits doctor` reported no drift before, between and after, with no
+   pending edit left.
+5. **The rest.** `npm run typecheck` and `npm run lint` are clean; `npm test` passes 4,726 tests in 184
+   files; `npm run e2e -w web` passes all 96 specs.
+
+**Consequences.**
+- The Quest target stays open, as DL-165 deferred it. Most Guilds' Quests are now easy late, hard
+  early, and 13 of 50 harness Guilds end bankrupt, most after their ninth year.
+- *For the owner:* the late bankruptcies, and the DL-83 targets the sweep misses, wait on the economy
+  (the wage's shape, DL-83 item 12), the policy, or the XP split (DL-148 item 19), each outside this
+  release's tuned controls; the Party sizes above are for the last.
+- The positive earned Traits' chance, 0.02, is under DL-148's "about 5 to 10%"; the career mean is
+  1.12, about one.
+- S14 closes the epic.
+
+**The verification.** A second Opus agent verified `2af7e25..c1b8513` and found nothing to fix:
+1. *The content is the drafts.* Compared as JSON with `docs/quests/drafts/`: the templates, Items,
+   Synergies and Hero Traits are equal, and every drafted Encounter, Finale, tag and Trait is in
+   place; the Encounters differ only in each Check's `flat` and `difficultyFactor` (median target
+   0.91 of S9's at difficulty 60), the 68 per-Check `variance` 0.4s dropped for `checkVariance` 0.4,
+   and the four positive Traits' chances 0.05 → 0.02. One order differs: the editor's `assign` adds a
+   consequence at its list's end, so `the-last-assault`'s Failure list holds `battle-shy` after the
+   Morale loss rather than before it. No draw or outcome moves, since a Morale consequence takes no
+   draw and reads no earned Trait. No other content file changed but `descriptions.json`.
+2. *Traits.* The six Traits are as drafted; the doctor reports `ok` before and after. The 18
+   Biography sentences, which S10 wrote and the drafts did not hold, keep the page's words' rules.
+3. *The controls.* Only S10's moved: `checkVariance`, the Triumph, `strongTriumphShare`, form and
+   the Checks' numbers. `configVersion` stays 13, as `v1.1.3` shipped 12.
+4. *The coverage test* fails when it should. Planted on a scratch change of the content, then put
+   back: Endurance's third Check reading Courage gave "endurance: 2 Checks across 2 kinds", and The
+   long march made `combat` gave "endurance: 3 Checks across 1 kinds".
+5. *The tests and the harness.* Each changed test pins a moved default, keeps a hand-worked scene on
+   its own configuration, or follows the content; none hides a regression. The old-form fixtures are
+   `2af7e25`'s files byte for byte. The pooled sweep is held to the serial one by `sweep.test.ts`.
+6. *The numbers.* DL-166's figures match the closing report.
+7. *The checks.* `lint`, `typecheck`, `npm test` (4,726 tests in 184 files) and `e2e -w web` (96)
+   pass; check-bundle passes at 799,867 bytes, still 133 under the old 800 kB.
+
+For the owner: 1.12 Traits a career is "about one", not fewer; and the Market's dilution DL-162's
+verification noted (10 stacks a day from 21 priced common Items, not 15) stands, `marketSize` being
+the economy's.
+
+**Actioned in:** `content/encounters.json` (every Check's `flat` and `difficultyFactor`; the four
+positive earned Traits' chances, through the editor); `content/src/parse.ts` (31) and
+`content.test.ts`; `engine/src/config.ts`; `engine/src/quest-engine/degree.test.ts`,
+`resolve.test.ts`, `consumables.test.ts`, `estimate.test.ts`, `form.test.ts`;
+`engine/src/phases/quests-conclude.test.ts`; `engine/src/controllers/dispositions.test.ts`;
+`harness/src/modules.test.ts`; `web/src/app.test.tsx`; `docs/quests/calibration.md` and `.json`;
+`harness/reports/m9-v114-s10-2026-10-03.md`; the epic's S10 boxes, §2's configuration and its
+status. The script's limit: `bd2e92e`; the harness's workers and replay: `d0e94ef`, `6b34163`.
+
+---
+
+## DL-167 — v1.1.4 built, reviewed and verified: the code review's findings fixed test first, the 50 × 20 sweep's play equal to S10's and every difference from v1.1.3's explained, every check passing, the Quest target recorded unmet, the release awaiting the owner
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agent, closing v1.1.4 as the epic's
+S14 describes, at the orchestrator's request. The findings are the reviewers'. How each was fixed,
+and why some were left, is the agent's, each marked, for the owner to change. The release is the
+owner's (DL-124).
+
+**Context.** S14 begins with a code review of the whole patch, `18ab6a6..4762b1d` (`main`, which
+`v1.1.3` was tagged on, to S10's last commit), its findings fixed test first. It then runs the gate's
+checks.
+- *The reviewers.* Five Opus reviewers read the patch in parallel:
+  - the Quest Engine and the content's checks;
+  - the Rivals, the setup, the CLI and the harness;
+  - the page;
+  - the content editor, the register, the skills and the docs;
+  - an audit of every item of DL-148, DL-149 and DL-150 against the tests that drive it through the
+    page's controls, the CLI's or the editor's (the gate's "The decisions").
+- *The fixers.* Three Opus agents fixed the findings, each in its own files, each test first: the
+  engine, the content checks, the CLI and the harness; the editor and the skills; the page. The
+  close's agent fixed two gate gaps itself (G1, G2).
+- *The commits.* The fixes are `a805fd5` (engine, content, CLI, harness), `15f968c` (editor, skills)
+  and `76b9a76` (page). This entry's checks were run at `76b9a76`, and it is committed after them.
+
+**Decision.**
+
+1. **The review's findings, and what was done.** E is the engine's and the content's, H the
+   harness's, C the CLI's, W the page's, T the editor's and the skills', G the gate's audit. Each fix
+   had its failing test first; each test added for a gap was seen to fail with its feature broken,
+   then the source put back.
+
+   | | Where | Severity | Finding | Done |
+   | --- | --- | --- | --- | --- |
+   | E1 | `engine/src/quest-engine/resolve.ts` `earn` | low | A negative earned Trait in an Encounter's `failure` list was granted at a Setback too, when the Encounter has no `setback` list and so reads the `failure` list, against S7's "a negative Trait, on a Failure". Latent: each of the four shipped Encounters with a negative Trait has its own `setback` list. | Fixed, `a805fd5`. At a Setback it lands on no one, its two draws still taken. `resolve.test.ts`: a Setback reading the failure list grants nothing and draws as a twin without the Trait plus two; it gave `shaken` before. |
+   | E2 | `engine/src/quest-engine/estimate.ts`; `harness/src/estimate.ts` `harmless` | low | The estimate does not follow a Morale consequence's change of form within the Quest, and the probe takes every Morale consequence out before it measures. 17 of the 29 Encounters carry one, so "if no one falls" is a little optimistic after a Setback or a Failure. | Left for the owner (the agent's). DL-156 chose it; S10's form factors (0.93 to 1.06) keep it small. Folding the Morale paths into the walk, or saying "if no one falls or loses heart", is the owner's choice. |
+   | E3 | `resolve.ts` `struck`, `harm.ts` `narrowed` | low | An Injury's `among` is taken over the whole living Party, then narrowed to the unhurt. So when `the-flooded-ford`'s weakest Hero is already hurt, its Injury falls on any unhurt Hero, not the next weakest. | Left for the owner. It is the epic's wording (S4, DL-155) read literally, and changing it changes play. |
+   | E4 | `resolve.ts` | nit | A Synergy is counted, and a bonus consumable spent, on an Encounter whose Checks are all raw, which take neither. | Left. No raw Check is in content. |
+   | E5 | `content/src/validate.ts` | nit | An `encounterBonus`'s `kinds` were not checked against the Encounter kinds for a content set built in memory (the parser checks them in text). | Fixed, `a805fd5`, with its refusal in `refusals.test.ts`. |
+   | E6 | `consumables.test.ts` | nit | A test's title gave v1.1.3's rule, one Item a Check. | Fixed, `a805fd5`. |
+   | E7 | `content/src/content.test.ts` (coverage) | nit | The coverage test counts a Stat under `-` or `× 0` as read. | Left. No Check in content subtracts or multiplies by 0, and content refuses a negative weight on a Stat (DL-162). |
+   | H1 | `harness/src/children.ts` `runShardJobs` | low | When one child of a sweep failed, the others played on, a lane could start one more against the deleted directory, and none was killed. | Fixed, `a805fd5`. On the first failure no job starts and the live children are killed, then the run throws. `children.test.ts`, with a stand-in child: it left one alive before. |
+   | H2 | `harness/src/calibrate.harness.test.ts` | low | `npm run harness -- calibrate` read `docs/quests/drafts/` unless told otherwise; since S10 the drafts differ from the content. | Fixed, `a805fd5`. It reads the shipped content unless `HEROESIM_DRAFTS` names a folder, and `HEROESIM_TUNE` without one is refused. `npm run quest-review`'s labels are left, the review page being S9's record. |
+   | H3 | `engine/src/stops.ts` | nit | A stale comment on the staffable search. | Fixed, `a805fd5`. |
+   | R1 | `engine/src/controllers/rival.ts` `partyFor` | low | At a `partyMargin` of 0 a Hero who raises the chance by nothing is added, up to `partySizeMax`, where the field's doc says "every Hero who raises it at all". | Left for the owner. No margin in content or configuration is 0 (0.05, `reckless` 0.10, the player's 0.05). Either a strict gain or the doc's words. |
+   | C1 | `cli/src/commands/setup.ts`, `args.ts` | low | `new --stats` said "points" alone, where the glossary's term is Stat points, and said nothing of points left unspent (DL-149 item 5). | Fixed, `a805fd5`: "Stat points" in the refusal and the help, and "25 Stat points left unspent are lost." after `new`. The help's order of the Stat keys is left: it reads no content. |
+   | W1 | `web/src/views/new-game.tsx` `StatRow` | low | A Stat's Lower or Raise button was `disabled` at its bound, so Enter pressed to the bound dropped the keyboard on the page's body. | Fixed, `76b9a76`. A held button is `aria-disabled`, its click guarded, styled as held, still 44px. `new-game.test.tsx`; `portrait.spec.ts` reads `aria-disabled`. |
+   | W2 | `web/src/state/game.test-support.ts` | nit | `withTraitNews` wrote `hero.trait-gained` without the Quest the engine names. | Fixed, `76b9a76`. |
+   | W3 | `web/src/views/board.tsx` | nit | An Encounter content no longer defines draws an empty list. | Left (data-model rule 5's case; nothing breaks). |
+   | T1 | `tools/editor/src/finish-journal.ts`, `editor.ts` | medium | A cut-off Finish's journal whose process number Windows had given to another process read as a Finish running for ever: every command, `recover` too, refused as busy, and the untested files stayed. | Fixed, `15f968c`. `traits recover --force` puts them back whatever the number says (never in the finishing process), and the busy refusal names the journal's process, its start and the way out. The guardrail in `docs/agents/traits.md` and the README say so. `recovery.test.ts`. |
+   | T2 | `tools/editor/src/cli.ts` | low | `traits pending` and `traits doc` ignored the lock and recovered nothing, against the docs. | Fixed, `15f968c`, tested both ways. |
+   | T3 | `tools/editor/src/editor.ts` `finish` | low | A Finish whose files could not all be put back deleted its journal, the only copy of their earlier bytes. | Fixed, `15f968c`. The journal is kept and the next command puts them back. |
+   | T4 | `tools/editor/page/page.js`, `server.ts` | low | The page read every 409 as "is used", and a Finish refused as busy as a Finish put back. | Fixed, `15f968c`: the state names its kind and the page words each. The new page tests also found the page writing "null" under a message with no items, fixed. Two duplicated lines in `poll()` removed. |
+   | T5 | `tools/editor/src/reads.ts` | low | The drift scanner's effect kinds were a list of its own, not tied to the engine's. | Fixed, `15f968c`: built from a record the engine's unions type, with a test. Exotic read forms (a kind held in a variable, a namespace import destructured) are left: none is in the code, and the doctor at each story's close covers them. |
+   | T6 | `.claude/skills/trait-assign`, `trait-find` | low | `trait-assign` said `added` may be empty, which DL-163's verification ended (its dead branch in `cli.ts` removed); `trait-find` said it changes nothing, then told a session to change the register. | Fixed, `15f968c`. `trait-find` now stops on drift and names it. |
+   | T7 | `recovery.test.ts` | low | A test said `recover` puts the files back, but ran it only on a clean state. | Fixed, `15f968c`. |
+   | G1 | the gate's "The page opens from `file://`" | medium | No spec sent a Quest and brought it home over `file://`. | Added, `76b9a76`: `file.spec.ts` sends a Party through the builder, fast forwards to its return, and reads each Encounter's Degree in the report. |
+   | G2 | the gate's "The editor is in no file of the built game" | medium | Checked by hand at S12 (DL-161), held by no test. | Added, `76b9a76`: `bundle.test.ts` finds no word of the editor's page or the register's entries in any built file; it fails with one planted in the page's entry. |
+   | G3 | the gate's "Every editor operation is driven by a test, through its commands and its page" | medium | The page's Find, saving a change, a removal that succeeds, Discard, Doctor, a Guildmaster Trait's form and a failing Finish were driven only through its API. | Added, `15f968c`: two Chromium tests drive each through the page's controls. `assign` and `unassign` are commands only, by DL-163 item 6, which the README says. |
+   | G4 | DL-148 items 25 and 27, DL-150 item 5 | medium | No test showed an earned or a lost Trait through the page. | Added, `76b9a76`: the History, a Hero's page opened by click, and the Quest report. |
+   | G5 | DL-148 items 7 and 8, S2's fourth box | low | The History's Degrees, and a played Quest's, were tested through state only. | Added, `76b9a76`: a Hero's History reads each Degree, an entry from before v1.1.4 as a Success or a Failure; the app's played Quest names a Degree for each Encounter. |
+   | G6 | DL-148 items 21, 22 and 26, DL-149 item 2 | low | The `lore` kind, a Finale last, a Trait's Encounter bonus and "Choose for me"'s three texts were not shown through the page. | Added, `76b9a76`. |
+
+   *Found sound by the reviewers:*
+   - the evaluator: Party order and ties, an empty Set, a key content lacks, form on Stat values only;
+   - the draws: one `next` a Check, a reroll's, an Injury's three and a Death's two, an earned
+     Trait's two, Loot's last, the Encounter draw and the Finale;
+   - Degrees, the band and `formDecided`;
+   - harm's formulas and `steadiedBy`;
+   - earned Traits' rules, the Injury Traits and the Encounter bonus;
+   - the estimate's formula, its rerolls and bonuses, and the chance bands;
+   - every refusal S1 lists, and the old forms;
+   - `partyFor`'s greedy rule against DL-148 item 17, and the policy's use of it;
+   - the setup's Stats, its refusals, and a seed's world otherwise the same;
+   - the sweep's pooling, held to the serial games;
+   - the page's setup state, `shownPercent`, the narration's Degrees and the Trait events' Milestones;
+   - Finish's write and rollback, `--root`, the server's binding and origin checks, removal's uses
+     and `excludes`, and the freshness test;
+   - CONTEXT.md's numbers, ADR-0010's limits, R16 and R24.
+2. **The audit of the decisions** (the gate's first item). Every item of DL-148, DL-149 and DL-150 is
+   met, deferred by the plan or by the owner, or a decision with no control; each met item a front end
+   shows is driven through the page, the CLI or the editor, G3 to G6 closing the gaps. Deferred:
+   DL-148 item 3's Quest target (DL-165, item 4 below), item 4's text form, item 19's XP split
+   (DL-166's numbers before the owner), item 28's Background effects (#49). Engine-only by nature,
+   with no control to drive: DL-148 items 4, 6, 10, 11, 14, 18, 21's coverage and 23.
+3. **The checks,** at `76b9a76`:
+   - `npm run lint` and `npm run typecheck`: clean.
+   - `npm test`: 4,746 tests in 185 files, all passing. (Before the fixes, at `4762b1d`: 4,726, one
+     failing under load, `guild.test.tsx`'s wait, which passed alone, 7 tests.)
+   - `npm run e2e -w web`: the build passes check-bundle ("2 built files, no network or filesystem
+     reference, every script within 850 kB"). All 97 specs pass, 4 of them over `file://` (G1 the
+     new one).
+   - `npm run edit -- traits doctor`: no drift, the register listing all 110 reads of a Trait; the
+     doc fresh; the content passing; no pending edit. Run before the review, after the fixes and at
+     this entry.
+4. **The 50 × 20 sweep,** at `76b9a76`, run again since E1 changed a line of the engine. It was run alone as `HEROESIM_WORKERS=8
+   HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-close npm run harness -- play.harness`: core only, 20
+   years, content 31, config 13, not validated, the replay kept, 1,448 s. The report,
+   `harness/reports/m9-v114-close-2026-10-03.md`, is force-added.
+   - *Play is unchanged from S10's closing sweep* (`m9-v114-s10-2026-10-03.md`, DL-166). The
+     fingerprint of every seed's last save is the same, `24bae1ff…`, and lines 27 to 665, the
+     Counters through the Rivals and the Party sizes, hash equal (`c0ef8c8b…`). Only the timings
+     differ. `seed-0001` played twice is identical (116,207,395 characters), and 50 of 50 saves load
+     and serialise back alike. E1 changes no shipped game, as its Encounters each hold a `setback`
+     list.
+   - *Against `v1.1.3`'s* (`m9-v113-close-2026-10-02.md`): every difference is DL-166's, explained
+     there, game for game the same play. In short:
+     - the player's Quests fail 12.4% (14.8%) and are strong 57.1% (71.6%): up to four Checks an
+       Encounter by a pass formula, rolled within 40%, Finales and `lore`, and a strong success
+       needing 60% of Triumphs at 1.35 times the target;
+     - 13 of 50 player Guilds bankrupt (none), one in year 0, one in year 9 and 11 from year 12 on:
+       weak Rosters whose wage, growing with Level, outgrows their Quest income, outside this
+       release's controls;
+     - 5.40 Rival folds a game (2.76), read the same way;
+     - Deaths 7.98 a game (34.16) and Injuries 129.2 (392.7), by the content's chances and harm that
+       reads the Stats;
+     - the player first in the Rankings less often, 82.3% by Fame and 80.5% by Wealth (89.5%, 92.2%);
+     - Loot 0.142 a Quest (0.136);
+     - Traits earned, new: 1.117 a player's Hero's career, 0.594 a Rival's;
+     - the harness's policy sending `partyFor`'s Party since S6 (DL-157), 1.72 Heroes on average.
+   - *The DL-83 targets, measured, not tuned* (DL-165, DL-166): item 4, the Quest target, failed 20 to
+     30% and strong at most 50%: unmet, 12.4% and 57.1%; item 2, Bankruptcy in 5 to 15% of games:
+     26%; item 3, first at 40 to 60% of year-starts: 82.3% and 80.5%; item 5, 1.5 to 3.5 Rival folds:
+     5.40; item 6, 25 to 40 Deaths: 7.98; item 7, Wealth at 6 to 12 months' Upkeep: about 20 months
+     after 10 years. Each is unmet, recorded for a later release.
+   - *Memory.* Run alone, in 8 processes, nothing else running; no process was killed.
+5. **The estimate** (the gate's "The estimate"). `HEROESIM_PROBE=estimate npm run harness`, on
+   the shipped content and configuration, run alone, 238 s. Its report,
+   `harness/reports/m9-estimate-2026-10-03.md`, is force-added. 200 samples × 20,000 seeds; 588
+   Encounters of 1,418 Checks, 474 of several; 103 Parties carrying. Every one of 3,740 chances is
+   within 2 points of the resolver's rate: each Encounter's Degrees within 0.99 points, its Success
+   or better within 1.18, the Quest's bands and success within 0.92, the widest 3.36 standard
+   errors. As DL-156's probe, no one falls, Morale's consequences taken out too (E2).
+6. **The sizes.**
+   - *The script:* 800,111 bytes (800.11 kB), 230.04 kB gzipped, under 850 kB; 244 bytes more than
+     S10's 799,867, W1's guard and its style. `v1.1.3` shipped 769.65 kB.
+   - *The grid:* `portrait.spec.ts` holds it to 250 kB or less once a sex is chosen, and to no
+     picture before, at each width.
+7. **The screenshots.** There are 66: the setup screen, "Choose for me",
+   "Choose myself" before a sex and with the sex, age, picture and Stats chosen, the Board, a card
+   unfolded to its Encounters and Checks, the Party builder with its chances and numbers, the Quest
+   report after a Party came home, a Hero's page (that Hero given two Hero Traits, a Stat change and
+   an Encounter bonus, in an exported save loaded again), the History and the World History; at 360,
+   820 and 1280px, light and dark. They were taken from `dist/index.html` over `file://`, at
+   `76b9a76`, and are kept outside git in the close's scratchpad (`v114-close-shots`).
+   - *Found:* none scrolls the page sideways. None has a broken picture, a page error, a console
+     error or a failed request.
+   - *By eye:* the Quest report at 360 dark, each Encounter with its Degree and deciding Check; the
+     Party builder at 1280 light; "Choose myself" at 360 light, its steppers on one line; the Hero's
+     page at 360 dark, its Trait chips wrapping. They look right.
+   - *Seen and left,* older than v1.1.4: full-page captures show the fixed bars mid-page.
+   - The browser specs hold the same views at each width: the setup's two ways and the Board with
+     the builder in both schemes (`layout.spec.ts`), the Quest report (`journey.spec.ts`,
+     `fast-forward.spec.ts`, and over `file://`).
+8. **The gate:**
+   - *The decisions:* met (item 2).
+   - *Parity first:* met at S1 (DL-151).
+   - *The Quest target:* **unmet**, deferred by the owner (DL-165): the player's Quests fail
+     12.4% and are strong 57.1% (item 4). The other DL-83 targets measured and recorded, not tuned
+     (item 4, and DL-166).
+   - *Coverage:* met, `content.test.ts` (DL-166).
+   - *The estimate:* met (item 5).
+   - *Rare Traits:* 1.117 Traits earned a player's Hero's career (item 4), about one, as DL-166's
+     1.12.
+   - *The script:* under 850 kB (item 6).
+   - *The setup:* both ways driven through the page at each width (`layout.spec.ts`, `portrait.spec.ts`,
+     `file.spec.ts`); "Choose for me" drawing every attribute, "Choose myself" held until a sex, an age
+     and a picture and the Stats within the pool; no picture before a sex, the grid then 250 kB or
+     less; the CLI's `new --stats` (DL-153, C1).
+   - *Traits' new shape:* met at S7's first step, the sweep's play counters and creation hashes equal
+     to the run before it (DL-158).
+   - *The editor and the skills:* each operation driven through its commands and its page (DL-161,
+     G3); the drift and freshness tests failing on a planted read and a stale doc (DL-161, DL-163);
+     the doctor reporting no drift (item 3); the editor in no built file (G2).
+   - *The page opens from `file://`,* and a Quest is sent and comes home there (G1).
+   - *The views:* item 7, and the capitals guard (`capitals.test.tsx`) passing over every new word.
+   - *The release:* the owner's (item 9).
+9. **The release is the owner's** (DL-124).
+   - *Where things stand.* `v1.1.4-dev` holds every commit; origin has it only to `8987cd5`. Origin's
+     `v1.1-release` is at `4c9e0b1`, an ancestor of `v1.1.4-dev`, and `main` at `18ab6a6`.
+   - *The steps:*
+     1. Push `v1.1.4-dev` (`git push origin v1.1.4-dev`), so that its `check` runs and origin's copy
+        is whole.
+     2. Fast-forward `v1.1-release` to `v1.1.4-dev`, and push it: `git checkout v1.1-release`, then
+        `git merge --ff-only v1.1.4-dev`, then `git push origin v1.1-release`.
+     3. Merge the pull request that CI raises (`release-pr.yml`), which names `v1.1.4`. Merging it
+        tags `v1.1.4` on `main`, deploys it from CI and writes its GitHub Release (`release.yml`).
+     4. See `e2e:live` pass on both addresses, in the deploy's run or with `npm run e2e:live -w web`.
+     5. Tick S14's second box. Dependabot's `target-branch`es already name `v1.1.4-dev` (DL-147 item 6),
+        in effect once `v1.1.4` reaches `main`.
+
+**Consequences.**
+- *Play is unchanged* by the close (item 4). The editor recovers from a reused process number and a
+  failed rollback, the page keeps the keyboard on the Stats, and the CLI words the Stat points.
+- *For the owner,* besides the Quest target (DL-165):
+  - E2, E3 and R1, above;
+  - DL-166's: the positive earned Traits' chance, 0.02 against DL-148's "about 5 to 10%", and the
+    XP split (DL-148 item 19) on its Party sizes;
+  - the tuned values that differ from DL-148's first ones: `strongTriumphShare` 0.6 (DL-148 item 8's
+    "at least half") and `hurtCheckFactor` 0.93 (item 10's 0.85), both S10's controls;
+  - DL-157's reading of "rounded to 5%" as floored to a multiple of 5, held within 5 and 95.
+- *The script's room* is 49.9 kB under 850 kB.
+- *For Traits.* No Trait was added, changed, removed or assigned. E1 changes when a negative earned
+  Trait is granted, and E5 what the content's checks read of a Hero Trait's effect; the doctor
+  reports no drift and the register needs no new entry (both are reads it lists). T1 to T5 change the
+  editor's lock, recovery and page, and the guardrail's way out of a busy lock.
+
+**The verification.** A second Opus agent verified `4762b1d..906044a` and the gate as a whole. It
+found one nit to fix, a missing space in `app.test.tsx`, and nothing else:
+1. *The fixes are held by their tests.* Each was undone on a scratch change, its test run, then put
+   back:
+   - E1: the guard gone, `shaken` lands at the Setback; its second draw gone, the stream differs from
+     the twin's.
+   - H1: the kill gone, the run waits past the test's 30 s with a child playing.
+   - T1: `--force` ignored, `recover --force` is refused as busy.
+   - W1: `disabled` again, two tests fail; the click's guard gone, the keyboard test fails.
+   - G2: the register imported into the page's entry, the built script holds seven of its ids.
+2. *E1 changes no shipped game.* The four Encounters with a negative Trait each hold a `setback`
+   list, and the content's checks refuse a Trait in a `success` or `setback` list. The close report
+   differs from S10's only in its timings: the fingerprint is `24bae1ff…` in both, and lines 27 to
+   665 hash equal (`c0ef8c8b…`).
+3. *The numbers* in item 4 match the report: 12.4% and 57.1%, 13 bankruptcies in 50 games, 5.40
+   folds, 7.98 Deaths, 82.3% and 80.5%, Loot 0.142, Traits 1.117 and 0.594. Item 5 matches the
+   estimate's report: 3,740 chances (2,352, 588, 600 and 200), the widest gap 1.18 points.
+4. *The record.* The epic's status, S14's first box ticked and its second not, the register's row
+   and the plan say the patch is built and verified and the release awaits the owner. Nothing claims
+   a release. Item 9's steps match `release-pr.yml`, and `release.mjs` names `v1.1.4` from the tags.
+   Nothing was pushed or tagged: origin's `v1.1.4-dev` is at `8987cd5`, and `v1.1-release` and
+   `main` match origin's.
+5. *The checks,* at `906044a`:
+   - `npm run lint` and `npm run typecheck`: clean.
+   - `npm test`: 4,746 tests in 185 files, none skipped. The editor's Chromium tests and the
+     capitals guard are among them.
+   - `npm run e2e -w web`: 97 specs, 4 over `file://`, check-bundle passing at 800,111 bytes.
+   - `npm run edit -- traits doctor`: no drift, 110 reads, the doc fresh.
+
+For the owner: E1 reads DL-148 item 25's "the same failed Encounter" as the Failure Degree. The
+glossary's Earned Trait, `requirements.md` and the quest-review page still say "failed Encounter",
+which elsewhere, for a reroll, takes in a Setback. No shipped game turns on it.
+
+**After the push.** `check` failed on Linux, where the editor's tests had never run, and passed on
+Windows. Both causes were Linux's alone, and both were reproduced in WSL on Node 26.9.0:
+1. *Ctrl+C put back nothing.* "Finish" kept each running root lowercased, so that Windows' paths
+   would match whatever their case, and `restoreRunning` read the journal at that lowercased root.
+   On Linux that names no folder, so the files stayed written and the journal stayed: the
+   SIGINT test's `[]` in both jobs. Now each root is kept under its key, lowercased only on Windows
+   and macOS, and restored from the path it was given (`finish-journal.ts`). The test fails at
+   `72cfdfa` on Linux and passes after the fix.
+2. *A scratch copy failed with ENOENT on `.git/objects`, once in one job.* On Linux, `git commit`
+   leaves `git maintenance run --auto --detach` behind it. That run holds
+   `.git/objects/maintenance.lock`, and can repack, after the commit returns. The template's copy
+   follows its commit at once, so a copy taken in that moment met a file that had gone. Git for
+   Windows runs the maintenance before the commit ends. With the run given work (`gc.auto=1`), 95 of
+   1,524 copies failed with CI's error. With `maintenance.auto=false`, 0 of 668 failed. Both test
+   helpers' `git` now pass it (`tools/editor/src/test-support.ts`, and
+   `tools/portraits/src/test-support.ts`, whose copies run git the same way).
+Nothing the tests check was loosened, and none is skipped on any platform. On Linux the editor's
+and portraits' tests passed three runs in three. Then, on Windows: `npm run lint`,
+`npm run typecheck`, `npm test` (4,746 tests) and the doctor all passed.
+
+**Actioned in:** `engine/src/quest-engine/resolve.ts` and its test, `consumables.test.ts`;
+`engine/src/stops.ts` (comment); `content/src/validate.ts`, `refusals.test.ts`;
+`cli/src/commands/setup.ts`, `args.ts`, `main.ts`, `main.test.ts`; `harness/src/children.ts`,
+`children.test.ts` (new), `calibrate.ts`, `calibrate.test.ts`, `calibrate.harness.test.ts`;
+`tools/editor/src/` (`finish-journal.ts`, `editor.ts`, `cli.ts`, `server.ts`, `reads.ts`, and
+`recovery.test.ts`, `server.test.ts`, `drift.test.ts`), `tools/editor/page/page.js`,
+`tools/editor/README.md`; `.claude/skills/trait-assign`, `trait-find`; `docs/agents/traits.md` (the
+guardrails); `web/src/views/new-game.tsx`, `web/src/styles.css`; `web/src/bundle.test.ts`,
+`app.test.tsx`, `state/game.test-support.ts`, `views/` (`board`, `history`, `new-game`,
+`quest-report`, `roster` tests); `web/e2e/file.spec.ts`, `portrait.spec.ts`;
+`harness/reports/m9-v114-close-2026-10-03.md` and `m9-estimate-2026-10-03.md` (force-added); `docs/planning/epics/v1.1.4-release.md` (the status, S14's first box);
+`docs/planning/epics/README.md` (the register's row); `docs/plan.md` (§4). After the push:
+`tools/editor/src/finish-journal.ts`, `tools/editor/src/test-support.ts`,
+`tools/portraits/src/test-support.ts`.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

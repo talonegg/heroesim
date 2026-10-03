@@ -128,7 +128,8 @@ export function belowFloorStop(events: readonly TurnEvent[], guildId: GuildId): 
  * idle, no Hero on it away in a Party, and the Quests on the Board it could staff from its free
  * Heroes (`staffableQuests`: a Party `dispatch` would send), none for a Guild not in the world. The
  * Quests are worked out once, when first asked, however many stops ask (the M9 review): each
- * search runs `partyFor` and `dispatchRefusal` over the Board.
+ * search runs `requiredParty` and `dispatchRefusal` over the Board, through `staffingParty`
+ * (controllers/rival.ts), and asks no chance estimate (v1.1.4-S6, DL-157; v1.1.4-S14).
  */
 interface Staffing {
   idle: boolean;

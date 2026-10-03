@@ -19,12 +19,17 @@ import type {
   Disposition,
   Encounter,
   EncounterAggregate,
+  EncounterCheck,
   EncounterKind,
+  GuildmasterTrait,
+  GuildmasterTraitEffect,
+  HeroTraitEffect,
   Improvement,
   InjuryType,
   ItemDefinition,
   LootEntry,
   LootTable,
+  NumQuery,
   PatronName,
   QuestTemplate,
   QuestTemplateRequires,
@@ -34,8 +39,7 @@ import type {
   StatArea,
   StatOwner,
   Synergy,
-  Trait,
-  TraitEffect,
+  SynergyRequires,
 } from './content-types.js';
 import {
   emptyDocument,
@@ -67,6 +71,8 @@ import {
   type WorldDocument,
 } from './document.js';
 import { append } from './history.js';
+import { capability, check, type CheckResult } from './quest-engine/check.js';
+import { queryParty } from './quest-engine/query.js';
 import { createStreams, streamNames } from './rng.js';
 import { validate } from './validate.js';
 
@@ -215,8 +221,41 @@ function demandsOf(demands: string): [string, number][] {
 }
 
 /**
+ * The one Check an Encounter in the old form loads into (v1.1.4-S1), as content's parser makes it:
+ * keyed and named `key` and `name`, its score the weighted `aggregate` of each demanded Stat over the
+ * Party, added up in the order of `demands`, with `skillKeys` its Skills.
+ */
+export function oldFormCheck(
+  key: string,
+  name: string,
+  aggregate: EncounterAggregate,
+  demands: readonly (readonly [string, number])[],
+  skillKeys: readonly string[],
+  difficultyFactor: number,
+): EncounterCheck {
+  const terms = demands.map(([statKey, weight]): NumQuery => ['*', weight, [aggregate === 'best' ? 'max' : 'sum', 'party', ['stat', statKey]]]);
+  return { key, name, score: ['+', ...terms], skills: [...skillKeys], difficultyFactor };
+}
+
+/**
+ * The conditions a Synergy's requirement in the old form loads into (v1.1.4-S1), as content's
+ * parser makes them: at least `n` of each Class named, then each Skill held at a rating of 1 or more.
+ */
+export function oldFormRequires(requires: { classes?: Record<string, number>; skills?: readonly string[] }): SynergyRequires {
+  return [
+    ...Object.entries(requires.classes ?? {}).map(([classKey, count]): SynergyRequires[number] => [
+      '>=',
+      ['count', ['where', 'party', ['class', classKey]]],
+      count,
+    ]),
+    ...(requires.skills ?? []).map((skillKey): SynergyRequires[number] => ['>=', ['max', 'party', ['skill', skillKey]], 1]),
+  ];
+}
+
+/**
  * An Encounter (M4-S1) from its kind, aggregate, demands as `stat:weight` pairs, Skills as a
- * space-separated list (or none), difficulty factor and consequences.
+ * space-separated list (or none), difficulty factor and consequences: in the old form, loaded into
+ * its one Check (`oldFormCheck`).
  */
 function encounter(
   key: string,
@@ -234,26 +273,28 @@ function encounter(
       key,
       name: title(key),
       kind,
-      demands: demandsOf(demands),
-      aggregate,
-      skillKeys: skills === '' ? [] : skills.split(' '),
-      difficultyFactor,
+      checks: [oldFormCheck(key, title(key), aggregate, demandsOf(demands), skills === '' ? [] : skills.split(' '), difficultyFactor)],
       consequences: { success, failure },
     },
   ];
 }
 
-/** A Synergy (M4-S3) from what it requires, its bonus and, when it has them, its kinds. */
-function synergy(key: string, requires: Synergy['requires'], bonus: Synergy['bonus'], kinds?: EncounterKind[]): [string, Synergy] {
-  return [key, { key, name: title(key), requires, bonus, ...(kinds === undefined ? {} : { kinds }) }];
+/** A Synergy (M4-S3) from what it requires in the old form (`oldFormRequires`), its bonus and, when it has them, its kinds. */
+function synergy(
+  key: string,
+  requires: Parameters<typeof oldFormRequires>[0],
+  bonus: Synergy['bonus'],
+  kinds?: EncounterKind[],
+): [string, Synergy] {
+  return [key, { key, name: title(key), requires: oldFormRequires(requires), bonus, ...(kinds === undefined ? {} : { kinds }) }];
 }
 
 /**
- * A Guildmaster Trait with its one effect (M4-S5), its cost and what it excludes (M9-S2), keyed by
- * `key` and named after it.
+ * A Guildmaster Trait with its one effect (M4-S5), as its list of effects (v1.1.4-S7), its cost and
+ * what it excludes (M9-S2), keyed by `key` and named after it.
  */
-function guildmasterTrait(key: string, effect: TraitEffect, cost: number, excludes: string[] = []): Record<string, Trait> {
-  return { [key]: { key, name: title(key), owner: 'guildmaster', cost, excludes, effect } };
+function guildmasterTrait(key: string, effect: GuildmasterTraitEffect, cost: number, excludes: string[] = []): Record<string, GuildmasterTrait> {
+  return { [key]: { key, name: title(key), cost, excludes, effects: [effect] } };
 }
 
 /**
@@ -317,8 +358,9 @@ function disposition(
   buildThreshold: number,
   gearThreshold: number,
   transferAppetite: number,
+  partyMargin: number,
 ): Record<string, Disposition> {
-  return { [key]: { key, name: title(key), questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite } };
+  return { [key]: { key, name: title(key), questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite, partyMargin } };
 }
 
 /**
@@ -367,15 +409,16 @@ export const testContent: ContentSet = deepFreeze({
   ),
   // The core's six Guildmaster Traits and their effects (M4-S5, DL-43): three buffs, three penalties;
   // with the core's costs and exclusions (M9-S2, DL-100 item 3).
-  traits: {
+  guildmasterTraits: {
     ...guildmasterTrait('old-soldier', { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }, 1),
     ...guildmasterTrait('well-liked', { kind: 'guildMoraleShift', delta: 5 }, 2, ['miser']),
     ...guildmasterTrait('thrifty', { kind: 'upkeepFactor', factor: 0.9 }, 2, ['spendthrift']),
     ...guildmasterTrait('miser', { kind: 'guildMoraleShift', delta: -5 }, -2, ['well-liked', 'spendthrift']),
     ...guildmasterTrait('spendthrift', { kind: 'upkeepFactor', factor: 1.1 }, -2, ['thrifty', 'miser']),
     ...guildmasterTrait('mistrusts-magic', { kind: 'classStatBonus', classKey: 'mage', statKey: 'arcana', delta: -1 }, -1),
-    ...keyed({ owner: 'hero' as const, cost: 0, excludes: [] as string[], effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
   },
+  // The core's four Hero Traits, each an Injury's, with no effect yet (v1.1.4-S7).
+  heroTraits: keyed({ excludes: [] as string[], effects: [] as HeroTraitEffect[] }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
   backgrounds: {
     ...keyed({ owner: 'hero' as const, station: 'common' }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
     ...keyed({ owner: 'guild' as const }, 'old-charter', 'breakaway', 'newly-founded'),
@@ -441,13 +484,14 @@ export const testContent: ContentSet = deepFreeze({
   ]),
   // The four Dispositions (INPUTS 7.5) with the weights M6-S1 gave the core (DL-56; reckless's
   // gearThreshold retuned by M6-S4, DL-58): questRiskAppetite, recruitThreshold, buildThreshold,
-  // gearThreshold, transferAppetite. The M6 close retuned the core's rows (DL-69); the engine's tests
-  // keep these, on which their margins were measured, as a fixture of the one rule.
+  // gearThreshold, transferAppetite; then v1.1.4-S6's partyMargin, the core's (DL-157). The M6 close
+  // retuned the core's rows (DL-69); the engine's tests keep these, on which their margins were
+  // measured, as a fixture of the one rule.
   dispositions: {
-    ...disposition('ambitious', 0.6, 40, 1.5, 2, 0.75),
-    ...disposition('miserly', 0.25, 80, 20, 10, 0.1),
-    ...disposition('reckless', 1, 30, 4, 3, 0.5),
-    ...disposition('steady', 0, 60, 3, 3, 0.25),
+    ...disposition('ambitious', 0.6, 40, 1.5, 2, 0.75, 0.05),
+    ...disposition('miserly', 0.25, 80, 20, 10, 0.1, 0.05),
+    ...disposition('reckless', 1, 30, 4, 3, 0.5, 0.1),
+    ...disposition('steady', 0, 60, 3, 3, 0.25, 0.05),
   },
   improvements: improvements(),
   // key, kind, aggregate, demands, Skills, difficulty factor; then success and failure (M4-S1):
@@ -697,6 +741,35 @@ export const plannedStreams = [
   'hero-descriptions',
 ] as const;
 
+/** `encounter`'s one Check (v1.1.4-S1): an Encounter has one until v1.1.4-S2. */
+export function onlyCheck(encounter: Pick<Encounter, 'key' | 'checks'>): EncounterCheck {
+  const [only] = encounter.checks;
+  if (only === undefined) throw new RangeError(`Encounter ${encounter.key} has no Check`);
+  return only;
+}
+
+/** `encounter` with `difficultyFactor` on every Check (v1.1.4-S1). */
+export function withFactor(encounter: Encounter, difficultyFactor: number): Encounter {
+  return { ...encounter, checks: encounter.checks.map((it) => ({ ...it, difficultyFactor })) };
+}
+
+/** `heroes`' capability on `encounter`'s one Check, the Party taken as the Quest Engine takes it (`queryParty`). */
+export function encounterCapability(heroes: readonly Hero[], encounter: Encounter, world: World, deps: EngineDeps): number {
+  return capability(queryParty(heroes, world, deps), encounter, onlyCheck(encounter), world, deps);
+}
+
+/** Checks `heroes` on `encounter`'s one Check, the Party taken as the Quest Engine takes it (`queryParty`). */
+export function encounterCheck(
+  heroes: readonly Hero[],
+  encounter: Encounter,
+  quest: { difficulty: number },
+  world: World,
+  deps: EngineDeps,
+  bonus = 0,
+): CheckResult {
+  return check(queryParty(heroes, world, deps), encounter, onlyCheck(encounter), quest, world, deps, bonus);
+}
+
 /** The test content, or `content`, with the default config, or with `overrides` on it. */
 export function testDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = testContent): EngineDeps {
   return { config: { ...defaultConfig, ...overrides }, content };
@@ -705,22 +778,23 @@ export function testDeps(overrides: Partial<GameConfig> = {}, content: ContentSe
 /**
  * `content` (the test content by default) with `fields` set on every Encounter, frozen: for a test
  * that must say what every Check does or what every outcome costs, whichever Encounters a Quest is
- * drawn with (M4-S2). `consequences` replaces both lists; `success` or `failure` replaces one.
+ * drawn with (M4-S2). `difficultyFactor` is set on every Check (v1.1.4-S1). `consequences` replaces
+ * both lists; `success` or `failure` replaces one.
  */
 export function withEncounters(
-  fields: Partial<Pick<Encounter, 'demands' | 'aggregate' | 'skillKeys' | 'difficultyFactor'>> & {
+  fields: Partial<Pick<EncounterCheck, 'difficultyFactor'>> & {
     success?: Consequence[];
     failure?: Consequence[];
   },
   content: ContentSet = testContent,
 ): ContentSet {
-  const { success, failure, ...rest } = fields;
+  const { success, failure, difficultyFactor } = fields;
   const encounters = Object.fromEntries(
     Object.entries(content.encounters).map(([key, row]): [string, Encounter] => [
       key,
       {
         ...structuredClone(row),
-        ...structuredClone(rest),
+        checks: row.checks.map((it) => ({ ...structuredClone(it), ...(difficultyFactor === undefined ? {} : { difficultyFactor }) })),
         consequences: {
           success: structuredClone(success ?? row.consequences.success),
           failure: structuredClone(failure ?? row.consequences.failure),

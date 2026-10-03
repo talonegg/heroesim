@@ -179,9 +179,10 @@ export const help: Readonly<Record<SectionId, string>> = {
     'weighs on how often they post to the Board, and recovers toward neutral with time. Those neutral both ways are ' +
     'folded under their count.',
   'new-game':
-    'Found a Guild, name its Guildmaster, and take Quests from the Board. Under “Your Guildmaster”, set their Sex and ' +
-    'Age, choose their Traits within the Trait budget, and write their Birthplace, Appearance and Biography; whatever ' +
-    'you leave is drawn from the seed. The seed makes the world: the same seed and ' +
+    'Found a Guild, name its Guildmaster, and take Quests from the Board. Under “Your Guildmaster”, “Choose for me” ' +
+    'chooses their Sex, Age, Portrait, Stats and Traits for you; or choose their Sex, Age and Portrait yourself, share the Stat points among their ' +
+    'Stats, choose their Traits within the Trait budget or have them chosen for you, and write their Birthplace, ' +
+    'Appearance and Biography. The seed makes the world: the same seed and ' +
     'the same choices make the same game. Or load a game saved in this browser, or a save file, the CLI’s or one ' +
     'exported here.',
   game:

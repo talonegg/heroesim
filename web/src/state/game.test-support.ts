@@ -12,6 +12,7 @@ import {
   dayOf,
   defaultConfig,
   durationDaysOf,
+  estimateQuest,
   isId,
   isMilestone,
   makeId,
@@ -20,7 +21,10 @@ import {
   parseId,
   partyFor,
   playerGuild,
+  type ConsumableRequest,
+  type Degree,
   type EncounterOutcome,
+  type FormDecided,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
@@ -32,7 +36,9 @@ import {
   type MoraleBand,
   type PartyId,
   type PatronId,
+  type Quest,
   type QuestBand,
+  type QuestEstimate,
   type QuestId,
   type QuestTemplateKey,
   type RegardBand,
@@ -41,7 +47,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { gameReducer, initialGameState, type GameState, type Play } from './reducer';
+import { gameReducer, initialGameState, playDeps, type GameState, type Play } from './reducer';
 
 /** Plays `action` as the page does, accepted then settled, a fast forward step by step, outside React. */
 export function played(state: GameState, action: Play): GameState {
@@ -77,6 +83,29 @@ export function changed(state: GameState, change: (document: WorldDocument, play
   const document = structuredClone(documentOf(state));
   change(document, playerOf(document));
   return { ...state, document };
+}
+
+/**
+ * `state` with the player's first Hero holding the Hero Trait Lame, and a Trait they gained on a Quest
+ * the History names and one they lost to Lame written to the History as the engine writes them, Milestones
+ * both, at the Turn the world stands on (v1.1.4-S7): the gain as `quests-conclude.ts` emits it, naming the
+ * Hero and the Quest, the loss as `hero-state.ts` does, naming the Hero; `emit` appends the Hero's Guild
+ * to each (v1.1.4-S14).
+ */
+export function withTraitNews(state: GameState): GameState {
+  return changed(state, (document, player) => {
+    const hero = document.world.heroes[player.rosterIds[0] as HeroId];
+    if (hero === undefined) throw new Error('an empty Roster');
+    hero.traits = ['lame'];
+    const offered = document.history.entries.find((entry) => entry.type === 'quest.offered');
+    const questId = (offered?.payload as { questId: QuestId } | undefined)?.questId ?? ('quest-000001' as QuestId);
+    const labels = { [hero.id]: hero.name, [player.id]: player.name };
+    const turn = document.world.turn;
+    const gained = { heroId: hero.id, traitKey: 'scarred', questId, encounterIndex: 0, encounterKey: 'ambush-on-the-road' };
+    append(document.history, { turn, type: 'hero.trait-gained', participants: [hero.id, questId, player.id], labels, milestone: isMilestone('hero.trait-gained', gained), payload: gained });
+    const lost = { heroId: hero.id, traitKey: 'scarred', replacedBy: 'lame' };
+    append(document.history, { turn, type: 'hero.trait-lost', participants: [hero.id, player.id], labels, milestone: isMilestone('hero.trait-lost', lost), payload: lost });
+  });
 }
 
 /** The player's Guild holding `quantity` of `definitionKey` besides what it held. */
@@ -140,14 +169,17 @@ export function withRosterReleased(state: GameState, wealth = 1_000_000): GameSt
 /**
  * A Party of the player's out on the longest Quest on the Board the Roster can staff, sent by the
  * page's own dispatch: while it is out no decision is needed, so a fast forward stops when it
- * comes home (or for an offer, or at the end).
+ * comes home (or for an offer, or at the end). The Party is `partyFor`'s at the player's margin of 1,
+ * the fewest the Quest allows (v1.1.4-S6), so that Heroes stay at home to staff what comes next.
  */
 export function withPartyOut(state: GameState): GameState {
   const document = documentOf(state);
   const available = availableHeroes(document.world, playerOf(document));
+  const deps = playDeps(document);
+  const fewest = { ...deps, config: { ...deps.config, playerPartyMargin: 1 } };
   const [longest] = offeredQuests(document.world)
     .flatMap((quest) => {
-      const heroIds = partyFor(quest, available, content);
+      const heroIds = partyFor(document.world, playerOf(document), quest, available, fewest);
       return heroIds === null ? [] : [{ quest, heroIds }];
     })
     .sort((a, b) => durationDaysOf(b.quest) - durationDaysOf(a.quest));
@@ -155,6 +187,16 @@ export function withPartyOut(state: GameState): GameState {
   const sent = played(state, { kind: 'dispatch', questId: longest.quest.id, heroIds: longest.heroIds });
   if (sent.rejection !== null) throw new Error(`dispatch refused: ${sent.rejection.reason}`);
   return sent;
+}
+
+/**
+ * S5's estimate for `heroIds` of `state`'s player on `questId`, carrying `carried` (v1.1.4-S6): for a
+ * view's test to hold the page's chances to, since a view imports no engine value.
+ */
+export function estimateOf(state: GameState, questId: QuestId, heroIds: readonly HeroId[], carried: ConsumableRequest[] = []): QuestEstimate | null {
+  const document = documentOf(state);
+  const quest = document.world.quests[questId] as Quest;
+  return estimateQuest(document.world, quest, heroIds.map((id) => document.world.heroes[id] as Hero), playDeps(document), carried);
 }
 
 /** `state` once a Party of the player's has come home: `withPartyOut`, then fast forward until it stops for it. */
@@ -189,12 +231,25 @@ export interface ReturnTold {
   wealth?: number;
   fame?: number;
   xp?: number;
-  encounters?: readonly { encounterKey?: string; outcome: EncounterOutcome; injured?: readonly number[]; died?: readonly number[] }[];
+  /**
+   * The Encounters, each written as before v1.1.4-S2, with no Degree, unless it is told one: then as
+   * since, decided by its one Check; form decided it, and so the Encounter, when it is told so (v1.1.4-S3).
+   */
+  encounters?: readonly {
+    encounterKey?: string;
+    outcome: EncounterOutcome;
+    degree?: Degree;
+    formDecided?: FormDecided;
+    injured?: readonly number[];
+    died?: readonly number[];
+  }[];
   /** Consumables used, each a bonus to an Encounter's Check, or a heal of a Hero's Injury. */
   used?: readonly ({ definitionKey: ItemDefinitionKey; encounterIndex: number } | { definitionKey: ItemDefinitionKey; heal: number; days: number })[];
   loot?: readonly { definitionKey: ItemDefinitionKey; quantity: number }[];
   injuries?: readonly { hero: number; typeKey: InjuryTypeKey; healsOnTurn: number }[];
   deaths?: readonly number[];
+  /** The Traits the Party's Heroes earned, each from an Encounter of the sequence (v1.1.4-S7). */
+  traits?: readonly { hero: number; traitKey: string; encounterIndex: number }[];
   /** Morale the return moved, each change as the Hero State Engine records it; a Hero outside the Party by their id. */
   morale?: readonly { hero: number | HeroId; cause: 'encounters' | 'strong-success' | 'roster-death'; before: number; after: number; bandAfter: MoraleBand }[];
   /** The Patron's Regard for the Guild crossing into a new band on the return. */
@@ -260,9 +315,12 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
     const deaths = (told.deaths ?? []).map(hero);
     const survivors = heroIds.filter((id) => !deaths.includes(id));
 
-    (told.encounters ?? []).forEach(({ encounterKey = Object.keys(content.encounters)[0] ?? '', outcome, injured = [], died = [] }, index) => {
+    (told.encounters ?? []).forEach(({ encounterKey = Object.keys(content.encounters)[0] ?? '', outcome, degree, formDecided, injured = [], died = [] }, index) => {
       const hurt = injured.map(hero);
       const killed = died.map(hero);
+      const rolled = { roll: 10, target: 10, margin: 0 };
+      // Decided by the Encounter's first Check, as the resolver names it (v1.1.4-S2).
+      const decidedBy = content.encounters[encounterKey]?.checks[0]?.key ?? encounterKey;
       write('quest.encounter', [questId, partyId, guildId, ...hurt, ...killed], {
         questId,
         partyId,
@@ -270,10 +328,16 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
         index,
         encounterKey,
         kind: 'combat',
-        roll: 10,
-        target: 10,
-        margin: 0,
+        ...rolled,
         outcome,
+        ...(degree === undefined
+          ? {}
+          : {
+              degree,
+              decidedBy,
+              ...(formDecided === undefined ? {} : { formDecided }),
+              checks: [{ key: decidedBy, capability: 10, ...rolled, degree, ...(formDecided === undefined ? {} : { formDecided }) }],
+            }),
         injured: hurt,
         died: killed,
       });
@@ -312,6 +376,11 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
       write('hero.injured', [hero(at), questId], { heroId: hero(at), questId, typeKey, healsOnTurn });
     }
     for (const heroId of deaths) write('hero.died', [heroId, questId], { heroId, questId });
+    for (const { hero: at, traitKey, encounterIndex } of told.traits ?? []) {
+      const encounterKey = told.encounters?.[encounterIndex]?.encounterKey ?? Object.keys(content.encounters)[0] ?? '';
+      write('hero.trait-gained', [hero(at), questId], { heroId: hero(at), traitKey, questId, encounterIndex, encounterKey });
+      world.heroes[hero(at)]?.traits.push(traitKey);
+    }
     for (const heroId of survivors) write('hero.xp-gained', [heroId, questId], { heroId, questId, amount: told.xp ?? 0 });
     for (const { hero: at, cause, before, after, bandAfter } of told.morale ?? []) {
       write('hero.morale-changed', [hero(at), questId], { heroId: hero(at), cause, questId, before, after, bandBefore: 'steady', bandAfter });

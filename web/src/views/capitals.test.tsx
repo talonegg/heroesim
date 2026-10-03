@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { content } from '../content';
-import { cameHome, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withWorldNews, type Named } from '../state/game.test-support';
+import { cameHome, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withTraitNews, withWorldNews, type Named } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { poolView } from '../state/trade-views';
 import { closeMenu, openGuildPart, openMenu, openView, rosterList, section, time, type GuildPartName, type ViewName } from './page.test-support';
@@ -145,7 +145,8 @@ function busyGame(): { state: GameState; gone: Named[] } {
     guildmaster.traits = [];
   });
   // One Hero of the pool signed after the Party left, so one is at the Hall.
-  const out = withPartyOut(changed6);
+  // v1.1.4-S7: a Hero Trait with its effects on the page, and a Trait gained and one lost in the History.
+  const out = withPartyOut(withTraitNews(changed6));
   const signing = poolView(out.document as WorldDocument).rows.find((row) => row.willSign === true);
   if (signing === undefined) throw new Error('no Hero in the pool who signs');
   const recruited = played(out, { kind: 'recruit', heroId: signing.heroId });
@@ -189,6 +190,16 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     const [choose] = within(board).getAllByRole('button', { name: 'Choose a Party' });
     fireEvent.click(choose as HTMLElement);
     reader.read('The Party builder');
+    // With a Hero chosen, its Morale line too (v1.1.4-S3).
+    const [pick] = within(board).getAllByRole('checkbox').filter((box) => !(box as HTMLInputElement).disabled);
+    fireEvent.click(pick as HTMLElement);
+    expect(within(board).getByTestId('party-morale')).toBeDefined();
+    // And its chances, a word each, with the numbers in the detail, opened (v1.1.4-S6).
+    expect(within(board).getAllByTestId('best-party').length).toBeGreaterThan(0);
+    expect(within(board).getAllByTestId('encounters').length).toBeGreaterThan(0);
+    expect(within(board).getByTestId('chances')).toBeDefined();
+    fireEvent.click(within(within(board).getByTestId('chance-numbers')).getByText('The numbers, if no one falls'));
+    reader.read('The Party builder, a Hero chosen');
 
     // A Rival Guild's page, its Hall and Guildmaster.
     const guilds = section('Guilds');
@@ -240,24 +251,37 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     const reader = new Reader([]);
     for (const summary of Array.from(document.querySelectorAll('summary'))) fireEvent.click(summary);
     reader.read('The new-game form');
+    // v1.1.4-S11: "Choose myself", before a sex is chosen and after, with its Stats, a point left unspent,
+    // and what it still needs beside "Start the game".
+    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Lantern' } });
+    fireEvent.change(screen.getByLabelText('Guildmaster’s name'), { target: { value: 'Ada Vell' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Choose myself' }));
+    expect(screen.getByTestId('portrait-unsexed')).toBeDefined();
+    reader.read('The new-game form, "Choose myself"');
+    fireEvent.change(screen.getByLabelText('Sex'), { target: { value: 'male' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lower Coaching' }));
+    expect(screen.getByTestId('stat-points-unspent')).toBeDefined();
+    expect(screen.getByTestId('setup-hint').textContent).toMatch(/^Choose your Guildmaster's /);
+    reader.read('The new-game form, "Choose myself", a sex chosen and a Stat point unspent');
 
     expect(reader.checked).toBeGreaterThan(20);
     expect(reader.failures).toEqual([]);
   });
 
-  // v1.1.3-S7: the setup grid's buttons and "Drawn from the seed", and a note beside a Portrait chosen.
+  // v1.1.3-S7: the setup grid, and a note beside a Portrait chosen; since v1.1.4-S11 with "Choose myself".
   test('in the setup grid, with a note beside a Portrait chosen', () => {
     render(<App />);
     const reader = new Reader([]);
     for (const summary of Array.from(document.querySelectorAll('summary'))) fireEvent.click(summary);
     fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'capitals' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Choose myself' }));
     fireEvent.change(screen.getByLabelText('Sex'), { target: { value: 'female' } });
     fireEvent.change(screen.getByLabelText('Age'), { target: { value: '21' } });
     const portrait = screen.getByRole('group', { name: 'Portrait' });
     const radios = within(portrait).getAllByRole('radio');
     // Each picture chosen in turn, so that the notes of every kind they give are read.
     let noted = 0;
-    for (const radio of radios.slice(1)) {
+    for (const radio of radios) {
       fireEvent.click(radio);
       if (screen.queryByTestId('portrait-notes') !== null) noted += 1;
       reader.read(`The setup grid, ${radio.closest('label')?.textContent ?? ''} chosen`);
@@ -268,24 +292,24 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     expect(reader.failures).toEqual([]);
   });
 
-  // v1.1.3-S8: with the sex drawn, the grid's Female and Male buttons; and with a Trait chosen that a
-  // Calling clashes with, the note of a Calling, each picture of both sexes chosen in turn.
-  test('in the setup grid with the sex drawn, its buttons, and a Calling that clashes with a Trait chosen', () => {
+  // v1.1.3-S8: with a Trait chosen that a Calling clashes with, the note of a Calling, each picture of
+  // both sexes chosen in turn (since v1.1.4-S11, each sex chosen in its field).
+  test('in the setup grid, each sex chosen, and a Calling that clashes with a Trait chosen', () => {
     const clashing = Object.values(content.descriptions.callings).find((calling) => calling.clashes.length > 0);
-    const traitName = content.traits[clashing?.clashes[0] ?? '']?.name;
+    const traitName = content.guildmasterTraits[clashing?.clashes[0] ?? '']?.name;
     if (traitName === undefined) throw new Error('no Calling clashes with a Trait');
     render(<App />);
     const reader = new Reader([]);
     for (const summary of Array.from(document.querySelectorAll('summary'))) fireEvent.click(summary);
     fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'capitals' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Choose myself' }));
     fireEvent.click(within(screen.getByRole('group', { name: 'Traits' })).getByRole('radio', { name: 'Choose them' }));
     fireEvent.click(screen.getByRole('checkbox', { name: new RegExp(`^${traitName}\\b`) }));
-    const shown = screen.getByRole('group', { name: 'Pictures shown' });
     let clashes = 0;
     for (const sex of ['Female', 'Male']) {
-      fireEvent.click(within(shown).getByRole('button', { name: sex }));
+      fireEvent.change(screen.getByLabelText('Sex'), { target: { value: sex.toLowerCase() } });
       const radios = within(screen.getByRole('group', { name: 'Portrait' })).getAllByRole('radio');
-      for (const radio of radios.slice(1)) {
+      for (const radio of radios) {
         fireEvent.click(radio);
         if (/clashes with the Trait/.test(screen.queryByTestId('portrait-notes')?.textContent ?? '')) clashes += 1;
         reader.read(`The setup grid, ${sex} shown, ${radio.closest('label')?.textContent ?? ''} chosen`);
@@ -376,7 +400,7 @@ describe('the words DL-125 item 9 settled, where the guard reads no failure to s
 
   test('the terms in the help and the new-game form', () => {
     render(<App />);
-    expect(screen.getByText('Sex, Age, Portrait and Traits, or drawn from the seed, and a few words about them')).toBeDefined();
+    expect(screen.getByText('Chosen for you, or choose their Sex, Age, Portrait, Stats and Traits, and a few words about them')).toBeDefined();
     cleanup();
 
     render(<App initial={started('capitals')} />);

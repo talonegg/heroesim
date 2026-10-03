@@ -1,23 +1,28 @@
 // The Board with the Party builder (M7-S3; M9-S4, DL-104; the CLI's `show board`, `preview` and
 // `dispatch`). Each Quest on offer is a compact card of two lines: its name and Patron, then chips
 // for its difficulty, the Days it takes, its reward, its Fame, its Party size, what else it needs
-// and the Day it leaves the Board, marked when that is today (the review's B2). Its name unfolds it:
-// the Demands as bars of their weights, the Skills that help, the Encounters counted by kind, and
-// its difficulty on a meter placed against the Quests on the Board now, display only (C5, C6). The
+// and the Day it leaves the Board, marked when that is today (the review's B2); then "Your best
+// Party" with a chance word, the Party the engine would send from the free Heroes (v1.1.4-S6, DL-148
+// items 15 and 17). Its name unfolds it: its Encounters, each Check's name and what it reads, in
+// place of the template's demands (v1.1.4-S6, DL-148 item 16), the Skills that help, and its
+// difficulty on a meter placed against the Quests on the Board now, display only (C5, C6). The
 // player may order the Board by reward, difficulty or the Day each leaves, display only too, and the
 // order is kept in this browser, as the pool's is (DL-109 item 2, Q11). The Fame chip reads "Fame
 // ±2", its title saying it is won on a success and lost on a failure (Q9).
 //
 // "Choose a Party" opens the builder (DL-99 item 3, the review's C4): each Hero on the Roster as a
-// row saying whether they can go, and when not why and until when, their Class and Level, their
-// Morale and its band, the effective values of the Stats the Quest demands, and the Skills it names
-// that they have. A row opens the Hero's page in place of the Board; "Back to the Party" returns to
+// row saying whether they can go, and when not why and until when, their Class and Level, the
+// effective values of the Stats the Quest's Checks read, and the Skills it names that they have; no Hero's
+// Morale (v1.1.4-S3's verification, DL-148 item 12). A row opens the Hero's page in place of the Board; "Back to the Party" returns to
 // the builder with the Party and the consumables as they were chosen. The choice is the shell's, kept
 // by Quest (`state/party-choices.ts`), so it holds when the player leaves the Board too, until the
 // Party is sent, its Quest leaves the Board, or another game is started or loaded (Q16). The requirements are a
 // checklist, and dispatch's own verdict (`previewDispatch`, DL-66 item 2) a banner at the foot of the
 // form, beside Send, which stays in view while the form scrolls. Once sent, the card becomes a
-// "Party out" card naming who went and the night they return (E1). No fit score and no odds.
+// "Party out" card naming who went and the night they return (E1). No fit score, but one Morale line
+// for the Party chosen, worded from its mean form and naming no Hero (v1.1.4-S3, DL-148 item 12), and
+// a chance word for each Encounter and the Quest, each percentage floored to 5 in the detail, "if no one
+// falls" (v1.1.4-S6, DL-148 item 15).
 //
 // Every number and judgement comes from a selector (`boardView`, `partyRows`, `consumableChoices`,
 // `previewView`, `sentView`): nothing here computes a rule.
@@ -27,11 +32,13 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { choiceFor, type PartyChoice, type PartyChoices } from '../state/party-choices';
 import type { GameAction, GameState } from '../state/reducer';
 import {
+  bestPartyView,
   boardView,
   consumableChoices,
   partyRows,
   previewView,
   sentView,
+  type BestPartyView,
   type BoardOrder,
   type PartyRow,
   type QuestCard,
@@ -40,7 +47,7 @@ import {
 import { HeroPage } from './hero-page';
 import { Icon, type IconName } from './icons';
 import { View } from './section';
-import { Banner, Chip, moraleTones, Stepper, VisuallyHidden } from './ui';
+import { Banner, Chip, Stepper, VisuallyHidden } from './ui';
 
 /** The orders the player may choose, in the words the control shows. */
 const orders: readonly (readonly [BoardOrder, string])[] = [
@@ -63,6 +70,7 @@ const encounterIcons: Readonly<Record<EncounterKind, IconName>> = {
   social: 'social',
   arcane: 'arcane',
   stealth: 'stealth',
+  lore: 'lore',
 };
 
 export function Board({
@@ -94,6 +102,8 @@ export function Board({
   onGuild: () => void;
 }) {
   const cards = useMemo(() => boardView(document, order), [document, order]);
+  // "Your best Party" for each card, the Board's alone, worked out once for each document.
+  const bests = useMemo(() => bestPartyView(document), [document]);
   const sent = useMemo(() => sentView(state), [state]);
   const [unfolded, setUnfolded] = useState<ReadonlySet<QuestId>>(() => new Set());
   // A Hero's page opened from the builder of the Quest open, in place of the Board.
@@ -182,6 +192,7 @@ export function Board({
             <li key={item.card.questId}>
               <Quest
                 card={item.card}
+                best={bests.get(item.card.questId)}
                 unfolded={unfolded.has(item.card.questId) || open === item.card.questId}
                 open={open === item.card.questId}
                 onUnfold={() => unfold(item.card.questId)}
@@ -227,6 +238,7 @@ function sentHeadingId(questId: QuestId): string {
 
 function Quest({
   card,
+  best,
   unfolded,
   open,
   onUnfold,
@@ -234,6 +246,8 @@ function Quest({
   children,
 }: {
   card: QuestCard;
+  /** "Your best Party" for the Quest (`bestPartyView`); `undefined` for none worked out, read as none. */
+  best: BestPartyView | undefined;
   unfolded: boolean;
   open: boolean;
   onUnfold: () => void;
@@ -295,6 +309,15 @@ function Quest({
             )}
           </li>
         </ul>
+        <p className="quest__best" data-testid="best-party">
+          {best === null || best === undefined ? (
+            'No Party of your free Heroes meets its requirements.'
+          ) : (
+            <>
+              Your best Party: <strong>{best.chance ?? 'not known until its Encounters are drawn'}</strong>, {best.names}
+            </>
+          )}
+        </p>
         <button type="button" className={open ? 'button--quiet quest__choose' : 'quest__choose'} aria-expanded={open} onClick={onChoose}>
           {open ? <Icon name="close" /> : <Icon name="roster" />}
           <span>{open ? 'Close' : 'Choose a Party'}</span>
@@ -306,24 +329,38 @@ function Quest({
   );
 }
 
-/** What unfolds under a card: the Demands, the Skills that help, the Encounters and the difficulty on its meter. */
+/** What unfolds under a card: the Encounters and what each Check reads, the Skills that help, and the difficulty on its meter. */
 function Details({ card, id }: { card: QuestCard; id: string }) {
   const { meter } = card;
   return (
     <div className="quest__details" id={id}>
-      <div className="quest__detail">
-        <h4>Demands</h4>
-        <ul className="demands">
-          {card.demands.map((demand) => (
-            <li key={demand.stat}>
-              <span className="demand__stat">{demand.stat}</span>
-              <span className="demand__bar" aria-hidden="true">
-                <span style={{ width: `${demand.percent}%` }} />
-              </span>
-              <span className="demand__share">{demand.percent}%</span>
-            </li>
-          ))}
-        </ul>
+      <div className="quest__detail quest__reads">
+        <h4>Encounters</h4>
+        {card.encounters.length === 0 ? (
+          <p className="subtle">Drawn on the way</p>
+        ) : (
+          <ol className="reads" data-testid="encounters">
+            {card.encounters.map((encounter, index) => (
+              <li key={index}>
+                <span className="reads__name">
+                  {encounter.kind === null ? null : <Icon name={encounterIcons[encounter.kind]} />}
+                  {encounter.name}
+                </span>
+                {encounter.one ? (
+                  <p>Reads {encounter.checks[0]?.reads}</p>
+                ) : (
+                  <ul>
+                    {encounter.checks.map((check) => (
+                      <li key={check.key}>
+                        {check.name}: {check.reads}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
       <div className="quest__detail">
         <h4>Skills that help</h4>
@@ -334,20 +371,6 @@ function Details({ card, id }: { card: QuestCard; id: string }) {
             {card.skills.map((skill) => (
               <li key={skill}>
                 <Chip>{skill}</Chip>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <div className="quest__detail">
-        <h4>Encounters</h4>
-        {card.encounters.length === 0 ? (
-          <p className="subtle">Drawn on the way</p>
-        ) : (
-          <ul className="chips">
-            {card.encounters.map((encounter) => (
-              <li key={encounter.words}>
-                <Chip {...(encounter.kind === null ? {} : { icon: encounterIcons[encounter.kind] })}>{encounter.words}</Chip>
               </li>
             ))}
           </ul>
@@ -481,6 +504,34 @@ function Builder({
               <li key={synergy}>{synergy}</li>
             ))}
           </ul>
+          {preview.morale === null ? null : (
+            <>
+              <h4>Morale</h4>
+              <p data-testid="party-morale">{preview.morale}</p>
+            </>
+          )}
+          {preview.chances === null ? null : (
+            <>
+              <h4>Chances</h4>
+              <ul data-testid="chances">
+                {[...preview.chances.encounters, preview.chances.quest].map((line, index) => (
+                  <li key={index}>
+                    {line.name}: <strong>{line.chance}</strong>
+                  </li>
+                ))}
+              </ul>
+              <details data-testid="chance-numbers">
+                <summary>The numbers, if no one falls</summary>
+                <ul>
+                  {[...preview.chances.encounters, preview.chances.quest].map((line, index) => (
+                    <li key={index}>
+                      {line.name}: {line.percent}%
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </>
+          )}
           <h4>Consumables</h4>
           <ul>
             {preview.consumables.map((consumable) => (
@@ -529,9 +580,6 @@ function HeroRow({ row, chosen, onToggle, onOpen }: { row: PartyRow; chosen: boo
             {row.unavailable}
           </Chip>
         )}
-        <Chip tone={moraleTones[row.moraleBand]} icon="morale">
-          Morale {row.morale}, {row.moraleBand}
-        </Chip>
         {row.skills.map((skill) => (
           <Chip key={skill.name} tone="accent">
             {skill.name} {skill.rating}

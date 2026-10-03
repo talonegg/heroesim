@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { availableParallelism } from 'node:os';
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
@@ -14,7 +15,7 @@ import {
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { playReport, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { defaultWorkers, playReport, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (M2-S12, DL-34).
@@ -28,6 +29,23 @@ function tickingClock(): () => number {
   let t = 0;
   return () => (t += 1);
 }
+
+// v1.1.4-S10: a sweep plays fewer games at once when HEROESIM_WORKERS says so, on a machine short of memory.
+describe('defaultWorkers', () => {
+  test('plays on half the logical processors when HEROESIM_WORKERS is unset or blank, and on its count when set', () => {
+    const half = Math.max(1, Math.floor(availableParallelism() / 2));
+    expect(defaultWorkers(undefined)).toBe(half);
+    expect(defaultWorkers(' ')).toBe(half);
+    expect(defaultWorkers('8')).toBe(8);
+    expect(defaultWorkers(' 1 ')).toBe(1);
+  });
+
+  test('refuses a count that is not a whole number from 1', () => {
+    for (const value of ['0', '-2', '2.5', 'eight']) {
+      expect(() => defaultWorkers(value)).toThrow(`HEROESIM_WORKERS must be a whole number from 1, not ${JSON.stringify(value)}`);
+    }
+  });
+});
 
 describe('sweepPlay', () => {
   const seeds = seedNames(2);
@@ -66,6 +84,18 @@ describe('sweepPlay', () => {
     expect(played(parallel)).toEqual(played(sweep));
     expect(parallel.advance.count).toBe(120);
     expect(parallel.replay).toMatchObject({ seed: 'seed-0001', identical: true, length: sweep.replay?.length });
+  });
+
+  // v1.1.4-S10: each seed is a child of its own, at most `workers` at once, the next as one ends.
+  test('plays the same games with more seeds than processes, one seed a child, and skips the replay when asked', { timeout: 120_000 }, async () => {
+    const three = seedNames(3);
+    const serial = sweepPlay(three, deps, { years, replay: false });
+    const parallel = await sweepPlayInParallel(three, deps, { years, workers: 2, replay: false });
+    expect(serial.replay).toBeNull();
+    expect(parallel.replay).toBeNull();
+    expect(parallel.workers).toBe(2);
+    expect(parallel.games.map((game) => [game.seed, game.measures.fingerprint])).toEqual(serial.games.map((game) => [game.seed, game.measures.fingerprint]));
+    expect(parallel.advance.count).toBe(180);
   });
 
   test("totals the games' counters", () => {
@@ -192,6 +222,32 @@ describe('sweepPlay', () => {
     expect(report).toContain('| Back to it or more (`guild.floor-recovered`) | 1 | 0.50 | 4 | 2.00 |');
   });
 
+  test("totals and renders v1.1.4-S10's Party sizes with the XP each Hero took, and the Traits earned by key (DL-148 item 19)", () => {
+    const games = sweep.games.map((game) => ({
+      ...game,
+      counters: {
+        ...game.counters,
+        partySizes: {
+          player: { 2: { quests: 2, fail: 1, strong: 1, xpPerHero: 90, heroesHome: 3, xpTaken: 150 } },
+          rival: { 1: { quests: 1, fail: 0, strong: 0, xpPerHero: 40, heroesHome: 1, xpTaken: 40 } },
+        },
+        traitsGainedByKey: { player: { lame: 1 }, rival: {} },
+      },
+    }));
+    const parties = { ...sweep, games };
+    const summed = sweepTotals(parties, deps.config.turnsPerYear);
+
+    expect(summed.partySizes.player).toEqual({ 2: { quests: 4, fail: 2, strong: 2, xpPerHero: 180, heroesHome: 6, xpTaken: 300 } });
+    expect(summed.traitsGainedByKey).toEqual({ player: { lame: 2 }, rival: {} });
+    const report = playReport(parties, { deps, machine: machine(), startedAt: new Date(2026, 9, 3, 12), milestone: 'm9-v114-s10' });
+    expect(report).toContain('| Controller: Party size | Quests resolved | Failed | Strong | XP a Hero | XP the Party took |');
+    expect(report).toContain("| The player's Guild: 2 | 4 (100.0%) | 50.0% | 50.0% | 45.0 | 75.0 |");
+    expect(report).toContain("| The player's Guild: every size (mean 2.00) | 4 (100.0%) | 50.0% | 50.0% | 45.0 | 75.0 |");
+    expect(report).toContain('| The Rivals: 1 | 2 (100.0%) | 0.0% | 0.0% | 40.0 | 40.0 |');
+    expect(report).toContain('| `lame` | 2 | 0 |');
+    expect(report).toContain('| `scarred` | 0 | 0 |');
+  });
+
   test("totals and renders v1.1.3-S5's Portrait counters, by controller and in all (DL-134 item 9)", () => {
     const games = sweep.games.map((game) => ({
       ...game,
@@ -274,6 +330,18 @@ describe('sweepPlay', () => {
 
     test("gives the sweep's fingerprint, so two runs' saves compare in one line (M8-S1, DL-76)", () => {
       expect(report).toContain(`| Fingerprint of every seed's last save | \`${sweepFingerprint(sweep.games)}\` |`);
+    });
+
+    test('names the draft content files it played in place of the core files, and none when it played the core (v1.1.4-S9)', () => {
+      expect(report).toContain(` · content \`core\` version ${deps.content.version} · config version`);
+      const drafted = playReport(sweep, { ...context, drafted: ['encounters.json', 'items.json'] });
+      expect(drafted).toContain(` · content \`core\` version ${deps.content.version} with the drafts of \`encounters.json\`, \`items.json\` · config version`);
+    });
+
+    test('names the config it changed from the defaults, and nothing when it changed none (v1.1.4-S9 verification)', () => {
+      expect(report).toContain(`schema version ${deps.config.schemaVersion} · \`createdAt`);
+      const changed = playReport(sweep, { ...context, configured: { checkVariance: 0.4, marketSize: 14 } });
+      expect(changed).toContain(`schema version ${deps.config.schemaVersion}, the defaults changed by \`{"checkVariance":0.4,"marketSize":14}\` · \`createdAt`);
     });
 
     test('states the seeds, the endings, byte equality and the measures against the targets', () => {

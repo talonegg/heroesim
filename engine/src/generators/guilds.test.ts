@@ -68,7 +68,7 @@ describe('generateGuild', () => {
         expect(guildmaster.ageAtEntry).toBeGreaterThanOrEqual(deps.config.guildmasterStartingAgeMin);
         expect(guildmaster.ageAtEntry).toBeLessThanOrEqual(deps.config.guildmasterStartingAgeMax);
         expect(new Set(guildmaster.traits).size).toBe(guildmaster.traits.length);
-        for (const key of guildmaster.traits) expect(deps.content.traits[key]?.owner).toBe('guildmaster');
+        for (const key of guildmaster.traits) expect(Object.keys(deps.content.guildmasterTraits)).toContain(key);
         traitCounts.add(guildmaster.traits.length);
       }
     }
@@ -264,11 +264,11 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-1
   }
 
   const costOf = (deps: ReturnType<typeof testDeps>, keys: readonly string[]): number =>
-    keys.reduce((sum, key) => sum + (deps.content.traits[key]?.cost ?? Number.NaN), 0);
+    keys.reduce((sum, key) => sum + (deps.content.guildmasterTraits[key]?.cost ?? Number.NaN), 0);
 
-  test('the budget is guildmasterTraitBudget, 1 by default, under configVersion 12 (DL-102, DL-113)', () => {
+  test('the budget is guildmasterTraitBudget, 1 by default, under configVersion 13 (DL-102, DL-113, DL-152)', () => {
     expect(testDeps().config).toMatchObject({ guildmasterTraitBudget: 1, guildmasterTraitsMin: 0, guildmasterTraitsMax: 2 });
-    expect(testDeps().config.configVersion).toBe(12);
+    expect(testDeps().config.configVersion).toBe(13);
   });
 
   test('every drawn Guildmaster keeps within the budget and holds no excluded pair, and 0, 1 and 2 Traits are all drawn', () => {
@@ -279,8 +279,8 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-1
     for (const { traits } of drawn) {
       expect(costOf(deps, traits), traits.join(' ')).toBeLessThanOrEqual(1);
       for (const key of traits) {
-        expect(deps.content.traits[key]?.owner).toBe('guildmaster');
-        for (const other of traits) expect(deps.content.traits[key]?.excludes, `${key} and ${other}`).not.toContain(other);
+        expect(Object.keys(deps.content.guildmasterTraits)).toContain(key);
+        for (const other of traits) expect(deps.content.guildmasterTraits[key]?.excludes, `${key} and ${other}`).not.toContain(other);
       }
       expect(new Set(traits).size).toBe(traits.length);
       held.add([...traits].sort().join(' '));
@@ -322,7 +322,7 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-1
 
   test("a set's Traits are held in the content's Trait order, whichever were drawn", () => {
     const deps = testDeps();
-    const order = Object.keys(deps.content.traits).sort();
+    const order = Object.keys(deps.content.guildmasterTraits).sort();
     for (const { traits } of guildmasters(deps, 200)) {
       expect(traits).toEqual([...traits].sort((a, b) => order.indexOf(a) - order.indexOf(b)));
     }
@@ -362,7 +362,7 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-1
     const base = testDeps();
     const deps = testDeps({ guildmasterTraitsMin: 1, guildmasterTraitsMax: 1 }, {
       ...base.content,
-      traits: Object.fromEntries(Object.entries(base.content.traits).filter(([key, trait]) => trait.owner === 'hero' || key === 'old-soldier')),
+      guildmasterTraits: Object.fromEntries(Object.entries(base.content.guildmasterTraits).filter(([key]) => key === 'old-soldier')),
     });
     const world = testWorld('draw-count', deps);
     const twin = structuredClone(world.rng.generation);
@@ -378,7 +378,7 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-1
     const deps = testDeps();
     const free = testDeps({}, {
       ...deps.content,
-      traits: Object.fromEntries(Object.entries(deps.content.traits).map(([key, trait]) => [key, { ...trait, cost: 0, excludes: [] }])),
+      guildmasterTraits: Object.fromEntries(Object.entries(deps.content.guildmasterTraits).map(([key, trait]) => [key, { ...trait, cost: 0, excludes: [] }])),
     });
     const priced = testWorld('fixed', deps);
     const unpriced = testWorld('fixed', free);

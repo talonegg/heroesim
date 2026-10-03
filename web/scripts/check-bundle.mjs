@@ -36,9 +36,9 @@
  * a browser build, so the "node:" pattern here cannot see it. vite.config.ts refuses that build
  * instead (DL-74).
  *
- * It also refuses a script over 800 kB (v1.1.3-S7, DL-134 item 9), naming its size: the page is one
- * script, which holds the content and every picture's address, and is read whole before it shows
- * anything.
+ * It also refuses a script over 850 kB (v1.1.3-S7, DL-134 item 9; 800 kB until DL-166), naming its
+ * size: the page is one script, which holds the content and every picture's address, and is read
+ * whole before it shows anything.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -77,11 +77,12 @@ const FORBIDDEN = [
 const CHECKED_EXTENSIONS = new Set(['.js', '.mjs', '.css', '.html']);
 
 /**
- * The most a script may be, in bytes (v1.1.3-S7, DL-134 item 9): 800 kB, so that the one script,
- * which holds the content and every picture's address, stays as quick to open as the page is. A
- * stylesheet or the page itself is not held to it.
+ * The most a script may be, in bytes (v1.1.3-S7, DL-134 item 9): 850 kB, raised from 800 kB by the
+ * owner when S10's content left 145 bytes (DL-166), so that the one script, which holds the content
+ * and every picture's address, stays as quick to open as the page is. A stylesheet or the page
+ * itself is not held to it.
  */
-const SCRIPT_LIMIT_BYTES = 800_000;
+const SCRIPT_LIMIT_BYTES = 850_000;
 const SCRIPT_EXTENSIONS = new Set(['.js', '.mjs']);
 
 function filesUnder(directory) {

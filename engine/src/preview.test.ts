@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import { dispatch, dispatchRefusal, type DispatchRequest } from './actions/dispatch.js';
+import type { Encounter, NumQuery } from './content-types.js';
 import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from './document.js';
 import { guildmasterOf, negotiatedReward } from './guildmaster.js';
 import { addStack } from './items.js';
-import { previewDispatch, skillsThatHelp } from './preview.js';
+import { previewDispatch, skillsThatHelp, statsRead } from './preview.js';
+import { estimateQuest } from './quest-engine/estimate.js';
+import { queryParty } from './quest-engine/query.js';
 import { synergiesFor } from './quest-engine/synergy.js';
 import { serialise } from './serialise.js';
 import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
@@ -101,8 +104,42 @@ describe('previewDispatch', () => {
 
     // A Rogue and a Mage: shadow-and-spell, on stealth and arcane Encounters, one of these three.
     expect(preview?.encounterKinds).toEqual(['combat', 'travel', 'stealth']);
-    expect(preview?.synergies.map(({ synergy }) => synergy.key)).toEqual(synergiesFor(heroes, testContent).map((it) => it.key));
+    expect(preview?.synergies.map(({ synergy }) => synergy.key)).toEqual(synergiesFor(queryParty(heroes, world, deps), testContent).map((it) => it.key));
     expect(preview?.synergies.find(({ synergy }) => synergy.key === 'shadow-and-spell')?.encounters).toBe(1);
+  });
+
+  test("gives the Party's mean form as it sets out and what it does to the odds, for the Party, and none for no one (v1.1.4-S3)", () => {
+    const setting = proposal();
+    const { world } = setting.document;
+    const party = [setting.rogue, setting.mage];
+    const at = (morales: [number, number]) => {
+      party.forEach((id, index) => ((world.heroes[id] as Hero).morale = morales[index] as number));
+      return previewDispatch(world, request(setting, party), deps)?.form;
+    };
+    const { moraleCheckFactor: factor } = deps.config;
+
+    expect(at([60, 60])).toEqual({ mean: 1, effect: 'none' });
+    expect(at([95, 60])).toEqual({ mean: (factor.elated + 1) / 2, effect: 'raises' });
+    expect(at([30, 60])).toEqual({ mean: (factor.low + 1) / 2, effect: 'lowers-a-little' });
+    expect(at([10, 30])).toEqual({ mean: (factor.wretched + factor.low) / 2, effect: 'lowers-badly' });
+    expect(previewDispatch(world, request(setting, []), deps)?.form).toBeNull();
+  });
+
+  test('gives the chance estimate for the Party carrying what it would carry, and none for no one or Encounters drawn on the way (v1.1.4-S6)', () => {
+    const setting = proposal();
+    const { world } = setting.document;
+    const party = [setting.rogue, setting.mage];
+    const heroes = party.map((id) => world.heroes[id] as Hero);
+    const carried = [{ definitionKey: 'whetstone', quantity: 1 }];
+
+    const preview = previewDispatch(world, request(setting, party, carried), deps);
+
+    expect(preview?.chances).toEqual(estimateQuest(world, setting.quest, heroes, deps, carried));
+    expect(preview?.chances?.encounters.map((it) => it.encounterKey)).toEqual(setting.quest.encounterKeys);
+    expect(preview?.chances?.ifNoOneFalls).toBe(true);
+    expect(previewDispatch(world, request(setting, []), deps)?.chances).toBeNull();
+    setting.quest.encounterKeys = [];
+    expect(previewDispatch(world, request(setting, party), deps)?.chances).toBeNull();
   });
 
   test('counts every Encounter for a Synergy of every kind, and none while a Quest\'s Encounters are drawn on the way', () => {
@@ -213,5 +250,27 @@ describe('skillsThatHelp', () => {
 
     expect(skillsThatHelp({ ...quest, encounterKeys: [], skillKeys: ['swordcraft', 'no-such-skill'] }, testContent)).toEqual(['swordcraft']);
     expect(skillsThatHelp({ ...quest, encounterKeys: ['no-such-encounter', 'the-flooded-ford'] }, testContent)).toEqual(['tactics']);
+  });
+});
+
+// v1.1.4-S6 (DL-148 item 16): the Stats the Party builder shows, in place of the template's demands.
+describe('statsRead', () => {
+  test("names each Hero Stat the Quest's Encounters' Checks read, once, in the order it meets them", () => {
+    const { quest } = proposal();
+
+    // ambush-on-the-road: weaponry, strength; the-long-march: endurance, constitution; past-the-watch: stealth's Stats.
+    const read = statsRead(quest, testContent);
+    expect(read.slice(0, 4)).toEqual(['weaponry', 'strength', 'endurance', 'constitution']);
+    expect(new Set(read).size).toBe(read.length);
+    expect(statsRead({ encounterKeys: ['ambush-on-the-road', 'hold-the-line'] }, testContent)).toEqual(['weaponry', 'strength', 'constitution']);
+  });
+
+  test('reads a Stat wherever a score names it, and leaves out a key content lacks (rule 5) and Encounters drawn on the way', () => {
+    const score: NumQuery = ['of', ['best', ['where', 'party', ['>=', ['stat', 'wits'], 5]], ['stat', 'perception']], ['+', ['stat', 'strength'], ['stat', 'no-such-stat']]];
+    const odd: Encounter = { key: 'odd', name: 'Odd', kind: 'travel', checks: [{ key: 'odd', name: 'Odd', score, skills: [], difficultyFactor: 0.2 }], consequences: { success: [], failure: [] } };
+    const encounters = { ...testContent.encounters, odd };
+
+    expect(statsRead({ encounterKeys: ['no-such-encounter', 'odd'] }, { ...testContent, encounters })).toEqual(['wits', 'perception', 'strength']);
+    expect(statsRead({ encounterKeys: [] }, testContent)).toEqual([]);
   });
 });

@@ -9,8 +9,7 @@ import { streamOf, type Stream } from '../generators/draw.js';
 import { addStack } from '../items.js';
 import { next } from '../rng.js';
 import { playerGuild } from '../selectors.js';
-import { heroStatKeys, testContent, testDeps } from '../world.test-support.js';
-import { capability } from './check.js';
+import { encounterCapability as capability, heroStatKeys, oldFormCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { resolveQuest } from './resolve.js';
 
 // M5-S3 (DL-50): the consumables a Party carries, used as the Quest Engine resolves its sequence. A
@@ -23,6 +22,9 @@ const pinned: Partial<GameConfig> = {
   checkVariance: 0,
   skillBonusPerRating: 2,
   bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
+  // v1.1.4-S2's Degrees, as these Quests were written under; S10 moved the defaults (DL-166).
+  checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
+  strongTriumphShare: 0.5,
   xpPerDifficultyPoint: 1,
   xpBandFactor: { fail: 0.5, success: 1, strong: 1 },
   infirmaryHealFactor: [1, 1 / 2, 1 / 3],
@@ -34,10 +36,7 @@ function encounter(key: string, kind: EncounterKind, pass: boolean, failure: Con
     key,
     name: key,
     kind,
-    demands: [['strength', 1]],
-    aggregate: 'sum',
-    skillKeys: [],
-    difficultyFactor: pass ? 0.001 : 1000,
+    checks: [oldFormCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000)],
     consequences: { success, failure },
   };
 }
@@ -144,7 +143,7 @@ describe('a reroll', () => {
     const capable = capability(probe.heroes, ford, probe.world, probe.deps);
     const first = rollOf(capable, next(probe.twin), variance);
     const second = rollOf(capable, next(probe.twin), variance);
-    const between = { ...encounter('between', 'travel', false, fame(-5), fame(1)), difficultyFactor: (first + second) / 2 / 40 };
+    const between = withFactor(encounter('between', 'travel', false, fame(-5), fame(1)), (first + second) / 2 / 40);
     const without = scene(found, contentWith([between]), ['between'], [], { overrides: { checkVariance: variance } });
     const within = scene(found, contentWith([between]), ['between'], [['grappling-line', 1]], { overrides: { checkVariance: variance } });
 
@@ -185,7 +184,7 @@ describe('a reroll', () => {
 });
 
 describe('a bonus', () => {
-  test('adds its flat to the capability of the first Check of its kinds, one Item a Check, whatever the outcome, and draws nothing', () => {
+  test('adds its flat to the capability of each Encounter of its kinds, one Item an Encounter till none is left, whatever the outcome, and draws nothing', () => {
     const s = scene('bonus', contentWith([ambush, fordPassed]), ['ambush', 'ford-passed', 'ambush', 'ambush'], [['whetstone', 2]]);
     const capable = capability(s.heroes, ambush, s.world, s.deps);
     const travel = capability(s.heroes, fordPassed, s.world, s.deps);
@@ -220,11 +219,11 @@ describe('a bonus', () => {
   });
 
   test('can turn a failure into a success, and a reroll then rolls the same capability again', () => {
-    const tight = { ...encounter('tight', 'combat', false), difficultyFactor: 0 };
+    const tight = withFactor(encounter('tight', 'combat', false), 0);
     const s0 = scene('tight', contentWith([tight]), ['tight'], []);
     const capable = capability(s0.heroes, tight, s0.world, s0.deps);
     // A target just above the capability: failed bare, met with a whetstone's 3.
-    const edge = { ...tight, difficultyFactor: (capable + 1) / 40 };
+    const edge = withFactor(tight, (capable + 1) / 40);
     const bare = scene('tight', contentWith([edge]), ['tight'], []);
     const honed = scene('tight', contentWith([edge]), ['tight'], [['whetstone', 1]]);
 
@@ -334,5 +333,70 @@ describe('consumables.ts', () => {
   test('never mentions the Guildmaster', () => {
     const source = readFileSync(fileURLToPath(new URL('./consumables.ts', import.meta.url)), 'utf8');
     expect(source.toLowerCase()).not.toContain('guildmaster');
+  });
+});
+
+// v1.1.4-S2 (DL-148 items 7 and 13): on an Encounter of several Checks, a bonus adds to every one of
+// them, one Item for the Encounter; a reroll rolls again each Check of a failed Encounter that fell
+// short of Success, one draw each in the order listed, and the new rolls stand.
+describe('on an Encounter of several Checks (v1.1.4-S2)', () => {
+  /** A Check keyed `key` of the Party's summed Strength, which any Party of 8s meets (`pass`) or misses. */
+  const strength = (key: string, pass: boolean) => oldFormCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000);
+  /** An Encounter keyed `key` of `kind`: a met Check `met`, then a missed one `missed` and another `also`, all three needed. */
+  const threefold = (key: string, kind: EncounterKind): Encounter => ({
+    key,
+    name: key,
+    kind,
+    checks: [strength('met', true), strength('missed', false), strength('also', false)],
+    pass: ['and', 'met', 'missed', 'also'],
+    consequences: { success: [], failure: [] },
+  });
+
+  test('a reroll rolls again each Check that fell short of Success, one draw each after the three, and the rolls stand', () => {
+    const variance = 0.5;
+    const pass = threefold('crossing', 'travel');
+    const s = scene('several-reroll', contentWith([pass]), ['crossing'], [['grappling-line', 1]], { overrides: { checkVariance: variance } });
+    const capable = capability(s.heroes, ford, s.world, s.deps);
+    const [met, missed, also, missedAgain, alsoAgain] = Array.from({ length: 5 }, () => rollOf(capable, next(s.twin), variance)) as number[];
+
+    const [result] = resolveQuest(s.world, s.quest, s.party, s.deps).encounters;
+
+    expect(result?.checks.map((it) => it.roll)).toEqual([met, missedAgain, alsoAgain]);
+    expect(result).toMatchObject({ decidedBy: 'missed', degree: 'failure', roll: missedAgain });
+    expect(missed).not.toBe(missedAgain);
+    expect(also).not.toBe(alsoAgain);
+    expect(streamOf(s.world, 'quests')).toEqual(s.twin);
+  });
+
+  test("a reroll records the deciding Check's failed roll, and is kept, drawing nothing, when the Encounter succeeds", () => {
+    const variance = 0.5;
+    const either: Encounter = { ...threefold('either', 'travel'), pass: ['or', 'missed', 'met', 'also'] };
+    const both = threefold('both', 'travel');
+    const s = scene('several-kept', contentWith([either, both]), ['either', 'both'], [['grappling-line', 1]], { overrides: { checkVariance: variance } });
+    const capable = capability(s.heroes, ford, s.world, s.deps);
+    const rolls = Array.from({ length: 3 + 3 }, () => rollOf(capable, next(s.twin), variance));
+
+    const { encounters, consumables } = resolveQuest(s.world, s.quest, s.party, s.deps);
+
+    expect(encounters.map((it) => it.degree === 'success' || it.degree === 'triumph')).toEqual([true, false]);
+    expect(consumables).toMatchObject([{ effect: 'reroll', encounterIndex: 1, firstRoll: rolls[4] }]);
+    next(s.twin);
+    next(s.twin);
+    expect(streamOf(s.world, 'quests')).toEqual(s.twin);
+  });
+
+  test('a bonus adds its flat to every Check of the Encounter, one Item for them all (DL-148 item 13)', () => {
+    const fight = threefold('fight', 'combat');
+    const s = scene('several-bonus', contentWith([fight]), ['fight', 'fight'], [['whetstone', 1]]);
+    const capable = capability(s.heroes, ambush, s.world, s.deps);
+
+    const { encounters, consumables } = resolveQuest(s.world, s.quest, s.party, s.deps);
+
+    // Variance 0: each roll is the capability, the bonus in it on the first Encounter only.
+    expect(encounters.map((it) => it.checks.map((each) => each.capability))).toEqual([
+      [capable + 3, capable + 3, capable + 3],
+      [capable, capable, capable],
+    ]);
+    expect(consumables).toEqual([{ stackId: stackOf(s, 'whetstone').id, definitionKey: 'whetstone', effect: 'bonus', encounterIndex: 0, flat: 3 }]);
   });
 });

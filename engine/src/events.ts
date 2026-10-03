@@ -6,6 +6,8 @@
 import type { MoraleBand, RegardBand } from './config.js';
 import type {
   ClassKey,
+  Degree,
+  EncounterKey,
   ImprovementKey,
   InjuryTypeKey,
   ItemDefinitionKey,
@@ -35,6 +37,7 @@ import type {
   StackId,
   Turn,
 } from './document.js';
+import type { FormDecided } from './quest-engine/check.js';
 import type { ConsumableUse } from './quest-engine/consumables.js';
 import type { EncounterResult, QuestOutcome } from './quest-engine/resolve.js';
 
@@ -190,14 +193,34 @@ export type QuestTaken = Entry<
 
 /**
  * One Encounter of a Quest's sequence was checked as the Party came home (M4-S2): its key and kind,
- * the roll, the target it had to reach, the margin between them, the outcome, and whom its
- * consequences injured or killed. One per Encounter reached, in sequence order (`index` from 0),
- * all before the Quest's `quest.resolved`. Names the Quest, the Party and the Guild.
+ * the roll, the target it had to reach, the margin between them (since v1.1.4-S2, the roll less
+ * `checkDegrees.success` times the target, the same at its default of 1), the outcome, and whom its
+ * consequences injured or killed. Since v1.1.4-S2 also its Degree, the Check that decided it, whose
+ * roll, target, margin and outcome those are, and each of its Checks rolled; an entry written before
+ * then has none of the three, and reads as its outcome, a Success or a Failure (`encounterDegree`).
+ * One per Encounter reached, in sequence order (`index` from 0), all before the Quest's
+ * `quest.resolved`. Names the Quest, the Party and the Guild.
  */
 export type QuestEncounter = Entry<
   'quest.encounter',
-  EncounterResult & { questId: QuestId; partyId: PartyId; guildId: GuildId }
+  Omit<EncounterResult, 'degree' | 'decidedBy' | 'checks'> &
+    Partial<Pick<EncounterResult, 'degree' | 'decidedBy' | 'checks'>> & { questId: QuestId; partyId: PartyId; guildId: GuildId }
 >;
+
+/** The Degree a `quest.encounter` entry records (v1.1.4-S2), or, for one written before, its outcome's. */
+export function encounterDegree(payload: Pick<QuestEncounter['payload'], 'degree' | 'outcome'>): Degree {
+  return payload.degree ?? (payload.outcome === 'success' ? 'success' : 'failure');
+}
+
+/**
+ * Whether form decided whether a `quest.encounter` entry's Encounter succeeded, and which way
+ * (v1.1.4-S3's verification): with every form at 1 and the same rolls, its pass formula would have
+ * given the other side of the Success line. The narration's one sentence of the Encounter is said
+ * exactly when it is set; an entry written before v1.1.4-S3 has none.
+ */
+export function encounterForm(payload: Pick<QuestEncounter['payload'], 'formDecided'>): FormDecided | undefined {
+  return payload.formDecided;
+}
 
 /**
  * A Party came home and its Quest was resolved by the Quest Engine: the payload is the outcome
@@ -207,12 +230,18 @@ export type QuestEncounter = Entry<
  */
 export type QuestResolved = Entry<
   'quest.resolved',
-  Omit<QuestOutcome, 'synergyKeys'> & {
+  Omit<QuestOutcome, 'synergyKeys' | 'moraleByHero'> & {
     /**
      * The Synergies that added to any of the Quest's Checks, in key order (M4-S3, DL-45): none is
      * `[]`. Absent from an entry written before M4-S3, which reads as none.
      */
     synergyKeys?: SynergyKey[];
+    /**
+     * The Morale each Hero who came home brought from the Encounters, by id (v1.1.4-S4, DL-148 item
+     * 14), which a loss `steadiedBy` their Stats makes their own. Absent from an entry written before
+     * v1.1.4-S4, whose every Hero brought `moraleDelta`.
+     */
+    moraleByHero?: QuestOutcome['moraleByHero'];
     questId: QuestId;
     partyId: PartyId;
     guildId: GuildId;
@@ -300,6 +329,24 @@ export type HeroMoraleChanged = Entry<
 
 /** A Hero's Injury healed, leaving the Trait `traitKey` if it left one they lacked. Names the Hero. */
 export type HeroHealed = Entry<'hero.healed', { heroId: HeroId; typeKey: InjuryTypeKey; traitKey: TraitKey | null }>;
+
+/**
+ * A Hero earned the Hero Trait `traitKey` on a Quest (v1.1.4-S7, DL-148 items 25 and 27), from the
+ * consequence of its Encounter `encounterKey`, the `encounterIndex`th of the sequence from 0: a
+ * positive Trait on a strong success, or a negative one beside an Injury. A Milestone, positive or
+ * negative, naming the Hero and the Quest.
+ */
+export type HeroTraitGained = Entry<
+  'hero.trait-gained',
+  { heroId: HeroId; traitKey: TraitKey; questId: QuestId; encounterIndex: number; encounterKey: EncounterKey }
+>;
+
+/**
+ * A Hero lost the Hero Trait `traitKey`, replaced by `replacedBy`, a Trait an Injury left as it
+ * healed, which excludes it or is excluded by it (v1.1.4-S7, DL-150 item 5): the wound is a fact of
+ * the body. Emitted after the `hero.healed` that left `replacedBy`. A Milestone, naming the Hero.
+ */
+export type HeroTraitLost = Entry<'hero.trait-lost', { heroId: HeroId; traitKey: TraitKey; replacedBy: TraitKey }>;
 
 /**
  * A Hero retired at a yearly check, at `age`: off the Roster, the row kept with `retiredOnTurn`. A
@@ -461,8 +508,9 @@ export type HeroRegardChanged = Entry<
 
 /**
  * One consumable a Party carried was used on its Quest and expended from its stack (M5-S3, DL-50):
- * a `bonus` added `flat` to the Check of Encounter `encounterIndex`; a `reroll` had that Encounter's
- * failed Check, `firstRoll`, rolled again (its `quest.encounter` records the second roll); a `heal`
+ * a `bonus` added `flat` to each Check of Encounter `encounterIndex`; a `reroll` had that failed
+ * Encounter's Checks short of Success rolled again, `firstRoll` the deciding Check's failed roll (its
+ * `quest.encounter` records the second rolls; v1.1.4-S2); a `heal`
  * took `days` Days off `heroId`'s Injury. One entry an Item, in the order used, after the Quest's
  * `quest.encounter` entries and before its `quest.resolved`. Names the Quest, the Party, the Guild
  * and, for a heal, the Hero. Not a Milestone.
@@ -638,6 +686,8 @@ export type EngineEvent =
   | HeroXpGained
   | HeroMoraleChanged
   | HeroHealed
+  | HeroTraitGained
+  | HeroTraitLost
   | HeroRetired
   | HeroDeclined
   | GameEnded
@@ -697,6 +747,8 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.xp-gained': false,
   'hero.morale-changed': false,
   'hero.healed': false,
+  'hero.trait-gained': true,
+  'hero.trait-lost': true,
   'hero.retired': true,
   'hero.declined': false,
   'game.ended': true,

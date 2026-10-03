@@ -4,7 +4,6 @@ import { dispatch } from './actions/dispatch.js';
 import { equip, type EquipRequest } from './actions/equip.js';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
-import type { Encounter } from './content-types.js';
 import { rivalChoices } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, Hero, HeroId, Holder, Party, Quest, QuestId, World, WorldDocument } from './document.js';
@@ -15,9 +14,10 @@ import { phaseContext } from './phases/phase.js';
 import { gearReturn } from './phases/gear-return.js';
 import { phases } from './pipeline.js';
 import { capability, check } from './quest-engine/check.js';
+import { queryParty } from './quest-engine/query.js';
 import { effectiveStats, playerGuild } from './selectors.js';
 import { nightOf } from './time.js';
-import { certainHarmContent, deepFreeze, testContent, testDeps, withValid } from './world.test-support.js';
+import { certainHarmContent, deepFreeze, oldFormCheck, testDeps, withValid } from './world.test-support.js';
 
 // M5-S2: gear in effective Stats, in the Check, going back to the Guild, and chosen by the
 // controllers (DL-49). Worlds come from `createWorld`; every document a test makes is held to the
@@ -170,13 +170,8 @@ describe('effectiveStats with gear (DL-49)', () => {
 
 describe('the Check reads gear through effectiveStats (DL-44, DL-49)', () => {
   /** Strength alone, summed over the Party, no Skill: the capability is the Party's effective Strength. */
-  const strength: Encounter = {
-    ...structuredClone(testContent.encounters['hold-the-line'] as Encounter),
-    demands: [['strength', 1]],
-    aggregate: 'sum',
-    skillKeys: [],
-    difficultyFactor: 1,
-  };
+  const strength = oldFormCheck('hold-the-line', 'Hold the line', 'sum', [['strength', 1]], [], 1);
+  const combat = { kind: 'combat' } as const;
 
   test('a geared Party beats an identical bare one, with no variance', () => {
     const { document, guild, heroes } = scene('gear-check');
@@ -196,10 +191,13 @@ describe('the Check reads gear through effectiveStats (DL-44, DL-49)', () => {
     }
     const quest = { difficulty: 18 };
 
-    expect(capability(without, strength, world, deps)).toBe(16);
-    expect(capability(withGear, strength, world, deps)).toBe(20);
-    expect(check(without, strength, quest, structuredClone(world), deps)).toMatchObject({ roll: 16, target: 18, outcome: 'failure' });
-    expect(check(withGear, strength, quest, structuredClone(world), deps)).toMatchObject({ roll: 20, target: 18, outcome: 'success' });
+    const partyOf = (heroes: Hero[], at: World) => queryParty(heroes, at, deps);
+
+    expect(capability(partyOf(without, world), combat, strength, world, deps)).toBe(16);
+    expect(capability(partyOf(withGear, world), combat, strength, world, deps)).toBe(20);
+    const apart = [structuredClone(world), structuredClone(world)] as const;
+    expect(check(partyOf(without, apart[0]), combat, strength, quest, apart[0], deps)).toMatchObject({ roll: 16, target: 18, outcome: 'failure' });
+    expect(check(partyOf(withGear, apart[1]), combat, strength, quest, apart[1], deps)).toMatchObject({ roll: 20, target: 18, outcome: 'success' });
   });
 });
 

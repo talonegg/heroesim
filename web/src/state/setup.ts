@@ -10,12 +10,21 @@
 // `createWorld` makes the Guildmaster by, so the form names what "Start the game" makes. Since
 // v1.1.2-S5: the Birthplace, Appearance and Biography written for that Guildmaster by the engine's
 // `describeGuildmaster`, for "Write them for me" and "Again".
+//
+// Since v1.1.4-S11 (DL-149): the two ways of "Your Guildmaster", "Choose for me", which leaves the whole
+// Guildmaster to the seed, and "Choose myself", which holds "Start the game" until the sex, the age and
+// a picture are chosen (`unchosenWords`); the Portrait grid of the sex chosen, and none before; and the
+// five Guildmaster Stats set within the Stat points (`statPicksView`), each judged by the engine's
+// `setupRefusal` and summed by its `guildmasterStatCost`.
 
 import {
   defaultConfig,
   describeGuildmaster,
   descriptiveAttributeLabels,
   descriptiveAttributes,
+  guildmasterStatBounds,
+  guildmasterStatCost,
+  guildmasterStatsOf,
   portraitFit,
   portraitsOf,
   previewGuildmaster,
@@ -28,6 +37,8 @@ import {
   type GuildmasterPreview,
   type PortraitKey,
   type Sex,
+  type StatKey,
+  type StatValues,
   type TraitKey,
 } from '@heroesim/engine';
 import { content } from '../content';
@@ -36,6 +47,7 @@ import { listed } from './narrate';
 import { newGameRefusal, type NewGame } from './reducer';
 import { rejectionSentence } from './rejections';
 import { guildmasterSetupChoices, traitBudgetView, type TraitChoice } from './selectors';
+import { guildmasterStatBearsOn } from './world-views';
 
 /** What the form offers for the Guildmaster beside the Traits, and how the Traits are held. */
 export interface SetupFormChoices {
@@ -84,6 +96,28 @@ export function setupRefusalWords(play: NewGame): string | null {
 /** What an empty new-game form says in place of a refusal, before anything is typed (DL-109 item 2, Q22). */
 export const setupHint = 'Name your Guild and its Guildmaster to start.';
 
+/**
+ * The two ways of "Your Guildmaster" (v1.1.4-S11, DL-149 items 1 to 3): `for-me`, "Choose for me", the
+ * whole Guildmaster drawn from the seed; `myself`, "Choose myself", the sex, the age, a picture and the
+ * Stats the player's, and the Traits either way.
+ */
+export type SetupWay = 'for-me' | 'myself';
+
+/** What "Choose myself" needs chosen before "Start the game" (DL-149 items 3 and 4). */
+export type UnchosenPart = 'sex' | 'age' | 'portrait';
+
+const unchosenNames: Readonly<Record<UnchosenPart, string>> = Object.freeze({ sex: 'Sex', age: 'Age', portrait: 'Portrait' });
+
+/**
+ * What "Choose myself" says while `unchosen` are not yet chosen (v1.1.4-S11): `Choose your Guildmaster's
+ * Sex, Age and Portrait to start.`; `null` once all are. The engine would draw any left out, for the
+ * CLI, so the hold is the form's, not a refusal.
+ */
+export function unchosenWords(unchosen: readonly UnchosenPart[]): string | null {
+  if (unchosen.length === 0) return null;
+  return `Choose your Guildmaster's ${listed(unchosen.map((part) => unchosenNames[part]))} to start.`;
+}
+
 /** What the form says beside "Start the game": a hint, or the engine's refusal. */
 export interface SetupNotice {
   kind: 'hint' | 'refusal';
@@ -93,12 +127,14 @@ export interface SetupNotice {
 /**
  * What the new-game form says beside "Start the game" (DL-109 item 2, Q22): before any field is
  * touched, the hint that asks for the names; once one is, the engine's refusal (`setupRefusalWords`);
- * `null` while the engine would start the game. Whether the game can start is the refusal's either way.
+ * then, with "Choose myself", what is still to choose (`unchosenWords`, v1.1.4-S11); `null` while the
+ * game would start. Whether the game can start is the notice's: none, and it can.
  */
-export function setupNotice(play: NewGame, touched: boolean): SetupNotice | null {
+export function setupNotice(play: NewGame, touched: boolean, unchosen: readonly UnchosenPart[] = []): SetupNotice | null {
   const refusal = setupRefusalWords(play);
-  if (refusal === null) return null;
-  return touched ? { kind: 'refusal', words: refusal } : { kind: 'hint', words: setupHint };
+  if (refusal !== null) return touched ? { kind: 'refusal', words: refusal } : { kind: 'hint', words: setupHint };
+  const words = unchosenWords(unchosen);
+  return words === null ? null : { kind: 'hint', words };
 }
 
 /**
@@ -214,6 +250,110 @@ export function traitPicksView(
   return { budget: budgetOf(chosen, set, config), traits: picks };
 }
 
+/** A Guildmaster Stat as "Choose myself" offers it (v1.1.4-S11, DL-149 item 5), with its stepper's state. */
+export interface StatPick {
+  key: StatKey;
+  name: string;
+  value: number;
+  /** The bounds the engine holds it to: `guildmasterStatMin` to `Max` (`guildmasterStatBounds`). */
+  min: number;
+  max: number;
+  /** What it does, in the Guildmaster view's words (`guildmasterStatBearsOn`): `The reward agreed and the fees paid`. */
+  bearsOn: string;
+  /** Whether one more would keep the rules: within its bounds and the Stat points, the engine's verdict. */
+  canRaise: boolean;
+  /** Whether one less would: within its bounds. */
+  canLower: boolean;
+}
+
+/** The Stat points as the player sets the Stats, shown as the Trait budget is. */
+export interface StatPoints {
+  /** `guildmasterStatPoints`. */
+  points: number;
+  /** What the Stats set cost in all: the engine's sum. */
+  spent: number;
+  /** The points less `spent`: negative when they pass them, which the engine refuses. */
+  left: number;
+  over: boolean;
+  /** `Stat points left: 0`, or `Over the Stat points by 1`. */
+  leftWords: string;
+  /** `The Stats spend 50 of 50 Stat points.` */
+  spentWords: string;
+  /** `Stat points left unspent are lost.` while some are; `null` otherwise. */
+  unspentWords: string | null;
+}
+
+export interface StatPicksView {
+  points: StatPoints;
+  /** Every Guildmaster Stat, in content's order, as the Guildmaster view lists them. */
+  stats: StatPick[];
+}
+
+/** No refusal for the Stats `stats`, the rest of the setup keeping the rules: the engine's verdict on them alone. */
+function statsKeepTheRules(stats: Readonly<StatValues>, deps: { config: GameConfig; content: ContentSet }): boolean {
+  return setupRefusal({ guildName: 'Guild', guildmasterName: 'Guildmaster', createdAt: '', guildmasterStats: stats }, deps) === null;
+}
+
+/**
+ * The Stats "Choose myself" starts from (v1.1.4-S11, DL-149 item 5): each the Stat points shared evenly,
+ * 10 of 50 by default, the drawn Stats' mean, held within its bounds, so the start never passes the points.
+ */
+export function startingStats(set: ContentSet = content, config: GameConfig = defaultConfig): StatValues {
+  const rows = guildmasterStatsOf(set);
+  const even = rows.length === 0 ? 0 : Math.floor(config.guildmasterStatPoints / rows.length);
+  return Object.fromEntries(
+    rows.map((row) => {
+      const { min, max } = guildmasterStatBounds(row, config);
+      return [row.key, Math.min(max, Math.max(min, even))];
+    }),
+  );
+}
+
+/**
+ * Each Guildmaster Stat as "Choose myself" sets it while `stats` are set, and the Stat points left
+ * (v1.1.4-S11, DL-149 item 5). Whether a Stat can be raised or lowered by one is the engine's
+ * `setupRefusal` on the Stats so changed, under `config`, so the stepper never passes the points or a
+ * bound; what they cost is its `guildmasterStatCost` (ADR-0007).
+ */
+export function statPicksView(stats: Readonly<StatValues>, set: ContentSet = content, config: GameConfig = defaultConfig): StatPicksView {
+  const deps = { config, content: set };
+  const spent = guildmasterStatCost(stats, set);
+  const points = config.guildmasterStatPoints;
+  const left = points - spent;
+  const over = left < 0;
+  return {
+    points: {
+      points,
+      spent,
+      left,
+      over,
+      leftWords: over ? `Over the Stat points by ${-left}` : `Stat points left: ${left}`,
+      spentWords: `The Stats spend ${spent} of ${points} Stat points.`,
+      unspentWords: left > 0 ? 'Stat points left unspent are lost.' : null,
+    },
+    stats: guildmasterStatsOf(set).map((row) => {
+      const value = stats[row.key] ?? 0;
+      const { min, max } = guildmasterStatBounds(row, config);
+      return {
+        key: row.key,
+        name: row.name,
+        value,
+        min,
+        max,
+        bearsOn: guildmasterStatBearsOn[row.key] ?? '',
+        canRaise: statsKeepTheRules({ ...stats, [row.key]: value + 1 }, deps),
+        canLower: statsKeepTheRules({ ...stats, [row.key]: value - 1 }, deps),
+      };
+    }),
+  };
+}
+
+/** `Each 5 to 15, sharing 50 Stat points; each starts at 10.`: the Stats' rules, in words. */
+export function statsWords(set: ContentSet = content, config: GameConfig = defaultConfig): string {
+  const start = Object.values(startingStats(set, config))[0] ?? config.guildmasterStatMin;
+  return `Each ${config.guildmasterStatMin} to ${config.guildmasterStatMax}, sharing ${config.guildmasterStatPoints} Stat points; each starts at ${start}.`;
+}
+
 /** A Guildmaster picture as the form offers it for the Portrait (v1.1.2-S4). */
 export interface PortraitPick {
   key: PortraitKey;
@@ -240,10 +380,8 @@ function portraitPicks(set: ContentSet): PortraitGroup[] {
 }
 
 /**
- * The Guildmaster pictures the form offers after "Drawn from the seed" (v1.1.2-S4, DL-125 item 3):
- * those of `sex`, the sex chosen; with the sex drawn (`null`), every sex's, a group each, since a
- * picture is of one sex and choosing it chooses the sex (DL-130 item 5). A sex with no picture has no
- * group, and a Silhouette is never offered.
+ * The Guildmaster pictures of `sex` (v1.1.2-S4, DL-125 item 3), a group; with `null`, every sex's, a
+ * group each. A sex with no picture has no group, and a Silhouette is never offered.
  */
 export function portraitChoices(sex: Sex | null, set: ContentSet = content): PortraitGroup[] {
   return portraitPicks(set).filter((group) => (sex === null || group.sex === sex) && group.pictures.length > 0);
@@ -260,63 +398,19 @@ export function portraitPick(key: PortraitKey, set: ContentSet = content): Portr
 export type SetupFields = Omit<NewGame, 'kind' | 'seed' | 'createdAt'>;
 
 /**
- * The setup grid (v1.1.3-S7; DL-134 item 9, DL-143): the Portrait choice as the form shows it, one
- * sex's thumbnails at a time, since both sexes' together are more than the 250 kB the grid may read.
+ * The setup grid (v1.1.3-S7; DL-134 item 9, DL-143) as "Choose myself" shows it (v1.1.4-S11, DL-149
+ * item 4): the pictures of the sex chosen, one sex's being within the 250 kB the grid may read, and no
+ * draw from the seed among them; before a sex is chosen, no picture at all, and the words that say so.
  */
-export interface PortraitGridView {
-  /** The sex whose pictures are shown. */
-  sex: Sex;
-  pictures: PortraitPick[];
-  /**
-   * What "Drawn from the seed" shows: the picture the seed chooses for the Guildmaster the form makes
-   * with no Portrait chosen, `portraitKey` `null` for the Silhouette where none fits; `null` while the
-   * seed is blank, or the engine would refuse the setup, when there is nothing to show.
-   */
-  drawn: { sex: Sex; portraitKey: PortraitKey | null } | null;
-  /**
-   * The sexes whose pictures can be shown, each with whether it is, while the Sex field leaves the sex
-   * to the seed; `null` once the Sex field chooses it, which then chooses the pictures too.
-   */
-  sexes: { sex: Sex; label: string; shown: boolean }[] | null;
-  /**
-   * The picture chosen while the other sex's are shown, which the grid keeps after "Drawn from the seed"
-   * so that one of its radio buttons is always checked (DL-147); `null` while it is among `pictures`, or
-   * none is chosen.
-   */
-  chosen: PortraitPick | null;
-}
+export type PortraitGridView = { sex: Sex; pictures: PortraitPick[] } | { sex: null; words: string };
 
-/**
- * The setup grid for the form's `setup` and `seed` (v1.1.3-S7). `fieldSex` is the Sex field's own
- * choice, `null` while it is drawn, even when a picture chosen has chosen the sex with it; `lookAt` is
- * the sex the player asked to see, `null` until they do. The sex shown is the Sex field's, else the one
- * asked to see, else the chosen picture's, else the one the seed draws. What the seed draws is the
- * engine's `previewGuildmaster` for the setup without the Portrait, and without a sex that was only the
- * Portrait's, so the form names no rule of its own (ADR-0007).
- */
-export function portraitGrid(
-  setup: SetupFields,
-  seed: string,
-  { fieldSex, lookAt }: { fieldSex: Sex | null; lookAt: Sex | null },
-  set: ContentSet = content,
-  config: GameConfig = defaultConfig,
-): PortraitGridView {
-  const unpictured: SetupFields = { ...setup };
-  delete unpictured.guildmasterPortraitKey;
-  if (fieldSex === null) delete unpictured.guildmasterSex;
-  else unpictured.guildmasterSex = fieldSex;
-  const preview = seed.trim() === '' ? null : guildmasterPreview(unpictured, seed, set, config);
-  const drawn = preview === null ? null : { sex: preview.sex, portraitKey: preview.portraitKey };
-  const groups = portraitChoices(null, set);
-  const chosen = setup.guildmasterPortraitKey === undefined ? undefined : portraitPick(setup.guildmasterPortraitKey, set);
-  const sex: Sex = fieldSex ?? lookAt ?? chosen?.sex ?? drawn?.sex ?? groups[0]?.sex ?? 'female';
-  return {
-    sex,
-    pictures: groups.find((group) => group.sex === sex)?.pictures ?? [],
-    drawn,
-    sexes: fieldSex === null ? groups.map((group) => ({ sex: group.sex, label: group.label, shown: group.sex === sex })) : null,
-    chosen: chosen === undefined || chosen.sex === sex ? null : chosen,
-  };
+/** What the grid says before a sex is chosen (v1.1.4-S11, DL-149 item 4). */
+export const unsexedGridWords = 'Choose a Sex to see the pictures.';
+
+/** The setup grid for the sex chosen, `null` while none is (v1.1.4-S11). */
+export function portraitGrid(sex: Sex | null, set: ContentSet = content): PortraitGridView {
+  if (sex === null) return { sex: null, words: unsexedGridWords };
+  return { sex, pictures: portraitChoices(sex, set)[0]?.pictures ?? [] };
 }
 
 /**
@@ -331,12 +425,18 @@ export function portraitFitWords(setup: SetupFields, seed: string, set: ContentS
   return portraitFit({ ...factsOf(setup), createdAt: '' }, seed.trim(), { config, content: set }).map((note) =>
     note.kind === 'age'
       ? `This Portrait looks ${note.apparentAge[0]} to ${note.apparentAge[1]}: ${note.looks} than your Guildmaster's ${note.age}.`
-      : `This Portrait's Calling, ${capitalised(note.callingKey)}, clashes with the Trait ${nameIn(set.traits, note.traitKey)}.`,
+      : `This Portrait's Calling, ${capitalised(note.callingKey)}, clashes with the Trait ${nameIn(set.guildmasterTraits, note.traitKey)}.`,
   );
 }
 
-/** What the form says of the seed's draws with the seed blank: one is made up at the click. */
-export const unseededWords = 'The seed is blank, so one is made up when the game starts, and what is left to it is drawn then.';
+/**
+ * What the preview says with the seed blank (v1.1.4-S11, DL-149 item 7): one is made up at the click,
+ * and what is chosen for the player is chosen then.
+ */
+export const unseededWords: Readonly<Record<SetupWay, string>> = Object.freeze({
+  'for-me': 'The seed is blank, so one is made up when the game starts, and your Guildmaster is chosen for you then.',
+  myself: 'The seed is blank, so one is made up when the game starts, and the Traits are chosen for you then.',
+});
 
 /** `setup` with neither name nor any text: what the Guildmaster's facts are drawn from. */
 function factsOf(setup: SetupFields): SetupFields {
@@ -366,39 +466,55 @@ export function guildmasterPreview(
 }
 
 /**
- * What the new-game form shows of the Guildmaster the seed draws (v1.1.2-S4, DL-125 item 6), each line
- * only for what is left to the seed:
- * - `drawnWords`, the sex and the age: `Drawn: Female, 34`, `Drawn: Female` or `Drawn: Age 34`;
- * - `traitsWords`: `Drawn Traits: Miser and Old soldier`, or `Drawn Traits: None`;
- * - `portrait`, the Portrait drawn, with its words: `Drawn Portrait: Female Portrait 1`.
+ * What the new-game form shows of the Guildmaster chosen for the player (v1.1.2-S4, DL-125 item 6;
+ * v1.1.4-S11, DL-149 items 2 and 7), under `Chosen for you`. With "Choose for me", the whole
+ * Guildmaster:
+ * - `whoWords`, the sex and the age: `Female, 34`;
+ * - `statsWords`: `Inspiration 12, Influence 8, Negotiation 11, Coaching 9 and Judgement 10`;
+ * - `traitsWords`: `Traits: Miser and Old soldier`, or `Traits: None`;
+ * - `portrait`, the Portrait, with its words: `Portrait: Female Portrait 1`.
+ * With "Choose myself", the Traits alone, and only when they are chosen for the player.
  */
 export type GuildmasterPreviewView =
   | {
-      kind: 'drawn';
-      drawnWords: string | null;
+      kind: 'chosen';
+      whoWords: string | null;
+      statsWords: string | null;
       traitsWords: string | null;
       portrait: { sex: Sex; portraitKey: PortraitKey | null; words: string } | null;
     }
   | { kind: 'unseeded'; words: string };
 
+/** `Inspiration 12, Influence 8, …`: the Guildmaster Stats in content's order, as the Guildmaster view lists them. */
+function statsLine(stats: Readonly<StatValues>, set: ContentSet): string {
+  return listed(guildmasterStatsOf(set).map((row) => `${row.name} ${stats[row.key] ?? 0}`));
+}
+
 /**
- * The preview's words for `preview`, the engine's for `seed` (`guildmasterPreview`): what is left to
- * the seed is the engine's `drawn` (v1.1.2-S6), a Portrait chosen choosing the sex with it, so the
- * form repeats no rule (ADR-0007). `null` when the engine would refuse the setup, whose sentence the
- * form already says, or when nothing is left to the seed; the `unseeded` words when the seed is blank.
+ * The preview's words for `preview`, the engine's for `seed` (`guildmasterPreview`), with the setup's
+ * `way` (v1.1.4-S11): with "Choose for me", everything the engine drew; with "Choose myself", the Traits
+ * when the engine's `drawn` says they are left to it (v1.1.2-S6), so the form repeats no rule
+ * (ADR-0007). `null` when the engine would refuse the setup, whose sentence the form already says, or
+ * when nothing is chosen for the player; the `unseeded` words when the seed is blank.
  */
-export function guildmasterPreviewView(preview: GuildmasterPreview | null, seed: string, set: ContentSet = content): GuildmasterPreviewView | null {
+export function guildmasterPreviewView(
+  preview: GuildmasterPreview | null,
+  seed: string,
+  way: SetupWay,
+  set: ContentSet = content,
+): GuildmasterPreviewView | null {
   if (preview === null) return null;
-  const { sex, age, traitKeys, portraitKey, drawn } = preview;
-  if (!(drawn.sex || drawn.age || drawn.traits || drawn.portrait)) return null;
-  if (seed.trim() === '') return { kind: 'unseeded', words: unseededWords };
-  const parts = [drawn.sex ? capitalised(sex) : null, drawn.age ? (drawn.sex ? String(age) : `Age ${age}`) : null].filter((part) => part !== null);
-  const pictured = portraitKey === null ? 'None: the Silhouette' : (portraitPick(portraitKey, set)?.label ?? portraitKey);
+  const { sex, age, traitKeys, stats, portraitKey, drawn } = preview;
+  const whole = way === 'for-me';
+  if (!whole && !drawn.traits) return null;
+  if (seed.trim() === '') return { kind: 'unseeded', words: unseededWords[way] };
+  const pictured = portraitKey === null ? 'None, the Silhouette' : (portraitPick(portraitKey, set)?.label ?? portraitKey);
   return {
-    kind: 'drawn',
-    drawnWords: parts.length === 0 ? null : `Drawn: ${parts.join(', ')}`,
-    traitsWords: drawn.traits ? `Drawn Traits: ${traitKeys.length === 0 ? 'None' : listed(traitKeys.map((key) => nameIn(set.traits, key)))}` : null,
-    portrait: drawn.portrait ? { sex, portraitKey, words: `Drawn Portrait: ${pictured}` } : null,
+    kind: 'chosen',
+    whoWords: whole ? `${capitalised(sex)}, ${age}` : null,
+    statsWords: whole ? statsLine(stats, set) : null,
+    traitsWords: `Traits: ${traitKeys.length === 0 ? 'None' : listed(traitKeys.map((key) => nameIn(set.guildmasterTraits, key)))}`,
+    portrait: whole ? { sex, portraitKey, words: `Portrait: ${pictured}` } : null,
   };
 }
 

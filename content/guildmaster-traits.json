@@ -1,0 +1,38 @@
+{
+  "old-soldier": {
+    "name": "Old soldier",
+    "cost": 1,
+    "excludes": [],
+    "effects": [{ "kind": "classStatBonus", "classKey": "warrior", "statKey": "weaponry", "delta": 1 }]
+  },
+  "well-liked": {
+    "name": "Well liked",
+    "cost": 2,
+    "excludes": ["miser"],
+    "effects": [{ "kind": "guildMoraleShift", "delta": 5 }]
+  },
+  "thrifty": {
+    "name": "Thrifty",
+    "cost": 2,
+    "excludes": ["spendthrift"],
+    "effects": [{ "kind": "upkeepFactor", "factor": 0.9 }]
+  },
+  "miser": {
+    "name": "Miser",
+    "cost": -2,
+    "excludes": ["well-liked", "spendthrift"],
+    "effects": [{ "kind": "guildMoraleShift", "delta": -5 }]
+  },
+  "spendthrift": {
+    "name": "Spendthrift",
+    "cost": -2,
+    "excludes": ["thrifty", "miser"],
+    "effects": [{ "kind": "upkeepFactor", "factor": 1.1 }]
+  },
+  "mistrusts-magic": {
+    "name": "Mistrusts magic",
+    "cost": -1,
+    "excludes": [],
+    "effects": [{ "kind": "classStatBonus", "classKey": "mage", "statKey": "arcana", "delta": -1 }]
+  }
+}

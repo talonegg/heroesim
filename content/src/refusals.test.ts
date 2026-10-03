@@ -1,11 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type {
   Background,
   Class,
   Descriptions,
   Disposition,
   Encounter,
+  GuildmasterTrait,
+  HeroTrait,
   InjuryType,
   Names,
   PortraitAppearance,
@@ -17,7 +20,6 @@ import type {
   LootTable,
   Stat,
   Synergy,
-  Trait,
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { ContentError, contentFiles, contentWarnings, longestDescriptions, parseContent, validateContent } from './index.js';
@@ -33,15 +35,16 @@ interface Files {
   'stats.json': Rows<Stat>;
   'classes.json': Rows<Class>;
   'skills.json': Rows<Skill>;
-  'traits.json': Rows<Trait>;
+  'guildmaster-traits.json': Rows<GuildmasterTrait>;
+  'hero-traits.json': Rows<HeroTrait>;
   'backgrounds.json': Rows<Background>;
   'spheres.json': Rows<Sphere>;
   'names.json': Names;
   'quest-templates.json': Rows<QuestTemplate>;
   'injuries.json': Rows<InjuryType>;
   'dispositions.json': Rows<Disposition>;
-  'encounters.json': Rows<Encounter>;
-  'synergies.json': Rows<Synergy>;
+  'encounters.json': Record<string, EncounterRow>;
+  'synergies.json': Record<string, SynergyRow>;
   /** Written loosely: a row is gear or a consumable, and the tests give one the other's fields. */
   'items.json': Record<string, Record<string, unknown>>;
   'loot-tables.json': Rows<LootTable>;
@@ -50,10 +53,46 @@ interface Files {
   'descriptions.json': Descriptions;
 }
 
+/** An Encounter as `encounters.json` writes it: the old form, which loads into one Check (v1.1.4-S1). */
+type EncounterRow = Omit<Encounter, 'key' | 'checks'> & {
+  demands: [string, number][];
+  aggregate: string;
+  skillKeys: string[];
+  difficultyFactor: number;
+};
+
+/** A Synergy's requirement in the old form (M4-S3), which loads into Queries (v1.1.4-S1). */
+interface OldRequires {
+  classes?: Record<string, number>;
+  skills?: string[];
+}
+
+/** A Synergy as `synergies.json` writes it: its requirement in the old form, or as conditions on the Party. */
+type SynergyRow = Omit<Synergy, 'key' | 'requires'> & { requires: OldRequires | unknown[] };
+
 function realFiles(): Record<string, string> {
   return Object.fromEntries(
     contentFiles.map((name) => [name, readFileSync(join(contentDir, name), 'utf8')]),
   );
+}
+
+/** The files `oldFiles` takes from `old-form/`. */
+const oldFormFiles = ['encounters.json', 'synergies.json', 'quest-templates.json'] as const;
+
+/**
+ * The real files with the Encounters, Synergies and Quest templates as content 25 wrote them
+ * (v1.1.4-S8): every Encounter and Synergy in the old form, which still loads (v1.1.4-S1), two arcane
+ * Encounters, no lore and no Finale. The old form's refusals, and S2's and S8's tests written on that
+ * content, keep it as their fixture since v1.1.4-S10 wrote the content in the new form (DL-165).
+ */
+function oldFiles(): Record<string, string> {
+  const dir = fileURLToPath(new URL('./old-form/', import.meta.url));
+  return { ...realFiles(), ...Object.fromEntries(oldFormFiles.map((name) => [name, readFileSync(join(dir, name), 'utf8')])) };
+}
+
+/** `oldFiles` with one of them changed as JSON. */
+function withOldJson<File extends keyof Files>(file: File, change: (json: Files[File]) => void): Record<string, string> {
+  return changed(oldFiles(), file, change);
 }
 
 /** The real files with one of them changed as JSON. */
@@ -217,6 +256,22 @@ describe('a Stat', () => {
     expect(refusalOf(() => parseContent(files)).message).toContain(
       'stats.wits: default 0 is outside 1 to 20',
     );
+  });
+
+  // v1.1.4-S1's verification: the old `best` was Math.max(0, …), and loads as `max`, which agrees
+  // with it only while no effective Stat is below 0.
+  test('of a Hero below 0 at its least is refused, naming the Stat; a Guildmaster Stat is not held to it', () => {
+    const hero = withJson('stats.json', (json) => {
+      Object.assign(stat(json, 'strength'), { min: -1, default: 10 });
+    });
+    const guildmaster = withJson('stats.json', (json) => {
+      Object.assign(stat(json, 'judgement'), { min: -1, default: 10 });
+    });
+
+    expect(refusalOf(() => parseContent(hero)).message).toMatch(
+      /stats\.strength\.min is -1; a Hero Stat's least value is 0 or more/,
+    );
+    expect(parseContent(guildmaster).stats['judgement']?.min).toBe(-1);
   });
 });
 
@@ -909,7 +964,8 @@ describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S
 
 describe('a key that is not kebab-case', () => {
   test.each([
-    ['traits.json', 'Old_Soldier'],
+    ['guildmaster-traits.json', 'Old_Soldier'],
+    ['hero-traits.json', 'Short_Winded'],
     ['skills.json', 'fieldSurgery'],
     ['spheres.json', 'the crown'],
     ['backgrounds.json', '-farm-born'],
@@ -1041,7 +1097,7 @@ describe("a Quest template's Encounters (M4-S1)", () => {
     expect(message).toMatch(problem);
   });
 
-  test('with a kind that is not one of the five is refused, naming the field', () => {
+  test('with a kind that is not one of the six is refused, naming the field', () => {
     const files = withJson('quest-templates.json', (json) => {
       Object.assign(barrow(json), { encounterKinds: ['combat', 'naval'] });
     });
@@ -1062,19 +1118,21 @@ describe("a Quest template's Encounters (M4-S1)", () => {
 
 // M4-S1's first box: an Encounter naming an unknown Stat, Skill or Injury type is refused.
 describe('an Encounter (M4-S1)', () => {
-  const ambush = (json: Files['encounters.json']) => json['ambush-on-the-road'] as Omit<Encounter, 'key'>;
+  const ambush = (json: Files['encounters.json']) => json['ambush-on-the-road'] as EncounterRow;
 
-  test.each<[string, (it: Omit<Encounter, 'key'>) => void, RegExp]>([
-    ['a demand on a Stat that does not exist', (it) => (it.demands[0] = ['strenght', 0.4]), /encounters\.ambush-on-the-road\.demands: "strenght" is not a Hero Stat/],
-    ['a demand on a Guildmaster Stat', (it) => (it.demands[0] = ['judgement', 0.4]), /encounters\.ambush-on-the-road\.demands: "judgement" is not a Hero Stat/],
-    ['a Skill that does not exist', (it) => void it.skillKeys.push('axemanship'), /encounters\.ambush-on-the-road\.skillKeys: "axemanship" is not a Skill/],
+  // v1.1.4-S1: the old form's demands and Skills are held as they load, in the words the author wrote.
+  test.each<[string, (it: EncounterRow) => void, RegExp]>([
+    ['a demand on a Stat that does not exist', (it) => (it.demands[0] = ['strenght', 0.4]), /encounters\.json: ambush-on-the-road\.demands: "strenght" is not a Hero Stat/],
+    ['a demand on a Guildmaster Stat', (it) => (it.demands[0] = ['judgement', 0.4]), /encounters\.json: ambush-on-the-road\.demands: "judgement" is not a Hero Stat/],
+    ['a demand on a Stat listed twice', (it) => (it.demands[1] = ['weaponry', 0.3]), /encounters\.json: ambush-on-the-road\.demands: "weaponry" is listed twice/],
+    ['a Skill that does not exist', (it) => void it.skillKeys.push('axemanship'), /encounters\.json: ambush-on-the-road\.skillKeys: "axemanship" is not a Skill/],
     [
       'an Injury of a type that does not exist',
       (it) => void it.consequences.failure.push({ kind: 'injury', typeKey: 'frostbite', chance: 0.1, count: 1 }),
       /encounters\.ambush-on-the-road\.consequences\.failure\.2\.typeKey: "frostbite" is not an Injury type/,
     ],
     ['demand weights not summing to 1', (it) => (it.demands[0] = ['weaponry', 0.6]), /ambush-on-the-road\.demands: weights sum to 1\.2, not 1/],
-    ['a difficulty factor of 0', (it) => (it.difficultyFactor = 0), /ambush-on-the-road\.difficultyFactor is 0/],
+    ['a difficulty factor of 0', (it) => (it.difficultyFactor = 0), /encounters\.ambush-on-the-road\.checks\.0\.difficultyFactor is 0/],
     [
       'a chance above 1',
       (it) => void it.consequences.failure.push({ kind: 'death', chance: 1.5 }),
@@ -1091,19 +1149,19 @@ describe('an Encounter (M4-S1)', () => {
       /ambush-on-the-road\.consequences\.success\.1\.factor is -1/,
     ],
   ])('with %s is refused, naming the Encounter', (_, change, problem) => {
-    const files = withJson('encounters.json', (json) => change(ambush(json)));
+    const files = withOldJson('encounters.json', (json) => change(ambush(json)));
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
   });
 
   test('with a consequence of an unknown kind, or a field its kind lacks, is refused, naming it', () => {
-    const unknown = withJson('encounters.json', (json) => {
+    const unknown = withOldJson('encounters.json', (json) => {
       Object.assign(ambush(json).consequences, { success: [{ kind: 'loot', table: 'hoard' }] });
     });
-    const extra = withJson('encounters.json', (json) => {
+    const extra = withOldJson('encounters.json', (json) => {
       Object.assign(ambush(json).consequences, { success: [{ kind: 'fame', delta: 1, factor: 2 }] });
     });
-    const outcome = withJson('encounters.json', (json) => {
+    const outcome = withOldJson('encounters.json', (json) => {
       Object.assign(ambush(json).consequences, { draw: [] });
     });
 
@@ -1115,13 +1173,13 @@ describe('an Encounter (M4-S1)', () => {
   });
 
   test('of a kind or aggregate outside the choices is refused, naming the choices', () => {
-    const files = withJson('encounters.json', (json) => {
+    const files = withOldJson('encounters.json', (json) => {
       Object.assign(ambush(json), { kind: 'naval', aggregate: 'worst' });
     });
 
     const { message } = refusalOf(() => parseContent(files));
 
-    expect(message).toMatch(/ambush-on-the-road\.kind is "naval"; expected one of combat, travel, social, arcane, stealth/);
+    expect(message).toMatch(/ambush-on-the-road\.kind is "naval"; expected one of combat, travel, social, arcane, stealth, lore/);
     expect(message).toMatch(/ambush-on-the-road\.aggregate is "worst"; expected one of best, sum/);
   });
 });
@@ -1129,13 +1187,14 @@ describe('an Encounter (M4-S1)', () => {
 // M4-S3: a Synergy naming an unknown Class, Skill or Encounter kind is refused, as is a count below
 // 1, a bonus that is not one, and a requirement of nothing (DL-45).
 describe('a Synergy (M4-S3)', () => {
-  type Row = Omit<Synergy, 'key'>;
+  type Row = SynergyRow & { requires: OldRequires };
   const salve = (json: Files['synergies.json']) => json['sword-and-salve'] as Row;
   const classes = (it: Row): Record<string, number> => (it.requires.classes ??= {});
 
+  // v1.1.4-S1: the old form's Classes and Skills are held as they load, in the words the author wrote.
   test.each<[string, (it: Row) => void, RegExp]>([
-    ['a Class that does not exist', (it) => (classes(it)['paladin'] = 1), /synergies\.sword-and-salve\.requires\.classes: "paladin" is not a Class/],
-    ['a Skill that does not exist', (it) => (it.requires.skills = ['axemanship']), /synergies\.sword-and-salve\.requires\.skills: "axemanship" is not a Skill/],
+    ['a Class that does not exist', (it) => (classes(it)['paladin'] = 1), /synergies\.json: sword-and-salve\.requires\.classes: "paladin" is not a Class/],
+    ['a Skill that does not exist', (it) => (it.requires.skills = ['axemanship']), /synergies\.json: sword-and-salve\.requires\.skills: "axemanship" is not a Skill/],
     ['a Skill listed twice', (it) => (it.requires.skills = ['tactics', 'tactics']), /sword-and-salve\.requires\.skills: "tactics" is listed twice/],
     ['a count of 0', (it) => (classes(it)['warrior'] = 0), /sword-and-salve\.requires\.classes\.warrior is 0; a count is a whole number from 1/],
     ['a negative count', (it) => (classes(it)['healer'] = -1), /sword-and-salve\.requires\.classes\.healer is -1; a count is a whole number from 1/],
@@ -1149,26 +1208,26 @@ describe('a Synergy (M4-S3)', () => {
     ['no kinds, listed empty', (it) => (it.kinds = []), /sword-and-salve\.kinds is empty/],
     ['a kind listed twice', (it) => (it.kinds = ['combat', 'combat']), /sword-and-salve\.kinds: "combat" is listed twice/],
   ])('with %s is refused, naming the Synergy', (_, change, problem) => {
-    const files = withJson('synergies.json', (json) => change(salve(json)));
+    const files = withOldJson('synergies.json', (json) => change(salve(json)));
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
   });
 
-  test('with a kind that is not one of the five is refused, naming the field and the choices', () => {
-    const files = withJson('synergies.json', (json) => {
+  test('with a kind that is not one of the six is refused, naming the field and the choices', () => {
+    const files = withOldJson('synergies.json', (json) => {
       Object.assign(salve(json), { kinds: ['combat', 'naval'] });
     });
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(
-      /synergies\.json: sword-and-salve\.kinds is \["combat","naval"\]; expected a list, each one of combat, travel, social, arcane, stealth/,
+      /synergies\.json: sword-and-salve\.kinds is \["combat","naval"\]; expected a list, each one of combat, travel, social, arcane, stealth, lore/,
     );
   });
 
   test('with a field its row, requirement or bonus lacks, or a count that is not a number, is refused, naming it', () => {
-    const row = withJson('synergies.json', (json) => void Object.assign(salve(json), { chance: 0.5 }));
-    const requires = withJson('synergies.json', (json) => void Object.assign(salve(json).requires, { traits: ['scarred'] }));
-    const bonus = withJson('synergies.json', (json) => void Object.assign(salve(json).bonus, { delta: 2 }));
-    const count = withJson('synergies.json', (json) => void Object.assign(salve(json).requires, { classes: { warrior: 'two' } }));
+    const row = withOldJson('synergies.json', (json) => void Object.assign(salve(json), { chance: 0.5 }));
+    const requires = withOldJson('synergies.json', (json) => void Object.assign(salve(json).requires, { traits: ['scarred'] }));
+    const bonus = withOldJson('synergies.json', (json) => void Object.assign(salve(json).bonus, { delta: 2 }));
+    const count = withOldJson('synergies.json', (json) => void Object.assign(salve(json).requires, { classes: { warrior: 'two' } }));
 
     expect(refusalOf(() => parseContent(row)).message).toMatch(/synergies\.json: sword-and-salve\.chance is not a field of a Synergy/);
     expect(refusalOf(() => parseContent(requires)).message).toMatch(/sword-and-salve\.requires\.traits is not a field of what a Synergy requires/);
@@ -1177,11 +1236,11 @@ describe('a Synergy (M4-S3)', () => {
   });
 
   test('with no requires or bonus is refused, and without kinds is accepted, for every kind', () => {
-    const missing = withJson('synergies.json', (json) => {
+    const missing = withOldJson('synergies.json', (json) => {
       Reflect.deleteProperty(salve(json), 'requires');
       Reflect.deleteProperty(salve(json), 'bonus');
     });
-    const everyKind = withJson('synergies.json', (json) => {
+    const everyKind = withOldJson('synergies.json', (json) => {
       Reflect.deleteProperty(salve(json), 'kinds');
     });
 
@@ -1191,12 +1250,156 @@ describe('a Synergy (M4-S3)', () => {
     expect(parseContent(everyKind).synergies['sword-and-salve']).not.toHaveProperty('kinds');
   });
 
+  test('with its requirement as conditions on the Party, is read as written; and an empty list is refused', () => {
+    const written = [['>=', ['count', ['where', 'party', ['class', 'warrior']]], 2]];
+    const files = withOldJson('synergies.json', (json) => void (salve(json).requires = written as unknown as OldRequires));
+    const empty = withOldJson('synergies.json', (json) => void (salve(json).requires = [] as unknown as OldRequires));
+
+    expect(parseContent(files).synergies['sword-and-salve']?.requires).toEqual(written);
+    expect(refusalOf(() => parseContent(empty)).message).toMatch(/synergies\.sword-and-salve\.requires is empty/);
+  });
+
   test('the file is required, and may hold none', () => {
     const files = realFiles();
     delete files['synergies.json'];
 
     expect(refusalOf(() => parseContent(files)).message).toContain('synergies.json: missing');
     expect(parseContent(withText('synergies.json', '{}')).synergies).toEqual({});
+  });
+});
+
+// v1.1.4-S1: every refusal of a Query names its path, each argument by its place in its array
+// (DL-148 items 4 to 6). A Synergy's requirement, as conditions on the Party, holds each one here; an
+// Encounter's Check, which the files still write in the old form, is held in memory below.
+describe('a Query (v1.1.4-S1)', () => {
+  /** The real files with Sword and salve requiring `condition` alone. */
+  const requiring = (condition: unknown) =>
+    withJson('synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).requires = [condition]));
+  /** `count` of the Set `set`, at least 1: a condition that puts `set` at `requires.0.1.1`. */
+  const counted = (set: unknown) => ['>=', ['count', set], 1];
+  /** `max` of the Val `val` over the Party, at least 1: a condition that puts `val` at `requires.0.1.2`. */
+  const maxOf = (val: unknown) => ['>=', ['max', 'party', val], 1];
+  /** `count` of the Party filtered by `pred`: a condition that puts `pred` at `requires.0.1.1.2`. */
+  const filtered = (pred: unknown) => counted(['where', 'party', pred]);
+  const at = 'synergies\\.sword-and-salve\\.requires\\.0';
+  const path = (rest: string) => new RegExp(`${at}${rest.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+  /** `n` operands under one `+`, and the condition holding them: 1 + 1 + n + 1 nodes. */
+  const wide = (n: number) => ['>=', ['+', ...Array.from({ length: n }, () => 1)], 1];
+  /** A condition `n` deep: a chain of `+` down to a number, `n - 1` deep, compared with 1. */
+  const deep = (n: number): unknown => ['>=', Array.from({ length: n - 3 }).reduce<unknown>((inner) => ['+', inner], ['+', 1]), 1];
+
+  test.each<[string, unknown, RegExp]>([
+    // A node of the wrong type.
+    ['a Val where a Num stands', ['>=', ['stat', 'strength'], 1], path('.1: "stat" makes a Val, where a Num is expected')],
+    ['a Pred where a Num stands', ['>=', ['class', 'warrior'], 1], path('.1: "class" makes a Pred, where a Num is expected')],
+    ['a Set where a Num stands', ['>=', 'party', 1], path('.1 is "party", a Set; a Num stands here')],
+    ['a Num where a Set stands', counted(['count', 'party']), path('.1.1: "count" makes a Num, where a Set is expected')],
+    ['a number where a Set stands', counted(3), path('.1.1 is 3; a number stands for a Val or a Num, not a Set')],
+    ['a Num where a Val stands', maxOf(['count', 'party']), path('.1.2: "count" makes a Num, where a Val is expected')],
+    ['a Val where a Pred stands', filtered(['level']), path('.1.1.2: "level" makes a Val, where a Pred is expected')],
+    ['a Set where a Hero stands', ['>=', ['of', 'party', ['level']], 1], path('.1.1 is "party", a Set; a Hero stands here')],
+    ['an operator no type has', ['>=', ['median', 'party', ['level']], 1], path('.1: "median" is not an operator of a Query')],
+    ['a string where a condition stands', 'three Warriors', path(' is "three Warriors"; expected a condition on the Party, a list with its operator first')],
+    ['a Num where a condition stands', ['count', 'party'], path(': "count" makes a Num, where a condition on the Party is expected')],
+    // A node with the wrong number of arguments.
+    ['a condition of one Num', ['>=', ['count', 'party']], path(': ">=" takes 2 arguments; it has 1')],
+    ['`count` of nothing', ['>=', ['count'], 1], path('.1: "count" takes 1 argument; it has 0')],
+    ['`top` without its Val', counted(['top', 'party', 2]), path('.1.1: "top" takes 3 arguments; it has 2')],
+    ['`class` naming none', filtered(['class']), path('.1.1.2: "class" takes 1 argument or more; it has 0')],
+    ['`has-skill` with two ratings', filtered(['has-skill', 'tactics', 1, 2]), path('.1.1.2: "has-skill" takes 1 or 2 arguments; it has 3')],
+    ['`level` with an argument', maxOf(['level', 'warrior']), path('.1.2: "level" takes no arguments; it has 1')],
+    ['`+` of nothing', ['>=', ['+'], 1], path('.1: "+" takes 1 argument or more; it has 0')],
+    // A key content does not define.
+    ['a Stat that does not exist', maxOf(['stat', 'strenght']), path('.1.2.1: "strenght" is not a Hero Stat')],
+    ['a Guildmaster Stat', maxOf(['stat', 'judgement']), path('.1.2.1: "judgement" is not a Hero Stat')],
+    ['a weighted Stat that does not exist', maxOf(['weighted', [['strength', 1], ['luck', 1]]]), path('.1.2.1.1.0: "luck" is not a Hero Stat')],
+    ['a Skill that does not exist', maxOf(['skill', 'axemanship']), path('.1.2.1: "axemanship" is not a Skill')],
+    ['a Class that does not exist', filtered(['class', 'warrior', 'paladin']), path('.1.1.2.2: "paladin" is not a Class')],
+    ['a Guild Background', filtered(['background', 'old-charter']), path('.1.1.2.1: "old-charter" is not a Hero Background')],
+    ['a Guildmaster Trait', filtered(['has-trait', 'thrifty']), path('.1.1.2.1: "thrifty" is not a Hero Trait')],
+    ['a sex that is not one', filtered(['sex', 'other']), path('.1.1.2.1: "other" is not a sex: female or male')],
+    // `top`, `bottom`, `has-skill` and `ranked`'s numbers.
+    ['`top` of 0', counted(['top', 'party', 0, ['level']]), path('.1.1.2 is 0; top\'s n is a whole number from 1')],
+    ['`bottom` of 1.5', counted(['bottom', 'party', 1.5, ['level']]), path('.1.1.2 is 1.5; bottom\'s n is a whole number from 1')],
+    ['`top` of a word', counted(['top', 'party', 'two', ['level']]), path('.1.1.2 is "two"; top\'s n is a whole number from 1')],
+    ['`has-skill` at 0', filtered(['has-skill', 'tactics', 0]), path('.1.1.2.2 is 0; has-skill\'s least rating is a whole number from 1')],
+    ['`ranked` with a negative weight', ['>=', ['ranked', 'party', ['level'], [1, -1]], 1], path('.1.3.1 is -1; a weight is a finite number of 0 or more')],
+    ['`ranked` with no weights', ['>=', ['ranked', 'party', ['level'], []], 1], path('.1.3 is []; ranked\'s weights are a list of one or more')],
+    // Sex: in a filter only, and never counted (DL-148 item 6).
+    ['`sex` as a Num', ['>=', ['sex', 'female'], 1], path('.1: ["sex", …] stands only as the Pred of a where filter')],
+    ['`sex` as a Val', maxOf(['sex', 'female']), path('.1.2: ["sex", …] stands only as the Pred of a where filter')],
+    ['`sex` compared, within a filter', filtered(['>=', ['sex', 'male'], 1]), path('.1.1.2.1: ["sex", …] stands only as the Pred of a where filter')],
+    ['a Set filtered by Sex, counted', filtered(['sex', 'female']), path('.1: a Set filtered by Sex is counted; Sex decides who takes part, never a number')],
+    ['a Set filtered by Sex within another, counted', counted(['top', ['where', 'party', ['and', ['class', 'mage'], ['not', ['sex', 'male']]]], 2, ['level']]), path('.1: a Set filtered by Sex is counted')],
+    ['a Set filtered by Sex, summed as ones', ['>=', ['sum', ['where', 'party', ['sex', 'male']], 1], 1], path('.1: a Set filtered by Sex is counted')],
+    ['the Hero of a Set filtered by Sex, read as a number alone', ['>=', ['of', ['best', ['where', 'party', ['sex', 'male']], ['level']], 1], 1], path('.1: a Set filtered by Sex is counted')],
+    // v1.1.4-S1's verification: a requirement is a gate, so any reading of Sex in it is a value.
+    ['Sex in a requirement, in a sum of a Stat', ['>=', ['sum', ['where', 'party', ['sex', 'female']], ['stat', 'strength']], 10], path('.1.1.2: ["sex", …] stands in no Synergy\'s requirement')],
+    ['Sex in a requirement, the max of a Level', ['>', ['max', ['where', 'party', ['sex', 'female']], ['level']], 0], path('.1.1.2: ["sex", …] stands in no Synergy\'s requirement')],
+    ['Sex in a requirement, a constant disguised as a sum', ['>', ['sum', ['where', 'party', ['sex', 'female']], ['+', 1, ['*', 0, ['level']]]], 0], path('.1.1.2: ["sex", …] stands in no Synergy\'s requirement')],
+    ['Sex in a requirement, the best Hero\'s Level', ['>', ['of', ['best', ['where', 'party', ['sex', 'female']], ['level']], ['level']], 0], path('.1.1.1.2: ["sex", …] stands in no Synergy\'s requirement')],
+    // Size.
+    ['more than 64 nodes', wide(62), path(' has 65 nodes; a Query has at most 64')],
+    ['deeper than 12', deep(13), path(' is 13 deep; a Query is at most 12 deep')],
+  ])('with %s is refused, naming its path', (_, condition, problem) => {
+    expect(refusalOf(() => parseContent(requiring(condition))).message).toMatch(problem);
+  });
+
+  test.each<[string, unknown]>([
+    ['64 nodes', wide(61)],
+    ['12 deep', deep(12)],
+    ['every type in one', ['>=', ['greatest', ['of', ['worst', ['top', 'party', 2, ['weighted', [['dexterity', 1]]]], ['age']], ['*', ['morale'], 0.1]], ['ranked', ['bottom', 'party', 3, ['skill', 'stealth']], ['-', ['level'], 1], [1, 0.5]]], ['least', 1, 2]]],
+  ])('with %s is accepted', (_, condition) => {
+    expect(parseContent(requiring(condition)).synergies['sword-and-salve']?.requires).toEqual([condition]);
+  });
+
+  test('held in memory, an Encounter\'s Check is held as a Synergy\'s requirement is, and a number or weight that is not finite is refused', () => {
+    const content = loadContent();
+    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
+    const [first] = ambush.checks as [Encounter['checks'][number]];
+    const reeve = content.encounters['a-hostile-reeve'] as Encounter;
+    const steward = content.encounters['the-patrons-steward'] as Encounter;
+    Object.assign(first, { score: ['+', ['ranked', 'party', ['stat', 'strength'], [1, Number.POSITIVE_INFINITY, Number.NaN]], Number.NEGATIVE_INFINITY, ['stat', 'wits']] });
+    reeve.checks = [];
+    const stewardCheck = steward.checks[0] as Encounter['checks'][number];
+    steward.checks = [stewardCheck, { ...stewardCheck, key: 'Second', name: ' ' }, ...['third', 'fourth', 'fifth'].map((key) => ({ ...stewardCheck, key }))];
+
+    const { message } = refusalOf(() => validateContent(content));
+
+    expect(message).toMatch(/encounters\.ambush-on-the-road\.checks\.0\.score\.1\.3\.1 is Infinity; a weight is a finite number of 0 or more/);
+    expect(message).toMatch(/encounters\.ambush-on-the-road\.checks\.0\.score\.1\.3\.2 is NaN; a weight is a finite number of 0 or more/);
+    expect(message).toMatch(/encounters\.ambush-on-the-road\.checks\.0\.score\.2 is -Infinity; a number in a Query is finite/);
+    expect(message).toMatch(/encounters\.ambush-on-the-road\.checks\.0\.score\.3: "stat" makes a Val, where a Num is expected/);
+    expect(message).toMatch(/encounters\.a-hostile-reeve\.checks is empty: an Encounter is resolved by a Check/);
+    expect(message).toMatch(/encounters\.the-patrons-steward\.checks has 5; an Encounter has at most 4/);
+    expect(message).toMatch(/encounters\.the-patrons-steward\.checks\.1\.key: "Second" is not kebab-case/);
+    expect(message).toMatch(/encounters\.the-patrons-steward\.checks\.1\.name is empty/);
+  });
+
+  // v1.1.4-S1's verification: in a Check's score, a Set filtered by Sex may be read only by a Val
+  // that reads a Hero; one that is constant, or reads a Hero only times a literal 0, counts the Set.
+  test.each<[string, unknown, RegExp | null]>([
+    ['a constant disguised with × 0', ['sum', ['where', 'party', ['sex', 'female']], ['+', 1, ['*', 0, ['level']]]], /score: a Set filtered by Sex is counted/],
+    ['a weighted read of no weight', ['sum', ['where', 'party', ['sex', 'female']], ['weighted', [['strength', 0]]]], /score: a Set filtered by Sex is counted/],
+    ['a × 0 nested in a difference', ['avg', ['where', 'party', ['sex', 'male']], ['-', 2, ['*', ['level'], 0]]], /score: a Set filtered by Sex is counted/],
+    ['the best Hero read times 0', ['of', ['best', ['where', 'party', ['sex', 'male']], ['level']], ['*', 0, ['stat', 'wits']]], /score: a Set filtered by Sex is counted/],
+    ['a Stat summed', ['sum', ['where', 'party', ['sex', 'female']], ['stat', 'strength']], null],
+    ['the best Level', ['max', ['where', 'party', ['sex', 'female']], ['level']], null],
+  ])('held in memory, a Check scoring a Set filtered by Sex by %s is refused or accepted as the rule says', (_, score, problem) => {
+    const content = loadContent();
+    Object.assign((content.encounters['ambush-on-the-road'] as Encounter).checks[0] ?? {}, { score });
+
+    if (problem === null) expect(validateContent(content).encounters['ambush-on-the-road']?.checks[0]?.score).toEqual(score);
+    else expect(refusalOf(() => validateContent(content)).message).toMatch(problem);
+  });
+
+  test("held in memory, a Synergy's requirement that is not a list is refused", () => {
+    const content = loadContent();
+    Object.assign(content.synergies['sword-and-salve'] ?? {}, { requires: { classes: { warrior: 1 } } });
+
+    expect(refusalOf(() => validateContent(content)).message).toMatch(
+      /synergies\.sword-and-salve\.requires is \{"classes":\{"warrior":1\}\}; expected a list of conditions on the Party/,
+    );
   });
 });
 
@@ -1250,7 +1453,7 @@ describe('an Item definition (M5-S1)', () => {
     ['an effect with a field its kind lacks', (json) => void Object.assign(draught(json), { effect: { kind: 'heal', days: 5, flat: 2 } }), /items\.json: healing-draught\.effect\.flat is not a field of a heal effect/],
     ['a heal of no Days', (json) => void Object.assign(draught(json), { effect: { kind: 'heal', days: 0 } }), /items\.healing-draught\.effect\.days is 0; it is a whole number from 1/],
     ['a bonus of 0', (json) => void Object.assign(whetstone(json), { effect: { kind: 'bonus', flat: 0, kinds: ['combat'] } }), /items\.whetstone\.effect\.flat is 0; it is a number above 0/],
-    ['an Encounter kind that is not one of the five', (json) => void Object.assign(whetstone(json), { effect: { kind: 'bonus', flat: 3, kinds: ['naval'] } }), /items\.json: whetstone\.effect\.kinds is \["naval"\]; expected a list, each one of combat, travel, social, arcane, stealth/],
+    ['an Encounter kind that is not one of the six', (json) => void Object.assign(whetstone(json), { effect: { kind: 'bonus', flat: 3, kinds: ['naval'] } }), /items\.json: whetstone\.effect\.kinds is \["naval"\]; expected a list, each one of combat, travel, social, arcane, stealth, lore/],
     ['no Encounter kinds', (json) => void Object.assign(whetstone(json), { effect: { kind: 'reroll', kinds: [] } }), /items\.whetstone\.effect\.kinds is empty/],
     ['an Encounter kind listed twice', (json) => void Object.assign(whetstone(json), { effect: { kind: 'reroll', kinds: ['travel', 'travel'] } }), /items\.whetstone\.effect\.kinds: "travel" is listed twice/],
   ])('with %s is refused, naming the Item', (_, change, problem) => {
@@ -1350,6 +1553,8 @@ describe('a Disposition (M6-S1)', () => {
   test.each<[string, (it: Omit<Disposition, 'key'>) => void, RegExp]>([
     ['with a questRiskAppetite above 1', (it) => (it.questRiskAppetite = 1.5), /dispositions\.reckless\.questRiskAppetite is 1\.5; it is a number from 0 to 1/],
     ['with a transferAppetite below 0', (it) => (it.transferAppetite = -0.1), /dispositions\.reckless\.transferAppetite is -0\.1; it is a number from 0 to 1/],
+    ['with a partyMargin below 0', (it) => (it.partyMargin = -0.05), /dispositions\.reckless\.partyMargin is -0\.05; it is a number from 0 to 1/],
+    ['with a partyMargin above 1', (it) => (it.partyMargin = 1.5), /dispositions\.reckless\.partyMargin is 1\.5; it is a number from 0 to 1/],
     ['with a negative recruitThreshold', (it) => (it.recruitThreshold = -1), /dispositions\.reckless\.recruitThreshold is -1; it is a number of 0 or more/],
     ['with a negative buildThreshold', (it) => (it.buildThreshold = -2), /dispositions\.reckless\.buildThreshold is -2; it is a number of 0 or more/],
     ['with a negative gearThreshold', (it) => (it.gearThreshold = -3), /dispositions\.reckless\.gearThreshold is -3; it is a number of 0 or more/],
@@ -1366,8 +1571,12 @@ describe('a Disposition (M6-S1)', () => {
     const wrong = withJson('dispositions.json', (json) => {
       Object.assign(reckless(json), { questRiskAppetite: 'high' });
     });
+    const noMargin = withJson('dispositions.json', (json) => {
+      Reflect.deleteProperty(reckless(json), 'partyMargin');
+    });
 
     expect(refusalOf(() => parseContent(missing)).message).toMatch(/dispositions\.json: reckless\.buildThreshold is missing/);
+    expect(refusalOf(() => parseContent(noMargin)).message).toMatch(/dispositions\.json: reckless\.partyMargin is missing/);
     expect(refusalOf(() => parseContent(wrong)).message).toMatch(/dispositions\.json: reckless\.questRiskAppetite is "high"/);
   });
 
@@ -1384,6 +1593,7 @@ describe('a Disposition (M6-S1)', () => {
         buildThreshold: 0,
         gearThreshold: 0,
         transferAppetite: 0,
+        partyMargin: 0,
       };
     });
 
@@ -1437,88 +1647,220 @@ describe('a file', () => {
     expect(refusalOf(() => parseContent(files)).message).toMatch(/dispositions\.json: steady\.riskAppetite/);
   });
 
-  // M4-S5: a Guildmaster Trait carries one effect of the closed union, a Hero Trait none (DL-43).
-  const traitRefusals: [string, (json: Files['traits.json']) => void, RegExp][] = [
+  // M4-S5, v1.1.4-S7: a Guildmaster Trait carries one effect or more, each of the closed union (DL-43,
+  // DL-150 item 2), in `guildmaster-traits.json`.
+  const traitRefusals: [string, (json: Files['guildmaster-traits.json']) => void, RegExp][] = [
     [
       'an effect of no kind the union knows',
-      (json) => Object.assign(json['miser'] ?? {}, { effect: { upkeepFactor: 0.9 } }),
-      /traits\.json: miser\.effect\.kind.*classStatBonus, guildMoraleShift, upkeepFactor/,
+      (json) => Object.assign(json['miser'] ?? {}, { effects: [{ upkeepFactor: 0.9 }] }),
+      /guildmaster-traits\.json: miser\.effects\.0\.kind.*classStatBonus, guildMoraleShift, upkeepFactor/,
     ],
     [
       'an effect with a field its kind does not have',
-      (json) => Object.assign(json['miser'] ?? {}, { effect: { kind: 'guildMoraleShift', delta: -5, factor: 2 } }),
-      /traits\.json: miser\.effect\.factor is not a field/,
+      (json) => Object.assign(json['miser'] ?? {}, { effects: [{ kind: 'guildMoraleShift', delta: -5, factor: 2 }] }),
+      /guildmaster-traits\.json: miser\.effects\.0\.factor is not a field/,
     ],
     [
       'a classStatBonus naming an unknown Class',
-      (json) => Object.assign(json['old-soldier'] ?? {}, { effect: { kind: 'classStatBonus', classKey: 'paladin', statKey: 'weaponry', delta: 1 } }),
-      /traits\.old-soldier\.effect\.classKey: "paladin" is not a Class/,
+      (json) => Object.assign(json['old-soldier'] ?? {}, { effects: [{ kind: 'classStatBonus', classKey: 'paladin', statKey: 'weaponry', delta: 1 }] }),
+      /guildmasterTraits\.old-soldier\.effects\.0\.classKey: "paladin" is not a Class/,
     ],
     [
       'a classStatBonus naming a Stat that is no Hero Stat',
-      (json) => Object.assign(json['old-soldier'] ?? {}, { effect: { kind: 'classStatBonus', classKey: 'warrior', statKey: 'judgement', delta: 1 } }),
-      /traits\.old-soldier\.effect\.statKey: "judgement" is not a Hero Stat/,
+      (json) => Object.assign(json['old-soldier'] ?? {}, { effects: [{ kind: 'classStatBonus', classKey: 'warrior', statKey: 'judgement', delta: 1 }] }),
+      /guildmasterTraits\.old-soldier\.effects\.0\.statKey: "judgement" is not a Hero Stat/,
     ],
     [
       'a classStatBonus of 0',
-      (json) => Object.assign(json['old-soldier'] ?? {}, { effect: { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 0 } }),
-      /traits\.old-soldier\.effect\.delta is 0/,
+      (json) => Object.assign(json['old-soldier'] ?? {}, { effects: [{ kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 0 }] }),
+      /guildmasterTraits\.old-soldier\.effects\.0\.delta is 0/,
     ],
     [
       'an upkeepFactor of 0',
-      (json) => Object.assign(json['thrifty'] ?? {}, { effect: { kind: 'upkeepFactor', factor: 0 } }),
-      /traits\.thrifty\.effect\.factor is 0/,
+      (json) => Object.assign(json['thrifty'] ?? {}, { effects: [{ kind: 'upkeepFactor', factor: 0 }] }),
+      /guildmasterTraits\.thrifty\.effects\.0\.factor is 0/,
     ],
     [
-      'a Guildmaster Trait with no effect',
-      (json) => Object.assign(json['well-liked'] ?? {}, { effect: null }),
-      /traits\.well-liked\.effect: a Guildmaster Trait carries one effect/,
+      'a second effect that breaks its rule, each effect of the list held to its own',
+      (json) => Object.assign(json['thrifty'] ?? {}, { effects: [{ kind: 'upkeepFactor', factor: 0.9 }, { kind: 'upkeepFactor', factor: -1 }] }),
+      /guildmasterTraits\.thrifty\.effects\.1\.factor is -1/,
     ],
     [
-      'a Hero Trait with an effect',
-      (json) => Object.assign(json['scarred'] ?? {}, { effect: { kind: 'guildMoraleShift', delta: -1 } }),
-      /traits\.scarred\.effect: a Hero Trait has no effect/,
+      'no effect',
+      (json) => Object.assign(json['well-liked'] ?? {}, { effects: [] }),
+      /guildmasterTraits\.well-liked\.effects is empty; a Guildmaster Trait carries one effect or more/,
     ],
+    [
+      'its effect written as before, one `effect`',
+      (json) => {
+        const miser = json['miser'] as unknown as Record<string, unknown>;
+        miser.effect = (miser.effects as unknown[])[0];
+        delete miser.effects;
+      },
+      /guildmaster-traits\.json: miser\.effects is missing; expected a list of objects[\s\S]*miser\.effect is not a field of a Guildmaster Trait/,
+    ],
+    ['an owner, which the list now says', (json) => Object.assign(json['miser'] ?? {}, { owner: 'guildmaster' }), /guildmaster-traits\.json: miser\.owner is not a field of a Guildmaster Trait/],
   ];
 
-  test.each(traitRefusals)('with %s is refused, naming the Trait (M4-S5)', (_, change, message) => {
-    expect(refusalOf(() => parseContent(withJson('traits.json', change))).message).toMatch(message);
+  test.each(traitRefusals)('with %s is refused, naming the Trait (M4-S5, v1.1.4-S7)', (_, change, message) => {
+    expect(refusalOf(() => parseContent(withJson('guildmaster-traits.json', change))).message).toMatch(message);
   });
 
   // M9-S2: a Guildmaster Trait's cost against the Trait budget is a whole number, and its
-  // exclusions name Guildmaster Traits and hold both ways; a Hero Trait costs 0 and excludes
-  // nothing (DL-100 item 3, DL-102).
-  const costAndExclusionRefusals: [string, (json: Files['traits.json']) => void, RegExp][] = [
-    ['a cost missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'cost'), /traits\.json: miser\.cost is missing; expected a whole number/],
-    ['a cost that is not a whole number', (json) => Object.assign(json['miser'] ?? {}, { cost: -1.5 }), /traits\.json: miser\.cost is -1\.5; expected a whole number/],
-    ['exclusions missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'excludes'), /traits\.json: miser\.excludes is missing; expected a list of strings/],
+  // exclusions name Guildmaster Traits and hold both ways (DL-100 item 3, DL-102).
+  const costAndExclusionRefusals: [string, (json: Files['guildmaster-traits.json']) => void, RegExp][] = [
+    ['a cost missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'cost'), /guildmaster-traits\.json: miser\.cost is missing; expected a whole number/],
+    ['a cost that is not a whole number', (json) => Object.assign(json['miser'] ?? {}, { cost: -1.5 }), /guildmaster-traits\.json: miser\.cost is -1\.5; expected a whole number/],
+    ['exclusions missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'excludes'), /guildmaster-traits\.json: miser\.excludes is missing; expected a list of strings/],
     [
       'an exclusion that does not hold both ways',
       (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'old-soldier'] }),
-      /traits\.thrifty\.excludes: "old-soldier" does not exclude "thrifty" in return/,
+      /guildmasterTraits\.thrifty\.excludes: "old-soldier" does not exclude "thrifty" in return/,
     ],
     [
       'an exclusion naming a Trait content lacks',
       (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'cursed'] }),
-      /traits\.thrifty\.excludes: "cursed" is not a Guildmaster Trait/,
+      /guildmasterTraits\.thrifty\.excludes: "cursed" is not a Guildmaster Trait/,
     ],
     [
       'an exclusion naming a Hero Trait',
       (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'scarred'] }),
-      /traits\.thrifty\.excludes: "scarred" is not a Guildmaster Trait/,
+      /guildmasterTraits\.thrifty\.excludes: "scarred" is not a Guildmaster Trait/,
     ],
-    ['a Trait excluding itself', (json) => Object.assign(json['old-soldier'] ?? {}, { excludes: ['old-soldier'] }), /traits\.old-soldier\.excludes: a Trait cannot exclude itself/],
+    ['a Trait excluding itself', (json) => Object.assign(json['old-soldier'] ?? {}, { excludes: ['old-soldier'] }), /guildmasterTraits\.old-soldier\.excludes: a Trait cannot exclude itself/],
     [
       'an exclusion listed twice',
       (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'spendthrift'] }),
-      /traits\.thrifty\.excludes: "spendthrift" is listed twice/,
+      /guildmasterTraits\.thrifty\.excludes: "spendthrift" is listed twice/,
     ],
-    ['a Hero Trait with a cost', (json) => Object.assign(json['scarred'] ?? {}, { cost: 1 }), /traits\.scarred\.cost is 1; a Hero Trait is never chosen against the budget, and costs 0/],
-    ['a Hero Trait with an exclusion', (json) => Object.assign(json['scarred'] ?? {}, { excludes: ['lame'] }), /traits\.scarred\.excludes: a Hero Trait excludes nothing/],
   ];
 
   test.each(costAndExclusionRefusals)('with %s is refused, naming the Trait (M9-S2)', (_, change, message) => {
-    expect(refusalOf(() => parseContent(withJson('traits.json', change))).message).toMatch(message);
+    expect(refusalOf(() => parseContent(withJson('guildmaster-traits.json', change))).message).toMatch(message);
+  });
+
+  // v1.1.4-S7: a Hero Trait in `hero-traits.json` has no cost, effects of its own list's kinds, and
+  // exclusions of Hero Traits, both ways (DL-150 items 1 to 3 and 8).
+  const heroTraitRefusals: [string, (json: Files['hero-traits.json']) => void, RegExp][] = [
+    [
+      "an effect of a Guildmaster Trait's kind",
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'guildMoraleShift', delta: -1 }] }),
+      /hero-traits\.json: scarred\.effects\.0\.kind is "guildMoraleShift"; expected one of statModifiers, encounterBonus/,
+    ],
+    [
+      'a statModifiers naming a Stat content lacks',
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { agility: -2 } }] }),
+      /heroTraits\.lame\.effects\.0\.modifiers: "agility" is not a Hero Stat/,
+    ],
+    [
+      'a statModifiers naming a Guildmaster Stat',
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { judgement: -2 } }] }),
+      /heroTraits\.lame\.effects\.0\.modifiers: "judgement" is not a Hero Stat/,
+    ],
+    [
+      'a statModifiers by a part of a point',
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { dexterity: -1.5 } }] }),
+      /heroTraits\.lame\.effects\.0\.modifiers\.dexterity is -1\.5; it is a whole number other than 0/,
+    ],
+    [
+      'a statModifiers by 0',
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { dexterity: 0 } }] }),
+      /heroTraits\.lame\.effects\.0\.modifiers\.dexterity is 0; it is a whole number other than 0/,
+    ],
+    [
+      'a statModifiers that moves no Stat',
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: {} }] }),
+      /heroTraits\.lame\.effects\.0\.modifiers is empty: a statModifiers effect moves at least one Stat/,
+    ],
+    [
+      "a statModifiers with an Encounter bonus's field",
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { dexterity: -2 }, flat: 2 }] }),
+      /hero-traits\.json: lame\.effects\.0\.flat is not a field of a statModifiers effect/,
+    ],
+    [
+      'an encounterBonus naming no kind and no tag',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2 }] }),
+      /heroTraits\.scarred\.effects\.0 names no Encounter kind and no tag: it adds to the Encounters it names/,
+    ],
+    [
+      'an encounterBonus of 0',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 0, kinds: ['combat'] }] }),
+      /heroTraits\.scarred\.effects\.0\.flat is 0; it is a number other than 0/,
+    ],
+    [
+      'an encounterBonus on a kind that is not one',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, kinds: ['naval'] }] }),
+      /hero-traits\.json: scarred\.effects\.0\.kinds is \["naval"\]; expected a list, each one of combat, travel, social, arcane, stealth, lore/,
+    ],
+    [
+      'an encounterBonus naming a kind twice',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, kinds: ['combat', 'combat'] }] }),
+      /heroTraits\.scarred\.effects\.0\.kinds: "combat" is listed twice/,
+    ],
+    [
+      'an encounterBonus on a tag that is not kebab-case',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, tags: ['Undead'] }] }),
+      /heroTraits\.scarred\.effects\.0\.tags: "Undead" is not kebab-case/,
+    ],
+    [
+      'an encounterBonus naming a tag twice',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, tags: ['undead', 'undead'] }] }),
+      /heroTraits\.scarred\.effects\.0\.tags: "undead" is listed twice/,
+    ],
+    ['effects missing', (json) => Reflect.deleteProperty(json['scarred'] ?? {}, 'effects'), /hero-traits\.json: scarred\.effects is missing; expected a list of objects/],
+    ['a cost, which only a Guildmaster Trait has', (json) => Object.assign(json['scarred'] ?? {}, { cost: 0 }), /hero-traits\.json: scarred\.cost is not a field of a Hero Trait/],
+    ['an owner, which the list now says', (json) => Object.assign(json['scarred'] ?? {}, { owner: 'hero' }), /hero-traits\.json: scarred\.owner is not a field of a Hero Trait/],
+    [
+      'an exclusion that does not hold both ways',
+      (json) => Object.assign(json['scarred'] ?? {}, { excludes: ['lame'] }),
+      /heroTraits\.scarred\.excludes: "lame" does not exclude "scarred" in return/,
+    ],
+    [
+      'an exclusion naming a Guildmaster Trait',
+      (json) => Object.assign(json['scarred'] ?? {}, { excludes: ['miser'] }),
+      /heroTraits\.scarred\.excludes: "miser" is not a Hero Trait/,
+    ],
+    ['a Trait excluding itself', (json) => Object.assign(json['lame'] ?? {}, { excludes: ['lame'] }), /heroTraits\.lame\.excludes: a Trait cannot exclude itself/],
+    [
+      'a key that is also a Guildmaster Trait',
+      (json) => Object.assign(json, { miser: { name: 'Miser', excludes: [], effects: [] } }),
+      /heroTraits\.miser: "miser" is also a Guildmaster Trait; a Trait's key is in guildmaster-traits\.json or hero-traits\.json, not both/,
+    ],
+  ];
+
+  test.each(heroTraitRefusals)('with %s is refused, naming the Trait (v1.1.4-S7)', (_, change, message) => {
+    expect(refusalOf(() => parseContent(withJson('hero-traits.json', change))).message).toMatch(message);
+  });
+
+  test("a Hero Trait's effects of both kinds load as written: Stat changes naming several Stats, and an Encounter bonus by kinds, by tags or both (v1.1.4-S7)", () => {
+    const effects = [
+      { kind: 'statModifiers', modifiers: { dexterity: -2, endurance: -1 } },
+      { kind: 'encounterBonus', flat: -3, kinds: ['combat', 'travel'] },
+      { kind: 'encounterBonus', flat: 2, tags: ['undead'] },
+      { kind: 'encounterBonus', flat: 1, kinds: ['social'], tags: ['court'] },
+    ];
+    const files = withJson('hero-traits.json', (json) => void Object.assign(json['lame'] ?? {}, { effects }));
+    expect(parseContent(files).heroTraits.lame?.effects).toEqual(effects);
+  });
+
+  test('a Hero Trait may exclude another that excludes it in return (v1.1.4-S7, DL-150 item 3)', () => {
+    const files = withJson('hero-traits.json', (json) => {
+      Object.assign(json['scarred'] ?? {}, { excludes: ['lame'] });
+      Object.assign(json['lame'] ?? {}, { excludes: ['scarred'] });
+    });
+
+    expect(parseContent(files).heroTraits.scarred?.excludes).toEqual(['lame']);
+  });
+
+  test('the old `traits.json` is not read, and the two lists are wanted in its place (v1.1.4-S7)', () => {
+    const files = realFiles();
+    const old = { scarred: { name: 'Scarred', owner: 'hero', cost: 0, excludes: [], effect: null } };
+    delete files['hero-traits.json'];
+
+    const { message } = refusalOf(() => parseContent({ ...files, 'traits.json': JSON.stringify(old) }));
+
+    expect(message).toContain('hero-traits.json: missing');
+    expect(message).not.toMatch(/(^|\s)traits\.json/);
   });
 });
 
@@ -1553,11 +1895,25 @@ describe('validateContent on a set built in memory', () => {
     expect(message).toMatch(/items\.whetstone\.effect\.kinds: "naval" is not a kind of Encounter/);
   });
 
+  test("refuses a Hero Trait's encounterBonus on a kind of Encounter that is not one, which the parser cannot see in memory (v1.1.4-S14)", () => {
+    const content = loadContent();
+    Object.assign(content.heroTraits['battle-tried']?.effects[0] ?? {}, { kinds: ['combat', 'naval'] });
+
+    expect(refusalOf(() => validateContent(content)).message).toMatch(/heroTraits\.battle-tried\.effects\.0\.kinds: "naval" is not a kind of Encounter/);
+  });
+
   test('refuses a Trait cost that is not a whole number, which the parser cannot see in memory (M9-S2)', () => {
     const content = loadContent();
-    Object.assign(content.traits['thrifty'] ?? {}, { cost: 1.5 });
+    Object.assign(content.guildmasterTraits['thrifty'] ?? {}, { cost: 1.5 });
 
-    expect(refusalOf(() => validateContent(content)).message).toMatch(/traits\.thrifty\.cost is 1\.5; it is a whole number/);
+    expect(refusalOf(() => validateContent(content)).message).toMatch(/guildmasterTraits\.thrifty\.cost is 1\.5; it is a whole number/);
+  });
+
+  test('accepts a Guildmaster Trait of two effects, a list of effects being one or more (v1.1.4-S7, DL-150 item 2)', () => {
+    const content = loadContent();
+    content.guildmasterTraits['miser']?.effects.push({ kind: 'upkeepFactor', factor: 0.95 });
+
+    expect(validateContent(content).guildmasterTraits['miser']?.effects).toHaveLength(2);
   });
 
   test('reports every problem at once', () => {
@@ -1570,5 +1926,380 @@ describe('validateContent on a set built in memory', () => {
     expect(refusal.problems).toHaveLength(2);
     expect(refusal.message).toContain('names.guild');
     expect(refusal.message).toContain('names.patron');
+  });
+});
+
+// v1.1.4-S2 (DL-148 items 7 and 8): an Encounter written in the new form, `checks` and `pass`, with
+// consequences by Degree. `encounters.json` may hold either form; the old one still loads.
+describe('an Encounter in the new form (v1.1.4-S2)', () => {
+  /** A Check as the new form writes it. */
+  const checkRow = (key: string, fields: Record<string, unknown> = {}): Record<string, unknown> => ({
+    key,
+    name: `The ${key}`,
+    score: ['max', ['where', 'party', ['class', 'warrior']], ['stat', 'strength']],
+    skills: ['shieldwork'],
+    difficultyFactor: 0.2,
+    ...fields,
+  });
+  /** `ambush-on-the-road` rewritten in the new form, with `fields` in place of its own. */
+  const rewritten = (fields: Record<string, unknown> = {}) =>
+    withOldJson('encounters.json', (json) => {
+      const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
+      (json as Record<string, unknown>)['ambush-on-the-road'] = {
+        name,
+        kind,
+        checks: [checkRow('front'), checkRow('nerve', { score: ['min', 'party', ['stat', 'courage']], skills: [] }), checkRow('wits', { flat: 4, variance: 0 })],
+        pass: ['or', ['and', 'front', 'nerve'], 'wits'],
+        consequences: { ...consequences, triumph: [{ kind: 'fame', delta: 2 }], setback: [{ kind: 'morale', delta: -1 }] },
+        ...fields,
+      };
+    });
+
+  test('loads as written, beside Encounters in the old form', () => {
+    const content = parseContent(rewritten());
+    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
+
+    expect(ambush.checks.map((it) => it.key)).toEqual(['front', 'nerve', 'wits']);
+    expect(ambush.checks[2]).toEqual({ ...checkRow('wits', { flat: 4, variance: 0 }) });
+    expect(ambush.pass).toEqual(['or', ['and', 'front', 'nerve'], 'wits']);
+    expect(ambush.consequences).toMatchObject({ triumph: [{ kind: 'fame', delta: 2 }], setback: [{ kind: 'morale', delta: -1 }] });
+    // An old one beside it loads as before: one Check, no formula, no lists by Degree.
+    const reeve = content.encounters['a-hostile-reeve'] as Encounter;
+    expect(reeve.checks).toHaveLength(1);
+    expect(reeve.pass).toBeUndefined();
+    expect(Object.keys(reeve.consequences)).toEqual(['success', 'failure']);
+  });
+
+  test('of one Check, may leave out its pass formula, and a raw gate of a flat and no difficulty factor is accepted', () => {
+    const content = parseContent(rewritten({ checks: [checkRow('front', { difficultyFactor: 0, flat: 1, variance: 0, raw: true, skills: [] })], pass: undefined }));
+    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
+    expect(ambush.pass).toBeUndefined();
+    expect(ambush.checks[0]).toMatchObject({ raw: true, flat: 1, variance: 0, skills: [] });
+  });
+
+  const path = (rest: string) => new RegExp(`encounters\\.ambush-on-the-road\\.${rest.replace(/[.[\]()]/g, (char) => `\\${char}`)}`);
+  test.each<[string, Record<string, unknown>, RegExp]>([
+    ['several Checks and no pass formula', { pass: undefined }, path('pass is missing: an Encounter of several Checks combines them by a pass formula')],
+    ['a part naming no Check of the Encounter', { pass: ['or', ['and', 'front', 'nerve'], 'wits', 'luck'] }, path('pass.3: "luck" is not a Check of this Encounter')],
+    ['a Check named twice', { pass: ['or', ['and', 'front', 'nerve'], 'wits', 'front'] }, path('pass: "front" is named twice; every Check is named once')],
+    ['a Check not named', { pass: ['or', 'front', 'wits'] }, path('pass: "nerve" is not named; every Check is named once')],
+    ['an operator no formula has', { pass: ['or', ['xor', 'front', 'nerve'], 'wits'] }, path('pass.1.0 is "xor"; a pass formula\'s operator is and, or or at-least')],
+    ['an `and` of one part', { pass: ['or', ['and', 'front'], 'nerve', 'wits'] }, path('pass.1 has 1 part; and combines two or more')],
+    ['an `at-least` of 0', { pass: ['at-least', 0, 'front', 'nerve', 'wits'] }, path("pass.1 is 0; at-least's k is a whole number from 1 to the number of its parts, 3")],
+    ['an `at-least` of more than its parts', { pass: ['at-least', 4, 'front', 'nerve', 'wits'] }, path("pass.1 is 4; at-least's k")],
+    ['an `at-least` of a fraction', { pass: ['at-least', 1.5, 'front', 'nerve', 'wits'] }, path("pass.1 is 1.5; at-least's k")],
+    ['a part that is a number', { pass: ['or', 'front', 'nerve', 'wits', 3] }, path("pass.4 is 3; a part of a pass formula is a Check's key or a list")],
+    ['five Checks', { checks: ['a', 'b', 'c', 'd', 'e'].map((key) => checkRow(key)), pass: ['and', 'a', 'b', 'c', 'd', 'e'] }, path('checks has 5; an Encounter has at most 4')],
+    ['a negative flat', { checks: [checkRow('front', { flat: -1 })], pass: 'front' }, path('checks.0.flat is -1; it is a number of 0 or more')],
+    ['a factor of 0 with no flat', { checks: [checkRow('front', { difficultyFactor: 0 })], pass: 'front' }, path('checks.0.difficultyFactor is 0; it is a number above 0, or 0 beside a flat above 0')],
+    ['a negative factor beside a flat', { checks: [checkRow('front', { difficultyFactor: -0.1, flat: 2 })], pass: 'front' }, path('checks.0.difficultyFactor is -0.1; it is a number of 0 or more')],
+    ['a variance above 1', { checks: [checkRow('front', { variance: 1.5 })], pass: 'front' }, path('checks.0.variance is 1.5; it is a number from 0 to 1')],
+    ['a Check with a field it lacks', { checks: [checkRow('front', { aggregate: 'sum' })], pass: 'front' }, /encounters\.json: ambush-on-the-road\.checks\.0\.aggregate is not a field of an Encounter's Check/],
+    ['a Check with no score', { checks: [checkRow('front', { score: undefined })], pass: 'front' }, path('checks.0.score')],
+    ['a Check with a Skill content lacks', { checks: [checkRow('front', { skills: ['axemanship'] })], pass: 'front' }, path('checks.0.skills: "axemanship" is not a Skill')],
+    ['the old form beside the new', { demands: [['strength', 1]] }, /encounters\.json: ambush-on-the-road\.demands is not a field of an Encounter/],
+    ['a raw Check with Skills', { checks: [checkRow('front', { raw: true })], pass: 'front' }, path('checks.0.skills lists 1; a raw Check is its score alone, and lists no Skills')],
+    ['a raw that is not true or false', { checks: [checkRow('front', { raw: 'yes', skills: [] })], pass: 'front' }, /ambush-on-the-road\.checks\.0\.raw is "yes"; expected true or false/],
+  ])('with %s is refused, naming its path', (_, fields, problem) => {
+    expect(refusalOf(() => parseContent(rewritten(fields))).message).toMatch(problem);
+  });
+
+  test('with consequences by Degree out of bounds, or of a field they lack, is refused, naming them', () => {
+    const { consequences } = { consequences: { success: [], failure: [] } };
+    const bad = rewritten({ consequences: { ...consequences, triumph: [{ kind: 'death', chance: 2 }], setback: [{ kind: 'xp', factor: -1 }] } });
+    const odd = rewritten({ consequences: { ...consequences, glory: [] } });
+
+    const { message } = refusalOf(() => parseContent(bad));
+    expect(message).toMatch(path('consequences.triumph.0.chance is 2'));
+    expect(message).toMatch(path('consequences.setback.0.factor is -1'));
+    expect(refusalOf(() => parseContent(odd)).message).toMatch(/ambush-on-the-road\.consequences\.glory is not a field of an Encounter's consequences/);
+  });
+});
+
+// v1.1.4-S3's verification (DL-154): form scales the Stats a Hero adds into a Check's score, so a
+// Stat subtracted would be scaled too, and a wound or low spirits would raise the score. A `-` whose
+// right operand reads a Stat a Hero adds, directly, within a `weighted`, or by a Num of such a Val,
+// is refused in a Check's score. A Synergy's requirement reads the Heroes as they are, and keeps it.
+describe("a Check's score that subtracts a Stat (v1.1.4-S3)", () => {
+  const scored = (score: unknown) =>
+    withJson('encounters.json', (json) => {
+      const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
+      (json as Record<string, unknown>)['ambush-on-the-road'] = {
+        name,
+        kind,
+        checks: [{ key: 'front', name: 'Front', score, skills: [], difficultyFactor: 0.2 }],
+        consequences,
+      };
+    });
+  const at = (rest: string) => new RegExp(`encounters\\.ambush-on-the-road\\.checks\\.0\\.score${rest.replace(/[.[\]()]/g, (char) => `\\${char}`)}: "-" subtracts a Stat a Hero adds`);
+
+  test.each<[string, unknown, RegExp]>([
+    ['a Val subtracting a Stat', ['sum', 'party', ['-', ['level'], ['stat', 'strength']]], at('.2.2')],
+    ['a Val subtracting a weighted', ['max', 'party', ['-', 20, ['weighted', [['wits', 1]]]]], at('.2.2')],
+    ['a Val subtracting a sum of Stats', ['of', ['best', 'party', ['level']], ['-', 10, ['+', 1, ['stat', 'wits']]]], at('.2.2')],
+    ['a Num subtracting a sum of a Stat', ['-', 40, ['sum', 'party', ['stat', 'strength']]], at('.2')],
+    ['a Num subtracting the best Hero\'s Stat', ['+', 5, ['-', ['count', 'party'], ['of', ['best', 'party', ['level']], ['stat', 'wits']]]], at('.2.2')],
+    ['a Num subtracting a ranked Stat', ['-', 30, ['ranked', 'party', ['stat', 'courage'], [1]]], at('.2')],
+    ['a Num subtracting the least of a Stat', ['-', 30, ['least', 3, ['min', 'party', ['stat', 'courage']]]], at('.2')],
+  ])('with %s is refused, naming its path', (_, score, problem) => {
+    expect(refusalOf(() => parseContent(scored(score))).message).toMatch(problem);
+  });
+
+  test.each<[string, unknown]>([
+    ['a Stat less a number', ['sum', 'party', ['-', ['stat', 'strength'], 2]]],
+    ['a Stat less a Level', ['sum', 'party', ['-', ['stat', 'strength'], ['level']]]],
+    ['a sum less a count of Heroes filtered by a Stat', ['-', ['sum', 'party', ['stat', 'strength']], ['count', ['where', 'party', ['<', ['stat', 'wits'], 8]]]]],
+    ['a sum less the best Hero\'s Skill', ['-', ['sum', 'party', ['stat', 'strength']], ['of', ['best', 'party', ['stat', 'wits']], ['skill', 'tactics']]]],
+  ])('with %s is accepted', (_, score) => {
+    expect(parseContent(scored(score)).encounters['ambush-on-the-road']?.checks[0]?.score).toEqual(score);
+  });
+
+  test("a Synergy's requirement, read as the Heroes are, may subtract a Stat", () => {
+    const condition = ['>=', ['-', 40, ['sum', 'party', ['stat', 'strength']]], 1];
+    const files = withJson('synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).requires = [condition]));
+    expect(parseContent(files).synergies['sword-and-salve']?.requires).toEqual([condition]);
+  });
+
+  // v1.1.4-S9 (DL-162): a negative weight in a `weighted`, or a Stat times a negative constant,
+  // inverts form as a `-` does, so each is refused in a Check's score, naming its path.
+  const negative = (rest: string, what: string) =>
+    new RegExp(`encounters\\.ambush-on-the-road\\.checks\\.0\\.score${rest.replace(/[.[\]()]/g, (char) => `\\${char}`)}: ${what}`);
+  const weightedRefusal = (rest: string) => negative(rest, 'weighted gives "\\w+" a negative weight; form would then raise the score of a hurt or low-spirited Hero');
+  const timesRefusal = (rest: string) => negative(rest, '"\\*" multiplies a Stat a Hero adds by a negative number; form would then raise the score of a hurt or low-spirited Hero');
+  const mayRefusal = (rest: string) => negative(rest, '"\\*" multiplies a Stat a Hero adds by a number that may be negative; form would then raise the score of a hurt or low-spirited Hero');
+  const rankedRefusal = (rest: string) => negative(rest, '"ranked" gives a negative weight to a value that reads a Stat a Hero adds; form would then raise the score of a hurt or low-spirited Hero');
+  const best = ['max', 'party', ['stat', 'wits']];
+
+  test.each<[string, unknown, RegExp]>([
+    ['a weighted with a negative weight', ['sum', 'party', ['weighted', [['strength', 0.6], ['wits', -0.4]]]], weightedRefusal('.2.1.1.1')],
+    ['a weighted of one negative weight, deep in a Num', ['+', 3, ['max', 'party', ['weighted', [['courage', -1]]]]], weightedRefusal('.2.2.1.0.1')],
+    ['a Val of a Stat times a negative number', ['sum', 'party', ['*', -1, ['stat', 'strength']]], timesRefusal('.2')],
+    ['a Val of a Stat times a negative sum of numbers', ['avg', 'party', ['*', ['-', 1, 3], ['+', ['stat', 'wits'], 2]]], timesRefusal('.2')],
+    ['a Num of a sum of a Stat times a negative number', ['+', 20, ['*', ['sum', 'party', ['stat', 'strength']], -0.5]], timesRefusal('.2')],
+    ['a Num of the best Hero\'s Stat times a negative number', ['*', -2, ['of', ['best', 'party', ['level']], ['stat', 'wits']]], timesRefusal('')],
+    // The verification (DL-162): the sign is carried through the tree, not read of constants alone.
+    ['a Stat times minus the count of the Party', ['*', ['*', -1, ['count', 'party']], best], timesRefusal('')],
+    ['a Stat times nought less the count of the Party', ['*', ['-', 0, ['count', 'party']], best], timesRefusal('')],
+    ['a Stat times a count less 3, which may be negative', ['*', ['-', ['count', 'party'], 3], best], mayRefusal('')],
+    ['a Stat negated thrice', ['*', -1, ['*', -1, ['*', -1, best]]], timesRefusal('.2.2')],
+    ['a Stat negated, then subtracted', ['-', 10, ['*', -1, ['-', 0, best]]], negative('.2.2.2', '"-" subtracts a Stat a Hero adds; form would then raise the score of a hurt or low-spirited Hero')],
+    ['a ranked with a negative weight', ['ranked', 'party', ['stat', 'wits'], [1, -0.5]], rankedRefusal('.3')],
+  ])('with %s is refused, naming its path', (_, score, problem) => {
+    expect(refusalOf(() => parseContent(scored(score))).message).toMatch(problem);
+  });
+
+  test.each<[string, unknown]>([
+    ['a weighted of positive and zero weights', ['sum', 'party', ['weighted', [['strength', 0.6], ['wits', 0]]]]],
+    ['a Stat times a positive number', ['sum', 'party', ['*', 0.5, ['stat', 'strength']]]],
+    ['a Level times a negative number', ['+', ['sum', 'party', ['stat', 'strength']], ['sum', 'party', ['*', -1, ['level']]]]],
+    ['a count times a negative number', ['+', ['sum', 'party', ['stat', 'strength']], ['*', -2, ['count', ['where', 'party', ['<', ['stat', 'wits'], 8]]]]]],
+    ['a Stat times a product of two negative numbers', ['sum', 'party', ['*', -1, -2, ['stat', 'strength']]]],
+    ['a Stat negated twice', ['*', -1, ['*', -1, ['sum', 'party', ['stat', 'strength']]]]],
+    ['a Stat subtracted from nought, then negated', ['*', -1, ['-', 0, best]]],
+    ['a negative weight, negated', ['*', -1, ['max', 'party', ['weighted', [['wits', -1]]]]]],
+    ['a Stat times the count of the Party', ['*', ['count', 'party'], best]],
+    ['a Stat times a count less nought', ['*', ['-', ['count', 'party'], 0], best]],
+  ])('with %s is accepted', (_, score) => {
+    expect(parseContent(scored(score)).encounters['ambush-on-the-road']?.checks[0]?.score).toEqual(score);
+  });
+
+  test('a raw Check, read without form, may weigh a Stat negatively', () => {
+    const files = withJson('encounters.json', (json) => {
+      const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
+      (json as Record<string, unknown>)['ambush-on-the-road'] = {
+        name,
+        kind,
+        checks: [{ key: 'gate', name: 'Gate', score: ['+', 30, ['*', -1, ['max', 'party', ['weighted', [['wits', -1]]]]]], skills: [], difficultyFactor: 0, flat: 1, raw: true }],
+        consequences,
+      };
+    });
+    expect(parseContent(files).encounters['ambush-on-the-road']?.checks[0]?.raw).toBe(true);
+  });
+});
+
+// v1.1.4-S4 (DL-148 item 14, DL-155): harm that reads the Stats. An Injury's and a Death's `among`
+// is a Set Query, held as a Check's score is, Sex allowed in its filters; their `exposedBy` and
+// `guardedBy`, and a Morale's `steadiedBy`, list Hero Stats. Each refusal names its path.
+describe('harm that reads the Stats (v1.1.4-S4)', () => {
+  /** The real files with `ambush-on-the-road`'s failure consequences as given. */
+  const failing = (...failure: Record<string, unknown>[]) =>
+    withJson('encounters.json', (json) => {
+      const ambush = json['ambush-on-the-road'] as EncounterRow;
+      (ambush.consequences as { failure: unknown[] }).failure = failure;
+    });
+  const injury = { kind: 'injury', typeKey: 'deep-cut', chance: 0.2, count: 1 };
+  const escaped = (rest: string) => rest.replace(/[.[\]()"]/g, (char) => `\\${char}`);
+  /** A refusal of validation, at the path's end `rest`. */
+  const at = (rest: string) => new RegExp(`encounters\\.ambush-on-the-road\\.consequences\\.failure\\.${escaped(rest)}`);
+  /** A refusal as the file is read, which names the file and then the row. */
+  const read = (rest: string) => new RegExp(`encounters\\.json: ambush-on-the-road\\.consequences\\.failure\\.${escaped(rest)}`);
+
+  test('every field, at its fullest, loads as written', () => {
+    const among = ['top', ['where', 'party', ['and', ['class', 'warrior'], ['sex', 'male']]], 2, ['stat', 'constitution']];
+    const files = failing(
+      { ...injury, among, exposedBy: ['constitution', 'endurance'], guardedBy: ['constitution'] },
+      { kind: 'death', chance: 0.03, among: 'party', exposedBy: ['dexterity'], guardedBy: ['endurance'] },
+      { kind: 'morale', delta: -4, steadiedBy: ['courage', 'willpower'] },
+    );
+
+    expect(parseContent(files).encounters['ambush-on-the-road']?.consequences.failure).toEqual([
+      { ...injury, among, exposedBy: ['constitution', 'endurance'], guardedBy: ['constitution'] },
+      { kind: 'death', chance: 0.03, among: 'party', exposedBy: ['dexterity'], guardedBy: ['endurance'] },
+      { kind: 'morale', delta: -4, steadiedBy: ['courage', 'willpower'] },
+    ]);
+  });
+
+  test.each<[string, Record<string, unknown>, RegExp]>([
+    ['an among that is not a Set', { ...injury, among: ['count', 'party'] }, at('0.among: "count" makes a Num, where a Set is expected')],
+    ['an among naming a Class content lacks', { kind: 'death', chance: 0.1, among: ['where', 'party', ['class', 'paladin']] }, at('0.among.2.1: "paladin" is not a Class')],
+    ['an among that is a number', { ...injury, among: 3 }, at('0.among is 3; a number stands for a Val or a Num, not a Set')],
+    ['an exposedBy naming a Stat content lacks', { ...injury, exposedBy: ['toughness'] }, at('0.exposedBy: "toughness" is not a Hero Stat')],
+    ['an exposedBy naming a Guildmaster Stat', { ...injury, exposedBy: ['judgement'] }, at('0.exposedBy: "judgement" is not a Hero Stat')],
+    ['a guardedBy naming a Stat twice', { kind: 'death', chance: 0.1, guardedBy: ['endurance', 'endurance'] }, at('0.guardedBy: "endurance" is listed twice')],
+    ['an empty guardedBy', { ...injury, guardedBy: [] }, at('0.guardedBy lists no Stat')],
+    ['a steadiedBy naming a Stat content lacks', { kind: 'morale', delta: -2, steadiedBy: ['nerve'] }, at('0.steadiedBy: "nerve" is not a Hero Stat')],
+    ['a steadiedBy beside a gain', { kind: 'morale', delta: 2, steadiedBy: ['courage'] }, at('0.steadiedBy steadies a loss; delta is 2')],
+  ])('with %s is refused, naming its path', (_, consequence, problem) => {
+    expect(refusalOf(() => parseContent(failing(consequence))).message).toMatch(problem);
+  });
+
+  test('an among filtered by Sex is allowed, as in a Check, and one that is not a list of Stats is refused as a field of the wrong type', () => {
+    const bySex = failing({ ...injury, among: ['where', 'party', ['sex', 'female']] });
+    expect(parseContent(bySex).encounters['ambush-on-the-road']?.consequences.failure[0]).toMatchObject({ among: ['where', 'party', ['sex', 'female']] });
+    expect(refusalOf(() => parseContent(failing({ ...injury, exposedBy: 'constitution' }))).message).toMatch(read('0.exposedBy is "constitution"; expected a list of strings'));
+  });
+
+  test("a field on a kind that lacks it is refused: an Injury's steadiedBy, a Morale's among", () => {
+    expect(refusalOf(() => parseContent(failing({ ...injury, steadiedBy: ['courage'] }))).message).toMatch(
+      read('0.steadiedBy is not a field of a consequence of kind injury'),
+    );
+    expect(refusalOf(() => parseContent(failing({ kind: 'morale', delta: -1, among: 'party' }))).message).toMatch(
+      read('0.among is not a field of a consequence of kind morale'),
+    );
+  });
+});
+
+// v1.1.4-S7 (DL-148 item 25, DL-159): an earned Trait, `{ kind: "trait", traitKey, chance, among }`.
+// Its list says what it is: a positive Trait in an Encounter's `triumph` list, a negative one in its
+// `failure` list after an Injury; it stands in no other. Each refusal names its path.
+describe('an earned Trait (v1.1.4-S7)', () => {
+  type Lists = Partial<Record<'success' | 'failure' | 'triumph' | 'setback', Record<string, unknown>[]>>;
+  /** The real files with `ambush-on-the-road`'s consequences as given. */
+  const consequences = (lists: Lists) =>
+    withJson('encounters.json', (json) => {
+      const ambush = json['ambush-on-the-road'] as EncounterRow;
+      ambush.consequences = { success: [], failure: [], ...lists } as never;
+    });
+  const injury = { kind: 'injury', typeKey: 'deep-cut', chance: 0.2, count: 1 };
+  const trait = { kind: 'trait', traitKey: 'scarred', chance: 0.1 };
+  const escaped = (rest: string) => rest.replace(/[.[\]()"]/g, (char) => `\\${char}`);
+  const at = (rest: string) => new RegExp(`encounters\\.ambush-on-the-road\\.consequences\\.${escaped(rest)}`);
+
+  test('loads as written, a positive one on a Triumph and a negative one after an Injury, `among` a Set Query or absent', () => {
+    const among = ['where', 'party', ['class', 'warrior']];
+    const files = consequences({ triumph: [{ ...trait, among }], failure: [injury, trait] });
+    const ambush = parseContent(files).encounters['ambush-on-the-road'];
+    expect(ambush?.consequences.triumph).toEqual([{ ...trait, among }]);
+    expect(ambush?.consequences.failure).toEqual([injury, trait]);
+  });
+
+  test.each<[string, Lists, RegExp]>([
+    ['a Trait content lacks', { triumph: [{ ...trait, traitKey: 'lucky' }] }, at('triumph.0.traitKey: "lucky" is not a Hero Trait')],
+    ['a Guildmaster Trait', { triumph: [{ ...trait, traitKey: 'miser' }] }, at('triumph.0.traitKey: "miser" is not a Hero Trait')],
+    ['a chance above 1', { triumph: [{ ...trait, chance: 1.5 }] }, at('triumph.0.chance is 1.5; it is a probability from 0 to 1')],
+    ['an among that is not a Set', { triumph: [{ ...trait, among: ['count', 'party'] }] }, at('triumph.0.among: "count" makes a Num, where a Set is expected')],
+    ['one in the success list', { success: [trait] }, at('success.0: an earned Trait stands in the triumph list, a positive one, or the failure list, a negative one; not in success')],
+    ['one in the setback list', { setback: [injury, trait] }, at('setback.1: an earned Trait stands in the triumph list, a positive one, or the failure list, a negative one; not in setback')],
+    [
+      'a negative one with no Injury before it',
+      { failure: [trait, injury] },
+      at('failure.0: a negative Trait falls only among the Heroes this Encounter injured, so an Injury comes before it in the failure list'),
+    ],
+  ])('with %s is refused, naming its path', (_, lists, problem) => {
+    expect(refusalOf(() => parseContent(consequences(lists))).message).toMatch(problem);
+  });
+
+  test("a field it lacks is refused as the file is read: a count, an Injury's exposedBy", () => {
+    expect(refusalOf(() => parseContent(consequences({ triumph: [{ ...trait, count: 1 }] }))).message).toMatch(
+      /encounters\.json: ambush-on-the-road\.consequences\.triumph\.0\.count is not a field of a consequence of kind trait/,
+    );
+    expect(refusalOf(() => parseContent(consequences({ triumph: [{ ...trait, exposedBy: ['dexterity'] }] }))).message).toMatch(
+      /encounters\.json: ambush-on-the-road\.consequences\.triumph\.0\.exposedBy is not a field of a consequence of kind trait/,
+    );
+  });
+});
+
+describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
+  /** The real files with `ambush-on-the-road` changed. */
+  const ambushed = (change: (it: EncounterRow) => void) => withOldJson('encounters.json', (json) => change(json['ambush-on-the-road'] as EncounterRow));
+  /** `files` with the barrow's template changed. */
+  const barrowed = (change: (it: Template) => void, files = oldFiles()) => changed(files, 'quest-templates.json', (json) => change(barrow(json)));
+  /** A lore Encounter keyed `a-riddle`, the sealed door's Check. */
+  const riddle = (files: Record<string, string>) =>
+    changed(files, 'encounters.json', (json) => {
+      json['a-riddle'] = { ...(json['the-sealed-door'] as EncounterRow), name: 'A riddle', kind: 'lore', tags: ['delve'] };
+    });
+
+  test("loads an Encounter's tags and a template's Finale as written, and an Encounter with none has no tags", () => {
+    const files = barrowed((it) => (it.finale = 'hold-the-line'), ambushed((it) => (it.tags = ['escort', 'road-side'])));
+    const content = parseContent(files);
+    expect(content.encounters['ambush-on-the-road']?.tags).toEqual(['escort', 'road-side']);
+    expect(content.questTemplates['clear-the-barrow']?.finale).toBe('hold-the-line');
+    const untagged = parseContent(ambushed((it) => delete it.tags));
+    expect(untagged.encounters['ambush-on-the-road']).not.toHaveProperty('tags');
+    expect(untagged.questTemplates['hold-the-border-fort']).not.toHaveProperty('finale');
+  });
+
+  test.each<[string, (it: EncounterRow) => void, RegExp]>([
+    ['a tag that is not kebab-case', (it) => (it.tags = ['On The Road']), /encounters\.ambush-on-the-road\.tags: "On The Road" is not kebab-case/],
+    ['a tag listed twice', (it) => (it.tags = ['escort', 'escort']), /encounters\.ambush-on-the-road\.tags: "escort" is listed twice/],
+    ['tags that are not a list of strings', (it) => ((it as unknown as Record<string, unknown>)['tags'] = 'escort'), /encounters\.json: ambush-on-the-road\.tags is "escort"; expected a list of strings/],
+  ])("an Encounter's %s is refused, naming its path", (_, change, problem) => {
+    expect(refusalOf(() => parseContent(ambushed(change))).message).toMatch(problem);
+  });
+
+  test.each<[string, (it: Template) => void, RegExp]>([
+    ['a Finale that is not an Encounter', (it) => (it.finale = 'the-dragon'), /questTemplates\.clear-the-barrow\.finale: "the-dragon" is not an Encounter/],
+    ['a Finale that is not a string', (it) => ((it as unknown as Record<string, unknown>)['finale'] = ['hold-the-line']), /quest-templates\.json: clear-the-barrow\.finale is \["hold-the-line"\]; expected a string, or no such field/],
+  ])("a template's %s is refused, naming its path", (_, change, problem) => {
+    expect(refusalOf(() => parseContent(barrowed(change))).message).toMatch(problem);
+  });
+
+  test('a kind whose every Encounter is a Finale, which is never drawn, is refused for each template that draws it', () => {
+    // The two arcane Encounters made Finales: the barrow's, and the vault's.
+    const files = changed(
+      barrowed((it) => (it.finale = 'the-sealed-door')),
+      'quest-templates.json',
+      (json) => void ((json['break-the-sealed-vault'] as Template).finale = 'a-restless-power'),
+    );
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toMatch(/questTemplates\.lay-the-restless-dead\.encounterKinds: every Encounter of kind "arcane" is a Finale, which is never drawn/);
+    expect(message).toMatch(/questTemplates\.break-the-sealed-vault\.encounterKinds: every Encounter of kind "arcane" is a Finale/);
+    expect(message).not.toMatch(/clear-the-barrow\.encounterKinds/);
+  });
+
+  test("a Finale may be of any kind, one its template's places are not drawn from", () => {
+    const files = barrowed((it) => (it.finale = 'a-riddle'), riddle(oldFiles()));
+    expect(parseContent(files).questTemplates['clear-the-barrow']?.finale).toBe('a-riddle');
+  });
+
+  test('lore is a kind an Encounter, a template, a Synergy, a consumable and a Hero Trait may name', () => {
+    let files = riddle(oldFiles());
+    files = barrowed((it) => (it.encounterKinds = [...it.encounterKinds, 'lore']), files);
+    files = changed(files, 'synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).kinds = ['lore']));
+    files = changed(files, 'items.json', (json) => void Object.assign(json['whetstone'] ?? {}, { effect: { kind: 'bonus', flat: 3, kinds: ['lore'] } }));
+    files = changed(files, 'hero-traits.json', (json) =>
+      Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, kinds: ['lore'], tags: ['delve'] }] }),
+    );
+    const content = parseContent(files);
+    expect(content.encounters['a-riddle']?.kind).toBe('lore');
+    expect(content.questTemplates['clear-the-barrow']?.encounterKinds).toContain('lore');
+    expect(content.synergies['sword-and-salve']?.kinds).toEqual(['lore']);
+  });
+
+  test('a template drawing lore when content has no lore Encounter is refused, naming the kind', () => {
+    expect(refusalOf(() => parseContent(barrowed((it) => (it.encounterKinds = ['lore'])))).message).toMatch(
+      /questTemplates\.clear-the-barrow\.encounterKinds: no Encounter is of kind "lore"/,
+    );
   });
 });

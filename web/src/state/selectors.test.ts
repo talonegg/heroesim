@@ -1,15 +1,20 @@
 import {
   addStack,
   advance,
+  append,
+  availableHeroes,
   bankruptcyCountdown,
   createItem,
   createWorld,
   dayOf,
   defaultConfig,
   entriesFor,
+  estimateQuest,
   guildmasterOf,
   judgedHintBands,
+  milestoneTypes,
   nightOf,
+  partyFor,
   playerGuild,
   potentialHint,
   rankingPlaces,
@@ -35,8 +40,11 @@ import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { partiesOutView } from './digest';
 import { played as playedThrough, started } from './game.test-support';
+import { listed } from './names';
+import { chanceWords, shownPercent } from './query-words';
 import { initialGameState, type GameState } from './reducer';
 import {
+  bestPartyView,
   boardView,
   type BoardOrder,
   consumableChoices,
@@ -246,31 +254,57 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
     return document;
   }
 
-  test('gives its Demands as bars of their weights with the Stats named, the Skills that help as a list, and its Encounters counted by kind', () => {
+  // v1.1.4-S6 (DL-148 item 16): each Encounter and what each Check reads, in place of the template's demands.
+  test("gives its Encounters in order, each Check's name and what it reads, and the Skills that help as a list; no demands", () => {
     const document = board(([first]) => {
       if (first === undefined) throw new Error('an empty Board');
-      first.demands = [
-        ['dexterity', 0.4],
-        ['wits', 0.35],
-        ['adaptability', 0.25],
-      ];
-      // stealth, combat, stealth, combat, travel: counted in the order each kind is first met.
       first.encounterKeys = ['past-the-watch', 'ambush-on-the-road', 'the-trapped-passage', 'hold-the-line', 'the-long-march'];
     });
 
     const [card] = boardView(document);
 
-    expect(card?.demands).toEqual([
-      { stat: 'Dexterity', percent: 40 },
-      { stat: 'Wits', percent: 35 },
-      { stat: 'Adaptability', percent: 25 },
+    // Each Encounter's Checks' Skills, in order, each once (v1.1.4-S10's content).
+    expect(card?.skills).toEqual(['Stealth', 'Swordcraft', 'Tactics', 'Trapcraft', 'Lockpicking', 'Shieldwork', 'Field surgery', 'Herbalism']);
+    expect(card?.encounters.map(({ name, kind, one }) => [name, kind, one])).toEqual([
+      ['Past the watch', 'stealth', false],
+      ['Ambush on the road', 'combat', false],
+      ['The trapped passage', 'stealth', false],
+      ['Hold the line', 'combat', false],
+      ['The long march', 'travel', false],
     ]);
-    expect(card?.skills).toEqual(['Stealth', 'Lockpicking', 'Swordcraft', 'Tactics', 'Trapcraft', 'Shieldwork', 'Field surgery', 'Herbalism']);
-    expect(card?.encounters).toEqual([
-      { kind: 'stealth', count: 2, words: 'Stealth ×2' },
-      { kind: 'combat', count: 2, words: 'Combat ×2' },
-      { kind: 'travel', count: 1, words: 'Travel ×1' },
+    expect(card?.encounters[0]?.checks).toEqual([
+      { key: 'quiet-feet', name: 'Quiet feet', reads: 'the lowest Dexterity in the Party' },
+      { key: 'timing', name: 'Timing', reads: 'the highest (0.5 Wits + 0.5 Perception) in the Party' },
     ]);
+    expect(card?.encounters[1]?.checks[0]?.reads).toBe('the (0.6 Weaponry + 0.4 Strength) of the Party, highest first, weighted 1, 0.5 and 0.25');
+    expect(card?.encounters[3]?.checks[0]?.reads).toBe('the total (0.5 Constitution + 0.5 Strength) of the 3 Heroes with the highest Constitution');
+    expect(Object.keys(card ?? {})).not.toContain('demands');
+  });
+
+  // v1.1.4-S6 (DL-148 items 15 and 17): the Party the engine would send from the free Heroes, and its chance.
+  test("gives the best Party of the free Heroes, partyFor's, with its estimate's word, or none when no Party meets the requirements", () => {
+    const document = board((quests, it) => {
+      const [first, second] = quests as [Quest, Quest];
+      first.requirements = { partySizeMin: 1, partySizeMax: 4 };
+      second.requirements = { partySizeMin: 1, partySizeMax: 4, classKey: 'no-such-class' };
+      // One Hero away: the best Party is of the free Heroes only.
+      (heroes(it)[0] as Hero).injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
+    });
+    const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest);
+    const guild = player(document);
+    const available = availableHeroes(document.world, guild);
+    const heroIds = partyFor(document.world, guild, first as Quest, available, deps) ?? [];
+    const estimate = estimateQuest(document.world, first as Quest, heroIds.map((id) => document.world.heroes[id] as Hero), deps);
+
+    const best = bestPartyView(document);
+
+    expect(heroIds.length).toBeGreaterThan(0);
+    expect(heroIds).not.toContain(heroes(document)[0]?.id);
+    expect(best.get(first?.id as QuestId)).toEqual({ chance: chanceWords[estimate?.chance ?? 'hopeless'], names: listed(heroIds.map((id) => document.world.heroes[id]?.name ?? '')) });
+    expect(best.get(second?.id as QuestId)).toBeNull();
+    expect([...best.keys()]).toEqual(document.world.board);
+    // v1.1.4-S6's verification: only the Board asks for it; the cards the digest and the stop read carry none.
+    expect(Object.keys(boardView(document)[0] ?? {})).not.toContain('best');
   });
 
   test('a Quest whose Encounters are drawn on the way counts none, and its Skills are its own', () => {
@@ -284,6 +318,8 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
 
     expect(card?.encounters).toEqual([]);
     expect(card?.skills).toEqual(['Herbalism', 'Field surgery']);
+    // The best Party is named, its chance not known until its Encounters are drawn.
+    expect(bestPartyView(document).get(card?.questId as QuestId)).toMatchObject({ chance: null });
   });
 
   test('places its difficulty against the Quests on the Board now, from the easiest to the hardest, as display only', () => {
@@ -381,19 +417,14 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
 
 describe('the Party builder (M9-S4, DL-104)', () => {
   /**
-   * A new game whose first Quest demands Strength, Willpower and Courage, requires Herbalism, and
-   * meets the restless dead and a hostile reeve, whose Checks read Benediction and Swordcraft; its
-   * four Heroes are Bram (a Healer with Herbalism 1 and Benediction 2), Liv (a Warrior with
-   * Swordcraft 2 and Tactics 1), Cenric (a Rogue) and Ragnvald (a Mage).
+   * A new game whose first Quest requires Herbalism and meets the restless dead and a hostile reeve,
+   * whose Checks read Spirit, Willpower, Weaponry, Power, Courage and Resistance, then Diplomacy and
+   * Charisma (v1.1.4-S10's content), and the Skills Benediction, Swordcraft and Evocation; its four Heroes are Bram (a Healer with Herbalism 1 and Benediction 2),
+   * Liv (a Warrior with Swordcraft 2 and Tactics 1), Cenric (a Rogue) and Ragnvald (a Mage).
    */
   function builder(): { document: WorldDocument; quest: Quest; bram: Hero; liv: Hero; cenric: Hero; ragnvald: Hero } {
     const document = structuredClone(newGame());
     const quest = document.world.quests[document.world.board[0] as QuestId] as Quest;
-    quest.demands = [
-      ['strength', 0.4],
-      ['willpower', 0.3],
-      ['courage', 0.3],
-    ];
     quest.requirements = { partySizeMin: 1, partySizeMax: 3, skillKey: 'herbalism' };
     quest.encounterKeys = ['the-restless-dead', 'a-hostile-reeve'];
     const [bram, liv, cenric, ragnvald] = heroes(document);
@@ -402,10 +433,10 @@ describe('the Party builder (M9-S4, DL-104)', () => {
     return { document, quest, bram, liv, cenric, ragnvald };
   }
 
-  test("gives each Hero on the Roster a row: Class and Level, Morale and its band, the effective values of the Stats the Quest demands, and its Skills they have", () => {
+  test("gives each Hero on the Roster a row: Class and Level, the effective values of the Stats the Quest's Checks read, and its Skills they have, and no Morale (DL-148 item 12)", () => {
     const { document, quest, bram, liv } = builder();
     liv.morale = 15;
-    // An arming sword lifts Liv's Strength by 1: the value a Check reads, not the base.
+    // An arming sword lifts Liv's Weaponry by 2: the value a Check reads, not the base.
     addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
 
     const rows = partyRows(document, quest.id);
@@ -416,15 +447,13 @@ describe('the Party builder (M9-S4, DL-104)', () => {
       name: 'Bram Netherby',
       className: 'Healer',
       level: 1,
-      morale: 60,
-      moraleBand: 'steady',
       why: null,
       unavailable: null,
-      stats: [
-        { name: 'Strength', value: bram.stats.strength },
-        { name: 'Willpower', value: bram.stats.willpower },
-        { name: 'Courage', value: bram.stats.courage },
-      ],
+      // The Stats the Checks read, in the order the Quest meets them (v1.1.4-S6, `statsRead`), not the template's demands.
+      stats: (['spirit', 'willpower', 'weaponry', 'power', 'courage', 'resistance', 'diplomacy', 'charisma'] as const).map((key) => ({
+        name: content.stats[key]?.name,
+        value: bram.stats[key],
+      })),
       // The Skill the Quest requires first, then those that help, as the Hero has them.
       skills: [
         { name: 'Herbalism', rating: 1 },
@@ -433,17 +462,16 @@ describe('the Party builder (M9-S4, DL-104)', () => {
     });
     expect(rows?.[1]).toMatchObject({
       className: 'Warrior',
-      morale: 15,
-      moraleBand: 'wretched',
-      stats: [
-        { name: 'Strength', value: (liv.stats.strength ?? 0) + 1 },
-        { name: 'Willpower', value: liv.stats.willpower },
+      stats: expect.arrayContaining([
+        { name: 'Weaponry', value: (liv.stats.weaponry ?? 0) + 2 },
         { name: 'Courage', value: liv.stats.courage },
-      ],
+      ]),
       skills: [{ name: 'Swordcraft', rating: 2 }],
     });
     // A Rogue and a Mage have none of this Quest's Skills.
     expect(rows?.slice(2).map((row) => row.skills)).toEqual([[], []]);
+    // v1.1.4-S3's verification: no row names a Hero's Morale; the Party's one line says what it does.
+    for (const row of rows ?? []) expect(Object.keys(row).filter((key) => key.startsWith('morale'))).toEqual([]);
   });
 
   test("the values are those the Hero's page shows: its effective Stats and its Skills' ratings", () => {
@@ -454,9 +482,6 @@ describe('the Party builder (M9-S4, DL-104)', () => {
       const page = heroPage(document, row.heroId);
       for (const stat of row.stats) expect(stat.value).toBe(page?.areas.flatMap((area) => area.stats).find((each) => each.name === stat.name)?.value);
       for (const skill of row.skills) expect(page?.skills).toContainEqual(skill);
-      const card = rosterView(document).find((each) => each.heroId === row.heroId);
-      expect([row.morale, row.moraleBand]).toEqual([card?.morale, card?.moraleBand]);
-      expect([row.morale, row.moraleBand]).toEqual([page?.morale.value, page?.morale.band]);
     }
   });
 
@@ -522,6 +547,48 @@ describe('choosing a Party', () => {
     expect(nobody?.verdict).toEqual({ sends: false, words: expect.stringMatching(/^Dispatch would refuse it: .+ needs a Party of/) });
     expect(nobody?.requirements[0]?.met).toBe(false);
     expect(previewView(document, 'quest-999999' as QuestId, party, [])).toBeNull();
+  });
+
+  // v1.1.4-S6 (DL-148 item 15): a word for each Encounter and the Quest, and S5's estimate floored to 5% for the detail, agreeing with the word.
+  test("gives each Encounter's chance and the Quest's in a word, with the estimate's percentage floored to 5%, carrying what is carried", () => {
+    const document = structuredClone(newGame());
+    const quest = document.world.quests[document.world.board[0] as QuestId] as Quest;
+    const chosen = heroes(document).slice(0, 2);
+    const carried = consumableChoices(document).slice(0, 1).map(({ definitionKey }) => ({ definitionKey, quantity: 1 }));
+    const estimate = estimateQuest(document.world, quest, chosen, deps, carried);
+    if (estimate === null) throw new Error('No estimate');
+
+    const preview = previewView(document, quest.id, chosen.map((hero) => hero.id), carried);
+
+    expect(preview?.chances).toEqual({
+      encounters: estimate.encounters.map((it) => ({
+        name: content.encounters[it.encounterKey]?.name,
+        chance: chanceWords[it.chance],
+        percent: shownPercent(it.success),
+      })),
+      quest: { name: 'The Quest', chance: chanceWords[estimate.chance], percent: shownPercent(estimate.success) },
+    });
+    for (const line of [...(preview?.chances?.encounters ?? []), preview?.chances?.quest]) expect((line?.percent ?? 1) % 5).toBe(0);
+    expect(previewView(document, quest.id, [], [])?.chances).toBeNull();
+  });
+
+  // v1.1.4-S3 (DL-148 item 12): one Morale line for the Party, from its mean form, naming no Hero.
+  test.each([
+    [[60, 60], 'Makes no difference.'],
+    [[95, 50], 'Raises the odds.'],
+    [[25, 50], 'Lowers the odds a little.'],
+    [[5, 5], 'Lowers the odds badly.'],
+  ])('with Morale %j, gives the Party one line: %s', (morales, words) => {
+    const document = structuredClone(newGame());
+    const questId = document.world.board[0] as QuestId;
+    const chosen = heroes(document).slice(0, 2);
+    chosen.forEach((hero, index) => (hero.morale = morales[index] ?? 60));
+
+    const preview = previewView(document, questId, chosen.map((hero) => hero.id), []);
+
+    expect(preview?.morale).toBe(words);
+    for (const hero of chosen) expect(preview?.morale).not.toContain(hero.name);
+    expect(previewView(document, questId, [], [])?.morale).toBeNull();
   });
 });
 
@@ -599,6 +666,24 @@ describe('heroPage', () => {
     expect(page).not.toHaveProperty('history');
   });
 
+  // v1.1.4-S7 (DL-148 item 27, DL-150 item 5): a Trait gained or lost is a Milestone, on the Hero's page.
+  test("shows a Trait gained and a Trait lost among its Milestones, in the History's words", () => {
+    const document = structuredClone(newGame());
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    const guildId = player(document).id;
+    const questId = 'quest-000900' as QuestId;
+    const at = (turn: number, type: 'hero.trait-gained' | 'hero.trait-lost', payload: object) =>
+      append(document.history, { turn, type, participants: [hero.id, guildId], labels: { [hero.id]: hero.name }, milestone: milestoneTypes[type], payload } as never);
+    at(document.world.turn, 'hero.trait-gained', { heroId: hero.id, traitKey: 'lame', questId, encounterIndex: 0, encounterKey: 'ambush-on-the-road' });
+    at(document.world.turn, 'hero.trait-lost', { heroId: hero.id, traitKey: 'lame', replacedBy: 'one-eyed' });
+
+    const sentences = heroPage(document, hero.id)?.milestones.map((line) => line.sentence) ?? [];
+
+    expect(sentences).toContain(`${hero.name} lost the Trait Lame, replaced by One-eyed.`);
+    expect(sentences.some((sentence) => sentence.startsWith(`${hero.name} earned the Trait Lame on `))).toBe(true);
+  });
+
   test("gives the Hero's sex for their Portrait, and no Portrait's key: every Hero shows the Silhouette of their sex (DL-125 items 2 and 4)", () => {
     const document = newGame();
     for (const hero of Object.values(document.world.heroes)) {
@@ -650,7 +735,8 @@ describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
       where: { why: 'injured', words: 'Injured, healing on the night of Day 6' },
       injury: content.injuries['deep-cut']?.name,
       xp: 45,
-      traits: [content.traits.scarred?.name ?? 'scarred'],
+      // v1.1.4-S7: each Trait with what it does, in `traitEffectWords`.
+      traits: [{ name: content.heroTraits.scarred?.name ?? 'scarred', effect: '+1 Courage, -1 Charisma' }],
       fee: null,
     });
     expect(heroPage(document, other.id)).toMatchObject({ where: { why: null, words: 'At the Hall' }, injury: null, traits: [] });
@@ -681,6 +767,11 @@ describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
     expect(stat('Strength')).toMatchObject({ value: base('strength') + 1, lift: { words: '+1', up: true } });
     expect(stat('Arcana')).toMatchObject({ value: base('arcana') - 1, lift: { words: '-1', up: false } });
     expect(stat('Wits')).toMatchObject({ value: base('wits'), lift: null });
+    // v1.1.4-S7 (DL-148 item 24): a Hero Trait's Stat change shows where the Stat shows, as gear's does.
+    hero.traits = ['lame' as never];
+    const lame = heroPage(document, hero.id)?.areas.flatMap((area) => area.stats) ?? [];
+    expect(lame.find((row) => row.name === 'Dexterity')).toMatchObject({ value: Math.max(1, base('dexterity') - 2), lift: { words: '-2', up: false } });
+    expect(lame.find((row) => row.name === 'Strength')).toMatchObject({ value: base('strength') + 1, lift: { words: '+1', up: true } });
     expect(JSON.stringify(areas)).not.toMatch(/potential/i);
   });
 

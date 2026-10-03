@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { EncounterKind, StatArea, TraitEffect } from '@heroesim/engine';
+import type { EncounterKind, GuildmasterTraitEffect, StatArea } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { contentFiles, contentWarnings, descriptionBounds, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
@@ -12,10 +12,12 @@ describe('loadContent()', () => {
   const stats = Object.values(content.stats);
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
+  /** A Guildmaster Trait's effect that helps the Guild: DL-100 item 3's buff. */
+  const buff = (effect: GuildmasterTraitEffect): boolean => (effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0);
 
-  test("is the core content set, version 17 since v1.1.3-S1's pictures' rows, vocabulary and a Hero's sentences (DL-134, DL-135)", () => {
+  test("is the core content set, at the version its last change raised it to (parse.ts's comment says why)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(20);
+    expect(content.version).toBe(31);
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
@@ -123,7 +125,7 @@ describe('loadContent()', () => {
     const { descriptions } = content;
     const bands = descriptions.ageBands.map((band) => band.key);
     const guildBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'guild').map((row) => row.key);
-    const guildmasterTraits = Object.values(content.traits).filter((row) => row.owner === 'guildmaster').map((row) => row.key);
+    const guildmasterTraits = Object.keys(content.guildmasterTraits);
 
     test('has three age bands for the Guildmasters of 21 to 50, and at least thirty Birthplaces', () => {
       expect(descriptions.ageBands).toEqual([
@@ -174,7 +176,7 @@ describe('loadContent()', () => {
       const { stationOrigins, callingCareers, temperClosings } = descriptions.biography;
       const hero = descriptions.heroBiography;
       const heroBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'hero').map((row) => row.key);
-      const heroTraits = Object.values(content.traits).filter((row) => row.owner === 'hero').map((row) => row.key);
+      const heroTraits = Object.keys(content.heroTraits);
       const lists: [string, string[] | undefined][] = [
         ...descriptions.stations.map((key): [string, string[] | undefined] => [`stationOrigins.${key}`, stationOrigins[key]]),
         ...Object.keys(descriptions.callings).flatMap((key) =>
@@ -188,7 +190,7 @@ describe('loadContent()', () => {
         ...heroTraits.map((key): [string, string[] | undefined] => [`heroBiography.traits.${key}`, hero.traits[key]]),
         ...bands.map((band): [string, string[] | undefined] => [`heroBiography.closings.${band}`, hero.closings[band]]),
       ];
-      expect(lists).toHaveLength(3 + 7 * 3 + 7 + 8 + 4 * 3 + 4 + 3);
+      expect(lists).toHaveLength(3 + 7 * 3 + 7 + 8 + 4 * 3 + heroTraits.length + 3);
       for (const [where, list] of lists) expect(list?.length ?? 0, where).toBeGreaterThanOrEqual(1);
     });
 
@@ -271,8 +273,8 @@ describe('loadContent()', () => {
       const { thrifty = [], miser = [] } = descriptions.biography.traits;
       const pairs = thrifty.flatMap((one) => miser.map((other) => [one, other])).filter(([one = '', other = '']) => money.test(one) && money.test(other));
       expect(pairs).toEqual([]);
-      expect(content.traits.thrifty?.excludes).not.toContain('miser');
-      expect(content.traits.miser?.excludes).not.toContain('thrifty');
+      expect(content.guildmasterTraits.thrifty?.excludes).not.toContain('miser');
+      expect(content.guildmasterTraits.miser?.excludes).not.toContain('thrifty');
     });
 
     test("writes each Guildmaster Trait's sentences for any age, so a young career and a Trait never disagree", () => {
@@ -290,25 +292,16 @@ describe('loadContent()', () => {
     });
   });
 
-  test("gives each Guildmaster Trait DL-100 item 3's cost, a buff costing and a penalty refunding, and its three exclusions both ways; Hero Traits cost 0 and exclude nothing (M9-S2)", () => {
-    const costs = Object.fromEntries(
-      Object.values(content.traits)
-        .filter((trait) => trait.owner === 'guildmaster')
-        .map((trait) => [trait.key, trait.cost]),
-    );
-    expect(costs).toEqual({ 'well-liked': 2, thrifty: 2, 'old-soldier': 1, miser: -2, spendthrift: -2, 'mistrusts-magic': -1 });
-
-    const excludes = Object.fromEntries(Object.values(content.traits).map((trait) => [trait.key, [...trait.excludes].sort()]));
-    expect(excludes).toMatchObject({
-      thrifty: ['spendthrift'],
-      spendthrift: ['miser', 'thrifty'],
-      'well-liked': ['miser'],
-      miser: ['spendthrift', 'well-liked'],
-      'old-soldier': [],
-      'mistrusts-magic': [],
-    });
-    for (const trait of Object.values(content.traits)) {
-      if (trait.owner === 'hero') expect([trait.key, trait.cost, trait.excludes]).toEqual([trait.key, 0, []]);
+  // The Traits are the owner's to add, change and remove through the content editor (DL-150 items 7
+  // to 12), so these tests hold the rules a Trait keeps, not the Traits shipped (the verification of
+  // v1.1.4-S13); the content's checks hold the rest, an exclusion both ways among them.
+  test("costs a Guildmaster Trait as DL-100 item 3 says: a buff costs, and a penalty refunds (M9-S2)", () => {
+    const traits = Object.values(content.guildmasterTraits);
+    expect(traits.length).toBeGreaterThan(0);
+    for (const trait of traits) {
+      const effects = trait.effects.map(buff);
+      if (effects.length > 0 && effects.every(Boolean)) expect(trait.cost, trait.key).toBeGreaterThan(0);
+      if (effects.length > 0 && !effects.some(Boolean)) expect(trait.cost, trait.key).toBeLessThan(0);
     }
   });
 
@@ -329,17 +322,24 @@ describe('loadContent()', () => {
     for (const it of improvements) expect(it.name.length).toBeGreaterThan(0);
   });
 
-  test('has the four named Dispositions (INPUTS 7.5), their weights as the M6 close retuned them (DL-69)', () => {
-    const weights = (questRiskAppetite: number, recruitThreshold: number, buildThreshold: number, gearThreshold: number, transferAppetite: number) =>
-      ({ questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite });
+  test('has the four named Dispositions (INPUTS 7.5), their weights as the M6 close retuned them (DL-69), and their partyMargins (DL-157)', () => {
+    const weights = (
+      questRiskAppetite: number,
+      recruitThreshold: number,
+      buildThreshold: number,
+      gearThreshold: number,
+      transferAppetite: number,
+      partyMargin: number,
+    ) => ({ questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite, partyMargin });
     expect(content.dispositions).toEqual({
       // DL-56 set the rows, DL-58 gave reckless a gearThreshold of 3; the M6 close's balance pass
       // (DL-69) moved steady to the middle of the Quests it can staff, every transferAppetite below a
       // third, so that no Rival sells itself below rivalRosterMin, and the hiring and building bars.
-      steady: { key: 'steady', name: 'Steady', ...weights(0.5, 60, 12, 3, 0.2) },
-      ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.7, 45, 1.5, 2, 0.3) },
-      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.35, 60, 40, 10, 0.1) },
-      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 3, 0.25) },
+      // v1.1.4-S6 gave each its partyMargin, 0.05 and reckless's 0.10, first values S10 tunes (DL-148).
+      steady: { key: 'steady', name: 'Steady', ...weights(0.5, 60, 12, 3, 0.2, 0.05) },
+      ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.7, 45, 1.5, 2, 0.3, 0.05) },
+      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.35, 60, 40, 10, 0.1, 0.05) },
+      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 3, 0.25, 0.1) },
     });
   });
 
@@ -387,20 +387,20 @@ describe('loadContent()', () => {
     }
   });
 
-  test('has six Guildmaster Traits, three buffs and three penalties, each kind of effect among them; Hero Traits have none (M4-S5)', () => {
-    const traits = Object.values(content.traits);
-    const guildmaster = traits.filter((trait) => trait.owner === 'guildmaster');
-    const buff = (effect: TraitEffect): boolean =>
-      effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0;
+  test("gives each Guildmaster Trait an effect, and the four Injury Traits DL-148 item 24's Stat changes (M4-S5, v1.1.4-S7)", () => {
+    for (const trait of Object.values(content.guildmasterTraits)) expect(trait.effects.length, trait.key).toBeGreaterThan(0);
+    const modifiers = (it: Record<string, number>) => ({ effects: [{ kind: 'statModifiers', modifiers: it }] });
+    expect(content.heroTraits).toMatchObject({
+      lame: modifiers({ dexterity: -2, endurance: -1 }),
+      'one-eyed': modifiers({ perception: -2, weaponry: -1 }),
+      'short-winded': modifiers({ endurance: -2, constitution: -1 }),
+      scarred: modifiers({ courage: 1, charisma: -1 }),
+    });
+  });
 
-    expect(guildmaster).toHaveLength(6);
-    const effects = guildmaster.map((trait) => trait.effect).filter((effect) => effect !== null);
-    expect(effects).toHaveLength(6);
-    expect(effects.filter(buff)).toHaveLength(3);
-    expect(new Set(effects.map((effect) => effect.kind))).toEqual(new Set(['classStatBonus', 'guildMoraleShift', 'upkeepFactor']));
-    expect(content.traits['old-soldier']?.effect).toEqual({ kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 });
-    expect(traits.filter((trait) => trait.owner === 'hero').length).toBeGreaterThan(0);
-    for (const trait of traits) if (trait.owner === 'hero') expect(trait.effect).toBeNull();
+  test('keys every Trait in one of the two lists, Guildmaster and Hero, never both (v1.1.4-S7, DL-150 item 1)', () => {
+    const both = Object.keys(content.heroTraits).filter((key) => Object.hasOwn(content.guildmasterTraits, key));
+    expect(both).toEqual([]);
   });
 
   test('has eight Hero and four Guild Backgrounds, and six Spheres', () => {
@@ -485,62 +485,149 @@ describe('loadContent()', () => {
     });
   });
 
-  // M4-S1's third box.
-  describe('Encounters (M4-S1)', () => {
+  // M4-S1's third box; the Encounters as v1.1.4-S10 wrote them from the drafts the owner approved
+  // (DL-162, DL-165): each in Checks scored by Queries over the Party, with a pass formula.
+  describe('Encounters (M4-S1, v1.1.4-S10)', () => {
     const encounters = Object.values(content.encounters);
+    /** Each Encounter as `encounters.json` writes it: the new form (v1.1.4-S2). */
+    const written = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<
+      string,
+      { checks: Record<string, unknown>[]; pass?: unknown; consequences: Record<string, unknown[]> }
+    >;
     // The engine's union, written out: content imports only types from the engine (ADR-0006).
-    const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'] as const satisfies readonly EncounterKind[];
+    const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth', 'lore'] as const satisfies readonly EncounterKind[];
+    const finales = new Set(Object.values(content.questTemplates).flatMap((it) => (it.finale === undefined ? [] : [it.finale])));
 
-    test('are twelve, at least two of each kind', () => {
-      expect(encounters).toHaveLength(12);
-      for (const kind of encounterKinds) {
-        expect(encounters.filter((it) => it.kind === kind).length, kind).toBeGreaterThanOrEqual(2);
+    test('are twenty-nine of the six kinds, four of them lore and four Finales (DL-162)', () => {
+      const byKind = (list: typeof encounters) => Object.fromEntries(encounterKinds.map((kind) => [kind, list.filter((it) => it.kind === kind).length]));
+      expect(encounters).toHaveLength(29);
+      expect(byKind(encounters)).toEqual({ combat: 5, travel: 5, social: 4, arcane: 6, stealth: 5, lore: 4 });
+      // Drawn in their places: every kind has at least two that are no template's Finale.
+      for (const [kind, count] of Object.entries(byKind(encounters.filter((it) => !finales.has(it.key))))) expect(count, kind).toBeGreaterThanOrEqual(2);
+    });
+
+    // v1.1.4-S8 (DL-148 item 22, DL-160): the tags that weight the draw, matched to the templates'.
+    test("each has one to three tags, each one some template carries, so that every tag weights some Quest's draw", () => {
+      const carried = new Set(Object.values(content.questTemplates).flatMap((it) => it.tags));
+      for (const it of encounters) {
+        expect(it.tags?.length ?? 0, it.key).toBeGreaterThanOrEqual(1);
+        expect(it.tags?.length ?? 0, it.key).toBeLessThanOrEqual(3);
+        for (const tag of it.tags ?? []) expect(carried.has(tag), `${it.key}: ${tag}`).toBe(true);
+      }
+      const tagged = new Set(encounters.flatMap((it) => it.tags ?? []));
+      for (const tag of carried) expect(tagged.has(tag), tag).toBe(true);
+    });
+
+    test('four templates name a Finale, each an Encounter of its own (DL-148 item 22)', () => {
+      const named = Object.fromEntries(Object.values(content.questTemplates).flatMap((it) => (it.finale === undefined ? [] : [[it.key, it.finale]])));
+      expect(named).toEqual({
+        'hold-the-border-fort': 'the-last-assault',
+        'lay-the-restless-dead': 'the-last-rite',
+        'break-the-sealed-vault': 'the-wardens-seal',
+        'the-counting-house-job': 'the-strongroom',
+      });
+      expect(finales.size).toBe(4);
+    });
+
+    test('each is written in two to four named Checks, combined by a pass formula, with consequences for all four Degrees', () => {
+      for (const it of encounters) {
+        const row = written[it.key] ?? expect.fail(it.key);
+        expect(row.checks.length, it.key).toBeGreaterThanOrEqual(2);
+        expect(row.checks.length, it.key).toBeLessThanOrEqual(4);
+        expect(row.pass, it.key).toBeDefined();
+        expect(Object.keys(row.consequences).sort(), it.key).toEqual(['failure', 'setback', 'success', 'triumph']);
+        for (const check of it.checks) {
+          expect(check.name.length, `${it.key}/${check.key}`).toBeGreaterThan(0);
+          expect(check.difficultyFactor, `${it.key}/${check.key}`).toBeGreaterThan(0);
+          for (const skillKey of check.skills) expect(content.skills[skillKey], `${it.key}/${check.key}`).toBeDefined();
+        }
       }
     });
 
-    test('each weigh demands on Hero Stats summing to 1, name Skills from skills.json, and harm only on a failure', () => {
+    // DL-165: every Check rolls within the configuration's `checkVariance`; a Check writes its own only
+    // where it truly differs from the rest.
+    test('each Check rolls within checkVariance: none writes a variance of its own', () => {
+      const own = Object.entries(written).flatMap(([key, it]) => it.checks.filter((check) => 'variance' in check).map((check) => `${key}/${String(check.key)}`));
+      expect(own).toEqual([]);
+    });
+
+    test('harm only on a Setback or a Failure, each Injury of a type content has', () => {
       for (const it of encounters) {
-        const sum = it.demands.reduce((total, [, weight]) => total + weight, 0);
-        expect(sum, it.key).toBeCloseTo(1, 6);
-        for (const [statKey] of it.demands) expect(content.stats[statKey]?.owner, it.key).toBe('hero');
-        for (const skillKey of it.skillKeys) expect(content.skills[skillKey], it.key).toBeDefined();
-        expect(it.difficultyFactor, it.key).toBeGreaterThan(0);
-        const harm = it.consequences.success.filter((consequence) => consequence.kind === 'injury' || consequence.kind === 'death');
+        const { success, triumph = [], setback = [], failure } = it.consequences;
+        const harm = [...success, ...triumph].filter((consequence) => consequence.kind === 'injury' || consequence.kind === 'death');
         expect(harm, it.key).toEqual([]);
-        for (const consequence of it.consequences.failure) {
+        for (const consequence of [...setback, ...failure]) {
           if (consequence.kind === 'injury') expect(content.injuries[consequence.typeKey], it.key).toBeDefined();
         }
       }
     });
 
-    test('use both aggregates and every kind of consequence', () => {
-      expect(new Set(encounters.map((it) => it.aggregate))).toEqual(new Set(['best', 'sum']));
-      const used = new Set(
-        encounters.flatMap((it) => [...it.consequences.success, ...it.consequences.failure].map((consequence) => consequence.kind)),
-      );
-      expect(used).toEqual(new Set(['injury', 'death', 'morale', 'regard', 'xp', 'wealth', 'fame']));
+    test('use every kind of consequence the old form used', () => {
+      const used = new Set(encounters.flatMap((it) => Object.values(it.consequences).flatMap((list) => (list ?? []).map((consequence) => consequence.kind))));
+      expect([...used]).toEqual(expect.arrayContaining(['injury', 'death', 'morale', 'regard', 'xp', 'wealth', 'fame']));
+    });
+
+    /**
+     * The Hero Stats a Check's score adds, as the calibration's coverage grid counts them (DL-162): a
+     * Stat read as a value, in a sum, an aggregate, a weighting or a ranking, and not one that only
+     * chooses a Hero, filters a Set or orders it ("Wits of the Hero with the lowest Dexterity" adds Wits).
+     */
+    function statsAdded(query: unknown): string[] {
+      if (!Array.isArray(query)) return [];
+      const [operator, ...operands] = query as [unknown, ...unknown[]];
+      if (operator === 'stat') return [String(operands[0])];
+      if (operator === 'weighted') return (operands[0] as [string, number][]).filter(([, weight]) => weight !== 0).map(([statKey]) => statKey);
+      if (operator === 'max' || operator === 'min' || operator === 'sum' || operator === 'avg' || operator === 'ranked' || operator === 'of') return statsAdded(operands[1]);
+      if (operator === '+' || operator === '-' || operator === '*' || operator === 'least' || operator === 'greatest') return operands.flatMap(statsAdded);
+      return [];
+    }
+
+    // v1.1.4-S10's coverage (DL-148 item 21, the epic's gate): no Hero Stat goes unread by the Quests.
+    test('read every Hero Stat by three Checks at least, across two kinds at least', () => {
+      const short = heroStats.flatMap((stat) => {
+        const kinds = encounters.flatMap((it) => it.checks.filter((check) => statsAdded(check.score).includes(stat.key)).map(() => it.kind));
+        return kinds.length >= 3 && new Set(kinds).size >= 2 ? [] : [`${stat.key}: ${kinds.length} Checks across ${new Set(kinds).size} kinds`];
+      });
+      expect(heroStats).toHaveLength(20);
+      expect(short).toEqual([]);
+    });
+
+    test('count, for the coverage, a Stat a score adds, and not one that only chooses the Hero or the Set', () => {
+      expect(statsAdded(['of', ['worst', 'party', ['stat', 'dexterity']], ['stat', 'wits']])).toEqual(['wits']);
+      expect(statsAdded(['sum', ['top', 'party', 3, ['stat', 'constitution']], ['weighted', [['strength', 0.5], ['wits', 0]]]])).toEqual(['strength']);
+      expect(statsAdded(['+', ['*', 0.5, ['max', ['where', 'party', ['class', 'mage']], ['stat', 'arcana']]], ['count', 'party']])).toEqual(['arcana']);
+      expect(statsAdded(['ranked', 'party', ['+', ['stat', 'courage'], ['stat', 'willpower']], [1, 0.5]])).toEqual(['courage', 'willpower']);
     });
   });
 
-  // INPUTS 6.4: six starter Synergies, among them Warrior + Healer, Rogue + Mage and three Warriors.
-  describe('Synergies (M4-S3)', () => {
+  // INPUTS 6.4: six starter Synergies, among them Warrior + Healer, Rogue + Mage and three Warriors;
+  // v1.1.4-S10 writes them as Queries over the Party, and three more that read Stats and Levels (DL-162).
+  describe('Synergies (M4-S3, v1.1.4-S10)', () => {
     const synergies = Object.values(content.synergies);
+    /** Each Synergy's requirement as `synergies.json` writes it: conditions on the Party. */
+    const written = JSON.parse(readFileSync(join(contentDir, 'synergies.json'), 'utf8')) as Record<string, { requires: unknown }>;
+    const classCount = (classKey: string, count: number) => ['>=', ['count', ['where', 'party', ['class', classKey]]], count];
 
-    test('are six, among them Warrior + Healer, Rogue + Mage and three Warriors (INPUTS 6.4)', () => {
-      expect(synergies).toHaveLength(6);
-      const byClasses = synergies.map((it) => it.requires.classes);
-      expect(byClasses).toContainEqual({ warrior: 1, healer: 1 });
-      expect(byClasses).toContainEqual({ rogue: 1, mage: 1 });
-      expect(byClasses).toContainEqual({ warrior: 3 });
+    test('are nine, among them Warrior + Healer, Rogue + Mage and three Warriors (INPUTS 6.4)', () => {
+      expect(synergies).toHaveLength(9);
+      const requirements = synergies.map((it) => it.requires);
+      expect(requirements).toContainEqual([classCount('warrior', 1), classCount('healer', 1)]);
+      expect(requirements).toContainEqual([classCount('rogue', 1), classCount('mage', 1)]);
+      expect(requirements).toContainEqual([classCount('warrior', 3)]);
       for (const it of synergies) expect(it.name.length, it.key).toBeGreaterThan(0);
     });
 
-    test('require Classes or Skills content has, add a flat or a factor, some on named kinds and some on every kind', () => {
+    test('are each written as conditions on the Party, and load as written', () => {
       for (const it of synergies) {
-        for (const classKey of Object.keys(it.requires.classes ?? {})) expect(content.classes[classKey], it.key).toBeDefined();
-        for (const skillKey of it.requires.skills ?? []) expect(content.skills[skillKey], it.key).toBeDefined();
+        const { requires } = written[it.key] ?? expect.fail(it.key);
+        expect(Array.isArray(requires), it.key).toBe(true);
+        expect(it.requires, it.key).toEqual(requires);
       }
-      expect(synergies.some((it) => (it.requires.skills ?? []).length > 0)).toBe(true);
+    });
+
+    test('read Classes, Skills, Stats and Levels, add a flat or a factor, some on named kinds and some on every kind', () => {
+      const read = JSON.stringify(synergies.map((it) => it.requires));
+      for (const reads of ['"class"', '"skill"', '"stat"', '"level"']) expect(read, reads).toContain(reads);
       expect(synergies.some((it) => it.bonus.flat !== undefined)).toBe(true);
       expect(synergies.some((it) => it.bonus.factor !== undefined)).toBe(true);
       expect(synergies.some((it) => it.kinds === undefined)).toBe(true);
@@ -549,25 +636,28 @@ describe('loadContent()', () => {
   });
 
   // M5-S1: twenty to start, nine gear three a slot at three grades, six consumables, five unique gear
-  // as Loot only (DL-48).
-  describe('Item definitions (M5-S1)', () => {
+  // as Loot only (DL-48); v1.1.4-S10 adds six trinkets for the Mental and Social Stats (DL-162).
+  describe('Item definitions (M5-S1, v1.1.4-S10)', () => {
     const items = Object.values(content.items);
     const gear = items.filter((it) => it.kind === 'gear');
     const consumables = items.filter((it) => it.kind === 'consumable');
     const grades = ['plain', 'fine', 'masterwork'];
+    /** v1.1.4-S10's trinkets for the Mental and Social Stats, beside each slot's line of three. */
+    const mentalAndSocial = ['commonplace-book', 'reading-glass', 'signet-ring', 'officers-sash', 'courtiers-brooch', 'scholars-almanac'];
+    const lines = gear.filter((it) => !it.unique && !mentalAndSocial.includes(it.key));
 
-    test('are twenty: nine common gear, six consumables and five unique gear', () => {
-      expect(items).toHaveLength(20);
-      expect(gear.filter((it) => !it.unique)).toHaveLength(9);
+    test('are twenty-six: fifteen common gear, six consumables and five unique gear', () => {
+      expect(items).toHaveLength(26);
+      expect(gear.filter((it) => !it.unique)).toHaveLength(15);
       expect(consumables).toHaveLength(6);
       expect(gear.filter((it) => it.unique)).toHaveLength(5);
       for (const it of items) expect(it.name.length, it.key).toBeGreaterThan(0);
     });
 
-    test('hold three common gear to each slot, one of each grade, dearer and stronger by grade (INPUTS 7.1)', () => {
+    test('hold a line of three common gear to each slot, one of each grade, dearer and stronger by grade (INPUTS 7.1)', () => {
       for (const slot of ['weapon', 'armour', 'trinket'] as const) {
-        const line = gear
-          .filter((it) => !it.unique && it.slot === slot)
+        const line = lines
+          .filter((it) => it.slot === slot)
           .sort((a, b) => grades.indexOf(a.tags[0] ?? '') - grades.indexOf(b.tags[0] ?? ''));
         const strength = line.map((it) => Object.values(it.statModifiers).reduce((sum, delta) => sum + delta, 0));
         const prices = line.map((it) => it.buyPrice ?? 0);
@@ -577,6 +667,21 @@ describe('loadContent()', () => {
         expect(new Set(strength).size, slot).toBe(3);
         expect(prices, slot).toEqual([...prices].sort((a, b) => a - b));
         expect(new Set(prices).size, slot).toBe(3);
+      }
+    });
+
+    // DL-162's verification, item 1: the automatic buyer takes the dearest piece a slot's Wealth covers,
+    // so a new piece cheaper than its grade's core trinket never takes its place, and none ties a price.
+    test('hold six trinkets for the Mental and Social Stats, each a little cheaper than the core trinket of its grade', () => {
+      const core = new Map(lines.filter((it) => it.slot === 'trinket').map((it) => [it.tags[0], it.buyPrice ?? 0]));
+      const prices = new Set(lines.map((it) => it.buyPrice));
+      for (const key of mentalAndSocial) {
+        const it = gear.find((each) => each.key === key) ?? expect.fail(key);
+        expect(it.slot, key).toBe('trinket');
+        expect(it.unique, key).toBe(false);
+        for (const statKey of Object.keys(it.statModifiers)) expect(['mental', 'social'], `${key} ${statKey}`).toContain(content.stats[statKey]?.area);
+        expect(it.buyPrice ?? 0, key).toBeLessThan(core.get(it.tags[0]) ?? 0);
+        expect(prices.has(it.buyPrice), key).toBe(false);
       }
     });
 
@@ -649,12 +754,10 @@ describe('loadContent()', () => {
       }
     });
 
-    test('leave a Hero Trait or none, and between them leave every Hero Trait', () => {
-      const left = types.flatMap((it) => (it.leavesTrait === null ? [] : [it.leavesTrait]));
-      const heroTraits = Object.values(content.traits).filter((trait) => trait.owner === 'hero');
-
+    // A Trait earned on a Quest is left by no Injury (DL-148 item 25), so not every Hero Trait is one.
+    test("leave a Hero Trait or none, some none, and each `leavesTrait` names a Hero Trait", () => {
       expect(types.some((it) => it.leavesTrait === null)).toBe(true);
-      expect([...new Set(left)].sort()).toEqual(heroTraits.map((trait) => trait.key).sort());
+      for (const it of types) if (it.leavesTrait !== null) expect(Object.keys(content.heroTraits), it.key).toContain(it.leavesTrait);
     });
   });
 

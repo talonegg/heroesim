@@ -206,18 +206,40 @@ _Avoid_: Ability, Talent, Trait (on a Hero), Perk
 
 **Trait**:
 A named binary mark: on a Guildmaster, a buff or penalty to the Guild or to a Class; on a Hero,
-a lasting mark such as one left by a healed Injury. A Guildmaster Trait has a cost, a buff
-costing points and a penalty refunding them, and may exclude others, each exclusion holding both
-ways (DL-87 item 5, DL-88 item 4, DL-100). Hero Traits have no effect yet: DL-85 gives them
-effects, and DL-87 lets one Trait carry several, so a Trait may trade a buff for a penalty (both
-to be built).
+a lasting mark such as one left by a healed Injury. Guildmaster Traits and Hero Traits are two
+lists in content, a key in one only, and each Trait carries a list of effects, so that a Trait may
+later trade a buff for a penalty (DL-87 item 6, DL-150 items 1 and 2; v1.1.4-S7). A Guildmaster or
+a Hero holds none or more of their own list, never two of which one excludes the other, each
+exclusion holding both ways. A Guildmaster Trait has a cost, a buff costing points and a penalty
+refunding them, and one effect or more (DL-87 item 5, DL-88 item 4, DL-100). A Hero Trait has none
+or more: Stat changes, which the Hero's effective Stats carry as gear's, and an Encounter bonus, added
+to every Check of the Encounters it names once for the Party however many hold it (DL-148 items 24
+and 26, DL-150 item 8; v1.1.4-S7). A Trait an Injury leaves replaces any the Hero holds that it
+conflicts with (DL-150 item 5).
 _Avoid_: Perk, Flaw, Buff, Modifier (as a noun)
+
+**Earned Trait**:
+A Hero Trait a Hero gains on a Quest, rarely. A positive one is drawn on an Encounter's Triumph
+and kept only if the Quest ends a strong success; a negative one falls only on a Hero injured by
+the same failed Encounter. At most one a Hero a Quest, none held already nor one that conflicts with
+one held, and each a Milestone, as is a Trait lost to an Injury's (DL-148 items 25 to 27, DL-150 item
+5; v1.1.4-S7). Which it is, positive or negative, is where content lists it: in an Encounter's
+Triumph consequences or its Failure ones.
+_Avoid_: Perk, Achievement, Level-up
 
 **Trait budget**:
 The points a Guildmaster's Traits may cost in all, `guildmasterTraitBudget`, so the dearer buffs
 need a penalty beside them. The player's choice at setup and every drawn Guildmaster, a Rival's
 or a successor's, keep within it and hold no excluded pair (DL-88 item 4, DL-100 item 3).
 _Avoid_: Point buy, Allowance, Points (alone)
+
+**Stat points**:
+The points a player shares among their Guildmaster's five Stats when they choose them at setup,
+`guildmasterStatPoints` (50, the drawn Stats' mean of 10 each). Each Stat chosen is 5 to 15, the
+range the Stats are drawn from; the Stats may cost no more than the points in all, and points left
+unspent are lost. Every Stat is chosen or none is. A drawn Guildmaster, the player's under "Choose
+for me", a Rival's or a successor's, is not held to them (DL-149 item 5, v1.1.4-S11).
+_Avoid_: Point buy, Pool (alone), Points (alone), Stat budget
 
 **Level**:
 A Hero's rank of experience. XP earned from Quests and training raises it, and each Level
@@ -258,8 +280,8 @@ A Hero's contentment.
 _Avoid_: Happiness, Mood, Loyalty
 
 **Morale band**:
-One of the named ranges a Hero's Morale falls in. Random Events are to be the first rule to
-read them (DL-82).
+One of the named ranges a Hero's Morale falls in. A Hero's Form on a Quest is the first rule to
+read them (v1.1.4-S3, DL-154); Random Events are to read them too (DL-82).
 _Avoid_: Mood, Tier
 
 **Regard**:
@@ -284,16 +306,20 @@ _Avoid_: Mission, Commission, Job, Contract, Task
 
 **Quest template**:
 A content row a Quest is drawn from: its Spheres, Stat demands, Skills, requirements, the ranges
-of its difficulty, duration and Party size, its reward and Fame effect, its tags and its Loot
-table. A Quest copies what it carries at generation, so a changed template never alters a Quest
-already offered (DL-25). No rule reads the tags; they are kept for Random Events' conditions
-(DL-82).
+of its difficulty, duration and Party size, its reward and Fame effect, its tags, its Loot
+table, its kinds of Encounter and any Finale. A Quest copies what it carries at generation, so a
+changed template never alters a Quest already offered (DL-25). Its tags weight the draw of its
+Encounters: within a kind, an Encounter is drawn `encounterTagWeight` times as often for each tag
+it shares with the template (DL-148 item 22, built in v1.1.4-S8, DL-160); they are kept too for
+Random Events' conditions (DL-82).
 _Avoid_: Quest type, Blueprint, Archetype
 
 **Stat demand**:
 A Hero Stat a piece of work asks for, with a weight; a Quest template's or an Encounter's
 weights sum to one. A Quest's demands describe the work as a whole; each Check reads its
-Encounter's (DL-06, DL-42).
+Encounter's (DL-06, DL-42). From v1.1.4-S6 a Quest's are shown nowhere and read by no rule: the
+Board shows what each Check reads, and the Rivals choose by the chance estimate (DL-148 items 16
+and 17, DL-157).
 _Avoid_: Requirement (a Quest's requirements are its Party size and any Class or Skill it needs),
 Weighting
 
@@ -303,18 +329,105 @@ effects on each Hero, reward or penalty, Loot, and what the world learns from it
 _Avoid_: Mission Engine, Combat system, Resolver
 
 **Encounter**:
-One typed step of a Quest, resolved by a Check with typed consequences.
+One typed step of a Quest, resolved by its Checks with typed consequences. An Encounter has one
+to four Checks, combined by its pass formula (`and`, `or` and `at-least`, every Check named once)
+into its Degree, and its consequences may differ by Degree: a Triumph's are Success's unless it
+has its own, and a Setback's Failure's (DL-148 item 7, built in v1.1.4-S2, DL-152). Each is of one
+kind, `combat`, `travel`, `social`, `arcane`, `stealth` or `lore` (for Intelligence and Knowledge:
+riddles, records and clues, from v1.1.4-S8), and may carry tags, as a Quest template does. The kind
+is data, written in lower case inside a sentence ("on lore Encounters"); `lore` names a kind of
+Encounter, never a Background.
 _Avoid_: Beat, Scene, Event
 
 **Check**:
-The comparison of a Party's capability against an Encounter's difficulty.
+The comparison of a Party's capability against an Encounter's difficulty. Its score is a Query
+over the Party since v1.1.4-S1 (DL-151), an Encounter written the old way loading into one Check
+whose score is the same weighted sum of Stats. An Encounter has one to four Checks, each named for
+the narration and the Board, each rolled every time, and each with its own target, a flat part
+and a part that grows with the Quest's difficulty (DL-148 item 7, built in v1.1.4-S2, DL-152). A
+raw Check's capability is its score alone, with no Skill, Synergy, teamwork or consumable added: a
+gate, such as a count of the Heroes strong enough against a flat target (DL-152).
 _Avoid_: Roll (for the whole), Test, Save
+
+**Query**:
+A reading of the Party, written in content as a list with its operator first, which the engine
+evaluates: some of the Party's Heroes (a Set), one of them, a number or a fact of one Hero, or a
+number of the Party, such as the strongest Warrior's Strength or the total Intelligence of the
+Mages and Healers. A Check's score and a Synergy's requirements are Queries (DL-148 items 4 to 6,
+ADR-0010; built in v1.1.4-S1, DL-151). A Query reads only the Party's own Heroes on the Quest,
+never the Guildmaster or the Guild's dealings, nor Regard between Heroes. Sex decides who takes
+part in a Check and never a value: it stands only in a filter of a Check's score, never in a
+Synergy's requirement, and a Set filtered by it is never counted, by `count` or by a value that
+reads nothing of a Hero.
+_Avoid_: Formula, Expression, Script, Filter (for the whole)
+
+**Degree**:
+How a Check came out, read from its roll against its target: a **Triumph**, a Success, a
+**Setback** or a Failure. A Triumph is a Success by a wide margin, a Setback a Failure by a narrow
+one. An Encounter takes the Degree its pass formula gives: the worst of an `and`, the best of an
+`or`, the k-th best of an `at-least` k; the Check that set it decided it. A strong success needs
+Triumphs (DL-148 item 8, built in v1.1.4-S2, DL-152).
+_Avoid_: Tier, Grade, Result (alone)
+
+**Form**:
+How much of themselves a Hero brings to a Check on a Quest: a factor on the Stats they add to a
+score, from their Morale band, and lower once they are hurt on the Quest. The band is read from
+their Morale on the Quest: their Morale as they set out plus the Morale the Quest's Encounters have
+cost or given them so far, their own since a loss may be steadied (v1.1.4-S4). Form never changes
+their Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
+Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
+one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12; built in
+v1.1.4-S3, DL-154).
+_Avoid_: Condition, Fitness, Mood
+
+**Exposure**:
+How likely harm on a Quest is to fall on a Hero rather than another. An Injury or a Death may name
+the Heroes it falls on, a Set Query (`among`), and the Stats that expose to it (`exposedBy`): of
+those it can fall on, the less of those Stats' range a Hero has, the likelier it is them: the
+weakest three times as likely as the strongest at the first `exposureRange`. When `among` names no one it can fall on, any of them may be
+hit, so leaving the front rank at home dodges nothing (DL-148 item 14; built in v1.1.4-S4, DL-155).
+_Avoid_: Aggro, Threat, Targeting
+
+**Guard**:
+How much of a harm a Hero shrugs off: an Injury's or a Death's chance on them, or a Morale loss,
+less for a Hero with more of the range of the Stats it names (`guardedBy`, `steadiedBy`): half for
+the strongest at the first `guardRange`. Exposure and Guard read a Hero's effective Stats, so armour
+protects (DL-148 item 14; built in v1.1.4-S4, DL-155).
+_Avoid_: Defence, Armour (for the whole), Resistance, Save
+
+**Finale**:
+A fixed last Encounter a Quest template names, met after the drawn ones: the Quest's count of
+Encounters is unchanged, its last place the Finale. An Encounter named as a Finale is never drawn
+into a place. On such a Quest Loot also needs the Finale to end a Triumph. The four hardest
+templates are to have one (DL-148 items 22 and 23; built in v1.1.4-S8, DL-160, the four written in
+S10).
+_Avoid_: Boss, Climax, Final Encounter
 
 **Quest band**:
 How well a Quest went: failure, success or strong success, read from the share of its
-Encounters the Party succeeded at (DL-42). By DL-83 a strong success needs a margin, and by
-DL-85 it pays a premium (both to be built).
+Encounters the Party came through at Success or better (DL-42). A strong success needs every
+Encounter at Success or better and half of them Triumphs: DL-83's margin, made a share of
+Triumphs (DL-148 item 8, v1.1.4-S2, DL-152). By DL-85 it pays a premium (to be built).
 _Avoid_: Result, Grade, Tier
+
+**Chance band**:
+The word an estimated chance is shown in: Hopeless below 10%, Unlikely to 35%, Even to 65%, Likely
+to 90% and Near certain from 90% (`chanceBands`). The estimate reads what each Check reads of a
+proposed Party as it will come home, its Morale, Regard and Injuries moved by each night away, on
+the Quest's own Encounters, drawn when it was posted. It reads the Guild as it is when the Party
+sets out, and assumes no one falls: no Hero hurt or killed on the way, and no Morale moved by an
+Encounter. So the words come with "if no one falls", and the numbers stay in the detail (DL-148
+item 15; built in v1.1.4-S5, DL-156; shown from v1.1.4-S6).
+_Avoid_: Odds (for the word), Rating, Difficulty
+
+**Best Party**:
+The Party the engine would send on a Quest from a Guild's free Heroes (`partyFor`): first those its
+Class and Skill requirements take, then whoever most raises the estimated chance of success up to
+its least Party size, then each Hero who raises it by at least the Guild's **Party margin**, up to
+its greatest. A Rival sends it, at its Disposition's margin; the Board shows the player's, "Your best
+Party", at the configuration's `playerPartyMargin`, and the harness's policy sends that (DL-148 item
+17, v1.1.4-S6, DL-157).
+_Avoid_: Strongest Party, Optimal Party, Recommended Party
 
 **Board**:
 Where the Quests currently on offer are posted. Every Guild draws from it.
@@ -338,8 +451,10 @@ drawn. A Quest carries one only when its template names one and it is hard enoug
 _Avoid_: Drop table, Treasure table
 
 **Synergy**:
-An authored bonus that applies when a Party contains a particular combination of Classes or
-Skills. Relationship between members scales teamwork separately.
+An authored bonus that applies when a Party meets its requirements: conditions on the Party
+written as Queries, every one of which must hold, such as at least one Warrior and one Healer
+(DL-148 item 20; built in v1.1.4-S1, DL-151, the old list of Classes and Skills loading into
+them). Relationship between members scales teamwork separately.
 _Avoid_: Combo, Bonus (alone), Chemistry
 
 **Campaign**:
@@ -413,7 +528,7 @@ _Avoid_: World log, Chronicle, News
 
 **Milestone**:
 A History entry marked as one a Hero's or a Guild's page always shows first: a Level gained,
-a Death, a Transfer, a Campaign beat. No entry is dropped; a Milestone is one that is surfaced.
+a Death, a Transfer, a Trait gained or lost, a Campaign beat. No entry is dropped; a Milestone is one that is surfaced.
 _Avoid_: Highlight, Achievement, Key event
 
 **Day**:
@@ -696,3 +811,21 @@ The harness's stand-in for the player: fixed rules that play the player's Guild 
 actions a human would. DL-83 adds an active policy beside it, and the harness reports both (to be
 built).
 _Avoid_: AI, Bot, Autoplayer
+
+### Tools
+
+**Content editor**:
+The owner's local page and commands for changing the content the game ships, `npm run edit`; never
+part of the deployed game, and never touching a saved game. A kind of content is edited as a list
+of keyed rows through its forms; Traits are the first kind (DL-150 items 7 to 12; v1.1.4-S12). Each
+change is checked with the content's checks and held as a pending edit until "Finish", which writes
+the files, raises the content version by one and runs the tests, putting every file back if one
+fails. It never commits.
+_Avoid_: Mod tool, Admin page, Trait editor (for the whole)
+
+**Uses register**:
+The one list, in code (`content/src/uses/`), of every place a Trait is used: where its key stands in
+content, and which rules of the engine and checks of the content read Traits. The content editor
+finds a Trait's uses through it; the drift test holds it to the code, and `docs/agents/traits.md`
+is written from it (DL-150 item 14; v1.1.4-S12).
+_Avoid_: Index, Catalogue, Usage map

@@ -4,12 +4,12 @@
 // a live save without altering Quests already offered (data-model §3.2). The draw order and the
 // formulas are DL-25; changing them changes every seed's Board.
 
-import type { EngineDeps } from '../config.js';
+import { encounterTagWeightProblem, type EngineDeps } from '../config.js';
 import type { ContentSet, QuestTemplate, QuestTemplateKey, SphereKey } from '../content-types.js';
 import { takeId, type Demand, type Patron, type Quest, type QuestRequirements, type World } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import type { QuestOffered } from '../events.js';
-import { drawSequence, encounterCount, encounterPools, encounterStream } from '../quest-engine/encounters.js';
+import { drawSequence, encounterCount, encounterStream, sequencePlan } from '../quest-engine/encounters.js';
 import { int, pick, type StreamName } from '../rng.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
 import { clamp, sortedRows, streamOf, type DrawsFrom } from './draw.js';
@@ -53,7 +53,8 @@ export function templatesFor(content: Pick<ContentSet, 'questTemplates'>, sphere
  * Then, from the `encounters` stream (or `options.sequenceStream`) and no other, the Quest's
  * Encounter sequence (M4-S1, DL-42):
  * `encounterCount` Encounters at this difficulty, each a kind of the template's then an Encounter
- * of that kind (`drawSequence`), stored as `encounterKeys`. The `board` stream's draws are the
+ * of that kind weighted by the tags it shares with the template, the last the template's Finale if
+ * it names one (`drawSequence`, v1.1.4-S8), stored as `encounterKeys`. The `board` stream's draws are the
  * three above, as before M4, so the Board a seed produces is unchanged.
  *
  * The reward is the difficulty times the template's `rewardPerDifficulty`, rounded; the template's
@@ -63,8 +64,9 @@ export function templatesFor(content: Pick<ContentSet, 'questTemplates'>, sphere
  * the night of Day d + questOfferDays − 1 expires it.
  *
  * Throws, changing nothing, on a programming error: a Patron not in the world, a Sphere no
- * template serves, a `templateKey` that is not one of the Patron's, a stream the world lacks, or
- * an Encounter kind of the Patron's templates that content has no Encounter of.
+ * template serves, a `templateKey` that is not one of the Patron's, a stream the world lacks, an
+ * Encounter kind of the Patron's templates that content has no Encounter of but Finales, a Finale
+ * content does not define, or an unsound `encounterTagWeight`.
  */
 export function generateQuest(
   world: World,
@@ -86,18 +88,17 @@ export function generateQuest(
   const state = streamOf(world, options.stream ?? boardStream);
   const sequenceState = streamOf(world, options.sequenceStream ?? encounterStream);
   // Checked for every template the Patron offers before any draw, so a throw changes nothing.
-  const pools = new Map(offered.map((template) => [template.key, encounterPools(template, content)]));
+  const plans = new Map(offered.map((template) => [template.key, sequencePlan(template, content)]));
+  const unsound = encounterTagWeightProblem(config.encounterTagWeight);
+  if (unsound !== undefined) throw new RangeError(`The Encounter draw's configuration: ${unsound}`);
 
   const template = givenTemplate ?? pick(state, offered);
   const scale = (value: number): number => clamp(value, config.questDifficultyMin, config.questDifficultyMax);
   const difficulty = int(state, scale(template.difficultyMin), scale(template.difficultyMax));
   const durationDays = int(state, template.durationDaysMin, template.durationDaysMax);
   // The sequence beside the Board's draws, from its own stream (M4-S1, DL-42).
-  const encounterKeys = drawSequence(
-    sequenceState,
-    pools.get(template.key) ?? [],
-    encounterCount(template, difficulty, config),
-  );
+  const plan = plans.get(template.key) ?? sequencePlan(template, content);
+  const encounterKeys = drawSequence(sequenceState, plan, encounterCount(template, difficulty, config), config);
 
   const id = takeId(world, 'quests');
   const quest: Quest = {

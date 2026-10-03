@@ -2,8 +2,10 @@ import type { GuildId, Hero, HeroId, PartyId, Quest, QuestId, WorldDocument } fr
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
-import { changed, holding, started } from '../state/game.test-support';
+import { changed, estimateOf, holding, started } from '../state/game.test-support';
+import { chanceWords, shownPercent } from '../state/query-words';
 import type { GameState } from '../state/reducer';
+import { Icon } from './icons';
 import { inHistory, navButton, openView, section } from './page.test-support';
 
 // The Board's Quest cards and the Party builder (M9-S4, DL-104), through the page as a player uses
@@ -40,7 +42,9 @@ function heroesOf(state: GameState): Hero[] {
 /**
  * A new game whose first Quest is made to order: difficulty 54 on a Board of 19 to 89, 5 Days away,
  * 243 Wealth, Fame 2, a Party of 1 to 3 with a Hero with Herbalism among them, on its last Day; it
- * demands Strength, Willpower and Courage, and meets stealth, combat, stealth, combat and travel.
+ * meets Past the watch, Ambush on the road, The trapped passage, Hold the line and The long march,
+ * stealth, combat, stealth, combat and travel, whose Checks read Dexterity, Wits, Perception,
+ * Weaponry, Strength, Courage, Constitution, Endurance, Leadership and Willpower, in that order.
  * The last Hero on the Roster has Herbalism 2.
  */
 function madeToOrder(from: GameState = started()): GameState {
@@ -60,11 +64,6 @@ function madeToOrder(from: GameState = started()): GameState {
     first.fameEffect = 2;
     first.requirements = { partySizeMin: 1, partySizeMax: 3, skillKey: 'herbalism' };
     first.expiresOnTurn = 2;
-    first.demands = [
-      ['strength', 0.4],
-      ['willpower', 0.35],
-      ['courage', 0.25],
-    ];
     first.encounterKeys = ['past-the-watch', 'ambush-on-the-road', 'the-trapped-passage', 'hold-the-line', 'the-long-march'];
   });
 }
@@ -113,10 +112,27 @@ describe('a Quest card', () => {
     const [, second] = within(section('Board')).getAllByRole('article');
     expect(within(second as HTMLElement).getByText(/^Until Day \d+$/)).toBeDefined();
     // Folded: none of its details.
-    expect(within(card).queryByRole('heading', { name: 'Demands' })).toBeNull();
+    expect(within(card).queryByRole('heading', { name: 'Encounters' })).toBeNull();
   });
 
-  test('unfolds from its name to its Demands as bars, the Skills that help, its Encounters counted with their icons, and its difficulty against the Board', () => {
+  // v1.1.4-S6 (DL-148 items 15 and 17): the Party the engine would send from the free Heroes, and a word for its chance.
+  test('says "Your best Party:" with a chance word and who, or that no Party of the free Heroes meets the requirements', () => {
+    const state = changed(madeToOrder(), (document) => {
+      const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
+      second.requirements = { partySizeMin: 1, partySizeMax: 2, classKey: 'no-such-class' };
+    });
+    render(<App initial={state} />);
+    const [first, second] = within(section('Board')).getAllByRole('article') as [HTMLElement, HTMLElement];
+
+    const best = within(first).getByTestId('best-party');
+    expect(best.textContent).toMatch(/^Your best Party: (Hopeless|Unlikely|Even|Likely|Near certain), .+$/);
+    expect(best.querySelector('strong')?.textContent).toMatch(/^(Hopeless|Unlikely|Even|Likely|Near certain)$/);
+    // The Quest needs a Hero with Herbalism, whom only the last Hero has: they are of the Party.
+    expect(best.textContent).toContain(heroesOf(state).at(-1)?.name ?? '');
+    expect(within(second).getByTestId('best-party').textContent).toBe('No Party of your free Heroes meets its requirements.');
+  });
+
+  test("unfolds from its name to its Encounters, each Check's name and what it reads, the Skills that help, and its difficulty against the Board", () => {
     render(<App initial={madeToOrder()} />);
     const card = firstCard();
     const toggle = within(within(card).getByRole('heading', { level: 3 })).getByRole('button');
@@ -125,28 +141,39 @@ describe('a Quest card', () => {
     fireEvent.click(toggle);
 
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    const demands = within(card).getByRole('heading', { level: 4, name: 'Demands' }).parentElement as HTMLElement;
-    expect(within(demands).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Strength40%', 'Willpower35%', 'Courage25%']);
-    const bars = [...demands.querySelectorAll<HTMLElement>('.demand__bar > span')].map((bar) => bar.style.width);
-    expect(bars).toEqual(['40%', '35%', '25%']);
+    // Each Encounter in the order it meets them, with its kind's icon, and each Check's name and what it reads:
+    // no demands. Every Encounter of the content has several Checks (v1.1.4-S10).
+    expect(within(card).queryByText(/Demands/)).toBeNull();
+    const encounters = within(card).getByTestId('encounters');
+    const met = [...encounters.children] as HTMLElement[];
+    expect(met.map((item) => item.querySelector('.reads__name')?.textContent)).toEqual([
+      'Past the watch',
+      'Ambush on the road',
+      'The trapped passage',
+      'Hold the line',
+      'The long march',
+    ]);
+    for (const item of met) expect(item.querySelector('.reads__name svg.icon[aria-hidden="true"]')).not.toBeNull();
+    const checksOf = (item: HTMLElement | undefined) => [...(item?.querySelectorAll('li') ?? [])].map((check) => check.textContent);
+    expect(met[0]?.querySelector('p')).toBeNull();
+    expect(checksOf(met[0])).toEqual(['Quiet feet: the lowest Dexterity in the Party', 'Timing: the highest (0.5 Wits + 0.5 Perception) in the Party']);
+    expect(checksOf(met[1])).toEqual([
+      'Steel: the (0.6 Weaponry + 0.4 Strength) of the Party, highest first, weighted 1, 0.5 and 0.25',
+      'Nerve: the lowest Courage in the Party',
+      'Rallying: the highest Leadership in the Party',
+    ]);
 
     const skills = within(card).getByRole('heading', { level: 4, name: 'Skills that help' }).parentElement as HTMLElement;
     expect(within(skills).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       'Stealth',
-      'Lockpicking',
       'Swordcraft',
       'Tactics',
       'Trapcraft',
+      'Lockpicking',
       'Shieldwork',
       'Field surgery',
       'Herbalism',
     ]);
-
-    const encounters = within(card).getByRole('heading', { level: 4, name: 'Encounters' }).parentElement as HTMLElement;
-    const chips = within(encounters).getAllByRole('listitem');
-    expect(chips.map((item) => item.textContent)).toEqual(['Stealth ×2', 'Combat ×2', 'Travel ×1']);
-    // Each with its kind's icon: an icon is decoration, beside the word.
-    for (const chip of chips) expect(chip.querySelector('svg.icon[aria-hidden="true"]')).not.toBeNull();
 
     // Placed against the Board's 19 to 89, halfway, never called a band.
     const meter = within(card).getByRole('img', { name: 'Difficulty 54: 3rd hardest of the 6 Quests on the Board, from 19 to 89' });
@@ -156,7 +183,25 @@ describe('a Quest card', () => {
     expect(card.textContent).not.toMatch(/\bband\b/i);
 
     fireEvent.click(toggle);
-    expect(within(card).queryByRole('heading', { name: 'Demands' })).toBeNull();
+    expect(within(card).queryByRole('heading', { name: 'Encounters' })).toBeNull();
+  });
+
+  // v1.1.4-S14: the lore kind on the page, and a Quest of a template with a Finale, which comes last.
+  test("unfolds to a lore Encounter with its kind's icon, and to a Quest's Finale last", () => {
+    const state = changed(madeToOrder(), (document) => {
+      const first = document.world.quests[document.world.board[0] as QuestId] as Quest;
+      first.templateKey = 'hold-the-border-fort' as Quest['templateKey'];
+      first.encounterKeys = ['a-riddle-at-the-gate', 'ambush-on-the-road', 'the-last-assault'];
+    });
+    render(<App initial={state} />);
+    const card = firstCard();
+    fireEvent.click(within(within(card).getByRole('heading', { level: 3 })).getByRole('button'));
+
+    const met = [...within(card).getByTestId('encounters').children] as HTMLElement[];
+    expect(met.map((item) => item.querySelector('.reads__name')?.textContent)).toEqual(['A riddle at the gate', 'Ambush on the road', 'The last assault']);
+    const drawn = (name: 'lore' | 'combat'): string => render(<Icon name={name} />).container.querySelector('svg')?.innerHTML ?? '';
+    expect(met[0]?.querySelector('.reads__name svg')?.innerHTML).toBe(drawn('lore'));
+    expect(met[2]?.querySelector('.reads__name svg')?.innerHTML).toBe(drawn('combat'));
   });
 });
 
@@ -225,7 +270,7 @@ describe('the Board', () => {
 });
 
 describe('the Party builder', () => {
-  test("gives each Hero on the Roster a row: whether they can go, and why not and until when; Class and Level; Morale and its band; the Stats the Quest demands; the Skills it names", () => {
+  test("gives each Hero on the Roster a row: whether they can go, and why not and until when; Class and Level; the Stats the Quest's Checks read; the Skills it names; and no Hero's Morale (DL-148 item 12)", () => {
     let names: string[] = [];
     const state = changed(madeToOrder(), (document) => {
       const guild = Object.values(document.world.guilds).find((each) => each.controller.kind === 'player');
@@ -254,16 +299,17 @@ describe('the Party builder', () => {
       expect(within(row).getByRole('checkbox', { name: new RegExp(`^${names[index]} `) })).toBeDefined();
       expect(within(row).getByText(/^(Warrior|Rogue|Mage|Healer), Level \d+$/)).toBeDefined();
       const stats = row.querySelector('dl') as HTMLElement;
-      expect([...stats.querySelectorAll('div')].map((pair) => pair.textContent)).toEqual([
-        `Strength${hero.stats.strength}`,
-        `Willpower${hero.stats.willpower}`,
-        `Courage${hero.stats.courage}`,
-      ]);
+      // The Stats its Encounters' Checks read, in the order it meets them (v1.1.4-S6), where the template's demands stood.
+      const read = ['Dexterity', 'Wits', 'Perception', 'Weaponry', 'Strength', 'Courage', 'Leadership', 'Constitution', 'Endurance', 'Knowledge'];
+      expect([...stats.querySelectorAll('div')].map((pair) => pair.textContent)).toEqual(
+        read.map((name) => `${name}${hero.stats[name.toLowerCase()]}`),
+      );
     });
-    expect(within(second as HTMLElement).getByText('Morale 15, wretched')).toBeDefined();
+    // v1.1.4-S3's verification: the builder names no Hero's Morale; the Party's one line says what it does.
+    for (const row of rows(form)) expect(row.textContent).not.toMatch(/Morale|wretched|steady/);
     expect(within(third as HTMLElement).getByText('Herbalism 3')).toBeDefined();
-    // No fit and no odds: nothing on a row judges the Hero against the Quest.
-    expect(form.textContent).not.toMatch(/\b(fit|odds|chance)\b/i);
+    // No fit and no odds: nothing on a row judges the Hero against the Quest; the chances are the Party's (v1.1.4-S6).
+    for (const row of rows(form)) expect(row.textContent).not.toMatch(/\b(fit|odds|chance)\b/i);
   });
 
   test('says who is away with a Party, and the night they come back', () => {
@@ -363,6 +409,56 @@ describe('the Party builder', () => {
     expect(verdict.className).toBe('banner banner--good');
     expect(verdict.textContent).toBe('Dispatch would send this Party.');
     expect((within(form).getByRole('button', { name: 'Send the Party' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  test("gives one Morale line for the Party chosen, from its mean form, naming no Hero (v1.1.4-S3, DL-148 item 12)", () => {
+    const state = changed(madeToOrder(), (document, player) => {
+      const [first, second] = player.rosterIds;
+      (document.world.heroes[first as HeroId] as Hero).morale = 10;
+      (document.world.heroes[second as HeroId] as Hero).morale = 60;
+    });
+    render(<App initial={state} />);
+    const form = chooseForFirst();
+    const [first, second] = rows(form);
+    if (first === undefined || second === undefined) throw new Error('two Heroes wanted');
+
+    expect(within(form).queryByTestId('party-morale')).toBeNull();
+    fireEvent.click(within(second).getByRole('checkbox'));
+    expect(within(form).getByRole('heading', { level: 4, name: 'Morale' })).toBeDefined();
+    expect(within(form).getByTestId('party-morale').textContent).toBe('Makes no difference.');
+
+    // A wretched Hero beside a steady one: a mean form of 0.925, below the low band's 0.93.
+    fireEvent.click(within(first).getByRole('checkbox'));
+    const line = within(form).getByTestId('party-morale').textContent ?? '';
+    expect(line).toBe('Lowers the odds badly.');
+    for (const hero of heroesOf(state).slice(0, 2)) expect(line).not.toContain(hero.name);
+  });
+
+  // v1.1.4-S6 (DL-148 item 15): a word for each Encounter and the Quest; the detail, the estimate's percentages floored to 5%, "if no one falls".
+  test('gives a chance word for each Encounter and the Quest, and in the detail each percentage floored to 5%, if no one falls', () => {
+    const state = holding(madeToOrder(), 'whetstone', 2);
+    const [quest] = questsOf(state);
+    const [hero, other] = heroesOf(state).slice(-2) as [Hero, Hero];
+    render(<App initial={state} />);
+    const form = chooseForFirst();
+    expect(within(form).queryByTestId('chances')).toBeNull();
+
+    for (const row of rows(form).slice(-2)) fireEvent.click(within(row).getByRole('checkbox'));
+    fireEvent.click(within(form).getByRole('button', { name: /^Whetstone, 2 held: .+: one more$/ }));
+
+    const estimate = estimateOf(state, (quest as Quest).id, [hero.id, other.id], [{ definitionKey: 'whetstone', quantity: 1 }]);
+    if (estimate === null) throw new Error('No estimate');
+    const names = ['Past the watch', 'Ambush on the road', 'The trapped passage', 'Hold the line', 'The long march', 'The Quest'];
+    const chances = [...estimate.encounters, estimate];
+    expect(within(form).getByRole('heading', { level: 4, name: 'Chances' })).toBeDefined();
+    expect(within(within(form).getByTestId('chances')).getAllByRole('listitem').map((item) => item.textContent)).toEqual(
+      names.map((name, index) => `${name}: ${chanceWords[chances[index]?.chance ?? 'hopeless']}`),
+    );
+    const detail = within(form).getByTestId('chance-numbers');
+    expect(detail.querySelector('summary')?.textContent).toBe('The numbers, if no one falls');
+    expect([...detail.querySelectorAll('li')].map((item) => item.textContent)).toEqual(
+      names.map((name, index) => `${name}: ${shownPercent(chances[index]?.success ?? 0)}%`),
+    );
   });
 
   test('once sent, the card becomes a Party out card where it stood, naming who went and the night they return, with the keyboard on it', async () => {

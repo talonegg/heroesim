@@ -8,19 +8,23 @@ import {
   addStack,
   advance,
   ageOf,
+  availableHeroes,
   count,
   createWorld,
   dayOf,
   defaultConfig,
+  describeQuery,
   deserialise,
   dispatch,
   effectiveStats,
+  estimateQuest,
   fastForward,
   makeId,
   guildmasterOf,
   isModuleEvent,
   judgedHintBands,
   nightOf,
+  partyFor,
   potentialHint,
   potentialHints,
   probe,
@@ -38,6 +42,7 @@ import {
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from './main.js';
+import { chanceWords, shownPercent, queryWords } from './query-words.js';
 import { narrate } from './narrate.js';
 
 const content = loadContent();
@@ -241,6 +246,58 @@ describe('new', () => {
     expect(existsSync(current())).toBe(false);
   });
 
+  // v1.1.4-S11 (DL-149 item 9): the Guildmaster's Stats, every one or none, within the Stat points.
+  test("--stats sets the Guildmaster's Stats, as the engine makes them; left out, they are drawn", () => {
+    const stats = { inspiration: 12, influence: 8, negotiation: 15, coaching: 5, judgement: 10 };
+    const run = newDemo('--stats', 'inspiration=12,influence=8,negotiation=15,coaching=5,judgement=10');
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    const expected = createWorld(
+      'demo',
+      { guildName: 'The Test', guildmasterName: 'Ada', guildmasterStats: stats, createdAt: clock.toISOString() },
+      { config: defaultConfig, content },
+    ).document;
+    expect(saved()).toBe(serialise(expected));
+    expect(guildmasterOf(document().world.guilds[playerId] as Guild, document().world)?.stats).toEqual(stats);
+    // Stat points left unspent are allowed, and lost, and `new` says so (v1.1.4-S14); spent in full, it says nothing of them.
+    expect(run.out).not.toContain('Stat points');
+    const unspent = newDemo('--stats', 'inspiration=5,influence=5,negotiation=5,coaching=5,judgement=5', '--force');
+    expect(unspent.code).toBe(exitCodes.ok);
+    expect(unspent.out).toContain('25 Stat points left unspent are lost.');
+    // Left out, the world is the one drawn, Stats and all.
+    expect(newDemo('--force').code).toBe(exitCodes.ok);
+    const drawn = createWorld('demo', { guildName: 'The Test', guildmasterName: 'Ada', createdAt: clock.toISOString() }, { config: defaultConfig, content });
+    expect(saved()).toBe(serialise(drawn.document));
+  });
+
+  test.each<[string, string, string]>([
+    ['a Stat left out', 'inspiration=12,influence=8,negotiation=15', '--stats sets every Guildmaster Stat or none; it leaves out coaching and judgement.'],
+    [
+      'a Stat out of range',
+      'inspiration=16,influence=8,negotiation=10,coaching=5,judgement=10',
+      "A Guildmaster's Stat is 5 to 15 when chosen, in whole numbers; --stats inspiration=16 is not.",
+    ],
+    [
+      'Stats over the points',
+      'inspiration=15,influence=15,negotiation=10,coaching=5,judgement=10',
+      'Those Stats spend 55 Stat points and a Guildmaster has 50 to share: lower one to raise another.',
+    ],
+    [
+      'a Stat content lacks',
+      'inspiration=10,influence=10,negotiation=10,coaching=10,judgement=5,charm=5',
+      'No Guildmaster Stat is keyed "charm". Choose from: inspiration, influence, negotiation, coaching and judgement.',
+    ],
+    ['a Hero Stat', 'strength=10', 'No Guildmaster Stat is keyed "strength".'],
+    ['a Stat named twice', 'inspiration=10,inspiration=12', '--stats names inspiration twice.\n\n'],
+    ['a Stat with no number', 'inspiration=high', '--stats needs each Guildmaster Stat as key=number, such as inspiration=12, joined by commas; got "inspiration=high"'],
+  ])('refuses %s with its own sentence as a bad command line, writing nothing (v1.1.4-S11)', (_, stats, sentence) => {
+    const run = newDemo('--stats', stats);
+
+    expect(run.code).toBe(exitCodes.usage);
+    expect(run.err).toContain(sentence);
+    expect(existsSync(current())).toBe(false);
+  });
+
   test('writes to the save --save names, in HEROESIM_SAVE_DIR when it is set', () => {
     expect(newDemo('--save', 'demo').code).toBe(exitCodes.ok);
     expect(existsSync(join(dir, '.saves', 'demo.json'))).toBe(true);
@@ -428,6 +485,42 @@ describe('show', () => {
     }
   });
 
+  // v1.1.4-S6 (DL-148 items 15 to 17): what each Check reads, in place of the template's demands, and the best Party.
+  test("board gives each Quest's Encounters, each Check's name and what it reads, and the best Party of the free Heroes with its chance", () => {
+    const { world } = document();
+    const deps = { config: defaultConfig, content };
+    const guild = world.guilds[playerId] as Guild;
+
+    const run = play(['show', 'board']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).not.toContain('Demands');
+    const lines = run.out.split('\n');
+    for (const id of world.board) {
+      const quest = world.quests[id] as Quest;
+      const at = lines.indexOf(`${id}, ${content.questTemplates[quest.templateKey]?.name}`);
+      expect(at, id).toBeGreaterThan(0);
+      // Each Encounter of the core content has several Checks (v1.1.4-S10): its name and kind on a line,
+      // then each Check's name and what it reads on a line of its own.
+      const expected = quest.encounterKeys.flatMap((key) => {
+        const encounter = content.encounters[key];
+        expect(encounter?.checks.length, key).toBeGreaterThan(1);
+        return [`  ${encounter?.name} (${encounter?.kind})`, ...(encounter?.checks ?? []).map((check) => `    ${check.name}: ${queryWords(describeQuery(check.score), content)}`)];
+      });
+      const block = lines.slice(at + 1, at + 1 + expected.length + 1);
+      expect(block.slice(0, -1), id).toEqual(expected);
+      const heroIds = partyFor(world, guild, quest, availableHeroes(world, guild), deps);
+      const best = block.at(-1) ?? '';
+      if (heroIds === null) {
+        expect(best).toBe('  No Party of your free Heroes meets its requirements.');
+        continue;
+      }
+      const estimate = estimateQuest(world, quest, heroIds.map((heroId) => world.heroes[heroId] as Hero), deps);
+      const names = heroIds.map((heroId) => world.heroes[heroId]?.name).join(', ');
+      expect(best).toBe(`  Your best Party: ${chanceWords[estimate?.chance ?? 'hopeless']} (${shownPercent(estimate?.success ?? 0)}% if no one falls), ${names}.`);
+    }
+  });
+
   test("board's Skills that help are the Skills its Encounters' Checks read, not its template's (M4 verification)", () => {
     const { world } = document();
 
@@ -437,7 +530,7 @@ describe('show', () => {
     for (const id of world.board) {
       const quest = world.quests[id];
       if (quest === undefined) throw new Error(`No Quest ${id}`);
-      const keys = [...new Set(quest.encounterKeys.flatMap((key) => content.encounters[key]?.skillKeys ?? []))];
+      const keys = [...new Set(quest.encounterKeys.flatMap((key) => content.encounters[key]?.checks.flatMap((it) => it.skills) ?? []))];
       const skills = keys.length === 0 ? 'None' : keys.map((key) => content.skills[key]?.name).join(', ');
       const kinds = quest.encounterKeys.map((key) => content.encounters[key]?.kind).join(', ');
       const line = run.out.split('\n').find((it) => it.startsWith(id) && it.endsWith(kinds));
@@ -508,7 +601,9 @@ describe('show', () => {
     }
   });
 
-  test('hero never prints Potential, and every Stat row carries its hint (data-model rule 9, M3-S3)', () => {
+  // `show hero` for every Hero of the world: a third of a second alone, three to six under the whole
+  // suite's load, which ran past the default 5 s (DL-164).
+  test('hero never prints Potential, and every Stat row carries its hint (data-model rule 9, M3-S3)', { timeout: 30_000 }, () => {
     const { world } = document();
     for (const hero of Object.values(world.heroes)) {
       const run = play(['show', 'hero', hero.id]);
@@ -1641,6 +1736,27 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     expect(saved()).toBe(original);
   });
 
+  // v1.1.4-S6 (DL-148 item 15): each Encounter's chance and the Quest's in a word, with the estimate's percentage floored to 5.
+  test('preview gives the chance of each Encounter and of the Quest, a word and the estimate floored to a multiple of 5%, if no one falls', () => {
+    const { world } = document();
+    const [questId] = world.board as QuestId[];
+    const heroIds = (world.guilds[playerId]?.rosterIds ?? []).slice(0, 2);
+    const quest = world.quests[questId as QuestId] as Quest;
+    const estimate = estimateQuest(world, quest, heroIds.map((id) => world.heroes[id] as Hero), { config: defaultConfig, content });
+    if (estimate === null) throw new Error('No estimate');
+
+    const run = play(['preview', '--quest', quest.id, '--heroes', heroIds.join(',')]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    const lines = run.out.split('\n');
+    const at = lines.indexOf('Chances, if no one falls');
+    expect(at).toBeGreaterThan(0);
+    expect(lines.slice(at + 1, at + 2 + estimate.encounters.length)).toEqual([
+      ...estimate.encounters.map((it) => `  ${content.encounters[it.encounterKey]?.name}: ${chanceWords[it.chance]}, ${shownPercent(it.success)}%`),
+      `  The Quest: ${chanceWords[estimate.chance]}, ${shownPercent(estimate.success)}%`,
+    ]);
+  });
+
   test('preview names a Hero who cannot go, and refuses a Quest not on the Board', () => {
     const { world } = document();
     const [questId] = world.board as QuestId[];
@@ -1742,6 +1858,25 @@ describe('preview lists the Synergies a proposed Party would have (M4-S3)', () =
 
     expect(synergies(run.out)).toEqual(["  Shield wall: ×1.15 on combat Encounters; this Quest's Encounters are drawn on the way."]);
   });
+
+  // v1.1.4-S3 (DL-148 item 12): one line for the Party's Morale, from its mean form, naming no Hero.
+  test.each([
+    [[60, 60], 'Makes no difference'],
+    [[80, 60], 'Raises the odds'],
+    [[30, 30], 'Lowers the odds a little'],
+    [[10, 60], 'Lowers the odds badly'],
+  ])('with Morale %j, says once for the Party: %s', (morales, words) => {
+    const { questId, heroIds } = proposed(['ambush-on-the-road'], 'warrior', 'rogue');
+    edit((edited) => heroIds.forEach((id, index) => ((edited.world.heroes[id] as Hero).morale = morales[index] ?? 60)));
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    const lines = run.out.split('\n');
+    const start = lines.indexOf('Morale');
+    expect(lines.slice(start, start + 3)).toEqual(['Morale', `  ${words}.`, '']);
+    const names = heroIds.map((id) => document().world.heroes[id]?.name ?? id);
+    for (const name of names) expect(lines[start + 1]).not.toContain(name);
+  });
 });
 
 describe('the command line', () => {
@@ -1777,9 +1912,9 @@ describe('the command line', () => {
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain('Usage: heroesim <command> [flags]');
-    // Each section preview prints is named in its help, the Synergies (M4-S3) and the consumables (M5-S3) among them.
+    // Each section preview prints is named in its help, the Synergies (M4-S3), the consumables (M5-S3) and the chances (v1.1.4-S6) among them.
     const preview = run.out.slice(run.out.indexOf('  preview '), run.out.indexOf('  dispatch '));
-    for (const part of ['requirement', 'cannot go', 'Synergies', 'consumables', 'reward', 'dispatch would send']) expect(preview).toContain(part);
+    for (const part of ['requirement', 'cannot go', 'Synergies', 'Morale', 'chances', 'consumables', 'reward', 'dispatch would send']) expect(preview).toContain(part);
   });
 
   test("help gives new's ages as the rules do: 21 to 50, retiring at 61 (M9-F1, DL-113 item 4)", () => {
@@ -1788,5 +1923,18 @@ describe('the command line', () => {
 
     expect(newHelp).toContain('their age, 21 to 50 (a Guildmaster retires at 61);');
     expect(newHelp).not.toContain('30 to 45');
+  });
+
+  test("help gives new's --stats: every Guildmaster Stat or none, by key, within the rules' range and points (v1.1.4-S11)", () => {
+    const { out } = play(['help']);
+    const newHelp = out.slice(out.indexOf('  new '), out.indexOf('  show ')).replace(/\s+/g, ' ');
+
+    expect(newHelp).toContain('[--stats <stat=n,stat=n,...>]');
+    expect(newHelp).toContain(
+      '--stats sets every Guildmaster Stat or none, by key, as inspiration=12,influence=8,...: each 5 to 15, sharing 50 Stat points in all, and any left over are lost.',
+    );
+    for (const key of ['inspiration', 'influence', 'negotiation', 'coaching', 'judgement']) expect(newHelp).toContain(key);
+    // The rest of the help keeps "drawn from the seed" (DL-149 item 7).
+    expect(newHelp).toContain('whatever is left out is drawn from the seed');
   });
 });

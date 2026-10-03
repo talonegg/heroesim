@@ -33,6 +33,7 @@ import {
   noGear,
   noOffers,
   noHeroes,
+  noPartySize,
   noPortraits,
   noPurchases,
   noTransfers,
@@ -56,6 +57,7 @@ import {
   type LootTally,
   type MarketTally,
   type OfferTally,
+  type PartySizeTally,
   type HeroTally,
   type PortraitTally,
   type RegardSnapshot,
@@ -71,7 +73,7 @@ import { idsOf } from './modules.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { defaultYears, playGame, type GameRecord, type PlayOptions } from './play.js';
 import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
-import { dealSeeds, runShardJobs } from './children.js';
+import { runShardJobs } from './children.js';
 import { playSeeds, type PlayedSeeds, type ShardJob } from './shard.js';
 import { summarise, type Summary } from './stats.js';
 
@@ -105,6 +107,8 @@ export interface PlaySweep {
 export interface SweepOptions extends PlayOptions {
   /** A millisecond clock for the sweep's own wall-clock timings. */
   now?: () => number;
+  /** Replay one seed after the sweep (`PlaySweep.replay`); true unless false (v1.1.4-S10, `HEROESIM_REPLAY`). */
+  replay?: boolean;
 }
 
 /** Plays `seed` twice in this process and compares the two last documents, timing the first. */
@@ -124,7 +128,7 @@ function sweepOf(
   timing: { workers: number; started: number; gamesMs: number; now: () => number },
 ): PlaySweep {
   // The longest game makes the most of the comparison, and its timing the fairest of one game.
-  const replayed = replay(played.games.find((game) => game.ranFullLength)?.seed ?? seeds[0], deps, options);
+  const replayed = options.replay === false ? null : replay(played.games.find((game) => game.ranFullLength)?.seed ?? seeds[0], deps, options);
   return {
     seeds,
     years: options.years ?? defaultYears,
@@ -165,16 +169,27 @@ export function sweepFingerprint(games: readonly GameRecord[]): string {
   return createHash('sha256').update(lines.join('')).digest('hex');
 }
 
-/** Processes a parallel sweep uses by default: half the logical processors, one a core with SMT. */
-export function defaultWorkers(): number {
-  return Math.max(1, Math.floor(availableParallelism() / 2));
+/**
+ * Processes a parallel sweep uses by default: `HEROESIM_WORKERS`, a whole number from 1 (v1.1.4-S10:
+ * each game's save nears 120 MB by year 20, so a machine short of memory plays fewer at once), or
+ * half the logical processors, one a core with SMT, when it is unset or blank. Throws on anything
+ * else, so a mistyped count fails the run.
+ */
+export function defaultWorkers(value: string | undefined = process.env.HEROESIM_WORKERS): number {
+  if (value === undefined || value.trim() === '') return Math.max(1, Math.floor(availableParallelism() / 2));
+  const workers = Number(value.trim());
+  if (!Number.isSafeInteger(workers) || workers < 1) {
+    throw new RangeError(`HEROESIM_WORKERS must be a whole number from 1, not ${JSON.stringify(value)}`);
+  }
+  return workers;
 }
 
 /**
- * `sweepPlay`, with the seeds dealt in turn among `workers` child processes (`shard.ts`), each
- * loading the core content and playing under `deps.config` with `deps.modules`, installed by id
- * (M8-S3, DL-78); the records come back in seed order and the replay is played in this process once
- * they are done. The children load the core content themselves, so `deps.content` must be it: a
+ * `sweepPlay`, with each seed played in a child process of its own (`shard.ts`), `workers` at once
+ * and the next starting as one finishes (v1.1.4-S10: dealt in turn before, a lane of early endings
+ * sat idle to the slowest lane's end), each loading the core content and playing under
+ * `deps.config` with `deps.modules`, installed by id (M8-S3, DL-78); the records come back in seed
+ * order and the replay, unless `replay` is false, is played in this process once they are done. The children load the core content themselves, so `deps.content` must be it: a
  * child that loads another refuses the sweep; and each module must be the harness's own of its id
  * (`idsOf`), which is checked before any child starts.
  *
@@ -184,23 +199,24 @@ export function defaultWorkers(): number {
 export async function sweepPlayInParallel(
   seeds: readonly string[],
   deps: EngineDeps,
-  options: SweepOptions & { workers?: number } = {},
+  options: SweepOptions & { workers?: number; drafts?: string } = {},
 ): Promise<PlaySweep> {
   const now = options.now ?? (() => performance.now());
   const workers = Math.max(1, Math.min(options.workers ?? defaultWorkers(), seeds.length));
   const modules = idsOf(deps.modules);
   const started = now();
-  const jobs = dealSeeds(seeds, workers).map(
-    (shardSeeds): ShardJob => ({
-      seeds: shardSeeds,
+  const jobs = seeds.map(
+    (seed): ShardJob => ({
+      seeds: [seed],
       config: deps.config,
       years: options.years ?? defaultYears,
       validate: options.validate ?? false,
       policy: options.policy ?? defaultPolicyConfig,
       ...(modules.length === 0 ? {} : { modules }),
+      ...(options.drafts === undefined ? {} : { drafts: options.drafts }),
     }),
   );
-  const results = await runShardJobs(jobs);
+  const results = await runShardJobs(jobs, workers);
   const gamesMs = now() - started;
 
   const played: PlayedSeeds = { games: [], advanceMs: [], validateMs: [] };
@@ -211,9 +227,9 @@ export async function sweepPlayInParallel(
     for (const ms of result.advanceMs) played.advanceMs.push(ms);
     for (const ms of result.validateMs) played.validateMs.push(ms);
   }
-  // Seed i went to shard i mod workers, as its (i div workers)th game.
+  // Seed i was job i's one game.
   played.games = seeds.map((seed, index) => {
-    const game = results[index % workers]?.games[Math.floor(index / workers)];
+    const game = results[index]?.games[0];
     if (game?.seed !== seed) throw new Error(`A play shard returned no record for ${seed}`);
     return game;
   });
@@ -231,6 +247,13 @@ export interface SweepTotals {
   heroesDied: ByController;
   heroesRecruited: ByController;
   heroesRetired: ByController;
+  /** `hero.trait-gained` and `hero.trait-lost`, and the Heroes sent on a Quest (v1.1.4-S7). */
+  traitsGained: ByController;
+  traitsLost: ByController;
+  questingHeroes: ByController;
+  /** `hero.trait-gained` by the Trait's key, and the Quests resolved by the size of the Party sent (v1.1.4-S10). */
+  traitsGainedByKey: Record<ControllerKind, Record<string, number>>;
+  partySizes: Record<ControllerKind, Record<string, PartySizeTally>>;
   rivalFolds: Record<string, number>;
   /** `guildmaster.succeeded` across the games (M9-S2, DL-102). */
   rivalSuccessions: number;
@@ -420,6 +443,11 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     heroesDied: zero(),
     heroesRecruited: zero(),
     heroesRetired: zero(),
+    traitsGained: zero(),
+    traitsLost: zero(),
+    questingHeroes: zero(),
+    traitsGainedByKey: { player: {}, rival: {} },
+    partySizes: { player: {}, rival: {} },
     rivalFolds: Object.fromEntries(endingReasons.map((reason) => [reason, 0])),
     rivalSuccessions: 0,
     endings: { ...Object.fromEntries(endingReasons.map((reason) => [reason, 0])), survived: 0 },
@@ -526,6 +554,11 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
       totals.heroesDied[kind] += counters.heroesDied[kind];
       totals.heroesRecruited[kind] += counters.heroesRecruited[kind];
       totals.heroesRetired[kind] += counters.heroesRetired[kind];
+      totals.traitsGained[kind] += counters.traitsGained[kind];
+      totals.traitsLost[kind] += counters.traitsLost[kind];
+      totals.questingHeroes[kind] += counters.questingHeroes[kind];
+      addFields(totals.traitsGainedByKey[kind], counters.traitsGainedByKey[kind]);
+      for (const [size, tally] of Object.entries(counters.partySizes[kind])) addFields((totals.partySizes[kind][size] ??= noPartySize()), tally);
       totals.belowFloor[kind] += counters.belowFloor[kind];
       totals.floorRecovered[kind] += counters.floorRecovered[kind];
       addFields(totals.portraits[kind], counters.portraits[kind]);
@@ -589,6 +622,10 @@ export interface PlayReportContext {
   startedAt: Date;
   /** The milestone whose run this is, as its report is named: `m3`. */
   milestone: string;
+  /** The draft content files played in place of the core's (v1.1.4-S9, `loadDrafts`); none when absent. */
+  drafted?: string[];
+  /** The config values played in place of `defaultConfig`'s (v1.1.4-S9's verification, `HEROESIM_CONFIG`); none when absent. */
+  configured?: Readonly<Record<string, unknown>>;
 }
 
 /** data-model §7's targets, provisional, to set the measures against (DL-08). */
@@ -832,6 +869,47 @@ function dispositionKeys(totals: SweepTotals, deps: EngineDeps): string[] {
 type EncounterTally = EncounterCounts[keyof EncounterCounts];
 
 /**
+ * v1.1.4-S10's counters: the Quests resolved by the size of the Party sent, their bands and the XP
+ * each Hero took (DL-148 item 19, the owner's decision on splitting XP), and the Traits earned by key.
+ */
+function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
+  const sizeRows = controllerKinds.flatMap((kind) => {
+    const bySize = totals.partySizes[kind];
+    const all = noPartySize();
+    for (const tally of Object.values(bySize)) addFields(all, tally);
+    const cells = (tally: PartySizeTally): string[] => [
+      `${whole(tally.quests)} (${percent(tally.quests, all.quests)})`,
+      percent(tally.fail, tally.quests),
+      percent(tally.strong, tally.quests),
+      ratio(tally.xpPerHero, tally.quests, 1),
+      ratio(tally.xpTaken, tally.quests, 1),
+    ];
+    const sizes = Object.keys(bySize).sort((a, b) => Number(a) - Number(b));
+    return [
+      ...sizes.map((size) => [`${kindLabel(kind)}: ${size}`, ...cells(bySize[size] as PartySizeTally)]),
+      [`${kindLabel(kind)}: every size (mean ${ratio(sum(sizes.map((size) => Number(size) * (bySize[size] as PartySizeTally).quests)), all.quests)})`, ...cells(all)],
+    ];
+  });
+  const traitKeys = keysOf(Object.keys(deps.content.heroTraits), totals.traitsGainedByKey.player, totals.traitsGainedByKey.rival);
+  const traitRows = traitKeys.map((key) => [`\`${key}\``, ...controllerKinds.map((kind) => whole(totals.traitsGainedByKey[kind][key] ?? 0))]);
+  return [
+    'Quests resolved by the size of the Party sent (`quest.resolved`\'s `heroIds`), with the XP each Hero who came home took ' +
+      "(`xpPerHero`: XP is not split, DL-148 item 19) and the XP the Party took in all, a Quest:",
+    '',
+    markdownTable(
+      ['Controller: Party size', 'Quests resolved', 'Failed', 'Strong', 'XP a Hero', 'XP the Party took'],
+      sizeRows,
+      ['left', 'right', 'right', 'right', 'right', 'right'],
+    ),
+    '',
+    'Traits earned by key (`hero.trait-gained`), by the Guild the Hero was on:',
+    '',
+    markdownTable(['Trait', "Player's", "Rivals'"], traitRows, ['left', 'right', 'right']),
+    '',
+  ];
+}
+
+/**
  * M4's counters (the epic's §2, DL-55): the Encounters' outcomes by kind, the Synergies applied a
  * Quest, Injuries by type, the Patrons silent in a year, and the player's Guild's Regard by band
  * after 10 years.
@@ -933,6 +1011,7 @@ function questEngineSection(totals: SweepTotals, deps: EngineDeps): string[] {
     '',
     markdownTable(['Quests applying it', "Player's", "Rivals'"], byKeyRows, ['left', 'right', 'right']),
     '',
+    ...partiesAndTraits(totals, deps),
     'Injuries by type (`hero.injured`), by the Guild the Hero was on:',
     '',
     markdownTable(['Injury type', "Player's", "Rivals'"], injuryRows, ['left', 'right', 'right']),
@@ -1535,7 +1614,7 @@ function heroesSection(totals: SweepTotals): string[] {
 }
 
 /** The sweep as a Markdown report. */
-export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milestone }: PlayReportContext): string {
+export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milestone, drafted = [], configured = {} }: PlayReportContext): string {
   const { config, content } = deps;
   const totals = sweepTotals(sweep, config.turnsPerYear);
   const count = sweep.seeds.length;
@@ -1603,13 +1682,16 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     `# ${milestone.toUpperCase()} harness report: play`,
     '',
     `Run begun ${localTimestamp(startedAt)} · ${whole(count)} seeds, ${range} · up to ${yearsText} years ` +
-      `(${whole(sweep.years * config.turnsPerYear)} Turns) each · content \`${content.id}\` version ${content.version} · ` +
-      `config version ${config.configVersion}, schema version ${config.schemaVersion} · ` +
+      `(${whole(sweep.years * config.turnsPerYear)} Turns) each · content \`${content.id}\` version ${content.version}` +
+      `${drafted.length === 0 ? '' : ` with the drafts of ${drafted.map((name) => `\`${name}\``).join(', ')}`} · ` +
+      `config version ${config.configVersion}, schema version ${config.schemaVersion}` +
+      `${Object.keys(configured).length === 0 ? '' : `, the defaults changed by \`${JSON.stringify(configured)}\``} · ` +
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,
     '',
     `Policy (INPUTS 4.14): first decline every Transfer Offer made for its Heroes (M6-S2); then the gear it holds ` +
       `onto Heroes with the slot empty (M5-S2); the highest-reward ` +
-      `Quest it can staff, the strongest Party of the size it requires, carrying one of each consumable held that ` +
+      `Quest it can staff, the Party the engine's \`partyFor\` names by the chance estimate at a margin of ` +
+      `${config.playerPartyMargin} (v1.1.4-S6), carrying one of each consumable held that ` +
       `serves the Quest (DL-62); one purchase a Turn: the infirmary's next grade while Wealth exceeds ` +
       `${sweep.policy.buildWealthMultiple} times its cost (M3-S6), else one armour while a Hero has none and Wealth ` +
       `exceeds ${sweep.policy.buyWealthMultiple} times its price (M5-S4), else the cheapest Hero who would sign while ` +
@@ -1672,9 +1754,17 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
         heroRow('`hero.died`', totals.heroesDied),
         heroRow('`hero.recruited`', totals.heroesRecruited),
         heroRow('`hero.retired`', totals.heroesRetired),
+        heroRow('`hero.trait-gained`', totals.traitsGained),
+        heroRow('`hero.trait-lost`', totals.traitsLost),
+        heroRow('Heroes sent on a Quest', totals.questingHeroes),
       ],
       ['left', 'right', 'right', 'right', 'right'],
     ),
+    '',
+    // v1.1.4-S7: the epic's "Rare Traits" gate reads the Traits earned per Hero career.
+    `Traits earned per Hero career (a Hero sent on a Quest at least once): the player's ` +
+      `${ratio(totals.traitsGained.player, totals.questingHeroes.player, 3)}, the Rivals' ` +
+      `${ratio(totals.traitsGained.rival, totals.questingHeroes.rival, 3)}.`,
     '',
     markdownTable(
       ['Ending', '`game.ended` (the player)', '`guild.folded` (Rivals)'],

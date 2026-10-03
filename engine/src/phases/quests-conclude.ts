@@ -6,8 +6,9 @@
 // `quest.resolved`; any Loot to the Guild's holding with `quest.loot` (M5-S5, quest-engine/loot.ts,
 // DL-52); the Guild's Wealth and Fame move (Fame's floor is the Guild State Engine's, later the same
 // night); a Hero injured carries the Injury until its night; a Hero who died leaves
-// the Roster and keeps their row (data-model rule 8); each Hero who came home gains the XP; Morale
-// moves by the Encounters' Morale, on a strong success and on a Death in the Roster, each change
+// the Roster and keeps their row (data-model rule 8); each Trait a Hero earned joins their Traits,
+// with `hero.trait-gained` (v1.1.4-S7, DL-148 item 25); each Hero who came home gains the XP; Morale
+// moves by each Hero's own of the Encounters' Morale (v1.1.4-S4), on a strong success and on a Death in the Roster, each change
 // emitting `hero.morale-changed`; the Patron's and the Guildmaster's Regard move, once for the
 // resolved Quest (M4-S5, regard.ts, events only on a band crossing); each Hero home alive gains
 // Regard for each other, the Encounters' Regard (`outcome.regardDelta`) with it, once for the
@@ -105,6 +106,18 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
     events.push(emit({ type: 'hero.died', participants: [heroId, quest.id], payload: { heroId, questId: quest.id } }));
   }
 
+  // v1.1.4-S7: the Traits the Heroes earned, a Milestone each; the resolver drew them only for those who may take them.
+  for (const { heroId, traitKey, encounterIndex, encounterKey } of resolution.traits) {
+    row(world.heroes, heroId).traits.push(traitKey);
+    events.push(
+      emit({
+        type: 'hero.trait-gained',
+        participants: [heroId, quest.id],
+        payload: { heroId, traitKey, questId: quest.id, encounterIndex, encounterKey },
+      }),
+    );
+  }
+
   const survivors = heroes.filter((hero) => hero.diedOnTurn === null);
   for (const hero of survivors) {
     hero.xp += outcome.xpPerHero;
@@ -117,10 +130,10 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
     );
   }
 
-  if (outcome.moraleDelta !== 0) {
-    for (const hero of survivors) {
-      events.push(changeMorale(hero, outcome.moraleDelta, 'encounters', config, emit, quest.id));
-    }
+  // v1.1.4-S4: each Hero's own Morale from the Encounters, a loss `steadiedBy` their Stats less for some.
+  for (const hero of survivors) {
+    const delta = Object.hasOwn(outcome.moraleByHero, hero.id) ? (outcome.moraleByHero[hero.id] ?? 0) : 0;
+    if (delta !== 0) events.push(changeMorale(hero, delta, 'encounters', config, emit, quest.id));
   }
   if (outcome.band === 'strong') {
     for (const hero of survivors) {

@@ -15,6 +15,7 @@ import {
   type Entry,
   type Guild,
   type GuildId,
+  type Hero,
   type HeroId,
   type TurnEvent,
   type WorldDocument,
@@ -164,11 +165,14 @@ function inYourGuild(document: WorldDocument, guildId: GuildId): Entry[] {
 
 describe("the Guilds' filters (M9-F4, DL-111 item 4)", () => {
   // A purchase and its sale, then a Party sent and fifty Days played: every type the filters name.
-  const bought = playedState(started('app-test'), { kind: 'buy', definitionKey: 'padded-jack', quantity: 1 });
+  const bought = playedState(started('app-test'), { kind: 'buy', definitionKey: 'short-sword', quantity: 1 });
   const guildId = playerOf(bought.document as WorldDocument).id;
-  const jack = holdings((bought.document as WorldDocument).world, { kind: 'guild', id: guildId }).stacks.find((stack) => stack.definitionKey === 'padded-jack');
+  const jack = holdings((bought.document as WorldDocument).world, { kind: 'guild', id: guildId }).stacks.find((stack) => stack.definitionKey === 'short-sword');
   const sold = playedState(bought, { kind: 'sell', stackId: jack?.id ?? ('stack-000000' as never), quantity: 1 });
-  const state = playedState(withPartyOut(sold), { kind: 'advance', turns: 150 });
+  // One Hero's Morale a point above the high band's floor of 75, so that its drift toward the baseline
+  // crosses into steady within the fifty Days whatever the Quests do (v1.1.4-S10: they are the content's).
+  const elated = changed(sold, (it, player) => void ((it.world.heroes[player.rosterIds.at(-1) as HeroId] as Hero).morale = 76));
+  const state = playedState(withPartyOut(elated), { kind: 'advance', turns: 150 });
   // Games share their History as it is appended (ADR-0008), so another game for a Party's return.
   const home = cameHome(started('history-home'));
   const document = state.document as WorldDocument;
@@ -558,6 +562,33 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
     expect(outcome?.kind === 'entry' ? outcome.stepsWords : null).toBe('2 Encounters and 1 Consumable used');
   });
 
+  test("reads each Encounter's Degree, and one written before v1.1.4-S2 as its outcome, a Success or a Failure", () => {
+    const written = withReturn(withPartyOut(started('history-degrees')), {
+      band: 'success',
+      encounters: [
+        { encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'failure', degree: 'setback' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'success' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'failure' },
+      ],
+    });
+    // The Guild handed to a Rival's Disposition, whose History folds a Party's steps under its outcome.
+    const { document } = changed(written.state, (next, player) => {
+      const other = Object.values(next.world.guilds).find((each) => each.id !== player.id);
+      if (other === undefined) throw new Error('no Rival');
+      other.controller = player.controller;
+      player.controller = { kind: 'rival', disposition: 'steady' };
+    });
+    const guildId = written.state.document === null ? undefined : playerOf(written.state.document).id;
+    if (document === null || guildId === undefined) throw new Error('no game in hand');
+
+    const rows = historyView(document, [], guildId, 0).groups.flatMap((group) => group.rows);
+    const outcome = rows.find((row) => row.kind === 'entry' && row.steps.length > 0);
+    const steps = outcome?.kind === 'entry' ? outcome.steps.map((line) => line.sentence) : [];
+
+    expect(steps.map((sentence) => / \(Encounter \d\), a (\w+)/.exec(sentence)?.[1])).toEqual(['Triumph', 'Setback', 'Success', 'Failure']);
+  });
+
   test('says on which page an entry stands, that the home view can open it there, and null where it is not', () => {
     for (const whose of ['all' as const, null]) {
       everyPage(whose).forEach((view, page) => {
@@ -723,7 +754,9 @@ describe("the pages' count, from the edges the pages keep (the M9 review)", () =
 
     expect(views).toHaveLength(2);
     expect(entriesOn(document, views[0] as HistoryView)).toHaveLength(20 + historyPageSize + 5);
-    const outcome = views[0]?.groups.flatMap((group) => group.rows).find((row) => row.kind === 'entry' && row.steps.length > 0);
+    // The outcome stands after the ten older entries and its steps; another Party's among the newer may fold its own.
+    const outcomeKey = String(10 + historyPageSize + 5);
+    const outcome = views[0]?.groups.flatMap((group) => group.rows).find((row) => row.kind === 'entry' && row.key === outcomeKey);
     expect(outcome?.kind === 'entry' && outcome.steps).toHaveLength(historyPageSize + 5);
   });
 

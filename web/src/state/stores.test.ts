@@ -13,7 +13,6 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { content } from '../content';
 import { changed, holding, played, started } from './game.test-support';
 import { playDeps, type GameState } from './reducer';
 import { storesView, type StoresFilter, type StoresRow } from './stores';
@@ -45,7 +44,7 @@ function stocked(): { state: GameState; away: HeroId; home: HeroId } {
   const guild = playerOf(document);
   const available = availableHeroes(document.world, guild);
   const sent = offeredQuests(document.world).flatMap((quest) => {
-    const heroIds = partyFor(quest, available, content);
+    const heroIds = partyFor(document.world, guild, quest, available, playDeps(document));
     return heroIds === null || heroIds.length === guild.rosterIds.length ? [] : [{ quest, heroIds }];
   })[0];
   if (sent === undefined) throw new Error('no Quest a part of the Roster can staff');

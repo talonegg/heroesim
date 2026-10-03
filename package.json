@@ -9,7 +9,8 @@
     "harness",
     "cli",
     "web",
-    "tools/portraits"
+    "tools/portraits",
+    "tools/editor"
   ],
   "engines": {
     "node": ">=22"
@@ -25,16 +26,18 @@
     "harness": "node harness/run.mjs",
     "harness:sample": "tsx harness/src/sample.ts",
     "play": "tsx cli/src/main.ts",
-    "portraits": "tsx tools/portraits/src/main.ts"
+    "portraits": "tsx tools/portraits/src/main.ts",
+    "quest-review": "tsx cli/src/quest-review.ts",
+    "edit": "tsx tools/editor/src/main.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@types/node": "26.6.2",
+    "@types/node": "26.6.3",
     "eslint": "10.11.0",
     "globals": "17.12.0",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.70.1",
+    "typescript-eslint": "8.71.0",
     "vitest": "5.0.2"
   }
 }

@@ -305,12 +305,12 @@ describe("the player's ending ends the game", () => {
 // Turn `retirementTurn` gives, which the endings read. The year is the default's 1,080 Turns: the
 // world is moved to the night before, and the Rivals stilled.
 describe('Retirement at 61, on the Turn retirementTurn gives (M9-F1)', () => {
-  test('the defaults: every Guildmaster starts 21 to 50 and retires at 61, under configVersion 12', () => {
+  test('the defaults: every Guildmaster starts 21 to 50 and retires at 61, under configVersion 13 (DL-152)', () => {
     expect(defaultConfig).toMatchObject({
       guildmasterStartingAgeMin: 21,
       guildmasterStartingAgeMax: 50,
       guildmasterRetirementAge: 61,
-      configVersion: 12,
+      configVersion: 13,
     });
   });
 
@@ -667,7 +667,7 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
       expect(value).toBeGreaterThanOrEqual(deps.config.guildmasterStatMin);
       expect(value).toBeLessThanOrEqual(deps.config.guildmasterStatMax);
     }
-    const cost = successor.traits.reduce((sum, key) => sum + (deps.content.traits[key]?.cost ?? Number.NaN), 0);
+    const cost = successor.traits.reduce((sum, key) => sum + (deps.content.guildmasterTraits[key]?.cost ?? Number.NaN), 0);
     expect(cost).toBeLessThanOrEqual(deps.config.guildmasterTraitBudget);
 
     expect(ofType(events, 'guildmaster.succeeded')).toEqual([
@@ -958,7 +958,7 @@ describe("a fold's one order (DL-54)", () => {
     // A Party in flight, its first member wearing a unique Item and common gear.
     const staffing = (questId: QuestId) => {
       const quest = world.quests[questId];
-      const heroIds = quest === undefined ? null : partyFor(quest, availableHeroes(world, rival), deps.content);
+      const heroIds = quest === undefined ? null : partyFor(world, rival, quest, availableHeroes(world, rival), deps);
       return quest === undefined || heroIds === null ? [] : [{ quest, heroIds }];
     };
     const [staffed] = world.board.flatMap(staffing);

@@ -57,6 +57,7 @@ import {
   type Rejection,
   type SetupRefusal,
   type Sex,
+  type StatValues,
   type StopCondition,
   type StopReason,
   type TraitKey,
@@ -97,6 +98,8 @@ export interface NewGame {
   guildmasterAge?: number;
   /** The Traits chosen, within the budget; drawn when omitted, none when empty. */
   guildmasterTraitKeys?: readonly TraitKey[];
+  /** Every Guildmaster Stat chosen, within the Stat points (v1.1.4-S11); drawn when omitted. */
+  guildmasterStats?: Readonly<StatValues>;
   /** The descriptive Attributes, trimmed by the engine and held to their bounds. */
   guildmasterBirthplace?: string;
   guildmasterAppearance?: string;

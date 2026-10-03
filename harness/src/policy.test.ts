@@ -58,6 +58,9 @@ function openBoard(quests: Quest[], min = 2): void {
   });
 }
 
+/** The player's margin at 1 (v1.1.4-S6): `partyFor` sends the fewest Heroes each Quest allows, so four Heroes make two Parties. */
+const fewest: EngineDeps = { ...deps, config: { ...deps.config, playerPartyMargin: 1 } };
+
 const dispatches = (actions: GuildAction[]) => actions.filter((action) => action.kind === 'dispatch');
 const recruits = (actions: GuildAction[]) => actions.filter((action) => action.kind === 'recruit');
 const builds = (actions: GuildAction[]) => actions.filter((action) => action.kind === 'build');
@@ -112,23 +115,27 @@ describe('automaticPolicy', () => {
     expect(recruits(actions)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: lowest?.id }]);
   });
 
-  test('sends the strongest Party of the size required, by the engine’s staffing rule, to the highest reward first', () => {
+  test('sends the Party the engine’s staffing rule names, by the chance estimate (v1.1.4-S6), to the highest reward first', () => {
     const { document, guild, quests } = scene();
     openBoard(quests);
     const best = quests.at(-1) as Quest;
 
     const [first] = automaticPolicy(document, deps);
 
-    const party = partyFor(best, availableHeroes(document.world, guild), content);
-    expect(party).toHaveLength(2);
+    const party = partyFor(document.world, guild, best, availableHeroes(document.world, guild), deps);
+    expect(party?.length).toBeGreaterThanOrEqual(2);
     expect(first).toEqual({ kind: 'dispatch', guildId: guild.id, questId: best.id, heroIds: party });
+    // At the player's margin of 1, the fewest the Quest allows.
+    const [fewer] = automaticPolicy(document, fewest);
+    expect(fewer).toMatchObject({ questId: best.id, heroIds: partyFor(document.world, guild, best, availableHeroes(document.world, guild), fewest) });
+    expect(fewer?.kind === 'dispatch' && fewer.heroIds).toHaveLength(2);
   });
 
   test('keeps sending Parties while it has Heroes, each to the next reward, no Hero twice', () => {
     const { document, guild, quests } = scene();
     openBoard(quests);
 
-    const sent = dispatches(automaticPolicy(document, deps));
+    const sent = dispatches(automaticPolicy(document, fewest));
 
     expect(guild.rosterIds).toHaveLength(4);
     expect(sent.map((action) => action.questId)).toEqual([quests.at(-1)?.id, quests.at(-2)?.id]);
@@ -448,7 +455,7 @@ describe('automaticPolicy', () => {
       addStack(document.world, 'blessed-candle', 2, vault); // social: the quiet word's
       addStack(document.world, 'healing-draught', 1, vault); // a heal serves any Quest: the first sent
 
-      const actions = automaticPolicy(document, deps, noBuilding);
+      const actions = automaticPolicy(document, fewest, noBuilding);
 
       const sent = dispatches(actions);
       expect(sent.slice(0, 2).map((action) => action.questId)).toEqual([first.id, second.id]);

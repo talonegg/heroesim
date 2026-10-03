@@ -11,10 +11,13 @@
 import { useId, useMemo, useState } from 'react';
 import { capitalised, signed } from '../state/names';
 import type { Segment } from '../state/narrate';
-import { reportSections, type HomeGrief, type QuestReturn, type ReportSection, type ReturnEntry, type ReturnKey } from '../state/quest-return';
+import { reportSections, type HomeGrief, type QuestReturn, type ReportSection, type ReturnEncounter, type ReturnEntry, type ReturnKey } from '../state/quest-return';
 import { Names } from './history-entries';
-import { Icon } from './icons';
+import { Icon, type IconName } from './icons';
 import { Chip, Disclosure } from './ui';
+
+/** An Encounter's mark by its Degree (v1.1.4-S2): a star for a Triumph; its sentence names the Degree. */
+const degreeIcons: Readonly<Record<ReturnEncounter['degree'], IconName>> = { triumph: 'fame', success: 'check', setback: 'cross', failure: 'cross' };
 
 /** The id of a report's heading, which takes the keyboard when the report opens. */
 export function reportHeadingId(key: ReturnKey): string {
@@ -66,7 +69,7 @@ function Section({ section }: { section: ReportSection }) {
           <ol className="report__list">
             {section.encounters.map((encounter) => (
               <li key={encounter.key} className={encounter.outcome === 'success' ? 'is-met' : 'is-missed'}>
-                <Icon name={encounter.outcome === 'success' ? 'check' : 'cross'} />
+                <Icon name={degreeIcons[encounter.degree]} />
                 <span>
                   <Names segments={encounter.segments} />
                   {encounter.used.length === 0 ? null : (

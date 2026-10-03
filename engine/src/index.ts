@@ -132,10 +132,12 @@ export * from './config.js';
 export * from './content-types.js';
 export {
   availableHeroes,
+  bestParty,
   partyFor,
   rivalChoices,
   staffableQuests,
   transferAnswer,
+  type BestParty,
   type TransferAnswer,
   type TransferRefusalReason,
   type TransferSide,
@@ -201,6 +203,9 @@ export {
   type PortraitPerson,
 } from './portraits.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
+// A Level's growth, for the harness's calibration (v1.1.4-S9, DL-162), which raises a generated Hero
+// to a Level as the `levelUps` phase would.
+export { growOneLevel, type Growth } from './progression.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
 export * from './hero-regard.js';
@@ -241,30 +246,59 @@ export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';
 export * from './preview.js';
-export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome } from './quest-engine/check.js';
+export { capability, check, targetOf, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './quest-engine/check.js';
+export {
+  describeQuery,
+  statsIn,
+  type HeroAccount,
+  type PredAccount,
+  type QueryAccount,
+  type SetAccount,
+  type ValAccount,
+} from './quest-engine/describe.js';
+export {
+  chanceBand,
+  chanceToReach,
+  estimateQuest,
+  questEstimator,
+  type CheckEstimate,
+  type DegreeChances,
+  type EncounterEstimate,
+  type QuestEstimate,
+} from './quest-engine/estimate.js';
+export { formEffect, formEffects, formOf, meanForm, workingMorale, type FormConfig, type FormEffect } from './quest-engine/form.js';
 export { expendUsed, kitOf, sendHome, type ConsumableUse, type Kit } from './quest-engine/consumables.js';
-export { encounterCount, sequenceFor } from './quest-engine/encounters.js';
+export { degreeOf, passDegree, passOf, succeeded, type Decided } from './quest-engine/degree.js';
+export { encounterCount, sequenceFor, storedSequence } from './quest-engine/encounters.js';
 export { teamwork } from './quest-engine/teamwork.js';
 export {
   questBand,
   resolveQuest,
+  type CheckRoll,
   type EncounterResult,
   type QuestInjury,
   type QuestOutcome,
   type Resolution,
 } from './quest-engine/resolve.js';
 export {
-  appliesOn,
-  meetsRequirement,
-  synergiesFor,
-  synergiesOn,
-  synergyBonus,
-  type SynergyMember,
-} from './quest-engine/synergy.js';
+  evaluate,
+  heroOf,
+  holds,
+  is,
+  membersOf,
+  queryParty,
+  valueOf,
+  type QueryContent,
+  type OnQuest,
+  type QueryMember,
+  type QueryParty,
+} from './quest-engine/query.js';
+export { appliesOn, meetsRequirement, synergiesFor, synergiesOn, synergyBonus } from './quest-engine/synergy.js';
 export * from './selectors.js';
 export * from './serialise.js';
 export * from './stops.js';
 export * from './time.js';
+export * from './traits.js';
 export {
   offerExpiresBy,
   offerExpiresOnTurn,

@@ -16,10 +16,12 @@
 // now is the engine's `regardBand` of `patronRegardFor`.
 
 import {
+  encounterDegree,
   entriesFor,
   patronRegardFor,
   playerGuild,
   regardBand,
+  type Degree,
   type EncounterOutcome,
   type Entry,
   type EngineEventOf,
@@ -56,6 +58,8 @@ export interface ReturnLine {
 export interface ReturnEncounter extends ReturnLine {
   key: string;
   outcome: EncounterOutcome;
+  /** Its Degree (v1.1.4-S2); an entry written before then reads as its outcome, a Success or a Failure. */
+  degree: Degree;
   used: ReturnLine[];
 }
 
@@ -72,6 +76,8 @@ export interface HeroOutcome {
   morale: { before: number; after: number; band: string } | null;
   /** The Injury the Quest left them with, and the night it heals; `null` for none. */
   injury: { name: string; heals: string } | null;
+  /** The Trait they earned on the Quest, by name (v1.1.4-S7, `hero.trait-gained`); `null` for none. */
+  trait: string | null;
   /** They died on the Quest. */
   died: boolean;
   /** The gear a Hero who died carried, back to the Guild that night, by name. */
@@ -263,6 +269,7 @@ function readOutcomes(document: WorldDocument, key: ReturnKey): ReturnRead | nul
   const night = nightFrom(history, position);
   const ofParty = ofQuest.filter((entry) => (entry.payload as { partyId?: unknown }).partyId === key.partyId);
   const injured = ofQuest.filter((entry): entry is EngineEventOf<'hero.injured'> => entry.type === 'hero.injured');
+  const earned = ofQuest.filter((entry): entry is EngineEventOf<'hero.trait-gained'> => entry.type === 'hero.trait-gained');
   const morale = ofQuest.filter((entry): entry is EngineEventOf<'hero.morale-changed'> => entry.type === 'hero.morale-changed');
   const regard = ofQuest.filter((entry): entry is EngineEventOf<'hero.regard-changed'> => entry.type === 'hero.regard-changed');
   const returned = night.filter((entry): entry is EngineEventOf<'item.returned'> => entry.type === 'item.returned' && (entry as EngineEventOf<'item.returned'>).payload.cause === 'died');
@@ -280,6 +287,8 @@ function readOutcomes(document: WorldDocument, key: ReturnKey): ReturnRead | nul
     const mood = first === undefined || last === undefined ? null : { before: first.payload.before, after: last.payload.after, band: last.payload.bandAfter };
     const hurt = injured.find((entry) => entry.payload.heroId === heroId);
     const injury = hurt === undefined ? null : { name: nameIn(content.injuries, hurt.payload.typeKey), heals: nightOf(hurt.payload.healsOnTurn) };
+    const gained = earned.find((entry) => entry.payload.heroId === heroId);
+    const trait = gained === undefined ? null : nameIn(content.heroTraits, gained.payload.traitKey);
     const gear = died ? returned.filter((entry) => entry.payload.heroId === heroId).map((entry) => nameIn(content.items, entry.payload.definitionKey)) : [];
     const mates = regard
       .filter((entry) => entry.payload.heroId === heroId)
@@ -291,9 +300,10 @@ function readOutcomes(document: WorldDocument, key: ReturnKey): ReturnRead | nul
       ...levels.map((level) => `reached Level ${level}`),
       ...(mood === null ? [] : [`Morale went from ${mood.before} to ${mood.after}, ${mood.band}`]),
       ...(injury === null ? [] : [`injured: ${injury.name}, healing on ${injury.heals}`]),
+      ...(trait === null ? [] : [`earned the Trait ${trait}`]),
       ...mates.map((mate) => `Regard for ${mate.name} ${crossed(mate.bandBefore, mate.bandAfter)}`),
     ];
-    return { heroId, name: named(heroId), xp, levels, morale: mood, injury, died, gear, regard: mates, words };
+    return { heroId, name: named(heroId), xp, levels, morale: mood, injury, trait, died, gear, regard: mates, words };
   });
   return { outcome, position, ofQuest, ofParty, guildName, outcomes };
 }
@@ -316,6 +326,7 @@ function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null
     .map((entry): ReturnEncounter => ({
       key: `encounter-${entry.payload.index}`,
       outcome: entry.payload.outcome,
+      degree: encounterDegree(entry.payload),
       ...lineOf(entry, narration),
       used: expended.filter((use) => 'encounterIndex' in use.payload && use.payload.encounterIndex === entry.payload.index).map((use) => lineOf(use, narration)),
     }));

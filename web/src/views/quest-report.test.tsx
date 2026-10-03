@@ -75,7 +75,7 @@ describe('the Quest report (M9-F5)', () => {
       wealth: 180,
       fame: 4,
       xp: 60,
-      encounters: [{ encounterKey: 'ambush-on-the-road', outcome: 'success' }],
+      encounters: [{ encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph' }],
       loot: [{ definitionKey: 'whetstone', quantity: 3 }],
       levels: [{ hero: 0, level: 2 }],
     });
@@ -84,7 +84,8 @@ describe('the Quest report (M9-F5)', () => {
     expect(sectionHeadings(region)).toEqual(['Encounters', 'Rewards', 'Heroes', 'The Patron']);
     expect(region.textContent).toContain('Strong success');
     expect(region.textContent).toContain(`Offered by ${report.patron?.name}`);
-    expect(within(region).getByText("The Lantern's Party came through Ambush on the road (Encounter 1).")).toBeDefined();
+    // v1.1.4-S2: the Encounter's Degree, in its sentence, and the Check of its several that decided it.
+    expect(within(region).getByText("The Lantern's Party came through Ambush on the road (Encounter 1), a Triumph, decided by Steel.")).toBeDefined();
     expect(within(region).getByText('Wealth +180')).toBeDefined();
     expect(within(region).getByText('Fame +4')).toBeDefined();
     expect(within(region).getByText('XP +60 each')).toBeDefined();
@@ -92,6 +93,40 @@ describe('the Quest report (M9-F5)', () => {
     const [first] = report.outcomes;
     const hero = within(region).getByRole('listitem', { name: first?.name ?? '' });
     expect(within(hero).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Gained 60 XP', 'Reached Level 2']);
+  });
+
+  test("says once, for the Party, of the Encounter whose success form decided, and of no other (v1.1.4-S3)", () => {
+    const { region } = drawn({
+      band: 'fail',
+      encounters: [
+        { encounterKey: 'ambush-on-the-road', outcome: 'failure', degree: 'setback', formDecided: 'lowered' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'success' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph', formDecided: 'raised' },
+      ],
+    });
+
+    const lines = Array.from(region.querySelectorAll('.report__list > li')).map((item) => item.textContent);
+    expect(lines).toEqual([
+      "The Lantern's Party failed at Ambush on the road (Encounter 1), a Setback, decided by Steel. Low spirits told against them.",
+      "The Lantern's Party came through Ambush on the road (Encounter 2), a Success, decided by Steel.",
+      "The Lantern's Party came through Ambush on the road (Encounter 3), a Triumph, decided by Steel. Their high spirits carried them through.",
+    ]);
+  });
+
+  // v1.1.4-S14: a Trait a Hero earned on the Quest (v1.1.4-S7), among what befell them.
+  test('says the Trait a Hero earned, in their line', () => {
+    const { report, region } = drawn({
+      band: 'success',
+      xp: 20,
+      encounters: [{ encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph' }],
+      traits: [{ hero: 0, traitKey: 'battle-tried', encounterIndex: 0 }],
+    });
+    const [first, second] = report.outcomes;
+
+    const earned = within(region).getByRole('listitem', { name: first?.name ?? '' });
+    expect(within(earned).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Gained 20 XP', 'Earned the Trait Battle-tried']);
+    const other = within(region).getByRole('listitem', { name: second?.name ?? '' });
+    expect(other.textContent).not.toMatch(/Trait/);
   });
 
   test('a section with nothing to say is not drawn, and leaves no gap: no heading, no empty list', () => {

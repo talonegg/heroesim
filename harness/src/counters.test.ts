@@ -222,6 +222,66 @@ describe("M3's counters, from the History", () => {
     expect(counters.heroesRetired).toEqual({ player: 1, rival: 2 });
   });
 
+  // v1.1.4-S7: the Traits earned and lost, and the careers they are counted over.
+  test('Traits gained and lost by controller, and each Hero sent on a Quest once, by the Guild that first sent them', () => {
+    const { document, player, rivals } = fixture('counters-traits');
+    const [mine, rivalHero] = [firstHero(player), firstHero(rivals[0])];
+    const second = player.rosterIds[1] as HeroId;
+    const taken = (turn: number, guild: Guild, heroIds: HeroId[]): void => {
+      const questId = makeId('quests', 900 + turn);
+      add(document, turn, 'quest.taken', [questId, guild.id], { questId, partyId: makeId('parties', 900 + turn), guildId: guild.id, heroIds, returnsOnTurn: turn + 5 });
+    };
+    taken(3, player, [mine, second]);
+    taken(4, rivals[0], [rivalHero]);
+    add(document, 8, 'hero.trait-gained', [mine, player.id], { heroId: mine, traitKey: 'scarred', questId: makeId('quests', 903), encounterIndex: 0, encounterKey: 'x' });
+    taken(9, player, [mine]);
+    add(document, 9, 'hero.trait-gained', [rivalHero, rivals[0].id], { heroId: rivalHero, traitKey: 'lame', questId: makeId('quests', 904), encounterIndex: 1, encounterKey: 'x' });
+    add(document, 12, 'hero.trait-lost', [mine, player.id], { heroId: mine, traitKey: 'scarred', replacedBy: 'lame' });
+    document.world.turn = 20;
+
+    const counters = countGame(document, shortYears);
+
+    expect(counters.traitsGained).toEqual({ player: 1, rival: 1 });
+    expect(counters.traitsLost).toEqual({ player: 1, rival: 0 });
+    expect(counters.questingHeroes).toEqual({ player: 2, rival: 1 });
+    expect(counters.traitsGainedByKey).toEqual({ player: { scarred: 1 }, rival: { lame: 1 } });
+  });
+
+  // v1.1.4-S10: the Party sizes and the XP each Hero took, for the owner's decision on splitting XP.
+  test('Quests resolved by controller and the size of the Party sent, their bands, and the XP each Hero who came home took', () => {
+    const { document, player, rivals } = fixture('counters-parties');
+    const [a, b, c] = player.rosterIds as [HeroId, HeroId, HeroId];
+    const rivalHero = firstHero(rivals[0]);
+    const partyId = makeId('parties', 950);
+    const resolved = (turn: number, guild: Guild, heroIds: HeroId[], band: string, xpPerHero: number, deaths: HeroId[] = []): void => {
+      const questId = makeId('quests', 950 + turn);
+      add(document, turn, 'quest.resolved', [questId, partyId, guild.id], {
+        band,
+        wealthDelta: 0,
+        xpPerHero,
+        deaths,
+        questId,
+        partyId,
+        guildId: guild.id,
+        heroIds,
+        templateKey: 'escort-the-tithe',
+      });
+    };
+    resolved(2, player, [a, b], 'strong', 60);
+    resolved(4, player, [a, b], 'fail', 30, [b]);
+    resolved(6, player, [a, b, c], 'success', 50);
+    resolved(8, rivals[0], [rivalHero], 'success', 40);
+    document.world.turn = 20;
+
+    expect(countGame(document, shortYears).partySizes).toEqual({
+      player: {
+        2: { quests: 2, fail: 1, strong: 1, xpPerHero: 90, heroesHome: 3, xpTaken: 150 },
+        3: { quests: 1, fail: 0, strong: 0, xpPerHero: 50, heroesHome: 3, xpTaken: 150 },
+      },
+      rival: { 1: { quests: 1, fail: 0, strong: 0, xpPerHero: 40, heroesHome: 1, xpTaken: 40 } },
+    });
+  });
+
   test('Improvement grades by year 10: the highest each Guild founded before it reached before it, by controller', () => {
     const { document, player, rivals } = fixture('counters-improved');
     const [a, b] = rivals;
@@ -423,8 +483,8 @@ describe("M4's counters, from the History", () => {
 
     const none = { success: 0, failure: 0, injured: 0, died: 0 };
     expect(encounters).toEqual({
-      player: { combat: { success: 1, failure: 1, injured: 3, died: 1 }, travel: none, social: { ...none, success: 1 }, arcane: none, stealth: none },
-      rival: { combat: { ...none, failure: 1 }, travel: none, social: none, arcane: none, stealth: { ...none, success: 1 } },
+      player: { combat: { success: 1, failure: 1, injured: 3, died: 1 }, travel: none, social: { ...none, success: 1 }, arcane: none, stealth: none, lore: none },
+      rival: { combat: { ...none, failure: 1 }, travel: none, social: none, arcane: none, stealth: { ...none, success: 1 }, lore: none },
     });
   });
 

@@ -203,7 +203,7 @@ export function guildmasterRegardForGuild(
 /** What a writer is given beside the world: a phase's context, or as much of it as it reads. */
 export interface RegardContext {
   config: GameConfig;
-  content: Pick<ContentSet, 'stats' | 'traits'>;
+  content: Pick<ContentSet, 'stats' | 'guildmasterTraits'>;
   turn: Turn;
   emit: Emit;
 }

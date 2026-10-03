@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { loadContent } from '@heroesim/content/node';
 import { append, compareByCodeUnit, createWorld, defaultConfig, makeId, retirementTurn, type EngineDeps, type Guild } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
@@ -8,6 +10,7 @@ import {
   foldedAmong,
   probeInParallel,
   probeName,
+  probeNames,
   probeSeeds,
   setFirstRivalGuildmasterAge,
   successionProbeAge,
@@ -38,6 +41,13 @@ describe('probeName, from HEROESIM_PROBE', () => {
     expect(probeName('  ')).toBeNull();
     expect(probeName(' Succession ')).toBe('succession');
     expect(() => probeName('successions')).toThrow(RangeError);
+  });
+
+  test('"calibrate" names the calibration (v1.1.4-S9), and run.mjs knows the same probes, so that `npm run harness -- calibrate` sets it', () => {
+    expect(probeName('calibrate')).toBe('calibrate');
+    const script = readFileSync(fileURLToPath(new URL('../run.mjs', import.meta.url)), 'utf8');
+    const listed = /const probes = \[([^\]]*)\];/.exec(script)?.[1] ?? '';
+    expect([...listed.matchAll(/'([a-z-]+)'/g)].map((it) => it[1])).toEqual([...probeNames]);
   });
 });
 
@@ -128,7 +138,8 @@ describe('the Succession probe over a few seeds', () => {
     for (const game of games) expect(report).toContain(game.seed);
   });
 
-  test('plays the same games shared among child processes', async () => {
+  // Two child processes, each starting tsx and loading the content, as sweep.test.ts's: given as long.
+  test('plays the same games shared among child processes', { timeout: 120_000 }, async () => {
     const parallel = await probeInParallel(seeds.slice(0, 2), shortYears, { years, age: successionProbeAge, workers: 2 });
     expect(parallel).toEqual(games.slice(0, 2));
   });

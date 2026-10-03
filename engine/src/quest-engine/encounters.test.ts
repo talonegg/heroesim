@@ -1,15 +1,40 @@
 import { describe, expect, test } from 'vitest';
-import type { QuestTemplate } from '../content-types.js';
+import { configProblems, defaultConfig } from '../config.js';
+import type { ContentSet, Encounter, EncounterKind, QuestTemplate } from '../content-types.js';
 import type { World } from '../document.js';
-import { streamOf } from '../generators/draw.js';
-import { next } from '../rng.js';
+import { sortedRows, streamOf } from '../generators/draw.js';
+import { next, pick } from '../rng.js';
 import { plannedStreams, testContent, testDeps, testWorld } from '../world.test-support.js';
-import { drawSequence, encounterCount, encounterPools, sequenceFor } from './encounters.js';
+import { drawSequence, encounterCount, endsWithFinale, finaleKeys, sequenceFor, sequencePlan, tagWeight } from './encounters.js';
 
 // M4-S1: how many Encounters a Quest has, and how its sequence is drawn, at generation or, for a
-// Quest generated before M4, when it resolves (DL-42).
+// Quest generated before M4, when it resolves (DL-42). v1.1.4-S8: the draw within a kind weighted by
+// the tags an Encounter shares with its template, and a template's Finale, always last (DL-148 items
+// 22 and 23).
 
 const barrow = testContent.questTemplates['clear-the-barrow'] as QuestTemplate;
+const config = { encounterTagWeight: defaultConfig.encounterTagWeight };
+
+/** The test content with `encounters` beside its own and `templates` over its own. */
+function withRows(encounters: Encounter[], templates: QuestTemplate[] = []): ContentSet {
+  return {
+    ...testContent,
+    encounters: { ...testContent.encounters, ...Object.fromEntries(encounters.map((it) => [it.key, it])) },
+    questTemplates: { ...testContent.questTemplates, ...Object.fromEntries(templates.map((it) => [it.key, it])) },
+  };
+}
+
+/** An Encounter of `kind` with `tags`, its Check and consequences the ambush's. */
+function tagged(key: string, kind: EncounterKind, tags?: string[]): Encounter {
+  const ambush = testContent.encounters['ambush-on-the-road'] as Encounter;
+  return { ...structuredClone(ambush), key, name: key, kind, ...(tags === undefined ? {} : { tags }) };
+}
+
+/** The sequence as M4-S1 drew it, before v1.1.4-S8: a kind by `pick`, then an Encounter of it by `pick`. */
+function drawnBefore(state: Parameters<typeof pick>[0], template: QuestTemplate, content: ContentSet, count: number): string[] {
+  const pools = template.encounterKinds.map((kind) => sortedRows(content.encounters, (it) => it.kind === kind));
+  return Array.from({ length: count }, () => pick(state, pick(state, pools)).key);
+}
 
 describe('encounterCount', () => {
   const config = { questDifficultyMin: 10, questDifficultyMax: 100 };
@@ -41,14 +66,164 @@ describe('drawSequence', () => {
     const world = testWorld('draws', deps);
     const state = streamOf(world, 'encounters');
     const twin = structuredClone(state);
-    const pools = encounterPools(barrow, testContent);
 
-    const keys = drawSequence(state, pools, 3);
+    const keys = drawSequence(state, sequencePlan(barrow, testContent), 3, config);
     for (let draw = 0; draw < 6; draw += 1) next(twin);
 
     expect(keys).toHaveLength(3);
     expect(state).toEqual(twin);
     for (const key of keys) expect(barrow.encounterKinds).toContain(testContent.encounters[key]?.kind);
+  });
+
+  test('with no tag shared, draws exactly what M4-S1 drew, a kind then an Encounter by pick, over 200 seeds of every template', () => {
+    const deps = testDeps();
+    for (let seed = 0; seed < 200; seed += 1) {
+      for (const template of sortedRows(testContent.questTemplates)) {
+        const state = streamOf(testWorld(`before-${seed}`, deps), 'encounters');
+        const twin = structuredClone(state);
+        const count = template.encountersMax;
+        expect(drawSequence(state, sequencePlan(template, testContent), count, config), template.key).toEqual(
+          drawnBefore(twin, template, testContent, count),
+        );
+        expect(state).toEqual(twin);
+      }
+    }
+  });
+
+  test('tags at encounterTagWeight 1 draw exactly what no tags draw', () => {
+    const content = withRows([tagged('ambush-on-the-road', 'combat', ['fight'])]);
+    const state = streamOf(testWorld('weight-1', testDeps()), 'encounters');
+    const twin = structuredClone(state);
+    const keys = Array.from({ length: 50 }, () => drawSequence(state, sequencePlan(barrow, content), 4, { encounterTagWeight: 1 }));
+    const before = Array.from({ length: 50 }, () => drawnBefore(twin, barrow, content, 4));
+    expect(keys).toEqual(before);
+  });
+
+  test('over 20,000 draws, an Encounter sharing one tag with its template is drawn about three times as often as one sharing none', () => {
+    // One kind, three Encounters: `shared` shares `fight` with the template, the other two nothing.
+    const content = withRows([tagged('shared', 'lore', ['fight', 'crypt']), tagged('plain', 'lore', ['crypt']), tagged('untagged', 'lore')]);
+    const template: QuestTemplate = { ...barrow, tags: ['fight'], encounterKinds: ['lore'] };
+    const state = streamOf(testWorld('three-to-one', testDeps()), 'encounters');
+    const plan = sequencePlan(template, content);
+
+    const counts = new Map<string, number>();
+    for (let draw = 0; draw < 20_000; draw += 1) {
+      const [key = ''] = drawSequence(state, plan, 1, config);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+
+    const shared = counts.get('shared') ?? 0;
+    // 3 ÷ 5 of the draws, and three times either other's.
+    expect(shared / 20_000).toBeGreaterThan(0.58);
+    expect(shared / 20_000).toBeLessThan(0.62);
+    for (const other of ['plain', 'untagged']) {
+      const ratio = shared / (counts.get(other) ?? 1);
+      expect(ratio, other).toBeGreaterThan(2.8);
+      expect(ratio, other).toBeLessThan(3.2);
+    }
+  });
+
+  test('each tag shared multiplies the weight again: two shared are encounterTagWeight squared', () => {
+    const twice = tagged('twice', 'lore', ['fight', 'crypt']);
+    const once = tagged('once', 'lore', ['crypt']);
+    expect(tagWeight(twice, ['fight', 'crypt', 'dark'], config)).toBe(9);
+    expect(tagWeight(once, ['fight', 'crypt', 'dark'], config)).toBe(3);
+    expect(tagWeight(once, ['fight'], config)).toBe(1);
+    expect(tagWeight(tagged('none', 'lore'), ['fight'], config)).toBe(1);
+    expect(tagWeight(twice, ['fight', 'crypt'], { encounterTagWeight: 1 })).toBe(1);
+  });
+
+  test('a Finale is always the last, the count unchanged, and the places before it drawn as before: two draws fewer', () => {
+    const vault = tagged('the-vaults-heart', 'arcane');
+    const content = withRows([vault], [{ ...barrow, finale: 'the-vaults-heart' }]);
+    const template = content.questTemplates['clear-the-barrow'] as QuestTemplate;
+    const deps = testDeps();
+    for (let seed = 0; seed < 50; seed += 1) {
+      for (const count of [1, 2, 4]) {
+        const state = streamOf(testWorld(`finale-${seed}`, deps), 'encounters');
+        const twin = structuredClone(state);
+        const keys = drawSequence(state, sequencePlan(template, content), count, config);
+        expect(keys).toHaveLength(count);
+        expect(keys.at(-1)).toBe('the-vaults-heart');
+        expect(keys.slice(0, -1)).toEqual(drawnBefore(twin, barrow, testContent, count - 1));
+        expect(state).toEqual(twin);
+      }
+    }
+  });
+
+  test('an Encounter some template names as its Finale is drawn into no place, on that Quest or another', () => {
+    // A combat Finale of one template, which the barrow's combat places would otherwise draw.
+    const finale = tagged('the-last-stand', 'combat', ['fight']);
+    const fort = testContent.questTemplates['hold-the-border-fort'] as QuestTemplate;
+    const content = withRows([finale], [{ ...fort, finale: 'the-last-stand' }]);
+    expect(finaleKeys(content)).toEqual(new Set(['the-last-stand']));
+    const state = streamOf(testWorld('no-finale-drawn', testDeps()), 'encounters');
+    const twin = structuredClone(state);
+    const plan = sequencePlan(barrow, content);
+    const drawn = Array.from({ length: 300 }, () => drawSequence(state, plan, 4, config)).flat();
+    expect(drawn).not.toContain('the-last-stand');
+    // And the barrow draws as it did before the Finale was written.
+    expect(drawn).toEqual(Array.from({ length: 300 }, () => drawnBefore(twin, barrow, testContent, 4)).flat());
+  });
+
+  test('throws, drawing nothing, on an encounterTagWeight that is not a finite number of 1 or more', () => {
+    const state = streamOf(testWorld('unsound', testDeps()), 'encounters');
+    const before = structuredClone(state);
+    for (const encounterTagWeight of [0.5, 0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => drawSequence(state, sequencePlan(barrow, testContent), 3, { encounterTagWeight }), String(encounterTagWeight)).toThrow(
+        /encounterTagWeight is .*; it is a finite number of 1 or more/,
+      );
+    }
+    expect(state).toEqual(before);
+  });
+});
+
+describe('encounterTagWeight (v1.1.4-S8)', () => {
+  test('defaults to 3, and configProblems names one that is not a finite number of 1 or more', () => {
+    expect(defaultConfig.encounterTagWeight).toBe(3);
+    expect(configProblems(defaultConfig)).toEqual([]);
+    expect(configProblems({ ...defaultConfig, encounterTagWeight: 1 })).toEqual([]);
+    for (const encounterTagWeight of [0.99, 0, -3, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(configProblems({ ...defaultConfig, encounterTagWeight }), String(encounterTagWeight)).toEqual([
+        `encounterTagWeight is ${encounterTagWeight}; it is a finite number of 1 or more, so that a tag shared never makes an Encounter rarer`,
+      ]);
+    }
+  });
+});
+
+describe('sequencePlan', () => {
+  test("is each kind's Encounters in key order, the template's tags and its Finale, or null", () => {
+    const plan = sequencePlan(barrow, testContent);
+    expect(plan.pools.map((pool) => pool.map((it) => it.key))).toEqual(
+      barrow.encounterKinds.map((kind) => sortedRows(testContent.encounters, (it) => it.kind === kind).map((it) => it.key)),
+    );
+    expect(plan.tags).toEqual(barrow.tags);
+    expect(plan.finale).toBeNull();
+    const content = withRows([], [{ ...barrow, finale: 'hold-the-line' }]);
+    expect(sequencePlan(content.questTemplates['clear-the-barrow'] as QuestTemplate, content).finale).toBe('hold-the-line');
+  });
+
+  test('throws on a kind with no Encounter but Finales, and on a Finale content does not define', () => {
+    const lore = tagged('a-riddle', 'lore');
+    const content = withRows([lore], [{ ...barrow, encounterKinds: ['lore'], finale: 'a-riddle' }]);
+    expect(() => sequencePlan(content.questTemplates['clear-the-barrow'] as QuestTemplate, content)).toThrow(/lore/);
+    expect(() => sequencePlan({ ...barrow, finale: 'gone' }, testContent)).toThrow(/gone/);
+  });
+});
+
+describe('endsWithFinale', () => {
+  const content = withRows([], [{ ...barrow, finale: 'hold-the-line' }]);
+  const of = (...keys: string[]) => keys.map((key) => ({ key }));
+
+  test("is whether a sequence ends with its template's Finale", () => {
+    expect(endsWithFinale('clear-the-barrow', of('past-the-watch', 'hold-the-line'), content)).toBe(true);
+    expect(endsWithFinale('clear-the-barrow', of('hold-the-line', 'past-the-watch'), content)).toBe(false);
+    expect(endsWithFinale('clear-the-barrow', of(), content)).toBe(false);
+  });
+
+  test('is false for a template naming none, or one content no longer defines', () => {
+    expect(endsWithFinale('clear-the-barrow', of('hold-the-line'), testContent)).toBe(false);
+    expect(endsWithFinale('long-gone', of('hold-the-line'), content)).toBe(false);
   });
 });
 
@@ -74,7 +249,7 @@ describe('sequenceFor', () => {
 
     const sequence = sequenceFor(at, { templateKey: 'clear-the-barrow', difficulty: 70, encounterKeys: [] }, deps);
 
-    const expected = drawSequence(streamOf(twin, 'encounters'), encounterPools(barrow, testContent), 4);
+    const expected = drawSequence(streamOf(twin, 'encounters'), sequencePlan(barrow, testContent), 4, deps.config);
     expect(sequence.map((encounter) => encounter.key)).toEqual(expected);
     const after = at.rng as Record<string, unknown>;
     for (const name of plannedStreams) {
@@ -90,6 +265,13 @@ describe('sequenceFor', () => {
 
     const drawn = sequenceFor(at, { templateKey: 'clear-the-barrow', difficulty: 30, encounterKeys: ['gone'] }, deps);
     expect(drawn).toHaveLength(2);
+  });
+
+  test("for a Quest generated before M4, ends with its template's Finale", () => {
+    const content = withRows([], [{ ...barrow, finale: 'hold-the-line' }]);
+    const sequence = sequenceFor(world(), { templateKey: 'clear-the-barrow', difficulty: 70, encounterKeys: [] }, { ...deps, content });
+    expect(sequence).toHaveLength(4);
+    expect(sequence.at(-1)?.key).toBe('hold-the-line');
   });
 
   test('for a template content no longer defines, is one Encounter drawn among all of content', () => {

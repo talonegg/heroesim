@@ -10,6 +10,7 @@ export {
   contentSetId,
   contentVersion,
   parseContent,
+  readContent,
   type ContentFileName,
 } from './parse.js';
 export {

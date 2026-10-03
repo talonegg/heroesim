@@ -48,7 +48,7 @@ describe('navCounts', () => {
     const sent = withPartyOut(started());
     expect(navCounts(sent).fresh).toBe(1);
 
-    const bought = played(started(), { kind: 'buy', definitionKey: 'padded-jack', quantity: 1 });
+    const bought = played(started(), { kind: 'buy', definitionKey: 'short-sword', quantity: 1 });
     expect(bought.rejection).toBeNull();
     expect(bought.log.map((event) => event.type)).toEqual(['item.bought']);
     expect(navCounts(bought).fresh).toBe(0);
@@ -161,7 +161,7 @@ describe('railView', () => {
   });
 
   test("leaves out what the Guild's History leaves out: a purchase is not in it, and nothing is new (M9-F4)", () => {
-    const bought = played(started(), { kind: 'buy', definitionKey: 'padded-jack', quantity: 1 });
+    const bought = played(started(), { kind: 'buy', definitionKey: 'short-sword', quantity: 1 });
     const rail = railView(bought, 24);
 
     expect(rail?.lines.some((line) => / bought /.test(line.sentence))).toBe(false);

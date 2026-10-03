@@ -291,7 +291,7 @@ describe('what a grade built does (M3-S6)', () => {
       const quest = questId === undefined ? undefined : document.world.quests[questId];
       if (quest === undefined) throw new Error('An empty Board');
       quest.requirements = { partySizeMin: 1, partySizeMax: 1 };
-      const heroIds = partyFor(quest, availableHeroes(document.world, guild), hurt.content);
+      const heroIds = partyFor(document.world, guild, quest, availableHeroes(document.world, guild), hurt);
       if (heroIds === null) throw new Error('No Party');
       const sent = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds }, hurt);
       if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);

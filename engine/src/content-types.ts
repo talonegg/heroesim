@@ -28,7 +28,10 @@ export type SphereKey = string;
 
 /** A Quest template (M2-S3). */
 export type QuestTemplateKey = string;
-/** A tag a Quest template carries (M2-S3). */
+/**
+ * A tag a Quest template carries (M2-S3), and from v1.1.4-S8 an Encounter: an Encounter sharing one
+ * with its template is likelier drawn (`encounterTagWeight`).
+ */
 export type QuestTagKey = string;
 /** A type of Injury (M2-S5, `injuries.json`). */
 export type InjuryTypeKey = string;
@@ -97,13 +100,10 @@ export interface Skill {
   name: string;
 }
 
-/** Whose Trait it is: a Hero's lasting mark (R16) or a Guildmaster's buff or penalty (R8). */
-export type TraitOwner = 'hero' | 'guildmaster';
-
 /**
- * What a Guildmaster Trait does (M4-S5, R8, pre-M0 review B2, DL-43): one effect from a closed
- * union, each applied inside the one selector that already works its quantity out, for every Guild
- * alike (ADR-0002). A new kind is an engine change and earns a decision-log entry.
+ * What a Guildmaster Trait does (M4-S5, R8, pre-M0 review B2, DL-43): each effect is one of a closed
+ * union, applied inside the one selector that already works its quantity out, for every Guild alike
+ * (ADR-0002). A new kind is an engine change and earns a decision-log entry (DL-150 item 8).
  *
  * - `classStatBonus`: `delta` added to the Stat `statKey` of each Hero of the Class `classKey` on
  *   the Guildmaster's Guild, in `effectiveStats`, held inside the Stat's range;
@@ -111,37 +111,83 @@ export type TraitOwner = 'hero' | 'guildmaster';
  *   `moraleBaselineFor`;
  * - `upkeepFactor`: the Guild's Upkeep multiplied by `factor`, in `upkeep`.
  */
-export type TraitEffect =
+export type GuildmasterTraitEffect =
   | { kind: 'classStatBonus'; classKey: ClassKey; statKey: StatKey; delta: number }
   | { kind: 'guildMoraleShift'; delta: number }
   | { kind: 'upkeepFactor'; factor: number };
 
+/** The kinds of `GuildmasterTraitEffect`. */
+export type GuildmasterTraitEffectKind = GuildmasterTraitEffect['kind'];
+
+/**
+ * What a Hero Trait does (v1.1.4-S7, DL-148 items 24 and 26, DL-150 item 8): a closed union like a
+ * Guildmaster Trait's, so a new kind is an engine change.
+ *
+ * - `statModifiers`: each Hero Stat `modifiers` names moved by its whole number, in `effectiveStats`,
+ *   as gear's are (DL-148 item 24), so the change shows wherever a Stat shows. One effect may name
+ *   several Stats.
+ * - `encounterBonus`: `flat` added to the capability of every Check of an Encounter of one of its
+ *   `kinds`, or sharing one of its `tags` (an Encounter's, from v1.1.4-S8), when any Hero still in
+ *   the sequence holds the Trait: once for the Party however many hold it (DL-148 item 26), and never
+ *   to a raw Check, which is its score alone (DL-152), as a consumable's bonus is not.
+ */
+export type HeroTraitEffect =
+  | { kind: 'statModifiers'; modifiers: Record<StatKey, number> }
+  | { kind: 'encounterBonus'; flat: number; kinds?: EncounterKind[]; tags?: string[] };
+
+/** The kinds of `HeroTraitEffect`. */
+export type HeroTraitEffectKind = HeroTraitEffect['kind'];
+
+/** An effect of either list's Traits. */
+export type TraitEffect = GuildmasterTraitEffect | HeroTraitEffect;
+
 /** The kinds of `TraitEffect`. */
 export type TraitEffectKind = TraitEffect['kind'];
 
-/** A Trait (R8, R16; `traits.json`). */
-export interface Trait {
+/**
+ * A Guildmaster Trait (R8; `guildmaster-traits.json`, v1.1.4-S7, DL-150 item 1): a Guildmaster's
+ * buff or penalty, chosen at setup or drawn on the budget. Its key is no Hero Trait's.
+ */
+export interface GuildmasterTrait {
   key: TraitKey;
   name: string;
-  owner: TraitOwner;
   /**
-   * A Guildmaster Trait's cost against the Trait budget, `guildmasterTraitBudget` (DL-88 item 4,
-   * DL-100 item 3): a whole number, positive for a buff and negative for a penalty, which refunds
-   * points. 0 for a Hero Trait, which is never chosen or drawn against the budget.
+   * Its cost against the Trait budget, `guildmasterTraitBudget` (DL-88 item 4, DL-100 item 3): a
+   * whole number, positive for a buff and negative for a penalty, which refunds points.
    */
   cost: number;
   /**
    * The Guildmaster Traits a Guildmaster holding this one may not also hold (DL-87 item 5, DL-100
-   * item 3). Each exclusion holds both ways: every Trait listed lists this one. Empty for a Hero
-   * Trait. Content validation holds both rules.
+   * item 3). Each exclusion holds both ways: every Trait listed lists this one. Content validation
+   * holds both rules.
    */
   excludes: TraitKey[];
   /**
-   * A Guildmaster Trait's one effect (M4-S5); `null` for a Hero Trait, which no rule reads in the
-   * first build. Content validation holds each owner to its own.
+   * What it does, each effect applied in turn (DL-150 item 2): one or more; content holds one each
+   * for now.
    */
-  effect: TraitEffect | null;
+  effects: GuildmasterTraitEffect[];
 }
+
+/**
+ * A Hero Trait (R16; `hero-traits.json`, v1.1.4-S7, DL-150 item 1): a Hero's lasting mark, such as
+ * the one an Injury leaves. Its key is no Guildmaster Trait's.
+ */
+export interface HeroTrait {
+  key: TraitKey;
+  name: string;
+  /**
+   * The Hero Traits a Hero holding this one may not also hold (DL-150 items 3 and 5), each exclusion
+   * both ways, as a Guildmaster Trait's. A Trait an Injury leaves replaces any it excludes; an earned
+   * one is never granted beside one it excludes (DL-150 item 5).
+   */
+  excludes: TraitKey[];
+  /** What it does (DL-150 items 2 and 8): none or more, each applied in turn. */
+  effects: HeroTraitEffect[];
+}
+
+/** A Trait of either list. */
+export type Trait = GuildmasterTrait | HeroTrait;
 
 /** Whose Background it is: a Hero's, or the narrative history of a Guild (INPUTS 3.10). */
 export type BackgroundOwner = 'hero' | 'guild';
@@ -196,8 +242,9 @@ export interface QuestTemplate {
   partySizeMin: number;
   partySizeMax: number;
   /**
-   * The Hero Stats the work asks for, each with a weight; the weights sum to 1 (DL-06). A Party is
-   * chosen by them (`partyFor`); from M4-S2 the Check reads its Encounters' demands instead.
+   * The Hero Stats the work asks for, each with a weight; the weights sum to 1 (DL-06). From M4-S2
+   * the Check reads its Encounters' Checks instead, and from v1.1.4-S6 no rule reads them and no view
+   * shows them: `partyFor` chooses by the chance estimate (DL-148 items 16 and 17).
    */
   demands: [statKey: StatKey, weight: number][];
   /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
@@ -222,40 +269,191 @@ export interface QuestTemplate {
    */
   encountersMin: number;
   encountersMax: number;
+  /**
+   * Its Finale (v1.1.4-S8, DL-148 items 22 and 23): an Encounter content defines, of any kind, always
+   * the last of a Quest's Encounters, in the last of its `encounterCount` places, the places before it
+   * drawn as before. An Encounter some template names as its Finale is never drawn into a place. On a
+   * Quest with one, Loot also needs the Finale to end a Triumph.
+   */
+  finale?: EncounterKey;
 }
 
-/** The kinds of Encounter (M4-S1): the flavour of a Check, and what a Quest template draws from. */
-export const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'] as const;
+/**
+ * The kinds of Encounter (M4-S1): the flavour of a Check, and what a Quest template draws from.
+ * `lore`, for Intelligence and Knowledge, riddles, records and clues, from v1.1.4-S8 (DL-148 item 21).
+ */
+export const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth', 'lore'] as const;
 
 export type EncounterKind = (typeof encounterKinds)[number];
 
 /**
- * How a Check reads the Party's Stats on an Encounter's demands (M4-S2): `best` takes the best
- * Hero's value of each Stat, `sum` the Party's sum of it.
+ * How the old form of an Encounter reads the Party's Stats on its demands (M4-S2): `best` takes the
+ * best Hero's value of each Stat, `sum` the Party's sum of it. Since v1.1.4-S1 the old form loads
+ * into one Check whose score is a Query of the same reading (`EncounterCheck`).
  */
 export type EncounterAggregate = 'best' | 'sum';
 
+// Queries (v1.1.4-S1, DL-148 items 4 to 6, ADR-0010): how content reads the Party. A Query is a JSON
+// array, operator first, of one of five types, each read where its type is expected. A Set is some
+// of the Party's Heroes; a Hero one of them, or none; a Val a number read of the current Hero; a Pred
+// a fact of the current Hero; a Num a number of the Party. A number is a Val or a Num, as `+`, `-` and
+// `*` are, by where they stand. The engine evaluates them (`quest-engine/query.ts`); content
+// validation holds their shape, keys and size, and where Sex may stand.
+
+/** Some of the Party's Heroes, in Party order: `"party"` is every member still in the sequence. */
+export type SetQuery =
+  | 'party'
+  | ['where', SetQuery, PredQuery]
+  | ['top', SetQuery, number, ValQuery]
+  | ['bottom', SetQuery, number, ValQuery];
+
+/** One Hero of a Set, the earlier in Party order on a tie; none of an empty Set. */
+export type HeroQuery = ['best', SetQuery, ValQuery] | ['worst', SetQuery, ValQuery];
+
+/** A number read of the current Hero: an effective Stat, a Skill's rating, their Level, Morale or age. */
+export type ValQuery =
+  | number
+  | ['stat', StatKey]
+  | ['skill', SkillKey]
+  | ['level']
+  | ['morale']
+  | ['age']
+  | ['weighted', [statKey: StatKey, weight: number][]]
+  | ['+', ...ValQuery[]]
+  | ['-', ValQuery, ValQuery]
+  | ['*', ...ValQuery[]];
+
+/** How two numbers compare, in a Pred or a Party-level condition. */
+export type QueryComparison = '>=' | '>' | '<' | '<=' | '=';
+
+/** A fact of the current Hero. `sex` stands only in a `where` filter (DL-148 item 6). */
+export type PredQuery =
+  | ['class', ...ClassKey[]]
+  | ['background', ...BackgroundKey[]]
+  | ['sex', Sex]
+  | ['has-skill', SkillKey]
+  | ['has-skill', SkillKey, number]
+  | ['has-trait', TraitKey]
+  | ['hurt']
+  | [QueryComparison, ValQuery, ValQuery]
+  | ['and', ...PredQuery[]]
+  | ['or', ...PredQuery[]]
+  | ['not', PredQuery];
+
+/** A number of the Party. Every Num of an empty Set, or of no Hero, is 0. */
+export type NumQuery =
+  | number
+  | ['sum' | 'avg' | 'max' | 'min', SetQuery, ValQuery]
+  | ['count', SetQuery]
+  | ['ranked', SetQuery, ValQuery, number[]]
+  | ['of', HeroQuery, ValQuery]
+  | ['+', ...NumQuery[]]
+  | ['-', NumQuery, NumQuery]
+  | ['*', ...NumQuery[]]
+  | ['least', ...NumQuery[]]
+  | ['greatest', ...NumQuery[]];
+
+/** A condition on the Party: one Num compared with another, such as `[">=", ["count", "party"], 3]`. */
+export type PartyCondition = [QueryComparison, NumQuery, NumQuery];
+
+/** A Check of an Encounter (v1.1.4-S1): its key, unique within its Encounter. */
+export type CheckKey = string;
+
+/**
+ * One Check of an Encounter (v1.1.4-S1, DL-148 item 7): the Party's capability is its `score`, a
+ * Num Query, plus a bonus for the best rating held of each of its `skills`, against its target,
+ * `flat` plus `difficultyFactor` times the Quest's difficulty. The old form of an Encounter
+ * (`demands`, `aggregate`, `skillKeys`, `difficultyFactor`) loads into one, keyed and named as its
+ * Encounter, whose score is `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order
+ * of its demands. An Encounter has one to four since v1.1.4-S2, combined by its `pass`.
+ */
+export interface EncounterCheck {
+  key: CheckKey;
+  name: string;
+  score: NumQuery;
+  /** The Skills that help; may be none. */
+  skills: SkillKey[];
+  /** The target's part that grows with the Quest's difficulty: this times it; 0 or more. */
+  difficultyFactor: number;
+  /** The target's part that ignores the difficulty (v1.1.4-S2), 0 when absent: "at least one Hero with Strength 12". */
+  flat?: number;
+  /** The roll's spread for this Check in place of `checkVariance` (v1.1.4-S2); 0 makes a gate with no luck in it. */
+  variance?: number;
+  /**
+   * A raw Check's capability is its score alone (v1.1.4-S2's verification, DL-152): no Skill term,
+   * Synergy, teamwork or consumable's bonus, so that a count against a `flat` is a true gate. It
+   * lists no `skills`.
+   */
+  raw?: boolean;
+}
+
+/**
+ * How an Encounter's Checks combine (v1.1.4-S2, DL-148 items 7 and 8): a Check's key, or `and`
+ * (the worst of its parts' Degrees), `or` (the best) or `at-least` k (the k-th best) of two or
+ * more parts. Every Check of the Encounter is named in it once.
+ */
+export type PassFormula =
+  | CheckKey
+  | ['and', ...PassFormula[]]
+  | ['or', ...PassFormula[]]
+  | ['at-least', number, ...PassFormula[]];
+
+/**
+ * How a Check, or an Encounter, came out (v1.1.4-S2, DL-148 item 8, `CONTEXT.md` Degree), worst
+ * first: a Failure, a Setback (a Failure by a narrow margin), a Success or a Triumph (a Success by
+ * a wide one), read from the roll against the target by `checkDegrees`.
+ */
+export const degrees = ['failure', 'setback', 'success', 'triumph'] as const;
+
+export type Degree = (typeof degrees)[number];
+
+/**
+ * Who harm falls on, and who shrugs it off (v1.1.4-S4, DL-148 item 14), for an Injury and a Death;
+ * each optional, and with none of them every Hero is as likely to be hit, and the chance is as
+ * written.
+ */
+export interface HarmReads {
+  /**
+   * The Heroes it may fall on, a Set Query over the Party, narrowed to those it can fall on; when
+   * that leaves no one, it falls on any of them, so that leaving the front rank at home never dodges
+   * its harm.
+   */
+  among?: SetQuery;
+  /** Stats whose weakness draws the harm: the less of their range a Hero has, the likelier it is them (`exposureRange`). */
+  exposedBy?: StatKey[];
+  /** Stats whose strength shrugs it off: the chance is less for a Hero with more of their range (`guardRange`). */
+  guardedBy?: StatKey[];
+}
+
 /**
  * Up to `count` Heroes of the Party are injured with `typeKey`, each with probability `chance`,
- * each among the living who carry no Injury from this Quest yet.
+ * each among the living who carry no Injury from this Quest yet, and of them `among` (v1.1.4-S4).
  */
-export interface InjuryConsequence {
+export interface InjuryConsequence extends HarmReads {
   kind: 'injury';
   typeKey: InjuryTypeKey;
   chance: number;
   count: number;
 }
 
-/** With probability `chance` one living Hero of the Party dies, and takes no part in what follows. */
-export interface DeathConsequence {
+/**
+ * With probability `chance` one living Hero of the Party dies, and takes no part in what follows;
+ * of them `among` (v1.1.4-S4).
+ */
+export interface DeathConsequence extends HarmReads {
   kind: 'death';
   chance: number;
 }
 
-/** Each Hero who comes home has their Morale moved by `delta`. */
+/**
+ * Each Hero who comes home has their Morale moved by `delta`. A loss is less for a Hero with more of
+ * the range of the Stats it is `steadiedBy`, by `guardRange` (v1.1.4-S4, DL-148 item 14); a gain is
+ * as written.
+ */
 export interface MoraleConsequence {
   kind: 'morale';
   delta: number;
+  steadiedBy?: StatKey[];
 }
 
 /** Every pair in the Party has its Regard for each other moved by `delta` (applied from M4-S4). */
@@ -283,6 +481,31 @@ export interface FameConsequence {
   delta: number;
 }
 
+/**
+ * A Hero earns the Hero Trait `traitKey` with probability `chance` (v1.1.4-S7, DL-148 item 25,
+ * `CONTEXT.md` Earned Trait): one Hero, drawn from those `among` names (a Set Query over the Party
+ * still in the sequence; every one of them when absent), and of those only the Heroes who may take
+ * it: who do not hold it, hold none it excludes or that excludes it (DL-150 item 5), and have drawn no
+ * other on this Quest, save that a negative one may fall on a Hero holding a positive one, and is
+ * then granted in its place: at most one is granted a Hero a Quest (DL-159). When `among` names none
+ * of them it falls on no one. Where it is listed says what it is:
+ *
+ * - in an Encounter's `triumph` list, a positive Trait: drawn on the Triumph, held, and granted only
+ *   if the Quest ends a strong success;
+ * - in its `failure` list, a negative one: it falls only among the Heroes this same Encounter
+ *   injured, so it follows an Injury in that list, and a Setback that reads the Failure's list may
+ *   bring it.
+ *
+ * It is listed nowhere else (`validateContent`). Two draws from `quests`, whether it lands and on whom,
+ * taken whether or not it lands.
+ */
+export interface TraitConsequence {
+  kind: 'trait';
+  traitKey: TraitKey;
+  chance: number;
+  among?: SetQuery;
+}
+
 /** What an Encounter's outcome does (M4-S1): a closed union, so a new kind is an engine change. */
 export type Consequence =
   | InjuryConsequence
@@ -291,39 +514,40 @@ export type Consequence =
   | RegardConsequence
   | XpConsequence
   | WealthConsequence
-  | FameConsequence;
+  | FameConsequence
+  | TraitConsequence;
 
 export type ConsequenceKind = Consequence['kind'];
 
 /**
- * One typed step of a Quest (M4-S1, `encounters.json`), resolved by a Check (M4-S2): the Party's
- * capability on the weighted `demands`, aggregated by `aggregate`, with a bonus for the best rating
- * held of each of `skillKeys`, against `difficultyFactor` times the Quest's difficulty. Its
- * `consequences` are applied by outcome.
+ * One typed step of a Quest (M4-S1, `encounters.json`), resolved by its Checks (M4-S2; v1.1.4-S2).
+ * Its `consequences` are applied by its Degree: a Triumph's are `triumph`, or `success` when it has
+ * none, and a Setback's `setback`, or `failure` when it has none, so an Encounter written before
+ * v1.1.4 runs as it did.
  */
 export interface Encounter {
   key: EncounterKey;
   name: string;
   kind: EncounterKind;
-  /** Hero Stats with weights summing to 1, as a Quest template's demands. */
-  demands: [statKey: StatKey, weight: number][];
-  aggregate: EncounterAggregate;
-  /** The Skills that help; may be none. */
-  skillKeys: SkillKey[];
-  /** The Check's target is this times the Quest's difficulty; above 0. */
-  difficultyFactor: number;
-  consequences: { success: Consequence[]; failure: Consequence[] };
+  /**
+   * Its tags (v1.1.4-S8, DL-148 item 22), as a Quest template's are written: within its kind, it is
+   * drawn `encounterTagWeight` times as often for each it shares with the template. None when absent.
+   */
+  tags?: QuestTagKey[];
+  /** Its Checks, one to four (v1.1.4-S2), each rolled every time, in this order. */
+  checks: EncounterCheck[];
+  /** How its Checks combine into its Degree (v1.1.4-S2); may be absent when it has one Check, which then decides. */
+  pass?: PassFormula;
+  consequences: { success: Consequence[]; failure: Consequence[]; triumph?: Consequence[]; setback?: Consequence[] };
 }
 
 /**
- * What a Party must hold for a Synergy to apply (M4-S3): at least `count` members of each Class
- * named, and each Skill named held, at any rating, by at least one member. At least one Class or
- * Skill in all; content validation refuses a count below 1.
+ * What a Party must hold for a Synergy to apply (M4-S3; v1.1.4-S1, DL-148 item 20): Party-level
+ * conditions, at least one, every one of which must hold. The old form, a count for each Class and
+ * a list of Skills, loads into `[">=", ["count", ["where", "party", ["class", k]]], n]` for each
+ * Class, then `[">=", ["max", "party", ["skill", k]], 1]` for each Skill.
  */
-export interface SynergyRequires {
-  classes?: Record<ClassKey, number>;
-  skills?: SkillKey[];
-}
+export type SynergyRequires = PartyCondition[];
 
 /**
  * What a Synergy adds to a Check's capability (M4-S3, DL-45): `flat` added as it stands, and
@@ -336,9 +560,10 @@ export interface SynergyBonus {
 }
 
 /**
- * A Synergy (R26, CONTEXT.md; `synergies.json`, M4-S3): an authored bonus for a Party holding a
- * combination of Classes or Skills, added to each Check of an Encounter of one of its `kinds`, or
- * of every kind when it names none. Relationship between the members is teamwork's, apart (M4-S4).
+ * A Synergy (R26, CONTEXT.md; `synergies.json`, M4-S3): an authored bonus for a Party that meets its
+ * requirements, Queries over the Party since v1.1.4-S1, added to each Check of an Encounter of one
+ * of its `kinds`, or of every kind when it names none. Relationship between the members is
+ * teamwork's, apart (M4-S4).
  */
 export interface Synergy {
   key: SynergyKey;
@@ -398,6 +623,12 @@ export interface Disposition {
   gearThreshold: number;
   /** How readily it deals in Transfers, from 0 to 1 (M6-S2 and M6-S3 read it). */
   transferAppetite: number;
+  /**
+   * How much a Hero must raise the estimated chance of success to be added to its Party past the
+   * Quest's `partySizeMin`, from 0 to 1 (v1.1.4-S6, DL-148 item 17, `partyFor`): 0 sends every Hero
+   * who raises it at all, up to `partySizeMax`; 1 never more than the fewest the Quest allows.
+   */
+  partyMargin: number;
 }
 
 /**
@@ -424,8 +655,10 @@ export type ItemKind = 'gear' | 'consumable';
  * What a consumable does when the Quest Engine expends it (M5-S1, M5-S3): a closed union, so a new
  * kind is an engine change and earns a decision (M5 risks).
  *
- * - `reroll`: the first failed Check of an Encounter of one of `kinds` is rolled again, once;
- * - `bonus`: `flat` is added to the capability of the first Check of an Encounter of one of `kinds`;
+ * - `reroll`: the first failed Encounter of one of `kinds` has each Check that fell short of Success
+ *   rolled again, once (v1.1.4-S2);
+ * - `bonus`: `flat` is added to the capability of every Check of the first Encounter of one of
+ *   `kinds` (v1.1.4-S2, DL-148 item 13);
  * - `heal`: an Injury taken on the Quest heals `days` Days sooner.
  *
  * `kinds` holds one or more Encounter kinds, none twice; `flat` is above 0; `days` a whole number
@@ -714,7 +947,10 @@ export interface ContentSet {
   stats: Record<StatKey, Stat>;
   classes: Record<ClassKey, Class>;
   skills: Record<SkillKey, Skill>;
-  traits: Record<TraitKey, Trait>;
+  /** The Guildmaster Traits (v1.1.4-S7, DL-150 item 1), keyed apart from the Hero Traits. */
+  guildmasterTraits: Record<TraitKey, GuildmasterTrait>;
+  /** The Hero Traits (v1.1.4-S7, DL-150 item 1), keyed apart from the Guildmaster Traits. */
+  heroTraits: Record<TraitKey, HeroTrait>;
   backgrounds: Record<BackgroundKey, Background>;
   spheres: Record<SphereKey, Sphere>;
   names: Names;

@@ -12,6 +12,7 @@ import {
   descriptiveAttributeLabels,
   playerGuild,
   sexes,
+  traitOf,
   type ContentSet,
   type EndingReason,
   type FacilityKey,
@@ -22,6 +23,7 @@ import {
   type Unavailability,
   type World,
 } from '@heroesim/engine';
+import { listed } from './names';
 import type { DocumentPlayKind, GameRefusal, PlayRejection } from './reducer';
 
 // ── Kinds ────────────────────────────────────────────────────────────────────────────────────
@@ -196,14 +198,21 @@ const sentences: Sentences = {
   // The Guildmaster's setup (M9-S2): the CLI's `new` words, less its flags.
   'newGame unknown-sex': ({ sex }) => `A Guildmaster's Sex is ${sexes.join(' or ')}; "${sex}" is not.`,
   'newGame age-out-of-range': ({ age, min, max }) => `A Guildmaster starts aged ${min} to ${max}, in whole Years; ${age} is not.`,
-  'newGame unknown-trait': ({ traitKey }, { content }) =>
-    rowOf(content.traits, traitKey) === undefined
-      ? `No Guildmaster Trait is called "${traitKey}".`
-      : `${nameIn(content.traits, traitKey)} is not a Guildmaster Trait.`,
-  'newGame repeated-trait': ({ traitKey }, { content }) => `${nameIn(content.traits, traitKey)} is chosen twice.`,
+  // The Stats chosen (v1.1.4-S11, DL-149 item 5): the CLI's words, less its flag.
+  'newGame stats-incomplete': ({ missing }, { content }) =>
+    `Every Guildmaster Stat is chosen, or none; ${listed(missing.map((key) => nameIn(content.stats, key)))} ${missing.length === 1 ? 'is' : 'are'} not.`,
+  'newGame stat-out-of-range': ({ statKey, value, min, max }, { content }) =>
+    `A Guildmaster's ${nameIn(content.stats, statKey)} is ${min} to ${max} when chosen, in whole numbers; ${value} is not.`,
+  'newGame stats-over-points': ({ spent, points }) => `Those Stats spend ${spent} points, and the Stat points are ${points}: lower one to raise another.`,
+  'newGame unknown-trait': ({ traitKey }, { content }) => {
+    // A Hero Trait is of the other list (v1.1.4-S7), named as it is.
+    const trait = traitOf(content, traitKey);
+    return trait === undefined ? `No Guildmaster Trait is called "${traitKey}".` : `${trait.name} is not a Guildmaster Trait.`;
+  },
+  'newGame repeated-trait': ({ traitKey }, { content }) => `${nameIn(content.guildmasterTraits, traitKey)} is chosen twice.`,
   'newGame too-many-traits': ({ count, max }) => `A Guildmaster holds at most ${max} Traits; ${count} are chosen.`,
   'newGame excluded-pair': ({ traitKey, otherKey }, { content }) =>
-    `${nameIn(content.traits, traitKey)} and ${nameIn(content.traits, otherKey)} exclude each other: a Guildmaster holds one or the other.`,
+    `${nameIn(content.guildmasterTraits, traitKey)} and ${nameIn(content.guildmasterTraits, otherKey)} exclude each other: a Guildmaster holds one or the other.`,
   'newGame over-budget': ({ cost, budget }) =>
     `Those Traits cost ${cost} points and the budget is ${budget}: a buff costs points and a penalty refunds them.`,
   'newGame text-too-long': ({ attribute, length, max }) =>

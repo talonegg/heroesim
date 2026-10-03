@@ -108,7 +108,8 @@ describe('the Treasury (M9-F3)', () => {
     expect(rows()).toHaveLength(4);
   });
 
-  test('pages the ledger by 20, from the newest', () => {
+  // 900 Turns played for more than a page of changes: four to five seconds alone (DL-164).
+  test('pages the ledger by 20, from the newest', { timeout: 30_000 }, () => {
     render(<App initial={played(withWealth(started(), 100_000), { kind: 'advance', turns: 900 })} />);
 
     expect(rows()).toHaveLength(20);

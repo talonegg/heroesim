@@ -317,7 +317,30 @@ the agents recommended that story features be modules and rule extensions core i
   - a portrait tool, with its skills, for intake, analysis and apply.
 
   *Added 2026-10-01 (DL-134, DL-135).* *Built and verified on `v1.1.3-dev` 2026-10-02 (DL-138 to
-  DL-147). The release awaits the owner (DL-124).*
+  DL-147). Released as `v1.1.3` on 2026-10-02 (pull request #47).*
+- **Then, inside the v1.1 line:** Richer Quests, as the patch `v1.1.4`, built on `v1.1.4-dev` from
+  `main` (`docs/planning/epics/v1.1.4-release.md`):
+  - a Check's score written in content as a Query over the Party's Heroes, and a Synergy's
+    requirements too;
+  - one to four named Checks to an Encounter, with Degrees from Triumph to Failure, and a strong
+    success needing Triumphs;
+  - each Hero's form, from their Morale and any wound taken on the Quest, and harm that falls by
+    the Stats;
+  - the chances shown as words on the Board and in the Party builder, and the Rivals choosing their
+    Parties by the same estimate;
+  - Guildmaster and Hero Traits in two lists, each Trait a list of effects; Hero Traits with
+    effects, and Traits rarely earned on Quests;
+  - the Encounters widened, with a `lore` kind and finales, so that every Hero Stat is read by at
+    least three Checks;
+  - the Guildmaster's setup: "Choose for me" for the whole Guildmaster, or the player's own sex,
+    age, picture and Stats from a pool of points;
+  - a local content editor for the owner, Traits its first kind, and Claude Code skills for Traits,
+    kept current by a register of every use of a Trait that CI checks.
+
+  *Added 2026-10-02 (DL-148): the owner put it inside the v1.1 line, before Random Events. The
+  setup (DL-149), and Traits with their editor and skills (DL-150), added the same day.* *Built and verified on
+  `v1.1.4-dev` 2026-10-03 (DL-151 to DL-167), the Quest target deferred by the owner and recorded
+  unmet (DL-165, DL-166). The release awaits the owner (DL-124).*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.*

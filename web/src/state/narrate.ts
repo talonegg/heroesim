@@ -28,11 +28,15 @@
 import {
   compareByCodeUnit,
   dayOf,
+  encounterDegree,
+  encounterForm,
   entriesFor,
   isModuleEvent,
   parseId,
   regardBandNames,
   type ContentSet,
+  type Degree,
+  type FormDecided,
   type EndingReason,
   type EngineEvent,
   type EngineEventOf,
@@ -54,6 +58,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
+import { listed } from './names';
 import { facilityIs, facilityNames } from './rejections';
 
 /** What a sentence reads beyond its event: content's names, and a Quest's name by its id. */
@@ -149,10 +154,8 @@ function night(turn: number): string {
   return `the night of Day ${dayOf(turn)}`;
 }
 
-/** A list as a sentence gives one: `a`, `a and b`, `a, b and c`. */
-export function listed(items: readonly string[]): string {
-  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
-}
+/** A list as a sentence gives one (`names.ts`, since v1.1.4-S11, where the refusals' words read it too). */
+export { listed };
 
 /** `listed` for segments: the names in the list stay names. */
 function listedWords(items: readonly Words[]): Words {
@@ -161,6 +164,12 @@ function listedWords(items: readonly Words[]): Words {
 }
 
 const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'failed', success: 'succeeded', strong: 'succeeded strongly' };
+
+/** A Degree, a glossary term in each (v1.1.4-S2, `CONTEXT.md` Degree): the CLI's words. */
+export const degreeWords: Readonly<Record<Degree, string>> = { triumph: 'Triumph', success: 'Success', setback: 'Setback', failure: 'Failure' };
+
+/** The Encounter's one sentence when form decided a Check's Degree (v1.1.4-S3, `encounterForm`), for the Party, naming no Hero: the CLI's words. */
+const formWords: Readonly<Record<FormDecided, string>> = { lowered: 'Low spirits told against them.', raised: 'Their high spirits carried them through.' };
 
 /** What befell a Guild at its ending, after its name. */
 const endingWords: Readonly<Record<EndingReason, string>> = {
@@ -262,15 +271,25 @@ const sentences: Sentences = {
   },
   'quest.encounter': (event, { content }) => {
     // The roll and target are the engine's; the page says only how it went and what it cost, and
-    // which Encounter it was, counted from 1.
-    const { guildId, index, encounterKey, outcome, injured, died } = event.payload;
+    // which Encounter it was, counted from 1. Its Degree, and the Check that decided it when there
+    // are several or it is named otherwise than its Encounter (v1.1.4-S2, DL-152); an entry written
+    // before then reads as its outcome, a Success or a Failure. When form decided a Check's Degree,
+    // one sentence more, for the Party, naming no Hero (v1.1.4-S3, DL-148 item 12).
+    const { guildId, index, encounterKey, outcome, injured, died, decidedBy, checks = [] } = event.payload;
     const went = outcome === 'success' ? 'came through' : 'failed at';
     const hurt = [
       ...injured.map((id) => say`${called(event, id)} was injured`),
       ...died.map((id) => say`${called(event, id)} was killed`),
     ];
     const which = `${nameIn(content.encounters, encounterKey)} (Encounter ${index + 1})`;
-    return say`${called(event, guildId)}'s Party ${went} ${which}${hurt.length === 0 ? '' : say`: ${listedWords(hurt)}`}.`;
+    const encounter = Object.hasOwn(content.encounters, encounterKey) ? content.encounters[encounterKey] : undefined;
+    const decider = encounter?.checks.find((it) => it.key === decidedBy)?.name ?? decidedBy;
+    const named = decider !== undefined && (checks.length > 1 || decider !== nameIn(content.encounters, encounterKey));
+    const by = named ? `, decided by ${decider}` : '';
+    const degree = `, a ${degreeWords[encounterDegree(event.payload)]}${by}`;
+    const form = encounterForm(event.payload);
+    const told = form === undefined ? '' : ` ${formWords[form]}`;
+    return say`${called(event, guildId)}'s Party ${went} ${which}${degree}${hurt.length === 0 ? '' : say`: ${listedWords(hurt)}`}.${told}`;
   },
   'quest.resolved': (event, narration) => {
     const { lead, band, rest } = resolvedWords(event, narration);
@@ -292,8 +311,18 @@ const sentences: Sentences = {
   },
   'hero.healed': (event, { content }) => {
     const { heroId, typeKey, traitKey } = event.payload;
-    const left = traitKey === null ? '' : `, left ${nameIn(content.traits, traitKey)}`;
+    const left = traitKey === null ? '' : `, left ${nameIn(content.heroTraits, traitKey)}`;
     return say`${called(event, heroId)} recovered from ${nameIn(content.injuries, typeKey)}${left}.`;
+  },
+  // v1.1.4-S7: an earned Trait (DL-148 item 25), named with the Encounter that gave it.
+  'hero.trait-gained': (event, { content, questName }) => {
+    const { heroId, traitKey, questId, encounterKey } = event.payload;
+    return say`${called(event, heroId)} earned the Trait ${nameIn(content.heroTraits, traitKey)} on ${questName(questId)}, at ${nameIn(content.encounters, encounterKey)}.`;
+  },
+  // v1.1.4-S7: a Trait an Injury left replaced one it conflicts with (DL-150 item 5).
+  'hero.trait-lost': (event, { content }) => {
+    const { heroId, traitKey, replacedBy } = event.payload;
+    return say`${called(event, heroId)} lost the Trait ${nameIn(content.heroTraits, traitKey)}, replaced by ${nameIn(content.heroTraits, replacedBy)}.`;
   },
   'hero.retired': (event) =>
     say`${called(event, event.payload.heroId)} retired from ${called(event, event.payload.guildId)} at ${event.payload.age}.`,

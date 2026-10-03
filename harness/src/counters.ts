@@ -169,6 +169,29 @@ export function questsTakenByController(document: WorldDocument): ByController {
   return countByController(document, 'quest.taken');
 }
 
+/**
+ * The Heroes `quest.taken` sends, each once however many Quests they went on, by the kind of
+ * controller of the Guild that first sent them (v1.1.4-S7): the Hero careers the Traits earned are
+ * counted over.
+ *
+ * @throws Error on an entry naming no Guild the world holds, or with no list of Heroes
+ */
+export function questingHeroes(document: WorldDocument): ByController {
+  const counts = byController();
+  const seen = new Set<unknown>();
+  entriesOf(document, 'quest.taken').forEach((entry, index) => {
+    const heroIds = payloadField(entry, 'heroIds');
+    if (!Array.isArray(heroIds)) throw new Error(`quest.taken entry ${index} has no heroIds`);
+    const kind = guildOf(document, entry, `${index}`).controller.kind;
+    for (const heroId of heroIds) {
+      if (seen.has(heroId)) continue;
+      seen.add(heroId);
+      counts[kind] += 1;
+    }
+  });
+  return counts;
+}
+
 /** The year M3's counters read at: "after 10 years" and "by year 10" (the epic's §2, DL-40). */
 export const countedYear = 10;
 
@@ -205,6 +228,23 @@ export interface GameCounters {
   heroesDied: ByController;
   heroesRecruited: ByController;
   heroesRetired: ByController;
+  /** `hero.trait-gained`, by the Hero's Guild's controller then (v1.1.4-S7, DL-148 item 25). */
+  traitsGained: ByController;
+  /** `hero.trait-lost`, a Trait an Injury's replaced, by the Hero's Guild's controller then (v1.1.4-S7, DL-150 item 5). */
+  traitsLost: ByController;
+  /**
+   * The Heroes sent on at least one Quest (`quest.taken`'s `heroIds`), each once, by the controller of
+   * the Guild that first sent them: the careers the Traits earned are counted over (v1.1.4-S7, the
+   * epic's "Rare Traits" gate).
+   */
+  questingHeroes: ByController;
+  /** `hero.trait-gained`, by the Hero's Guild's controller then, then by the Trait's key (v1.1.4-S10). */
+  traitsGainedByKey: Record<ControllerKind, Record<string, number>>;
+  /**
+   * `quest.resolved` by the resolving Guild's controller, then by the size of the Party sent (v1.1.4-S10,
+   * for the owner's decision on splitting XP, DL-148 item 19).
+   */
+  partySizes: Record<ControllerKind, Record<string, PartySizeTally>>;
   /**
    * `guild.folded`, by the reason the Rival reached its ending. Since M9-S2 a Rival's Guildmaster's
    * Retirement is met by Succession, so `retirement` stays 0 in a game played under its rules.
@@ -612,6 +652,24 @@ const noEncounters = (): EncounterCounts =>
 
 const noSynergies = (): SynergyTally => ({ quests: 0, withAny: 0, applied: 0, byKey: {} });
 
+/**
+ * A kind of Guild's resolved Quests sent with Parties of one size (v1.1.4-S10, DL-148 item 19): XP is
+ * not split, so each Hero who comes home takes the Quest's whole `xpPerHero`.
+ */
+export interface PartySizeTally {
+  /** Quests resolved, and those that failed and that were strong successes. */
+  quests: number;
+  fail: number;
+  strong: number;
+  /** `xpPerHero`, summed over the Quests. */
+  xpPerHero: number;
+  /** The Heroes who came home (the Party less its Deaths), and the XP they took, summed. */
+  heroesHome: number;
+  xpTaken: number;
+}
+
+export const noPartySize = (): PartySizeTally => ({ quests: 0, fail: 0, strong: 0, xpPerHero: 0, heroesHome: 0, xpTaken: 0 });
+
 /** A count for each ending. */
 function byReason(): Record<EndingReason, number> {
   return { retirement: 0, bankruptcy: 0, 'roster-wiped': 0 };
@@ -831,6 +889,41 @@ function synergyCounters(document: WorldDocument): Record<ControllerKind, Synerg
     if (keys.length > 0) tally.withAny += 1;
     tally.applied += keys.length;
     for (const key of keys as string[]) tally.byKey[key] = (tally.byKey[key] ?? 0) + 1;
+  });
+  return counts;
+}
+
+/** `quest.resolved` by controller and the size of the Party sent, with its band, XP and Deaths (v1.1.4-S10). */
+function partySizeCounters(document: WorldDocument): Record<ControllerKind, Record<string, PartySizeTally>> {
+  const counts: Record<ControllerKind, Record<string, PartySizeTally>> = { player: {}, rival: {} };
+  entriesOf(document, 'quest.resolved').forEach((entry, index) => {
+    const what = `quest.resolved entry ${index}`;
+    const band = payloadField(entry, 'band');
+    if (!isBand(band)) throw new Error(`${what} has no band`);
+    const size = listLength(entry, 'heroIds', what);
+    // The engine writes both; an entry without them (a test's) took no XP and lost no one.
+    const xp = payloadField(entry, 'xpPerHero') === undefined ? 0 : numberField(entry, 'xpPerHero', what);
+    const home = size - (payloadField(entry, 'deaths') === undefined ? 0 : listLength(entry, 'deaths', what));
+    const sizes = counts[guildOf(document, entry, `${index}`).controller.kind];
+    const tally = (sizes[size] ??= noPartySize());
+    tally.quests += 1;
+    if (band === 'fail') tally.fail += 1;
+    if (band === 'strong') tally.strong += 1;
+    tally.xpPerHero += xp;
+    tally.heroesHome += home;
+    tally.xpTaken += xp * home;
+  });
+  return counts;
+}
+
+/** `hero.trait-gained` by the controller of the Hero's Guild then (`guildOf`), and the Trait (v1.1.4-S10). */
+function traitsGainedByKey(document: WorldDocument): Record<ControllerKind, Record<string, number>> {
+  const counts: Record<ControllerKind, Record<string, number>> = { player: {}, rival: {} };
+  entriesOf(document, 'hero.trait-gained').forEach((entry, index) => {
+    const key = payloadField(entry, 'traitKey');
+    if (typeof key !== 'string') throw new Error(`hero.trait-gained entry ${index} has no traitKey`);
+    const byKey = counts[guildOf(document, entry, `${index}`).controller.kind];
+    byKey[key] = (byKey[key] ?? 0) + 1;
   });
   return counts;
 }
@@ -1307,6 +1400,11 @@ export function countGame(
     heroesDied: countByController(document, 'hero.died'),
     heroesRecruited: countByController(document, 'hero.recruited'),
     heroesRetired: countByController(document, 'hero.retired'),
+    traitsGained: countByController(document, 'hero.trait-gained'),
+    traitsLost: countByController(document, 'hero.trait-lost'),
+    questingHeroes: questingHeroes(document),
+    traitsGainedByKey: traitsGainedByKey(document),
+    partySizes: partySizeCounters(document),
     rivalFolds,
     rivalSuccessions: entriesOf(document, 'guildmaster.succeeded').length,
     ending: reason,
