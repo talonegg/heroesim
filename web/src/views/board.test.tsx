@@ -5,6 +5,7 @@ import { App } from '../app';
 import { changed, estimateOf, holding, started } from '../state/game.test-support';
 import { chanceWords, shownPercent } from '../state/query-words';
 import type { GameState } from '../state/reducer';
+import { Icon } from './icons';
 import { inHistory, navButton, openView, section } from './page.test-support';
 
 // The Board's Quest cards and the Party builder (M9-S4, DL-104), through the page as a player uses
@@ -183,6 +184,24 @@ describe('a Quest card', () => {
 
     fireEvent.click(toggle);
     expect(within(card).queryByRole('heading', { name: 'Encounters' })).toBeNull();
+  });
+
+  // v1.1.4-S14: the lore kind on the page, and a Quest of a template with a Finale, which comes last.
+  test("unfolds to a lore Encounter with its kind's icon, and to a Quest's Finale last", () => {
+    const state = changed(madeToOrder(), (document) => {
+      const first = document.world.quests[document.world.board[0] as QuestId] as Quest;
+      first.templateKey = 'hold-the-border-fort' as Quest['templateKey'];
+      first.encounterKeys = ['a-riddle-at-the-gate', 'ambush-on-the-road', 'the-last-assault'];
+    });
+    render(<App initial={state} />);
+    const card = firstCard();
+    fireEvent.click(within(within(card).getByRole('heading', { level: 3 })).getByRole('button'));
+
+    const met = [...within(card).getByTestId('encounters').children] as HTMLElement[];
+    expect(met.map((item) => item.querySelector('.reads__name')?.textContent)).toEqual(['A riddle at the gate', 'Ambush on the road', 'The last assault']);
+    const drawn = (name: 'lore' | 'combat'): string => render(<Icon name={name} />).container.querySelector('svg')?.innerHTML ?? '';
+    expect(met[0]?.querySelector('.reads__name svg')?.innerHTML).toBe(drawn('lore'));
+    expect(met[2]?.querySelector('.reads__name svg')?.innerHTML).toBe(drawn('combat'));
   });
 });
 

@@ -3,7 +3,7 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { guildmasterSetup, openView, part, rosterList, startGame, statusBar } from './support';
+import { dispatchAParty, guildmasterSetup, openView, part, playTurns, rosterList, startGame, statusBar } from './support';
 
 // The page opened from the filesystem shows its pictures (v1.1.2-S2; DL-125 item 1, the epic's gate),
 // in a Playwright project of its own: the built page, `dist/index.html`, over file://. Its Silhouettes,
@@ -14,7 +14,9 @@ import { guildmasterSetup, openView, part, rosterList, startGame, statusBar } fr
 // v1.1.3-S7, a thumbnail in the setup grid, a Hero's small Silhouette on the Roster, and a Rival's
 // thumbnail in the Guilds' table and Portrait on their Guild's page, each loading over file://. Since
 // v1.1.4-S11 (DL-149), a game started each way: "Choose myself", the grid shown for each sex chosen, and
-// "Choose for me", the Guildmaster the preview shows the one the game begins with.
+// "Choose for me", the Guildmaster the preview shows the one the game begins with. Since v1.1.4-S14 (the
+// epic's Gate, "The page opens from `file://`"), a Quest sent there through the Party builder and its
+// Party brought home, its report giving each Encounter's Degree.
 
 const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(webDir, 'dist');
@@ -137,5 +139,25 @@ test('the built page, opened from the filesystem, starts a game with "Choose for
   const picture = guildmaster.getByRole('img', { name: 'Portrait of Ada Vell' });
   await expect(picture).toHaveAttribute('src', new RegExp(`^file:///.+/assets/${key}-[\\w-]{8}\\.webp$`));
   await expect.poll(() => loaded(picture)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('the built page, opened from the filesystem, sends a Party on a Quest and brings it home to its report (v1.1.4-S14)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  await opened(page, errors);
+  await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-file-quest' });
+  const quest = await dispatchAParty(page);
+  const stop = page.getByTestId('stop');
+  const stopped = async (): Promise<string> => ((await stop.count()) === 0 ? '' : ((await stop.textContent()) ?? ''));
+  const fastForward = statusBar(page).getByRole('button', { name: 'Fast forward', exact: true });
+  for (let tries = 0; tries < 10 && !/came home/.test(await stopped()); tries += 1) await playTurns(page, fastForward);
+  await expect(stop).toContainText("Stopped: The Lantern's Party came home.");
+  const report = page.getByRole('region', { name: `Quest report: ${quest}`, exact: true });
+  await expect(report.getByRole('heading', { level: 4 }).first()).toHaveText('Encounters');
+  // Each Encounter's sentence names its Degree (v1.1.4-S2).
+  const encounters = report.locator('.report__list > li');
+  expect(await encounters.count()).toBeGreaterThan(0);
+  for (const line of await encounters.allTextContents()) expect(line).toMatch(/Triumph|Success|Setback|Failure/);
   expect(errors).toEqual([]);
 });

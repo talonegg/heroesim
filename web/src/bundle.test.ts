@@ -127,6 +127,28 @@ describe('the production build', { timeout: 120_000 }, () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
     expect(statSync(path.join(outDir, 'assets', script)).size).toBeLessThan(scriptLimit);
   });
+
+  // v1.1.4-S14 (DL-150 item 7, the epic's Gate: "The editor is in no file of the built game"), checked
+  // by hand at S12 (DL-161) and held here: words only the content editor's page and commands, or the
+  // register of a Trait's uses, hold are in no built file. Each is first found in its own source, so
+  // a word the editor stops using cannot leave the check empty.
+  test("holds no file of the content editor or the register of a Trait's uses", () => {
+    const repo = path.join(webDir, '..');
+    const register = readFileSync(path.join(repo, 'content', 'src', 'uses', 'register.ts'), 'utf8');
+    const page = readFileSync(path.join(repo, 'tools', 'editor', 'page', 'page.js'), 'utf8');
+    const html = readFileSync(path.join(repo, 'tools', 'editor', 'page', 'index.html'), 'utf8');
+    const doctor = readFileSync(path.join(repo, 'tools', 'editor', 'src', 'doctor.ts'), 'utf8');
+    const entries = [...register.matchAll(/^ {2}id: '([\w-]+)',$/gm)].map((hit) => hit[1] ?? '');
+    const marks = [...entries.filter((id) => id.includes('-')), '/api/traits', 'Save as pending', 'reads of a Trait'];
+    expect(entries.length).toBeGreaterThanOrEqual(8);
+    for (const mark of marks.slice(-3)) expect([page, html, doctor].some((text) => text.includes(mark)), mark).toBe(true);
+    const files = readdirSync(outDir, { recursive: true, encoding: 'utf8' }).filter((file) => /\.(js|html|css)$/.test(file));
+    expect(files.length).toBeGreaterThanOrEqual(2);
+    for (const file of files) {
+      const text = readFileSync(path.join(outDir, file), 'utf8');
+      expect(marks.filter((mark) => text.includes(mark)), file).toEqual([]);
+    }
+  });
 });
 
 describe('a Node built-in the page imports', { timeout: 120_000 }, () => {

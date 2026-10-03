@@ -208,12 +208,13 @@ test('with "Choose myself", the Stats set within the Stat points are the ones th
   await chooseGuildmaster(setup, { sex: 'female', age: '30', picture: 'Female Portrait 6' });
   const stats = setup.getByRole('group', { name: 'Stats', exact: true });
   await expect(stats.getByTestId('stat-points')).toContainText('Stat points left: 0');
-  // Every point spent: none can be raised until another is lowered.
-  await expect(stats.getByRole('button', { name: 'Raise Negotiation' })).toBeDisabled();
+  // Every point spent: none can be raised until another is lowered. A step held is aria-disabled, so it
+  // keeps the keyboard (v1.1.4-S14).
+  await expect(stats.getByRole('button', { name: 'Raise Negotiation' })).toHaveAttribute('aria-disabled', 'true');
   for (let n = 0; n < 5; n += 1) await stats.getByRole('button', { name: 'Lower Coaching' }).click();
-  await expect(stats.getByRole('button', { name: 'Lower Coaching' })).toBeDisabled();
+  await expect(stats.getByRole('button', { name: 'Lower Coaching' })).toHaveAttribute('aria-disabled', 'true');
   for (let n = 0; n < 5; n += 1) await stats.getByRole('button', { name: 'Raise Negotiation' }).click();
-  await expect(stats.getByRole('button', { name: 'Raise Negotiation' })).toBeDisabled();
+  await expect(stats.getByRole('button', { name: 'Raise Negotiation' })).toHaveAttribute('aria-disabled', 'true');
   await stats.getByRole('button', { name: 'Lower Judgement' }).click();
   await expect(stats.getByTestId('stat-points-unspent')).toHaveText('Stat points left unspent are lost.');
   await expectNoHorizontalOverflow(page, 'the Stats set');

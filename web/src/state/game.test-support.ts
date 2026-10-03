@@ -87,8 +87,10 @@ export function changed(state: GameState, change: (document: WorldDocument, play
 
 /**
  * `state` with the player's first Hero holding the Hero Trait Lame, and a Trait they gained on a Quest
- * the History names and one they lost to Lame written to the History as `emit` writes them, Milestones
- * both, at the Turn the world stands on (v1.1.4-S7).
+ * the History names and one they lost to Lame written to the History as the engine writes them, Milestones
+ * both, at the Turn the world stands on (v1.1.4-S7): the gain as `quests-conclude.ts` emits it, naming the
+ * Hero and the Quest, the loss as `hero-state.ts` does, naming the Hero; `emit` appends the Hero's Guild
+ * to each (v1.1.4-S14).
  */
 export function withTraitNews(state: GameState): GameState {
   return changed(state, (document, player) => {
@@ -100,7 +102,7 @@ export function withTraitNews(state: GameState): GameState {
     const labels = { [hero.id]: hero.name, [player.id]: player.name };
     const turn = document.world.turn;
     const gained = { heroId: hero.id, traitKey: 'scarred', questId, encounterIndex: 0, encounterKey: 'ambush-on-the-road' };
-    append(document.history, { turn, type: 'hero.trait-gained', participants: [hero.id, player.id], labels, milestone: isMilestone('hero.trait-gained', gained), payload: gained });
+    append(document.history, { turn, type: 'hero.trait-gained', participants: [hero.id, questId, player.id], labels, milestone: isMilestone('hero.trait-gained', gained), payload: gained });
     const lost = { heroId: hero.id, traitKey: 'scarred', replacedBy: 'lame' };
     append(document.history, { turn, type: 'hero.trait-lost', participants: [hero.id, player.id], labels, milestone: isMilestone('hero.trait-lost', lost), payload: lost });
   });

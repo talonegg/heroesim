@@ -113,6 +113,22 @@ describe('the Quest report (M9-F5)', () => {
     ]);
   });
 
+  // v1.1.4-S14: a Trait a Hero earned on the Quest (v1.1.4-S7), among what befell them.
+  test('says the Trait a Hero earned, in their line', () => {
+    const { report, region } = drawn({
+      band: 'success',
+      xp: 20,
+      encounters: [{ encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph' }],
+      traits: [{ hero: 0, traitKey: 'battle-tried', encounterIndex: 0 }],
+    });
+    const [first, second] = report.outcomes;
+
+    const earned = within(region).getByRole('listitem', { name: first?.name ?? '' });
+    expect(within(earned).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Gained 20 XP', 'Earned the Trait Battle-tried']);
+    const other = within(region).getByRole('listitem', { name: second?.name ?? '' });
+    expect(other.textContent).not.toMatch(/Trait/);
+  });
+
   test('a section with nothing to say is not drawn, and leaves no gap: no heading, no empty list', () => {
     const { region } = drawn({ band: 'success', wealth: 90, xp: 20 });
 

@@ -1,7 +1,8 @@
+import type { HeroId } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
-import { played, started, withPartyOut, withReturn, withRosterReleased, withTheGone, withWorldNews } from '../state/game.test-support';
+import { played, started, withPartyOut, withReturn, withRosterReleased, withTheGone, withTraitNews, withWorldNews } from '../state/game.test-support';
 import { historyView } from '../state/history';
 import { gameReducer, type GameState } from '../state/reducer';
 import { History } from './history';
@@ -357,6 +358,53 @@ describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 
 
     expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: /^Quest report: / }));
+  });
+});
+
+describe("a Party's Encounters, and a Hero's Traits, in the History (v1.1.4-S14)", () => {
+  test("a Hero's History folds their Party's Encounters under its return, each with its Degree, and one written before v1.1.4 as a Success or a Failure", () => {
+    // Each Encounter hurt the first Hero, so names them, and stands in their History (`quests-conclude.ts`).
+    const written = withReturn(withPartyOut(started('history-degrees')), {
+      band: 'success',
+      encounters: [
+        { encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph', injured: [0] },
+        { encounterKey: 'ambush-on-the-road', outcome: 'failure', degree: 'setback', injured: [0] },
+        { encounterKey: 'ambush-on-the-road', outcome: 'success', injured: [0] },
+        { encounterKey: 'ambush-on-the-road', outcome: 'failure', injured: [0] },
+      ],
+    });
+    const name = written.state.document?.world.heroes[written.party.heroIds[0] as HeroId]?.name ?? '';
+    render_(written.state);
+    openView('History');
+    const entry = inHistory(/^The Lantern's Party came home from /);
+    fireEvent.click(within(entry).getByRole('button', { name: /^\d+ Heroes?: how each fared on / }));
+    fireEvent.click(within(entry).getByRole('button', { name }));
+
+    const page = within(section('History')).getByRole('article');
+    const outcome = historyLines(page).find((line) => / Party came home from /.test(sentenceOf(line)) && line.querySelector(':scope > button.fold') !== null);
+    if (outcome === undefined) throw new Error(`no return folded in ${name}'s History`);
+    const fold = within(outcome).getByRole('button', { name: '4 Encounters' });
+    fireEvent.click(fold);
+
+    const folded = document.getElementById(fold.getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(folded.hidden).toBe(false);
+    expect(historyLines(folded).map((line) => / \(Encounter \d\), a (\w+)/.exec(sentenceOf(line))?.[1])).toEqual(['Triumph', 'Setback', 'Success', 'Failure']);
+  });
+
+  test("an earned Trait and a lost one are Milestones in the Guild's History, in words", () => {
+    const state = withTraitNews(started());
+    const world = state.document?.world;
+    const player = Object.values(world?.guilds ?? {}).find((guild) => guild.controller.kind === 'player');
+    const hero = world?.heroes[player?.rosterIds[0] as HeroId];
+    render_(state);
+    openView('History');
+
+    for (const sentence of [new RegExp(`^${hero?.name} earned the Trait Scarred on .+, at Ambush on the road\\.$`), `${hero?.name} lost the Trait Scarred, replaced by Lame.`]) {
+      const line = inHistory(sentence);
+      expect(line.classList.contains('is-milestone'), String(sentence)).toBe(true);
+      expect(within(line).getByText('Milestone:')).toBeDefined();
+      expect(within(line).getByRole('button', { name: hero?.name ?? '' })).toBeDefined();
+    }
   });
 });
 

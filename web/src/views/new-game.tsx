@@ -542,7 +542,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 /**
  * A Guildmaster Stat (v1.1.4-S11): its name, a stepper of two buttons around its value, each held where
- * a step would break a rule, and what it does.
+ * a step would break a rule, and what it does. A held button is `aria-disabled`, not `disabled`, and its
+ * click does nothing: a browser takes the keyboard from a button it disables, so Enter pressed to a
+ * bound would drop it on the page's body (v1.1.4-S14).
  */
 function StatRow({ pick, onStep }: { pick: StatPick; onStep: (by: 1 | -1) => void }) {
   const id = useId();
@@ -553,13 +555,13 @@ function StatRow({ pick, onStep }: { pick: StatPick; onStep: (by: 1 | -1) => voi
           {pick.name}
         </span>
         <div className="stat-pick__stepper" role="group" aria-labelledby={`${id}-name`} aria-describedby={`${id}-does`}>
-          <button type="button" className="button--quiet" aria-label={`Lower ${pick.name}`} disabled={!pick.canLower} onClick={() => onStep(-1)}>
+          <button type="button" className="button--quiet" aria-label={`Lower ${pick.name}`} aria-disabled={!pick.canLower} onClick={() => pick.canLower && onStep(-1)}>
             &minus;
           </button>
           <output className="stat-pick__value" data-testid={`stat-${pick.key}`} aria-live="polite">
             {pick.value}
           </output>
-          <button type="button" className="button--quiet" aria-label={`Raise ${pick.name}`} disabled={!pick.canRaise} onClick={() => onStep(1)}>
+          <button type="button" className="button--quiet" aria-label={`Raise ${pick.name}`} aria-disabled={!pick.canRaise} onClick={() => pick.canRaise && onStep(1)}>
             +
           </button>
         </div>

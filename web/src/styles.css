@@ -1189,6 +1189,17 @@ p.setup-preview {
   font-size: 1.125rem;
 }
 
+/* A step held at a bound looks disabled but is not, so it keeps the keyboard (v1.1.4-S14). */
+.stat-pick__stepper button[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.stat-pick__stepper button[aria-disabled='true']:hover {
+  border-color: transparent;
+  background: transparent;
+}
+
 .stat-pick__value {
   min-width: 2.25rem;
   text-align: center;

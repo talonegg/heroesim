@@ -318,7 +318,14 @@ describe('the home view (M9-S3, DL-103)', () => {
     const report = within(home).getByRole('region', { name: /^Quest report: / });
     const quest = /^Quest report: (.+)$/.exec(within(report).getByRole('heading', { level: 3 }).textContent ?? '')?.[1] ?? '';
     expect(within(report).getByText(/^(Success|Strong success|Failure)$/)).toBeDefined();
-    const wealth = /^Wealth ([+-]?\d+)$/.exec(within(report).getByText(/^Wealth /).textContent ?? '')?.[1];
+    // v1.1.4-S14: each Encounter the engine played names its Degree (v1.1.4-S2).
+    const encounters = within(report).getByRole('heading', { level: 4, name: 'Encounters' }).parentElement as HTMLElement;
+    const steps = Array.from(encounters.querySelectorAll('.report__list > li'))
+      .map((item) => item.textContent ?? '')
+      .filter((words) => / \(Encounter \d+\)/.test(words));
+    expect(steps.length).toBeGreaterThan(0);
+    for (const step of steps) expect(step).toMatch(/ \(Encounter \d+\), a (Triumph|Success|Setback|Failure)\b/);
+    const wealth =/^Wealth ([+-]?\d+)$/.exec(within(report).getByText(/^Wealth /).textContent ?? '')?.[1];
     const fame = /^Fame ([+-]?\d+)$/.exec(within(report).getByText(/^Fame /).textContent ?? '')?.[1];
     expect(within(report).getByText(/^XP \+\d+ each$/)).toBeDefined();
     // This seed's Party comes home with an Injury: named, with the night it heals.

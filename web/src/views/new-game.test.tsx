@@ -407,6 +407,15 @@ describe('the Stats "Choose myself" sets, within the Stat points (v1.1.4-S11)', 
     return within(part('Stats')).getByRole('button', { name: `${how} ${name}` }) as HTMLButtonElement;
   }
 
+  /**
+   * Whether a stepper's button is held: marked `aria-disabled`, and still a button the keyboard can be
+   * on, never `disabled` (v1.1.4-S14).
+   */
+  function held(button: HTMLButtonElement): boolean {
+    expect(button.disabled).toBe(false);
+    return button.getAttribute('aria-disabled') === 'true';
+  }
+
   function value(key: string): string {
     return within(part('Stats')).getByTestId(`stat-${key}`).textContent ?? '';
   }
@@ -435,9 +444,31 @@ describe('the Stats "Choose myself" sets, within the Stat points (v1.1.4-S11)', 
     const group = within(part('Stats')).getByRole('group', { name: 'Negotiation' });
     expect(document.getElementById(group.getAttribute('aria-describedby') ?? '')?.textContent).toBe('The reward agreed and the fees paid');
     for (const name of ['Inspiration', 'Influence', 'Negotiation', 'Coaching', 'Judgement']) {
-      expect(stepper(name, 'Raise').disabled, name).toBe(true);
-      expect(stepper(name, 'Lower').disabled, name).toBe(false);
+      expect(held(stepper(name, 'Raise')), name).toBe(true);
+      expect(held(stepper(name, 'Lower')), name).toBe(false);
     }
+  });
+
+  // v1.1.4-S14: a button a browser disables loses the keyboard, so a step held is marked aria-disabled
+  // and kept in the tab order; activated, it does nothing.
+  test('a stepper pressed from the keyboard to its bound keeps the keyboard, and holds the value there', () => {
+    form();
+    named();
+    chosen();
+    const lower = stepper('Coaching', 'Lower');
+    lower.focus();
+
+    // Enter on a focused button, as a browser does it: the key, then the click it makes.
+    for (let n = 0; n < 7; n += 1) {
+      fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Enter' });
+      fireEvent.click(document.activeElement as HTMLElement);
+      fireEvent.keyUp(document.activeElement as HTMLElement, { key: 'Enter' });
+    }
+
+    expect(value('coaching')).toBe('5');
+    expect(document.activeElement).toBe(stepper('Coaching', 'Lower'));
+    expect(held(stepper('Coaching', 'Lower'))).toBe(true);
+    expect(points()).toContain('Stat points left: 5');
   });
 
   test('a point lowered may be raised elsewhere, never past 15 or below 5, and points left unspent are noted as lost; the game starts with them', () => {
@@ -447,15 +478,15 @@ describe('the Stats "Choose myself" sets, within the Stat points (v1.1.4-S11)', 
 
     for (let n = 0; n < 5; n += 1) fireEvent.click(stepper('Coaching', 'Lower'));
     expect(value('coaching')).toBe('5');
-    expect(stepper('Coaching', 'Lower').disabled).toBe(true);
+    expect(held(stepper('Coaching', 'Lower'))).toBe(true);
     expect(points()).toContain('Stat points left: 5');
     expect(within(part('Stats')).getByTestId('stat-points-unspent').textContent).toBe('Stat points left unspent are lost.');
     for (let n = 0; n < 5; n += 1) fireEvent.click(stepper('Negotiation', 'Raise'));
     expect(value('negotiation')).toBe('15');
-    expect(stepper('Negotiation', 'Raise').disabled).toBe(true);
+    expect(held(stepper('Negotiation', 'Raise'))).toBe(true);
     expect(within(part('Stats')).queryByTestId('stat-points-unspent')).toBeNull();
     // The points spent, every Raise is held: the pool cannot be overspent.
-    expect(stepper('Influence', 'Raise').disabled).toBe(true);
+    expect(held(stepper('Influence', 'Raise'))).toBe(true);
     for (let n = 0; n < 5; n += 1) fireEvent.click(stepper('Judgement', 'Lower'));
     for (let n = 0; n < 5; n += 1) fireEvent.click(stepper('Influence', 'Raise'));
     expect(value('influence')).toBe('15');
@@ -889,7 +920,7 @@ describe('from the new-game form to the Guildmaster view (v1.1.2-S4; v1.1.4-S11)
     expect(statsShown()).toEqual({ Inspiration: '10', Influence: '10', Negotiation: '11', Coaching: '10', Judgement: '9' });
   });
 
-  test('with "Choose for me", what the preview names is what "Start the game" makes: the sex, the age, the Stats, the Traits and the Portrait', async () => {
+  test('with "Choose for me", what the preview names is what "Start the game" makes: the sex, the age, the Stats, the Traits and the Portrait, and the texts written', async () => {
     render(<App />);
     named();
     const [, who = '', stats = '', traits = '', portrait = ''] = [...within(setup()).getByTestId('guildmaster-preview').querySelectorAll('p')].map(
@@ -903,6 +934,8 @@ describe('from the new-game form to the Guildmaster view (v1.1.2-S4; v1.1.4-S11)
     const terms = [...view.querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
     expect(terms).toContainEqual(['Sex', sexWord]);
     expect(terms).toContainEqual(['Age', age]);
+    // DL-149 item 2 (v1.1.4-S14): the texts are written for them too.
+    for (const term of ['Birthplace', 'Appearance', 'Biography']) expect(terms.find(([dt]) => dt === term)?.[1]?.trim() ?? '', term).not.toBe('');
     const shown = statsShown();
     expect(stats).toBe(
       `Inspiration ${shown.Inspiration}, Influence ${shown.Influence}, Negotiation ${shown.Negotiation}, Coaching ${shown.Coaching} and Judgement ${shown.Judgement}`,
