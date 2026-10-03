@@ -338,7 +338,9 @@ the agents recommended that story features be modules and rule extensions core i
     kept current by a register of every use of a Trait that CI checks.
 
   *Added 2026-10-02 (DL-148): the owner put it inside the v1.1 line, before Random Events. The
-  setup (DL-149), and Traits with their editor and skills (DL-150), added the same day.*
+  setup (DL-149), and Traits with their editor and skills (DL-150), added the same day.* *Built and verified on
+  `v1.1.4-dev` 2026-10-03 (DL-151 to DL-167), the Quest target deferred by the owner and recorded
+  unmet (DL-165, DL-166). The release awaits the owner (DL-124).*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.*
