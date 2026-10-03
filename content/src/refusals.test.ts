@@ -1895,6 +1895,13 @@ describe('validateContent on a set built in memory', () => {
     expect(message).toMatch(/items\.whetstone\.effect\.kinds: "naval" is not a kind of Encounter/);
   });
 
+  test("refuses a Hero Trait's encounterBonus on a kind of Encounter that is not one, which the parser cannot see in memory (v1.1.4-S14)", () => {
+    const content = loadContent();
+    Object.assign(content.heroTraits['battle-tried']?.effects[0] ?? {}, { kinds: ['combat', 'naval'] });
+
+    expect(refusalOf(() => validateContent(content)).message).toMatch(/heroTraits\.battle-tried\.effects\.0\.kinds: "naval" is not a kind of Encounter/);
+  });
+
   test('refuses a Trait cost that is not a whole number, which the parser cannot see in memory (M9-S2)', () => {
     const content = loadContent();
     Object.assign(content.guildmasterTraits['thrifty'] ?? {}, { cost: 1.5 });

@@ -46,7 +46,7 @@ import { recruitHero } from './commands/recruit.js';
 import { answerOffer, renderOffers, transferHero } from './commands/transfer.js';
 import { dispatchParty } from './commands/dispatch.js';
 import { previewParty } from './commands/preview.js';
-import { setupRefusalWords, unknownStatWords } from './commands/setup.js';
+import { setupRefusalWords, unknownStatWords, unspentStatWords } from './commands/setup.js';
 import type { CommandOutcome } from './commands/outcome.js';
 import { modulesFor } from './modules.js';
 import { narrateStop, renderAdvance } from './narrate.js';
@@ -290,8 +290,11 @@ function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, pat
   const seed = command.seed ?? readableSeed(() => io.random());
   const { document } = createWorld(seed, setup, deps);
   writeSave(path, document);
+  // v1.1.4-S14 (DL-149 item 5): the Stat points `--stats` leaves unspent are lost, and `new` says so.
+  const unspent = unspentStatWords(stats, content, deps.config);
   return say(io, [
     `Created a world from seed ${seed} and saved it to ${path}.`,
+    ...(unspent === null ? [] : [unspent]),
     '',
     ...renderSummary(document, playDeps(document, content, modules)),
   ]);

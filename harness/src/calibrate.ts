@@ -105,6 +105,18 @@ export const defaultCalibration: Readonly<CalibrationSettings> = Object.freeze({
 /** The draft content directory, `docs/quests/drafts/`, from the repository's root. */
 export const draftsDir = join(contentDir, '..', 'docs', 'quests', 'drafts');
 
+/**
+ * The draft directory a calibration reads, from HEROESIM_DRAFTS's `value` (v1.1.4-S14): the directory
+ * it names, or `null`, the shipped content alone, when it is unset, blank or `none`. Since S10 put the
+ * drafts into the content and tuned it there, the drafts are no longer what ships, so a plain
+ * `npm run harness -- calibrate` reads the content, and the drafts only when asked:
+ * `HEROESIM_DRAFTS=docs/quests/drafts`.
+ */
+export function calibrationDrafts(value: string | undefined): string | null {
+  const named = value?.trim() ?? '';
+  return named === '' || named === 'none' ? null : named;
+}
+
 // Draft content, read as the game reads content: content's Node entry (v1.1.4-S9).
 export { loadDrafts };
 

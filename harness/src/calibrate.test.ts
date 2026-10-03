@@ -6,6 +6,7 @@ import { defaultConfig, degrees, describeQuery, estimateQuest, type EngineDeps, 
 import { afterAll, describe, expect, test } from 'vitest';
 import {
   calibrate,
+  calibrationDrafts,
   checksAtLeast,
   coverageGrid,
   defaultCalibration,
@@ -30,6 +31,17 @@ import { runShard } from './shard.js';
 const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 const scratch = mkdtempSync(join(tmpdir(), 'heroesim-calibrate-'));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+
+// v1.1.4-S14: since S10 the drafts differ from the content they became, so a plain calibration reads the content.
+describe('calibrationDrafts (HEROESIM_DRAFTS)', () => {
+  test('reads the shipped content when unset, blank or none, and the drafts only from the directory it names', () => {
+    expect(calibrationDrafts(undefined)).toBeNull();
+    expect(calibrationDrafts(' ')).toBeNull();
+    expect(calibrationDrafts('none')).toBeNull();
+    expect(calibrationDrafts(' docs/quests/drafts ')).toBe('docs/quests/drafts');
+    expect(calibrationDrafts(draftsDir)).toBe(draftsDir);
+  });
+});
 
 describe('loadDrafts', () => {
   test('takes each content file the directory holds in place of the core file of its name, and validates the whole', () => {

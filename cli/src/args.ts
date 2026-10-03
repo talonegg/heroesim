@@ -50,7 +50,7 @@ Commands:
       their age is drawn within the picture's. Left out, one is chosen to fit them, and
       where none fits the Guildmaster shows its Silhouette. --stats sets every
       Guildmaster Stat or none, by key, as inspiration=12,influence=8,...: each ${defaultConfig.guildmasterStatMin} to
-      ${defaultConfig.guildmasterStatMax}, sharing ${defaultConfig.guildmasterStatPoints} points in all, and any left over are lost. The keys
+      ${defaultConfig.guildmasterStatMax}, sharing ${defaultConfig.guildmasterStatPoints} Stat points in all, and any left over are lost. The keys
       are ${statKeysWords}.
   show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
         | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market

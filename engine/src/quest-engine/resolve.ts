@@ -521,11 +521,17 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
  * injured who are still in it; of them those `among` names, and of those the Heroes who may take it:
  * who may earn this one (`mayEarn`) and have drawn no Trait on this Quest, save that a negative one
  * may fall on a Hero holding a positive one, which it then takes the place of (DL-159's verification).
+ * A negative one is granted only at a Failure: at a Setback that reads the failure list, having no
+ * list of its own, it falls on no one, its two draws still taken (v1.1.4-S14).
  */
 function earn(consequence: TraitConsequence, working: Working, harm: Harm, at: Applying, deps: CheckDeps): void {
   const { state } = at;
   const u = next(state);
   const positive = succeeded(at.degree);
+  if (!positive && at.degree !== 'failure') {
+    next(state);
+    return;
+  }
   const pool = positive ? working.alive : working.alive.filter((hero) => harm.injured.includes(hero.id));
   const named = consequence.among === undefined ? undefined : new Set(membersOf(consequence.among, partyNow(working, at, deps)).map((member) => member.hero.id));
   const eligible = pool.filter(

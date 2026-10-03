@@ -259,8 +259,11 @@ describe('new', () => {
     ).document;
     expect(saved()).toBe(serialise(expected));
     expect(guildmasterOf(document().world.guilds[playerId] as Guild, document().world)?.stats).toEqual(stats);
-    // Points left unspent are allowed, and lost.
-    expect(newDemo('--stats', 'inspiration=5,influence=5,negotiation=5,coaching=5,judgement=5', '--force').code).toBe(exitCodes.ok);
+    // Stat points left unspent are allowed, and lost, and `new` says so (v1.1.4-S14); spent in full, it says nothing of them.
+    expect(run.out).not.toContain('Stat points');
+    const unspent = newDemo('--stats', 'inspiration=5,influence=5,negotiation=5,coaching=5,judgement=5', '--force');
+    expect(unspent.code).toBe(exitCodes.ok);
+    expect(unspent.out).toContain('25 Stat points left unspent are lost.');
     // Left out, the world is the one drawn, Stats and all.
     expect(newDemo('--force').code).toBe(exitCodes.ok);
     const drawn = createWorld('demo', { guildName: 'The Test', guildmasterName: 'Ada', createdAt: clock.toISOString() }, { config: defaultConfig, content });
@@ -277,7 +280,7 @@ describe('new', () => {
     [
       'Stats over the points',
       'inspiration=15,influence=15,negotiation=10,coaching=5,judgement=10',
-      'Those Stats spend 55 points and a Guildmaster has 50 to share: lower one to raise another.',
+      'Those Stats spend 55 Stat points and a Guildmaster has 50 to share: lower one to raise another.',
     ],
     [
       'a Stat content lacks',
@@ -1928,7 +1931,7 @@ describe('the command line', () => {
 
     expect(newHelp).toContain('[--stats <stat=n,stat=n,...>]');
     expect(newHelp).toContain(
-      '--stats sets every Guildmaster Stat or none, by key, as inspiration=12,influence=8,...: each 5 to 15, sharing 50 points in all, and any left over are lost.',
+      '--stats sets every Guildmaster Stat or none, by key, as inspiration=12,influence=8,...: each 5 to 15, sharing 50 Stat points in all, and any left over are lost.',
     );
     for (const key of ['inspiration', 'influence', 'negotiation', 'coaching', 'judgement']) expect(newHelp).toContain(key);
     // The rest of the help keeps "drawn from the seed" (DL-149 item 7).

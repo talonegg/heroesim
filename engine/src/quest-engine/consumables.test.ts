@@ -184,7 +184,7 @@ describe('a reroll', () => {
 });
 
 describe('a bonus', () => {
-  test('adds its flat to the capability of the first Check of its kinds, one Item a Check, whatever the outcome, and draws nothing', () => {
+  test('adds its flat to the capability of each Encounter of its kinds, one Item an Encounter till none is left, whatever the outcome, and draws nothing', () => {
     const s = scene('bonus', contentWith([ambush, fordPassed]), ['ambush', 'ford-passed', 'ambush', 'ambush'], [['whetstone', 2]]);
     const capable = capability(s.heroes, ambush, s.world, s.deps);
     const travel = capability(s.heroes, fordPassed, s.world, s.deps);

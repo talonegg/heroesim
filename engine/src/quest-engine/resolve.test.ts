@@ -1107,6 +1107,32 @@ describe('earned Traits (v1.1.4-S7)', () => {
     expect(traits).toEqual([]);
   });
 
+  test("a negative Trait is granted only at a Failure: at a Setback that reads the failure list it lands on no one, its two draws still taken (v1.1.4-S14)", () => {
+    // One Check of summed Strength, 24 against a target of 0.7 × 40 = 28: at 0.86 of it, a Setback (0.75 to 1).
+    const setback = (key: string, failure: Consequence[]): Encounter => ({
+      ...encounter(key, false),
+      checks: [oldFormCheck(key, key, 'sum', [['strength', 1]], [], 0.7)],
+      consequences: { success: [], failure },
+    });
+    for (let seed = 0; seed < 10; seed += 1) {
+      const without = earning(`setback-${seed}`, [setback('ambush', [injury()])]);
+      const twin = structuredClone(without.world);
+      const plain = without.resolve();
+      const withIt = earning(`setback-${seed}`, [setback('ambush', [injury(), earned('shaken')])]);
+      const { encounters, traits, outcome } = withIt.resolve();
+
+      expect(encounters[0]?.degree).toBe('setback');
+      expect(encounters[0]?.injured).toHaveLength(1);
+      expect(traits).toEqual([]);
+      expect(outcome).toEqual(plain.outcome);
+      // The twin, resolved without it, then two draws on: what the Trait drew though it could not land.
+      resolveQuest(twin, without.quest, without.party, without.deps);
+      next(streamOf(twin, 'quests'));
+      next(streamOf(twin, 'quests'));
+      expect(streamOf(withIt.world, 'quests')).toEqual(streamOf(twin, 'quests'));
+    }
+  });
+
   test('a negative Trait on a Failure is granted on a failed Quest, and a Hero who died on the Quest gains none', () => {
     const hurt: SetQuery = ['where', 'party', ['hurt']];
     const kept = earning('kept', [failing('ambush', [injury(), earned('shaken')])], { size: 1 }).resolve();

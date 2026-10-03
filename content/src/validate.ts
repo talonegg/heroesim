@@ -49,7 +49,7 @@ export const demandSumTolerance = 0.001;
 /** The Hall's facilities an Improvement may raise (`FacilityKey`): the compiler holds it to the union. */
 const facilities: Readonly<Record<FacilityKey, true>> = { infirmary: true, trainingYard: true, quarters: true };
 
-/** The kinds of Encounter a Synergy may name (`EncounterKind`): the compiler holds it to the union. */
+/** The kinds of Encounter a Synergy, an Item or a Hero Trait may name (`EncounterKind`): the compiler holds it to the union. */
 const encounterKinds: Readonly<Record<EncounterKind, true>> = { combat: true, travel: true, social: true, arcane: true, stealth: true, lore: true };
 
 /** The gear slots an Item may be made for (`SlotKey`, the engine's `gearSlotKeys`): the compiler holds it to the union. */
@@ -1047,7 +1047,7 @@ function checkStatList(where: string, statKeys: readonly string[], keys: QueryKe
  * `guildMoraleShift` moves the baseline by a number other than 0; an `upkeepFactor` is above 0. A
  * `statModifiers` moves one or more Hero Stats, each by a whole number other than 0, as gear's do; an
  * `encounterBonus` adds a number other than 0, a bonus or a penalty, on the Encounter kinds it names,
- * none twice, or the tags it names, each kebab-case and none twice, and names at least one of either.
+ * each a kind of Encounter and none twice, or the tags it names, each kebab-case and none twice, and names at least one of either.
  */
 function checkTraits(
   set: Pick<ContentSet, 'guildmasterTraits' | 'heroTraits'>,
@@ -1111,6 +1111,8 @@ function checkTraits(
           const kinds = effect.kinds ?? [];
           const tags = effect.tags ?? [];
           if (kinds.length + tags.length === 0) problems.push(`${at} names no Encounter kind and no tag: it adds to the Encounters it names`);
+          // v1.1.4-S14: each kind one of Encounter's, which the parser cannot see in a set built in memory.
+          for (const kind of kinds) if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${at}.kinds: "${kind}" is not a kind of Encounter`);
           for (const kind of repeated(kinds)) problems.push(`${at}.kinds: "${kind}" is listed twice`);
           for (const tag of tags) if (!kebabCase.test(tag)) problems.push(`${at}.tags: "${tag}" is not kebab-case`);
           for (const tag of repeated(tags)) problems.push(`${at}.tags: "${tag}" is listed twice`);

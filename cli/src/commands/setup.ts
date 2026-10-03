@@ -3,12 +3,14 @@
 // Background keep the words `new` gave them before M9-S2.
 
 import {
+  guildmasterStatCost,
   guildmasterStatsOf,
   guildmasterTraitsOf,
   portraitsOf,
   sexes,
   type ContentSet,
   type DescriptiveAttribute,
+  type GameConfig,
   type GuildmasterTrait,
   type SetupRefusal,
 } from '@heroesim/engine';
@@ -58,6 +60,21 @@ export function unknownStatWords(stats: Readonly<Record<string, number>>, conten
   return unknown === undefined ? null : `No Guildmaster Stat is keyed "${unknown}". Choose from: ${guildmasterStatChoices(content)}.`;
 }
 
+/**
+ * What `new` says of the Stat points `--stats` leaves unspent, which are lost (v1.1.4-S14, DL-149
+ * item 5), or `null` when it spends them all or sets no Stats: `25 Stat points left unspent are lost.`
+ */
+export function unspentStatWords(
+  stats: Readonly<Record<string, number>> | undefined,
+  content: Pick<ContentSet, 'stats'>,
+  config: Pick<GameConfig, 'guildmasterStatPoints'>,
+): string | null {
+  if (stats === undefined) return null;
+  const left = config.guildmasterStatPoints - guildmasterStatCost(stats, content);
+  if (left <= 0) return null;
+  return `${left} Stat ${left === 1 ? 'point' : 'points'} left unspent ${left === 1 ? 'is' : 'are'} lost.`;
+}
+
 /** Why `new` refuses a setup, in one sentence naming what to change. */
 export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSet, 'guildmasterTraits' | 'backgrounds' | 'portraits' | 'stats'>): string {
   switch (refusal.reason) {
@@ -83,7 +100,7 @@ export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSe
     case 'stat-out-of-range':
       return `A Guildmaster's Stat is ${refusal.min} to ${refusal.max} when chosen, in whole numbers; --stats ${refusal.statKey}=${refusal.value} is not.`;
     case 'stats-over-points':
-      return `Those Stats spend ${refusal.spent} points and a Guildmaster has ${refusal.points} to share: lower one to raise another.`;
+      return `Those Stats spend ${refusal.spent} Stat points and a Guildmaster has ${refusal.points} to share: lower one to raise another.`;
     case 'unknown-trait':
       return `No Guildmaster Trait is keyed "${refusal.traitKey}". Choose from: ${guildmasterTraitChoices(content)}.`;
     case 'repeated-trait':
