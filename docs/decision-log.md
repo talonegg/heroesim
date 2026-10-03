@@ -21369,6 +21369,176 @@ status; the verification, `estimate.test.ts`'s test of each measure's own gaps.
 
 ---
 
+## DL-174 — v1.1.5-S1 built: one game's memory profiled, its main cause the save's text written at each year's end by a writer that allocated 22 times its length, fixed in the engine's writer and the harness's play loop with the same save to the byte, a process's peak from about 1.65 GiB to 1.03 GiB and a game 15% faster
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the agent, building S1 as the epic's S1
+and DL-168 item 14 describe. The readings marked as the agent's are for the owner to change. Opus
+built it, test first; a second Opus agent verifies it.
+
+**Context.** A 20-year game's save is about 116 MB, and its process grew to about 1.7 GB, which held a
+sweep to 8 processes on the owner's machine (DL-166 item 7: 12 were stopped for memory). The owner
+asked for one game's memory profiled and its main cause fixed, in the engine too if it lies there, the
+games playing the same (DL-168 item 14), and how many processes the machine could then run (DL-169's
+"For the owner" item 1). The save's bytes may not change. Built on `v1.1.5-dev` at `cfeb872` (S7's
+verification, DL-173). Every run below was alone, nothing else running.
+
+**The profile** (`seed-0001`, 20 years, core content, `defaultConfig`, the automatic policy; scratch
+scripts outside the repository, not kept).
+1. *As a sweep plays it.* A job written as `sweepPlayInParallel` writes one (one seed,
+   `{ ...defaultConfig }`, 20 years, not validated, the default policy), played by
+   `harness/src/shard.ts` in a child process (`node --import tsx shard.ts <job> <result>`), with a
+   preloaded module reading `process.resourceUsage().maxRSS` (the peak working set) at exit. Three
+   runs: peaks 1,612.8, 2,071.2 and 1,380.2 MiB (mean 1,688), 71.0, 71.5 and 73.0 s, `advance` 36.6
+   s of it.
+2. *By year,* the same game in one process with `afterAdvance` reading `process.memoryUsage()` as
+   each year ends, the resident set (RSS) and, with a full collection forced first, the heap the game
+   holds:
+
+   | Year | 1 | 5 | 10 | 15 | 19 | 20 | The close |
+   | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+   | RSS, MiB | 198 | 464 | 764 | 912 | 1,352 | 1,072 | peak 1,660 |
+   | Heap held, MiB | 25 | 55 | 92 | 129 | 162 | 167 | 579 |
+   | History entries | 11,610 | 58,093 | 114,735 | 171,096 | 217,254 | 228,416 | |
+
+   The peak came at year 20's end, as the play loop wrote the last year's save and gzipped it, and
+   again at the close, as `measureDocument` wrote the save, loaded it and wrote the loaded document
+   again (the document, the text, the loaded document and the second text at once: 579 MiB held).
+3. *What the game holds.* At year 20, 167 MiB of heap: the History, 228,416 entries, 108.8 of the
+   save's 116.2 million characters (`quest.encounter` 61,240 entries, 48.4 million;
+   `quest.resolved` 14.3; `quest.taken` 10.5; `hero.morale-changed` 10.4; `hero.xp-gained` 9.6), its
+   indexes 7.1 million (`byEntity` 5.6), and the World State 0.25 million, which the per-Turn copy
+   copies.
+4. *The heap snapshot near the peak.* Under `--max-old-space-size=420
+   --heapsnapshot-near-heap-limit=1` the whole game, every year's save included, ran within 420 MiB of
+   old space, and ran out only at the close, loading the save back: a snapshot of 600 MB, 8.86 million
+   nodes and 423.8 MiB alive, streamed and summed by type: strings 177.8 MiB (one of them the save's
+   text, 111 MiB), plain objects 95.5 MiB (1.52 million), arrays 32.0 MiB and their elements 56.7
+   MiB, numbers 21.0 MiB: the document, the save's text and the loaded document as far as the parse
+   had come. Under a cap of 640 MiB the game and its close ran whole, its peak 891 MiB and 74.7 s.
+5. *So the memory is garbage, not held.* What a game holds is at most about 0.58 GiB, at its close;
+   its process reached 1.4 to 2.1 GiB because the heap grew with garbage between collections. The
+   garbage came from the save's text: `serialise`'s `write` made a string of every value at every
+   depth and copied each into its parent's. One save of the year-20 document allocated 2,442 MiB,
+   22 times its 111 MiB, and raised the RSS by 744 MiB over the document's own, writing it and
+   flattening it for the fingerprint. The play loop wrote the save at each of the 20 years' ends to
+   measure its length (v1.1.3-S6), 1.22 billion characters a game, and the close wrote it twice
+   more.
+6. *What else allocates* (`v8.getHeapStatistics().total_allocated_bytes`, the fixed engine): a game
+   allocates 79 GiB, `advance` 50.9 of it (the world copied each Turn: one `structuredClone` of the
+   year-20 world allocates 0.7 MiB and takes 1.6 ms), the policy and the observations about 17.7,
+   the yearly saves 5.3. The per-Turn copy's garbage is young and dies young; it does not set the
+   peak (item 2's held heap). Played with no yearly save, the game's peak was 671 MiB and its time
+   51.9 s against 65.1 s.
+
+**What was built** (test first; the save's bytes unchanged, no field, order or schema).
+1. **The engine's writer** (`engine/src/serialise.ts`). `serialise` writes the text in one pass of
+   `JSON.stringify`, whose replacer hands it each object whose keys are not already in order as a
+   copy with them sorted, by code units as before; `JSON.stringify` builds the one string. A copy's
+   keys are sorted by insertion when there are 16 or fewer: `Array.prototype.sort` allocates its
+   working state on every call, about 1.2 GiB over a 20-year save's objects. `JSON.stringify` writes
+   array-index keys (`"0"`, `"17"`) first in ascending number, and a copy cannot take an own
+   `__proto__` key by assignment, so a document holding either anywhere is written by the old
+   `write`, kept for it: the bytes are `write`'s always. No engine document holds either today. One
+   save of the year-20 document now allocates about 220 to 350 MiB (its keys already in order, or
+   every object's reversed), two to three times its length, besides `findJsonUnsafe`'s walk (175
+   MiB), and raises the RSS by about 300 MiB; its time is about the same (the close's save 1.37 s
+   against 1.27 s).
+2. **Each year's save counted, not written** (`harness/src/counters.ts`, `play.ts`). `savedLength`
+   counts `serialise(value).length` without writing it: the order of keys does not change the length;
+   a string is its length and two quotes unless it holds a character JSON escapes (a quote, a
+   backslash, a control character or a surrogate), when it is `JSON.stringify`'s; a number is as
+   `JSON.stringify` writes it. `observeSave` takes the length, not the text. The play loop writes no
+   save while the game is played.
+3. **The close writes one text at a time** (`play.ts`). `measureDocument` keeps the save's length,
+   fingerprint and, when asked, gzipped length, not the text, so the loaded document is written again
+   once the first text is out of reach; `roundTrips` compares the two by length and SHA-256.
+   `recordGame` asks for the gzipped length when the game reached its last year's end, whose
+   document is the one it stopped with, and sets it as that year's `gzipped`: the last year's save is
+   written once, at the close, where it was written three times. `DocumentMeasures` gains `gzipped`.
+4. **Readings** (the agent's, for the owner to change).
+   - *The gzipped length moves* from the play loop's last year's end to `recordGame`'s close. Only
+     `recordGame`'s records feed the report, so its numbers are the same; a game played by `playGame`
+     alone (the Succession probe, `harness:sample`) now has no gzipped length.
+   - *The round trip compared by fingerprint,* not by holding both texts: a different text of the
+     same length and SHA-256 would pass, which is the fingerprint's own premise (DL-76).
+   - *A cap on the children's heap* (`--max-old-space-size` in `children.ts`) was not taken: it bounds
+     the garbage rather than removing it, slowed the old code by 5% at 640 MiB, and would fail a game
+     played past 20 years (`HEROESIM_YEARS`).
+   - *The per-Turn copy of the world* was left as it is: it does not set the peak, and taking the
+     out-of-play rows out of it is #34, with a schema change, outside v1.1.5 (§0).
+
+**Measured after** (the same game, the same way, at the final code; three runs).
+
+| | Before (`cfeb872`) | After |
+| --- | ---: | ---: |
+| A process's peak, MiB | 1,612.8; 2,071.2; 1,380.2 (mean 1,688) | 1,036.0; 1,052.6; 1,026.8 (mean 1,038) |
+| The game's time, s | 71.0; 71.5; 73.0 | 61.1; 60.4; 60.7 |
+| `advance`, s | 36.6 | 36.0 to 36.5 |
+| RSS by year 1, 5, 10, 15, 19, MiB | 198, 464, 764, 912, 1,352 | 177, 271, 395, 475, 493 |
+
+The peak now comes only at the close (the save, the load, the save again), its last 5 s or so;
+through year 19 a process stays under 0.5 GiB. The peak fell 38% and is steady from run to run; the
+time fell 15%, the yearly saves no longer written. With the writer alone (item 1), the peak was
+1,293.5 MiB and the time 70.2 s; with the years counted too but the last year still written in the
+loop, 1,186 to 1,202 MiB and 61 s.
+
+**The game the same.** Every run of `seed-0001` before and after, ten as a sweep plays it, gave the
+same last save: 116,207,395 characters, 228,416 entries, fingerprint
+`401d81bac4906317ec0083f34e8032a9eb9ff14d0902702b26f7978cc2bd73f6` (one game's sweep
+fingerprint, as `sweepFingerprint` computes it,
+`b04aa6eb31d6970ac1712af5bfb6714f8a83a6dd3b188fa564ce5655ae30b913`), round-tripping. The whole
+record, before and after, is equal: the counters, every observation, every year's save length and
+the last year's gzipped length (15,131,016), the Turns played. The 50-game check is S6's
+fingerprint sweep (DL-169 item 15).
+
+**The workers, for the owner** (DL-169's "For the owner" item 1). The machine has 16 cores, 32
+logical processors and 27.6 GiB, of which 12.9 GiB were available with nothing of the harness running
+(the rest held by Windows and the owner's programs). The full-length games of a sweep's first wave
+start together and end together, so their peaks are taken as coinciding.
+- *Before,* 8 processes at their peaks held about 13.2 GiB (1.65 GiB each), over what was available,
+  and 12 about 19.8 GiB; DL-166 item 7's run in 12 was stopped for memory.
+- *After,* about 1.03 GiB each: 8 hold about 8.2 GiB, and **11** fit the 12.9 GiB available with
+  about 1.5 GiB to spare (12 would hold 12.4 GiB, all of it). With the whole 27.6 GiB free but about
+  2.5 GiB for Windows, about 24 would fit by memory.
+- *The processors* then bound it: past 16 processes they share cores, and each game's `advance`
+  already runs 2.7 times slower under 8 processes than alone (4.966 ms mean against 1.819 at
+  `v1.1.4`'s close).
+- `HEROESIM_WORKERS` stays 8 for this epic's sweeps (DL-166 item 7) unless the owner says otherwise:
+  10 or 11 would be safe as the machine stands, at most 16 with its programs closed.
+
+**The checks.**
+- *Tests,* each red before its code: `serialise.test.ts`, a long History (20,000 entries added, 8.2
+  million characters) written once warm allocates under 8 times its length (the old writer 27.9
+  times, the new 4.7, `findJsonUnsafe`'s walk included), skipped on a Node whose V8 does not count
+  allocations; and array-index keys and an own `__proto__` key written by their code units like
+  every other key. `counters.test.ts`, `savedLength` equal to the save's length for a document and
+  for awkward values (quotes, backslashes, control characters, lone and paired surrogates, U+2028,
+  numbers whole, negative, fractional and in exponents, empty arrays and objects). `play.test.ts`, a
+  3-year game of 20-Turn years: every year's length equal to its text's, no year's gzipped from
+  `playGame`, `recordGame` writing exactly two texts (the engine's `serialise` watched through
+  `vi.mock`), the last year's gzipped length equal to the save's, and none for a game stopped short
+  of a year's end. With the yearly save written again in the loop, it fails, 3 calls for 1.
+- *The doctor* (`npm run edit -- traits doctor`) before and after: no drift, 110 reads of a Trait.
+- *Lint and typecheck* pass. `npm test`: 185 files, 4,795 tests, four more than DL-173's. Under the
+  full suite's load the first run failed one web (jsdom) test, not captured, and the second the new
+  play test at the default 5 s; it was given 30 s, as the harness's game-playing tests are, and
+  trimmed to three games; the third run and the last, after the final edits, passed every test.
+
+**For the owner.**
+1. *The workers:* 11 processes fit the memory available today, at most 16 by the processors;
+   `HEROESIM_WORKERS` stays 8 until the owner says.
+2. *The agent's readings* in item 4: the gzipped length taken at the close, the round trip compared
+   by fingerprint, no cap on the children's heap, the per-Turn copy left.
+3. *The next lever is time, not memory:* the per-Turn copy of the world allocates 0.7 MiB and takes
+   1.6 ms of a late Turn; #34's historical set would shrink it, with a schema change.
+
+**Actioned in:** `engine/src/serialise.ts` (`writeOnce`, `sortKeys`, `isArrayIndex`), its tests;
+`harness/src/counters.ts` (`savedLength`, `observeSave` by length), its tests; `harness/src/play.ts`
+(the yearly save counted, `measureDocument` one text at a time with `gzipped`, `recordGame` the last
+year's gzipped length), `play.test.ts`; the epic's S1 boxes and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

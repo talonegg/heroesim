@@ -1531,7 +1531,10 @@ export interface SaveSize {
   length: number;
   /** The part of it the Heroes' `portraitKey`, `appearance` and `biography` take, keys and quotes included. */
   heroFields: number;
-  /** Its length gzipped, as the page keeps it (DL-67): measured for the last year only, else `null`. */
+  /**
+   * Its length gzipped, as the page keeps it (DL-67): measured for the last year only, by `recordGame`
+   * from the save it writes once the game stops (v1.1.5-S1), else `null`.
+   */
   gzipped: number | null;
 }
 
@@ -1617,11 +1620,51 @@ export function heroFieldsLength(world: World): number {
 }
 
 /**
- * Adds the save's size as a year ends (v1.1.3-S6): its text's length, `text` being `serialise(document)`,
- * the Heroes' new fields' share, and, when `gzipped` is given, its gzipped length.
+ * Adds the save's size as a year ends (v1.1.3-S6): its text's `length`, `serialise(document).length`
+ * or `savedLength(document)`, the Heroes' new fields' share, and, when `gzipped` is given, its
+ * gzipped length.
  */
-export function observeSave(observations: GameObservations, world: World, text: string, gzipped: number | null = null): void {
-  observations.saves.push({ length: text.length, heroFields: heroFieldsLength(world), gzipped });
+export function observeSave(observations: GameObservations, world: World, length: number, gzipped: number | null = null): void {
+  observations.saves.push({ length, heroFields: heroFieldsLength(world), gzipped });
+}
+
+/** A character JSON writes as an escape: a quote, a backslash, a control character or a surrogate, lone or not. */
+// eslint-disable-next-line no-control-regex -- the control characters are what it looks for
+const escaped = /["\\\u0000-\u001f\ud800-\udfff]/;
+
+/**
+ * `serialise(value).length`, counted without writing the text (v1.1.5-S1, DL-174), for the save the
+ * play loop measures as each year ends: a 20-year game's save is 116 MB, and writing it at each
+ * year's end took a sixth of the game's time and most of its memory. The order of keys
+ * does not change the length, so none are sorted. For a JSON-safe value, as `serialise` requires: a
+ * string is its length and two quotes unless it holds a character JSON escapes, when it is
+ * `JSON.stringify`'s; a number is as `JSON.stringify` writes it.
+ */
+export function savedLength(value: unknown): number {
+  if (typeof value === 'string') return escaped.test(value) ? JSON.stringify(value).length : value.length + 2;
+  if (typeof value === 'number') return Number.isSafeInteger(value) && value >= 0 ? digits(value) : JSON.stringify(value).length;
+  if (typeof value === 'boolean') return value ? 4 : 5;
+  if (value === null) return 4;
+  if (typeof value !== 'object') throw new TypeError(`Only a JSON-safe value has a save's length, not a ${typeof value}`);
+  if (Array.isArray(value)) {
+    // The brackets and a comma between each two items.
+    let length = Math.max(2, value.length + 1);
+    for (const item of value as unknown[]) length += savedLength(item);
+    return length;
+  }
+  const object = value as Record<string, unknown>;
+  const keys = Object.keys(object);
+  // The braces, a comma between each two members, and each member's colon.
+  let length = Math.max(2, keys.length + 1) + keys.length;
+  for (const key of keys) length += savedLength(key) + savedLength(object[key]);
+  return length;
+}
+
+/** The digits of a whole number from 0, as `JSON.stringify` writes it. */
+function digits(whole: number): number {
+  let count = 1;
+  for (let rest = whole; rest >= 10; rest = Math.floor(rest / 10)) count += 1;
+  return count;
 }
 
 /** The player's Guild's place in `world`'s Rankings by Fame and by Wealth (`rankings`); `null` when it is in neither. */

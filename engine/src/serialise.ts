@@ -27,7 +27,61 @@ export function serialise(document: WorldDocument): string {
   if (unsafe !== null) {
     throw new TypeError(`Only a JSON-safe document serialises: ${unsafe.path} is ${unsafe.kind} (data-model rule 6)`);
   }
-  return write(document);
+  return writeOnce(document);
+}
+
+/**
+ * `write`'s text in one pass of `JSON.stringify` (v1.1.5-S1, DL-174): the replacer hands it each
+ * object whose keys are not already in sorted order as a copy with them sorted, and `JSON.stringify`
+ * writes everything into the one string it builds. `write` makes a string of every value at every
+ * depth and copies each into its parent's, which for a 20-year game's save of 116 MB allocated 22
+ * times its length; this allocates two to three times it.
+ *
+ * `JSON.stringify` writes an object's array-index keys (`"0"`, `"17"`) first, in ascending number,
+ * whatever their place, and a copy cannot be given an own `__proto__` key by assignment. A document
+ * holding either key anywhere is written by `write` instead, so the bytes are `write`'s always.
+ */
+function writeOnce(document: unknown): string {
+  let ordered = true;
+  const text = JSON.stringify(document, (_key, value: unknown) => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return value;
+    const object = value as Record<string, unknown>;
+    const keys = Object.keys(object);
+    let sorted = true;
+    for (let index = 0; index < keys.length; index += 1) {
+      const key = keys[index] as string;
+      if (isArrayIndex(key) || key === '__proto__') ordered = false;
+      if (index > 0 && (keys[index - 1] as string) > key) sorted = false;
+    }
+    if (sorted) return object;
+    const copy: Record<string, unknown> = {};
+    for (const key of sortKeys(keys)) copy[key] = object[key];
+    return copy;
+  });
+  return ordered ? text : write(document);
+}
+
+/**
+ * `keys` sorted in place as `Array.prototype.sort` sorts them, by code units. A short list, as most
+ * of a document's objects have, is sorted by insertion, which allocates nothing: `sort` allocates its
+ * working state on every call, about 1.2 GB over a 20-year save's objects.
+ */
+function sortKeys(keys: string[]): string[] {
+  if (keys.length > 16) return keys.sort();
+  for (let index = 1; index < keys.length; index += 1) {
+    const key = keys[index] as string;
+    let at = index - 1;
+    for (; at >= 0 && (keys[at] as string) > key; at -= 1) keys[at + 1] = keys[at] as string;
+    keys[at + 1] = key;
+  }
+  return keys;
+}
+
+/** Whether `key` is an array index, a property key every engine enumerates before the others. */
+function isArrayIndex(key: string): boolean {
+  const first = key.charCodeAt(0);
+  if (first < 48 || first > 57) return false;
+  return (key === '0' || first !== 48) && /^[0-9]+$/.test(key) && Number(key) < 2 ** 32 - 1;
 }
 
 /**
