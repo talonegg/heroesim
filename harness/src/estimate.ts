@@ -408,6 +408,26 @@ export function moraleHeld(samples: readonly Sample[]): number {
   return widest(samples, 'moraleIn', 'quest')?.gap ?? 0;
 }
 
+/** One of the probe's checks: the gap it holds, its limit, and whether the gap lies strictly below it. */
+export interface EstimateCheck {
+  gap: number;
+  limit: number;
+  within: boolean;
+}
+
+/**
+ * The probe's two checks, as the harness test asserts them: with no one falling, every chance within
+ * `estimateTolerance`; with Morale in, the Quest's bands and success within `estimateMoraleTolerance`
+ * (`moraleHeld`; DL-173, the owner's answer). A gap of exactly the limit is beyond it.
+ */
+export function estimateChecks(samples: readonly Sample[]): { noOneFalls: EstimateCheck; moraleIn: EstimateCheck } {
+  const check = (gap: number, limit: number): EstimateCheck => ({ gap, limit, within: gap < limit });
+  return {
+    noOneFalls: check(widest(samples, 'compared', 'all')?.gap ?? 0, estimateTolerance),
+    moraleIn: check(moraleHeld(samples), estimateMoraleTolerance),
+  };
+}
+
 /** The probe's report, in Markdown: each measure's gaps, widest and mean, in points and in standard errors, against its limit. */
 export function estimateReport(
   samples: readonly Sample[],

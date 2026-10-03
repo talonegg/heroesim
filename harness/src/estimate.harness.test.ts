@@ -1,7 +1,7 @@
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, type EngineDeps } from '@heroesim/engine';
 import { expect, test } from 'vitest';
-import { defaultEstimateRuns, defaultEstimateSamples, estimateMoraleTolerance, estimateProbe, estimateReport, estimateTolerance, moraleHeld, widest } from './estimate.js';
+import { defaultEstimateRuns, defaultEstimateSamples, estimateChecks, estimateProbe, estimateReport, widest } from './estimate.js';
 import { machine, reportPath, writeReport } from './report.js';
 import { seedCount } from './seeds.js';
 import { probeName } from './succession.js';
@@ -37,6 +37,9 @@ test.runIf(probeName() === 'estimate')(`${samples} Parties and Quests, each esti
   const points = (gap: number | undefined): string => ((gap ?? 0) * 100).toFixed(2);
   console.log(`${samples} samples × ${runs} seeds in ${seconds.toFixed(1)} s; the widest gap ${points(most?.gap)} points, with Morale in the Quest's ${points(moraleMost?.gap)} (held) and an Encounter's ${points(encounterMost?.gap)} (reported)\nReport: ${path}`);
   expect(probed).toHaveLength(samples);
-  expect(most?.gap ?? 0).toBeLessThan(estimateTolerance);
-  expect(moraleHeld(probed)).toBeLessThan(estimateMoraleTolerance);
+  // The two checks (`estimateChecks`, tested in estimate.test.ts): every chance strictly within 2 points
+  // with no one falling, and the Quest's within 3 with Morale in; a failure prints the gap and its limit.
+  const checks = estimateChecks(probed);
+  expect(checks.noOneFalls).toMatchObject({ within: true });
+  expect(checks.moraleIn).toMatchObject({ within: true });
 });

@@ -21386,10 +21386,48 @@ test reads the held and reported lines. The probe, run alone on the shipped cont
 The mean gaps with Morale in are 0.166, 0.143, 0.129 and 0.168 points. The widest held gap is
 `estimate-0169`'s success, 1.61 points; the widest reported is `estimate-0064`'s, as traced above.
 
+**The owner's answer verified** (a second Opus agent, at `198f91a`). The code does what the owner
+asked and no more; two gaps in its tests are closed.
+- *The scopes.* A chance is the Quest's where its `of` is `'quest'`: its three bands (`fail`,
+  `success`, `strong`) and `succeeded`, the Quest's success; every other chance is an Encounter's, its
+  four Degrees and `succeeded`. `widest`'s `quest` and `encounters` split on that one test, so no chance
+  is in both or neither. `moraleHeld` reads the Morale measure's Quest chances only; the no-one-falls
+  check reads every chance of the first measure, as before; the report's table rows and lines read the
+  same scopes.
+- *Mutations*, each put back. Killed by the builder's tests: `quest` reading the Encounters' or every
+  chance, `encounters` reading the Quest's, `moraleHeld` reading every chance or the first measure,
+  `widest`'s default narrowed to the Quest, the report's no-one-falls section or Morale section
+  given the other scope, its held line reading every chance, and `>` for `>=` in the count beyond.
+  Survived: `<=` for `<` in the report's held line and in its Encounter line (no test had a gap of
+  exactly 3 points widest there), `encounters` reading every chance (no test had the Quest wider than
+  the Encounters), and the harness test's own checks, `widest(probed)` narrowed to the Quest or
+  `toBeLessThan` made `toBeLessThanOrEqual`, which only a probe's run reads. *Fixed*, test first: the
+  two checks are now `estimateChecks(samples)` in `estimate.ts`, each its gap, limit and `within`,
+  strictly below, which the harness test asserts; a new test holds them (an Encounter's 2.5 points
+  failing the no-one-falls check, the Quest's within it; an Encounter's 30 points passing the Morale
+  check; exactly 2 and 3 points failing each), the report's held and Encounter lines at exactly 3
+  points reading "beyond", and the Encounters' scope leaving out a wider Quest gap. Every mutation
+  above, and the Morale check given the 2-point limit, now fails it.
+- *The planted gaps*, `HEROESIM_PROBE=estimate HEROESIM_SAMPLES=10`, each run alone, on the code as
+  fixed: 3.5 points on `estimate-0005`'s Quest success with Morale in failed (the held gap 3.36, read
+  "beyond the limit of 3 points"); 30 points on its Encounter 1's Failure with Morale in passed, the
+  Encounter line reading 30.00 points, "beyond 3 points"; 2.5 points on that Failure with no one
+  falling failed; put back, passing. The 3.5 points' plant failed the same way at `198f91a`. No report
+  was kept.
+- *The reports.* The 10-04 report's figures equal the 10-03 report's in every row and line (the same
+  200 samples × 20,000 seeds, 588 Encounters, 349 carrying Morale); only the words differ, the
+  Encounters' rows and line "reported, not held" and the Quest's line "held".
+- *The words.* This entry's answer, the Gate and S7's section say it; S7's stop now reads 3 points "on
+  a chance the check holds", so that S10's run does not stop on an Encounter's reported gap. Line
+  endings kept.
+- *The checks.* At `198f91a`, `npm test` 185 files, 4,797 tests. With the fix, lint and typecheck
+  pass and `npm test` passes 185 files, 4,798 tests.
+
 **Actioned in:** `harness/src/estimate.ts` (`unhurt`, `moraleIn`, `estimateMoraleTolerance`, the
 second measure and the report), `estimate.test.ts`, `estimate.harness.test.ts` (the Morale check and
 HEROESIM_MILESTONE); `harness/reports/m9-v115-s7-estimate-2026-10-03.md`, `-2026-10-04.md`; the epic's S7 boxes and
-status; the verification, `estimate.test.ts`'s test of each measure's own gaps.
+status; the verification, `estimate.test.ts`'s test of each measure's own gaps; the owner's answer's
+verification, `estimateChecks` and its test, and the epic's S7 stop.
 
 ---
 

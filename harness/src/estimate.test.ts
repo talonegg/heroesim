@@ -1,7 +1,7 @@
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, passOf, type EngineDeps } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { compareSample, drawSample, estimateMoraleTolerance, estimateProbe, estimateReport, estimateTolerance, harmless, moraleHeld, moraleIn, questsStream, unhurt, widest, type Compared, type Sample } from './estimate.js';
+import { compareSample, drawSample, estimateChecks, estimateMoraleTolerance, estimateProbe, estimateReport, estimateTolerance, harmless, moraleHeld, moraleIn, questsStream, unhurt, widest, type Compared, type Sample } from './estimate.js';
 import { machine } from './report.js';
 
 // v1.1.4-S5 (DL-156): the estimate probe's parts, and the probe over a few samples. The probe proper,
@@ -159,6 +159,35 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
     const planted: Compared[] = [...encounter, { of: 'quest', what: 'succeeded', estimate: 0.5, rate: 0.535 }];
     expect(moraleHeld([sample(planted)])).toBeGreaterThanOrEqual(estimateMoraleTolerance);
     expect(moraleHeld([])).toBe(0);
+  });
+
+  // The owner's answer verified (DL-173): the harness test's two checks are `estimateChecks`, so that their
+  // scopes and strict `<` fail here, not only in a probe's run; and the report's held and reported lines
+  // read a gap of exactly 3 points as beyond, as the check does.
+  test("makes the probe's two checks: no one falls on every chance below 2 points, Morale in on the Quest's below 3, each strictly", () => {
+    const sample = (compared: Compared[], moraleIn: Compared[]): Sample => ({ seed: 'estimate-0001', heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, bandsMoved: 0, moraleEncounters: 1, compared, moraleIn });
+    const at = (of: Compared['of'], what: string, gap: number): Compared => ({ of, what, estimate: 0, rate: gap });
+    const within = [sample([at(0, 'failure', 0.019), at('quest', 'fail', 0.019)], [at(0, 'failure', 0.3), at('quest', 'succeeded', 0.029)])];
+    expect(estimateChecks(within)).toEqual({
+      noOneFalls: { gap: 0.019, limit: estimateTolerance, within: true },
+      moraleIn: { gap: 0.029, limit: estimateMoraleTolerance, within: true },
+    });
+    // An Encounter's chance beyond 2 points fails the first check; the Quest's within it does not save it.
+    expect(estimateChecks([sample([at(0, 'succeeded', 0.025), at('quest', 'fail', 0)], [])]).noOneFalls).toEqual({ gap: 0.025, limit: estimateTolerance, within: false });
+    // Exactly the limit is beyond it, in either check.
+    const exactly = [sample([at(1, 'setback', estimateTolerance)], [at('quest', 'strong', estimateMoraleTolerance)])];
+    expect(estimateChecks(exactly)).toEqual({
+      noOneFalls: { gap: estimateTolerance, limit: estimateTolerance, within: false },
+      moraleIn: { gap: estimateMoraleTolerance, limit: estimateMoraleTolerance, within: false },
+    });
+    expect(estimateChecks([])).toEqual({ noOneFalls: { gap: 0, limit: estimateTolerance, within: true }, moraleIn: { gap: 0, limit: estimateMoraleTolerance, within: true } });
+    const report = estimateReport([sample([], [at(0, 'failure', estimateMoraleTolerance), at('quest', 'succeeded', estimateMoraleTolerance)])], { runs: 2_000, machine: machine(), startedAt: new Date(0), seconds: 1 });
+    expect(report).toContain('The widest gap held: estimate-0001, the Quest, succeeded: estimated 0.00%, resolved 3.00%, 3.00 points, beyond the limit of 3 points.');
+    expect(report).toContain("The widest Encounter gap, reported, not held (DL-173, the owner's answer): estimate-0001, Encounter 1, failure: estimated 0.00%, resolved 3.00%, 3.00 points, beyond 3 points.");
+    // The Encounters' scope takes in no chance of the Quest's, however wide.
+    const questWider = [sample([], [at('quest', 'fail', 0.05), at(0, 'failure', 0.01)])];
+    expect(widest(questWider, 'moraleIn', 'encounters')).toMatchObject({ compared: { of: 0, what: 'failure' } });
+    expect(estimateReport(questWider, { runs: 2_000, machine: machine(), startedAt: new Date(0), seconds: 1 })).toContain("The widest Encounter gap, reported, not held (DL-173, the owner's answer): estimate-0001, Encounter 1, failure: estimated 0.00%, resolved 1.00%, 1.00 points, within 3 points.");
   });
 
   test('names its limits: 2 points with no one falling, 3 with Morale in', () => {
