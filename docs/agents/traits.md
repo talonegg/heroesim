@@ -79,6 +79,15 @@ branch, from the repository's root.
   understood).
 - **While "Finish" runs** every other command is refused as `busy`. A "Finish" cut off by a crash or
   a kill is put back by the next command, which says so (`recovered`).
+- **Busy for ever** (v1.1.4-S14): the lock is the journal's process number, and Windows gives a number
+  again, so a journal left by a "Finish" cut off may read as running while an unrelated process holds
+  it. The refusal names the journal's process and when it began. Where no "Finish" runs, no editor
+  command and no page, `npm run --silent edit -- traits recover --force --json` puts its files back
+  whatever its number says. Never while a "Finish" does run: its written content would be put back
+  under it.
+- **Files not put back.** A failed "Finish" that cannot put a file back (`not-undone`) keeps its
+  journal, and the next command tries again: fix what the problem names (a file held open, a folder
+  where the file was), then run `traits recover`.
 
 ## Each story's close
 

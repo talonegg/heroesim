@@ -14,7 +14,9 @@
 //   GET    /api/finish               its state, its lines so far and its result
 //
 // A refusal is `{ ok: false, kind, problems, uses? }`, with 422, or 409 for a removal refused by its
-// uses and for any call while "Finish" runs (`busy`).
+// uses and for any call while "Finish" runs (`busy`), but the two that report on it, GET /api/finish
+// and GET /api/doctor, which answer throughout. A "Finish" started here while another runs fails with
+// the kind `busy`, nothing written (v1.1.4-S14).
 //
 // Only this page may call it (the verification of v1.1.4-S12): a request is refused (403) unless its
 // Host is 127.0.0.1:<port> or localhost:<port>, so a name rebound to this machine reaches nothing, and
@@ -45,6 +47,8 @@ const pageFiles: Record<string, { file: string; type: string }> = {
 /** "Finish" as the page follows it. */
 interface FinishState {
   state: 'idle' | 'running' | 'passed' | 'failed';
+  /** How a failed one failed, as a command's JSON says it (v1.1.4-S14): `busy` refused while another runs, nothing written; `undone` put back; `not-undone` not all put back. */
+  kind?: 'busy' | 'refused' | 'undone' | 'not-undone' | 'failed';
   lines: string[];
   result: Finished | null;
   problems: string[];
@@ -129,7 +133,8 @@ export async function serve({ root, port = 4180, runTests = npmTest }: { root: s
               : error instanceof NotUndone
                 ? [...error.problems, ...error.left.map((file) => `not put back: ${file}`)]
                 : [error instanceof Error ? error.message : String(error)];
-          finish = { ...finish, state: 'failed', problems };
+          const kind = error instanceof Busy ? 'busy' : error instanceof Refused ? 'refused' : error instanceof Undone ? 'undone' : error instanceof NotUndone ? 'not-undone' : 'failed';
+          finish = { ...finish, state: 'failed', kind, problems };
         });
       return send(response, 202, finish);
     }

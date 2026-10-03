@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
-import { chromium } from '@playwright/test';
+import { chromium, type Page } from '@playwright/test';
 import { readContentVersion } from '@heroesim/portraits';
 import { afterEach, describe, expect, test } from 'vitest';
+import { Editor } from './editor.js';
 import { serve, type Served } from './server.js';
 import { json, plantOutcome, readContentJson, scratchRepository, status } from './test-support.js';
 import { npmTest, type TestRunner } from './tests-run.js';
@@ -107,7 +108,7 @@ describe('the API', () => {
     expect((await api('POST', '/api/finish')).status).toBe(202);
     await page.finishing();
     const failed = (await api('GET', '/api/finish')).json;
-    expect(failed).toMatchObject({ state: 'failed', problems: ['FAIL  |content| src/planted.test.ts > a planted test fails', '× a planted test fails'] });
+    expect(failed).toMatchObject({ state: 'failed', kind: 'undone', problems: ['FAIL  |content| src/planted.test.ts > a planted test fails', '× a planted test fails'] });
     expect(failed.lines).toEqual(expect.arrayContaining([expect.stringContaining('Running the tests'), ' RUN  the planted tests']));
     expect(status(dir)).toBe('');
     expect(readContentVersion(dir)).toBe(version);
@@ -145,14 +146,34 @@ describe('the API', () => {
     // So does a command line, in another process or this one.
     const cli = await json<{ kind: string; problems: string[] }>(dir, 'traits', 'change', 'lame', '--name', 'Limping');
     expect(cli.code).toBe(1);
-    expect(cli.json).toMatchObject({ kind: 'busy', problems: [expect.stringContaining('"Finish" is running')] });
+    expect(cli.json).toMatchObject({ kind: 'busy', problems: [expect.stringContaining('"Finish" is running'), expect.stringContaining('traits recover --force')] });
     expect((await json<{ finish: { running: boolean }; ok: boolean }>(dir, 'traits', 'doctor')).json).toMatchObject({ ok: false, finish: { running: true } });
+    // `pending` and `doc` too (v1.1.4-S14).
+    for (const argv of [['pending'], ['doc']]) {
+      const refused = await json<{ kind: string }>(dir, 'traits', ...argv);
+      expect([argv[0], refused.code, refused.json.kind]).toEqual([argv[0], 1, 'busy']);
+    }
 
     release(true);
     await page.finishing();
     expect((await api('GET', '/api/finish')).json.state).toBe('passed');
     expect(readContentJson<Record<string, { name: string }>>(dir, 'hero-traits.json').lame?.name).toBe('Lame');
     expect((await api('GET', '/api/traits')).json.pending).toEqual([]);
+  });
+
+  test('a "Finish" started from the page while another runs is refused as busy, not as a Finish put back (v1.1.4-S14)', async () => {
+    const { dir, page, api } = await served();
+    await api('PUT', '/api/traits/thrifty', { cost: 3 });
+    // Another "Finish", as a command line's, holds the lock.
+    const { runner, release } = heldRunner();
+    const other = new Editor(dir).finish(runner).catch((error: unknown) => error);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect((await api('POST', '/api/finish')).status).toBe(202);
+    await page.finishing();
+    expect((await api('GET', '/api/finish')).json).toMatchObject({ state: 'failed', kind: 'busy', problems: [expect.stringContaining('"Finish" is running'), expect.stringContaining('names process')] });
+    release(false);
+    await other;
+    expect(status(dir)).toBe('');
   });
 
   test('answers only its own page: another Host, another Origin, or a change not sent as JSON is refused', async () => {
@@ -207,21 +228,113 @@ function chromiumInstalled(): boolean {
   }
 }
 
-// One pass through the page itself, at a desktop width: the table, a Trait added through its form,
-// a removal refused naming each use, and "Finish". Skipped where Chromium is not installed.
+// The page itself, at a desktop width, each of its controls driven as the owner drives them (v1.1.4-S12;
+// every control since v1.1.4-S14): Find, the forms to add and change, Remove refused and done,
+// Discard, Doctor and "Finish", passed, failed and refused while another runs. `assign` and
+// `unassign` are the commands' alone, by DL-163 item 6, so the page has no control for them. Skipped
+// where Chromium is not installed.
 describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
-  test('shows the tables, adds through the form, names the uses of a refused removal, and finishes', async () => {
-    const { runner, release } = heldRunner();
-    const { dir, page } = await served(runner);
+  async function opened(runTests: TestRunner): Promise<{ dir: string; tab: Page; api: Awaited<ReturnType<typeof served>>['api'] }> {
+    const { dir, page, api } = await served(runTests, { engine: true });
     const browser = await chromium.launch();
     cleanups.push(() => browser.close());
     const tab = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     tab.on('dialog', (dialog) => void dialog.accept());
     await tab.goto(page.url);
-
     await tab.locator('section[data-list=hero] tr[data-key=lame]').waitFor();
+    return { dir, tab, api };
+  }
+  const shown = (tab: Page): Promise<string[]> => tab.locator('tr[data-key]:not(.is-hidden)').evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.key ?? ''));
+
+  test('finds, adds, changes, removes, discards and runs the doctor through its own controls (v1.1.4-S14)', async () => {
+    const { tab } = await opened(npmTest);
     expect(await tab.locator('section[data-list=guildmaster] tbody tr').count()).toBe(6);
     expect(await tab.locator('tr[data-key=thrifty] td').nth(3).innerText()).toBe('Upkeep × 0.9');
+
+    // Find hides the rows that do not hold the text, and shows them again when it is cleared.
+    await tab.locator('#find').fill('upkeep');
+    await tab.locator('tr[data-key=lame]').waitFor({ state: 'hidden' });
+    expect(await shown(tab)).toEqual(['thrifty', 'spendthrift']);
+    await tab.locator('#find').fill('');
+    await tab.locator('tr[data-key=lame]').waitFor({ state: 'visible' });
+    expect(await shown(tab)).toHaveLength(16);
+
+    // A Guildmaster Trait with an Upkeep factor, excluding spendthrift, which then excludes it.
+    await tab.getByRole('button', { name: 'Add a Guildmaster Trait' }).click();
+    await tab.locator('#form input[name=key]').fill('frugal');
+    await tab.locator('#form input[name=name]').fill('Frugal');
+    await tab.locator('#form input[name=cost]').fill('1');
+    await tab.locator('#form [data-name=excludes] input[value=spendthrift]').check();
+    await tab.getByRole('button', { name: 'Add an effect' }).click();
+    await tab.locator('#effects .effect select[name=kind]').selectOption('upkeepFactor');
+    await tab.locator('#effects [data-field=factor] input').fill('0.95');
+    await tab.getByRole('button', { name: 'Save as pending' }).click();
+    await tab.locator('tr[data-key=frugal]').waitFor();
+    expect(await tab.locator('tr[data-key=frugal]').innerText()).toContain('Upkeep × 0.95');
+    expect(await tab.locator('tr[data-key=spendthrift] td').nth(4).innerText()).toContain('frugal');
+    expect(await tab.locator('#message').innerText()).toBe('Added frugal, pending.');
+
+    // The Change form, saved.
+    await tab.locator('tr[data-key=lame] button[data-action=change]').click();
+    await tab.locator('#form input[name=name]').fill('Limping');
+    await tab.getByRole('button', { name: 'Save as pending' }).click();
+    await tab.locator('tr[data-key=lame]', { hasText: 'Limping' }).waitFor();
+    expect(await tab.locator('tr[data-key=lame]').innerText()).toContain('Changed, pending');
+    expect(await tab.locator('#pending').innerText()).toBe('2 pending edits');
+
+    // An unused Trait removed: taken out of spendthrift's excludes, and its add gone with it.
+    await tab.locator('tr[data-key=frugal] button[data-action=remove]').click();
+    await tab.locator('#message', { hasText: 'Removed frugal, pending.' }).waitFor();
+    expect(await tab.locator('#message li').allInnerTexts()).toEqual(['Taken out of guildmaster-traits.json: spendthrift.excludes.2']);
+    expect(await tab.locator('tr[data-key=frugal]').count()).toBe(0);
+    expect(await tab.locator('tr[data-key=spendthrift] td').nth(4).innerText()).not.toContain('frugal');
+    expect(await tab.locator('#pending').innerText()).toBe('1 pending edit');
+
+    // The doctor, then Discard.
+    await tab.getByRole('button', { name: 'Doctor' }).click();
+    await tab.locator('#message', { hasText: 'The doctor finds nothing wrong' }).waitFor();
+    await tab.getByRole('button', { name: 'Discard the pending edits' }).click();
+    await tab.locator('#message', { hasText: 'Discarded 1 pending edit.' }).waitFor();
+    expect(await tab.locator('#pending').innerText()).toBe('No pending edits');
+    expect(await tab.locator('tr[data-key=lame] td').nth(1).innerText()).toBe('Lame');
+    expect(await tab.locator('#discard').isDisabled()).toBe(true);
+  });
+
+  test('shows a failed "Finish" put back, and tells a "Finish" running elsewhere from a use or a failure (v1.1.4-S14)', async () => {
+    const { runner, release } = heldRunner();
+    const { dir, tab, api } = await opened(runner);
+    await api('PUT', '/api/traits/thrifty', { cost: 3 });
+    await tab.reload();
+    await tab.locator('#pending', { hasText: '1 pending edit' }).waitFor();
+
+    // A test fails: every file put back, the edit still pending, the failures shown.
+    await tab.getByRole('button', { name: 'Finish' }).click();
+    await tab.locator('#finish-state', { hasText: 'The tests are running' }).waitFor();
+    release(false);
+    await tab.locator('#finish-state', { hasText: 'Not finished: every file is put back, and the edits stay pending.' }).waitFor();
+    expect(await tab.locator('#message li').allInnerTexts()).toEqual(['× held']);
+    expect(status(dir)).toBe('');
+    await tab.locator('#finish:not([disabled])').waitFor();
+    expect(await tab.locator('#pending').innerText()).toBe('1 pending edit');
+
+    // Another "Finish", as a command line's, holds the lock: a removal and a Finish are refused as busy.
+    const other = heldRunner();
+    const finishing = new Editor(dir).finish(other.runner).catch((error: unknown) => error);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await tab.locator('tr[data-key=lame] button[data-action=remove]').click();
+    await tab.locator('#message', { hasText: 'Not removed: "Finish" is running' }).waitFor();
+    expect(await tab.locator('#message').innerText()).not.toContain('is used');
+    await tab.getByRole('button', { name: 'Finish' }).click();
+    await tab.locator('#finish-state', { hasText: 'Not started: another "Finish" is running.' }).waitFor();
+    expect(await tab.locator('#message').innerText()).not.toContain('every file is put back');
+    other.release(false);
+    await finishing;
+    expect(status(dir)).toBe('');
+  });
+
+  test('shows the tables, adds through the form, names the uses of a refused removal, and finishes', async () => {
+    const { runner, release } = heldRunner();
+    const { dir, tab } = await opened(runner);
 
     await tab.getByRole('button', { name: 'Add a Hero Trait' }).click();
     await tab.locator('#form input[name=key]').fill('brave');

@@ -6,6 +6,12 @@
 // process is gone is a Finish cut off, by a crash or a kill, with content written and untested: the
 // next command restores every file from it before it does anything (`recover`), and says so. Ctrl+C
 // and SIGTERM put the files back at once (`onSignals`).
+//
+// A process number is given again (Windows does so soon): a journal whose number an unrelated
+// process now holds reads as a "Finish" running, for ever. The busy refusal names the journal's
+// process and when it began, and `traits recover --force` puts its files back whatever its number
+// says (v1.1.4-S14). A "Finish" whose files could not all be put back keeps its journal, and lets
+// only its own lock go, so the next command tries again (`releaseJournal`).
 
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -30,6 +36,24 @@ export class Busy extends Error {
 }
 
 export const busyMessage = '"Finish" is running: nothing is changed or read until its tests end, and the page\'s forms wait for it';
+
+/** The busy refusal's problems: what runs, and, where the journal names it, the way out for a number given again (v1.1.4-S14). */
+export function busyProblems(root: string): string[] {
+  let journal: Journal | null = null;
+  try {
+    journal = readJournal(root);
+  } catch {
+    // Unreadable: the refusal says what it can.
+  }
+  return [
+    busyMessage,
+    ...(journal === null
+      ? []
+      : [
+          `Its journal, .editor/finish.json, names process ${journal.pid}, begun ${journal.startedAt}. Where no "Finish" runs now (no editor command, no page), another process holds that number: \`npm run edit -- traits recover --force\` puts its files back.`,
+        ]),
+  ];
+}
 
 /** The journal's path under a root. */
 export function journalPath(root: string): string {
@@ -81,6 +105,16 @@ export function journalState(root: string): 'none' | 'live' | 'cut-off' {
 export function beginJournal(root: string, journal: Omit<Journal, 'pid' | 'startedAt'>): void {
   finishing.add(same(root));
   writeAtomically(journalPath(root), `${JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), ...journal } satisfies Journal)}\n`);
+}
+
+/** Lets this process's lock go and keeps the journal, for the next command to put its files back (v1.1.4-S14). */
+export function releaseJournal(root: string): void {
+  finishing.delete(same(root));
+}
+
+/** Whether this process is finishing at a root. */
+export function finishingHere(root: string): boolean {
+  return finishing.has(same(root));
 }
 
 /** Removes the journal and lets the lock go. */

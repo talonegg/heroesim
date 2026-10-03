@@ -17,9 +17,9 @@
 
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import type { ContentJson } from '@heroesim/content/uses';
-import { raiseContentVersion, readContentVersion, textChecks, transaction, Undone, versionFiles } from '@heroesim/portraits';
+import { NotUndone, raiseContentVersion, readContentVersion, textChecks, transaction, Undone, versionFiles } from '@heroesim/portraits';
 import { changedTexts, contentPath, readContentFiles, textsWith } from './content-files.js';
-import { beginJournal, Busy, busyMessage, endJournal, journalState, restoreJournal, writeAtomically } from './finish-journal.js';
+import { beginJournal, Busy, busyProblems, endJournal, finishingHere, journalState, releaseJournal, restoreJournal, writeAtomically } from './finish-journal.js';
 import type { Kind, Row, Rule, Use } from './kind.js';
 import { traitsKind } from './traits-kind.js';
 import { npmTest, type TestResult, type TestRunner } from './tests-run.js';
@@ -118,14 +118,25 @@ export class Editor {
   /** Refuses while "Finish" runs; puts back the files of one cut off. Every call begins here. */
   #guard(): void {
     const state = journalState(this.root);
-    if (state === 'live') throw new Busy([busyMessage]);
+    if (state === 'live') throw new Busy(busyProblems(this.root));
     if (state === 'cut-off') this.recovered = [...this.recovered, ...restoreJournal(this.root)];
   }
 
-  /** Puts back the files of a "Finish" cut off; none where there is none. Refused while one runs. */
-  recover(): string[] {
-    this.#guard();
+  /**
+   * Puts back the files of a "Finish" cut off; none where there is none. Refused while one runs; with
+   * `force`, the journal is taken as cut off whatever its process number says, since another process
+   * may hold that number now (v1.1.4-S14). Never while this process itself finishes.
+   */
+  recover(options: { force?: boolean } = {}): string[] {
+    if (options.force === true && !finishingHere(this.root)) this.recovered = [...this.recovered, ...restoreJournal(this.root)];
+    else this.#guard();
     return this.recovered;
+  }
+
+  /** The pending edits, after the lock's guard: what `pending` shows (v1.1.4-S14). */
+  pending(): Edit[] {
+    this.#guard();
+    return this.edits();
   }
 
   // ── The pending edits ─────────────────────────────────────────────────────────────────────
@@ -455,9 +466,14 @@ export class Editor {
       });
       // Only the edits it read: none can be made while it runs, but any after them stay.
       this.#save(this.edits().slice(edits.length));
-      return finished;
-    } finally {
       endJournal(this.root);
+      return finished;
+    } catch (error) {
+      // A file not put back keeps the journal, the only copy of its bytes before: this process lets
+      // its lock go, and the next command puts the files back from it (v1.1.4-S14).
+      if (error instanceof NotUndone) releaseJournal(this.root);
+      else endJournal(this.root);
+      throw error;
     }
   }
 }

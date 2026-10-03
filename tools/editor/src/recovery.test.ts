@@ -1,11 +1,11 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { readContentVersion } from '@heroesim/portraits';
+import { NotUndone, readContentVersion } from '@heroesim/portraits';
 import { afterEach, describe, expect, test } from 'vitest';
 import { Editor } from './editor.js';
-import { journalPath, journalState, onSignals } from './finish-journal.js';
+import { journalPath, journalState, onSignals, writeAtomically } from './finish-journal.js';
 import { json, plantOutcome, root, scratchRepository, status } from './test-support.js';
 import type { TestRunner } from './tests-run.js';
 
@@ -21,6 +21,15 @@ function scratch(): string {
   const { dir, remove } = scratchRepository();
   scratches.push(remove);
   return dir;
+}
+
+/** A process number no process holds. */
+const gonePid = 2 ** 22 + 7;
+
+/** A journal left by the process `pid`, holding `file`'s bytes now; the file then written over. */
+function plantJournal(dir: string, pid: number, file: string): void {
+  writeAtomically(journalPath(dir), JSON.stringify({ pid, startedAt: '2026-10-03T00:00:00Z', contentVersion: 24, edits: 1, files: { [file]: readFileSync(file).toString('base64') } }));
+  writeFileSync(file, '{}\n');
 }
 
 async function until(test: () => boolean, what: string, ms = 60_000): Promise<void> {
@@ -80,19 +89,89 @@ describe('a "Finish" cut off', () => {
 
   test('the doctor and recover put the files back too, and say so', async () => {
     const dir = scratch();
-    const { writeFileSync } = await import('node:fs');
     const file = path.join(dir, 'content', 'hero-traits.json');
-    const { readFileSync } = await import('node:fs');
     const before = readFileSync(file);
     // A journal a process long gone left, its file since written over.
-    const { writeAtomically } = await import('./finish-journal.js');
-    writeAtomically(journalPath(dir), JSON.stringify({ pid: 2 ** 22 + 7, startedAt: '2026-10-03T00:00:00Z', contentVersion: 24, edits: 1, files: { [file]: before.toString('base64') } }));
-    writeFileSync(file, '{}\n');
-
+    plantJournal(dir, gonePid, file);
     const report = await json<{ finish: { recovered: string[] }; recovered: string[] }>(dir, 'traits', 'doctor');
     expect(report.json.finish.recovered).toEqual([file]);
     expect(readFileSync(file)).toEqual(before);
     expect(status(dir)).toBe('');
+
+    // And `recover` alone (v1.1.4-S14: it ran only on a clean state before).
+    plantJournal(dir, gonePid, file);
+    const recovered = await json(dir, 'traits', 'recover');
+    expect(recovered).toEqual({ code: 0, json: { ok: true, recovered: [file] } });
+    expect(readFileSync(file)).toEqual(before);
+    expect(status(dir)).toBe('');
+  });
+
+  test('pending and doc put back a "Finish" cut off first, and say so (v1.1.4-S14)', async () => {
+    const dir = scratch();
+    const file = path.join(dir, 'content', 'hero-traits.json');
+    const before = readFileSync(file);
+    plantJournal(dir, gonePid, file);
+    expect(await json(dir, 'traits', 'pending')).toEqual({ code: 0, json: { edits: [], recovered: [file] } });
+    expect(readFileSync(file)).toEqual(before);
+    plantJournal(dir, gonePid, file);
+    expect((await json<{ recovered: string[] }>(dir, 'traits', 'doc')).json.recovered).toEqual([file]);
+    expect(readFileSync(file)).toEqual(before);
+    expect(status(dir)).toBe('');
+  });
+
+  test('a journal whose process number another process now holds reads as running: recover refuses, and recover --force puts the files back (v1.1.4-S14)', async () => {
+    const dir = scratch();
+    const file = path.join(dir, 'content', 'hero-traits.json');
+    const before = readFileSync(file);
+    // Windows gives a number again: the journal's is now this test's parent's, which runs.
+    plantJournal(dir, process.ppid, file);
+    expect(journalState(dir)).toBe('live');
+
+    const refused = await json<{ kind: string; problems: string[] }>(dir, 'traits', 'recover');
+    expect(refused.code).toBe(1);
+    expect(refused.json.kind).toBe('busy');
+    expect(refused.json.problems.join('\n')).toContain('traits recover --force');
+    expect(readFileSync(file, 'utf8')).toBe('{}\n');
+
+    // --force is recover's alone.
+    expect((await json(dir, 'traits', 'pending', '--force')).json).toMatchObject({ ok: false, kind: 'usage' });
+
+    const forced = await json(dir, 'traits', 'recover', '--force');
+    expect(forced).toEqual({ code: 0, json: { ok: true, recovered: [file] } });
+    expect(readFileSync(file)).toEqual(before);
+    expect(journalState(dir)).toBe('none');
+    expect(status(dir)).toBe('');
+    // With no journal, --force puts back nothing.
+    expect((await json(dir, 'traits', 'recover', '--force')).json).toEqual({ ok: true, recovered: [] });
+  });
+
+  test('a "Finish" whose files cannot all be put back keeps its journal, and the next command puts them back (v1.1.4-S14)', async () => {
+    const dir = scratch();
+    await json(dir, 'traits', 'change', 'thrifty', '--cost', '3');
+    const file = path.join(dir, 'content', 'guildmaster-traits.json');
+    // The tests fail, and leave a folder where a file was written: it cannot be put back.
+    const runner: TestRunner = () => {
+      rmSync(file);
+      mkdirSync(file);
+      return Promise.resolve({ ok: false, exitCode: 1, failures: ['× planted'], tail: [] });
+    };
+    const failed = await new Editor(dir).finish(runner).catch((error: unknown) => error);
+    expect(failed).toBeInstanceOf(NotUndone);
+    expect(existsSync(journalPath(dir))).toBe(true);
+    // Its process no longer finishes: the next command takes it as cut off.
+    expect(journalState(dir)).toBe('cut-off');
+
+    rmSync(file, { recursive: true });
+    const pending = await json<{ edits: unknown[]; recovered: string[] }>(dir, 'traits', 'pending');
+    expect(pending.code).toBe(0);
+    expect(pending.json.edits).toHaveLength(1);
+    expect(pending.json.recovered.map((each) => path.relative(dir, each).replace(/\\/g, '/')).sort()).toEqual([
+      'content/guildmaster-traits.json',
+      'content/src/content.test.ts',
+      'content/src/parse.ts',
+    ]);
+    expect(status(dir)).toBe('');
+    expect(existsSync(journalPath(dir))).toBe(false);
   });
 
   test('Ctrl+C or SIGTERM puts back every file of a running "Finish" before the process ends', async () => {

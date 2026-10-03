@@ -40,8 +40,15 @@ async function call(method, url, body) {
 function say(text, tone = '', items = []) {
   const message = $('message');
   message.className = tone;
-  message.replaceChildren(element('p', { text }), items.length > 0 ? element('ul', {}, items.map((item) => element('li', { text: item }))) : null);
+  // replaceChildren writes a null as the text "null" (v1.1.4-S14).
+  message.replaceChildren(element('p', { text }), ...(items.length > 0 ? [element('ul', {}, items.map((item) => element('li', { text: item })))] : []));
 }
+
+/**
+ * The words for a refusal because "Finish" runs, from a command line or another page, told apart by
+ * the body's kind (v1.1.4-S14) from a removal refused by its uses and a Finish put back.
+ */
+const busyWords = '"Finish" is running, from a command line or another page; try again when it ends.';
 
 function take(json) {
   if (json.rows !== undefined) data = { forms: json.forms, rows: json.rows, pending: json.pending };
@@ -156,8 +163,9 @@ async function remove(key) {
   if (!window.confirm(`Remove the Trait ${key}? It stays pending until "Finish".`)) return;
   const { status, json } = await call('DELETE', `/api/traits/${encodeURIComponent(key)}`);
   if (json.ok === false) {
+    if (json.kind === 'busy') return say(`Not removed: ${busyWords}`, 'bad', json.problems);
     const uses = (json.uses ?? []).map((use) => use.at);
-    say(status === 409 ? `Not removed: ${key} is used. Change each use first.` : `Not removed: ${key}.`, 'bad', uses.length > 0 ? uses : json.problems);
+    say(status === 409 && uses.length > 0 ? `Not removed: ${key} is used. Change each use first.` : `Not removed: ${key}.`, 'bad', uses.length > 0 ? uses : json.problems);
     return;
   }
   const stripped = json.removed.stripped.map((use) => `Taken out of ${use.at}`);
@@ -168,7 +176,7 @@ async function remove(key) {
 async function discard() {
   if (!window.confirm('Discard every pending edit?')) return;
   const { json } = await call('POST', '/api/discard', {});
-  say(json.ok === false ? 'Not discarded.' : `Discarded ${json.discarded.discarded} pending ${json.discarded.discarded === 1 ? 'edit' : 'edits'}.`, json.ok === false ? 'bad' : 'good', json.problems ?? []);
+  say(json.ok === false ? (json.kind === 'busy' ? `Not discarded: ${busyWords}` : 'Not discarded.') : `Discarded ${json.discarded.discarded} pending ${json.discarded.discarded === 1 ? 'edit' : 'edits'}.`, json.ok === false ? 'bad' : 'good', json.problems ?? []);
   take(json);
 }
 
@@ -322,7 +330,7 @@ async function save(event) {
   const key = $('form').querySelector('input[name=key]').value.trim();
   const { json } = editing === null ? await call('POST', '/api/traits', { list, key, ...values }) : await call('PUT', `/api/traits/${encodeURIComponent(key)}`, values);
   if (json.ok === false) {
-    $('form-problems').replaceChildren(element('p', { text: 'Not saved:' }), element('ul', {}, json.problems.map((problem) => element('li', { text: problem }))));
+    $('form-problems').replaceChildren(element('p', { text: json.kind === 'busy' ? `Not saved: ${busyWords}` : 'Not saved:' }), element('ul', {}, json.problems.map((problem) => element('li', { text: problem }))));
     return;
   }
   $('form-dialog').close();
@@ -357,13 +365,20 @@ async function follow() {
       $('finish-state').textContent = 'Finished: the tests passed.';
       say(`Finished: ${state.result.changed.join(', ') || 'nothing'} written${version === null ? '' : `, content version ${version.from} → ${version.to}`}. Nothing is committed: read git diff, and commit it yourself.`, 'good');
     } else {
-      $('finish-state').textContent = 'Not finished: every file is put back, and the edits stay pending.';
-      say('Not finished: every file is put back, and the edits stay pending. The failures:', 'bad', state.problems);
+      // Told apart by its kind (v1.1.4-S14): refused while another runs, nothing written; or not all put back.
+      const [line, message] =
+        state.kind === 'busy'
+          ? ['Not started: another "Finish" is running. Nothing is written, and the edits stay pending.', `Not started: ${busyWords}`]
+          : state.kind === 'refused'
+            ? ['Not started: the pending edits fail the content\'s checks. Nothing is written.', 'Not started: the pending edits fail the content\'s checks:']
+            : state.kind === 'not-undone'
+              ? ['Not finished, and some files could not be put back: the next command or call puts them back from the journal.', 'Not finished, and these could not be put back:']
+              : ['Not finished: every file is put back, and the edits stay pending.', 'Not finished: every file is put back, and the edits stay pending. The failures:'];
+      $('finish-state').textContent = line;
+      say(message, 'bad', state.problems);
     }
     busy = false;
     await load();
-// A page opened while "Finish" runs follows it.
-if ((await call('GET', '/api/finish')).json.state === 'running') await follow();
   };
   await poll();
 }

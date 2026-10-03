@@ -2,8 +2,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { drift } from './drift.js';
-import { readsIn, scannedFiles } from './reads.js';
+import { readContentFiles } from './content-files.js';
+import { readsIn, scannedEffectKinds, scannedFiles } from './reads.js';
 import { root, scratchRepository } from './test-support.js';
+import { traitsKind } from './traits-kind.js';
 
 // The drift test (v1.1.4-S12, DL-150 item 14): the engine and the content's checks read a Trait only
 // where the register lists, and the register lists no place that reads none. It runs on this
@@ -24,6 +26,12 @@ describe('the drift test', () => {
     const report = drift(root);
     expect(report.problems).toEqual([]);
     expect(report.reads).toBeGreaterThan(50);
+  });
+
+  test("reads every effect kind of the engine's, as the editor's forms offer them (v1.1.4-S14)", () => {
+    // The forms are keyed by the engine's unions, so a kind added there is a form here, and a read here.
+    const offered = traitsKind.forms(readContentFiles(root).values).flatMap((form) => form.effects.map((effect) => effect.kind));
+    expect([...scannedEffectKinds].sort()).toEqual(offered.sort());
   });
 
   test('reads the engine and the content checks, tests left out', () => {

@@ -80,8 +80,8 @@ A value is read as JSON where it is JSON (`chance=0.05`) and as text where it is
 JSON in it (`among`), or a sentence, goes in a file in the session's scratchpad as one JSON object,
 passed with `--target @<file>`, so no shell strips its quotes.
 
-- **Exit 0.** `added` names the new use's `at` (none where the place held it already, as a key's list
-  of Biography sentences does); `uses` lists every use now.
+- **Exit 0.** `added` names the new use's `at`, always one: a use the place holds already is refused,
+  naming it; `uses` lists every use now.
 - **Exit 1, `refused`.** Nothing is held. A field the entry lacks, a Trait of the other list, a place
   that is not there, a sentence the content's checks refuse: fix what each problem names and run it
   again.

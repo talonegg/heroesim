@@ -19,16 +19,31 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { traitHelpers, type SourcePlace } from '@heroesim/content/uses';
+import type { GuildmasterTraitEffectKind, HeroTraitEffectKind } from '@heroesim/engine';
 import ts from 'typescript';
 
 /** The properties whose read is a read of a Trait. */
 const traitProperties = new Set(['guildmasterTraits', 'heroTraits', 'traits', 'leavesTrait']);
+/**
+ * Every effect kind of both lists, held to the engine's unions (v1.1.4-S14): a kind added there and
+ * not here fails to compile. `plain` where no other field shares its name, so that one of them as an
+ * object's key is a read; `shared` where one does (Gear's `statModifiers`).
+ */
+const effectKindNames = {
+  classStatBonus: 'plain',
+  guildMoraleShift: 'plain',
+  upkeepFactor: 'plain',
+  encounterBonus: 'plain',
+  statModifiers: 'shared',
+} as const satisfies Record<GuildmasterTraitEffectKind | HeroTraitEffectKind, 'plain' | 'shared'>;
+/** The effect kinds the scanner reads, for a test to hold to the editor's forms. */
+export const scannedEffectKinds: ReadonlySet<string> = new Set(Object.keys(effectKindNames));
 /** The kinds that are a read of a Trait where a kind is compared, chosen or listed: the effect kinds, and the earned Trait's consequence. */
-const traitKinds = new Set(['classStatBonus', 'guildMoraleShift', 'upkeepFactor', 'statModifiers', 'encounterBonus', 'trait']);
+const traitKinds = new Set([...scannedEffectKinds, 'trait']);
 /** The effect kinds no other field shares: one of them as an object's key is a read. */
-const plainEffectKinds = new Set(['classStatBonus', 'guildMoraleShift', 'upkeepFactor', 'encounterBonus']);
+const plainEffectKinds = new Set(Object.entries(effectKindNames).flatMap(([kind, shared]) => (shared === 'plain' ? [kind] : [])));
 /** The effect kinds as an object's keys: two of them are a read. */
-const effectKinds = new Set([...plainEffectKinds, 'statModifiers']);
+const effectKinds = scannedEffectKinds;
 
 /** Where the drift test looks, under a repository's root. */
 export const scannedPlaces = ['engine/src', 'content/src/validate.ts'] as const;

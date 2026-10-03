@@ -38,7 +38,9 @@ export const usage = `Usage: npm run edit -- [traits <command>] [--root <dir>] [
   traits finish                   Write the pending edits, raise the content version, run npm test;
                                   every file is put back if a test fails
   traits doctor                   The drift and freshness checks, the content's checks
-  traits recover                  Put back the files of a "Finish" cut off (every command does first)
+  traits recover [--force]        Put back the files of a "Finish" cut off (every command does first);
+                                  --force where no "Finish" runs but its journal's process number is
+                                  held by another process
   traits doc                      Write docs/agents/traits.md's register part from the register
 
 A skill runs them as \`npm run --silent edit -- traits <command> --json\`, so that stdout is the JSON alone.
@@ -63,6 +65,8 @@ export interface Parsed {
   command: string;
   args: string[];
   json: boolean;
+  /** `recover --force` (v1.1.4-S14). */
+  force: boolean;
   root: string;
   port: number;
   fields: Record<string, unknown>;
@@ -80,7 +84,7 @@ function parseJson(flag: string, text: string): unknown {
 }
 
 export function parse(argv: readonly string[]): Parsed {
-  const parsed: Parsed = { kind: '', command: '', args: [], json: false, root: repositoryRoot, port: 4180, fields: {}, target: {} };
+  const parsed: Parsed = { kind: '', command: '', args: [], json: false, force: false, root: repositoryRoot, port: 4180, fields: {}, target: {} };
   const value = (flag: string, index: number): string => {
     const next = argv[index + 1];
     if (next === undefined || next.startsWith('--')) throw new UsageError(`${flag} wants a value`);
@@ -91,6 +95,7 @@ export function parse(argv: readonly string[]): Parsed {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index] ?? '';
     if (arg === '--json') parsed.json = true;
+    else if (arg === '--force') parsed.force = true;
     else if (arg === '--root') parsed.root = path.resolve(value(arg, index++));
     else if (arg === '--port') {
       parsed.port = Number(value(arg, index++));
@@ -121,6 +126,7 @@ export function parse(argv: readonly string[]): Parsed {
     else parsed.args.push(arg);
   }
   parsed.fields = { ...row, ...flags };
+  if (parsed.force && parsed.command !== 'recover') throw new UsageError('--force is traits recover\'s alone');
   if (!existsSync(parsed.root)) throw new UsageError(`--root ${parsed.root} does not exist`);
   // "Finish" runs `npm test` in the root, which would climb to a package.json above one without its own.
   if (!existsSync(path.join(parsed.root, 'package.json'))) throw new UsageError(`--root ${parsed.root} holds no package.json: it is not a copy of the repository`);
@@ -219,7 +225,8 @@ async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Pr
       return {
         code: 0,
         json: { ok: true, ...assigned, pending: editor.edits().length },
-        text: [`Assigned, pending: ${key} in ${entry}`, ...(assigned.added.length === 0 ? ['  At a place it was used already'] : assigned.added.map((use) => `  Now used at ${use.at}`))],
+        // Every add refuses a use already there (the verification of DL-163), so each names its use (v1.1.4-S14).
+        text: [`Assigned, pending: ${key} in ${entry}`, ...assigned.added.map((use) => `  Now used at ${use.at}`)],
       };
     }
     case 'unassign': {
@@ -235,7 +242,8 @@ async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Pr
       };
     }
     case 'pending': {
-      const edits = editor.edits();
+      // Guarded as every command is (v1.1.4-S14).
+      const edits = editor.pending();
       return {
         code: 0,
         json: { edits },
@@ -264,7 +272,7 @@ async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Pr
       return { code: report.ok ? 0 : 1, json: report, text: doctorText(report) };
     }
     case 'recover': {
-      const recovered = editor.recover();
+      const recovered = editor.recover({ force: options.force });
       return {
         code: 0,
         json: { ok: true, recovered },
@@ -272,6 +280,8 @@ async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Pr
       };
     }
     case 'doc': {
+      // Guarded as every command is (v1.1.4-S14): refused while "Finish" runs, and one cut off put back first.
+      editor.recover();
       const written = writeTraitsDoc(options.root);
       return { code: 0, json: { ok: true, ...written }, text: [written.changed ? `Wrote ${written.file}` : `${written.file} is fresh already`] };
     }

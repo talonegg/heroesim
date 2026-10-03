@@ -6,7 +6,9 @@ description: Finds a Guildmaster or Hero Trait by name, effect or use, the conte
 # Trait find
 
 Answers a question about Traits from the editor's own commands and the register: which Trait, what
-it does, where its key stands in content, and which rules read it. It changes no file.
+it does, where its key stands in content, and which rules read it. It changes no file: on drift it
+stops and names it (step 1). The one write its commands may make is the editor's own, putting back
+a "Finish" cut off, which the command reports as `recovered`; tell the owner when one does.
 
 Read `docs/agents/traits.md` first: its guardrails bind every step, and its register part says what
 each use and each rule is.
@@ -21,14 +23,15 @@ npm run --silent edit -- traits doctor --json
 ```
 
 - **`"ok": true`**: go on.
-- **Drift or a stale doc**: the answer would rest on a register that no longer matches the code. Say
-  so, and follow the guardrails' "When the doctor reports drift": update the register
-  (`content/src/uses/register.ts`), regenerate the doc (`npm run edit -- traits doc`), run the doctor
-  again, and include both in the session's change. Then go on.
+- **Drift or a stale doc**: the answer would rest on a register that no longer matches the code. This
+  skill changes nothing, so stop: name each problem the doctor gives (its file, line and declaration)
+  to the owner, and say that the fix is the guardrails' "When the doctor reports drift", a change of
+  the register and the doc made apart from this search. Answer only once the doctor passes, or with
+  the owner's word that an answer from the register as it stands will do, saying so.
 - **Pending edits** (`pending.edits` above 0): someone's session is under way. Answer from the
   content with them made, as every command reads it, and say they are pending.
 
-Done when: the doctor passes, or what it reports is fixed or named to the owner.
+Done when: the doctor passes, or what it reports is named to the owner.
 
 ## 2. The search
 

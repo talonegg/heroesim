@@ -55,7 +55,7 @@ checks and names their problems.
 | `traits discard [<key>]` | Drops one Trait's pending edits, or all |
 | `traits finish` | Writes the pending edits, raises the content version, runs `npm test` |
 | `traits doctor` | The drift and freshness checks, the content's checks, and whether the pending edits apply |
-| `traits recover` | Puts back the files of a "Finish" cut off; every command does it first |
+| `traits recover [--force]` | Puts back the files of a "Finish" cut off; every command does it first. `--force` takes the journal as cut off whatever its process says (see Finish) |
 | `traits doc` | Writes `docs/agents/traits.md`'s register part from the register |
 
 `add` and `change` take the fields as flags: `--name <text>`, `--cost <n>` (a Guildmaster Trait's),
@@ -125,20 +125,33 @@ scratch copy rather than the whole suite inside itself.
 
 - **Its journal is a lock.** Before it writes a file it writes `.editor/finish.json`, whole or not at
   all: the bytes of every file it will write, the content version and its process. While that process
-  runs, every command and every call of the page's API is refused as `busy`, and the page's controls
-  wait. The journal goes when "Finish" ends, passed or put back.
+  runs, every command is refused as `busy`, the doctor saying so in its report, and so is every call
+  of the page's API but the two that report, `GET /api/finish` and `GET /api/doctor`; the page's
+  controls wait, and a "Finish" started from the page fails as `busy`, nothing written. The journal
+  goes when "Finish" ends, passed or put back.
 - **Cut off,** by a crash or a kill, it leaves the content written and untested, and its journal. The
   next command, whichever it is, the doctor included, first puts every file back from the journal and
   says so (`recovered`); `traits recover` does only that. Ctrl+C and SIGTERM put the files back at
   once, before the process ends.
+- **A process number given again** (v1.1.4-S14): Windows soon gives a number to another process, and
+  a journal whose number an unrelated process holds reads as a "Finish" running, every command
+  refused as `busy`, `recover` too. The refusal names the journal's process and when it began. Where
+  no "Finish" runs (no editor command, no page), `traits recover --force` puts its files back whatever
+  its number says; never while one does, which would put its content back under it.
+- **A file not put back** (`not-undone`), by a "Finish" whose tests failed, keeps its journal, the
+  only copy of the bytes before: the next command, or `traits recover`, tries again.
 
 ## The page
 
 `npm run edit` serves `page/` from the repository on 127.0.0.1, at desktop widths, through a small
 JSON API (`src/server.ts`) over the same core as the commands. A table of each list shows each
 Trait's effects, excludes, cost, uses and the rules that read it; forms add and change a Trait, the
-effects offered from its list's kinds and its key fixed once made; Remove names every use when it is
-refused; "Finish" shows the test run's lines and its result, every control waiting while it runs.
+effects offered from its list's kinds and its key fixed once made; Find hides the rows that do not
+hold its text; Remove names every use when it is refused; Discard and Doctor do as the commands do;
+"Finish" shows the test run's lines and its result, every control waiting while it runs. A call
+refused because a "Finish" runs elsewhere, from a command line or another page, says so, apart from a
+removal refused by its uses and a "Finish" put back (v1.1.4-S14). `assign` and `unassign` are the
+commands' alone (DL-163 item 6): the page has no control for them.
 
 Only its own page may call the API: a request whose Host is not `127.0.0.1:<port>` or
 `localhost:<port>` (a name rebound to this machine) or whose Origin is another page's is refused
@@ -154,12 +167,15 @@ site's form can send without asking first.
   left out, with TypeScript's parser (`src/reads.ts`), a call of one of the register's Trait helpers
   counting as a read, and fails on a read of a Trait in a
   declaration the register does not list, on a listed declaration that reads none, and on a
-  declaration the register runs through that is gone.
+  declaration the register runs through that is gone. The effect kinds it reads are held to the
+  engine's unions: a kind added there and not to the scanner fails to compile, and the test holds
+  them to the forms' (v1.1.4-S14).
 - **The freshness test** (`src/freshness.test.ts`) fails when `docs/agents/traits.md`'s register
   part is not what the register makes now; `traits doc` writes it.
 
 ## Tests
 
 `npm test` runs them with the rest, each on a scratch copy of the repository made a git repository,
-so that `git status` shows what each command left behind. The page's one pass in Chromium, through
-the Playwright the page's specs install, is skipped where Chromium is not installed.
+so that `git status` shows what each command left behind. The page's passes in Chromium, each of its
+controls driven (v1.1.4-S14), through the Playwright the page's specs install, are skipped where
+Chromium is not installed.
