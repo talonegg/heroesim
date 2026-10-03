@@ -21315,10 +21315,57 @@ does not run the probe and passes. The owner's choices, none of them taken:
 S10 runs the probe again at the close, after S4 and S5 change harm and the content; whatever the owner
 decides is in place before then.
 
+**The verification** (a second Opus agent, at `fbf1102`). The code is sound and the gap is real; the
+owner's question stands as the builder put it.
+- *No one falls, unchanged.* `harmless` is now `without` Injuries, Deaths and Morale, the same filter
+  as before, and the report's first section equals v1.1.4's close (`m9-estimate-2026-10-03.md`) to
+  the digit, as recorded above.
+- *Morale in differs from the game only by harm.* `measure` runs the engine's own `resolveQuest` on
+  the same world (the night home), the same Party and the same seeds, under `drawn`'s deps with the
+  core's Encounters replaced by `unhurt`'s; nothing else moves. In the resolver a Morale consequence
+  adds to each living Hero's `moraleByHero` (a loss steadied by their Stats) and draws nothing, and
+  the next Encounter's `queryParty` reads each Hero's form from their Morale on the Quest, as in play;
+  rerolls, Traits and Loot draw as in the first measure. `withMoraleOf` adds to each Degree's list as
+  `consequencesOf` reads it, a Triumph's from the Success's and a Setback's from the Failure's where
+  the Encounter has none of its own.
+- *The lent Morale* is the agent's addition, beyond the epic's words: an Encounter written for a
+  sample has no Morale consequence to leave in. It changes nothing in the verdict. Measured again
+  with the core's Morale only (the written Encounters as drawn), a scratch test over the same 200
+  samples × 20,000 seeds, alone, 223 s, not kept: Degrees 23.65 points widest, Success or better
+  4.64, the Quest's bands and success 1.48; 5 of 3,740 chances beyond 3 points (4 and 1), all five in
+  `estimate-0064`; mean gaps 0.147, 0.128, 0.117 and 0.149 points.
+- *`estimate-0064` traced* on the same seeds. One Hero at Morale 21, `low`. Encounters 1 and 2 are
+  written, lent a loss of 1 or 2 (steadied) on a Setback or a Failure; Encounter 3,
+  `the-last-assault`, estimated and resolved a Failure every time, carries the core's own loss of 3
+  (steadied), so the Hero meets Encounters 4 and 5 `wretched`, form 0.93 for 0.97, under either
+  measure of Morale. Encounter 4, `among-the-crowd`, at the default variance: Success or better
+  71.62% estimated, 71.56% with no one falling, 66.98% with Morale in; its Triumph 22.08%, 21.82%,
+  15.16%, a gap of 6.92 points on a shipped Encounter alone; its Failure 7.50%, 10.56%. Encounter 5,
+  written, one social Check at a variance of 0.088: Failure 40.76%, 40.52%, 64.42% and its Setback
+  59.24%, 35.59%, Success never. The lent and the core's Morale give the same rates to the digit
+  here. The 23.65 points owe their size to the probe's own Check of low variance (no shipped Check
+  sets one; all read `checkVariance` 0.4), but a shipped Encounter at the default variance after a
+  shipped Morale loss stands 6.92 points off, beyond 3 on its own.
+- *Tests.* Mutations, each put back: `moraleIn` returning the sample's deps unchanged fails three
+  tests; `unhurt` taking out Morale fails four. Two survived: `widest` reading the first measure
+  whatever it is asked, and the report's Morale section reading the first measure's rates, so the
+  Morale check could have read the no-one-falls gaps and passed. *Fixed* with a test of two made-up
+  samples, red under both mutations, that also holds the limit strict: a gap of exactly 2
+  or 3 points is counted beyond and read "beyond"; it fails with either mutation and with `>` for
+  `>=` in the count or `<=` for `<` in the widest line. The planted gap, again: 3.5 points on one
+  chance of `estimate-0005`, `HEROESIM_PROBE=estimate HEROESIM_SAMPLES=10`, failed "expected
+  0.0349989322432712 to be less than 0.03", the no-one-falls gap 0.77; put back, passing; neither
+  report kept. The limits are named, `estimateTolerance` and `estimateMoraleTolerance` in
+  `estimate.ts`, imported and asserted by the harness test with `toBeLessThan`.
+- *The rest.* The report's name: only `estimate.harness.test.ts` reads its new `milestone`, which
+  `reportPath` holds to `m<n>-...`; the other probes keep theirs. Every changed file keeps its line
+  endings (CRLF in the work tree, the report LF as written). Lint and typecheck pass; `npm test` 185
+  files, 4,791 tests, one more.
+
 **Actioned in:** `harness/src/estimate.ts` (`unhurt`, `moraleIn`, `estimateMoraleTolerance`, the
 second measure and the report), `estimate.test.ts`, `estimate.harness.test.ts` (the Morale check and
 HEROESIM_MILESTONE); `harness/reports/m9-v115-s7-estimate-2026-10-03.md`; the epic's S7 boxes and
-status.
+status; the verification, `estimate.test.ts`'s test of each measure's own gaps.
 
 ---
 
