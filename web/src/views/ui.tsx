@@ -71,12 +71,35 @@ export const regardTones: Readonly<Record<RegardBand, Tone>> = {
   close: 'good',
 };
 
-/** A short fact in a rounded frame, with an icon beside its words when it has one. */
-export function Chip({ tone = 'plain', icon, children, title }: { tone?: Tone; icon?: IconName; children: ReactNode; title?: string }) {
+/**
+ * A short fact in a rounded frame, with an icon beside its words when it has one. `spoken`, when
+ * given, is what a screen reader reads in place of the words shown, as the Board's "Away" is read
+ * with its Day (v1.1.5-S11, DL-169 item 2).
+ */
+export function Chip({
+  tone = 'plain',
+  icon,
+  children,
+  title,
+  spoken,
+}: {
+  tone?: Tone;
+  icon?: IconName;
+  children: ReactNode;
+  title?: string;
+  spoken?: string;
+}) {
   return (
     <span className={`chip chip--${tone}`} title={title}>
       {icon === undefined ? null : <Icon name={icon} />}
-      <span>{children}</span>
+      {spoken === undefined ? (
+        <span>{children}</span>
+      ) : (
+        <>
+          <span aria-hidden="true">{children}</span>
+          <span className="visually-hidden">{spoken}</span>
+        </>
+      )}
     </span>
   );
 }

@@ -20868,6 +20868,96 @@ S1, S2, S6 and S10 amended); `docs/planning/epics/README.md` (the register's row
 
 ---
 
+## DL-170 — v1.1.5-S11 built: the Board's Party builder lists the Heroes who can go first in the default order, the Away and the Injured below them the soonest free first, their chips reading "Away" and "Injured" with the full words as the tooltip and the screen reader's
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agents, building S11 as the epic's
+S11 bullets and DL-169 items 1 to 5 describe. The readings marked as the agent's are for the owner to
+change. Opus built it, test first; a second Opus agent verifies it.
+
+**Context.** DL-169 items 1 to 5: on the Board, the Heroes who cannot go, Away or Injured, are listed
+below those who can, the soonest free first, and their chips read just "Away" and "Injured"; the
+full words stay as the tooltip and for screen readers; the look, the disabled checkbox and "Open"
+stay. The default order (item 5), by Class, Level, Age and Name, is built here for the Board and
+reused by S12's Roster. At `9b87772` the builder's rows (`partyRows`) followed `guild.rosterIds`, the
+order the Heroes joined, and the chip held `unavailableUntil`'s words.
+
+**What was built.**
+
+1. **The default order** (item 5). `defaultHeroOrder(document)` in `web/src/state/selectors.ts`, a
+   comparator of two Heroes, exported for S12: Class in the content's order (`content/classes.json`'s
+   keys: Warrior, Rogue, Mage, Healer), Level highest first, Age youngest first, Name A–Z, then the
+   Hero's id, so that the order is total. It reads the world and changes nothing: `rosterIds` and the
+   save keep the order of joining (its test sorts the Roster and compares the document before and
+   after).
+2. **The builder's order** (items 1 and 4). `partyRows` sorts the Roster's Heroes by when they are
+   free, then the default order: those who can go first; then the Injured by their Injury's
+   `healsOnTurn` and the Away by their Party's `returnsOnTurn`, one scale, so an Away Hero back on
+   Turn 17 comes before an Injured one healed on Turn 20; then a Hero with no Day to read (a
+   `partyId` naming no Party). Ties at the same Turn go to the default order. The reason read is the
+   engine's `unavailability`, as the chip's: a Hero both injured and away is read by the Injury.
+3. **The chip** (item 2). `PartyRow` gains `chip`, "Away" or "Injured", made in the selector from
+   a word list with `capitalised()`, as `docs/agents/ui-text.md` says; `unavailable` keeps the full
+   words. The Board's chip shows `chip`; its `title` and its screen reader's words are `unavailable`.
+   `Chip` (`web/src/views/ui.tsx`) gains an optional `spoken`: the words shown are `aria-hidden` and
+   `spoken` is read in a `visually-hidden` span beside them. The chip's tone and icon are as before.
+4. **Unchanged** (item 3). The `party-row is-away` class and its faded look, the disabled checkbox,
+   "Open" and the Hero's page it opens, the preview's problem lines, the Roster's and a Hero's page's
+   words (`whereabouts` and `unavailableUntil` untouched). No file under `engine/src/` or `content/`
+   changed; no save field, configuration or browser key.
+
+**The tests.**
+- `selectors.test.ts`: four tests of the default order (by Class in the content's order; within a
+  Class Level, then Age, then Name, then the id; Age as the page reads it after years pass; total and
+  display only); and three of `partyRows`' order (those who can go in the default order, then Away on
+  Day 5 before Injured on Day 6; the unavailable by Turn with a tie at Turn 17 broken by Class, the
+  Away and Injured on one scale, and a Hero both injured and away read by the Injury; a Hero with no
+  Day to read last, and the Healer, raised to Level 3, still after the Mage).
+- `board.test.tsx`: the chips read "Away" and "Injured", the full words their `title` and their
+  `visually-hidden` words, the shown word `aria-hidden`; the Away row keeps `party-row is-away`, the
+  disabled box, and "Open" still opens the Hero's page; a new test of the order on the page (no
+  enabled row below a disabled one, the three unavailable in the order of their Turns, their chips,
+  the available by Class in the content's order).
+- *Updated for the order of joining:* `selectors.test.ts`' first two builder tests (the rows now
+  Liv, Cenric, Ragnvald, Bram by Class, and the unavailable last); `board.test.tsx`'s first two
+  builder tests, its Hero's page test (the second row's name read from the page), its Morale line
+  test and its chances test (the Heroes' rows found by name, not by place).
+- `capitals.test.tsx`: the guard already read the builder with an injured Hero and a Party out; it
+  now also asserts the "Injured" and "Away" chips are among what it read, and passes.
+- *The `e2e` specs* that take a row by place still hold, the available coming first:
+  `party-and-pool.spec.ts` ticks `.first()` row's box in a new game, where every Hero can go;
+  `layout.spec.ts` opens the `.first()` row's Hero's page, which any row allows; `support.ts`'s
+  `dispatchAParty` skips disabled rows.
+
+**Verification** (the builder's). `npm run lint` and `npm run typecheck` pass; `npm test` passes
+185 files and 4,753 tests (4,746 at `v1.1.4`, 7 added); `npm run e2e -w web` passes 97 specs;
+check-bundle passes, the script 801,082 bytes against 850 kB (800,111 before, 971 bytes added);
+`npm run edit -- traits doctor` reports no drift before and after. Each changed file keeps its CRLF
+endings.
+
+**The agent's readings,** for the owner to change.
+1. *Age* is the Age the page shows, whole years by `ageOf`: two Heroes of the same Age go to Name,
+   not to whichever was born later.
+2. *Name A–Z* compares by code unit (`compareByCodeUnit`, as the History's search sorts), the same in
+   every browser. Every name in `content/names.json` is plain ASCII with a capital first, so this is
+   A–Z exactly.
+3. *A Class the content does not define* (data-model rule 5) sorts after the four, by its key.
+4. *Soonest free* compares Turns, as DL-169 item 4 names them (`returnsOnTurn`, `healsOnTurn`), not
+   Days; both are nights, so Turns and Days agree in play.
+5. *A Hero both injured and away* sorts and reads by the Injury, as the engine's `unavailability`
+   and the chip do.
+6. *Dead and Retired* would read "Dead" and "Retired" and sort last; neither stands on a Roster in
+   play, and they are there so the chip's words are total.
+7. *The screen reader* reads the full words in place of "Away", from a `visually-hidden` span, the
+   shown word hidden from it; `title` alone is not read reliably.
+
+**For the owner.** Nothing is open; the readings above are the agent's to change.
+
+**Actioned in:** `web/src/state/selectors.ts` (`defaultHeroOrder`, `partyRows`, `PartyRow.chip`);
+`web/src/views/board.tsx` (the chip); `web/src/views/ui.tsx` (`Chip`'s `spoken`); the tests named
+above; `docs/planning/epics/v1.1.5-release.md` (S11's boxes).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

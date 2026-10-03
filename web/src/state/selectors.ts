@@ -358,6 +358,33 @@ function hardnessWords(difficulty: number, difficulties: readonly number[]): str
   return `${placeWords({ place, joint })} hardest ${of}`;
 }
 
+// ── The default order of Heroes ──────────────────────────────────────────────────────────────
+
+/**
+ * The default order of the player's Heroes (v1.1.5-S11, DL-169 item 5): Class in the content's
+ * order (`content/classes.json`: Warrior, Rogue, Mage, Healer), Level highest first, Age youngest
+ * first, Name A–Z, then the Hero's id, so that any two Heroes have one order. The Board's Party
+ * builder lists by it, and the Roster; it breaks the ties of every other order they sort by. For
+ * display only: the engine's `rosterIds` keeps the order the Heroes joined, and the save is unchanged.
+ * Age is the Age the page shows (`ageOf`), and a Class the content does not define comes last.
+ */
+export function defaultHeroOrder(document: WorldDocument): (a: Hero, b: Hero) => number {
+  const { turn } = document.world;
+  const { config } = playDeps(document);
+  const classes = Object.keys(content.classes);
+  const place = (hero: Hero): number => {
+    const index = classes.indexOf(hero.classKey);
+    return index === -1 ? classes.length : index;
+  };
+  return (a, b) =>
+    place(a) - place(b) ||
+    compareByCodeUnit(a.classKey, b.classKey) ||
+    b.level - a.level ||
+    ageOf(a, turn, config) - ageOf(b, turn, config) ||
+    compareByCodeUnit(a.name, b.name) ||
+    compareByCodeUnit(a.id, b.id);
+}
+
 // ── Choosing a Party ─────────────────────────────────────────────────────────────────────────
 
 /** Why a Hero cannot go, after their name (the CLI's `dispatch`): the preview's problems. */
@@ -366,6 +393,14 @@ const unavailableWords = {
   dead: 'is dead',
   retired: 'has retired',
   'in-party': 'is away with a Party',
+} as const;
+
+/** The short word of the Board's chip for a Hero who cannot go (v1.1.5-S11, DL-169 item 2), capitalised where it is made. */
+const unavailableChipWords = {
+  injured: 'injured',
+  dead: 'dead',
+  retired: 'retired',
+  'in-party': 'away',
 } as const;
 
 /**
@@ -383,15 +418,22 @@ export interface PartyRow {
   level: number;
   /** The engine's `unavailability`: why the Hero cannot go now, or `null` when they can. */
   why: Unavailability | null;
-  /** The same with until when, as the Roster words it: `Injured, healing on the night of Day 6`. */
+  /** The same with until when, as the Roster words it: `Injured, healing on the night of Day 6`. The chip's tooltip and its screen reader's words. */
   unavailable: string | null;
+  /** The Board's chip, short (v1.1.5-S11, DL-169 item 2): `Away` or `Injured`; `null` when the Hero can go. */
+  chip: string | null;
   /** Each Stat the Quest's Checks read (`statsRead`), in the order it meets them, at the value a Check reads (`effectiveStats`). */
   stats: { name: string; value: number }[];
   /** The Skill the Quest requires, then those that help (`skillsThatHelp`), that the Hero has. */
   skills: { name: string; rating: number }[];
 }
 
-/** The player's Roster as the Heroes a Party for `questId` may be chosen from; `null` for a Quest not on the Board. */
+/**
+ * The player's Roster as the Heroes a Party for `questId` may be chosen from; `null` for a Quest not
+ * on the Board. Those who can go come first, in the default order; below them those who cannot,
+ * the soonest free first, a Hero with no Day to read last, ties in the default order (v1.1.5-S11,
+ * DL-169 item 4).
+ */
 export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[] | null {
   const { world } = document;
   const guild = playerGuild(world);
@@ -400,24 +442,53 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
   const { skillKey } = quest.requirements;
   const named = [...new Set([...(skillKey === undefined ? [] : [skillKey]), ...skillsThatHelp(quest, content)])];
   const read = statsRead(quest, content);
-  return guild.rosterIds.flatMap((heroId): PartyRow[] => {
+  const order = defaultHeroOrder(document);
+  const onRoster = guild.rosterIds.flatMap((heroId) => {
     const hero = rowOf(world.heroes, heroId);
-    if (hero === undefined) return [];
-    const values = statValues(hero, world);
-    const held = heldSkills(hero);
-    return [
-      {
-        heroId,
+    return hero === undefined ? [] : [hero];
+  });
+  const free = new Map(onRoster.map((hero) => [hero.id, freeFrom(hero, world)]));
+  const soonest = (a: Hero, b: Hero): number => {
+    const [x, y] = [free.get(a.id) ?? Infinity, free.get(b.id) ?? Infinity];
+    return x < y ? -1 : x > y ? 1 : 0;
+  };
+  return onRoster
+    .sort((a, b) => soonest(a, b) || order(a, b))
+    .map((hero): PartyRow => {
+      const values = statValues(hero, world);
+      const held = heldSkills(hero);
+      const why = unavailability(hero);
+      return {
+        heroId: hero.id,
         name: hero.name,
         className: nameIn(content.classes, hero.classKey),
         level: hero.level,
-        why: unavailability(hero),
+        why,
         unavailable: unavailableUntil(hero, world),
+        chip: why === null ? null : capitalised(unavailableChipWords[why]),
         stats: read.map((key) => ({ name: nameIn(content.stats, key), value: values.get(key)?.effective ?? 0 })),
         skills: named.flatMap((key) => held.filter((skill) => skill.key === key).map(({ name, rating }) => ({ name, rating }))),
-      },
-    ];
-  });
+      };
+    });
+}
+
+/**
+ * When a Hero is free to go, for the Party builder's order (DL-169 item 4): `-Infinity` for one who
+ * can go now; the Turn the Injury heals or the Party returns, by the engine's `unavailability`; and
+ * `null` for one with no Day to read, who sorts last.
+ */
+function freeFrom(hero: Hero, world: World): number | null {
+  switch (unavailability(hero)) {
+    case null:
+      return -Infinity;
+    case 'injured':
+      return hero.injury?.healsOnTurn ?? null;
+    case 'in-party':
+      return (hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId))?.returnsOnTurn ?? null;
+    case 'dead':
+    case 'retired':
+      return null;
+  }
 }
 
 export interface ConsumableChoice {

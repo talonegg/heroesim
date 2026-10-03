@@ -575,9 +575,15 @@ function HeroRow({ row, chosen, onToggle, onOpen }: { row: PartyRow; chosen: boo
         <Icon name="go" />
       </button>
       <div className="party-row__facts">
-        {row.unavailable === null ? null : (
-          <Chip tone="warn" icon={row.why === 'injured' ? 'injury' : row.why === 'in-party' ? 'travel' : 'alert'}>
-            {row.unavailable}
+        {row.chip === null || row.unavailable === null ? null : (
+          // Short, "Away" or "Injured"; the Day in its tooltip and its screen reader's words (v1.1.5-S11, DL-169 item 2).
+          <Chip
+            tone="warn"
+            icon={row.why === 'injured' ? 'injury' : row.why === 'in-party' ? 'travel' : 'alert'}
+            title={row.unavailable}
+            spoken={row.unavailable}
+          >
+            {row.chip}
           </Chip>
         )}
         {row.skills.map((skill) => (

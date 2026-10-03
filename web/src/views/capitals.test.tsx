@@ -190,6 +190,9 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     const [choose] = within(board).getAllByRole('button', { name: 'Choose a Party' });
     fireEvent.click(choose as HTMLElement);
     reader.read('The Party builder');
+    // Its short chips among what was read, the injured Hero's and the Party out's (v1.1.5-S11).
+    expect(within(board).getAllByText('Injured').length).toBeGreaterThan(0);
+    expect(within(board).getAllByText('Away').length).toBeGreaterThan(0);
     // With a Hero chosen, its Morale line too (v1.1.4-S3).
     const [pick] = within(board).getAllByRole('checkbox').filter((box) => !(box as HTMLInputElement).disabled);
     fireEvent.click(pick as HTMLElement);

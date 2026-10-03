@@ -86,6 +86,27 @@ function rows(form: HTMLElement): HTMLElement[] {
   return within(form).getAllByTestId('party-row');
 }
 
+/** The builder's row of the Hero named `name`. */
+function rowNamed(form: HTMLElement, name: string): HTMLElement {
+  const row = rows(form).find((each) => each.querySelector('.party-row__name')?.textContent === name);
+  if (row === undefined) throw new Error(`no row for ${name}`);
+  return row;
+}
+
+/** The names on the builder's rows, in its order. */
+function namesIn(form: HTMLElement): string[] {
+  return rows(form).map((row) => row.querySelector('.party-row__name')?.textContent ?? '');
+}
+
+/** A row's warn chip: what it shows, its tooltip, and the words a screen reader reads. */
+function chipOf(row: HTMLElement): { shown: string; title: string; spoken: string } {
+  const chip = row.querySelector('.chip--warn') as HTMLElement | null;
+  if (chip === null) throw new Error('no chip');
+  const shown = [...chip.querySelectorAll('[aria-hidden="true"]')].map((each) => each.textContent).join('');
+  const spoken = [...chip.querySelectorAll('.visually-hidden')].map((each) => each.textContent).join('');
+  return { shown, title: chip.title, spoken };
+}
+
 describe('a Quest card', () => {
   test('is two lines, its name and Patron, then its terms as chips, the Day it leaves marked when that is today', () => {
     const state = madeToOrder();
@@ -285,17 +306,23 @@ describe('the Party builder', () => {
     render(<App initial={state} />);
 
     const form = chooseForFirst();
-    const [first, second, third] = rows(form);
+    const [first, second, third] = names.map((name) => rowNamed(form, name));
     expect(rows(form)).toHaveLength(heroes.length);
 
-    // Injured: the reason and the night the Injury heals, as the Roster words it; the box cannot be ticked.
-    expect(within(first as HTMLElement).getByText('Injured, healing on the night of Day 6')).toBeDefined();
+    // Injured: the chip reads "Injured", the night the Injury heals, as the Roster words it, its tooltip and
+    // its screen reader's words (v1.1.5-S11, DL-169 item 2); the box cannot be ticked; and the row is last.
+    expect(chipOf(first as HTMLElement)).toEqual({
+      shown: 'Injured',
+      title: 'Injured, healing on the night of Day 6',
+      spoken: 'Injured, healing on the night of Day 6',
+    });
     expect((within(first as HTMLElement).getByRole('checkbox') as HTMLInputElement).disabled).toBe(true);
+    expect(rows(form).at(-1)).toBe(first);
     expect((within(second as HTMLElement).getByRole('checkbox') as HTMLInputElement).disabled).toBe(false);
-    expect(within(second as HTMLElement).queryByText(/healing|away with a Party/)).toBeNull();
+    expect(within(second as HTMLElement).queryByText(/healing|away with a Party|^Away$|^Injured$/)).toBeNull();
 
     heroes.slice(0, 3).forEach((hero, index) => {
-      const row = rows(form)[index] as HTMLElement;
+      const row = rowNamed(form, names[index] ?? '');
       expect(within(row).getByRole('checkbox', { name: new RegExp(`^${names[index]} `) })).toBeDefined();
       expect(within(row).getByText(/^(Warrior|Rogue|Mage|Healer), Level \d+$/)).toBeDefined();
       const stats = row.querySelector('dl') as HTMLElement;
@@ -312,7 +339,8 @@ describe('the Party builder', () => {
     for (const row of rows(form)) expect(row.textContent).not.toMatch(/\b(fit|odds|chance)\b/i);
   });
 
-  test('says who is away with a Party, and the night they come back', () => {
+  test("says who is away with a Party, 'Away', the night they come back its tooltip and its screen reader's words", () => {
+    let name = '';
     const state = changed(madeToOrder(), (document) => {
       const guild = Object.values(document.world.guilds).find((each) => each.controller.kind === 'player');
       const hero = document.world.heroes[guild?.rosterIds[1] ?? ('' as HeroId)] as Hero;
@@ -320,19 +348,67 @@ describe('the Party builder', () => {
       const partyId = 'party-000099' as PartyId;
       document.world.parties[partyId] = { id: partyId, questId, guildId: guild?.id as GuildId, heroIds: [hero.id], departedOnTurn: 0, returnsOnTurn: 17 };
       hero.partyId = partyId;
+      name = hero.name;
     });
     render(<App initial={state} />);
 
-    const [, away] = rows(chooseForFirst());
-    expect(within(away as HTMLElement).getByText('Away with a Party, back on the night of Day 5')).toBeDefined();
-    expect((within(away as HTMLElement).getByRole('checkbox') as HTMLInputElement).disabled).toBe(true);
+    const form = chooseForFirst();
+    const away = rowNamed(form, name);
+    expect(chipOf(away)).toEqual({
+      shown: 'Away',
+      title: 'Away with a Party, back on the night of Day 5',
+      spoken: 'Away with a Party, back on the night of Day 5',
+    });
+    expect(within(away).getByText('Away').closest('.chip')?.querySelector('svg')).not.toBeNull();
+    // The look is as it was (DL-169 item 3): faded, the box disabled, and "Open" still opens the Hero's page.
+    expect(away.className).toBe('party-row is-away');
+    expect((within(away).getByRole('checkbox') as HTMLInputElement).disabled).toBe(true);
+    expect(rows(form).at(-1)).toBe(away);
+    fireEvent.click(within(away).getByRole('button', { name: `Open ${name}'s page` }));
+    expect(within(section('Board')).getByRole('article', { name })).toBeDefined();
+  });
+
+  test('lists those who can go first, in the default order, then the Away and the Injured, the soonest free first (v1.1.5-S11, DL-169 items 4 and 5)', () => {
+    const classes = ['Warrior', 'Rogue', 'Mage', 'Healer'];
+    let expected: string[] = [];
+    let chips: string[] = [];
+    const state = changed(madeToOrder(), (document, player) => {
+      const roster = player.rosterIds.map((id) => document.world.heroes[id] as Hero);
+      const [a, b, c] = roster;
+      if (a === undefined || b === undefined || c === undefined) throw new Error('three Heroes');
+      // The first to join is injured until Turn 20, the second away until Turn 17, the third injured until Turn 17.
+      a.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
+      const partyId = 'party-000099' as PartyId;
+      document.world.parties[partyId] = { id: partyId, questId: document.world.board[5] as QuestId, guildId: player.id, heroIds: [b.id], departedOnTurn: 0, returnsOnTurn: 17 };
+      b.partyId = partyId;
+      c.injury = { typeKey: 'deep-cut', healsOnTurn: 17 };
+      const classOf = (hero: Hero): number => classes.indexOf(hero.classKey.charAt(0).toUpperCase() + hero.classKey.slice(1));
+      const [early, late] = classOf(b) <= classOf(c) ? [b, c] : [c, b];
+      expected = [early.name, late.name, a.name];
+      chips = [early, late, a].map((hero) => (hero === b ? 'Away' : 'Injured'));
+    });
+    render(<App initial={state} />);
+
+    const form = chooseForFirst();
+    const names = namesIn(form);
+    const enabled = rows(form).map((row) => !(within(row).getByRole('checkbox') as HTMLInputElement).disabled);
+
+    // Those who can go, then those who cannot: no enabled row below a disabled one.
+    expect(enabled).toEqual([...enabled].sort((x, y) => Number(y) - Number(x)));
+    expect(names.slice(-3)).toEqual(expected);
+    expect(rows(form).slice(-3).map((row) => chipOf(row).shown)).toEqual(chips);
+    // Those who can go, by Class in the content's order first.
+    const shownClasses = rows(form)
+      .slice(0, -3)
+      .map((row) => /^(\w+), Level/.exec(row.querySelector('.party-row__class')?.textContent ?? '')?.[1] ?? '');
+    expect(shownClasses.map((name) => classes.indexOf(name))).toEqual(shownClasses.map((name) => classes.indexOf(name)).sort((x, y) => x - y));
   });
 
   test("opens a Hero's page in place, and comes back to the Party and the consumables as chosen", () => {
     const state = holding(madeToOrder(), 'healing-draught', 3);
-    const second = heroesOf(state)[1]?.name ?? '';
     render(<App initial={state} />);
     const form = chooseForFirst();
+    const second = namesIn(form)[1] ?? '';
     const questName = within(firstCard()).getByRole('heading', { level: 3 }).textContent ?? '';
     const box = within(rows(form)[1] as HTMLElement).getByRole('checkbox');
     fireEvent.click(box);
@@ -419,7 +495,8 @@ describe('the Party builder', () => {
     });
     render(<App initial={state} />);
     const form = chooseForFirst();
-    const [first, second] = rows(form);
+    // The rows of the first two to join, wherever the default order puts them.
+    const [first, second] = heroesOf(state).map((hero) => rowNamed(form, hero.name));
     if (first === undefined || second === undefined) throw new Error('two Heroes wanted');
 
     expect(within(form).queryByTestId('party-morale')).toBeNull();
@@ -443,7 +520,7 @@ describe('the Party builder', () => {
     const form = chooseForFirst();
     expect(within(form).queryByTestId('chances')).toBeNull();
 
-    for (const row of rows(form).slice(-2)) fireEvent.click(within(row).getByRole('checkbox'));
+    for (const each of [hero, other]) fireEvent.click(within(rowNamed(form, each.name)).getByRole('checkbox'));
     fireEvent.click(within(form).getByRole('button', { name: /^Whetstone, 2 held: .+: one more$/ }));
 
     const estimate = estimateOf(state, (quest as Quest).id, [hero.id, other.id], [{ definitionKey: 'whetstone', quantity: 1 }]);
