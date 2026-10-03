@@ -33,7 +33,11 @@
 // estimate, "if no one falls", does not follow. The core's Encounters carry their Morale as shipped; each
 // Encounter written for a sample carries that of a core Encounter of its kind, chosen by its key's hash
 // and drawing nothing (`moraleIn`), so that it meets Morale about as often as the content's do. Every
-// chance of that measure is held within 3 points of the resolver's rate.
+// chance of that measure was to be held within 3 points of the resolver's rate; on the shipped content an
+// Encounter's Degrees stood 23.65 points off, and the owner's answer (2026-10-04, DL-173) holds only the
+// whole Quest's chances, its bands and success, within 3 points (`moraleHeld`), and reports each
+// Encounter's gaps, its Degrees and Success or better, without holding them. The no-one-falls check
+// stays on every chance.
 
 import { createHash } from 'node:crypto';
 import {
@@ -75,8 +79,9 @@ export const defaultEstimateRuns = 20_000;
 /** How far, in chance, the estimate may stand from the resolver's rate (the epic's S5: 2 points). */
 export const estimateTolerance = 0.02;
 /**
- * How far, in chance, the estimate may stand from the resolver's rate with Morale's consequences left in
- * (v1.1.5-S7, DL-168 item 7: 3 points, the owner's example).
+ * How far, in chance, the estimate of the whole Quest may stand from the resolver's rate with Morale's
+ * consequences left in (v1.1.5-S7, DL-168 item 7: 3 points, the owner's example; DL-173: held on the
+ * Quest's chances only, each Encounter's reported).
  */
 export const estimateMoraleTolerance = 0.03;
 
@@ -378,16 +383,29 @@ export function estimateProbe(samples: number, runs: number, deps: EngineDeps): 
   });
 }
 
-/** The furthest any estimate stands from its rate across `samples` in the measure `of`, and that comparison. */
-export function widest(samples: readonly Sample[], of: Measure = 'compared'): { gap: number; sample: string; compared: Compared } | null {
+/**
+ * The furthest any estimate stands from its rate across `samples` in the measure `of`, and that
+ * comparison: of every chance, or with `only` of `quest`, of the Quest's, or of `encounters`, the Encounters'.
+ */
+export function widest(samples: readonly Sample[], of: Measure = 'compared', only: 'all' | 'quest' | 'encounters' = 'all'): { gap: number; sample: string; compared: Compared } | null {
   let found: { gap: number; sample: string; compared: Compared } | null = null;
   for (const sample of samples) {
     for (const compared of sample[of]) {
+      if (only === 'quest' && compared.of !== 'quest') continue;
+      if (only === 'encounters' && compared.of === 'quest') continue;
       const gap = Math.abs(compared.estimate - compared.rate);
       if (found === null || gap > found.gap) found = { gap, sample: sample.seed, compared };
     }
   }
   return found;
+}
+
+/**
+ * The gap the Morale check holds below `estimateMoraleTolerance` (DL-173, the owner's answer): the widest of
+ * the Quest's bands and success in the Morale measure, 0 where there are none. Each Encounter's are not held.
+ */
+export function moraleHeld(samples: readonly Sample[]): number {
+  return widest(samples, 'moraleIn', 'quest')?.gap ?? 0;
 }
 
 /** The probe's report, in Markdown: each measure's gaps, widest and mean, in points and in standard errors, against its limit. */
@@ -399,7 +417,7 @@ export function estimateReport(
   const errors = (it: Compared): number => Math.abs(it.estimate - it.rate) / Math.sqrt((it.estimate * (1 - it.estimate)) / runs);
   const open = (it: Compared): boolean => it.estimate > 0.01 && it.estimate < 0.99;
   const count = (of: (sample: Sample) => number) => samples.reduce((total, sample) => total + of(sample), 0);
-  const section = (measured: Measure, title: string, note: string, limit: number): string[] => {
+  const section = (measured: Measure, title: string, note: string, limit: number, held: 'all' | 'quest'): string[] => {
     const all = samples.flatMap((sample) => sample[measured]);
     const row = (label: string, of: (it: Compared) => boolean): string[] => {
       const list = all.filter(of);
@@ -415,7 +433,11 @@ export function estimateReport(
         whole(gaps.filter((gap) => gap >= limit).length),
       ];
     };
-    const most = widest(samples, measured);
+    const line = (most: ReturnType<typeof widest>, verdict: (gap: number) => string): string =>
+      most === null
+        ? 'Nothing was compared.'
+        : `${most.sample}, ${most.compared.of === 'quest' ? 'the Quest' : `Encounter ${most.compared.of + 1}`}, ${most.compared.what}: estimated ${fixed(100 * most.compared.estimate, 2)}%, resolved ${fixed(100 * most.compared.rate, 2)}%, ${fixed(100 * most.gap, 2)} points, ${verdict(most.gap)}`;
+    const note2 = held === 'all' ? '' : ', reported, not held';
     return [
       `## ${title}`,
       '',
@@ -424,17 +446,21 @@ export function estimateReport(
       markdownTable(
         ['Compared', 'Chances', 'From 1% to 99%', 'Widest gap (points)', 'Mean gap (points)', 'Widest gap (standard errors)', 'Beyond the limit'],
         [
-          row("Each Encounter's Degrees", (it) => it.of !== 'quest' && it.what !== 'succeeded'),
-          row("Each Encounter's Success or better", (it) => it.of !== 'quest' && it.what === 'succeeded'),
+          row(`Each Encounter's Degrees${note2}`, (it) => it.of !== 'quest' && it.what !== 'succeeded'),
+          row(`Each Encounter's Success or better${note2}`, (it) => it.of !== 'quest' && it.what === 'succeeded'),
           row("The Quest's bands", (it) => it.of === 'quest' && it.what !== 'succeeded'),
           row("The Quest's success", (it) => it.of === 'quest' && it.what === 'succeeded'),
         ],
         ['left', 'right', 'right', 'right', 'right', 'right', 'right'],
       ),
       '',
-      most === null
-        ? 'Nothing was compared.'
-        : `The widest gap: ${most.sample}, ${most.compared.of === 'quest' ? 'the Quest' : `Encounter ${most.compared.of + 1}`}, ${most.compared.what}: estimated ${fixed(100 * most.compared.estimate, 2)}%, resolved ${fixed(100 * most.compared.rate, 2)}%, ${fixed(100 * most.gap, 2)} points, ${most.gap < limit ? 'within' : 'beyond'} the limit of ${fixed(100 * limit, 0)} points.`,
+      ...(held === 'all'
+        ? [`The widest gap: ${line(widest(samples, measured), (gap) => `${gap < limit ? 'within' : 'beyond'} the limit of ${fixed(100 * limit, 0)} points.`)}`]
+        : [
+            `The widest gap held: ${line(widest(samples, measured, 'quest'), (gap) => `${gap < limit ? 'within' : 'beyond'} the limit of ${fixed(100 * limit, 0)} points.`)}`,
+            '',
+            `The widest Encounter gap, reported, not held (DL-173, the owner's answer): ${line(widest(samples, measured, 'encounters'), (gap) => `${gap < limit ? 'within' : 'beyond'} ${fixed(100 * limit, 0)} points.`)}`,
+          ]),
     ];
   };
   return [
@@ -443,13 +469,14 @@ export function estimateReport(
     `Run ${startedAt.toISOString()} on ${machine.cpu} (${machine.cores} cores), Node ${machine.node}, in ${fixed(seconds, 1)} s.`,
     `${whole(samples.length)} samples × ${whole(runs)} seeds; ${whole(count((it) => it.encounters))} Encounters of ${whole(count((it) => it.checks))} Checks, ${whole(count((it) => it.several))} of them of several; ${whole(samples.filter((it) => it.carried > 0).length)} Parties carrying consumables; ${whole(count((it) => it.bandsMoved))} Heroes in ${whole(samples.filter((it) => it.bandsMoved > 0).length)} Parties whose Morale band moved between setting out and the night home. Each sample is measured twice, on the same seeds and against the same estimate.`,
     '',
-    ...section('compared', 'No one falls', 'Injuries, Deaths and Morale are taken out of every Encounter.', estimateTolerance),
+    ...section('compared', 'No one falls', 'Injuries, Deaths and Morale are taken out of every Encounter. Every chance is held within the limit.', estimateTolerance, 'all'),
     '',
     ...section(
       'moraleIn',
       'Morale in',
-      `Injuries and Deaths are taken out of every Encounter, and Morale's consequences left in: the core's as shipped, and each Encounter written for a sample given those of a core Encounter of its kind. ${whole(count((it) => it.moraleEncounters))} of the ${whole(count((it) => it.encounters))} Encounters carry one.`,
+      `Injuries and Deaths are taken out of every Encounter, and Morale's consequences left in: the core's as shipped, and each Encounter written for a sample given those of a core Encounter of its kind. ${whole(count((it) => it.moraleEncounters))} of the ${whole(count((it) => it.encounters))} Encounters carry one. Only the Quest's bands and success are held within the limit (DL-173, the owner's answer of 2026-10-04); each Encounter's gaps are reported, not held, the "Beyond the limit" of their rows counting those beyond 3 points.`,
       estimateMoraleTolerance,
+      'quest',
     ),
   ].join('\n');
 }

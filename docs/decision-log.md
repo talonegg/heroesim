@@ -21218,7 +21218,7 @@ verification, `CONTEXT.md`'s Chance band.
 
 ## DL-173 — v1.1.5-S7 built: the estimate probe's second measure with Morale's consequences left in, run on the shipped content and stopped at its check, 23.65 points against a limit of 3, for the owner
 
-**Status:** Accepted, the gap open for the owner · **Date:** 2026-10-03 · **Decided by:** the agent,
+**Status:** Accepted; the gap answered by the owner on 2026-10-04 ("The owner's answer") · **Date:** 2026-10-03 · **Decided by:** the agent,
 building S7 as the epic's S7 and DL-168 item 7 (E2) describe. Where the plan was silent, the calls are
 the agent's, in item 4, for the owner to change. Opus built it; a second Opus agent verifies it. The
 story stopped where the epic says it must: the shipped content's Morale measure passes 3 points.
@@ -21362,9 +21362,33 @@ owner's question stands as the builder put it.
   endings (CRLF in the work tree, the report LF as written). Lint and typecheck pass; `npm test` 185
   files, 4,791 tests, one more.
 
+**The owner's answer (2026-10-04).** Option (a): "Check the whole-Quest chance only, at 3 points; list
+each Encounter's gap in the report." The Morale check now holds only the Quest's chances, its bands and
+success, within `estimateMoraleTolerance`, 3 points, strictly below (`moraleHeld`, in `estimate.ts`,
+asserted by the harness test). Each Encounter's gaps in that measure, its Degrees and Success or better,
+are reported, not held: the report's rows say "reported, not held", each with its widest gap, standard
+errors, mean and count beyond 3 points, and a line of the widest Encounter gap. The no-one-falls check
+is unchanged, 2 points on every chance. Declined: a two-limit ceiling (a wider limit for the
+Encounters), reporting only (no check on the Morale measure at all), and folding Morale into the
+estimate. The estimate, the content and the limit are unchanged. Built test first: the planted-gap test
+now plants its gap on a Quest chance (3.5 points, failing; an Encounter's 30 points beside it, passing),
+and a test shows an Encounter's gap above 3 does not fail the check where the Quest's does; the report's
+test reads the held and reported lines. The probe, run alone on the shipped content, passes, 484.9 s
+(486 s by vitest), the same 588 Encounters of 1,418 Checks. Its report,
+`harness/reports/m9-v115-s7-estimate-2026-10-04.md`, is a new dated one, force-added; the failing
+`m9-v115-s7-estimate-2026-10-03.md` stays beside it as the record of the stop.
+
+| Measure | Encounter's Degrees | Success or better | Quest's bands | Quest's success | Beyond the limit |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| No one falls (held, 2) | 0.99 | 1.18 | 0.92 | 0.92 | 0 of 3,740 |
+| Morale in (the Quest's held, 3) | 23.65, reported | 4.64, reported | 1.61 | 1.61 | Encounters 8 (7 and 1), Quest 0 |
+
+The mean gaps with Morale in are 0.166, 0.143, 0.129 and 0.168 points. The widest held gap is
+`estimate-0169`'s success, 1.61 points; the widest reported is `estimate-0064`'s, as traced above.
+
 **Actioned in:** `harness/src/estimate.ts` (`unhurt`, `moraleIn`, `estimateMoraleTolerance`, the
 second measure and the report), `estimate.test.ts`, `estimate.harness.test.ts` (the Morale check and
-HEROESIM_MILESTONE); `harness/reports/m9-v115-s7-estimate-2026-10-03.md`; the epic's S7 boxes and
+HEROESIM_MILESTONE); `harness/reports/m9-v115-s7-estimate-2026-10-03.md`, `-2026-10-04.md`; the epic's S7 boxes and
 status; the verification, `estimate.test.ts`'s test of each measure's own gaps.
 
 ---

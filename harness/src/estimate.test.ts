@@ -1,13 +1,13 @@
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, passOf, type EngineDeps } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { compareSample, drawSample, estimateMoraleTolerance, estimateProbe, estimateReport, estimateTolerance, harmless, moraleIn, questsStream, unhurt, widest, type Compared, type Sample } from './estimate.js';
+import { compareSample, drawSample, estimateMoraleTolerance, estimateProbe, estimateReport, estimateTolerance, harmless, moraleHeld, moraleIn, questsStream, unhurt, widest, type Compared, type Sample } from './estimate.js';
 import { machine } from './report.js';
 
 // v1.1.4-S5 (DL-156): the estimate probe's parts, and the probe over a few samples. The probe proper,
 // 200 samples × 20,000 seeds held within 2 points, is `HEROESIM_PROBE=estimate npm run harness`.
 // v1.1.5-S7 (DL-173): its second measure, the same samples with Morale's consequences left in, held
-// within 3 points.
+// within 3 points; owner's answer 2026-10-04: held on the Quest's chances only, each Encounter's reported.
 
 const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 
@@ -93,7 +93,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
       expect(sample.moraleIn.map(({ of, what, estimate }) => ({ of, what, estimate }))).toEqual(sample.compared.map(({ of, what, estimate }) => ({ of, what, estimate })));
     }
     expect(samples.some((sample) => sample.moraleEncounters > 0)).toBe(true);
-    expect(widest(samples, 'moraleIn')?.gap).toBeLessThan(0.05);
+    expect(widest(samples, 'moraleIn', 'quest')?.gap).toBeLessThan(0.05);
     const report = estimateReport(samples, { runs: 2_000, machine: machine(), startedAt: new Date(0), seconds: 1 });
     expect(report).toContain('6 samples × 2,000 seeds');
     expect(report).toContain('## No one falls');
@@ -103,6 +103,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
     expect(report.match(/\| Beyond the limit \|/g)).toHaveLength(2);
     expect(report).toContain('the limit of 2 points');
     expect(report).toContain('the limit of 3 points');
+    expect(report).toContain('reported, not held');
   });
 
   test("measures Morale's consequences: a loss that moves a Hero's band moves the resolver's rates, and nothing else does", () => {
@@ -121,23 +122,43 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
   });
 
   // S7's verification (DL-173): the Morale check and its report read the second measure, not the first,
-  // and a gap of exactly the limit is beyond it, as the check's strict `<` holds.
+  // and a gap of exactly the limit is beyond it, as the check's strict `<` holds. The owner's answer
+  // (2026-10-04): the Morale check holds the Quest's chances only; each Encounter's are reported.
   test("reads each measure's own gaps: the widest, its report and the chances beyond its limit", () => {
     const sample = (seed: string, compared: Compared[], moraleIn: Compared[]): Sample => ({ seed, heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, bandsMoved: 0, moraleEncounters: 1, compared, moraleIn });
     const at = (what: string, estimate: number, rate: number): Compared => ({ of: 0, what, estimate, rate });
+    const quest = (what: string, estimate: number, rate: number): Compared => ({ of: 'quest', what, estimate, rate });
     const samples = [
-      sample('estimate-0001', [at('failure', 0, 0.01)], [at('failure', 0, estimateMoraleTolerance)]),
-      sample('estimate-0002', [at('setback', 0, estimateTolerance)], [at('setback', 0, 0.05)]),
+      sample('estimate-0001', [at('failure', 0, 0.01)], [quest('fail', 0, estimateMoraleTolerance)]),
+      sample('estimate-0002', [at('setback', 0, estimateTolerance)], [quest('strong', 0, 0.05), at('setback', 0, 0.2)]),
     ];
     expect(widest(samples)).toMatchObject({ sample: 'estimate-0002', compared: { rate: estimateTolerance } });
-    expect(widest(samples, 'moraleIn')).toMatchObject({ sample: 'estimate-0002', compared: { rate: 0.05 } });
+    expect(widest(samples, 'moraleIn')).toMatchObject({ sample: 'estimate-0002', compared: { rate: 0.2 } });
+    expect(widest(samples, 'moraleIn', 'quest')).toMatchObject({ sample: 'estimate-0002', compared: { rate: 0.05 } });
     const report = estimateReport(samples, { runs: 2_000, machine: machine(), startedAt: new Date(0), seconds: 1 });
     const [first, second] = report.split('## Morale in') as [string, string];
-    // No one falls: gaps of 1 and 2 points, the 2 beyond its limit of 2; Morale in: 3 and 5, both beyond 3.
+    // No one falls: gaps of 1 and 2 points, the 2 beyond its limit of 2; Morale in: the Quest's 3 and 5,
+    // both beyond 3 and held; the Encounter's 20, beyond 3 and reported only.
     expect(first).toContain("| Each Encounter's Degrees | 2 | 0 | 2.00 | 1.500 | 0.00 | 1 |");
     expect(first).toContain('estimate-0002, Encounter 1, setback: estimated 0.00%, resolved 2.00%, 2.00 points, beyond the limit of 2 points.');
-    expect(second).toContain("| Each Encounter's Degrees | 2 | 0 | 5.00 | 4.000 | 0.00 | 2 |");
-    expect(second).toContain('estimate-0002, Encounter 1, setback: estimated 0.00%, resolved 5.00%, 5.00 points, beyond the limit of 3 points.');
+    expect(second).toContain("| The Quest's bands | 2 | 0 | 5.00 | 4.000 | 0.00 | 2 |");
+    expect(second).toContain("| Each Encounter's Degrees, reported, not held | 1 | 0 | 20.00 | 20.000 | 0.00 | 1 |");
+    expect(second).toContain('The widest gap held: estimate-0002, the Quest, strong: estimated 0.00%, resolved 5.00%, 5.00 points, beyond the limit of 3 points.');
+    expect(second).toContain("The widest Encounter gap, reported, not held (DL-173, the owner's answer): estimate-0002, Encounter 1, setback: estimated 0.00%, resolved 20.00%, 20.00 points, beyond 3 points.");
+  });
+
+  test("holds the Morale check to the Quest's chances: an Encounter's gap above 3 points does not fail it, the Quest's does", () => {
+    const sample = (moraleIn: Compared[]): Sample => ({ seed: 'estimate-0001', heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, bandsMoved: 0, moraleEncounters: 1, compared: [], moraleIn });
+    const encounter: Compared[] = [
+      { of: 0, what: 'failure', estimate: 0.1, rate: 0.4 },
+      { of: 0, what: 'succeeded', estimate: 0.5, rate: 0.45 },
+      { of: 'quest', what: 'success', estimate: 0.5, rate: 0.52 },
+    ];
+    expect(widest([sample(encounter)], 'moraleIn')?.gap).toBeGreaterThan(estimateMoraleTolerance);
+    expect(moraleHeld([sample(encounter)])).toBeLessThan(estimateMoraleTolerance);
+    const planted: Compared[] = [...encounter, { of: 'quest', what: 'succeeded', estimate: 0.5, rate: 0.535 }];
+    expect(moraleHeld([sample(planted)])).toBeGreaterThanOrEqual(estimateMoraleTolerance);
+    expect(moraleHeld([])).toBe(0);
   });
 
   test('names its limits: 2 points with no one falling, 3 with Morale in', () => {
