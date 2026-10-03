@@ -20465,6 +20465,39 @@ checks.
   reports no drift and the register needs no new entry (both are reads it lists). T1 to T5 change the
   editor's lock, recovery and page, and the guardrail's way out of a busy lock.
 
+**The verification.** A second Opus agent verified `4762b1d..906044a` and the gate as a whole. It
+found one nit to fix, a missing space in `app.test.tsx`, and nothing else:
+1. *The fixes are held by their tests.* Each was undone on a scratch change, its test run, then put
+   back:
+   - E1: the guard gone, `shaken` lands at the Setback; its second draw gone, the stream differs from
+     the twin's.
+   - H1: the kill gone, the run waits past the test's 30 s with a child playing.
+   - T1: `--force` ignored, `recover --force` is refused as busy.
+   - W1: `disabled` again, two tests fail; the click's guard gone, the keyboard test fails.
+   - G2: the register imported into the page's entry, the built script holds seven of its ids.
+2. *E1 changes no shipped game.* The four Encounters with a negative Trait each hold a `setback`
+   list, and the content's checks refuse a Trait in a `success` or `setback` list. The close report
+   differs from S10's only in its timings: the fingerprint is `24bae1ff…` in both, and lines 27 to
+   665 hash equal (`c0ef8c8b…`).
+3. *The numbers* in item 4 match the report: 12.4% and 57.1%, 13 bankruptcies in 50 games, 5.40
+   folds, 7.98 Deaths, 82.3% and 80.5%, Loot 0.142, Traits 1.117 and 0.594. Item 5 matches the
+   estimate's report: 3,740 chances (2,352, 588, 600 and 200), the widest gap 1.18 points.
+4. *The record.* The epic's status, S14's first box ticked and its second not, the register's row
+   and the plan say the patch is built and verified and the release awaits the owner. Nothing claims
+   a release. Item 9's steps match `release-pr.yml`, and `release.mjs` names `v1.1.4` from the tags.
+   Nothing was pushed or tagged: origin's `v1.1.4-dev` is at `8987cd5`, and `v1.1-release` and
+   `main` match origin's.
+5. *The checks,* at `906044a`:
+   - `npm run lint` and `npm run typecheck`: clean.
+   - `npm test`: 4,746 tests in 185 files, none skipped. The editor's Chromium tests and the
+     capitals guard are among them.
+   - `npm run e2e -w web`: 97 specs, 4 over `file://`, check-bundle passing at 800,111 bytes.
+   - `npm run edit -- traits doctor`: no drift, 110 reads, the doc fresh.
+
+For the owner: E1 reads DL-148 item 25's "the same failed Encounter" as the Failure Degree. The
+glossary's Earned Trait, `requirements.md` and the quest-review page still say "failed Encounter",
+which elsewhere, for a reroll, takes in a Setback. No shipped game turns on it.
+
 **Actioned in:** `engine/src/quest-engine/resolve.ts` and its test, `consumables.test.ts`;
 `engine/src/stops.ts` (comment); `content/src/validate.ts`, `refusals.test.ts`;
 `cli/src/commands/setup.ts`, `args.ts`, `main.ts`, `main.test.ts`; `harness/src/children.ts`,

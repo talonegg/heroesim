@@ -325,7 +325,7 @@ describe('the home view (M9-S3, DL-103)', () => {
       .filter((words) => / \(Encounter \d+\)/.test(words));
     expect(steps.length).toBeGreaterThan(0);
     for (const step of steps) expect(step).toMatch(/ \(Encounter \d+\), a (Triumph|Success|Setback|Failure)\b/);
-    const wealth =/^Wealth ([+-]?\d+)$/.exec(within(report).getByText(/^Wealth /).textContent ?? '')?.[1];
+    const wealth = /^Wealth ([+-]?\d+)$/.exec(within(report).getByText(/^Wealth /).textContent ?? '')?.[1];
     const fame = /^Fame ([+-]?\d+)$/.exec(within(report).getByText(/^Fame /).textContent ?? '')?.[1];
     expect(within(report).getByText(/^XP \+\d+ each$/)).toBeDefined();
     // This seed's Party comes home with an Injury: named, with the night it heals.
