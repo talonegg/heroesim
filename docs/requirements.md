@@ -148,11 +148,12 @@ Every system in the game must serve at least one of these:
   first build; the stub Quest Engine reads it as a flat modifier. Skill growth is deferred.
 - R16. A Hero's Traits are marks left by their history: an Injury that heals may leave one, and a
   Quest may rarely earn one, a positive one on an Encounter's Triumph when the Quest ends a strong
-  success, a negative one to a Hero a failed Encounter injured. Hero Traits and Guildmaster Traits
-  are two separate lists in content; each Trait carries a list of effects, and a Hero or a
-  Guildmaster holds any number of Traits, never two that conflict. A Trait an Injury leaves
-  replaces one it conflicts with. (Reworded 2026-10-02, DL-148 and DL-150; it read "Traits on a
-  Hero are binary marks left by history, such as a healed Injury.")
+  success, a negative one to a Hero an Encounter injured at the Degree Failure. Hero Traits and
+  Guildmaster Traits are two separate lists in content; each Trait carries a list of effects, and a
+  Hero or a Guildmaster holds any number of Traits, never two that conflict. A Trait an Injury
+  leaves replaces one it conflicts with. (Reworded 2026-10-02, DL-148 and DL-150; it read "Traits on
+  a Hero are binary marks left by history, such as a healed Injury." Reworded 2026-10-03, DL-168
+  item 5: a negative Trait reads the Degree Failure, not "failed", which takes in a Setback.)
 - R17. Progression: XP from Quests and training raises a Hero's Level; each Level raises Stats
   along the Class's growth profile up to the Hero's Potential. Potential is a hidden per-Stat
   ceiling, shown only as a hint. Stats decline past an age.

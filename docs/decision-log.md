@@ -21155,6 +21155,40 @@ doctor reports no drift.
 
 ---
 
+## DL-172 — v1.1.5-S8 built: the words of the Earned Trait, the Chance band and the configuration's comments follow the owner's answers
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agents, building S8 as the epic's S8
+bullets and DL-168 items 5, 9 and 10 describe. Words and comments only; no value, view or save changes.
+
+**Context.** DL-168 item 5: a negative earned Trait lands on the Failure Degree only, as built in
+v1.1.4 (DL-167), while the glossary, `requirements.md` and the review page said "failed Encounter",
+which for a reroll takes in a Setback. Item 10: chances are floored, which the glossary did not say.
+Item 9: the Degrees' values are the design's and the form factors provisional.
+
+**What was built.**
+1. **The Earned Trait.** `CONTEXT.md` says a negative one falls on a Hero injured by the same Encounter
+   at the Degree Failure, not "failed" as a reroll reads it, so a Hero hurt at a Setback earns none;
+   `docs/requirements.md` R16 says the same with a dated note (2026-10-03, DL-168 item 5); the
+   review page's sentence in `cli/src/quest-review.ts` says it, with a new test in
+   `quest-review.test.ts` (red first). The committed `docs/quests/v1.1.4-review.html` is untouched, as
+   no test reads it from the generator; it stays S9's record (DL-166).
+2. **The Chance band.** `CONTEXT.md` says the detail's numbers are floored to a multiple of 5, between 5
+   and 95 unless certain (DL-157, DL-168 item 10).
+3. **The configuration's comments** (`engine/src/config.ts`). `checkDegrees` (1.35) and
+   `strongTriumphShare` (0.6) are called the design's values; `moraleCheckFactor` and `hurtCheckFactor`
+   provisional, for the economy pass (#51). No value changed; `configVersion` stays 13.
+
+**Verification.** `grep "failed Encounter"` finds the earned Trait's rule in none of `CONTEXT.md`,
+`docs/requirements.md` or `cli/src/` (the one hit is the new test's negative assertion). The doctor passed
+before and after; lint and typecheck pass; `npm test` 185 files, 4,786 tests.
+
+**For the owner.** Nothing is open.
+
+**Actioned in:** `CONTEXT.md`; `docs/requirements.md` (R16); `cli/src/quest-review.ts` and its test;
+`engine/src/config.ts` (comments); `docs/planning/epics/v1.1.5-release.md` (S8's boxes).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

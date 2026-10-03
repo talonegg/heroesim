@@ -218,25 +218,29 @@ export interface GameConfig {
    * A Check's Degree from its roll ÷ its target (v1.1.4-S2, DL-148 item 8): a Triumph at `triumph`
    * or more, a Success at `success` or more, a Setback at `setback` or more, else a Failure. The
    * Triumph's 1.25 became 1.35 in v1.1.4-S10's balance pass, with `strongTriumphShare` 0.5 to 0.6, so
-   * that fewer Quests are strong successes at no cost in bankruptcies (DL-166).
+   * that fewer Quests are strong successes at no cost in bankruptcies (DL-166). The owner accepted
+   * 1.35 as the design's value, superseding DL-148's 1.25 (DL-168 item 9).
    */
   checkDegrees: Readonly<{ triumph: number; success: number; setback: number }>;
   /**
    * The share of a Quest's Encounters that must be Triumphs for a strong success, beside every one
    * at Success or better (v1.1.4-S2, DL-148 item 8: DL-83 item 17's margin, a share of Triumphs).
-   * The share is of the whole sequence, as `bandBySuccessShare`'s is.
+   * The share is of the whole sequence, as `bandBySuccessShare`'s is. The owner accepted 0.6 as the
+   * design's value, superseding "at least half" (DL-168 item 9).
    */
   strongTriumphShare: number;
   /**
    * A Hero's form on a Quest (v1.1.4-S3, DL-148 items 9 to 11, `CONTEXT.md` Form): the factor on the
    * Stat values they add into a Check's score, by the band of their Morale on the Quest. S3's first
    * values (0.85, 0.93, 1, 1.04, 1.08) were narrowed in v1.1.4-S10's balance pass, so that a Guild
-   * failing and losing Morale is not driven down as fast (DL-166).
+   * failing and losing Morale is not driven down as fast (DL-166). Provisional: the values are to be
+   * revisited in the economy pass (#51, DL-168 item 9), not the design's.
    */
   moraleCheckFactor: Readonly<Record<MoraleBand, number>>;
   /**
    * Their form is also multiplied by this once they are hurt on the Quest (DL-148 item 10): 0.85
-   * until v1.1.4-S10's balance pass, then 0.93 (DL-166).
+   * until v1.1.4-S10's balance pass, then 0.93 (DL-166). Provisional, like `moraleCheckFactor`: to be
+   * revisited in the economy pass (#51, DL-168 item 9).
    */
   hurtCheckFactor: number;
   /**

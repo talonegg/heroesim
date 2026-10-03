@@ -221,10 +221,12 @@ _Avoid_: Perk, Flaw, Buff, Modifier (as a noun)
 **Earned Trait**:
 A Hero Trait a Hero gains on a Quest, rarely. A positive one is drawn on an Encounter's Triumph
 and kept only if the Quest ends a strong success; a negative one falls only on a Hero injured by
-the same failed Encounter. At most one a Hero a Quest, none held already nor one that conflicts with
-one held, and each a Milestone, as is a Trait lost to an Injury's (DL-148 items 25 to 27, DL-150 item
-5; v1.1.4-S7). Which it is, positive or negative, is where content lists it: in an Encounter's
-Triumph consequences or its Failure ones.
+the same Encounter at the Degree Failure. It reads the Degree, not "failed" as a reroll does, which
+takes in a Setback: a Hero hurt at a Setback earns none. At most one a Hero a Quest, none held
+already nor one that conflicts with one held, and each a Milestone, as is a Trait lost to an
+Injury's (DL-148 items 25 to 27, DL-150 item 5, DL-168 item 5; v1.1.4-S7, v1.1.5-S8). Which it is,
+positive or negative, is where content lists it: in an Encounter's Triumph consequences or its
+Failure ones.
 _Avoid_: Perk, Achievement, Level-up
 
 **Trait budget**:
@@ -412,7 +414,8 @@ _Avoid_: Result, Grade, Tier
 
 **Chance band**:
 The word an estimated chance is shown in: Hopeless below 10%, Unlikely to 35%, Even to 65%, Likely
-to 90% and Near certain from 90% (`chanceBands`). The estimate reads what each Check reads of a
+to 90% and Near certain from 90% (`chanceBands`). The numbers in the detail are floored to a
+multiple of 5, between 5 and 95 unless the chance is certain (DL-157, DL-168 item 10). The estimate reads what each Check reads of a
 proposed Party as it will come home, its Morale, Regard and Injuries moved by each night away, on
 the Quest's own Encounters, drawn when it was posted. It reads the Guild as it is when the Party
 sets out, and assumes no one falls: no Hero hurt or killed on the way, and no Morale moved by an

@@ -423,7 +423,7 @@ export function reviewPage(input: ReviewInput, { fragment = false }: { fragment?
     section(
       'traits',
       'Traits',
-      `<p>Earned Traits (DL-148 item 25): a positive one is drawn on a Triumph and kept only if the Quest ends a strong success; a negative one falls only on a Hero the same failed Encounter injured.</p>${newTraits
+      `<p>Earned Traits (DL-148 item 25): a positive one is drawn on a Triumph and kept only if the Quest ends a strong success; a negative one falls only on a Hero the same Encounter injured at the Degree Failure (not a Setback).</p>${newTraits
         .map(
           (it) =>
             `<section class="card" id="trait-${esc(it.key)}"><h3>${esc(it.name)} <a class="id" href="#trait-${esc(it.key)}">#trait-${esc(it.key)}</a></h3><p class="meta">${esc(capitalised(traitEffectWords(it.effects, content)))}${it.excludes.length === 0 ? '' : ` · never beside ${esc(listed(it.excludes.map((key) => nameIn(content.heroTraits, key))))}`}</p>${
