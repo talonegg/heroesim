@@ -340,10 +340,25 @@ the agents recommended that story features be modules and rule extensions core i
   *Added 2026-10-02 (DL-148): the owner put it inside the v1.1 line, before Random Events. The
   setup (DL-149), and Traits with their editor and skills (DL-150), added the same day.* *Built and verified on
   `v1.1.4-dev` 2026-10-03 (DL-151 to DL-167), the Quest target deferred by the owner and recorded
-  unmet (DL-165, DL-166). The release awaits the owner (DL-124).*
+  unmet (DL-165, DL-166). Released as `v1.1.4` on 2026-10-03 (pull request #50).*
+- **Then, inside the v1.1 line:** the owner's answers to v1.1.4's open questions, as the patch
+  `v1.1.5`, built on `v1.1.5-dev` from `main` (`docs/planning/epics/v1.1.5-release.md`):
+  - one 20-year game's memory profiled, and its main cause fixed with the same games;
+  - the harness's automatic player choosing its Quests by their chance, not the highest reward it
+    can staff, and a new 50 × 20 baseline, with no rule of the game changed for it;
+  - an Injury falling on the next-weakest unhurt Hero, and the positive earned Traits back at a
+    chance of 0.05, each measured by its own sweep;
+  - `partyFor` adding a Hero only for a real gain, the estimate's harness test with Morale's
+    consequences in, and the words of the Earned Trait and the Chance band;
+  - an information-only sweep with the XP split across the Party, for the owner's decision.
+
+  *Added 2026-10-03 (DL-168).* At its close, the owner's rule picks what follows (DL-168 item 16):
+  if the new harness player brings the player's Bankruptcies within 5 to 15% of games, Random
+  Events next and the economy pass (#51) after; if not, the economy pass first, as `v1.1.6`.
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
-  "Next", on `v1.1-dev`.*
+  "Next", on `v1.1-dev`.* *Amended 2026-10-03 (DL-168): after `v1.1.5`, or after a `v1.1.6`
+  economy pass, by DL-168 item 16's rule.*
 - **After Random Events, in an order chosen at its close:**
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Scouting and hidden information.

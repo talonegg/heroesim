@@ -20535,6 +20535,152 @@ guardrails); `web/src/views/new-game.tsx`, `web/src/styles.css`; `web/src/bundle
 
 ---
 
+## DL-168 — The owner's answers to v1.1.4's open questions: v1.1.4 released, the harness's player choosing Quests by their chance before the economy, an Injury on the next-weakest unhurt Hero, the positive earned Traits at 0.05, one game's memory profiled, and v1.1.5 planned
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the owner, answering a grilling on every
+item v1.1.4 left open (DL-165 to DL-167). The words below are the owner's answers as the orchestrator
+relayed them, Q1 to Q18. The readings marked as the agent's, the stories, their acceptance and the
+sessions are the agent's, in `docs/planning/epics/v1.1.5-release.md`, for the owner to change.
+
+**Context.** v1.1.4 closed with these before the owner (DL-166's and DL-167's "For the owner"):
+- *The late bankruptcies.* 13 of 50 harness Guilds (26%), 11 of them from year 12 on, and every other
+  DL-83 target the closing sweep missed (DL-166, DL-167 item 4).
+- *The XP split* (DL-148 item 19), on DL-166's Party sizes and XP a Hero.
+- *The positive earned Traits' chance,* 0.02 against DL-148 item 25's "about 5 to 10%", for a career
+  mean of 1.12 (DL-166 item 6).
+- *E1's reading.* A negative earned Trait lands on the Failure Degree only, where the glossary,
+  `requirements.md` and the quest-review page still say "failed Encounter", which for a reroll takes
+  in a Setback (DL-167).
+- *E2.* The estimate does not follow a Morale consequence, and its probe takes every one out
+  (DL-156, DL-167).
+- *E3.* An Injury's `among` is taken over the whole living Party, then narrowed to the unhurt, so
+  when the weakest Hero is already hurt it falls on any unhurt Hero (DL-155, DL-167).
+- *R1.* At a `partyMargin` of 0, `partyFor` adds a Hero who raises the chance by nothing (DL-157,
+  DL-167).
+- *The tuned values that differ from DL-148's first ones:* `checkDegrees.triumph` 1.35 and
+  `strongTriumphShare` 0.6 (item 8), the form factors and `hurtCheckFactor` 0.93 (item 10) (DL-166
+  items 3 and 4).
+- *DL-157's reading* of "rounded to 5%" as floored to a multiple of 5, between 5 and 95 unless certain.
+- *The 18 Biography sentences* S10 wrote for the six earned Traits, which the drafts did not hold
+  (DL-166's verification, item 2).
+- *The Market's dilution.* Ten stacks a day drawn from 21 priced common Items, where there were 15
+  (DL-162's verification, DL-166).
+- *E4, E7 and W3,* left as nits (DL-167 item 1).
+- *Besides.* Cloudflare's "Workers Builds: heroesim" check fails on every push. And one 20-year game's
+  save of about 120 MB grows its process to about 1.7 GB, so a sweep runs in about 8 processes on the
+  owner's 27.6 GB machine (DL-166 item 7).
+
+**Decision.**
+
+1. **v1.1.4 is released as built** (Q1, Q18): pull request #50, merged as `75ee77f` on 2026-10-03,
+   `e2e:live` passing on both addresses. Everything below goes to later releases.
+2. **The harness's player first, then the economy** (Q2). A v1.1.5 story changes the harness's
+   automatic player, so that it chooses its Quests by their chance, not by the highest reward it can
+   staff, and the 50 × 20 sweep is measured again. No rule of the game changes for it. The economy is
+   decided after (item 16). This supersedes, for v1.1.5, DL-165 item 1's "The harness's policy and the
+   economy are not changed".
+   - *The agent's reading of "by their chance",* for the owner to change. Of the offered Quests it can
+     staff from the Heroes still free, the policy sends first the one whose `partyFor` Party has the
+     highest chance of success by the estimate, ties going to the higher reward, then the Quest id. It
+     then chooses again from the Heroes left, as it does today.
+3. **The XP split waits for v1.1.5's numbers** (Q3, DL-148 item 19). v1.1.5 runs one
+   information-only 50 × 20 sweep with the XP split across the Party: a trial, not shipped. *The
+   agent's reading:* each Hero of a Party takes the Quest's XP divided by the Party's size.
+4. **The positive earned Traits' chance goes back to 0.05** (Q4): `battle-tried`, `wayfinder`,
+   `silver-tongued` and `lettered`, through the content editor only, as the `trait-assign` skill does
+   it. The negative ones, `battle-shy` and `haunted`, stay 0.08.
+   - *The rarity aim becomes about 1.5 Traits earned a Hero career,* in place of "about one or
+     fewer". v1.1.5's Gate says so ("Rare Traits"); v1.1.4's Gate, met at 1.12, stays its record.
+   - DL-166's trials earned 1.6 to 1.9 a career at 0.05, under v1.1.4's policy; v1.1.5 measures it
+     under its own.
+   - This supersedes DL-166 item 6's 0.02.
+5. **A negative earned Trait lands on the Failure Degree only** (Q5), as E1 built it (DL-167). Only
+   the words change:
+   - `CONTEXT.md`'s Earned Trait spells out that it reads the Degree Failure, not "failed" as a reroll
+     reads it, which takes in a Setback;
+   - `docs/requirements.md`, R16;
+   - the quest-review page's sentence, `cli/src/quest-review.ts`.
+
+   DL-148 item 25's "the same failed Encounter" reads so.
+6. **An Injury falls on the next-weakest unhurt Hero** (Q6, E3). An Injury's `among` narrows to the
+   unhurt living Heroes first, then takes the weakest, so that when the weakest is already hurt the
+   Injury falls on the next weakest who is not. `exposedBy` then weighs those Heroes as before, and a
+   Death's pool, the living Party, is unchanged. This changes play: a v1.1.5 story with its own sweep.
+   It supersedes DL-155 item 3's order, `among` read over the living Party and then narrowed to the
+   unhurt.
+7. **The estimate stays as it is** (Q7, E2): "if no one falls", with Morale's consequences outside
+   it (DL-156). Its harness test, the estimate probe, gains a second, measured check with the Morale
+   consequences left in. That check fails if a gap passes a set limit, 3 points (the owner's
+   example), named in the test. The check without them stays at 2 points.
+8. **`partyFor` adds a Hero only for a real gain** (Q8, R1): a gain greater than the margin, and so
+   greater than nothing at a margin of 0. A small fix in v1.1.5. At today's margins a Hero who raises
+   the chance by exactly the margin is no longer added, so its story checks the games by fingerprint.
+9. **The Degrees' values are the design's; the form factors are provisional** (Q9).
+   - `checkDegrees.triumph` 1.35 and `strongTriumphShare` 0.6 are accepted as the design values. They
+     supersede DL-148 item 8's first values, 1.25 and "at least half".
+   - `moraleCheckFactor` (wretched 0.93, low 0.97, steady 1, high 1.03, elated 1.06) and
+     `hurtCheckFactor` 0.93 supersede item 10's 0.85 and S3's first values as provisional values,
+     revisited in the economy pass (#51).
+10. **Chances are shown floored** (Q10): to a multiple of 5, between 5 and 95 unless certain, as
+    DL-157 built them. Kept. DL-148 item 15's "rounded to 5%" reads "floored", and the spec's words say
+    so: `CONTEXT.md`'s Chance band names the floor (v1.1.5).
+11. **The 18 Biography sentences** for the earned Traits are approved as written (Q11).
+12. **The Market's dilution waits for the economy pass** (Q12, #51): 21 priced common Items for 10
+    daily stacks. Drawing the stacks by slot or category is noted there as the lasting fix to
+    consider, beside `marketSize`.
+13. **Cloudflare's Git builds are disconnected by the owner** (Q13). The "Workers Builds: heroesim"
+    check fails on every push: Cloudflare's Git integration builds from the repository's root, and
+    the only wrangler configuration is `web/wrangler.jsonc`. Nothing depends on it, and fixing it would
+    add a second deploy racing CI's. The owner disconnects the Git builds in the Cloudflare dashboard,
+    their own action. CI stays the one route to deploy (DL-94, DL-124). No file changes.
+14. **One game's memory is profiled and its main cause fixed** (Q14). v1.1.5's harness work profiles
+    one 20-year game's memory and fixes the main cause, in the engine too if that is where it lies,
+    with the games playing the same: every seed's last save's fingerprint equal.
+15. **v1.1.5's order** (Q15):
+    1. the memory profile and its fix (item 14);
+    2. the harness's player choosing Quests by their chance (item 2);
+    3. a new 50 × 20 baseline;
+    4. the next-weakest unhurt Hero injured (item 6), with its own sweep;
+    5. the positive earned Traits at 0.05 (item 4), with its own sweep.
+
+    Alongside: `partyFor`'s real gain (item 8), the estimate's Morale check (item 7), and the words of
+    items 5, 9 and 10. And the information-only split-XP sweep (item 3). Each play change's effect on
+    bankruptcies, the player's failures and strong successes, Deaths and Traits earned a career is
+    recorded on its own.
+16. **What follows v1.1.5** (Q16). If the new harness player brings the player's Bankruptcies within
+    DL-83 item 2's 5 to 15% of games, the order is v1.2's Random Events, then the economy pass. If not,
+    the economy pass comes first, as `v1.1.6`, before Random Events. In that case this supersedes
+    DL-83 item 1's and DL-148 item 3's order, the economy after Random Events.
+    - *The agent's reading,* for the owner to change: the rule reads v1.1.5's closing 50 × 20 sweep,
+      the new player with every v1.1.5 play change in. Of 50 games, 5 to 15% is 3 to 7. S3's baseline,
+      the new player alone, is reported beside it, and if the two fall on different sides of the band
+      the close says so for the owner.
+17. **The record** (Q17).
+    - This entry, and the epic `docs/planning/epics/v1.1.5-release.md`, its stories from DL-169.
+    - Its row in the register (`docs/planning/epics/README.md`) and in `docs/plan.md` §4, as
+      v1.1.4's were added.
+    - GitHub issues for what lies outside v1.1.5: #51, the economy pass (items 2, 3, 9, 12 and 16), and
+      #52, E4, E7 and W3 (DL-167 item 1), one issue for the three, as the project groups small fixes.
+    - How the stories run, as before: Opus builds the medium and large stories and does all
+      verification. The sweeps run one at a time, nothing else running, with `HEROESIM_WORKERS=8`, and
+      with `HEROESIM_REPLAY=0` for trials.
+
+**Consequences.**
+- v1.1.5 is a v1.1.x patch on `v1.1.5-dev`, cut from `main` at `75ee77f` with `v1.1.4-dev` merged in
+  (`22e9b1f`), released as DL-124 says.
+- The harness's baseline moves again with its player (S2, S3). The M8 baseline DL-83 measures against
+  has now moved twice: `partyFor`'s Party in v1.1.4-S6 (DL-157), and the choice of Quests in v1.1.5.
+- Play changes in S4 and S5. S1 must not change it, and S6 is held to the games by fingerprint.
+- `configVersion` stays 13 unless a story adds a field. The content version rises with S5's Finish.
+- Dependabot's `target-branch`es still name `v1.1.4-dev` (DL-147 item 6). Whether they move to
+  `v1.1.5-dev` is the owner's, to be asked; `.github/dependabot.yml` is not changed here.
+- Open after v1.1.5: #51, when item 16 says; #52; #49 (Backgrounds); DL-148 item 4's text form.
+
+**Actioned in:** `docs/planning/epics/v1.1.5-release.md` (new); `docs/planning/epics/README.md` (the
+register's row); `docs/plan.md` §4 (v1.1.4 released, v1.1.5 added); GitHub issues #51 and #52.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
