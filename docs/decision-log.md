@@ -20952,6 +20952,22 @@ endings.
 
 **For the owner.** Nothing is open; the readings above are the agent's to change.
 
+**The verification** (a second Opus agent, at `879169a`). Every S11 box and DL-169 items 1 to 5 are
+met by the code. `healsOnTurn` and `returnsOnTurn` are both absolute Turns, each a night
+(`inflictInjury` and `returnNightOf` both take `nightOf`), so the two compare on one scale; a Hero
+both injured and away cannot arise in play (a module's `injure` refuses a Hero away, and a returning
+Party's Injuries are given as its `partyId` is cleared). `rosterIds` is not sorted, the rows being a
+fresh array. Each comparator term was mutated in turn and a test failed for each, but one: ties
+among the unavailable broken by the order of joining in place of the default order passed every
+test, because the tie at Turn 17 (Liv and Ragnvald) agreed with the order they joined. *Fixed,* test
+first: the tie is now Ragnvald the Mage and Bram the Healer, Bram having joined first, so that
+mutation fails and the code passes (`selectors.test.ts`, the soonest-free test). No defect in the
+code. *Noted for the owner, unchanged:* the Day is in a `title` on a chip no keyboard or touch can
+focus, so a sighted player without a mouse reads it only on the Roster or the Hero's page, as Q2
+chose; and some screen readers may read a `title` as a description too, the full words then twice.
+Rechecked: lint and typecheck pass; `npm test` 185 files and 4,753 tests; `e2e -w web` 97 specs;
+check-bundle at 801,082 bytes; the doctor reports no drift.
+
 **Actioned in:** `web/src/state/selectors.ts` (`defaultHeroOrder`, `partyRows`, `PartyRow.chip`);
 `web/src/views/board.tsx` (the chip); `web/src/views/ui.tsx` (`Chip`'s `spoken`); the tests named
 above; `docs/planning/epics/v1.1.5-release.md` (S11's boxes).

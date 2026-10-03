@@ -589,17 +589,20 @@ describe('the Party builder (M9-S4, DL-104)', () => {
       };
       hero.partyId = partyId;
     };
-    // Bram is free on Turn 14, Liv and Ragnvald both on Turn 17, Cenric on Turn 20: Liv's Class before Ragnvald's breaks their tie.
-    bram.injury = { typeKey: 'deep-cut', healsOnTurn: 14 };
+    // Liv is free on Turn 14, Ragnvald and Bram both on Turn 17, Cenric on Turn 20. Ragnvald the Mage
+    // before Bram the Healer breaks their tie by the default order, against the order they joined, Bram
+    // first (S11's verification: the tie had agreed with the order of joining, and tested neither).
+    liv.injury = { typeKey: 'deep-cut', healsOnTurn: 14 };
     away(ragnvald, 17, 91);
-    liv.injury = { typeKey: 'deep-cut', healsOnTurn: 17 };
+    bram.injury = { typeKey: 'deep-cut', healsOnTurn: 17 };
     away(cenric, 20, 92);
+    expect(player(document).rosterIds.indexOf(bram.id)).toBeLessThan(player(document).rosterIds.indexOf(ragnvald.id));
 
-    expect(partyRows(document, quest.id)?.map((row) => row.name)).toEqual(['Bram Netherby', 'Liv Coldharbour', 'Ragnvald Brackenridge', 'Cenric Yarrow']);
+    expect(partyRows(document, quest.id)?.map((row) => row.name)).toEqual(['Liv Coldharbour', 'Ragnvald Brackenridge', 'Bram Netherby', 'Cenric Yarrow']);
 
     // An injured Hero who is also away reads the Injury, as the engine's `unavailability` does.
     away(bram, 23, 93);
-    expect(partyRows(document, quest.id)?.[0]).toMatchObject({ name: 'Bram Netherby', why: 'injured', chip: 'Injured' });
+    expect(partyRows(document, quest.id)?.[2]).toMatchObject({ name: 'Bram Netherby', why: 'injured', chip: 'Injured' });
   });
 
   test('lists last a Hero whose free Day cannot be read, and the Heroes who can go first, in the default order', () => {
