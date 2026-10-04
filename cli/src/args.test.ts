@@ -1,3 +1,4 @@
+import { descriptiveAttributeMaxLength } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { parseArgs, usage } from './args.js';
 
@@ -136,6 +137,12 @@ describe('parseArgs', () => {
       until: ['quest-staffable', 'below-floor'],
       max: 90,
     });
+  });
+
+  // The bounds the engine's, read rather than repeated (DL-186 item 6, v1.1.6-S5's verification).
+  test("the usage gives the engine's bounds of a Birthplace, an Appearance and a Biography", () => {
+    const { birthplace, appearance, biography } = descriptiveAttributeMaxLength;
+    expect(usage.replace(/\s+/g, ' ')).toContain(`(at most ${birthplace}, ${appearance} and ${biography.toLocaleString('en-GB')} characters)`);
   });
 
   test("the usage names every --until word, and says which stop without being named (M9-S1)", () => {

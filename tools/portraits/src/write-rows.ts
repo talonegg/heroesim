@@ -17,7 +17,7 @@ import { check } from './check.js';
 import { convert } from './convert.js';
 import { fingerprint } from './fingerprint.js';
 import { datePattern, intakeDir, nextRun, today } from './records.js';
-import { formatRegistry, isRole, isSex, nextKey, picturePaths, readRegistry, registryPath, roles, type Role, type Sex } from './registry.js';
+import { formatRegistry, isRole, isSex, nextKey, picturePaths, readRegistry, registryPath, roles, sexes, type Role, type Sex } from './registry.js';
 import { DraftError } from './errors.js';
 
 /** One upload in a draft: where it is, its sex where the draft says it, and its drafted row. */
@@ -81,7 +81,7 @@ export function parseDraft(root: string, json: unknown): Draft & { pictures: (Dr
       continue;
     }
     if (role !== undefined && role !== folders.role) problems.push(`${where}.role: ${String(role)}, and its inbox folder says ${folders.role}`);
-    if (sex !== undefined && !isSex(sex)) problems.push(`${where}.sex: female or male`);
+    if (sex !== undefined && !isSex(sex)) problems.push(`${where}.sex: ${sexes.join(' or ')}`);
     const resolvedSex = isSex(sex) ? sex : folders.sex;
     if (resolvedSex === null) problems.push(`${where}.sex: wanted, since its inbox folder has no male/ or female/`);
     if (!isObject(row)) problems.push(`${where}.row: the picture's row, an object, is wanted`);

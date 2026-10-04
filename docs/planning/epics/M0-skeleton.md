@@ -78,6 +78,8 @@ Dev dependencies, pinned exactly: `typescript`, `vitest`, `tsx`, `@types/node`, 
   `no-restricted-imports` on `@heroesim/*`, `node:*`, `fs`, `path` and any `../<package>/`
   path.
 - `content/**`: may import `@heroesim/engine` types only; the Node entry may import `node:fs`.
+  *Amended 2026-10-05 (DL-186 item 6, v1.1.6-S5): content may import the engine's values as well
+  as its types; the engine still imports nothing from content.*
 - `cli/**` and `web/**`: import `engine` and `content` by package name only, never a subpath or
   a relative path into another package; `cli` may not import `web` nor `web` `cli`.
 

@@ -1923,6 +1923,21 @@ describe('validateContent on a set built in memory', () => {
     expect(message).toMatch(/items\.whetstone\.effect\.kinds: "naval" is not a kind of Encounter/);
   });
 
+  // The Hall's facilities named in the refusal's words, which v1.1.6-S5 reads from the engine (DL-191).
+  test('refuses an Improvement of a facility that is not one, naming the facilities, in the file and in memory', () => {
+    const files = realFiles();
+    files['improvements.json'] = (files['improvements.json'] ?? '').replace('"facility": "infirmary"', '"facility": "kitchen"');
+    const content = loadContent();
+    Object.assign(content.improvements['infirmary-1'] ?? {}, { facility: 'kitchen' });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(
+      /improvements\.json: infirmary-1\.facility is "kitchen"; expected one of infirmary, trainingYard, quarters/,
+    );
+    expect(refusalOf(() => validateContent(content)).message).toMatch(
+      /improvements\.infirmary-1\.facility: "kitchen" is not a Hall facility \(infirmary, trainingYard, quarters\)/,
+    );
+  });
+
   test("refuses a Hero Trait's encounterBonus on a kind of Encounter that is not one, which the parser cannot see in memory (v1.1.4-S14)", () => {
     const content = loadContent();
     Object.assign(content.heroTraits['battle-tried']?.effects[0] ?? {}, { kinds: ['combat', 'naval'] });

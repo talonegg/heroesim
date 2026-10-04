@@ -1,5 +1,6 @@
+import { sexes as engineSexes } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { keyOf, nextKey, parseKey, parseRegistry, picturePaths, readRegistry, retire, type Registry } from './registry.js';
+import { isSex, keyOf, nextKey, parseKey, parseRegistry, picturePaths, readRegistry, retire, sexes, type Registry } from './registry.js';
 import { hashBits } from './fingerprint.js';
 import { root } from './test-support.js';
 
@@ -11,6 +12,15 @@ const entry = { hash: 'ab', trimmed: [] };
 function registry(portraits: Registry['portraits']): Registry {
   return { fingerprint: settings, portraits };
 }
+
+// The sexes are the engine's, read rather than repeated (DL-186 item 6, v1.1.6-S5's verification).
+describe('sexes', () => {
+  test("are the engine's list, and isSex holds a word to it", () => {
+    expect(sexes).toBe(engineSexes);
+    for (const sex of engineSexes) expect(isSex(sex)).toBe(true);
+    expect(isSex('other')).toBe(false);
+  });
+});
 
 describe('nextKey()', () => {
   test('gives the next number of the role and sex, from 01', () => {

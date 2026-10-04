@@ -58,7 +58,8 @@ function importsOf(ast: ts.SourceFile): { from: string; typeOnly: boolean }[] {
 
 describe('the sources these tests read', () => {
   test("leave out engine/src/boundary.test.ts's probe files, which come and go while other tests run", () => {
-    // A probe as boundary.test.ts writes one: a value import from the engine, which the tests below refuse.
+    // A probe as boundary.test.ts writes one: a value import from the engine, which the tests below would
+    // count among the files that take the engine's values.
     const file = `boundary-probe-${randomUUID()}.ts`;
     const path = join(root, 'content', 'src', file);
     writeFileSync(path, "import { x } from '@heroesim/engine';\nexport { x };\n");

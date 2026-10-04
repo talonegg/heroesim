@@ -24949,6 +24949,41 @@ not named in the story, but are a copy of the same kind, so they went too. (3) T
 reports and this story's were not committed, as S4's trial was not: the fingerprint is in this entry
 and the README.
 
+*The verification* (2026-10-05). The diff `2591047..f2588ef` read against the story and DL-186 items
+6 and 18; the doctor read no drift before and after. *Mutations, each restored:* a table of `true`s
+for the gear slots and the facilities, a frozen array of the Encounter kinds in another order, a
+table of the three bounds and a `Set` of the sexes, re-added to `validate.ts`, turned the five
+"no source writes out" tests red, each naming its line; `heroBiographyTraitSentences` exported again
+from the entry turned "the entry exports no name the engine exports" red; a type import of content
+in the engine turned "not even a type" red, and ESLint refused it. The engine declares no
+dependency and its `tsconfig.json` no reference; content and the portrait tool reference the engine
+only, so the graph stays acyclic. No consumer reads the removed exports. *The words unchanged:* the
+whole of `refusals.test.ts` passed with `parse.ts`, `validate.ts` and the entry put back as they
+were at `2591047`; the engine's lists are in the order the copies were, so every list in a refusal
+reads as before. *Findings, fixed test first:*
+- The Hall facility's two refusals (the parser's "expected one of infirmary, trainingYard, quarters"
+  and the checks' "is not a Hall facility (…)") had no test holding their words; one now holds both
+  (red with the list's separator changed).
+- The portrait tool wrote out its own `Sex` and `sexes` (`tools/portraits/src/registry.ts`), a copy of
+  the kind S5 took out of content; it now re-exports the engine's, its `isSex` reads the list, and
+  `write-rows.ts`' refusal "female or male" is `sexes.join(' or ')`, the same words. A test holds the
+  list to the engine's (red before).
+- The CLI's usage wrote out "at most 60, 280 and 1,000 characters", as the report did before SF2; it
+  now reads `descriptiveAttributeMaxLength`, its text the same. A test builds the words from the
+  engine's bounds (red with the engine's Appearance bound raised by one, before the fix; green after).
+- A stale comment in `imports.test.ts` said the tests refuse a value import of the engine; and
+  `docs/planning/epics/M0-skeleton.md`' rule for `content/**` ("types only") had no amendment, as
+  M1's has; both now say the rule as refined.
+Left as they are: labels keyed by a facility or kind (`cli/src/render.ts`, `web/src/state/rejections.ts`,
+`world-views.ts`, `board.tsx`, `icons.tsx`) are words per member, not copies; tests outside content
+that write a list out as data (gear slots in a test's config, `['female', 'male']` loops) are fixtures.
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,939 tests passing (three
+more); two earlier full runs each lost one editor test under load (`recovery.test.ts`, then
+`server.test.ts`'s Chromium page), both passing alone and in the third full run, and no file of the
+editor changed. `npm run build` and check-bundle passing, the script 816,785 bytes as built. No code
+that reaches play changed (the CLI's usage text and the portrait tool only), so the builder's
+`neutral` run stands. Line endings as before, none mixed.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
