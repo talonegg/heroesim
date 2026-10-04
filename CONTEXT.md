@@ -32,7 +32,8 @@ play and stays in the History.
 _Avoid_: Adventurer, Character, Unit, Employee
 
 **Roster**:
-The set of Heroes a Guild currently employs.
+The set of Heroes a Guild currently employs. No Guild's Roster is capped: it grows as far as its
+Guild's finances support (DL-185).
 _Avoid_: Team, Squad, Stable
 
 **Party**:
@@ -743,7 +744,9 @@ _Avoid_: Cooldown, Embargo
 
 **Transfer Generator**:
 The weekly night rule by which Rivals bid for one another's Heroes. It never takes from the
-player's Guild, an accepted exception to ADR-0002 (plan §1, DL-59).
+player's Guild, an accepted exception to ADR-0002 (plan §1, DL-59). Its own bids keep both Rosters
+within the range a Rival is generated with: a bound on the Generator alone, not a cap on any Roster,
+kept for now only to constrain testing load and to be removed (DL-185, in the backlog).
 _Avoid_: Transfer window, Trade market
 
 **Fame**:

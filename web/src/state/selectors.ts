@@ -795,12 +795,12 @@ export function rosterSortChoices(set: ContentSet = content): RosterSortChoice[]
   return [...heroSorts, ...heroStats(set).map((stat): RosterSortChoice => ({ key: stat.key, label: stat.name, first: 'descending', area: capitalised(stat.area) }))];
 }
 
-/** The direction of a sort in words, as its button says it: `Highest first`, `A to Z`, `Warrior first`. */
-export function orderWords(key: RosterSortKey, direction: SortDirection, set: ContentSet = content): string {
+/** The direction of a sort as it reads inside a sentence: `highest first`, `A to Z`, `Warrior first`. */
+function orderPhrase(key: RosterSortKey, direction: SortDirection, set: ContentSet): string {
   const up = direction === 'ascending';
   switch (key) {
     case 'default':
-      return up ? 'Default order' : 'Reversed';
+      return up ? 'default order' : 'reversed';
     case 'name':
       return up ? 'A to Z' : 'Z to A';
     case 'class': {
@@ -808,12 +808,26 @@ export function orderWords(key: RosterSortKey, direction: SortDirection, set: Co
       return `${(up ? classes[0] : classes.at(-1))?.name ?? 'Class'} first`;
     }
     case 'age':
-      return up ? 'Youngest first' : 'Oldest first';
+      return up ? 'youngest first' : 'oldest first';
     case 'free':
-      return up ? 'At the Hall first' : 'At the Hall last';
+      return up ? 'at the Hall first' : 'at the Hall last';
     default:
-      return up ? 'Lowest first' : 'Highest first';
+      return up ? 'lowest first' : 'highest first';
   }
+}
+
+/** The direction of a sort in words, as its button says it: `Highest first`, `A to Z`, `Warrior first`. */
+export function orderWords(key: RosterSortKey, direction: SortDirection, set: ContentSet = content): string {
+  return capitalised(orderPhrase(key, direction, set));
+}
+
+/**
+ * The direction button's name (#52's judgement call 4, v1.1.5's re-close, DL-185): what it does, then
+ * the direction the sort is in, as `Reverse the order, now A to Z`. The shown words stand in it, so a
+ * voice that names what it sees finds the button.
+ */
+export function reverseOrderName(key: RosterSortKey, direction: SortDirection, set: ContentSet = content): string {
+  return `Reverse the order, now ${orderPhrase(key, direction, set)}`;
 }
 
 /** A column of the Roster's Table: its key, its heading, the sort its heading orders by, and whether it holds a number. */

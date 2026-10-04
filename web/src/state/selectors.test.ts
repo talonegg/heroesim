@@ -60,6 +60,7 @@ import {
   previewView,
   progressView,
   orderWords,
+  reverseOrderName,
   rosterColumnGroups,
   rosterSortChoices,
   rosterView,
@@ -979,6 +980,24 @@ describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
     expect(orderWords('age', 'descending')).toBe('Oldest first');
     expect(orderWords('free', 'ascending')).toBe('At the Hall first');
     expect(orderWords('free', 'descending')).toBe('At the Hall last');
+  });
+
+  test("names the direction's button by its action, then the direction it is in, the shown words inside a sentence (#52's judgement call 4, DL-185)", () => {
+    expect(reverseOrderName('default', 'ascending')).toBe('Reverse the order, now default order');
+    expect(reverseOrderName('default', 'descending')).toBe('Reverse the order, now reversed');
+    expect(reverseOrderName('name', 'ascending')).toBe('Reverse the order, now A to Z');
+    expect(reverseOrderName('name', 'descending')).toBe('Reverse the order, now Z to A');
+    expect(reverseOrderName('class', 'ascending')).toBe('Reverse the order, now Warrior first');
+    expect(reverseOrderName('level', 'descending')).toBe('Reverse the order, now highest first');
+    expect(reverseOrderName('strength', 'ascending')).toBe('Reverse the order, now lowest first');
+    expect(reverseOrderName('age', 'ascending')).toBe('Reverse the order, now youngest first');
+    expect(reverseOrderName('free', 'descending')).toBe('Reverse the order, now at the Hall last');
+    // The shown words are in it, whatever their case, so a voice naming what it sees finds the button.
+    for (const key of ['default', 'name', 'class', 'level', 'age', 'morale', 'free', 'strength'] as const) {
+      for (const direction of ['ascending', 'descending'] as const) {
+        expect(reverseOrderName(key, direction).toLowerCase()).toContain(orderWords(key, direction).toLowerCase());
+      }
+    }
   });
 
   test('sorts by Name, Class, Level, Age and Morale either way, ties in the default order', () => {

@@ -367,13 +367,21 @@ the agents recommended that story features be modules and rule extensions core i
   who comes home taking the Quest's XP divided by the Party's size, ships in `v1.1.5` (S13), and the
   Roster's Tiles show a Unique Item's picture with a thin gold glow around its Hero, the Table the glow
   alone (S14); then a short re-close. The rule's outcome is overridden: the economy pass goes to the
-  backlog, and what follows `v1.1.5` is to be decided.*
+  backlog, and what follows `v1.1.5` is to be decided.* *Re-closed 2026-10-04 (DL-183 to DL-185): S14 and
+  S13 built and verified, S13's sweep the closing sweep (0 of 50 player Guilds bankrupt); #52's
+  judgement calls 4 and 6 built; no Guild's Roster capped; the release awaiting the owner.*
 - **The economy pass (#51), in the backlog:** after other game balances and features, by the owner's
   answer at v1.1.5's close (DL-182): the late Bankruptcies, the DL-83 targets, the wage's shape, Rival
   income, the form factors, and the Market's size and draws by slot (DL-168 items 2, 9 and 12). The
   XP split is no longer in it: it ships in `v1.1.5`. *Added 2026-10-04 (DL-181) as the patch
   `v1.1.6`, before Random Events, by DL-168 item 16's rule; amended the same day (DL-182): not
   `v1.1.6`, but deferred to the backlog by the owner, its place to be decided.*
+- **The Transfer Generator's Roster bound removed, in the backlog:** its own bids keep a Rival's
+  Roster at or below `rivalRosterMax` (DL-59), kept for now only as a development measure to
+  constrain testing load; no Guild's Roster is otherwise capped, each growing as far as its finances
+  support. *Added 2026-10-04 (DL-185), by the owner's answer at v1.1.5's re-close: "the transfer
+  generator cap stays purely for development and constraining testing load for now, will remove
+  this in the future".*
 - **What follows `v1.1.5`:** to be decided by the owner (DL-182 item 2, "Decide later").
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was

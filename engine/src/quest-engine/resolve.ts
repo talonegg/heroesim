@@ -82,9 +82,9 @@ import { check, type CheckDeps, type CheckResult, type EncounterOutcome, type Fo
 import { kitOf, type ConsumableUse } from './consumables.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { endsWithFinale, sequenceFor } from './encounters.js';
-import { exposure, guard, narrowed } from './harm.js';
+import { exposure, guard, namedIn, narrowed } from './harm.js';
 import { drawLoot, type FinaleOutcome, type LootDraw } from './loot.js';
-import { membersOf, queryParty, type OnQuest, type QueryMember, type QueryParty } from './query.js';
+import { queryParty, type OnQuest, type QueryMember, type QueryParty } from './query.js';
 import { synergiesOn } from './synergy.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
@@ -527,7 +527,9 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
  * Draws an earned Trait (v1.1.4-S7, DL-148 item 25): whether it lands, then on whom, two draws taken
  * whether or not it lands, the second from no one too. A positive Trait, on a Triumph's list, falls
  * among the Party still in the sequence; a negative one, on a Failure's, among those this Encounter
- * injured who are still in it; of them those `among` names, and of those the Heroes who may take it:
+ * injured who are still in it; of them those `among` names, read over them alone, so that a `bottom`
+ * or a `top` ranks only the Heroes it can fall on, as an Injury's does (`namedIn`; #52's judgement
+ * call 6, v1.1.5's re-close, DL-185), and none when it names none; of those the Heroes who may take it:
  * who may earn this one (`mayEarn`) and have drawn no Trait on this Quest, save that a negative one
  * may fall on a Hero holding a positive one, which it then takes the place of (DL-159's verification).
  * A negative one is granted only at a Failure: at a Setback that reads the failure list, having no
@@ -542,7 +544,7 @@ function earn(consequence: TraitConsequence, working: Working, harm: Harm, at: A
     return;
   }
   const pool = positive ? working.alive : working.alive.filter((hero) => harm.injured.includes(hero.id));
-  const named = consequence.among === undefined ? undefined : new Set(membersOf(consequence.among, partyNow(working, at, deps)).map((member) => member.hero.id));
+  const named = consequence.among === undefined ? undefined : new Set(namedIn(pool, consequence.among, partyNow(working, at, deps)).map((hero) => hero.id));
   const eligible = pool.filter(
     (hero) =>
       (named === undefined || named.has(hero.id)) &&

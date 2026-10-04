@@ -1349,6 +1349,36 @@ describe('earned Traits (v1.1.4-S7)', () => {
     const none = earning('among-none', [triumphant('feat', [earned('quick-study', { among: warriors })]), triumphant('again')], { set: classes('mage', 'mage', 'rogue') });
     expect(none.resolve().traits).toEqual([]);
   });
+
+  // #52's judgement call 6 (DL-182 item 3, v1.1.5's re-close, DL-185): an earned Trait's `among` is read
+  // over the Heroes it can fall on, as an Injury's is (v1.1.5-S4, `narrowed`), not over the whole Party.
+  test("a negative Trait's `bottom` among ranks those the Encounter injured, so the weakest Hero, unhurt there, is passed over; its two draws as before", () => {
+    const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
+    const strongest: SetQuery = ['top', 'party', 1, ['stat', 'strength']];
+    // Party order 12, 4, 8: the weakest second; the Injury falls on the strongest, the first.
+    const strengths = (heroes: Hero[]): void => [12, 4, 8].forEach((value, index) => ((heroes[index] as Hero).stats['strength'] = value));
+    for (let seed = 0; seed < 20; seed += 1) {
+      const h = earning(`pool-${seed}`, [failing('ambush', [injury({ among: strongest }), earned('shaken', { among: weakest })])], { set: strengths });
+      h.quest.lootTableKey = null;
+      const twin = structuredClone(streamOf(h.world, 'quests'));
+      const { encounters, traits } = h.resolve();
+      expect(encounters[0]?.injured).toEqual([h.heroes[0]?.id]);
+      // Read over the whole Party, the `bottom` would name the second Hero, whom the Encounter did not injure, and no one would take it.
+      expect(traits).toEqual([{ heroId: h.heroes[0]?.id, traitKey: 'shaken', encounterIndex: 0, encounterKey: 'ambush' }]);
+      // One Check's draw, the Injury's three, then the Trait's two, whether it lands and on whom.
+      for (let draw = 0; draw < 1 + 3 + 2; draw += 1) next(twin);
+      expect(streamOf(h.world, 'quests')).toEqual(twin);
+    }
+  });
+
+  test("a positive Trait's among still reads the living Party, which is its pool: the weakest named", () => {
+    const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
+    const strengths = (heroes: Hero[]): void => [12, 4, 8].forEach((value, index) => ((heroes[index] as Hero).stats['strength'] = value));
+    for (let seed = 0; seed < 10; seed += 1) {
+      const h = earning(`living-${seed}`, [triumphant('feat', [earned('quick-study', { among: weakest })]), triumphant('again')], { set: strengths });
+      expect(h.resolve().traits.map((it) => it.heroId)).toEqual([h.heroes[1]?.id]);
+    }
+  });
 });
 
 describe("a Hero Trait's effects in a Check (v1.1.4-S7)", () => {

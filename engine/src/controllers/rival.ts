@@ -272,7 +272,9 @@ function dearestWanted(
  *
  * - the Transfer keeps both Rosters within the range a Rival is generated with: the bidder's below
  *   `rivalRosterMax` and the other's above `rivalRosterMin`, so the Generator's own moves never take a
- *   Roster out of it (the epic's box, DL-59);
+ *   Roster out of it (the epic's box, DL-59). The top is the Generator's bound alone, no cap on a
+ *   Roster, which grows as far as its Guild's finances support; it is kept for now only as a
+ *   development measure, to constrain testing load, and is to be removed (backlog, DL-185);
  * - both answer as they answer any Transfer asked of them (`transferAnswer`, DL-57), the consent
  *   rule every Transfer keeps: the other lets a Hero go (`out`: its appetite and its Roster size), the
  *   consent `transferIn` itself asks, and the bidder takes one in (`in`: its appetite and its Roster

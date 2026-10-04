@@ -2765,6 +2765,13 @@ ul.chips {
   height: 1rem;
 }
 
+/* The arrow and the words the button shows, under its tooltip; its name is its own (DL-185). */
+.roster__direction-shown {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 /* The Table's Columns panel, on a wide screen: a box for each column, by group. */
 .columns-panel {
   margin: 0 0 0.75rem;

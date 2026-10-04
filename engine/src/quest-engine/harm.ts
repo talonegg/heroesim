@@ -63,15 +63,24 @@ export function guard(member: Pick<QueryMember, 'stats'>, statKeys: readonly Sta
 }
 
 /**
- * Of `pool`, the Heroes harm can fall on in Party order, those `among` names, read over `party`'s
- * members in `pool` (v1.1.5-S4, DL-178): so a `bottom` or a `top` ranks only the Heroes it can fall on.
- * All of `pool` when there is no `among`, or when it names none of them.
+ * Of `pool`, the Heroes a consequence can fall on in Party order, those `among` names, read over
+ * `party`'s members in `pool` (v1.1.5-S4, DL-178): so a `bottom` or a `top` ranks only the Heroes it
+ * can fall on. None when it names none of them. An earned Trait's `among` is read so too (v1.1.5's
+ * re-close, DL-185), over its own pool, without `narrowed`'s fallback.
  */
-export function narrowed<Hero extends { id: HeroId }>(pool: readonly Hero[], among: SetQuery | undefined, party: QueryParty): readonly Hero[] {
-  if (among === undefined) return pool;
+export function namedIn<Hero extends { id: HeroId }>(pool: readonly Hero[], among: SetQuery, party: QueryParty): Hero[] {
   const inPool = new Set(pool.map((hero) => hero.id));
   const over: QueryParty = { ...party, members: party.members.filter((member) => inPool.has(member.hero.id)) };
   const named = new Set(membersOf(among, over).map((member) => member.hero.id));
-  const within = pool.filter((hero) => named.has(hero.id));
+  return pool.filter((hero) => named.has(hero.id));
+}
+
+/**
+ * Of `pool`, the Heroes harm can fall on in Party order, those `among` names (`namedIn`, v1.1.5-S4,
+ * DL-178). All of `pool` when there is no `among`, or when it names none of them.
+ */
+export function narrowed<Hero extends { id: HeroId }>(pool: readonly Hero[], among: SetQuery | undefined, party: QueryParty): readonly Hero[] {
+  if (among === undefined) return pool;
+  const within = namedIn(pool, among, party);
   return within.length === 0 ? pool : within;
 }

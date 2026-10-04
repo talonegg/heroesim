@@ -22,7 +22,7 @@
 import type { HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
-import { orderWords, rosterColumnGroups, rosterSortChoices, rosterView, type RosterOrder, type RosterRow, type RosterSortKey } from '../state/selectors';
+import { orderWords, reverseOrderName, rosterColumnGroups, rosterSortChoices, rosterView, type RosterOrder, type RosterRow, type RosterSortKey } from '../state/selectors';
 import { HeroPage } from './hero-page';
 import { Icon } from './icons';
 import { Offers } from './offers';
@@ -179,11 +179,14 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
                 type="button"
                 className="roster__direction"
                 data-testid="roster-direction"
-                title="Reverse the order"
+                aria-label={reverseOrderName(order.key, order.direction)}
                 onClick={() => sortBy(reversed())}
               >
-                <Icon name={order.direction === 'ascending' ? 'up' : 'down'} />
-                <span>{orderWords(order.key, order.direction)}</span>
+                {/* The name says the action, then the direction (DL-185); the tooltip stays a mouse's, read once. */}
+                <span className="roster__direction-shown" aria-hidden="true" title="Reverse the order">
+                  <Icon name={order.direction === 'ascending' ? 'up' : 'down'} />
+                  <span>{orderWords(order.key, order.direction)}</span>
+                </span>
               </button>
               {shownAs === 'table' && !narrow ? (
                 <button type="button" aria-expanded={columnsOpen} aria-controls="roster-columns" onClick={() => setColumnsOpen(!columnsOpen)}>

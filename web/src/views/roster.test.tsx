@@ -901,6 +901,31 @@ describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
     expect(tileNames()).toEqual(sortedNames);
   });
 
+  test("names the direction's button by its action, then its state, the shown words kept and its tooltip read once (#52's judgement call 4, DL-185)", () => {
+    render_(started());
+    const roster = within(section('Roster'));
+    expect(roster.getByRole('button', { name: 'Reverse the order, now default order' })).toBe(direction());
+    expect(direction().textContent).toBe('Default order');
+
+    fireEvent.change(sortBy(), { target: { value: 'name' } });
+    expect(roster.getByRole('button', { name: 'Reverse the order, now A to Z' })).toBe(direction());
+    expect(direction().textContent).toBe('A to Z');
+    fireEvent.click(roster.getByRole('button', { name: 'Reverse the order, now A to Z' }));
+    expect(roster.getByRole('button', { name: 'Reverse the order, now Z to A' })).toBe(direction());
+    expect(direction().textContent).toBe('Z to A');
+
+    fireEvent.change(sortBy(), { target: { value: 'level' } });
+    expect(roster.getByRole('button', { name: 'Reverse the order, now highest first' })).toBe(direction());
+    expect(direction().textContent).toBe('Highest first');
+
+    // The tooltip "Reverse the order" stays a mouse's, on the shown part the screen reader passes over,
+    // so it is not read again after the name (W3's way, S10's close review).
+    expect(direction().hasAttribute('title')).toBe(false);
+    const tipped = direction().querySelector('[title]');
+    expect(tipped?.getAttribute('title')).toBe('Reverse the order');
+    expect(tipped?.closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+
   test('keeps the sort and its direction in this browser', () => {
     render_(started());
     fireEvent.change(sortBy(), { target: { value: 'morale' } });

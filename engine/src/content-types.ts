@@ -485,12 +485,14 @@ export interface FameConsequence {
 
 /**
  * A Hero earns the Hero Trait `traitKey` with probability `chance` (v1.1.4-S7, DL-148 item 25,
- * `CONTEXT.md` Earned Trait): one Hero, drawn from those `among` names (a Set Query over the Party
- * still in the sequence; every one of them when absent), and of those only the Heroes who may take
- * it: who do not hold it, hold none it excludes or that excludes it (DL-150 item 5), and have drawn no
- * other on this Quest, save that a negative one may fall on a Hero holding a positive one, and is
- * then granted in its place: at most one is granted a Hero a Quest (DL-159). When `among` names none
- * of them it falls on no one. Where it is listed says what it is:
+ * `CONTEXT.md` Earned Trait): one Hero, drawn from those `among` names (a Set Query read over the
+ * Trait's own pool, the Party still in the sequence for a positive one and those the Encounter
+ * injured for a negative one, so that a `bottom` or a `top` ranks only the Heroes it can fall on, as
+ * an Injury's does: v1.1.5's re-close, DL-185; every one of them when absent), and of those only
+ * the Heroes who may take it: who do not hold it, hold none it excludes or that excludes it (DL-150
+ * item 5), and have drawn no other on this Quest, save that a negative one may fall on a Hero holding
+ * a positive one, and is then granted in its place: at most one is granted a Hero a Quest (DL-159).
+ * When `among` names none of them it falls on no one. Where it is listed says what it is:
  *
  * - in an Encounter's `triumph` list, a positive Trait: drawn on the Triumph, held, and granted only
  *   if the Quest ends a strong success;

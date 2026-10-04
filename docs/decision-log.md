@@ -16645,6 +16645,7 @@ content.
     policy shares it. As recommended.
 18. **A Party's order** breaks ties only. A marching order waits for the third tier. As recommended.
 19. **Splitting XP** across the Party is decided after the balance pass's numbers. As recommended.
+    *Settled by the owner, 2026-10-04 (DL-182 item 1):* the XP split ships in v1.1.5, as S13 (DL-184).
 20. **Synergies are written as Queries.** `requires` is a list of Party-level conditions, and the old
     Class and Skill form loads into it. As recommended.
 21. **Coverage.**
@@ -22820,6 +22821,8 @@ and the epic change.
    (11.58 a game) further below item 22's 14 to 17, and raises Deaths and Injuries about a quarter.
 2. *Whether to split XP,* and how (by the Party sent or by those who come home, rounded down or
    otherwise), is yours for #51; the diff above rebuilds this trial.
+   *Answered by the owner, 2026-10-04 (DL-182 item 1):* "go with split xp", shipped in v1.1.5 as
+   S13, by the Party sent, rounded down (DL-184).
 3. #51's comment with these numbers is prepared for the orchestrator to post (the story does not touch
    GitHub).
 
@@ -23581,6 +23584,9 @@ before the split.
    not passed on. `questsConclude` is unchanged: it adds `xpPerHero` to each survivor and emits
    `hero.xp-gained` with it. Whatever the band, for the player's and the Rivals' Parties alike, through
    the one Quest Engine; no draw added or moved; a Party of one takes what it took before.
+   *Corrected at v1.1.5's re-close (DL-185):* the split adds no draw and moves none in the resolver,
+   but through slower Levels a game takes fewer draws from the `progression` stream (each Level's
+   growth draws there), so later draws there move; the games are the trial's, as the sweep shows.
 2. **The comments that said XP is whole.** `resolveQuest`'s doc comment and the outcome's `xpPerHero`
    (`resolve.ts`) say the split, the Dead counted, rounded down; the Quest XP comment above
    `xpPerDifficultyPoint` (`engine/src/config.ts`), a comment only, so `configVersion` stays 13;
@@ -23867,6 +23873,236 @@ loosening had dropped.
    each year's median only, at its edge: one more change that enriches the Rivals will fail it. Whether
    a Rival's Roster should be capped, or the box read by median alone, belongs with the economy pass
    (#51).
+   *Answered by the owner, 2026-10-04 (DL-185):* no Guild's Roster is capped, each growing as far as
+   its finances support; the box's checks at the range's top are removed, and the Transfer
+   Generator's own bound is kept for now only to constrain testing load, to be removed (backlog).
+
+---
+
+## DL-185 — v1.1.5's re-close: the owner's answers since DL-182 (the light glow kept, #51's comments posted, #52's calls 4 and 6 built and 8 deferred, no Roster capped); the direction button named by its action, an earned Trait's `among` read over its own pool, the Roster checks at the range's top removed; every check passing, the estimate probe equal to the close's to the digit, and S13's sweep standing as the closing sweep
+
+**Status:** Accepted; the re-close complete, the release awaiting the owner · **Date:** 2026-10-04 ·
+**Decided by:** the owner (decisions 1 to 4, quoted as the orchestrator relayed them); the fixes,
+their tests, the checks and the readings marked as the agent's, by the agent, as part of S10 (the
+epic's §0, item 15).
+
+**Context.** DL-182 reopened v1.1.5 for S14 (DL-183) and S13 (DL-184), then a short re-close: a review
+of S13's and S14's commits with its findings fixed test first, every check, the estimate probe again,
+and this record. At `8d9241d` (S13 verified) four answers had come back from the owner, and the
+re-close's review had found four wording faults in the record.
+
+### The owner's decisions since DL-182
+
+1. **The light glow: kept.** DL-183's verification gave the light scheme's tile glow at 2.75:1 at the
+   pixel just outside the ring and 3.78:1 on its inner side, with a fainter glow as the other way.
+   The owner: "keep as is". S14's glow stands as built; DL-183's reading noted.
+2. **#51's comments A and B approved and posted** by the orchestrator:
+   <https://github.com/talonegg/heroesim/issues/51#issuecomment-5977905987> (A, the split-XP trial and
+   the owner's decision) and
+   <https://github.com/talonegg/heroesim/issues/51#issuecomment-5977906130> (B, the rule's outcome and
+   its override). DL-181's and DL-182's "to be posted" are done.
+3. **#52: judgement calls 4 and 6 built now, call 8 deferred.** The owner: "do #52 comment 1, 2,
+   don't need 3 yet", and then "Build them now in v1.1.5". Calls 4 (the direction button's name) and 6
+   (an earned Trait's `among`) are built here (items 5 and 6 below). Call 8, the replay's cross-check
+   against the sweep's own record of its seed, is deferred and posted nowhere. This amends DL-182 item
+   3's "to #52, as later small fixes" for calls 4 and 6.
+4. **No Guild's Roster is capped.** The owner: "remove guidance for capping guild roster size. rosters
+   can be allowed to grow as large as the finances support it"; asked about the Transfer Generator's
+   own bound (it never makes a move taking a Roster above `rivalRosterMax`, DL-59), "Keep it for now";
+   and, clarifying, "the transfer generator cap stays purely for development and constraining testing
+   load for now, will remove this in the future (backlog item)". So:
+   - no Guild's Roster is capped; a Roster grows as far as its Guild's finances support;
+   - `rivalRosterMin` to `rivalRosterMax` stays the range a Rival's starting Roster is drawn from, and
+     `rivalRosterMin` the floor below which a Rival hires by need (DL-60);
+   - the Generator's own move rule (`transferBid`, DL-59) stays, kept **only as a development measure
+     to constrain testing load**, not as a game rule or the design's intent; its removal is a backlog
+     item, in `docs/plan.md` §4. No GitHub issue is opened here: that is the orchestrator's, with the
+     owner;
+   - this answers DL-184's "For the owner" item 1 (the Rivals' Rosters with the split, and whether a
+     Rival's Roster should be capped).
+
+### The review's findings
+
+The re-close's review of S13's and S14's commits (`545a2d1..8d9241d`) found no defect in code. Its four
+findings were wording, each fixed here:
+- **(i) "No draw moves" was too broad.** The split adds no draw and moves none in the resolver, but
+  through slower Levels a game takes fewer draws from the `progression` stream (each Level's growth
+  draws there, `phases/level-ups.ts`), so the later draws there fall differently. The epic's §2
+  ("Streams and events") and S13's rule now say so, and a pointer at DL-184 item 1 says it beside it,
+  DL-184's body otherwise as it was. The closing sweep always measured the shipped line, so no figure
+  changes.
+- **(ii) The Transfer Generator test's opening comment** said each year's median and the mean stay
+  within the range; fixed with item 7 below.
+- **(iii) The Gate's "The XP split"** said "Parties of one to three and a Death"; the tests hold one to
+  five (DL-184). It now says "one to five".
+- **(iv) Forward pointers to DL-182** were missing at DL-148 item 19 ("decided after the balance
+  pass's numbers") and at DL-180's "For the owner" item 2 ("Whether to split XP … is yours"). Each now
+  says that the owner settled it (DL-182 item 1), shipped as S13 (DL-184).
+
+### What was built
+
+5. **#52's call 4: the Roster's direction button named by its action, then its state.** Test first:
+   `roster.test.tsx`'s "names the direction's button by its action, then its state, the shown words
+   kept and its tooltip read once" and `selectors.test.ts`'s "names the direction's button by its
+   action, then the direction it is in" failed (no button of that name; `reverseOrderName` not a
+   function), then:
+   - `selectors.ts`: the direction's words are built once as a phrase for inside a sentence
+     (`orderPhrase`: `default order`, `reversed`, `A to Z`, `Warrior first`, `highest first`, `at the
+     Hall first`), `orderWords` being its `capitalised()` form, the shown words unchanged; and
+     `reverseOrderName` gives the button's name: `Reverse the order, now A to Z`, `Reverse the order,
+     now highest first`, `Reverse the order, now Warrior first`. A Class's name and "A to Z" keep their
+     capitals inside the sentence (a term, and the letters), the rest is lower case (`ui-text.md`
+     rules 2 to 4), and the name begins with a capital.
+   - `roster.tsx`: the button (`roster__direction`, its `data-testid` kept) takes its `aria-label` from
+     it. Its arrow and shown words stand in a `span` (`roster__direction-shown`) that is `aria-hidden`
+     and carries the tooltip "Reverse the order", W3's way (DL-181): the tooltip stays a mouse's and is
+     not read again after the name. `styles.css` lays the `span` out as the button laid them out
+     (`inline-flex`, the button's 0.45rem gap).
+   - The tests: the name in each state (the default, A to Z, Z to A after a press, Highest first), the
+     shown words unchanged, the button bearing no `title`, its tooltip on an `aria-hidden` part; in the
+     selector, every key both ways, the shown words contained in the name whatever their case, so that
+     a voice naming what it sees finds the button (WCAG 2.5.3). The capitals guard passes.
+   - `e2e`: the one locator of the button is its `data-testid`, with `toHaveText('Lowest first')`
+     (`layout.spec.ts`), still true; none finds it by name.
+6. **#52's call 6: an earned Trait's `among` read over its own pool.** Test first:
+   `resolve.test.ts`'s "a negative Trait's `bottom` among ranks those the Encounter injured, so the
+   weakest Hero, unhurt there, is passed over; its two draws as before" failed (no Trait granted: read
+   over the whole Party, the `bottom` named the weakest Hero, whom the Encounter had not injured), then:
+   - `harm.ts`: `namedIn(pool, among, party)`, those of `pool` that `among` names, read over `party`'s
+     members in `pool`, and none when it names none of them. `narrowed` (S4's) now calls it and keeps
+     its own fallback, all of the pool when none is named, so an Injury reads as before.
+   - `resolve.ts`'s `earn`: `named` is `namedIn(pool, among, partyNow(…))` over the Trait's own pool,
+     the living Party for a positive Trait and those this Encounter injured for a negative one. As
+     before, when `among` names none of the pool the Trait falls on no one (an earned Trait has no
+     fallback; the agent's reading, keeping what DL-159 built). The draws' number and order are
+     unchanged: `next`, then `pick` or `next`, whether or not anyone is named.
+   - The tests: Party order Strength 12, 4 and 8; the Injury's `among` the strongest, so the first
+     Hero is injured; the Trait's `among` `["bottom", "party", 1, ["stat", "strength"]]`. Over 20 seeds
+     it lands on the first Hero, and the stream is the twin's six draws on (one Check, the Injury's
+     three, the Trait's two). Beside it, a guard that passed before and after: a positive Trait's
+     `bottom` still names the weakest of the living Party, its pool. The other earned-Trait tests
+     (`among` naming no one, the two draws) pass unchanged.
+   - *No play changes.* A scan of every content file for a `kind: "trait"` consequence finds content
+     32's eight, none with an `among`, so `named` is `undefined` and `earn` runs exactly as before.
+     `quests-conclude.test.ts`'s three History fingerprints (S13's, `ae34d056…`, `83073fb4…`,
+     `20a8de88…`) pass unchanged.
+   - `content-types.ts`'s `TraitConsequence` and `earn`'s doc comment say where `among` is read.
+7. **No Roster capped: the checks at the range's top removed** (`transfer-generator.test.ts`).
+   - Removed: over the four seeds, "the median of every year-end at or below `rivalRosterMax`"; and,
+     under `HEROESIM_HARNESS`, "each year's median at or below `rivalRosterMax`" (S13's verification's
+     guard, DL-184). Kept: `expectWithinTheRule`, the Generator's own Transfers within the range; and
+     the floor: each year's median, and the median and the mean of every year-end, at `rivalRosterMin`
+     or above, a Rival below it hiring by need.
+   - The test is now "the Roster-size distribution across Rivals keeps to the generation range's
+     floor, and is not capped at its top". Its comment, which said each year's median and the mean stay
+     within the range (finding ii), now says what is held and why, how the box's reading moved (DL-59,
+     DL-157, DL-184, this entry) and the box's figures; the file's head says the same, and
+     `expectWithinTheRule`'s comment that the top is the Generator's bound alone, kept for testing
+     load. It passes over its four seeds.
+   - The words that read the range as a cap, or the Generator's bound as a rule, now say decision 4:
+     `config.ts`'s comment on `rivalRosterMin` and `rivalRosterMax` (a comment only, `configVersion`
+     13); `transferBid`'s comment (`controllers/rival.ts`); `CONTEXT.md`'s Roster ("No Guild's Roster
+     is capped …") and Transfer Generator; and `docs/plan.md` §4, the backlog item. Neither
+     `docs/requirements.md` nor the epic names a cap, and #51's scope names none in `docs/plan.md` or
+     the epic, so nothing there was removed. DL-184's "For the owner" gains a pointer here; its body is
+     as it was.
+   - *The agent's reading:* the harness's automatic player buys a Hero only while its Roster is below 8
+     (its policy, INPUTS 4.14). That is the policy's choice, not a rule of the game, and changing it
+     would change the play the closing sweep measured, so it is left as it is (for the owner, below).
+
+### The checks
+
+Run on the working tree at `8d9241d` with the changes above, each alone, nothing else of ours running
+(the owner's Playwright test-server left running, 15 MiB):
+- `npm run edit -- traits doctor` before the changes and after the checks: no drift, the register
+  listing all 110 reads of a Trait; `docs/agents/traits.md` fresh; the content passing; no pending
+  edits.
+- `npm run typecheck`: clean. `npm run lint`: clean.
+- `npm test`: 185 files, 4,835 tests, all passing (163.8 s; 4,831 at S13's verification, 4 added: two
+  in `resolve.test.ts`, one in `selectors.test.ts`, one in `roster.test.tsx`); the two eslint-based
+  tests within their time.
+- `npm run e2e -w web`: 103 passed (50.8 s), the Roster's and the glow's layout specs among them. Its
+  build's check-bundle passes; the script is 816,412 bytes (`index-C73V2Mtc.js`) against 850 kB, 353
+  over S13's 816,059 (the new selector and the button's name).
+- *The estimate probe,* on the shipped content, content 32, alone:
+  `HEROESIM_PROBE=estimate HEROESIM_MILESTONE=m9-v115-reclose-estimate npm run harness`, 483.5 s, the
+  harness test passing. The report, `harness/reports/m9-v115-reclose-estimate-2026-10-04.md`, is
+  force-added. **It equals the close's to the digit** (`m9-v115-close-estimate-2026-10-04.md`): `diff`
+  finds only the run's line, its time and 483.5 s against 491.5 s. So, as at the close: with no one
+  falling every chance is within 2 points, the widest 1.18 (`estimate-0070`'s Encounter 4, Success or
+  better), none beyond; with Morale in, the Quest's bands and success within 3 points, the widest 1.61
+  (`estimate-0169`'s success), none beyond; the Encounters' gaps reported, not held, 23.65 (Degrees)
+  and 4.64 (Success or better), 8 beyond 3. As the epic expected: XP is given after a Quest's
+  Encounters (`questsConclude`) and no Check of the same Quest reads it, so S13's split does not reach
+  the probe; and item 6 reads only an `among` that no content Trait has, and draws as before.
+
+### The closing sweep's standing
+
+**S13's sweep stands as v1.1.5's closing sweep** (`harness/reports/m9-v115-s13-2026-10-04.md`, every
+seed's last save `e7ae171001c2…6369f369`, `seed-0001` replayed identical at 144,371,849 characters,
+DL-184). It is not run again. *The agent's reading,* by each change of this re-close:
+- *Item 5* is the page: a selector's words and a button's name, read by no engine, harness or content.
+- *Item 6* changes `earn` only where a Trait consequence has an `among`. Content 32 has none (the scan
+  above), so `named` is `undefined` and every game takes the same path with the same draws as in S13's
+  sweep. `narrowed`, now calling `namedIn`, gives the same Heroes for every input (its tests in
+  `harm.test.ts` and S4's in `resolve.test.ts` pass unchanged).
+- *Item 7* changes a test and comments.
+- *Held by tests:* `quests-conclude.test.ts`'s three History fingerprints, S13's, unchanged and
+  passing; `play.test.ts` plays a seed twice alike; and the probe above, equal to the digit.
+- `git diff 8d9241d` touches, under `engine/src/`, only `harm.ts`'s `namedIn`, `earn`'s one line and
+  comments; nothing under `content/`, `harness/src/` or `tools/`.
+
+### The Gate, read on S13's sweep, but the release
+
+- *The memory:* met (DL-174, DL-175; the replay's own memory, DL-181's E3, at 1,501 MiB in S13's
+  sweep).
+- *`partyFor`'s real gain:* met (DL-175). *The new player:* met (DL-176, DL-177). *Each play change
+  measured alone:* met (DL-178, DL-179).
+- *Rare Traits:* read on the closing sweep, S13's: 2.178 Traits earned a player's Hero career against
+  the baseline of 2.32 (S5's, DL-179), the difference, −0.144, the split's, explained (DL-184: fewer
+  strong successes keep slightly fewer positive Traits, and a Hero goes on fewer Quests); the Rivals'
+  1.259 against 1.13. Met as the Gate states it.
+- *The estimate:* met, both held checks passing on the shipped content (the probe above).
+- *The words:* met (DL-172), and S13's words for XP (DL-184). *The Board:* met (DL-170, DL-181). *The
+  Roster:* met (DL-171, DL-181), with the direction button's name (item 5).
+- *The split-XP trial:* met (DL-180), none of its scratch counter in the patch (DL-184).
+- *The XP split:* met (DL-184): held by tests with Parties of one to five and a Death, its words, and
+  S13's sweep playing DL-180's trial games by fingerprint.
+- *Unique Items on the Roster:* met (DL-183), the gold pair at 3:1 in light and dark; the light glow's
+  outer pixel kept by the owner (decision 1).
+- *The rule for what follows:* applied at the close (DL-181) and overridden by the owner (DL-182 item
+  2). For information, S13's sweep counts 0 of 50 player Guilds bankrupt, below 3 to 7 (the close's
+  12, S3's 13). The DL-83 targets, for information, as DL-184 reads them: item 2, Bankruptcies 0%,
+  below 5 to 15%; item 21, the Roster's mean Level after 10 years 8.34, inside 8 to 10; item 5, Rival
+  folds 2.74 a game, inside 1.5 to 3.5; items 3, 4, 6 and 7 still off; item 22 not counted. For #51,
+  in the backlog.
+- *Traits:* met, the doctor reporting no drift before and after this re-close, which touches
+  `engine/src/`.
+- *The checks:* met (above): lint, typecheck, `test` and `e2e -w web` passing, among them the layout
+  specs of the Table, its panel and tabs and S14's glow at 360 and 390px in light and dark; the script
+  816,412 bytes, under 850 kB.
+- *The release:* not met; the owner's.
+
+**For the owner.**
+1. *The release* (DL-124; the epic's S10; the steps as DL-181's "For the owner" item 1 gives them).
+2. *The Transfer Generator's bound:* a backlog item in `docs/plan.md` §4 (decision 4). A GitHub issue
+   for it is the orchestrator's to raise with you.
+3. *#52:* calls 4 and 6 are built here; call 8 is deferred and unposted; #52 still holds E4, E7 and W3.
+4. *The agent's readings,* to change or keep: the button's name reads "Reverse the order, now …", the
+   state's words lower case inside it but for a Class's name and "A to Z"; an earned Trait whose
+   `among` names none of its pool falls on no one, as before (an Injury's falls back to its whole
+   pool); and the harness player's own "Roster below 8" purchase rule is left, a policy and not a game
+   rule.
+
+**Actioned in:** `web/src/state/selectors.ts`, `selectors.test.ts`; `web/src/views/roster.tsx`,
+`roster.test.tsx`; `web/src/styles.css`; `engine/src/quest-engine/harm.ts`, `resolve.ts`,
+`resolve.test.ts`; `engine/src/content-types.ts` (a comment); `engine/src/config.ts` (a comment);
+`engine/src/controllers/rival.ts` (a comment); `engine/src/controllers/transfer-generator.test.ts`;
+`CONTEXT.md` (Roster, Transfer Generator); `docs/plan.md` §4 (v1.1.5's entry, the backlog item); the
+pointers at DL-148 item 19, DL-180's "For the owner", DL-184 item 1 and DL-184's "For the owner";
+`harness/reports/m9-v115-reclose-estimate-2026-10-04.md` (force-added);
+`docs/planning/epics/v1.1.5-release.md` (the Gate's XP split, S13's rule, §2, "Deliberately not",
+S10's re-close box, the status); `docs/planning/epics/README.md`'s v1.1.5 row.
 
 ---
 

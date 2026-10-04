@@ -63,7 +63,10 @@ export interface GameConfig {
   /**
    * Each Rival's starting Roster size is drawn from this range. A Rival whose Roster falls below
    * `rivalRosterMin` hires back towards it while it can keep `rivalHireReserveUpkeeps` Upkeeps
-   * (DL-60), and the Transfer Generator keeps its moves within the range (DL-59).
+   * (DL-60). The range is no cap: no Guild's Roster is capped, and a Roster grows as far as its
+   * Guild's finances support (DL-185). The Transfer Generator keeps its own moves within the range
+   * (DL-59), its bid needing the bidder below `rivalRosterMax`: a bound kept for now only as a
+   * development measure, to constrain testing load, and to be removed (backlog, DL-185).
    */
   rivalRosterMin: number;
   rivalRosterMax: number;
