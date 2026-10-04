@@ -386,7 +386,8 @@ the agents recommended that story features be modules and rule extensions core i
   years has grown from 47.1 MiB (M7) to 136.7 MiB uncompressed (v1.1.5-S13), most of it History, about
   11,700 entries a year at about 475 characters each; shorter entries, or compressed saves, to be
   weighed. `v1.1.6`'s growth guard (S2) watches it meanwhile. *Added 2026-10-05 (DL-186 item 31), the
-  owner's yes.*
+  owner's yes. Amended 2026-10-05 (DL-188): no growth guard, by the owner's answer; the Gate holds the
+  gzipped mean under 30 MiB and the harness's report prints the uncompressed size.*
 - **A Hero's page showing a Stat's sources, in the backlog:** the Roster's tooltip ("Base 12, +2 from
   Gear…") on a Hero's page too, once `v1.1.6`'s `statBreakdown` exists. *Added 2026-10-05 (DL-186
   item 31): A3's option (b), not chosen for `v1.1.6`.*

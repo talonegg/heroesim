@@ -497,15 +497,15 @@ export interface PlayReportContext {
   configured?: Readonly<Record<string, unknown>>;
   /** The policy's values played in place of `defaultPolicyConfig`'s (v1.1.6-S2, `HEROESIM_POLICY`); none when absent. */
   policyChanged?: Readonly<Record<string, unknown>>;
-  /** The Gate's spec the save's targets are read from: `harness/gate.json` unless given (v1.1.6-S2, DL-186 item 21). */
+  /** The Gate's spec the save's target is read from: `harness/gate.json` unless given (v1.1.6-S2, DL-186 item 21, DL-188). */
   spec?: GateSpec;
   /** The run checked against the Gate (`checkGate`), for a profile's run; none when absent. */
   gate?: GateResult | null;
 }
 
 /**
- * data-model §7's targets, provisional, to set the measures against (DL-08). The save's are the Gate's
- * (`harness/gate.json`, v1.1.6-S2, DL-186 item 21).
+ * data-model §7's targets, provisional, to set the measures against (DL-08). The save's is the Gate's
+ * (`harness/gate.json`, v1.1.6-S2, DL-186 item 21, DL-188).
  */
 const targets = {
   advanceMs: 5,
@@ -1528,8 +1528,7 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
   const notComparable = `not comparable: this run played ${yearsText} ${sweep.years === 1 ? 'year' : 'years'}`;
   const lastSave = sweep.years === targetYears ? totals.saves[targetYears - 1] : undefined;
   const gzipped = summarise(lastSave?.gzipped ?? []);
-  const { saveGzipped, saveGrowth } = spec.lines;
-  const growthMost = saveGrowth.baselineMeanBytes * (1 + saveGrowth.growth);
+  const { saveGzipped } = spec.lines;
   // What 1,000 games of 20 years would take at this run's cost per Turn played, all included.
   const turnsPlayed = sweep.games.reduce((sum, game) => sum + game.turnsPlayed, 0);
   const perThousandMinutes =
@@ -1733,9 +1732,7 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
         ],
         [
           `Save after ${targetYears} years`,
-          `gzipped, the mean under ${fixed(saveGzipped.meanMiB, 0)} MiB; uncompressed, the mean at most ` +
-            `${fixed(growthMost / 1024 / 1024, 2)} MiB, ${spec.baseline.release}'s ${fixed(saveGrowth.baselineMeanBytes / 1024 / 1024, 2)} MiB ` +
-            `+${fixed(saveGrowth.growth * 100, 0)}% (\`harness/gate.json\`)`,
+          `gzipped, the mean under ${fixed(saveGzipped.meanMiB, 0)} MiB (\`harness/gate.json\`)`,
           comparable
             ? `gzipped: mean ${mebibytes(gzipped.mean)} MiB, max ${mebibytes(gzipped.max)} MiB; uncompressed: mean ` +
               `${mebibytes(lengths.mean)} MiB, max ${mebibytes(lengths.max)} MiB (${sizeOf})`

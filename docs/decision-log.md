@@ -24414,12 +24414,13 @@ reports read: they differ in the start time and the timings only). What was buil
 
 ---
 
-## DL-188 — v1.1.6-S2 built: one parser of a run's settings, the `gate` and `neutral` profiles, a JSON report beside each play sweep's Markdown, `compare`, the Gate's first spec in `harness/gate.json` (drafted, awaiting the owner's approval), the save's target measured gzipped with a growth guard, the years label, the Succession probe on the sweep's queue, and the reports policy
+## DL-188 — v1.1.6-S2 built: one parser of a run's settings, the `gate` and `neutral` profiles, a JSON report beside each play sweep's Markdown, `compare`, the Gate's first spec in `harness/gate.json` (approved by the owner with the Traits-a-career band taken out and the save's gzipped mean under 30 MiB, no growth guard), the save's target measured gzipped, the years label, the Succession probe on the sweep's queue, and the reports policy
 
-**Status:** Accepted, but for the Gate's first spec, drafted and awaiting the owner's approval · **Date:**
-2026-10-05 · **Decided by:** the owner's answers C2 (a), SF1 (c), SF4 (a), SF5 (b) and SF12 (a), and the
-`neutral` profile (DL-186 items 13, 17, 20, 21, 28 and 30), built by the agent as the epic's S2 describes
-it. The readings marked as the agent's are for the owner to change. A second Opus agent verifies it.
+**Status:** Accepted; the Gate's first spec approved by the owner on 2026-10-05, two of its lines
+changed (below, "The owner's answers") · **Date:** 2026-10-05 · **Decided by:** the owner's answers C2
+(a), SF1 (c), SF4 (a), SF5 (b) and SF12 (a), and the `neutral` profile (DL-186 items 13, 17, 20, 21, 28
+and 30), built by the agent as the epic's S2 describes it; the Gate's spec by the owner's answers of
+2026-10-05. The readings marked as the agent's are for the owner to change. A second Opus agent verifies it.
 
 **Context.** At `333ed79` (S1 verified) a harness run read 17 `HEROESIM_*` variables in four modules and
 five test files, each with its own parse (`HEROESIM_MILESTONE` with `??` in one and `?.trim() ||` in
@@ -24641,6 +24642,45 @@ a line break inside its template text, written `\n`. *Checks:* `npm run lint` an
 `npm test` 188 files and 4,884 tests (3 added); no file under `engine/`, `content/`, `web/` or `cli/`
 changed, so no doctor run was due; line endings as before, none mixed. `harness/gate.json`'s values and
 `status` (`drafted`) untouched: the owner's approval stays open, with the epic's box.
+
+**The owner's answers** (2026-10-05, to "Open for the owner" above).
+1. *The fixed lines:* approved as drafted: no policy action refused, no game invalid, stopped or
+   unfinished, no save failing its round trip, the replay identical, the estimate within 0.02 and 0.03.
+2. *Traits earned per player Hero's career:* "don't hold in gate". The band is taken out of the spec and
+   the Gate's checks; the report keeps printing the number.
+3. *Player Bankruptcies:* at most 3 of 50, approved as proposed.
+4. *The save after 20 years:* "stay under 30mb". Asked to clarify, the owner chose the gzipped **mean**
+   under 30 MiB, not every save, and to **drop** the growth guard on the uncompressed mean: no guard, the
+   report still printing the sizes.
+
+**Actioned.** `harness/gate.json`: `"status": "approved"`; `traitsPerCareer` and `saveGrowth` removed;
+`saveGzipped.meanMiB` 30; the sources of the Bankruptcies and the save naming the owner's answers; the
+first note saying the spec approved. `harness/src/gate.ts`: the two lines gone from the spec's type and
+shape and from `checkGate`, with the band-upside-down and growth-share checks that only they used, so
+either key in a spec is now refused as "not a line of the spec"; the Gate checks six invariants, the
+fingerprint when expected, and two bands, the Bankruptcies and the save's gzipped mean. `sweep.ts`'s
+"Save after 20 years" row reads "gzipped, the mean under 30 MiB (`harness/gate.json`)", its measures
+unchanged (gzipped and uncompressed, mean and max); the "Traits earned per Hero career" line unchanged.
+Tests first, red then green: `gate.test.ts` holds the shipped spec approved with its eight lines, the
+Bankruptcies' 3 and the save's 30 and the estimate's 0.02 and 0.03; a passing run with saves of 27 and
+31 MiB gzipped (the mean held, not the largest); the save line failing at a mean of 30 MiB and at 29 and
+32, passing just under 30; the two removed keys refused; a run of 9 Traits a career and 400 MiB
+uncompressed passing with no Traits or uncompressed line; two bands "not comparable" on another shape;
+the printed heading "approved", and "drafted, awaiting the owner's approval" for a drafted spec.
+`sweep.test.ts`' save row the new one. Docs: data-model §7's paragraph on the save's target (30 MiB, the
+mean, no guard); `harness/README.md`'s Gate section; the epic's Gate, S2's Gate spec and save's target
+bullets amended with dated notes and the owner's-approval box ticked; `plan.md`'s History-size backlog
+item amended (no growth guard); the epics index's v1.1.6 row. DL-186 stays as it is.
+
+*Checks:* `npm run lint` and `typecheck` clean; `npm test` 188 files and 4,883 tests (4,884 less the two
+Traits failures and the uncompressed failure, plus a second gzipped failure and the no-line test). A
+`neutral` run at 4 × 2, alone with `HEROESIM_WORKERS=8` (`neutral m9-v116-s2o --expect 50f5e3d5…`): the
+fingerprint S1's `50f5e3d5…a355d`, "The Gate (harness/gate.json, approved)", six invariants and the
+fingerprint passing, the Bankruptcies and the gzipped save "not comparable: this run played 4 games of
+2 years" (at most 3 of 50; mean under 30.00 MiB), "The Gate: PASS"; the report's save row "gzipped, the
+mean under 30 MiB (`harness/gate.json`)" and its Traits-a-career line printed. The run's reports were
+not kept. No file under `engine/`, `content/`, `web/` or `cli/` changed, so no doctor run was due; line
+endings as before, none mixed.
 
 ---
 

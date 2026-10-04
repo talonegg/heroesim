@@ -1,5 +1,5 @@
 {
-  "status": "drafted",
+  "status": "approved",
   "decided": "DL-188",
   "baseline": {
     "release": "v1.1.5",
@@ -37,27 +37,16 @@
       "identical": true,
       "source": "M2-S12 (DL-34), one game at a time since v1.1.5-S10 (DL-181): seed-0001 identical at v1.1.5's close, 144,371,849 characters (DL-184)"
     },
-    "traitsPerCareer": {
-      "min": 2.078,
-      "max": 2.278,
-      "baseline": 2.178,
-      "source": "v1.1.5's closing sweep: 2.178, 1,472 Traits over 676 careers (DL-184), S5's 2.32 baseline (the owner's steer, DL-179) less the XP split's 0.144; the band, the baseline ±0.10, is the agent's proposal: a change of no effect moved it 0.007 (v1.1.5-S4, DL-178)"
-    },
     "playerBankruptcies": {
       "max": 3,
       "baseline": 0,
-      "source": "v1.1.5's closing sweep: 0 of 50 (DL-184); at most 3, the baseline and fifty seeds' ±3 (DL-166), is the agent's proposal; DL-168 item 16's 3 to 7 decided what followed v1.1.5 and is not this line"
+      "source": "the owner's answer (DL-188): at most 3 of 50, the baseline and fifty seeds' ±3 (DL-166), as proposed; v1.1.5's closing sweep: 0 of 50 (DL-184); DL-168 item 16's 3 to 7 decided what followed v1.1.5 and is not this line"
     },
     "saveGzipped": {
-      "meanMiB": 20,
+      "meanMiB": 30,
       "baselineMeanMiB": 17.95,
       "baselineMaxMiB": 21.08,
-      "source": "data-model §7 (DL-84): a save after 20 years under 20 MiB, measured gzipped as the page keeps it (DL-67, DL-186 item 21); the mean over the run's games, the agent's reading; v1.1.5's closing sweep: mean 17.95 MiB, max 21.08 MiB (DL-184's report)"
-    },
-    "saveGrowth": {
-      "baselineMeanBytes": 143329439,
-      "growth": 0.1,
-      "source": "DL-186 item 21: the uncompressed mean after 20 years, held between releases; v1.1.5's closing sweep: 143,329,439 characters, 136.69 MiB (DL-184's report); at most 10% more without a DL entry is the agent's proposal"
+      "source": "the owner's answer (DL-188): \"stay under 30mb\", the mean over the run's games, not every save, measured gzipped as the page keeps it (DL-67, DL-186 item 21, data-model §7); no guard on the uncompressed size, which the report prints; v1.1.5's closing sweep: mean 17.95 MiB, max 21.08 MiB gzipped (DL-184's report)"
     }
   },
   "estimate": {
@@ -71,7 +60,7 @@
     }
   },
   "notes": [
-    "Drafted by v1.1.6-S2 (DL-188) from v1.1.5's epic and closing sweep. It binds once the owner approves it; its baselines change only with a DL entry (DL-186 item 13).",
+    "Drafted by v1.1.6-S2 from v1.1.5's epic and closing sweep, and approved by the owner on 2026-10-05 with the Traits a career taken out and the save's gzipped mean set under 30 MiB, no guard on its uncompressed size (DL-188). Its lines and baselines change only with a DL entry (DL-186 item 13).",
     "The bands are set on the run above: on a run of another shape they read not comparable. The estimate's two limits are checked by npm run harness -- estimate, not by a gate run.",
     "S17 adds the per-Turn copy's time threshold when it lands (DL-186 item 11)."
   ]

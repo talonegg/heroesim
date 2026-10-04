@@ -569,10 +569,10 @@ describe('sweepPlay', () => {
     });
 
     // v1.1.6-S2 (DL-186 items 17 and 21): the years label reads the run's years, a run of other than 20
-    // is set against no 20-year target, and the save's targets are the Gate's, measured gzipped.
-    test("reads the save's targets from the Gate's spec, and sets a run of other than 20 years against no 20-year target", () => {
+    // is set against no 20-year target, and the save's target is the Gate's, its gzipped mean (DL-188).
+    test("reads the save's target from the Gate's spec, and sets a run of other than 20 years against no 20-year target", () => {
       const saveTarget =
-        "| Save after 20 years | gzipped, the mean under 20 MiB; uncompressed, the mean at most 150.36 MiB, v1.1.5's 136.69 MiB +10% (`harness/gate.json`) |";
+        '| Save after 20 years | gzipped, the mean under 30 MiB (`harness/gate.json`) |';
       expect(report).toContain(`${saveTarget} not comparable: this run played 0.06 years |`);
       expect(report).toContain('| Harness: 1,000 games of 20 years | under 10 min | not comparable: this run played 0.06 years |');
       expect(report).toContain('(the 2 games that ran 0.06 years) |');

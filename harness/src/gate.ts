@@ -5,9 +5,11 @@
 // with a DL entry.
 //
 // Its lines are of two kinds. The invariants hold on any run: no policy action refused, no game invalid,
-// stopped, unfinished or failing its round trip, and the replay identical. The bands are set on the
-// spec's run, 50 games of 20 years: on a run of another shape (the `neutral` profile's 10, a short trial)
-// they read "not comparable", neither passing nor failing.
+// stopped, unfinished or failing its round trip, and the replay identical. The bands, the player's
+// Bankruptcies and the save's gzipped mean, are set on the spec's run, 50 games of 20 years: on a run of
+// another shape (the `neutral` profile's 10, a short trial) they read "not comparable", neither passing
+// nor failing. The Traits a career and the save's uncompressed size are the report's to print, not the
+// Gate's to hold (the owner's answers, DL-188).
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -40,10 +42,8 @@ export interface GateSpec {
     unfinished: AtMost;
     roundTrips: AtMost;
     replay: { identical: true; source: string };
-    traitsPerCareer: { min: number; max: number; baseline: number; source: string };
     playerBankruptcies: { max: number; baseline: number; source: string };
     saveGzipped: { meanMiB: number; baselineMeanMiB: number; baselineMaxMiB: number; source: string };
-    saveGrowth: { baselineMeanBytes: number; growth: number; source: string };
   };
   /** The estimate probe's two limits, in chance (`estimate.ts`), checked by `npm run harness -- estimate`. */
   estimate: { noOneFalls: { within: number; source: string }; moraleInQuest: { within: number; source: string } };
@@ -68,10 +68,8 @@ const specShape: { readonly [key: string]: Shape } = {
     unfinished: atMost,
     roundTrips: atMost,
     replay: line({ identical: 'true' }),
-    traitsPerCareer: line({ min: 'number', max: 'number', baseline: 'number' }),
     playerBankruptcies: line({ max: 'number', baseline: 'number' }),
     saveGzipped: line({ meanMiB: 'number', baselineMeanMiB: 'number', baselineMaxMiB: 'number' }),
-    saveGrowth: line({ baselineMeanBytes: 'number', growth: 'number' }),
   },
   estimate: { noOneFalls: line({ within: 'number' }), moraleInQuest: line({ within: 'number' }) },
   notes: 'strings',
@@ -94,16 +92,13 @@ function shapeProblems(value: unknown, shape: Shape, path: string): string[] {
   ];
 }
 
-/** What is wrong with `value` as a Gate spec: its shape, a band whose least is above its most, a fingerprint not one. */
+/** What is wrong with `value` as a Gate spec: its shape, a fingerprint not one, a limit not a chance. */
 export function gateSpecProblems(value: unknown): string[] {
   const problems = shapeProblems(value, specShape, 'gate');
   if (problems.length > 0) return problems;
   const spec = value as GateSpec;
-  const { traitsPerCareer, saveGrowth } = spec.lines;
   return [
-    ...(traitsPerCareer.min > traitsPerCareer.max ? [`gate.lines.traitsPerCareer: its min ${traitsPerCareer.min} is above its max ${traitsPerCareer.max}`] : []),
     ...(/^[0-9a-f]{64}$/.test(spec.baseline.fingerprint) ? [] : ['gate.baseline.fingerprint is 64 hexadecimal digits']),
-    ...(saveGrowth.growth > 1 ? [`gate.lines.saveGrowth.growth is a share, 0 to 1, not ${saveGrowth.growth}`] : []),
     ...(spec.estimate.noOneFalls.within >= 1 || spec.estimate.moraleInQuest.within >= 1 ? ['gate.estimate: a limit is a chance, below 1'] : []),
   ];
 }
@@ -180,12 +175,7 @@ export function checkGate(spec: GateSpec, run: RunReport, expect: string | null 
       add(label, pass, measured, limit, source);
     }
   };
-  const { traitsPerCareer, playerBankruptcies, saveGzipped, saveGrowth } = lines;
-  band("Traits earned a player's Hero career", `${fixed(traitsPerCareer.min, 3)} to ${fixed(traitsPerCareer.max, 3)}`, traitsPerCareer.source, () => {
-    const careers = totals.questingHeroes.player;
-    const perCareer = careers === 0 ? Number.NaN : totals.traitsGained.player / careers;
-    return { pass: perCareer >= traitsPerCareer.min && perCareer <= traitsPerCareer.max, measured: `${fixed(perCareer, 3)} (${whole(totals.traitsGained.player)} of ${whole(careers)} careers)` };
-  });
+  const { playerBankruptcies, saveGzipped } = lines;
   band("The player's Bankruptcies", `at most ${whole(playerBankruptcies.max)} of ${whole(spec.run.games)}`, playerBankruptcies.source, () => {
     const bankrupt = totals.endings['bankruptcy'] ?? 0;
     return { pass: bankrupt <= playerBankruptcies.max, measured: `${whole(bankrupt)} of ${whole(games.length)}` };
@@ -196,18 +186,6 @@ export function checkGate(spec: GateSpec, run: RunReport, expect: string | null 
     const meanMiB = mean(gzipped) / mebibyte;
     return { pass: meanMiB < saveGzipped.meanMiB, measured: `mean ${fixed(meanMiB, 2)} MiB, max ${fixed(Math.max(...gzipped) / mebibyte, 2)} MiB, over ${whole(gzipped.length)} games` };
   });
-  const most = saveGrowth.baselineMeanBytes * (1 + saveGrowth.growth);
-  band(
-    `The save after ${yearsOf(spec.run.years)}, uncompressed`,
-    `mean at most ${fixed(most / mebibyte, 2)} MiB: ${fixed(saveGrowth.baselineMeanBytes / mebibyte, 2)} MiB at ${spec.baseline.release}, +${fixed(saveGrowth.growth * 100, 0)}%`,
-    saveGrowth.source,
-    () => {
-      const lengths = last?.lengths ?? [];
-      const meanBytes = mean(lengths);
-      const change = (meanBytes / saveGrowth.baselineMeanBytes - 1) * 100;
-      return { pass: meanBytes <= most, measured: `mean ${fixed(meanBytes / mebibyte, 2)} MiB (${change >= 0 ? '+' : '−'}${fixed(Math.abs(change), 1)}%), over ${whole(lengths.length)} games` };
-    },
-  );
   return { pass: checked.every((it) => it.verdict !== 'fail'), status: spec.status, lines: checked };
 }
 

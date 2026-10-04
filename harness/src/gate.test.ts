@@ -9,7 +9,7 @@ import { seedNames } from './seeds.js';
 import { sweepPlay } from './sweep.js';
 
 // v1.1.6-S2 (DL-186 items 13 and 21): the Gate's spec, `harness/gate.json`, and a run checked against
-// it line by line.
+// it line by line; the spec as the owner approved it (DL-188).
 
 const content = loadContent();
 const deps: EngineDeps = { config: { ...defaultConfig }, content };
@@ -25,9 +25,7 @@ const shaped: GateSpec = { ...spec, run: { ...spec.run, games: 2, years: 1 } };
 function passing(change: (run: RunReport) => void = () => {}): RunReport {
   const run = structuredClone(played);
   run.years = 1;
-  run.totals.traitsGained.player = 218;
-  run.totals.questingHeroes.player = 100;
-  run.totals.saves = [{ lengths: [140 * mebibyte, 146 * mebibyte], heroFields: [0, 0], gzipped: [17 * mebibyte, 21 * mebibyte] }];
+  run.totals.saves = [{ lengths: [140 * mebibyte, 146 * mebibyte], heroFields: [0, 0], gzipped: [27 * mebibyte, 31 * mebibyte] }];
   change(run);
   return run;
 }
@@ -36,14 +34,18 @@ const verdicts = (run: RunReport, expect_: string | null = null): Record<string,
   Object.fromEntries(checkGate(shaped, run, expect_).lines.map((line) => [line.line, line.verdict]));
 
 describe("the Gate's spec", () => {
-  test("the spec as shipped is whole, drafted until the owner approves it, its bands v1.1.5's closing sweep's", () => {
+  // The owner's answers (DL-188): the fixed lines as drafted; no band on the Traits a career; the
+  // Bankruptcies at most 3 of 50; the save's gzipped mean under 30 MiB, no guard on its uncompressed size.
+  test("the spec as shipped is whole and approved by the owner, its baseline v1.1.5's closing sweep", () => {
     expect(gateSpecProblems(spec)).toEqual([]);
-    expect(spec.status).toBe('drafted');
+    expect(spec.status).toBe('approved');
     expect(spec.run).toMatchObject({ games: 50, years: 20 });
     expect(spec.baseline.fingerprint).toBe('e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369');
-    expect(spec.lines.traitsPerCareer).toMatchObject({ min: 2.078, max: 2.278, baseline: 2.178 });
-    expect(spec.lines.saveGzipped.meanMiB).toBe(20);
-    expect(spec.lines.saveGrowth).toMatchObject({ baselineMeanBytes: 143_329_439, growth: 0.1 });
+    expect(Object.keys(spec.lines)).toEqual(['refusals', 'invalid', 'stopped', 'unfinished', 'roundTrips', 'replay', 'playerBankruptcies', 'saveGzipped']);
+    expect(spec.lines.playerBankruptcies.max).toBe(3);
+    expect(spec.lines.saveGzipped.meanMiB).toBe(30);
+    expect(spec.estimate.noOneFalls.within).toBe(0.02);
+    expect(spec.estimate.moraleInQuest.within).toBe(0.03);
   });
 
   test("the estimate's two limits are the spec's", () => {
@@ -51,7 +53,7 @@ describe("the Gate's spec", () => {
     expect(estimateMoraleTolerance).toBe(spec.estimate.moraleInQuest.within);
   });
 
-  test('refuses a spec with a line missing, a line it does not know, a value of the wrong kind or a band upside down', () => {
+  test('refuses a spec with a line missing, a line it does not know or a value of the wrong kind', () => {
     const without = structuredClone(spec) as unknown as { lines: Record<string, unknown> };
     delete without.lines['replay'];
     expect(gateSpecProblems(without)).toEqual(['gate.lines.replay is missing']);
@@ -59,8 +61,12 @@ describe("the Gate's spec", () => {
     expect(gateSpecProblems({ ...spec, status: 'binding' })).toEqual(['gate.status is one of drafted, approved, not "binding"']);
     expect(gateSpecProblems({ ...spec, lines: { ...spec.lines, refusals: { max: '0', source: 'x' } } })).toEqual(['gate.lines.refusals.max is a number from 0, not "0"']);
     expect(gateSpecProblems({ ...spec, lines: { ...spec.lines, refusals: { max: 0 } } })).toEqual(['gate.lines.refusals.source is missing']);
-    expect(gateSpecProblems({ ...spec, lines: { ...spec.lines, traitsPerCareer: { ...spec.lines.traitsPerCareer, min: 3 } } })).toEqual([
-      'gate.lines.traitsPerCareer: its min 3 is above its max 2.278',
+    // The two lines the owner took out (DL-188) are lines the spec no longer knows.
+    expect(gateSpecProblems({ ...spec, lines: { ...spec.lines, traitsPerCareer: { min: 2, max: 2.3, baseline: 2.178, source: 'x' } } })).toEqual([
+      'gate.lines.traitsPerCareer is not a line of the spec',
+    ]);
+    expect(gateSpecProblems({ ...spec, lines: { ...spec.lines, saveGrowth: { baselineMeanBytes: 1, growth: 0.1, source: 'x' } } })).toEqual([
+      'gate.lines.saveGrowth is not a line of the spec',
     ]);
     expect(() => parseGateSpec('{"status":"approved"}')).toThrow(/harness\/gate.json: gate.decided is missing/);
   });
@@ -77,14 +83,11 @@ describe('a run checked against the Gate, line by line', () => {
       ['Games neither ended nor played to their last Turn', 'pass'],
       ['Saves that fail their round trip', 'pass'],
       ['One seed replayed, its last save identical', 'pass'],
-      ["Traits earned a player's Hero career", 'pass'],
       ["The player's Bankruptcies", 'pass'],
       ['The save after 1 year, gzipped', 'pass'],
-      ['The save after 1 year, uncompressed', 'pass'],
     ]);
-    expect(result.lines.find((line) => line.line.startsWith('Traits'))).toMatchObject({ measured: '2.180 (218 of 100 careers)', limit: '2.078 to 2.278' });
-    expect(result.lines.find((line) => line.line.endsWith('gzipped'))).toMatchObject({ measured: 'mean 19.00 MiB, max 21.00 MiB, over 2 games', limit: 'mean under 20.00 MiB' });
-    expect(result.lines.find((line) => line.line.endsWith('uncompressed'))).toMatchObject({ measured: 'mean 143.00 MiB (+4.6%), over 2 games', limit: "mean at most 150.36 MiB: 136.69 MiB at v1.1.5, +10%" });
+    // The mean is held, not every save: one of the two above 30 MiB passes (DL-188).
+    expect(result.lines.find((line) => line.line.endsWith('gzipped'))).toMatchObject({ measured: 'mean 29.00 MiB, max 31.00 MiB, over 2 games', limit: 'mean under 30.00 MiB' });
   });
 
   test.each<[string, (run: RunReport) => void]>([
@@ -95,11 +98,9 @@ describe('a run checked against the Gate, line by line', () => {
     ['Saves that fail their round trip', (run) => ((run.games[1] as RunReport['games'][number]).roundTrips = false)],
     ['One seed replayed, its last save identical', (run) => (run.replay = { seed: 'seed-0001', identical: false, length: 1 })],
     ['One seed replayed, its last save identical', (run) => (run.replay = null)],
-    ["Traits earned a player's Hero career", (run) => (run.totals.traitsGained.player = 228)],
-    ["Traits earned a player's Hero career", (run) => (run.totals.traitsGained.player = 207)],
     ["The player's Bankruptcies", (run) => (run.totals.endings['bankruptcy'] = 4)],
-    ['The save after 1 year, gzipped', (run) => ((run.totals.saves[0] as { gzipped: number[] }).gzipped = [20 * mebibyte, 20 * mebibyte])],
-    ['The save after 1 year, uncompressed', (run) => ((run.totals.saves[0] as { lengths: number[] }).lengths = [150.4 * mebibyte, 150.4 * mebibyte])],
+    ['The save after 1 year, gzipped', (run) => ((run.totals.saves[0] as { gzipped: number[] }).gzipped = [30 * mebibyte, 30 * mebibyte])],
+    ['The save after 1 year, gzipped', (run) => ((run.totals.saves[0] as { gzipped: number[] }).gzipped = [29 * mebibyte, 32 * mebibyte])],
   ])('fails on "%s" alone when its line is not met', (line, change) => {
     const result = checkGate(shaped, passing(change));
     expect(result.pass).toBe(false);
@@ -119,11 +120,23 @@ describe('a run checked against the Gate, line by line', () => {
     expect(checkGate(shaped, ended).pass).toBe(true);
   });
 
-  test('a band at its edge passes: the Traits at either end, the Bankruptcies at the most, the uncompressed mean at 10%', () => {
-    expect(checkGate(shaped, passing((run) => (run.totals.traitsGained.player = 207.8))).pass).toBe(true);
+  test('a band at its edge passes: the Bankruptcies at the most, the gzipped mean just under 30 MiB', () => {
     expect(checkGate(shaped, passing((run) => (run.totals.endings['bankruptcy'] = 3))).pass).toBe(true);
-    const most = 143_329_439 * 1.1;
-    expect(checkGate(shaped, passing((run) => ((run.totals.saves[0] as { lengths: number[] }).lengths = [most, most]))).pass).toBe(true);
+    const under = 30 * mebibyte - 1;
+    expect(checkGate(shaped, passing((run) => ((run.totals.saves[0] as { gzipped: number[] }).gzipped = [under, under]))).pass).toBe(true);
+  });
+
+  // The owner's answers (DL-188): the Traits a career and the save's uncompressed size are printed by
+  // the report, not held by the Gate.
+  test("neither the Traits a career nor the save's uncompressed size is a line of the Gate", () => {
+    const run = passing((it) => {
+      it.totals.traitsGained.player = 900;
+      it.totals.questingHeroes.player = 100;
+      (it.totals.saves[0] as { lengths: number[] }).lengths = [400 * mebibyte, 400 * mebibyte];
+    });
+    const result = checkGate(shaped, run);
+    expect(result.pass).toBe(true);
+    expect(result.lines.map((line) => line.line).filter((line) => /Traits|uncompressed/.test(line))).toEqual([]);
   });
 
   test("the fingerprint is a line only when expected, and fails when the run's differs", () => {
@@ -139,27 +152,28 @@ describe('a run checked against the Gate, line by line', () => {
     const result = checkGate(spec, passing());
     expect(result.pass).toBe(true);
     const bands = result.lines.filter((line) => line.verdict === 'not comparable');
-    expect(bands.map((line) => line.line)).toEqual(["Traits earned a player's Hero career", "The player's Bankruptcies", 'The save after 20 years, gzipped', 'The save after 20 years, uncompressed']);
+    expect(bands.map((line) => line.line)).toEqual(["The player's Bankruptcies", 'The save after 20 years, gzipped']);
     expect(bands[0]?.measured).toBe('this run played 2 games of 1 year');
     expect(checkGate(spec, passing((run) => (run.totals.refusals = 2))).pass).toBe(false);
     // Of the spec's years but not its games, as the neutral profile's 10 of 20 years are, or the other way.
     const games = checkGate({ ...shaped, run: { ...shaped.run, games: 3 } }, passing());
-    expect(games.lines.filter((line) => line.verdict === 'not comparable')).toHaveLength(4);
+    expect(games.lines.filter((line) => line.verdict === 'not comparable')).toHaveLength(2);
     expect(games.lines.find((line) => line.verdict === 'not comparable')?.measured).toBe('this run played 2 games of 1 year');
     const years = checkGate({ ...shaped, run: { ...shaped.run, years: 2 } }, passing());
-    expect(years.lines.filter((line) => line.verdict === 'not comparable')).toHaveLength(4);
+    expect(years.lines.filter((line) => line.verdict === 'not comparable')).toHaveLength(2);
   });
 
   test('prints each line and the verdict, and writes them as a section of the Markdown report', () => {
     const result = checkGate(shaped, passing((run) => (run.totals.refusals = 1)));
     const printed = gatePrinted(result);
-    expect(printed[0]).toBe("The Gate (harness/gate.json, drafted, awaiting the owner's approval):");
+    expect(printed[0]).toBe('The Gate (harness/gate.json, approved):');
     expect(printed[1]).toBe('  FAIL  Policy actions the rules refused: 1 (at most 0)');
     expect(printed[2]).toBe('  PASS  Games the validator refused: 0 (not validated after every advance) (at most 0)');
     expect(printed.at(-1)).toBe('The Gate: FAIL');
     const section = gateSection(result).join('\n');
     expect(section).toContain('## The Gate');
-    expect(section).toContain("(drafted, awaiting the owner's approval), line by line: **fail**.");
+    expect(section).toContain('(approved), line by line: **fail**.');
+    expect(gatePrinted(checkGate({ ...shaped, status: 'drafted' }, passing()))[0]).toBe("The Gate (harness/gate.json, drafted, awaiting the owner's approval):");
     expect(section).toContain('| Policy actions the rules refused | fail | 1 | at most 0 |');
   });
 });

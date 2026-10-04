@@ -454,14 +454,14 @@ recorded and did not chase (DL-08), are kept beside them.
 | Save after 20 years | under 19.07 MiB (first written "under 20 MB") | gzipped: 12.08 MiB for `seed-0001`, the one twenty-year save measured compressed (DL-67 item 8), whose bytes the M8 run reproduced (DL-81 item 2); uncompressed: mean 99.21 MiB, max 118.29 MiB |
 | Load a save | under 1 s | mean 4.62 s, max 7.82 s under 16 processes' load |
 
-*The save's target, since v1.1.6-S2 (DL-186 item 21).* "A save after 20 years: under 20 MiB" is
-measured gzipped, as the page keeps it: the mean over a Gate run's 20-year saves, under 20 MiB. Its
-uncompressed size has grown from 99.21 MiB (M8) to 136.69 MiB at `v1.1.5`, so a growth guard holds
-the uncompressed mean: at most 10% above the last release's without a DL entry. Both are lines of
-the harness's Gate, `harness/gate.json`, whose baselines change only with a DL entry; the harness's
-report reads them from it and names the measure. At `v1.1.5`'s close (DL-184) the gzipped mean was
-17.95 MiB, its largest 21.08 MiB, and the uncompressed mean 136.69 MiB. *Drafted, awaiting the owner's
-approval with the Gate's first spec (DL-188).*
+*The save's target, since v1.1.6-S2 (DL-186 item 21, DL-188).* A save after 20 years is measured
+gzipped, as the page keeps it: the mean over a Gate run's 20-year saves, under 30 MiB. The owner's
+answer, approving the Gate's first spec (DL-188): "stay under 30mb", the mean and not every save. It is
+a line of the harness's Gate, `harness/gate.json`, which changes only with a DL entry; the harness's
+report reads it from there and names the measure. No guard holds the uncompressed size, which has
+grown from 99.21 MiB (M8) to 136.69 MiB at `v1.1.5`; the report prints it beside the gzipped sizes.
+At `v1.1.5`'s close (DL-184) the gzipped mean was 17.95 MiB, its largest 21.08 MiB, and the
+uncompressed mean 136.69 MiB.
 
 How far past its figure a later run may go before it counts as a regression is open for the other
 measures. The machine's single-thread rate varied by a factor of about three between days (DL-81

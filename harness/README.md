@@ -55,10 +55,10 @@ Markdown and its JSON force-added (DL-186 item 28). A passing `gate` or `neutral
 source (`src/gate.ts`). Its invariants hold on any run: no policy action refused; no game invalid,
 stopped by a harness assertion, unfinished or failing its round trip; the replay identical. Its bands
 are set on its run, 50 games of 20 years, and read "not comparable" on a run of another shape: the
-Traits earned a player's Hero career, the player's Bankruptcies, the save after 20 years gzipped and
-its uncompressed mean's growth since the last release. The estimate probe reads its two limits from
-it. A `gate` or `neutral` run prints each line's verdict and writes them into both reports; it fails
-when a line fails.
+player's Bankruptcies, at most 3 of 50, and the save after 20 years, its gzipped mean under 30 MiB.
+The Traits earned a player's Hero career and the save's uncompressed size are not lines of the Gate;
+the report prints them. The estimate probe reads its two limits from it. A `gate` or `neutral` run
+prints each line's verdict and writes them into both reports; it fails when a line fails.
 
-The spec's baselines change only with a DL entry (DL-186 item 13). Its first draft (DL-188) binds once
-the owner approves it; until then its `status` is `drafted`.
+The spec binds: the owner approved its first draft on 2026-10-05 (DL-188), its `status` `approved`. Its
+lines and baselines change only with a DL entry (DL-186 item 13).
