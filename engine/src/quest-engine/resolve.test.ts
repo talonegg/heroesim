@@ -822,6 +822,105 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
     }
   });
 
+  // v1.1.5-S4 (DL-168 item 6, E3, DL-178): an Injury's `among` is read over the unhurt living Heroes,
+  // then gives the Heroes it names among them; a Death's, over the living Party, as before.
+  describe('an Injury on the next-weakest unhurt Hero (v1.1.5-S4)', () => {
+    const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
+    const strongestThree: SetQuery = ['top', 'party', 3, ['stat', 'strength']];
+    /** Sets the Heroes' Strength, in order. */
+    const strengths =
+      (...values: number[]) =>
+      (heroes: Hero[]): void => {
+        heroes.forEach((hero, index) => (hero.stats['strength'] = values[index] ?? 8));
+      };
+
+    // The epic's first box: the weakest hurt by one Encounter, or by the count before, the next falls on the next weakest.
+    test('with the weakest hurt, a `bottom` Injury falls on the next weakest unhurt, its three draws a count as before', () => {
+      for (let seed = 0; seed < 20; seed += 1) {
+        // Party order 12, 4, 8: the weakest second, the next weakest third.
+        const h = harmed(`next-weakest-${seed}`, [failing('first', [injury({ among: weakest })]), failing('second', [injury({ among: weakest })])], {
+          set: strengths(12, 4, 8),
+        });
+        h.quest.lootTableKey = null;
+        const twin = structuredClone(streamOf(h.world, 'quests'));
+        const [first, second] = h.resolve().encounters;
+        expect([first?.injured, second?.injured]).toEqual([[h.heroes[1]?.id], [h.heroes[2]?.id]]);
+        // Each Encounter one Check's draw, then the Injury's three.
+        for (let draw = 0; draw < 2 * (1 + 3); draw += 1) next(twin);
+        expect(streamOf(h.world, 'quests')).toEqual(twin);
+
+        const counted = harmed(`next-weakest-count-${seed}`, [failing('both', [injury({ count: 3, among: weakest })])], { set: strengths(12, 4, 8) });
+        expect(counted.resolve().encounters[0]?.injured).toEqual([counted.heroes[1]?.id, counted.heroes[2]?.id, counted.heroes[0]?.id]);
+      }
+    });
+
+    test('a `top` 3 with one of the three strongest hurt names the three strongest unhurt', () => {
+      const hit = new Set<number>();
+      for (let seed = 0; seed < 40; seed += 1) {
+        // Party order 20, 16, 12, 8, 4; the Warrior, at 16, hurt first.
+        const h = harmed(`top-three-${seed}`, [failing('front', [injury({ among: warriors })]), failing('top', [injury({ among: strongestThree })])], {
+          size: 5,
+          set: (heroes) => {
+            strengths(20, 16, 12, 8, 4)(heroes);
+            classes('mage', 'warrior', 'mage', 'mage', 'mage')(heroes);
+          },
+        });
+        const [front, top] = h.resolve().encounters;
+        expect(front?.injured).toEqual([h.heroes[1]?.id]);
+        expect(top?.injured).toHaveLength(1);
+        hit.add(h.heroes.findIndex((hero) => hero.id === top?.injured[0]));
+      }
+      expect(hit).toEqual(new Set([0, 2, 3]));
+    });
+
+    test("a Death's `among` still reads the living Party: the weakest, hurt, is the one it names", () => {
+      for (let seed = 0; seed < 20; seed += 1) {
+        const harm: Consequence[] = [injury({ among: weakest }), { kind: 'death', chance: 1, among: weakest }];
+        const h = harmed(`death-weakest-${seed}`, [failing('front', harm)], { set: strengths(12, 4, 8) });
+        const [result] = h.resolve().encounters;
+        expect(result?.injured).toEqual([h.heroes[1]?.id]);
+        expect(result?.died).toEqual([h.heroes[1]?.id]);
+      }
+    });
+
+    // The epic's fourth box: with the weakest hurt, an Injury and a Death with none of the fields draw
+    // as before the change, whether it lands then `pick` over the unhurt (or the living) then the Days.
+    test('with the weakest hurt, a consequence with none of the fields draws as a twin before the change', () => {
+      for (let seed = 0; seed < 30; seed += 1) {
+        const plain: Consequence[] = [injury({ chance: 0.5, count: 2 }), { kind: 'death', chance: 0.4 }];
+        const h = harmed(`plain-after-${seed}`, [failing('first', [injury({ among: weakest })]), failing('plain', plain)], { set: strengths(12, 4, 8) });
+        h.quest.lootTableKey = null;
+        const twin = structuredClone(streamOf(h.world, 'quests'));
+        const [first, second] = h.resolve().encounters;
+
+        // The first Encounter: its Check, then the `bottom` Injury's three, on the weakest.
+        for (let draw = 0; draw < 1 + 3; draw += 1) next(twin);
+        expect(first?.injured).toEqual([h.heroes[1]?.id]);
+        // The second, by hand as before v1.1.4-S4.
+        const alive = [...h.heroes];
+        const hurt = new Set<string>([h.heroes[1]?.id as string]);
+        const injured: string[] = [];
+        const died: string[] = [];
+        next(twin);
+        for (let time = 0; time < 2; time += 1) {
+          const lands = chance(twin, 0.5);
+          const unhurt = alive.filter((hero) => !hurt.has(hero.id));
+          const who = unhurt[int(twin, 0, Math.max(0, unhurt.length - 1))];
+          int(twin, 6, 12);
+          if (lands && who !== undefined) {
+            hurt.add(who.id);
+            injured.push(who.id);
+          }
+        }
+        const lands = chance(twin, 0.4);
+        const dead = alive[int(twin, 0, Math.max(0, alive.length - 1))];
+        if (lands && dead !== undefined) died.push(dead.id);
+        expect([second?.injured, second?.died]).toEqual([injured, died]);
+        expect(streamOf(h.world, 'quests')).toEqual(twin);
+      }
+    });
+  });
+
   // The epic's third box.
   // 20,000 resolutions for a ratio held to 5%, and 60,000 for three rates held to 1.5 points below: one
   // to two seconds each alone, past the default 5 s under the whole suite's load (DL-164).

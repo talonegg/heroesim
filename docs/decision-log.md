@@ -22248,6 +22248,136 @@ epic's status.
 
 ---
 
+## DL-178 — v1.1.5-S4 built: an Injury's `among` read over the unhurt living Heroes, so it falls on the next-weakest unhurt Hero; a Death's as before; its sweep against S3's within the noise, 13 of 50 bankrupt as before
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the owner's answer (DL-168 item 6, E3),
+built by the agent as the epic's S4 describes. The readings marked as the agent's are for the owner
+to change.
+
+**Context.** v1.1.4-S4 (DL-155) read an Injury's `among` over the whole living Party and then narrowed
+the Heroes it named to the unhurt, falling back to any unhurt Hero when none was left. So when
+`The flooded ford`'s weakest Hero was already hurt, its Injury fell on any unhurt Hero, not the next
+weakest (DL-167's E3). The owner chose the next weakest (DL-168 item 6), superseding DL-155 item 3's
+order. S3 (DL-177) is the baseline this sweep is read against: nothing that plays has changed since
+it but this.
+
+**Decision: what was built.**
+1. *`narrowed`* (`engine/src/quest-engine/harm.ts`) reads `among` over `party`'s members in `pool`, the
+   Heroes harm can fall on, not over the whole Party, and gives those it names among them, in Party
+   order; all of `pool` when there is no `among` or it names no one, as before. `struck`
+   (`resolve.ts`) is unchanged: it hands `narrowed` an Injury's pool, the unhurt living Heroes, and a
+   Death's, the living Party. So `["bottom", "party", 1, ["stat", "strength"]]` takes the weakest
+   unhurt Hero, and a `top` 3 the three strongest unhurt. A Death's pool is the living Party, so its
+   `among` reads as before. A filter (`where`) names the same Heroes either way; only a ranking
+   (`top`, `bottom`) can differ.
+2. *Unchanged.* `exposedBy` and `guardedBy` read each Hero as before (the members are the same
+   objects, each Hero's effective Stats read once). The draws keep their number and order: one `next`,
+   then who (`weightedPick`, one draw even from no one), then the Days; a consequence with none of the
+   fields never reaches `narrowed`. No stream or event is new, and no configuration or save field.
+3. *The words.* The head comments of `harm.ts` and `resolve.ts`, `narrowed`'s and `struck`'s, the
+   `HarmReads.among` and `InjuryConsequence` comments in `content-types.ts`, and `CONTEXT.md`'s
+   Exposure, which now names the order: `among` read over those it can fall on, an Injury on the
+   weakest falling on the weakest unhurt Hero, a Death's read over the living Party.
+4. *Where it plays.* Content has six Injuries with an `among` and no Death with one
+   (`content/encounters.json`). The two of `Hold the line` are filters (`where` … `warrior`), so
+   unchanged. Four rank: `The flooded ford` (`bottom` 1 Strength, `guardedBy` Constitution) and
+   `The trapped passage` (`bottom` 1 Perception, `guardedBy` Dexterity) at Failure, and
+   `The last assault` (`top` 3 Constitution, count 2, `guardedBy` Constitution) at Setback and Failure.
+   The change plays only when one of those draws finds a Hero the ranking would name already hurt on
+   the Quest, in a Party of two or more.
+
+**Tests, first** (red before the change: the three rule tests failing; the two that hold what does
+not change passing, as they should):
+- `harm.test.ts`, `narrowed`: reads `among` over the pool, so a `bottom` 1 passes over a Hero not in
+  the pool to the next weakest, and a `top` 3 over a pool without one of the three strongest names the
+  three strongest of it.
+- `resolve.test.ts`, "an Injury on the next-weakest unhurt Hero (v1.1.5-S4)", 20 to 40 seeds each:
+  - with the weakest hurt by an earlier Encounter, a `bottom` Injury falls on the next weakest unhurt,
+    each Encounter one Check's draw and the Injury's three, the stream a twin's so advanced; and an
+    Injury of count 3 on `bottom` 1 falls on the weakest, then the next, then the strongest;
+  - a `top` 3 with one of the three strongest hurt names the three strongest unhurt: over 40 seeds the
+    hits are exactly the first, third and fourth Heroes of Strength 20, 16, 12, 8 and 4, the second
+    hurt (before the change, never the fourth);
+  - a Death's `among` still reads the living Party: with the weakest hurt by a `bottom` Injury, a
+    `bottom` Death of chance 1 falls on that same Hero;
+  - with the weakest hurt, an Injury of count 2 and a Death with none of the fields draw as a twin
+    worked by hand before the change: whether it lands, then `pick` over the unhurt (the living, for
+    the Death), then the Days, the stream equal. The older test "with none of the fields, whether it
+    lands and on whom are what chance and pick drew" holds the same with no field anywhere.
+- The existing harm tests pass unchanged: `among` as a filter, its fallback, a Death among the
+  Warriors falling on a hurt one, the fields at no effect drawing as none.
+
+**The sweep.** Run alone (no other process of ours; the owner's Playwright test-server left
+running), on the change over `6cdec36`: `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_YEARS=20
+HEROESIM_REPLAY=0 HEROESIM_MILESTONE=m9-v115-s4 npm run harness -- play.harness`, core only, content
+31, config 13, schema 6, not validated, the replay skipped (DL-169 item 16). 1,203.8 s, the games
+1,203.4 s of it; the test passed. The report, `harness/reports/m9-v115-s4-2026-10-04.md`, is
+force-added. 50 of 50 saves load and serialise back alike; no policy action refused, no harness
+assertion broken. The fingerprint of every seed's last save is new, `0a79ddd3f7ad42b0…2d801dfc8`
+(S3's `e3342dfd…`), as a change of play's must be.
+
+**The change's effect alone, against S3's** (`m9-v115-s3-2026-10-04.md`; nothing else that plays
+changed between them):
+
+| | S4 | S3 | Change |
+| --- | ---: | ---: | ---: |
+| Player bankrupt | 13 of 50 (26%) | 13 of 50 (26%) | 0 |
+| … by year (year 0 first) | 11: 1, 12: 1, 13: 1, 14: 1, 15: 1, 17: 1, 18: 2, 19: 5 | 11: 1, 12: 1, 13: 1, 15: 2, 17: 1, 18: 2, 19: 5 | one game a year earlier |
+| … in the first two years | 0 | 0 | 0 |
+| Years survived, mean (min) | 19.23 (11.89) | 19.25 (11.89) | −0.02 |
+| Player's Quests resolved | 381,943 | 382,191 | −0.06% |
+| Player failed / succeeded / strong | 5.81% / 19.56% / 74.63% | 5.81% / 19.56% / 74.63% | level |
+| Rivals failed / succeeded / strong | 12.48% / 30.87% / 56.65% | 12.43% / 30.78% / 56.80% | +0.05 / +0.09 / −0.15 points |
+| Player Injuries a game | 63.14 (3,157) | 63.84 (3,192) | −35, −1.1% |
+| Player Deaths a game | 3.62 (181) | 3.68 (184) | −3 |
+| Rivals' Injuries, Deaths a game | 306.38, 18.20 | 305.48, 18.06 | +45 (+0.3%), +7 |
+| Player's Heroes injured a Check | 0.003 | 0.003 | level |
+| Traits earned a career, the player's | 1.571 (985 / 627) | 1.578 (994 / 630) | −0.007 |
+| Traits earned a career, the Rivals' | 0.572 (1,970 / 3,443) | 0.579 (1,976 / 3,411) | −0.007 |
+| Player recruits a game | 8.54 | 8.60 | −3 in all |
+| Rival folds a game | 5.48 (274) | 5.44 (272) | +2 |
+| Upkeep, Quest rewards a player Guild-year | 56,025, 63,314 | 56,056, 63,328 | −0.06%, −0.02% |
+| Player's Wealth after 10 and 20 years | 104,456; 91,364 | 104,765; 90,922 | −0.3%, +0.5% |
+| Mean Level of the player's Roster after 10 years | 10.31 | 10.30 | +0.01 |
+| `advance` a Turn, mean / p99 | 4.703 / 24.414 ms | 4.699 / 23.863 ms | level |
+| The games | 1,203.4 s | 1,215.6 s | −1.0% |
+
+**The agent's readings.**
+1. *The effect is within the noise everywhere.* The Bankruptcies are 13 against 13, inside fifty
+   seeds' ±3 (DL-166); one game ends in year 14 where S3 had two in year 15, a single game's shift.
+   The player's failed and strong shares agree to the hundredth of a point. Injuries fall by 35 in 50
+   games (1.1%) and Deaths by 3; the Rivals' rise by 45 (0.3%) and 7. Traits earned a career move by
+   0.007 each. None of these is a change fifty seeds can tell from chance.
+2. *Why so small.* The rule plays only when a ranking `among` (four Injuries in three Encounters, all
+   at Setback or Failure) finds the Hero it would name already hurt on the Quest, in a Party of two or
+   more. The player's Quests fail 5.8%, half its Parties go alone (49.9%), and it injures 0.003 Heroes
+   a Check, so such a moment is rare. When it comes, the same draws are taken, and only the Hero hit,
+   and with them the `guardedBy` that scales whether it lands, differ: the next-weakest unhurt Hero by
+   Strength or Perception is likely to have more of the guarding Constitution or Dexterity than a
+   random unhurt one, so a few fewer of those Injuries may land; for `The last assault`'s `top` 3 the
+   Hero let in is the fourth by Constitution, guarded less. The counters cannot separate these, and
+   every difference after the first changed Injury is the games diverging (the fingerprint differs),
+   so the small moves are as much that divergence as the rule.
+3. *For S5 and the close.* S5's sweep is read against this one. Traits earned a career stand at 1.571
+   before S5 raises the four positive chances to 0.05; S5's 1.25 to 1.75 reading is still likely to be
+   passed (DL-177 item 6, §4 Risks), for S5 to report. The rule for what follows (DL-168 item 16) is
+   unmoved: 13 of 50, 26%, outside 5 to 15%, as at S3.
+
+**Checks.** `npm run edit -- traits doctor` before and after: no drift (the register lists all 110
+reads), the doc fresh, the content passing, no pending edits. `npm run lint` and `npm run typecheck`
+pass; `npm test` 4,813 passed in 185 files (S3's 4,808 and these five), all before the sweep, nothing
+running beside it.
+
+**For the owner.** Nothing to decide: the change is the owner's (DL-168 item 6), and its effect
+alone is within the noise. A reading only: on the shipped content and the new player, E3 changes
+little play, since its moment is rare.
+
+**Actioned in:** `engine/src/quest-engine/harm.ts`, `resolve.ts` (comments), `content-types.ts`
+(comments), `harm.test.ts`, `resolve.test.ts`, `CONTEXT.md` (Exposure);
+`harness/reports/m9-v115-s4-2026-10-04.md` (force-added); the epic's S4 boxes and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

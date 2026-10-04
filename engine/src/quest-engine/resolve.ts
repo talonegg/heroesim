@@ -18,7 +18,9 @@
 // chance never shifts a later draw, as `chance` promises for one (rng.ts).
 //
 // Harm reads the Stats (v1.1.4-S4, DL-148 item 14, harm.ts). An Injury or a Death falls on those its
-// `among` names, if any of them it can fall on; on whom is drawn by `weightedPick`, each Hero's weight
+// `among` names, if any of them it can fall on, the Query read over those it can fall on: an Injury's
+// over the unhurt living Heroes, so `bottom` 1 takes the weakest unhurt, a Death's over the living
+// Party (v1.1.5-S4, DL-168 item 6, DL-178); on whom is drawn by `weightedPick`, each Hero's weight
 // their exposure by `exposedBy`; and it lands if its first draw is below the chance times the chosen
 // Hero's guard by `guardedBy`. The draws keep their number and order: with none of the fields every
 // weight and guard is 1, and the draws are what `chance` and `pick` drew. A Morale loss
@@ -552,7 +554,8 @@ function earn(consequence: TraitConsequence, working: Working, harm: Harm, at: A
 
 /**
  * Who of `pool`, the Heroes it can fall on in Party order, a harm falls on (v1.1.4-S4, harm.ts): those
- * its `among` names, or all of `pool` when it names none of them; drawn by `weightedPick`, each Hero's
+ * its `among` names, read over `pool` (v1.1.5-S4: an Injury's the unhurt living Heroes, a Death's the
+ * living Party), or all of `pool` when it names none of them; drawn by `weightedPick`, each Hero's
  * weight their exposure by `exposedBy`; and that Hero's guard by `guardedBy`, which the chance is
  * times. One draw, even from no one. With none of the fields every weight and the guard are 1, and
  * the draw is `pick`'s, which `weightedPick` draws exactly at every weight 1.

@@ -386,8 +386,11 @@ _Avoid_: Condition, Fitness, Mood
 How likely harm on a Quest is to fall on a Hero rather than another. An Injury or a Death may name
 the Heroes it falls on, a Set Query (`among`), and the Stats that expose to it (`exposedBy`): of
 those it can fall on, the less of those Stats' range a Hero has, the likelier it is them: the
-weakest three times as likely as the strongest at the first `exposureRange`. When `among` names no one it can fall on, any of them may be
-hit, so leaving the front rank at home dodges nothing (DL-148 item 14; built in v1.1.4-S4, DL-155).
+weakest three times as likely as the strongest at the first `exposureRange`. `among` is read over
+those it can fall on, so an Injury on the weakest falls on the weakest unhurt Hero, passing over one
+already hurt; a Death's over the living Party (DL-168 item 6; built in v1.1.5-S4, DL-178). When
+`among` names no one it can fall on, any of them may be hit, so leaving the front rank at home
+dodges nothing (DL-148 item 14; built in v1.1.4-S4, DL-155).
 _Avoid_: Aggro, Threat, Targeting
 
 **Guard**:

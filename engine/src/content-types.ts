@@ -414,9 +414,10 @@ export type Degree = (typeof degrees)[number];
  */
 export interface HarmReads {
   /**
-   * The Heroes it may fall on, a Set Query over the Party, narrowed to those it can fall on; when
-   * that leaves no one, it falls on any of them, so that leaving the front rank at home never dodges
-   * its harm.
+   * The Heroes it may fall on, a Set Query read over those it can fall on: an Injury's over the
+   * unhurt living Heroes, so `bottom` 1 takes the weakest unhurt (v1.1.5-S4, DL-178), a Death's over
+   * the living Party. When it names no one, it falls on any of them, so that leaving the front rank
+   * at home never dodges its harm.
    */
   among?: SetQuery;
   /** Stats whose weakness draws the harm: the less of their range a Hero has, the likelier it is them (`exposureRange`). */
@@ -427,7 +428,8 @@ export interface HarmReads {
 
 /**
  * Up to `count` Heroes of the Party are injured with `typeKey`, each with probability `chance`,
- * each among the living who carry no Injury from this Quest yet, and of them `among` (v1.1.4-S4).
+ * each among the living who carry no Injury from this Quest yet, and of them `among` (v1.1.4-S4),
+ * read over them (v1.1.5-S4).
  */
 export interface InjuryConsequence extends HarmReads {
   kind: 'injury';
