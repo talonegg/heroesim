@@ -3,13 +3,16 @@ import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ESLint } from 'eslint';
 import ts from 'typescript';
+import * as engine from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
+import * as content from './index.js';
 import { contentDir } from './node.js';
 
-// The shape of content is the engine's; the content package imports it as types and the
-// engine imports nothing back (ADR-0006, ADR-0007, pre-M0 review A3). ESLint enforces the
-// imports (engine/src/boundary.test.ts proves its rules fire); these tests read the real
-// sources and project files, so that the arrangement itself is checked, not only the rules.
+// The shape of content is the engine's; the content package imports its types and its values, and
+// the engine imports nothing back, so the graph stays acyclic (ADR-0006, ADR-0007, pre-M0 review A3
+// as refined by DL-186 item 6). ESLint enforces the imports (engine/src/boundary.test.ts proves its
+// rules fire); these tests read the real sources and project files, so that the arrangement itself
+// is checked, not only the rules.
 
 const root = join(contentDir, '..');
 
@@ -81,12 +84,21 @@ describe("content's types come from @heroesim/engine", () => {
     expect(fromEngine.map(({ file }) => file).sort()).toEqual(['node.ts', 'parse.ts', 'validate.ts']);
   });
 
-  test('every import from the engine, tests included, is of types only', () => {
+  test('every import of another package, tests included, is of the engine by name', () => {
     for (const { file, ast } of sources('content')) {
       for (const it of importsOf(ast).filter((each) => each.from.startsWith('@heroesim/'))) {
-        expect({ file, ...it }).toEqual({ file, from: '@heroesim/engine', typeOnly: true });
+        expect({ file, from: it.from }).toEqual({ file, from: '@heroesim/engine' });
       }
     }
+  });
+
+  // DL-186 item 6 (v1.1.6-S5): content may take the engine's values, so it repeats none of them.
+  test("takes the engine's values too: the parser and the checks import some", () => {
+    const withValues = sources('content', false).filter(({ ast }) =>
+      importsOf(ast).some((it) => it.from === '@heroesim/engine' && !it.typeOnly),
+    );
+
+    expect(withValues.map(({ file }) => file).sort()).toEqual(['parse.ts', 'validate.ts']);
   });
 
   test('content declares none of those types itself', () => {
@@ -97,6 +109,57 @@ describe("content's types come from @heroesim/engine", () => {
 
       expect(declared.filter((name) => engineTypes.includes(name)), file).toEqual([]);
     }
+  });
+});
+
+// The copies DL-186 item 6 retired (v1.1.6-S5): content's own sources write out none of the engine's
+// lists, as an array of its members or a table keyed by them, and its entry exports no name the
+// engine exports, as `descriptionBounds` and the Biography's Trait sentence counts once were.
+describe("content repeats none of the engine's values", () => {
+  const lists: Record<string, readonly string[]> = {
+    encounterKinds: engine.encounterKinds,
+    facilityKeys: engine.facilityKeys,
+    gearSlotKeys: engine.gearSlotKeys,
+    descriptiveAttributes: engine.descriptiveAttributes,
+    sexes: engine.sexes,
+  };
+
+  /** `name: true` or `name: 60`: an entry of a table of choices or of bounds, not of data built per name. */
+  const isTableEntry = (it: ts.ObjectLiteralElementLike): boolean =>
+    ts.isPropertyAssignment(it) &&
+    (ts.isIdentifier(it.name) || ts.isStringLiteral(it.name)) &&
+    (it.initializer.kind === ts.SyntaxKind.TrueKeyword || ts.isNumericLiteral(it.initializer));
+
+  /** The names each array of strings, or table of choices or bounds, in a file holds, with the line it starts on. */
+  function literalsOf(ast: ts.SourceFile): { line: number; names: string[] }[] {
+    const found: { line: number; names: string[] }[] = [];
+    const visit = (node: ts.Node): void => {
+      let names: string[] | null = null;
+      if (ts.isArrayLiteralExpression(node) && node.elements.every((it) => ts.isStringLiteral(it))) {
+        names = node.elements.map((it) => (it as ts.StringLiteral).text);
+      } else if (ts.isObjectLiteralExpression(node) && node.properties.every(isTableEntry)) {
+        names = node.properties.map((it) => (it.name as ts.Identifier | ts.StringLiteral).text);
+      }
+      if (names !== null && names.length > 0) {
+        found.push({ line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1, names });
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(ast);
+    return found;
+  }
+
+  test.each(Object.keys(lists))("no source writes out the engine's %s", (name) => {
+    const members = [...(lists[name] ?? [])].sort().join(' ');
+    for (const { file, ast } of sources('content', false)) {
+      const copies = literalsOf(ast).filter((it) => [...new Set(it.names)].sort().join(' ') === members);
+
+      expect(copies.map((it) => `${file}:${it.line}`)).toEqual([]);
+    }
+  });
+
+  test('the entry exports no name the engine exports', () => {
+    expect(Object.keys(content).filter((name) => Object.hasOwn(engine, name))).toEqual([]);
   });
 });
 

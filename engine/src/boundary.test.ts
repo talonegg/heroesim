@@ -166,6 +166,8 @@ describe('engine/package.json', () => {
 describe('the other packages reach each other by name only', { timeout: 30_000 }, () => {
   test.each([
     ['content', "import type { World } from '@heroesim/engine';\nexport type { World };"],
+    // DL-186 item 6 (v1.1.6-S5): content takes the engine's values as well as its types.
+    ['content', "import { encounterKinds } from '@heroesim/engine';\nexport { encounterKinds };"],
     ['cli', "import { x } from '@heroesim/engine';\nimport { y } from '@heroesim/content';\nexport { x, y };"],
     ['web', "import { x } from '@heroesim/engine';\nimport { y } from '@heroesim/content';\nexport { x, y };"],
     ['harness', "import { x } from '@heroesim/engine';\nexport { x };"],
@@ -174,7 +176,7 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
   });
 
   test.each([
-    ['content', 'a value from the engine', "import { x } from '@heroesim/engine';\nexport { x };"],
+    ['content', 'a subpath of the engine', "import { x } from '@heroesim/engine/src/index.ts';\nexport { x };"],
     ['content', 'a Node built-in outside its Node entry', "import fs from 'node:fs';\nexport { fs };"],
     ['content', 'a front end', "import x from '@heroesim/cli';\nexport { x };"],
     ['cli', 'web', "import x from '@heroesim/web';\nexport { x };"],

@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { EncounterKind, GuildmasterTraitEffect, StatArea } from '@heroesim/engine';
+import { descriptiveAttributeMaxLength, encounterKinds, facilityKeys, gearSlotKeys, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { contentFiles, contentWarnings, descriptionBounds, longestDescriptions, parseContent, validateContent } from './index.js';
+import { contentFiles, contentWarnings, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
 
 // The core content set as the Node entry loads it from this package's directory (M1-S4).
@@ -198,13 +198,12 @@ describe('loadContent()', () => {
       for (const [where, list] of lists) expect(list?.length ?? 0, where).toBeGreaterThanOrEqual(1);
     });
 
-    test("proves the longest Birthplace, Appearance and Biography, a Guildmaster's and a Hero's, within 60, 280 and 1,000 characters", () => {
+    test("proves the longest Birthplace, Appearance and Biography, a Guildmaster's and a Hero's, within the engine's bounds", () => {
       const longest = longestDescriptions(content);
-      expect(longest.birthplace).toBeLessThanOrEqual(descriptionBounds.birthplace);
-      expect(longest.appearance).toBeLessThanOrEqual(descriptionBounds.appearance);
-      expect(longest.biography).toBeLessThanOrEqual(descriptionBounds.biography);
-      expect(longest.heroBiography).toBeLessThanOrEqual(descriptionBounds.biography);
-      expect(descriptionBounds).toEqual({ birthplace: 60, appearance: 280, biography: 1000 });
+      expect(longest.birthplace).toBeLessThanOrEqual(descriptiveAttributeMaxLength.birthplace);
+      expect(longest.appearance).toBeLessThanOrEqual(descriptiveAttributeMaxLength.appearance);
+      expect(longest.biography).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
+      expect(longest.heroBiography).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
     });
 
     test('names no clothing, armour, gear or ornament in any Appearance, drawn or mapped (DL-127 item 2)', () => {
@@ -311,7 +310,7 @@ describe('loadContent()', () => {
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
     const improvements = Object.values(content.improvements);
-    for (const facility of ['infirmary', 'trainingYard', 'quarters'] as const) {
+    for (const facility of facilityKeys) {
       const grades = improvements
         .filter((it) => it.facility === facility)
         .sort((a, b) => a.grade - b.grade)
@@ -498,8 +497,6 @@ describe('loadContent()', () => {
       string,
       { checks: Record<string, unknown>[]; pass?: unknown; consequences: Record<string, unknown[]> }
     >;
-    // The engine's union, written out: content imports only types from the engine (ADR-0006).
-    const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth', 'lore'] as const satisfies readonly EncounterKind[];
     const finales = new Set(Object.values(content.questTemplates).flatMap((it) => (it.finale === undefined ? [] : [it.finale])));
 
     test('are twenty-nine of the six kinds, four of them lore and four Finales (DL-162)', () => {
@@ -659,7 +656,7 @@ describe('loadContent()', () => {
     });
 
     test('hold a line of three common gear to each slot, one of each grade, dearer and stronger by grade (INPUTS 7.1)', () => {
-      for (const slot of ['weapon', 'armour', 'trinket'] as const) {
+      for (const slot of gearSlotKeys) {
         const line = lines
           .filter((it) => it.slot === slot)
           .sort((a, b) => grades.indexOf(a.tags[0] ?? '') - grades.indexOf(b.tags[0] ?? ''));
@@ -699,7 +696,7 @@ describe('loadContent()', () => {
     test('make the unique gear Loot only, among them one of each slot', () => {
       const unique = gear.filter((it) => it.unique);
       for (const it of unique) expect(it.buyPrice, it.key).toBeNull();
-      expect(new Set(unique.map((it) => it.slot))).toEqual(new Set(['weapon', 'armour', 'trinket']));
+      expect(new Set(unique.map((it) => it.slot))).toEqual(new Set(gearSlotKeys));
     });
 
     test('have two consumables of each effect, common, their kinds Encounter kinds content has', () => {

@@ -41,7 +41,7 @@ export const descriptionsStream = 'descriptions';
 
 /**
  * How many of a Guildmaster's Traits their Biography gives a sentence: the first two in their order,
- * as many as a Guildmaster holds by default (`guildmasterTraitsMax`). The content validator repeats it.
+ * as many as a Guildmaster holds by default (`guildmasterTraitsMax`). The content validator reads it.
  */
 export const biographyTraitSentences = 2;
 
@@ -224,7 +224,7 @@ export const heroDescriptionsStream = 'hero-descriptions';
 
 /**
  * How many of a Hero's Traits their Biography gives a sentence: the first two in their order, as many
- * as a Guildmaster's (v1.1.3-S1). The content validator repeats it as `heroBiographyTraitSentences`.
+ * as a Guildmaster's (v1.1.3-S1). The content validator reads it.
  */
 export const heroBiographyTraitSentences = 2;
 

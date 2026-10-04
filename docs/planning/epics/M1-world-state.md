@@ -110,7 +110,9 @@ The *shape* of content belongs to the engine: `engine/src/content-types.ts` defi
 `ContentSet` and every row type above (`Stat`, `Class`, `Skill`, `Trait`, `Background`,
 `Sphere`, and from M2 `QuestTemplate`), because the engine is what reads them by key
 (ADR-0006). The content package imports those types and does only parsing and validation;
-the engine imports nothing from it (A3 of the pre-M0 review).
+the engine imports nothing from it (A3 of the pre-M0 review). *Amended 2026-10-05 (DL-186
+item 6, v1.1.6-S5): content may import the engine's values as well as its types; the engine still
+imports nothing from content.*
 
 `content/src/index.ts` (pure): `parseContent(files: Record<string, string>): ContentSet` and
 `validateContent(set): ContentSet` refusing a Class that names a Stat or Skill that does not

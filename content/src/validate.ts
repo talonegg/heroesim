@@ -10,13 +10,19 @@ import type {
   Degree,
   Descriptions,
   EncounterCheck,
-  EncounterKind,
-  FacilityKey,
   HarmReads,
   PortraitAppearance,
   PortraitRole,
   Sex,
-  SlotKey,
+} from '@heroesim/engine';
+import {
+  biographyTraitSentences,
+  descriptiveAttributeMaxLength,
+  encounterKinds,
+  facilityKeys,
+  gearSlotKeys,
+  heroBiographyTraitSentences,
+  sexes,
 } from '@heroesim/engine';
 
 /**
@@ -46,14 +52,13 @@ export const growthSumTolerance = 0.001;
  */
 export const demandSumTolerance = 0.001;
 
-/** The Hall's facilities an Improvement may raise (`FacilityKey`): the compiler holds it to the union. */
-const facilities: Readonly<Record<FacilityKey, true>> = { infirmary: true, trainingYard: true, quarters: true };
-
-/** The kinds of Encounter a Synergy, an Item or a Hero Trait may name (`EncounterKind`): the compiler holds it to the union. */
-const encounterKinds: Readonly<Record<EncounterKind, true>> = { combat: true, travel: true, social: true, arcane: true, stealth: true, lore: true };
-
-/** The gear slots an Item may be made for (`SlotKey`, the engine's `gearSlotKeys`): the compiler holds it to the union. */
-const gearSlots: Readonly<Record<SlotKey, true>> = { weapon: true, armour: true, trinket: true };
+/**
+ * Whether `value` is one of the engine's `list`: the Hall's facilities (`facilityKeys`), the kinds of
+ * Encounter (`encounterKinds`) or the gear slots (`gearSlotKeys`), read from the engine (DL-186 item 6).
+ */
+function isOneOf(list: readonly string[], value: string): boolean {
+  return list.includes(value);
+}
 
 /** Lower-case letters and digits in words joined by single hyphens, starting with a letter. */
 const kebabCase = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -231,13 +236,6 @@ function checkPortraits(portraits: ContentSet['portraits'], problems: string[]):
   for (const key of repeated(keys)) problems.push(`portraits: "${key}" is listed twice`);
 }
 
-/**
- * The most characters (Unicode code points, once trimmed) each descriptive Attribute holds: the
- * engine's `descriptiveAttributeMaxLength` (M9-S2, DL-102), which this package, importing only the
- * engine's types, repeats. A test beside both holds them equal (`cli/src/descriptions.test.ts`).
- */
-export const descriptionBounds = Object.freeze({ birthplace: 60, appearance: 280, biography: 1000 });
-
 /** The most characters a picture's narrative holds (DL-134 items 3 and 9): within an Appearance's 280. */
 export const narrativeMaxLength = 260;
 
@@ -253,18 +251,6 @@ export const hooksMax = 2;
  * picture that fits shows the Silhouette (DL-135 item 3).
  */
 export const picturesWanted = 3;
-
-/**
- * How many of a Guildmaster's Traits the Biography gives a sentence, the first in their order: the
- * engine's `biographyTraitSentences` (v1.1.2-S5), repeated here as the bounds are.
- */
-export const biographyTraitSentences = 2;
-
-/**
- * How many of a Hero's Traits their Biography gives a sentence, the first in their order (v1.1.3-S1):
- * as many as a Guildmaster's. v1.1.3-S6's `describeHero` repeats it, or changes it here with itself.
- */
-export const heroBiographyTraitSentences = 2;
 
 /** A text's length as the engine counts it: Unicode code points, so an accented letter counts once. */
 function lengthOf(text: string): number {
@@ -515,7 +501,7 @@ export function longestDescriptions(set: Pick<ContentSet, 'descriptions' | 'port
   let heroBiography = 0;
   for (const sex of Object.keys(descriptions.appearance) as Sex[]) {
     const words = descriptions.pronouns[sex];
-    const sentence = (text: string): number => lengthOf(filledWith(text, words, 'x'.repeat(descriptionBounds.birthplace)));
+    const sentence = (text: string): number => lengthOf(filledWith(text, words, 'x'.repeat(descriptiveAttributeMaxLength.birthplace)));
     const longest = (texts: readonly string[] | undefined): number => most((texts ?? []).map(sentence));
     for (const phrases of Object.values(descriptions.appearance[sex])) {
       const slot = (name: (typeof appearanceSlots)[number]): number => most((phrases[name] ?? []).map((phrase) => lengthOf(phrase)));
@@ -650,8 +636,8 @@ function checkDescriptions(
     if (!written(place) || /[{}]/.test(place)) {
       problems.push(`${where} is ${JSON.stringify(place)}; it is a place's name, trimmed, beginning with a capital`);
     }
-    if (lengthOf(place) > descriptionBounds.birthplace) {
-      problems.push(`${where} is ${lengthOf(place)} characters; a Birthplace holds at most ${descriptionBounds.birthplace}`);
+    if (lengthOf(place) > descriptiveAttributeMaxLength.birthplace) {
+      problems.push(`${where} is ${lengthOf(place)} characters; a Birthplace holds at most ${descriptiveAttributeMaxLength.birthplace}`);
     }
   });
   for (const place of repeated(birthplaces)) problems.push(`descriptions.birthplaces: "${place}" is listed twice`);
@@ -763,9 +749,9 @@ function checkDescriptions(
   const longest = longestDescriptions(set);
   const names = { appearance: 'Appearance', biography: 'Biography', heroBiography: "Hero's Biography" } as const;
   for (const [attribute, bound] of [
-    ['appearance', descriptionBounds.appearance],
-    ['biography', descriptionBounds.biography],
-    ['heroBiography', descriptionBounds.biography],
+    ['appearance', descriptiveAttributeMaxLength.appearance],
+    ['biography', descriptiveAttributeMaxLength.biography],
+    ['heroBiography', descriptiveAttributeMaxLength.biography],
   ] as const) {
     if (longest[attribute] > bound) {
       problems.push(`descriptions.${attribute}: the longest ${names[attribute]} it can write is ${longest[attribute]} characters; it holds at most ${bound}`);
@@ -810,8 +796,8 @@ function checkImprovements(improvements: ContentSet['improvements'], problems: s
   for (const [key, improvement] of Object.entries(improvements)) {
     const where = `improvements.${key}`;
     const { facility, grade, cost } = improvement;
-    if (!Object.hasOwn(facilities, facility)) {
-      problems.push(`${where}.facility: "${facility}" is not a Hall facility (${Object.keys(facilities).join(', ')})`);
+    if (!isOneOf(facilityKeys, facility)) {
+      problems.push(`${where}.facility: "${facility}" is not a Hall facility (${facilityKeys.join(', ')})`);
     } else {
       grades.set(facility, [...(grades.get(facility) ?? []), grade]);
     }
@@ -1112,7 +1098,7 @@ function checkTraits(
           const tags = effect.tags ?? [];
           if (kinds.length + tags.length === 0) problems.push(`${at} names no Encounter kind and no tag: it adds to the Encounters it names`);
           // v1.1.4-S14: each kind one of Encounter's, which the parser cannot see in a set built in memory.
-          for (const kind of kinds) if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${at}.kinds: "${kind}" is not a kind of Encounter`);
+          for (const kind of kinds) if (!isOneOf(encounterKinds, kind)) problems.push(`${at}.kinds: "${kind}" is not a kind of Encounter`);
           for (const kind of repeated(kinds)) problems.push(`${at}.kinds: "${kind}" is listed twice`);
           for (const tag of tags) if (!kebabCase.test(tag)) problems.push(`${at}.tags: "${tag}" is not kebab-case`);
           for (const tag of repeated(tags)) problems.push(`${at}.tags: "${tag}" is listed twice`);
@@ -1175,7 +1161,7 @@ function checkSynergies(synergies: ContentSet['synergies'], keys: QueryKeys, pro
     if (kinds !== undefined) {
       if (kinds.length === 0) problems.push(`${where}.kinds is empty: leave it out for a Synergy on every kind`);
       for (const kind of kinds) {
-        if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
+        if (!isOneOf(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
       }
       for (const kind of repeated(kinds)) problems.push(`${where}.kinds: "${kind}" is listed twice`);
     }
@@ -1203,8 +1189,8 @@ function checkItems(items: ContentSet['items'], heroStats: ReadonlySet<string>, 
     for (const tag of repeated(item.tags)) problems.push(`${where}.tags: "${tag}" is listed twice`);
     switch (item.kind) {
       case 'gear': {
-        if (!Object.hasOwn(gearSlots, item.slot)) {
-          problems.push(`${where}.slot: "${item.slot}" is not a gear slot (${Object.keys(gearSlots).join(', ')})`);
+        if (!isOneOf(gearSlotKeys, item.slot)) {
+          problems.push(`${where}.slot: "${item.slot}" is not a gear slot (${gearSlotKeys.join(', ')})`);
         }
         if (Reflect.has(item, 'effect')) problems.push(`${where}.effect: gear has no effect; only a consumable has one`);
         const modifiers = Object.entries(item.statModifiers);
@@ -1234,7 +1220,7 @@ function checkConsumableEffect(where: string, effect: ConsumableEffect, problems
   const kinds = (listed: readonly string[]): void => {
     if (listed.length === 0) problems.push(`${where}.kinds is empty: the effect works on the Encounter kinds it names`);
     for (const kind of listed) {
-      if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
+      if (!isOneOf(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
     }
     for (const kind of repeated(listed)) problems.push(`${where}.kinds: "${kind}" is listed twice`);
   };
@@ -1533,7 +1519,7 @@ function queryArgument(
     case 'trait':
       return key(keys.heroTraits, 'a Hero Trait');
     case 'sex':
-      return key(new Set<Sex>(['female', 'male']), 'a sex: female or male');
+      return key(new Set<string>(sexes), `a sex: ${sexes.join(' or ')}`);
     case 'heroes':
       if (!(Number.isInteger(arg) && (arg as number) >= 1)) {
         problems.push(`${where} is ${JSON.stringify(arg)}; ${operator}'s n is a whole number from 1`);

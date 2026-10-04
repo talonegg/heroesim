@@ -24879,6 +24879,78 @@ passing. No sweep run: nothing played changed. Line endings as before, none mixe
 
 ---
 
+## DL-191 — v1.1.6-S5 built: content imports the engine's values as well as its types; the copied tables gone, read from the engine; the sweep report's text bounds the engine's; the `neutral` baseline `4e9edae0…`
+
+2026-10-05. DL-186 items 6 (A6, layer 1) and 18 (SF2).
+
+- *The `neutral` baseline.* Before any change, `neutral m9-v116-neutral-base`, alone with
+  `HEROESIM_WORKERS=8` (10 games of 20 years, 553.9 s): the fingerprint
+  `4e9edae04e49a43c92e4cdec1105bef34e2c4e5b314c8e5dbec45a08b203efa0`, the replay identical, "The
+  Gate: PASS" (the two bands not comparable at 10 games). **It is the `--expect` of every
+  play-neutral story from here (S8, S9, S10, S13, S16, S18)**, and changes only with a DL entry, as
+  at S7 and S17, which change the save's shape. `harness/README.md` names it. Its reports were not
+  kept.
+- *The rule* (Decision A3 refined). The content package may import the engine's values as well as
+  its types; the engine still imports nothing from content, not even a type, and the graph stays
+  acyclic (ADR-0007). ESLint's content block no longer limits `@heroesim/engine` to `import type`;
+  it still refuses any other package, any subpath of the engine, a relative path out of content and
+  Node outside the Node entry and the write module. The engine's blocks are unchanged.
+  `engine/src/boundary.test.ts` now holds a value import of the engine allowed in content, and a
+  subpath of the engine refused, where a value import was refused. The pre-M0 review's A3 in this
+  log, `docs/planning/epics/M1-world-state.md` and the comments citing A3 (content's entry,
+  `content-types.ts`, `eslint.config.js`, `imports.test.ts`) carry a dated amendment or the refined
+  words. ADR-0007 states only that the engine has no dependencies, which stands; it is unchanged, as
+  is `CONTEXT.md`, which states no import rule.
+- *The copies gone*, each read from the engine:
+  - the Encounter kinds (`encounterKinds`), the Hall's facilities (`facilityKeys`) and the gear slots
+    (`gearSlotKeys`): `parse.ts`' three choice tables are built from the engine's lists by
+    `choicesOf`; `validate.ts`' three tables are gone, its checks asking `isOneOf(<engine list>, …)`,
+    the refusals' words as they were (the lists in the same order);
+  - the text bounds: `descriptionBounds` is gone from `validate.ts` and the entry, its readers
+    reading the engine's `descriptiveAttributeMaxLength`; the portrait tool's corpus reports the
+    engine's bounds under `bounds` as before, now imported from the engine;
+  - the Biography's Trait sentence counts: `biographyTraitSentences` and
+    `heroBiographyTraitSentences` gone from `validate.ts` and the entry, `longestDescriptions`
+    reading the engine's two;
+  - and one more, of the same kind: the sexes (`sexes`), written out in `parse.ts`' `sexChoices` and
+    in the Query check's `sex` argument, now the engine's list.
+  The test that held the copies equal, `cli/src/descriptions.test.ts`' "the content validator's
+  bounds are the engine's", is gone, and that file's two bounds of 280 and 1,000 read the engine's;
+  the rest of the file, which holds the engine's writing to the validator's longest, stays.
+  `content.test.ts` reads the engine's lists for its facilities, gear slots and Encounter kinds, and
+  the engine's bounds, where it wrote them out. The engine's comments that said the validator
+  "repeats" its counts say it reads them.
+- *The report's bounds* (SF2). The sweep report's "at most 280" and "at most 1,000" are
+  `whole(descriptiveAttributeMaxLength.…)`: the same words.
+
+*Tests.* `imports.test.ts`: every import of another package by content, tests included, is of the
+engine by name (types or values); `parse.ts` and `validate.ts` import the engine's values; no source
+of content writes out the engine's Encounter kinds, facilities, gear slots, descriptive Attributes or
+sexes, as an array of its members or a table of `true`s or numbers keyed by them (each was red at the
+start, naming `parse.ts:104`, `105`, `119`, `121` and `validate.ts:239`, then `validate.ts:1521`, the
+`sex` argument, found by the test); the entry exports no name the engine exports (red on the two
+sentence counts). `boundary.test.ts` as above.
+
+*What changed for Traits.* Nothing: no entry of the register, effect, event or use. The doctor read no
+drift before and after ("the register lists all 110 reads of a Trait", the doc fresh, the content
+passing, no pending edits).
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,936 tests passing (seven more:
+eight added, one removed); `npm run build` and check-bundle passing: the script 816,785 bytes, 93
+fewer than S4's 816,878 (the engine's lists were already in it; content's copies are gone). The
+`neutral` run after the change, alone (`neutral m9-v116-s5 --expect 4e9edae0…`, 546.5 s): the
+fingerprint `4e9edae0…` as expected, the replay identical, "The Gate: PASS", its report's two bound
+rows "at most 280" and "at most 1,000"; its reports were not kept. `npm run e2e -w web` not run: no
+file under `web/` changed. Line endings as before, none mixed.
+
+*Calls made, for the owner to see.* (1) `cli/src/descriptions.test.ts` keeps its tests of the
+engine's writing over the core; only the test that held the copies equal went. (2) The sexes were
+not named in the story, but are a copy of the same kind, so they went too. (3) The baseline run's
+reports and this story's were not committed, as S4's trial was not: the fingerprint is in this entry
+and the README.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
@@ -24924,6 +24996,12 @@ package is added.
 
 **Actioned in:** M1-S4 (acceptance asserts the engine imports nothing from content and `tsc -b`
 builds as a DAG).
+
+*Amended 2026-10-05 (DL-186 item 6, built in v1.1.6-S5, DL-191).* The content package may import
+the engine's values as well as its types, so it reads the engine's lists and bounds (the Encounter
+kinds, the Hall's facilities, the gear slots, the descriptive Attributes' lengths, the Biography's
+Trait sentences) rather than repeating them. The engine still imports nothing from content, and the
+graph stays acyclic (ADR-0007).
 
 ### A4 — The stub ignores Skills; R15 says it reads them
 

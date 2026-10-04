@@ -62,6 +62,7 @@ import type {
   SynergyBonus,
   SynergyRequires,
 } from '@heroesim/engine';
+import { encounterKinds as encounterKindList, facilityKeys, gearSlotKeys, sexes } from '@heroesim/engine';
 import { findDuplicateKeys } from './duplicate-keys.js';
 import { checkDemands, checkReferences, ContentError, validateContent } from './validate.js';
 
@@ -94,15 +95,20 @@ export const contentFiles = [
 
 export type ContentFileName = (typeof contentFiles)[number];
 
+/** The engine's list of a union's members as the choices of a field (DL-186 item 6: content repeats none). */
+function choicesOf<Choice extends string>(list: readonly Choice[]): Record<Choice, true> {
+  return Object.fromEntries(list.map((choice) => [choice, true])) as Record<Choice, true>;
+}
+
 // The choices for each enumerated field. Keyed by the engine's union, so the compiler refuses
-// a list that misses or invents a member.
+// a list that misses or invents a member; where the engine lists the union's members, its list.
 const statAreas: Record<StatArea, true> = { physical: true, mental: true, magical: true, social: true };
 const statOwners: Record<StatOwner, true> = { hero: true, guildmaster: true };
 const guildmasterTraitEffectKinds: Record<GuildmasterTraitEffectKind, true> = { classStatBonus: true, guildMoraleShift: true, upkeepFactor: true };
 const heroTraitEffectKinds: Record<HeroTraitEffectKind, true> = { statModifiers: true, encounterBonus: true };
 const backgroundOwners: Record<BackgroundOwner, true> = { hero: true, guild: true };
-const facilities: Record<FacilityKey, true> = { infirmary: true, trainingYard: true, quarters: true };
-const encounterKinds: Record<EncounterKind, true> = { combat: true, travel: true, social: true, arcane: true, stealth: true, lore: true };
+const facilities: Record<FacilityKey, true> = choicesOf(facilityKeys);
+const encounterKinds: Record<EncounterKind, true> = choicesOf(encounterKindList);
 const aggregates: Record<EncounterAggregate, true> = { best: true, sum: true };
 const consequenceKinds: Record<ConsequenceKind, true> = {
   injury: true,
@@ -116,9 +122,9 @@ const consequenceKinds: Record<ConsequenceKind, true> = {
 };
 const regardBetween: Record<'party', true> = { party: true };
 const itemKinds: Record<ItemKind, true> = { gear: true, consumable: true };
-const gearSlots: Record<SlotKey, true> = { weapon: true, armour: true, trinket: true };
+const gearSlots: Record<SlotKey, true> = choicesOf(gearSlotKeys);
 const consumableEffectKinds: Record<ConsumableEffectKind, true> = { reroll: true, bonus: true, heal: true };
-const sexChoices: Record<Sex, true> = { female: true, male: true };
+const sexChoices: Record<Sex, true> = choicesOf(sexes);
 const portraitRoles: Record<PortraitRole, true> = { guildmaster: true, hero: true, patron: true };
 
 /**

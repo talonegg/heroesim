@@ -1,6 +1,7 @@
 // The shape of content belongs to the engine, because the engine is what reads it by key
-// (ADR-0006). `@heroesim/content` imports these types and only parses and validates text into
-// them; the engine imports nothing from content (pre-M0 review A3).
+// (ADR-0006). `@heroesim/content` imports these types, and the lists here it checks against, and
+// only parses and validates text into them; the engine imports nothing from content (pre-M0 review
+// A3 as refined by DL-186 item 6).
 //
 // M1-S1 defined the keys the World State stores and the content set's identity; M1-S4 the row
 // types (`Stat`, `Class`, `Skill`, `Trait`, `Background`, `Sphere`, `Names`) and their tables in

@@ -25,6 +25,11 @@ Markdown's path.
 Sweeps run one at a time, with nothing else running, since a 20-year game's process holds about
 1.3 GB (DL-184).
 
+The current `neutral` baseline, every play-neutral story's `--expect`, is
+`4e9edae04e49a43c92e4cdec1105bef34e2c4e5b314c8e5dbec45a08b203efa0` (`m9-v116-neutral-base`, v1.1.6-S5,
+DL-191). It changes only with a DL entry, as at a story that changes play or the save's shape
+(v1.1.6-S7 and S17).
+
 ## Settings
 
 Every `HEROESIM_*` variable a run reads is parsed in one place, `src/settings.ts`, each bad value

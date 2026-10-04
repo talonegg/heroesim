@@ -81,18 +81,13 @@ const engineTests = {
   ],
 };
 
-/** content: the engine's types only, and Node built-ins only in its Node entry. */
+/**
+ * content: the engine's types and values, by name, and Node built-ins only in its Node entry. The
+ * engine imports nothing back, so the graph stays acyclic (pre-M0 review A3 as refined by DL-186
+ * item 6; ADR-0007).
+ */
 function contentImports({ node }) {
   return {
-    paths: [
-      {
-        name: '@heroesim/engine',
-        allowTypeImports: true,
-        message:
-          "Content takes only the engine's types (`import type`); its job is parsing text " +
-          'into them (pre-M0 review A3).',
-      },
-    ],
     patterns: [
       {
         regex: '^@heroesim/(?!engine$)',

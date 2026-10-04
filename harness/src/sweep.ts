@@ -8,6 +8,7 @@
 import { createHash } from 'node:crypto';
 import {
   compareByCodeUnit,
+  descriptiveAttributeMaxLength,
   encounterKinds,
   facilityKeys,
   regardBandNames,
@@ -1476,8 +1477,8 @@ function heroesSection(totals: SweepTotals): string[] {
         ['With the Silhouette', share(heroes.silhouettes, heroes.generated)],
         ['Given a picture another Hero on a Roster or in the pool held (a repeat)', share(heroes.repeats, heroes.pictured)],
         ['With an empty Appearance or Biography', whole(heroes.blank)],
-        ['The longest Appearance written, in characters (at most 280)', whole(heroes.longestAppearance)],
-        ['The longest Biography written, in characters (at most 1,000)', whole(heroes.longestBiography)],
+        [`The longest Appearance written, in characters (at most ${whole(descriptiveAttributeMaxLength.appearance)})`, whole(heroes.longestAppearance)],
+        [`The longest Biography written, in characters (at most ${whole(descriptiveAttributeMaxLength.biography)})`, whole(heroes.longestBiography)],
       ],
       ['left', 'right'],
     ),

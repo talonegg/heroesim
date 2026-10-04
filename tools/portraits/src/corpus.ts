@@ -17,7 +17,6 @@ import path from 'node:path';
 import {
   ContentError,
   contentWarnings,
-  descriptionBounds,
   hookMaxLength,
   hooksMax,
   longestDescriptions,
@@ -27,6 +26,7 @@ import {
   type LongestDescriptions,
 } from '@heroesim/content';
 import { contentTexts, readContentVersion } from '@heroesim/content/write';
+import { descriptiveAttributeMaxLength } from '@heroesim/engine';
 import { DraftError } from './errors.js';
 import { distance } from './fingerprint.js';
 import { analysisDir, runPattern } from './records.js';
@@ -96,7 +96,7 @@ export interface Corpus {
   vocabulary: Record<'stations' | 'tempers' | 'callings' | 'features' | 'classes', { used: Record<string, string[]>; unused: string[] }>;
   sentences: { wanted: number; lists: SentenceCount[]; short: SentenceCount[] };
   similar: { a: string; b: string; distance: number }[];
-  content: { ok: boolean; problems: string[]; warnings: string[]; longest: LongestDescriptions | null; bounds: typeof descriptionBounds };
+  content: { ok: boolean; problems: string[]; warnings: string[]; longest: LongestDescriptions | null; bounds: typeof descriptiveAttributeMaxLength };
 }
 
 type Json = Record<string, unknown>;
@@ -337,7 +337,7 @@ export function corpus(root: string, options: { run?: string | null; draft?: str
   });
 
   // The content's own checks, on these files.
-  let content: Corpus['content'] = { ok: true, problems: [], warnings: [], longest: null, bounds: descriptionBounds };
+  let content: Corpus['content'] = { ok: true, problems: [], warnings: [], longest: null, bounds: descriptiveAttributeMaxLength };
   try {
     const set = parseContent(files);
     content = { ...content, warnings: contentWarnings(set), longest: longestDescriptions(set) };
