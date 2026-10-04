@@ -22145,12 +22145,14 @@ highest 1,377 MiB (1.34 GiB); private bytes at most 1,542 MiB in a sample; the e
 - *The replay's process* (new here, S6's sweep having skipped it): the Vitest worker that plays the
   sweep's replay, 90 MiB while the shards played, reached at least 2,352 MiB peak working set (2,266
   MiB private) in its last sample, 12:45:47, a second before the run ended; its true peak may be a
-  little higher. *A reading, the agent's:* `replay` plays `seed-0001` twice in one process and holds
-  the first game's save text (128.8 million characters) while it plays the second, beside the sweep's
-  records; no shard runs then, so the run's total stays under the shards' 5.4 GiB. It is the run's
-  largest process, and the close (S10) runs it again. A fix, if wanted, is the owner's: the replay
-  could fingerprint the first text and drop it before the second game, as S1's fix did for the
-  yearly save.
+  little higher. *A reading, the agent's* (corrected by the verification below): `sweep.ts`'s
+  `replay` plays `seed-0001` twice in one process and holds the first game's whole `PlayedGame`, its
+  document with it, since it reads its `advanceMs` after the second game, and its save text (128.8
+  million characters) while it plays the second, beside the sweep's records; no shard runs then, so
+  the run's total stays under the shards' 5.4 GiB. It is the run's largest process, and the close
+  (S10) runs it again. A fix, if wanted, is the owner's: the replay could summarise the first game's
+  `advanceMs`, fingerprint its text and drop both the text and the document before the second game,
+  as S1's fix did for the yearly save (measured alone in the verification: 2,194 MiB to 1,104 MiB).
 
 **The rule for what follows, a first reading** (DL-168 item 16; the close decides it). The player's
 Bankruptcies are 13 of 50, 26%, against 5 to 15% (3 to 7 of 50). That is 6 above the band's top, twice
@@ -22167,13 +22169,82 @@ nor `content/src/validate.ts`. Only the report, this entry and the epic change.
 
 **For the owner.**
 1. The rule's first reading: 13 of 50 bankrupt, outside the band, as at `v1.1.4`'s close.
-2. The new player moves every other DL-83 target further from its band but item 7's: fewer failures
-   (5.8%), fewer Deaths (3.68), more strong successes (74.6%), the player first more often (99.0%).
+2. The new player moves DL-83 items 3, 4, 6 and 21 further from their bands: fewer failures (5.8%),
+   fewer Deaths (3.68), more strong successes (74.6%), the player first more often (99.0%), the
+   Roster's Level after 10 years 10.30. Item 5 is level (5.44 folds against 5.40), and item 7 mixed:
+   further above after 10 years (22.4 months against 20.1), nearer after 20 (19.5 against 22.5).
+   (Corrected by the verification: the entry first said every other target but item 7's.)
 3. Traits earned a career are 1.578 before S5 raises the four positive chances to 0.05.
 4. The replay's process now peaks at about 2.3 GiB or more, the largest of the run (above).
 
+**The verification** (a second Opus agent, at `dc257f3`; the sweep not run again). Every figure is
+the two reports', every difference is the new player's, and the replay is confirmed by playing it
+again. Two statements were corrected above: the replay's memory reading named the text and not the
+document it also holds, and "For the owner" item 2 said every other DL-83 target moved further off.
+- *The figures.* Every cell of both tables, every number in items 1 to 12, the DL-83 readings and the
+  rule's reading recomputed from `m9-v115-s3-2026-10-04.md` and `m9-v114-close-2026-10-03.md`: no
+  other discrepancy. Among them: the Bankruptcies by year sum to 13 in each, 8 of S3's from year 17;
+  397.0 and 335.1 Quests a Guild-year (382,191 / 962.6, 312,418 / 932.3), +18.5%; 159.5 and 188.0 a
+  Quest (the rewards over the Quests resolved), −15.2%, the income +0.5%; Upkeep +2.2% (56,055.8 /
+  54,824.5), 88.5% and 87.0% of the rewards; difficulty 10 to 39, 213,935 and 123,002, and 60 and
+  over, 53,503 and 96,404; 994 / 630 = 1.578; item 7's months a twelfth of a Guild-year's Upkeep
+  (4,671: 22.4 and 19.5), as DL-166 reads them; the Party table's last row the weighted mean of its
+  rows (46.7 and 84.3 XP); every Encounter kind failing less, travel, social and lore too (4.3%, 4.6%,
+  8.5% against 9.9%, 10.2%, 16.6%); the Rivals' Deaths and Injuries a Guild-year (903 and 15,274 over
+  3,827.8; 760 and 14,071 over 3,706.6). The close's report and S6's differ only in their titles,
+  start times, timings and S6's skipped replay (`diff --strip-trailing-cr`), so "equal in play to S6's
+  sweep" holds. The memory figures come from a scratch file not kept and cannot be checked; S6's
+  beside them are DL-175's.
+- *Each difference the new player's.* `git diff b401502..3e50e1a` touches `docs/`, `policy.ts` and its
+  test, `sweep.ts` (the report's policy line) and `vitest.config.ts` (the harness project's timeout):
+  nothing that plays but the policy. The claims that need code hold. A Quest's reward is its
+  difficulty times its template's `rewardPerDifficulty` (4 to 5), paid unless it fails, times its
+  consequences' factors (`generators/quests.ts`, `quest-engine/resolve.ts`): never the Heroes' Level.
+  Upkeep is `wagePerLevel` (20) for each Level of each living Hero, plus 10 a Hall grade, every 10
+  Days (`selectors.ts`, `upkeepParts`). The Rivals act first in the afternoon, on what the player left
+  in the morning (`phases/rival-controllers.ts`, pre-M0 D2). Every Quest, the player's and the
+  Rivals', resolves on the one `quests` stream, so the Rivals' draws do follow the player's. The four
+  positive Traits come only on an Encounter's Triumph (0.02), `lettered` only on an arcane one, and the
+  two negative only on a Failure (0.08), as item 6 reads them.
+- *The late Bankruptcies (item 7), held to the wage.* From the reports' year tables, eight Heroes'
+  wage at the year's mean Level plus the infirmary's 30, 36 times a year, gives 55,072 a Guild-year
+  against the 56,056 measured (the close's 53,755 against 54,825; the Guildmasters' Traits left out).
+  By it the wage passes the year's Quest income (its Quests a Guild-year at 159.5) in year 11, the
+  first Bankruptcy's (63,202 against 62,950), and stands about 4,900 to 5,800 above it from year 14
+  (69,422 against 63,780 in year 19), while the Quests' mean difficulty stays near 39 from year 7 and
+  the Roster's Level rises from 9.1 to 11.9. The close's player crosses in year 14 (65,246 against 64,448
+  at 188.0) and stays about 1,900 to 3,300 above. So the reading holds, and these aggregates show it
+  of the average Guild late, not only of a weak Roster, as the rule's reading above and DL-166 put
+  it; the report has no rows by game, so which of the 13 were weak is not shown. The verifier's
+  estimates.
+- *The replay.* The summary row, `seed-0001`: identical (128,821,570 characters), is `playReport`'s
+  from `replay`'s `a === b`, and the test asserts `sweep.replay?.identical`. Played again here at
+  `dc257f3` (no code since `3e50e1a`), alone, as `replay` plays it: identical, 128,821,570
+  characters, 154.5 s, nearly all of the run's other 158.3 s.
+- *The replay's memory, for S10.* The replay is `sweep.ts`'s `replay`, not `play.ts`'s or the test's:
+  it keeps `once`, the first `PlayedGame`, whose `advanceMs` it reads after the second game, and with
+  it the first game's whole document, besides its text `a`. Measured alone with `node --import tsx`
+  (scratch scripts, not kept): as written, the process's peak resident set 2,194 MiB, 383 MiB of heap
+  live after the first game (the text about 123 MiB, the document most of the rest); with the first
+  game's `advanceMs` summarised and its text reduced to its SHA-256 and length inside a scope, so the
+  document and text are dropped before the second game, 1,104 MiB, with the same result (identical,
+  128,821,570). The Vitest worker's 2,352 MiB is the first form's with the sweep's records beside it.
+  The fix is small and safe: the result's four fields (`seed`, `identical`, `length`, `advance`) need
+  of the first game only its text's fingerprint and length and its `advanceMs`, and no game, save or
+  counter changes. A SHA-256 comparison is the one DL-76's fingerprint already trusts; keeping the
+  first text and dropping only the document would keep the byte comparison for about 123 MiB more.
+  A harness test-memory matter, not play; not built here.
+- *The rule's first reading.* 13 of 50 is 26%, 6 above the band's top of 7, twice DL-166's ±3: sound.
+  Neither S4 nor S5 touches the wage or the reward, and the wage passes the average Guild's income
+  late, so the close reaching 7 or fewer needs a fall of 6 that neither change aims at; the
+  prediction that the economy pass comes first is sound, and the close decides it.
+- *The record.* DL-177 sits after DL-176 and before "Pre-M0 review decisions", as DL-175 and DL-176
+  do; both S3 boxes are met as ticked; the epic's status now reads S3 built and verified. The epic
+  keeps its CRLF endings, this log its LF.
+
 **Actioned in:** `harness/reports/m9-v115-s3-2026-10-04.md` (force-added); the epic's S3 boxes and
-status.
+status; the verification, the replay's memory reading and "For the owner" item 2 corrected, and the
+epic's status.
 
 ---
 
