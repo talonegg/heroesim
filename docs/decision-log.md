@@ -20586,6 +20586,7 @@ sessions are the agent's, in `docs/planning/epics/v1.1.5-release.md`, for the ow
 3. **The XP split waits for v1.1.5's numbers** (Q3, DL-148 item 19). v1.1.5 runs one
    information-only 50 × 20 sweep with the XP split across the Party: a trial, not shipped. *The
    agent's reading:* each Hero of a Party takes the Quest's XP divided by the Party's size.
+   - *Settled by the owner, 2026-10-04 (DL-182 item 1):* the trial's split ships in v1.1.5, as S13.
 4. **The positive earned Traits' chance goes back to 0.05** (Q4): `battle-tried`, `wayfinder`,
    `silver-tongued` and `lettered`, through the content editor only, as the `trait-assign` skill does
    it. The negative ones, `battle-shy` and `haunted`, stay 0.08.
@@ -20657,6 +20658,9 @@ sessions are the agent's, in `docs/planning/epics/v1.1.5-release.md`, for the ow
       the new player with every v1.1.5 play change in. Of 50 games, 5 to 15% is 3 to 7. S3's baseline,
       the new player alone, is reported beside it, and if the two fall on different sides of the band
       the close says so for the owner.
+    - *Overridden by the owner, 2026-10-04 (DL-182 item 2):* the rule named the economy pass first
+      (DL-181); the owner deferred it to the backlog, after other game balances and features, and left
+      what follows v1.1.5 to be decided.
 17. **The record** (Q17).
     - This entry, and the epic `docs/planning/epics/v1.1.5-release.md`, its stories from DL-169.
     - Its row in the register (`docs/planning/epics/README.md`) and in `docs/plan.md` §4, as
@@ -23141,6 +23145,8 @@ late, from year 10, none in the first two years: DL-166's late mechanism, the wa
 (`wagePerLevel` 20) and a Quest's reward not, which the new player and S4 and S5 left in place. S9's
 trial (DL-180), for information only, took the same play to 0 of 50, below the band.
 
+*Overridden by the owner, 2026-10-04 (DL-182 item 2): the economy pass is deferred to the backlog, after other game balances and features, and what follows v1.1.5 is to be decided.*
+
 The next release is named here, in `docs/plan.md` §4 (v1.1.5's entry and the economy pass added as
 `v1.1.6` before Random Events), and in the epic. #51's comment is prepared for the owner, not posted
 (the session's `s10-issue-51-comment.md`): the rule's outcome and the release line, `v1.1.6` before
@@ -23249,6 +23255,124 @@ is the reports'; the rule's outcome is written alike everywhere. Nothing to fix.
   test` 185 files, 4,818 tests passing (the eslint-based tests within time); `npm run e2e -w web` 100
   passed, check-bundle passing, the script `index-CsErff-L.js` 814,620 bytes. Every file the close
   touched has one line ending (the index LF throughout, no file mixed); `git status` clean.
+
+---
+
+## DL-182 — The owner's answers at v1.1.5's close: the XP split in v1.1.5 as S13, Unique Items on the Roster with their picture on the Tiles and a thin gold glow as S14, the economy pass deferred to the backlog with what follows v1.1.5 left to decide, and the nine judgement calls
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the owner, answering the items the close
+left open (DL-180's and DL-181's "For the owner"). The quoted words are the owner's answers as the
+orchestrator relayed them. The readings marked as the agent's, the stories, their acceptance and the
+sessions are the agent's, in `docs/planning/epics/v1.1.5-release.md`, for the owner to change.
+
+**Context.** v1.1.5 closed on 2026-10-04 (DL-181), with these before the owner:
+- *The split-XP trial* (DL-180), #51's first comment ("comment A"). Each Hero of a Party took the
+  Quest's XP divided by the Party's size: 0 of 50 player Guilds bankrupt against S5's 12, the Roster's
+  mean Level after 10 years 8.34 (10.35), Upkeep 74.7% of the Quest income (87.8%), Deaths and
+  Injuries a Guild-year about a quarter up, the games 44% slower.
+- *The rule's outcome* (DL-181), #51's second comment ("comment B"). DL-168 item 16's rule read on the
+  closing sweep: 12 of 50 bankrupt, outside 3 to 7, so the economy pass first, as `v1.1.6`.
+- *The nine judgement calls* of the close review (DL-181), each left as built until the owner said.
+- *The two #51 comments,* prepared in the session's scratchpad and not posted.
+
+The release (DL-181's "For the owner" item 1) was not yet made.
+
+**Decision.**
+
+1. **The XP split ships in v1.1.5** (comment A). The owner: "go with split xp"; asked when, "Add to
+   v1.1.5 now". It is the new story S13.
+   - *The rule.* Each Hero who comes home takes the Quest's XP divided by the Party's size, rounded
+     down. The size is the Party sent, its Dead counted. It applies whatever the band, and to the
+     player and the Rivals alike. It adds no draw.
+   - *The change* is exactly DL-180's trial: in `resolveQuest` (`engine/src/quest-engine/resolve.ts`),
+     `xpPerHero: Math.floor(xp)` becomes `Math.floor(xp / heroes.length)`, `heroes` the Party sent
+     (`party.heroIds`); `questsConclude` gives it to each survivor, as it does now.
+   - This settles DL-148 item 19 and DL-168 item 3, and takes the XP split out of #51's scope.
+   - *The agent's reading,* for the owner to change: DL-180 asked whether to split by the Party sent or
+     by those who come home, and how to round. The owner adopted the trial, so the trial's form: the
+     Party sent, rounded down.
+   - *Its sweep.* S13's 50 × 20 sweep keeps the replay and is v1.1.5's closing sweep. It is expected to
+     play DL-180's trial games, its fingerprint the trial's,
+     `e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369` (the epic's S13 says why).
+2. **The economy pass is deferred to the backlog** (comment B). The owner: "defer to backlog after
+   other game balances and features"; asked what comes after v1.1.5, "Decide later".
+   - The economy pass (#51) is not `v1.1.6`. It waits in the backlog, after other game balances and
+     features. #51 stays open.
+   - DL-168 item 16's rule was applied at the close (DL-181), and the owner overrides what it named.
+     This supersedes DL-181's outcome, "the economy pass comes first, as `v1.1.6`", and DL-168
+     item 16's consequence, the economy pass first as `v1.1.6` before Random Events.
+   - *What follows v1.1.5* is the owner's, to be decided. *The agent's reading:* the override sets no
+     order. It puts neither the economy first (DL-168 item 16) nor back after Random Events (DL-83
+     item 1, DL-148 item 3); what comes next, Random Events or other work, is the owner's to name.
+   - The rule is not read again. The re-close records the closing sweep's Bankruptcies, now S13's, for
+     information.
+3. **Eight judgement calls as recommended** (DL-181's list).
+   - *Left as built:*
+     - 1, a tooltip reached by a mouse alone; the screen reader's words carry the same;
+     - 2, a column hidden in the Columns panel can still be the sort in force;
+     - 3, "When free" reversed puts the Heroes with no Day to read first;
+     - 7, `docs/quests/calibration.json` still says `contentVersion` 31 (cosmetic);
+     - 9, the allocation test skipped on Node 22.
+   - *To #52, as later small fixes:*
+     - 4, the Roster's direction button (`web/src/views/roster.tsx`, `roster__direction`). Its name is
+       its state ("A to Z") and its `title` "Reverse the order". Its accessible name should state its
+       action, e.g. "Reverse the order, now A to Z".
+     - 6, an earned Trait's `among` (`earn` in `engine/src/quest-engine/resolve.ts`). It is read over
+       the whole Party still in the sequence (`partyNow`), then narrowed to the Trait's pool; S4's
+       Injury reads it over its pool (`narrowed`, `harm.ts`). Align the two when content first gives an
+       earned Trait an `among`. None of content 32's eight Trait consequences has one, so nothing plays
+       differently until then.
+     - 8, the replay's optional cross-check (`replay` in `harness/src/sweep.ts`). The replay compares
+       its two plays with each other only. It could also compare them with the sweep's own record of
+       that seed's game, its `measures.fingerprint`.
+4. **Judgement call 5, changed by the owner: Unique Items on the Roster.** The owner: "put the item
+   placeholder picture on the rosters tile screen and have a thin good aura outline the hero tile. for
+   table view, just have the aura outline and no item picture"; asked for the aura's look, "Thin gold
+   glow". It is the new story S14.
+   - *The agent's reading,* for the owner to change:
+     - "The item placeholder picture" is the Unique Item's picture. Every Unique Item shows the chest's
+       Silhouette today, as none has a picture yet (`CONTEXT.md` avoids "Placeholder" for it). "Good
+       aura" is read as "gold aura", which the follow-up's "Thin gold glow" confirms.
+     - *On the Roster's Tiles,* a Hero carrying any Unique Item shows that Item's picture
+       (`ItemPicture`), before the Item's name in its Item chip, as the Stores, the Market's Sell and a
+       Hero's Gear show it. The Hero's tile has the thin gold glow.
+     - *In the Table,* the Hero's row has the same glow, and no picture.
+     - *A Hero with no Unique Item* is unchanged, Common Items bringing neither picture nor glow.
+     - *The glow* is a new gold or amber colour pair, one for light and one for dark: a thin outline of
+       1 to 2px with a soft glow. It is decoration: the Items already name what the Hero carries, so no
+       words are added and the screen reader's words are as they are.
+   - `CONTEXT.md`'s Unique Item gains the Roster's Tiles among where its picture shows, and the glow,
+     marked as to be built (v1.1.5-S14).
+5. **The two #51 comments are posted in updated versions,** shown to the owner first (the owner's
+   choice, "Post updated versions").
+   - The trial's comment gains the owner's decision at its top.
+   - The rule's comment keeps the rule's reading and states the override. Its `v1.1.6-dev` line goes,
+     and it says #51 stays open in the backlog.
+   - A comment on #52 lists judgement calls 4, 6 and 8, each with its file and the fix suggested.
+   - All three are prepared in the session's scratchpad (`s9-issue-51-comment.md`,
+     `s10-issue-51-comment.md`, `s10-issue-52-comment.md`), none posted.
+
+**Consequences.**
+- v1.1.5 is reopened. S14 comes first, then S13, then a short re-close as part of S10 (the epic's §0).
+  The release waits for the re-close.
+- S13 changes play. DL-181's closing sweep (`m9-v115-close-2026-10-04.md`) stays the record of the play
+  before the split, and S13's sweep becomes the closing sweep. If the re-close's review changes play,
+  the closing sweep is run again.
+- The Gate's "Rare Traits" reads the closing sweep against S5's 2.32. With the split, DL-180 measured
+  2.178, a change of play the split explains.
+- Nothing new is saved. `configVersion` stays 13 (S13 changes only a comment), the content stays 32,
+  and the schema stays 6. The split changes values (`hero.xp`, the Levels, `hero.xp-gained`'s
+  amounts), not fields.
+- *The record:* DL-183 for S14, DL-184 for S13 and DL-185 for the re-close, a new entry, so that
+  DL-181 is not rewritten.
+- Open after v1.1.5: #51, in the backlog; #52, with E4, E7, W3 and judgement calls 4, 6 and 8; #49
+  (Backgrounds); DL-148 item 4's text form; and what follows v1.1.5, the owner's.
+
+**Actioned in:** `docs/planning/epics/v1.1.5-release.md` (objective, Gate, status, §0, S10's re-close,
+S14 and S13 new, §2 to §4); `docs/plan.md` §4 (v1.1.5 reopened, the `v1.1.6` line withdrawn, the
+economy pass in the backlog, Random Events amended); `docs/planning/epics/README.md`'s v1.1.5 row;
+`CONTEXT.md`'s Unique Item; a pointer at DL-168 items 3 and 16 and at DL-181's outcome; the three
+comments prepared for the owner.
 
 ---
 

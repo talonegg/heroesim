@@ -711,7 +711,9 @@ _Avoid_: Stackable, Generic item, Commodity
 An Item that is an individual, magical, special or belonging to a Campaign, with exactly one
 holder at a time. By DL-125 it shows its picture beside its name, or a chest's Silhouette until it
 has one, in the Stores, the Market's Sell and a Hero's Gear (built in v1.1.2-S2, DL-129). No Unique
-Item has a picture yet, so each shows the Silhouette.
+Item has a picture yet, so each shows the Silhouette. By DL-182 the Roster's Tiles show it too, in its
+Item's chip, and a Hero who carries one has a thin gold glow around their tile, and around their row
+in the Roster's Table, which shows no picture (to be built, v1.1.5-S14).
 _Avoid_: Artefact, Legendary, Named item
 
 **Unattached Hero**:

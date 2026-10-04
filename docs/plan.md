@@ -362,18 +362,25 @@ the agents recommended that story features be modules and rule extensions core i
   5 to 15% of games, Random Events next and the economy pass (#51) after; if not, the economy pass
   first, as `v1.1.6`. *Built, verified and closed on `v1.1.5-dev` 2026-10-04 (DL-170 to DL-181), the
   release awaiting the owner. The closing sweep's player Bankruptcies, 12 of 50 (24%; S3's baseline
-  13), fall outside 3 to 7, so the economy pass comes first, as `v1.1.6` (DL-181).*
-- **Then, inside the v1.1 line:** the economy pass, as the patch `v1.1.6` (#51), before Random Events,
-  by DL-168 item 16's rule at v1.1.5's close (DL-181): the late Bankruptcies, the DL-83 targets, the
-  wage's shape, Rival income, the form factors, the Market's size and draws by slot, and the XP split
-  (DL-168 items 2, 3, 9, 12 and 16; DL-180's trial). It supersedes DL-83 item 1's and DL-148 item 3's
-  order, the economy after Random Events. *Added 2026-10-04 (DL-181); its plan is the owner's to
-  start.*
+  13), fall outside 3 to 7, so the economy pass comes first, as `v1.1.6` (DL-181).* *Reopened
+  2026-10-04 by the owner's answers at the close (DL-182): the XP split across the Party, each Hero
+  who comes home taking the Quest's XP divided by the Party's size, ships in `v1.1.5` (S13), and the
+  Roster's Tiles show a Unique Item's picture with a thin gold glow around its Hero, the Table the glow
+  alone (S14); then a short re-close. The rule's outcome is overridden: the economy pass goes to the
+  backlog, and what follows `v1.1.5` is to be decided.*
+- **The economy pass (#51), in the backlog:** after other game balances and features, by the owner's
+  answer at v1.1.5's close (DL-182): the late Bankruptcies, the DL-83 targets, the wage's shape, Rival
+  income, the form factors, and the Market's size and draws by slot (DL-168 items 2, 9 and 12). The
+  XP split is no longer in it: it ships in `v1.1.5`. *Added 2026-10-04 (DL-181) as the patch
+  `v1.1.6`, before Random Events, by DL-168 item 16's rule; amended the same day (DL-182): not
+  `v1.1.6`, but deferred to the backlog by the owner, its place to be decided.*
+- **What follows `v1.1.5`:** to be decided by the owner (DL-182 item 2, "Decide later").
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.* *Amended 2026-10-03 (DL-168): after `v1.1.5`, or after a `v1.1.6`
   economy pass, by DL-168 item 16's rule.* *Amended 2026-10-04 (DL-181): after `v1.1.6`, the rule
-  having named the economy pass first.*
+  having named the economy pass first.* *Amended 2026-10-04 (DL-182): there is no `v1.1.6` economy
+  pass; when Random Events comes is the owner's to decide.*
 - **After Random Events, in an order chosen at its close:**
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Scouting and hidden information.
