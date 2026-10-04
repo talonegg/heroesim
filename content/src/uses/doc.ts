@@ -34,6 +34,11 @@ function contentSection(entry: ContentEntry): string[] {
           .map(([field, words]) => `\`${field}\`, ${words}`)
           .join('; ')}. ${assignLine(entry.id, entry.add.target)}`,
     entry.remove === null ? '- **Removing a use:** the register gives no safe way: give its entry a `remove` first.' : `- **Removing a use:** ${entry.remove.how} \`traits unassign <key> ${entry.id} <at>\`, its place as \`traits uses\` gives it.`,
+    entry.update === null
+      ? '- **Changing a use:** a use here is the key alone: take it out and add another.'
+      : `- **Changing a use:** ${entry.update.how} The values: ${Object.entries(entry.update.fields)
+          .map(([field, words]) => `\`${field}\`, ${words}`)
+          .join('; ')}. ${updateLine(entry.id, entry.update.fields)}`,
     '',
   ];
 }
@@ -42,6 +47,12 @@ function contentSection(entry: ContentEntry): string[] {
 function assignLine(id: string, target: Readonly<Record<string, string>>): string {
   const fields = Object.entries(target).map(([field, words]) => (words.startsWith('optional') ? `[${field}=…]` : `${field}=…`));
   return `\`traits assign <key> ${id} ${fields.join(' ')}\`.`;
+}
+
+/** The command that changes a use of an entry in place (v1.1.6-S4), an optional value in brackets. */
+function updateLine(id: string, fields: Readonly<Record<string, string>>): string {
+  const values = Object.entries(fields).map(([field, words]) => (words.startsWith('optional') ? `[${field}=…]` : `${field}=…`));
+  return `\`traits update <key> ${id} <at> ${values.join(' ')}\`, its place as \`traits uses\` gives it.`;
 }
 
 function engineSection(entry: EngineEntry): string[] {
@@ -67,11 +78,11 @@ export function registerDoc(entries: readonly RegisterEntry[] = register): strin
     '',
     `Every place a Trait is used: ${content.length} in content, where a Trait's key stands, and ${engine.length} rules of the engine and checks of the content that read a Trait. The editor's \`uses\` and \`find\` read the first; the drift test holds the second to the code.`,
     '',
-    '| Entry | Where | Holds | Refuses removal | Add | Remove |',
-    '| --- | --- | --- | --- | --- | --- |',
+    '| Entry | Where | Holds | Refuses removal | Add | Remove | Update |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
     ...content.map(
       (entry) =>
-        `| \`${entry.id}\` | ${cell(entry.files.join(', '))} | ${entry.lists.join(', ')} | ${entry.blocksRemoval ? 'yes' : 'no'} | ${entry.add === null ? 'no' : 'yes'} | ${entry.remove === null ? 'no' : 'yes'} |`,
+        `| \`${entry.id}\` | ${cell(entry.files.join(', '))} | ${entry.lists.join(', ')} | ${entry.blocksRemoval ? 'yes' : 'no'} | ${entry.add === null ? 'no' : 'yes'} | ${entry.remove === null ? 'no' : 'yes'} | ${entry.update === null ? 'no' : 'yes'} |`,
     ),
     '',
     '| Rule | Reads | Effects | Events |',

@@ -11,17 +11,14 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { contentChecks, editJson, NotUndone, raiseContentVersion, transaction, Undone } from '@heroesim/content/write';
 import { dataUrlOf, isPicture, type Chromium } from './chromium.js';
 import { check } from './check.js';
-import { contentChecks } from './content-checks.js';
-import { raiseContentVersion } from './content-version.js';
 import { convert } from './convert.js';
 import { fingerprint } from './fingerprint.js';
-import { editJson } from './json-edit.js';
 import { datePattern, intakeDir, nextRun, today } from './records.js';
 import { formatRegistry, isRole, isSex, nextKey, picturePaths, readRegistry, registryPath, roles, type Role, type Sex } from './registry.js';
-import { DraftError, NotUndone, Undone } from './errors.js';
-import { transaction } from './transaction.js';
+import { DraftError } from './errors.js';
 
 /** One upload in a draft: where it is, its sex where the draft says it, and its drafted row. */
 export interface DraftPicture {

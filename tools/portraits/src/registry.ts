@@ -4,7 +4,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { formatJson } from './json-format.js';
+import { formatJson } from '@heroesim/content/write';
 import type { Fingerprint } from './fingerprint.js';
 
 /**

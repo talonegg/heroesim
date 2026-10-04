@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { editJson } from './json-edit.js';
 import { formatJson } from './json-format.js';
-import { root } from './test-support.js';
+import { contentDir } from '../node.js';
 
 // `editJson` (v1.1.3-S3): the tool changes a content file where its value changes, and keeps the
 // file's own layout everywhere else, so that `git diff` after `apply` or `write-rows` shows only
@@ -11,7 +11,7 @@ import { root } from './test-support.js';
 
 /** A content file as git holds it, with LF line ends, whatever the checkout's. */
 function content(name: string): string {
-  return readFileSync(path.join(root, 'content', name), 'utf8').replace(/\r\n/g, '\n');
+  return readFileSync(path.join(contentDir, name), 'utf8').replace(/\r\n/g, '\n');
 }
 
 const crlf = (text: string): string => text.replace(/\n/g, '\r\n');

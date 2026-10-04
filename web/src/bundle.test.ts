@@ -123,6 +123,23 @@ describe('the production build', { timeout: 120_000 }, () => {
     for (const picture of pictures) expect(text.includes(`new URL(\`${picture}\`,${base})`), picture).toBe(true);
   });
 
+  // v1.1.6-S4 (DL-186 item 14): the content version is data, `content/version.json`, which the page
+  // bundles with the content, but its changelog is for the people who read the file, and is bundled
+  // empty; and the tools' write module, `@heroesim/content/write`, is in no built file.
+  test("bundles the content version without its changelog, and none of content's write module", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    const written = JSON.parse(readFileSync(path.join(contentDir, 'version.json'), 'utf8')) as { version: number; changelog: string[] };
+    const bundled = JSON.stringify({ version: written.version, changelog: [] });
+    expect(text.includes(bundled) || text.includes(JSON.stringify(bundled).slice(1, -1))).toBe(true);
+    expect(written.changelog.length).toBeGreaterThan(10);
+    for (const entry of written.changelog) expect(text.includes(entry.slice(0, 40)), entry).toBe(false);
+    const write = readFileSync(path.join(contentDir, 'src', 'write', 'errors.ts'), 'utf8');
+    const mark = 'could not be put back';
+    expect(write).toContain(mark);
+    expect(text).not.toContain(mark);
+  });
+
   test('builds a script under the 850 kB the gate allows', () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
     expect(statSync(path.join(outDir, 'assets', script)).size).toBeLessThan(scriptLimit);

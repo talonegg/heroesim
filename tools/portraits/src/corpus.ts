@@ -26,8 +26,7 @@ import {
   picturesWanted,
   type LongestDescriptions,
 } from '@heroesim/content';
-import { contentTexts } from './content-checks.js';
-import { readContentVersion } from './content-version.js';
+import { contentTexts, readContentVersion } from '@heroesim/content/write';
 import { DraftError } from './errors.js';
 import { distance } from './fingerprint.js';
 import { analysisDir, runPattern } from './records.js';

@@ -51,6 +51,7 @@ interface Files {
   'portraits.json': Portraits;
   'portrait-appearances.json': PortraitAppearances;
   'descriptions.json': Descriptions;
+  'version.json': { version: unknown; changelog: unknown; [field: string]: unknown };
 }
 
 /** An Encounter as `encounters.json` writes it: the old form, which loads into one Check (v1.1.4-S1). */
@@ -298,6 +299,33 @@ describe('a duplicate key, found in the raw text because JSON.parse keeps only t
     expect(refusalOf(() => parseContent(files)).message).toMatch(
       /classes\.json: duplicate key "strength" in warrior\.growth/,
     );
+  });
+});
+
+// The content version, as data (v1.1.6-S4, DL-186 item 14): read from `version.json` with the rest.
+describe('the content version', () => {
+  test('is read from version.json, as the tools raise it there', () => {
+    const files = withJson('version.json', (json) => {
+      json.version = 7;
+    });
+
+    expect(parseContent(files).version).toBe(7);
+  });
+
+  test('is refused without its file, naming it', () => {
+    const { 'version.json': _version, ...files } = realFiles();
+    void _version;
+
+    expect(refusalOf(() => parseContent(files)).message).toContain('version.json: missing');
+  });
+
+  test.each([
+    ['a version that is no whole number', (json: Files['version.json']) => void (json.version = 32.5), 'version.json: version is 32.5; expected a whole number'],
+    ['a version below 1', (json: Files['version.json']) => void (json.version = 0), 'version.json: version is 0; expected a whole number of at least 1'],
+    ['no changelog', (json: Files['version.json']) => void delete json.changelog, 'version.json: changelog is missing; expected a list of strings'],
+    ['a field it does not know', (json: Files['version.json']) => void (json.notes = 'x'), 'version.json: notes is not a field of the content version'],
+  ])('is refused with %s, naming it', (_name, change, problem) => {
+    expect(refusalOf(() => parseContent(withJson('version.json', change))).message).toContain(problem);
   });
 });
 

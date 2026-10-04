@@ -2,7 +2,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { NotUndone, readContentVersion } from '@heroesim/portraits';
+import { NotUndone, readContentVersion } from '@heroesim/content/write';
 import { afterEach, describe, expect, test } from 'vitest';
 import { Editor } from './editor.js';
 import { journalPath, journalState, onSignals, writeAtomically } from './finish-journal.js';
@@ -57,8 +57,7 @@ describe('a "Finish" cut off', () => {
     await until(() => existsSync(path.join(dir, 'tests-started.txt')), 'the planted tests to start');
     expect(status(dir).split('\n').filter((line) => line !== '').sort()).toEqual([
       ' M content/guildmaster-traits.json',
-      ' M content/src/content.test.ts',
-      ' M content/src/parse.ts',
+      ' M content/version.json',
     ]);
     expect(readContentVersion(dir)).toBe(version + 1);
     if (process.platform === 'win32') {
@@ -77,8 +76,7 @@ describe('a "Finish" cut off', () => {
     expect(listed.code).toBe(0);
     expect(listed.json.recovered.map((file) => path.relative(dir, file).replace(/\\/g, '/')).sort()).toEqual([
       'content/guildmaster-traits.json',
-      'content/src/content.test.ts',
-      'content/src/parse.ts',
+      'content/version.json',
     ]);
     expect(listed.json.pending).toBe(1);
     expect(status(dir)).toBe('');
@@ -167,8 +165,7 @@ describe('a "Finish" cut off', () => {
     expect(pending.json.edits).toHaveLength(1);
     expect(pending.json.recovered.map((each) => path.relative(dir, each).replace(/\\/g, '/')).sort()).toEqual([
       'content/guildmaster-traits.json',
-      'content/src/content.test.ts',
-      'content/src/parse.ts',
+      'content/version.json',
     ]);
     expect(status(dir)).toBe('');
     expect(existsSync(journalPath(dir))).toBe(false);
@@ -191,7 +188,7 @@ describe('a "Finish" cut off', () => {
     proc.emit('SIGINT');
 
     expect(proc.exitCode).toBe(130);
-    expect(said).toEqual(['Stopped: "Finish" was cut off, and 3 files are put back as they were.']);
+    expect(said).toEqual(['Stopped: "Finish" was cut off, and 2 files are put back as they were.']);
     expect(status(dir)).toBe('');
     expect(journalState(dir)).toBe('none');
     release(false);

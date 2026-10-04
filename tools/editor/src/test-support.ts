@@ -8,7 +8,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { ContentFileName } from '@heroesim/content';
-import { formatJson } from '@heroesim/portraits';
+import { formatJson } from '@heroesim/content/write';
 import { afterAll } from 'vitest';
 import { run, type Deps } from './cli.js';
 import { repositoryRoot } from './content-files.js';
@@ -71,7 +71,7 @@ function templateRepository(): string {
     recursive: true,
     filter: (source) => {
       const relative = path.relative(path.join(root, 'content'), source).replace(/\\/g, '/');
-      return relative === '' || relative.endsWith('.json') || ['src', 'src/parse.ts', 'src/content.test.ts', 'src/validate.ts'].includes(relative);
+      return relative === '' || relative.endsWith('.json') || ['src', 'src/validate.ts'].includes(relative);
     },
   });
   cpSync(path.join(root, 'docs', 'agents', 'traits.md'), path.join(dir, 'docs', 'agents', 'traits.md'));
@@ -88,8 +88,8 @@ function templateRepository(): string {
 }
 
 /**
- * A scratch copy of this repository's content (its JSON, and the source that holds the content
- * version and its checks) and `docs/agents/traits.md`, committed, with a planted `npm test` that
+ * A scratch copy of this repository's content (its JSON, `version.json` among it, and the source of
+ * its checks, which the drift check reads) and `docs/agents/traits.md`, committed, with a planted `npm test` that
  * passes; removed by the function it returns with. With `engine`, `engine/src/` too, which only the
  * drift check reads (the doctor's, `drift.ts`): copied beside the commit and ignored by git, since
  * the editor never writes it, as copying and committing its files for every test took most of the

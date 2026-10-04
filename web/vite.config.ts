@@ -63,7 +63,9 @@ const contentDir = path.join(repoRoot, 'content');
  * (v1.1.3-S7, DL-134 item 9, DL-143): `src/content.ts` takes each file as text, which Vite would
  * bundle as written, about 24 kB of whitespace in an 800 kB script. Only the files of `content/`
  * taken `?raw` are read here, and each is parsed, so a file that is not JSON fails the build. What
- * `parseContent` makes of the text is the same either way (`src/content.test.ts`).
+ * `parseContent` makes of the text is the same either way (`src/content.test.ts`). The content
+ * version's file is bundled with its changelog empty (v1.1.6-S4, DL-186 item 14): the changelog is for
+ * the people who read the file, some 6 kB the page never shows.
  */
 const compactContent: Plugin = {
   name: 'heroesim:compact-content',
@@ -71,8 +73,9 @@ const compactContent: Plugin = {
   async load(id) {
     const [file = '', query] = id.split('?');
     if (query !== 'raw' || path.extname(file) !== '.json' || path.dirname(path.resolve(file)) !== contentDir) return null;
-    const written = await readFile(file, 'utf8');
-    return `export default ${JSON.stringify(JSON.stringify(JSON.parse(written)))};`;
+    const written = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>;
+    const bundled = path.basename(file) === 'version.json' ? { ...written, changelog: [] } : written;
+    return `export default ${JSON.stringify(JSON.stringify(bundled))};`;
   },
 };
 

@@ -8,7 +8,6 @@
 export {
   contentFiles,
   contentSetId,
-  contentVersion,
   parseContent,
   readContent,
   type ContentFileName,

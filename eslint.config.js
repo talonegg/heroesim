@@ -26,9 +26,10 @@ const byNameOnly =
 // Every package exports only its entry, so no subpath exists to import, with one exception:
 // content's Node entry, `@heroesim/content/node` (M1-S4, DL-14 item 7), which reads the content
 // files with node:fs. The harness and the CLI run on Node and may import it; the web runs in a
-// browser and may not, except in its tests, which run on Node (M7-S1, DL-64). A second, content's
-// register of a Trait's uses, `@heroesim/content/uses`, is the tools' alone (v1.1.4-S12; the tools'
-// block below). content/src/imports.test.ts proves each.
+// browser and may not, except in its tests, which run on Node (M7-S1, DL-64). Two more, content's
+// register of a Trait's uses, `@heroesim/content/uses` (v1.1.4-S12), and its write module,
+// `@heroesim/content/write` (v1.1.6-S4), are the tools' alone (the tools' block below).
+// content/src/imports.test.ts proves each.
 function noSubpath({ node }) {
   return {
     regex: node ? '^@heroesim/(?!content/node$)[^/]+/' : '^@heroesim/[^/]+/',
@@ -43,8 +44,8 @@ const nodeBuiltins = `^(node:.*|(${builtinModules.join('|')})(/.*)?)$`;
 const nodeBuiltin = {
   regex: nodeBuiltins,
   message:
-    "Node built-ins belong only in content's Node entry, src/node.ts; the rest of content " +
-    'must run in a browser (approach §5).',
+    "Node built-ins belong only in content's Node entry, src/node.ts, and its write module for the " +
+    'tools, src/write/; the rest of content must run in a browser (approach §5).',
 };
 
 const browserBuiltin = {
@@ -272,7 +273,7 @@ export default defineConfig(
     rules: restrictImports(contentImports({ node: false })),
   },
   {
-    files: ['content/src/node.ts', 'content/**/*.test.ts'],
+    files: ['content/src/node.ts', 'content/src/write/**/*.ts', 'content/**/*.test.ts'],
     rules: restrictImports(contentImports({ node: true })),
   },
 
@@ -301,17 +302,18 @@ export default defineConfig(
 
   // The portrait tool (v1.1.3-S2) and the content editor (v1.1.4-S12): Node packages outside the game,
   // which take content's checks by name, content's Node entry among them, and import neither front end
-  // nor the harness. The editor, and only a tool, takes the register of a Trait's uses,
-  // `@heroesim/content/uses`, which the game never imports.
+  // nor the harness. Only a tool takes the register of a Trait's uses, `@heroesim/content/uses`, and
+  // content's write module, `@heroesim/content/write` (v1.1.6-S4), which the game never imports.
   {
     files: ['tools/**/*.ts'],
     rules: restrictImports({
       patterns: [
         {
-          regex: '^@heroesim/(?!content/(node|uses)$)[^/]+/',
+          regex: '^@heroesim/(?!content/(node|uses|write)$)[^/]+/',
           message:
-            "Import a package by its name only; its entry is all it exports, but for content's Node entry " +
-            'and its register of uses, `@heroesim/content/node` and `@heroesim/content/uses` (approach §5).',
+            "Import a package by its name only; its entry is all it exports, but for content's Node entry, " +
+            'its register of uses and its write module, `@heroesim/content/node`, `@heroesim/content/uses` ' +
+            'and `@heroesim/content/write` (approach §5).',
         },
         {
           group: ['@heroesim/cli', '@heroesim/web', '@heroesim/harness'],

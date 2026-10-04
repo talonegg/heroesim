@@ -30,6 +30,7 @@ npm run portraits -- <command> [--root <dir>] [--json]
 | `media/portraits/<role folder>/<sex>/<key>.thumb.webp` | Its thumbnail: 160 × 213 WebP, at most 12 kB (about 10 kB) |
 | `media/portraits/registry.json` | The register: every key ever issued |
 | `media/inbox/guildmaster/`, `media/inbox/hero/` | Uploads, ignored by git; each may hold `male/` and `female/` |
+| `content/version.json` | The content version and its changelog, raised by an intake and an apply (v1.1.6-S4) |
 | `docs/portraits/intake/<run>.md` | An intake's report |
 | `docs/portraits/analysis/<run>.md`, `<run>/` | An analysis run: its report, and its recommended `portraits.json`, `portrait-appearances.json` and `descriptions.json` |
 
@@ -138,8 +139,8 @@ any failure every file is put back as it was, and every file and folder it made 
 2. it names each by `nextKey`, and registers it with the fingerprint of its WebP;
 3. it lists the key in `content/portraits.json`, and adds the row to
    `content/portrait-appearances.json`, each file keeping its layout (see **The content's layout**);
-4. it raises the content version in `content/src/parse.ts`, with a line in its comment, and the
-   number `content/src/content.test.ts` pins;
+4. it raises the content version in `content/version.json`, with a line of its changelog
+   (v1.1.6-S4);
 5. it runs the content's own checks (`@heroesim/content`) and `check`;
 6. it writes the report, `docs/portraits/intake/<run>.md`, and deletes the uploads it took in.
 
@@ -261,8 +262,10 @@ It is undone as a whole on any failure. A run that is the content already change
 The content's JSON is laid out by hand: the Features' values aligned, a sentence list opened out
 even where it would fit on a line, and a role's picture lists on one line while they fit (the
 Heroes' and Patrons') and a key to a line once they do not (the Guildmasters', since v1.1.3-S4).
-`write-rows`, `write-run` and `apply` write a changed value into the file's own text (`src/json-edit.ts`), so `git diff` shows
-only what changed:
+`write-rows`, `write-run` and `apply` write a changed value into the file's own text (`editJson`, of
+content's write module, `@heroesim/content/write`, which the content editor shares since v1.1.6-S4,
+with the transaction, the content's checks and the version's raise), so `git diff` shows only what
+changed:
 
 - a value that is unchanged keeps its text, byte for byte, and the file its LF or CRLF line ends;
 - a member or item added to an object or list laid over several lines is laid out as the sibling
@@ -280,9 +283,9 @@ A run's files may be laid out any way: `apply` takes their value, not their text
 - **`chromium.test.ts`** converts and fingerprints the committed pictures, re-encoded and cropped.
 - **`write-rows.test.ts`** takes uploads into a scratch copy of the repository, made a git
   repository, and reads `git status` to prove a failure leaves it as it was.
-- **`json-edit.test.ts`** writes each content file unchanged, and adds a sentence, a Feature, a row
-  and a key, each changing only its own lines; `write-rows.test.ts` proves the same of `git diff`
-  after an intake and an apply.
+- **`write-rows.test.ts`** also proves of `git diff` after an intake and an apply that each content
+  file changes only its own lines; content's `src/write/json-edit.test.ts` writes each content file
+  unchanged, and adds a sentence, a Feature, a row and a key.
 - **`corpus.test.ts`** counts the corpus as shipped and in a scratch copy, with a run's files in
   place of the content's, and diffs a run written through the command line.
 - **`owner.test.ts`** reads the owner's 40, from `HEROESIM_OWNER_PICTURES` or

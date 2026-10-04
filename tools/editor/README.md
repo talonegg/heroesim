@@ -26,11 +26,12 @@ npm run edit -- traits <command> [--root <dir>] [--json]
 
 ## Pending edits
 
-Each `add`, `change`, `remove`, `assign` and `unassign` is checked with the content's own checks
+Each `add`, `change`, `remove`, `assign`, `unassign` and `update` is checked with the content's own checks
 (`@heroesim/content`) as it is made, and held as pending in `.editor/traits.json` under the root, which git ignores, written
 whole or not at all. The file holds each edit as it was made: a row added whole, a change as the
 fields it gave (so it never carries an exclusion another edit wrote into it), a removal by its key,
-an assignment by its entry and target, an unassignment by its entry and place.
+an assignment by its entry and target, an unassignment by its entry and place, an update by its
+entry, place and the values it gave.
 Whenever it is read, the edits are made again on the content as it is on disk, so the page and
 separate command lines share them, and nothing in the content's files changes before `finish`. Every
 list of edits is checked before it is saved, a removal's and a discard's too. An edit that no longer
@@ -51,6 +52,7 @@ checks and names their problems.
 | `traits remove <key>` | Removes a Trait; refused while it is used, naming every use |
 | `traits assign <key> <entry> [<field>=<value> ...]` | Adds a use of a Trait in other content, through the register's entry; `--target <json or @file>` gives the fields too |
 | `traits unassign <key> <entry> <at>` | Takes a use out, by its place as `uses` gives it (`injuries.json: deep-cut.leavesTrait`, or `deep-cut.leavesTrait`) |
+| `traits update <key> <entry> <at> [<field>=<value> ...]` | Changes a use in place, by its place as `uses` gives it: a trait consequence's `chance` or `among`, a Biography sentence's words; `--target <json or @file>` gives the values too |
 | `traits pending` | The pending edits |
 | `traits discard [<key>]` | Drops one Trait's pending edits, or all |
 | `traits finish` | Writes the pending edits, raises the content version, runs `npm test` |
@@ -110,11 +112,29 @@ npm run edit -- traits unassign lame injury-leaves-trait shattered-knee.leavesTr
 - **Taking out a `has-trait`** the register cannot take out with its Query keeping a meaning (one
   inside a `not`, say) is refused: the owner decides how that Query is rewritten.
 
+## Changing a use in place
+
+`update` (v1.1.6-S4, DL-186 item 14) changes one use of a Trait where it stands, through the
+register's entry for it, where the use holds values besides the key: an Encounter's `trait`
+consequence its `chance` and `among` (`among=null` takes it out), a Biography sentence its words. A
+use that is the key alone (an Injury's `leavesTrait`, a `has-trait`, an `excludes`) is refused:
+`unassign` it and `assign` another. The place is the use's `at` as `uses` gives it, and the values
+are read as `assign`'s fields are. It is a pending edit like the rest, written by "Finish"; a use
+that is not there is refused, naming the Trait's uses, and a value as it is already is not held.
+
+```sh
+npm run edit -- traits uses battle-shy
+npm run edit -- traits update battle-shy encounter-trait "encounters.json: hold-the-line.consequences.failure.2" chance=0.1
+npm run edit -- traits update lame biography-sentences heroBiography.traits.lame.1 --target @sentence.json
+```
+
 ## Finish
 
-1. It writes each changed file into its own layout (the portrait tool's `editJson`, keeping a row on
-   one line where it was), so `git diff` shows only what changed.
-2. It raises the content version by one, with a line in its comment naming the edits.
+1. It writes each changed file into its own layout (`editJson`, of content's write module
+   `@heroesim/content/write`, keeping a row on one line where it was), so `git diff` shows only what
+   changed.
+2. It raises the content version by one in `content/version.json` (v1.1.6-S4), with a line of its
+   changelog naming the edits.
 3. It runs `npm test`, its lines shown as they come (on stderr, or on the page).
 4. If any test fails, every file is put back and the edits stay pending; the failures are reported.
    Otherwise the edits it read are cleared.

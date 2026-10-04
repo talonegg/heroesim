@@ -1,10 +1,11 @@
-// The content's own checks, run on a repository's `content/` folder: the parser and validator of
-// `@heroesim/content`, which judge each row the tool adds or puts in place, whatever its shape.
+// The content's own checks, run on a repository's `content/` folder or on files' text: the parser and
+// validator of `@heroesim/content`, which judge each row a tool adds or puts in place, whatever its
+// shape.
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { ContentError, contentFiles, parseContent } from '@heroesim/content';
-import { loadContent } from '@heroesim/content/node';
+import { ContentError, contentFiles, parseContent } from '../index.js';
+import { loadContent } from '../node.js';
 
 function problemsOf(error: unknown): string[] {
   if (error instanceof ContentError) return [...error.problems];

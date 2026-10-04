@@ -5,8 +5,9 @@
 //
 // The pending edits are held between commands in `.editor/<kind>.json` under the root, which git
 // ignores, written whole or not at all: each edit as it was made, a row added whole, a change as the
-// fields it gave, a removal by its key, and a use assigned or unassigned in other content by its
-// register entry and its target or place (v1.1.4-S13, DL-150 item 13). They are made again on the content as it is on disk whenever
+// fields it gave, a removal by its key, a use assigned or unassigned in other content by its
+// register entry and its target or place (v1.1.4-S13, DL-150 item 13), and a use changed in place by
+// its entry, its place and the values it gave (v1.1.6-S4, DL-186 item 14). They are made again on the content as it is on disk whenever
 // they are read, so the page and the commands share them, a session may span several commands,
 // nothing in the content's own files changes before "Finish", and a change never carries what another
 // edit wrote beside it (an exclusion written into the other Trait, say). Every list of edits is checked
@@ -17,7 +18,7 @@
 
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import type { ContentJson } from '@heroesim/content/uses';
-import { NotUndone, raiseContentVersion, readContentVersion, textChecks, transaction, Undone, versionFiles } from '@heroesim/portraits';
+import { NotUndone, raiseContentVersion, readContentVersion, textChecks, transaction, Undone, versionPath } from '@heroesim/content/write';
 import { changedTexts, contentPath, readContentFiles, textsWith } from './content-files.js';
 import { beginJournal, Busy, busyProblems, endJournal, finishingHere, journalState, releaseJournal, restoreJournal, writeAtomically } from './finish-journal.js';
 import type { Kind, Row, Rule, Use } from './kind.js';
@@ -27,14 +28,16 @@ import path from 'node:path';
 
 /**
  * An edit held until "Finish": a row added whole, the fields a change gave, a row removed, or a use of
- * a row's key added in other content (its register entry and target) or taken out (its entry and place).
+ * a row's key added in other content (its register entry and target), taken out (its entry and place)
+ * or changed in place (its entry, place and the values given, v1.1.6-S4).
  */
 export type Edit =
   | { op: 'add'; list: string; key: string; row: Row }
   | { op: 'change'; list: string; key: string; fields: Row }
   | { op: 'remove'; list: string; key: string }
   | { op: 'assign'; list: string; key: string; entry: string; target: Row }
-  | { op: 'unassign'; list: string; key: string; entry: string; at: string };
+  | { op: 'unassign'; list: string; key: string; entry: string; at: string }
+  | { op: 'update'; list: string; key: string; entry: string; at: string; values: Row };
 
 /** What the pending file holds. */
 interface PendingFile {
@@ -79,25 +82,6 @@ export function pendingPath(root: string, kind: string): string {
 }
 
 const keyPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-/**
- * `why` for the content version's comment, wrapped to the source's 100 columns: its first line after
- * ` * <n> from `, the rest each a line of the comment, in the file's own line ends.
- */
-function commentLines(parseFile: string, why: string): string {
-  const eol = existsSync(parseFile) && readFileSync(parseFile, 'utf8').includes('\r\n') ? '\r\n' : '\n';
-  const lines: string[] = [];
-  let line = '';
-  for (const word of why.split(' ')) {
-    const room = 100 - (lines.length === 0 ? ' * 999 from '.length : ' * '.length) - 1;
-    if (line !== '' && line.length + 1 + word.length > room) {
-      lines.push(line);
-      line = word;
-    } else line = line === '' ? word : `${line} ${word}`;
-  }
-  lines.push(line);
-  return lines.join(`${eol} * `);
-}
 
 function today(): string {
   const now = new Date();
@@ -198,9 +182,15 @@ export class Editor {
         return this.kind.put(content, edit.list, edit.key, null);
       }
       case 'assign':
-      case 'unassign': {
+      case 'unassign':
+      case 'update': {
         if (held !== edit.list) throw new Refused([`"${edit.key}" is not a key of ${edit.list}`]);
-        const made = edit.op === 'assign' ? this.kind.assign(content, edit.key, edit.entry, edit.target) : this.kind.unassign(content, edit.key, edit.entry, edit.at);
+        const made =
+          edit.op === 'assign'
+            ? this.kind.assign(content, edit.key, edit.entry, edit.target)
+            : edit.op === 'unassign'
+              ? this.kind.unassign(content, edit.key, edit.entry, edit.at)
+              : this.kind.update(content, edit.key, edit.entry, edit.at, edit.values);
         if (made.content === null) throw new Refused(made.problems);
         return made.content;
       }
@@ -402,6 +392,28 @@ export class Editor {
     return { key, list, entry, at: use.at, uses: this.kind.uses(content, key) };
   }
 
+  /**
+   * Changes a use of `key` in place (v1.1.6-S4, DL-186 item 14): the one of the register's `entry` at
+   * `at`, as `unassign` finds it, given `values`, the values its entry changes (a trait consequence's
+   * `chance`, say). Refused, naming the key's uses, where it has none there; held as pending, checked
+   * with the content's checks as every edit is. One that changes nothing is not held.
+   */
+  update(key: string, entry: string, at: string, values: Readonly<Record<string, unknown>>): { key: string; list: string; entry: string; at: string; uses: Use[]; unchanged?: true } {
+    const before = this.working();
+    const list = this.#listOf(before, key);
+    if (list === null) throw new Refused([`"${key}" is not a key of ${this.kind.title}`]);
+    const uses = this.kind.uses(before, key);
+    const use = uses.find((each) => each.entry === entry && (each.at === at.trim() || each.path.join('.') === at.trim()));
+    if (use === undefined) {
+      throw new Refused([`"${key}" has no use in ${entry} at ${at}; its uses:`, ...(uses.length === 0 ? ['none'] : uses.map((each) => `${each.entry} at ${each.at}`))]);
+    }
+    const made = this.kind.update(before, key, entry, use.at, values);
+    if (made.content === null) throw new Refused(made.problems);
+    if (JSON.stringify(made.content) === JSON.stringify(before)) return { key, list, entry, at: use.at, uses, unchanged: true };
+    const content = this.#make({ op: 'update', list, key, entry, at: use.at, values: { ...values } });
+    return { key, list, entry, at: use.at, uses: this.kind.uses(content, key) };
+  }
+
   /** Drops the pending edits of `key`, or every one, where those left pass the content's checks. A file that cannot be read is dropped whole. */
   discard(key?: string): { discarded: number; left: number; unreadable?: true } {
     this.#guard();
@@ -419,16 +431,16 @@ export class Editor {
   }
 
   /**
-   * The pending edits in a few words, for the content version's comment (the verification of
-   * v1.1.4-S13): the rows added, changed and removed by key, and the uses assigned and unassigned
-   * counted, with their keys.
+   * The pending edits in a few words, for the content version's changelog (the verification of
+   * v1.1.4-S13): the rows added, changed and removed by key, and the uses assigned, unassigned and
+   * updated counted, with their keys.
    */
   summary(edits: readonly Edit[] = this.edits()): string {
     const keys = (op: Edit['op']): string[] => [...new Set(edits.filter((edit) => edit.op === op).map((edit) => edit.key))];
     const rows = (['add', 'change', 'remove'] as const).flatMap((op) => (keys(op).length === 0 ? [] : [`${{ add: 'added', change: 'changed', remove: 'removed' }[op]} ${keys(op).join(', ')}`]));
-    const uses = (['assign', 'unassign'] as const).flatMap((op) => {
+    const uses = (['assign', 'unassign', 'update'] as const).flatMap((op) => {
       const count = edits.filter((edit) => edit.op === op).length;
-      return count === 0 ? [] : [`${count} ${count === 1 ? 'use' : 'uses'} ${op}ed, of ${keys(op).join(', ')}`];
+      return count === 0 ? [] : [`${count} ${count === 1 ? 'use' : 'uses'} ${{ assign: 'assigned', unassign: 'unassigned', update: 'updated' }[op]}, of ${keys(op).join(', ')}`];
     });
     return [...rows, ...uses].join('; ');
   }
@@ -449,14 +461,13 @@ export class Editor {
     const disk = readContentFiles(this.root);
     const changed = changedTexts(disk, content);
     const files = Object.keys(changed) as (keyof typeof changed)[];
-    const { parse, test } = versionFiles(this.root);
     const before = (file: string): string | null => (existsSync(file) ? readFileSync(file).toString('base64') : null);
-    const written = [...files.map((file) => contentPath(this.root, file)), parse, test];
+    const written = [...files.map((file) => contentPath(this.root, file)), versionPath(this.root)];
     beginJournal(this.root, { contentVersion: readContentVersion(this.root), edits: edits.length, files: Object.fromEntries(written.map((file) => [file, before(file)])) });
     try {
       const finished = await transaction(async (transaction) => {
         for (const file of files) transaction.write(contentPath(this.root, file), changed[file] ?? '');
-        const contentVersion = files.length === 0 ? null : raiseContentVersion(this.root, transaction, commentLines(parse, `the content editor's Finish of ${today()} (${this.summary(edits)})`));
+        const contentVersion = files.length === 0 ? null : raiseContentVersion(this.root, transaction, `the content editor's Finish of ${today()} (${this.summary(edits)})`);
         onLine(`Wrote ${files.join(', ') || 'nothing'}${contentVersion === null ? '' : `; content version ${contentVersion.from} → ${contentVersion.to}`}. Running the tests…`);
         const tests = await runTests(this.root, onLine);
         if (!tests.ok) {

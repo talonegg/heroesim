@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
 import { chromium, type Page } from '@playwright/test';
-import { readContentVersion } from '@heroesim/portraits';
+import { readContentVersion } from '@heroesim/content/write';
 import { afterEach, describe, expect, test } from 'vitest';
 import { Editor } from './editor.js';
 import { serve, type Served } from './server.js';

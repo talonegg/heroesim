@@ -15,9 +15,13 @@ describe('loadContent()', () => {
   /** A Guildmaster Trait's effect that helps the Guild: DL-100 item 3's buff. */
   const buff = (effect: GuildmasterTraitEffect): boolean => (effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0);
 
-  test("is the core content set, at the version its last change raised it to (parse.ts's comment says why)", () => {
+  // The content version is data, `version.json` (v1.1.6-S4, DL-186 item 14): the tools raise it there,
+  // and this test reads it, pinning no number of its own.
+  test('is the core content set, at the version its file holds, whose changelog says why it was last raised', () => {
+    const file = JSON.parse(readFileSync(join(contentDir, 'version.json'), 'utf8')) as { version: number; changelog: string[] };
     expect(content.id).toBe('core');
-    expect(content.version).toBe(32);
+    expect(content.version).toBe(file.version);
+    expect(file.changelog.at(-1)).toMatch(new RegExp(`^${file.version} from `));
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {

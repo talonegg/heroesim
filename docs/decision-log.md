@@ -24760,6 +24760,91 @@ JSON, `harness/reports/m9-v116-s3-2026-10-05.{md,json}`, force-added: v1.1.6's b
 
 ---
 
+## DL-190 — v1.1.6-S4 built: the content version as data, `content/version.json`; one write module for the tools, `@heroesim/content/write`; the editor's `update` of a use in place
+
+2026-10-05. DL-186 item 14 (C3).
+
+- *The version file.* `content/version.json`, `{ "version": 32, "changelog": [...] }`, holds the
+  content version and the changelog that was `parse.ts`' comment, its words moved as they stood, one
+  line for each raise (`"28 from v1.1.4-S10's balance pass, …"`). It is a content file, last of
+  `contentFiles`, so every reader of content takes it as it takes the rest: `readContent` reads
+  `version` from it (a whole number of at least 1, beside a list of strings and no other field, each
+  refused by name), `loadContent`, the drafts, the page's bundle and the build's content gate among
+  them. `export const contentVersion` and its comment are gone from `parse.ts`, and the pure entry no
+  longer exports it. `content.version` is 32, as it was; the content's JSON files are byte for byte as
+  they were. `content.test.ts` reads the file in place of its pinned number, and holds the
+  changelog's last line to the version.
+- *The tools write JSON.* `raiseContentVersion` reads the file, raises `version` by one and adds a
+  line, `<n> from <why>.`, writing it in its own layout (`editJson`): `git diff` shows the version's
+  line, the last line's comma and the new line. The two regular expressions that read and wrote
+  `parse.ts` and `content.test.ts` are gone, with the editor's wrapping of the comment to 100 columns;
+  no source of either tool names either file (a test holds it).
+- *One write module.* `@heroesim/content/write` (`content/src/write/`), a subpath of content for Node:
+  `transaction` and `Transaction`, `Undone` and `NotUndone`, `editJson` and the JSON layout
+  (`formatJson`), the text checks (`contentChecks`, `contentTexts`, `textChecks`) and the version
+  (`versionPath`, `readContentVersion`, `raiseContentVersion`), moved from `tools/portraits` with
+  their tests (`json-edit.test.ts`, and `records.test.ts`' layout and transaction tests as
+  `write.test.ts`). Both tools import them from there; the portrait tool keeps `DraftError`, and its
+  entry for the editor, `tools/portraits/src/index.ts`, is gone, so the editor no longer depends on
+  the portrait tool. A transaction names the problems of any error that carries them, not only
+  `Undone`'s and the portrait tool's draft refusal. *The page never takes it:* ESLint allows the
+  subpath to the tools alone and Node built-ins to `content/src/write/` (`imports.test.ts` proves
+  both, and that the pure entry does not re-export it); `bundle.test.ts` finds none of its words in
+  the built script.
+- *The bundle.* The page bundles `version.json` with its changelog emptied (`web/vite.config.ts`'s
+  compact-content plugin): the changelog is for the file's readers, some 4.5 kB the page never shows.
+  The script is 816,878 bytes, 466 more than `v1.1.5`'s 816,412 (the version's file and its check),
+  within the 850 kB limit.
+- *The editor's `update`.* `traits update <key> <entry> <at> <field>=<value> … [--target …]` changes
+  one use of a Trait where it stands, held as pending (`{ op: "update", list, key, entry, at, values }`)
+  and checked with the content's checks as every edit is, then "Finish" as before, which writes the
+  file and raises the version through `version.json` ("1 use updated, of battle-shy"). The register's
+  content entries gain `update`, where a use holds values besides the key: an Encounter's trait
+  consequence its `chance` and `among` (`among` `null` takes it out), a Biography sentence its words.
+  The other six entries' uses are the key alone, and refuse it: unassign and assign. A use not there
+  is refused naming the Trait's uses, a value the entry does not change by name, and a value as it is
+  already is not held. `docs/agents/traits.md`'s register part (written by `traits doc`) gains an
+  Update column and a "Changing a use" line for each entry; its hand-written part, the editor's
+  README, the portrait tool's README and the `trait-assign` skill describe `update` and the version's
+  file.
+
+*What changed for Traits.* The register's eight content entries each gained `update` (two with a
+way, six `null`); no engine entry, effect kind, event or use in content changed. The doctor read no
+drift before and after ("the register lists all 110 reads of a Trait", the doc fresh, the content
+passing, no pending edits). No Trait or use of one was changed, so no "Finish" ran on the real
+content.
+
+*Tests.* `refusals.test.ts`: the version read from its file, and refused without it, as no whole
+number, below 1, without a changelog and with a field it does not know. `version.test.ts` (new): read
+from a root, raised in a scratch copy with only those three lines changing and the line ends kept,
+put back with a failed transaction, a file without a version refused by name, and no tool's source
+naming `parse.ts` or `content.test.ts`. `write.test.ts`: a failure's own problems named when a file
+cannot be put back. `register.test.ts`: a chance changed and nothing else, an `among` given and taken
+out, a Biography sentence changed in its place, the refusals, and which entries offer it.
+`imports.test.ts`: the subpath the tools' alone, Node allowed in it. `cli.test.ts` (editor): a chance
+changed, pending, then "Finish" writing that one line and raising the version through its file, in a
+scratch copy; a use that does not exist refused, naming the uses; five more refusals; a value
+unchanged not held; a Biography sentence by `--target`. The editor's and the portrait tool's intake,
+apply and recovery tests now read the version's file. `bundle.test.ts`: the version bundled without
+its changelog, and none of the write module.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,924 tests passing; `npm run
+build` and check-bundle passing (816,878 bytes); `npm run e2e -w web` 103 passing. A `neutral` run at
+4 × 2, alone with `HEROESIM_WORKERS=8` (`neutral m9-v116-s4-trial --expect 50f5e3d5…`): the
+fingerprint `50f5e3d52335dce6153a8a46dc2134f6072273d0d0d80dbdee8d2ccec47a355d`, the replay
+identical, "The Gate: PASS" (the two bands not comparable); its reports were not kept. Line endings as
+before, none mixed.
+
+*Calls made, for the owner to see.* (1) Raises 2 to 17, which one paragraph of the comment ran together
+with semicolons, are a line each, each ended with a full stop, as is the note that v1.1.2-S4 and S5
+kept 16; the words are otherwise as they stood, and the comment's opening sentence, what the version is
+for, opens the comment of the version's reader in `parse.ts`. (2) `version.json` is read as a content
+file, so the page carries it, its changelog emptied by the build, rather than the version being
+compiled in. (3) `update` changes the two kinds of use that hold a value; a use that is a key alone is
+changed as before, by unassigning and assigning.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

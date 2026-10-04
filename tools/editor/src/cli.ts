@@ -7,7 +7,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { NotUndone, Undone } from '@heroesim/portraits';
+import { NotUndone, Undone } from '@heroesim/content/write';
 import { repositoryRoot } from './content-files.js';
 import { doctor, doctorText } from './doctor.js';
 import { Editor, Refused, type RowView } from './editor.js';
@@ -33,6 +33,9 @@ export const usage = `Usage: npm run edit -- [traits <command>] [--root <dir>] [
                                   register's entry (docs/agents/traits.md names each, and its fields)
   traits unassign <key> <entry> <at>
                                   Take a use out, pending: <at> as \`traits uses\` gives it
+  traits update <key> <entry> <at> [<field>=<value> ...] [--target <json or @file>]
+                                  Change a use in place, pending: its chance, say, or another value
+                                  its entry names (docs/agents/traits.md); <at> as \`traits uses\` gives it
   traits pending                  The pending edits
   traits discard [<key>]          Drop the pending edits, or one Trait's
   traits finish                   Write the pending edits, raise the content version, run npm test;
@@ -70,7 +73,7 @@ export interface Parsed {
   root: string;
   port: number;
   fields: Record<string, unknown>;
-  /** An assignment's target, from `--target`; its `<field>=<value>` words are read by the command. */
+  /** An assignment's target, or an update's values, from `--target`; its `<field>=<value>` words are read by the command. */
   target: Record<string, unknown>;
 }
 
@@ -140,7 +143,8 @@ function arg(options: Parsed, index: number, what: string): string {
 }
 
 /**
- * An assignment's target: `--target`'s fields, then each `<field>=<value>` word, its value read as JSON
+ * An assignment's target, or an update's values (v1.1.6-S4): `--target`'s fields, then each
+ * `<field>=<value>` word, its value read as JSON
  * where it is JSON (`chance=0.05`, `among=["where","party",["class","mage"]]`) and as text where not
  * (`sentence={He} limps.`, `path=checks.0.score.1`).
  */
@@ -148,7 +152,7 @@ function targetOf(options: Parsed, words: readonly string[]): Record<string, unk
   const target: Record<string, unknown> = { ...options.target };
   for (const word of words) {
     const split = word.indexOf('=');
-    if (split <= 0) throw new UsageError(`traits assign wants each field of the target as <field>=<value>, not "${word}"`);
+    if (split <= 0) throw new UsageError(`traits ${options.command} wants each field as <field>=<value>, not "${word}"`);
     const text = word.slice(split + 1);
     let value: unknown = text;
     try {
@@ -239,6 +243,23 @@ async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Pr
         code: 0,
         json: { ok: true, ...unassigned, pending: editor.edits().length },
         text: [`Unassigned, pending: ${key} no longer used at ${unassigned.at}`, `  ${unassigned.uses.length} ${unassigned.uses.length === 1 ? 'use' : 'uses'} left`],
+      };
+    }
+    case 'update': {
+      const key = arg(options, 0, 'a key');
+      const entry = arg(options, 1, 'an entry of the register');
+      // The place is the words before the first value: a place holds no "=", and may hold a space (`encounters.json: …`).
+      const words = options.args.slice(2);
+      const first = words.findIndex((word) => word.includes('='));
+      const at = (first < 0 ? words : words.slice(0, first)).join(' ');
+      if (at === '') throw new UsageError('traits update wants the place of the use, as `traits uses` gives it');
+      const values = targetOf(options, first < 0 ? [] : words.slice(first));
+      if (Object.keys(values).length === 0) throw new UsageError('traits update wants a value to change, as <field>=<value> or --target');
+      const { unchanged, ...updated } = editor.update(key, entry, at, values);
+      return {
+        code: 0,
+        json: { ok: true, ...updated, pending: editor.edits().length, ...(unchanged === true ? { unchanged } : {}) },
+        text: [unchanged === true ? `Nothing to change, nothing held: ${key} at ${updated.at}` : `Updated, pending: ${key} at ${updated.at}`],
       };
     }
     case 'pending': {

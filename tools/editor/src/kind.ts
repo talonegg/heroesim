@@ -68,8 +68,9 @@ export interface Rule {
 
 /**
  * A place in other content where a row's key is used, as the register names it (v1.1.4-S13): whether
- * the editor adds a use there (`assign`), with the target's fields in words, and takes one out
- * (`unassign`). `null` where it does neither.
+ * the editor adds a use there (`assign`), with the target's fields in words, takes one out
+ * (`unassign`), and changes one in place (`update`, v1.1.6-S4), with the values it changes in words.
+ * `null` where it does none of them.
  */
 export interface UseEntry {
   id: string;
@@ -77,6 +78,7 @@ export interface UseEntry {
   lists: readonly string[];
   add: { how: string; target: Readonly<Record<string, string>> } | null;
   remove: { how: string } | null;
+  update: { how: string; fields: Readonly<Record<string, string>> } | null;
 }
 
 /** The content a use's assignment or unassignment makes, and an assignment's use where it stands; or each problem where the entry refuses it. */
@@ -104,4 +106,6 @@ export interface Kind {
   assign(content: ContentJson, key: string, entry: string, target: Readonly<Record<string, unknown>>): UseChange;
   /** The content with the use of `key` in `entry` at `at` (a `Use`'s `at`) taken out. */
   unassign(content: ContentJson, key: string, entry: string, at: string): UseChange;
+  /** The content with the use of `key` in `entry` at `at` changed in place, to `values` (the values its entry names). */
+  update(content: ContentJson, key: string, entry: string, at: string, values: Readonly<Record<string, unknown>>): UseChange;
 }

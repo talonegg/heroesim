@@ -28,7 +28,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NotUndone, Undone } from '@heroesim/portraits';
+import { NotUndone, Undone } from '@heroesim/content/write';
 import { doctor } from './doctor.js';
 import { Editor, Refused, type Finished } from './editor.js';
 import { Busy } from './finish-journal.js';

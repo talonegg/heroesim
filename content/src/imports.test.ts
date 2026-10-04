@@ -192,3 +192,45 @@ describe('@heroesim/content/uses', { timeout: 30_000 }, () => {
     expect(await lint('tools/editor', '@heroesim/content/uses/register')).toHaveLength(1);
   });
 });
+
+// The tools' write module (v1.1.6-S4, DL-186 item 14), content's third subpath: Node's, and the tools'
+// alone, so no byte of it is in the page's script and no front end or the harness writes content.
+describe('@heroesim/content/write', { timeout: 30_000 }, () => {
+  const eslint = new ESLint({ cwd: root });
+  const lint = async (pkg: string, specifier: string, file = 'subpath-probe.ts') => {
+    const [result] = await eslint.lintText(`import { x } from '${specifier}';\nexport { x };\n`, {
+      filePath: join(root, pkg, 'src', file),
+    });
+    return (result?.messages ?? []).filter((message) => message.severity === 2);
+  };
+
+  test.each(['tools/editor', 'tools/portraits'])('may be imported by %s', async (pkg) => {
+    expect(await lint(pkg, '@heroesim/content/write')).toEqual([]);
+  });
+
+  test.each(['web', 'cli', 'harness', 'engine'])('may not be imported by %s', async (pkg) => {
+    const errors = await lint(pkg, '@heroesim/content/write');
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe('@typescript-eslint/no-restricted-imports');
+  });
+
+  test("nor by web's tests, nor may another subpath be by a tool", async () => {
+    expect(await lint('web', '@heroesim/content/write', 'subpath-probe.test.ts')).toHaveLength(1);
+    expect(await lint('tools/editor', '@heroesim/content/write/version')).toHaveLength(1);
+  });
+
+  test('may use Node, as the Node entry may, where the rest of content may not', async () => {
+    const node = "import { readFileSync } from 'node:fs';\nexport const x = readFileSync;\n";
+    const [write] = await eslint.lintText(node, { filePath: join(root, 'content', 'src', 'write', 'subpath-probe.ts') });
+    const [pure] = await eslint.lintText(node, { filePath: join(root, 'content', 'src', 'subpath-probe.ts') });
+    expect((write?.messages ?? []).filter((message) => message.severity === 2)).toEqual([]);
+    expect((pure?.messages ?? []).filter((message) => message.severity === 2)).toHaveLength(1);
+  });
+
+  test('is no export of the pure entry, which the page imports', () => {
+    const entry = sources('content', false).find(({ file }) => file === 'index.ts');
+    expect(entry).toBeDefined();
+    expect(importsOf(entry?.ast as ts.SourceFile).filter((it) => it.from.includes('write'))).toEqual([]);
+  });
+});
