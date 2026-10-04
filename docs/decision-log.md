@@ -24166,6 +24166,116 @@ shows; every check passes; nothing to fix.
 
 ---
 
+## DL-186 — v1.1.6 planned: the owner's answers to an architecture review after v1.1.5, every candidate and small fix in scope as 19 stories with no new gameplay; the harness's Gate declared and run by one command, content and configuration as checked data, deeper engine modules, one set of words, and a `neutral` profile for play-neutral stories
+
+**Status:** Accepted · **Date:** 2026-10-05 · **Decided by:** the owner, walking an architecture review
+through one item at a time (items 1 to 28), approving the plan, a `neutral` profile and a backlog item
+(items 29 to 31), as the orchestrator relayed them. The readings marked as the agent's, the stories,
+their acceptance and the sessions are the agent's, in `docs/planning/epics/v1.1.6-release.md`.
+
+**Context.** After `v1.1.5`'s release (DL-185, pull request #54), the owner asked the agent to
+"identify opportunity to reduce redundancy, resource usage and bloat, while identifying opportunity
+to turn code into configurations to help future enhancement and tuning", by the
+improve-codebase-architecture skill. Four read-only agents explored the engine, the page, the
+harness with the CLI and the editor, and content with the flow of tuning; the agent checked their
+main claims against the code and published a report of 16 candidates and 12 small fixes, each with a
+before and after (<https://claude.ai/artifact/3dFMwTnhqVSyqB7maXvqr7>). The owner then asked: "walk me
+through each item of the architecture review 1 at a time, including small fixes, in order to build a
+detailed scope for 1.1.6". For each item the agent gave what it is, what doing it takes, its pros and
+cons in the short and long term, the options and a recommendation; the owner answered with a letter.
+What was found, at `a4cb33d`:
+- `engine/src/config.ts` is the most changed file (53 commits; 45 of the 67 that touched it changed
+  only values); `configProblems` checks 10 of its 121 settings, lazily, at four call sites; the play
+  config's merge is written in the CLI and in the page.
+- The CLI's and the page's words are copies (`query-words.ts` differs by one import), and they have
+  drifted: "an offer" and "an Offer", "a module" and "a Module", "no effect" and "No effect".
+- Two v1.1.5 bugs (S4, #52's call 6) were in how `resolve.ts` calls `harm.ts`, not in `harm.ts`.
+- A sweep's totals are summed by hand; a counter left out reads 0 without an error.
+- The content version is raised by regexes over `parse.ts` and its test; the editor cannot change a
+  use's value, so S5 took four unassigns and four assigns.
+- 29 of 29 Encounters and 9 of 9 Synergies use the new form; the old form's loader is still built,
+  tested and shipped.
+- The save after 20 years has grown from 47.1 MiB (M7) to 136.7 MiB uncompressed (v1.1.5-S13), against
+  a target of 20 MiB met only gzipped.
+
+**Decision.** The owner's letter, and what it puts in scope. The review's items are A1–A6 (deepen),
+B1–B5 (cut), C1–C5 (configure) and SF1–SF12 (small fixes).
+
+1. **A1, one words module: (a), in full.** `@heroesim/words`, browser-safe, for the CLI, the page
+   and the tools: the shared tables, then the narration behind a Namer seam (the CLI's "Name
+   (hero-000004)", the page's clickable name), and `quest-review.ts` moved in; the drift settled to
+   the page's capitals. Two stories (S11, S12).
+2. **A2, whether a Hero can go: (a).** One `availabilityOf(hero, world)` in the page's state; the
+   Party looked up once; a missing Party read one way; first a test of whether a Hero can be injured
+   and in a Party at once. Not exported by the engine (S14).
+3. **A3, a Stat's breakdown: (a).** The engine's `statBreakdown`, `effectiveStats` its total in the
+   same order; the page and the CLI put it in words. A Hero's page's sources tooltip is not in scope
+   (item 31's backlog note) (S13).
+4. **A4, harm targeting: (a).** `harm.ts` owns the pool, `among`, exposure, guard and the draws of
+   each consequence (`strike`, `chooseEarner`); `resolve.ts` asks (S9).
+5. **A5, the Party builder: (b), with A2.** `partyBuilder` in `party-choices.ts`, built in A2's story
+   (S14).
+6. **A6, the Query language: (a), both layers.** Decision A3 refined: the content package may import
+   the engine's values as well as its types; the engine still imports nothing from content. The
+   copied tables go (S5). One operator table beside the evaluator, with `queryProblems` that content's
+   checker calls (S10).
+7. **B1, a sweep's totals: (a).** One fold with declared exceptions, the empty tallies from
+   `counters.ts` only (S1).
+8. **B2, the old content form: (a), with its extension.** The form retired (S6); the Quest's
+   `demands` removed once confirmed unread in play, the story stopping for the owner if not, its
+   sweep shared with C1's (S7).
+9. **B3, the engine's interface: (b), targeted.** Mutators and internal helpers hidden, the test-only
+   names in `@heroesim/engine/testing`, one action dispatch; `export *` kept for modules of types
+   (S8).
+10. **B4, the replay: (a).** Once, alone, compared with the shard that played the same seed (S3).
+11. **B5, the per-Turn copy: (a), in v1.1.6.** The write-once data outside the copy, by a new ADR
+    amending ADR-0008; its design grilled with the owner when the story starts; the copy's time
+    measured (S17).
+12. **C1, the config's seam: (a), flat.** `playDeps` and `checkConfig` over every setting;
+    `schemaVersion` and `configVersion` to the document's meta; `gearSlots` gone; the grouping left to
+    C4's data file (S7).
+13. **C2, run settings and the Gate: (a), in full.** `RunSettings`, profiles, the JSON report,
+    `compare` and `harness/gate.json`, checked by a `gate` run; the first spec shown to the owner
+    before it binds (S2).
+14. **C3, the content version: (a).** `content/version.json`, `@heroesim/content/write`, and the
+    editor's `update` for a use (S4).
+15. **C4, the tuning values: (a).** `engine/src/config.json` in sections, flattened on load;
+    `configVersion` in it; the comment trail trimmed; the editor's config kind (S18).
+16. **C5, the knobs: (c), all, the sex weight included.** Weights on Classes, Backgrounds, Quest
+    templates and Spheres, the sex weight, the Rivals' purchase, gear and build orders, and the
+    Finale's loot degrees, each defaulting to today's play (S16).
+17. **SF1, the report's "20 years": (c), with C2** (S2).
+18. **SF2, the report's text bounds: (a), with A6's first layer** (S5).
+19. **SF3, the percent formatter: (b), with B1** (S1).
+20. **SF4, the Succession probe's seeds: (a), with C2** (S2).
+21. **SF5, the save's target: (b), with C2.** Measured gzipped, under 20 MiB, with a growth guard on
+    the uncompressed mean (S2).
+22. **SF6, the Roster's re-sort: (a), with A3** (S13).
+23. **SF7, the breakpoints: (a).** Named in TypeScript, a test holding the CSS to them (S15).
+24. **SF8, the Class order: (a), with A2.** Declared in content; one comparator; the pool's Class sort
+    fixed (S14).
+25. **SF9, the remembered preferences: (a).** One table and a hook (S15).
+26. **SF10, the Roster walk and the row lookup: (a), with B3** (S8).
+27. **SF11, comments that repeat the log: (a), the rule only, with C4** (S18).
+28. **SF12, the reports policy: (a), with C2.** A report a DL entry or a release's Gate cites is
+    committed, its Markdown and JSON (S2).
+29. **The plan approved.** The 19 stories in the epic's order, on a new local branch `v1.1.6-dev` cut
+    from `a4cb33d`; nothing pushed or built until the owner says.
+30. **A `neutral` profile** in S2: 10 seeds × 20 years with `--expect <fingerprint>`, about 7
+    minutes, for the play-neutral stories (S5, S8, S9, S10, S13, S16, S18); the full 50 × 20 for S3,
+    S7, S17 and the close.
+31. **Two backlog items** in `docs/plan.md` §4: the History's size and the save's compression
+    investigated (the owner's yes); a Hero's page showing a Stat's sources (A3's option b, not
+    chosen).
+
+**Actioned in:** `docs/planning/epics/v1.1.6-release.md` (new); `docs/plan.md` §4;
+`docs/planning/epics/README.md`.
+
+**Open:** whether Dependabot's `target-branch`es move to `v1.1.6-dev` (DL-147 item 6), the owner's
+word; the first `gate.json`, the owner's approval in S2.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
