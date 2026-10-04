@@ -21770,6 +21770,156 @@ the report `m9-v115-s6-2026-10-04.md`; the epic's S6 boxes and status.
 
 ---
 
+## DL-176 — v1.1.5-S2 built: the harness's player sends its Parties to the Quests they are likeliest to win, each choice made again from the Heroes left; its cost probed, `advance` unchanged and the games about 10% slower, no optimisation needed
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the agent, building S2 as the epic's S2
+and DL-168 item 2 describe, with the probe DL-169 item 17 sets. The readings marked as the agent's
+are for the owner to change. Built on `v1.1.5-dev` at `b401502`. A second agent verifies it.
+
+**Context.** Until now the harness's automatic policy sent its Parties to the offered Quests by reward,
+highest first, then Quest id, each Party `partyFor`'s from the Heroes still free (DL-34, DL-157).
+DL-168 item 2 has it choose by the chance instead, before any rule of the economy changes, and the
+agent's reading there is the rule built here. DL-169 item 17 probes the new player's cost before
+S3's baseline: if `advance` a Turn more than doubles, S2 estimates each Quest's Party once a choice
+before S3, so that the baseline is not swept twice.
+
+**What was built.**
+1. *The rule* (`harness/src/policy.ts`, `automaticPolicy`). Of the offered Quests it can staff from
+   the Heroes still free, the policy sends first the one whose Party has the highest chance of
+   success by the estimate, ties to the higher reward, then the lower Quest id (`likeliest`,
+   `before`). Then it chooses again: each Quest left is staffed and estimated afresh from the Heroes
+   left (`staffed`), until no Hero is left or no Quest can be staffed. A Quest it cannot staff is
+   passed over, and once passed over is not asked again that Turn, since a Party it cannot make from
+   more Heroes it cannot make from fewer. Today's `byReward` order is gone.
+   - *The Party and its chance* come from the engine's `bestParty`: the Party `partyFor` names at
+     `playerPartyMargin`, and the estimate it was chosen by, so the Party is never estimated twice
+     over. The chance is that estimate's `success`, held to at most 1 as `partyFor` holds it.
+2. *Unchanged.* Each Party is still `partyFor`'s, carrying one of each consumable held that could
+   serve its Quest (`consumablesFor`); the decline, the equip and the one purchase a Turn are as they
+   were. Rivals, the engine and every game rule are unchanged. No file under `engine/src/`,
+   `content/` or `web/` changes.
+3. *The words.* `policy.ts`'s head comment and `automaticPolicy`'s doc describe the rule; the
+   harness report's line naming the policy (`sweep.ts`) now reads "of the Quests it can staff, the
+   one whose Party has the highest chance of success by the estimate, ties to the higher reward, then
+   the Quest id, and again from the Heroes left (v1.1.5-S2)".
+4. *The harness's test timeout* (`vitest.config.ts`). The harness project's tests are given 30 s
+   each, as the portraits' and the editor's projects have their own. Its short-game tests play the
+   new policy, whose early Turns cost more (below). Under the whole suite's load,
+   `module-report.test.ts`'s "refuses two sweeps of different seeds" (3.76 s at `b401502`, 5.46 s
+   now) and `play.test.ts`'s "fingerprint the last document" (2.73 s, 5.14 s) passed the 5 s
+   default. Each passes in about 1.3 s alone. `play.test.ts` had already given its slowest test
+   30 s. The two eslint-based tests the standing rules name are not touched.
+
+**Tests** (`harness/src/policy.test.ts`, written first and seen failing on the reward order).
+- *A new block, "chooses its Quests by their chance".*
+  - A Quest of lower reward and higher chance (the lowest reward eased to half its difficulty, the
+    rest half as hard again) is sent before the highest reward, at a margin of 1 and at the player's
+    own. The chances are asserted first by `bestParty`.
+  - Equal chances (every Quest made alike in difficulty, Encounters and duration, the chances
+    asserted equal) go to the higher reward. Then, with rewards equal and the Board in reverse id
+    order, they go to the lower Quest id.
+  - The likeliest Quest (asserted so with every Hero) is passed over once it needs four Heroes and
+    one is Injured. The next likeliest goes first, and the Injured Hero is never sent.
+  - The second choice is made from the Heroes the first left. A mock of the engine's `bestParty`
+    (`vi.mock` of `@heroesim/engine`, which answers only while a test sets `chances.of`, and then
+    only the chance, from the Quest and the Party) makes `a` the likeliest. It makes `b` next with a
+    Hero `a`'s Party takes and the least likely without one, and `c` between. The policy sends `a`,
+    then `c` with `partyFor`'s Party from the Heroes `a` left. By reward it would send `c` then `b`;
+    by chances read once, `a` then `b`.
+- *Changed.* Four tests that assumed the reward order now make their Quests alike, so their chances
+  tie and the reward still decides: the tie by Quest id, the Party `partyFor` names, the Parties sent
+  while Heroes last, and the Quest passed over. The consumables test sets its two Quests' chances
+  through the mock.
+- *Mutations, each alone, each put back.* The reward's tie turned round fails 6 tests, and the
+  Quests left not estimated again (stale Parties kept) 9, both on the form with the optimisation
+  below. The Quests whose Party lost a Hero dropped,
+  not estimated again, fails 5. The reward order itself fails the three new tests that differ from
+  it.
+
+**The cost probe** (DL-169 item 17). Run alone (no other process of ours; the owner's Playwright
+test-server left running), `HEROESIM_WORKERS=8 HEROESIM_SEEDS=8 HEROESIM_YEARS=20 HEROESIM_REPLAY=0
+HEROESIM_MILESTONE=m9-v115-s2-probe npm run harness -- play.harness`. To compare like with like, the
+same 8 seeds were first played at `b401502`, S6's code (`m9-v115-s2-base`). Neither report is kept.
+
+| | `advance` a Turn, mean | p99 | the games | wall a Turn played, as 1,000 games |
+| --- | ---: | ---: | ---: | ---: |
+| `v1.1.4`'s close, 50 seeds | 4.966 ms | 24.651 ms | 1,301.6 s | 465 min |
+| S6's sweep, 50 seeds | 4.680 ms | 23.089 ms | 1,080.3 s | 386 min |
+| `b401502`, the probe's 8 seeds | 5.024 ms | 26.590 ms | 201.6 s | 424 min |
+| S2, the probe's 8 seeds | 4.971 ms | 27.411 ms | 220.7 s | 472 min |
+
+- *`advance` does not double.* It is 1% lower in mean and 3% higher at p99 on the same seeds, and
+  within 7% of S6's 50-seed mean. So no optimisation is required, and S3 can sweep this code.
+- *The policy's cost lies outside `advance`* (the agent's reading). `playGame` times `advance` alone,
+  so the doubling test as worded cannot see what the policy costs. The games' time does. On the same
+  8 seeds, 220.7 s against 201.6 s (+9.5%), and +11% a Turn played (the S2 games played 2% fewer
+  Turns, one Bankruptcy in year 15 against year 18).
+  - Timed in one process on `seed-0001`, the policy took 0.40 ms a Turn before and 0.96 ms over three
+    years, 1.23 ms in the first, and about 2 ms in the first 60 Turns (0.45 before). Choosing the
+    likeliest Quest means estimating every staffable Quest's Party on the Board (6) whenever a Hero
+    is free, where the reward order stopped when the Heroes ran out.
+  - An 8-seed run's wall time is its slowest game's, so its per-Turn figure stands above a 50-seed
+    sweep's (424 against S6's 386 min for the same code). S3's baseline at the same +10 to 11%
+    would take about 20 minutes of games against S6's 18.
+- *An optimisation tried, and left out.* Estimating again after a choice only the Quests whose Party
+  lost a Hero to it is exact. A Party none of whose Heroes went is `partyFor`'s from the Heroes left
+  too: each Hero it chose is still there and still the best of fewer, and an estimate is the Party's
+  whatever the pool. A test held it to a naive oracle Turn by Turn through four short games. It saved
+  only 2 to 7% of the policy's time, since most of the cost is the first choice, so the simpler code
+  was kept and the oracle test went with it. A real saving would be a cheaper estimate in the
+  engine, outside S2.
+- *What the probe played* (8 seeds, for information only; S3's 50 × 20 baseline measures it). Every
+  figure moved, as a new player should, and the fingerprint is new (`811b1799…` against
+  `1184156d…`).
+
+  | The probe's 8 seeds | `b401502` | S2 |
+  | --- | ---: | ---: |
+  | Player's Quests taken | 52,912 | 62,386 |
+  | Failed | 12.2% | 6.0% |
+  | Succeeded | 31.7% | 20.4% |
+  | Strong | 56.1% | 73.5% |
+  | Injuries a game | 136.1 | 66.6 |
+  | Deaths a game | 8.0 | 3.5 |
+  | Recruits a game | 12.9 | 8.3 |
+  | Traits earned a career | 1.148 | 1.633 |
+  | Bankruptcies | 1 (year 18) | 1 (year 15) |
+  | Rivals' Quests failed | 11.4% | 12.6% |
+  | Rival folds | 41 | 44 |
+
+  The probe ran the rule's first form, which asked every offered Quest again at each choice. The
+  form kept skips a Quest already found unstaffable, which chooses the same.
+
+**Checks.** `npm run lint` and `npm run typecheck` pass. `npm test`: 185 files, 4,806 tests passing
+(4,802 at `b401502`; four new). Before the timeout change, one or two harness tests timed out
+under load in each of three full runs (`play.test.ts`'s "one for every Quest the policy took" in the
+first). `npm run edit -- traits doctor` reports no drift (110 reads), the doc fresh,
+the content passing, no pending edits. S2 touches neither `engine/src/` nor `content/src/validate.ts`,
+so the doctor was run once, at the close. `policy.ts`, `policy.test.ts`, `sweep.ts` and
+`vitest.config.ts` keep their CRLF endings.
+
+**For the owner** (the agent's readings).
+1. *The chance compared is exact.* A Quest at 0.951 goes before one at 0.95 whatever their rewards,
+   and the reward breaks only exact ties, most often at a chance of 1 or of 0. If the owner meant
+   chances alike to the shown Chance band (floored to 5%), or the reward weighed against the chance,
+   that is a change to `before`.
+2. *The chance is the Party's carrying nothing,* as `partyFor` weighs it, not with the consumables it
+   is then given. A Quest whose Encounters are drawn on the way has no estimate and reads 0. The core
+   content has none.
+3. *DL-169 item 17 and the epic name `v1.1.4`'s close's `advance` as 4.701 ms mean, p99 23.276 ms.*
+   Those are S10's report's figures; the close's report reads 4.966 ms and 24.651 ms. The table
+   above gives the close's.
+4. *The probe's measure.* As worded it reads `advance`, which excludes the policy. The cost that
+   matters for a sweep is the games' time, +10 to 11%. S3 can read it at 50 seeds.
+5. *The harness project's 30 s test timeout* (item 4 above) is a change to the test setup, not to
+   the game. The owner may prefer per-test timeouts.
+
+**Actioned in:** `harness/src/policy.ts` (the rule, its docs); `harness/src/policy.test.ts` (the new
+block, the mock, four tests made to tie their chances, the consumables test's chances set);
+`harness/src/sweep.ts` (the report's policy line); `vitest.config.ts` (the harness project's test
+timeout); the epic's S2 boxes and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

@@ -1689,8 +1689,9 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,
     '',
     `Policy (INPUTS 4.14): first decline every Transfer Offer made for its Heroes (M6-S2); then the gear it holds ` +
-      `onto Heroes with the slot empty (M5-S2); the highest-reward ` +
-      `Quest it can staff, the Party the engine's \`partyFor\` names by the chance estimate at a margin of ` +
+      `onto Heroes with the slot empty (M5-S2); of the Quests it can staff, the one whose Party has the highest ` +
+      `chance of success by the estimate, ties to the higher reward, then the Quest id, and again from the Heroes ` +
+      `left (v1.1.5-S2), each Party the one the engine's \`partyFor\` names by the chance estimate at a margin of ` +
       `${config.playerPartyMargin} (v1.1.4-S6), carrying one of each consumable held that ` +
       `serves the Quest (DL-62); one purchase a Turn: the infirmary's next grade while Wealth exceeds ` +
       `${sweep.policy.buildWealthMultiple} times its cost (M3-S6), else one armour while a Hero has none and Wealth ` +
