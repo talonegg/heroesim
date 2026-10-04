@@ -10,7 +10,7 @@ import { defaultPolicyConfig } from './policy.js';
 import { machine } from './report.js';
 import { addCommand, compareRuns, jsonPathOf, parseRunReport, readRunReport, runReport, runReportJson, writeRunReport, type RunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
-import { sweepFingerprint, sweepPlay, sweepTotals } from './sweep.js';
+import { sweepFingerprint, sweepPlay, sweepTotals, type PlaySweep } from './sweep.js';
 
 // v1.1.6-S2 (DL-186 item 13): a play sweep's JSON report beside its Markdown, and two runs compared.
 
@@ -108,4 +108,43 @@ describe('compare', () => {
     fewer.seeds = ['seed-0001'];
     expect(compareRuns(b, fewer)).toEqual(expect.arrayContaining(['Seeds: 1 only in a, 0 only in b.', `Years: ${years} → 2.`, '  refusals: 1 → 0 (−1)']));
   });
+
+  // v1.1.6-S2's verification (DL-188): a seed one run alone played is not a save that differs, and a
+  // change of content or of modules is named.
+  test('names the content and modules changed, and counts only the seeds both played among the saves that differ', () => {
+    const b = structuredClone(report);
+    b.seeds = [...b.seeds, 'seed-0003'];
+    b.games = [...b.games, { ...(b.games[0] as RunReport['games'][number]), seed: 'seed-0003', fingerprint: 'f'.repeat(64) }];
+    b.fingerprint = 'e'.repeat(64);
+    b.content = { ...b.content, version: b.content.version + 1 };
+    b.modules = ['probe'];
+    const lines = compareRuns(report, b);
+    expect(lines).toContain('Fingerprints: different. The last saves of 0 of the 2 seeds both played differ.');
+    expect(lines).toContain('Seeds: 0 only in a, 1 only in b.');
+    expect(lines).toContain(`Content: core ${report.content.version} [] → core ${report.content.version + 1} [].`);
+    expect(lines).toContain('Modules: none → probe.');
+    const drafted = compareRuns(report, { ...report, content: { ...report.content, drafted: ['quests.json'] } });
+    expect(drafted).toContain(`Content: core ${report.content.version} [] → core ${report.content.version} [quests.json].`);
+  });
+});
+
+// v1.1.6-S2's verification (DL-188): each game's line reads its record, an ended, stopped, refused or
+// invalid game as such, so that the Gate's invariants are read from the JSON.
+test("a game's line reads how it ended, whether it was stopped or invalid, and its refusals", () => {
+  const [first, second] = sweep.games as [PlaySweep['games'][number], PlaySweep['games'][number]];
+  const marked: PlaySweep = {
+    ...sweep,
+    games: [
+      first,
+      {
+        ...second,
+        ranFullLength: false,
+        counters: { ...second.counters, ending: 'bankruptcy' },
+        assertion: { turn: 30, check: 'player-transferred', id: 'h-1', detail: 'a test' },
+        invalid: { turn: 30, result: { ok: false } } as unknown as NonNullable<typeof second.invalid>,
+        refusals: [1, 2].map((turn) => ({ turn, rejection: { reason: 'signing-refused' } })) as unknown as typeof second.refusals,
+      },
+    ],
+  };
+  expect(runReport(marked, context).games[1]).toMatchObject({ seed: 'seed-0002', ranFullLength: false, ending: 'bankruptcy', stopped: true, invalid: true, refusals: 2 });
 });

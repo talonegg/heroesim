@@ -589,6 +589,24 @@ describe('sweepPlay', () => {
       expect(twenty).toMatch(/\| Harness: 1,000 games of 20 years \| under 10 min \| [\d,]+ min \(this run's wall-clock time/);
       expect(twenty).toContain('(the 2 games that ran 20 years) |');
       expect(twenty).not.toContain('not comparable');
+
+      // v1.1.6-S2's verification (DL-188): the gzipped measure is the saves' after the 20th year.
+      const mebibyte = 1024 * 1024;
+      const savedFor20Years = (gzipped: number): PlaySweep['games'][number]['observations']['saves'] =>
+        Array.from({ length: 20 }, (_, year) => ({ length: 140 * mebibyte, heroFields: 0, gzipped: year === 19 ? gzipped : null }));
+      const [first, second] = sweep.games as [PlaySweep['games'][number], PlaySweep['games'][number]];
+      const measured = playReport(
+        {
+          ...sweep,
+          years: 20,
+          games: [
+            { ...first, observations: { ...first.observations, saves: savedFor20Years(17 * mebibyte) } },
+            { ...second, observations: { ...second.observations, saves: savedFor20Years(21 * mebibyte) } },
+          ],
+        },
+        context,
+      );
+      expect(measured).toContain(`${saveTarget} gzipped: mean 19.00 MiB, max 21.00 MiB; uncompressed: mean`);
     });
 
     test("names the policy's values it changed from the defaults (v1.1.6-S2), and writes the Gate's lines when checked", () => {

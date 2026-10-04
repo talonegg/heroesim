@@ -173,6 +173,8 @@ None are needed before M7, and none are read by the engine, ever.
 | `HEROESIM_SAMPLES`, `HEROESIM_PARTIES`, `HEROESIM_TUNE`, `HEROESIM_FLAT`, `HEROESIM_CALIBRATION_OUT` | `harness/` | Optional, the estimate probe's and the calibration's own (v1.1.4-S5, v1.1.4-S9); every harness variable is parsed by `harness/src/settings.ts`, which refuses a bad value and an unknown `HEROESIM_*` name by name | Shell |
 | `HEROESIM_SAVE_DIR` | `cli/` | Optional override of `.saves/` | Shell |
 | `HEROESIM_LIVE_URL` | `web/playwright.live.config.ts` | Optional: one address for `npm run e2e:live -w web` to check, in place of 7.8's two (v1.0.1-S3, DL-94) | Shell |
+| `HEROESIM_DEPLOY_RECORD` | `web/scripts/deploy.mjs` | Optional: a file the deploy's record is also written to, for the tag's GitHub Release (DL-124 item 8) | CI's deploy job |
+| `HEROESIM_OWNER_PICTURES` | `tools/portraits/src/owner.test.ts` | Optional: where the owner's 40 Guildmaster pictures are, in place of `..\heroesim-inbox\guildmaster\` (DL-136) | Shell |
 | `WRANGLER_OUTPUT_FILE_PATH` | `wrangler` | Set by `web/scripts/deploy.mjs` for each wrangler run, to a file in the system's temporary directory from which it reads the deploy's record (DL-94); never set by hand | The deploy's own process |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | `wrangler` | Only if 7.9 chooses CI deploy; `CLOUDFLARE_ACCOUNT_ID` also for an agent's deploy when the login sees more than one account (DL-94) | GitHub Actions secrets, or the deploying process alone; never a file in the repository |
 

@@ -106,6 +106,19 @@ describe('a run checked against the Gate, line by line', () => {
     expect(result.lines.filter((it) => it.verdict === 'fail').map((it) => it.line)).toEqual([line]);
   });
 
+  // v1.1.6-S2's verification (DL-188): a game that ended before its last Turn finished; only a game
+  // neither ended nor at its last Turn is unfinished.
+  test('a game that ended early, by a Bankruptcy, is not unfinished', () => {
+    const ended = passing((run) => {
+      const game = run.games[0] as RunReport['games'][number];
+      game.ranFullLength = false;
+      game.ending = 'bankruptcy';
+      run.totals.endings['bankruptcy'] = 1;
+    });
+    expect(verdicts(ended)['Games neither ended nor played to their last Turn']).toBe('pass');
+    expect(checkGate(shaped, ended).pass).toBe(true);
+  });
+
   test('a band at its edge passes: the Traits at either end, the Bankruptcies at the most, the uncompressed mean at 10%', () => {
     expect(checkGate(shaped, passing((run) => (run.totals.traitsGained.player = 207.8))).pass).toBe(true);
     expect(checkGate(shaped, passing((run) => (run.totals.endings['bankruptcy'] = 3))).pass).toBe(true);

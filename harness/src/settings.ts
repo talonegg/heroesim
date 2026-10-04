@@ -167,7 +167,7 @@ export const variables: Readonly<Record<string, { readBy: readonly (RunKind | 'v
 });
 
 /** Variables of the same prefix that other packages read, which a harness run leaves alone (INPUTS §9). */
-const elsewhere: readonly string[] = ['HEROESIM_SAVE_DIR', 'HEROESIM_LIVE_URL', 'HEROESIM_DEPLOY_RECORD'];
+const elsewhere: readonly string[] = ['HEROESIM_SAVE_DIR', 'HEROESIM_LIVE_URL', 'HEROESIM_DEPLOY_RECORD', 'HEROESIM_OWNER_PICTURES'];
 
 /** `value` trimmed, or `null` when unset or blank. */
 function given(env: Env, name: string): string | null {

@@ -24610,6 +24610,38 @@ script; `harness/src/sweep.ts`, `succession.ts`, `children.ts`, `estimate.ts`, `
 `.gitignore`; `README.md`; `docs/data-model.md` §7; `docs/planning/epics/INPUTS-REQUIRED.md` §9;
 `docs/planning/epics/v1.1.6-release.md` (S2's boxes, all but the owner's approval).
 
+**The verification** (a second Opus agent, 2026-10-05, at `6cef0ac` on `333ed79`). The diff read in full
+against the epic's S2 and DL-186 items 13, 17, 20, 21, 28 and 30. *The variables:* every `HEROESIM_*`
+name in the repository at `333ed79` and at `6cef0ac` listed; each of the 16 the harness read at the base
+(its sources and tests, `run.mjs`) is parsed by `settings.ts`, none still read elsewhere in `harness/src`;
+no workflow in `.github/` and no `package.json` script but `harness` calls `run.mjs` or sets a harness
+variable; no doc, skill or `AGENTS.md` names `run.mjs` or a removed parser but the epics' history. The
+profiles' values, the override (a variable over its profile; the command line's words over the shell's),
+the refusals, `--expect`, `compare` and the reports read again against the code. *Small runs, each alone
+with `HEROESIM_WORKERS=8`:* `neutral m9-v116-s2v --expect 50f5e3d5…` at 4 × 2, the fingerprint S1's
+`50f5e3d5…a355d`, six invariants and the fingerprint passing, the four bands "not comparable", the Gate
+section, the 2-year label and both "not comparable" rows in the Markdown, the JSON read back (format 1,
+its variables, `gate.pass`); the same with `HEROESIM_POLICY='{"rosterLimit":10}'` and `HEROESIM_REPLAY=0`,
+fingerprint `1a4ed2e3…` (the builder's), failing on the fingerprint and the replay alone, the test failing
+and the exit code 1; `compare` of the two, "Policy: rosterLimit: 8 → 10", 270 counters moved and 175 the
+same, and of a report with itself, the same; `compare` of a missing report and `HEROESIM_SEED=4` each
+refused by name; the Succession probe at 4 × 2 on the queue. The small runs' reports were not kept.
+*Mutations:* 41 of the new code, each restored after: 31 failed a test at once; two were equivalent (an
+invariant's `n <= max` as `n < max + 1`; the Gate's save read at the last year rather than the spec's 20th,
+the same on a run of the spec's years); one (`probeInParallel` without its concurrency, every child at
+once) cannot be seen in a test's games, and is held by reading; seven survived, each now failing a test
+added: a game that ended early, by a Bankruptcy, counted unfinished by the Gate; `compare` counting a
+seed one run alone played among the saves that differ, and not naming a change of content or of
+modules; each game's line of the JSON report not reading its ending or its assertion (its validation and
+refusals held by the same test); and the report's 20-year row reading another year's gzipped saves. *Fixed:* `HEROESIM_OWNER_PICTURES`, which the
+portrait tool's owner test reads, was refused as an unknown harness name, so a shell that set it for
+that test could run no sweep: it joins the other packages' variables left alone (a test first, red, then
+green), and INPUTS §9 now lists it and `HEROESIM_DEPLOY_RECORD`, which it had missed; `print`'s newline,
+a line break inside its template text, written `\n`. *Checks:* `npm run lint` and `typecheck` clean;
+`npm test` 188 files and 4,884 tests (3 added); no file under `engine/`, `content/`, `web/` or `cli/`
+changed, so no doctor run was due; line endings as before, none mixed. `harness/gate.json`'s values and
+`status` (`drafted`) untouched: the owner's approval stays open, with the epic's box.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

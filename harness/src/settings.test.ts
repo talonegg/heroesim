@@ -167,8 +167,10 @@ describe('a bad value is refused by its name', () => {
     expect(() => runSettings(env)).toThrow(message);
   });
 
+  // The CLI's, the live check's, the deploy's and the portrait tool's owner test's (INPUTS §9): one set
+  // in the shell for another package must not refuse a harness run (v1.1.6-S2's verification, DL-188).
   test("leaves alone the variables of the same prefix other packages read", () => {
-    expect(runSettings({ HEROESIM_SAVE_DIR: 'x', HEROESIM_LIVE_URL: 'y', HEROESIM_DEPLOY_RECORD: 'z' })).toEqual(runSettings({}));
+    expect(runSettings({ HEROESIM_SAVE_DIR: 'x', HEROESIM_LIVE_URL: 'y', HEROESIM_DEPLOY_RECORD: 'z', HEROESIM_OWNER_PICTURES: 'w' })).toEqual(runSettings({}));
   });
 });
 

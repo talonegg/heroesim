@@ -48,8 +48,7 @@ export function reportPath(milestone: string, date: Date, dir: string = reportsD
  * console output, so that a run's lines, the Gate's among them, are seen (v1.1.6-S2).
  */
 export function print(text: string): void {
-  process.stdout.write(`${text}
-`);
+  process.stdout.write(`${text}\n`);
 }
 
 /** Writes `markdown` to `path`, making its directory, and returns the path. */
