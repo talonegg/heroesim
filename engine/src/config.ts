@@ -350,8 +350,9 @@ export interface GameConfig {
   /** Stat points each Level applies, each drawn by the Class's growth weights (INPUTS 5.3). */
   growthPointsPerLevel: number;
   /**
-   * Quest XP: each Hero home alive gains the Quest's difficulty × `xpPerDifficultyPoint` ×
-   * `xpBandFactor` of the band, rounded down (INPUTS 5.1: 1 a point on a success, half on a failure).
+   * Quest XP: the Quest's difficulty × `xpPerDifficultyPoint` × `xpBandFactor` of the band (INPUTS
+   * 5.1: 1 a point on a success, half on a failure), split across the Party sent, its Dead counted:
+   * each Hero home alive gains that divided by the Party's size, rounded down (v1.1.5-S13, DL-182).
    */
   xpPerDifficultyPoint: number;
   xpBandFactor: Readonly<Record<QuestBand, number>>;

@@ -23559,6 +23559,236 @@ fix; two things the owner may want to see are below.
 
 ---
 
+## DL-184 — v1.1.5-S13 built: the XP split, each Hero who comes home taking the Quest's XP divided by the size of the Party sent, its Dead counted, rounded down; the closing sweep playing DL-180's trial games by fingerprint, its replay identical at a peak of 1,501 MiB, no player Guild bankrupt
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the owner's rule (DL-182 item 1, "go with
+split xp", "Add to v1.1.5 now"), built by the agent as the epic's S13 describes it, test first. The
+readings marked as the agent's are for the owner to change. A second Opus agent verifies it.
+
+**Context.** DL-180 tried the XP split on a scratch change at S5's commit: each Hero of a Party taking the
+Quest's XP divided by the Party's size, rounded down, its Dead counted. The owner adopted it as tried
+(DL-182 item 1), settling DL-148 item 19 and DL-168 item 3. At `6e69b1d` (S14 verified) `resolveQuest`
+gave each Hero who came home the Quest's whole XP, `xpPerHero: Math.floor(xp)`. S13's sweep is v1.1.5's
+closing sweep, the replay kept (the epic's §0), in place of DL-181's, which stays the record of the play
+before the split.
+
+**What was built.**
+
+1. **The rule, one line of the engine** (`engine/src/quest-engine/resolve.ts`, `resolveQuest`):
+   `xpPerHero: Math.floor(xp)` became `Math.floor(xp / heroes.length)`, the trial's engine line exactly
+   (its scratch counter in `counters.ts` and `sweep.ts`, the highest Level reached, not built). `heroes`
+   is the Party sent (`party.heroIds`), so a Hero who dies stays in the divisor and their share is lost,
+   not passed on. `questsConclude` is unchanged: it adds `xpPerHero` to each survivor and emits
+   `hero.xp-gained` with it. Whatever the band, for the player's and the Rivals' Parties alike, through
+   the one Quest Engine; no draw added or moved; a Party of one takes what it took before.
+2. **The comments that said XP is whole.** `resolveQuest`'s doc comment and the outcome's `xpPerHero`
+   (`resolve.ts`) say the split, the Dead counted, rounded down; the Quest XP comment above
+   `xpPerDifficultyPoint` (`engine/src/config.ts`), a comment only, so `configVersion` stays 13;
+   `harness/src/counters.ts`'s `PartySizeTally` ("XP is not split, so each Hero who comes home takes the
+   Quest's whole `xpPerHero`") and `partySizes` comments; `harness/src/sweep.ts`'s `partiesAndTraits`
+   comment and the report's heading, from "(`xpPerHero`: XP is not split, DL-148 item 19)" to
+   "(`xpPerHero`: the Quest's XP split across the Party sent, its Dead counted, rounded down, v1.1.5-S13,
+   DL-182)".
+3. **The words.** `CONTEXT.md`'s XP: "A Quest's XP is split across the Party sent, its Dead counted:
+   each Hero who comes home takes an equal share, rounded down, and a Hero who dies takes none, their
+   share lost (v1.1.5-S13, DL-182)." Then `grep -rn -i "\bxp\b" web/src cli/src docs/requirements.md`,
+   each word read for where its number comes from:
+   - the Quest report's chip "XP +N each" (`web/src/views/quest-report.tsx`): N is the rewards section's
+     `xp`, `quest.resolved`'s `xpPerHero` (`quest-return.ts`), the share;
+   - `quest-return.ts`'s "the XP each Hero home alive gained" and each Hero's "gained N XP": `xpPerHero`,
+     `null` for a Hero who died;
+   - the narration's "gained N XP" (`web/src/state/narrate.ts`, `cli/src/narrate.ts`): `hero.xp-gained`'s
+     `amount`, the share;
+   - a Hero's page's "XP n" and the CLI's `XP` row: the Hero's own `xp`;
+   - the quest-review page's "XP ×factor" (`cli/src/quest-review.ts`): an Encounter's XP consequence,
+     which multiplies the Quest's XP before the split, still true;
+   - the History's "XP" groupings, the training yard's words and `docs/requirements.md` (R17, R24, R33)
+     give no amount a Hero takes.
+   Each reads the share or no amount, and stays true: no page, help or review word says or implies that
+   each Hero takes the Quest's whole XP, so none changed, and no test was needed for one.
+4. **Unchanged.** `configVersion` 13, content 32, schema 6; no event's shape (`hero.xp-gained`'s
+   payload as it was); `questsConclude`; the page's code (its script 816,044 bytes against S14's
+   816,035, the engine's line being in it).
+
+**The tests.** Each was seen to fail before the engine's line changed, but where said.
+- `engine/src/quest-engine/resolve.test.ts`:
+  - the XP test's scene, three Heroes sent: the success's 160 became 53 and the failure's 40 became 13,
+    the comments saying the split;
+  - a new block, "the XP split", a Quest of 41 sent with Parties of one to five Heroes (five, the
+    content's largest `partySizeMax`; the scene starts a Roster of five for it): a strong success and a
+    plain success each give 41, 20, 13, 10 and 8 (41 ÷ 2 = 20.5 and 41 ÷ 3 = 13.67 rounded down), and a
+    failure, its half XP 20.5, gives 20, 10, 6, 5 and 4; a Party of one takes the whole, as before;
+  - a Death in the divisor: a Party of two and of three, one Hero killed in the second of three
+    Encounters, a success of 40 XP, each who comes home taking 20 and 13, not 40 and 20, the dead
+    Hero's share lost (20 × 1 and 13 × 2 below 40).
+  Before the change all four new tests and the updated one failed (every size took 41, or 20 on a
+  failure; the Death's 40).
+- `engine/src/phases/quests-conclude.test.ts`, a new test for the player's Party and a Rival's (its
+  controller stilled, as the other Rival tests do): three Heroes sent through one failed Encounter of
+  difficulty 5,000 under `certainHarmContent`, a failure, one Hero dead; `xpPerHero` is
+  ⌊2,500 ÷ 3⌋ = 833, each of the two survivors gains 833 and `hero.xp-gained` carries 833 for each,
+  the dead Hero's XP unchanged and no `hero.xp-gained` for them. Both failed before the change (2,500).
+- Three tests the rule broke, updated deliberately:
+  - `quests-conclude.test.ts`'s "moves Wealth, Fame and XP by the outcome": its Quest of difficulty 1,
+    split between two, now gives each Hero 0 XP, against its `toBeGreaterThan(0)`; its difficulties are
+    now 2, 40 and 5,000, with a comment;
+  - its "a Level a Party's Hero gains on the night of the return follows the Quest's XP": the two
+    Heroes one XP short of Level 2 were sent on a Quest of 1, which now gives them 0; the Quest is now
+    of 2, 1 each, with a comment;
+  - its "nothing else moves: the same seed gives the History of 86c7afa", which hashes three seeds'
+    Histories: the split changes every `hero.xp-gained`'s amount and with it the Levels, their Stats and
+    the wage, so its three fingerprints are now S13's (`ae34d056…`, `83073fb4…`, `20a8de88…`), the
+    comment giving the old ones (`f1e65b3b…`, `096c92a2…`, `a72002b4…`) and why.
+- `engine/src/controllers/transfer-generator.test.ts`'s "the Roster-size distribution across Rivals
+  stays within the generation range" (four seeds × 20 years, the test content at a Check of 0.15 of
+  the difficulty, `rivalRosterMin` 4 to `rivalRosterMax` 8) failed: a year's median 8.5 in years 5 to
+  7, above 8, and the mean of every year-end 9.18. Measured on the same four seeds with the line put
+  back and with it, the year-end sizes printed (a scratch line, taken out):
+
+  | The Rivals' Roster at a year's end, 4 seeds × 20 years | Before the split | With it |
+  | --- | ---: | ---: |
+  | Year-ends | 318 | 319 |
+  | Median of every year-end | 6 | 7 |
+  | Mean of every year-end | 6.44 | 9.18 |
+  | Within 4 to 8 | 90.9% | 67.1% |
+  | Largest | 15 | 30 |
+  | A year's median, highest | 7 | 8.5 (years 5 to 7) |
+
+  The split's slower Levels and lower wage leave these Rivals richer, and they hire, as DL-180
+  reading 5 found in the harness's games (their Roster 7.69 at a year-start against 5.71). The
+  Generator's own moves are held in range by `expectWithinTheRule`, unchanged. *The agent's reading:*
+  the test's own words already let single Rosters leave the range (Deaths, recruits, Transfers and
+  folds "which the Generator does not undo", DL-59), and v1.1.4-S6 dropped a year's mean for the same
+  cause (DL-157); so above the range only the median of every year-end is now held (7), and below it
+  each year's median and the mean, as before. The comment records these figures. The box's 100-seed
+  run (`HEROESIM_HARNESS=1`) was not run.
+- `harness/src/sweep.test.ts`: the Party sizes test reads the report's new heading and that "XP is not
+  split" is gone; it failed before the heading changed.
+
+**The checks,** before the sweep, each alone. `npm run edit -- traits doctor` before the change and
+after the checks: no drift (110 reads), the doc fresh, the content passing, no pending edits.
+`npm run lint` and `npm run typecheck` clean. `npm test`: 185 files, 4,830 tests (4,824 at S14, 6
+added: four in `resolve.test.ts`, two in `quests-conclude.test.ts`), all passing, the two eslint-based
+tests among them within their time. `npm run e2e -w web`: 103 passed, check-bundle passing, the script
+816,044 bytes against 850 kB (S14's 816,035; the engine's line is in it). Each changed file keeps its
+endings: the source and `CONTEXT.md` CRLF, none with a bare LF (two `sed -i` runs during the work
+stripped two files' CRs, which were put back and checked).
+
+### The closing sweep
+
+Run alone after the checks, with no other process of ours (the owner's Playwright test-server left
+running, 15 MiB), on the working tree at `6e69b1d` with this story's change, `engine/dist` built from it
+by the typecheck (`xpPerHero: Math.floor(xp / heroes.length)`): `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50
+HEROESIM_YEARS=20 HEROESIM_MILESTONE=m9-v115-s13 npm run harness -- play.harness`, core only, content 32,
+config 13, schema 6, not validated, **the replay kept**. 1,983.7 s in all (33.1 minutes, inside the
+epic's 32 to 36), the games 1,751.7 s of it; the test passed. The report,
+`harness/reports/m9-v115-s13-2026-10-04.md`, is force-added. 50 of 50 saves load and serialise back
+alike; no policy action refused, no harness assertion broken.
+
+- **It plays DL-180's trial games.** The fingerprint of every seed's last save is the trial's,
+  `e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369`, as the epic expected. Against the
+  trial's report (the scratchpad's copy, `m9-v115-s9-trial-2026-10-04.md`), `diff` finds only: the
+  title and the start time; the replay's row (the trial's skipped); the timings (`advance`, `serialise`,
+  `deserialise`, the run's times and the DL-74 table's rows that read them, with the replay's own
+  `advance` row added); the trial's highest-Level line, its scratch counter, not built here; and the
+  Party table's heading, its words now the split's. Every count, share and table else is equal line for
+  line, so every figure of DL-180's table is reproduced: 0 of 50 player Guilds bankrupt, none below
+  the floor, every game its full 20 years; the player's Quests 403,168, failed 6.79%, succeeded 20.52%
+  and strong 72.68%; Deaths 4.28 and Injuries 72.52 a game; Traits 2.178 a player's Hero career
+  (1,472 of 676), the Rivals' 1.259; the Roster's mean Level after 10 years 8.34 and after 20 years
+  9.51; Levels 4.97 a player Guild-year; half the Roster at Potential after 10 years (51.0%); Upkeep
+  45,664.3 and Quest rewards 61,150.1 a player Guild-year (74.7%); Wealth 159,162 and 215,079 after 10
+  and 20 years; Rival folds 2.74 a game, 45 Successions; and DL-180's Party table, cell for cell (the
+  player's mean Party 1.55, 28.7 XP a Hero, 44.0 a Party; the Rivals' 1.85, 30.0, 54.2).
+- **The replay ran and matched.** No Guild went bankrupt, so it played `seed-0001`, twice: identical,
+  144,371,849 characters, the test asserting it. The save is 4.9% longer than the close's `seed-0002`
+  (137,606,607) and 21% longer than the `seed-0001` game of the close's E3 measure (119,338,444): the
+  split's games keep larger Rival Rosters, as the epic's risk foresaw. Its `advance` alone: 3.716 ms a
+  Turn mean, p99 37.680 ms (the close's `seed-0002`, 2.210 and 12.936).
+- **The memory,** each `node` process's Windows peak working set (`PeakWorkingSet64`), working set and
+  private bytes read every 5 s (a scratch file, not kept), as DL-181 read them:
+  - *The replay's process,* the Vitest worker, held 91 MiB while the shards played (to 19:19:36), then
+    peaked at **1,501 MiB** (private bytes at most 1,417 MiB in a sample), reached at 19:21:47 in the
+    first replayed game's close; its working set fell to about 640 MiB between the two games, and the
+    second was at 1,019 MiB in the last sample, 3 s before the run ended, so its own peak, likely about
+    the first's, lies after that sample, unread. The close's was 1,346 MiB for a save 4.9% shorter; E3's
+    fix holds one game at a time (DL-181), and the 155 MiB more is about the larger save and the
+    sweep's 50 records of longer games beside it.
+  - *The shards:* 50 processes (one reusing an earlier one's process id, told apart by its peak
+    falling), peak working set median 1,268 MiB, mean 1,266, the lowest 906 and the highest 1,581
+    MiB (the close's: median 1,074, highest 1,503); private bytes at most 1,758 MiB in a sample (1,378);
+    the eight at once at most 6,740 MiB of working set together (4,845). Every game plays its full 20
+    years with larger Rival Rosters, so no shard is short. The Vitest parent at most 224 MiB (224). No
+    process was killed; the machine's 27.6 GB held the eight with room.
+- **The time.** The games 1,751.7 s against the trial's 1,747.4 s (+0.2%, the same games), the close's
+  1,267.1 s (+38%) and S5's 1,213.9 s (+44%, DL-180's reading 6: larger Rival Rosters for `partyFor` to
+  search, and every game its full length). `advance` a Turn 7.405 ms mean, p99 53.667 ms (the trial's
+  7.374 and 53.244; the close's 5.028 and 25.967). The replay took most of the other 232.0 s (the
+  close's 165.6 s, a shorter save). As 1,000 games, 584 minutes (the close's 448).
+
+**Against the close's sweep** (`m9-v115-close-2026-10-04.md`, S5's games, fingerprint `37fabc96…`) and
+the trial: S13's figures are the trial's, so the close's column is DL-180's S5 column, and every
+difference is the split's, read as DL-180 reads it.
+
+| | S13, the closing sweep | The close (= S5) | DL-180's trial | S13 − the close |
+| --- | ---: | ---: | ---: | ---: |
+| Fingerprint | `e7ae1710…` | `37fabc96…` | `e7ae1710…` | the split |
+| **Player bankrupt** | **0 of 50** | 12 of 50 | 0 of 50 | −12 |
+| Years survived, mean (min) | 20.00 (20.00) | 18.87 (10.94) | 20.00 (20.00) | +1.13 |
+| Player failed / succeeded / strong | 6.79% / 20.52% / 72.68% | 5.14% / 18.41% / 76.46% | the same | +1.66 / +2.12 / −3.77 points |
+| Player Deaths, Injuries a game | 4.28, 72.52 | 3.24, 54.42 | the same | +25%, +26% a Guild-year |
+| **Traits earned a player's Hero career** | **2.178** | 2.322 | 2.178 | −0.144 |
+| … the Rivals' | 1.259 | 1.131 | 1.259 | +0.128 |
+| Mean Level of the player's Roster after 10 years | 8.34 | 10.35 | 8.34 | −2.01 |
+| Upkeep, Quest rewards a player Guild-year | 45,664; 61,150 (74.7%) | 56,167; 64,003 (87.8%) | the same | −18.7%; −4.5% |
+| Player's Wealth after 10, 20 years | 159,162; 215,079 | 108,386; 98,847 | the same | +47%, +118% |
+| Rival folds a game | 2.74 | 5.44 | 2.74 | −2.70 |
+| The player's mean Party; XP a Hero a Quest | 1.55; 28.7 | 1.57; 47.0 | the same | −0.02; −39% |
+| `advance` a Turn, mean / p99 | 7.405 / 53.667 ms | 5.028 / 25.967 ms | 7.374 / 53.244 ms | +47% |
+| The games, the whole run | 1,751.7 s, 1,983.7 s | 1,267.1 s, 1,432.7 s | 1,747.4 s, 1,747.8 s | +38% |
+| The replay | `seed-0001`, identical, 144,371,849 | `seed-0002`, identical, 137,606,607 | skipped | |
+| Its process's peak | 1,501 MiB | 1,346 MiB | | +155 MiB |
+
+*The agent's readings,* each DL-180's, the games being its games: XP a Hero a Quest barely depends on
+the Party's size, so Levels come slower and stop lower; the wage follows the Level, so Upkeep falls
+18.7% against 4.5% of income and no player Guild falls below the floor; weaker Heroes fail more and end
+strong less often, so Deaths and Injuries rise about a quarter a Guild-year; the Rivals' wage falls too,
+so they fold half as often and keep larger Rosters; and the time rises with those Rosters.
+
+**The Gate read on this sweep.**
+- *Rare Traits:* 2.178 Traits earned a player's Hero career against the 2.32 baseline (S5's, the
+  owner's steer, DL-179), −0.144, the split's: fewer strong successes keep slightly fewer positive
+  Traits a Hero's Quest, and a Hero sent goes on fewer Quests (DL-180 reading 4). The Rivals' 1.259
+  against 1.13, their careers longer.
+- *The XP split:* the rule shipped is DL-180's trial's, by fingerprint; held by the tests above.
+- *The rule's count* (DL-168 item 16), for information only, the owner having decided what follows
+  (DL-182 item 2): 0 of 50 player Guilds bankrupt, below 3 to 7 (S3's 13, the close's 12).
+- *The DL-83 targets,* for information, as DL-180 item 7 reads them: item 2 Bankruptcies 0%, below
+  5 to 15%; item 21 the Roster's mean Level after 10 years 8.34, inside 8 to 10; item 5 Rival folds 2.74,
+  inside 1.5 to 3.5; items 3, 4, 6 and 7 still off; item 22 not counted (the trial's scratch counter,
+  11.58, not built).
+
+**The agent's readings,** for the owner to change.
+1. *The Transfer Generator's test* (above): only the median of every year-end is now held above the
+   range. The other way is to keep a year's median and the mean held and pin a lower Rival income in
+   that test's world; the agent read the test's subject as the Generator, which the split does not
+   touch.
+2. *The two tests of `quests-conclude.test.ts` given a Quest of 2 in place of 1,* so that a Party of
+   two still gains XP; their subjects (the XP moved, a Level on the night of the return) unchanged.
+3. *The words:* none changed on the page, the CLI or `docs/requirements.md`, each reading the share
+   already; `CONTEXT.md`'s XP says the split.
+
+**For the owner.** Nothing is open. The closing sweep's 0 of 50 Bankruptcies, and its Rivals' larger
+Rosters and longer games, are DL-180's, for #51 in the backlog (DL-182 item 2).
+
+**Actioned in:** `engine/src/quest-engine/resolve.ts`; `engine/src/config.ts` (a comment);
+`harness/src/counters.ts` (comments); `harness/src/sweep.ts` (a comment and the report's heading);
+`CONTEXT.md`'s XP; the tests in `resolve.test.ts`, `quests-conclude.test.ts`,
+`transfer-generator.test.ts` and `sweep.test.ts`; `harness/reports/m9-v115-s13-2026-10-04.md`,
+force-added; `docs/planning/epics/v1.1.5-release.md` (S13's boxes, the status).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

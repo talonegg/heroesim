@@ -888,7 +888,8 @@ type EncounterTally = EncounterCounts[keyof EncounterCounts];
 
 /**
  * v1.1.4-S10's counters: the Quests resolved by the size of the Party sent, their bands and the XP
- * each Hero took (DL-148 item 19, the owner's decision on splitting XP), and the Traits earned by key.
+ * each Hero took (DL-148 item 19, the owner's decision on splitting XP: split since v1.1.5-S13, DL-182),
+ * and the Traits earned by key.
  */
 function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
   const sizeRows = controllerKinds.flatMap((kind) => {
@@ -912,7 +913,7 @@ function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
   const traitRows = traitKeys.map((key) => [`\`${key}\``, ...controllerKinds.map((kind) => whole(totals.traitsGainedByKey[kind][key] ?? 0))]);
   return [
     'Quests resolved by the size of the Party sent (`quest.resolved`\'s `heroIds`), with the XP each Hero who came home took ' +
-      "(`xpPerHero`: XP is not split, DL-148 item 19) and the XP the Party took in all, a Quest:",
+      "(`xpPerHero`: the Quest's XP split across the Party sent, its Dead counted, rounded down, v1.1.5-S13, DL-182) and the XP the Party took in all, a Quest:",
     '',
     markdownTable(
       ['Controller: Party size', 'Quests resolved', 'Failed', 'Strong', 'XP a Hero', 'XP the Party took'],

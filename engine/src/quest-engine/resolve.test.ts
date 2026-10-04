@@ -72,9 +72,12 @@ interface Scene {
   deps: EngineDeps;
 }
 
-/** The player's first `size` Heroes, Stats all 8, sent through `keys` on a Quest of `difficulty`. */
+/**
+ * The player's first `size` Heroes, Stats all 8, sent through `keys` on a Quest of `difficulty`. A
+ * `size` above the starting Roster's 4 starts the Roster with `size` Heroes.
+ */
 function scene(seed: string, content: ContentSet, keys: string[], { size = 3, difficulty = 40 } = {}): Scene {
-  const deps = testDeps(pinned, content);
+  const deps = testDeps({ ...pinned, ...(size > 4 ? { startingRosterSize: size } : {}) }, content);
   const { world } = createWorld(seed, setup, deps).document;
   const guild = playerGuild(world) as Guild;
   const heroes = guild.rosterIds.slice(0, size).map((id) => world.heroes[id] as Hero);
@@ -212,10 +215,60 @@ describe('resolveQuest', () => {
     const success = resolveQuest(won.world, won.quest, won.party, won.deps).outcome;
     const failure = resolveQuest(lost.world, lost.quest, lost.party, lost.deps).outcome;
 
-    // Two of three: a success, paying 200 × 1.5 × 1.5 × 0.5, gaining 3 + 1 + 1 − 2 Fame and 40 × 1 × 2 × 2 XP.
-    expect(success).toMatchObject({ band: 'success', successes: 2, wealthDelta: 225, fameDelta: 3, xpPerHero: 160 });
-    // One of three: a failure, paying nothing, losing 3 + 1 + 2 + 2 Fame, and half XP times 2.
-    expect(failure).toMatchObject({ band: 'fail', successes: 1, wealthDelta: 0, fameDelta: -6, xpPerHero: 40 });
+    // Two of three: a success, paying 200 × 1.5 × 1.5 × 0.5, gaining 3 + 1 + 1 − 2 Fame and 40 × 1 × 2 × 2
+    // XP, 160, split across the three Heroes sent and rounded down (v1.1.5-S13, DL-182).
+    expect(success).toMatchObject({ band: 'success', successes: 2, wealthDelta: 225, fameDelta: 3, xpPerHero: 53 });
+    // One of three: a failure, paying nothing, losing 3 + 1 + 2 + 2 Fame, and half XP times 2, 40, split by three.
+    expect(failure).toMatchObject({ band: 'fail', successes: 1, wealthDelta: 0, fameDelta: -6, xpPerHero: 13 });
+  });
+
+  // v1.1.5-S13 (DL-182 item 1): the Quest's XP split across the Party sent, each share rounded down.
+  describe('the XP split', () => {
+    const content = contentWith(encounter('pass', true), encounter('miss', false));
+    /** The share each Hero of a Party of 1 to 5 (content's largest) takes of a Quest of 41 through `keys`. */
+    const shares = (keys: string[]) =>
+      [1, 2, 3, 4, 5].map((size) => {
+        const { world, quest, party, deps } = scene(`split-${size}`, content, keys, { size, difficulty: 41 });
+        expect(party.heroIds).toHaveLength(size);
+        return resolveQuest(world, quest, party, deps).outcome;
+      });
+
+    test('divides the XP by the size of the Party sent, rounded down, a Party of one taking it whole: a strong success', () => {
+      const outcomes = shares(['pass', 'pass', 'pass']);
+      expect(outcomes.map((it) => it.band)).toEqual(['strong', 'strong', 'strong', 'strong', 'strong']);
+      // 41 × 1 × 1: 41, 20.5, 13.67, 10.25 and 8.2, each rounded down.
+      expect(outcomes.map((it) => it.xpPerHero)).toEqual([41, 20, 13, 10, 8]);
+    });
+
+    test('and a plain success', () => {
+      const outcomes = shares(['pass', 'pass', 'miss']);
+      expect(outcomes.map((it) => it.band)).toEqual(['success', 'success', 'success', 'success', 'success']);
+      expect(outcomes.map((it) => it.xpPerHero)).toEqual([41, 20, 13, 10, 8]);
+    });
+
+    test('and a failure, its half XP split too', () => {
+      const outcomes = shares(['pass', 'miss', 'miss']);
+      expect(outcomes.map((it) => it.band)).toEqual(['fail', 'fail', 'fail', 'fail', 'fail']);
+      // 41 × 0.5: 20.5, 10.25, 6.83, 5.125 and 4.1, each rounded down; a Party of one loses the half point as before.
+      expect(outcomes.map((it) => it.xpPerHero)).toEqual([20, 10, 6, 5, 4]);
+    });
+
+    test('counts a Hero who dies in the divisor: their share is lost, not passed to those who come home', () => {
+      const deadly = contentWith(encounter('first', true), encounter('deadly', false, [{ kind: 'death', chance: 1 }]), encounter('third', true));
+      for (const [size, share] of [
+        [2, 20],
+        [3, 13],
+      ] as const) {
+        const { world, quest, party, deps } = scene(`split-death-${size}`, deadly, ['first', 'deadly', 'third'], { size, difficulty: 40 });
+
+        const { outcome } = resolveQuest(world, quest, party, deps);
+
+        // Two of three: a success of 40 XP, one Hero dead and `size − 1` home, each taking 40 / `size`.
+        expect(outcome).toMatchObject({ band: 'success', xpPerHero: share });
+        expect(outcome.deaths).toHaveLength(1);
+        expect(share * (size - 1)).toBeLessThan(40);
+      }
+    });
   });
 
   test("sums the Encounters' Morale and Regard into the outcome", () => {

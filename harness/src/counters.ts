@@ -242,7 +242,7 @@ export interface GameCounters {
   traitsGainedByKey: Record<ControllerKind, Record<string, number>>;
   /**
    * `quest.resolved` by the resolving Guild's controller, then by the size of the Party sent (v1.1.4-S10,
-   * for the owner's decision on splitting XP, DL-148 item 19).
+   * for the owner's decision on splitting XP, DL-148 item 19; split since v1.1.5-S13, DL-182).
    */
   partySizes: Record<ControllerKind, Record<string, PartySizeTally>>;
   /**
@@ -653,8 +653,9 @@ const noEncounters = (): EncounterCounts =>
 const noSynergies = (): SynergyTally => ({ quests: 0, withAny: 0, applied: 0, byKey: {} });
 
 /**
- * A kind of Guild's resolved Quests sent with Parties of one size (v1.1.4-S10, DL-148 item 19): XP is
- * not split, so each Hero who comes home takes the Quest's whole `xpPerHero`.
+ * A kind of Guild's resolved Quests sent with Parties of one size (v1.1.4-S10, DL-148 item 19): each
+ * Hero who comes home takes `xpPerHero`, since v1.1.5-S13 the Quest's XP split across the Party sent,
+ * its Dead counted, rounded down (DL-182).
  */
 export interface PartySizeTally {
   /** Quests resolved, and those that failed and that were strong successes. */

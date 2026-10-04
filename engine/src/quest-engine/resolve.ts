@@ -149,7 +149,11 @@ export interface QuestOutcome {
   wealthDelta: number;
   /** Fame to the Guild: the Fame effect, gained on a success and lost on a failure, plus the Encounters' Fame. */
   fameDelta: number;
-  /** XP to each Hero who comes home alive: M3-S2's by band, times the Encounters' XP factors. */
+  /**
+   * XP to each Hero who comes home alive: M3-S2's by band, times the Encounters' XP factors, split
+   * across the Party sent and rounded down (v1.1.5-S13, DL-182). A Hero who dies counts in the split
+   * and takes nothing, so their share is lost.
+   */
   xpPerHero: number;
   /**
    * The Encounters' Morale consequences as written, summed; 0 moves no one. What each Hero brings
@@ -251,8 +255,9 @@ interface Working {
  * its Degree (v1.1.4-S2) applied in the order content lists them. The band follows the shares at
  * Success or better and of Triumphs (`questBand`); the Wealth is the reward times the wealth factors, rounded, on a success and
  * nothing on a failure; the Fame the Fame effect, won or lost by the band, plus the Encounters'; the
- * XP the difficulty × `xpPerDifficultyPoint` × the band's `xpBandFactor` × the XP factors, rounded
- * down. An Injury's Days are drawn from its type's range and multiplied by `infirmaryHealFactor` at
+ * XP the difficulty × `xpPerDifficultyPoint` × the band's `xpBandFactor` × the XP factors, divided by
+ * the size of the Party sent, its Dead counted, and rounded down: each Hero who comes home takes that
+ * share (v1.1.5-S13, DL-182). An Injury's Days are drawn from its type's range and multiplied by `infirmaryHealFactor` at
  * the Guild's infirmary grade now (`healFactor`, DL-53), rounded to the nearest Day and at least 1
  * (INPUTS 4.5). The consumables the Party carries add to each Check, roll a failed Encounter's again,
  * and then shorten the Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
@@ -356,7 +361,8 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       wealthDelta: paid ? Math.round(quest.reward * working.wealthFactor) : 0,
       // `0 -` rather than unary minus: a Fame effect of 0 then loses 0, not −0, which is not JSON-safe.
       fameDelta: (paid ? quest.fameEffect : 0 - quest.fameEffect) + working.fameDelta,
-      xpPerHero: Math.floor(xp),
+      // v1.1.5-S13 (DL-182 item 1): split across the Party sent, its Dead counted, so a dead Hero's share is lost.
+      xpPerHero: Math.floor(xp / heroes.length),
       moraleDelta: working.moraleDelta,
       moraleByHero: Object.fromEntries(working.alive.map((hero) => [hero.id, whole(working.moraleByHero[hero.id] ?? 0)])),
       regardDelta: working.regardDelta,

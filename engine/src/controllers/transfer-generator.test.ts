@@ -232,17 +232,22 @@ describe(`the Transfer Generator over ${seeds.length} seeds × ${years} years (M
     // Transfers and folds move single Rosters out of it, which the Generator does not undo (DL-59), but
     // not the distribution. From v1.1.4-S6 a year's own mean is not held: a Rival choosing its Party by
     // the estimate earns more, and one of the sixteen here hired to 18 Heroes, moving its years' means
-    // to 8.125 with the median at 7 (DL-157).
+    // to 8.125 with the median at 7 (DL-157). From v1.1.5-S13 the XP is split across the Party (DL-182,
+    // DL-184): Levels, and with them the wage, come slower, so the Rivals here keep more Heroes, as the
+    // harness's do (DL-180). Over the four seeds a third of the year-ends lie above the range (a tenth
+    // before), Rivals hired to 20 Heroes and more, the largest 30 (15 before), a year's median reached 8.5 in years 5 to 7 and
+    // the mean of every year-end 9.18 (6.44 before). So above the range only the median of every
+    // year-end is held, 7 (6 before); below it, each year's median and the mean, as before.
     const every: number[] = [];
     for (let year = 0; year < years; year += 1) {
       const sizes = tallies.flatMap((tally) => tally.yearEnds[year] ?? []);
       expect(sizes.length, `year ${year + 1}`).toBeGreaterThan(0);
       expect(median(sizes), `year ${year + 1} median`).toBeGreaterThanOrEqual(min);
-      expect(median(sizes), `year ${year + 1} median`).toBeLessThanOrEqual(max);
       every.push(...sizes);
     }
+    expect(median(every)).toBeGreaterThanOrEqual(min);
+    expect(median(every)).toBeLessThanOrEqual(max);
     expect(mean(every)).toBeGreaterThanOrEqual(min);
-    expect(mean(every)).toBeLessThanOrEqual(max);
   });
 
   test("the player's Roster is never changed by the phase, on any night of twenty years", () => {

@@ -249,7 +249,9 @@ raises Stats along the Class's growth profile.
 _Avoid_: Rank, Tier, Grade
 
 **XP**:
-Experience points, earned from Quests and training, that raise a Hero's Level.
+Experience points, earned from Quests and training, that raise a Hero's Level. A Quest's XP is
+split across the Party sent, its Dead counted: each Hero who comes home takes an equal share,
+rounded down, and a Hero who dies takes none, their share lost (v1.1.5-S13, DL-182).
 _Avoid_: Experience (alone), Points, Growth
 
 **Potential**:
