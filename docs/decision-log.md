@@ -24414,6 +24414,204 @@ reports read: they differ in the start time and the timings only). What was buil
 
 ---
 
+## DL-188 — v1.1.6-S2 built: one parser of a run's settings, the `gate` and `neutral` profiles, a JSON report beside each play sweep's Markdown, `compare`, the Gate's first spec in `harness/gate.json` (drafted, awaiting the owner's approval), the save's target measured gzipped with a growth guard, the years label, the Succession probe on the sweep's queue, and the reports policy
+
+**Status:** Accepted, but for the Gate's first spec, drafted and awaiting the owner's approval · **Date:**
+2026-10-05 · **Decided by:** the owner's answers C2 (a), SF1 (c), SF4 (a), SF5 (b) and SF12 (a), and the
+`neutral` profile (DL-186 items 13, 17, 20, 21, 28 and 30), built by the agent as the epic's S2 describes
+it. The readings marked as the agent's are for the owner to change. A second Opus agent verifies it.
+
+**Context.** At `333ed79` (S1 verified) a harness run read 17 `HEROESIM_*` variables in four modules and
+five test files, each with its own parse (`HEROESIM_MILESTONE` with `??` in one and `?.trim() ||` in
+another), `HEROESIM_SEEDS` meaning four things, and the probe list written twice (`run.mjs` and
+`succession.ts`, a test holding them equal). The Gate's run was typed by hand (`HEROESIM_WORKERS=8
+HEROESIM_SEEDS=50 HEROESIM_YEARS=20 … -- play.harness`), its bands lived in epic prose and two runs were
+compared by reading their Markdown. The report's "Save after 20 years" row set the uncompressed mean,
+136.69 MiB at v1.1.5's close, against "under 20 MiB", which data-model §7 had measured gzipped since
+DL-84, and its "20 years" labels were written whatever the run's years. The Succession probe still dealt
+its seeds in turn among its processes, the idle-lane problem v1.1.4-S10 fixed for the play sweep.
+
+**What was built.**
+
+1. **One parser** (`harness/src/settings.ts`). `runSettings(env)` reads every variable a run reads and
+   decides the run: a probe, a module run or the milestone's, with its profile. Each run's settings are
+   a type of their own (`MilestoneSettings`, `ModulesSettings`, `SuccessionSettings`, `EstimateSettings`,
+   `CalibrateSettings`), so each probe names its own; `variables` lists every variable with the runs
+   that read it. A bad value is refused with a `RangeError` naming the variable, as before, and now also
+   `HEROESIM_TUNE` outside 0 to 1, `HEROESIM_FLAT` outside 0 to below 1, `HEROESIM_TUNE` without
+   `HEROESIM_DRAFTS` and a milestone `reportPath` would refuse, all at parse rather than inside the test.
+   *The agent's addition:* an unknown `HEROESIM_*` name is refused by name (`HEROESIM_SEED=50` played
+   1,000 seeds before), the three other packages' variables (`HEROESIM_SAVE_DIR`, `_LIVE_URL`,
+   `_DEPLOY_RECORD`) left alone. The old per-variable parsers (`seedCount`, `yearCount`, `configChanges`,
+   `validatingEveryTurn`, `replayingAfterSweep`, `defaultWorkers`, `moduleIds`, `probeName`,
+   `calibrationDrafts`) are gone, their tests moved to `settings.test.ts`; no other harness source reads
+   `process.env`, which a test holds (`main.ts` passes it on to Vitest, reading none).
+2. **`HEROESIM_SEEDS`' four meanings, named apart:** `worlds` (a creation sweep's), `games` (a play sweep's,
+   a module run's or the Succession probe's), `resolutions` (the seeds each estimate sample is resolved
+   for) and `spotSeeds` (a calibration's spot-check seeds). The variable is one; the settings say which.
+3. **The probe list in one place** (`probeNames`, beside `profileNames`, in `settings.ts`). `run.mjs` is
+   gone: `npm run harness` is `tsx harness/src/main.ts`, whose words `commandLine` reads, so the command
+   line and the settings share the list, and the test holding two copies equal went with them.
+4. **The profiles** (`profiles`, one table). `npm run harness -- gate <milestone>` plays the play sweep
+   alone, 50 games of 20 years in 8 processes, the replay played; `neutral <milestone>` 10 of 20 years in
+   8 (DL-186 item 30); either takes `--expect <fingerprint>`. The words reach the run as
+   `HEROESIM_PROFILE`, `HEROESIM_MILESTONE` and `HEROESIM_EXPECT`. The milestone's run keeps INPUTS 4.13's
+   1,000 worlds and 200 games on half the processors; the probes and the module run keep theirs
+   (Succession 50 × 12, estimate 200 × 20,000, calibration 120 Parties and 4,000 spot seeds, modules 50).
+   A variable set overrides its profile (`HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- gate m9-x`
+   plays the Gate's run small). A profile with a probe or modules is refused; a profile's run creates no
+   worlds.
+5. **The policy overridable** (`HEROESIM_POLICY`), a JSON object of `PolicyConfig` keys, as `HEROESIM_CONFIG`
+   is the engine's config's: an unknown key, a value not a number from 0 and a count not whole
+   (`rosterLimit`, `consumableStock`) refused. It reaches the child processes through the shard job's
+   `policy`, as the default did, and the report's header names it ("the policy's defaults changed by
+   `{…}`"). *The agent's reading:* the milestone's play sweep reads it, as it reads `HEROESIM_CONFIG`; the
+   Succession probe and the module run play the defaults, as they play the default config.
+6. **The JSON report** (`harness/src/run-report.ts`). Beside each play sweep's Markdown report,
+   `<milestone>-<date>.json`: the format (1), the milestone, profile, start, the variables set, the
+   machine, the seeds, years, processes and validation, the content with its drafts, the config played
+   and its changes, the policy played and its changes, the modules, the fingerprint, the replay, a line
+   for each game (its seed, last save's fingerprint and length, Turns, ending, round trip, invalid,
+   stopped, refusals), the timings and `sweepTotals` (S1's fold), and the Gate's lines when checked. A
+   number JSON cannot hold (an empty series' `NaN`) is written as its name and read back, so it
+   round-trips. *The agent's reading:* "each Markdown report" is each play sweep's, the reports the Gate
+   and `compare` read; the probes, the module run and the creation sweep keep their Markdown alone (the
+   calibration has its own `calibration.json`).
+7. **`compare`** (`npm run harness -- compare <a> <b>`, `compareRuns`). Each run's line; whether the
+   fingerprints agree and, if not, the seeds whose last saves differ; the seeds, years, content, config,
+   policy and modules where they differ; and every core counter that moved (`counterDeltas`), with how
+   many did not. Timings are not counters and are left out. A report is named by its path, its JSON or
+   Markdown, or its name in `harness/reports/`.
+8. **The Gate's spec and its check** (`harness/gate.json`, `harness/src/gate.ts`). The spec is data,
+   checked on reading (a line missing, a line it does not know, a value of the wrong kind, a band upside
+   down: each refused by its path). `checkGate` checks a run's JSON report line by line: the invariants
+   (no policy action refused; no game invalid, stopped, unfinished or failing its round trip; the replay
+   identical) on any run; the bands (Traits a career, the player's Bankruptcies, the save gzipped and its
+   growth) only on a run of the spec's shape, 50 games of 20 years, reading "not comparable" on any
+   other, so the `neutral` profile checks the invariants and its `--expect`. A run passes when no line
+   fails. A `gate` or `neutral` run, or any run given `HEROESIM_EXPECT`, prints each line's verdict,
+   writes them as "## The Gate" in its Markdown (after the summary) and into its JSON, and fails its test
+   when a line fails. The estimate probe reads its two limits from the spec (`estimateTolerance` and
+   `estimateMoraleTolerance`, still 0.02 and 0.03) and prints its two Gate lines. **The spec is drafted,
+   awaiting the owner's approval** (`"status": "drafted"`, printed and written as "drafted, awaiting the
+   owner's approval"); it binds once the owner approves it, its baselines then changing only with a DL
+   entry. S17's copy-time line is left for S17 (a note in the spec).
+9. **The save's target** (DL-186 item 21). The report's "Save after 20 years" row reads its targets from
+   `gate.json` and names the measures: "gzipped, the mean under 20 MiB; uncompressed, the mean at most
+   150.36 MiB, v1.1.5's 136.69 MiB +10%", measured "gzipped: mean, max; uncompressed: mean, max".
+   data-model §7 says so, the growth guard marked as awaiting the owner's approval with the spec.
+10. **The years label and the 20-year rows** (DL-186 item 17). The label of the last documents' measures
+    reads the run's years ("the 4 games that ran 2 years"); on a run of other than 20 years the two
+    20-year target rows, "Harness: 1,000 games of 20 years" and "Save after 20 years", read "not
+    comparable: this run played N years". The "Load a save" row keeps its measure, its label now true.
+11. **The Succession probe on the sweep's queue** (DL-186 item 20). `probeInParallel` gives each seed a
+    child of its own, `workers` at once, the next as one ends, through `runShardJobs`' lanes, as the play
+    sweep does; `dealSeeds` had no other caller and is gone.
+12. **The reports policy** (DL-186 item 28). `.gitignore`'s comment, `report.ts`'s `reportsDir` and the
+    new `harness/README.md` (linked from the README's new "Harness" section) say it: a report a DL entry
+    or a release's Gate cites is committed, its Markdown and its JSON force-added. A passing `gate` or
+    `neutral` run prints the line, `git add -f harness/reports/<name>.md harness/reports/<name>.json`.
+    INPUTS §9 lists every harness variable.
+13. **The run's lines seen** (the agent's finding). Under Vitest 5 a passing test's `console.log` is held
+    back, so the play sweep's closing lines (its fingerprint and report path among them) were not shown
+    on the terminal; the six harness runs now print through `print` (`report.ts`), straight to stdout.
+
+**The Gate's first spec, drafted for the owner** (`harness/gate.json`; each value's source is in the spec
+as its `source`). The baseline is v1.1.5's closing sweep, S13's (`m9-v115-s13-2026-10-04.md`, fingerprint
+`e7ae1710…6369f369`, DL-184, standing at the re-close, DL-185), on its run of 50 games of 20 years.
+
+| Line | Value | Where it comes from |
+| --- | --- | --- |
+| Policy actions refused | at most 0 | M2-S12 (DL-34); 0 at v1.1.5's close |
+| Games the validator refused | at most 0 | DL-34; read only when validated, which a Gate run is not (v1.1.5's was not) |
+| Games a harness assertion stopped | at most 0 | M6-S3 (DL-59, DL-69); 0 at v1.1.5's close |
+| Games neither ended nor at their last Turn | at most 0 | DL-34, `play.harness.test.ts`; 50 of 50 at v1.1.5's close |
+| Saves failing their round trip | at most 0 | DL-34; 50 of 50 round-tripped at v1.1.5's close |
+| The replay | identical | DL-34, DL-181; `seed-0001` identical, 144,371,849 characters (DL-184) |
+| Traits earned a player's Hero career | 2.078 to 2.278 | v1.1.5's 2.178 (1,472 over 676, DL-184); **±0.10, the agent's proposal** (a change of no effect moved it 0.007, DL-178; the split 0.144) |
+| The player's Bankruptcies | at most 3 of 50 | v1.1.5's 0 of 50 (DL-184); **at most 3, the agent's proposal**: the baseline and fifty seeds' ±3 (DL-166); DL-168 item 16's 3 to 7 is not this line |
+| The save after 20 years, gzipped | mean under 20 MiB | data-model §7 (DL-84), DL-186 item 21; **the mean, the agent's reading**; v1.1.5: mean 17.95, max 21.08 MiB |
+| The save after 20 years, uncompressed | mean at most 150.36 MiB | v1.1.5's mean 143,329,439 characters, 136.69 MiB; **+10% without a DL entry, the agent's proposal** (DL-186 item 21) |
+| The estimate, no one falling | every chance within 2 points | v1.1.4-S5 (DL-156); the widest 1.18 at v1.1.5's re-close (DL-185) |
+| The estimate, Morale in | the Quest's bands and success within 3 points | v1.1.5-S7 (DL-173, the owner's answer); the widest 1.61 (DL-185) |
+
+**The tests.** `harness/src/settings.test.ts` (new, 51): the milestone's run unset and with every
+variable set, blanks as unset; each profile's values and a variable overriding one; the probes' and the
+module run's own; `HEROESIM_SEEDS` read as each of its four meanings; 32 bad values, each refused by its
+variable's name; the other packages' variables left alone; `settingsSet`; the command line's words, and
+five it refuses; and no harness source but `settings.ts` reading the environment. `harness/src/gate.test.ts`
+(new, 20): the shipped spec whole, drafted and holding the figures above, the estimate's limits the spec's,
+and a spec refused for each kind of fault; a passing run, every line passing with its measure and limit;
+twelve failing runs, each failing its one line alone (each invariant, the replay missing, the Traits
+above and below, the Bankruptcies, the gzipped mean at 20 MiB, the uncompressed mean past 10%); each band
+at its edge passing; the fingerprint line only when expected; the bands "not comparable" on a run of
+another shape (its games, its years or both), the invariants still held; the printed lines and the
+Markdown section. `harness/src/run-report.test.ts` (new, 6): the JSON report's totals, fingerprint, config,
+policy and games; its round trip through JSON and a file, `NaN` and the infinities included; a report of
+another format refused; its path and `addCommand`; `compare` on two runs of the same games (no counter
+moved) and on two that differ (the seed whose save differs, the config and policy changed, each counter
+moved, seeds and years). `sweep.test.ts`: the save's targets read from the spec and both 20-year rows
+"not comparable" on the file's 0.06-year sweep and the same sweep labelled 2 and 1 years, comparable at
+20; the policy's changes in the header; the Gate's section after the summary. `succession.test.ts`: three
+seeds in two processes on the queue, the serial games. The tests were written beside the code, not
+before it; to hold them to it, 17 mutations of the new code were run (a profile ignoring its variable,
+the unknown name, the whole-number check, each comparison of the Gate, comparability by games and by
+years, the replay, the verdict, an unknown spec key, the JSON reviver, `compare`'s policy, the report's
+comparability, label and policy line, the probe's dealt mapping), each restored after: 16 failed at
+least one test; one survived (comparability read by the years alone, the games ignored), and a test was
+added that fails under it and under its twin (by the games alone).
+
+**Proof, small runs, each alone with `HEROESIM_WORKERS=8`.**
+- *The play sweep, 4 seeds × 2 years,* at `333ed79` before any change and again after
+  (`HEROESIM_SEEDS=4 HEROESIM_YEARS=2 HEROESIM_MILESTONE=m9-v116-s2 npm run harness -- play.harness`):
+  the fingerprint `50f5e3d52335dce6153a8a46dc2134f6072273d0d0d80dbdee8d2ccec47a355d` both times (S1's);
+  the two reports (481 lines) differ in the start time, the timings and the three target rows this story
+  changes: "Harness: 1,000 games of 20 years" and "Save after 20 years" now "not comparable: this run
+  played 2 years", and "Load a save" labelled "(the 4 games that ran 2 years)" where it said 20.
+- *The Succession probe, 4 seeds × 2 years* (`HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness --
+  succession`), before and after: the two reports differ in the start time alone (the report has no
+  timings), the games shared among 4 processes both times.
+- *`gate` and `neutral`, small*: `npm run harness -- gate m9-v116-s2-gate` and `neutral
+  m9-v116-s2-neutral --expect 50f5e3d5…`, each with `HEROESIM_SEEDS=4 HEROESIM_YEARS=2`: the six
+  invariants and the fingerprint pass, the four bands "not comparable: this run played 4 games of 2
+  years", "The Gate: PASS" and the `git add -f` line printed, the section written into both reports.
+- *`compare`*: the play sweep against the `neutral` run, "Fingerprints: the same", 0 counters moved and
+  442 the same; against a trial with `HEROESIM_POLICY='{"rosterLimit":10}'` (fingerprint `1a4ed2e3…`),
+  the four seeds' saves differing, "Policy: rosterLimit: 8 → 10", 270 counters moved and 175 the same,
+  the trial's report naming the policy changed: the policy reaches the child processes.
+- No 50 × 20 or 10 × 20 sweep was run. The small runs' reports are not committed (none is cited as a
+  Gate's).
+
+**Checks.** `npm run lint` clean; `npm run typecheck` clean; `npm test` 188 files and 4,881 tests (4,847
+at S1's verification: three files added, the moved parsers' tests counted once). No file under `engine/`,
+`content/`, `web/` or `cli/` changed, so no doctor run was due and no game could move; `e2e` not run, no
+page changed. Line endings: every harness source, the README, `.gitignore`, `data-model.md` and INPUTS
+CRLF in the working tree as before, the new files CRLF as their neighbours, the log and the epic LF; none
+mixed.
+
+**Open for the owner.**
+1. **The Gate's first spec** (the table above): approve it, or change any line. On approval its `status`
+   becomes `approved`, recorded with the owner's words in this entry, and the epic's box is ticked.
+2. **The growth guard:** the uncompressed mean after 20 years at most 10% above the last release's without
+   a DL entry (150.36 MiB on v1.1.5's 136.69).
+3. **The gzipped measure is the mean.** v1.1.5's largest gzipped save is 21.08 MiB, already over 20: held
+   by the largest, v1.1.5's own closing sweep would fail the line.
+4. **The two bands proposed:** Traits a player's Hero career 2.178 ± 0.10, and the player's Bankruptcies at
+   most 3 of 50.
+5. *Readings to look at:* the bands checked only on a 50 × 20 run (the `neutral` profile checks the
+   invariants and its fingerprint); the JSON report written for play sweeps only; an unknown `HEROESIM_*`
+   name refused; `HEROESIM_POLICY` read by the play sweep only; the calibration's command line now listing
+   its variables in the settings' order.
+
+**Actioned in:** `harness/src/settings.ts`, `gate.ts`, `run-report.ts`, `main.ts` (new) and their tests;
+`harness/gate.json` and `harness/README.md` (new); `harness/run.mjs` (removed); `package.json`'s `harness`
+script; `harness/src/sweep.ts`, `succession.ts`, `children.ts`, `estimate.ts`, `seeds.ts`, `play.ts`,
+`modules.ts`, `calibrate.ts`, `report.ts`, the six `*.harness.test.ts` and the tests of the moved parsers;
+`.gitignore`; `README.md`; `docs/data-model.md` §7; `docs/planning/epics/INPUTS-REQUIRED.md` §9;
+`docs/planning/epics/v1.1.6-release.md` (S2's boxes, all but the owner's approval).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

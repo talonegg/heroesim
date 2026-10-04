@@ -55,30 +55,6 @@ import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './polic
 /** Years a harness game is played for when it does not end first (INPUTS 4.13). */
 export const defaultYears = 20;
 
-/**
- * Whether `HEROESIM_VALIDATE` asks for the validator after every `advance` (INPUTS §9): `1` or
- * `true` does, unset, blank, `0` or `false` does not. Throws on anything else, so a mistyped flag
- * fails the run rather than silently not validating.
- */
-export function validatingEveryTurn(value: string | undefined = process.env.HEROESIM_VALIDATE): boolean {
-  const flag = (value ?? '').trim().toLowerCase();
-  if (flag === '' || flag === '0' || flag === 'false') return false;
-  if (flag === '1' || flag === 'true') return true;
-  throw new RangeError(`HEROESIM_VALIDATE is 1 or 0, not ${JSON.stringify(value)}`);
-}
-
-/**
- * Whether `HEROESIM_REPLAY` asks a play sweep to replay one seed after it (v1.1.4-S10): unset, blank,
- * `1` or `true` does, `0` or `false` does not, for a tuning trial that wants only the counters and
- * not the replay's check and timing. Throws on anything else, so a mistyped flag fails the run.
- */
-export function replayingAfterSweep(value: string | undefined = process.env.HEROESIM_REPLAY): boolean {
-  const flag = (value ?? '').trim().toLowerCase();
-  if (flag === '' || flag === '1' || flag === 'true') return true;
-  if (flag === '0' || flag === 'false') return false;
-  throw new RangeError(`HEROESIM_REPLAY is 1 or 0, not ${JSON.stringify(value)}`);
-}
-
 export interface PlayOptions {
   /** Years to play unless the game ends first: `years × turnsPerYear` Turns at most. */
   years?: number;

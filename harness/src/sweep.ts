@@ -6,7 +6,6 @@
 // the method and the numbers.
 
 import { createHash } from 'node:crypto';
-import { availableParallelism } from 'node:os';
 import {
   compareByCodeUnit,
   encounterKinds,
@@ -67,11 +66,13 @@ import {
   type WealthFlows,
 } from './counters.js';
 import { harnessSetup } from './creation.js';
+import { gateSection, readGateSpec, type GateResult, type GateSpec } from './gate.js';
 import { idsOf } from './modules.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { defaultYears, fingerprintOf, playGame, type GameRecord, type PlayOptions } from './play.js';
 import { fixed, localTimestamp, markdownTable, percent, whole, type Machine } from './report.js';
 import { runShardJobs } from './children.js';
+import { halfTheProcessors } from './settings.js';
 import { playSeeds, type PlayedSeeds, type ShardJob } from './shard.js';
 import { summarise, type Summary } from './stats.js';
 
@@ -186,26 +187,12 @@ export function sweepFingerprint(games: readonly GameRecord[]): string {
 }
 
 /**
- * Processes a parallel sweep uses by default: `HEROESIM_WORKERS`, a whole number from 1 (v1.1.4-S10:
- * each game's save nears 120 MB by year 20, so a machine short of memory plays fewer at once), or
- * half the logical processors, one a core with SMT, when it is unset or blank. Throws on anything
- * else, so a mistyped count fails the run.
- */
-export function defaultWorkers(value: string | undefined = process.env.HEROESIM_WORKERS): number {
-  if (value === undefined || value.trim() === '') return Math.max(1, Math.floor(availableParallelism() / 2));
-  const workers = Number(value.trim());
-  if (!Number.isSafeInteger(workers) || workers < 1) {
-    throw new RangeError(`HEROESIM_WORKERS must be a whole number from 1, not ${JSON.stringify(value)}`);
-  }
-  return workers;
-}
-
-/**
  * `sweepPlay`, with each seed played in a child process of its own (`shard.ts`), `workers` at once
- * and the next starting as one finishes (v1.1.4-S10: dealt in turn before, a lane of early endings
- * sat idle to the slowest lane's end), each loading the core content and playing under
- * `deps.config` with `deps.modules`, installed by id (M8-S3, DL-78); the records come back in seed
- * order and the replay, unless `replay` is false, is played in this process once they are done. The children load the core content themselves, so `deps.content` must be it: a
+ * (half the logical processors unless given) and the next starting as one finishes (v1.1.4-S10: dealt
+ * in turn before, a lane of early endings sat idle to the slowest lane's end), each loading the core
+ * content and playing under `deps.config` with `deps.modules`, installed by id (M8-S3, DL-78); the
+ * records come back in seed order and the replay, unless `replay` is false, is played in this process
+ * once they are done. The children load the core content themselves, so `deps.content` must be it: a
  * child that loads another refuses the sweep; and each module must be the harness's own of its id
  * (`idsOf`), which is checked before any child starts.
  *
@@ -218,7 +205,7 @@ export async function sweepPlayInParallel(
   options: SweepOptions & { workers?: number; drafts?: string } = {},
 ): Promise<PlaySweep> {
   const now = options.now ?? (() => performance.now());
-  const workers = Math.max(1, Math.min(options.workers ?? defaultWorkers(), seeds.length));
+  const workers = Math.max(1, Math.min(options.workers ?? halfTheProcessors(), seeds.length));
   const modules = idsOf(deps.modules);
   const started = now();
   const jobs = seeds.map(
@@ -508,16 +495,27 @@ export interface PlayReportContext {
   drafted?: string[];
   /** The config values played in place of `defaultConfig`'s (v1.1.4-S9's verification, `HEROESIM_CONFIG`); none when absent. */
   configured?: Readonly<Record<string, unknown>>;
+  /** The policy's values played in place of `defaultPolicyConfig`'s (v1.1.6-S2, `HEROESIM_POLICY`); none when absent. */
+  policyChanged?: Readonly<Record<string, unknown>>;
+  /** The Gate's spec the save's targets are read from: `harness/gate.json` unless given (v1.1.6-S2, DL-186 item 21). */
+  spec?: GateSpec;
+  /** The run checked against the Gate (`checkGate`), for a profile's run; none when absent. */
+  gate?: GateResult | null;
 }
 
-/** data-model §7's targets, provisional, to set the measures against (DL-08). */
+/**
+ * data-model §7's targets, provisional, to set the measures against (DL-08). The save's are the Gate's
+ * (`harness/gate.json`, v1.1.6-S2, DL-186 item 21).
+ */
 const targets = {
   advanceMs: 5,
   yearMs: 1000,
-  saveBytes: 20 * 1024 * 1024,
   loadMs: 1000,
   harnessMinutesPerThousand: 10,
 };
+
+/** The years data-model §7's targets are set on: "1,000 games of 20 years", "a save after 20 years". */
+const targetYears = 20;
 
 const listed = 20;
 
@@ -1494,7 +1492,9 @@ function heroesSection(totals: SweepTotals): string[] {
 }
 
 /** The sweep as a Markdown report. */
-export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milestone, drafted = [], configured = {} }: PlayReportContext): string {
+export function playReport(sweep: PlaySweep, context: PlayReportContext): string {
+  const { deps, machine, startedAt, milestone, drafted = [], configured = {}, policyChanged = {}, gate = null } = context;
+  const spec = context.spec ?? readGateSpec();
   const { config, content } = deps;
   const totals = sweepTotals(sweep, config.turnsPerYear);
   const count = sweep.seeds.length;
@@ -1522,7 +1522,14 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     sweep.replay === null || sweep.workers === 1
       ? ''
       : `; mean ${ms(alone.mean)} ms, p99 ${ms(alone.p99)} ms alone (\`${sweep.replay.seed}\` replayed)`;
-  const sizeOf = full.length > 0 ? `the ${whole(full.length)} games that ran 20 years` : 'last documents: no game ran 20 years';
+  const sizeOf = full.length > 0 ? `the ${whole(full.length)} games that ran ${yearsText} years` : `last documents: no game ran ${yearsText} years`;
+  // v1.1.6-S2 (DL-186 item 17): a run of other than 20 years cannot be set against a 20-year target.
+  const comparable = sweep.years === targetYears;
+  const notComparable = `not comparable: this run played ${yearsText} ${sweep.years === 1 ? 'year' : 'years'}`;
+  const lastSave = sweep.years === targetYears ? totals.saves[targetYears - 1] : undefined;
+  const gzipped = summarise(lastSave?.gzipped ?? []);
+  const { saveGzipped, saveGrowth } = spec.lines;
+  const growthMost = saveGrowth.baselineMeanBytes * (1 + saveGrowth.growth);
   // What 1,000 games of 20 years would take at this run's cost per Turn played, all included.
   const turnsPlayed = sweep.games.reduce((sum, game) => sum + game.turnsPlayed, 0);
   const perThousandMinutes =
@@ -1565,6 +1572,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       `${drafted.length === 0 ? '' : ` with the drafts of ${drafted.map((name) => `\`${name}\``).join(', ')}`} · ` +
       `config version ${config.configVersion}, schema version ${config.schemaVersion}` +
       `${Object.keys(configured).length === 0 ? '' : `, the defaults changed by \`${JSON.stringify(configured)}\``} · ` +
+      `${Object.keys(policyChanged).length === 0 ? '' : `the policy's defaults changed by \`${JSON.stringify(policyChanged)}\` · `}` +
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,
     '',
     `Policy (INPUTS 4.14): first decline every Transfer Offer made for its Heroes (M6-S2); then the gear it holds ` +
@@ -1617,6 +1625,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       ],
     ),
     '',
+    ...(gate === null ? [] : gateSection(gate)),
     '## Counters',
     '',
     'Read from each game\'s History through `history.byType`; an entry counts for the Guild it names.',
@@ -1714,16 +1723,23 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
           `${fixed(yearMs, 0)} ms (mean \`advance\`${sweep.replay === null ? '' : ' alone'} × ${whole(config.turnsPerYear)} Turns)`,
         ],
         [
-          'Harness: 1,000 games of 20 years',
+          `Harness: 1,000 games of ${targetYears} years`,
           `under ${targets.harnessMinutesPerThousand} min`,
-          `${fixed(perThousandMinutes, 0)} min (this run's wall-clock time per Turn played in ${sweep.workers} ` +
-            `${sweep.workers === 1 ? 'process' : 'processes'}, ${sweep.validated ? 'validation' : 'no validation'} ` +
-            `included, × ${whole(20 * config.turnsPerYear)} Turns × 1,000 games)`,
+          comparable
+            ? `${fixed(perThousandMinutes, 0)} min (this run's wall-clock time per Turn played in ${sweep.workers} ` +
+              `${sweep.workers === 1 ? 'process' : 'processes'}, ${sweep.validated ? 'validation' : 'no validation'} ` +
+              `included, × ${whole(targetYears * config.turnsPerYear)} Turns × 1,000 games)`
+            : notComparable,
         ],
         [
-          'Save after 20 years',
-          'under 20 MiB',
-          `mean ${fixed(lengths.mean / 1024 / 1024, 2)} MiB, max ${fixed(lengths.max / 1024 / 1024, 2)} MiB (${sizeOf})`,
+          `Save after ${targetYears} years`,
+          `gzipped, the mean under ${fixed(saveGzipped.meanMiB, 0)} MiB; uncompressed, the mean at most ` +
+            `${fixed(growthMost / 1024 / 1024, 2)} MiB, ${spec.baseline.release}'s ${fixed(saveGrowth.baselineMeanBytes / 1024 / 1024, 2)} MiB ` +
+            `+${fixed(saveGrowth.growth * 100, 0)}% (\`harness/gate.json\`)`,
+          comparable
+            ? `gzipped: mean ${mebibytes(gzipped.mean)} MiB, max ${mebibytes(gzipped.max)} MiB; uncompressed: mean ` +
+              `${mebibytes(lengths.mean)} MiB, max ${mebibytes(lengths.max)} MiB (${sizeOf})`
+            : notComparable,
         ],
         ['Load a save', `under ${targets.loadMs / 1000} s`, `mean ${fixed(loadMs.mean, 0)} ms, max ${fixed(loadMs.max, 0)} ms${load} (${sizeOf})`],
       ],

@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { availableParallelism } from 'node:os';
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
@@ -20,7 +19,7 @@ import {
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { defaultWorkers, playReport, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { playReport, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (M2-S12, DL-34).
@@ -34,23 +33,6 @@ function tickingClock(): () => number {
   let t = 0;
   return () => (t += 1);
 }
-
-// v1.1.4-S10: a sweep plays fewer games at once when HEROESIM_WORKERS says so, on a machine short of memory.
-describe('defaultWorkers', () => {
-  test('plays on half the logical processors when HEROESIM_WORKERS is unset or blank, and on its count when set', () => {
-    const half = Math.max(1, Math.floor(availableParallelism() / 2));
-    expect(defaultWorkers(undefined)).toBe(half);
-    expect(defaultWorkers(' ')).toBe(half);
-    expect(defaultWorkers('8')).toBe(8);
-    expect(defaultWorkers(' 1 ')).toBe(1);
-  });
-
-  test('refuses a count that is not a whole number from 1', () => {
-    for (const value of ['0', '-2', '2.5', 'eight']) {
-      expect(() => defaultWorkers(value)).toThrow(`HEROESIM_WORKERS must be a whole number from 1, not ${JSON.stringify(value)}`);
-    }
-  });
-});
 
 describe('sweepPlay', () => {
   const seeds = seedNames(2);
@@ -583,8 +565,42 @@ describe('sweepPlay', () => {
       expect(report).toContain('| Games the validator refused | 0 |');
       expect(report).toContain('`seed-0001`: identical');
       expect(report).toContain('| Advance one Turn | under 5 ms |');
-      expect(report).toContain('| Save after 20 years | under 20 MiB |');
       expect(report).toContain(`Node ${process.version}`);
+    });
+
+    // v1.1.6-S2 (DL-186 items 17 and 21): the years label reads the run's years, a run of other than 20
+    // is set against no 20-year target, and the save's targets are the Gate's, measured gzipped.
+    test("reads the save's targets from the Gate's spec, and sets a run of other than 20 years against no 20-year target", () => {
+      const saveTarget =
+        "| Save after 20 years | gzipped, the mean under 20 MiB; uncompressed, the mean at most 150.36 MiB, v1.1.5's 136.69 MiB +10% (`harness/gate.json`) |";
+      expect(report).toContain(`${saveTarget} not comparable: this run played 0.06 years |`);
+      expect(report).toContain('| Harness: 1,000 games of 20 years | under 10 min | not comparable: this run played 0.06 years |');
+      expect(report).toContain('(the 2 games that ran 0.06 years) |');
+      expect(report).not.toContain('ran 20 years');
+
+      const twoYears = playReport({ ...sweep, years: 2 }, context);
+      expect(twoYears).toContain(`${saveTarget} not comparable: this run played 2 years |`);
+      expect(twoYears).toContain('| Harness: 1,000 games of 20 years | under 10 min | not comparable: this run played 2 years |');
+      expect(twoYears).toContain('(the 2 games that ran 2 years) |');
+      expect(playReport({ ...sweep, years: 1 }, context)).toContain('not comparable: this run played 1 year |');
+
+      const twenty = playReport({ ...sweep, years: 20 }, context);
+      expect(twenty).toContain(`${saveTarget} gzipped: mean`);
+      expect(twenty).toMatch(/\| Harness: 1,000 games of 20 years \| under 10 min \| [\d,]+ min \(this run's wall-clock time/);
+      expect(twenty).toContain('(the 2 games that ran 20 years) |');
+      expect(twenty).not.toContain('not comparable');
+    });
+
+    test("names the policy's values it changed from the defaults (v1.1.6-S2), and writes the Gate's lines when checked", () => {
+      expect(report).not.toContain("the policy's defaults changed");
+      expect(playReport(sweep, { ...context, policyChanged: { rosterLimit: 10 } })).toContain(
+        `schema version ${deps.config.schemaVersion} · the policy's defaults changed by \`{"rosterLimit":10}\` · \`createdAt`,
+      );
+      expect(report).not.toContain('## The Gate');
+      const gate = { pass: true, status: 'drafted' as const, lines: [{ line: 'Policy actions the rules refused', verdict: 'pass' as const, measured: '0', limit: 'at most 0', source: 'DL-34' }] };
+      const checked = playReport(sweep, { ...context, gate });
+      expect(checked).toContain('| Policy actions the rules refused | pass | 0 | at most 0 | DL-34 |');
+      expect(checked.indexOf('## The Gate')).toBeLessThan(checked.indexOf('## Counters'));
     });
 
     test("names its milestone and gives M3's counters", () => {

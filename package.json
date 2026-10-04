@@ -23,7 +23,7 @@
     "build": "npm run build -w web",
     "e2e": "npm run e2e -w web",
     "deploy": "npm run deploy -w web",
-    "harness": "node harness/run.mjs",
+    "harness": "tsx harness/src/main.ts",
     "harness:sample": "tsx harness/src/sample.ts",
     "play": "tsx cli/src/main.ts",
     "portraits": "tsx tools/portraits/src/main.ts",

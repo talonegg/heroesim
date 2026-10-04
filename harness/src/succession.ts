@@ -10,8 +10,8 @@
 // its Succession, the night after and at the game's last Turn (Roster, Wealth, Fame and Hall); the
 // Regard held for the Guild through its Guildmaster, which starts neutral with the successor; and the
 // Rival's fold, if any, after the Succession, beside the other Rivals'. `successionReport` writes
-// them as Markdown. M9-F1 builds the option; M9-F6 runs it (`HEROESIM_PROBE=succession npm run
-// harness`, succession.harness.test.ts) and records it in harness/reports/.
+// them as Markdown. M9-F1 builds the option; M9-F6 runs it (`npm run harness -- succession`,
+// succession.harness.test.ts) and records it in harness/reports/.
 
 import {
   compareByCodeUnit,
@@ -29,7 +29,7 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
-import { dealSeeds, runShardJobs } from './children.js';
+import { runShardJobs } from './children.js';
 import { harnessSetup } from './creation.js';
 import { playGame } from './play.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
@@ -42,28 +42,6 @@ export const successionProbeAge = 50;
 export const defaultProbeSeedCount = 50;
 /** Years each probe game lasts at most when `HEROESIM_YEARS` is unset. */
 export const defaultProbeYears = 12;
-
-/**
- * The probes the harness knows, by the name `HEROESIM_PROBE` gives: this one, v1.1.4-S5's chance
- * estimate (estimate.ts) and v1.1.4-S9's calibration (calibrate.ts). `run.mjs` lists them too, so that
- * `npm run harness -- calibrate` names the probe; a test holds the two lists equal.
- */
-export const probeNames = ['succession', 'estimate', 'calibrate'] as const;
-export type ProbeName = (typeof probeNames)[number];
-
-/**
- * The probe `HEROESIM_PROBE` names: `null` when it is unset or blank, so the milestone's runs play;
- * `succession` for this one, `estimate` for the estimate's or `calibrate` for the calibration, whatever
- * its case. Throws on any other name, so a mistyped probe fails the run rather than running the
- * milestone's instead.
- */
-export function probeName(value: string | undefined = process.env.HEROESIM_PROBE): ProbeName | null {
-  const name = (value ?? '').trim().toLowerCase();
-  if (name === '') return null;
-  const known = probeNames.find((probe) => probe === name);
-  if (known === undefined) throw new RangeError(`HEROESIM_PROBE names one of ${probeNames.join(', ')}, not ${JSON.stringify(value)}`);
-  return known;
-}
 
 /** The Rivals of `world`, in id order. */
 function rivalsById(world: Pick<World, 'guilds'>): Guild[] {
@@ -278,9 +256,11 @@ export function probeSeeds(seeds: readonly string[], deps: EngineDeps, options: 
 }
 
 /**
- * `probeSeeds`, with the seeds dealt in turn among `workers` child processes (`shard.ts`), each
- * loading the core content, so `deps.content` must be it; the games come back in seed order and
- * equal the serial run's, since each is seeded.
+ * `probeSeeds`, with each seed played in a child process of its own (`shard.ts`), `workers` at once
+ * and the next starting as one finishes, as the play sweep's are (v1.1.6-S2, DL-186 item 20: dealt in
+ * turn before, a lane of early endings sat idle to the slowest lane's end); each child loads the core
+ * content, so `deps.content` must be it. The games come back in seed order and equal the serial
+ * run's, since each is seeded.
  *
  * @throws Error when a child fails or played with other content: a broken run, not a finding
  */
@@ -290,9 +270,9 @@ export async function probeInParallel(
   options: ProbeOptions & { workers: number },
 ): Promise<ProbeGame[]> {
   const workers = Math.max(1, Math.min(options.workers, seeds.length));
-  const jobs = dealSeeds(seeds, workers).map(
-    (shardSeeds): ShardJob => ({
-      seeds: shardSeeds,
+  const jobs = seeds.map(
+    (seed): ShardJob => ({
+      seeds: [seed],
       config: deps.config,
       years: options.years ?? defaultProbeYears,
       validate: options.validate ?? false,
@@ -300,14 +280,15 @@ export async function probeInParallel(
       probe: { age: options.age ?? successionProbeAge },
     }),
   );
-  const results = await runShardJobs(jobs);
+  const results = await runShardJobs(jobs, workers);
   for (const result of results) {
     if (result.content.id !== deps.content.id || result.content.version !== deps.content.version) {
       throw new Error(`A probe shard loaded content ${result.content.id} ${result.content.version}, not the run's`);
     }
   }
+  // Seed i was job i's one game.
   return seeds.map((seed, index) => {
-    const game = results[index % workers]?.probes?.[Math.floor(index / workers)];
+    const game = results[index]?.probes?.[0];
     if (game?.seed !== seed) throw new Error(`A probe shard returned no game for ${seed}`);
     return game;
   });

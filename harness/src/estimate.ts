@@ -70,20 +70,24 @@ import {
   type World,
 } from '@heroesim/engine';
 import { harnessSetup } from './creation.js';
+import { readGateSpec } from './gate.js';
 import { fixed, markdownTable, whole, type Machine } from './report.js';
 
 /** Samples the probe draws when `HEROESIM_SAMPLES` is unset (the epic's S5: 200 Parties and Quests). */
 export const defaultEstimateSamples = 200;
 /** Seeds each sample is resolved for when `HEROESIM_SEEDS` is unset (the epic's S5: 20,000). */
 export const defaultEstimateRuns = 20_000;
-/** How far, in chance, the estimate may stand from the resolver's rate (the epic's S5: 2 points). */
-export const estimateTolerance = 0.02;
+/**
+ * How far, in chance, the estimate may stand from the resolver's rate (the epic's S5: 2 points), as the
+ * Gate's spec holds it (`harness/gate.json`, v1.1.6-S2).
+ */
+export const estimateTolerance = readGateSpec().estimate.noOneFalls.within;
 /**
  * How far, in chance, the estimate of the whole Quest may stand from the resolver's rate with Morale's
  * consequences left in (v1.1.5-S7, DL-168 item 7: 3 points, the owner's example; DL-173: held on the
- * Quest's chances only, each Encounter's reported).
+ * Quest's chances only, each Encounter's reported), as the Gate's spec holds it.
  */
-export const estimateMoraleTolerance = 0.03;
+export const estimateMoraleTolerance = readGateSpec().estimate.moraleInQuest.within;
 
 /** The probe's two measures: no one falling (`compared`), and with Morale's consequences left in (`moraleIn`). */
 export type Measure = 'compared' | 'moraleIn';

@@ -40,6 +40,12 @@ portrait tool, `npm run portraits -- <command>`, described in
 Traits are added, changed and removed through the content editor, `npm run edit`, a local page with
 commands underneath, described in [`tools/editor/README.md`](tools/editor/README.md) (DL-150).
 
+## Harness
+
+The harness plays games under an automatic policy and reports what they did: `npm run harness`, its
+profiles (`gate`, `neutral`), probes, `compare` and the Gate's spec, `harness/gate.json`, are described
+in [`harness/README.md`](harness/README.md) (DL-186).
+
 ## Deploy
 
 One build of the page, gated, is uploaded to both addresses (INPUTS 7.8; DL-88, DL-92, DL-94):

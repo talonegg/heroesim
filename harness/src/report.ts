@@ -11,8 +11,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Where reports are written: `harness/reports/`. Git ignores it except the report of a
- * milestone's tagged run, which is force-added (`git add -f`, DL-13).
+ * Where reports are written: `harness/reports/`. Git ignores it; a report a DL entry or a release's
+ * Gate cites is committed, its Markdown and its JSON force-added (`git add -f`, DL-13, DL-186 item 28).
  */
 export const reportsDir = fileURLToPath(new URL('../reports/', import.meta.url));
 
@@ -41,6 +41,15 @@ export function reportPath(milestone: string, date: Date, dir: string = reportsD
     throw new RangeError(`A milestone is m<n>, or m<n>-<name>, not ${JSON.stringify(milestone)}`);
   }
   return join(dir, `${milestone}-${localDate(date)}.md`);
+}
+
+/**
+ * Writes a run's summary to the terminal. Straight to stdout, since Vitest holds back a passing test's
+ * console output, so that a run's lines, the Gate's among them, are seen (v1.1.6-S2).
+ */
+export function print(text: string): void {
+  process.stdout.write(`${text}
+`);
 }
 
 /** Writes `markdown` to `path`, making its directory, and returns the path. */

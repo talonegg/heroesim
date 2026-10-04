@@ -3,7 +3,7 @@ import { advance, createProbe, createWorld, defaultConfig, isModuleEvent, probe,
 import { describe, expect, test } from 'vitest';
 import { countGame, effectEventTypes, moduleCounters } from './counters.js';
 import { harnessSetup } from './creation.js';
-import { defaultModuleSeedCount, harnessModules, idsOf, moduleIds, modulesFor } from './modules.js';
+import { harnessModules, idsOf, modulesFor } from './modules.js';
 import { playGame } from './play.js';
 import { runShard } from './shard.js';
 import { seedNames } from './seeds.js';
@@ -15,22 +15,10 @@ const content = loadContent();
 const deps: EngineDeps = { config: { ...defaultConfig }, content };
 const years = 60 / deps.config.turnsPerYear;
 
-describe('HEROESIM_MODULES', () => {
-  test('unset or blank installs no module; a module run plays 50 seeds unless HEROESIM_SEEDS says otherwise', () => {
-    expect(moduleIds(undefined)).toEqual([]);
-    expect(moduleIds('  ')).toEqual([]);
-    expect(defaultModuleSeedCount).toBe(50);
-  });
-
-  test('names modules by id, comma-separated, spaces around each ignored', () => {
-    expect(moduleIds('probe')).toEqual(['probe']);
-    expect(moduleIds(' probe ')).toEqual(['probe']);
+describe("the harness's modules", () => {
+  test('are known by id', () => {
     expect(modulesFor(['probe'])).toEqual([probe]);
     expect(harnessModules).toEqual({ probe });
-  });
-
-  test.each(['random-events', 'probe,probe', 'probe,', 'Probe'])('refuses %j: a mistyped list fails the run', (value) => {
-    expect(() => moduleIds(value)).toThrow(RangeError);
   });
 
   test("idsOf gives a module list's ids, refusing a module that is not the harness's own of its id", () => {

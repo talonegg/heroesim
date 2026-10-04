@@ -83,8 +83,3 @@ export async function runShardJobs(jobs: readonly ShardJob[], concurrency: numbe
     rmSync(dir, { recursive: true, force: true });
   }
 }
-
-/** The seeds dealt in turn among `workers` shards: seed i to shard i mod workers. */
-export function dealSeeds(seeds: readonly string[], workers: number): string[][] {
-  return Array.from({ length: workers }, (_, shard) => seeds.filter((_, index) => index % workers === shard));
-}

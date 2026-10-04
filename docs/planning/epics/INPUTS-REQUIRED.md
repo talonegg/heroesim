@@ -164,9 +164,13 @@ None are needed before M7, and none are read by the engine, ever.
 | Variable | Read by | Needed when | Where it lives |
 | --- | --- | --- | --- |
 | `HEROESIM_HARNESS` | `harness/` Vitest project | Running the harness (M1 on) | Shell, or `npm run harness` sets it |
-| `HEROESIM_SEEDS` | `harness/` | Optional seed count for a harness run: unset, a creation sweep plays 1,000 (M1-S10) and a play sweep 200 (DL-34 item 7) | Shell |
+| `HEROESIM_SEEDS` | `harness/` | Optional count for a harness run, by the run (named apart in `harness/src/settings.ts`, v1.1.6-S2): the worlds a creation sweep creates (1,000, M1-S10), the games a play sweep plays (200, DL-34 item 7; a profile's own), the games of a module run or the Succession probe (50), the seeds each estimate sample is resolved for (20,000) or a calibration's spot-check seeds (4,000) | Shell |
 | `HEROESIM_VALIDATE` | `harness/` | Run the validator after every `advance` in a harness run (M2-S12) | Shell |
 | `HEROESIM_MODULES` | `harness/` | Comma-separated module ids to install for a harness run (M8-S3): the run plays `HEROESIM_SEEDS` seeds (50 by default) with the modules and with none, in place of the creation and play runs (DL-78) | Shell |
+| `HEROESIM_PROFILE`, `HEROESIM_PROBE`, `HEROESIM_MILESTONE`, `HEROESIM_EXPECT` | `harness/` | The run a command names: a profile (`gate`, `neutral`) and its report's name and expected fingerprint, or a probe (`succession`, `estimate`, `calibrate`); set by `npm run harness -- <command>` from its words (v1.1.6-S2, DL-186 items 13 and 30) | Shell, or `npm run harness` sets them |
+| `HEROESIM_YEARS`, `HEROESIM_WORKERS`, `HEROESIM_REPLAY` | `harness/` | Optional: the years each game plays (M9-S2), the child processes at once (v1.1.4-S10), and whether the play sweep replays one seed; each overrides a profile's value | Shell |
+| `HEROESIM_DRAFTS`, `HEROESIM_CONFIG`, `HEROESIM_POLICY` | `harness/` | Optional trials: draft content files, config values and the automatic policy's values played in place of the core's and the defaults (v1.1.4-S9; `HEROESIM_POLICY` v1.1.6-S2) | Shell |
+| `HEROESIM_SAMPLES`, `HEROESIM_PARTIES`, `HEROESIM_TUNE`, `HEROESIM_FLAT`, `HEROESIM_CALIBRATION_OUT` | `harness/` | Optional, the estimate probe's and the calibration's own (v1.1.4-S5, v1.1.4-S9); every harness variable is parsed by `harness/src/settings.ts`, which refuses a bad value and an unknown `HEROESIM_*` name by name | Shell |
 | `HEROESIM_SAVE_DIR` | `cli/` | Optional override of `.saves/` | Shell |
 | `HEROESIM_LIVE_URL` | `web/playwright.live.config.ts` | Optional: one address for `npm run e2e:live -w web` to check, in place of 7.8's two (v1.0.1-S3, DL-94) | Shell |
 | `WRANGLER_OUTPUT_FILE_PATH` | `wrangler` | Set by `web/scripts/deploy.mjs` for each wrangler run, to a file in the system's temporary directory from which it reads the deploy's record (DL-94); never set by hand | The deploy's own process |
