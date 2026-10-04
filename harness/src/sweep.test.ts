@@ -425,6 +425,12 @@ describe('sweepPlay', () => {
       expect(totals).not.toHaveProperty('lastTurn');
     });
 
+    test("counts a game that ended on the sweep's last Turn in its last year, not a year after it", () => {
+      const last = deps.config.turnsPerYear * 2;
+      const ended = sweep.games.map((game) => ({ ...game, counters: { ...game.counters, ending: 'roster-wiped' as const, lastTurn: last } }));
+      expect(sweepTotals({ ...sweep, years: 2, games: ended }, deps.config.turnsPerYear).endedInYear).toEqual([0, 2]);
+    });
+
     test('takes the longest texts as the longest of any game, adding the rest of the Heroes', () => {
       const heroes: HeroTally[] = [
         { generated: 3, pictured: 1, silhouettes: 2, repeats: 0, longestAppearance: 250, longestBiography: 100, blank: 1 },

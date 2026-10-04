@@ -24378,6 +24378,40 @@ no game could move. Line endings: every touched file CRLF in the working tree as
 **Open for the owner.** Nothing to decide. Two readings to look at: the fold refusing what it cannot
 total (item 3), and the starting totals kept written out for their zeros and their order (item 5).
 
+**The verification** (a second Opus agent, at `6faf487`; the 4 × 2 run not played again, its two
+reports read: they differ in the start time and the timings only). What was built is DL-186 items 7 and
+19 as the story asks; nothing changes a total, a report or a game; one test added, nothing else to fix.
+- *The old sums against the fold, field by field.* Every line of the old loop has its counterpart: the
+  plain sums by the fold's numbers, lists and records (each entry the totals lacked began at the same
+  empty tally `zeroOf` gives, as every game's entry is made by `noOffers`, `noPartySize`, `noTransfers`,
+  `noDisposition`, `noPurchases`, `noDifficulty` or `noCensus`, so the keys and their order agree); the
+  `null`s (`improvementGrades`, `improvementGradesByDisposition`, `playerQuestsByDifficulty` and
+  `ByYear`, the Regard, a year with no ranking) adding nothing; the longest texts, the one-hot places,
+  the joined saves and year-starts, `games` and the 1-a-game counts, `endedInYear`'s clamp to the last
+  year. No field of `GameCounters` or of the observations it reads holds a `null` below its top level,
+  so `zeroOf` never meets one. `SweepTotals`' fields and their order are the old ones, so
+  `coreCounters`' order is kept. Checked again independently: the old `sweep.ts` (at `98fd80f`) beside
+  the new in a scratch test, deleted, on three sweeps (three games of 20 Days; the same games with every
+  counter given, partial records, `null`s, endings including one on the last Turn, holes in the
+  Rankings, saves, year-starts, an invalid game; no games): `sweepTotals`' JSON and the whole
+  `playReport` the same, character for character, and the test failing when one `greatest` key was
+  taken out.
+- *Mutated, each put back:* 21 mutations of the fold, `contributionOf`, `zeroOf`, `addInto` and
+  `noGrades`, beyond the builder's 11 (a `null` folded in a list or a record, `joined` not passed down,
+  the Rosters' census, the Rivals' `fameGate`, the Regard's bands, the gzipped and `heroFields` saves,
+  the invalid, stopped and year-10 games, the refusals, the endings, `endedInYear` for a survivor, the
+  zero keeping its number, a list's zero not empty, the report's sums skipped, the shape refusal gone, a
+  year-start's Wealth, the grades' empty lists): 20 each failed one or more tests. One survived:
+  `endedInYear` without its clamp to the sweep's last year, which the old code had too and a game
+  ending on its last Turn reaches. Fixed by a test, "counts a game that ended on the sweep's last Turn
+  in its last year" (`sweep.test.ts`), passing on the code and failing under that mutation.
+- *The rest.* No file under `engine/`, `content/`, `web/` or `cli/` changed. The share formatter's
+  other copies are gone; `module-report.ts`'s `change` (a signed change) and `calibrate.ts`'s and
+  `estimate.ts`'s are other formats. No document but the log and the epic names the old sums. Line
+  endings: the harness files CRLF in the working tree, the log and the epic LF, as before; none mixed
+  (the entry's "every touched file CRLF" means the code). `npm run lint` and `npm run typecheck` clean;
+  `npm test` 185 files and 4,847 tests (4,846 and the one added).
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
