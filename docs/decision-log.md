@@ -24719,6 +24719,45 @@ save the same as its shard recorded: `seed-0001`: identical", "The Gate: PASS" (
 comparable). The run's reports were not kept. No file under `engine/`, `content/`, `web/` or `cli/`
 changed, so no doctor run was due; line endings as before, none mixed.
 
+**The verification** (2026-10-05, opus). Read against item 10 and S3's section, and d296ce2 against
+DL-188's owner's answers: `gate.json` approved with six invariants and the replay, the Bankruptcies at
+most 3 of 50 and the gzipped mean under 30 MiB (`<`, "under"), `traitsPerCareer` and `saveGrowth` gone
+from the file, the type, the shape and `checkGate`, a spec carrying either refused; the docs in step
+(data-model §7, the README, the epic's dated notes, `plan.md`, the epics index). The comparison is
+independent in a parallel sweep: the record is `measureDocument`'s in the child (`recordGame`), the
+replay `playGame` in the parent, with the same years, policy and config as the child's job. It cannot
+pass vacuously: no replay is "not replayed", a fail; the replay's fingerprint is always a SHA-256, so
+an empty record cannot match; a game stopped by the validator is replayed without validation and
+differs; an assertion stops both plays alike; a game that ended is a whole game and is compared as
+one. `bare` skips only writers to `observations` and the maps `recordGame` reads (`observe`,
+`observeHeroes`, `observeSave`, `takeCensus`, `readAdvance`): none touches the document or draws from
+its random state, and the Gate itself sets a bare replay against an observed shard, so a difference
+would fail it, never pass it. `advanceMs` still times `advance` alone, as before (the observers were
+never inside it): the bare option's comment, which said "and the policy", corrected. *Mutations*, each
+restored: `compareReplay`'s `&&` as `||`, its length or its fingerprint dropped, `replayedGame`'s
+fallback dropped, the replay set against its own record, `observe` run when bare, `advanceMs` not
+pushed when bare: each failed a test. Two survived: `takeCensus` run when bare (equivalent: with no
+census taken it fires only at Turn 0) and the replay played not bare, now caught by a new test in
+`sweep.test.ts` (`observe` watched: the sweep observes each of its 60 Turns, the replay none), red
+with the mutation and green without. Three paragraphs rewrapped (the README's Gate, `gate.ts`'s head,
+`sweepPlayInParallel`'s comment). *Checks:* `npm run lint` and `typecheck` clean; `npm test` 4,888
+tests passing (one added); line endings as before, none mixed. Committed as 78b76e1.
+
+*The baseline.* The first full `gate`, alone, `HEROESIM_WORKERS=8 npm run harness -- gate m9-v116-s3
+--expect e7ae1710…`: the fingerprint
+`e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369`, `v1.1.5`-S13's; "One seed replayed
+alone, its last save the same as its shard recorded: `seed-0001`: identical" (144,371,849 characters);
+no refusal, no game stopped or unfinished, every save round-tripping; the player's Bankruptcies 0 of
+50; the save after 20 years gzipped mean 17.95 MiB, max 21.08 MiB (uncompressed mean 136.69 MiB, max
+159.16 MiB); Traits per player Hero career 2.178; "The Gate: PASS". 1,826.0 s in all, the games
+1,682.4 s of it: 157.7 s shorter than `m9-v115-s13`'s 1,983.7 s (games 1,751.7 s). The replay's part
+fell from 232.0 s (two plays) to 143.6 s (one), 88.4 s; the rest is the games, 69.3 s faster on the
+day. `advance` 7.076 ms mean, p99 50.822 ms under 8 processes (7.405, 53.667 at S13); alone, bare,
+4.785 ms mean, p99 49.290 ms (3.716, 37.680 at S13, then not bare): slower alone on the day, so the
+per-Turn time is the machine's, not the bareness's (DL-81 item 2's day-to-day rate). Its Markdown and
+JSON, `harness/reports/m9-v116-s3-2026-10-05.{md,json}`, force-added: v1.1.6's baseline for `compare`
+(S7, S17).
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
