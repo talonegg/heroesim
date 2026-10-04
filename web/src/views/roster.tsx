@@ -15,6 +15,9 @@
 // Table is `roster-table.tsx`'s. One "Sort by" serves both, with a button for its direction, the
 // Table's headings in step with it, ties in the default order. The view, the columns hidden, the
 // phone's tab and the sort are kept in this browser (`remembered.ts`), never in the save.
+//
+// Unique Items (v1.1.5-S14, DL-182 item 4): on a tile, a Unique Item's picture before its name in its
+// chip, and the tile of a Hero who carries one a thin gold glow; in the Table, their row the glow.
 
 import type { HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
@@ -23,7 +26,7 @@ import { orderWords, rosterColumnGroups, rosterSortChoices, rosterView, type Ros
 import { HeroPage } from './hero-page';
 import { Icon } from './icons';
 import { Offers } from './offers';
-import { PortraitThumb } from './pictures';
+import { ItemPicture, PortraitThumb } from './pictures';
 import { Pool } from './pool';
 import { rememberChoice, rememberedChoice, rememberedList, rememberList } from './remembered';
 import { ColumnsPanel, nameId, RosterTable } from './roster-table';
@@ -193,7 +196,7 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
           {shownAs === 'tiles' ? (
             <ul className="cards hero-cards" aria-label="Heroes on the Roster">
               {rows.map((row) => (
-                <li key={row.heroId} className="card hero-card">
+                <li key={row.heroId} className={row.carriesUnique ? 'card hero-card carries-unique' : 'card hero-card'}>
                   <HeroCard row={row} onOpen={() => opened(row.heroId)} />
                 </li>
               ))}
@@ -229,7 +232,9 @@ type RosterGroupColumns = ReturnType<typeof rosterColumnGroups>[number]['columns
 /**
  * A Hero on the Roster: who, their Class, Level and Age, their Morale, and where they are; then each
  * Trait with what it does, and each Item they carry, its effect in its tooltip and the screen
- * reader's words (v1.1.5-S12, DL-169 item 9). No Stat (Q12).
+ * reader's words (v1.1.5-S12, DL-169 item 9). No Stat (Q12). A Unique Item's picture stands before
+ * its name, and a Hero who carries one has their tile glow gold, which says nothing the Items' names
+ * do not (v1.1.5-S14, DL-182 item 4).
  */
 function HeroCard({ row, onOpen }: { row: RosterRow; onOpen: () => void }) {
   return (
@@ -271,7 +276,11 @@ function HeroCard({ row, onOpen }: { row: RosterRow; onOpen: () => void }) {
       {row.items.length === 0 ? null : (
         <p className="hero-card__state hero-card__items">
           {row.items.map((item, index) => (
-            <Chip key={`${item.name}-${index}`} {...(item.effect === '' ? {} : { title: item.effect, spoken: `${item.name}: ${item.effect}` })}>
+            <Chip
+              key={`${item.name}-${index}`}
+              {...(item.unique ? { picture: <ItemPicture definitionKey={item.definitionKey} /> } : {})}
+              {...(item.effect === '' ? {} : { title: item.effect, spoken: `${item.name}: ${item.effect}` })}
+            >
               {item.name}
             </Chip>
           ))}

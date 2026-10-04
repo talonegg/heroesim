@@ -4,6 +4,8 @@
 // with a ▼, by the net change; its tooltip and the screen reader's words give the base and each source.
 // Traits and Items by name, each effect in a tooltip and the screen reader's words. The Table scrolls in
 // its own box. Its headings sort it, the same sort as "Sort by" (`roster.tsx`). Never a Potential.
+// The row of a Hero who carries a Unique Item glows gold, with no picture: its Items cell names the
+// Item (v1.1.5-S14, DL-182 item 4).
 //
 // Which columns show is chosen in the Columns panel on a wide screen, its boxes grouped as Hero and
 // the four areas, All and None for each group, and Reset; Name always shows (DL-169 item 7). On a
@@ -162,7 +164,7 @@ export function RosterTable({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.heroId} data-testid="roster-row">
+            <tr key={row.heroId} data-testid="roster-row" {...(row.carriesUnique ? { className: 'carries-unique' } : {})}>
               <th scope="row">
                 <span className="named">
                   <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />

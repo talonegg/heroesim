@@ -23376,6 +23376,125 @@ comments prepared for the owner.
 
 ---
 
+## DL-183 — v1.1.5-S14 built: Unique Items on the Roster, the Item's picture before its name in its chip on the Tiles, and a thin gold glow round the tile and, in the Table, round the row, with no picture there; a new gold pair at 3:1 in light and dark
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the agents, building S14 as the epic's
+S14 bullets and DL-182 item 4 describe. The readings marked as the agent's are for the owner to change.
+Opus built it, test first; a second Opus agent verifies it.
+
+**Context.** DL-182 item 4, the owner's: "put the item placeholder picture on the rosters tile screen and
+have a thin good aura outline the hero tile. for table view, just have the aura outline and no item
+picture"; the aura a "Thin gold glow". At `545a2d1` a Unique Item's picture stood in the Stores, the
+Market's Sell and a Hero's Gear (DL-125 item 8, DL-129), and the Roster's tiles and Table named every
+Item alike (DL-171).
+
+**What was built.**
+
+1. **The rows** (`web/src/state/selectors.ts`). Each `RosterRow`'s Items are now `RosterItem`s: the name
+   and effect as before, with the Item's `definitionKey` and `unique` (the content's flag, as a Hero's
+   page reads it). The row gains `carriesUnique`, whether any Item the Hero carries is Unique. For
+   display only: no engine, content, save, configuration or browser key changes.
+2. **The Tiles** (`web/src/views/roster.tsx`). A Unique Item's chip shows `ItemPicture` before its
+   name, through a new `picture` part of `Chip` (`ui.tsx`), placed after the icon and before the words.
+   Every Unique Item shows the chest's Silhouette today, none having a picture; one with a picture
+   shows it over the chest, as everywhere. The tile (`li.card.hero-card`) of a Hero who carries any
+   Unique Item gains the class `carries-unique`. A Common Item's chip, and a Hero with none, are as
+   they were.
+3. **The Table** (`web/src/views/roster-table.tsx`). The row (`tr`) of a Hero who carries a Unique Item
+   gains `carries-unique`; no picture is drawn in the Table. Its Items cell keeps the names.
+4. **The glow** (`web/src/styles.css`).
+   - A new pair on `:root`, beside `--focus`: `--gold`, `#a57800` light and `#f0b90b` dark, and its
+     soft glow `--gold-glow`, `rgb(165 120 0 / 40%)` and `rgb(240 185 11 / 35%)`. The dark values sit
+     in `@media (prefers-color-scheme: dark)` with every other token's: the page has no theme of its
+     own to choose (no `data-theme`), so that block is the dark scheme.
+   - *The tile:* its 1px border turns gold and a 1px gold ring is drawn outside it, 2px in all, with a
+     10px soft glow (`box-shadow: 0 0 0 1px var(--gold), 0 0 10px 2px var(--gold-glow)`).
+   - *The row:* drawn inside its cells, as the epic says, never on the `tr`: each cell has 2px inset
+     gold lines at its top and bottom and a soft inset glow along them; the Name (`th`) adds its left
+     side and the last cell its right; Name alone, every other column of a phone's tab hidden, draws
+     all four. Inset shadows take no room, so the Table is not widened, and the pinned Name keeps its
+     own outline as the Table scrolls under it. The glowing row's Name gains 0.5rem of padding on its
+     left, so that the left line does not run under the thumbnail.
+   - *The picture in a chip* is 1.25rem square (`.chip .item-picture`), its gap the chip's own; the
+     Stores' 1.75rem stays where it was.
+5. **Not colour alone.** On the Tiles the chip with the picture names the Unique Item. In the Table the
+   Items cell names it ("The Lantern of Stannary", its effect in its tooltip and the screen reader's
+   words, "The Lantern of Stannary: Perception +3, Wits +2"), as it names every Item, so the glow names
+   nothing the cell does not. What the glow alone adds in the Table is *which* of the named Items is
+   Unique: see the agent's reading 5.
+6. **Words.** None new. The glow is decoration and adds no attribute (no `aria-*`, `title` or `role` on
+   the tile or the row); `ItemPicture` is `aria-hidden`, so the screen reader's words are as they were.
+7. **`CONTEXT.md`'s Unique Item** loses "(to be built, v1.1.5-S14)" and reads as built: the Roster's
+   Tiles show the picture "before its name in its Item's chip", the glow round the tile and the row,
+   no picture in the Table (DL-182, DL-183).
+8. **Unchanged.** A Hero with no Unique Item, and Common Items; the Board, the Unattached pool, the
+   Rival Rosters and a Hero's page; no file under `engine/src/` or `content/`.
+
+**The tests.** Each was seen to fail before its code, but where said.
+- `selectors.test.ts`: a new test, the Lantern of Stannary carried beside an arming sword, another Hero
+  with only the sword, the Barrow King's blade in the Guild's hands: the Items' `definitionKey` and
+  `unique`, and `carriesUnique` true, false and false; S12's Items test gains the two fields.
+- `roster.test.tsx`, a new block of three. On the Tiles, the Mage carrying the Lantern has the class,
+  the picture as the chip's first part, `aria-hidden`, the chest's Silhouette with an empty alt, and
+  the chip's tooltip and screen reader's words as a Common Item's; the Warrior with only an arming
+  sword, and the Heroes with none, neither class nor picture. The glow adds no words: the glowing tile
+  bears no `aria-label`, `aria-describedby`, `title` or `role`, and reads as the same Hero without the
+  Lantern plus the Item's words (a guard: it passed before the code too). In the Table, the row has the
+  class and no picture, the Items cell names the Lantern, the others neither, and on each of the
+  phone's five tabs the same.
+- `pictures.test.tsx`: the Barrow King's blade, which has a picture in that test's catalogue, shows it
+  over the chest on its carrier's tile, the only picture on the Roster (written after the code, not
+  seen red).
+- `styles.test.ts`: `--gold` on `--paper` and `--surface` added to the 3:1 edge pairs in both schemes;
+  a new block: the pair defined in light and dark, differing, neither `--brass`, `--warn` nor
+  `--focus`, its glow beside it in each; every rule that uses `var(--gold…)` or names `carries-unique`
+  scoped to `.hero-card.carries-unique` or `.roster-table tr.carries-unique > th|td`; and the tile's
+  1px ring and glow.
+- `capitals.test.tsx`: `busyGame` gains the Lantern of Stannary carried by the first Hero; the guard
+  reads the Tiles with its glowing tile and picture, and the Table and each phone tab with its glowing
+  row. It passes.
+- `e2e/layout.spec.ts`, a new spec on every project (360 and 390px on the phone, 820 and 1280px), in
+  light and dark, from a save with the Lantern carried (`holdingUniques`): the tile glows, its picture
+  before the name, the other tiles with no picture and no shadow; the gold at 3:1 or more against the
+  first opaque ground on either side of the tile (`glowContrast`, WCAG 1.4.11), and of the Name and the
+  last cell in the Table, on every phone tab; no page overflow and 44px targets; the Table scrolled to
+  its end in its box, Name pinned at its edge with its gold still drawn; a row without the glow drawing
+  no shadow. Screenshots kept in its output.
+- `game.test-support.ts`: `carryingUnique` takes which Hero, by their place on the Roster, the first by
+  default.
+
+*The contrast,* by the tokens: light `#a57800` 3.50:1 on the paper and 3.78:1 on a tile's surface; dark
+`#f0b90b` 10.16:1 and 9.27:1.
+
+**Verification** (the builder's). `npm run lint` and `npm run typecheck` pass; `npm test` passes 185
+files and 4,824 tests (4,818 at the close, 6 added); `npm run e2e -w web` passes 103 specs (100, 3
+added); check-bundle passes, the script 816,035 bytes against 850 kB (814,620 at the close, 1,415
+added); `npm run edit -- traits doctor` reports no drift (110 reads) before and after. No file under
+`engine/src/` or `content/` changed. Each changed file keeps its CRLF endings, none with a bare LF.
+
+**The agent's readings,** for the owner to change.
+1. *Thin* is 2px: on a tile its border turned gold with a 1px ring outside it, in the Table 2px lines
+   inside the row's cells; the glow 10px, at 40% (light) and 35% (dark) of the gold.
+2. *The gold:* `#a57800`, an amber dark enough for 3:1 on the light paper, and `#f0b90b`, a saturated
+   gold beside the dark scheme's paler brass (`#e3bf6f`) and warning (`#f1c374`).
+3. *The glowing row's Name* is padded 0.5rem on its left, so it and its thumbnail sit 0.5rem right of
+   the other rows'. Without it the left line runs under the thumbnail. The other way is to pad every
+   row's Name alike, which moves the rows of Heroes with no Unique Item too.
+4. *The picture in a chip* is 1.25rem, smaller than the Stores' 1.75rem, so that a chip stays a chip.
+5. *In the Table, which Item is Unique* is not said in words, as it was not before S14: the glow says
+   the Hero carries one, and the Items cell names every Item alike. A player who cannot see the gold
+   reads it from the picture on the tile or on the Hero's page; a word or a mark in the cell would be
+   new words, which DL-182 did not ask for.
+
+**For the owner.** Nothing is open; the readings above are the agent's to change.
+
+**Actioned in:** `web/src/state/selectors.ts` (`RosterItem`, `RosterRow.carriesUnique`, `itemsOf`);
+`web/src/views/roster.tsx`; `web/src/views/roster-table.tsx`; `web/src/views/ui.tsx` (`Chip`'s
+`picture`); `web/src/styles.css`; `CONTEXT.md`'s Unique Item; the tests named above;
+`docs/planning/epics/v1.1.5-release.md` (S14's boxes, the status).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

@@ -76,17 +76,21 @@ export const regardTones: Readonly<Record<RegardBand, Tone>> = {
  * A short fact in a rounded frame, with an icon beside its words when it has one. `spoken`, when
  * given, is what a screen reader reads in place of the words shown, as the Board's "Away" is read
  * with its Day (v1.1.5-S11, DL-169 item 2); its `title` is then on the words shown, which the screen
- * reader skips, so that a tooltip saying what `spoken` says is not read twice (v1.1.5-S10).
+ * reader skips, so that a tooltip saying what `spoken` says is not read twice (v1.1.5-S10). `picture`,
+ * when given, stands before the words: a Unique Item's on a Roster tile (v1.1.5-S14), hidden from the
+ * screen reader as it is everywhere.
  */
 export function Chip({
   tone = 'plain',
   icon,
+  picture,
   children,
   title,
   spoken,
 }: {
   tone?: Tone;
   icon?: IconName;
+  picture?: ReactNode;
   children: ReactNode;
   title?: string;
   spoken?: string;
@@ -94,6 +98,7 @@ export function Chip({
   return (
     <span className={`chip chip--${tone}`} title={spoken === undefined ? title : undefined}>
       {icon === undefined ? null : <Icon name={icon} />}
+      {picture}
       {spoken === undefined ? (
         <span>{children}</span>
       ) : (

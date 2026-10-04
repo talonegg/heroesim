@@ -707,6 +707,17 @@ export interface RosterStat {
   words: string | null;
 }
 
+/**
+ * An Item a Hero on the Roster carries: by name, with what it does; and whether it is a Unique Item,
+ * with its content key, so that its picture stands before its name on their tile (v1.1.5-S14, DL-182 item 4).
+ */
+export interface RosterItem {
+  name: string;
+  effect: string;
+  definitionKey: ItemDefinitionKey;
+  unique: boolean;
+}
+
 export interface RosterRow {
   heroId: HeroId;
   name: string;
@@ -725,7 +736,9 @@ export interface RosterRow {
   /** Each Trait the Hero holds, by name, with what it does, as their page gives it (v1.1.5-S12, DL-169 item 9). */
   traits: { name: string; effect: string }[];
   /** Their Items: the Gear they carry, by name, with what it does (DL-169 item 9, the agent's reading). */
-  items: { name: string; effect: string }[];
+  items: RosterItem[];
+  /** Whether they carry any Unique Item: their tile and their row in the Table glow gold (v1.1.5-S14, DL-182 item 4). */
+  carriesUnique: boolean;
   /** The 20 Stats in content's order, for the Table (DL-169 item 8); the tiles show none (Q12). */
   stats: RosterStat[];
 }
@@ -898,11 +911,19 @@ function traitsOf(hero: Hero): { name: string; effect: string }[] {
   return hero.traits.map((key) => ({ name: nameIn(content.heroTraits, key), effect: traitEffectWords(rowOf(content.heroTraits, key)?.effects ?? [], content) }));
 }
 
-/** The Gear a Hero carries in their own slots (`carriedGear` gives only those rows), by name, with its Stat modifiers in words (DL-169 item 9). */
-function itemsOf(hero: Hero, world: World): { name: string; effect: string }[] {
+/**
+ * The Gear a Hero carries in their own slots (`carriedGear` gives only those rows), by name, with its Stat
+ * modifiers in words (DL-169 item 9), and whether each is a Unique Item, with its content key (v1.1.5-S14).
+ */
+function itemsOf(hero: Hero, world: World): RosterItem[] {
   return carriedGear(world, hero.id).map((row) => {
     const definition = itemDefinition(content, row.definitionKey);
-    return { name: nameIn(content.items, row.definitionKey), effect: definition?.kind === 'gear' ? modifierWords(definition) : '' };
+    return {
+      name: nameIn(content.items, row.definitionKey),
+      effect: definition?.kind === 'gear' ? modifierWords(definition) : '',
+      definitionKey: row.definitionKey,
+      unique: definition?.unique === true,
+    };
   });
 }
 
@@ -951,6 +972,7 @@ export function rosterView(document: WorldDocument, order: RosterOrder = default
   const entries = guild.rosterIds.flatMap((heroId) => {
     const hero = rowOf(world.heroes, heroId);
     if (hero === undefined) return [];
+    const items = itemsOf(hero, world);
     const row: RosterRow = {
       heroId,
       name: hero.name,
@@ -964,7 +986,8 @@ export function rosterView(document: WorldDocument, order: RosterOrder = default
       why: unavailability(hero),
       whereabouts: whereabouts(hero, world),
       traits: traitsOf(hero),
-      items: itemsOf(hero, world),
+      items,
+      carriesUnique: items.some((item) => item.unique),
       stats: rosterStats(hero, world),
     };
     return [{ hero, row, free: freeFrom(hero, world) ?? Infinity }];

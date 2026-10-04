@@ -61,6 +61,9 @@ const edgePairs: readonly (readonly [string, string])[] = [
   ['focus', 'paper'],
   ['focus', 'surface'],
   ['accent', 'paper'],
+  // The gold glow of a Roster tile or row whose Hero carries a Unique Item, a part that is not text (v1.1.5-S14).
+  ['gold', 'paper'],
+  ['gold', 'surface'],
 ];
 
 describe('colour contrast, WCAG AA', () => {
@@ -132,5 +135,37 @@ describe("the Roster's Table (v1.1.5-S12, DL-169 item 8)", () => {
     expect(css).not.toMatch(/\n\.change--(up|down) \{/);
     expect(/\n\.roster-table \.change--up \{([^}]*)\}/.exec(css)?.[1]).toContain('color: var(--good);');
     expect(/\n\.roster-table \.change--down \{([^}]*)\}/.exec(css)?.[1]).toContain('color: var(--bad);');
+  });
+});
+
+describe("the Roster's gold glow (v1.1.5-S14, DL-182 item 4)", () => {
+  /** Each rule of the stylesheet, its comments left out: its selectors and its body. */
+  const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/\n([^{}@\n][^{}]*)\{([^}]*)\}/g)].map(([, selectors = '', body = '']) => ({
+    selectors: selectors.split(',').map((each) => each.trim()),
+    body,
+  }));
+
+  test('is a gold pair of its own, defined for the light and the dark scheme, neither brass, a warning nor focus', () => {
+    for (const colours of [light, dark]) {
+      const gold = colours.get('gold');
+      expect(gold).toMatch(/^#[0-9a-f]{6}$/);
+      for (const other of ['brass', 'warn', 'focus']) expect(gold, other).not.toBe(colours.get(other));
+    }
+    expect(darkOwn.get('gold')).not.toBe(light.get('gold'));
+    for (const block of [tokens('/* ── Tokens'), tokens('@media (prefers-color-scheme: dark)')]) expect(block.has('gold')).toBe(true);
+    // Its soft glow, beside it in each scheme.
+    expect(css.match(/--gold-glow: rgb\(\d+ \d+ \d+ \/ \d+%\);/g)).toHaveLength(2);
+  });
+
+  test("is drawn only on the Roster's tiles and the Table's rows, the Table's on its cells", () => {
+    const gilded = rules.filter(({ body, selectors }) => /var\(--gold/.test(body) || selectors.some((each) => each.includes('carries-unique')));
+    expect(gilded.length).toBeGreaterThan(0);
+    for (const { selectors } of gilded) {
+      for (const selector of selectors) expect(selector).toMatch(/^(\.hero-card\.carries-unique|\.roster-table tr\.carries-unique > (th|td)(:[a-z-]+(\(\))?)?)$/);
+    }
+    // A thin outline, 1 to 2px, and a soft glow.
+    const tile = gilded.find(({ selectors }) => selectors.includes('.hero-card.carries-unique'))?.body ?? '';
+    expect(tile).toMatch(/box-shadow:[^;]*0 0 0 1px var\(--gold\)/);
+    expect(tile).toMatch(/var\(--gold-glow\)/);
   });
 });

@@ -898,13 +898,37 @@ describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.
       { name: 'Battle-tried', effect: '+2 to every Check of combat Encounters' },
     ]);
     expect(row?.items).toEqual([
-      { name: 'Arming sword', effect: 'Weaponry +2, Strength +1' },
-      { name: "The Abbot's reliquary", effect: 'Spirit +3, Willpower +2, Resistance +1' },
+      { name: 'Arming sword', effect: 'Weaponry +2, Strength +1', definitionKey: 'arming-sword', unique: false },
+      { name: "The Abbot's reliquary", effect: 'Spirit +3, Willpower +2, Resistance +1', definitionKey: 'abbots-reliquary', unique: true },
     ]);
     // The same words as the Hero's page.
     expect(row?.traits).toEqual(heroPage(document, liv.id)?.traits);
     for (const other of rows.filter((each) => each.heroId !== liv.id)) expect(other.items).toEqual([]);
     expect(JSON.stringify(rows)).not.toMatch(/potential|outlook/i);
+  });
+
+  test('says which Items are Unique, with their content key, and whether the Hero carries one: Common Items alone, or none, carry none (v1.1.5-S14, DL-182 item 4)', () => {
+    const { document, liv, ragnvald } = table();
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
+    createItem(document.world, 'lantern-of-stannary', { kind: 'hero', id: liv.id, slot: 'trinket' });
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: ragnvald.id, slot: 'weapon' });
+    // A Unique Item the Guild holds is no Hero's.
+    createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: player(document).id });
+
+    const rows = rosterView(document);
+    const row = (hero: Hero) => rows.find((each) => each.heroId === hero.id);
+
+    expect(row(liv)?.items.map(({ definitionKey, unique }) => ({ definitionKey, unique }))).toEqual([
+      { definitionKey: 'arming-sword', unique: false },
+      { definitionKey: 'lantern-of-stannary', unique: true },
+    ]);
+    expect(row(liv)?.carriesUnique).toBe(true);
+    expect(row(ragnvald)?.items.map(({ unique }) => unique)).toEqual([false]);
+    expect(row(ragnvald)?.carriesUnique).toBe(false);
+    for (const other of rows.filter((each) => each.heroId !== liv.id && each.heroId !== ragnvald.id)) {
+      expect(other.items).toEqual([]);
+      expect(other.carriesUnique).toBe(false);
+    }
   });
 });
 

@@ -330,6 +330,9 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     const carrier = within(rosterList())
       .getAllByRole('listitem')
       .find((card) => card.textContent?.includes("The Barrow King's blade") === true);
+    // On their tile, the blade's picture over the chest before its name in its chip (v1.1.5-S14), and theirs alone.
+    expect(within(rosterList()).getAllByTestId('item-picture')).toHaveLength(1);
+    expect(layers(within(carrier as HTMLElement).getByTestId('item-picture'))).toEqual([silhouette('items/silhouette.svg'), bladePicture]);
     fireEvent.click(within(carrier as HTMLElement).getByRole('button'));
     const page = within(section('Roster')).getByRole('article');
     const name = within(page).getByRole('heading', { level: 3 }).textContent ?? '';

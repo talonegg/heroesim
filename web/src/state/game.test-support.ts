@@ -130,12 +130,15 @@ export function carrying(state: GameState, definitionKey: ItemDefinitionKey, slo
   });
 }
 
-/** The player's first Hero carrying one unique Item of `definitionKey` in `slot`, as one equipped leaves it (v1.1.2-S2). */
-export function carryingUnique(state: GameState, definitionKey: ItemDefinitionKey, slot: SlotKey): GameState {
+/**
+ * The player's first Hero carrying one unique Item of `definitionKey` in `slot`, as one equipped leaves it
+ * (v1.1.2-S2); or the Hero `at` that place in the order they joined (v1.1.5-S14).
+ */
+export function carryingUnique(state: GameState, definitionKey: ItemDefinitionKey, slot: SlotKey, at = 0): GameState {
   return changed(state, (document, player) => {
-    const [first] = player.rosterIds;
-    if (first === undefined) throw new Error('no Hero on the Roster');
-    createItem(document.world, definitionKey, { kind: 'hero', id: first, slot });
+    const hero = player.rosterIds[at];
+    if (hero === undefined) throw new Error(`no Hero at ${at} on the Roster`);
+    createItem(document.world, definitionKey, { kind: 'hero', id: hero, slot });
   });
 }
 

@@ -1,7 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
-import { carrying, changed, holding, started, withOffer, withPartyOut, withRichRivals, withTraitNews } from '../state/game.test-support';
+import { mediaFiles } from '../media';
+import { carrying, carryingUnique, changed, holding, started, withOffer, withPartyOut, withRichRivals, withTraitNews } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { rosterList, section } from './page.test-support';
 import { help } from './section';
@@ -616,6 +617,100 @@ describe("the Roster's Table (v1.1.5-S12, DL-169 items 7 to 9)", () => {
     expect(within(page).getAllByTitle('Outlook')).toHaveLength(20);
     fireEvent.click(within(page).getByRole('button', { name: 'Back to the Roster' }));
     expect(document.activeElement).toBe(within(rosterTable()).getByRole('button', { name: warrior }));
+  });
+});
+
+describe('Unique Items on the Roster (v1.1.5-S14, DL-182 item 4)', () => {
+  /** `stocked()`'s game with its Mage carrying the Lantern of Stannary, a Unique Item; its Warrior carries only a Common Item. */
+  function lit(): { state: GameState; warrior: string; mage: string } {
+    const { state, warrior, mage } = stocked();
+    return { state: carryingUnique(state, 'lantern-of-stannary', 'trinket', 1), warrior, mage };
+  }
+
+  /** The tile of the Hero named `name`. */
+  function tileOf(name: string): HTMLElement {
+    const found = cards().find((each) => within(each).getByRole('button').textContent === name);
+    if (found === undefined) throw new Error(`no tile for ${name}`);
+    return found;
+  }
+
+  /** The row of the Hero named `name` in the Table. */
+  function rowOf(name: string): HTMLElement {
+    const found = within(rosterTable()).getByRole('rowheader', { name }).closest('tr');
+    if (found === null) throw new Error(`no row for ${name}`);
+    return found;
+  }
+
+  test("on the Tiles, a Hero carrying a Unique Item shows its picture before its name in its chip, the chest's Silhouette, and their tile the gold glow; a Hero with only Common Items, or none, neither", () => {
+    const { state, warrior, mage } = lit();
+    render_(state);
+
+    const tile = tileOf(mage);
+    expect(tile.className).toBe('card hero-card carries-unique');
+    const lantern = chip(tile, 'The Lantern of Stannary');
+    const picture = within(lantern).getByTestId('item-picture');
+    // Before the name: the chip's first part, hidden from the screen reader as everywhere it stands.
+    expect(lantern.firstElementChild).toBe(picture);
+    expect(picture.getAttribute('aria-hidden')).toBe('true');
+    expect([...picture.querySelectorAll('img')].map((img) => [img.dataset.picture, img.getAttribute('alt')])).toEqual([['silhouette', '']]);
+    expect(picture.querySelector('img')?.getAttribute('src')).toBe(mediaFiles['items/silhouette.svg']);
+    // The chip's tooltip and the screen reader's words as a Common Item's are.
+    expect(tooltip(lantern)).toBe('Perception +3, Wits +2');
+    expect(read(lantern)).toBe('The Lantern of Stannary: Perception +3, Wits +2');
+    tooltipsUnread(lantern);
+
+    // A Common Item: no picture, and no glow on its carrier's tile.
+    const common = tileOf(warrior);
+    expect(common.className).toBe('card hero-card');
+    expect(within(chip(common, 'Arming sword')).queryByTestId('item-picture')).toBeNull();
+    // No Item at all: neither.
+    for (const other of cards().filter((each) => each !== tile && each !== common)) {
+      expect(other.className).toBe('card hero-card');
+      expect(within(other).queryByTestId('item-picture')).toBeNull();
+    }
+  });
+
+  test("on the Tiles, the glow adds no words: the screen reader reads a glowing tile as it reads one without (DL-182 item 4)", () => {
+    const { state, mage } = lit();
+    render_(state);
+    const tile = tileOf(mage);
+    for (const name of ['aria-label', 'aria-describedby', 'title', 'role']) expect(tile.hasAttribute(name), name).toBe(false);
+    const glowing = read(tile);
+    cleanup();
+    // The same Hero without the Lantern: no glow, and the same words but the Item's own.
+    render_(stocked().state);
+    expect(glowing).toBe(`${read(tileOf(mage))}The Lantern of Stannary: Perception +3, Wits +2`);
+  });
+
+  test("in the Table, the row of a Hero carrying a Unique Item has the gold glow and no picture, its Items cell naming the Item; the others neither; on a phone's tabs too", () => {
+    const { state, warrior, mage } = lit();
+    render_(state);
+    showAs('Table');
+
+    const row = rowOf(mage);
+    expect(row.className).toBe('carries-unique');
+    expect(row.querySelector('[data-testid="item-picture"]')).toBeNull();
+    // The Items cell names the Unique Item: the glow is never all that says so.
+    expect(within(cellOf(mage, 'items')).getByText('The Lantern of Stannary')).toBeDefined();
+    expect(read(cellOf(mage, 'items'))).toBe('The Lantern of Stannary: Perception +3, Wits +2');
+    for (const name of ['aria-label', 'aria-describedby', 'title', 'role']) expect(row.hasAttribute(name), name).toBe(false);
+    for (const other of tableNames().filter((name) => name !== mage)) expect(rowOf(other).className, other).toBe('');
+    expect(rowOf(warrior).className).toBe('');
+    cleanup();
+
+    const restore = asPhone();
+    try {
+      render_(state);
+      const tabs = within(section('Roster')).getByRole('tablist', { name: 'Columns of the Table' });
+      for (const tab of within(tabs).getAllByRole('tab')) {
+        fireEvent.click(tab);
+        expect(rowOf(mage).className, tab.textContent ?? '').toBe('carries-unique');
+        expect(rowOf(warrior).className, tab.textContent ?? '').toBe('');
+        expect(rosterTable().querySelector('[data-testid="item-picture"]')).toBeNull();
+      }
+    } finally {
+      restore();
+    }
   });
 });
 

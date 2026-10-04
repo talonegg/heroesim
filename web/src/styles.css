@@ -43,6 +43,10 @@
   --warn: #875200;
   --warn-soft: #f8e8c9;
   --focus: #7c2d24;
+  /* Gold, the glow of a Roster tile or row whose Hero carries a Unique Item (v1.1.5-S14): an amber dark
+     enough for 3:1 on the paper, distinct from brass, a warning and focus; and its soft glow. */
+  --gold: #a57800;
+  --gold-glow: rgb(165 120 0 / 40%);
   --shadow: 0 1px 2px rgb(42 34 27 / 8%), 0 8px 24px rgb(42 34 27 / 10%);
   --backdrop: rgb(42 34 27 / 40%);
 
@@ -85,6 +89,8 @@
     --warn: #f1c374;
     --warn-soft: #3b2c11;
     --focus: #e6a896;
+    --gold: #f0b90b;
+    --gold-glow: rgb(240 185 11 / 35%);
     --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 45%);
     --backdrop: rgb(0 0 0 / 60%);
   }
@@ -2703,6 +2709,22 @@ ul.chips {
   margin-top: 0.35rem;
 }
 
+/* A Unique Item's picture before its name in its chip on a tile (v1.1.5-S14): as high as a chip's words. */
+.chip .item-picture {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0;
+}
+
+/* A Hero who carries a Unique Item: a thin gold outline round their tile, 2px with its border, and a
+   soft glow (v1.1.5-S14, DL-182 item 4). Decoration only: the Item's chip names what they carry. */
+.hero-card.carries-unique {
+  border-color: var(--gold);
+  box-shadow:
+    0 0 0 1px var(--gold),
+    0 0 10px 2px var(--gold-glow);
+}
+
 /* The Roster's bar (v1.1.5-S12): Tiles or the Table, "Sort by" and its direction, and Columns. */
 .roster__bar {
   display: flex;
@@ -2805,6 +2827,47 @@ ul.chips {
 
 .roster-table .change--down {
   color: var(--bad);
+}
+
+/* The row of a Hero who carries a Unique Item: the tiles' gold outline, 2px, with a soft glow, drawn
+   inside its cells, so that it shows whole beside the pinned Name and never widens the Table
+   (v1.1.5-S14, DL-182 item 4): each cell its top and bottom, the Name its left, the last its right.
+   The Name gives it room. Decoration only: the Items cell names the Item. */
+.roster-table tr.carries-unique > th,
+.roster-table tr.carries-unique > td {
+  box-shadow:
+    inset 0 2px 0 var(--gold),
+    inset 0 -2px 0 var(--gold),
+    inset 0 10px 10px -10px var(--gold-glow),
+    inset 0 -10px 10px -10px var(--gold-glow);
+}
+
+.roster-table tr.carries-unique > th {
+  padding-left: 0.5rem;
+  box-shadow:
+    inset 2px 0 0 var(--gold),
+    inset 0 2px 0 var(--gold),
+    inset 0 -2px 0 var(--gold),
+    inset 10px 0 10px -10px var(--gold-glow),
+    inset 0 10px 10px -10px var(--gold-glow),
+    inset 0 -10px 10px -10px var(--gold-glow);
+}
+
+.roster-table tr.carries-unique > td:last-child {
+  box-shadow:
+    inset -2px 0 0 var(--gold),
+    inset 0 2px 0 var(--gold),
+    inset 0 -2px 0 var(--gold),
+    inset -10px 0 10px -10px var(--gold-glow),
+    inset 0 10px 10px -10px var(--gold-glow),
+    inset 0 -10px 10px -10px var(--gold-glow);
+}
+
+/* Name alone, every other column of a phone's tab hidden: all four sides on it. */
+.roster-table tr.carries-unique > th:last-child {
+  box-shadow:
+    inset 0 0 0 2px var(--gold),
+    inset 0 0 10px var(--gold-glow);
 }
 
 /* A Trait or an Item whose effect is in its tooltip. */

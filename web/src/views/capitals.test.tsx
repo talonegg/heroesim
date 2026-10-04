@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { content } from '../content';
-import { cameHome, carrying, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withTraitNews, withWorldNews, type Named } from '../state/game.test-support';
+import { cameHome, carrying, carryingUnique, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withTraitNews, withWorldNews, type Named } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { poolView } from '../state/trade-views';
 import { closeMenu, openGuildPart, openMenu, openView, rosterList, section, time, type GuildPartName, type ViewName } from './page.test-support';
@@ -150,8 +150,10 @@ function busyGame(): { state: GameState; gone: Named[] } {
   const signing = poolView(out.document as WorldDocument).rows.find((row) => row.willSign === true);
   if (signing === undefined) throw new Error('no Hero in the pool who signs');
   const recruited = played(out, { kind: 'recruit', heroId: signing.heroId });
-  // v1.1.5-S12: an Item a Hero carries, on their tile and in the Roster's Table.
-  const offered = withOlderRules(withOffer(holding(holdingUnique(carrying(recruited, 'arming-sword', 'weapon'), 'barrow-kings-blade'), 'whetstone', 2)));
+  // v1.1.5-S12: an Item a Hero carries, on their tile and in the Roster's Table; v1.1.5-S14: a Unique Item
+  // carried, its picture on their tile and the gold glow on their tile and their row.
+  const carried = carryingUnique(carrying(recruited, 'arming-sword', 'weapon'), 'lantern-of-stannary', 'trinket');
+  const offered = withOlderRules(withOffer(holding(holdingUnique(carried, 'barrow-kings-blade'), 'whetstone', 2)));
   const { document } = offered;
   if (document === null) throw new Error('no game in hand');
   const offerIds = Object.keys(document.world.offers) as OfferId[];
@@ -188,6 +190,8 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     expect(within(roster).getByRole('table', { name: 'Heroes on the Roster' })).toBeDefined();
     expect(within(roster).getByRole('group', { name: 'Columns' })).toBeDefined();
     expect(within(roster).getByRole('combobox', { name: 'Sort by' })).toBeDefined();
+    // A Hero carrying a Unique Item, their row glowing (v1.1.5-S14).
+    expect(within(roster).getByRole('table', { name: 'Heroes on the Roster' }).querySelector('tr.carries-unique')).not.toBeNull();
     reader.read('The Roster’s Table and its Columns');
     fireEvent.change(within(roster).getByRole('combobox', { name: 'Sort by' }), { target: { value: 'free' } });
     reader.read('The Roster’s Table, by when free');
@@ -213,6 +217,9 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     // The tiles' Traits and Items among what was read.
     expect(within(rosterList()).getAllByTitle('Trait').length).toBeGreaterThan(0);
     expect(within(rosterList()).getByText('Arming sword')).toBeDefined();
+    // And a Unique Item's picture on a glowing tile (v1.1.5-S14).
+    expect(rosterList().querySelector('.carries-unique [data-testid="item-picture"]')).not.toBeNull();
+    expect(within(rosterList()).getByText('The Lantern of Stannary')).toBeDefined();
     // The Offer asked about.
     fireEvent.click(within(section('Transfer Offers')).getByRole('button', { name: /^Accept .*…$/ }));
     reader.read('The Offer');
