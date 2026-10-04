@@ -65,7 +65,7 @@ const contentDir = path.join(repoRoot, 'content');
  * taken `?raw` are read here, and each is parsed, so a file that is not JSON fails the build. What
  * `parseContent` makes of the text is the same either way (`src/content.test.ts`). The content
  * version's file is bundled with its changelog empty (v1.1.6-S4, DL-186 item 14): the changelog is for
- * the people who read the file, some 6 kB the page never shows.
+ * the people who read the file, some 5 kB the page never shows.
  */
 const compactContent: Plugin = {
   name: 'heroesim:compact-content',

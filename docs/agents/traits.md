@@ -4,8 +4,9 @@ How Traits are found, added, changed, removed and used in other content (DL-150 
 v1.1.4-S12 and S13). The content editor, `tools/editor` (its README has every command), makes each
 change to a Trait and to each use of one. The register, `content/src/uses/`, lists every place a
 Trait is used, in content and in the engine; the editor finds a Trait's uses, and adds, takes out and
-changes in place a use (`update`, v1.1.6-S4), through it. The Trait skills drive the editor's commands for a session. The part of this file
-after the guardrails is written from the register; the rest is written by hand.
+changes in place a use (`update`, v1.1.6-S4), through it. The Trait skills drive the editor's
+commands for a session. The part of this file after the guardrails is written from the register; the
+rest is written by hand.
 
 ```sh
 npm run edit                                   # the page, on this machine only

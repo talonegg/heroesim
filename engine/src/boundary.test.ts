@@ -209,9 +209,9 @@ describe("web/'s page, components included", { timeout: 30_000 }, () => {
   test('a component may import the engine and content by name', async () => {
     const code = [
       "import type { ContentSet } from '@heroesim/engine';",
-      "import { contentVersion } from '@heroesim/content';",
+      "import { contentSetId } from '@heroesim/content';",
       'export const Version = (props: { set: ContentSet }) => (',
-      '  <p>{props.set.id} {contentVersion}</p>',
+      '  <p>{contentSetId} {props.set.version}</p>',
       ');',
     ].join('\n');
 

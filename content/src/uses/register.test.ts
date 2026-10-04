@@ -322,6 +322,18 @@ describe('a use changed in place', () => {
     expect(() => entry('biography-sentences').update?.apply(content, sentence, { sentence: other })).toThrow('holds that sentence already');
   });
 
+  // The verification of v1.1.6-S4: a chance is "above 0 and at most 1", as the entry's words say, in
+  // an update and an assignment alike; the content's checks take 0, a consequence that never comes.
+  test.each([0, -0.1, 1.5])('refuses a chance of %s, changed or assigned, naming the bound', (chance) => {
+    const content = shipped();
+    const use = shippedUse(content, 'battle-shy', 'encounter-trait');
+    expect(() => entry('encounter-trait').update?.apply(content, use, { chance })).toThrow(`the chance is ${chance}; it is above 0 and at most 1`);
+    expect(() => entry('encounter-trait').add?.apply(content, 'battle-shy', { encounter: 'hold-the-line', degree: 'failure', chance })).toThrow(
+      `the target's chance is ${chance}; it is above 0 and at most 1`,
+    );
+    expect(Object.keys(entry('encounter-trait').update?.apply(content, use, { chance: 1 }) ?? {})).toEqual(['encounters.json']);
+  });
+
   test('is offered only where a use holds values besides the key', () => {
     expect(contentEntries().flatMap((each) => (each.update === null ? [] : [each.id]))).toEqual(['encounter-trait', 'biography-sentences']);
     expect(Object.keys(entry('encounter-trait').update?.fields ?? {})).toEqual(['chance', 'among']);

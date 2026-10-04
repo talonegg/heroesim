@@ -24843,6 +24843,40 @@ file, so the page carries it, its changelog emptied by the build, rather than th
 compiled in. (3) `update` changes the two kinds of use that hold a value; a use that is a key alone is
 changed as before, by unassigning and assigning.
 
+**The verification** (2026-10-05, opus). Read against item 14 and S4's section, and 2647244 against
+cec4de8. *The changelog:* the comment at cec4de8, word for word against `version.json`'s lines, the
+same words, the only change each `;` between raises made a `.`; no content JSON but `version.json`
+changed. *The version:* 32 from the Node entry, the page (its set held deep-equal to the Node entry's)
+and every reader of `content.version` in the harness, the CLI and the save's `meta.content`; no source
+reads the old export but one lint probe in `engine/src/boundary.test.ts`, which still imported
+`contentVersion` (ESLint does not check a name exists), now `contentSetId`. *The page:* the built
+script 816,878 bytes, its hash unchanged by this verification; `{"version":32,"changelog":[]}` in it
+and none of the write module's words (`could not be put back`, `raiseContentVersion`, `rollback`,
+`keepLines`); `@heroesim/content/write` and a relative path into `content/src/write/` added to
+`web/src/content.ts` each refused by lint, then removed. *The raise:* `traits update` and "Finish" in a
+scratch repository: `encounters.json` and `descriptions.json` one line each, `version.json` its version,
+the last line's comma and `33 from the content editor's Finish of 2026-10-05 (2 uses updated, of
+battle-shy, lame).`; a failed Finish leaves `git status` clean (`cli.test.ts`). *The refusals:* a
+place not there (naming the uses), a value the entry does not change, an entry whose use is the key
+alone, an unknown entry or Trait, no value, a chance `often`, an `among` of `5` or a bad operator, an
+empty sentence, each refused, nothing held. One gap: the entry's words say a chance is "above 0 and
+at most 1", but `chance=0` was held, the content's checks taking 0 to 1, and `assign` took 0 too; the
+register now refuses a chance outside its words in both (`chanceOf`), tested first
+(`register.test.ts` red at 0, -0.1 and 1.5, then green; `cli.test.ts`'s rows for 1.5 and 0 by the
+register, and an `among` of 5 for the content's checks, where 1.5 was). No tool reads or writes a
+TypeScript file by a regular expression: the drift check's `reads.ts` parses `engine/src/` with
+TypeScript's parser and writes nothing. *Mutations*, each restored: the changelog line not added, the
+version a constant in `readContent`, the unchanged update held, `update`'s unknown value let by,
+`among: null` not taken out, a sentence the list holds let in, `transaction`'s named problems
+dropped, `write` taken from the tools' lint pattern, the changelog bundled, the old regular expression
+put back in `runs.ts`: each failed a test. *Words:* the skill's refusal line now names the bound, and
+four lines over 100 columns in the skill and the doc's hand-written head rewrapped; `vite.config.ts`'
+"some 6 kB" now 5 (the changelog is 4,896 bytes). The doctor read no drift before and after.
+*Checks:* `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,929 tests passing (five
+added; one run first failed `guild.test.tsx`'s wait under load, DL-167's flake, passing alone
+and on the rerun); `npm run build` and check-bundle passing (816,878 bytes); `npm run e2e -w web` 103
+passing. No sweep run: nothing played changed. Line endings as before, none mixed.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

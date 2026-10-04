@@ -123,6 +123,17 @@ function named(target: UseTarget, field: string): string {
   return value;
 }
 
+/**
+ * A trait consequence's chance, above 0 and at most 1 as its entry's words say, or a refusal naming
+ * it (`what`: "the chance", "the target's chance"). The content's checks take 0, a consequence that
+ * never comes (the verification of v1.1.6-S4).
+ */
+function chanceOf(value: unknown, what: string): number {
+  if (typeof value !== 'number') throw new UseRefusal(`${what} is wanted: a number`);
+  if (!(value > 0 && value <= 1)) throw new UseRefusal(`${what} is ${value}; it is above 0 and at most 1`);
+  return value;
+}
+
 /** A target's path, a list or a dotted string (`checks.0.score.1`), whose number-like steps are indices. */
 function targetPath(target: UseTarget, field: string): JsonPath {
   const value = target[field];
@@ -327,8 +338,7 @@ const encounterTraitConsequence: ContentEntry = {
       const degree = named(target, 'degree');
       if (degree !== 'triumph' && degree !== 'failure') throw new UseRefusal('the target\'s degree is "triumph" or "failure"');
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: an Encounter grants a Hero Trait`);
-      const chance = target.chance;
-      if (typeof chance !== 'number') throw new UseRefusal("the target's chance is wanted: a number");
+      const chance = chanceOf(target.chance, "the target's chance");
       const root = copyOf(content, 'encounters.json');
       const consequences = objectAt(root, [encounter, 'consequences'], 'encounters.json');
       if (degree === 'triumph' && !Array.isArray(consequences.triumph)) consequences.triumph = structuredClone(Array.isArray(consequences.success) ? consequences.success : []);
@@ -345,10 +355,7 @@ const encounterTraitConsequence: ContentEntry = {
       const root = copyOf(content, 'encounters.json');
       const consequence = objectAt(root, found.path, 'encounters.json');
       if (consequence.kind !== 'trait') throw new UseRefusal(`encounters.json: ${pathText(found.path)} is not a trait consequence`);
-      if (values.chance !== undefined) {
-        if (typeof values.chance !== 'number') throw new UseRefusal('the chance is wanted: a number');
-        consequence.chance = values.chance;
-      }
+      if (values.chance !== undefined) consequence.chance = chanceOf(values.chance, 'the chance');
       if (values.among === null) delete consequence.among;
       else if (values.among !== undefined) consequence.among = values.among;
       return { 'encounters.json': root };

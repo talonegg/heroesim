@@ -62,14 +62,15 @@ entry names (`content/injuries.json`, `encounters.json`, `synergies.json`, `desc
   slots, a capital first, a full stop last, the glossary's terms capitalised.
 
 **Taking a use out, or changing one in place,** needs its entry and its place: `traits uses <key>
---json` gives each use's `entry` and `at`. Each Biography sentence is a use of its own (`…traits.lame.2`). Taking a use out
-of a list moves those after it: take several out of one list from the last, or read `uses` again
-after each.
+--json` gives each use's `entry` and `at`. Each Biography sentence is a use of its own
+(`…traits.lame.2`). Taking a use out of a list moves those after it: take several out of one list
+from the last, or read `uses` again after each.
 
-**Changing a use in place** (`traits update`, v1.1.6-S4) is for a use that holds values besides the
-key: an Encounter's trait consequence (`chance`, `among`; `among` `null` takes it out) and a Biography
-sentence (`sentence`). The doc's "Changing a use" line for each entry names its values; an entry whose
-use is the key alone refuses it, and is changed by unassigning the use and assigning another.
+**Changing a use in place** (`traits update`, v1.1.6-S4) is for a use that holds values besides
+the key: an Encounter's trait consequence (`chance`, `among`; `among` `null` takes it out) and a
+Biography sentence (`sentence`). The doc's "Changing a use" line for each entry names its values; an
+entry whose use is the key alone refuses it, and is changed by unassigning the use and assigning
+another.
 
 Done when: each use to add has its entry and every target field the doc marks as wanted, each use to
 take out has its entry and `at`, and each use to change has its entry, `at` and the values to give.
@@ -98,8 +99,9 @@ passed with `--target @<file>`, so no shell strips its quotes.
 - **`update`, exit 0.** `at` names the use changed; `uses` lists every use now. `"unchanged": true`
   means the use holds those values already, and nothing is held.
 - **`update`, exit 1, `refused`.** A place where the Trait has no use names its uses: take the `at`
-  from them. A value the entry does not change, an entry whose use is the key alone, a chance the
-  content's checks refuse (above 1, say): fix what each problem names and run it again.
+  from them. A value the entry does not change, an entry whose use is the key alone, a chance not
+  above 0 and at most 1, an `among` the content's checks refuse: fix what each problem names and run
+  it again.
 
 Done when: `traits pending --json` lists an edit for each use asked for, and `traits uses <key>` shows
 each added or gone; each use changed is an `update` edit there, with its values.
@@ -129,5 +131,6 @@ Done when: `finish` exits 0, and the doctor after it reports `"ok": true` with n
 
 ## 5. Tell the owner
 
-Give each use added, taken out or changed with its `at` (and a change's values), the files `changed`, the content version's change,
-the tests' result, and that `git diff` shows the rest, for the owner to review and commit.
+Give each use added, taken out or changed with its `at` (and a change's values), the files
+`changed`, the content version's change, the tests' result, and that `git diff` shows the rest, for
+the owner to review and commit.

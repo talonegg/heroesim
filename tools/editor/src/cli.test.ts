@@ -604,7 +604,9 @@ describe('update', () => {
   test.each([
     ['a use whose entry holds the key alone', ['lame', 'injury-leaves-trait', 'shattered-knee.leavesTrait', 'leavesTrait=scarred'], 'the register says of injury-leaves-trait that a use there is the key alone: unassign it and assign another'],
     ['a value its entry does not change', ['battle-shy', 'encounter-trait', '@', 'odds=0.1'], "odds: not a value of encounter-trait's use, which takes chance, among"],
-    ['a chance the content checks refuse', ['battle-shy', 'encounter-trait', '@', 'chance=1.5'], 'chance is 1.5; it is a probability from 0 to 1'],
+    ['a chance beyond its bound, by the register', ['battle-shy', 'encounter-trait', '@', 'chance=1.5'], 'the chance is 1.5; it is above 0 and at most 1'],
+    ['a chance of 0, which the content checks take', ['battle-shy', 'encounter-trait', '@', 'chance=0'], 'the chance is 0; it is above 0 and at most 1'],
+    ['an among the content checks refuse', ['battle-shy', 'encounter-trait', '@', 'among=5'], 'among is 5; a number stands for a Val or a Num, not a Set'],
     ['a value of the wrong type, by the register', ['battle-shy', 'encounter-trait', '@', 'chance=often'], 'the chance is wanted: a number'],
     ['a Trait there is not', ['brave', 'encounter-trait', '@', 'chance=0.1'], '"brave" is not a key of Traits'],
   ])('refuses %s, naming why, and holds nothing', async (_name, args, problem) => {
