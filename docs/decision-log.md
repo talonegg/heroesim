@@ -20594,6 +20594,8 @@ sessions are the agent's, in `docs/planning/epics/v1.1.5-release.md`, for the ow
    - DL-166's trials earned 1.6 to 1.9 a career at 0.05, under v1.1.4's policy; v1.1.5 measures it
      under its own.
    - This supersedes DL-166 item 6's 0.02.
+   - *The aim superseded* by the owner's steer of 2026-10-04 (DL-179): S5's sweep measured 2.32
+     Traits earned a player's Hero career at 0.05, which becomes the baseline in place of "about 1.5".
 5. **A negative earned Trait lands on the Failure Degree only** (Q5), as E1 built it (DL-167). Only
    the words change:
    - `CONTEXT.md`'s Earned Trait spells out that it reads the Degree Failure, not "failed" as a reroll
@@ -22442,6 +22444,149 @@ rounding is corrected in the table above (the Rivals' succeeded share +0.10 poin
 - *Checks.* `npm run edit -- traits doctor` before and after: no drift (110 reads), the doc fresh, the
   content passing, no pending edits. `npm run lint` and `npm run typecheck` pass; `npm test` 4,814
   passed in 185 files (S4's 4,813 and the tie test).
+
+---
+
+## DL-179 — v1.1.5-S5 built: the four positive earned Traits at 0.05 through the content editor's Finish, content 32; its sweep against S4's, 2.32 Traits earned a player's Hero career, the new baseline by the owner's steer; fewer failures and Injuries, 12 of 50 bankrupt
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the owner (DL-168 item 4, the chance;
+the steer below, the aim), built by the agent as the epic's S5 describes. The readings marked as the
+agent's are for the owner to change.
+
+**Context.** DL-168 item 4 put the four positive earned Traits back to a chance of 0.05, superseding
+DL-166 item 6's 0.02, and set the aim at about 1.5 Traits earned a Hero career; the epic read it as
+1.25 to 1.75, and S5 was to stop and report outside it. S4 (DL-178) is the sweep this one is read
+against: nothing that plays has changed since it but this. At 0.02, S4 measured 1.571 a career.
+
+**The owner's steer** (2026-10-04), relayed by the orchestrator before the sweep: *"for S5, keep
+traits at 0.05 and update baseline for traits per career"*. So the chances stay at 0.05 whatever the
+sweep measures, the stop rule is not applied, and the measured figure becomes the aim and baseline
+in place of DL-168 item 4's "about 1.5" (and the epic's 1.25 to 1.75 reading), which it supersedes.
+
+**Decision: what was built.**
+1. *The four uses at 0.05,* through the content editor only, as the `trait-assign` skill does it
+   (DL-166 item 6's way). Each use is the last of its Encounter's `triumph` list and has no `among`,
+   and taking it out leaves the `triumph` list unlike the `success` list, so `traits unassign` and
+   `traits assign … degree=triumph chance=0.05` put each back in its place:
+   - `battle-tried`: `encounters.json: the-last-assault.consequences.triumph.1`;
+   - `wayfinder`: `lost-in-the-fells.consequences.triumph.1`;
+   - `silver-tongued`: `the-patrons-steward.consequences.triumph.1`;
+   - `lettered`: `the-wardens-seal.consequences.triumph.1`.
+
+   Eight pending edits, then "Finish": `changed` `encounters.json`, the content version 31 → 32
+   (`parse.ts`'s comment and `content.test.ts`'s version written by the editor), its `npm test` 4,814
+   passed in 185 files. `git diff` of `encounters.json` is the four `chance` values only.
+   `battle-shy` and `haunted` stay 0.08. No Trait added or removed; the register unchanged.
+2. *For Traits.* Four uses changed through "Finish", content 32. The doctor before and after: no
+   drift (110 reads), the doc fresh, the content passing, no pending edits. No engine or check
+   changed.
+
+**The sweep.** Run alone (no other process of ours; the owner's Playwright test-server left
+running), after lint, typecheck and test passed: `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50
+HEROESIM_YEARS=20 HEROESIM_REPLAY=0 HEROESIM_MILESTONE=m9-v115-s5 npm run harness -- play.harness`,
+core only, content 32, config 13, schema 6, not validated, the replay skipped (DL-169 item 16).
+1,214.3 s, the games 1,213.9 s of it; the test passed. The report,
+`harness/reports/m9-v115-s5-2026-10-04.md`, is force-added. 50 of 50 saves load and serialise back
+alike; no policy action refused, no harness assertion broken. The fingerprint of every seed's last
+save is new, `37fabc967f85186e…eca6004fb18cff9d` (S4's `0a79ddd3…`).
+
+**The change's effect alone, against S4's** (`m9-v115-s4-2026-10-04.md`; nothing else that plays
+changed between them):
+
+| | S5 (0.05) | S4 (0.02) | Change |
+| --- | ---: | ---: | ---: |
+| Player bankrupt | 12 of 50 (24%) | 13 of 50 (26%) | −1 |
+| … by year (year 0 first) | 10: 1, 12: 2, 14: 3, 15: 1, 16: 2, 17: 1, 18: 1, 19: 1 | 11: 1, 12: 1, 13: 1, 14: 1, 15: 1, 17: 1, 18: 2, 19: 5 | earlier: mean year 14.75 (16.38) |
+| … in the first two years | 0 | 0 | 0 |
+| Years survived, mean (min) | 18.87 (10.94) | 19.23 (11.89) | −0.36 |
+| Player's Quests resolved | 374,495 | 381,943 | −1.95% |
+| … a player Guild-year | 396.9 (943.6 Guild-years) | 397.2 (961.5) | level |
+| Player failed / succeeded / strong | 5.14% / 18.41% / 76.46% | 5.81% / 19.56% / 74.63% | −0.68 / −1.15 / +1.83 points |
+| Rivals failed / succeeded / strong | 11.75% / 29.55% / 58.70% | 12.48% / 30.88% / 56.65% | −0.73 / −1.33 / +2.06 points |
+| Player Injuries a game | 54.42 (2,721) | 63.14 (3,157) | −436, −13.8% |
+| Player Deaths a game | 3.24 (162) | 3.62 (181) | −19, −10.5% |
+| Rivals' Injuries, Deaths a game | 289.80, 16.96 | 306.38, 18.20 | −5.4%, −6.8% |
+| **Traits earned a career, the player's** | **2.322 (1,407 / 606)** | 1.571 (985 / 627) | **+0.751** |
+| … the four positive alone | 2.297 (1,392) | 1.545 (969) | +0.752 |
+| Traits earned a career, the Rivals' | 1.131 (3,920 / 3,466) | 0.572 (1,970 / 3,443) | +0.559 |
+| Player recruits a game | 8.12 | 8.54 | −21 in all |
+| Rival folds a game | 5.44 (272) | 5.48 (274) | −2 |
+| Upkeep, Quest rewards a player Guild-year | 56,166.8; 64,003.0 | 56,024.9; 63,314.2 | +0.25%, +1.09% |
+| Player's Wealth after 10 and 20 years | 108,386; 98,847 | 104,456; 91,364 | +3.8%, +8.2% |
+| Mean Level of the player's Roster after 10 years | 10.35 | 10.31 | +0.04 |
+| The player's mean Party | 1.57 | 1.57 | level |
+| `advance` a Turn, mean / p99 | 4.806 / 24.876 ms | 4.703 / 24.414 ms | +2.2% |
+| The games | 1,213.9 s | 1,203.4 s | +0.9% |
+
+Each Trait's count (`hero.trait-gained`, by the Guild the Hero was on):
+
+| Trait | Chance | Player's S5 | S4 | Change | Rivals' S5 | S4 | Change |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `wayfinder` | 0.05 (0.02) | 472 | 430 | +10% | 1,896 | 1,094 | +73% |
+| `battle-tried` | 0.05 (0.02) | 356 | 235 | +51% | 798 | 333 | +140% |
+| `silver-tongued` | 0.05 (0.02) | 331 | 198 | +67% | 666 | 294 | +127% |
+| `lettered` | 0.05 (0.02) | 233 | 106 | +120% | 448 | 137 | +227% |
+| `battle-shy` | 0.08 | 11 | 13 | −2 | 87 | 79 | +8 |
+| `haunted` | 0.08 | 4 | 3 | +1 | 25 | 33 | −8 |
+| The Injury Traits (`lame`, `one-eyed`, `scarred`, `short-winded`) | — | 0 | 0 | 0 | 0 | 0 | 0 |
+| All | | 1,407 | 985 | +43% | 3,920 | 1,970 | +99% |
+
+**The new baseline** (the owner's steer): **2.32 Traits earned a player's Hero career** (2.322, the
+four positive 2.297 of it), the Rivals' 1.13, measured on content 32 under v1.1.5's player at S5's
+commit. The Gate's "Rare Traits", S5's aim and §4's risk now read it; the close's sweep, expected to
+equal S5's by fingerprint (nothing after S5 changes play but the review's fixes), is read against it.
+
+**The agent's readings.**
+1. *The Traits rise less than the chance.* The chance rose 2.5 times; the player's positive Traits
+   1.44 times, the Rivals' 2.05 times. Each is earned once a Hero (never one held, `mayEarn`), at
+   most one a Quest, and only on a Triumph of its one Encounter. The player's Heroes see about 970
+   Quests a career (374,495 Quests × 1.57 Heroes / 606), so at 0.02 the commonest was already near
+   its ceiling: `wayfinder` reached 430 of 627 careers at S4 and 472 of 606 now (78%), and rose 10%;
+   the rarest, `lettered`, more than doubled. The Rivals' Heroes see
+   about 360 Quests a career (727,328 × 1.72 / 3,466), further from the ceiling, so theirs roughly
+   double. The player's figure is bounded by four positive Traits and the negatives; at 2.30 of 4
+   it is past half of it.
+2. *Why above DL-168's 1.5.* DL-166's trials earned 1.6 to 1.9 at 0.05 under v1.1.4's player. The
+   new player (S2, DL-177) succeeds strongly on 74.6% of its Quests where v1.1.4's did on 57.1%, and
+   plays about 18.5% more of them, so it meets the Triumphs a positive Trait needs far more often:
+   at 0.02 it already earned 1.578 a career at S3 against v1.1.4's close's 1.117. So 0.05 lands above
+   both DL-166's trials and the epic's 1.25 to 1.75, as DL-178 item 3 and §4's risk expected. By the
+   owner's steer this is not a stop: the chance stays, and 2.32 is the baseline.
+3. *The play moves are the change's.* Against S3 → S4, where the games diverged after a few changed
+   draws, the player's failed and strong shares moved by under 0.01 points and the Rivals' by under
+   0.2; here they move by 0.7 to 2 points for both, in the direction the Traits push: each positive
+   Trait adds +2 to every Check of its kind's Encounters (`battle-tried` combat, `wayfinder` travel,
+   for the whole Party) or +1 to two Stats (`silver-tongued`, `lettered`). Fewer failures bring fewer
+   Injuries (−13.8%, against S3 → S4's −1.1%) and the Rivals' too (−5.4%). Deaths fall 19 (−10.5%),
+   about one standard deviation of the difference of two such counts (√(181 + 162) ≈ 18.5), in the
+   same direction: perhaps the change's in part, not separable from noise alone. Quest rewards a Guild-year rise 1.1% (more Triumphs), Upkeep
+   is level, and the Wealth after 10 and 20 years is higher.
+4. *The Bankruptcies are within the noise; their timing is a reading only.* 12 against 13, inside
+   fifty seeds' ±3 (DL-166). They fall earlier (mean year 14.75 against 16.38; years survived −0.36,
+   the shortest game 10.94 years), where S3 → S4 kept the years nearly identical, so whether a seed
+   goes bankrupt and when is mostly the seed's. The counters do not say which games moved, nor why an
+   average Guild that is richer (+3.8% after 10 years) has some ending sooner; with 12 and 13 games,
+   the agent reads it as noise in which games cross the wage, not the Traits, for the close to watch.
+   The rule for what follows (DL-168 item 16): 12 of 50, 24%, outside 5 to 15%, as at S3 and S4.
+5. *Time.* `advance` +2.2% and the games +0.9%: within a sweep's run-to-run spread.
+
+**Checks.** `npm run edit -- traits doctor` before and after: no drift (110 reads), the doc fresh, the
+content passing, no pending edits. The editor's Finish ran `npm test`: 4,814 passed in 185 files. Then
+`npm run lint` and `npm run typecheck` pass, and `npm test` again 4,814 passed in 185 files, all before
+the sweep, nothing running beside it. `encounters.json`, `parse.ts` and `content.test.ts` keep their
+endings (LF in the index, CRLF in the working tree).
+
+**For the owner.**
+1. *The new baseline* is 2.32 Traits earned a player's Hero career (the Rivals' 1.13), by your steer;
+   the Gate, S5's aim and §4's risk say so. DL-168 item 4's "about 1.5" stands superseded.
+2. *A reading only:* at 0.05 the player's commonest positive Trait, `wayfinder`, is held by about 78%
+   of its Heroes' careers, so "rare" now describes the Rivals' Traits (1.13) more than the player's.
+   Any further change to the chances is yours, through the editor.
+
+**Actioned in:** `content/encounters.json`, `content/src/parse.ts`, `content/src/content.test.ts` (all
+by the editor's Finish); `harness/reports/m9-v115-s5-2026-10-04.md` (force-added); the epic's
+objective, Gate "Rare Traits", status, S5's aim and boxes, §4's Traits risk; DL-168 item 4's pointer to
+this entry.
 
 ---
 
