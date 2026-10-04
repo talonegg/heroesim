@@ -755,6 +755,21 @@ describe('rosterView', () => {
     expect(second).toMatchObject({ morale: 80, moraleBand: 'high', why: 'in-party', whereabouts: 'Away with a Party, back on the night of Day 4' });
     expect(third).toMatchObject({ morale: 50, moraleBand: 'steady', why: null, whereabouts: 'At the Hall' });
   });
+
+  test('a Hero whose Party is not in the world is Away with a Party, as the builder says, and sorts last by when free (S10, the close review)', () => {
+    const document = structuredClone(newGame());
+    const [lost] = heroes(document);
+    if (lost === undefined) throw new Error('no Hero');
+    lost.partyId = 'party-000777' as PartyId;
+
+    const row = rosterView(document).find((each) => each.heroId === lost.id);
+    const quest = document.world.board[0] as QuestId;
+
+    expect(row).toMatchObject({ why: 'in-party', whereabouts: 'Away with a Party' });
+    expect(partyRows(document, quest)?.find((each) => each.heroId === lost.id)?.unavailable).toBe(row?.whereabouts);
+    expect(heroPage(document, lost.id)?.where).toEqual({ why: 'in-party', words: 'Away with a Party' });
+    expect(rosterView(document, { key: 'free', direction: 'ascending' }).at(-1)?.heroId).toBe(lost.id);
+  });
 });
 
 describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.1.5-S12, DL-169 items 8 and 9)", () => {

@@ -91,9 +91,10 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
     setOrder(next);
     rememberChoice(rosterOrderKey, keptOrder(next));
   };
+  /** The sort in force, the other way. */
+  const reversed = (): RosterOrder => ({ key: order.key, direction: order.direction === 'ascending' ? 'descending' : 'ascending' });
   /** A heading's sort in its first direction, or the other way when it is the sort in force. */
-  const sortByHeading = (key: RosterSortKey): void =>
-    sortBy(order.key === key ? { key, direction: order.direction === 'ascending' ? 'descending' : 'ascending' } : { key, direction: firstDirection(key) });
+  const sortByHeading = (key: RosterSortKey): void => sortBy(order.key === key ? reversed() : { key, direction: firstDirection(key) });
   const opened = (heroId: HeroId): void => {
     back.opened(nameId(heroId));
     setOpen(heroId);
@@ -176,7 +177,7 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
                 className="roster__direction"
                 data-testid="roster-direction"
                 title="Reverse the order"
-                onClick={() => sortBy({ key: order.key, direction: order.direction === 'ascending' ? 'descending' : 'ascending' })}
+                onClick={() => sortBy(reversed())}
               >
                 <Icon name={order.direction === 'ascending' ? 'up' : 'down'} />
                 <span>{orderWords(order.key, order.direction)}</span>

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { availableParallelism } from 'node:os';
 import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand } from '@heroesim/engine';
+import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import {
   controllerKinds,
@@ -62,6 +62,23 @@ describe('sweepPlay', () => {
   test('plays the first seed twice more and finds the two byte-identical', () => {
     expect(sweep.workers).toBe(1);
     expect(sweep.replay).toMatchObject({ seed: 'seed-0001', identical: true, advance: { count: 60 } });
+  });
+
+  // S10, the close review: nothing held that the replay finds two saves that differ. The replay's second
+  // game (`prepare`'s third call: the sweep's game, then the replay's two) is given its player's Guild a
+  // name one letter different, of the same length, so that only the saves' contents tell the two apart.
+  test('finds the replay not identical when its second game differs by one character of the save', () => {
+    let calls = 0;
+    const prepare = (document: WorldDocument): void => {
+      calls += 1;
+      if (calls !== 3) return;
+      const guild = Object.values(document.world.guilds).find((each) => each.controller.kind === 'player');
+      if (guild === undefined) throw new Error("no player's Guild");
+      guild.name = `${guild.name.slice(0, -1)}${guild.name.endsWith('x') ? 'y' : 'x'}`;
+    };
+    const changed = sweepPlay(['seed-0001'], deps, { years, prepare });
+    expect(calls).toBe(3);
+    expect(changed.replay).toMatchObject({ seed: 'seed-0001', identical: false, length: changed.games[0]?.measures.serialisedLength });
   });
 
   test('plays the same games when it shares the seeds among child processes', { timeout: 120_000 }, async () => {

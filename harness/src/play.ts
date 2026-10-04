@@ -416,8 +416,11 @@ function saveAndLoad(
   return { length: text.length, fingerprint: fingerprintOf(text), gzipped, serialiseMs, deserialiseMs, loaded };
 }
 
-/** SHA-256 of a save's text, in hex. */
-function fingerprintOf(text: string): string {
+/**
+ * SHA-256 of a save's text, in hex: `DocumentMeasures.fingerprint`'s, and the replay's (`sweep.ts`),
+ * which compares two games by it so as not to hold the first game's text (v1.1.5-S10, DL-181).
+ */
+export function fingerprintOf(text: string): string {
   return createHash('sha256').update(text).digest('hex');
 }
 

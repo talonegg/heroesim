@@ -10,7 +10,7 @@
 // phone, five tabs show one group at a time, the columns hidden on a wide screen hidden in each.
 
 import type { HeroId } from '@heroesim/engine';
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import type { RosterColumn, RosterColumnGroup, RosterOrder, RosterRow, RosterSortKey, SortDirection } from '../state/selectors';
 import { PortraitThumb } from './pictures';
 import { Chip, moraleTones, SortHeader, VisuallyHidden } from './ui';
@@ -23,16 +23,30 @@ export function nameId(heroId: HeroId): string {
 /** The marks after a raised and a lowered Stat, and the words a screen reader reads in their place. */
 const marks = { up: ['▲', 'raised'], down: ['▼', 'lowered'] } as const;
 
+/**
+ * Words shown with a tooltip, and the same said with more for the screen reader: the tooltip on the
+ * shown part, which the screen reader skips, so that it is the mouse's alone and nothing is read twice
+ * (v1.1.5-S10, the close review). `title` null: the words alone.
+ */
+function Tipped({ shown, title, said, className }: { shown: ReactNode; title: string | null; said: string; className?: string }) {
+  if (title === null) return <>{shown}</>;
+  return (
+    <>
+      <span aria-hidden="true" title={title} {...(className === undefined ? {} : { className })}>
+        {shown}
+      </span>
+      <VisuallyHidden>{said}</VisuallyHidden>
+    </>
+  );
+}
+
 /** Things by name, each effect in its tooltip and the screen reader's words; `None` for none. */
 function Named({ things }: { things: readonly { name: string; effect: string }[] }) {
   if (things.length === 0) return <span className="subtle">None</span>;
   return things.map((thing, index) => (
     <Fragment key={`${thing.name}-${index}`}>
       {index === 0 ? null : ', '}
-      <span className="named-thing" title={thing.effect === '' ? undefined : thing.effect}>
-        {thing.name}
-        {thing.effect === '' ? null : <VisuallyHidden>: {thing.effect}</VisuallyHidden>}
-      </span>
+      <Tipped shown={thing.name} title={thing.effect === '' ? null : thing.effect} said={`${thing.name}: ${thing.effect}`} className="named-thing" />
     </Fragment>
   ));
 }
@@ -85,21 +99,15 @@ function Cell({ row, column }: { row: RosterRow; column: RosterColumn }) {
       if (stat === undefined) return <td data-column={column.key} className="number" />;
       if (stat.change === null) {
         return (
-          <td data-column={column.key} className="number" title={stat.words ?? undefined}>
-            {stat.value}
-            {stat.words === null ? null : <VisuallyHidden>, {stat.words}</VisuallyHidden>}
+          <td data-column={column.key} className="number">
+            <Tipped shown={stat.value} title={stat.words} said={`${stat.value}, ${stat.words ?? ''}`} />
           </td>
         );
       }
       const [mark, said] = marks[stat.change];
       return (
-        <td data-column={column.key} className={`number change change--${stat.change}`} title={stat.words ?? undefined}>
-          <span aria-hidden="true">
-            {stat.value} {mark}
-          </span>
-          <VisuallyHidden>
-            {stat.value}, {said}: {stat.words}
-          </VisuallyHidden>
+        <td data-column={column.key} className={`number change change--${stat.change}`}>
+          <Tipped shown={`${stat.value} ${mark}`} title={stat.words ?? ''} said={`${stat.value}, ${said}: ${stat.words ?? ''}`} />
         </td>
       );
     }

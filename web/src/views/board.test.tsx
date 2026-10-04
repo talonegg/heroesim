@@ -5,6 +5,7 @@ import { App } from '../app';
 import { changed, estimateOf, holding, started } from '../state/game.test-support';
 import { chanceWords, shownPercent } from '../state/query-words';
 import type { GameState } from '../state/reducer';
+import { defaultHeroOrder } from '../state/selectors';
 import { Icon } from './icons';
 import { inHistory, navButton, openView, section } from './page.test-support';
 
@@ -98,13 +99,19 @@ function namesIn(form: HTMLElement): string[] {
   return rows(form).map((row) => row.querySelector('.party-row__name')?.textContent ?? '');
 }
 
-/** A row's warn chip: what it shows, its tooltip, and the words a screen reader reads. */
+/**
+ * A row's warn chip: what it shows, its tooltip, and the words a screen reader reads. The tooltip is
+ * read from the shown part, hidden from the screen reader, so that its words are not read twice (S10,
+ * the close review's W3): a tooltip anywhere else in the chip is none.
+ */
 function chipOf(row: HTMLElement): { shown: string; title: string; spoken: string } {
   const chip = row.querySelector('.chip--warn') as HTMLElement | null;
   if (chip === null) throw new Error('no chip');
   const shown = [...chip.querySelectorAll('[aria-hidden="true"]')].map((each) => each.textContent).join('');
   const spoken = [...chip.querySelectorAll('.visually-hidden')].map((each) => each.textContent).join('');
-  return { shown, title: chip.title, spoken };
+  const titled = [chip, ...chip.querySelectorAll<HTMLElement>('[title]')].filter((each) => each.hasAttribute('title'));
+  const title = titled.length === 1 && titled[0]?.closest('[aria-hidden="true"]') !== null ? (titled[0]?.title ?? '') : '';
+  return { shown, title, spoken };
 }
 
 describe('a Quest card', () => {
@@ -369,10 +376,22 @@ describe('the Party builder', () => {
   });
 
   test('lists those who can go first, in the default order, then the Away and the Injured, the soonest free first (v1.1.5-S11, DL-169 items 4 and 5)', () => {
-    const classes = ['Warrior', 'Rogue', 'Mage', 'Healer'];
     let expected: string[] = [];
     let chips: string[] = [];
+    let free: string[] = [];
     const state = changed(madeToOrder(), (document, player) => {
+      const order = defaultHeroOrder(document);
+      // Three more Heroes from the Unattached pool, joining in the reverse of the default order, so that
+      // those who can go are four and the order they joined in is not the one the builder lists them in
+      // (S10, the close review: with one Hero free, the order went untested).
+      const pool = Object.values(document.world.heroes)
+        .filter((hero) => hero.guildId === null && hero.unattachedSince !== null && hero.diedOnTurn === null && hero.retiredOnTurn === null)
+        .slice(0, 3)
+        .sort(order)
+        .reverse();
+      if (pool.length < 3) throw new Error('three Heroes in the pool');
+      for (const hero of pool) Object.assign(hero, { guildId: player.id, unattachedSince: null });
+      player.rosterIds = [...player.rosterIds, ...pool.map((hero) => hero.id)];
       const roster = player.rosterIds.map((id) => document.world.heroes[id] as Hero);
       const [a, b, c] = roster;
       if (a === undefined || b === undefined || c === undefined) throw new Error('three Heroes');
@@ -382,10 +401,11 @@ describe('the Party builder', () => {
       document.world.parties[partyId] = { id: partyId, questId: document.world.board[5] as QuestId, guildId: player.id, heroIds: [b.id], departedOnTurn: 0, returnsOnTurn: 17 };
       b.partyId = partyId;
       c.injury = { typeKey: 'deep-cut', healsOnTurn: 17 };
-      const classOf = (hero: Hero): number => classes.indexOf(hero.classKey.charAt(0).toUpperCase() + hero.classKey.slice(1));
-      const [early, late] = classOf(b) <= classOf(c) ? [b, c] : [c, b];
+      const [early, late] = [b, c].sort(order) as [Hero, Hero];
       expected = [early.name, late.name, a.name];
       chips = [early, late, a].map((hero) => (hero === b ? 'Away' : 'Injured'));
+      free = roster.slice(3).sort(order).map((hero) => hero.name);
+      if (free.join() === roster.slice(3).map((hero) => hero.name).join()) throw new Error('the order of joining is the default order');
     });
     render(<App initial={state} />);
 
@@ -397,11 +417,9 @@ describe('the Party builder', () => {
     expect(enabled).toEqual([...enabled].sort((x, y) => Number(y) - Number(x)));
     expect(names.slice(-3)).toEqual(expected);
     expect(rows(form).slice(-3).map((row) => chipOf(row).shown)).toEqual(chips);
-    // Those who can go, by Class in the content's order first.
-    const shownClasses = rows(form)
-      .slice(0, -3)
-      .map((row) => /^(\w+), Level/.exec(row.querySelector('.party-row__class')?.textContent ?? '')?.[1] ?? '');
-    expect(shownClasses.map((name) => classes.indexOf(name))).toEqual(shownClasses.map((name) => classes.indexOf(name)).sort((x, y) => x - y));
+    // Those who can go, four of them, in the default order.
+    expect(free).toHaveLength(4);
+    expect(names.slice(0, -3)).toEqual(free);
   });
 
   test("opens a Hero's page in place, and comes back to the Party and the consumables as chosen", () => {

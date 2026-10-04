@@ -730,7 +730,10 @@ export interface RosterRow {
   stats: RosterStat[];
 }
 
-/** Which way a list is sorted: A to Z, lowest first, or the content's order; or the other way. */
+/**
+ * Which way a list is sorted: A to Z, lowest first, or the content's order; or the other way. The
+ * page's one such type: the views' sorting headings (`SortHeader`) take it too (v1.1.5-S10).
+ */
 export type SortDirection = 'ascending' | 'descending';
 
 /** What the Roster sorts by (DL-169 item 10): the default order, a Hero's field, when they are free, or a Stat by its key. */
@@ -855,6 +858,8 @@ function whereabouts(hero: Hero, world: World): string {
   const party = hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId);
   if (party !== undefined) return awayWords(party);
   if (hero.injury !== null) return healingWords(hero.injury);
+  // A Party the world no longer holds: away all the same, as `unavailableUntil` says and the sort reads (v1.1.5-S10).
+  if (hero.partyId !== null) return 'Away with a Party';
   return 'At the Hall';
 }
 
@@ -893,14 +898,12 @@ function traitsOf(hero: Hero): { name: string; effect: string }[] {
   return hero.traits.map((key) => ({ name: nameIn(content.heroTraits, key), effect: traitEffectWords(rowOf(content.heroTraits, key)?.effects ?? [], content) }));
 }
 
-/** The Gear a Hero carries in their own slots, by name, with its Stat modifiers in words (DL-169 item 9). */
+/** The Gear a Hero carries in their own slots (`carriedGear` gives only those rows), by name, with its Stat modifiers in words (DL-169 item 9). */
 function itemsOf(hero: Hero, world: World): { name: string; effect: string }[] {
-  return carriedGear(world, hero.id)
-    .filter((row) => row.holder.kind === 'hero')
-    .map((row) => {
-      const definition = itemDefinition(content, row.definitionKey);
-      return { name: nameIn(content.items, row.definitionKey), effect: definition?.kind === 'gear' ? modifierWords(definition) : '' };
-    });
+  return carriedGear(world, hero.id).map((row) => {
+    const definition = itemDefinition(content, row.definitionKey);
+    return { name: nameIn(content.items, row.definitionKey), effect: definition?.kind === 'gear' ? modifierWords(definition) : '' };
+  });
 }
 
 /**

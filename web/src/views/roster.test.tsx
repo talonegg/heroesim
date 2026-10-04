@@ -4,6 +4,7 @@ import { App } from '../app';
 import { carrying, changed, holding, started, withOffer, withPartyOut, withRichRivals, withTraitNews } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { rosterList, section } from './page.test-support';
+import { help } from './section';
 
 // The Roster redesigned (M9-S6, DL-106; the review's B7, B8 and E4): compact Hero cards, a Hero's
 // page as a line and chips with the Stats in four blocks, the Unattached pool as rows ordered by its
@@ -431,6 +432,30 @@ function cellOf(name: string, column: string): HTMLElement {
   return found;
 }
 
+/** What a screen reader reads of `element`: its words, those hidden from it left out. */
+function read(element: HTMLElement): string {
+  const copy = element.cloneNode(true) as HTMLElement;
+  for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+  return copy.textContent ?? '';
+}
+
+/** The tooltip on `element`'s shown part: the one element of it that bears a `title`. */
+function tooltip(element: HTMLElement): string {
+  const titled = [element, ...element.querySelectorAll<HTMLElement>('[title]')].filter((each) => each.hasAttribute('title'));
+  expect(titled).toHaveLength(1);
+  return titled[0]?.title ?? '';
+}
+
+/**
+ * Every tooltip in `scope` sits on a part hidden from the screen reader, whose own words are beside it:
+ * a mouse's tooltip, never read as well as those words (S10, the close review's W3).
+ */
+function tooltipsUnread(scope: HTMLElement): void {
+  const titled = [scope, ...scope.querySelectorAll<HTMLElement>('[title]')].filter((each) => each.hasAttribute('title'));
+  expect(titled.length).toBeGreaterThan(0);
+  for (const element of titled) expect(element.closest('[aria-hidden="true"]'), element.outerHTML).not.toBeNull();
+}
+
 /** The "Sort by" dropdown. */
 function sortBy(): HTMLSelectElement {
   return within(section('Roster')).getByRole('combobox', { name: 'Sort by' }) as HTMLSelectElement;
@@ -490,8 +515,9 @@ describe('the Roster as Tiles or a Table (v1.1.5-S12, DL-169 item 6)', () => {
     expect(chip(card, 'Lame: -2 Dexterity, -1 Endurance').title).toBe('Trait');
     expect(chip(card, 'Battle-tried: +2 to every Check of combat Encounters').title).toBe('Trait');
     const sword = chip(card, 'Arming sword');
-    expect(sword.title).toBe('Weaponry +2, Strength +1');
-    expect(sword.querySelector('.visually-hidden')?.textContent).toBe('Arming sword: Weaponry +2, Strength +1');
+    expect(tooltip(sword)).toBe('Weaponry +2, Strength +1');
+    expect(read(sword)).toBe('Arming sword: Weaponry +2, Strength +1');
+    tooltipsUnread(sword);
     // No Stats on a tile: no Stat's name stands in a card but in an Item's words.
     for (const each of cards()) {
       const shown = Array.from(each.querySelectorAll('*:not(.visually-hidden)'))
@@ -539,22 +565,26 @@ describe("the Roster's Table (v1.1.5-S12, DL-169 items 7 to 9)", () => {
     const weaponry = cellOf(warrior, 'weaponry');
     expect(weaponry.className).toBe('number change change--up');
     expect(weaponry.querySelector('[aria-hidden="true"]')?.textContent).toBe('13 ▲');
-    expect(weaponry.title).toBe("Base 10, +1 from the Guildmaster's Class bonus, +2 from Gear");
-    expect(weaponry.querySelector('.visually-hidden')?.textContent).toBe("13, raised: Base 10, +1 from the Guildmaster's Class bonus, +2 from Gear");
+    expect(tooltip(weaponry)).toBe("Base 10, +1 from the Guildmaster's Class bonus, +2 from Gear");
+    expect(read(weaponry)).toBe("13, raised: Base 10, +1 from the Guildmaster's Class bonus, +2 from Gear");
     expect(cellOf(warrior, 'strength').querySelector('[aria-hidden="true"]')?.textContent).toBe('12 ▲');
 
     const dexterity = cellOf(warrior, 'dexterity');
     expect(dexterity.className).toBe('number change change--down');
     expect(dexterity.querySelector('[aria-hidden="true"]')?.textContent).toBe('10 ▼');
-    expect(dexterity.querySelector('.visually-hidden')?.textContent).toBe('10, lowered: Base 12, -2 from Traits');
+    expect(read(dexterity)).toBe('10, lowered: Base 12, -2 from Traits');
     expect(cellOf(mage, 'arcana').querySelector('[aria-hidden="true"]')?.textContent).toBe('13 ▼');
-    expect(cellOf(mage, 'arcana').title).toBe("Base 14, -1 from the Guildmaster's Class bonus");
+    expect(tooltip(cellOf(mage, 'arcana'))).toBe("Base 14, -1 from the Guildmaster's Class bonus");
 
     // Nothing changes it: plain, the value alone.
     const charisma = cellOf(warrior, 'charisma');
     expect(charisma.className).toBe('number');
     expect(charisma.textContent).toBe('10');
+    expect(charisma.querySelector('[title]')).toBeNull();
     expect(charisma.title).toBe('');
+
+    // Each tooltip is the mouse's alone: the screen reader reads the words beside it once (S10, W3).
+    tooltipsUnread(rosterTable());
   });
 
   test("gives the Traits and Items by name, each effect in a tooltip and the screen reader's words; None for a Hero with neither", () => {
@@ -564,10 +594,12 @@ describe("the Roster's Table (v1.1.5-S12, DL-169 items 7 to 9)", () => {
 
     const lame = within(cellOf(warrior, 'traits')).getByText('Lame');
     expect(lame.title).toBe('-2 Dexterity, -1 Endurance');
-    expect(lame.querySelector('.visually-hidden')?.textContent).toBe(': -2 Dexterity, -1 Endurance');
+    expect(read(cellOf(warrior, 'traits'))).toBe('Lame: -2 Dexterity, -1 Endurance');
     const sword = within(cellOf(warrior, 'items')).getByText('Arming sword');
     expect(sword.title).toBe('Weaponry +2, Strength +1');
-    expect(cellOf(warrior, 'items').textContent).toBe('Arming sword: Weaponry +2, Strength +1');
+    expect(read(cellOf(warrior, 'items'))).toBe('Arming sword: Weaponry +2, Strength +1');
+    tooltipsUnread(cellOf(warrior, 'traits'));
+    tooltipsUnread(cellOf(warrior, 'items'));
     expect(cellOf(mage, 'traits').textContent).toBe('None');
     expect(cellOf(mage, 'items').textContent).toBe('None');
   });
@@ -709,6 +741,19 @@ describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
     expect(classes).toEqual(['Warrior', 'Rogue', 'Mage', 'Healer']);
   });
 
+  test('says in its help what sorts it: "Sort by", or any heading but Traits and Items, which have no sort (S10, the close review)', () => {
+    render_(started());
+    showAs('Table');
+
+    const unsorted = within(rosterTable())
+      .getAllByRole('columnheader')
+      .filter((heading) => within(heading).queryByRole('button') === null)
+      .map((heading) => heading.textContent);
+    expect(unsorted).toEqual(['Traits', 'Items']);
+    expect(help.roster).not.toMatch(/any column/);
+    expect(help.roster).toContain('Sort from "Sort by" or by a column’s heading, any but Traits and Items; this browser keeps your choices.');
+  });
+
   test('sorts both views from the dropdown, the direction from its button; the headings in step, one pressed again reversing; ties in the default order', () => {
     const { state } = stocked();
     render_(changed(state, (document, player) => {
@@ -844,16 +889,17 @@ describe("the Roster's Table, a Stat whose net change is nothing (v1.1.5-S12, DL
 
     const weaponry = cellOf(warrior, 'weaponry');
     expect(weaponry.className).toBe('number');
-    expect(weaponry.querySelector('[aria-hidden="true"]')).toBeNull();
-    expect(weaponry.textContent).toBe("20, Base 20, +1 from the Guildmaster's Class bonus, +2 from Gear, held at 20");
-    expect(weaponry.title).toBe("Base 20, +1 from the Guildmaster's Class bonus, +2 from Gear, held at 20");
-    expect(weaponry.querySelector('.visually-hidden')?.textContent).toBe(", Base 20, +1 from the Guildmaster's Class bonus, +2 from Gear, held at 20");
+    expect(weaponry.querySelector('[aria-hidden="true"]')?.textContent).toBe('20');
+    expect(read(weaponry)).toBe("20, Base 20, +1 from the Guildmaster's Class bonus, +2 from Gear, held at 20");
+    expect(tooltip(weaponry)).toBe("Base 20, +1 from the Guildmaster's Class bonus, +2 from Gear, held at 20");
+    tooltipsUnread(weaponry);
 
     const charisma = cellOf(warrior, 'charisma');
     expect(charisma.className).toBe('number');
-    expect(charisma.title).toBe('Base 10, +1 from Gear, -1 from Traits');
-    expect(charisma.querySelector('.visually-hidden')?.textContent).toBe(', Base 10, +1 from Gear, -1 from Traits');
+    expect(tooltip(charisma)).toBe('Base 10, +1 from Gear, -1 from Traits');
+    expect(read(charisma)).toBe('10, Base 10, +1 from Gear, -1 from Traits');
     expect(charisma.textContent).not.toMatch(/[▲▼]/);
+    tooltipsUnread(charisma);
   });
 });
 

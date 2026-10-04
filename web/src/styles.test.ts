@@ -126,3 +126,11 @@ describe('the navigation (M9-F2, DL-112 item 5)', () => {
     expect(block).toContain('max-width: 100%;');
   });
 });
+
+describe("the Roster's Table (v1.1.5-S12, DL-169 item 8)", () => {
+  test('colours a raised Stat green and a lowered one red in the Table alone (S10, the close review)', () => {
+    expect(css).not.toMatch(/\n\.change--(up|down) \{/);
+    expect(/\n\.roster-table \.change--up \{([^}]*)\}/.exec(css)?.[1]).toContain('color: var(--good);');
+    expect(/\n\.roster-table \.change--down \{([^}]*)\}/.exec(css)?.[1]).toContain('color: var(--bad);');
+  });
+});

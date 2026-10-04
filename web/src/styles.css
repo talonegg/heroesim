@@ -2799,11 +2799,11 @@ ul.chips {
   font-weight: 700;
 }
 
-.change--up {
+.roster-table .change--up {
   color: var(--good);
 }
 
-.change--down {
+.roster-table .change--down {
   color: var(--bad);
 }
 

@@ -10,6 +10,7 @@
 
 import type { MoraleBand, RegardBand } from '@heroesim/engine';
 import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
+import type { SortDirection } from '../state/selectors';
 import { Icon, type IconName } from './icons';
 
 /** Words read by assistive technology and not shown. */
@@ -74,7 +75,8 @@ export const regardTones: Readonly<Record<RegardBand, Tone>> = {
 /**
  * A short fact in a rounded frame, with an icon beside its words when it has one. `spoken`, when
  * given, is what a screen reader reads in place of the words shown, as the Board's "Away" is read
- * with its Day (v1.1.5-S11, DL-169 item 2).
+ * with its Day (v1.1.5-S11, DL-169 item 2); its `title` is then on the words shown, which the screen
+ * reader skips, so that a tooltip saying what `spoken` says is not read twice (v1.1.5-S10).
  */
 export function Chip({
   tone = 'plain',
@@ -90,13 +92,15 @@ export function Chip({
   spoken?: string;
 }) {
   return (
-    <span className={`chip chip--${tone}`} title={title}>
+    <span className={`chip chip--${tone}`} title={spoken === undefined ? title : undefined}>
       {icon === undefined ? null : <Icon name={icon} />}
       {spoken === undefined ? (
         <span>{children}</span>
       ) : (
         <>
-          <span aria-hidden="true">{children}</span>
+          <span aria-hidden="true" title={title}>
+            {children}
+          </span>
           <span className="visually-hidden">{spoken}</span>
         </>
       )}
@@ -269,9 +273,6 @@ export function useDismiss(open: boolean, close: () => void, within: RefObject<H
   }, [open, close, within, trigger]);
 }
 
-/** Which way a column orders its table: A to Z, lowest first; or highest first. */
-export type Direction = 'ascending' | 'descending';
-
 /**
  * A column's heading that orders its table by the column (M9-S6, the review's B4 and B8): marked
  * `aria-sort` while the table is in its order. What the order is and what it does is the selector's.
@@ -284,7 +285,7 @@ export function SortHeader({
   className,
 }: {
   label: string;
-  direction: Direction;
+  direction: SortDirection;
   active: boolean;
   onSort: () => void;
   className?: string;

@@ -22869,6 +22869,150 @@ readings, corrected here. Nothing in code or content to fix.
 
 ---
 
+## DL-181 — v1.1.5-S10, the close: the close review's findings fixed test first, the replay's peak from 1,861 MiB to 1,244 MiB with the same result; [the checks, the closing sweep and the rule's outcome to follow]
+
+**Status:** In progress · **Date:** 2026-10-04 · **Decided by:** the close review's findings, fixed by
+the agent as the orchestrator listed them; the judgement calls below are the owner's. The checks, the
+closing sweep and the rule's outcome are added to this entry by a later agent (the sections marked
+below).
+
+**Context.** The epic's S10 opens with a code review of the whole patch, `75ee77f..7b22999`, S11's and
+S12's included, its findings fixed test first. This entry's first part records the fixes: three in
+the harness and the docs (E1 to E3), five in the page (W1 to W5). Nothing here changes play: no
+engine source, no content, no configuration, no save; the harness's games are the same (the replay's
+seed below has the same fingerprint before and after).
+
+### The code review
+
+Each finding was fixed test first: its test written and seen to fail on the code at `7b22999`, then the
+fix. The tests of W3 and the style test of W5 were seen to fail with the view files and the
+stylesheet put back as at `7b22999` (nine tests failed across four files, every one a new or
+strengthened assertion, W1's and W4's among them), then passed with the fix.
+
+1. **E1, `CONTEXT.md`'s Best Party** said a Hero joins for a gain "by at least the Guild's Party
+   margin"; S6 made it strict (DL-175). It now reads "by more than the Guild's **Party margin**
+   (v1.1.5-S6, DL-175)". A doc only.
+2. **E2, the replay's `identical: false` untested.** New in `harness/src/sweep.test.ts`: "finds the
+   replay not identical when its second game differs by one character of the save".
+   `sweepPlay(['seed-0001'], deps, { years, prepare })` over 60 Turns, `prepare` counting its calls; on
+   the third (the sweep's game, then the replay's two) the player's Guild's name has its last letter
+   changed to another, so the two saves have the same length and differ in one character. It asserts
+   `identical: false`, the length the sweep's game's, and three calls. It passed on the code as it was
+   (which compared the texts), and failed when the comparison was made by the lengths alone (a scratch
+   mutation, reverted), so it guards E3.
+3. **E3, the replay's memory** (DL-177's reading for S10). `replay` held the first `PlayedGame`, its
+   document with it, and its 119-million-character text while it played the second game. Now:
+   - `play.ts`'s `fingerprintOf` is exported, the one SHA-256 `DocumentMeasures.fingerprint` uses;
+   - `sweep.ts`'s new `playedOnce(seed, deps, options)` plays, serialises and returns only
+     `{ length, fingerprint, advanceMs }`, so the document and the text are out of reach when its
+     frame returns, before the second play;
+   - `replay` calls it twice and compares the length and the fingerprint. `PlaySweep['replay']`'s
+     type, the report's rows and `sweepPlay`'s behaviour are unchanged; the doc comments of `replay`
+     and `PlaySweep.replay` say the comparison is by length and SHA-256.
+
+   The optional cross-check against the sweep's own record of the seed was not added (the owner's
+   call, below).
+
+   *Measured* with a scratch script (`replaypeak.mjs` in the session's scratchpad, `node --import
+   tsx`, not kept), each run alone, nothing else of ours running: `sweepPlay(['seed-0001'], deps,
+   { years: 20 })`, the one seed swept (its game kept as a record only) and then replayed by
+   `sweep.ts`'s own `replay`, the process's peak resident set read from
+   `process.resourceUsage().maxRSS`:
+
+   | | Peak resident set | Replay | Its length | The game's fingerprint | Time |
+   | --- | ---: | --- | ---: | --- | ---: |
+   | `7b22999`, the sweep's game alone (`replay: false`) | 1,096 MiB | skipped | | `3530086b…` | 67.4 s |
+   | `7b22999`, with the replay | **1,861 MiB** | identical | 119,338,444 | `3530086b…` | 199.3 s |
+   | The fix, with the replay | **1,244 MiB** | identical | 119,338,444 | `3530086b…` | 194.0 s |
+
+   The replay's peak falls by 617 MiB, a third, to 148 MiB above the sweep's one game alone: the
+   process now holds one game at a time. (DL-177's verifier measured 2,194 MiB for the old form alone
+   on S3's code, whose save was longer.)
+4. **W1, the Roster's help** said "Sort by any column", but Traits and Items do not sort. It now
+   reads "Sort from "Sort by" or by a column’s heading, any but Traits and Items; this browser keeps
+   your choices." (`web/src/views/section.tsx`). New in `roster.test.tsx`: the Table's headings with
+   no sort are Traits and Items exactly, and the help says so and no longer "any column".
+5. **W2, a vacuous order test.** `board.test.tsx`'s "lists those who can go first, in the default
+   order, then the Away and the Injured…" made three of the Roster's four unavailable, so the rows
+   above them were one and their order went untested. The test now adds three Heroes from the
+   Unattached pool, joining in the reverse of the default order, so that four can go, and compares
+   their rows with `defaultHeroOrder`; the two Heroes free on Turn 17 are ordered by
+   `defaultHeroOrder` too, in place of the Class alone. Shown with a scratch mutation of `partyRows`
+   (those who can go left in the order they joined, reverted): the old test passed under it, the new
+   one fails.
+6. **W3, words read twice.** Where an element bore a `title` and its words were also in a visually
+   hidden span, a screen reader could read both. The `title` now stands on the shown part, which is
+   `aria-hidden`, so it stays a mouse's tooltip and is not announced; the hidden words are kept, and
+   now carry the shown words too:
+   - the Table's Stat cells, raised, lowered, and plain with sources (a new `Tipped` part in
+     `roster-table.tsx`), and its Traits and Items (`Named`). A plain Stat with sources shows its
+     figure hidden from the screen reader, which reads "20, Base 20, …";
+   - `Chip` with `spoken` (`ui.tsx`): the Board's "Away" and "Injured" and the tiles' Item chips. A
+     `Chip` without `spoken` keeps its `title` on the frame: "Trait", "Outlook", "Injury" and the Fame
+     chip's words are not the chip's own words.
+
+   Tested in `roster.test.tsx` (each tooltip in the Table, in a cell and on an Item chip sits inside an
+   `aria-hidden` part, and what the screen reader reads, the hidden parts left out, is the words once)
+   and `board.test.tsx` (`chipOf` reads the tooltip only from an `aria-hidden` part).
+7. **W4, a Hero whose Party is gone.** `whereabouts` said "At the Hall" for a Hero whose `partyId`
+   names no Party, while the builder said "Away with a Party" and the sort put them last as not free.
+   It now says "Away with a Party" there, after an Injury as before (`selectors.ts`). New in
+   `selectors.test.ts`: the Roster's row, the builder's row and the Hero's page agree, and "When free"
+   puts the Hero last.
+8. **W5, nits.**
+   - *One sort direction type.* `state` must not import `views`, so `selectors.ts`'s `SortDirection`
+     is kept and `ui.tsx`'s `Direction` removed; `SortHeader` and `guilds.tsx` take `SortDirection`.
+   - *`itemsOf`'s no-op filter* removed: `carriedGear` reads `holdings` for `{ kind: 'hero', id }`,
+     whose rows are that Hero's slots alone (`items.ts`'s `matches`).
+   - *The direction's toggle* written once (`reversed()` in `roster.tsx`), for the headings and the
+     button.
+   - *`.change--up` and `.change--down`* scoped to `.roster-table` (nothing else uses them; `e2e`'s
+     `td.change--up` still finds them). New in `styles.test.ts`: no unscoped rule, and the scoped ones
+     green and red.
+   - `roster-table-wrap` left as it is (the `e2e` locator).
+
+**The judgement calls, for the owner** (found by the review, left as they are):
+1. A tooltip is reached by a mouse alone: touch and the keyboard do not reach it (the screen reader's
+   words carry the same).
+2. A column hidden in the Columns panel can still be the sort in force.
+3. "When free" reversed puts the Heroes with no Day to read first.
+4. The direction button's name is its state ("A to Z"), its `title` "Reverse the order".
+5. No Unique Item's picture on the Roster.
+6. An earned Trait's `among` is still read over the whole living Party, unlike S4's Injury.
+7. `docs/quests/calibration.json` still says `contentVersion` 31 (cosmetic).
+8. The replay's optional cross-check against the sweep's own record of its seed.
+9. The allocation test skipped on Node 22.
+
+**The review's checks** (on the fixes, before their commit, nothing else running): `npm run lint`
+clean; `npm run typecheck` clean; `npm test` 185 files, 4,818 tests passing (4,814 before: E2's, W1's,
+W4's and the style test new); `npm run e2e -w web` 100 passed, its build's check-bundle passing, the
+script 814,620 bytes (under 850 kB); `npm run edit -- traits doctor` no drift (110 reads), the doc
+fresh, the content passing, no pending edits (no engine source touched). No sweep.
+
+### The checks
+
+*[To be added by the close's next agent: `npm run lint`, `typecheck`, `test` and `e2e -w web` with
+check-bundle; the estimate probe's two checks on the shipped content (S7); `npm run edit -- traits
+doctor`.]*
+
+### The closing sweep
+
+*[To be added: the 50 × 20 sweep, core only, the replay kept, against S5's by fingerprint, S3's
+baseline and `v1.1.4`'s close; each play change's share; the Traits a player's Hero career against
+2.32.]*
+
+### The rule for what follows
+
+*[To be added: DL-168 item 16, the player's Bankruptcies against 3 to 7 of 50, S3's 13 beside them;
+the next release named here, in `docs/plan.md` §4 and #51.]*
+
+**Actioned in:** `CONTEXT.md`; `harness/src/play.ts`, `sweep.ts`, `sweep.test.ts`;
+`web/src/state/selectors.ts`, `selectors.test.ts`; `web/src/views/ui.tsx`, `roster-table.tsx`,
+`roster.tsx`, `guilds.tsx`, `section.tsx`, `roster.test.tsx`, `board.test.tsx`; `web/src/styles.css`,
+`styles.test.ts`; the epic's status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
