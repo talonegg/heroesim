@@ -22327,7 +22327,7 @@ changed between them):
 | Years survived, mean (min) | 19.23 (11.89) | 19.25 (11.89) | −0.02 |
 | Player's Quests resolved | 381,943 | 382,191 | −0.06% |
 | Player failed / succeeded / strong | 5.81% / 19.56% / 74.63% | 5.81% / 19.56% / 74.63% | level |
-| Rivals failed / succeeded / strong | 12.48% / 30.87% / 56.65% | 12.43% / 30.78% / 56.80% | +0.05 / +0.09 / −0.15 points |
+| Rivals failed / succeeded / strong | 12.48% / 30.87% / 56.65% | 12.43% / 30.78% / 56.80% | +0.05 / +0.10 / −0.15 points |
 | Player Injuries a game | 63.14 (3,157) | 63.84 (3,192) | −35, −1.1% |
 | Player Deaths a game | 3.62 (181) | 3.68 (184) | −3 |
 | Rivals' Injuries, Deaths a game | 306.38, 18.20 | 305.48, 18.06 | +45 (+0.3%), +7 |
@@ -22375,6 +22375,73 @@ little play, since its moment is rare.
 **Actioned in:** `engine/src/quest-engine/harm.ts`, `resolve.ts` (comments), `content-types.ts`
 (comments), `harm.test.ts`, `resolve.test.ts`, `CONTEXT.md` (Exposure);
 `harness/reports/m9-v115-s4-2026-10-04.md` (force-added); the epic's S4 boxes and status.
+
+**The verification** (a second Opus agent, at `47326b0`; the sweep not run again). The rule is DL-168
+item 6's, a Death's pool and `among` and the draws are unchanged, and the sweep's figures are the two
+reports'. One test did not test what it claimed, and is fixed; one surviving mutant gained a test; one
+rounding is corrected in the table above (the Rivals' succeeded share +0.10 points, 30.875% against
+30.776%, not +0.09).
+- *The code.* `narrowed` filters `party`'s members to those in `pool`, in Party order, and reads
+  `among` over them; `struck` hands it an Injury's pool, the unhurt living Heroes, and a Death's,
+  `working.alive`, the same Heroes as `partyNow`'s members, so a Death's `among` reads exactly as
+  before. A filter (`where`) is member by member and names the same Heroes either way. The draws: one
+  `next`, then `struck`'s one draw (`weightedPick`, or `next` when the pool is empty), then the Days, in
+  every branch: `narrowed` draws nothing, an empty pool (a count above the unhurt) gives an empty
+  `within` and the one `next` as before, and `among` naming no one gives the whole pool as before.
+  `exposedBy` and `guardedBy` read `byId(party)`, the whole living Party, as before. A tie in `top` or
+  `bottom` goes to the earlier in Party order (`ranking`'s index tie-break over the filtered members,
+  whose order is the Party's), as before.
+- *The tests, by mutation* (each run on `harm.test.ts` and `resolve.test.ts`). Killed: `among` read over
+  the whole Party again (3 tests fail); a Death's pool the unhurt (5); `among` read over the unhurt
+  for a Death too (3); an extra draw when a Hero the ranking names is not in the pool (2); a draw fewer
+  then (3); `top` and `bottom` both reversed (4); `top` alone reversed (2, with the fixes below); a
+  `top` ignored, the whole pool taken (2, with the fixes). Two findings, each fixed test first:
+  1. *The `top` 3 test's Party had four Heroes, not five.* The scene takes Heroes from a new world's
+     Roster, which holds four, so `size: 5` gave four, and with the second hurt the three unhurt were
+     the whole pool: a `top` 3 named them whichever way it ranked, and the test passed with `top`
+     reversed. It now adds a fifth Hero (the fourth's copy under a new id) to the Party, asserts five,
+     and holds the hits to the first, third and fourth of 20, 16, 12, 8 and 4, as this entry describes
+     it; `top` reversed now fails it. `narrowed`'s test gains the same case directly: of a pool of four
+     without the second strongest, a `top` 3 names the first, third and fourth.
+  2. *A tie read over the pool was not held.* Reversing the filtered members' order, so that a tie
+     went to the later Hero, passed every test in `quest-engine/`. A new `narrowed` test holds a tie to
+     the earlier Hero in Party order for a `bottom` 1 and a `top` 1 over a pool without the second.
+- *The content.* `content/encounters.json` holds six `among`s, all on Injuries, none on a Death or an
+  earned Trait: `Hold the line`'s two (`where` `warrior`, unchanged by the rule), `The flooded ford`'s
+  and `The trapped passage`'s `bottom` 1 (Strength, Perception, count 1, at Failure), and `The last
+  assault`'s `top` 3 Constitution (count 2, at Setback and Failure), as item 4 says.
+- *How often the rule changes the struck Hero.* `struck` instrumented in a scratch copy (deleted, the
+  file restored and the tests passing after), each draw of an Injury with an `among` compared with the
+  old rule on the same state, the same draw cloned: `seed-0001` to `seed-0003` over 20 years, alone,
+  one process, 234 s. Of 2,651 such draws (the player's 365, the Rivals' 2,286), 1,496 were of a
+  ranking (the player's 220, the Rivals' 1,276); the old and new Heroes it could fall on differed
+  twice, both the Rivals', and the Hero drawn once. None of the player's. Over 5 years the same seeds
+  gave none in 459 ranking draws. So the rule plays about once in 1,500 ranking draws, a few times a
+  sweep, and nearly always for a Rival: a `bottom` 1 Injury is of count 1, so it needs the weakest hurt
+  by an earlier Encounter of the same Quest in a Party of two or more, and the `top` 3 differs only in a
+  Party of four or more (the player's 0.1% of Quests, the Rivals' 0.5%). Item 2's reading holds, and
+  more strongly: the player's moves against S3 (Injuries −35, Deaths −3, one Bankruptcy a year
+  earlier) are almost all the games diverging after the first changed draw (all Quests share the `quests`
+  stream), not the rule acting on the player's Heroes, and item 2's `guardedBy` account cannot be
+  seen at this rate. The verifier's reading.
+- *The figures.* Every cell of the table above recomputed from `m9-v115-s4-2026-10-04.md` and
+  `m9-v115-s3-2026-10-04.md`: the by-year Bankruptcies sum to 13 in each, S4 one in year 14 and one in
+  15 where S3 had two in 15; 5.811% / 19.558% / 74.630% against 5.811% / 19.558% / 74.631%; 3,157
+  against 3,192 (−1.1%); 985 / 627 = 1.571, 994 / 630 = 1.578, 1,970 / 3,443 = 0.572, 1,976 / 3,411 =
+  0.579; Upkeep 56,024.9 against 56,055.8, the rewards 63,314.2 against 63,328.4; the Wealth after 10
+  and 20 years the year table's. No other discrepancy.
+- *What was swept is what was committed.* The code files were last written 13:08 to 13:10, the sweep
+  began 13:12:43 and its report was written 13:32, the decision log and epic 13:35 and the commit at
+  13:35:34; the working tree was clean after it. `git show --stat 47326b0` touches the five engine
+  files, `CONTEXT.md`, the report and the two documents only.
+- *The words and the files.* `CONTEXT.md`'s Exposure, the head comments of `harm.ts` and `resolve.ts`,
+  `narrowed`'s and `struck`'s, and `content-types.ts`'s `HarmReads.among` and `InjuryConsequence` read
+  the rule as built. Every file the commit touched keeps one ending (`git ls-files --eol`): LF in the
+  index, as before it; in the working tree CRLF for the code and `CONTEXT.md`, LF for the decision
+  log, the epic and the reports, none mixed.
+- *Checks.* `npm run edit -- traits doctor` before and after: no drift (110 reads), the doc fresh, the
+  content passing, no pending edits. `npm run lint` and `npm run typecheck` pass; `npm test` 4,814
+  passed in 185 files (S4's 4,813 and the tie test).
 
 ---
 

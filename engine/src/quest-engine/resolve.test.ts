@@ -857,14 +857,18 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
     test('a `top` 3 with one of the three strongest hurt names the three strongest unhurt', () => {
       const hit = new Set<number>();
       for (let seed = 0; seed < 40; seed += 1) {
-        // Party order 20, 16, 12, 8, 4; the Warrior, at 16, hurt first.
-        const h = harmed(`top-three-${seed}`, [failing('front', [injury({ among: warriors })]), failing('top', [injury({ among: strongestThree })])], {
-          size: 5,
-          set: (heroes) => {
-            strengths(20, 16, 12, 8, 4)(heroes);
-            classes('mage', 'warrior', 'mage', 'mage', 'mage')(heroes);
-          },
-        });
+        // Party order 20, 16, 12, 8, 4; the Warrior, at 16, hurt first. The scene's Roster holds four
+        // Heroes, so a fifth, the fourth's copy under a new id, joins the Party: with four, the three
+        // unhurt would be the whole pool, and a `top` 3 would name them whichever way it ranked
+        // (the S4 verification, DL-178).
+        const h = harmed(`top-three-${seed}`, [failing('front', [injury({ among: warriors })]), failing('top', [injury({ among: strongestThree })])], { size: 4 });
+        const fifth: Hero = { ...structuredClone(h.heroes[3] as Hero), id: makeId('heroes', 999_999) };
+        h.world.heroes[fifth.id] = fifth;
+        h.party.heroIds = [...h.party.heroIds, fifth.id];
+        h.heroes.push(fifth);
+        strengths(20, 16, 12, 8, 4)(h.heroes);
+        classes('mage', 'warrior', 'mage', 'mage', 'mage')(h.heroes);
+        expect(h.party.heroIds).toHaveLength(5);
         const [front, top] = h.resolve().encounters;
         expect(front?.injured).toEqual([h.heroes[1]?.id]);
         expect(top?.injured).toHaveLength(1);
