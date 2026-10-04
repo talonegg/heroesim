@@ -266,7 +266,7 @@ export interface GameConfig {
    * The `partyMargin` of a Guild with no Disposition, the player's (v1.1.4-S6, DL-148 item 17): the
    * Party the engine would send from its free Heroes (`partyFor`), which the Board's card gives as
    * "Your best Party" and the harness's automatic policy sends, keeps adding a Hero only while each
-   * raises the estimated chance of success by at least this. A share from 0 to 1.
+   * raises the estimated chance of success by more than this (v1.1.5-S6, DL-175). A share from 0 to 1.
    */
   playerPartyMargin: number;
 

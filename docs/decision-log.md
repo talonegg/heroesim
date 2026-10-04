@@ -21643,6 +21643,58 @@ year's gzipped length), `play.test.ts`; the epic's S1 boxes and status; the veri
 
 ---
 
+## DL-175 — v1.1.5-S6 built (code part): `partyFor` adds a Hero past the minimum only for more than the margin, held by tests at a margin of 0, at 0.05 exactly and at 1; the fingerprint sweep follows in the verification
+
+**Status:** Accepted (code part) · **Date:** 2026-10-04 · **Decided by:** the agent, building S6 as the
+epic's S6 and DL-168 item 8 (R1) describe. The readings marked as the agent's are for the owner to
+change. A second agent verifies it and runs the one fingerprint sweep for S1 and S6 together (DL-169
+item 15); that sweep was not run here, and its result is the verification's to record.
+
+**Context.** DL-157 (v1.1.4-S6) made `partyFor` add a Hero past `partySizeMin` while each raised the
+chance of success "by at least" the Guild's margin. At a margin of 0 that sent a Hero who raised the
+chance by nothing, and DL-167's R1 note and DL-168 item 8 settled that a Hero joins only for a real
+gain. Built on `v1.1.5-dev` at `3f0b030`.
+
+**What was built.**
+1. *The rule* (`engine/src/controllers/rival.ts`, `bestParty`). The loop adds the Hero who most raises
+   the chance only if the gain is strictly greater than the margin (`>`, was `>=`), so by more than
+   nothing at a margin of 0. The loop's guard, which stops asking once what is left of the chance
+   below 1 cannot pass the margin, reads `1 - chance.success > margin` (was `>=`): a gain cannot
+   exceed what is left, so a left of exactly the margin asks no one. The doc of `partyFor` and of
+   `partyMarginOf` say "more than".
+2. *The field docs* of `partyMargin` (`content-types.ts`) and `playerPartyMargin` (`config.ts`) say
+   "more than". Values and ranges are unchanged (a share from 0 to 1; at 1 no Hero is ever added past
+   the minimum, as before, since no gain exceeds 1).
+3. *A stale comment, comment only.* `TraitConsequence`'s doc in `content-types.ts` said a Setback that
+   reads the Failure's list may bring a negative earned Trait; false since v1.1.4-S14 (DL-167 E1, and
+   DL-172's verification note): it lands only at the Failure Degree, and now says so.
+
+**Tests** (`engine/src/controllers/rival.test.ts`, written first and seen failing on the old `>=`).
+- A new block "a Hero joins only for more than the margin". `questEstimator` is wrapped by a
+  `vi.mock` of `quest-engine/estimate.js` that, only while a test sets `chances.bySize`, answers the
+  chance of success by the Party's size in place of the estimate, so a gain is set exactly; unset, it
+  is the real one and every other test is unchanged.
+- At a margin of 0: a flat 0.5 sends one; a gain of 2^-30 a Hero sends four; a gain then none sends two.
+- At a margin of 0.05: the chances 0 then 0.05 send one, and 0 then 0.05 + 2^-30 send two. The first is
+  genuinely exact: 0.05 - 0 is the double 0.05 itself (a subtraction of zero is exact), asserted in
+  the test as `0.05 - 0 === 0.05`, so the gain equals the margin to the bit. (A pair such as 0.5 and
+  0.55 would not do: 0.55 - 0.5 is 0.05000000000000004.) A third case judges each further Hero by
+  its own gain.
+- At a margin of 1: a gain of the whole chance, 0 to 1, still sends one.
+- Reading, the agent's: the oracle `greedyParty` in the same file now breaks on a gain not above the
+  margin, and the existing assertion that at a margin of 0 every Disposition sends more than one Hero
+  became "some" do: with real estimates a Party already sure of its Quest gains nothing from a Hero,
+  so it is not added now. That is the rule's effect, not a loosening.
+
+**Checks.** `npm run edit -- traits doctor` before and after: no drift (110 reads), the content passes,
+no pending edits. `npm run lint`, `npm run typecheck` pass; `npm test` 4,801 tests in 185 files
+passing. With the two comparisons put back to `>=` the five new or changed tests fail.
+
+**Not done here.** The 50 x 20 fingerprint sweep for S1 and S6 together (`m9-v115-s6`, the replay
+skipped, held to `v1.1.4`'s close, `24bae1ff...`) and, if it differs, the attributing sweep at S1's
+commit. Games where a Party's gain was exactly the margin, or a Party was already at a chance of 1
+with a margin of 0, may now differ; the epic's risk list says so (S6 changes a game).
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

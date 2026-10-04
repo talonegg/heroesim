@@ -493,8 +493,7 @@ export interface FameConsequence {
  * - in an Encounter's `triumph` list, a positive Trait: drawn on the Triumph, held, and granted only
  *   if the Quest ends a strong success;
  * - in its `failure` list, a negative one: it falls only among the Heroes this same Encounter
- *   injured, so it follows an Injury in that list, and a Setback that reads the Failure's list may
- *   bring it.
+ *   injured, so it follows an Injury in that list, and lands only at the Failure Degree.
  *
  * It is listed nowhere else (`validateContent`). Two draws from `quests`, whether it lands and on whom,
  * taken whether or not it lands.
@@ -624,9 +623,10 @@ export interface Disposition {
   /** How readily it deals in Transfers, from 0 to 1 (M6-S2 and M6-S3 read it). */
   transferAppetite: number;
   /**
-   * How much a Hero must raise the estimated chance of success to be added to its Party past the
-   * Quest's `partySizeMin`, from 0 to 1 (v1.1.4-S6, DL-148 item 17, `partyFor`): 0 sends every Hero
-   * who raises it at all, up to `partySizeMax`; 1 never more than the fewest the Quest allows.
+   * How much more than this a Hero must raise the estimated chance of success to be added to its
+   * Party past the Quest's `partySizeMin`, from 0 to 1 (v1.1.4-S6, DL-148 item 17, `partyFor`; more
+   * than, v1.1.5-S6, DL-175): 0 sends every Hero who raises it at all, up to `partySizeMax`; 1 never
+   * more than the fewest the Quest allows.
    */
   partyMargin: number;
 }
