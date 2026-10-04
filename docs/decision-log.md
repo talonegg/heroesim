@@ -24271,8 +24271,11 @@ B1–B5 (cut), C1–C5 (configure) and SF1–SF12 (small fixes).
 **Actioned in:** `docs/planning/epics/v1.1.6-release.md` (new); `docs/plan.md` §4;
 `docs/planning/epics/README.md`.
 
-**Open:** whether Dependabot's `target-branch`es move to `v1.1.6-dev` (DL-147 item 6), the owner's
-word; the first `gate.json`, the owner's approval in S2.
+**Since.** The owner, the same day: "Push v1.1.6-dev" and "Move Dependabot to v1.1.6-dev": the
+branch pushed, and Dependabot's `target-branch`es moved to it (`dc97b68`, DL-147 item 6), taking
+effect when v1.1.6 reaches `main`.
+
+**Open:** the first `gate.json`, the owner's approval in S2.
 
 ---
 
