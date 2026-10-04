@@ -21645,7 +21645,7 @@ year's gzipped length), `play.test.ts`; the epic's S1 boxes and status; the veri
 
 ## DL-175 — v1.1.5-S6 built (code part): `partyFor` adds a Hero past the minimum only for more than the margin, held by tests at a margin of 0, at 0.05 exactly and at 1; the fingerprint sweep follows in the verification
 
-**Status:** Accepted (code part) · **Date:** 2026-10-04 · **Decided by:** the agent, building S6 as the
+**Status:** Accepted, verified with its sweep · **Date:** 2026-10-04 · **Decided by:** the agent, building S6 as the
 epic's S6 and DL-168 item 8 (R1) describe. The readings marked as the agent's are for the owner to
 change. A second agent verifies it and runs the one fingerprint sweep for S1 and S6 together (DL-169
 item 15); that sweep was not run here, and its result is the verification's to record.
@@ -21694,6 +21694,81 @@ passing. With the two comparisons put back to `>=` the five new or changed tests
 skipped, held to `v1.1.4`'s close, `24bae1ff...`) and, if it differs, the attributing sweep at S1's
 commit. Games where a Party's gain was exactly the margin, or a Party was already at a chance of 1
 with a margin of 0, may now differ; the epic's risk list says so (S6 changes a game).
+
+**The verification** (a second Opus agent, at `dd0383b`). The rule is as the epic states it, its
+tests hold both comparisons now, and the sweep with S1 and S6 in plays the same 50 games as
+`v1.1.4`'s close, so no attributing sweep was needed.
+- *The code.* `bestParty`'s two comparisons are the only change of behaviour, both strict `>`; the
+  rest of the diff is comments and docs, which say "more than" (`partyFor`, `partyMarginOf`,
+  `partyMargin`, `playerPartyMargin`). `TraitConsequence`'s corrected line matches `earn` in
+  `quest-engine/resolve.ts`, which returns at any Degree that is neither a success nor `failure`.
+- *The mock.* `vi.mock` is scoped to `rival.test.ts` (Vitest isolates each file), spreads the real
+  module, and still builds the real `questEstimator` for every call, so its checks of the Quest and
+  configuration run. Only `weigh`, the new block's helper, sets `chances.bySize`, and resets it in a
+  `finally`, so no test leaks into another; unset, the wrapper calls the real estimate with the same
+  arguments (`carried` passed as `undefined` takes its default `[]`). It hides the real path only
+  within the new block, which tests the loop's arithmetic, not the estimate; the older tests, the
+  `greedyParty` oracle's among them, run on real estimates. The exact case is exact: `0.05 - 0` is the
+  double 0.05, and the third case's `0.0625 + 0.05 - 0.0625` is too (each step exact by Sterbenz's
+  lemma and 0.05's last mantissa bit 0), now asserted in the test as the first was.
+- *The changed assertion.* "Each Disposition" at a margin of 0 sent Parties of 4, 4, 4 and 4 before
+  and sends 4, 3, 1 and 4 now (ambitious, miserly, reckless, steady): miserly's fourth Hero and
+  reckless's second to fourth raised the real chance by nothing. `some(size > 1)` is the rule's
+  consequence, not a loosening, since the oracle beside it (changed in step to `!(gain > margin)`)
+  still names each Party exactly. *Tightened:* at a margin of 0 a Party stopped short of
+  `partySizeMax` is checked to be one no Hero left raises at all (each one's real `estimateQuest`
+  chance at most the Party's), and some Party there is checked to stop short, so the check runs.
+- *Mutations, each alone, each put back.* The gain's `>=` fails four tests ("each Disposition", the
+  player's Guild, and the new margin-0 and margin-0.05 tests). The guard's `>=` *survived*: at a left
+  of exactly the margin it asks one more place's Heroes, none of whom can pass (a gain is at most
+  what is left, and a rounded subtraction keeps that order), so it changes the cost, not the Party.
+  The epic names the guard's asking no one, so it is now held: *fixed* with a test counting the
+  Parties weighed (`chances.asked`): at margins and chances of 0 and 1, 0.5 and 0.5, 0.05 and 1,
+  only the first place's Heroes are weighed, one Party each; with what is left above the margin
+  (0.5 against 0.5 - 2^-30), the next place's too. The guard's `>=` fails it.
+- *The margins in play* (the agent's reading). Content's Dispositions are steady, ambitious and
+  miserly at 0.05 and reckless at 0.1; `playerPartyMargin` is 0.05. No Guild plays at 0, so the
+  Parties already sure of a Quest at a margin of 0 hit no Rival and not the player. At 0.05 and 0.1
+  the guard's change is idle: `1 - s` is exact for `s` from 0.5 to 1, and no double `s` gives
+  `1 - s` equal to 0.05 or 0.1 (each margin's mantissa has low bits a double near 0.95 or 0.9 cannot
+  hold; checked). Only a gain of exactly 0.05 or 0.1 between two real estimates could change a game,
+  so the sweep was predicted to equal `v1.1.4`'s close.
+- *The sweep, alone* (no other process of ours; the owner's Playwright test-server left running).
+  `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_YEARS=20 HEROESIM_REPLAY=0
+  HEROESIM_MILESTONE=m9-v115-s6 npm run harness -- play.harness` at `dd0383b`: core only, content
+  31, config 13, schema 6, not validated, the replay skipped. The report,
+  `harness/reports/m9-v115-s6-2026-10-04.md`, is force-added.
+  - *The same games.* The fingerprint of every seed's last save is `24bae1ff…` (`24bae1ffab72cf7f…
+    61e79eeee5`), `v1.1.4`'s close's. Lines 27 to 665, the Counters through the Rivals and the Party
+    sizes and the save's size by year, hash equal to the close's (`c0ef8c8b…`, as DL-167's to
+    S10's): 13 of 50 bankrupt, 37 the full 20 years, years survived 18.65; the player's Quests
+    312,620 taken, 38,677 failed, 95,450 succeeded, 178,291 strong; the Rivals' 728,146, 85,112,
+    219,534, 422,464; Injuries 6,459 and 14,071, Deaths 399 and 760; Traits gained 918 and 1,949, a
+    career 1.117 and 0.594; Rival folds 270, Successions 11; 50 of 50 saves round-trip. Only the
+    timings differ, and the replay's rows are absent. S1 and S6 each play the same games.
+  - *The time.* 1,080.7 s in all, the games 1,080.3 s (18 min 3 s wall), against the close's
+    1,448.2 s, the games 1,301.6 s: the games 17.0% faster, S1's yearly save no longer written.
+    `advance` a Turn mean 4.680 ms, p99 23.089 ms (4.966 and 24.651).
+  - *The memory.* Each seed plays in its own `shard.ts` process; each one's Windows peak working set
+    (`PeakWorkingSet64`) and private bytes were read every 5 s. Of the 50: peak working set median
+    1,066 MiB, mean 1,031, the 41 that played long (above 900 MiB) 1,115, the highest 1,354 MiB
+    (1.32 GiB); the private bytes at most 1,593 MiB in a sample. The eight at once at most 5,383 MiB
+    together; the Vitest parent at most 224 MiB. Against about 1.7 GB a process at `v1.1.4`
+    (DL-168, DL-174). *A reading, the agent's:* S1's 1.03 GiB was `seed-0001` alone, the smallest
+    20-year save (116.2 million characters); the sweep's largest save is 143.9 million, so its
+    heaviest processes reach about 1.3 GiB. DL-174's 11 processes in 12.9 GiB stand at about 1.17
+    GiB each; at 1.32 GiB they are 9. `HEROESIM_WORKERS` stays 8.
+- *The rest.* The doctor after the sweep and again after these changes: no drift, 110 reads of a Trait, the doc
+  fresh, the content passing, no pending edit. Lint and typecheck pass; `npm test`, 185 files,
+  4,802 tests, one more, passing. `rival.test.ts` keeps its CRLF endings.
+
+**Actioned in:** `engine/src/controllers/rival.ts` (`bestParty`'s two comparisons, the docs),
+`engine/src/content-types.ts` and `engine/src/config.ts` (the field docs, `TraitConsequence`'s
+comment), `rival.test.ts`; the verification, `rival.test.ts`'s check of a Party stopped short at a
+margin of 0, the exact third case asserted, and the test of the guard counting the Parties weighed;
+the report `m9-v115-s6-2026-10-04.md`; the epic's S6 boxes and status.
+
+---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
