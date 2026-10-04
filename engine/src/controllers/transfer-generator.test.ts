@@ -237,12 +237,16 @@ describe(`the Transfer Generator over ${seeds.length} seeds × ${years} years (M
     // harness's do (DL-180). Over the four seeds a third of the year-ends lie above the range (a tenth
     // before), Rivals hired to 20 Heroes and more, the largest 30 (15 before), a year's median reached 8.5 in years 5 to 7 and
     // the mean of every year-end 9.18 (6.44 before). So above the range only the median of every
-    // year-end is held, 7 (6 before); below it, each year's median and the mean, as before.
+    // year-end is held, 7 (6 before); below it, each year's median and the mean, as before. Over the
+    // box's hundred seeds (the harness flag), 400 Rivals a year against the four seeds' 16, each year's
+    // median is still held within the range, as DL-59 read the box: it reaches 8, the range's top, in
+    // years 4 to 7, with the mean of every year-end 9.17 and the largest 33 (S13's verification, DL-184).
     const every: number[] = [];
     for (let year = 0; year < years; year += 1) {
       const sizes = tallies.flatMap((tally) => tally.yearEnds[year] ?? []);
       expect(sizes.length, `year ${year + 1}`).toBeGreaterThan(0);
       expect(median(sizes), `year ${year + 1} median`).toBeGreaterThanOrEqual(min);
+      if (harness) expect(median(sizes), `year ${year + 1} median`).toBeLessThanOrEqual(max);
       every.push(...sizes);
     }
     expect(median(every)).toBeGreaterThanOrEqual(min);

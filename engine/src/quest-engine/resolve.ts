@@ -362,7 +362,8 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       // `0 -` rather than unary minus: a Fame effect of 0 then loses 0, not −0, which is not JSON-safe.
       fameDelta: (paid ? quest.fameEffect : 0 - quest.fameEffect) + working.fameDelta,
       // v1.1.5-S13 (DL-182 item 1): split across the Party sent, its Dead counted, so a dead Hero's share is lost.
-      xpPerHero: Math.floor(xp / heroes.length),
+      // A Party of no one, which the estimate's test resolves, takes 0, not Infinity, which is not JSON-safe.
+      xpPerHero: heroes.length === 0 ? 0 : Math.floor(xp / heroes.length),
       moraleDelta: working.moraleDelta,
       moraleByHero: Object.fromEntries(working.alive.map((hero) => [hero.id, whole(working.moraleByHero[hero.id] ?? 0)])),
       regardDelta: working.regardDelta,

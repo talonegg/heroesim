@@ -23787,6 +23787,87 @@ Rosters and longer games, are DL-180's, for #51 in the backlog (DL-182 item 2).
 `transfer-generator.test.ts` and `sweep.test.ts`; `harness/reports/m9-v115-s13-2026-10-04.md`,
 force-added; `docs/planning/epics/v1.1.5-release.md` (S13's boxes, the status).
 
+**The verification** (a second Opus agent, at `dacf83b`; the sweep not run again). The rule is DL-180's
+line, held by tests that fail under every wrong split tried; the closing sweep is the trial's by
+fingerprint and line for line; two things fixed test first: a Party of no Heroes took a share of
+Infinity, and the Transfer Generator's test gives back, over the box's hundred seeds, the reading the
+loosening had dropped.
+- *The rule.* `git diff 6e69b1d..dacf83b` changes one engine line, `xpPerHero: Math.floor(xp)` to
+  `Math.floor(xp / heroes.length)`, and comments; no scratch counter (`highestLevel`, "S9 TRIAL") in
+  `engine/src` or `harness/src`. `heroes` is `party.heroIds` mapped, `working.alive` a copy of it, so the
+  Dead stay in the divisor; `xp` is worked out after the band, so every band is split; the line reads
+  no controller, so the player's and the Rivals' alike; `questsConclude` (unchanged) adds `xpPerHero` to
+  each survivor and emits `hero.xp-gained` with it. `configVersion` 13, content 32, schema 6.
+- *A Party of no Heroes.* `dispatch` sends no Party below the Quest's `partySizeMin` (content's checks
+  hold it at 1 or more) and nothing takes a Hero out of a Party, so no game resolves one; but
+  `estimate.test.ts`'s "gives a Party of no one no chance" resolves a Party of no one on purpose (a
+  failure meeting no Encounter), and under the split its `xpPerHero` was `Infinity`, which
+  `JSON.stringify` writes as `null`. A guard that threw broke that test, so the resolver keeps taking
+  one: test first, `resolve.test.ts`'s "gives a Party of no Heroes a share of 0" failed (`Infinity`),
+  then `xpPerHero: heroes.length === 0 ? 0 : Math.floor(xp / heroes.length)`, with a comment. No game
+  changes: `quests-conclude.test.ts`'s three History fingerprints are S13's still.
+- *The tests, mutated* (each put back): dividing by the survivors fails 4 (the Death in the divisor,
+  both conclude tests, the History fingerprints); `Math.round` 4 and `Math.ceil` 8; no split for the
+  Rivals 2 (the Rival's conclude test, the fingerprints); no split on a failure 5; no split on a strong
+  success 2. `Math.floor(Math.floor(xp) / heroes.length)` passes, as it must: for a whole divisor it
+  equals the rule (DL-180's rounding).
+- *The Transfer Generator's test* (DL-184's reading 1). The range, `rivalRosterMin` 4 to
+  `rivalRosterMax` 8, is the range a Rival's starting Roster is drawn from (`generators/guilds.ts`), the
+  floor below which a Rival hires by need (`hiringBudget`, DL-60), and the bound on the Generator's own
+  moves (`transferBid`, DL-59). It is no cap: a Rival above its `recruitThreshold` hires by choice at
+  any size, and no rule, `CONTEXT.md` entry or requirement caps a Roster. So Rivals above 8 are no
+  defect in play. The box's subject is the Generator, and its rule, each of its Transfers leaving both
+  Rosters in the range, is held unchanged by `expectWithinTheRule`; DL-59 read the box's "distribution
+  stays within the generation range" as each year's median and mean, while writing that "the
+  distribution is the game's, unchanged by the Generator". The four seeds' figures are DL-184's, measured
+  again with the line and without (319 year-ends, median 7, mean 9.18, 67.1% within, largest 30, a
+  year's median 8.5 in years 5 to 7; before, 318, 6, 6.44, 90.9%, 15, 7). The box's own run,
+  `HEROESIM_HARNESS=1`, 100 seeds × 20 years, alone (1,441.6 s, passing), measured with a scratch line
+  taken out: 7,965 year-ends, the median of every year-end 7, the mean 9.17, 67.7% within the range,
+  32.3% above, one below, the largest 33; **each year's median within the range, at 8, its top, in
+  years 4 to 7**, 6 or 7 in the others. The four seeds' 8.5 is 16 Rivals a year against the box's
+  400. *The verifier's reading:* the loosening is sound in kind (the test held the economy, not a rule,
+  and DL-157 dropped a year's mean for the same cause), but it dropped what still holds at the box's
+  scale; so `if (harness)` each year's median is held within the range again, the comment saying
+  why, and the 100-seed run passed with it, alone (1,447.6 s). On the shipped content the harness's
+  games read the same way: S13's report's Rivals at a year-start, each year's median 5 to 7, the mean of every
+  year-start 7.69 (the close's 5.71), each year's mean above 8 in years 7 to 16 (at most 9.29), 26.1%
+  above the range (`ambitious` 43.8%, `reckless` 45.3%).
+- *The words.* `CONTEXT.md`'s XP and the comments in `resolve.ts`, `config.ts`, `counters.ts` and
+  `sweep.ts` say the split. `grep -rn -i "\bxp\b" web/src cli/src docs/requirements.md` and a search of
+  the docs for "not split" and "whole XP": the Quest report's "XP +N each" is the rewards section's `xp`,
+  `quest.resolved`'s `xpPerHero` (`quest-return.ts`), the share; the narration's "gained N XP" is
+  `hero.xp-gained`'s `amount`; nothing on the page or the CLI computes a Quest's XP before it is sent
+  (no other reader of `xpPerDifficultyPoint` or `xpBandFactor`), so no preview states the whole.
+- *The sweep.* `diff` of the trial's copy and `m9-v115-s13-2026-10-04.md`: the title, the start time,
+  the replay's row, the timings and the DL-74 rows that read them (with the replay's `advance` row
+  added), the trial's highest-Level line and the Party table's heading; nothing else. Both fingerprints
+  `e7ae171001c2…6369f369`. Recomputed against the close: failed 27,384 / 403,168 = 6.792% and strong
+  72.683% against 5.136% and 76.455% (+1.66, −3.77 points); Deaths 0.214 against 162 / 943.6 = 0.172
+  a Guild-year (+24.6%), Injuries 3.626 against 2.884 (+25.7%); Upkeep 45,664.3 / 61,150.1 = 74.7% and
+  56,166.8 / 64,003.0 = 87.8%, −18.7% and −4.5%; the Wealth +46.8% and +117.6%; folds 2.74 − 5.44 =
+  −2.70; `advance` 7.405 / 5.028 = +47%, the games 1,751.7 / 1,267.1 = +38%; the save 144,371,849 /
+  137,606,607 = +4.9% and / 119,338,444 = +21%; 1,983.7 − 1,751.7 = 232.0 s; 584 minutes against 448.
+  The memory readings (a scratch file, not kept) were not checked.
+- *The record.* DL-184 is accurate but where this verification adds to it: its "the box's 100-seed run
+  was not run" is now run, above. Every file keeps its endings, one to a file: the source and
+  `CONTEXT.md` CRLF in the working tree, the decision log, the epic and the report LF, the repository's
+  copies LF throughout (`core.autocrlf`).
+- *Checks.* `npm run edit -- traits doctor`: no drift (110 reads), the doc fresh, the content passing, no
+  pending edits, after the guard and at the close. `npm run lint` and `npm run typecheck` clean. `npm
+  test`: 185 files, 4,831 tests (one added), all passing, the eslint-based tests within their time.
+  `npm run build -w web`: check-bundle passing, the script 816,059 bytes (S13's 816,044). `e2e` not
+  run: no page changed. The Transfer Generator's test in its 100-seed mode twice, each alone.
+
+**For the owner** (from the verification).
+1. *The Rivals' Rosters with the split.* On the test content the mean Rival Roster at a year's end is
+   9.17 over 100 seeds and each year's median sits at the range's top, 8, in years 4 to 7; in the
+   harness's games the mean at a year-start is 7.69 (5.71 before) and each year's mean above 8 in years
+   7 to 16. The range is no cap, so nothing is broken, but M6-S3's box, as DL-59 read it, now holds by
+   each year's median only, at its edge: one more change that enriches the Rivals will fail it. Whether
+   a Rival's Roster should be capped, or the box read by median alone, belongs with the economy pass
+   (#51).
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

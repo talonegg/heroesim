@@ -269,6 +269,19 @@ describe('resolveQuest', () => {
         expect(share * (size - 1)).toBeLessThan(40);
       }
     });
+
+    test('gives a Party of no Heroes a share of 0, not the Infinity of dividing by none, and JSON-safe', () => {
+      // `dispatch` sends no Party below the Quest's `partySizeMin`, which content holds at 1 or more, and
+      // nothing takes a Hero out of a Party; but the estimate's test resolves a Party of no one (a failure
+      // meeting no Encounter), so the resolver keeps taking one (S13's verification, DL-184).
+      const { world, quest, party, deps } = scene('split-empty', content, ['pass']);
+
+      const { outcome } = resolveQuest(world, quest, { ...party, heroIds: [] }, deps);
+
+      expect(outcome.band).toBe('fail');
+      expect(outcome.xpPerHero).toBe(0);
+      expect(JSON.parse(JSON.stringify(outcome)).xpPerHero).toBe(0);
+    });
   });
 
   test("sums the Encounters' Morale and Regard into the outcome", () => {
