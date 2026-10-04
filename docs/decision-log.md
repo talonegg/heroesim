@@ -22539,7 +22539,7 @@ equal S5's by fingerprint (nothing after S5 changes play but the review's fixes)
 **The agent's readings.**
 1. *The Traits rise less than the chance.* The chance rose 2.5 times; the player's positive Traits
    1.44 times, the Rivals' 2.05 times. Each is earned once a Hero (never one held, `mayEarn`), at
-   most one a Quest, and only on a Triumph of its one Encounter. The player's Heroes see about 970
+   most one a Hero on a Quest, and only on a Triumph of its one Encounter. The player's Heroes see about 970
    Quests a career (374,495 Quests × 1.57 Heroes / 606), so at 0.02 the commonest was already near
    its ceiling: `wayfinder` reached 430 of 627 careers at S4 and 472 of 606 now (78%), and rose 10%;
    the rarest, `lettered`, more than doubled. The Rivals' Heroes see
@@ -22587,6 +22587,57 @@ endings (LF in the index, CRLF in the working tree).
 by the editor's Finish); `harness/reports/m9-v115-s5-2026-10-04.md` (force-added); the epic's
 objective, Gate "Rare Traits", status, S5's aim and boxes, §4's Traits risk; DL-168 item 4's pointer to
 this entry.
+
+**The verification** (a second Opus agent, at `0f09174`; the sweep not run again). The content change
+is the four chances alone, made by the editor; the sweep ran the committed code and content; every
+figure above is the two reports'. Nothing in content or code to fix. Two records corrected: the epics
+README's v1.1.5 Gate summary still read "Traits earned about 1.5 a career", and now reads the
+baseline of 2.32 (DL-179); and reading 1's "at most one a Quest" now says "a Hero on a Quest", as
+`earn` holds it (a Quest may give two Heroes a Trait each, in two Encounters).
+- *The content.* `git diff cbe1603..0f09174 -- content/` is the four `chance` values 0.02 → 0.05, each on
+  its Encounter's `triumph` list at `.1` (`the-last-assault` `battle-tried`, `lost-in-the-fells`
+  `wayfinder`, `the-patrons-steward` `silver-tongued`, `the-wardens-seal` `lettered`), and the version
+  31 → 32 in the two places `raiseContentVersion` writes (`parse.ts`'s comment and constant,
+  `content.test.ts`'s pin). `battle-shy` and `haunted` stand at 0.08 in their four Failure lists. `traits
+  uses` names each positive Trait's one Encounter use at `triumph.1`, as before. The editor's evidence:
+  the three files written within 2 ms of each other at 13:54:12 (one Finish transaction), the comment
+  line in the editor's form with its summary of the eight edits, no `.editor/traits.json` (no pending
+  edits) and no journal (`finish.running` false, nothing recovered). The register is untouched
+  (`content/src/uses/` not in the diff).
+- *The doctor now:* `ok`, no drift (110 reads), the doc fresh, the content passing, 0 pending edits.
+- *What was swept is what was committed.* The content files were written 13:54:12 and the sweep began
+  13:59:22; no file under `engine/src`, `content/src`, `harness/src`, `tools` or `web/src` was written
+  after 13:54:13 (the editor's two `tsbuildinfo`s aside), the engine's last at 13:47:36 (S4's
+  verification, committed in `cbe1603` at 13:52:19); the engine and content packages export their
+  sources, so the sweep read them, not `dist`. The report was written 14:19:36, the commit at 14:22:56,
+  the tree clean after it; the report says content version 32.
+- *The figures.* Every cell of both tables recomputed from `m9-v115-s5-2026-10-04.md` and
+  `m9-v115-s4-2026-10-04.md`: the by-year Bankruptcies sum to 12 and 13, mean year 177 / 12 = 14.75 and
+  213 / 13 = 16.38; 374,495 / 381,943 −1.95%; 396.9 and 397.2 a Guild-year; the shares 5.136 / 18.410 /
+  76.455% against 5.812 / 19.558 / 74.630% (−0.68, −1.15, +1.83), the Rivals' 11.748 / 29.548 / 58.704%
+  against 12.476 / 30.875 / 56.649% (−0.73, −1.33, +2.06); Injuries 2,721 / 3,157 −13.8%, Deaths 162 /
+  181 −10.5%, the Rivals' −5.4% and −6.8%; 1,407 / 606 = 2.322, 985 / 627 = 1.571, the four positive
+  1,392 / 606 = 2.297 and 969 / 627 = 1.545, the Rivals' 3,920 / 3,466 = 1.131 and 1,970 / 3,443 = 0.572;
+  each Trait's count and change (472 / 430 +9.8%, 356 / 235 +51%, 331 / 198 +67%, 233 / 106 +120%; the
+  Rivals' +73%, +140%, +127%, +227%), each column summing to its total; Upkeep +0.25%, rewards +1.09%,
+  the Wealth +3.8% and +8.2%; `advance` +2.2%, the games +0.9%. No discrepancy.
+- *The readings' figures.* S3 → S4 (from `m9-v115-s3-2026-10-04.md`): the player's shares moved
+  +0.001 / 0.000 / −0.001 points, the Rivals' +0.05 / +0.10 / −0.15, so "under 0.01" and "under 0.2"
+  hold; Injuries 3,157 / 3,192 −1.1%. √(181 + 162) = 18.5. 374,495 × 1.57 / 606 = 970 and 727,328 × 1.72 /
+  3,466 = 361 Quests a career. The "1.44 times" and "2.05 times" are the counts (1,392 / 969, 3,808 /
+  1,858); a career, 1.49 and 1.98. "Once a Hero" holds: `earn` draws only among Heroes `mayEarn` allows
+  (not holding the Trait nor one it excludes) and none that drew a Trait on this Quest, and each
+  positive Trait stands in one Encounter's `triumph` list. "+2 to every Check of its kind's
+  Encounters, for the whole Party" is `encounterBonus` `flat` 2 on `combat` and `travel`; the other two
+  are +1 Diplomacy and Charisma, +1 Intelligence and Knowledge (`hero-traits.json`). ±3 for fifty
+  seeds' Bankruptcies is DL-166's.
+- *The steer applied.* The epic's objective line, Gate "Rare Traits", S5's aim and §4's risk cite
+  DL-179 and 2.32 (the Rivals' 1.13 in the Gate, the aim and the risk); §2's content line DL-179 and
+  content 32. DL-168 item 4 keeps
+  the owner's recorded answer word for word, with one sub-item added pointing here. The epic's status
+  now reads S5 built and verified.
+- *Checks.* `npm run lint` and `npm run typecheck` pass; `npm test` 4,814 passed in 185 files. Every
+  file touched keeps its endings (the README CRLF in the working tree, the decision log and epic LF).
 
 ---
 
