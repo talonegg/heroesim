@@ -44,6 +44,7 @@ import {
   portraitCounters,
   questsTakenByController,
   regardSnapshot,
+  savedLength,
   takeCensus,
 } from './counters.js';
 
@@ -1357,11 +1358,26 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
     expect(heroFieldsLength(document.world)).toBe(text.length - serialise(without).length);
 
     const observations = emptyObservations();
-    observeSave(observations, document.world, text);
-    observeSave(observations, document.world, text, 1234);
+    observeSave(observations, document.world, text.length);
+    observeSave(observations, document.world, text.length, 1234);
     expect(observations.saves).toEqual([
       { length: text.length, heroFields: heroFieldsLength(document.world), gzipped: null },
       { length: text.length, heroFields: heroFieldsLength(document.world), gzipped: 1234 },
     ]);
+  });
+
+  // v1.1.5-S1 (DL-174): the years' saves are measured, not written.
+  test("savedLength is the save's length, counted without writing it", () => {
+    const { document } = fixture('counters-save');
+    expect(savedLength(document)).toBe(serialise(document).length);
+    const awkward = {
+      z: ['a "quoted" \\ path', 'tab\there', '\u0000\u001f', 'lone \ud800 and \udfff', 'pair 😀', 'line   \u007f', 'Zoë'],
+      numbers: [0, 7, 10, 99, 100, 123_456_789, Number.MAX_SAFE_INTEGER, -1, -0.5, 0.1, 1e21, 1e-7, 2 ** 60, -(2 ** 60), 3.5e-300],
+      flags: [true, false, null],
+      empty: { list: [], object: {}, text: '' },
+      '"key\n"': { a: [[[]]], b: [{}] },
+    };
+    expect(savedLength(awkward)).toBe(JSON.stringify(awkward).length);
+    expect(savedLength(awkward)).toBe(serialise(awkward as unknown as WorldDocument).length);
   });
 });

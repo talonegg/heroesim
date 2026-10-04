@@ -71,7 +71,7 @@ import {
 import { harnessSetup } from './creation.js';
 import { idsOf } from './modules.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
-import { defaultYears, playGame, type GameRecord, type PlayOptions } from './play.js';
+import { defaultYears, fingerprintOf, playGame, type GameRecord, type PlayOptions } from './play.js';
 import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
 import { runShardJobs } from './children.js';
 import { playSeeds, type PlayedSeeds, type ShardJob } from './shard.js';
@@ -91,7 +91,8 @@ export interface PlaySweep {
   validation: Summary;
   /**
    * One seed played twice more in this process, after the sweep: the first to have run its full
-   * length, or the first seed when none did. Whether the two last documents serialise alike, and
+   * length, or the first seed when none did. Whether the two last documents serialise alike, by
+   * their length and SHA-256 (v1.1.5-S10, DL-181), and
    * the first replay's `advance` per Turn, taken with nothing else of the sweep running.
    */
   replay: { seed: string; identical: boolean; length: number; advance: Summary } | null;
@@ -111,13 +112,30 @@ export interface SweepOptions extends PlayOptions {
   replay?: boolean;
 }
 
-/** Plays `seed` twice in this process and compares the two last documents, timing the first. */
+/**
+ * One play of `seed` for the replay, reduced to what it compares: its last document's serialised
+ * length and fingerprint (`fingerprintOf`, `DocumentMeasures.fingerprint`'s SHA-256) and its `advance`
+ * timings. The document and its text are out of reach once it returns, so the replay never holds a
+ * game while it plays the next (v1.1.5-S10, DL-181).
+ */
+function playedOnce(seed: string, deps: EngineDeps, options: PlayOptions): { length: number; fingerprint: string; advanceMs: number[] } {
+  const played = playGame(seed, deps, { ...options, validate: false });
+  const text = serialise(played.document);
+  return { length: text.length, fingerprint: fingerprintOf(text), advanceMs: played.advanceMs };
+}
+
+/**
+ * Plays `seed` twice in this process and compares the two last documents by their serialised length
+ * and fingerprint, timing the first. Each play keeps only those and its timings (`playedOnce`), so
+ * that one game's document and text are gone before the other is played: holding the first's, as
+ * before, took the process to about twice a game's peak (DL-177, v1.1.5-S10, DL-181).
+ */
 function replay(seed: string | undefined, deps: EngineDeps, options: PlayOptions): PlaySweep['replay'] {
   if (seed === undefined) return null;
-  const once = playGame(seed, deps, { ...options, validate: false });
-  const a = serialise(once.document);
-  const b = serialise(playGame(seed, deps, { ...options, validate: false }).document);
-  return { seed, identical: a === b, length: a.length, advance: summarise(once.advanceMs) };
+  const first = playedOnce(seed, deps, options);
+  const second = playedOnce(seed, deps, options);
+  const identical = first.length === second.length && first.fingerprint === second.fingerprint;
+  return { seed, identical, length: first.length, advance: summarise(first.advanceMs) };
 }
 
 function sweepOf(
@@ -870,7 +888,8 @@ type EncounterTally = EncounterCounts[keyof EncounterCounts];
 
 /**
  * v1.1.4-S10's counters: the Quests resolved by the size of the Party sent, their bands and the XP
- * each Hero took (DL-148 item 19, the owner's decision on splitting XP), and the Traits earned by key.
+ * each Hero took (DL-148 item 19, the owner's decision on splitting XP: split since v1.1.5-S13, DL-182),
+ * and the Traits earned by key.
  */
 function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
   const sizeRows = controllerKinds.flatMap((kind) => {
@@ -894,7 +913,7 @@ function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
   const traitRows = traitKeys.map((key) => [`\`${key}\``, ...controllerKinds.map((kind) => whole(totals.traitsGainedByKey[kind][key] ?? 0))]);
   return [
     'Quests resolved by the size of the Party sent (`quest.resolved`\'s `heroIds`), with the XP each Hero who came home took ' +
-      "(`xpPerHero`: XP is not split, DL-148 item 19) and the XP the Party took in all, a Quest:",
+      "(`xpPerHero`: the Quest's XP split across the Party sent, its Dead counted, rounded down, v1.1.5-S13, DL-182) and the XP the Party took in all, a Quest:",
     '',
     markdownTable(
       ['Controller: Party size', 'Quests resolved', 'Failed', 'Strong', 'XP a Hero', 'XP the Party took'],
@@ -1689,8 +1708,9 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,
     '',
     `Policy (INPUTS 4.14): first decline every Transfer Offer made for its Heroes (M6-S2); then the gear it holds ` +
-      `onto Heroes with the slot empty (M5-S2); the highest-reward ` +
-      `Quest it can staff, the Party the engine's \`partyFor\` names by the chance estimate at a margin of ` +
+      `onto Heroes with the slot empty (M5-S2); of the Quests it can staff, the one whose Party has the highest ` +
+      `chance of success by the estimate, ties to the higher reward, then the Quest id, and again from the Heroes ` +
+      `left (v1.1.5-S2), each Party the one the engine's \`partyFor\` names by the chance estimate at a margin of ` +
       `${config.playerPartyMargin} (v1.1.4-S6), carrying one of each consumable held that ` +
       `serves the Quest (DL-62); one purchase a Turn: the infirmary's next grade while Wealth exceeds ` +
       `${sweep.policy.buildWealthMultiple} times its cost (M3-S6), else one armour while a Hero has none and Wealth ` +

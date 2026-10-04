@@ -327,7 +327,7 @@
     "pass": ["and","bearings","footing"],
     "consequences": {
       "success": [{"kind":"xp","factor":1.1}],
-      "triumph": [{ "kind": "xp", "factor": 1.2 }, { "kind": "trait", "traitKey": "wayfinder", "chance": 0.02 }],
+      "triumph": [{ "kind": "xp", "factor": 1.2 }, { "kind": "trait", "traitKey": "wayfinder", "chance": 0.05 }],
       "setback": [{"kind":"morale","delta":-1,"steadiedBy":["endurance","willpower"]}],
       "failure": [
         {
@@ -490,7 +490,7 @@
     "pass": ["or","terms","standing"],
     "consequences": {
       "success": [{"kind":"wealth","factor":1.1}],
-      "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "silver-tongued", "chance": 0.02 }],
+      "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "silver-tongued", "chance": 0.05 }],
       "setback": [{"kind":"wealth","factor":0.95}],
       "failure": [{"kind":"wealth","factor":0.9}]
     }
@@ -1082,7 +1082,7 @@
     "pass": ["at-least",3,"unbinding","holding","shielding","cipher"],
     "consequences": {
       "success": [{"kind":"wealth","factor":1.1}],
-      "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "lettered", "chance": 0.02 }],
+      "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "lettered", "chance": 0.05 }],
       "setback": [
         {
           "kind": "injury",
@@ -1140,7 +1140,7 @@
     "pass": ["at-least",2,"wall","command","holding-out"],
     "consequences": {
       "success": [{"kind":"fame","delta":2}],
-      "triumph": [{ "kind": "fame", "delta": 3 }, { "kind": "trait", "traitKey": "battle-tried", "chance": 0.02 }],
+      "triumph": [{ "kind": "fame", "delta": 3 }, { "kind": "trait", "traitKey": "battle-tried", "chance": 0.05 }],
       "setback": [
         {
           "kind": "injury",

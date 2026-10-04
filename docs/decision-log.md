@@ -16645,6 +16645,7 @@ content.
     policy shares it. As recommended.
 18. **A Party's order** breaks ties only. A marching order waits for the third tier. As recommended.
 19. **Splitting XP** across the Party is decided after the balance pass's numbers. As recommended.
+    *Settled by the owner, 2026-10-04 (DL-182 item 1):* the XP split ships in v1.1.5, as S13 (DL-184).
 20. **Synergies are written as Queries.** `requires` is a list of Party-level conditions, and the old
     Class and Skill form loads into it. As recommended.
 21. **Coverage.**
@@ -20532,6 +20533,3636 @@ guardrails); `web/src/views/new-game.tsx`, `web/src/styles.css`; `web/src/bundle
 `docs/planning/epics/README.md` (the register's row); `docs/plan.md` (§4). After the push:
 `tools/editor/src/finish-journal.ts`, `tools/editor/src/test-support.ts`,
 `tools/portraits/src/test-support.ts`.
+
+---
+
+## DL-168 — The owner's answers to v1.1.4's open questions: v1.1.4 released, the harness's player choosing Quests by their chance before the economy, an Injury on the next-weakest unhurt Hero, the positive earned Traits at 0.05, one game's memory profiled, and v1.1.5 planned
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the owner, answering a grilling on every
+item v1.1.4 left open (DL-165 to DL-167). The words below are the owner's answers as the orchestrator
+relayed them, Q1 to Q18. The readings marked as the agent's, the stories, their acceptance and the
+sessions are the agent's, in `docs/planning/epics/v1.1.5-release.md`, for the owner to change.
+
+**Context.** v1.1.4 closed with these before the owner (DL-166's and DL-167's "For the owner"):
+- *The late bankruptcies.* 13 of 50 harness Guilds (26%), 11 of them from year 12 on, and every other
+  DL-83 target the closing sweep missed (DL-166, DL-167 item 4).
+- *The XP split* (DL-148 item 19), on DL-166's Party sizes and XP a Hero.
+- *The positive earned Traits' chance,* 0.02 against DL-148 item 25's "about 5 to 10%", for a career
+  mean of 1.12 (DL-166 item 6).
+- *E1's reading.* A negative earned Trait lands on the Failure Degree only, where the glossary,
+  `requirements.md` and the quest-review page still say "failed Encounter", which for a reroll takes
+  in a Setback (DL-167).
+- *E2.* The estimate does not follow a Morale consequence, and its probe takes every one out
+  (DL-156, DL-167).
+- *E3.* An Injury's `among` is taken over the whole living Party, then narrowed to the unhurt, so
+  when the weakest Hero is already hurt it falls on any unhurt Hero (DL-155, DL-167).
+- *R1.* At a `partyMargin` of 0, `partyFor` adds a Hero who raises the chance by nothing (DL-157,
+  DL-167).
+- *The tuned values that differ from DL-148's first ones:* `checkDegrees.triumph` 1.35 and
+  `strongTriumphShare` 0.6 (item 8), the form factors and `hurtCheckFactor` 0.93 (item 10) (DL-166
+  items 3 and 4).
+- *DL-157's reading* of "rounded to 5%" as floored to a multiple of 5, between 5 and 95 unless certain.
+- *The 18 Biography sentences* S10 wrote for the six earned Traits, which the drafts did not hold
+  (DL-166's verification, item 2).
+- *The Market's dilution.* Ten stacks a day drawn from 21 priced common Items, where there were 15
+  (DL-162's verification, DL-166).
+- *E4, E7 and W3,* left as nits (DL-167 item 1).
+- *Besides.* Cloudflare's "Workers Builds: heroesim" check fails on every push. And one 20-year game's
+  save of about 120 MB grows its process to about 1.7 GB, so a sweep runs in about 8 processes on the
+  owner's 27.6 GB machine (DL-166 item 7).
+
+**Decision.**
+
+1. **v1.1.4 is released as built** (Q1, Q18): pull request #50, merged as `75ee77f` on 2026-10-03,
+   `e2e:live` passing on both addresses. Everything below goes to later releases.
+2. **The harness's player first, then the economy** (Q2). A v1.1.5 story changes the harness's
+   automatic player, so that it chooses its Quests by their chance, not by the highest reward it can
+   staff, and the 50 × 20 sweep is measured again. No rule of the game changes for it. The economy is
+   decided after (item 16). This supersedes, for v1.1.5, DL-165 item 1's "The harness's policy and the
+   economy are not changed".
+   - *The agent's reading of "by their chance",* for the owner to change. Of the offered Quests it can
+     staff from the Heroes still free, the policy sends first the one whose `partyFor` Party has the
+     highest chance of success by the estimate, ties going to the higher reward, then the Quest id. It
+     then chooses again from the Heroes left, as it does today.
+3. **The XP split waits for v1.1.5's numbers** (Q3, DL-148 item 19). v1.1.5 runs one
+   information-only 50 × 20 sweep with the XP split across the Party: a trial, not shipped. *The
+   agent's reading:* each Hero of a Party takes the Quest's XP divided by the Party's size.
+   - *Settled by the owner, 2026-10-04 (DL-182 item 1):* the trial's split ships in v1.1.5, as S13.
+4. **The positive earned Traits' chance goes back to 0.05** (Q4): `battle-tried`, `wayfinder`,
+   `silver-tongued` and `lettered`, through the content editor only, as the `trait-assign` skill does
+   it. The negative ones, `battle-shy` and `haunted`, stay 0.08.
+   - *The rarity aim becomes about 1.5 Traits earned a Hero career,* in place of "about one or
+     fewer". v1.1.5's Gate says so ("Rare Traits"); v1.1.4's Gate, met at 1.12, stays its record.
+   - DL-166's trials earned 1.6 to 1.9 a career at 0.05, under v1.1.4's policy; v1.1.5 measures it
+     under its own.
+   - This supersedes DL-166 item 6's 0.02.
+   - *The aim superseded* by the owner's steer of 2026-10-04 (DL-179): S5's sweep measured 2.32
+     Traits earned a player's Hero career at 0.05, which becomes the baseline in place of "about 1.5".
+5. **A negative earned Trait lands on the Failure Degree only** (Q5), as E1 built it (DL-167). Only
+   the words change:
+   - `CONTEXT.md`'s Earned Trait spells out that it reads the Degree Failure, not "failed" as a reroll
+     reads it, which takes in a Setback;
+   - `docs/requirements.md`, R16;
+   - the quest-review page's sentence, `cli/src/quest-review.ts`.
+
+   DL-148 item 25's "the same failed Encounter" reads so.
+6. **An Injury falls on the next-weakest unhurt Hero** (Q6, E3). An Injury's `among` narrows to the
+   unhurt living Heroes first, then takes the weakest, so that when the weakest is already hurt the
+   Injury falls on the next weakest who is not. `exposedBy` then weighs those Heroes as before, and a
+   Death's pool, the living Party, is unchanged. This changes play: a v1.1.5 story with its own sweep.
+   It supersedes DL-155 item 3's order, `among` read over the living Party and then narrowed to the
+   unhurt.
+7. **The estimate stays as it is** (Q7, E2): "if no one falls", with Morale's consequences outside
+   it (DL-156). Its harness test, the estimate probe, gains a second, measured check with the Morale
+   consequences left in. That check fails if a gap passes a set limit, 3 points (the owner's
+   example), named in the test. The check without them stays at 2 points.
+8. **`partyFor` adds a Hero only for a real gain** (Q8, R1): a gain greater than the margin, and so
+   greater than nothing at a margin of 0. A small fix in v1.1.5. At today's margins a Hero who raises
+   the chance by exactly the margin is no longer added, so its story checks the games by fingerprint.
+9. **The Degrees' values are the design's; the form factors are provisional** (Q9).
+   - `checkDegrees.triumph` 1.35 and `strongTriumphShare` 0.6 are accepted as the design values. They
+     supersede DL-148 item 8's first values, 1.25 and "at least half".
+   - `moraleCheckFactor` (wretched 0.93, low 0.97, steady 1, high 1.03, elated 1.06) and
+     `hurtCheckFactor` 0.93 supersede item 10's 0.85 and S3's first values as provisional values,
+     revisited in the economy pass (#51).
+10. **Chances are shown floored** (Q10): to a multiple of 5, between 5 and 95 unless certain, as
+    DL-157 built them. Kept. DL-148 item 15's "rounded to 5%" reads "floored", and the spec's words say
+    so: `CONTEXT.md`'s Chance band names the floor (v1.1.5).
+11. **The 18 Biography sentences** for the earned Traits are approved as written (Q11).
+12. **The Market's dilution waits for the economy pass** (Q12, #51): 21 priced common Items for 10
+    daily stacks. Drawing the stacks by slot or category is noted there as the lasting fix to
+    consider, beside `marketSize`.
+13. **Cloudflare's Git builds are disconnected by the owner** (Q13). The "Workers Builds: heroesim"
+    check fails on every push: Cloudflare's Git integration builds from the repository's root, and
+    the only wrangler configuration is `web/wrangler.jsonc`. Nothing depends on it, and fixing it would
+    add a second deploy racing CI's. The owner disconnects the Git builds in the Cloudflare dashboard,
+    their own action. CI stays the one route to deploy (DL-94, DL-124). No file changes.
+14. **One game's memory is profiled and its main cause fixed** (Q14). v1.1.5's harness work profiles
+    one 20-year game's memory and fixes the main cause, in the engine too if that is where it lies,
+    with the games playing the same: every seed's last save's fingerprint equal.
+15. **v1.1.5's order** (Q15):
+    1. the memory profile and its fix (item 14);
+    2. the harness's player choosing Quests by their chance (item 2);
+    3. a new 50 × 20 baseline;
+    4. the next-weakest unhurt Hero injured (item 6), with its own sweep;
+    5. the positive earned Traits at 0.05 (item 4), with its own sweep.
+
+    Alongside: `partyFor`'s real gain (item 8), the estimate's Morale check (item 7), and the words of
+    items 5, 9 and 10. And the information-only split-XP sweep (item 3). Each play change's effect on
+    bankruptcies, the player's failures and strong successes, Deaths and Traits earned a career is
+    recorded on its own.
+16. **What follows v1.1.5** (Q16). If the new harness player brings the player's Bankruptcies within
+    DL-83 item 2's 5 to 15% of games, the order is v1.2's Random Events, then the economy pass. If not,
+    the economy pass comes first, as `v1.1.6`, before Random Events. In that case this supersedes
+    DL-83 item 1's and DL-148 item 3's order, the economy after Random Events.
+    - *The agent's reading,* for the owner to change: the rule reads v1.1.5's closing 50 × 20 sweep,
+      the new player with every v1.1.5 play change in. Of 50 games, 5 to 15% is 3 to 7. S3's baseline,
+      the new player alone, is reported beside it, and if the two fall on different sides of the band
+      the close says so for the owner.
+    - *Overridden by the owner, 2026-10-04 (DL-182 item 2):* the rule named the economy pass first
+      (DL-181); the owner deferred it to the backlog, after other game balances and features, and left
+      what follows v1.1.5 to be decided.
+17. **The record** (Q17).
+    - This entry, and the epic `docs/planning/epics/v1.1.5-release.md`, its stories from DL-169.
+    - Its row in the register (`docs/planning/epics/README.md`) and in `docs/plan.md` §4, as
+      v1.1.4's were added.
+    - GitHub issues for what lies outside v1.1.5: #51, the economy pass (items 2, 3, 9, 12 and 16), and
+      #52, E4, E7 and W3 (DL-167 item 1), one issue for the three, as the project groups small fixes.
+    - How the stories run, as before: Opus builds the medium and large stories and does all
+      verification. The sweeps run one at a time, nothing else running, with `HEROESIM_WORKERS=8`, and
+      with `HEROESIM_REPLAY=0` for trials.
+
+**Consequences.**
+- v1.1.5 is a v1.1.x patch on `v1.1.5-dev`, cut from `main` at `75ee77f` with `v1.1.4-dev` merged in
+  (`22e9b1f`), released as DL-124 says.
+- The harness's baseline moves again with its player (S2, S3). The M8 baseline DL-83 measures against
+  has now moved twice: `partyFor`'s Party in v1.1.4-S6 (DL-157), and the choice of Quests in v1.1.5.
+- Play changes in S4 and S5. S1 must not change it, and S6 is held to the games by fingerprint.
+- `configVersion` stays 13 unless a story adds a field. The content version rises with S5's Finish.
+- Dependabot's `target-branch`es still name `v1.1.4-dev` (DL-147 item 6). Whether they move to
+  `v1.1.5-dev` is the owner's, to be asked; `.github/dependabot.yml` is not changed here.
+- Open after v1.1.5: #51, when item 16 says; #52; #49 (Backgrounds); DL-148 item 4's text form.
+
+**Actioned in:** `docs/planning/epics/v1.1.5-release.md` (new); `docs/planning/epics/README.md` (the
+register's row); `docs/plan.md` §4 (v1.1.4 released, v1.1.5 added); GitHub issues #51 and #52.
+
+---
+
+## DL-169 — The owner's answers on the Board's unavailable Heroes and the Roster's Table: the Away and the Injured last on the Board with short chips, the Roster as Tiles or a Table of effective Stats with its columns, its sort and each Hero's Traits and Items, as S11 and S12; and v1.1.5's build order optimised
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the owner, adding two features to v1.1.5
+and answering a grilling on them, Q1 to Q20, as the orchestrator relayed them (items 1 to 13); then
+asking the agent to "analyse plan, optimise build plan and reorder as necessary" (items 14 to 18).
+The readings marked as the agent's, items 14 to 18, the stories, their acceptance and the sessions
+are the agent's, in `docs/planning/epics/v1.1.5-release.md`, for the owner to change.
+
+**Context.** The owner's request, in their words: "On the quest board screen, grey out the Heroes
+away on quest and place them at the bottom of the player's [list], change the label describing 'away
+with party, returning on day #' to just 'Away'. Roster view can switch between tiles or table of
+stats. Show traits and items for Heroes too." What is there, at `d135e1c`:
+- *The Board's Party builder* (`web/src/views/board.tsx`, `Builder` and `HeroRow`; its rows
+  `partyRows`, `web/src/state/selectors.ts`) lists only the player's Roster, in `guild.rosterIds`'
+  order, the order the Heroes joined, unsorted. A row that cannot go, Away or Injured, has the CSS class
+  `party-row is-away`, a disabled checkbox and a warn Chip with `unavailableUntil`'s words: "Away with
+  a Party, back on the night of Day 5", "Injured, healing on the night of Day 6".
+- *The Roster* (`web/src/views/roster.tsx`, `rosterView`) is cards only: the Portrait, the name, Class
+  · Level · Age, a Morale chip and a whereabouts chip. No Stat, Trait or Item.
+- *Traits and Gear* are shown only on a Hero's page (`hero-page.tsx`, `heroPage()`).
+- *A Hero's Stats* are 20, in four areas: Physical 5, Mental 6, Magical 5, Social 4. The engine's
+  `effectiveStats` adds the Guildmaster's Class bonus (`traitStatBonuses`), the Gear
+  (`gearModifiers`) and the Hero's Traits (`traitStatModifiers`) to the base, within the Stat's
+  bounds; all three are exported.
+- *No switch between tiles and a table* exists anywhere. A view's preferences live only in the
+  browser, through `web/src/views/remembered.ts`, "display only, never game state", as
+  `heroesim.boardOrder`, `heroesim.poolOrder` and `heroesim.guildsOrder` are. Sortable headings are
+  `SortHeader` (`web/src/views/ui.tsx`); the Unattached pool (`pool.tsx`) is the nearest model of a
+  table.
+- *The script* is 800,111 bytes against its 850 kB limit (DL-166, DL-167).
+- *Dependabot's* `target-branch`es were moved to `v1.1.5-dev` (`d135e1c`), on the owner's word, as
+  DL-147 item 6 has each new dev branch do. This supersedes DL-168's "whether they move … is the
+  owner's, to be asked".
+
+**Decision.**
+
+*The Board* (story S11).
+
+1. **The Injured are treated as the Away** (Q1): both cannot go, both keep today's look (item 3),
+   both go to the bottom, both have a short chip.
+2. **Only the Board's chips are short** (Q2, Q5): "Away" and "Injured". The full words, "Away with a
+   Party, back on the night of Day 5" and "Injured, healing on the night of Day 6", stay as the
+   chip's tooltip and for screen readers. The Roster and a Hero's page keep the full words with their
+   Days; the owner noted that the Days stay to be seen on the Roster.
+3. **The look stays** (Q6): today's faded `is-away` style and the disabled checkbox. Only the order
+   and the words change. "Open", the Hero's page, still works.
+4. **The order** (Q3; Q4 as amended by Q20). The Heroes who can go come first, in the default order
+   (item 5). The unavailable come below them, the soonest free first: the Away by their Party's
+   `returnsOnTurn`, the Injured by their Injury's `healsOnTurn`. Ties among them go to the default
+   order; Q20's answer replaces Q4's here.
+
+*The default order* (the owner's addition after Q18; Q19, Q20).
+
+5. **The Roster's default order is by Class, then Level, then Age, then Name.** Class in the
+   content's order (`content/classes.json`: Warrior, Rogue, Mage, Healer); Level highest first and Age
+   youngest first (Q19); Name A–Z. It breaks the ties of every sort the player chooses (item 10), and
+   the Board's Party builder uses it wherever it used the Roster's order (Q20).
+   - *The agent's readings,* for the owner to change. The default order is for display only: the
+     engine's `rosterIds` order and the save do not change. After Name, the Hero's id breaks any last
+     tie, so the order is total. A Hero whose free Day is unknown, with no Party or Injury row to
+     read, sorts after those with a Day.
+
+*The Roster* (story S12).
+
+6. **Tiles or a Table** (Q16). The Roster opens in Tiles the first time, with a "Tiles | Table"
+   switch at its top; after that, the last choice is remembered (item 11). The Offers and the
+   Unattached pool below it are unchanged.
+7. **The Table's columns** (Q7, Q14, Q15).
+   - *On a wide screen* the Table shows all 20 Stats (Q7 a), and the player chooses which columns
+     show. A "Columns" button opens a panel of checkboxes, grouped as Hero (Class, Level, Age, Morale,
+     where the Hero is, Traits, Items) and the four areas, with All and None for each group and a
+     Reset. Name, with the Portrait's thumbnail, is always shown. Every column is on by default
+     (Q14).
+   - *On a phone,* below 600px, the Table has five tabs, Hero, Physical, Mental, Magical and Social,
+     one area at a time (Q7 b), with Name pinned. The Columns panel is hidden on a phone, but the
+     columns hidden on a wide screen stay hidden within each tab (Q15).
+8. **The Table's Stats** (Q10, Q11, Q12).
+   - *Effective values,* what Quests check (Q10). A value raised by Gear, Traits or the Guildmaster's
+     Class bonus is green, one lowered is red (the owner's addition). Potential is never shown.
+   - *Besides the colour,* a ▲ for raised or a ▼ for lowered after the figure. The tooltip and the
+     screen reader's words give the base and the change, as "Base 10, +2 from Gear". Both colours
+     pass the layout tests' contrast in light and in dark (Q11).
+   - *The agent's readings,* for the owner to change. The colour and the mark follow the net change,
+     the effective value less the base, after the Stat's bounds; a net change of nothing is shown
+     plain. The words name each source that changes the Stat, and leave out one that changes nothing.
+   - *The tiles show no Stats* (Q12).
+9. **Traits and Items** (Q9). In the Table, their names only, each effect in a tooltip and for
+   screen readers. On the tiles, each Trait's name and its effect, and each Item. *The agent's
+   reading:* a Hero's Items are the Gear they carry, by name, its effect in a tooltip as in the
+   Table; a consumable is the Guild's, not a Hero's.
+10. **The sort** (the owner's addition at Q7; Q13). A "Sort by" dropdown above the Roster serves both
+    views: Default, Name, Class, Level, Age, Morale, when free, and each of the 20 Stats, with a
+    button for the direction. The Table's headings sort too, kept in step with the dropdown: one
+    value, remembered (item 11). A first choice sorts a Stat highest first and text A–Z. Ties go to
+    the default order (item 5).
+    - *The agent's readings,* for the owner to change. Class sorts in the content's order, as the
+      default order does, not A–Z, its names being an ordered set. Level's first choice is highest
+      first and Age's youngest first, as in the default order (Q19); Morale's is highest first, as a
+      number. "When free" sorts by the Day a Hero is free, those at the Hall first and an unknown Day
+      last. A heading pressed sorts by its column in its first direction, and pressed again reverses
+      it, where the Unattached pool's goes back to its own order; the pool stays as it is.
+11. **Remembered in the browser** (Q8): the view, the columns, the phone's tab and the sort with its
+    direction, in `localStorage` through `remembered.ts`, with every read and write in try/catch as
+    there; never in the save. *The agent's names:* `heroesim.rosterView`, `heroesim.rosterColumns`,
+    `heroesim.rosterTab` and `heroesim.rosterOrder`.
+12. **The script's limit** (Q17). If the Roster's work takes the script past 850 kB, the limit is
+    raised to 900 kB (`web/scripts/check-bundle.mjs`, `web/src/bundle.test.ts`) and recorded in that
+    story's DL entry. This supersedes DL-166's 850 kB only if it is needed.
+13. **Two new stories, first** (Q18): S11, the Board, and S12, the Roster, built before the engine's
+    stories. S12 reuses S11's default order.
+
+*The build order, optimised* (the agent's, at the owner's request, for the owner to change). Story
+numbers are kept, since DL-168 and issues #51 and #52 cite them; only the order changes.
+
+14. **The screens and the words first, then the engine's chain.**
+    - *Phase 1, no sweeps:* S11, the Board; S12, the Roster; S8, the words; S7, the estimate's Morale
+      check, its run on the shipped content repeated at the close. None of them changes play, so no
+      sweep waits on them, and they hang on neither the engine's chain nor each other's play.
+      Grouped first, they leave the sweeps a chain uninterrupted, and their test and `e2e` runs
+      never overlap a sweep.
+    - *Phase 2, the engine's chain, each sweep alone:* S1, one game's memory, profiled before and
+      after, with no full sweep of its own; S6, `partyFor`'s real gain; one fingerprint sweep with
+      S1 and S6 in (item 15); S2, the player by chance, with a short probe of its cost (item 17);
+      S3, the baseline; S4 and its sweep; S5 and its sweep; S9, the trial, on S5's commit; S10, the
+      close.
+    - DL-168 item 15's order of the engine's work is kept, with S6 between S1 and S2 as planned. The
+      epic's former order, which let S7 and S8 come "at any point", is superseded.
+15. **One fingerprint sweep for S1 and S6.** S1's profile plays `seed-0001` before and after its fix;
+    the two last saves' fingerprints must be equal, one game at no extra cost. The 50 × 20 sweep runs
+    once, after S6, with both in (`m9-v115-s6`, the replay skipped), held to `v1.1.4`'s close by
+    every seed's fingerprint and the report's play counters. If it differs, a second sweep at S1's
+    commit attributes the difference: S1's must equal `v1.1.4`'s close, and S6's is then measured
+    alone against it. This supersedes the epic's S1 sweep and S6's "held to S1's".
+16. **The replay on the baseline and the close only.** The replay (`HEROESIM_REPLAY`) plays one seed
+    twice more in one process after the games, compares the two last saves and times one game
+    alone. It is kept on S3's baseline, the new player's first sweep, and on S10's closing sweep.
+    S6's fingerprint sweep skips it, its fingerprints held to `v1.1.4`'s close being the stronger
+    check of the same thing. S4's and S5's skip it, the play counters being what they measure and
+    the close's replay checking the shipped code. S9's trial skips it, as before. Each story's
+    `npm test` still plays a seed twice and compares the saves byte for byte (`play.test.ts`,
+    `sweep.test.ts`), and S4's tests hold its draws as a twin's. This supersedes the epic's "a
+    story's measuring sweep keeps the replay"; DL-168 item 17 named the replay's skip for trials only.
+17. **S2's cost probed before S3.** Before S3, `HEROESIM_WORKERS=8 HEROESIM_SEEDS=8 HEROESIM_REPLAY=0`
+    for 20 years: its `advance` time a Turn read against S6's sweep and `v1.1.4`'s close (4.701 ms
+    mean, p99 23.276 ms). If it more than doubles, S2 estimates each Quest's Party once a choice, not
+    once a Hero, before S3, so that the baseline is not swept twice. Its report is not kept. This
+    supersedes the epic's reading of the cost in S3's sweep.
+18. **What it saves.** The plan had seven full sweeps (S1, S6, S3, S4, S5, S9 and S10), six of them
+    with the replay. It now has six (S6's, S3's, S4's, S5's, S9's and S10's), two with the replay,
+    plus S2's probe of 8 seeds and, only if S6's sweep differs, one attributing sweep. The replay is
+    a tenth of a sweep, not half: `v1.1.4`'s close took 1,448.2 s, the games 1,301.6 s of it, and
+    S10's 1,371.2 s, the games 1,235.7 s (the replay 146.6 s and 135.5 s). At the close's times,
+    the sweeps take about 135 minutes in place of about 167, about 139 with the probe: about 28
+    minutes saved, or about 6 if the attributing sweep is needed. S1's fix and S2's player will
+    change these times. The larger gains are a sweep chain no other work interrupts, and S3's
+    baseline not swept twice. Sessions: 10 to 12, from 8 to 10: S11 0.5 to 1 and S12 2 added, S1 a
+    half-session lighter without its sweep.
+
+**For the owner.**
+1. *More workers.* Whether sweeps may use more than 8 processes once S1's memory fix is measured: the
+   machine has 32 logical processors and 27.6 GB. `HEROESIM_WORKERS` stays 8 until the owner says
+   (DL-166 item 7); S1 records how many the machine can then run.
+2. *The agent's readings* above: the default order for display only, the id breaking the last tie
+   and an unknown Day last (item 5); the net change after the Stat's bounds, plain at nothing, and
+   the sources named (item 8); a Hero's Items as their Gear (item 9); Class sorting in the content's
+   order, the first directions of Level, Age, Morale and "when free", and a heading pressed again
+   reversing (item 10); the browser's key names (item 11); and the build order, the fingerprint
+   sweep, the replay's two runs and the probe (items 14 to 17).
+
+**Consequences.**
+- v1.1.5 gains two stories of the page, S11 and S12, built first. Neither changes the engine, the
+  content, the configuration or the save; the browser gains four keys.
+- The Board's Party builder and the Roster share one default order, a selector's comparator in
+  `web/src/state/`. The Rival Rosters' tables and the Unattached pool keep their own orders, and a
+  Hero's page is unchanged.
+- The script may reach 900 kB (item 12).
+- Six full sweeps where seven were planned, two with the replay. A nondeterminism brought in by S4
+  or S5 would surface only at the close, costing their sweeps again; the tests of each story guard it
+  (item 16).
+- Stories as built are recorded from DL-170.
+
+**Actioned in:** `docs/planning/epics/v1.1.5-release.md` (S11 and S12 added, the order, the sweeps,
+S1, S2, S6 and S10 amended); `docs/planning/epics/README.md` (the register's row);
+`docs/plan.md` §4 (v1.1.5's lines).
+
+---
+
+## DL-170 — v1.1.5-S11 built: the Board's Party builder lists the Heroes who can go first in the default order, the Away and the Injured below them the soonest free first, their chips reading "Away" and "Injured" with the full words as the tooltip and the screen reader's
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agents, building S11 as the epic's
+S11 bullets and DL-169 items 1 to 5 describe. The readings marked as the agent's are for the owner to
+change. Opus built it, test first; a second Opus agent verifies it.
+
+**Context.** DL-169 items 1 to 5: on the Board, the Heroes who cannot go, Away or Injured, are listed
+below those who can, the soonest free first, and their chips read just "Away" and "Injured"; the
+full words stay as the tooltip and for screen readers; the look, the disabled checkbox and "Open"
+stay. The default order (item 5), by Class, Level, Age and Name, is built here for the Board and
+reused by S12's Roster. At `9b87772` the builder's rows (`partyRows`) followed `guild.rosterIds`, the
+order the Heroes joined, and the chip held `unavailableUntil`'s words.
+
+**What was built.**
+
+1. **The default order** (item 5). `defaultHeroOrder(document)` in `web/src/state/selectors.ts`, a
+   comparator of two Heroes, exported for S12: Class in the content's order (`content/classes.json`'s
+   keys: Warrior, Rogue, Mage, Healer), Level highest first, Age youngest first, Name A–Z, then the
+   Hero's id, so that the order is total. It reads the world and changes nothing: `rosterIds` and the
+   save keep the order of joining (its test sorts the Roster and compares the document before and
+   after).
+2. **The builder's order** (items 1 and 4). `partyRows` sorts the Roster's Heroes by when they are
+   free, then the default order: those who can go first; then the Injured by their Injury's
+   `healsOnTurn` and the Away by their Party's `returnsOnTurn`, one scale, so an Away Hero back on
+   Turn 17 comes before an Injured one healed on Turn 20; then a Hero with no Day to read (a
+   `partyId` naming no Party). Ties at the same Turn go to the default order. The reason read is the
+   engine's `unavailability`, as the chip's: a Hero both injured and away is read by the Injury.
+3. **The chip** (item 2). `PartyRow` gains `chip`, "Away" or "Injured", made in the selector from
+   a word list with `capitalised()`, as `docs/agents/ui-text.md` says; `unavailable` keeps the full
+   words. The Board's chip shows `chip`; its `title` and its screen reader's words are `unavailable`.
+   `Chip` (`web/src/views/ui.tsx`) gains an optional `spoken`: the words shown are `aria-hidden` and
+   `spoken` is read in a `visually-hidden` span beside them. The chip's tone and icon are as before.
+4. **Unchanged** (item 3). The `party-row is-away` class and its faded look, the disabled checkbox,
+   "Open" and the Hero's page it opens, the preview's problem lines, the Roster's and a Hero's page's
+   words (`whereabouts` and `unavailableUntil` untouched). No file under `engine/src/` or `content/`
+   changed; no save field, configuration or browser key.
+
+**The tests.**
+- `selectors.test.ts`: four tests of the default order (by Class in the content's order; within a
+  Class Level, then Age, then Name, then the id; Age as the page reads it after years pass; total and
+  display only); and three of `partyRows`' order (those who can go in the default order, then Away on
+  Day 5 before Injured on Day 6; the unavailable by Turn with a tie at Turn 17 broken by Class, the
+  Away and Injured on one scale, and a Hero both injured and away read by the Injury; a Hero with no
+  Day to read last, and the Healer, raised to Level 3, still after the Mage).
+- `board.test.tsx`: the chips read "Away" and "Injured", the full words their `title` and their
+  `visually-hidden` words, the shown word `aria-hidden`; the Away row keeps `party-row is-away`, the
+  disabled box, and "Open" still opens the Hero's page; a new test of the order on the page (no
+  enabled row below a disabled one, the three unavailable in the order of their Turns, their chips,
+  the available by Class in the content's order).
+- *Updated for the order of joining:* `selectors.test.ts`' first two builder tests (the rows now
+  Liv, Cenric, Ragnvald, Bram by Class, and the unavailable last); `board.test.tsx`'s first two
+  builder tests, its Hero's page test (the second row's name read from the page), its Morale line
+  test and its chances test (the Heroes' rows found by name, not by place).
+- `capitals.test.tsx`: the guard already read the builder with an injured Hero and a Party out; it
+  now also asserts the "Injured" and "Away" chips are among what it read, and passes.
+- *The `e2e` specs* that take a row by place still hold, the available coming first:
+  `party-and-pool.spec.ts` ticks `.first()` row's box in a new game, where every Hero can go;
+  `layout.spec.ts` opens the `.first()` row's Hero's page, which any row allows; `support.ts`'s
+  `dispatchAParty` skips disabled rows.
+
+**Verification** (the builder's). `npm run lint` and `npm run typecheck` pass; `npm test` passes
+185 files and 4,753 tests (4,746 at `v1.1.4`, 7 added); `npm run e2e -w web` passes 97 specs;
+check-bundle passes, the script 801,082 bytes against 850 kB (800,111 before, 971 bytes added);
+`npm run edit -- traits doctor` reports no drift before and after. Each changed file keeps its CRLF
+endings.
+
+**The agent's readings,** for the owner to change.
+1. *Age* is the Age the page shows, whole years by `ageOf`: two Heroes of the same Age go to Name,
+   not to whichever was born later.
+2. *Name A–Z* compares by code unit (`compareByCodeUnit`, as the History's search sorts), the same in
+   every browser. Every name in `content/names.json` is plain ASCII with a capital first, so this is
+   A–Z exactly.
+3. *A Class the content does not define* (data-model rule 5) sorts after the four, by its key.
+4. *Soonest free* compares Turns, as DL-169 item 4 names them (`returnsOnTurn`, `healsOnTurn`), not
+   Days; both are nights, so Turns and Days agree in play.
+5. *A Hero both injured and away* sorts and reads by the Injury, as the engine's `unavailability`
+   and the chip do.
+6. *Dead and Retired* would read "Dead" and "Retired" and sort last; neither stands on a Roster in
+   play, and they are there so the chip's words are total.
+7. *The screen reader* reads the full words in place of "Away", from a `visually-hidden` span, the
+   shown word hidden from it; `title` alone is not read reliably.
+
+**For the owner.** Nothing is open; the readings above are the agent's to change.
+
+**The verification** (a second Opus agent, at `879169a`). Every S11 box and DL-169 items 1 to 5 are
+met by the code. `healsOnTurn` and `returnsOnTurn` are both absolute Turns, each a night
+(`inflictInjury` and `returnNightOf` both take `nightOf`), so the two compare on one scale; a Hero
+both injured and away cannot arise in play (a module's `injure` refuses a Hero away, and a returning
+Party's Injuries are given as its `partyId` is cleared). `rosterIds` is not sorted, the rows being a
+fresh array. Each comparator term was mutated in turn and a test failed for each, but one: ties
+among the unavailable broken by the order of joining in place of the default order passed every
+test, because the tie at Turn 17 (Liv and Ragnvald) agreed with the order they joined. *Fixed,* test
+first: the tie is now Ragnvald the Mage and Bram the Healer, Bram having joined first, so that
+mutation fails and the code passes (`selectors.test.ts`, the soonest-free test). No defect in the
+code. *Noted for the owner, unchanged:* the Day is in a `title` on a chip no keyboard or touch can
+focus, so a sighted player without a mouse reads it only on the Roster or the Hero's page, as Q2
+chose; and some screen readers may read a `title` as a description too, the full words then twice.
+Rechecked: lint and typecheck pass; `npm test` 185 files and 4,753 tests; `e2e -w web` 97 specs;
+check-bundle at 801,082 bytes; the doctor reports no drift.
+
+**Actioned in:** `web/src/state/selectors.ts` (`defaultHeroOrder`, `partyRows`, `PartyRow.chip`);
+`web/src/views/board.tsx` (the chip); `web/src/views/ui.tsx` (`Chip`'s `spoken`); the tests named
+above; `docs/planning/epics/v1.1.5-release.md` (S11's boxes).
+
+---
+
+## DL-171 — v1.1.5-S12 built: the Roster as Tiles or a Table of effective Stats, its columns chosen in a panel on a wide screen and by five tabs on a phone, one "Sort by" for both views with the headings in step, each Hero's Traits and Items, and every choice kept in the browser
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agents, building S12 as the epic's
+S12 bullets and DL-169 items 5 to 12 describe. The readings marked as the agent's are for the owner to
+change. Opus built it, test first; a second Opus agent verifies it.
+
+**Context.** DL-169 items 6 to 12: the Roster switches between Tiles and a Table, Tiles the first
+time; the tiles add each Hero's Traits with their effects and their Items, and no Stats; the Table
+shows Name with the thumbnail pinned, Class, Level, Age, Morale, where the Hero is, the 20 effective
+Stats, Traits and Items; a Columns panel on a wide screen and five tabs on a phone; one "Sort by" for
+both views, the headings in step, ties by S11's default order (DL-170); the view, the columns, the tab
+and the sort remembered in the browser, never in the save; Potential never shown. At `c74c1bd` the
+Roster was cards only, in the order the Heroes joined.
+
+**What was built.**
+
+1. **The selectors** (`web/src/state/selectors.ts`). `rosterView(document, order)` sorts by the
+   order given, the default order when none is (DL-169 item 5), ties always in the default order,
+   whichever way the sort runs; `rosterIds` and the save are untouched (its test sorts by every
+   choice and compares the document before and after). Each `RosterRow` gains `traits` (name and
+   effect, the same words as a Hero's page, through one helper `traitsOf` both now read), `items`
+   (the Gear the Hero carries in their own slots, by name, with `modifierWords`) and `stats`: the 20
+   Stats in content's order, each with its `base`, the `value` `effectiveStats` gives, `change`
+   (`up`, `down` or `null` by the net change after the Stat's bounds), the `sources` that move it,
+   in the order `effectiveStats` adds them, from the engine's exported `traitStatBonuses`,
+   `gearModifiers` and `traitStatModifiers`, and `words`: "Base 10, +1 from the Guildmaster's Class
+   bonus, +2 from Gear, -1 from Traits", with ", held at 20" when a bound holds the value.
+   `rosterSortChoices()` gives Default, Name, Class, Level, Age, Morale, When free and the 20 Stats
+   with their first directions and areas; `orderWords(key, direction)` the direction's words;
+   `rosterColumnGroups()` the Table's columns as Hero and the four areas, each with the sort its
+   heading orders by. `defaultHeroOrder`'s Class comparison is now a helper, `byClass`, which the
+   Class sort shares. No engine change.
+2. **The switch and the sort** (`web/src/views/roster.tsx`). Above the Roster: "Tiles | Table" as the
+   page's filter chips (`FilterChips`, `aria-pressed`), Tiles the first time; "Sort by", a dropdown
+   with the Stats in an option group by area; a button that reverses the direction, its words the
+   direction ("Highest first", "A to Z", "Warrior first", "Youngest first", "At the Hall first",
+   "Default order" and "Reversed"); and, with the Table on a wide screen, "Columns". The sort is one
+   value: the dropdown, the button and the Table's headings (`SortHeader`) all set it; a heading
+   pressed sorts by its column in its first direction and pressed again reverses it. The sort serves
+   the tiles and the Table alike. The Offers and the Unattached pool below are as they were.
+3. **The tiles.** As they were, with each Trait as a chip, "Lame: -2 Dexterity, -1 Endurance", as on a
+   Hero's page, and each Item as a chip by name, its effect its `title` and, with `Chip`'s `spoken`
+   (S11), its screen reader's words "Arming sword: Weaponry +2, Strength +1". No Stat.
+4. **The Table** (`web/src/views/roster-table.tsx`, new). `table--first-sticky` in a `table-wrap`, as
+   the Unattached pool: Name with the thumbnail pinned, then the columns shown. A raised Stat is
+   green (`--good`) and bold with "▲" after it, a lowered one red (`--bad`) with "▼"; the figure and
+   mark are `aria-hidden`, and a `visually-hidden` span reads "13, raised: Base 10, +1 from the
+   Guildmaster's Class bonus, +2 from Gear"; the cell's `title` is the words. A Stat nothing moves is
+   its figure alone. Morale is its band's chip, "60, steady"; where the Hero is the Roster's full
+   words with the Day; Traits and Items by name, each effect its `title` and the screen reader's
+   words, "None" for none.
+5. **The Columns panel**, on a wide screen: a group of boxes for Hero (Class, Level, Age, Morale,
+   Where, Traits, Items) and each area, each with All and None ("All the Mental columns", "None of
+   the Mental columns"), and Reset; "Name is always shown." Every column on by default.
+6. **The phone's tabs**, below 600px: `useNarrow()` (`ui.tsx`, new) reads `matchMedia('(max-width:
+   599px)')`, the style sheet's breakpoint, and follows it as the window changes. The Table is then in
+   the page's `Tabs`, Hero, Physical, Mental, Magical and Social, Name pinned in each; the Columns
+   button and panel are not drawn; a column hidden on a wide screen stays hidden in its tab, and a tab
+   whose every column is hidden says "The columns of this tab are hidden: show them from Columns on a
+   wider screen."
+7. **Remembered** (`remembered.ts`): `heroesim.rosterView` (`tiles`, `table`), `heroesim.rosterTab`
+   (the group's key), `heroesim.rosterOrder` (`level:descending`) through `rememberedChoice`, and
+   `heroesim.rosterColumns`, the hidden columns as a comma list in the columns' order, through a new
+   `rememberedList` and `rememberList`, each read and write in try/catch. Nothing of them in the save;
+   the Roster calls no play.
+8. **The words and the help.** Every label is made capitalised where it is written; the Roster's
+   "About this view" gains a sentence on Tiles, the Table, its colours and marks, Columns, the tabs,
+   "Sort by" and the browser's memory.
+9. **The script** (DL-169 item 12): 813,752 bytes against 850 kB (801,082 before, 12,670 bytes
+   added). The limit stays at 850 kB; `check-bundle.mjs` and `bundle.test.ts` are unchanged.
+10. **Unchanged.** A Hero's page (`hero-page.tsx` untouched; `heroPage` gives the same Traits through
+   `traitsOf`, its tests unchanged and passing); the Offers and the Unattached pool; no file under
+   `engine/src/` or `content/`; no save field, configuration or schema.
+
+**The tests.**
+- `selectors.test.ts`: `rosterView` in the default order (Bram the Healer, who joined first, now
+  last); the 20 Stats' keys, names, bases and values against `effectiveStats`; each source named, up
+  and down by the net change, plain at nothing; the bound held ("held at 20"), sources summed, and
+  sources that cancel plain with their words kept; Traits and Items with their effects, the Guild's
+  holding no Hero's, and no `potential` or `outlook` in the rows; the sort choices and their first
+  directions; the direction's words; Name, Class, Level, Age and Morale either way, a Stat by its
+  effective value, and when free, with ties in the default order against the order of joining; the
+  world unchanged by every sort; the columns' groups.
+- `roster.test.tsx`: the switch and its memory, the pool still below; the tiles' Traits, Items and no
+  Stat; the Table's headings, pinned Name with thumbnail, values and full whereabouts; ▲ and ▼ with
+  their class, `title` and screen reader's words, and a plain Stat; Traits and Items with tooltips and
+  "None"; a name opening the Hero's page, unchanged, and back returning the keyboard; no Potential in
+  either view; the panel's groups, boxes, All, None, Reset, Name always, and its memory; the panel not
+  on the tiles; the phone's tabs (`matchMedia` stubbed), hidden columns kept hidden in them, the tab
+  remembered, and an empty tab's sentence; the dropdown's options and groups; the dropdown, the
+  direction and the headings in step, a heading pressed again reversing, ties in the default order,
+  the tiles in the same order; the sort remembered; a browser that refuses storage opening as by
+  default with its choices still working (as the pool's test does); and the four keys alone kept.
+- *Updated for the default order:* `roster.test.tsx`'s `openFirstHero` opens the Hero who joined first
+  by name, whom the setups change; `pictures.test.tsx` opens the blade's carrier by the Item on their
+  tile; `selectors.test.ts`' two `rosterView` tests find their Heroes by id.
+- `remembered.test.ts`: a list kept and read, unknown keys left out, an empty list, and blocked storage.
+- `capitals.test.tsx`: the guard now reads the Table with its Columns panel open and "Sort by", the
+  Table sorted by when free, each of the phone's five tabs, and the tiles with a Trait and a carried
+  Item (`busyGame` gains an arming sword carried); it passes.
+- `e2e/layout.spec.ts`, a new spec on every project: at 360 and 390px on the phone and at 820 and
+  1280px, in light and dark, with Old soldier and Mistrusts magic chosen so a Stat is raised and one
+  lowered: no page overflow and 44px targets for the Table, the Table scrolled to its end (its Name
+  pinned at the box's edge), each tab on the phone, the Columns panel on a wide screen, the Roster
+  sorted and the tiles; the Table wider than its box on a wide screen; the green and the red each at
+  4.5:1 or more against the first opaque background under them (`textContrast`); the dark scheme the
+  page's own. Screenshots kept in its output.
+
+**Verification** (the builder's). `npm run lint` and `npm run typecheck` pass; `npm test` passes 185
+files and 4,782 tests (4,753 at S11, 29 added); `npm run e2e -w web` passes 100 specs (97 at S11, 3
+added); check-bundle passes, the script 813,752 bytes against 850 kB; `npm run edit -- traits doctor`
+reports no drift before and after. Each changed file keeps its CRLF endings; the new file is CRLF.
+
+**The agent's readings,** for the owner to change.
+1. *The sources' words* are "the Guildmaster's Class bonus", "Gear" and "Traits", in the order the
+   engine adds them; a bound that holds the value is said, "held at 20"; sources that cancel leave the
+   Stat plain, their words kept in its tooltip and the screen reader's.
+2. *The mark and its colour* are on the figure and its mark together, the figure bold; the screen
+   reader hears "raised" or "lowered" in place of the mark.
+3. *The direction's button* says the direction, not "Ascending": "Highest first", "Lowest first", "A to
+   Z", "Warrior first", "Healer first", "Youngest first", "Oldest first", "At the Hall first", "At the
+   Hall last"; Default reverses too, "Reversed".
+4. *Reversed, "when free"* reverses the whole comparison: a Hero with no Day to read, last at first,
+   comes first; ties stay in the default order, not reversed.
+5. *The Where column* is headed "Where" and sorts by when free; Morale shows as its band's chip,
+   "60, steady", as on the tiles.
+6. *The Columns panel* opens in the page below the bar, closed each time the Roster opens; whether it
+   is open is not remembered. The memory keeps the hidden columns, so a column the content adds later
+   shows.
+7. *A phone* is a window under 600px, read by `matchMedia` and followed as it changes; a tab whose
+   every column is hidden says so and how to show them.
+8. *The Roster's order* is the default order from the start, on the tiles too, where it was the order
+   of joining; the CLI's `show roster` is unchanged.
+9. *Tooltips* are `title`s on text no keyboard or touch can focus, as S11's chip: a sighted player
+   without a mouse reads a Stat's sources and an Item's effect on the Hero's page, and a screen reader
+   reads them in place.
+
+**For the owner.** Nothing is open; the readings above are the agent's to change. The script's limit
+was not raised.
+
+**The verification** (a second Opus agent, at `6e48230`). Every S12 box and DL-169 items 5 to 12 for
+the Roster are met by the code, and no file under `engine/src/` or `content/` changed. The Table's
+figures were checked in three real games of 1,500 Turns each (seeds `v1` to `v3`), every Guild's
+Roster read in turn as the player's, 80 Heroes: each Stat's value equal to `effectiveStats`, its base
+and value equal to the Hero's page's and its mark to the page's lift, each source equal to the
+engine's three sums with the Guildmaster's Class bonus that of the Hero's own Guild (5 Stats moved by
+it, 265 by Gear, 40 by Traits, 16 by sources both ways), and, with the bases forced to their bounds,
+41 Stats held and said "held at"; the scratch test was deleted. Fourteen mutations of the
+comparators, the colour, the bound, the phone's hidden columns, the panel, the heading's reversal and
+the storage's try/catch each failed a test. Five survived, in three gaps of the tests, none a defect
+of the code. *Fixed* in `roster.test.tsx`, each new test failing on its mutations and passing on the
+code:
+1. *A plain Stat with words.* No test drew a Stat whose sources cancel or a bound holds: drawing such
+   a Stat with the mark's branch, which throws on `marks[null]` and breaks the Roster, passed
+   every test. A new test draws Weaponry held at 20 and Charisma's ring and Scarred cancelling: plain,
+   the figure alone, the words in the `title` and the screen reader's.
+2. *The window crossing 600px.* `useNarrow` not listening for `change`, or not ceasing when the
+   Roster closes, passed every test, the stub firing no event. A new test narrows and widens the
+   window with the Table open, the tabs and Columns trading places, and finds no listener left after.
+3. *Stale or corrupt choices.* No Roster test kept an unknown view, sort, direction, column or tab:
+   reading the sort unvalidated (try/catch kept) showed "Highest first" for a sort that no longer
+   exists, and an unknown view drew the Table. A new test keeps `grid`, `potential:descending`,
+   `strength:sideways`, `luck,,strength,Strength` and `skills`: the page opens as by default, the
+   unknown column left out and Strength hidden, and the Hero tab on a phone. An unknown key in the
+   hidden list read unvalidated changes nothing shown, the list being only hidden columns.
+*Noted for the owner, unchanged:* the Columns button's `aria-controls` names the panel while it is
+not drawn; `byClass` reads the content's Classes at each comparison, of no cost at a Roster's size;
+and a Stat's sources and an Item's effect are `title`s no keyboard or touch can reach, as the
+builder's reading 9 says. DL-171's record above matches the code. Rechecked: lint and typecheck pass;
+`npm test` 185 files and 4,785 tests; `e2e -w web` 100 specs; check-bundle at 813,752 bytes; the
+doctor reports no drift.
+
+**Actioned in:** `web/src/state/selectors.ts` (`rosterView`, `RosterRow`, `RosterStat`,
+`rosterSortChoices`, `orderWords`, `rosterColumnGroups`, `traitsOf`, `byClass`);
+`web/src/views/roster.tsx`; `web/src/views/roster-table.tsx` (new); `web/src/views/ui.tsx`
+(`useNarrow`); `web/src/views/remembered.ts` (`rememberedList`, `rememberList`);
+`web/src/views/section.tsx` (the Roster's help); `web/src/styles.css`; the tests named above;
+`docs/planning/epics/v1.1.5-release.md` (S12's boxes).
+
+---
+
+## DL-172 — v1.1.5-S8 built: the words of the Earned Trait, the Chance band and the configuration's comments follow the owner's answers
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agents, building S8 as the epic's S8
+bullets and DL-168 items 5, 9 and 10 describe. Words and comments only; no value, view or save changes.
+
+**Context.** DL-168 item 5: a negative earned Trait lands on the Failure Degree only, as built in
+v1.1.4 (DL-167), while the glossary, `requirements.md` and the review page said "failed Encounter",
+which for a reroll takes in a Setback. Item 10: chances are floored, which the glossary did not say.
+Item 9: the Degrees' values are the design's and the form factors provisional.
+
+**What was built.**
+1. **The Earned Trait.** `CONTEXT.md` says a negative one falls on a Hero injured by the same Encounter
+   at the Degree Failure, not "failed" as a reroll reads it, so a Hero hurt at a Setback earns none;
+   `docs/requirements.md` R16 says the same with a dated note (2026-10-03, DL-168 item 5); the
+   review page's sentence in `cli/src/quest-review.ts` says it, with a new test in
+   `quest-review.test.ts` (red first). The committed `docs/quests/v1.1.4-review.html` is untouched, as
+   no test reads it from the generator; it stays S9's record (DL-166).
+2. **The Chance band.** `CONTEXT.md` says the detail's numbers are floored to a multiple of 5, between 5
+   and 95 unless certain (DL-157, DL-168 item 10).
+3. **The configuration's comments** (`engine/src/config.ts`). `checkDegrees` (1.35) and
+   `strongTriumphShare` (0.6) are called the design's values; `moraleCheckFactor` and `hurtCheckFactor`
+   provisional, for the economy pass (#51). No value changed; `configVersion` stays 13.
+
+**Verification.** `grep "failed Encounter"` finds the earned Trait's rule in none of `CONTEXT.md`,
+`docs/requirements.md` or `cli/src/` (the one hit is the new test's negative assertion). The doctor passed
+before and after; lint and typecheck pass; `npm test` 185 files, 4,786 tests.
+
+**The verification** (a second Opus agent, at `b7e0b4e`). Every S8 box and DL-168 items 5, 9 and 10
+are met. Each text was read against the engine:
+- *The Earned Trait.* `earn` in `engine/src/quest-engine/resolve.ts` returns, its two draws taken,
+  at any Degree that is neither a success nor `failure`, so a Setback reading the Failure's list
+  grants nothing, and draws a negative one only from `harm.injured`, the Heroes this Encounter
+  injured; the reroll reads `!succeeded`, which takes in a Setback. `CONTEXT.md`, R16 and the review
+  page say so.
+- *The Chance band.* `shownPercent` (`web/src/state/query-words.ts`, `cli/src/query-words.ts`)
+  floors to a multiple of 5 within 5 to 95, but returns 0 for a chance of 0 and 100 for 1. *Fixed*
+  in `CONTEXT.md`: "unless the chance is certain" read as though a chance of 0 showed 5, so it reads
+  "unless the chance is 0 or 1, which show 0 and 100"; its one line of 130 columns rewrapped.
+- *The configuration.* `git diff fcdf755..b7e0b4e -- engine/src/config.ts` changes comment lines
+  only; `configVersion` stays 13; the values are `triumph` 1.35, `strongTriumphShare` 0.6,
+  `moraleCheckFactor` 0.93, 0.97, 1, 1.03, 1.06 and `hurtCheckFactor` 0.93, as the comments and
+  DL-168 item 9 say.
+
+The new test fails with the old sentence put back in a scratch edit ("the same failed Encounter
+injured"), and passes restored. Every changed file keeps CRLF. A grep of the whole repository for the
+rule's old words found one beyond S8's three places, left as it stands (the agent's reading: S8 names
+`CONTEXT.md`, R16 and `cli/src/`): the comment on `TraitConsequence` in
+`engine/src/content-types.ts` still says "a Setback that reads the Failure's list may bring it",
+untrue since v1.1.4-S14 (DL-167, E1). The rest are history: the decision log, the v1.1.4 epic and
+the committed `docs/quests/v1.1.4-review.html` (S9's record, DL-166). Lint and typecheck pass;
+`npm test` 185 files, 4,786 tests; the doctor passed before and after.
+
+**For the owner.** Nothing is open. The stale comment in `content-types.ts` is a one-line fix for any
+later story that touches `engine/src/`.
+
+**Actioned in:** `CONTEXT.md`; `docs/requirements.md` (R16); `cli/src/quest-review.ts` and its test;
+`engine/src/config.ts` (comments); `docs/planning/epics/v1.1.5-release.md` (S8's boxes); the
+verification, `CONTEXT.md`'s Chance band.
+
+---
+
+## DL-173 — v1.1.5-S7 built: the estimate probe's second measure with Morale's consequences left in, run on the shipped content and stopped at its check, 23.65 points against a limit of 3, for the owner
+
+**Status:** Accepted; the gap answered by the owner on 2026-10-04 ("The owner's answer") · **Date:** 2026-10-03 · **Decided by:** the agent,
+building S7 as the epic's S7 and DL-168 item 7 (E2) describe. Where the plan was silent, the calls are
+the agent's, in item 4, for the owner to change. Opus built it; a second Opus agent verifies it. The
+story stopped where the epic says it must: the shipped content's Morale measure passes 3 points.
+
+**Context.** The estimate reads the Party "if no one falls" (DL-156): it follows no Injury, Death or
+Morale consequence on the way, and its probe took all three out (`harmless`) before measuring it. The
+v1.1.4 review's E2 (DL-167) noted that 17 of the 29 Encounters carry a Morale consequence, so the
+estimate is a little optimistic after a Setback or a Failure. The owner kept the estimate as it is
+and asked for a second, measured check with Morale's consequences left in, failing past 3 points
+(DL-168 item 7). Built on `v1.1.5-dev` at `2e6770f` (S8's verification, DL-172).
+
+**What was built** (test first, `harness/src/estimate.ts`, `estimate.test.ts`,
+`estimate.harness.test.ts`; no file under `engine/src/` or `content/` changes).
+1. **The second measure.** `unhurt(content)` takes out every Encounter's Injuries and Deaths and leaves
+   Morale and the rest; `harmless` is now `without` all three, the same filter. `moraleIn(drawn,
+   content)` gives a drawn sample its deps with Morale back. `compareSample` resolves each sample
+   twice on the same seeds, once with no one falling (`compared`, as before) and once under
+   `moraleIn` (`moraleIn`), both against the same estimate, made once. `widest(samples, measure)`
+   reads either.
+2. **The limits, named.** `estimateTolerance` 0.02, as before, and `estimateMoraleTolerance` 0.03,
+   beside it in `estimate.ts`; the harness test asserts each by name: every chance of the measure,
+   each Encounter's Degrees and Success or better and the Quest's bands and success, within its
+   limit.
+3. **The report** writes both measures under "No one falls" and "Morale in", each with its widest gap
+   in points and in standard errors, its mean gap, a new column of the chances beyond its limit, and
+   its widest gap's line saying "within" or "beyond the limit of N points". The Morale section counts
+   the Encounters that carry a Morale consequence. Its name is HEROESIM_MILESTONE's, or
+   `m9-estimate` as before, so that a story's run does not overwrite `m9-estimate-2026-10-03.md`,
+   v1.1.4's close's.
+4. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The written Encounters carry Morale too.* Three quarters of a sample's Encounters are written
+     for it, with no Morale consequence. Each is given the Morale consequences of a core Encounter of
+     its kind, added to each Degree's list as the resolver reads it (a Triumph's from the Success's,
+     a Setback's from the Failure's, where the core Encounter has none of its own). The one lent is
+     chosen by the SHA-256 of the written key, drawing nothing, so the samples, the estimate and the
+     no-one-falls measure are unchanged. 349 of the 588 Encounters then carry one, about the
+     content's share (17 of 29 in E2's count).
+   - *A Morale consequence draws nothing,* so where no Hero's band moves the two measures are equal
+     to the last digit; the test holds `estimate-0003` so (every resolution loses Morale, no band
+     moves) and `estimate-0023` apart (a loss takes a Hero below a band's floor).
+   - *The limit is strictly below,* as the 2 points' check was: a gap of exactly 3 points fails.
+
+**The checks.**
+- *The tests.* `estimate.test.ts` gains four: `unhurt` keeps every Morale consequence and no harm;
+  `moraleIn` keeps the core's Encounters as shipped less harm and gives the written ones only Morale;
+  Morale moves the rates only where a band moves; the limits named, 2 and 3 points. The test of the
+  few samples holds both measures (the Morale one within 5 points over 6 samples × 2,000 seeds) and the
+  report's two sections, columns and limits. Each was red first.
+- *A planted gap* (a scratch change, put back). One chance of the Morale measure raised by 3.5
+  points in `compareSample`: `HEROESIM_PROBE=estimate HEROESIM_SAMPLES=10 npm run harness` failed,
+  "expected 0.0384 to be less than 0.03", the widest gap 3.84 points, the no-one-falls measure's 0.77
+  passing. Put back, the same run passes. Neither report was kept.
+- *The probe on the shipped content,* run alone, nothing else running:
+  `HEROESIM_PROBE=estimate HEROESIM_MILESTONE=m9-v115-s7-estimate npm run harness`, 200 samples ×
+  20,000 seeds, the same 588 Encounters of 1,418 Checks as v1.1.4's close; 457.0 s (465.5 s the first
+  time, before the column of chances beyond the limit was added; the same gaps). The report,
+  `harness/reports/m9-v115-s7-estimate-2026-10-03.md`, is force-added.
+
+  | Measure | Encounter's Degrees | Success or better | Quest's bands | Quest's success | Beyond the limit |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | No one falls (limit 2) | 0.99 (3.02 SE) | 1.18 (3.36 SE) | 0.92 (3.01 SE) | 0.92 (3.01 SE) | 0 of 3,740 |
+  | Morale in (limit 3) | 23.65 (68.07 SE) | 4.64 (14.55 SE) | 1.61 (4.79 SE) | 1.61 (4.79 SE) | 8 of 3,740 |
+
+  The widest gaps in points, the widest in standard errors beside them. The mean gaps are 0.11 to 0.14
+  points with no one falling, 0.13 to 0.17 with Morale in. The no-one-falls measure equals v1.1.4's
+  close's to the digit (DL-167), as it must: the same samples and seeds.
+- *Lint and typecheck* are clean; `npm test` passes 4,790 tests in 185 files, four more than DL-172's.
+  The doctor was not run: no file under `engine/src/` or `content/src/validate.ts` changed.
+
+**Why the gap** (the agent's reading of `estimate-0064`, the widest). A lone Hero comes home at Morale
+21, one point above `low`'s floor of 20. Encounter 3, the core's `the-last-assault`, they always fail
+(the estimate gives its Failure 1.0), and it costs 3 Morale: they meet Encounters 4 and 5 `wretched`,
+form 0.93 in place of 0.97. Encounter 4, the core's `among-the-crowd` at the default variance, falls
+from 71.62% Success or better to 66.98% (4.64 points, the row's widest; its Triumph, estimated
+22.08%, resolved 15.16%). Encounter 5, a social Check written for the sample at a variance of 0.088,
+nearly a step, goes from 40.76% Failure to 64.42% (23.65 points). So the shipped content alone, one
+core Encounter's Morale moving the form of the core Encounter after it, passes 3 points. A Check of
+small variance turns a form change of 4% into a large change of its Degrees. The gaps are rare (8
+chances of 3,740, mean gaps up by 0.02 to 0.05 points) and smaller on the Quest, within 1.61 points,
+since a later Encounter's Degree moves the Quest's band only in part.
+
+**For the owner.** The Morale check fails on the shipped content, 23.65 points at its widest against
+the limit of 3 (DL-168 item 7). As the epic says, the story stopped: the limit, the content and the
+estimate are unchanged, and the harness test fails until the owner decides. The `npm test` suite
+does not run the probe and passes. The owner's choices, none of them taken:
+- *Raise the limit,* or hold the Morale measure only on the Quest's chances (within 1.61), which the
+  page shows first, leaving each Encounter's Degrees to the 2-point check without Morale.
+- *Fold Morale into the estimate* (E2's first option, set aside by DL-168 item 7): its walk would
+  follow each Encounter's Morale consequences into the next Encounters' form. It changes the
+  estimate and so the page and the Rivals' choices.
+- *Word it:* "if no one falls or loses heart" (E2's second option), with a looser check.
+- *Measure only the shipped content's Morale,* not lending it to the written Encounters (item 4). The
+  widest Success-or-better gap, 4.64 points, is core Encounters only, so this alone does not pass.
+S10 runs the probe again at the close, after S4 and S5 change harm and the content; whatever the owner
+decides is in place before then.
+
+**The verification** (a second Opus agent, at `fbf1102`). The code is sound and the gap is real; the
+owner's question stands as the builder put it.
+- *No one falls, unchanged.* `harmless` is now `without` Injuries, Deaths and Morale, the same filter
+  as before, and the report's first section equals v1.1.4's close (`m9-estimate-2026-10-03.md`) to
+  the digit, as recorded above.
+- *Morale in differs from the game only by harm.* `measure` runs the engine's own `resolveQuest` on
+  the same world (the night home), the same Party and the same seeds, under `drawn`'s deps with the
+  core's Encounters replaced by `unhurt`'s; nothing else moves. In the resolver a Morale consequence
+  adds to each living Hero's `moraleByHero` (a loss steadied by their Stats) and draws nothing, and
+  the next Encounter's `queryParty` reads each Hero's form from their Morale on the Quest, as in play;
+  rerolls, Traits and Loot draw as in the first measure. `withMoraleOf` adds to each Degree's list as
+  `consequencesOf` reads it, a Triumph's from the Success's and a Setback's from the Failure's where
+  the Encounter has none of its own.
+- *The lent Morale* is the agent's addition, beyond the epic's words: an Encounter written for a
+  sample has no Morale consequence to leave in. It changes nothing in the verdict. Measured again
+  with the core's Morale only (the written Encounters as drawn), a scratch test over the same 200
+  samples × 20,000 seeds, alone, 223 s, not kept: Degrees 23.65 points widest, Success or better
+  4.64, the Quest's bands and success 1.48; 5 of 3,740 chances beyond 3 points (4 and 1), all five in
+  `estimate-0064`; mean gaps 0.147, 0.128, 0.117 and 0.149 points.
+- *`estimate-0064` traced* on the same seeds. One Hero at Morale 21, `low`. Encounters 1 and 2 are
+  written, lent a loss of 1 or 2 (steadied) on a Setback or a Failure; Encounter 3,
+  `the-last-assault`, estimated and resolved a Failure every time, carries the core's own loss of 3
+  (steadied), so the Hero meets Encounters 4 and 5 `wretched`, form 0.93 for 0.97, under either
+  measure of Morale. Encounter 4, `among-the-crowd`, at the default variance: Success or better
+  71.62% estimated, 71.56% with no one falling, 66.98% with Morale in; its Triumph 22.08%, 21.82%,
+  15.16%, a gap of 6.92 points on a shipped Encounter alone; its Failure 7.50%, 10.56%. Encounter 5,
+  written, one social Check at a variance of 0.088: Failure 40.76%, 40.52%, 64.42% and its Setback
+  59.24%, 35.59%, Success never. The lent and the core's Morale give the same rates to the digit
+  here. The 23.65 points owe their size to the probe's own Check of low variance (no shipped Check
+  sets one; all read `checkVariance` 0.4), but a shipped Encounter at the default variance after a
+  shipped Morale loss stands 6.92 points off, beyond 3 on its own.
+- *Tests.* Mutations, each put back: `moraleIn` returning the sample's deps unchanged fails three
+  tests; `unhurt` taking out Morale fails four. Two survived: `widest` reading the first measure
+  whatever it is asked, and the report's Morale section reading the first measure's rates, so the
+  Morale check could have read the no-one-falls gaps and passed. *Fixed* with a test of two made-up
+  samples, red under both mutations, that also holds the limit strict: a gap of exactly 2
+  or 3 points is counted beyond and read "beyond"; it fails with either mutation and with `>` for
+  `>=` in the count or `<=` for `<` in the widest line. The planted gap, again: 3.5 points on one
+  chance of `estimate-0005`, `HEROESIM_PROBE=estimate HEROESIM_SAMPLES=10`, failed "expected
+  0.0349989322432712 to be less than 0.03", the no-one-falls gap 0.77; put back, passing; neither
+  report kept. The limits are named, `estimateTolerance` and `estimateMoraleTolerance` in
+  `estimate.ts`, imported and asserted by the harness test with `toBeLessThan`.
+- *The rest.* The report's name: only `estimate.harness.test.ts` reads its new `milestone`, which
+  `reportPath` holds to `m<n>-...`; the other probes keep theirs. Every changed file keeps its line
+  endings (CRLF in the work tree, the report LF as written). Lint and typecheck pass; `npm test` 185
+  files, 4,791 tests, one more.
+
+**The owner's answer (2026-10-04).** Option (a): "Check the whole-Quest chance only, at 3 points; list
+each Encounter's gap in the report." The Morale check now holds only the Quest's chances, its bands and
+success, within `estimateMoraleTolerance`, 3 points, strictly below (`moraleHeld`, in `estimate.ts`,
+asserted by the harness test). Each Encounter's gaps in that measure, its Degrees and Success or better,
+are reported, not held: the report's rows say "reported, not held", each with its widest gap, standard
+errors, mean and count beyond 3 points, and a line of the widest Encounter gap. The no-one-falls check
+is unchanged, 2 points on every chance. Declined: a two-limit ceiling (a wider limit for the
+Encounters), reporting only (no check on the Morale measure at all), and folding Morale into the
+estimate. The estimate, the content and the limit are unchanged. Built test first: the planted-gap test
+now plants its gap on a Quest chance (3.5 points, failing; an Encounter's 30 points beside it, passing),
+and a test shows an Encounter's gap above 3 does not fail the check where the Quest's does; the report's
+test reads the held and reported lines. The probe, run alone on the shipped content, passes, 484.9 s
+(486 s by vitest), the same 588 Encounters of 1,418 Checks. Its report,
+`harness/reports/m9-v115-s7-estimate-2026-10-04.md`, is a new dated one, force-added; the failing
+`m9-v115-s7-estimate-2026-10-03.md` stays beside it as the record of the stop.
+
+| Measure | Encounter's Degrees | Success or better | Quest's bands | Quest's success | Beyond the limit |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| No one falls (held, 2) | 0.99 | 1.18 | 0.92 | 0.92 | 0 of 3,740 |
+| Morale in (the Quest's held, 3) | 23.65, reported | 4.64, reported | 1.61 | 1.61 | Encounters 8 (7 and 1), Quest 0 |
+
+The mean gaps with Morale in are 0.166, 0.143, 0.129 and 0.168 points. The widest held gap is
+`estimate-0169`'s success, 1.61 points; the widest reported is `estimate-0064`'s, as traced above.
+
+**The owner's answer verified** (a second Opus agent, at `198f91a`). The code does what the owner
+asked and no more; two gaps in its tests are closed.
+- *The scopes.* A chance is the Quest's where its `of` is `'quest'`: its three bands (`fail`,
+  `success`, `strong`) and `succeeded`, the Quest's success; every other chance is an Encounter's, its
+  four Degrees and `succeeded`. `widest`'s `quest` and `encounters` split on that one test, so no chance
+  is in both or neither. `moraleHeld` reads the Morale measure's Quest chances only; the no-one-falls
+  check reads every chance of the first measure, as before; the report's table rows and lines read the
+  same scopes.
+- *Mutations*, each put back. Killed by the builder's tests: `quest` reading the Encounters' or every
+  chance, `encounters` reading the Quest's, `moraleHeld` reading every chance or the first measure,
+  `widest`'s default narrowed to the Quest, the report's no-one-falls section or Morale section
+  given the other scope, its held line reading every chance, and `>` for `>=` in the count beyond.
+  Survived: `<=` for `<` in the report's held line and in its Encounter line (no test had a gap of
+  exactly 3 points widest there), `encounters` reading every chance (no test had the Quest wider than
+  the Encounters), and the harness test's own checks, `widest(probed)` narrowed to the Quest or
+  `toBeLessThan` made `toBeLessThanOrEqual`, which only a probe's run reads. *Fixed*, test first: the
+  two checks are now `estimateChecks(samples)` in `estimate.ts`, each its gap, limit and `within`,
+  strictly below, which the harness test asserts; a new test holds them (an Encounter's 2.5 points
+  failing the no-one-falls check, the Quest's within it; an Encounter's 30 points passing the Morale
+  check; exactly 2 and 3 points failing each), the report's held and Encounter lines at exactly 3
+  points reading "beyond", and the Encounters' scope leaving out a wider Quest gap. Every mutation
+  above, and the Morale check given the 2-point limit, now fails it.
+- *The planted gaps*, `HEROESIM_PROBE=estimate HEROESIM_SAMPLES=10`, each run alone, on the code as
+  fixed: 3.5 points on `estimate-0005`'s Quest success with Morale in failed (the held gap 3.36, read
+  "beyond the limit of 3 points"); 30 points on its Encounter 1's Failure with Morale in passed, the
+  Encounter line reading 30.00 points, "beyond 3 points"; 2.5 points on that Failure with no one
+  falling failed; put back, passing. The 3.5 points' plant failed the same way at `198f91a`. No report
+  was kept.
+- *The reports.* The 10-04 report's figures equal the 10-03 report's in every row and line (the same
+  200 samples × 20,000 seeds, 588 Encounters, 349 carrying Morale); only the words differ, the
+  Encounters' rows and line "reported, not held" and the Quest's line "held".
+- *The words.* This entry's answer, the Gate and S7's section say it; S7's stop now reads 3 points "on
+  a chance the check holds", so that S10's run does not stop on an Encounter's reported gap. Line
+  endings kept.
+- *The checks.* At `198f91a`, `npm test` 185 files, 4,797 tests. With the fix, lint and typecheck
+  pass and `npm test` passes 185 files, 4,798 tests.
+
+**Actioned in:** `harness/src/estimate.ts` (`unhurt`, `moraleIn`, `estimateMoraleTolerance`, the
+second measure and the report), `estimate.test.ts`, `estimate.harness.test.ts` (the Morale check and
+HEROESIM_MILESTONE); `harness/reports/m9-v115-s7-estimate-2026-10-03.md`, `-2026-10-04.md`; the epic's S7 boxes and
+status; the verification, `estimate.test.ts`'s test of each measure's own gaps; the owner's answer's
+verification, `estimateChecks` and its test, and the epic's S7 stop.
+
+---
+
+## DL-174 — v1.1.5-S1 built: one game's memory profiled, its main cause the save's text written at each year's end by a writer that allocated 22 times its length, fixed in the engine's writer and the harness's play loop with the same save to the byte, a process's peak from about 1.65 GiB to 1.03 GiB and a game 15% faster
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the agent, building S1 as the epic's S1
+and DL-168 item 14 describe. The readings marked as the agent's are for the owner to change. Opus
+built it, test first; a second Opus agent verifies it.
+
+**Context.** A 20-year game's save is about 116 MB, and its process grew to about 1.7 GB, which held a
+sweep to 8 processes on the owner's machine (DL-166 item 7: 12 were stopped for memory). The owner
+asked for one game's memory profiled and its main cause fixed, in the engine too if it lies there, the
+games playing the same (DL-168 item 14), and how many processes the machine could then run (DL-169's
+"For the owner" item 1). The save's bytes may not change. Built on `v1.1.5-dev` at `cfeb872` (S7's
+verification, DL-173). Every run below was alone, nothing else running.
+
+**The profile** (`seed-0001`, 20 years, core content, `defaultConfig`, the automatic policy; scratch
+scripts outside the repository, not kept).
+1. *As a sweep plays it.* A job written as `sweepPlayInParallel` writes one (one seed,
+   `{ ...defaultConfig }`, 20 years, not validated, the default policy), played by
+   `harness/src/shard.ts` in a child process (`node --import tsx shard.ts <job> <result>`), with a
+   preloaded module reading `process.resourceUsage().maxRSS` (the peak working set) at exit. Three
+   runs: peaks 1,612.8, 2,071.2 and 1,380.2 MiB (mean 1,688), 71.0, 71.5 and 73.0 s, `advance` 36.6
+   s of it.
+2. *By year,* the same game in one process with `afterAdvance` reading `process.memoryUsage()` as
+   each year ends, the resident set (RSS) and, with a full collection forced first, the heap the game
+   holds:
+
+   | Year | 1 | 5 | 10 | 15 | 19 | 20 | The close |
+   | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+   | RSS, MiB | 198 | 464 | 764 | 912 | 1,352 | 1,072 | peak 1,660 |
+   | Heap held, MiB | 25 | 55 | 92 | 129 | 162 | 167 | 579 |
+   | History entries | 11,610 | 58,093 | 114,735 | 171,096 | 217,254 | 228,416 | |
+
+   The peak came at year 20's end, as the play loop wrote the last year's save and gzipped it, and
+   again at the close, as `measureDocument` wrote the save, loaded it and wrote the loaded document
+   again (the document, the text, the loaded document and the second text at once: 579 MiB held).
+3. *What the game holds.* At year 20, 167 MiB of heap: the History, 228,416 entries, 108.8 of the
+   save's 116.2 million characters (`quest.encounter` 61,240 entries, 48.4 million;
+   `quest.resolved` 14.3; `quest.taken` 10.5; `hero.morale-changed` 10.4; `hero.xp-gained` 9.6), its
+   indexes 7.1 million (`byEntity` 5.6), and the World State 0.25 million, which the per-Turn copy
+   copies.
+4. *The heap snapshot near the peak.* Under `--max-old-space-size=420
+   --heapsnapshot-near-heap-limit=1` the whole game, every year's save included, ran within 420 MiB of
+   old space, and ran out only at the close, loading the save back: a snapshot of 600 MB, 8.86 million
+   nodes and 423.8 MiB alive, streamed and summed by type: strings 177.8 MiB (one of them the save's
+   text, 111 MiB), plain objects 95.5 MiB (1.52 million), arrays 32.0 MiB and their elements 56.7
+   MiB, numbers 21.0 MiB: the document, the save's text and the loaded document as far as the parse
+   had come. Under a cap of 640 MiB the game and its close ran whole, its peak 891 MiB and 74.7 s.
+5. *So the memory is garbage, not held.* What a game holds is at most about 0.58 GiB, at its close;
+   its process reached 1.4 to 2.1 GiB because the heap grew with garbage between collections. The
+   garbage came from the save's text: `serialise`'s `write` made a string of every value at every
+   depth and copied each into its parent's. One save of the year-20 document allocated 2,442 MiB,
+   22 times its 111 MiB, and raised the RSS by 744 MiB over the document's own, writing it and
+   flattening it for the fingerprint. The play loop wrote the save at each of the 20 years' ends to
+   measure its length (v1.1.3-S6), 1.22 billion characters a game, and the close wrote it twice
+   more.
+6. *What else allocates* (`v8.getHeapStatistics().total_allocated_bytes`, the fixed engine): a game
+   allocates 79 GiB, `advance` 50.9 of it (the world copied each Turn: one `structuredClone` of the
+   year-20 world allocates 0.7 MiB and takes 1.6 ms), the policy and the observations about 17.7,
+   the yearly saves 5.3. The per-Turn copy's garbage is young and dies young; it does not set the
+   peak (item 2's held heap). Played with no yearly save, the game's peak was 671 MiB and its time
+   51.9 s against 65.1 s.
+
+**What was built** (test first; the save's bytes unchanged, no field, order or schema).
+1. **The engine's writer** (`engine/src/serialise.ts`). `serialise` writes the text in one pass of
+   `JSON.stringify`, whose replacer hands it each object whose keys are not already in order as a
+   copy with them sorted, by code units as before; `JSON.stringify` builds the one string. A copy's
+   keys are sorted by insertion when there are 16 or fewer: `Array.prototype.sort` allocates its
+   working state on every call, about 1.2 GiB over a 20-year save's objects. `JSON.stringify` writes
+   array-index keys (`"0"`, `"17"`) first in ascending number, and a copy cannot take an own
+   `__proto__` key by assignment, so a document holding either anywhere is written by the old
+   `write`, kept for it: the bytes are `write`'s always. No engine document holds either today. One
+   save of the year-20 document now allocates about 220 to 350 MiB (its keys already in order, or
+   every object's reversed), two to three times its length, besides `findJsonUnsafe`'s walk (175
+   MiB), and raises the RSS by about 300 MiB; its time is about the same (the close's save 1.37 s
+   against 1.27 s).
+2. **Each year's save counted, not written** (`harness/src/counters.ts`, `play.ts`). `savedLength`
+   counts `serialise(value).length` without writing it: the order of keys does not change the length;
+   a string is its length and two quotes unless it holds a character JSON escapes (a quote, a
+   backslash, a control character or a surrogate), when it is `JSON.stringify`'s; a number is as
+   `JSON.stringify` writes it. `observeSave` takes the length, not the text. The play loop writes no
+   save while the game is played.
+3. **The close writes one text at a time** (`play.ts`). `measureDocument` keeps the save's length,
+   fingerprint and, when asked, gzipped length, not the text, so the loaded document is written again
+   once the first text is out of reach; `roundTrips` compares the two by length and SHA-256.
+   `recordGame` asks for the gzipped length when the game reached its last year's end, whose
+   document is the one it stopped with, and sets it as that year's `gzipped`: the last year's save is
+   written once, at the close, where it was written three times. `DocumentMeasures` gains `gzipped`.
+4. **Readings** (the agent's, for the owner to change).
+   - *The gzipped length moves* from the play loop's last year's end to `recordGame`'s close. Only
+     `recordGame`'s records feed the report, so its numbers are the same; a game played by `playGame`
+     alone (the Succession probe, `harness:sample`) now has no gzipped length.
+   - *The round trip compared by fingerprint,* not by holding both texts: a different text of the
+     same length and SHA-256 would pass, which is the fingerprint's own premise (DL-76).
+   - *A cap on the children's heap* (`--max-old-space-size` in `children.ts`) was not taken: it bounds
+     the garbage rather than removing it, slowed the old code by 5% at 640 MiB, and would fail a game
+     played past 20 years (`HEROESIM_YEARS`).
+   - *The per-Turn copy of the world* was left as it is: it does not set the peak, and taking the
+     out-of-play rows out of it is #34, with a schema change, outside v1.1.5 (§0).
+
+**Measured after** (the same game, the same way, at the final code; three runs).
+
+| | Before (`cfeb872`) | After |
+| --- | ---: | ---: |
+| A process's peak, MiB | 1,612.8; 2,071.2; 1,380.2 (mean 1,688) | 1,036.0; 1,052.6; 1,026.8 (mean 1,038) |
+| The game's time, s | 71.0; 71.5; 73.0 | 61.1; 60.4; 60.7 |
+| `advance`, s | 36.6 | 36.0 to 36.5 |
+| RSS by year 1, 5, 10, 15, 19, MiB | 198, 464, 764, 912, 1,352 | 177, 271, 395, 475, 493 |
+
+The peak now comes only at the close (the save, the load, the save again), its last 5 s or so;
+through year 19 a process stays under 0.5 GiB. The peak fell 38% and is steady from run to run; the
+time fell 15%, the yearly saves no longer written. With the writer alone (item 1), the peak was
+1,293.5 MiB and the time 70.2 s; with the years counted too but the last year still written in the
+loop, 1,186 to 1,202 MiB and 61 s.
+
+**The game the same.** Every run of `seed-0001` before and after, ten as a sweep plays it, gave the
+same last save: 116,207,395 characters, 228,416 entries, fingerprint
+`401d81bac4906317ec0083f34e8032a9eb9ff14d0902702b26f7978cc2bd73f6` (one game's sweep
+fingerprint, as `sweepFingerprint` computes it,
+`b04aa6eb31d6970ac1712af5bfb6714f8a83a6dd3b188fa564ce5655ae30b913`), round-tripping. The whole
+record, before and after, is equal: the counters, every observation, every year's save length and
+the last year's gzipped length (15,131,016), the Turns played. The 50-game check is S6's
+fingerprint sweep (DL-169 item 15).
+
+**The workers, for the owner** (DL-169's "For the owner" item 1). The machine has 16 cores, 32
+logical processors and 27.6 GiB, of which 12.9 GiB were available with nothing of the harness running
+(the rest held by Windows and the owner's programs). The full-length games of a sweep's first wave
+start together and end together, so their peaks are taken as coinciding.
+- *Before,* 8 processes at their peaks held about 13.2 GiB (1.65 GiB each), over what was available,
+  and 12 about 19.8 GiB; DL-166 item 7's run in 12 was stopped for memory.
+- *After,* about 1.03 GiB each: 8 hold about 8.2 GiB, and **11** fit the 12.9 GiB available with
+  about 1.5 GiB to spare (12 would hold 12.4 GiB, all of it). With the whole 27.6 GiB free but about
+  2.5 GiB for Windows, about 24 would fit by memory.
+- *The processors* then bound it: past 16 processes they share cores, and each game's `advance`
+  already runs 2.7 times slower under 8 processes than alone (4.966 ms mean against 1.819 at
+  `v1.1.4`'s close).
+- `HEROESIM_WORKERS` stays 8 for this epic's sweeps (DL-166 item 7) unless the owner says otherwise:
+  10 or 11 would be safe as the machine stands, at most 16 with its programs closed.
+
+**The checks.**
+- *Tests,* each red before its code: `serialise.test.ts`, a long History (20,000 entries added, 8.2
+  million characters) written once warm allocates under 8 times its length (the old writer 27.9
+  times, the new 4.7, `findJsonUnsafe`'s walk included), skipped on a Node whose V8 does not count
+  allocations; and array-index keys and an own `__proto__` key written by their code units like
+  every other key. `counters.test.ts`, `savedLength` equal to the save's length for a document and
+  for awkward values (quotes, backslashes, control characters, lone and paired surrogates, U+2028,
+  numbers whole, negative, fractional and in exponents, empty arrays and objects). `play.test.ts`, a
+  3-year game of 20-Turn years: every year's length equal to its text's, no year's gzipped from
+  `playGame`, `recordGame` writing exactly two texts (the engine's `serialise` watched through
+  `vi.mock`), the last year's gzipped length equal to the save's, and none for a game stopped short
+  of a year's end. With the yearly save written again in the loop, it fails, 3 calls for 1.
+- *The doctor* (`npm run edit -- traits doctor`) before and after: no drift, 110 reads of a Trait.
+- *Lint and typecheck* pass. `npm test`: 185 files, 4,795 tests, four more than DL-173's. Under the
+  full suite's load the first run failed one web (jsdom) test, not captured, and the second the new
+  play test at the default 5 s; it was given 30 s, as the harness's game-playing tests are, and
+  trimmed to three games; the third run and the last, after the final edits, passed every test.
+
+**For the owner.**
+1. *The workers:* 11 processes fit the memory available today, at most 16 by the processors;
+   `HEROESIM_WORKERS` stays 8 until the owner says.
+2. *The agent's readings* in item 4: the gzipped length taken at the close, the round trip compared
+   by fingerprint, no cap on the children's heap, the per-Turn copy left.
+3. *The next lever is time, not memory:* the per-Turn copy of the world allocates 0.7 MiB and takes
+   1.6 ms of a late Turn; #34's historical set would shrink it, with a schema change.
+
+**The verification** (a second Opus agent, at `3d4d485`). The save is the same to the byte and the
+game's record the same; one gap in the tests, closed.
+- *The writer against the old one.* `cfeb872`'s `write`, copied into a scratch script behind
+  `findJsonUnsafe` as `serialise` had it, against the new `serialise`: the same text, or the same
+  throw with the same message, for 40,094 values, hand-picked and fuzzed (every ASCII character,
+  U+2028 and U+2029, lone and paired surrogates, quotes and backslashes, in keys and values; 0, -0,
+  1e21, 1e-7, 5e-324, 2^53 and beyond, NaN and the infinities; `undefined` in objects and arrays,
+  holes, null, booleans, empty objects and arrays, objects of 17 to 36 keys; the keys `"0"`, `"01"`,
+  `"1.5"`, `"-1"`, `"4294967294"`, `"4294967295"`, `"99999999999999999999"`, an own `__proto__`,
+  `constructor` and `toJSON`, and keys whose code-unit order is not their locale order;
+  prototype-less objects, shared objects, cycles, class instances, Dates, Maps, Sets, functions and
+  bigints), and for 36 real documents: new games of five seeds with and without the harness's
+  module, games of 0.3 to 3 years, and each loaded back. None holds an array-index or `__proto__`
+  key, so no game brings the old writer in. On `seed-0001`'s 20-year game the two writers' texts are
+  the same at years 1, 10 and 20 and for the last save loaded back.
+- *`savedLength`* equals `serialise(x).length` for every one of those values that serialises, and at
+  each of `seed-0001`'s 20 years' ends (5,861,363 to 116,207,395 characters).
+- *The game again,* `seed-0001` played alone by `shard.ts` as a sweep plays it, at `3d4d485` and with
+  `cfeb872`'s three changed source files checked out in their place, then put back: fingerprint
+  `401d81ba…` both times, 116,207,395 characters, round-tripping, the last year's gzipped length
+  15,131,016; the whole record equal but for its timings and the new `measures.gzipped`. Peak
+  1,621.3 MiB and 70.6 s before, 1,047.6 MiB and 60.8 s after, within the builder's ranges.
+- *The tests.* Mutations, each put back: the old writer in `serialise` fails the allocation test,
+  which runs here (Node 26.9 counts `total_allocated_bytes`; 4.80 to 4.84 times the text's length in
+  four runs, against 8); the old writer's fallback dropped fails the array-index test; more than 16
+  keys left unsorted, or the insertion sort reversed, fail two older tests; the yearly save written
+  in the loop, or the last year's gzipped length taken wherever the game stops, fails the play
+  test; surrogates taken out of `savedLength`'s escapes fails its test. Three survived: `"0"` not
+  taken as an array index, array indexes stopped at 2^31, and an own `__proto__` no longer sending
+  the document to the old writer, since the test's one object also held `"10"` and `"9"`. Each
+  changes the bytes: the index written first, or the `__proto__` member lost as the copy's
+  prototype. *Fixed* with a test of each key alone in its object (`"0"`, `"4294967294"`,
+  `"4294967295"`, an own `__proto__` holding an object), red under all three.
+- *A reading.* The title's and the workers' 1.03 GiB is the highest of the three runs after
+  (1,052.6 MiB); their mean, 1,038 MiB, is 1.01 GiB, while the 1.65 GiB before is a mean. The
+  workers' count, 11, stands on the higher figure.
+- *The rest.* Every changed file keeps its CRLF endings. The doctor before and after: no drift, 110
+  reads of a Trait. Lint and typecheck pass; `npm test` twice, 185 files, 4,796 tests, one more, both
+  passing whole (130 s and 125 s), no flake; `npm run e2e -w web`, 100 passed; `check-bundle`, every
+  script within 850 kB.
+
+**Actioned in:** `engine/src/serialise.ts` (`writeOnce`, `sortKeys`, `isArrayIndex`), its tests;
+`harness/src/counters.ts` (`savedLength`, `observeSave` by length), its tests; `harness/src/play.ts`
+(the yearly save counted, `measureDocument` one text at a time with `gzipped`, `recordGame` the last
+year's gzipped length), `play.test.ts`; the epic's S1 boxes and status; the verification,
+`serialise.test.ts`'s test of each array-index and `__proto__` key alone in its object.
+
+---
+
+## DL-175 — v1.1.5-S6 built (code part): `partyFor` adds a Hero past the minimum only for more than the margin, held by tests at a margin of 0, at 0.05 exactly and at 1; the fingerprint sweep follows in the verification
+
+**Status:** Accepted, verified with its sweep · **Date:** 2026-10-04 · **Decided by:** the agent, building S6 as the
+epic's S6 and DL-168 item 8 (R1) describe. The readings marked as the agent's are for the owner to
+change. A second agent verifies it and runs the one fingerprint sweep for S1 and S6 together (DL-169
+item 15); that sweep was not run here, and its result is the verification's to record.
+
+**Context.** DL-157 (v1.1.4-S6) made `partyFor` add a Hero past `partySizeMin` while each raised the
+chance of success "by at least" the Guild's margin. At a margin of 0 that sent a Hero who raised the
+chance by nothing, and DL-167's R1 note and DL-168 item 8 settled that a Hero joins only for a real
+gain. Built on `v1.1.5-dev` at `3f0b030`.
+
+**What was built.**
+1. *The rule* (`engine/src/controllers/rival.ts`, `bestParty`). The loop adds the Hero who most raises
+   the chance only if the gain is strictly greater than the margin (`>`, was `>=`), so by more than
+   nothing at a margin of 0. The loop's guard, which stops asking once what is left of the chance
+   below 1 cannot pass the margin, reads `1 - chance.success > margin` (was `>=`): a gain cannot
+   exceed what is left, so a left of exactly the margin asks no one. The doc of `partyFor` and of
+   `partyMarginOf` say "more than".
+2. *The field docs* of `partyMargin` (`content-types.ts`) and `playerPartyMargin` (`config.ts`) say
+   "more than". Values and ranges are unchanged (a share from 0 to 1; at 1 no Hero is ever added past
+   the minimum, as before, since no gain exceeds 1).
+3. *A stale comment, comment only.* `TraitConsequence`'s doc in `content-types.ts` said a Setback that
+   reads the Failure's list may bring a negative earned Trait; false since v1.1.4-S14 (DL-167 E1, and
+   DL-172's verification note): it lands only at the Failure Degree, and now says so.
+
+**Tests** (`engine/src/controllers/rival.test.ts`, written first and seen failing on the old `>=`).
+- A new block "a Hero joins only for more than the margin". `questEstimator` is wrapped by a
+  `vi.mock` of `quest-engine/estimate.js` that, only while a test sets `chances.bySize`, answers the
+  chance of success by the Party's size in place of the estimate, so a gain is set exactly; unset, it
+  is the real one and every other test is unchanged.
+- At a margin of 0: a flat 0.5 sends one; a gain of 2^-30 a Hero sends four; a gain then none sends two.
+- At a margin of 0.05: the chances 0 then 0.05 send one, and 0 then 0.05 + 2^-30 send two. The first is
+  genuinely exact: 0.05 - 0 is the double 0.05 itself (a subtraction of zero is exact), asserted in
+  the test as `0.05 - 0 === 0.05`, so the gain equals the margin to the bit. (A pair such as 0.5 and
+  0.55 would not do: 0.55 - 0.5 is 0.05000000000000004.) A third case judges each further Hero by
+  its own gain.
+- At a margin of 1: a gain of the whole chance, 0 to 1, still sends one.
+- Reading, the agent's: the oracle `greedyParty` in the same file now breaks on a gain not above the
+  margin, and the existing assertion that at a margin of 0 every Disposition sends more than one Hero
+  became "some" do: with real estimates a Party already sure of its Quest gains nothing from a Hero,
+  so it is not added now. That is the rule's effect, not a loosening.
+
+**Checks.** `npm run edit -- traits doctor` before and after: no drift (110 reads), the content passes,
+no pending edits. `npm run lint`, `npm run typecheck` pass; `npm test` 4,801 tests in 185 files
+passing. With the two comparisons put back to `>=` the five new or changed tests fail.
+
+**Not done here.** The 50 x 20 fingerprint sweep for S1 and S6 together (`m9-v115-s6`, the replay
+skipped, held to `v1.1.4`'s close, `24bae1ff...`) and, if it differs, the attributing sweep at S1's
+commit. Games where a Party's gain was exactly the margin, or a Party was already at a chance of 1
+with a margin of 0, may now differ; the epic's risk list says so (S6 changes a game).
+
+**The verification** (a second Opus agent, at `dd0383b`). The rule is as the epic states it, its
+tests hold both comparisons now, and the sweep with S1 and S6 in plays the same 50 games as
+`v1.1.4`'s close, so no attributing sweep was needed.
+- *The code.* `bestParty`'s two comparisons are the only change of behaviour, both strict `>`; the
+  rest of the diff is comments and docs, which say "more than" (`partyFor`, `partyMarginOf`,
+  `partyMargin`, `playerPartyMargin`). `TraitConsequence`'s corrected line matches `earn` in
+  `quest-engine/resolve.ts`, which returns at any Degree that is neither a success nor `failure`.
+- *The mock.* `vi.mock` is scoped to `rival.test.ts` (Vitest isolates each file), spreads the real
+  module, and still builds the real `questEstimator` for every call, so its checks of the Quest and
+  configuration run. Only `weigh`, the new block's helper, sets `chances.bySize`, and resets it in a
+  `finally`, so no test leaks into another; unset, the wrapper calls the real estimate with the same
+  arguments (`carried` passed as `undefined` takes its default `[]`). It hides the real path only
+  within the new block, which tests the loop's arithmetic, not the estimate; the older tests, the
+  `greedyParty` oracle's among them, run on real estimates. The exact case is exact: `0.05 - 0` is the
+  double 0.05, and the third case's `0.0625 + 0.05 - 0.0625` is too (each step exact by Sterbenz's
+  lemma and 0.05's last mantissa bit 0), now asserted in the test as the first was.
+- *The changed assertion.* "Each Disposition" at a margin of 0 sent Parties of 4, 4, 4 and 4 before
+  and sends 4, 3, 1 and 4 now (ambitious, miserly, reckless, steady): miserly's fourth Hero and
+  reckless's second to fourth raised the real chance by nothing. `some(size > 1)` is the rule's
+  consequence, not a loosening, since the oracle beside it (changed in step to `!(gain > margin)`)
+  still names each Party exactly. *Tightened:* at a margin of 0 a Party stopped short of
+  `partySizeMax` is checked to be one no Hero left raises at all (each one's real `estimateQuest`
+  chance at most the Party's), and some Party there is checked to stop short, so the check runs.
+- *Mutations, each alone, each put back.* The gain's `>=` fails four tests ("each Disposition", the
+  player's Guild, and the new margin-0 and margin-0.05 tests). The guard's `>=` *survived*: at a left
+  of exactly the margin it asks one more place's Heroes, none of whom can pass (a gain is at most
+  what is left, and a rounded subtraction keeps that order), so it changes the cost, not the Party.
+  The epic names the guard's asking no one, so it is now held: *fixed* with a test counting the
+  Parties weighed (`chances.asked`): at margins and chances of 0 and 1, 0.5 and 0.5, 0.05 and 1,
+  only the first place's Heroes are weighed, one Party each; with what is left above the margin
+  (0.5 against 0.5 - 2^-30), the next place's too. The guard's `>=` fails it.
+- *The margins in play* (the agent's reading). Content's Dispositions are steady, ambitious and
+  miserly at 0.05 and reckless at 0.1; `playerPartyMargin` is 0.05. No Guild plays at 0, so the
+  Parties already sure of a Quest at a margin of 0 hit no Rival and not the player. At 0.05 and 0.1
+  the guard's change is idle: `1 - s` is exact for `s` from 0.5 to 1, and no double `s` gives
+  `1 - s` equal to 0.05 or 0.1 (each margin's mantissa has low bits a double near 0.95 or 0.9 cannot
+  hold; checked). Only a gain of exactly 0.05 or 0.1 between two real estimates could change a game,
+  so the sweep was predicted to equal `v1.1.4`'s close.
+- *The sweep, alone* (no other process of ours; the owner's Playwright test-server left running).
+  `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_YEARS=20 HEROESIM_REPLAY=0
+  HEROESIM_MILESTONE=m9-v115-s6 npm run harness -- play.harness` at `dd0383b`: core only, content
+  31, config 13, schema 6, not validated, the replay skipped. The report,
+  `harness/reports/m9-v115-s6-2026-10-04.md`, is force-added.
+  - *The same games.* The fingerprint of every seed's last save is `24bae1ff…` (`24bae1ffab72cf7f…
+    61e79eeee5`), `v1.1.4`'s close's. Lines 27 to 665, the Counters through the Rivals and the Party
+    sizes and the save's size by year, hash equal to the close's (`c0ef8c8b…`, as DL-167's to
+    S10's): 13 of 50 bankrupt, 37 the full 20 years, years survived 18.65; the player's Quests
+    312,620 taken, 38,677 failed, 95,450 succeeded, 178,291 strong; the Rivals' 728,146, 85,112,
+    219,534, 422,464; Injuries 6,459 and 14,071, Deaths 399 and 760; Traits gained 918 and 1,949, a
+    career 1.117 and 0.594; Rival folds 270, Successions 11; 50 of 50 saves round-trip. Only the
+    timings differ, and the replay's rows are absent. S1 and S6 each play the same games.
+  - *The time.* 1,080.7 s in all, the games 1,080.3 s (18 min 3 s wall), against the close's
+    1,448.2 s, the games 1,301.6 s: the games 17.0% faster, S1's yearly save no longer written.
+    `advance` a Turn mean 4.680 ms, p99 23.089 ms (4.966 and 24.651).
+  - *The memory.* Each seed plays in its own `shard.ts` process; each one's Windows peak working set
+    (`PeakWorkingSet64`) and private bytes were read every 5 s. Of the 50: peak working set median
+    1,066 MiB, mean 1,031, the 41 that played long (above 900 MiB) 1,115, the highest 1,354 MiB
+    (1.32 GiB); the private bytes at most 1,593 MiB in a sample. The eight at once at most 5,383 MiB
+    together; the Vitest parent at most 224 MiB. Against about 1.7 GB a process at `v1.1.4`
+    (DL-168, DL-174). *A reading, the agent's:* S1's 1.03 GiB was `seed-0001` alone, the smallest
+    20-year save (116.2 million characters); the sweep's largest save is 143.9 million, so its
+    heaviest processes reach about 1.3 GiB. DL-174's 11 processes in 12.9 GiB stand at about 1.17
+    GiB each; at 1.32 GiB they are 9. `HEROESIM_WORKERS` stays 8.
+- *The rest.* The doctor after the sweep and again after these changes: no drift, 110 reads of a Trait, the doc
+  fresh, the content passing, no pending edit. Lint and typecheck pass; `npm test`, 185 files,
+  4,802 tests, one more, passing. `rival.test.ts` keeps its CRLF endings.
+
+**Actioned in:** `engine/src/controllers/rival.ts` (`bestParty`'s two comparisons, the docs),
+`engine/src/content-types.ts` and `engine/src/config.ts` (the field docs, `TraitConsequence`'s
+comment), `rival.test.ts`; the verification, `rival.test.ts`'s check of a Party stopped short at a
+margin of 0, the exact third case asserted, and the test of the guard counting the Parties weighed;
+the report `m9-v115-s6-2026-10-04.md`; the epic's S6 boxes and status.
+
+---
+
+## DL-176 — v1.1.5-S2 built: the harness's player sends its Parties to the Quests they are likeliest to win, each choice made again from the Heroes left; its cost probed, `advance` unchanged and the games about 10% slower, no optimisation needed
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the agent, building S2 as the epic's S2
+and DL-168 item 2 describe, with the probe DL-169 item 17 sets. The readings marked as the agent's
+are for the owner to change. Built on `v1.1.5-dev` at `b401502`. A second agent verifies it.
+
+**Context.** Until now the harness's automatic policy sent its Parties to the offered Quests by reward,
+highest first, then Quest id, each Party `partyFor`'s from the Heroes still free (DL-34, DL-157).
+DL-168 item 2 has it choose by the chance instead, before any rule of the economy changes, and the
+agent's reading there is the rule built here. DL-169 item 17 probes the new player's cost before
+S3's baseline: if `advance` a Turn more than doubles, S2 estimates each Quest's Party once a choice
+before S3, so that the baseline is not swept twice.
+
+**What was built.**
+1. *The rule* (`harness/src/policy.ts`, `automaticPolicy`). Of the offered Quests it can staff from
+   the Heroes still free, the policy sends first the one whose Party has the highest chance of
+   success by the estimate, ties to the higher reward, then the lower Quest id (`likeliest`,
+   `before`). Then it chooses again: each Quest left is staffed and estimated afresh from the Heroes
+   left (`staffed`), until no Hero is left or no Quest can be staffed. A Quest it cannot staff is
+   passed over, and once passed over is not asked again that Turn, since a Party it cannot make from
+   more Heroes it cannot make from fewer. Today's `byReward` order is gone.
+   - *The Party and its chance* come from the engine's `bestParty`: the Party `partyFor` names at
+     `playerPartyMargin`, and the estimate it was chosen by, so the Party is never estimated twice
+     over. The chance is that estimate's `success`, held to at most 1 as `partyFor` holds it.
+2. *Unchanged.* Each Party is still `partyFor`'s, carrying one of each consumable held that could
+   serve its Quest (`consumablesFor`); the decline, the equip and the one purchase a Turn are as they
+   were. Rivals, the engine and every game rule are unchanged. No file under `engine/src/`,
+   `content/` or `web/` changes.
+3. *The words.* `policy.ts`'s head comment and `automaticPolicy`'s doc describe the rule; the
+   harness report's line naming the policy (`sweep.ts`) now reads "of the Quests it can staff, the
+   one whose Party has the highest chance of success by the estimate, ties to the higher reward, then
+   the Quest id, and again from the Heroes left (v1.1.5-S2)".
+4. *The harness's test timeout* (`vitest.config.ts`). The harness project's tests are given 30 s
+   each, as the portraits' and the editor's projects have their own. Its short-game tests play the
+   new policy, whose early Turns cost more (below). Under the whole suite's load,
+   `module-report.test.ts`'s "refuses two sweeps of different seeds" (3.76 s at `b401502`, 5.46 s
+   now) and `play.test.ts`'s "fingerprint the last document" (2.73 s, 5.14 s) passed the 5 s
+   default. Each passes in about 1.3 s alone. `play.test.ts` had already given its slowest test
+   30 s. The two eslint-based tests the standing rules name are not touched.
+
+**Tests** (`harness/src/policy.test.ts`, written first and seen failing on the reward order).
+- *A new block, "chooses its Quests by their chance".*
+  - A Quest of lower reward and higher chance (the lowest reward eased to half its difficulty, the
+    rest half as hard again) is sent before the highest reward, at a margin of 1 and at the player's
+    own. The chances are asserted first by `bestParty`.
+  - Equal chances (every Quest made alike in difficulty, Encounters and duration, the chances
+    asserted equal) go to the higher reward. Then, with rewards equal and the Board in reverse id
+    order, they go to the lower Quest id.
+  - The likeliest Quest (asserted so with every Hero) is passed over once it needs four Heroes and
+    one is Injured. The next likeliest goes first, and the Injured Hero is never sent.
+  - The second choice is made from the Heroes the first left. A mock of the engine's `bestParty`
+    (`vi.mock` of `@heroesim/engine`, which answers only while a test sets `chances.of`, and then
+    only the chance, from the Quest and the Party) makes `a` the likeliest. It makes `b` next with a
+    Hero `a`'s Party takes and the least likely without one, and `c` between. The policy sends `a`,
+    then `c` with `partyFor`'s Party from the Heroes `a` left. By reward it would send `c` then `b`;
+    by chances read once, `a` then `b`.
+- *Changed.* Four tests that assumed the reward order now make their Quests alike, so their chances
+  tie and the reward still decides: the tie by Quest id, the Party `partyFor` names, the Parties sent
+  while Heroes last, and the Quest passed over. The consumables test sets its two Quests' chances
+  through the mock.
+- *Mutations, each alone, each put back.* The reward's tie turned round fails 6 tests, and the
+  Quests left not estimated again (stale Parties kept) 9, both on the form with the optimisation
+  below. The Quests whose Party lost a Hero dropped,
+  not estimated again, fails 5. The reward order itself fails the three new tests that differ from
+  it.
+
+**The cost probe** (DL-169 item 17). Run alone (no other process of ours; the owner's Playwright
+test-server left running), `HEROESIM_WORKERS=8 HEROESIM_SEEDS=8 HEROESIM_YEARS=20 HEROESIM_REPLAY=0
+HEROESIM_MILESTONE=m9-v115-s2-probe npm run harness -- play.harness`. To compare like with like, the
+same 8 seeds were first played at `b401502`, S6's code (`m9-v115-s2-base`). Neither report is kept.
+
+| | `advance` a Turn, mean | p99 | the games | wall a Turn played, as 1,000 games |
+| --- | ---: | ---: | ---: | ---: |
+| `v1.1.4`'s close, 50 seeds | 4.966 ms | 24.651 ms | 1,301.6 s | 465 min |
+| S6's sweep, 50 seeds | 4.680 ms | 23.089 ms | 1,080.3 s | 386 min |
+| `b401502`, the probe's 8 seeds | 5.024 ms | 26.590 ms | 201.6 s | 424 min |
+| S2, the probe's 8 seeds | 4.971 ms | 27.411 ms | 220.7 s | 472 min |
+
+- *`advance` does not double.* It is 1% lower in mean and 3% higher at p99 on the same seeds, and
+  within 7% of S6's 50-seed mean. So no optimisation is required, and S3 can sweep this code.
+- *The policy's cost lies outside `advance`* (the agent's reading). `playGame` times `advance` alone,
+  so the doubling test as worded cannot see what the policy costs. The games' time does. On the same
+  8 seeds, 220.7 s against 201.6 s (+9.5%), and +11% a Turn played (the S2 games played 2% fewer
+  Turns, one Bankruptcy in year 15 against year 18).
+  - Timed in one process on `seed-0001`, the policy took 0.40 ms a Turn before and 0.96 ms over three
+    years, 1.23 ms in the first, and about 2 ms in the first 60 Turns (0.45 before). Choosing the
+    likeliest Quest means estimating every staffable Quest's Party on the Board (6) whenever a Hero
+    is free, where the reward order stopped when the Heroes ran out.
+  - An 8-seed run's wall time is its slowest game's, so its per-Turn figure stands above a 50-seed
+    sweep's (424 against S6's 386 min for the same code). S3's baseline at the same +10 to 11%
+    would take about 20 minutes of games against S6's 18.
+- *An optimisation tried, and left out.* Estimating again after a choice only the Quests whose Party
+  lost a Hero to it is exact. A Party none of whose Heroes went is `partyFor`'s from the Heroes left
+  too: each Hero it chose is still there and still the best of fewer, and an estimate is the Party's
+  whatever the pool. A test held it to a naive oracle Turn by Turn through four short games. It saved
+  only 2 to 7% of the policy's time, since most of the cost is the first choice, so the simpler code
+  was kept and the oracle test went with it. A real saving would be a cheaper estimate in the
+  engine, outside S2.
+- *What the probe played* (8 seeds, for information only; S3's 50 × 20 baseline measures it). Every
+  figure moved, as a new player should, and the fingerprint is new (`811b1799…` against
+  `1184156d…`).
+
+  | The probe's 8 seeds | `b401502` | S2 |
+  | --- | ---: | ---: |
+  | Player's Quests taken | 52,912 | 62,386 |
+  | Failed | 12.2% | 6.0% |
+  | Succeeded | 31.7% | 20.4% |
+  | Strong | 56.1% | 73.5% |
+  | Injuries a game | 136.1 | 66.6 |
+  | Deaths a game | 8.0 | 3.5 |
+  | Recruits a game | 12.9 | 8.3 |
+  | Traits earned a career | 1.148 | 1.633 |
+  | Bankruptcies | 1 (year 18) | 1 (year 15) |
+  | Rivals' Quests failed | 11.4% | 12.6% |
+  | Rival folds | 41 | 44 |
+
+  The probe ran the rule's first form, which asked every offered Quest again at each choice. The
+  form kept skips a Quest already found unstaffable, which chooses the same.
+
+**Checks.** `npm run lint` and `npm run typecheck` pass. `npm test`: 185 files, 4,806 tests passing
+(4,802 at `b401502`; four new). Before the timeout change, one or two harness tests timed out
+under load in each of three full runs (`play.test.ts`'s "one for every Quest the policy took" in the
+first). `npm run edit -- traits doctor` reports no drift (110 reads), the doc fresh,
+the content passing, no pending edits. S2 touches neither `engine/src/` nor `content/src/validate.ts`,
+so the doctor was run once, at the close. `policy.ts`, `policy.test.ts`, `sweep.ts` and
+`vitest.config.ts` keep their CRLF endings.
+
+**For the owner** (the agent's readings).
+1. *The chance compared is exact.* A Quest at 0.951 goes before one at 0.95 whatever their rewards,
+   and the reward breaks only exact ties, most often at a chance of 1 or of 0. If the owner meant
+   chances alike to the shown Chance band (floored to 5%), or the reward weighed against the chance,
+   that is a change to `before`.
+2. *The chance is the Party's carrying nothing,* as `partyFor` weighs it, not with the consumables it
+   is then given. A Quest whose Encounters are drawn on the way has no estimate and reads 0. The core
+   content has none.
+3. *DL-169 item 17 and the epic name `v1.1.4`'s close's `advance` as 4.701 ms mean, p99 23.276 ms.*
+   Those are S10's report's figures; the close's report reads 4.966 ms and 24.651 ms. The table
+   above gives the close's.
+4. *The probe's measure.* As worded it reads `advance`, which excludes the policy. The cost that
+   matters for a sweep is the games' time, +10 to 11%. S3 can read it at 50 seeds.
+5. *The harness project's 30 s test timeout* (item 4 above) is a change to the test setup, not to
+   the game. The owner may prefer per-test timeouts.
+
+**The verification** (a second Opus agent, at `c8c87d5`). The rule is DL-168 item 2's reading, the
+form committed chooses as the form probed did, Turn by Turn, and the tests hold it. Two claims the
+docs make were untested, and now are.
+- *The rule.* Of `staffed`'s Quests, `likeliest` takes the highest chance, then the higher reward,
+  then the lower Quest id (`compareByCodeUnit`, ascending, as `byReward` and every id tie in the
+  engine break; DL-168's "then the Quest id" names no direction, so this is the agents' reading).
+  The chance is the dispatched Party's: one `bestParty` call gives both the `heroIds` sent and the
+  estimate, the one its search last read of that Party, carrying nothing, held to 1 by the same
+  `Math.min` as `partyFor`'s `chanceIn`. The margin is `playerPartyMargin` (`partyMarginOf` reads the
+  player's Guild as its own). The decline, the equip, `consumablesFor` and the purchase are the lines
+  they were.
+- *Determinism.* `before` is a total order, the Quest ids being unique, and `likeliest` a strict scan,
+  so the Board's order cannot matter. No Map or Set is iterated (the Set of Heroes sent is only
+  asked), and the chances are the estimate's own arithmetic. "Draws no random number … chooses alike
+  twice" and `play.test.ts`'s byte-for-byte replay pass.
+- *The skip is exact.* `bestParty` is `null` exactly when `requiredParty` is, and `requiredParty` is
+  monotone in the Heroes: no Hero of both the Class and the Skill, no Hero of one of them, or too few
+  Heroes, stays so with fewer. The world, the Guild and the deps do not change between choices. So a
+  Quest once unstaffable cannot become staffable later in the Turn, and asking it again gives `null`.
+  *Shown in play:* a scratch copy of the policy in the probe's first form (each choice asking every
+  offered Quest not yet sent) beside the committed one, both asked on the same document every Turn of
+  `seed-0001` to `seed-0003` for 3 years, default config. 9,720 Turns, 3,539 dispatches, 661 Turns
+  sending more than one Party, and 974 Turns in which the first form asked again 2,293 Quests already
+  unstaffable: no Turn's actions differ, and each seed's last save fingerprints the same under either
+  form (`098a8eb1…`, `65673d6d…`, `b79bd5cc…`). The comparison was seen to catch a difference: a first
+  form whose chances tie within 0.02 differed on 136 Turns of `seed-0001`. Run alone; the scratch
+  deleted.
+- *Mutations, each alone, each put back,* on the committed form (DL-176's counts of 6 and 9 were on
+  the optimised form). The reward's tie turned round fails 5 tests; the Quest id descending 2 (both
+  tie tests); the lowest chance first 4; the Parties kept stale 8; the Parties staffed afresh but the
+  chances read once 1 (the mock's test); the Quests whose Party lost a Hero dropped 5; the chosen
+  Quest not removed 6; only the first Quest left asked again 5; the chance not compared at all (the
+  reward order) 3. *Survived:* the chance not held to 1, and a Quest with no estimate read as 1, not
+  0. Both are claims of `staffed`'s doc and of DL-176 item 1 and reading 2. *Fixed* with two tests,
+  each seen failing on its mutation and passing on the code: "holds a chance to at most 1" (the mock
+  gives the lowest reward 1 + 2^-52 and the highest 1, and the reward decides) and "reads a Quest with
+  no estimate … as a chance of 0" (the highest reward's Encounters taken away, its estimate asserted
+  `null`, the others at 0.05).
+- *The mock.* It spreads the real engine and wraps `bestParty` alone. It answers only while a test
+  sets `chances.of`, only for a Party with an estimate, and only the chance; `afterEach` clears it.
+  `partyFor` inside the engine calls the unwrapped `bestParty`, so every Party is real.
+- *The timeout.* Under the whole suite, the harness's short-game tests take about 1.7 to 2 times as
+  long as at `b401502` (one run with `b401502`'s policy and tests, against two now): "refuses two
+  sweeps" 3.7 s against 7.2 and 6.3, "plays a seed alike twice" 3.0 against 5.0 and 4.8, "the player's
+  Guild's Regard as year 10 begins" 2.6 against 5.3 and 4.0, "one for every Quest the policy took" 2.6
+  against 5.3 and 4.1, and "fingerprint the last document" 4.1 against 3.1 and 4.4 (noisy). Alone,
+  "refuses two sweeps" takes 0.78 s against 1.34 and "fingerprint" 0.51 against 0.84 (DL-176's "about
+  1.3 s" is the first's). The rise is even, the policy's early-Turn cost DL-176 measured, and no test
+  stands apart, so the 30 s hides no other slowdown. Four tests passed 5 s in these runs, not two.
+  *A reading, the agent's:* a project-wide 30 s also lets any harness test grow sixfold unseen.
+  Per-test timeouts on the short-game tests, as `play.test.ts` and `sweep.test.ts` give their slowest,
+  would hold that, and are the owner's choice (reading 5). Left as built.
+- *The figures* (reading 3, confirmed). `m9-v114-close-2026-10-03.md` reads `advance` mean 4.966 ms,
+  p99 24.651 ms; 4.701 and 23.276 are `m9-v114-s10-2026-10-03.md`'s (DL-166). DL-169 item 17 quotes
+  S10's as the close's: its body is left as recorded and corrected here. The epic's S2 text now
+  quotes the close's.
+- *Unchanged elsewhere.* `git diff b401502..c8c87d5` touches only `docs/`, `harness/src/` and
+  `vitest.config.ts`: nothing under `engine/src/`, `content/` or `web/`.
+- *Checks.* Lint and typecheck pass. `npm test` twice: 185 files, 4,808 tests passing each time, no
+  flake, the two eslint-based tests within time. The doctor at the close: no drift, 110 reads of a
+  Trait, the doc fresh, the content passing, no pending edits. `policy.test.ts` and the epic keep
+  their CRLF endings.
+
+**Actioned in:** `harness/src/policy.ts` (the rule, its docs); `harness/src/policy.test.ts` (the new
+block, the mock, four tests made to tie their chances, the consumables test's chances set);
+`harness/src/sweep.ts` (the report's policy line); `vitest.config.ts` (the harness project's test
+timeout); the epic's S2 boxes and status; the verification, `policy.test.ts`'s tests of the chance held
+to 1 and of a Quest with no estimate, and the epic's S2 text quoting the close's `advance`.
+
+---
+
+## DL-177 — v1.1.5-S3 built: the new baseline, the player choosing its Quests by their chance over 50 games of 20 years, its replay identical; the player's failures, Deaths and Injuries halved, its early Bankruptcies gone and the late ones not, 13 of 50 as before
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the agent, running S3 as the epic's S3
+describes, for the owner and #51. No code changed. The readings marked as the agent's are for the
+owner to change; the rule for what follows is the close's to decide (DL-168 item 16).
+
+**Context.** S1 (DL-174) and S6 (DL-175) play the same 50 games as `v1.1.4`'s close: S6's sweep
+gave every seed's last save `24bae1ff…` and the Counters equal to the close's. S2 (DL-176) then
+changed the harness's player: of the Quests it can staff it sends first the one whose `partyFor`
+Party has the highest chance of success by the estimate, ties to the higher reward, then the Quest
+id, and chooses again from the Heroes left. Nothing else changed since S6's sweep: `git diff
+b401502..3e50e1a` touches only `docs/`, `harness/src/` and `vitest.config.ts`. So each difference
+below from the close is the new player's, directly or through the Board it leaves the Rivals.
+
+**The sweep.** Run alone (no other process of ours; the owner's Playwright test-server left
+running), at `3e50e1a`: `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_YEARS=20
+HEROESIM_MILESTONE=m9-v115-s3 npm run harness -- play.harness`, core only, content 31, config 13,
+schema 6, not validated, the replay kept. 1,373.9 s in all, the games 1,215.6 s of it; the test
+passed. The report, `harness/reports/m9-v115-s3-2026-10-04.md`, is force-added.
+- *The replay ran and matched:* `seed-0001` played twice is identical (128,821,570 characters), and
+  the test asserts it (`sweep.replay.identical`). 50 of 50 saves load and serialise back alike. No
+  policy action was refused, no harness assertion broken.
+- *The fingerprint* of every seed's last save is new, `e3342dfd79f9c32b…dd1fc676`, as a new player's
+  must be (the close's `24bae1ff…`).
+- *The policy line* of the report names S2's rule.
+
+**Decision: the figures, beside `v1.1.4`'s close** (`m9-v114-close-2026-10-03.md`, equal in play to
+S6's sweep):
+
+| | S3 (the new player) | `v1.1.4`'s close |
+| --- | ---: | ---: |
+| Player's Quests taken, resolved | 382,408, 382,191 | 312,620, 312,418 |
+| Player failed / succeeded / strong | 5.8% / 19.6% / 74.6% | 12.4% / 30.6% / 57.1% |
+| Rivals failed / succeeded / strong | 12.4% / 30.8% / 56.8% | 11.7% / 30.2% / 58.1% |
+| Player bankrupt | 13 of 50 (26%) | 13 of 50 (26%) |
+| … by year (year 0 first) | 11: 1, 12: 1, 13: 1, 15: 2, 17: 1, 18: 2, 19: 5 | 0: 1, 9: 1, 12: 1, 14: 1, 15: 4, 18: 4, 19: 1 |
+| … in the first two years | 0 | 1 |
+| Years survived, mean (min) | 19.25 (11.89) | 18.65 (0.92) |
+| Player's Guild-years in play | 962.6 | 932.3 |
+| Player Deaths a game | 3.68 | 7.98 |
+| Player Injuries a game | 63.84 | 129.18 |
+| Rivals' Deaths, Injuries a game | 18.06, 305.48 | 15.20, 281.42 |
+| Player recruits a game | 8.60 | 12.44 |
+| Player Retirements | 48 | 32 |
+| Player's Heroes sent on a Quest a game | 12.60 | 16.44 |
+| Traits earned a career, player's and Rivals' | 1.578, 0.579 | 1.117, 0.594 |
+| Rival folds a game | 5.44 (272) | 5.40 (270) |
+| Rival Successions | 14 | 11 |
+| Player first in the Rankings, by Fame, by Wealth | 99.0%, 86.2% | 82.3%, 80.5% |
+| Player's Wealth after 1, 10 and 20 years | 16,918; 104,765; 90,922 | 9,588; 92,001; 102,864 |
+| Mean Level of the player's Roster after 10 and 20 years | 10.30, 11.86 | 10.05, 11.71 |
+| Levels, declines a player Guild-year | 6.13, 2.25 | 7.40, 1.94 |
+| Upkeep, Quest rewards a player Guild-year | 56,056, 63,328 (88.5%) | 54,825, 63,011 (87.0%) |
+| Player's Quests a Guild-year, reward a Quest | 397.0, 159.5 | 335.1, 188.0 |
+| Mean difficulty of the player's Quests | 38.2 | 47.3 |
+| Loot a player's Quest | 0.127 | 0.142 |
+| `advance` a Turn, mean / p99 | 4.699 / 23.863 ms | 4.966 / 24.651 ms |
+| The games, the whole run | 1,215.6 s, 1,373.9 s | 1,301.6 s, 1,448.2 s |
+
+**For the owner and #51: Party sizes and XP a Hero** (DL-166's table; XP is not split, so each Hero
+of a Party takes the Quest's XP; the close's in brackets):
+
+| The player's Party | Quests | Failed | Strong | XP a Hero | XP the Party took |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 Hero | 190,676 (49.9%) (41.7%) | 9.0% (17.6%) | 68.0% (53.8%) | 30.0 (31.0) | 30.0 (31.0) |
+| 2 | 166,328 (43.5%) (44.8%) | 2.7% (9.0%) | 81.5% (60.9%) | 59.6 (66.7) | 119.3 (133.4) |
+| 3 | 24,794 (6.5%) (12.8%) | 2.1% (7.3%) | 80.2% (56.0%) | 88.1 (90.8) | 264.4 (272.2) |
+| 4 | 387 (0.1%) (0.6%) | 3.9% (11.0%) | 46.5% (25.4%) | 79.7 (88.2) | 318.7 (352.6) |
+| 5 | 6 (0.0%) (0.0%) | 0.0% (12.5%) | 33.3% (18.8%) | 94.8 (94.3) | 474.2 (471.4) |
+| Every size, mean 1.57 (1.72) | 382,191 | 5.8% (12.4%) | 74.6% (57.1%) | 46.7 (55.0) | 84.3 (109.8) |
+
+The Rivals' are as before in shape: mean 1.70 (1.69), 51.4 XP a Hero (49.2), 97.6 a Party (93.8).
+
+**Every difference from the close, explained.** The agent's readings, from the report's tables.
+1. *Easier Quests, and fewer failures.* The player now sends its Parties where they are likeliest
+   to win, and the likeliest Quests are the easier ones: the mean difficulty of its Quests falls
+   from 47.3 to 38.2 (difficulty 10 to 39: 213,935 Quests against 123,002; 60 and over: 53,503
+   against 96,404). So its Quests fail 5.8% (12.4%), and 74.6% are strong (57.1%), the plain
+   successes falling to 19.6% (30.6%). Every Encounter kind fails less (combat 6.0% against 12.4%,
+   stealth 8.1% against 15.6%). S2's 8-seed probe read 6.0% and 73.5% (DL-176).
+2. *Smaller Parties, more Quests.* An easy Quest needs fewer Heroes to pass the margin, so half the
+   Parties go alone (49.9%, against 41.7%) and the mean Party is 1.57 Heroes (1.72). Eight Heroes in
+   smaller Parties make more Parties at once: 397.0 Quests a Guild-year against 335.1 (+18.5%).
+3. *Income level, Upkeep a little higher.* An easier Quest pays less, 159.5 a Quest against 188.0
+   (−15%), so the 18.5% more Quests bring the same income, 63,328 a Guild-year against 63,011. Upkeep
+   rises 2.2% to 56,056, the Heroes living longer at a higher Level (5 below), and takes 88.5% of the
+   Quest income (87.0%).
+4. *Harm halved.* Fewer failures and easier Encounters: Injuries 63.84 a game (129.18), Deaths 3.68
+   (7.98), the Heroes injured a Check 0.003 (0.007). Fewer Heroes die, so fewer are recruited (8.60
+   a game against 12.44), fewer are sent in all (12.60 against 16.44), more live to retire (48
+   against 32), and the Roster's Relationships are closer (95.9% close, against 92.0%).
+5. *Levels.* XP a Hero falls (46.7 against 55.0: easier Quests, smaller Parties), and fewer new
+   Heroes level fast from Level 1, so Levels a Guild-year fall to 6.13 (7.40). Yet the Heroes live
+   longer, so the Roster's mean Level is a little higher, 10.30 after 10 years (10.05) and 11.86
+   after 20 (11.71), with more of them at Potential (76.5% after 10 years against 69.3%) and more
+   declines (2.25 a Guild-year against 1.94).
+6. *More Traits earned.* More Triumphs earn more positive Traits (`wayfinder` 430 against 373,
+   `silver-tongued` 200 against 139, `battle-tried` 241 against 218), fewer Failures fewer negative
+   ones (`battle-shy` 15 against 35, `haunted` 3 against 15), and `lettered` falls (105 against 138)
+   with the arcane Checks (72,431 against 93,337). 994 Traits over 630 careers, 1.578 a career
+   (1.117): the careers are fewer and longer. S2's probe read 1.633. S5's 0.05 is still to come, so
+   S5's 1.25 to 1.75 reading will likely be passed (§4 Risks), for S5 to report.
+7. *Bankruptcies: the early ones gone, the late ones not.* The new player starts stronger: in year 0
+   its Quests are strong 38.1% (16.1%) and its Wealth after a year is 16,918 (9,588). No Guild goes
+   bankrupt before year 11 (the close had one in year 0 and one in year 9), and years survived rise
+   to 19.25 (18.65). But 13 still go, all from year 11, 8 of them from year 17. The player's Wealth
+   at a year-start peaks at about 105,000 in years 10 to 12, then falls to about 85,000 by year 19,
+   where the close's held at about 92,000 to 103,000. It is DL-166's late mechanism, now alone: the wage
+   grows with Level (`wagePerLevel` 20) while a Quest's reward does not, and the easier Quests the
+   new player takes pay less each. 13 against 13 is no change within fifty seeds' ±3 (DL-166).
+8. *Rankings.* The player leads more often, by Fame at 99.0% of year-starts (82.3%: no early slump
+   in the Rankings, 96% first after one year against 12%) and by Wealth at 86.2% (80.5%).
+9. *Loot.* 0.127 a Quest (0.142): the easier Quests' tables give none below difficulty 40. More
+   Quests leave the awards a Guild-year a little higher, 50.4 (47.6). Consumables carried 3.06 a
+   Quest (2.89), expended 0.43 (0.51), fewer rerolls and heals needed.
+10. *The Rivals, through the Board.* Rivals act in the afternoon on what the player left (pre-M0
+    D2), and the player now leaves the harder Quests: each Disposition's mean difficulty rises by 1.3
+    to 1.9 (ambitious 45.4 against 44.1, miserly 33.2 against 31.3, reckless 57.5 against 55.6,
+    steady 42.8 against 41.4). So the Rivals fail a little more (12.4% against 11.7%), and their
+    Deaths a Guild-year rise to 0.236 (0.205) and Injuries to 3.99 (3.80). Their folds are level,
+    5.44 a game (5.40); Rival Guild-years rise to 3,827.8 (3,706.6), the games running longer;
+    Successions 14 (11) and Rival-to-Rival Transfers 37 (27) are small counts that move with them.
+    The Rivals' draws also follow the player's on the shared streams, so no Rival figure is the
+    close's game for game.
+11. *The saves.* More Quests make more History: a full game's last save 121.82 MiB on average
+    (119.96), its largest 133.98 MiB (137.21); `seed-0001`'s 128.8 million characters (116.2).
+12. *The time.* `advance` a Turn 4.699 ms mean, p99 23.863 ms: as S6's 4.680 and 23.089, and below the
+    close's 4.966 and 24.651. The policy's cost lies outside `advance` (DL-176): the games took
+    1,215.6 s, 12.5% more than S6's 1,080.3 s with the same code but the policy (S2's probe read +9.5%
+    to +11%), and 6.6% less than the close's 1,301.6 s, S1's fix included. The replay took most of
+    the other 158.3 s (146.6 s at the close). As 1,000 games, 421 minutes (the close 465, S6 386).
+    The replay alone, `seed-0001`'s new game, `advance` 2.075 ms mean, p99 13.960 (the close's
+    `seed-0001`, a different game, 1.819 and 8.945).
+
+**Every DL-83 target, measured, not tuned** (the close's in brackets):
+- item 2, the player's Bankruptcy or wiped Roster in 5 to 15% of games: 26%, 13 of 50 (26%); unmet;
+- item 3, first in the Rankings at 40 to 60% of year-starts: 99.0% by Fame and 86.2% by Wealth
+  (82.3%, 80.5%); unmet, further above;
+- item 4, the player's Quests failed 20 to 30% and strong at most 50%: 5.8% and 74.6% (12.4%, 57.1%);
+  unmet, further off;
+- item 5, 1.5 to 3.5 Rival folds a game: 5.44 (5.40); unmet;
+- item 6, 25 to 40 of the player's Hero Deaths a game: 3.68 (7.98); unmet, further below;
+- item 7, Wealth held at 6 to 12 months' Upkeep after year 2: 104,765 after 10 years against 4,671 of
+  Upkeep a month, 22.4 months, and 90,922 after 20 over the 37 games in play, 19.5 months (20.1, 22.5);
+  unmet, above;
+- item 21, the Roster's mean Level after 10 years 8 to 10: 10.30 (10.05); just above;
+- item 22, the highest Level reached by year 20, 14 to 17: not measured, the report having no counter
+  for it (DL-83 item 20's counter was not built), as at the close.
+
+The baseline these are read against has now moved twice (§4 Risks): `partyFor`'s Party since
+v1.1.4-S6, and since S2 the choice of Quests by chance.
+
+**The memory.** Each seed plays in its own `shard.ts` process; each process's Windows peak working set
+(`PeakWorkingSet64`) and private bytes were read every 5 s (a scratch file, not kept). Of the 50:
+peak working set median 1,066 MiB, mean 1,051, the 40 that played long (above 900 MiB) 1,117, the
+highest 1,377 MiB (1.34 GiB); private bytes at most 1,542 MiB in a sample; the eight at once at most
+5,419 MiB together. S6's sweep: median 1,066, highest 1,354, together 5,383. The Vitest parent at most
+223 MiB.
+- *The replay's process* (new here, S6's sweep having skipped it): the Vitest worker that plays the
+  sweep's replay, 90 MiB while the shards played, reached at least 2,352 MiB peak working set (2,266
+  MiB private) in its last sample, 12:45:47, a second before the run ended; its true peak may be a
+  little higher. *A reading, the agent's* (corrected by the verification below): `sweep.ts`'s
+  `replay` plays `seed-0001` twice in one process and holds the first game's whole `PlayedGame`, its
+  document with it, since it reads its `advanceMs` after the second game, and its save text (128.8
+  million characters) while it plays the second, beside the sweep's records; no shard runs then, so
+  the run's total stays under the shards' 5.4 GiB. It is the run's largest process, and the close
+  (S10) runs it again. A fix, if wanted, is the owner's: the replay could summarise the first game's
+  `advanceMs`, fingerprint its text and drop both the text and the document before the second game,
+  as S1's fix did for the yearly save (measured alone in the verification: 2,194 MiB to 1,104 MiB).
+
+**The rule for what follows, a first reading** (DL-168 item 16; the close decides it). The player's
+Bankruptcies are 13 of 50, 26%, against 5 to 15% (3 to 7 of 50). That is 6 above the band's top, twice
+fifty seeds' ±3 (DL-166), so not near the edge: on S3 alone the rule names the economy pass first, as
+`v1.1.6`. S4 (an Injury on the next-weakest unhurt Hero) and S5 (the positive earned Traits at 0.05)
+change play before the close's sweep, and S3's 13 is to be reported beside the close's (the epic's
+Gate). *The agent's reading:* the new player ends the early Bankruptcies but not the late ones, which
+come from the wage outgrowing a weak Roster's income (DL-166); neither S4 nor S5 touches the wage or
+the reward.
+
+**Checks.** No code changed, so no tests were run beyond the sweep (its test passed, its replay
+asserted identical). `npm run edit -- traits doctor` was not needed: S3 touches neither `engine/src/`
+nor `content/src/validate.ts`. Only the report, this entry and the epic change.
+
+**For the owner.**
+1. The rule's first reading: 13 of 50 bankrupt, outside the band, as at `v1.1.4`'s close.
+2. The new player moves DL-83 items 3, 4, 6 and 21 further from their bands: fewer failures (5.8%),
+   fewer Deaths (3.68), more strong successes (74.6%), the player first more often (99.0%), the
+   Roster's Level after 10 years 10.30. Item 5 is level (5.44 folds against 5.40), and item 7 mixed:
+   further above after 10 years (22.4 months against 20.1), nearer after 20 (19.5 against 22.5).
+   (Corrected by the verification: the entry first said every other target but item 7's.)
+3. Traits earned a career are 1.578 before S5 raises the four positive chances to 0.05.
+4. The replay's process now peaks at about 2.3 GiB or more, the largest of the run (above).
+
+**The verification** (a second Opus agent, at `dc257f3`; the sweep not run again). Every figure is
+the two reports', every difference is the new player's, and the replay is confirmed by playing it
+again. Two statements were corrected above: the replay's memory reading named the text and not the
+document it also holds, and "For the owner" item 2 said every other DL-83 target moved further off.
+- *The figures.* Every cell of both tables, every number in items 1 to 12, the DL-83 readings and the
+  rule's reading recomputed from `m9-v115-s3-2026-10-04.md` and `m9-v114-close-2026-10-03.md`: no
+  other discrepancy. Among them: the Bankruptcies by year sum to 13 in each, 8 of S3's from year 17;
+  397.0 and 335.1 Quests a Guild-year (382,191 / 962.6, 312,418 / 932.3), +18.5%; 159.5 and 188.0 a
+  Quest (the rewards over the Quests resolved), −15.2%, the income +0.5%; Upkeep +2.2% (56,055.8 /
+  54,824.5), 88.5% and 87.0% of the rewards; difficulty 10 to 39, 213,935 and 123,002, and 60 and
+  over, 53,503 and 96,404; 994 / 630 = 1.578; item 7's months a twelfth of a Guild-year's Upkeep
+  (4,671: 22.4 and 19.5), as DL-166 reads them; the Party table's last row the weighted mean of its
+  rows (46.7 and 84.3 XP); every Encounter kind failing less, travel, social and lore too (4.3%, 4.6%,
+  8.5% against 9.9%, 10.2%, 16.6%); the Rivals' Deaths and Injuries a Guild-year (903 and 15,274 over
+  3,827.8; 760 and 14,071 over 3,706.6). The close's report and S6's differ only in their titles,
+  start times, timings and S6's skipped replay (`diff --strip-trailing-cr`), so "equal in play to S6's
+  sweep" holds. The memory figures come from a scratch file not kept and cannot be checked; S6's
+  beside them are DL-175's.
+- *Each difference the new player's.* `git diff b401502..3e50e1a` touches `docs/`, `policy.ts` and its
+  test, `sweep.ts` (the report's policy line) and `vitest.config.ts` (the harness project's timeout):
+  nothing that plays but the policy. The claims that need code hold. A Quest's reward is its
+  difficulty times its template's `rewardPerDifficulty` (4 to 5), paid unless it fails, times its
+  consequences' factors (`generators/quests.ts`, `quest-engine/resolve.ts`): never the Heroes' Level.
+  Upkeep is `wagePerLevel` (20) for each Level of each living Hero, plus 10 a Hall grade, every 10
+  Days (`selectors.ts`, `upkeepParts`). The Rivals act first in the afternoon, on what the player left
+  in the morning (`phases/rival-controllers.ts`, pre-M0 D2). Every Quest, the player's and the
+  Rivals', resolves on the one `quests` stream, so the Rivals' draws do follow the player's. The four
+  positive Traits come only on an Encounter's Triumph (0.02), `lettered` only on an arcane one, and the
+  two negative only on a Failure (0.08), as item 6 reads them.
+- *The late Bankruptcies (item 7), held to the wage.* From the reports' year tables, eight Heroes'
+  wage at the year's mean Level plus the infirmary's 30, 36 times a year, gives 55,072 a Guild-year
+  against the 56,056 measured (the close's 53,755 against 54,825; the Guildmasters' Traits left out).
+  By it the wage passes the year's Quest income (its Quests a Guild-year at 159.5) in year 11, the
+  first Bankruptcy's (63,202 against 62,950), and stands about 4,900 to 5,800 above it from year 14
+  (69,422 against 63,780 in year 19), while the Quests' mean difficulty stays near 39 from year 7 and
+  the Roster's Level rises from 9.1 to 11.9. The close's player crosses in year 14 (65,246 against 64,448
+  at 188.0) and stays about 1,900 to 3,300 above. So the reading holds, and these aggregates show it
+  of the average Guild late, not only of a weak Roster, as the rule's reading above and DL-166 put
+  it; the report has no rows by game, so which of the 13 were weak is not shown. The verifier's
+  estimates.
+- *The replay.* The summary row, `seed-0001`: identical (128,821,570 characters), is `playReport`'s
+  from `replay`'s `a === b`, and the test asserts `sweep.replay?.identical`. Played again here at
+  `dc257f3` (no code since `3e50e1a`), alone, as `replay` plays it: identical, 128,821,570
+  characters, 154.5 s, nearly all of the run's other 158.3 s.
+- *The replay's memory, for S10.* The replay is `sweep.ts`'s `replay`, not `play.ts`'s or the test's:
+  it keeps `once`, the first `PlayedGame`, whose `advanceMs` it reads after the second game, and with
+  it the first game's whole document, besides its text `a`. Measured alone with `node --import tsx`
+  (scratch scripts, not kept): as written, the process's peak resident set 2,194 MiB, 383 MiB of heap
+  live after the first game (the text about 123 MiB, the document most of the rest); with the first
+  game's `advanceMs` summarised and its text reduced to its SHA-256 and length inside a scope, so the
+  document and text are dropped before the second game, 1,104 MiB, with the same result (identical,
+  128,821,570). The Vitest worker's 2,352 MiB is the first form's with the sweep's records beside it.
+  The fix is small and safe: the result's four fields (`seed`, `identical`, `length`, `advance`) need
+  of the first game only its text's fingerprint and length and its `advanceMs`, and no game, save or
+  counter changes. A SHA-256 comparison is the one DL-76's fingerprint already trusts; keeping the
+  first text and dropping only the document would keep the byte comparison for about 123 MiB more.
+  A harness test-memory matter, not play; not built here.
+- *The rule's first reading.* 13 of 50 is 26%, 6 above the band's top of 7, twice DL-166's ±3: sound.
+  Neither S4 nor S5 touches the wage or the reward, and the wage passes the average Guild's income
+  late, so the close reaching 7 or fewer needs a fall of 6 that neither change aims at; the
+  prediction that the economy pass comes first is sound, and the close decides it.
+- *The record.* DL-177 sits after DL-176 and before "Pre-M0 review decisions", as DL-175 and DL-176
+  do; both S3 boxes are met as ticked; the epic's status now reads S3 built and verified. The epic
+  keeps its CRLF endings, this log its LF.
+
+**Actioned in:** `harness/reports/m9-v115-s3-2026-10-04.md` (force-added); the epic's S3 boxes and
+status; the verification, the replay's memory reading and "For the owner" item 2 corrected, and the
+epic's status.
+
+---
+
+## DL-178 — v1.1.5-S4 built: an Injury's `among` read over the unhurt living Heroes, so it falls on the next-weakest unhurt Hero; a Death's as before; its sweep against S3's within the noise, 13 of 50 bankrupt as before
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the owner's answer (DL-168 item 6, E3),
+built by the agent as the epic's S4 describes. The readings marked as the agent's are for the owner
+to change.
+
+**Context.** v1.1.4-S4 (DL-155) read an Injury's `among` over the whole living Party and then narrowed
+the Heroes it named to the unhurt, falling back to any unhurt Hero when none was left. So when
+`The flooded ford`'s weakest Hero was already hurt, its Injury fell on any unhurt Hero, not the next
+weakest (DL-167's E3). The owner chose the next weakest (DL-168 item 6), superseding DL-155 item 3's
+order. S3 (DL-177) is the baseline this sweep is read against: nothing that plays has changed since
+it but this.
+
+**Decision: what was built.**
+1. *`narrowed`* (`engine/src/quest-engine/harm.ts`) reads `among` over `party`'s members in `pool`, the
+   Heroes harm can fall on, not over the whole Party, and gives those it names among them, in Party
+   order; all of `pool` when there is no `among` or it names no one, as before. `struck`
+   (`resolve.ts`) is unchanged: it hands `narrowed` an Injury's pool, the unhurt living Heroes, and a
+   Death's, the living Party. So `["bottom", "party", 1, ["stat", "strength"]]` takes the weakest
+   unhurt Hero, and a `top` 3 the three strongest unhurt. A Death's pool is the living Party, so its
+   `among` reads as before. A filter (`where`) names the same Heroes either way; only a ranking
+   (`top`, `bottom`) can differ.
+2. *Unchanged.* `exposedBy` and `guardedBy` read each Hero as before (the members are the same
+   objects, each Hero's effective Stats read once). The draws keep their number and order: one `next`,
+   then who (`weightedPick`, one draw even from no one), then the Days; a consequence with none of the
+   fields never reaches `narrowed`. No stream or event is new, and no configuration or save field.
+3. *The words.* The head comments of `harm.ts` and `resolve.ts`, `narrowed`'s and `struck`'s, the
+   `HarmReads.among` and `InjuryConsequence` comments in `content-types.ts`, and `CONTEXT.md`'s
+   Exposure, which now names the order: `among` read over those it can fall on, an Injury on the
+   weakest falling on the weakest unhurt Hero, a Death's read over the living Party.
+4. *Where it plays.* Content has six Injuries with an `among` and no Death with one
+   (`content/encounters.json`). The two of `Hold the line` are filters (`where` … `warrior`), so
+   unchanged. Four rank: `The flooded ford` (`bottom` 1 Strength, `guardedBy` Constitution) and
+   `The trapped passage` (`bottom` 1 Perception, `guardedBy` Dexterity) at Failure, and
+   `The last assault` (`top` 3 Constitution, count 2, `guardedBy` Constitution) at Setback and Failure.
+   The change plays only when one of those draws finds a Hero the ranking would name already hurt on
+   the Quest, in a Party of two or more.
+
+**Tests, first** (red before the change: the three rule tests failing; the two that hold what does
+not change passing, as they should):
+- `harm.test.ts`, `narrowed`: reads `among` over the pool, so a `bottom` 1 passes over a Hero not in
+  the pool to the next weakest, and a `top` 3 over a pool without one of the three strongest names the
+  three strongest of it.
+- `resolve.test.ts`, "an Injury on the next-weakest unhurt Hero (v1.1.5-S4)", 20 to 40 seeds each:
+  - with the weakest hurt by an earlier Encounter, a `bottom` Injury falls on the next weakest unhurt,
+    each Encounter one Check's draw and the Injury's three, the stream a twin's so advanced; and an
+    Injury of count 3 on `bottom` 1 falls on the weakest, then the next, then the strongest;
+  - a `top` 3 with one of the three strongest hurt names the three strongest unhurt: over 40 seeds the
+    hits are exactly the first, third and fourth Heroes of Strength 20, 16, 12, 8 and 4, the second
+    hurt (before the change, never the fourth);
+  - a Death's `among` still reads the living Party: with the weakest hurt by a `bottom` Injury, a
+    `bottom` Death of chance 1 falls on that same Hero;
+  - with the weakest hurt, an Injury of count 2 and a Death with none of the fields draw as a twin
+    worked by hand before the change: whether it lands, then `pick` over the unhurt (the living, for
+    the Death), then the Days, the stream equal. The older test "with none of the fields, whether it
+    lands and on whom are what chance and pick drew" holds the same with no field anywhere.
+- The existing harm tests pass unchanged: `among` as a filter, its fallback, a Death among the
+  Warriors falling on a hurt one, the fields at no effect drawing as none.
+
+**The sweep.** Run alone (no other process of ours; the owner's Playwright test-server left
+running), on the change over `6cdec36`: `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_YEARS=20
+HEROESIM_REPLAY=0 HEROESIM_MILESTONE=m9-v115-s4 npm run harness -- play.harness`, core only, content
+31, config 13, schema 6, not validated, the replay skipped (DL-169 item 16). 1,203.8 s, the games
+1,203.4 s of it; the test passed. The report, `harness/reports/m9-v115-s4-2026-10-04.md`, is
+force-added. 50 of 50 saves load and serialise back alike; no policy action refused, no harness
+assertion broken. The fingerprint of every seed's last save is new, `0a79ddd3f7ad42b0…2d801dfc8`
+(S3's `e3342dfd…`), as a change of play's must be.
+
+**The change's effect alone, against S3's** (`m9-v115-s3-2026-10-04.md`; nothing else that plays
+changed between them):
+
+| | S4 | S3 | Change |
+| --- | ---: | ---: | ---: |
+| Player bankrupt | 13 of 50 (26%) | 13 of 50 (26%) | 0 |
+| … by year (year 0 first) | 11: 1, 12: 1, 13: 1, 14: 1, 15: 1, 17: 1, 18: 2, 19: 5 | 11: 1, 12: 1, 13: 1, 15: 2, 17: 1, 18: 2, 19: 5 | one game a year earlier |
+| … in the first two years | 0 | 0 | 0 |
+| Years survived, mean (min) | 19.23 (11.89) | 19.25 (11.89) | −0.02 |
+| Player's Quests resolved | 381,943 | 382,191 | −0.06% |
+| Player failed / succeeded / strong | 5.81% / 19.56% / 74.63% | 5.81% / 19.56% / 74.63% | level |
+| Rivals failed / succeeded / strong | 12.48% / 30.87% / 56.65% | 12.43% / 30.78% / 56.80% | +0.05 / +0.10 / −0.15 points |
+| Player Injuries a game | 63.14 (3,157) | 63.84 (3,192) | −35, −1.1% |
+| Player Deaths a game | 3.62 (181) | 3.68 (184) | −3 |
+| Rivals' Injuries, Deaths a game | 306.38, 18.20 | 305.48, 18.06 | +45 (+0.3%), +7 |
+| Player's Heroes injured a Check | 0.003 | 0.003 | level |
+| Traits earned a career, the player's | 1.571 (985 / 627) | 1.578 (994 / 630) | −0.007 |
+| Traits earned a career, the Rivals' | 0.572 (1,970 / 3,443) | 0.579 (1,976 / 3,411) | −0.007 |
+| Player recruits a game | 8.54 | 8.60 | −3 in all |
+| Rival folds a game | 5.48 (274) | 5.44 (272) | +2 |
+| Upkeep, Quest rewards a player Guild-year | 56,025, 63,314 | 56,056, 63,328 | −0.06%, −0.02% |
+| Player's Wealth after 10 and 20 years | 104,456; 91,364 | 104,765; 90,922 | −0.3%, +0.5% |
+| Mean Level of the player's Roster after 10 years | 10.31 | 10.30 | +0.01 |
+| `advance` a Turn, mean / p99 | 4.703 / 24.414 ms | 4.699 / 23.863 ms | level |
+| The games | 1,203.4 s | 1,215.6 s | −1.0% |
+
+**The agent's readings.**
+1. *The effect is within the noise everywhere.* The Bankruptcies are 13 against 13, inside fifty
+   seeds' ±3 (DL-166); one game ends in year 14 where S3 had two in year 15, a single game's shift.
+   The player's failed and strong shares agree to the hundredth of a point. Injuries fall by 35 in 50
+   games (1.1%) and Deaths by 3; the Rivals' rise by 45 (0.3%) and 7. Traits earned a career move by
+   0.007 each. None of these is a change fifty seeds can tell from chance.
+2. *Why so small.* The rule plays only when a ranking `among` (four Injuries in three Encounters, all
+   at Setback or Failure) finds the Hero it would name already hurt on the Quest, in a Party of two or
+   more. The player's Quests fail 5.8%, half its Parties go alone (49.9%), and it injures 0.003 Heroes
+   a Check, so such a moment is rare. When it comes, the same draws are taken, and only the Hero hit,
+   and with them the `guardedBy` that scales whether it lands, differ: the next-weakest unhurt Hero by
+   Strength or Perception is likely to have more of the guarding Constitution or Dexterity than a
+   random unhurt one, so a few fewer of those Injuries may land; for `The last assault`'s `top` 3 the
+   Hero let in is the fourth by Constitution, guarded less. The counters cannot separate these, and
+   every difference after the first changed Injury is the games diverging (the fingerprint differs),
+   so the small moves are as much that divergence as the rule.
+3. *For S5 and the close.* S5's sweep is read against this one. Traits earned a career stand at 1.571
+   before S5 raises the four positive chances to 0.05; S5's 1.25 to 1.75 reading is still likely to be
+   passed (DL-177 item 6, §4 Risks), for S5 to report. The rule for what follows (DL-168 item 16) is
+   unmoved: 13 of 50, 26%, outside 5 to 15%, as at S3.
+
+**Checks.** `npm run edit -- traits doctor` before and after: no drift (the register lists all 110
+reads), the doc fresh, the content passing, no pending edits. `npm run lint` and `npm run typecheck`
+pass; `npm test` 4,813 passed in 185 files (S3's 4,808 and these five), all before the sweep, nothing
+running beside it.
+
+**For the owner.** Nothing to decide: the change is the owner's (DL-168 item 6), and its effect
+alone is within the noise. A reading only: on the shipped content and the new player, E3 changes
+little play, since its moment is rare.
+
+**Actioned in:** `engine/src/quest-engine/harm.ts`, `resolve.ts` (comments), `content-types.ts`
+(comments), `harm.test.ts`, `resolve.test.ts`, `CONTEXT.md` (Exposure);
+`harness/reports/m9-v115-s4-2026-10-04.md` (force-added); the epic's S4 boxes and status.
+
+**The verification** (a second Opus agent, at `47326b0`; the sweep not run again). The rule is DL-168
+item 6's, a Death's pool and `among` and the draws are unchanged, and the sweep's figures are the two
+reports'. One test did not test what it claimed, and is fixed; one surviving mutant gained a test; one
+rounding is corrected in the table above (the Rivals' succeeded share +0.10 points, 30.875% against
+30.776%, not +0.09).
+- *The code.* `narrowed` filters `party`'s members to those in `pool`, in Party order, and reads
+  `among` over them; `struck` hands it an Injury's pool, the unhurt living Heroes, and a Death's,
+  `working.alive`, the same Heroes as `partyNow`'s members, so a Death's `among` reads exactly as
+  before. A filter (`where`) is member by member and names the same Heroes either way. The draws: one
+  `next`, then `struck`'s one draw (`weightedPick`, or `next` when the pool is empty), then the Days, in
+  every branch: `narrowed` draws nothing, an empty pool (a count above the unhurt) gives an empty
+  `within` and the one `next` as before, and `among` naming no one gives the whole pool as before.
+  `exposedBy` and `guardedBy` read `byId(party)`, the whole living Party, as before. A tie in `top` or
+  `bottom` goes to the earlier in Party order (`ranking`'s index tie-break over the filtered members,
+  whose order is the Party's), as before.
+- *The tests, by mutation* (each run on `harm.test.ts` and `resolve.test.ts`). Killed: `among` read over
+  the whole Party again (3 tests fail); a Death's pool the unhurt (5); `among` read over the unhurt
+  for a Death too (3); an extra draw when a Hero the ranking names is not in the pool (2); a draw fewer
+  then (3); `top` and `bottom` both reversed (4); `top` alone reversed (2, with the fixes below); a
+  `top` ignored, the whole pool taken (2, with the fixes). Two findings, each fixed test first:
+  1. *The `top` 3 test's Party had four Heroes, not five.* The scene takes Heroes from a new world's
+     Roster, which holds four, so `size: 5` gave four, and with the second hurt the three unhurt were
+     the whole pool: a `top` 3 named them whichever way it ranked, and the test passed with `top`
+     reversed. It now adds a fifth Hero (the fourth's copy under a new id) to the Party, asserts five,
+     and holds the hits to the first, third and fourth of 20, 16, 12, 8 and 4, as this entry describes
+     it; `top` reversed now fails it. `narrowed`'s test gains the same case directly: of a pool of four
+     without the second strongest, a `top` 3 names the first, third and fourth.
+  2. *A tie read over the pool was not held.* Reversing the filtered members' order, so that a tie
+     went to the later Hero, passed every test in `quest-engine/`. A new `narrowed` test holds a tie to
+     the earlier Hero in Party order for a `bottom` 1 and a `top` 1 over a pool without the second.
+- *The content.* `content/encounters.json` holds six `among`s, all on Injuries, none on a Death or an
+  earned Trait: `Hold the line`'s two (`where` `warrior`, unchanged by the rule), `The flooded ford`'s
+  and `The trapped passage`'s `bottom` 1 (Strength, Perception, count 1, at Failure), and `The last
+  assault`'s `top` 3 Constitution (count 2, at Setback and Failure), as item 4 says.
+- *How often the rule changes the struck Hero.* `struck` instrumented in a scratch copy (deleted, the
+  file restored and the tests passing after), each draw of an Injury with an `among` compared with the
+  old rule on the same state, the same draw cloned: `seed-0001` to `seed-0003` over 20 years, alone,
+  one process, 234 s. Of 2,651 such draws (the player's 365, the Rivals' 2,286), 1,496 were of a
+  ranking (the player's 220, the Rivals' 1,276); the old and new Heroes it could fall on differed
+  twice, both the Rivals', and the Hero drawn once. None of the player's. Over 5 years the same seeds
+  gave none in 459 ranking draws. So the rule plays about once in 1,500 ranking draws, a few times a
+  sweep, and nearly always for a Rival: a `bottom` 1 Injury is of count 1, so it needs the weakest hurt
+  by an earlier Encounter of the same Quest in a Party of two or more, and the `top` 3 differs only in a
+  Party of four or more (the player's 0.1% of Quests, the Rivals' 0.5%). Item 2's reading holds, and
+  more strongly: the player's moves against S3 (Injuries −35, Deaths −3, one Bankruptcy a year
+  earlier) are almost all the games diverging after the first changed draw (all Quests share the `quests`
+  stream), not the rule acting on the player's Heroes, and item 2's `guardedBy` account cannot be
+  seen at this rate. The verifier's reading.
+- *The figures.* Every cell of the table above recomputed from `m9-v115-s4-2026-10-04.md` and
+  `m9-v115-s3-2026-10-04.md`: the by-year Bankruptcies sum to 13 in each, S4 one in year 14 and one in
+  15 where S3 had two in 15; 5.811% / 19.558% / 74.630% against 5.811% / 19.558% / 74.631%; 3,157
+  against 3,192 (−1.1%); 985 / 627 = 1.571, 994 / 630 = 1.578, 1,970 / 3,443 = 0.572, 1,976 / 3,411 =
+  0.579; Upkeep 56,024.9 against 56,055.8, the rewards 63,314.2 against 63,328.4; the Wealth after 10
+  and 20 years the year table's. No other discrepancy.
+- *What was swept is what was committed.* The code files were last written 13:08 to 13:10, the sweep
+  began 13:12:43 and its report was written 13:32, the decision log and epic 13:35 and the commit at
+  13:35:34; the working tree was clean after it. `git show --stat 47326b0` touches the five engine
+  files, `CONTEXT.md`, the report and the two documents only.
+- *The words and the files.* `CONTEXT.md`'s Exposure, the head comments of `harm.ts` and `resolve.ts`,
+  `narrowed`'s and `struck`'s, and `content-types.ts`'s `HarmReads.among` and `InjuryConsequence` read
+  the rule as built. Every file the commit touched keeps one ending (`git ls-files --eol`): LF in the
+  index, as before it; in the working tree CRLF for the code and `CONTEXT.md`, LF for the decision
+  log, the epic and the reports, none mixed.
+- *Checks.* `npm run edit -- traits doctor` before and after: no drift (110 reads), the doc fresh, the
+  content passing, no pending edits. `npm run lint` and `npm run typecheck` pass; `npm test` 4,814
+  passed in 185 files (S4's 4,813 and the tie test).
+
+---
+
+## DL-179 — v1.1.5-S5 built: the four positive earned Traits at 0.05 through the content editor's Finish, content 32; its sweep against S4's, 2.32 Traits earned a player's Hero career, the new baseline by the owner's steer; fewer failures and Injuries, 12 of 50 bankrupt
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the owner (DL-168 item 4, the chance;
+the steer below, the aim), built by the agent as the epic's S5 describes. The readings marked as the
+agent's are for the owner to change.
+
+**Context.** DL-168 item 4 put the four positive earned Traits back to a chance of 0.05, superseding
+DL-166 item 6's 0.02, and set the aim at about 1.5 Traits earned a Hero career; the epic read it as
+1.25 to 1.75, and S5 was to stop and report outside it. S4 (DL-178) is the sweep this one is read
+against: nothing that plays has changed since it but this. At 0.02, S4 measured 1.571 a career.
+
+**The owner's steer** (2026-10-04), relayed by the orchestrator before the sweep: *"for S5, keep
+traits at 0.05 and update baseline for traits per career"*. So the chances stay at 0.05 whatever the
+sweep measures, the stop rule is not applied, and the measured figure becomes the aim and baseline
+in place of DL-168 item 4's "about 1.5" (and the epic's 1.25 to 1.75 reading), which it supersedes.
+
+**Decision: what was built.**
+1. *The four uses at 0.05,* through the content editor only, as the `trait-assign` skill does it
+   (DL-166 item 6's way). Each use is the last of its Encounter's `triumph` list and has no `among`,
+   and taking it out leaves the `triumph` list unlike the `success` list, so `traits unassign` and
+   `traits assign … degree=triumph chance=0.05` put each back in its place:
+   - `battle-tried`: `encounters.json: the-last-assault.consequences.triumph.1`;
+   - `wayfinder`: `lost-in-the-fells.consequences.triumph.1`;
+   - `silver-tongued`: `the-patrons-steward.consequences.triumph.1`;
+   - `lettered`: `the-wardens-seal.consequences.triumph.1`.
+
+   Eight pending edits, then "Finish": `changed` `encounters.json`, the content version 31 → 32
+   (`parse.ts`'s comment and `content.test.ts`'s version written by the editor), its `npm test` 4,814
+   passed in 185 files. `git diff` of `encounters.json` is the four `chance` values only.
+   `battle-shy` and `haunted` stay 0.08. No Trait added or removed; the register unchanged.
+2. *For Traits.* Four uses changed through "Finish", content 32. The doctor before and after: no
+   drift (110 reads), the doc fresh, the content passing, no pending edits. No engine or check
+   changed.
+
+**The sweep.** Run alone (no other process of ours; the owner's Playwright test-server left
+running), after lint, typecheck and test passed: `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50
+HEROESIM_YEARS=20 HEROESIM_REPLAY=0 HEROESIM_MILESTONE=m9-v115-s5 npm run harness -- play.harness`,
+core only, content 32, config 13, schema 6, not validated, the replay skipped (DL-169 item 16).
+1,214.3 s, the games 1,213.9 s of it; the test passed. The report,
+`harness/reports/m9-v115-s5-2026-10-04.md`, is force-added. 50 of 50 saves load and serialise back
+alike; no policy action refused, no harness assertion broken. The fingerprint of every seed's last
+save is new, `37fabc967f85186e…eca6004fb18cff9d` (S4's `0a79ddd3…`).
+
+**The change's effect alone, against S4's** (`m9-v115-s4-2026-10-04.md`; nothing else that plays
+changed between them):
+
+| | S5 (0.05) | S4 (0.02) | Change |
+| --- | ---: | ---: | ---: |
+| Player bankrupt | 12 of 50 (24%) | 13 of 50 (26%) | −1 |
+| … by year (year 0 first) | 10: 1, 12: 2, 14: 3, 15: 1, 16: 2, 17: 1, 18: 1, 19: 1 | 11: 1, 12: 1, 13: 1, 14: 1, 15: 1, 17: 1, 18: 2, 19: 5 | earlier: mean year 14.75 (16.38) |
+| … in the first two years | 0 | 0 | 0 |
+| Years survived, mean (min) | 18.87 (10.94) | 19.23 (11.89) | −0.36 |
+| Player's Quests resolved | 374,495 | 381,943 | −1.95% |
+| … a player Guild-year | 396.9 (943.6 Guild-years) | 397.2 (961.5) | level |
+| Player failed / succeeded / strong | 5.14% / 18.41% / 76.46% | 5.81% / 19.56% / 74.63% | −0.68 / −1.15 / +1.83 points |
+| Rivals failed / succeeded / strong | 11.75% / 29.55% / 58.70% | 12.48% / 30.88% / 56.65% | −0.73 / −1.33 / +2.06 points |
+| Player Injuries a game | 54.42 (2,721) | 63.14 (3,157) | −436, −13.8% |
+| Player Deaths a game | 3.24 (162) | 3.62 (181) | −19, −10.5% |
+| Rivals' Injuries, Deaths a game | 289.80, 16.96 | 306.38, 18.20 | −5.4%, −6.8% |
+| **Traits earned a career, the player's** | **2.322 (1,407 / 606)** | 1.571 (985 / 627) | **+0.751** |
+| … the four positive alone | 2.297 (1,392) | 1.545 (969) | +0.752 |
+| Traits earned a career, the Rivals' | 1.131 (3,920 / 3,466) | 0.572 (1,970 / 3,443) | +0.559 |
+| Player recruits a game | 8.12 | 8.54 | −21 in all |
+| Rival folds a game | 5.44 (272) | 5.48 (274) | −2 |
+| Upkeep, Quest rewards a player Guild-year | 56,166.8; 64,003.0 | 56,024.9; 63,314.2 | +0.25%, +1.09% |
+| Player's Wealth after 10 and 20 years | 108,386; 98,847 | 104,456; 91,364 | +3.8%, +8.2% |
+| Mean Level of the player's Roster after 10 years | 10.35 | 10.31 | +0.04 |
+| The player's mean Party | 1.57 | 1.57 | level |
+| `advance` a Turn, mean / p99 | 4.806 / 24.876 ms | 4.703 / 24.414 ms | +2.2% |
+| The games | 1,213.9 s | 1,203.4 s | +0.9% |
+
+Each Trait's count (`hero.trait-gained`, by the Guild the Hero was on):
+
+| Trait | Chance | Player's S5 | S4 | Change | Rivals' S5 | S4 | Change |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `wayfinder` | 0.05 (0.02) | 472 | 430 | +10% | 1,896 | 1,094 | +73% |
+| `battle-tried` | 0.05 (0.02) | 356 | 235 | +51% | 798 | 333 | +140% |
+| `silver-tongued` | 0.05 (0.02) | 331 | 198 | +67% | 666 | 294 | +127% |
+| `lettered` | 0.05 (0.02) | 233 | 106 | +120% | 448 | 137 | +227% |
+| `battle-shy` | 0.08 | 11 | 13 | −2 | 87 | 79 | +8 |
+| `haunted` | 0.08 | 4 | 3 | +1 | 25 | 33 | −8 |
+| The Injury Traits (`lame`, `one-eyed`, `scarred`, `short-winded`) | — | 0 | 0 | 0 | 0 | 0 | 0 |
+| All | | 1,407 | 985 | +43% | 3,920 | 1,970 | +99% |
+
+**The new baseline** (the owner's steer): **2.32 Traits earned a player's Hero career** (2.322, the
+four positive 2.297 of it), the Rivals' 1.13, measured on content 32 under v1.1.5's player at S5's
+commit. The Gate's "Rare Traits", S5's aim and §4's risk now read it; the close's sweep, expected to
+equal S5's by fingerprint (nothing after S5 changes play but the review's fixes), is read against it.
+
+**The agent's readings.**
+1. *The Traits rise less than the chance.* The chance rose 2.5 times; the player's positive Traits
+   1.44 times, the Rivals' 2.05 times. Each is earned once a Hero (never one held, `mayEarn`), at
+   most one a Hero on a Quest, and only on a Triumph of its one Encounter. The player's Heroes see about 970
+   Quests a career (374,495 Quests × 1.57 Heroes / 606), so at 0.02 the commonest was already near
+   its ceiling: `wayfinder` reached 430 of 627 careers at S4 and 472 of 606 now (78%), and rose 10%;
+   the rarest, `lettered`, more than doubled. The Rivals' Heroes see
+   about 360 Quests a career (727,328 × 1.72 / 3,466), further from the ceiling, so theirs roughly
+   double. The player's figure is bounded by four positive Traits and the negatives; at 2.30 of 4
+   it is past half of it.
+2. *Why above DL-168's 1.5.* DL-166's trials earned 1.6 to 1.9 at 0.05 under v1.1.4's player. The
+   new player (S2, DL-177) succeeds strongly on 74.6% of its Quests where v1.1.4's did on 57.1%, and
+   plays about 18.5% more of them, so it meets the Triumphs a positive Trait needs far more often:
+   at 0.02 it already earned 1.578 a career at S3 against v1.1.4's close's 1.117. So 0.05 lands above
+   both DL-166's trials and the epic's 1.25 to 1.75, as DL-178 item 3 and §4's risk expected. By the
+   owner's steer this is not a stop: the chance stays, and 2.32 is the baseline.
+3. *The play moves are the change's.* Against S3 → S4, where the games diverged after a few changed
+   draws, the player's failed and strong shares moved by under 0.01 points and the Rivals' by under
+   0.2; here they move by 0.7 to 2 points for both, in the direction the Traits push: each positive
+   Trait adds +2 to every Check of its kind's Encounters (`battle-tried` combat, `wayfinder` travel,
+   for the whole Party) or +1 to two Stats (`silver-tongued`, `lettered`). Fewer failures bring fewer
+   Injuries (−13.8%, against S3 → S4's −1.1%) and the Rivals' too (−5.4%). Deaths fall 19 (−10.5%),
+   about one standard deviation of the difference of two such counts (√(181 + 162) ≈ 18.5), in the
+   same direction: perhaps the change's in part, not separable from noise alone. Quest rewards a Guild-year rise 1.1% (more Triumphs), Upkeep
+   is level, and the Wealth after 10 and 20 years is higher.
+4. *The Bankruptcies are within the noise; their timing is a reading only.* 12 against 13, inside
+   fifty seeds' ±3 (DL-166). They fall earlier (mean year 14.75 against 16.38; years survived −0.36,
+   the shortest game 10.94 years), where S3 → S4 kept the years nearly identical, so whether a seed
+   goes bankrupt and when is mostly the seed's. The counters do not say which games moved, nor why an
+   average Guild that is richer (+3.8% after 10 years) has some ending sooner; with 12 and 13 games,
+   the agent reads it as noise in which games cross the wage, not the Traits, for the close to watch.
+   The rule for what follows (DL-168 item 16): 12 of 50, 24%, outside 5 to 15%, as at S3 and S4.
+5. *Time.* `advance` +2.2% and the games +0.9%: within a sweep's run-to-run spread.
+
+**Checks.** `npm run edit -- traits doctor` before and after: no drift (110 reads), the doc fresh, the
+content passing, no pending edits. The editor's Finish ran `npm test`: 4,814 passed in 185 files. Then
+`npm run lint` and `npm run typecheck` pass, and `npm test` again 4,814 passed in 185 files, all before
+the sweep, nothing running beside it. `encounters.json`, `parse.ts` and `content.test.ts` keep their
+endings (LF in the index, CRLF in the working tree).
+
+**For the owner.**
+1. *The new baseline* is 2.32 Traits earned a player's Hero career (the Rivals' 1.13), by your steer;
+   the Gate, S5's aim and §4's risk say so. DL-168 item 4's "about 1.5" stands superseded.
+2. *A reading only:* at 0.05 the player's commonest positive Trait, `wayfinder`, is held by about 78%
+   of its Heroes' careers, so "rare" now describes the Rivals' Traits (1.13) more than the player's.
+   Any further change to the chances is yours, through the editor.
+
+**Actioned in:** `content/encounters.json`, `content/src/parse.ts`, `content/src/content.test.ts` (all
+by the editor's Finish); `harness/reports/m9-v115-s5-2026-10-04.md` (force-added); the epic's
+objective, Gate "Rare Traits", status, S5's aim and boxes, §4's Traits risk; DL-168 item 4's pointer to
+this entry.
+
+**The verification** (a second Opus agent, at `0f09174`; the sweep not run again). The content change
+is the four chances alone, made by the editor; the sweep ran the committed code and content; every
+figure above is the two reports'. Nothing in content or code to fix. Two records corrected: the epics
+README's v1.1.5 Gate summary still read "Traits earned about 1.5 a career", and now reads the
+baseline of 2.32 (DL-179); and reading 1's "at most one a Quest" now says "a Hero on a Quest", as
+`earn` holds it (a Quest may give two Heroes a Trait each, in two Encounters).
+- *The content.* `git diff cbe1603..0f09174 -- content/` is the four `chance` values 0.02 → 0.05, each on
+  its Encounter's `triumph` list at `.1` (`the-last-assault` `battle-tried`, `lost-in-the-fells`
+  `wayfinder`, `the-patrons-steward` `silver-tongued`, `the-wardens-seal` `lettered`), and the version
+  31 → 32 in the two places `raiseContentVersion` writes (`parse.ts`'s comment and constant,
+  `content.test.ts`'s pin). `battle-shy` and `haunted` stand at 0.08 in their four Failure lists. `traits
+  uses` names each positive Trait's one Encounter use at `triumph.1`, as before. The editor's evidence:
+  the three files written within 2 ms of each other at 13:54:12 (one Finish transaction), the comment
+  line in the editor's form with its summary of the eight edits, no `.editor/traits.json` (no pending
+  edits) and no journal (`finish.running` false, nothing recovered). The register is untouched
+  (`content/src/uses/` not in the diff).
+- *The doctor now:* `ok`, no drift (110 reads), the doc fresh, the content passing, 0 pending edits.
+- *What was swept is what was committed.* The content files were written 13:54:12 and the sweep began
+  13:59:22; no file under `engine/src`, `content/src`, `harness/src`, `tools` or `web/src` was written
+  after 13:54:13 (the editor's two `tsbuildinfo`s aside), the engine's last at 13:47:36 (S4's
+  verification, committed in `cbe1603` at 13:52:19); the engine and content packages export their
+  sources, so the sweep read them, not `dist`. The report was written 14:19:36, the commit at 14:22:56,
+  the tree clean after it; the report says content version 32.
+- *The figures.* Every cell of both tables recomputed from `m9-v115-s5-2026-10-04.md` and
+  `m9-v115-s4-2026-10-04.md`: the by-year Bankruptcies sum to 12 and 13, mean year 177 / 12 = 14.75 and
+  213 / 13 = 16.38; 374,495 / 381,943 −1.95%; 396.9 and 397.2 a Guild-year; the shares 5.136 / 18.410 /
+  76.455% against 5.812 / 19.558 / 74.630% (−0.68, −1.15, +1.83), the Rivals' 11.748 / 29.548 / 58.704%
+  against 12.476 / 30.875 / 56.649% (−0.73, −1.33, +2.06); Injuries 2,721 / 3,157 −13.8%, Deaths 162 /
+  181 −10.5%, the Rivals' −5.4% and −6.8%; 1,407 / 606 = 2.322, 985 / 627 = 1.571, the four positive
+  1,392 / 606 = 2.297 and 969 / 627 = 1.545, the Rivals' 3,920 / 3,466 = 1.131 and 1,970 / 3,443 = 0.572;
+  each Trait's count and change (472 / 430 +9.8%, 356 / 235 +51%, 331 / 198 +67%, 233 / 106 +120%; the
+  Rivals' +73%, +140%, +127%, +227%), each column summing to its total; Upkeep +0.25%, rewards +1.09%,
+  the Wealth +3.8% and +8.2%; `advance` +2.2%, the games +0.9%. No discrepancy.
+- *The readings' figures.* S3 → S4 (from `m9-v115-s3-2026-10-04.md`): the player's shares moved
+  +0.001 / 0.000 / −0.001 points, the Rivals' +0.05 / +0.10 / −0.15, so "under 0.01" and "under 0.2"
+  hold; Injuries 3,157 / 3,192 −1.1%. √(181 + 162) = 18.5. 374,495 × 1.57 / 606 = 970 and 727,328 × 1.72 /
+  3,466 = 361 Quests a career. The "1.44 times" and "2.05 times" are the counts (1,392 / 969, 3,808 /
+  1,858); a career, 1.49 and 1.98. "Once a Hero" holds: `earn` draws only among Heroes `mayEarn` allows
+  (not holding the Trait nor one it excludes) and none that drew a Trait on this Quest, and each
+  positive Trait stands in one Encounter's `triumph` list. "+2 to every Check of its kind's
+  Encounters, for the whole Party" is `encounterBonus` `flat` 2 on `combat` and `travel`; the other two
+  are +1 Diplomacy and Charisma, +1 Intelligence and Knowledge (`hero-traits.json`). ±3 for fifty
+  seeds' Bankruptcies is DL-166's.
+- *The steer applied.* The epic's objective line, Gate "Rare Traits", S5's aim and §4's risk cite
+  DL-179 and 2.32 (the Rivals' 1.13 in the Gate, the aim and the risk); §2's content line DL-179 and
+  content 32. DL-168 item 4 keeps
+  the owner's recorded answer word for word, with one sub-item added pointing here. The epic's status
+  now reads S5 built and verified.
+- *Checks.* `npm run lint` and `npm run typecheck` pass; `npm test` 4,814 passed in 185 files. Every
+  file touched keeps its endings (the README CRLF in the working tree, the decision log and epic LF).
+
+---
+
+## DL-180 — v1.1.5-S9 run: the split-XP trial, for information: each Hero of a Party taking the Quest's XP divided by the Party's size, on a scratch change never committed; over 50 games of 20 years no player Guild goes bankrupt (S5's 12), the Roster's mean Level after 10 years 8.34 (10.35), Upkeep 74.7% of the Quest income (87.8%)
+
+**Status:** Recorded · **Date:** 2026-10-04 · **Decided by:** nothing decided: the agent ran the trial
+the epic's S9 describes (DL-168 item 3, DL-148 item 19), for the owner and #51. The XP split as a rule
+stays the owner's, on S3's and these numbers (the epic's "Deliberately not in v1.1.5"). The readings
+marked as the agent's are for the owner to change.
+
+**Context.** DL-148 item 19 left splitting XP across the Party until the balance pass's numbers, and
+DL-166's table showed why it matters: XP is not split, so each Hero of a Party takes the Quest's whole
+XP and a Party of three takes nine times a solo Hero's in all. DL-168 item 3 asked for one
+information-only 50 × 20 sweep with the XP split, *the agent's reading* being that each Hero of a
+Party takes the Quest's XP divided by the Party's size. The epic runs it on S5's commit, so that it
+measures the play the economy pass starts from, and S5's sweep (DL-179, `m9-v115-s5-2026-10-04.md`)
+is the one it is read against: the trial differs from it by the split alone (and a report line).
+
+**The trial's change** (a scratch change in the working tree at `8e1d2fe`, never committed; its whole
+`git diff`, 86 lines, kept in the session's scratchpad as `s9-split-xp.diff` for #51):
+1. *The rule, one line of the engine.* A Quest's XP is worked out in `resolveQuest`
+   (`engine/src/quest-engine/resolve.ts`) and given by `questsConclude`
+   (`engine/src/phases/quests-conclude.ts`), which adds `outcome.xpPerHero` to each Hero who comes
+   home alive and emits `hero.xp-gained`. The trial changed only the outcome's field:
+
+   ```diff
+   -      xpPerHero: Math.floor(xp),
+   +      xpPerHero: Math.floor(xp / heroes.length),
+   ```
+
+   where `xp` is, as shipped, the difficulty × `xpPerDifficultyPoint` (1) × the band's `xpBandFactor`
+   (fail 0.5, success 1, strong 1) × the Encounters' XP factors, and `heroes` the Party sent
+   (`party.heroIds`). So:
+   - *The size is the Party sent,* its Deaths included: a Hero who dies takes nothing, as before, and
+     their share is lost, not passed to the others.
+   - *The rounding follows the store.* `hero.xp` holds whole numbers (the shipped rule rounds down), so
+     the share is rounded down too: `floor(xp / n)`, which for a whole `n` equals splitting the shipped
+     whole XP, `floor(floor(xp) / n)`. Up to `n − 1` points a Quest are lost to the rounding. A Party of
+     one takes exactly what it took before.
+   - *Whatever the band,* and for every Guild: the player's and the Rivals' Parties alike, since both
+     resolve through the one Quest Engine (ADR-0002's note). No draw is added or moved: XP draws
+     nothing. Everything else is as at S5's commit, content 32, config 13, schema 6.
+   - `resolve.test.ts`'s XP test fails under it (a Party of three, 160 → 53), as a rule change must;
+     no test was changed, the change being scratch.
+2. *A scratch counter, the highest Level reached* (DL-83 item 22, whose counter was never built:
+   DL-177). `harness/src/counters.ts` read, for each game, the highest `level` of the player's
+   `hero.levelled` entries before year 10 and in the whole game (1 if none); `sweep.ts` summarised them
+   over the games in one line of the report's M3 section. A Hero recruited above that Level who never
+   levelled on the player's Guild is not seen; the policy recruits the cheapest Hero who would sign, so
+   the agent reads the gap as nil. S5's sweep had no such counter, so S5's highest Level is not known
+   (below), and no baseline sweep was run for it.
+
+**The sweep.** Run alone (no other process of ours; the owner's Playwright test-server left running),
+the scratch change typechecked first: `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_YEARS=20
+HEROESIM_REPLAY=0 HEROESIM_MILESTONE=m9-v115-s9-trial npm run harness -- play.harness`, core only,
+content 32, config 13, schema 6, not validated, the replay skipped (the epic's §0). 1,747.8 s, the
+games 1,747.4 s of it; the test passed. 50 of 50 saves load and serialise back alike; no policy action
+refused, no harness assertion broken; the fingerprint `e7ae1710…6369f369`, a trial's. The report was
+not kept (the epic's §0): copied to the scratchpad and deleted from `harness/reports/`. Then the
+scratch change was reverted (`git checkout --` of the three files): `git status` clean, `git diff
+8e1d2fe` empty, `npm run typecheck` run again on the reverted code, no trial code left in the engine's
+`dist`.
+
+**The trial beside S5's sweep** (`m9-v115-s5-2026-10-04.md`; the split the only difference in play):
+
+| | S9 (XP split) | S5 (not split) | Change |
+| --- | ---: | ---: | ---: |
+| **Player bankrupt** | **0 of 50 (0%)** | 12 of 50 (24%) | −12 |
+| … by year (year 0 first) | none | 10: 1, 12: 2, 14: 3, 15: 1, 16: 2, 17: 1, 18: 1, 19: 1 | |
+| … fell below the floor (`guild.below-floor`) | 0 | 82 | |
+| Years survived, mean (min) | 20.00 (20.00) | 18.87 (10.94) | +1.13 |
+| Player's Guild-years in play | 1,000.0 | 943.6 | +6.0% |
+| Player's Quests resolved; a Guild-year | 403,168; 403.2 | 374,495; 396.9 | +7.7%; +1.6% |
+| Player failed / succeeded / strong | 6.79% / 20.52% / 72.68% | 5.14% / 18.41% / 76.46% | +1.66 / +2.12 / −3.77 points |
+| Rivals failed / succeeded / strong | 13.29% / 31.72% / 54.99% | 11.75% / 29.55% / 58.70% | +1.54 / +2.17 / −3.71 points |
+| Player Deaths a game (a Guild-year) | 4.28 (0.214) | 3.24 (0.172) | +52 in all, +25% a Guild-year |
+| Player Injuries a game (a Guild-year) | 72.52 (3.63) | 54.42 (2.88) | +26% a Guild-year |
+| Rivals' Deaths, Injuries a game | 24.66, 411.64 | 16.96, 289.80 | +45%, +42% |
+| Traits earned a career, the player's | 2.178 (1,472 / 676) | 2.322 (1,407 / 606) | −0.144 |
+| Traits earned a career, the Rivals' | 1.259 (4,890 / 3,883) | 1.131 (3,920 / 3,466) | +0.128 |
+| **Mean Level of the player's Roster after 10 years** | **8.34** | 10.35 | −2.01 |
+| … after 20 years (the games in play) | 9.51 (50) | 11.86 (38) | −2.35 |
+| Highest Level a player's Hero reached by year 10, a game | mean 8.98 (8 to 9) | not counted | |
+| Highest Level a player's Hero reached in the game, a game | mean 11.58, median 12 (11 to 12) | not counted | |
+| Levels, declines a player Guild-year | 4.97, 2.28 | 6.13, 2.16 | −18.9%, +5.4% |
+| Heroes with a Stat at Potential after 10 years | 51.0% | 75.3% | −24.3 points |
+| **Upkeep, Quest rewards a player Guild-year** | **45,664.3; 61,150.1 (74.7%)** | 56,166.8; 64,003.0 (87.8%) | −18.7%; −4.5% |
+| Reward a player's Quest; mean difficulty | 151.7; 36.8 | 161.3; 38.3 | −6.0% |
+| Player's Wealth after 10 and 20 years | 159,162; 215,079 | 108,386; 98,847 | +47%, +118% |
+| Player recruits, Retirements, Heroes sent | 477, 63, 676 | 406, 45, 606 | |
+| Rival folds a game | 2.74 (137) | 5.44 (272) | −135 |
+| Rival Successions | 45 | 18 | |
+| Rivals' Roster, mean at a year-start; Guild-years | 7.69; 3,988.6 | 5.71; 3,751.9 | |
+| Player first in the Rankings, by Fame, by Wealth | 91.6%, 91.0% | 97.2%, 87.5% | |
+| Loot a player's Quest | 0.101 | 0.128 | |
+| `advance` a Turn, mean / p99 | 7.374 / 53.244 ms | 4.806 / 24.876 ms | +53% |
+| The games | 1,747.4 s | 1,213.9 s | +44% |
+
+**Party sizes and XP a Hero** (DL-166's table; in the trial XP *is* split, so "XP a Hero" is the
+share each Hero who came home took, and "XP the Party took" the shares summed; the report's own
+heading still says "XP is not split", its text unchanged by the scratch counter; S5's in brackets):
+
+| The player's Party | Quests | Failed | Strong | XP a Hero | XP the Party took |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 Hero | 206,631 (51.3%) (49.9%) | 10.2% (7.9%) | 66.5% (70.4%) | 29.7 (30.4) | 29.7 (30.3) |
+| 2 | 171,172 (42.5%) (43.5%) | 3.3% (2.4%) | 79.7% (82.8%) | 27.7 (60.0) | 55.3 (120.0) |
+| 3 | 24,782 (6.1%) (6.4%) | 2.9% (1.9%) | 76.1% (81.1%) | 27.9 (88.3) | 83.6 (264.8) |
+| 4 | 569 (0.1%) (0.1%) | 6.3% (3.7%) | 46.2% (48.3%) | 19.6 (80.5) | 78.4 (321.7) |
+| 5 | 14 (0.0%) (0.0%) | 0.0% (0.0%) | 21.4% (25.0%) | 17.4 (96.8) | 86.8 (483.8) |
+| Every size, mean 1.55 (1.57) | 403,168 (374,495) | 6.8% (5.1%) | 72.7% (76.5%) | 28.7 (47.0) | 44.0 (84.8) |
+
+The Rivals': mean 1.85 (1.72), 30.0 XP a Hero (52.2), 54.2 a Party (100.0); a Party of three 27.5 a
+Hero (83.6).
+
+**The agent's readings.**
+1. *A Hero's XP a Quest now barely depends on the Party's size.* About 28 a Hero whether alone or in
+   two or three (the larger Party's harder Quest about offsetting the split), against 30, 60 and 88
+   unsplit. The XP a Hero falls 39% (28.7 against 47.0), the XP the Party took 48% (44.0 against
+   84.8). The player's Parties stay as they were (mean 1.55 against 1.57): `partyFor` chooses by the
+   chance, not the XP, so the split changes who levels, not who goes.
+2. *So Levels come slower and stop lower.* Levels a Guild-year −18.9%; the Roster's mean Level after
+   10 years 8.34 (10.35), after 20 years 9.51 (11.86), and half the Roster at Potential after 10 years
+   (51.0% against 75.3%). Every trial game's highest Hero by year 10, Level 8 or 9, stands below S5's
+   mean Roster Level then (10.35), so S5's highest Level by year 10 was higher in every likelihood,
+   though S5 did not count it. In the trial the highest Level reached in a game is 11 or 12 (mean
+   11.58).
+3. *The wage follows the Level, and the Bankruptcies go.* Upkeep is `wagePerLevel` (20) a Level of
+   each living Hero, plus the Hall (DL-177's verification), so the lower Levels cut it 18.7%
+   (45,664 against 56,167 a Guild-year), while the Quest income falls only 4.5% (more Quests, each
+   paying 6% less, slightly easier). Upkeep takes 74.7% of the Quest income (87.8%), the Wealth
+   climbs every year to 215,079 after 20 (S5's peaks near 111,700 in year 13 and falls to 98,847), no
+   player Guild ever falls below the floor (S5's 82 times), and none goes bankrupt. It is DL-177
+   item 7's late mechanism, the wage outgrowing a reward that does not grow with Level, slowed enough
+   not to reach the income within 20 years.
+4. *The Heroes are weaker, so they are hurt more.* Lower Stats fail more (6.8% against 5.1%) and
+   end strong less often (72.7% against 76.5%); Deaths and Injuries a Guild-year rise about a quarter. The
+   Deaths' rise, 52, is about 2.7 times the standard deviation of the difference of two such counts
+   (√(162 + 214) ≈ 19.4): beyond the noise. Fewer strong successes keep slightly fewer positive Traits a
+   Hero's Quest (1,456 in 625,667, against 1,392 in 586,779: −1.9%), and a Hero sent goes on fewer
+   Quests (926 against 968, −4.4%): 2.178 a player's career against the 2.32 baseline (−6%).
+5. *The Rivals, too.* Their wage falls with their Levels, so they fold half as often (2.74 a game,
+   within DL-83 item 5's 1.5 to 3.5, against 5.44), keep larger Rosters (7.69 at a year-start against
+   5.71; `ambitious` 8.9, `reckless` 10.6) and live long enough to retire their Guildmasters more (45
+   Successions against 18). Their Traits a career rise (1.259 against 1.131), their careers longer (419
+   Quests a Hero sent against 360).
+6. *The time.* `advance` +53% and the games +44%: larger Rival Rosters give `partyFor` more Heroes to
+   search, and every game runs its full 20 years (1,000 Guild-years against 943.6). A shipped split
+   would need its time read again.
+7. *The DL-83 targets, for information:* item 2, Bankruptcies 5 to 15%: 0%, below the band (S5 24%,
+   above it); item 21, the Roster's mean Level after 10 years 8 to 10: 8.34, inside (S5 10.35, just
+   above); item 22, the highest Level by year 20, 14 to 17: 11.58, below (S5 not counted); item 5,
+   Rival folds 1.5 to 3.5: 2.74, inside (S5 5.44); item 4, failed 20 to 30% and strong at most 50%:
+   6.8% and 72.7%, still off; item 6, 25 to 40 Deaths a game: 4.28, still off; item 3, first in the
+   Rankings 40 to 60%: 91.6% and 91.0%, still off; item 7, Wealth at 6 to 12 months' Upkeep: 41.8
+   months after 10 years (S5 23.2), against the mean Upkeep a Guild-year over the game, further above.
+
+**DL-168 item 16's rule, for information only.** The rule reads the close's sweep, which ships no split.
+On the trial the player's Bankruptcies are 0 of 50, against 3 to 7: they leave the band on the other
+side, from 5 above its top (S5's 12) to 3 below its bottom. *The agent's reading:* the split alone
+removes the late Bankruptcies the band is above, and overshoots it; with it the economy pass would
+start from a Guild that never fails rather than one that fails late, and the wage, the reward and the
+Market would be tuned toward the band from below. Which way is the owner's (#51).
+
+**Checks.** `npm run edit -- traits doctor` before the scratch change and after its revert: no drift
+(110 reads), the doc fresh, the content passing, no pending edits, both. `npm run typecheck` passed
+with the scratch change and again after the revert. Before the sweep, a one-seed, one-year probe of
+the scratch counter (`m9-v115-s9-probe`, its report deleted at once) and `resolve.test.ts` alone (70
+passing, its XP test failing as expected under the split) were run, neither during the sweep. No code
+is committed: lint and the full test suite were not run, the tree being `8e1d2fe`'s. Only this entry
+and the epic change.
+
+**For the owner.**
+1. *The split, on these numbers, ends the player's Bankruptcies* (0 of 50 against S5's 12) by slowing
+   Levels and with them the wage, and it puts the rule's count below its band. It also lowers the
+   Roster's Level after 10 years into DL-83 item 21's band (8.34), and the highest Level reached
+   (11.58 a game) further below item 22's 14 to 17, and raises Deaths and Injuries about a quarter.
+2. *Whether to split XP,* and how (by the Party sent or by those who come home, rounded down or
+   otherwise), is yours for #51; the diff above rebuilds this trial.
+   *Answered by the owner, 2026-10-04 (DL-182 item 1):* "go with split xp", shipped in v1.1.5 as
+   S13, by the Party sent, rounded down (DL-184).
+3. #51's comment with these numbers is prepared for the orchestrator to post (the story does not touch
+   GitHub).
+
+**Actioned in:** the epic's S9 boxes and status. No code, content or report kept.
+
+**The verification** (a second Opus agent, at `c44a2c3`; the trial not run again). No trial code is in
+the patch; the diff rebuilds the trial; the figures are the two reports' but for three cells and two
+readings, corrected here. Nothing in code or content to fix.
+- *The patch.* `git diff 8e1d2fe..c44a2c3 --stat` is `docs/decision-log.md` and the epic only; `git
+  status` clean. Neither `xp / heroes.length`, `highestLevel`, `playerHighestLevel` nor "S9 TRIAL" is
+  anywhere in `engine/src`, `engine/dist` or `harness/src` (`hero.levelled` is the shipped event);
+  `engine/dist`'s `resolve.js` still reads `xpPerHero: Math.floor(xp)`; no S9 report in
+  `harness/reports/`.
+- *The diff* (`s9-split-xp.diff`, 86 lines) applies cleanly to the tree (`git apply --check`): one
+  engine line, `xpPerHero: Math.floor(xp / heroes.length)` with a comment, and the scratch counter in
+  `harness/src/counters.ts` and `sweep.ts` only. In `resolveQuest`, `heroes` is
+  `party.heroIds.map(...)`, the Party sent, and `working.alive` is a copy of it, so the Dead stay in the
+  divisor; `questsConclude` adds `outcome.xpPerHero` to each of the Party's `survivors` (`diedOnTurn`
+  null) and emits `hero.xp-gained`. `xpPerDifficultyPoint` 1 and `xpBandFactor` 0.5 / 1 / 1 are
+  `config.ts`'s; `resolve.test.ts`'s scene is three Heroes, so its 160 becomes 53. Enough for #51.
+- *The figures.* Every cell of both tables recomputed from the trial's report (the scratchpad copy) and
+  `m9-v115-s5-2026-10-04.md`. Corrected: the player's shares' changes, 6.792 / 20.525 / 72.683% against
+  5.136 / 18.410 / 76.455%, are +1.66 / +2.12 / −3.77 points, not the rounded cells' +1.65 / +2.11 /
+  −3.78 (the Rivals' +1.54 / +2.17 / −3.71 hold); and the declines a Guild-year, 2.275 against 2,036 /
+  943.6 = 2.158, are +5.4%, not +5.6%. The rest hold: 403,168 / 374,495 +7.7% and 403.2 / 396.9
+  +1.6%; 1,000 / 943.6 +6.0%; Deaths 0.214 / 0.172 +24.6%, Injuries 3.626 / 2.884 +25.7%, the Rivals'
+  +45% and +42%; 1,472 / 676 = 2.178, 1,407 / 606 = 2.322, 4,890 / 3,883 = 1.259, 3,920 / 3,466 =
+  1.131; Levels 4.972 / 6.131 −18.9%; Upkeep 45,664.3 / 56,166.8 −18.7%, rewards 61,150.1 / 64,003.0
+  −4.5%, 74.7% and 87.8%; a Quest's reward 151.7 / 161.3 −6.0%; the Wealth +47% and +118%; `advance`
+  +53%, the games +44%; the by-year Bankruptcies sum to 12; each Party size's share, failed, strong
+  and XP, the means 1.55 and 1.57 (1.552, 1.567) and the Rivals' 1.85, 30.0, 54.2 and 27.5 (83.6).
+- *The readings.* The wage −18.7% and income −4.5%, Deaths and Injuries a Guild-year about a quarter
+  up, the games 44% slower, √(162 + 214) = 19.4 and 52 / 19.4 = 2.7, S5's Wealth peaking at 111,676
+  in year 13 and the trial's rising every year, 12 − 7 = 5 above the band and 3 − 0 = 3 below, and DL-83
+  items 2, 3, 4, 5, 6, 21 and 22 (8 to 10 after 10 years, 14 to 17 by year 20) as read. Reading 2's
+  inference holds: a game's highest Level is at least its Roster's mean (the unseen recruit above it
+  aside, read as nil above), so S5's mean highest by year 10 is at least 10.35, above every trial game's 8 or 9. Corrected: reading 4's "triumph less" now says
+  "end strong less often" (the Quest band, not the Degree), and its Traits sentence, which had careers
+  longer, now gives the two causes from the counts: positive Traits a Hero's Quest −1.9% (1,456 /
+  625,667 against 1,392 / 586,779) and Quests a Hero sent −4.4% (926 against 968); reading 5 gains the
+  Rivals' 419 Quests a Hero sent against 360; item 7's 41.8 and 23.2 months say they divide by the
+  game's mean Upkeep.
+- *#51's comment* (`s9-issue-51-comment.md`, not posted) matches this entry; its Rivals reading, which
+  put the games' time on the Rivals' Rosters alone, now gives both causes and `advance` +53%, as reading
+  6 does. Ready for the orchestrator to post.
+- *The epic.* S9's two boxes ticked with this entry's evidence; the first is met once the orchestrator
+  posts the comment. The status now reads S9 run and verified.
+- *Checks.* `npm run edit -- traits doctor`: no drift (110 reads), the doc fresh, the content passing,
+  no pending edits. No code changed, so lint and the tests were not run. The decision log and the
+  epic keep their LF endings.
+
+---
+
+## DL-181 — v1.1.5-S10, the close: the close review's findings fixed test first, the replay's peak from 1,861 MiB to 1,244 MiB with the same result; every check passing, the closing sweep playing S5's games with its replay identical at a peak of 1,346 MiB, the estimate's two checks held on the shipped content, and 12 of 50 player Guilds bankrupt, so the economy pass comes first, as `v1.1.6`
+
+**Status:** Accepted and verified; the close complete, the release awaiting the owner · **Date:** 2026-10-04 ·
+**Decided by:** the close review's findings, fixed by the agent as the orchestrator listed them; the
+judgement calls below are the owner's. The checks, the closing sweep and the rule's outcome (DL-168
+item 16, the owner's rule, applied by the agent) were added by the close's next agent.
+
+**Context.** The epic's S10 opens with a code review of the whole patch, `75ee77f..7b22999`, S11's and
+S12's included, its findings fixed test first. This entry's first part records the fixes: three in
+the harness and the docs (E1 to E3), five in the page (W1 to W5). Nothing here changes play: no
+engine source, no content, no configuration, no save; the harness's games are the same (the replay's
+seed below has the same fingerprint before and after).
+
+### The code review
+
+Each finding was fixed test first: its test written and seen to fail on the code at `7b22999`, then the
+fix. The tests of W3 and the style test of W5 were seen to fail with the view files and the
+stylesheet put back as at `7b22999` (nine tests failed across four files, every one a new or
+strengthened assertion, W1's and W4's among them), then passed with the fix.
+
+1. **E1, `CONTEXT.md`'s Best Party** said a Hero joins for a gain "by at least the Guild's Party
+   margin"; S6 made it strict (DL-175). It now reads "by more than the Guild's **Party margin**
+   (v1.1.5-S6, DL-175)". A doc only.
+2. **E2, the replay's `identical: false` untested.** New in `harness/src/sweep.test.ts`: "finds the
+   replay not identical when its second game differs by one character of the save".
+   `sweepPlay(['seed-0001'], deps, { years, prepare })` over 60 Turns, `prepare` counting its calls; on
+   the third (the sweep's game, then the replay's two) the player's Guild's name has its last letter
+   changed to another, so the two saves have the same length and differ in one character. It asserts
+   `identical: false`, the length the sweep's game's, and three calls. It passed on the code as it was
+   (which compared the texts), and failed when the comparison was made by the lengths alone (a scratch
+   mutation, reverted), so it guards E3.
+3. **E3, the replay's memory** (DL-177's reading for S10). `replay` held the first `PlayedGame`, its
+   document with it, and its 119-million-character text while it played the second game. Now:
+   - `play.ts`'s `fingerprintOf` is exported, the one SHA-256 `DocumentMeasures.fingerprint` uses;
+   - `sweep.ts`'s new `playedOnce(seed, deps, options)` plays, serialises and returns only
+     `{ length, fingerprint, advanceMs }`, so the document and the text are out of reach when its
+     frame returns, before the second play;
+   - `replay` calls it twice and compares the length and the fingerprint. `PlaySweep['replay']`'s
+     type, the report's rows and `sweepPlay`'s behaviour are unchanged; the doc comments of `replay`
+     and `PlaySweep.replay` say the comparison is by length and SHA-256.
+
+   The optional cross-check against the sweep's own record of the seed was not added (the owner's
+   call, below).
+
+   *Measured* with a scratch script (`replaypeak.mjs` in the session's scratchpad, `node --import
+   tsx`, not kept), each run alone, nothing else of ours running: `sweepPlay(['seed-0001'], deps,
+   { years: 20 })`, the one seed swept (its game kept as a record only) and then replayed by
+   `sweep.ts`'s own `replay`, the process's peak resident set read from
+   `process.resourceUsage().maxRSS`:
+
+   | | Peak resident set | Replay | Its length | The game's fingerprint | Time |
+   | --- | ---: | --- | ---: | --- | ---: |
+   | `7b22999`, the sweep's game alone (`replay: false`) | 1,096 MiB | skipped | | `3530086b…` | 67.4 s |
+   | `7b22999`, with the replay | **1,861 MiB** | identical | 119,338,444 | `3530086b…` | 199.3 s |
+   | The fix, with the replay | **1,244 MiB** | identical | 119,338,444 | `3530086b…` | 194.0 s |
+
+   The replay's peak falls by 617 MiB, a third, to 148 MiB above the sweep's one game alone: the
+   process now holds one game at a time. (DL-177's verifier measured 2,194 MiB for the old form alone
+   on S3's code, whose save was longer.)
+4. **W1, the Roster's help** said "Sort by any column", but Traits and Items do not sort. It now
+   reads "Sort from "Sort by" or by a column’s heading, any but Traits and Items; this browser keeps
+   your choices." (`web/src/views/section.tsx`). New in `roster.test.tsx`: the Table's headings with
+   no sort are Traits and Items exactly, and the help says so and no longer "any column".
+5. **W2, a vacuous order test.** `board.test.tsx`'s "lists those who can go first, in the default
+   order, then the Away and the Injured…" made three of the Roster's four unavailable, so the rows
+   above them were one and their order went untested. The test now adds three Heroes from the
+   Unattached pool, joining in the reverse of the default order, so that four can go, and compares
+   their rows with `defaultHeroOrder`; the two Heroes free on Turn 17 are ordered by
+   `defaultHeroOrder` too, in place of the Class alone. Shown with a scratch mutation of `partyRows`
+   (those who can go left in the order they joined, reverted): the old test passed under it, the new
+   one fails.
+6. **W3, words read twice.** Where an element bore a `title` and its words were also in a visually
+   hidden span, a screen reader could read both. The `title` now stands on the shown part, which is
+   `aria-hidden`, so it stays a mouse's tooltip and is not announced; the hidden words are kept, and
+   now carry the shown words too:
+   - the Table's Stat cells, raised, lowered, and plain with sources (a new `Tipped` part in
+     `roster-table.tsx`), and its Traits and Items (`Named`). A plain Stat with sources shows its
+     figure hidden from the screen reader, which reads "20, Base 20, …";
+   - `Chip` with `spoken` (`ui.tsx`): the Board's "Away" and "Injured" and the tiles' Item chips. A
+     `Chip` without `spoken` keeps its `title` on the frame: "Trait", "Outlook", "Injury" and the Fame
+     chip's words are not the chip's own words.
+
+   Tested in `roster.test.tsx` (each tooltip in the Table, in a cell and on an Item chip sits inside an
+   `aria-hidden` part, and what the screen reader reads, the hidden parts left out, is the words once)
+   and `board.test.tsx` (`chipOf` reads the tooltip only from an `aria-hidden` part).
+7. **W4, a Hero whose Party is gone.** `whereabouts` said "At the Hall" for a Hero whose `partyId`
+   names no Party, while the builder said "Away with a Party" and the sort put them last as not free.
+   It now says "Away with a Party" there, after an Injury as before (`selectors.ts`). New in
+   `selectors.test.ts`: the Roster's row, the builder's row and the Hero's page agree, and "When free"
+   puts the Hero last.
+8. **W5, nits.**
+   - *One sort direction type.* `state` must not import `views`, so `selectors.ts`'s `SortDirection`
+     is kept and `ui.tsx`'s `Direction` removed; `SortHeader` and `guilds.tsx` take `SortDirection`.
+   - *`itemsOf`'s no-op filter* removed: `carriedGear` reads `holdings` for `{ kind: 'hero', id }`,
+     whose rows are that Hero's slots alone (`items.ts`'s `matches`).
+   - *The direction's toggle* written once (`reversed()` in `roster.tsx`), for the headings and the
+     button.
+   - *`.change--up` and `.change--down`* scoped to `.roster-table` (nothing else uses them; `e2e`'s
+     `td.change--up` still finds them). New in `styles.test.ts`: no unscoped rule, and the scoped ones
+     green and red.
+   - `roster-table-wrap` left as it is (the `e2e` locator).
+
+**The judgement calls, for the owner** (found by the review, left as they are):
+1. A tooltip is reached by a mouse alone: touch and the keyboard do not reach it (the screen reader's
+   words carry the same).
+2. A column hidden in the Columns panel can still be the sort in force.
+3. "When free" reversed puts the Heroes with no Day to read first.
+4. The direction button's name is its state ("A to Z"), its `title` "Reverse the order".
+5. No Unique Item's picture on the Roster.
+6. An earned Trait's `among` is still read over the whole living Party, unlike S4's Injury.
+7. `docs/quests/calibration.json` still says `contentVersion` 31 (cosmetic).
+8. The replay's optional cross-check against the sweep's own record of its seed.
+9. The allocation test skipped on Node 22.
+
+**The review's checks** (on the fixes, before their commit, nothing else running): `npm run lint`
+clean; `npm run typecheck` clean; `npm test` 185 files, 4,818 tests passing (4,814 before: E2's, W1's,
+W4's and the style test new); `npm run e2e -w web` 100 passed, its build's check-bundle passing, the
+script 814,620 bytes (under 850 kB); `npm run edit -- traits doctor` no drift (110 reads), the doc
+fresh, the content passing, no pending edits (no engine source touched). No sweep.
+
+### The checks
+
+Run at `2fd8938`, the review's fixes committed, each alone, nothing else of ours running (the owner's
+Playwright test-server left running, as before):
+- `npm run lint`: clean.
+- `npm run typecheck`: clean.
+- `npm test`: 185 files, 4,818 tests, all passing (127.8 s); the two eslint-based tests did not time out.
+- `npm run e2e -w web`: 100 passed (46.0 s), the Board's and the Roster's specs among them, with the
+  Roster's Table, its panel and its tabs at 360px in light and dark (`layout.spec.ts`). Its build's
+  check-bundle passes: "2 built files, no network or filesystem reference, every script within 850 kB".
+  The script is 814,620 bytes (`index-CsErff-L.js`), 35,380 bytes under 850 kB, so the owner's 900 kB
+  (DL-169 item 12) was not needed. `v1.1.4` shipped 800,111 bytes: v1.1.5 adds 14,509, nearly all
+  S11's and S12's.
+- `npm run edit -- traits doctor`: no drift, the register listing all 110 reads of a Trait; the doc
+  fresh; the content passing; no pending edits. Run again after the sweep and the probe, the same.
+- *The estimate probe* (the Gate's "The estimate", S7, DL-173's answer), on the shipped content,
+  content 32, run alone after the sweep: `HEROESIM_PROBE=estimate HEROESIM_MILESTONE=m9-v115-close-estimate
+  npm run harness`, 200 samples × 20,000 seeds, the same 588 Encounters of 1,418 Checks (474 of
+  several), 103 Parties carrying, 349 Encounters carrying Morale; 491.5 s; the harness test passed.
+  The report, `harness/reports/m9-v115-close-estimate-2026-10-04.md`, is force-added.
+
+  | Measure | Encounter's Degrees | Success or better | Quest's bands | Quest's success | Beyond the limit |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | No one falls (held, 2 points, every chance) | 0.99 | 1.18 | 0.92 | 0.92 | 0 of 3,740 |
+  | Morale in (the Quest's held, 3 points) | 23.65, reported | 4.64, reported | 1.61 | 1.61 | Quest 0 of 800; Encounters 8 (7 and 1) |
+
+  - *Both held checks pass.* With no one falling every chance is within 2 points, the widest
+    `estimate-0070`'s Encounter 4 Success or better, 1.18 points (3.36 standard errors). With Morale in,
+    the Quest's bands and success are within 3 points, the widest `estimate-0169`'s success, estimated
+    36.77% and resolved 35.16%, 1.61 points (4.79 standard errors).
+  - *The Encounters' gaps with Morale in, reported, not held* (DL-173's answer): Degrees at most 23.65
+    points (68.07 standard errors), Success or better 4.64 (14.55), 8 chances beyond 3 points, the
+    widest `estimate-0064`'s Encounter 5 Failure, estimated 40.76% and resolved 64.42%, as DL-173
+    traced it. Mean gaps 0.166, 0.143, 0.129 and 0.168 points.
+  - *Against S7's run* (`m9-v115-s7-estimate-2026-10-04.md`, content 31): every figure equal to the
+    digit, the report differing only in its date and time (491.5 s against 484.9 s). S4 and S5 changed
+    harm and the content since, and neither reaches the probe (the agent's reading, from the code):
+    the probe takes every Injury and Death out of both measures, so S4's Injury `among` is never read;
+    and S5's four chances move only whether an earned Trait lands, `earn` taking its two draws, whether
+    it lands and on whom, at any chance (`resolve.ts`), and the Trait is held for `questsConclude` to
+    grant, so it changes no later Check of the same Quest. The same draws, Degrees and bands follow.
+
+### The closing sweep
+
+Run alone at `2fd8938` (no other process of ours; the owner's Playwright test-server left running),
+after the checks above: `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_YEARS=20
+HEROESIM_MILESTONE=m9-v115-close npm run harness -- play.harness`, core only, content 32, config 13,
+schema 6, not validated, the replay kept. 1,432.7 s in all, the games 1,267.1 s of it; the test passed.
+The report, `harness/reports/m9-v115-close-2026-10-04.md`, is force-added. 50 of 50 saves load and
+serialise back alike; no policy action refused, no harness assertion broken.
+
+- *It plays S5's games* (`m9-v115-s5-2026-10-04.md`, DL-179), as expected: nothing after S5's sweep
+  (`0f09174`) changes play. `git diff 0f09174..2fd8938` touches no file under `engine/`, `content/` or
+  `tools/`; under `harness/src/` only the replay (`play.ts`'s `fingerprintOf` exported, `sweep.ts`'s
+  `playedOnce`, E3) and its test; the rest is the page and the docs. The fingerprint of every seed's
+  last save is S5's, `37fabc967f85186ea829889b006ed0d5b525b3c9892a9053eca6004fb18cff9d`, and lines 27 to
+  693 of the two reports, the Counters through the Rivals, the Portraits, the Heroes described and the
+  last document's lengths, are equal byte for byte (SHA-256 `170ffa93…39175ba` each). The two reports
+  differ only in their title, start time, the replay's row (S5's skipped), and the timings: `advance`,
+  `serialise`, `deserialise` and the run's times.
+- *The replay ran and matched:* `seed-0002` played twice is identical (137,606,607 characters), and the
+  test asserts it. The replay plays the first seed that ran its full 20 years (`sweep.ts`); `seed-0001`,
+  S3's, goes bankrupt in this play, so it is `seed-0002`, whose save is 15% longer than the 119-million
+  character `seed-0001` game this entry's E3 measured. Its `advance` alone: 2.210 ms a Turn mean, p99
+  12.936 ms.
+- *The memory,* each `node` process's Windows peak working set (`PeakWorkingSet64`), working set and
+  private bytes read every 5 s (a scratch file, not kept):
+  - *The replay's process,* the Vitest worker, held 91 MiB while the shards played, then peaked at
+    **1,346 MiB** (private bytes at most 1,294 MiB in a sample), reached at 16:08:47 in the first
+    replayed game's close; its working set fell to about 530 MiB between the two games, and the
+    second was at 1,169 MiB in the last sample, a second before the run ended, so its own peak may lie
+    a little above that sample, unread. S3's sweep, the old form, reached at least 2,352 MiB (DL-177);
+    E3's measure above, a shorter game alone, 1,244 MiB. The fix holds one game at a time, as built:
+    about 1.3 GiB for a 137.6-million-character game with the sweep's 50 records beside it.
+  - *The shards:* 50 processes, peak working set median 1,074 MiB, mean 1,060, the 38 that played long
+    (above 900 MiB) median 1,153, the highest 1,503 MiB (the largest save at year 20 is 137.60 MiB,
+    S3's 133.98); private bytes at most 1,378 MiB in a sample; the eight at once at most 4,845 MiB
+    together. The Vitest parent at most 224 MiB. No process was killed.
+- *The time.* `advance` a Turn 5.028 ms mean, p99 25.967 ms (S5's 4.806, 24.876), the games 1,267.1 s
+  (1,213.9 s): 4 to 5% slower with the same engine, content and games, the agent reads it as a sweep's
+  run-to-run spread (S3 to S5's three runs spread 1,203.4 to 1,215.6 s). The replay took most of the
+  other 165.6 s (S3's 158.3 s, a shorter save). As 1,000 games, 448 minutes.
+
+**Against S3's baseline and `v1.1.4`'s close,** each play change's share (S4's from `m9-v115-s4`
+against S3's, DL-178; S5's from S5's against S4's, DL-179; the close equal to S5's, so the two shares
+sum to the close's difference from S3):
+
+| | The close (= S5) | S3's baseline | `v1.1.4`'s close | S4's share | S5's share |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Player bankrupt | 12 of 50 (24%) | 13 of 50 (26%) | 13 of 50 (26%) | 0 | −1 |
+| … by year (year 0 first) | 10: 1, 12: 2, 14: 3, 15: 1, 16: 2, 17: 1, 18: 1, 19: 1 | 11: 1, 12: 1, 13: 1, 15: 2, 17: 1, 18: 2, 19: 5 | 0: 1, 9: 1, 12: 1, 14: 1, 15: 4, 18: 4, 19: 1 | | |
+| … in the first two years | 0 | 0 | 1 | 0 | 0 |
+| Years survived, mean (min) | 18.87 (10.94) | 19.25 (11.89) | 18.65 (0.92) | −0.02 | −0.36 |
+| Player's Quests resolved | 374,495 | 382,191 | 312,418 | −248 | −7,448 |
+| Player failed / strong | 5.14% / 76.46% | 5.81% / 74.63% | 12.38% / 57.07% | +0.00 / −0.00 points | −0.68 / +1.83 points |
+| Rivals failed / strong | 11.75% / 58.70% | 12.43% / 56.80% | 11.71% / 58.10% | +0.05 / −0.15 points | −0.73 / +2.06 points |
+| Player Injuries a game | 54.42 | 63.84 | 129.18 | −0.70 | −8.72 |
+| Player Deaths a game | 3.24 | 3.68 | 7.98 | −0.06 | −0.38 |
+| **Traits earned a player's Hero career** | **2.322** | 1.578 | 1.117 | −0.007 | +0.751 |
+| … the Rivals' | 1.131 | 0.579 | 0.594 | −0.007 | +0.559 |
+| Rival folds a game | 5.44 | 5.44 | 5.40 | +0.04 | −0.04 |
+| The player's mean Party | 1.57 | 1.57 | 1.72 | 0 | 0 |
+| Mean Level of the player's Roster after 10 years | 10.35 | 10.30 | 10.05 | +0.01 | +0.04 |
+| Player's Wealth after 10, 20 years | 108,386; 98,847 | 104,765; 90,922 | 92,001; 102,864 | −309; +442 | +3,930; +7,483 |
+| Upkeep, Quest rewards a player Guild-year | 56,167; 64,003 (87.8%) | 56,056; 63,328 (88.5%) | 54,825; 63,011 (87.0%) | −31; −14 | +142; +689 |
+| First in the Rankings, by Fame, by Wealth | 97.2%, 87.5% | 99.0%, 86.2% | 82.3%, 80.5% | −0.3, −0.5 points | −1.5, +1.8 points |
+| `advance` a Turn, mean / p99 | 5.028 / 25.967 ms | 4.699 / 23.863 ms | 4.966 / 24.651 ms | | |
+| The games, the whole run | 1,267.1 s, 1,432.7 s | 1,215.6 s, 1,373.9 s | 1,301.6 s, 1,448.2 s | | |
+| The replay | `seed-0002`, identical, 137,606,607 | `seed-0001`, identical, 128,821,570 | `seed-0001`, identical, 116,207,395 | | |
+
+**Every difference explained** (the agent's readings; each figure is a report's):
+1. *From `v1.1.4`'s close to S3:* the new player's (S2), as DL-177 explains each: easier Quests (mean
+   difficulty 38.3 here, 38.2 at S3, 47.3 at the close), half the failures, harm halved, smaller
+   Parties and more Quests, the Rivals left the harder ones, and the early Bankruptcies gone.
+2. *S4's share is nil within the noise* (DL-178): an Injury moving to the next-weakest unhurt Hero
+   changes a struck Hero about once in 1,500 ranking draws; the shares move by under 0.01 points for
+   the player and 0.2 for the Rivals, Injuries −1.1%, Bankruptcies 13 and 13, Traits −0.007.
+3. *S5's share is the Traits* (DL-179): the four positive earned Traits at 0.05 lift the player's
+   Traits earned a career from 1.571 to 2.322 and the Rivals' from 0.572 to 1.131, and through their
+   +2 and +1 to Checks the player's Quests fail 0.68 points less and are strong 1.83 points more,
+   Injuries −13.8%, Deaths −10.5% (within about a standard deviation), the Wealth higher. 12 of 50
+   bankrupt against 13 is within fifty seeds' ±3, the Bankruptcies earlier on average (mean year 14.75
+   against S3's 16.46 and S4's 16.38), as DL-179 item 4 reads it.
+4. *The time:* the run's spread above; S5's sweep and this one play the same games.
+
+**The Gate's "Rare Traits":** 2.322 Traits earned a player's Hero career (the four positive 2.297 of
+it), the Rivals' 1.131: S5's baseline, 2.32 and 1.13 (the owner's steer, DL-179), to the digit, as the
+games are S5's. The DL-83 targets read as S5's (DL-179, DL-177's list): item 2 Bankruptcies 24%; item
+3 first at 97.2% and 87.5% of year-starts; item 4 failed 5.1% and strong 76.5%; item 5 Rival folds 5.44;
+item 6 Deaths 3.24; item 7 the Wealth after 10 years 108,386, about 23 months of Upkeep; item 21 the
+mean Level after 10 years 10.35, just above 8 to 10; item 22 not counted. Each unmet but item 21's near
+miss, recorded for #51, not tuned.
+
+### The rule for what follows
+
+DL-168 item 16, read as its agent's reading says, on this closing sweep: the player's Bankruptcies
+against DL-83 item 2's 5 to 15% of games, 3 to 7 of 50.
+
+| | Player bankrupt | Share | The band, 3 to 7 of 50 |
+| --- | ---: | ---: | --- |
+| **The closing sweep** | **12 of 50** | **24%** | **above it** |
+| S3's baseline, the new player alone | 13 of 50 | 26% | above it |
+
+**The outcome: outside the band, so the economy pass comes first, as `v1.1.6`, before v1.2's Random
+Events (M10).** As DL-168 item 16 says, this supersedes DL-83 item 1's and DL-148 item 3's order, the
+economy after Random Events. The closing sweep and S3's fall on the same side, so there is nothing
+for the owner to weigh between them (item 16's reading); both stand above the band's top by about
+twice fifty seeds' ±3 (DL-166, §4 Risks), so the outcome is not near an edge. The Bankruptcies are all
+late, from year 10, none in the first two years: DL-166's late mechanism, the wage growing with Level
+(`wagePerLevel` 20) and a Quest's reward not, which the new player and S4 and S5 left in place. S9's
+trial (DL-180), for information only, took the same play to 0 of 50, below the band.
+
+*Overridden by the owner, 2026-10-04 (DL-182 item 2): the economy pass is deferred to the backlog, after other game balances and features, and what follows v1.1.5 is to be decided.*
+
+The next release is named here, in `docs/plan.md` §4 (v1.1.5's entry and the economy pass added as
+`v1.1.6` before Random Events), and in the epic. #51's comment is prepared for the owner, not posted
+(the session's `s10-issue-51-comment.md`): the rule's outcome and the release line, `v1.1.6` before
+Random Events, its scope #51's (DL-168 items 2, 3, 9, 12 and 16).
+
+**The Gate,** except the release (the epic's S10 first box):
+- *The memory:* met (DL-174, DL-175); the replay's own memory fixed here (E3) and measured above.
+- *`partyFor`'s real gain:* met (DL-175). *The new player:* met (DL-176, DL-177). *Each play change
+  measured alone:* met (DL-178, DL-179).
+- *Rare Traits:* met, 2.32 against the baseline of 2.32 (above).
+- *The estimate:* met, both held checks passing on the shipped content (above).
+- *The words:* met (DL-172). *The Board:* met (DL-170, W2 and W3 here). *The Roster:* met (DL-171,
+  W1, W3 and W5 here).
+- *The split-XP trial:* met (DL-180), none of its code in the patch; #51's comment prepared.
+- *The rule for what follows:* applied (above), the next release named here, in `docs/plan.md` and in
+  #51's comment for the owner to post.
+- *Traits:* the doctor reports no drift at the close.
+- *The checks:* met (above), the script 814,620 bytes under 850 kB.
+- *The release:* the owner's.
+
+**For the owner** (open at the close):
+1. *The release* (DL-124; the epic's S10): push `v1.1.5-dev`; fast-forward `v1.1-release` to it and
+   push (`git checkout v1.1-release`, `git merge --ff-only v1.1.5-dev`, `git push origin
+   v1.1-release`); merge the pull request CI raises, which tags `v1.1.5` on `main`, deploys it and
+   writes its GitHub Release; see `e2e:live` pass on both addresses; then tick S10's second box.
+   Dependabot's `target-branch`es name `v1.1.5-dev` from then (§0).
+2. *Two comments on #51 to post,* prepared in the session's scratchpad: `s9-issue-51-comment.md`, the
+   split-XP trial (DL-180), and `s10-issue-51-comment.md`, the rule's outcome and the release line
+   (above).
+3. *The nine judgement calls* of the review, listed above, each left as it is unless you say.
+4. *`v1.1.6`,* the economy pass: its plan, from #51, is yours to start.
+
+**Actioned in:** `CONTEXT.md`; `harness/src/play.ts`, `sweep.ts`, `sweep.test.ts`;
+`web/src/state/selectors.ts`, `selectors.test.ts`; `web/src/views/ui.tsx`, `roster-table.tsx`,
+`roster.tsx`, `guilds.tsx`, `section.tsx`, `roster.test.tsx`, `board.test.tsx`; `web/src/styles.css`,
+`styles.test.ts`; the epic's status. The close: `harness/reports/m9-v115-close-2026-10-04.md` and
+`m9-v115-close-estimate-2026-10-04.md` (force-added); `docs/plan.md` §4; the epic's Gate outcome,
+S10's first box and status; `docs/planning/epics/README.md`'s v1.1.5 row; #51's comment prepared for
+the owner.
+
+**The verification** (a second Opus agent, at `84de9bf`; the sweep and the probe not run again). The
+review's fixes do what this entry says, each test failing without its fix; every figure of the close
+is the reports'; the rule's outcome is written alike everywhere. Nothing to fix.
+- *The fixes, each mutated and put back* (`git status` clean after each):
+  - E2/E3: `replay`'s comparison made by the lengths alone, and E2's test fails; at `84de9bf` it
+    passes. `playedOnce` returns `{ length, fingerprint, advanceMs }` only; `advanceMs` is the play's
+    own array of numbers, so the `PlayedGame`, its document and the text are unreachable once its frame
+    returns, before the second play. The sweep's options carry no `afterAdvance` (only
+    `succession.ts`'s probe has one), and E2's `prepare` keeps no document. The scratch measure's two
+    records (`replaypeak-before.txt`, `-after.txt`) read 1,861 and 1,244 MiB, 1,096 alone, the same
+    fingerprint `3530086b…`, as the table above.
+  - W2: `partyRows` with those who can go left in their joining order: the new test fails, and the
+    test as at `7b22999`, put back with the same mutation, passes, as said.
+  - W3: `Tipped`'s `title` moved to a part around the hidden words (three Table tests fail), and
+    `Chip`'s back on its frame (three tests fail, the Board's "Away" and its rows', and the tiles' Item
+    chip).
+  - W4: the new line taken out, and the new `selectors.test.ts` test fails. The engine's
+    `unavailability` reads an Injury before a Party, so `whereabouts` and `unavailableUntil` agree for
+    an injured Hero whose Party is gone too.
+  - No other words change: the Board's and the Roster's words are as before but W1's help and W4's
+    edge; `PlaySweep['replay']` and the report's row are as before (S3's and the close's rows alike).
+    Two small effects the entry does not name, read as harmless: a Trait or Item whose effect words are
+    empty is no longer underlined as having a tooltip (`Tipped` with `title` null, as `.named-thing`'s
+    comment means; no shipped gear has no modifiers, and a Trait with none reads "No effect"); and a
+    `Chip` with `spoken` shows its tooltip over its words, not its icon (judgement call 1's matter).
+- *The close's figures.* Every cell of the table above recomputed from the five reports (the close,
+  S5, S4, S3, `v1.1.4`'s close): the counts, the shares to the second decimal (5.136 / 76.455%,
+  11.748 / 58.704%; S4's +0.001 / −0.001 and +0.047 / −0.146; S5's −0.676 / +1.825 and −0.728 /
+  +2.055), the Bankruptcies by year from the games in play each year (sums 12, 13, 13), the Upkeep
+  shares 87.8 / 88.5 / 87.0%, the rankings' "every year" rows, the timings and the replays. The
+  readings' figures hold: Injuries −13.8% and Deaths −10.5% (S5 against S4), the mean bankrupt year
+  14.75 / 16.46 / 16.38, the four positive Traits 1,392 of 606 careers = 2.297, the largest save
+  137.60 MiB, `seed-0002`'s save 15.3% longer than E3's game, the run's spread 1,203.4 to 1,215.6 s.
+  The memory sampler's file (`s10-close-mem.csv`) gives the replay's worker 1,346 MiB peak and 1,294
+  private, the 50 shards median 1,074, mean 1,060, at most 1,503 (1,378 private), 4,845 together, the
+  parent 224.
+- *The same games.* The fingerprint is S5's (`37fabc96…`, line 23 equal), and lines 27 to 693 of the
+  two reports hash alike (SHA-256 `170ffa93…39175ba`); `diff` finds only the title, the start time,
+  the replay's row and the timings. `git diff 0f09174..2fd8938` touches nothing under `engine/`,
+  `content/` or `tools/`, and under `harness/` only the replay.
+- *The probe.* The close's estimate report and S7's differ in their date and time line alone. The
+  reason holds in the engine: `earn` (`resolve.ts`) draws `next` and then one more (`pick`'s one
+  `int`, or `next` when no one is eligible or the Degree earns none) whatever the chance, the chance
+  only deciding whether the Trait is pushed to `working.earned`; that list is read only after the
+  Encounters, for the outcome's Traits, so no Check, Degree or band moves. The probe takes Injuries
+  and Deaths out of both measures, so S4's `among` is never read.
+- *The rule.* 12 of 50 against 3 to 7 (DL-168 item 16's reading of 5 to 15%), S3's 13 beside it:
+  the economy pass first, as `v1.1.6`, before Random Events, said alike here, in `docs/plan.md` §4
+  (v1.1.5's entry, the new `v1.1.6` line and Random Events' amendment), in the epic (objective,
+  "Deliberately not", status, S10's box) and in the epics README's row.
+- *#51's comments.* `s10-issue-51-comment.md` matches this entry (the counts, years 10 to 19, the
+  fingerprint, the scope DL-168 items 2, 3, 9, 12 and 16); its "`v1.1.6-dev` cut from `main` after
+  `v1.1.5`" is the branch practice of §0, not a decision of this entry. `s9-issue-51-comment.md` is as
+  DL-180's verification left it (its S5 column checked again: 11.86, 98,847, 5.44). Both concise; they
+  are to be posted in that order, the second pointing to "the comment above".
+- *The Gate,* bullet by bullet: the memory met (DL-174; S6's sweep `24bae1ff…` as `v1.1.4`'s close,
+  DL-175); `partyFor`'s real gain met (DL-175); the new player met (DL-176, DL-177); each play change
+  measured alone met (DL-178, DL-179); Rare Traits met (2.322 against 2.32); the estimate met (1.18
+  within 2, 1.61 within 3, the Encounters' 23.65 reported); the words met (DL-172; no "failed
+  Encounter" in `CONTEXT.md`, `docs/requirements.md` or `cli/src/`'s pages); the Board and the Roster
+  met (DL-170, DL-171, W1 to W5 here, `e2e`); the split-XP trial met (`resolve.ts` still
+  `Math.floor(xp)`); the rule applied (above); Traits met (the doctor below); the checks met (below);
+  the release not met, the owner's.
+- *The checks,* at `84de9bf`, each alone: `npm run edit -- traits doctor` no drift (110 reads), the doc
+  fresh, the content passing, no pending edits; `npm run lint` clean; `npm run typecheck` clean; `npm
+  test` 185 files, 4,818 tests passing (the eslint-based tests within time); `npm run e2e -w web` 100
+  passed, check-bundle passing, the script `index-CsErff-L.js` 814,620 bytes. Every file the close
+  touched has one line ending (the index LF throughout, no file mixed); `git status` clean.
+
+---
+
+## DL-182 — The owner's answers at v1.1.5's close: the XP split in v1.1.5 as S13, Unique Items on the Roster with their picture on the Tiles and a thin gold glow as S14, the economy pass deferred to the backlog with what follows v1.1.5 left to decide, and the nine judgement calls
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the owner, answering the items the close
+left open (DL-180's and DL-181's "For the owner"). The quoted words are the owner's answers as the
+orchestrator relayed them. The readings marked as the agent's, the stories, their acceptance and the
+sessions are the agent's, in `docs/planning/epics/v1.1.5-release.md`, for the owner to change.
+
+**Context.** v1.1.5 closed on 2026-10-04 (DL-181), with these before the owner:
+- *The split-XP trial* (DL-180), #51's first comment ("comment A"). Each Hero of a Party took the
+  Quest's XP divided by the Party's size: 0 of 50 player Guilds bankrupt against S5's 12, the Roster's
+  mean Level after 10 years 8.34 (10.35), Upkeep 74.7% of the Quest income (87.8%), Deaths and
+  Injuries a Guild-year about a quarter up, the games 44% slower.
+- *The rule's outcome* (DL-181), #51's second comment ("comment B"). DL-168 item 16's rule read on the
+  closing sweep: 12 of 50 bankrupt, outside 3 to 7, so the economy pass first, as `v1.1.6`.
+- *The nine judgement calls* of the close review (DL-181), each left as built until the owner said.
+- *The two #51 comments,* prepared in the session's scratchpad and not posted.
+
+The release (DL-181's "For the owner" item 1) was not yet made.
+
+**Decision.**
+
+1. **The XP split ships in v1.1.5** (comment A). The owner: "go with split xp"; asked when, "Add to
+   v1.1.5 now". It is the new story S13.
+   - *The rule.* Each Hero who comes home takes the Quest's XP divided by the Party's size, rounded
+     down. The size is the Party sent, its Dead counted. It applies whatever the band, and to the
+     player and the Rivals alike. It adds no draw.
+   - *The change* is exactly DL-180's trial: in `resolveQuest` (`engine/src/quest-engine/resolve.ts`),
+     `xpPerHero: Math.floor(xp)` becomes `Math.floor(xp / heroes.length)`, `heroes` the Party sent
+     (`party.heroIds`); `questsConclude` gives it to each survivor, as it does now.
+   - This settles DL-148 item 19 and DL-168 item 3, and takes the XP split out of #51's scope.
+   - *The agent's reading,* for the owner to change: DL-180 asked whether to split by the Party sent or
+     by those who come home, and how to round. The owner adopted the trial, so the trial's form: the
+     Party sent, rounded down.
+   - *Its sweep.* S13's 50 × 20 sweep keeps the replay and is v1.1.5's closing sweep. It is expected to
+     play DL-180's trial games, its fingerprint the trial's,
+     `e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369` (the epic's S13 says why).
+2. **The economy pass is deferred to the backlog** (comment B). The owner: "defer to backlog after
+   other game balances and features"; asked what comes after v1.1.5, "Decide later".
+   - The economy pass (#51) is not `v1.1.6`. It waits in the backlog, after other game balances and
+     features. #51 stays open.
+   - DL-168 item 16's rule was applied at the close (DL-181), and the owner overrides what it named.
+     This supersedes DL-181's outcome, "the economy pass comes first, as `v1.1.6`", and DL-168
+     item 16's consequence, the economy pass first as `v1.1.6` before Random Events.
+   - *What follows v1.1.5* is the owner's, to be decided. *The agent's reading:* the override sets no
+     order. It puts neither the economy first (DL-168 item 16) nor back after Random Events (DL-83
+     item 1, DL-148 item 3); what comes next, Random Events or other work, is the owner's to name.
+   - The rule is not read again. The re-close records the closing sweep's Bankruptcies, now S13's, for
+     information.
+3. **Eight judgement calls as recommended** (DL-181's list).
+   - *Left as built:*
+     - 1, a tooltip reached by a mouse alone; the screen reader's words carry the same;
+     - 2, a column hidden in the Columns panel can still be the sort in force;
+     - 3, "When free" reversed puts the Heroes with no Day to read first;
+     - 7, `docs/quests/calibration.json` still says `contentVersion` 31 (cosmetic);
+     - 9, the allocation test skipped on Node 22.
+   - *To #52, as later small fixes:*
+     - 4, the Roster's direction button (`web/src/views/roster.tsx`, `roster__direction`). Its name is
+       its state ("A to Z") and its `title` "Reverse the order". Its accessible name should state its
+       action, e.g. "Reverse the order, now A to Z".
+     - 6, an earned Trait's `among` (`earn` in `engine/src/quest-engine/resolve.ts`). It is read over
+       the whole Party still in the sequence (`partyNow`), then narrowed to the Trait's pool; S4's
+       Injury reads it over its pool (`narrowed`, `harm.ts`). Align the two when content first gives an
+       earned Trait an `among`. None of content 32's eight Trait consequences has one, so nothing plays
+       differently until then.
+     - 8, the replay's optional cross-check (`replay` in `harness/src/sweep.ts`). The replay compares
+       its two plays with each other only. It could also compare them with the sweep's own record of
+       that seed's game, its `measures.fingerprint`.
+4. **Judgement call 5, changed by the owner: Unique Items on the Roster.** The owner: "put the item
+   placeholder picture on the rosters tile screen and have a thin good aura outline the hero tile. for
+   table view, just have the aura outline and no item picture"; asked for the aura's look, "Thin gold
+   glow". It is the new story S14.
+   - *The agent's reading,* for the owner to change:
+     - "The item placeholder picture" is the Unique Item's picture. Every Unique Item shows the chest's
+       Silhouette today, as none has a picture yet (`CONTEXT.md` avoids "Placeholder" for it). "Good
+       aura" is read as "gold aura", which the follow-up's "Thin gold glow" confirms.
+     - *On the Roster's Tiles,* a Hero carrying any Unique Item shows that Item's picture
+       (`ItemPicture`), before the Item's name in its Item chip, as the Stores, the Market's Sell and a
+       Hero's Gear show it. The Hero's tile has the thin gold glow.
+     - *In the Table,* the Hero's row has the same glow, and no picture.
+     - *A Hero with no Unique Item* is unchanged, Common Items bringing neither picture nor glow.
+     - *The glow* is a new gold or amber colour pair, one for light and one for dark: a thin outline of
+       1 to 2px with a soft glow. It is decoration: the Items already name what the Hero carries, so no
+       words are added and the screen reader's words are as they are.
+   - `CONTEXT.md`'s Unique Item gains the Roster's Tiles among where its picture shows, and the glow,
+     marked as to be built (v1.1.5-S14).
+5. **The two #51 comments are posted in updated versions,** shown to the owner first (the owner's
+   choice, "Post updated versions").
+   - The trial's comment gains the owner's decision at its top.
+   - The rule's comment keeps the rule's reading and states the override. Its `v1.1.6-dev` line goes,
+     and it says #51 stays open in the backlog.
+   - A comment on #52 lists judgement calls 4, 6 and 8, each with its file and the fix suggested.
+   - All three are prepared in the session's scratchpad (`s9-issue-51-comment.md`,
+     `s10-issue-51-comment.md`, `s10-issue-52-comment.md`), none posted.
+
+**Consequences.**
+- v1.1.5 is reopened. S14 comes first, then S13, then a short re-close as part of S10 (the epic's §0).
+  The release waits for the re-close.
+- S13 changes play. DL-181's closing sweep (`m9-v115-close-2026-10-04.md`) stays the record of the play
+  before the split, and S13's sweep becomes the closing sweep. If the re-close's review changes play,
+  the closing sweep is run again.
+- The Gate's "Rare Traits" reads the closing sweep against S5's 2.32. With the split, DL-180 measured
+  2.178, a change of play the split explains.
+- Nothing new is saved. `configVersion` stays 13 (S13 changes only a comment), the content stays 32,
+  and the schema stays 6. The split changes values (`hero.xp`, the Levels, `hero.xp-gained`'s
+  amounts), not fields.
+- *The record:* DL-183 for S14, DL-184 for S13 and DL-185 for the re-close, a new entry, so that
+  DL-181 is not rewritten.
+- Open after v1.1.5: #51, in the backlog; #52, with E4, E7, W3 and judgement calls 4, 6 and 8; #49
+  (Backgrounds); DL-148 item 4's text form; and what follows v1.1.5, the owner's.
+
+**Actioned in:** `docs/planning/epics/v1.1.5-release.md` (objective, Gate, status, §0, S10's re-close,
+S14 and S13 new, §2 to §4); `docs/plan.md` §4 (v1.1.5 reopened, the `v1.1.6` line withdrawn, the
+economy pass in the backlog, Random Events amended); `docs/planning/epics/README.md`'s v1.1.5 row;
+`CONTEXT.md`'s Unique Item; a pointer at DL-168 items 3 and 16 and at DL-181's outcome; the three
+comments prepared for the owner.
+
+---
+
+## DL-183 — v1.1.5-S14 built: Unique Items on the Roster, the Item's picture before its name in its chip on the Tiles, and a thin gold glow round the tile and, in the Table, round the row, with no picture there; a new gold pair at 3:1 in light and dark
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the agents, building S14 as the epic's
+S14 bullets and DL-182 item 4 describe. The readings marked as the agent's are for the owner to change.
+Opus built it, test first; a second Opus agent verifies it.
+
+**Context.** DL-182 item 4, the owner's: "put the item placeholder picture on the rosters tile screen and
+have a thin good aura outline the hero tile. for table view, just have the aura outline and no item
+picture"; the aura a "Thin gold glow". At `545a2d1` a Unique Item's picture stood in the Stores, the
+Market's Sell and a Hero's Gear (DL-125 item 8, DL-129), and the Roster's tiles and Table named every
+Item alike (DL-171).
+
+**What was built.**
+
+1. **The rows** (`web/src/state/selectors.ts`). Each `RosterRow`'s Items are now `RosterItem`s: the name
+   and effect as before, with the Item's `definitionKey` and `unique` (the content's flag, as a Hero's
+   page reads it). The row gains `carriesUnique`, whether any Item the Hero carries is Unique. For
+   display only: no engine, content, save, configuration or browser key changes.
+2. **The Tiles** (`web/src/views/roster.tsx`). A Unique Item's chip shows `ItemPicture` before its
+   name, through a new `picture` part of `Chip` (`ui.tsx`), placed after the icon and before the words.
+   Every Unique Item shows the chest's Silhouette today, none having a picture; one with a picture
+   shows it over the chest, as everywhere. The tile (`li.card.hero-card`) of a Hero who carries any
+   Unique Item gains the class `carries-unique`. A Common Item's chip, and a Hero with none, are as
+   they were.
+3. **The Table** (`web/src/views/roster-table.tsx`). The row (`tr`) of a Hero who carries a Unique Item
+   gains `carries-unique`; no picture is drawn in the Table. Its Items cell keeps the names.
+4. **The glow** (`web/src/styles.css`).
+   - A new pair on `:root`, beside `--focus`: `--gold`, `#a57800` light and `#f0b90b` dark, and its
+     soft glow `--gold-glow`, `rgb(165 120 0 / 40%)` and `rgb(240 185 11 / 35%)`. The dark values sit
+     in `@media (prefers-color-scheme: dark)` with every other token's: the page has no theme of its
+     own to choose (no `data-theme`), so that block is the dark scheme.
+   - *The tile:* its 1px border turns gold and a 1px gold ring is drawn outside it, 2px in all, with a
+     10px soft glow (`box-shadow: 0 0 0 1px var(--gold), 0 0 10px 2px var(--gold-glow)`).
+   - *The row:* drawn inside its cells, as the epic says, never on the `tr`: each cell has 2px inset
+     gold lines at its top and bottom and a soft inset glow along them; the Name (`th`) adds its left
+     side and the last cell its right; Name alone, every other column of a phone's tab hidden, draws
+     all four. Inset shadows take no room, so the Table is not widened, and the pinned Name keeps its
+     own outline as the Table scrolls under it. The glowing row's Name gains 0.5rem of padding on its
+     left, so that the left line does not run under the thumbnail.
+   - *The picture in a chip* is 1.25rem square (`.chip .item-picture`), its gap the chip's own; the
+     Stores' 1.75rem stays where it was.
+5. **Not colour alone.** On the Tiles the chip with the picture names the Unique Item. In the Table the
+   Items cell names it ("The Lantern of Stannary", its effect in its tooltip and the screen reader's
+   words, "The Lantern of Stannary: Perception +3, Wits +2"), as it names every Item, so the glow names
+   nothing the cell does not. What the glow alone adds in the Table is *which* of the named Items is
+   Unique: see the agent's reading 5.
+6. **Words.** None new. The glow is decoration and adds no attribute (no `aria-*`, `title` or `role` on
+   the tile or the row); `ItemPicture` is `aria-hidden`, so the screen reader's words are as they were.
+7. **`CONTEXT.md`'s Unique Item** loses "(to be built, v1.1.5-S14)" and reads as built: the Roster's
+   Tiles show the picture "before its name in its Item's chip", the glow round the tile and the row,
+   no picture in the Table (DL-182, DL-183).
+8. **Unchanged.** A Hero with no Unique Item, and Common Items; the Board, the Unattached pool, the
+   Rival Rosters and a Hero's page; no file under `engine/src/` or `content/`.
+
+**The tests.** Each was seen to fail before its code, but where said.
+- `selectors.test.ts`: a new test, the Lantern of Stannary carried beside an arming sword, another Hero
+  with only the sword, the Barrow King's blade in the Guild's hands: the Items' `definitionKey` and
+  `unique`, and `carriesUnique` true, false and false; S12's Items test gains the two fields.
+- `roster.test.tsx`, a new block of three. On the Tiles, the Mage carrying the Lantern has the class,
+  the picture as the chip's first part, `aria-hidden`, the chest's Silhouette with an empty alt, and
+  the chip's tooltip and screen reader's words as a Common Item's; the Warrior with only an arming
+  sword, and the Heroes with none, neither class nor picture. The glow adds no words: the glowing tile
+  bears no `aria-label`, `aria-describedby`, `title` or `role`, and reads as the same Hero without the
+  Lantern plus the Item's words (a guard: it passed before the code too). In the Table, the row has the
+  class and no picture, the Items cell names the Lantern, the others neither, and on each of the
+  phone's five tabs the same.
+- `pictures.test.tsx`: the Barrow King's blade, which has a picture in that test's catalogue, shows it
+  over the chest on its carrier's tile, the only picture on the Roster (written after the code, not
+  seen red).
+- `styles.test.ts`: `--gold` on `--paper` and `--surface` added to the 3:1 edge pairs in both schemes;
+  a new block: the pair defined in light and dark, differing, neither `--brass`, `--warn` nor
+  `--focus`, its glow beside it in each; every rule that uses `var(--gold…)` or names `carries-unique`
+  scoped to `.hero-card.carries-unique` or `.roster-table tr.carries-unique > th|td`; and the tile's
+  1px ring and glow.
+- `capitals.test.tsx`: `busyGame` gains the Lantern of Stannary carried by the first Hero; the guard
+  reads the Tiles with its glowing tile and picture, and the Table and each phone tab with its glowing
+  row. It passes.
+- `e2e/layout.spec.ts`, a new spec on every project (360 and 390px on the phone, 820 and 1280px), in
+  light and dark, from a save with the Lantern carried (`holdingUniques`): the tile glows, its picture
+  before the name, the other tiles with no picture and no shadow; the gold at 3:1 or more against the
+  first opaque ground on either side of the tile (`glowContrast`, WCAG 1.4.11), and of the Name and the
+  last cell in the Table, on every phone tab; no page overflow and 44px targets; the Table scrolled to
+  its end in its box, Name pinned at its edge with its gold still drawn; a row without the glow drawing
+  no shadow. Screenshots kept in its output.
+- `game.test-support.ts`: `carryingUnique` takes which Hero, by their place on the Roster, the first by
+  default.
+
+*The contrast,* by the tokens: light `#a57800` 3.50:1 on the paper and 3.78:1 on a tile's surface; dark
+`#f0b90b` 10.16:1 and 9.27:1.
+
+**Verification** (the builder's). `npm run lint` and `npm run typecheck` pass; `npm test` passes 185
+files and 4,824 tests (4,818 at the close, 6 added); `npm run e2e -w web` passes 103 specs (100, 3
+added); check-bundle passes, the script 816,035 bytes against 850 kB (814,620 at the close, 1,415
+added); `npm run edit -- traits doctor` reports no drift (110 reads) before and after. No file under
+`engine/src/` or `content/` changed. Each changed file keeps its CRLF endings, none with a bare LF.
+
+**The agent's readings,** for the owner to change.
+1. *Thin* is 2px: on a tile its border turned gold with a 1px ring outside it, in the Table 2px lines
+   inside the row's cells; the glow 10px, at 40% (light) and 35% (dark) of the gold.
+2. *The gold:* `#a57800`, an amber dark enough for 3:1 on the light paper, and `#f0b90b`, a saturated
+   gold beside the dark scheme's paler brass (`#e3bf6f`) and warning (`#f1c374`).
+3. *The glowing row's Name* is padded 0.5rem on its left, so it and its thumbnail sit 0.5rem right of
+   the other rows'. Without it the left line runs under the thumbnail. The other way is to pad every
+   row's Name alike, which moves the rows of Heroes with no Unique Item too.
+4. *The picture in a chip* is 1.25rem, smaller than the Stores' 1.75rem, so that a chip stays a chip.
+5. *In the Table, which Item is Unique* is not said in words, as it was not before S14: the glow says
+   the Hero carries one, and the Items cell names every Item alike. A player who cannot see the gold
+   reads it from the picture on the tile or on the Hero's page; a word or a mark in the cell would be
+   new words, which DL-182 did not ask for.
+
+**For the owner.** Nothing is open; the readings above are the agent's to change.
+
+**Actioned in:** `web/src/state/selectors.ts` (`RosterItem`, `RosterRow.carriesUnique`, `itemsOf`);
+`web/src/views/roster.tsx`; `web/src/views/roster-table.tsx`; `web/src/views/ui.tsx` (`Chip`'s
+`picture`); `web/src/styles.css`; `CONTEXT.md`'s Unique Item; the tests named above;
+`docs/planning/epics/v1.1.5-release.md` (S14's boxes, the status).
+
+**The verification** (a second Opus agent, at `6a581e3`). What was built is the owner's words as
+DL-182 item 4 reads them, each test fails without its code, and every figure above holds. Nothing to
+fix; two things the owner may want to see are below.
+- *The owner's words.* On the Tiles a Unique Item's chip carries `ItemPicture` before its name (the
+  chest's Silhouette in the shipped build; the Barrow King's blade's picture over it in
+  `pictures.test.tsx`'s catalogue), and the carrier's tile the thin gold glow; in the Table the row
+  glows and holds no picture; a Hero with only Common Items, or none, is as before. `unique` is the
+  content's flag (`definition?.unique === true`), read as a Hero's page reads it (`selectors.ts`'s Gear
+  rows); `itemsOf` reads `carriedGear`, every slot of the Hero's own, so a Unique Item in any slot
+  counts (the trinket in `selectors.test.ts` and `roster.test.tsx`, the weapon in `pictures.test.tsx`),
+  and one in the Guild's Stores does not (the selectors test and the layout spec, each with the Barrow
+  King's blade held by the Guild). Nothing else reads `carriesUnique` or draws `carries-unique`: no
+  change to the Board, the pool, the Rival Rosters or a Hero's page, and `git diff 545a2d1..6a581e3`
+  touches nothing under `engine/`, `content/`, `tools/` or `harness/`.
+- *The mutations, each put back* (`git status` clean after each). The glow on every tile: the Tiles
+  test fails. The picture drawn in the Table's Items cell: the Table test fails. `unique` read as
+  "is gear": four tests fail (both selectors tests, the Tiles and the Table); `carriesUnique` as "carries
+  any Item": three; as "the first Item is Unique": the selectors test and the capitals guard. The tile's
+  rule unscoped (`.carries-unique`), the row's (`tr.carries-unique > td:last-child` without
+  `.roster-table`), a gold outline on every `.hero-card`, a gold ring on `.chip .item-picture`, and the
+  tile's ring 3px: the scoping test fails each time. `--gold` light set to `--warn`'s value: the pair
+  test fails; to a paler `#c89400`, and dark to `#5a4510`: the light and the dark contrast tests fail;
+  the dark `--gold` taken out: the pair test and "the dark scheme redefines every colour". The test
+  written after its code, `pictures.test.tsx`'s, fails with the tile's `picture` taken out and with
+  every chip given the Lantern's key in place of its own (the blade's picture then missing).
+- *The page,* looked at in the layout spec's screenshots and in a throwaway spec of the verifier's,
+  deleted (360, 390 and 1280px, light and dark). The tile's 2px gold and glow drawn whole at 360px
+  inside the 16px gutter; the row's lines drawn on the pinned Name and on the cells scrolling under it,
+  the right line on the last cell at the scroll's end; a Hero carrying two Unique Items, two pictures
+  and one glow; a Roster of one, its row drawn whole; Name alone (every column hidden from Columns),
+  `th:last-child`'s four sides and inset glow, no page overflow. Hidden columns are not rendered
+  (`shownColumns`), so `:last-child` is always the last cell shown, on every phone tab. The page has
+  no `data-theme` or other scheme of its own (`styles.css`'s `color-scheme: light dark` and the
+  `prefers-color-scheme` block only), so the dark pair misses nothing. `Chip` renders `picture` only
+  when given (no other `<Chip>` passes one); the picture is `aria-hidden` with an empty `alt`
+  outside the `spoken` part, so nothing is read twice (W3's pattern); `.chip .item-picture` outranks
+  `.item-picture` by specificity, wherever it stands in the sheet.
+- *The contrast,* from the hex values (WCAG 2.2's luminance): light `#a57800` 3.4975:1 on `#f5f0e6`
+  and 3.7801:1 on `#fcf9f3`; dark `#f0b90b` 10.1619:1 on `#181410` and 9.2741:1 on `#221d17`: 3.50,
+  3.78, 10.16 and 9.27 as written. The gold against brass, warning and focus: 1.55, 1.63 and the
+  dark 1.03, 1.10 against brass and warning, distinct as hues and values rather than by contrast.
+- *The checks,* at `6a581e3`, each alone: `npm run edit -- traits doctor` no drift (110 reads), the doc
+  fresh, the content passing, no pending edits, before and after; `npm run lint` clean; `npm run
+  typecheck` clean; `npm test` 185 files, 4,824 tests passing (the eslint-based tests within time);
+  `npm run e2e -w web` 103 passed, check-bundle passing, the script `index-aFO4J7Mm.js` 816,035 bytes
+  (1,415 over the close's 814,620). `CONTEXT.md`'s Unique Item reads as built. Each changed file has
+  one line ending throughout: the code, the tests, the spec and `CONTEXT.md` CRLF, `decision-log.md`
+  and the epic LF, as at `545a2d1` (the entry's "Each changed file keeps its CRLF endings" means
+  these: the two LF files keep theirs).
+- *For the owner,* readings to change or keep, none a defect:
+  1. *The tile's outer side in the light scheme.* The layout spec measures the gold against the
+     first opaque ground either side, the paper (3.50:1) and the tile (3.78:1). Sampled from the
+     rendered page, the pixel just outside the ring is the glow over the paper, `rgb(227 214 180)`,
+     2.75:1 against the gold, 3.16:1 at 6px out; the inner side, the tile's surface, is 3.78:1. In
+     the dark scheme the pixel beside the ring gives 6.86:1. The glow is decoration (the chip names
+     the Item), and the 2px band holds 3:1 on its inner side, so it is left as built; a fainter light
+     glow (about 20 to 25% in place of 40%, by the same sampling) would hold 3:1 outside too, at the
+     cost of a softer look.
+  2. *The glowing row's Name sits 0.5rem right of the others'* (the builder's reading 3), visible at
+     every width in the Table.
+
+**Verified in:** `git diff 545a2d1..6a581e3`; the mutations above; the layout spec's screenshots
+(`web/test-results/`); the checks above.
+
+---
+
+## DL-184 — v1.1.5-S13 built: the XP split, each Hero who comes home taking the Quest's XP divided by the size of the Party sent, its Dead counted, rounded down; the closing sweep playing DL-180's trial games by fingerprint, its replay identical at a peak of 1,501 MiB, no player Guild bankrupt
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the owner's rule (DL-182 item 1, "go with
+split xp", "Add to v1.1.5 now"), built by the agent as the epic's S13 describes it, test first. The
+readings marked as the agent's are for the owner to change. A second Opus agent verifies it.
+
+**Context.** DL-180 tried the XP split on a scratch change at S5's commit: each Hero of a Party taking the
+Quest's XP divided by the Party's size, rounded down, its Dead counted. The owner adopted it as tried
+(DL-182 item 1), settling DL-148 item 19 and DL-168 item 3. At `6e69b1d` (S14 verified) `resolveQuest`
+gave each Hero who came home the Quest's whole XP, `xpPerHero: Math.floor(xp)`. S13's sweep is v1.1.5's
+closing sweep, the replay kept (the epic's §0), in place of DL-181's, which stays the record of the play
+before the split.
+
+**What was built.**
+
+1. **The rule, one line of the engine** (`engine/src/quest-engine/resolve.ts`, `resolveQuest`):
+   `xpPerHero: Math.floor(xp)` became `Math.floor(xp / heroes.length)`, the trial's engine line exactly
+   (its scratch counter in `counters.ts` and `sweep.ts`, the highest Level reached, not built). `heroes`
+   is the Party sent (`party.heroIds`), so a Hero who dies stays in the divisor and their share is lost,
+   not passed on. `questsConclude` is unchanged: it adds `xpPerHero` to each survivor and emits
+   `hero.xp-gained` with it. Whatever the band, for the player's and the Rivals' Parties alike, through
+   the one Quest Engine; no draw added or moved; a Party of one takes what it took before.
+   *Corrected at v1.1.5's re-close (DL-185):* the split adds no draw and moves none in the resolver,
+   but through slower Levels a game takes fewer draws from the `progression` stream (each Level's
+   growth draws there), so later draws there move; the games are the trial's, as the sweep shows.
+2. **The comments that said XP is whole.** `resolveQuest`'s doc comment and the outcome's `xpPerHero`
+   (`resolve.ts`) say the split, the Dead counted, rounded down; the Quest XP comment above
+   `xpPerDifficultyPoint` (`engine/src/config.ts`), a comment only, so `configVersion` stays 13;
+   `harness/src/counters.ts`'s `PartySizeTally` ("XP is not split, so each Hero who comes home takes the
+   Quest's whole `xpPerHero`") and `partySizes` comments; `harness/src/sweep.ts`'s `partiesAndTraits`
+   comment and the report's heading, from "(`xpPerHero`: XP is not split, DL-148 item 19)" to
+   "(`xpPerHero`: the Quest's XP split across the Party sent, its Dead counted, rounded down, v1.1.5-S13,
+   DL-182)".
+3. **The words.** `CONTEXT.md`'s XP: "A Quest's XP is split across the Party sent, its Dead counted:
+   each Hero who comes home takes an equal share, rounded down, and a Hero who dies takes none, their
+   share lost (v1.1.5-S13, DL-182)." Then `grep -rn -i "\bxp\b" web/src cli/src docs/requirements.md`,
+   each word read for where its number comes from:
+   - the Quest report's chip "XP +N each" (`web/src/views/quest-report.tsx`): N is the rewards section's
+     `xp`, `quest.resolved`'s `xpPerHero` (`quest-return.ts`), the share;
+   - `quest-return.ts`'s "the XP each Hero home alive gained" and each Hero's "gained N XP": `xpPerHero`,
+     `null` for a Hero who died;
+   - the narration's "gained N XP" (`web/src/state/narrate.ts`, `cli/src/narrate.ts`): `hero.xp-gained`'s
+     `amount`, the share;
+   - a Hero's page's "XP n" and the CLI's `XP` row: the Hero's own `xp`;
+   - the quest-review page's "XP ×factor" (`cli/src/quest-review.ts`): an Encounter's XP consequence,
+     which multiplies the Quest's XP before the split, still true;
+   - the History's "XP" groupings, the training yard's words and `docs/requirements.md` (R17, R24, R33)
+     give no amount a Hero takes.
+   Each reads the share or no amount, and stays true: no page, help or review word says or implies that
+   each Hero takes the Quest's whole XP, so none changed, and no test was needed for one.
+4. **Unchanged.** `configVersion` 13, content 32, schema 6; no event's shape (`hero.xp-gained`'s
+   payload as it was); `questsConclude`; the page's code (its script 816,044 bytes against S14's
+   816,035, the engine's line being in it).
+
+**The tests.** Each was seen to fail before the engine's line changed, but where said.
+- `engine/src/quest-engine/resolve.test.ts`:
+  - the XP test's scene, three Heroes sent: the success's 160 became 53 and the failure's 40 became 13,
+    the comments saying the split;
+  - a new block, "the XP split", a Quest of 41 sent with Parties of one to five Heroes (five, the
+    content's largest `partySizeMax`; the scene starts a Roster of five for it): a strong success and a
+    plain success each give 41, 20, 13, 10 and 8 (41 ÷ 2 = 20.5 and 41 ÷ 3 = 13.67 rounded down), and a
+    failure, its half XP 20.5, gives 20, 10, 6, 5 and 4; a Party of one takes the whole, as before;
+  - a Death in the divisor: a Party of two and of three, one Hero killed in the second of three
+    Encounters, a success of 40 XP, each who comes home taking 20 and 13, not 40 and 20, the dead
+    Hero's share lost (20 × 1 and 13 × 2 below 40).
+  Before the change all four new tests and the updated one failed (every size took 41, or 20 on a
+  failure; the Death's 40).
+- `engine/src/phases/quests-conclude.test.ts`, a new test for the player's Party and a Rival's (its
+  controller stilled, as the other Rival tests do): three Heroes sent through one failed Encounter of
+  difficulty 5,000 under `certainHarmContent`, a failure, one Hero dead; `xpPerHero` is
+  ⌊2,500 ÷ 3⌋ = 833, each of the two survivors gains 833 and `hero.xp-gained` carries 833 for each,
+  the dead Hero's XP unchanged and no `hero.xp-gained` for them. Both failed before the change (2,500).
+- Three tests the rule broke, updated deliberately:
+  - `quests-conclude.test.ts`'s "moves Wealth, Fame and XP by the outcome": its Quest of difficulty 1,
+    split between two, now gives each Hero 0 XP, against its `toBeGreaterThan(0)`; its difficulties are
+    now 2, 40 and 5,000, with a comment;
+  - its "a Level a Party's Hero gains on the night of the return follows the Quest's XP": the two
+    Heroes one XP short of Level 2 were sent on a Quest of 1, which now gives them 0; the Quest is now
+    of 2, 1 each, with a comment;
+  - its "nothing else moves: the same seed gives the History of 86c7afa", which hashes three seeds'
+    Histories: the split changes every `hero.xp-gained`'s amount and with it the Levels, their Stats and
+    the wage, so its three fingerprints are now S13's (`ae34d056…`, `83073fb4…`, `20a8de88…`), the
+    comment giving the old ones (`f1e65b3b…`, `096c92a2…`, `a72002b4…`) and why.
+- `engine/src/controllers/transfer-generator.test.ts`'s "the Roster-size distribution across Rivals
+  stays within the generation range" (four seeds × 20 years, the test content at a Check of 0.15 of
+  the difficulty, `rivalRosterMin` 4 to `rivalRosterMax` 8) failed: a year's median 8.5 in years 5 to
+  7, above 8, and the mean of every year-end 9.18. Measured on the same four seeds with the line put
+  back and with it, the year-end sizes printed (a scratch line, taken out):
+
+  | The Rivals' Roster at a year's end, 4 seeds × 20 years | Before the split | With it |
+  | --- | ---: | ---: |
+  | Year-ends | 318 | 319 |
+  | Median of every year-end | 6 | 7 |
+  | Mean of every year-end | 6.44 | 9.18 |
+  | Within 4 to 8 | 90.9% | 67.1% |
+  | Largest | 15 | 30 |
+  | A year's median, highest | 7 | 8.5 (years 5 to 7) |
+
+  The split's slower Levels and lower wage leave these Rivals richer, and they hire, as DL-180
+  reading 5 found in the harness's games (their Roster 7.69 at a year-start against 5.71). The
+  Generator's own moves are held in range by `expectWithinTheRule`, unchanged. *The agent's reading:*
+  the test's own words already let single Rosters leave the range (Deaths, recruits, Transfers and
+  folds "which the Generator does not undo", DL-59), and v1.1.4-S6 dropped a year's mean for the same
+  cause (DL-157); so above the range only the median of every year-end is now held (7), and below it
+  each year's median and the mean, as before. The comment records these figures. The box's 100-seed
+  run (`HEROESIM_HARNESS=1`) was not run.
+- `harness/src/sweep.test.ts`: the Party sizes test reads the report's new heading and that "XP is not
+  split" is gone; it failed before the heading changed.
+
+**The checks,** before the sweep, each alone. `npm run edit -- traits doctor` before the change and
+after the checks: no drift (110 reads), the doc fresh, the content passing, no pending edits.
+`npm run lint` and `npm run typecheck` clean. `npm test`: 185 files, 4,830 tests (4,824 at S14, 6
+added: four in `resolve.test.ts`, two in `quests-conclude.test.ts`), all passing, the two eslint-based
+tests among them within their time. `npm run e2e -w web`: 103 passed, check-bundle passing, the script
+816,044 bytes against 850 kB (S14's 816,035; the engine's line is in it). Each changed file keeps its
+endings: the source and `CONTEXT.md` CRLF, none with a bare LF (two `sed -i` runs during the work
+stripped two files' CRs, which were put back and checked).
+
+### The closing sweep
+
+Run alone after the checks, with no other process of ours (the owner's Playwright test-server left
+running, 15 MiB), on the working tree at `6e69b1d` with this story's change, `engine/dist` built from it
+by the typecheck (`xpPerHero: Math.floor(xp / heroes.length)`): `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50
+HEROESIM_YEARS=20 HEROESIM_MILESTONE=m9-v115-s13 npm run harness -- play.harness`, core only, content 32,
+config 13, schema 6, not validated, **the replay kept**. 1,983.7 s in all (33.1 minutes, inside the
+epic's 32 to 36), the games 1,751.7 s of it; the test passed. The report,
+`harness/reports/m9-v115-s13-2026-10-04.md`, is force-added. 50 of 50 saves load and serialise back
+alike; no policy action refused, no harness assertion broken.
+
+- **It plays DL-180's trial games.** The fingerprint of every seed's last save is the trial's,
+  `e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369`, as the epic expected. Against the
+  trial's report (the scratchpad's copy, `m9-v115-s9-trial-2026-10-04.md`), `diff` finds only: the
+  title and the start time; the replay's row (the trial's skipped); the timings (`advance`, `serialise`,
+  `deserialise`, the run's times and the DL-74 table's rows that read them, with the replay's own
+  `advance` row added); the trial's highest-Level line, its scratch counter, not built here; and the
+  Party table's heading, its words now the split's. Every count, share and table else is equal line for
+  line, so every figure of DL-180's table is reproduced: 0 of 50 player Guilds bankrupt, none below
+  the floor, every game its full 20 years; the player's Quests 403,168, failed 6.79%, succeeded 20.52%
+  and strong 72.68%; Deaths 4.28 and Injuries 72.52 a game; Traits 2.178 a player's Hero career
+  (1,472 of 676), the Rivals' 1.259; the Roster's mean Level after 10 years 8.34 and after 20 years
+  9.51; Levels 4.97 a player Guild-year; half the Roster at Potential after 10 years (51.0%); Upkeep
+  45,664.3 and Quest rewards 61,150.1 a player Guild-year (74.7%); Wealth 159,162 and 215,079 after 10
+  and 20 years; Rival folds 2.74 a game, 45 Successions; and DL-180's Party table, cell for cell (the
+  player's mean Party 1.55, 28.7 XP a Hero, 44.0 a Party; the Rivals' 1.85, 30.0, 54.2).
+- **The replay ran and matched.** No Guild went bankrupt, so it played `seed-0001`, twice: identical,
+  144,371,849 characters, the test asserting it. The save is 4.9% longer than the close's `seed-0002`
+  (137,606,607) and 21% longer than the `seed-0001` game of the close's E3 measure (119,338,444): the
+  split's games keep larger Rival Rosters, as the epic's risk foresaw. Its `advance` alone: 3.716 ms a
+  Turn mean, p99 37.680 ms (the close's `seed-0002`, 2.210 and 12.936).
+- **The memory,** each `node` process's Windows peak working set (`PeakWorkingSet64`), working set and
+  private bytes read every 5 s (a scratch file, not kept), as DL-181 read them:
+  - *The replay's process,* the Vitest worker, held 91 MiB while the shards played (to 19:19:36), then
+    peaked at **1,501 MiB** (private bytes at most 1,417 MiB in a sample), reached at 19:21:47 in the
+    first replayed game's close; its working set fell to about 640 MiB between the two games, and the
+    second was at 1,019 MiB in the last sample, 3 s before the run ended, so its own peak, likely about
+    the first's, lies after that sample, unread. The close's was 1,346 MiB for a save 4.9% shorter; E3's
+    fix holds one game at a time (DL-181), and the 155 MiB more is about the larger save and the
+    sweep's 50 records of longer games beside it.
+  - *The shards:* 50 processes (one reusing an earlier one's process id, told apart by its peak
+    falling), peak working set median 1,268 MiB, mean 1,266, the lowest 906 and the highest 1,581
+    MiB (the close's: median 1,074, highest 1,503); private bytes at most 1,758 MiB in a sample (1,378);
+    the eight at once at most 6,740 MiB of working set together (4,845). Every game plays its full 20
+    years with larger Rival Rosters, so no shard is short. The Vitest parent at most 224 MiB (224). No
+    process was killed; the machine's 27.6 GB held the eight with room.
+- **The time.** The games 1,751.7 s against the trial's 1,747.4 s (+0.2%, the same games), the close's
+  1,267.1 s (+38%) and S5's 1,213.9 s (+44%, DL-180's reading 6: larger Rival Rosters for `partyFor` to
+  search, and every game its full length). `advance` a Turn 7.405 ms mean, p99 53.667 ms (the trial's
+  7.374 and 53.244; the close's 5.028 and 25.967). The replay took most of the other 232.0 s (the
+  close's 165.6 s, a shorter save). As 1,000 games, 584 minutes (the close's 448).
+
+**Against the close's sweep** (`m9-v115-close-2026-10-04.md`, S5's games, fingerprint `37fabc96…`) and
+the trial: S13's figures are the trial's, so the close's column is DL-180's S5 column, and every
+difference is the split's, read as DL-180 reads it.
+
+| | S13, the closing sweep | The close (= S5) | DL-180's trial | S13 − the close |
+| --- | ---: | ---: | ---: | ---: |
+| Fingerprint | `e7ae1710…` | `37fabc96…` | `e7ae1710…` | the split |
+| **Player bankrupt** | **0 of 50** | 12 of 50 | 0 of 50 | −12 |
+| Years survived, mean (min) | 20.00 (20.00) | 18.87 (10.94) | 20.00 (20.00) | +1.13 |
+| Player failed / succeeded / strong | 6.79% / 20.52% / 72.68% | 5.14% / 18.41% / 76.46% | the same | +1.66 / +2.12 / −3.77 points |
+| Player Deaths, Injuries a game | 4.28, 72.52 | 3.24, 54.42 | the same | +25%, +26% a Guild-year |
+| **Traits earned a player's Hero career** | **2.178** | 2.322 | 2.178 | −0.144 |
+| … the Rivals' | 1.259 | 1.131 | 1.259 | +0.128 |
+| Mean Level of the player's Roster after 10 years | 8.34 | 10.35 | 8.34 | −2.01 |
+| Upkeep, Quest rewards a player Guild-year | 45,664; 61,150 (74.7%) | 56,167; 64,003 (87.8%) | the same | −18.7%; −4.5% |
+| Player's Wealth after 10, 20 years | 159,162; 215,079 | 108,386; 98,847 | the same | +47%, +118% |
+| Rival folds a game | 2.74 | 5.44 | 2.74 | −2.70 |
+| The player's mean Party; XP a Hero a Quest | 1.55; 28.7 | 1.57; 47.0 | the same | −0.02; −39% |
+| `advance` a Turn, mean / p99 | 7.405 / 53.667 ms | 5.028 / 25.967 ms | 7.374 / 53.244 ms | +47% |
+| The games, the whole run | 1,751.7 s, 1,983.7 s | 1,267.1 s, 1,432.7 s | 1,747.4 s, 1,747.8 s | +38% |
+| The replay | `seed-0001`, identical, 144,371,849 | `seed-0002`, identical, 137,606,607 | skipped | |
+| Its process's peak | 1,501 MiB | 1,346 MiB | | +155 MiB |
+
+*The agent's readings,* each DL-180's, the games being its games: XP a Hero a Quest barely depends on
+the Party's size, so Levels come slower and stop lower; the wage follows the Level, so Upkeep falls
+18.7% against 4.5% of income and no player Guild falls below the floor; weaker Heroes fail more and end
+strong less often, so Deaths and Injuries rise about a quarter a Guild-year; the Rivals' wage falls too,
+so they fold half as often and keep larger Rosters; and the time rises with those Rosters.
+
+**The Gate read on this sweep.**
+- *Rare Traits:* 2.178 Traits earned a player's Hero career against the 2.32 baseline (S5's, the
+  owner's steer, DL-179), −0.144, the split's: fewer strong successes keep slightly fewer positive
+  Traits a Hero's Quest, and a Hero sent goes on fewer Quests (DL-180 reading 4). The Rivals' 1.259
+  against 1.13, their careers longer.
+- *The XP split:* the rule shipped is DL-180's trial's, by fingerprint; held by the tests above.
+- *The rule's count* (DL-168 item 16), for information only, the owner having decided what follows
+  (DL-182 item 2): 0 of 50 player Guilds bankrupt, below 3 to 7 (S3's 13, the close's 12).
+- *The DL-83 targets,* for information, as DL-180 item 7 reads them: item 2 Bankruptcies 0%, below
+  5 to 15%; item 21 the Roster's mean Level after 10 years 8.34, inside 8 to 10; item 5 Rival folds 2.74,
+  inside 1.5 to 3.5; items 3, 4, 6 and 7 still off; item 22 not counted (the trial's scratch counter,
+  11.58, not built).
+
+**The agent's readings,** for the owner to change.
+1. *The Transfer Generator's test* (above): only the median of every year-end is now held above the
+   range. The other way is to keep a year's median and the mean held and pin a lower Rival income in
+   that test's world; the agent read the test's subject as the Generator, which the split does not
+   touch.
+2. *The two tests of `quests-conclude.test.ts` given a Quest of 2 in place of 1,* so that a Party of
+   two still gains XP; their subjects (the XP moved, a Level on the night of the return) unchanged.
+3. *The words:* none changed on the page, the CLI or `docs/requirements.md`, each reading the share
+   already; `CONTEXT.md`'s XP says the split.
+
+**For the owner.** Nothing is open. The closing sweep's 0 of 50 Bankruptcies, and its Rivals' larger
+Rosters and longer games, are DL-180's, for #51 in the backlog (DL-182 item 2).
+
+**Actioned in:** `engine/src/quest-engine/resolve.ts`; `engine/src/config.ts` (a comment);
+`harness/src/counters.ts` (comments); `harness/src/sweep.ts` (a comment and the report's heading);
+`CONTEXT.md`'s XP; the tests in `resolve.test.ts`, `quests-conclude.test.ts`,
+`transfer-generator.test.ts` and `sweep.test.ts`; `harness/reports/m9-v115-s13-2026-10-04.md`,
+force-added; `docs/planning/epics/v1.1.5-release.md` (S13's boxes, the status).
+
+**The verification** (a second Opus agent, at `dacf83b`; the sweep not run again). The rule is DL-180's
+line, held by tests that fail under every wrong split tried; the closing sweep is the trial's by
+fingerprint and line for line; two things fixed test first: a Party of no Heroes took a share of
+Infinity, and the Transfer Generator's test gives back, over the box's hundred seeds, the reading the
+loosening had dropped.
+- *The rule.* `git diff 6e69b1d..dacf83b` changes one engine line, `xpPerHero: Math.floor(xp)` to
+  `Math.floor(xp / heroes.length)`, and comments; no scratch counter (`highestLevel`, "S9 TRIAL") in
+  `engine/src` or `harness/src`. `heroes` is `party.heroIds` mapped, `working.alive` a copy of it, so the
+  Dead stay in the divisor; `xp` is worked out after the band, so every band is split; the line reads
+  no controller, so the player's and the Rivals' alike; `questsConclude` (unchanged) adds `xpPerHero` to
+  each survivor and emits `hero.xp-gained` with it. `configVersion` 13, content 32, schema 6.
+- *A Party of no Heroes.* `dispatch` sends no Party below the Quest's `partySizeMin` (content's checks
+  hold it at 1 or more) and nothing takes a Hero out of a Party, so no game resolves one; but
+  `estimate.test.ts`'s "gives a Party of no one no chance" resolves a Party of no one on purpose (a
+  failure meeting no Encounter), and under the split its `xpPerHero` was `Infinity`, which
+  `JSON.stringify` writes as `null`. A guard that threw broke that test, so the resolver keeps taking
+  one: test first, `resolve.test.ts`'s "gives a Party of no Heroes a share of 0" failed (`Infinity`),
+  then `xpPerHero: heroes.length === 0 ? 0 : Math.floor(xp / heroes.length)`, with a comment. No game
+  changes: `quests-conclude.test.ts`'s three History fingerprints are S13's still.
+- *The tests, mutated* (each put back): dividing by the survivors fails 4 (the Death in the divisor,
+  both conclude tests, the History fingerprints); `Math.round` 4 and `Math.ceil` 8; no split for the
+  Rivals 2 (the Rival's conclude test, the fingerprints); no split on a failure 5; no split on a strong
+  success 2. `Math.floor(Math.floor(xp) / heroes.length)` passes, as it must: for a whole divisor it
+  equals the rule (DL-180's rounding).
+- *The Transfer Generator's test* (DL-184's reading 1). The range, `rivalRosterMin` 4 to
+  `rivalRosterMax` 8, is the range a Rival's starting Roster is drawn from (`generators/guilds.ts`), the
+  floor below which a Rival hires by need (`hiringBudget`, DL-60), and the bound on the Generator's own
+  moves (`transferBid`, DL-59). It is no cap: a Rival above its `recruitThreshold` hires by choice at
+  any size, and no rule, `CONTEXT.md` entry or requirement caps a Roster. So Rivals above 8 are no
+  defect in play. The box's subject is the Generator, and its rule, each of its Transfers leaving both
+  Rosters in the range, is held unchanged by `expectWithinTheRule`; DL-59 read the box's "distribution
+  stays within the generation range" as each year's median and mean, while writing that "the
+  distribution is the game's, unchanged by the Generator". The four seeds' figures are DL-184's, measured
+  again with the line and without (319 year-ends, median 7, mean 9.18, 67.1% within, largest 30, a
+  year's median 8.5 in years 5 to 7; before, 318, 6, 6.44, 90.9%, 15, 7). The box's own run,
+  `HEROESIM_HARNESS=1`, 100 seeds × 20 years, alone (1,441.6 s, passing), measured with a scratch line
+  taken out: 7,965 year-ends, the median of every year-end 7, the mean 9.17, 67.7% within the range,
+  32.3% above, one below, the largest 33; **each year's median within the range, at 8, its top, in
+  years 4 to 7**, 6 or 7 in the others. The four seeds' 8.5 is 16 Rivals a year against the box's
+  400. *The verifier's reading:* the loosening is sound in kind (the test held the economy, not a rule,
+  and DL-157 dropped a year's mean for the same cause), but it dropped what still holds at the box's
+  scale; so `if (harness)` each year's median is held within the range again, the comment saying
+  why, and the 100-seed run passed with it, alone (1,447.6 s). On the shipped content the harness's
+  games read the same way: S13's report's Rivals at a year-start, each year's median 5 to 7, the mean of every
+  year-start 7.69 (the close's 5.71), each year's mean above 8 in years 7 to 16 (at most 9.29), 26.1%
+  above the range (`ambitious` 43.8%, `reckless` 45.3%).
+- *The words.* `CONTEXT.md`'s XP and the comments in `resolve.ts`, `config.ts`, `counters.ts` and
+  `sweep.ts` say the split. `grep -rn -i "\bxp\b" web/src cli/src docs/requirements.md` and a search of
+  the docs for "not split" and "whole XP": the Quest report's "XP +N each" is the rewards section's `xp`,
+  `quest.resolved`'s `xpPerHero` (`quest-return.ts`), the share; the narration's "gained N XP" is
+  `hero.xp-gained`'s `amount`; nothing on the page or the CLI computes a Quest's XP before it is sent
+  (no other reader of `xpPerDifficultyPoint` or `xpBandFactor`), so no preview states the whole.
+- *The sweep.* `diff` of the trial's copy and `m9-v115-s13-2026-10-04.md`: the title, the start time,
+  the replay's row, the timings and the DL-74 rows that read them (with the replay's `advance` row
+  added), the trial's highest-Level line and the Party table's heading; nothing else. Both fingerprints
+  `e7ae171001c2…6369f369`. Recomputed against the close: failed 27,384 / 403,168 = 6.792% and strong
+  72.683% against 5.136% and 76.455% (+1.66, −3.77 points); Deaths 0.214 against 162 / 943.6 = 0.172
+  a Guild-year (+24.6%), Injuries 3.626 against 2.884 (+25.7%); Upkeep 45,664.3 / 61,150.1 = 74.7% and
+  56,166.8 / 64,003.0 = 87.8%, −18.7% and −4.5%; the Wealth +46.8% and +117.6%; folds 2.74 − 5.44 =
+  −2.70; `advance` 7.405 / 5.028 = +47%, the games 1,751.7 / 1,267.1 = +38%; the save 144,371,849 /
+  137,606,607 = +4.9% and / 119,338,444 = +21%; 1,983.7 − 1,751.7 = 232.0 s; 584 minutes against 448.
+  The memory readings (a scratch file, not kept) were not checked.
+- *The record.* DL-184 is accurate but where this verification adds to it: its "the box's 100-seed run
+  was not run" is now run, above. Every file keeps its endings, one to a file: the source and
+  `CONTEXT.md` CRLF in the working tree, the decision log, the epic and the report LF, the repository's
+  copies LF throughout (`core.autocrlf`).
+- *Checks.* `npm run edit -- traits doctor`: no drift (110 reads), the doc fresh, the content passing, no
+  pending edits, after the guard and at the close. `npm run lint` and `npm run typecheck` clean. `npm
+  test`: 185 files, 4,831 tests (one added), all passing, the eslint-based tests within their time.
+  `npm run build -w web`: check-bundle passing, the script 816,059 bytes (S13's 816,044). `e2e` not
+  run: no page changed. The Transfer Generator's test in its 100-seed mode twice, each alone.
+
+**For the owner** (from the verification).
+1. *The Rivals' Rosters with the split.* On the test content the mean Rival Roster at a year's end is
+   9.17 over 100 seeds and each year's median sits at the range's top, 8, in years 4 to 7; in the
+   harness's games the mean at a year-start is 7.69 (5.71 before) and each year's mean above 8 in years
+   7 to 16. The range is no cap, so nothing is broken, but M6-S3's box, as DL-59 read it, now holds by
+   each year's median only, at its edge: one more change that enriches the Rivals will fail it. Whether
+   a Rival's Roster should be capped, or the box read by median alone, belongs with the economy pass
+   (#51).
+   *Answered by the owner, 2026-10-04 (DL-185):* no Guild's Roster is capped, each growing as far as
+   its finances support; the box's checks at the range's top are removed, and the Transfer
+   Generator's own bound is kept for now only to constrain testing load, to be removed (backlog).
+
+---
+
+## DL-185 — v1.1.5's re-close: the owner's answers since DL-182 (the light glow kept, #51's comments posted, #52's calls 4 and 6 built and 8 deferred, no Roster capped); the direction button named by its action, an earned Trait's `among` read over its own pool, the Roster checks at the range's top removed; every check passing, the estimate probe equal to the close's to the digit, and S13's sweep standing as the closing sweep
+
+**Status:** Accepted; the re-close complete and verified, the release awaiting the owner · **Date:** 2026-10-04 ·
+**Decided by:** the owner (decisions 1 to 4, quoted as the orchestrator relayed them); the fixes,
+their tests, the checks and the readings marked as the agent's, by the agent, as part of S10 (the
+epic's §0, item 15).
+
+**Context.** DL-182 reopened v1.1.5 for S14 (DL-183) and S13 (DL-184), then a short re-close: a review
+of S13's and S14's commits with its findings fixed test first, every check, the estimate probe again,
+and this record. At `8d9241d` (S13 verified) four answers had come back from the owner, and the
+re-close's review had found four wording faults in the record.
+
+### The owner's decisions since DL-182
+
+1. **The light glow: kept.** DL-183's verification gave the light scheme's tile glow at 2.75:1 at the
+   pixel just outside the ring and 3.78:1 on its inner side, with a fainter glow as the other way.
+   The owner: "keep as is". S14's glow stands as built; DL-183's reading noted.
+2. **#51's comments A and B approved and posted** by the orchestrator:
+   <https://github.com/talonegg/heroesim/issues/51#issuecomment-5977905987> (A, the split-XP trial and
+   the owner's decision) and
+   <https://github.com/talonegg/heroesim/issues/51#issuecomment-5977906130> (B, the rule's outcome and
+   its override). DL-181's and DL-182's "to be posted" are done.
+3. **#52: judgement calls 4 and 6 built now, call 8 deferred.** The owner: "do #52 comment 1, 2,
+   don't need 3 yet", and then "Build them now in v1.1.5". Calls 4 (the direction button's name) and 6
+   (an earned Trait's `among`) are built here (items 5 and 6 below). Call 8, the replay's cross-check
+   against the sweep's own record of its seed, is deferred and posted nowhere. This amends DL-182 item
+   3's "to #52, as later small fixes" for calls 4 and 6.
+4. **No Guild's Roster is capped.** The owner: "remove guidance for capping guild roster size. rosters
+   can be allowed to grow as large as the finances support it"; asked about the Transfer Generator's
+   own bound (it never makes a move taking a Roster above `rivalRosterMax`, DL-59), "Keep it for now";
+   and, clarifying, "the transfer generator cap stays purely for development and constraining testing
+   load for now, will remove this in the future (backlog item)". So:
+   - no Guild's Roster is capped; a Roster grows as far as its Guild's finances support;
+   - `rivalRosterMin` to `rivalRosterMax` stays the range a Rival's starting Roster is drawn from, and
+     `rivalRosterMin` the floor below which a Rival hires by need (DL-60);
+   - the Generator's own move rule (`transferBid`, DL-59) stays, kept **only as a development measure
+     to constrain testing load**, not as a game rule or the design's intent; its removal is a backlog
+     item, in `docs/plan.md` §4. No GitHub issue is opened here: that is the orchestrator's, with the
+     owner;
+   - this answers DL-184's "For the owner" item 1 (the Rivals' Rosters with the split, and whether a
+     Rival's Roster should be capped).
+
+### The review's findings
+
+The re-close's review of S13's and S14's commits (`545a2d1..8d9241d`) found no defect in code. Its four
+findings were wording, each fixed here:
+- **(i) "No draw moves" was too broad.** The split adds no draw and moves none in the resolver, but
+  through slower Levels a game takes fewer draws from the `progression` stream (each Level's growth
+  draws there, `phases/level-ups.ts`), so the later draws there fall differently. The epic's §2
+  ("Streams and events") and S13's rule now say so, and a pointer at DL-184 item 1 says it beside it,
+  DL-184's body otherwise as it was. The closing sweep always measured the shipped line, so no figure
+  changes.
+- **(ii) The Transfer Generator test's opening comment** said each year's median and the mean stay
+  within the range; fixed with item 7 below.
+- **(iii) The Gate's "The XP split"** said "Parties of one to three and a Death"; the tests hold one to
+  five (DL-184). It now says "one to five".
+- **(iv) Forward pointers to DL-182** were missing at DL-148 item 19 ("decided after the balance
+  pass's numbers") and at DL-180's "For the owner" item 2 ("Whether to split XP … is yours"). Each now
+  says that the owner settled it (DL-182 item 1), shipped as S13 (DL-184).
+
+### What was built
+
+5. **#52's call 4: the Roster's direction button named by its action, then its state.** Test first:
+   `roster.test.tsx`'s "names the direction's button by its action, then its state, the shown words
+   kept and its tooltip read once" and `selectors.test.ts`'s "names the direction's button by its
+   action, then the direction it is in" failed (no button of that name; `reverseOrderName` not a
+   function), then:
+   - `selectors.ts`: the direction's words are built once as a phrase for inside a sentence
+     (`orderPhrase`: `default order`, `reversed`, `A to Z`, `Warrior first`, `highest first`, `at the
+     Hall first`), `orderWords` being its `capitalised()` form, the shown words unchanged; and
+     `reverseOrderName` gives the button's name: `Reverse the order, now A to Z`, `Reverse the order,
+     now highest first`, `Reverse the order, now Warrior first`. A Class's name and "A to Z" keep their
+     capitals inside the sentence (a term, and the letters), the rest is lower case (`ui-text.md`
+     rules 2 to 4), and the name begins with a capital.
+   - `roster.tsx`: the button (`roster__direction`, its `data-testid` kept) takes its `aria-label` from
+     it. Its arrow and shown words stand in a `span` (`roster__direction-shown`) that is `aria-hidden`
+     and carries the tooltip "Reverse the order", W3's way (DL-181): the tooltip stays a mouse's and is
+     not read again after the name. `styles.css` lays the `span` out as the button laid them out
+     (`inline-flex`, the button's 0.45rem gap).
+   - The tests: the name in each state (the default, A to Z, Z to A after a press, Highest first), the
+     shown words unchanged, the button bearing no `title`, its tooltip on an `aria-hidden` part; in the
+     selector, every key both ways, the shown words contained in the name whatever their case, so that
+     a voice naming what it sees finds the button (WCAG 2.5.3). The capitals guard passes.
+   - `e2e`: the one locator of the button is its `data-testid`, with `toHaveText('Lowest first')`
+     (`layout.spec.ts`), still true; none finds it by name.
+6. **#52's call 6: an earned Trait's `among` read over its own pool.** Test first:
+   `resolve.test.ts`'s "a negative Trait's `bottom` among ranks those the Encounter injured, so the
+   weakest Hero, unhurt there, is passed over; its two draws as before" failed (no Trait granted: read
+   over the whole Party, the `bottom` named the weakest Hero, whom the Encounter had not injured), then:
+   - `harm.ts`: `namedIn(pool, among, party)`, those of `pool` that `among` names, read over `party`'s
+     members in `pool`, and none when it names none of them. `narrowed` (S4's) now calls it and keeps
+     its own fallback, all of the pool when none is named, so an Injury reads as before.
+   - `resolve.ts`'s `earn`: `named` is `namedIn(pool, among, partyNow(…))` over the Trait's own pool,
+     the living Party for a positive Trait and those this Encounter injured for a negative one. As
+     before, when `among` names none of the pool the Trait falls on no one (an earned Trait has no
+     fallback; the agent's reading, keeping what DL-159 built). The draws' number and order are
+     unchanged: `next`, then `pick` or `next`, whether or not anyone is named.
+   - The tests: Party order Strength 12, 4 and 8; the Injury's `among` the strongest, so the first
+     Hero is injured; the Trait's `among` `["bottom", "party", 1, ["stat", "strength"]]`. Over 20 seeds
+     it lands on the first Hero, and the stream is the twin's six draws on (one Check, the Injury's
+     three, the Trait's two). Beside it, a guard that passed before and after: a positive Trait's
+     `bottom` still names the weakest of the living Party, its pool. The other earned-Trait tests
+     (`among` naming no one, the two draws) pass unchanged.
+   - *No play changes.* A scan of every content file for a `kind: "trait"` consequence finds content
+     32's eight, none with an `among`, so `named` is `undefined` and `earn` runs exactly as before.
+     `quests-conclude.test.ts`'s three History fingerprints (S13's, `ae34d056…`, `83073fb4…`,
+     `20a8de88…`) pass unchanged.
+   - `content-types.ts`'s `TraitConsequence` and `earn`'s doc comment say where `among` is read.
+7. **No Roster capped: the checks at the range's top removed** (`transfer-generator.test.ts`).
+   - Removed: over the four seeds, "the median of every year-end at or below `rivalRosterMax`"; and,
+     under `HEROESIM_HARNESS`, "each year's median at or below `rivalRosterMax`" (S13's verification's
+     guard, DL-184). Kept: `expectWithinTheRule`, the Generator's own Transfers within the range; and
+     the floor: each year's median, and the median and the mean of every year-end, at `rivalRosterMin`
+     or above, a Rival below it hiring by need.
+   - The test is now "the Roster-size distribution across Rivals keeps to the generation range's
+     floor, and is not capped at its top". Its comment, which said each year's median and the mean stay
+     within the range (finding ii), now says what is held and why, how the box's reading moved (DL-59,
+     DL-157, DL-184, this entry) and the box's figures; the file's head says the same, and
+     `expectWithinTheRule`'s comment that the top is the Generator's bound alone, kept for testing
+     load. It passes over its four seeds.
+   - The words that read the range as a cap, or the Generator's bound as a rule, now say decision 4:
+     `config.ts`'s comment on `rivalRosterMin` and `rivalRosterMax` (a comment only, `configVersion`
+     13); `transferBid`'s comment (`controllers/rival.ts`); `CONTEXT.md`'s Roster ("No Guild's Roster
+     is capped …") and Transfer Generator; and `docs/plan.md` §4, the backlog item. Neither
+     `docs/requirements.md` nor the epic names a cap, and #51's scope names none in `docs/plan.md` or
+     the epic, so nothing there was removed. DL-184's "For the owner" gains a pointer here; its body is
+     as it was.
+   - *The agent's reading:* the harness's automatic player buys a Hero only while its Roster is below 8
+     (its policy, INPUTS 4.14). That is the policy's choice, not a rule of the game, and changing it
+     would change the play the closing sweep measured, so it is left as it is (for the owner, below).
+
+### The checks
+
+Run on the working tree at `8d9241d` with the changes above, each alone, nothing else of ours running
+(the owner's Playwright test-server left running, 15 MiB):
+- `npm run edit -- traits doctor` before the changes and after the checks: no drift, the register
+  listing all 110 reads of a Trait; `docs/agents/traits.md` fresh; the content passing; no pending
+  edits.
+- `npm run typecheck`: clean. `npm run lint`: clean.
+- `npm test`: 185 files, 4,835 tests, all passing (163.8 s; 4,831 at S13's verification, 4 added: two
+  in `resolve.test.ts`, one in `selectors.test.ts`, one in `roster.test.tsx`); the two eslint-based
+  tests within their time.
+- `npm run e2e -w web`: 103 passed (50.8 s), the Roster's and the glow's layout specs among them. Its
+  build's check-bundle passes; the script is 816,412 bytes (`index-C73V2Mtc.js`) against 850 kB, 353
+  over S13's 816,059 (the new selector and the button's name).
+- *The estimate probe,* on the shipped content, content 32, alone:
+  `HEROESIM_PROBE=estimate HEROESIM_MILESTONE=m9-v115-reclose-estimate npm run harness`, 483.5 s, the
+  harness test passing. The report, `harness/reports/m9-v115-reclose-estimate-2026-10-04.md`, is
+  force-added. **It equals the close's to the digit** (`m9-v115-close-estimate-2026-10-04.md`): `diff`
+  finds only the run's line, its time and 483.5 s against 491.5 s. So, as at the close: with no one
+  falling every chance is within 2 points, the widest 1.18 (`estimate-0070`'s Encounter 4, Success or
+  better), none beyond; with Morale in, the Quest's bands and success within 3 points, the widest 1.61
+  (`estimate-0169`'s success), none beyond; the Encounters' gaps reported, not held, 23.65 (Degrees)
+  and 4.64 (Success or better), 8 beyond 3. As the epic expected: XP is given after a Quest's
+  Encounters (`questsConclude`) and no Check of the same Quest reads it, so S13's split does not reach
+  the probe; and item 6 reads only an `among` that no content Trait has, and draws as before.
+
+### The closing sweep's standing
+
+**S13's sweep stands as v1.1.5's closing sweep** (`harness/reports/m9-v115-s13-2026-10-04.md`, every
+seed's last save `e7ae171001c2…6369f369`, `seed-0001` replayed identical at 144,371,849 characters,
+DL-184). It is not run again. *The agent's reading,* by each change of this re-close:
+- *Item 5* is the page: a selector's words and a button's name, read by no engine, harness or content.
+- *Item 6* changes `earn` only where a Trait consequence has an `among`. Content 32 has none (the scan
+  above), so `named` is `undefined` and every game takes the same path with the same draws as in S13's
+  sweep. `narrowed`, now calling `namedIn`, gives the same Heroes for every input (its tests in
+  `harm.test.ts` and S4's in `resolve.test.ts` pass unchanged).
+- *Item 7* changes a test and comments.
+- *Held by tests:* `quests-conclude.test.ts`'s three History fingerprints, S13's, unchanged and
+  passing; `play.test.ts` plays a seed twice alike; and the probe above, equal to the digit.
+- `git diff 8d9241d` touches, under `engine/src/`, only `harm.ts`'s `namedIn`, `earn`'s one line and
+  comments; nothing under `content/`, `harness/src/` or `tools/`.
+
+### The Gate, read on S13's sweep, but the release
+
+- *The memory:* met (DL-174, DL-175; the replay's own memory, DL-181's E3, at 1,501 MiB in S13's
+  sweep).
+- *`partyFor`'s real gain:* met (DL-175). *The new player:* met (DL-176, DL-177). *Each play change
+  measured alone:* met (DL-178, DL-179).
+- *Rare Traits:* read on the closing sweep, S13's: 2.178 Traits earned a player's Hero career against
+  the baseline of 2.32 (S5's, DL-179), the difference, −0.144, the split's, explained (DL-184: fewer
+  strong successes keep slightly fewer positive Traits, and a Hero goes on fewer Quests); the Rivals'
+  1.259 against 1.13. Met as the Gate states it.
+- *The estimate:* met, both held checks passing on the shipped content (the probe above).
+- *The words:* met (DL-172), and S13's words for XP (DL-184). *The Board:* met (DL-170, DL-181). *The
+  Roster:* met (DL-171, DL-181), with the direction button's name (item 5).
+- *The split-XP trial:* met (DL-180), none of its scratch counter in the patch (DL-184).
+- *The XP split:* met (DL-184): held by tests with Parties of one to five and a Death, its words, and
+  S13's sweep playing DL-180's trial games by fingerprint.
+- *Unique Items on the Roster:* met (DL-183), the gold pair at 3:1 in light and dark; the light glow's
+  outer pixel kept by the owner (decision 1).
+- *The rule for what follows:* applied at the close (DL-181) and overridden by the owner (DL-182 item
+  2). For information, S13's sweep counts 0 of 50 player Guilds bankrupt, below 3 to 7 (the close's
+  12, S3's 13). The DL-83 targets, for information, as DL-184 reads them: item 2, Bankruptcies 0%,
+  below 5 to 15%; item 21, the Roster's mean Level after 10 years 8.34, inside 8 to 10; item 5, Rival
+  folds 2.74 a game, inside 1.5 to 3.5; items 3, 4, 6 and 7 still off; item 22 not counted. For #51,
+  in the backlog.
+- *Traits:* met, the doctor reporting no drift before and after this re-close, which touches
+  `engine/src/`.
+- *The checks:* met (above): lint, typecheck, `test` and `e2e -w web` passing, among them the layout
+  specs of the Table, its panel and tabs and S14's glow at 360 and 390px in light and dark; the script
+  816,412 bytes, under 850 kB.
+- *The release:* not met; the owner's.
+
+**For the owner.**
+1. *The release* (DL-124; the epic's S10; the steps as DL-181's "For the owner" item 1 gives them).
+2. *The Transfer Generator's bound:* a backlog item in `docs/plan.md` §4 (decision 4). A GitHub issue
+   for it is the orchestrator's to raise with you.
+3. *#52:* calls 4 and 6 are built here; call 8 is deferred and unposted; #52 still holds E4, E7 and W3.
+4. *The agent's readings,* to change or keep: the button's name reads "Reverse the order, now …", the
+   state's words lower case inside it but for a Class's name and "A to Z"; an earned Trait whose
+   `among` names none of its pool falls on no one, as before (an Injury's falls back to its whole
+   pool); and the harness player's own "Roster below 8" purchase rule is left, a policy and not a game
+   rule.
+
+**Actioned in:** `web/src/state/selectors.ts`, `selectors.test.ts`; `web/src/views/roster.tsx`,
+`roster.test.tsx`; `web/src/styles.css`; `engine/src/quest-engine/harm.ts`, `resolve.ts`,
+`resolve.test.ts`; `engine/src/content-types.ts` (a comment); `engine/src/config.ts` (a comment);
+`engine/src/controllers/rival.ts` (a comment); `engine/src/controllers/transfer-generator.test.ts`;
+`CONTEXT.md` (Roster, Transfer Generator); `docs/plan.md` §4 (v1.1.5's entry, the backlog item); the
+pointers at DL-148 item 19, DL-180's "For the owner", DL-184 item 1 and DL-184's "For the owner";
+`harness/reports/m9-v115-reclose-estimate-2026-10-04.md` (force-added);
+`docs/planning/epics/v1.1.5-release.md` (the Gate's XP split, S13's rule, §2, "Deliberately not",
+S10's re-close box, the status); `docs/planning/epics/README.md`'s v1.1.5 row.
+
+**The verification** (a second Opus agent, at `7b3e9d3`; the closing sweep not run again). What was
+built is the owner's answers as recorded; nothing changes play, which one game played at both commits
+shows; every check passes; nothing to fix.
+- *Call 4, the direction button.* `reverseOrderName` gives "Reverse the order, now …" for every key both
+  ways (`selectors.test.ts`), the shown words `orderWords`, `capitalised(orderPhrase(…))`, unchanged in
+  every state; the button carries the name as its `aria-label` and no `title`, its arrow and words in an
+  `aria-hidden` `span` with the tooltip, so nothing is read twice; the name begins with a capital, Class
+  names, "Hall" (a term) and "A to Z" keep theirs mid-sentence, the rest lower case (`ui-text.md` rules
+  1 to 4). Mutated, each put back: the `aria-label` removed, the `title` put back on the button, the
+  `span` not `aria-hidden`, the name as the state alone, and the phrase capitalised mid-sentence each
+  fail the new tests; the shown words lower-cased fail six Roster tests and the capitals guard. The one
+  `e2e` locator is the `data-testid`, its "Lowest first" still true.
+- *Call 6, an earned Trait's `among`.* `namedIn` is `narrowed`'s old body less its fallback, and
+  `narrowed` is that plus the fallback, so an Injury's Heroes are the same for every input. `earn` still
+  draws `next`, then `pick` or `next`, in every branch; `namedIn` and `membersOf` draw nothing, and
+  `partyNow` is called under the same condition as before. Mutated, each put back: `among` read over the
+  whole living Party fails the new test; the Injury's fallback taken into `earn` fails the two "names no
+  one" tests; skipping the second draw when none is named fails the two-draws test; `narrowed` without
+  its fallback fails three of `harm.test.ts`'s and S4's tests, and over the whole Party five, the new
+  Trait test among them. A scan of
+  every JSON file under `content/` (its `dist/` too) finds eight `kind: "trait"` consequences, all in
+  `encounters.json`, none with an `among`. `quests-conclude.test.ts` is unchanged since `dacf83b`, its
+  three History fingerprints passing.
+- *No Roster capped.* The test's two checks at the top went (the median of every year-end, and under
+  the harness flag each year's median, at or below `rivalRosterMax`); `expectWithinTheRule` and the
+  floor's three checks stay. `grep` of the code and docs (this log aside) for `rivalRosterMax`, a cap
+  or a ceiling finds the range read only as the starting range, the floor and the Generator's own bound:
+  `config.ts`, `transferBid`'s comment, `CONTEXT.md`'s Roster and Transfer Generator, `docs/plan.md`'s
+  backlog item and the test agree; `transfers.test.ts`'s "the range's ceiling" is the Generator's
+  bound; `INPUTS-REQUIRED.md` already said "no Roster cap" (DL-30, DL-83 item 28); no other cap on a
+  Roster exists in `engine/src`, `web/src` or `cli/src`. The harness policy's `rosterLimit` 8 is DL-185's
+  reading, unchanged.
+- *The closing sweep's standing.* `git diff dacf83b..7b3e9d3 -- engine/ content/` (nothing under
+  `content/`, `harness/src/`, `tools/` or `cli/`): comments; `namedIn`, unreached by content 32 as
+  above; and `8d9241d`'s share of 0 for a Party of no Heroes, which `dispatch` never sends (every
+  template's `partySizeMin` 1 or more). Played to be sure, alone, `HEROESIM_SEEDS=1 HEROESIM_YEARS=20`:
+  `seed-0001` at `7b3e9d3` with the replay, identical at 144,371,849 characters, S13's sweep's length;
+  and with `dacf83b`'s `harm.ts` and `resolve.ts` (put back after): both last saves
+  `14f2cd1374eb…f1aa3809`, and every counter of the two reports equal, only the timings and the replay
+  differing. Neither report kept. S13's sweep stands.
+- *The probe.* `diff` of `m9-v115-close-estimate-2026-10-04.md` and
+  `m9-v115-reclose-estimate-2026-10-04.md`: the run line alone.
+- *Checks,* each alone: `npm run edit -- traits doctor` before and after, no drift (110 reads), the doc
+  fresh, the content passing, no pending edits. `npm run lint` and `npm run typecheck` clean. `npm
+  test`: 185 files, 4,835 tests, all passing (164.5 s), the eslint-based tests within their time. `npm
+  run e2e -w web`: 103 passed (50.9 s), check-bundle passing, the script 816,412 bytes.
+- *The Gate,* walked again: as read above, every bullet met but the release; the evidence for the
+  checks, the estimate, the Traits and the closing sweep is this verification's own.
+- *The record.* DL-185 is accurate. Every changed file keeps one ending (`git ls-files --eol`: the
+  repository's copies LF; the source, `CONTEXT.md`, `docs/plan.md` and the epics README CRLF in the working
+  tree, the log, the epic and the report LF). `git status` clean before this entry.
+- *For the owner, two readings* (no change made):
+  1. An earned Trait's `among` ranks its pool before asking who may take it (`mayEarn`, a Trait already
+     drawn on the Quest), so a `bottom` naming a Hero who already holds the Trait gives it no one,
+     where an Injury's, whose pool is already those it can hurt, goes to the next. The comments' "ranks
+     only the Heroes it can fall on" means the pool. Reached by no content today; ranking over those
+     who may take it is the other way, if content comes to want it.
+  2. The button's tooltip is on its shown part, so the button's padding shows none (W3's way, as the
+     Table's tooltips).
 
 ---
 

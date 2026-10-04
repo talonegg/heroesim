@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { availableParallelism } from 'node:os';
 import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand } from '@heroesim/engine';
+import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import {
   controllerKinds,
@@ -62,6 +62,23 @@ describe('sweepPlay', () => {
   test('plays the first seed twice more and finds the two byte-identical', () => {
     expect(sweep.workers).toBe(1);
     expect(sweep.replay).toMatchObject({ seed: 'seed-0001', identical: true, advance: { count: 60 } });
+  });
+
+  // S10, the close review: nothing held that the replay finds two saves that differ. The replay's second
+  // game (`prepare`'s third call: the sweep's game, then the replay's two) is given its player's Guild a
+  // name one letter different, of the same length, so that only the saves' contents tell the two apart.
+  test('finds the replay not identical when its second game differs by one character of the save', () => {
+    let calls = 0;
+    const prepare = (document: WorldDocument): void => {
+      calls += 1;
+      if (calls !== 3) return;
+      const guild = Object.values(document.world.guilds).find((each) => each.controller.kind === 'player');
+      if (guild === undefined) throw new Error("no player's Guild");
+      guild.name = `${guild.name.slice(0, -1)}${guild.name.endsWith('x') ? 'y' : 'x'}`;
+    };
+    const changed = sweepPlay(['seed-0001'], deps, { years, prepare });
+    expect(calls).toBe(3);
+    expect(changed.replay).toMatchObject({ seed: 'seed-0001', identical: false, length: changed.games[0]?.measures.serialisedLength });
   });
 
   test('plays the same games when it shares the seeds among child processes', { timeout: 120_000 }, async () => {
@@ -240,6 +257,11 @@ describe('sweepPlay', () => {
     expect(summed.partySizes.player).toEqual({ 2: { quests: 4, fail: 2, strong: 2, xpPerHero: 180, heroesHome: 6, xpTaken: 300 } });
     expect(summed.traitsGainedByKey).toEqual({ player: { lame: 2 }, rival: {} });
     const report = playReport(parties, { deps, machine: machine(), startedAt: new Date(2026, 9, 3, 12), milestone: 'm9-v114-s10' });
+    // v1.1.5-S13 (DL-182): the heading says the XP is split across the Party sent.
+    expect(report).toContain(
+      "with the XP each Hero who came home took (`xpPerHero`: the Quest's XP split across the Party sent, its Dead counted, rounded down, v1.1.5-S13, DL-182) and the XP the Party took in all, a Quest:",
+    );
+    expect(report).not.toContain('XP is not split');
     expect(report).toContain('| Controller: Party size | Quests resolved | Failed | Strong | XP a Hero | XP the Party took |');
     expect(report).toContain("| The player's Guild: 2 | 4 (100.0%) | 50.0% | 50.0% | 45.0 | 75.0 |");
     expect(report).toContain("| The player's Guild: every size (mean 2.00) | 4 (100.0%) | 50.0% | 50.0% | 45.0 | 75.0 |");

@@ -32,7 +32,8 @@ play and stays in the History.
 _Avoid_: Adventurer, Character, Unit, Employee
 
 **Roster**:
-The set of Heroes a Guild currently employs.
+The set of Heroes a Guild currently employs. No Guild's Roster is capped: it grows as far as its
+Guild's finances support (DL-185).
 _Avoid_: Team, Squad, Stable
 
 **Party**:
@@ -221,10 +222,12 @@ _Avoid_: Perk, Flaw, Buff, Modifier (as a noun)
 **Earned Trait**:
 A Hero Trait a Hero gains on a Quest, rarely. A positive one is drawn on an Encounter's Triumph
 and kept only if the Quest ends a strong success; a negative one falls only on a Hero injured by
-the same failed Encounter. At most one a Hero a Quest, none held already nor one that conflicts with
-one held, and each a Milestone, as is a Trait lost to an Injury's (DL-148 items 25 to 27, DL-150 item
-5; v1.1.4-S7). Which it is, positive or negative, is where content lists it: in an Encounter's
-Triumph consequences or its Failure ones.
+the same Encounter at the Degree Failure. It reads the Degree, not "failed" as a reroll does, which
+takes in a Setback: a Hero hurt at a Setback earns none. At most one a Hero a Quest, none held
+already nor one that conflicts with one held, and each a Milestone, as is a Trait lost to an
+Injury's (DL-148 items 25 to 27, DL-150 item 5, DL-168 item 5; v1.1.4-S7, v1.1.5-S8). Which it is,
+positive or negative, is where content lists it: in an Encounter's Triumph consequences or its
+Failure ones.
 _Avoid_: Perk, Achievement, Level-up
 
 **Trait budget**:
@@ -247,7 +250,9 @@ raises Stats along the Class's growth profile.
 _Avoid_: Rank, Tier, Grade
 
 **XP**:
-Experience points, earned from Quests and training, that raise a Hero's Level.
+Experience points, earned from Quests and training, that raise a Hero's Level. A Quest's XP is
+split across the Party sent, its Dead counted: each Hero who comes home takes an equal share,
+rounded down, and a Hero who dies takes none, their share lost (v1.1.5-S13, DL-182).
 _Avoid_: Experience (alone), Points, Growth
 
 **Potential**:
@@ -384,8 +389,11 @@ _Avoid_: Condition, Fitness, Mood
 How likely harm on a Quest is to fall on a Hero rather than another. An Injury or a Death may name
 the Heroes it falls on, a Set Query (`among`), and the Stats that expose to it (`exposedBy`): of
 those it can fall on, the less of those Stats' range a Hero has, the likelier it is them: the
-weakest three times as likely as the strongest at the first `exposureRange`. When `among` names no one it can fall on, any of them may be
-hit, so leaving the front rank at home dodges nothing (DL-148 item 14; built in v1.1.4-S4, DL-155).
+weakest three times as likely as the strongest at the first `exposureRange`. `among` is read over
+those it can fall on, so an Injury on the weakest falls on the weakest unhurt Hero, passing over one
+already hurt; a Death's over the living Party (DL-168 item 6; built in v1.1.5-S4, DL-178). When
+`among` names no one it can fall on, any of them may be hit, so leaving the front rank at home
+dodges nothing (DL-148 item 14; built in v1.1.4-S4, DL-155).
 _Avoid_: Aggro, Threat, Targeting
 
 **Guard**:
@@ -412,19 +420,21 @@ _Avoid_: Result, Grade, Tier
 
 **Chance band**:
 The word an estimated chance is shown in: Hopeless below 10%, Unlikely to 35%, Even to 65%, Likely
-to 90% and Near certain from 90% (`chanceBands`). The estimate reads what each Check reads of a
-proposed Party as it will come home, its Morale, Regard and Injuries moved by each night away, on
-the Quest's own Encounters, drawn when it was posted. It reads the Guild as it is when the Party
-sets out, and assumes no one falls: no Hero hurt or killed on the way, and no Morale moved by an
-Encounter. So the words come with "if no one falls", and the numbers stay in the detail (DL-148
-item 15; built in v1.1.4-S5, DL-156; shown from v1.1.4-S6).
+to 90% and Near certain from 90% (`chanceBands`). The numbers in the detail are floored to a
+multiple of 5, between 5 and 95 unless the chance is 0 or 1, which show 0 and 100 (DL-157, DL-168
+item 10). The estimate reads what each Check reads of a proposed Party as it will come home, its
+Morale, Regard and Injuries moved by each night away, on the Quest's own Encounters, drawn when it
+was posted. It reads the Guild as it is when the Party sets out, and assumes no one falls: no Hero
+hurt or killed on the way, and no Morale moved by an Encounter. So the words come with "if no one
+falls", and the numbers stay in the detail (DL-148 item 15; built in v1.1.4-S5, DL-156; shown from
+v1.1.4-S6).
 _Avoid_: Odds (for the word), Rating, Difficulty
 
 **Best Party**:
 The Party the engine would send on a Quest from a Guild's free Heroes (`partyFor`): first those its
 Class and Skill requirements take, then whoever most raises the estimated chance of success up to
-its least Party size, then each Hero who raises it by at least the Guild's **Party margin**, up to
-its greatest. A Rival sends it, at its Disposition's margin; the Board shows the player's, "Your best
+its least Party size, then each Hero who raises it by more than the Guild's **Party margin** (v1.1.5-S6,
+DL-175), up to its greatest. A Rival sends it, at its Disposition's margin; the Board shows the player's, "Your best
 Party", at the configuration's `playerPartyMargin`, and the harness's policy sends that (DL-148 item
 17, v1.1.4-S6, DL-157).
 _Avoid_: Strongest Party, Optimal Party, Recommended Party
@@ -704,7 +714,9 @@ _Avoid_: Stackable, Generic item, Commodity
 An Item that is an individual, magical, special or belonging to a Campaign, with exactly one
 holder at a time. By DL-125 it shows its picture beside its name, or a chest's Silhouette until it
 has one, in the Stores, the Market's Sell and a Hero's Gear (built in v1.1.2-S2, DL-129). No Unique
-Item has a picture yet, so each shows the Silhouette.
+Item has a picture yet, so each shows the Silhouette. Since v1.1.5-S14 (DL-182, DL-183) the Roster's
+Tiles show it too, before its name in its Item's chip, and a Hero who carries one has a thin gold glow
+around their tile, and around their row in the Roster's Table, which shows no picture.
 _Avoid_: Artefact, Legendary, Named item
 
 **Unattached Hero**:
@@ -732,7 +744,9 @@ _Avoid_: Cooldown, Embargo
 
 **Transfer Generator**:
 The weekly night rule by which Rivals bid for one another's Heroes. It never takes from the
-player's Guild, an accepted exception to ADR-0002 (plan §1, DL-59).
+player's Guild, an accepted exception to ADR-0002 (plan §1, DL-59). Its own bids keep both Rosters
+within the range a Rival is generated with: a bound on the Generator alone, not a cap on any Roster,
+kept for now only to constrain testing load and to be removed (DL-185, in the backlog).
 _Avoid_: Transfer window, Trade market
 
 **Fame**:

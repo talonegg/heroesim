@@ -188,7 +188,8 @@ describe('questsConclude', () => {
 
   test('moves Wealth, Fame and XP by the outcome, the XP to every Hero who came home', () => {
     const deps = soloDeps();
-    for (const difficulty of [1, 40, 5000]) {
+    // From 2: since v1.1.5-S13 a Party of two splits the XP, and a Quest of 1 gives each Hero none.
+    for (const difficulty of [2, 40, 5000]) {
       const { eve, guildId, heroIds } = sentAway(`moves-${difficulty}`, deps, { difficulty });
       const guildBefore = guildOf(eve.world, guildId);
 
@@ -211,6 +212,34 @@ describe('questsConclude', () => {
       withValid({ ...eve, world }, deps);
     }
   });
+
+  // v1.1.5-S13 (DL-182 item 1): the Quest's XP split across the Party sent, its Dead counted.
+  for (const rival of [false, true]) {
+    test(`gives each Hero who came home the Quest's XP split across the Party sent, the dead Hero nothing: ${rival ? "a Rival's" : "the player's"} Party`, () => {
+      const deps = rival ? testDeps({ rivalCount: 1 }, certainHarmContent) : soloDeps({}, certainHarmContent);
+      if (rival) stillRivalControllers();
+      const { eve, guildId, heroIds } = sentAway(rival ? 'split-rival' : 'split', deps, { rival, size: 3, difficulty: 5000, encounterKeys: oneEncounter });
+      expect(guildOf(eve.world, guildId).controller.kind).toBe(rival ? 'rival' : 'player');
+
+      const { world, events } = concludeAlone(eve, deps);
+
+      const outcome = ofType(events, 'quest.resolved')[0]?.payload;
+      if (outcome === undefined) throw new Error('Not resolved');
+      // One failed Encounter: a failure, one Hero dead, and 5,000 × 1 × 0.5 XP split by the three sent.
+      expect(outcome.band).toBe('fail');
+      expect(deps.config.xpPerDifficultyPoint * deps.config.xpBandFactor.fail).toBe(0.5);
+      expect(outcome.xpPerHero).toBe(Math.floor(2500 / 3));
+      expect(outcome.deaths).toHaveLength(1);
+      const [deadId] = outcome.deaths;
+      const survivors = heroIds.filter((id) => id !== deadId);
+      expect(survivors).toHaveLength(2);
+      for (const heroId of survivors) expect(hero(world, heroId).xp).toBe(hero(eve.world, heroId).xp + 833);
+      expect(hero(world, deadId as HeroId).xp).toBe(hero(eve.world, deadId as HeroId).xp);
+      expect(ofType(events, 'hero.xp-gained').map((event) => event.payload)).toEqual(
+        survivors.map((heroId) => ({ heroId, questId: outcome.questId, amount: 833 })),
+      );
+    });
+  }
 
   test('a Hero who dies leaves the Roster, keeps their row and Guild, and is indexed in the History by the Milestone', () => {
     const deps = soloDeps({}, certainHarmContent);
@@ -907,8 +936,9 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
 
   test("a Level a Party's Hero gains on the night of the return follows the Quest's XP: away, they trained for none", () => {
     const deps = soloDeps();
-    const { eve, heroIds, quest } = sentAway('levelled-home', deps, { difficulty: 1 });
-    // One XP short of Level 2 on the eve, so only the Quest's XP brings the Level.
+    const { eve, heroIds, quest } = sentAway('levelled-home', deps, { difficulty: 2 });
+    // One XP short of Level 2 on the eve, so only the Quest's XP brings the Level: a Quest of 2, split
+    // between the two Heroes sent, gives each 1 (v1.1.5-S13).
     for (const heroId of heroIds) hero(eve.world, heroId).xp = xpForLevel(2, deps.config) - 1;
 
     const { document, events } = playTo(withValid(eve, deps), eve.world.turn + 1, deps);
@@ -963,11 +993,14 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     // `checkVariance` 0.4 (DL-165), which changes every Quest; its balance pass then tunes the Checks'
     // factors, the Triumph, the share of Triumphs, form and the earned Traits' chances (DL-166): these
     // are its fingerprints. S6's were 00de1d95…, db199b7c… and c5519e67…; before the balance pass,
-    // 6ba3f040…, d1b90581… and a72002b4…, the third's game unchanged by it.
+    // 6ba3f040…, d1b90581… and a72002b4…, the third's game unchanged by it. v1.1.5-S13 splits a Quest's
+    // XP across the Party sent (DL-182, DL-184), which changes each `hero.xp-gained`'s amount and with it
+    // the Levels, their Stats and the wage: these are its fingerprints. Before it, f1e65b3b…, 096c92a2…
+    // and a72002b4….
     expect(fingerprints).toEqual([
-      'f1e65b3b9056560ede5de290762634b269f16cb55c2747a021462a2acb9564c3',
-      '096c92a2385d20caf681ce2a8729defa1b0618ae6ffbf4beb69f22e5dd79989f',
-      'a72002b40e33c8f79d5f33d38331a699a5f231917209cc06b9e1a9a81369790b',
+      'ae34d056cde2b428a3063c3e47ac28aa5b5d7e1fc31b2a3c9e39a1bf0fc170a7',
+      '83073fb4443fdb744f1bcf491b49960a7db4b70c93cfe3baba41e86e426dd11d',
+      '20a8de88e861bf65c27897fdedaace1f0b21073a52625bf6e76cb7a6f582a251',
     ]);
   });
 

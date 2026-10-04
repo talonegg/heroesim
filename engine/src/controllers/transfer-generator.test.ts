@@ -18,6 +18,12 @@ import { testDeps, withEncounters } from '../world.test-support.js';
 //    `rivalRosterMax`);
 // 2. the player's Roster is never changed by the Transfer Generator's phase.
 //
+// The first box's distribution is held, since v1.1.5's re-close (DL-185), by its floor alone: no
+// Guild's Roster is capped, and a Roster grows as far as its Guild's finances support (the owner's
+// answer). The Generator's own moves are still held within the range (`expectWithinTheRule`), a bound
+// kept for now only as a development measure, to constrain testing load, and to be removed (backlog,
+// DL-185).
+//
 // The sweep: each seed is a default world, four Rivals dealt the four Dispositions (DL-56), the player
 // idle and rich (its Guildmaster young enough not to retire), played Turn by Turn on the one world, in
 // place, as M6-S1's and M6-S4's tests are (DL-56, DL-58). The `transfers` phase is watched: each run
@@ -197,7 +203,9 @@ const appetiteOf = (with_: EngineDeps, disposition: DispositionKey | null): numb
  * What every Transfer the Generator makes must be, in any world: between two Rivals, the one taking
  * the Hero with the greater appetite or, of two alike, the tie-break's; the Roster it takes from left
  * at `rivalRosterMin` or above and the one it gives to at `rivalRosterMax` or below, so that its own
- * moves never take a Roster out of the generation range.
+ * moves never take a Roster out of the generation range. The bound at the top is the Generator's
+ * alone, no cap on a Roster, kept for now only to constrain testing load, to be removed (backlog,
+ * DL-185).
  */
 function expectWithinTheRule(watch: Watch, with_: EngineDeps): void {
   const { rivalRosterMin: min, rivalRosterMax: max } = with_.config;
@@ -224,25 +232,30 @@ describe(`the Transfer Generator over ${seeds.length} seeds × ${years} years (M
     if (harness) expect(tallies.reduce((sum, tally) => sum + tally.transfers.length, 0)).toBeGreaterThan(0);
   });
 
-  test('the Roster-size distribution across Rivals stays within the generation range', () => {
-    const { rivalRosterMin: min, rivalRosterMax: max } = deps.config;
-    // The Generator's own moves never take a Roster out of the range (`expectWithinTheRule`, above).
-    // At every year's end, across the seeds' Rivals in play, the distribution's median lies within
-    // the range, and so does the mean of every year's: Deaths, Retirements, recruits, the afternoon's
-    // Transfers and folds move single Rosters out of it, which the Generator does not undo (DL-59), but
-    // not the distribution. From v1.1.4-S6 a year's own mean is not held: a Rival choosing its Party by
-    // the estimate earns more, and one of the sixteen here hired to 18 Heroes, moving its years' means
-    // to 8.125 with the median at 7 (DL-157).
+  test("the Roster-size distribution across Rivals keeps to the generation range's floor, and is not capped at its top", () => {
+    const { rivalRosterMin: min } = deps.config;
+    // The Generator's own moves never take a Roster out of the range (`expectWithinTheRule`, above), a
+    // bound kept for now only to constrain testing load, to be removed (backlog, DL-185). At every
+    // year's end, across the seeds' Rivals in play, the distribution's median lies at the range's floor
+    // or above, and so does the mean of every year-end: Deaths, Retirements, the afternoon's Transfers
+    // and folds take single Rosters below it, which the Generator does not undo (DL-59), and a Rival
+    // below the floor hires back towards it by need (DL-60), so the distribution does not fall below it.
+    // Above the range nothing is held: no Guild's Roster is capped, and a Roster grows as far as its
+    // Guild's finances support (the owner's answer at v1.1.5's re-close, DL-185). DL-59 read the box as
+    // each year's median and mean within the range; v1.1.4-S6 dropped a year's mean (DL-157), v1.1.5-S13
+    // the median of the four seeds' years (DL-184), and DL-185 every check at the top. With the XP split
+    // (DL-182, DL-184) the Rivals here keep more Heroes: over the box's hundred seeds the mean of every
+    // year-end is 9.17 and the largest 33, each year's median reaching 8, the range's top, in years 4 to
+    // 7 (S13's verification, DL-184).
     const every: number[] = [];
     for (let year = 0; year < years; year += 1) {
       const sizes = tallies.flatMap((tally) => tally.yearEnds[year] ?? []);
       expect(sizes.length, `year ${year + 1}`).toBeGreaterThan(0);
       expect(median(sizes), `year ${year + 1} median`).toBeGreaterThanOrEqual(min);
-      expect(median(sizes), `year ${year + 1} median`).toBeLessThanOrEqual(max);
       every.push(...sizes);
     }
+    expect(median(every)).toBeGreaterThanOrEqual(min);
     expect(mean(every)).toBeGreaterThanOrEqual(min);
-    expect(mean(every)).toBeLessThanOrEqual(max);
   });
 
   test("the player's Roster is never changed by the phase, on any night of twenty years", () => {

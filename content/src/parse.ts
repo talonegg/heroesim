@@ -123,8 +123,11 @@ export const contentSetId = 'core';
  * 31 from the content editor's Finish of 2026-10-03 (4 uses assigned, of wayfinder, battle-tried,
  * silver-tongued, lettered; 4 uses unassigned, of wayfinder, battle-tried, silver-tongued,
  * lettered).
+ * 32 from the content editor's Finish of 2026-10-04 (4 uses assigned, of battle-tried, wayfinder,
+ * silver-tongued, lettered; 4 uses unassigned, of battle-tried, wayfinder, silver-tongued,
+ * lettered).
  */
-export const contentVersion = 31;
+export const contentVersion = 32;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [

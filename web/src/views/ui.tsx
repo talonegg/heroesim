@@ -10,6 +10,7 @@
 
 import type { MoraleBand, RegardBand } from '@heroesim/engine';
 import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
+import type { SortDirection } from '../state/selectors';
 import { Icon, type IconName } from './icons';
 
 /** Words read by assistive technology and not shown. */
@@ -71,12 +72,43 @@ export const regardTones: Readonly<Record<RegardBand, Tone>> = {
   close: 'good',
 };
 
-/** A short fact in a rounded frame, with an icon beside its words when it has one. */
-export function Chip({ tone = 'plain', icon, children, title }: { tone?: Tone; icon?: IconName; children: ReactNode; title?: string }) {
+/**
+ * A short fact in a rounded frame, with an icon beside its words when it has one. `spoken`, when
+ * given, is what a screen reader reads in place of the words shown, as the Board's "Away" is read
+ * with its Day (v1.1.5-S11, DL-169 item 2); its `title` is then on the words shown, which the screen
+ * reader skips, so that a tooltip saying what `spoken` says is not read twice (v1.1.5-S10). `picture`,
+ * when given, stands before the words: a Unique Item's on a Roster tile (v1.1.5-S14), hidden from the
+ * screen reader as it is everywhere.
+ */
+export function Chip({
+  tone = 'plain',
+  icon,
+  picture,
+  children,
+  title,
+  spoken,
+}: {
+  tone?: Tone;
+  icon?: IconName;
+  picture?: ReactNode;
+  children: ReactNode;
+  title?: string;
+  spoken?: string;
+}) {
   return (
-    <span className={`chip chip--${tone}`} title={title}>
+    <span className={`chip chip--${tone}`} title={spoken === undefined ? title : undefined}>
       {icon === undefined ? null : <Icon name={icon} />}
-      <span>{children}</span>
+      {picture}
+      {spoken === undefined ? (
+        <span>{children}</span>
+      ) : (
+        <>
+          <span aria-hidden="true" title={title}>
+            {children}
+          </span>
+          <span className="visually-hidden">{spoken}</span>
+        </>
+      )}
     </span>
   );
 }
@@ -246,9 +278,6 @@ export function useDismiss(open: boolean, close: () => void, within: RefObject<H
   }, [open, close, within, trigger]);
 }
 
-/** Which way a column orders its table: A to Z, lowest first; or highest first. */
-export type Direction = 'ascending' | 'descending';
-
 /**
  * A column's heading that orders its table by the column (M9-S6, the review's B4 and B8): marked
  * `aria-sort` while the table is in its order. What the order is and what it does is the selector's.
@@ -261,7 +290,7 @@ export function SortHeader({
   className,
 }: {
   label: string;
-  direction: Direction;
+  direction: SortDirection;
   active: boolean;
   onSort: () => void;
   className?: string;
@@ -389,6 +418,27 @@ export function useReturn(): { opened: (id: string) => void; closed: () => void 
       if (opener.current !== null) setBack({ id: opener.current });
     },
   };
+}
+
+/** A phone's width, as the style sheet's own breakpoint writes it: under 600px. */
+export const narrowQuery = '(max-width: 599px)';
+
+/**
+ * Whether the page is a phone's width, under 600px (v1.1.5-S12): for what a phone shows in place of
+ * what a wide screen does, as the Roster's Table shows tabs for its Columns panel. `false` where the
+ * browser cannot say.
+ */
+export function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => globalThis.matchMedia?.(narrowQuery).matches ?? false);
+  useEffect(() => {
+    const query = globalThis.matchMedia?.(narrowQuery);
+    if (query === undefined) return undefined;
+    const changed = (): void => setNarrow(query.matches);
+    changed();
+    query.addEventListener('change', changed);
+    return () => query.removeEventListener('change', changed);
+  }, []);
+  return narrow;
 }
 
 /** A tab: its key, which names its panel, and its words. */

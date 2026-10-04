@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { content } from '../content';
-import { cameHome, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withTraitNews, withWorldNews, type Named } from '../state/game.test-support';
+import { cameHome, carrying, carryingUnique, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withTraitNews, withWorldNews, type Named } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { poolView } from '../state/trade-views';
 import { closeMenu, openGuildPart, openMenu, openView, rosterList, section, time, type GuildPartName, type ViewName } from './page.test-support';
@@ -150,7 +150,10 @@ function busyGame(): { state: GameState; gone: Named[] } {
   const signing = poolView(out.document as WorldDocument).rows.find((row) => row.willSign === true);
   if (signing === undefined) throw new Error('no Hero in the pool who signs');
   const recruited = played(out, { kind: 'recruit', heroId: signing.heroId });
-  const offered = withOlderRules(withOffer(holding(holdingUnique(recruited, 'barrow-kings-blade'), 'whetstone', 2)));
+  // v1.1.5-S12: an Item a Hero carries, on their tile and in the Roster's Table; v1.1.5-S14: a Unique Item
+  // carried, its picture on their tile and the gold glow on their tile and their row.
+  const carried = carryingUnique(carrying(recruited, 'arming-sword', 'weapon'), 'lantern-of-stannary', 'trinket');
+  const offered = withOlderRules(withOffer(holding(holdingUnique(carried, 'barrow-kings-blade'), 'whetstone', 2)));
   const { document } = offered;
   if (document === null) throw new Error('no game in hand');
   const offerIds = Object.keys(document.world.offers) as OfferId[];
@@ -180,6 +183,43 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     fireEvent.click(within(within(pooled as HTMLElement).getByRole('rowheader')).getByRole('button'));
     reader.read('A Hero’s page in the pool');
     fireEvent.click(screen.getByRole('button', { name: 'Back to the pool' }));
+    // The Roster's Table, its Columns panel open, and the "Sort by" dropdown and its direction (v1.1.5-S12).
+    const roster = section('Roster');
+    fireEvent.click(within(within(roster).getByRole('group', { name: 'Show the Roster as' })).getByRole('button', { name: 'Table' }));
+    fireEvent.click(within(roster).getByRole('button', { name: 'Columns' }));
+    expect(within(roster).getByRole('table', { name: 'Heroes on the Roster' })).toBeDefined();
+    expect(within(roster).getByRole('group', { name: 'Columns' })).toBeDefined();
+    expect(within(roster).getByRole('combobox', { name: 'Sort by' })).toBeDefined();
+    // A Hero carrying a Unique Item, their row glowing (v1.1.5-S14).
+    expect(within(roster).getByRole('table', { name: 'Heroes on the Roster' }).querySelector('tr.carries-unique')).not.toBeNull();
+    reader.read('The Roster’s Table and its Columns');
+    fireEvent.change(within(roster).getByRole('combobox', { name: 'Sort by' }), { target: { value: 'free' } });
+    reader.read('The Roster’s Table, by when free');
+    // And on a phone, its tabs, each opened.
+    const wide = Object.getOwnPropertyDescriptor(globalThis, 'matchMedia');
+    Object.defineProperty(globalThis, 'matchMedia', {
+      configurable: true,
+      value: (query: string) => ({ matches: query === '(max-width: 599px)', media: query, addEventListener: () => undefined, removeEventListener: () => undefined }),
+    });
+    try {
+      openView('Board');
+      const phone = openView('Roster');
+      for (const tab of within(within(phone).getByRole('tablist', { name: 'Columns of the Table' })).getAllByRole('tab')) {
+        fireEvent.click(tab);
+        reader.read(`The Roster’s Table on a phone, ${tab.textContent ?? ''}`);
+      }
+    } finally {
+      if (wide === undefined) Reflect.deleteProperty(globalThis, 'matchMedia');
+      else Object.defineProperty(globalThis, 'matchMedia', wide);
+    }
+    openView('Board');
+    fireEvent.click(within(within(openView('Roster')).getByRole('group', { name: 'Show the Roster as' })).getByRole('button', { name: 'Tiles' }));
+    // The tiles' Traits and Items among what was read.
+    expect(within(rosterList()).getAllByTitle('Trait').length).toBeGreaterThan(0);
+    expect(within(rosterList()).getByText('Arming sword')).toBeDefined();
+    // And a Unique Item's picture on a glowing tile (v1.1.5-S14).
+    expect(rosterList().querySelector('.carries-unique [data-testid="item-picture"]')).not.toBeNull();
+    expect(within(rosterList()).getByText('The Lantern of Stannary')).toBeDefined();
     // The Offer asked about.
     fireEvent.click(within(section('Transfer Offers')).getByRole('button', { name: /^Accept .*…$/ }));
     reader.read('The Offer');
@@ -190,6 +230,9 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     const [choose] = within(board).getAllByRole('button', { name: 'Choose a Party' });
     fireEvent.click(choose as HTMLElement);
     reader.read('The Party builder');
+    // Its short chips among what was read, the injured Hero's and the Party out's (v1.1.5-S11).
+    expect(within(board).getAllByText('Injured').length).toBeGreaterThan(0);
+    expect(within(board).getAllByText('Away').length).toBeGreaterThan(0);
     // With a Hero chosen, its Morale line too (v1.1.4-S3).
     const [pick] = within(board).getAllByRole('checkbox').filter((box) => !(box as HTMLInputElement).disabled);
     fireEvent.click(pick as HTMLElement);

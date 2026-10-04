@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { dispatchRefusal, unmetRequirements, type DispatchAction } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
@@ -15,6 +15,26 @@ import { deepFreeze, harmlessContent, testContent, testDeps, withDispositions, w
 import { applyGuildAction, type GuildAction } from '../actions/action.js';
 import { availableHeroes, bestParty, partyFor, rivalChoices, staffableQuests } from './rival.js';
 import { estimateQuest } from '../quest-engine/estimate.js';
+
+// v1.1.5-S6 (DL-175): a test may name the chance of success by the size of the Party, in place of
+// the estimate, to set a gain exactly; none set, `questEstimator` is the real one. `asked` counts the
+// Parties so weighed (v1.1.5-S6's verification).
+const chances = vi.hoisted(() => ({ bySize: null as ((size: number) => number) | null, asked: 0 }));
+vi.mock('../quest-engine/estimate.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../quest-engine/estimate.js')>();
+  return {
+    ...real,
+    questEstimator: (...args: Parameters<typeof real.questEstimator>) => {
+      const estimate = real.questEstimator(...args);
+      return (heroes: Parameters<typeof estimate>[0], carried?: Parameters<typeof estimate>[1]) => {
+        if (chances.bySize === null) return estimate(heroes, carried);
+        chances.asked += 1;
+        const success = chances.bySize(heroes.length);
+        return { success, bands: { strong: success } } as unknown as ReturnType<typeof estimate>;
+      };
+    },
+  };
+});
 
 // M2-S9: the Rivals' choices (INPUTS 4.12, DL-30), read off a world, which they change only by the
 // draws they take from `rivals`; from M6-S1 one rule reading each Disposition's weights (INPUTS 7.5,
@@ -106,7 +126,7 @@ function chanceOf(world: World, quest: Quest, heroes: readonly Hero[], deps: Eng
  * The Party DL-148 item 17's greedy rule names, worked out here from `estimateQuest` alone, a fresh
  * estimate for every Party weighed (v1.1.4-S6): the Heroes the requirements take, each the one who
  * most raises the chance of success; then the one who most raises it up to `partySizeMin`; then the
- * one who most raises it while it raises it by `margin` or more, up to `partySizeMax`. Ties go to
+ * one who most raises it while it raises it by more than `margin`, up to `partySizeMax`. Ties go to
  * the better chance of a strong success, then the lower Hero id.
  */
 function greedyParty(world: World, quest: Quest, available: readonly Hero[], deps: EngineDeps, margin: number): HeroId[] | null {
@@ -138,7 +158,7 @@ function greedyParty(world: World, quest: Quest, available: readonly Hero[], dep
   let chance = chanceOf(world, quest, party, deps)[0];
   while (party.length < partySizeMax && rest().length > 0) {
     const next = pick(rest());
-    if (next.chance[0] - chance < margin) break;
+    if (!(next.chance[0] - chance > margin)) break;
     party.push(next.hero);
     chance = next.chance[0];
   }
@@ -227,11 +247,23 @@ describe('which Heroes: the greedy rule by the chance estimate (v1.1.4-S6)', () 
         const expected = greedyParty(world, quest, availableHeroes(world, rival), deps, partyMargin);
         expect(action?.heroIds, `${disposition} at ${partyMargin}`).toEqual(expected);
         sizes.set(partyMargin, [...(sizes.get(partyMargin) ?? []), expected?.length ?? 0]);
+        // v1.1.5-S6's verification: at 0 a Party stops short of the most the Quest takes only when no
+        // Hero left raises its chance at all.
+        if (partyMargin === 0 && expected !== null && expected.length < quest.requirements.partySizeMax) {
+          const party = expected.map((id) => world.heroes[id] as Hero);
+          const chance = chanceOf(world, quest, party, deps)[0];
+          for (const hero of availableHeroes(world, rival).filter((it) => !expected.includes(it.id))) {
+            expect(chanceOf(world, quest, [...party, hero], deps)[0], `${disposition} with ${hero.id}`).toBeLessThanOrEqual(chance);
+          }
+        }
       }
     }
     // The margin decides how many go: at 0 each Hero who raises the chance at all, at 1 the fewest.
     expect(sizes.get(1)).toEqual([1, 1, 1, 1]);
-    expect(sizes.get(0)?.every((size) => size > 1)).toBe(true);
+    // (v1.1.5-S6: a Party already sure of the Quest gains nothing from a Hero, so it is not always more than one.)
+    expect(sizes.get(0)?.some((size) => size > 1)).toBe(true);
+    // And some stop short here, so the check of a Party stopped short above is exercised.
+    expect(sizes.get(0)?.some((size) => size < 4)).toBe(true);
     for (const [margin, counted] of sizes) {
       const looser = margins.filter((it) => it < margin).map((it) => sizes.get(it) ?? []);
       for (const other of looser) counted.forEach((size, index) => expect(size).toBeLessThanOrEqual(other[index] ?? 0));
@@ -250,6 +282,70 @@ describe('which Heroes: the greedy rule by the chance estimate (v1.1.4-S6)', () 
         greedyParty(world, quest, available, deps, playerPartyMargin),
       );
     }
+  });
+
+  // v1.1.5-S6 (DL-175, R1): past the minimum size a Hero joins only for more than the margin.
+  describe('a Hero joins only for more than the margin (v1.1.5-S6)', () => {
+    /**
+     * On a Quest of one to four places, the chance of success a function of the Party's size: how many
+     * go, how many Parties were weighed, and how many Heroes could go.
+     */
+    function weigh(playerPartyMargin: number, bySize: (size: number) => number): { size: number; asked: number; available: number } {
+      const deps = testDeps({ playerPartyMargin });
+      const { world } = createWorld('gain-strict', setup, deps).document;
+      const guild = playerGuild(world) as Guild;
+      const [quest] = openBoard(world, [80], [1, 4]) as [Quest];
+      const available = availableHeroes(world, guild);
+      chances.bySize = bySize;
+      chances.asked = 0;
+      try {
+        const size = (partyFor(world, guild, quest, available, deps) as HeroId[]).length;
+        return { size, asked: chances.asked, available: available.length };
+      } finally {
+        chances.bySize = null;
+      }
+    }
+    /** How many go, as `weigh`. */
+    function sent(playerPartyMargin: number, bySize: (size: number) => number): number {
+      return weigh(playerPartyMargin, bySize).size;
+    }
+
+    test('at a margin of 0 a Hero who raises the chance by nothing is not added, and one who raises it at all is', () => {
+      expect(sent(0, () => 0.5)).toBe(1);
+      expect(sent(0, (size) => (size === 1 ? 0.5 : 0.5 + 2 ** -30 * (size - 1)))).toBe(4);
+      expect(sent(0, (size) => (size <= 2 ? 0.5 * size : 0.5 + 0.0 * size))).toBe(2);
+    });
+
+    test('at a margin of 0.05 a gain of exactly 0.05 is not added, and one above it is', () => {
+      // 0.05 - 0 is 0.05 to the bit (a subtraction of zero is exact), so the gain is the margin itself.
+      expect(0.05 - 0).toBe(0.05);
+      expect(sent(0.05, (size) => (size === 1 ? 0 : 0.05))).toBe(1);
+      expect(sent(0.05, (size) => (size === 1 ? 0 : 0.05 + 2 ** -30))).toBe(2);
+      // Each further Hero is judged by its own gain: 0.05 after the one who went by more than it, again
+      // exact to the bit.
+      expect(0.0625 + 0.05 - 0.0625).toBe(0.05);
+      expect(sent(0.05, (size) => [0, 0, 0.0625, 0.0625 + 0.05, 0.0625 + 0.05][size] as number)).toBe(2);
+    });
+
+    test('at a margin of 1 no Hero joins past the minimum, even for the whole of the chance', () => {
+      expect(sent(1, (size) => (size === 1 ? 0 : 1))).toBe(1);
+    });
+
+    // v1.1.5-S6's verification: the loop's guard. No Hero can raise the chance by more than what is
+    // left of it below 1, so once that is the margin or less no Hero past the minimum is weighed: only
+    // the first place's, one Party each.
+    test('once what is left of the chance is not more than the margin, no Hero past the minimum is weighed', () => {
+      for (const [margin, chance] of [[0, 1], [0.5, 0.5], [0.05, 1]] as const) {
+        const { size, asked, available } = weigh(margin, () => chance);
+        expect(available, `${margin}`).toBeGreaterThan(1);
+        expect(size, `${margin}`).toBe(1);
+        expect(asked, `${margin}`).toBe(available);
+      }
+      // What is left more than the margin, the next place's Heroes are weighed too, and none goes.
+      const { size, asked, available } = weigh(0.5 - 2 ** -30, () => 0.5);
+      expect(size).toBe(1);
+      expect(asked).toBe(available + available - 1);
+    });
   });
 
   test('adds first the Hero who most raises the chance, however the Roster is ordered', () => {

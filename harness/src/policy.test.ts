@@ -4,6 +4,8 @@ import {
   advance,
   applyAction,
   availableHeroes,
+  bestParty,
+  compareByCodeUnit,
   createWorld,
   defaultConfig,
   gearChoices,
@@ -20,12 +22,31 @@ import {
   type EngineDeps,
   type Guild,
   type GuildAction,
+  type Hero,
+  type HeroId,
   type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { harnessSetup } from './creation.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
+
+// The chance the policy reads of a Quest's Party, `bestParty`'s estimate, set by a test when it
+// sets `chances.of` (v1.1.5-S2): the Party is still the engine's, and only its chance of success is
+// answered, from the Quest and the Party, as the estimate's is. Unset, or answering `undefined`, it is
+// the real estimate, as in every other test.
+const chances = vi.hoisted(() => ({ of: null as ((quest: Quest, heroIds: readonly HeroId[]) => number | undefined) | null }));
+vi.mock('@heroesim/engine', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@heroesim/engine')>();
+  return {
+    ...real,
+    bestParty: (...args: Parameters<typeof real.bestParty>): ReturnType<typeof real.bestParty> => {
+      const found = real.bestParty(...args);
+      const success = found === null || found.estimate === null ? undefined : chances.of?.(args[2], found.heroIds);
+      return found === null || found.estimate === null || success === undefined ? found : { ...found, estimate: { ...found.estimate, success } };
+    },
+  };
+});
 
 // M2-S12: the harness's automatic policy (INPUTS 4.14, DL-34) against the core content. The
 // Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults. The
@@ -73,7 +94,29 @@ const noBuilding: PolicyConfig = { ...defaultPolicyConfig, buildWealthMultiple: 
 
 afterEach(() => {
   vi.restoreAllMocks();
+  chances.of = null;
 });
+
+/** Makes every Quest of `quests` alike to the first in what the estimate reads, so that a Party's chance is the same on each. */
+function alike(quests: Quest[]): void {
+  const [first] = quests;
+  if (first === undefined) throw new Error('No Quest');
+  for (const quest of quests) {
+    quest.difficulty = first.difficulty;
+    quest.encounterKeys = [...first.encounterKeys];
+    quest.durationTurns = first.durationTurns;
+  }
+}
+
+/** The chance of success the policy reads of `quest`'s Party from `heroes`: `bestParty`'s estimate's, held to at most 1 as `partyFor` holds it. */
+function chanceOf(document: WorldDocument, guild: Guild, quest: Quest, heroes: readonly Hero[], given: EngineDeps = deps): number {
+  const found = bestParty(document.world, guild, quest, heroes, given);
+  if (found === null) throw new Error(`No Party for ${quest.id}`);
+  return Math.min(1, found.estimate?.success ?? 0);
+}
+
+/** `heroes` without those sent in `heroIds`. */
+const without = (heroes: readonly Hero[], heroIds: readonly HeroId[]): Hero[] => heroes.filter((hero) => !heroIds.includes(hero.id));
 
 describe('automaticPolicy', () => {
   test('draws no random number and changes nothing: the document serialises as before, and it chooses alike twice', () => {
@@ -95,9 +138,10 @@ describe('automaticPolicy', () => {
     expect(automaticPolicy(document, deps, noBuilding)).toEqual(noBuild);
   });
 
-  test('breaks a tie of rewards by the lower Quest id, and a tie of fees by the lower Hero id, whatever the order it meets them in', () => {
+  test('breaks a tie of chances and rewards by the lower Quest id, and a tie of fees by the lower Hero id, whatever the order it meets them in', () => {
     const { document, guild, quests } = scene();
     openBoard(quests);
+    alike(quests);
     for (const quest of quests) quest.reward = 100;
     // The Board in reverse id order, so that its own order would give the other answer.
     document.world.board = [...document.world.board].sort().reverse();
@@ -115,9 +159,10 @@ describe('automaticPolicy', () => {
     expect(recruits(actions)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: lowest?.id }]);
   });
 
-  test('sends the Party the engine’s staffing rule names, by the chance estimate (v1.1.4-S6), to the highest reward first', () => {
+  test('sends the Party the engine’s staffing rule names, by the chance estimate (v1.1.4-S6), of equal chances to the highest reward first', () => {
     const { document, guild, quests } = scene();
     openBoard(quests);
+    alike(quests);
     const best = quests.at(-1) as Quest;
 
     const [first] = automaticPolicy(document, deps);
@@ -131,9 +176,10 @@ describe('automaticPolicy', () => {
     expect(fewer?.kind === 'dispatch' && fewer.heroIds).toHaveLength(2);
   });
 
-  test('keeps sending Parties while it has Heroes, each to the next reward, no Hero twice', () => {
+  test('keeps sending Parties while it has Heroes, of equal chances each to the next reward, no Hero twice', () => {
     const { document, guild, quests } = scene();
     openBoard(quests);
+    alike(quests);
 
     const sent = dispatches(automaticPolicy(document, fewest));
 
@@ -146,6 +192,7 @@ describe('automaticPolicy', () => {
   test('passes over a Quest it cannot staff for the next, and sends no unavailable Hero', () => {
     const { document, guild, quests } = scene();
     openBoard(quests);
+    alike(quests);
     const [hurt] = guild.rosterIds;
     const hero = hurt === undefined ? undefined : document.world.heroes[hurt];
     if (hurt === undefined || hero === undefined) throw new Error('No Hero');
@@ -156,6 +203,131 @@ describe('automaticPolicy', () => {
 
     expect(sent[0]?.questId).toBe(quests.at(-2)?.id);
     expect(sent.flatMap((action) => action.heroIds)).not.toContain(hurt);
+  });
+
+  describe('chooses its Quests by their chance (v1.1.5-S2, DL-168 item 2)', () => {
+    /**
+     * The Board opened and its Quests alike at `base`, the first's difficulty, then the first eased to
+     * half of it and the rest made half as hard again: the first the likeliest and the lowest reward.
+     */
+    function likeliestLowest() {
+      const { document, guild, quests } = scene();
+      openBoard(quests);
+      alike(quests);
+      const [easy] = quests;
+      if (easy === undefined) throw new Error('No Quest');
+      const base = easy.difficulty;
+      for (const quest of quests) quest.difficulty = base * 1.5;
+      easy.difficulty = base / 2;
+      return { document, guild, quests, easy, base };
+    }
+
+    test('sends a Quest of lower reward and higher chance before one of higher reward', () => {
+      const { document, guild, quests, easy } = likeliestLowest();
+      const top = quests.at(-1) as Quest;
+      const heroes = availableHeroes(document.world, guild);
+      expect(easy.reward).toBeLessThan(top.reward);
+      expect(chanceOf(document, guild, easy, heroes, fewest)).toBeGreaterThan(chanceOf(document, guild, top, heroes, fewest));
+
+      const sent = dispatches(automaticPolicy(document, fewest));
+
+      // The second Party from the Heroes left, to Quests alike: the highest reward of them.
+      expect(sent.map((action) => action.questId)).toEqual([easy.id, top.id]);
+      // At the player's own margin too, the likeliest first.
+      expect(dispatches(automaticPolicy(document, deps))[0]?.questId).toBe(easy.id);
+    });
+
+    test('equal chances go to the higher reward, then the lower Quest id', () => {
+      const { document, guild, quests } = scene();
+      openBoard(quests);
+      alike(quests);
+      const heroes = availableHeroes(document.world, guild);
+      expect(new Set(quests.map((quest) => chanceOf(document, guild, quest, heroes, fewest))).size).toBe(1);
+      const [lowest] = quests;
+      if (lowest === undefined) throw new Error('No Quest');
+      lowest.reward = 500;
+
+      expect(dispatches(automaticPolicy(document, fewest)).map((action) => action.questId)).toEqual([lowest.id, quests.at(-1)?.id]);
+
+      for (const quest of quests) quest.reward = 100;
+      // The Board in reverse id order, so that its own order would give the other answer.
+      document.world.board = [...document.world.board].sort(compareByCodeUnit).reverse();
+      const byId = quests.map((quest) => quest.id).sort(compareByCodeUnit);
+      expect(dispatches(automaticPolicy(document, fewest)).map((action) => action.questId)).toEqual(byId.slice(0, 2));
+    });
+
+    test('passes over the likeliest Quest when it cannot staff it, for the next likeliest', () => {
+      const { document, guild, quests, easy, base } = likeliestLowest();
+      const next = quests[1] as Quest;
+      next.difficulty = base;
+      easy.requirements = { partySizeMin: 4, partySizeMax: 4 };
+      const all = availableHeroes(document.world, guild);
+      expect(chanceOf(document, guild, easy, all, fewest)).toBeGreaterThan(chanceOf(document, guild, next, all, fewest));
+      const [hurt] = guild.rosterIds;
+      const hero = hurt === undefined ? undefined : document.world.heroes[hurt];
+      if (hurt === undefined || hero === undefined) throw new Error('No Hero');
+      hero.injury = { typeKey: 'bruised-ribs', healsOnTurn: 30 };
+      const heroes = availableHeroes(document.world, guild);
+      expect(heroes).toHaveLength(3);
+      expect(bestParty(document.world, guild, easy, heroes, fewest)).toBeNull();
+      expect(chanceOf(document, guild, next, heroes, fewest)).toBeGreaterThan(chanceOf(document, guild, quests.at(-1) as Quest, heroes, fewest));
+
+      const sent = dispatches(automaticPolicy(document, fewest));
+
+      expect(sent[0]?.questId).toBe(next.id);
+      expect(sent.map((action) => action.questId)).not.toContain(easy.id);
+      expect(sent.flatMap((action) => action.heroIds)).not.toContain(hurt);
+    });
+
+    test('makes its second choice from the Heroes the first left, each Quest estimated again', () => {
+      const { document, guild, quests } = scene();
+      openBoard(quests);
+      const [a, b, c] = quests;
+      if (a === undefined || b === undefined || c === undefined) throw new Error('A short Board');
+      document.world.board = [a.id, b.id, c.id];
+      const heroes = availableHeroes(document.world, guild);
+      expect(heroes).toHaveLength(4);
+      const firstParty = partyFor(document.world, guild, a, heroes, fewest) ?? [];
+      const shares = (heroIds: readonly HeroId[]) => heroIds.some((heroId) => firstParty.includes(heroId));
+      // `b`'s Party from every Hero shares one with `a`'s, so that from the Heroes `a` leaves it is another Party.
+      expect(shares(partyFor(document.world, guild, b, heroes, fewest) ?? [])).toBe(true);
+      // `a` the likeliest; `b` next with a Hero `a` takes, and the least likely without; `c` between.
+      // By reward the policy would send `c` then `b`; by the chances read once, `a` then `b`.
+      chances.of = (quest, heroIds) => (quest.id === a.id ? 0.9 : quest.id === b.id ? (shares(heroIds) ? 0.8 : 0.1) : 0.5);
+
+      const sent = dispatches(automaticPolicy(document, fewest));
+
+      expect(sent.map((action) => action.questId)).toEqual([a.id, c.id]);
+      const [first, second] = sent;
+      if (first === undefined || second === undefined) throw new Error('Too few Parties');
+      expect(first.heroIds).toEqual(partyFor(document.world, guild, a, heroes, fewest));
+      expect(second.heroIds).toEqual(partyFor(document.world, guild, c, without(heroes, first.heroIds), fewest));
+      expect(second.heroIds.some((heroId) => first.heroIds.includes(heroId))).toBe(false);
+    });
+
+    test('holds a chance to at most 1, as `partyFor` does: one above it by a sum’s rounding ties with a certain one, and the reward decides', () => {
+      const { document, quests } = scene();
+      openBoard(quests);
+      const [low] = quests;
+      const top = quests.at(-1) as Quest;
+      if (low === undefined) throw new Error('No Quest');
+      chances.of = (quest) => (quest.id === low.id ? 1 + Number.EPSILON : quest.id === top.id ? 1 : 0.5);
+
+      expect(dispatches(automaticPolicy(document, fewest))[0]?.questId).toBe(top.id);
+    });
+
+    test('reads a Quest with no estimate, its Encounters drawn on the way, as a chance of 0', () => {
+      const { document, guild, quests } = scene();
+      openBoard(quests);
+      const top = quests.at(-1) as Quest;
+      const next = quests.at(-2) as Quest;
+      top.encounterKeys = [];
+      expect(bestParty(document.world, guild, top, availableHeroes(document.world, guild), fewest)?.estimate).toBeNull();
+      // Every other Quest unlikely, but likelier than none.
+      chances.of = () => 0.05;
+
+      expect(dispatches(automaticPolicy(document, fewest))[0]?.questId).toBe(next.id);
+    });
   });
 
   test('chooses only what the rules accept, applied in order: a build, or with building out of reach a recruit', () => {
@@ -443,11 +615,12 @@ describe('automaticPolicy', () => {
       const { guild, quests } = scened;
       let { document } = scened;
       openBoard(quests);
-      // Two Quests at the top of the Board, highest reward first: a fight on the road, then a quiet word.
+      // Two Quests the likeliest, in this order (their chances set, v1.1.5-S2): a fight on the road, then a quiet word.
       const [second, first] = quests.slice(-2);
       if (first === undefined || second === undefined) throw new Error('Fewer than two Quests');
       first.encounterKeys = ['ambush-on-the-road', 'the-long-march'];
       second.encounterKeys = ['a-hostile-reeve', 'the-patrons-steward'];
+      chances.of = (quest) => (quest.id === first.id ? 0.9 : quest.id === second.id ? 0.8 : 0.1);
       const vault = { kind: 'guild', id: guild.id } as const;
       addStack(document.world, 'whetstone', 3, vault); // combat: the fight's
       addStack(document.world, 'lockpicks', 3, vault); // stealth: neither's

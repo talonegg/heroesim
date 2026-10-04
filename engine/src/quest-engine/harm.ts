@@ -1,7 +1,9 @@
 // Harm that reads the Stats (v1.1.4-S4, DL-148 item 14, `CONTEXT.md` Exposure and Guard): who an
 // Injury or a Death falls on, and who shrugs it off, follow content's Queries and the Heroes' Stats.
-// - `among`, a Set Query over the Party, names who it may fall on, narrowed to those it can fall on;
-//   when that leaves no one, it falls on any of them (`narrowed`).
+// - `among`, a Set Query, names who it may fall on, read over those it can fall on: an Injury's over
+//   the unhurt living Heroes, so `bottom` 1 takes the weakest unhurt and passes over a weaker Hero
+//   already hurt; a Death's over the living Party (v1.1.5-S4, DL-168 item 6, DL-178). When it names
+//   no one, it falls on any of them (`narrowed`).
 // - `exposedBy` weights the draw of who is hit: 1 + `exposureRange` × (1 − the Hero's mean share of
 //   those Stats' content range), so the weakest are the likeliest (`exposure`).
 // - `guardedBy` scales the chance by 1 − `guardRange` × the chosen Hero's mean share, and a Morale
@@ -61,12 +63,24 @@ export function guard(member: Pick<QueryMember, 'stats'>, statKeys: readonly Sta
 }
 
 /**
- * Of `pool`, the Heroes harm can fall on in Party order, those `among` names of `party`; all of
- * `pool` when there is no `among`, or when it names none of them.
+ * Of `pool`, the Heroes a consequence can fall on in Party order, those `among` names, read over
+ * `party`'s members in `pool` (v1.1.5-S4, DL-178): so a `bottom` or a `top` ranks only the Heroes it
+ * can fall on. None when it names none of them. An earned Trait's `among` is read so too (v1.1.5's
+ * re-close, DL-185), over its own pool, without `narrowed`'s fallback.
+ */
+export function namedIn<Hero extends { id: HeroId }>(pool: readonly Hero[], among: SetQuery, party: QueryParty): Hero[] {
+  const inPool = new Set(pool.map((hero) => hero.id));
+  const over: QueryParty = { ...party, members: party.members.filter((member) => inPool.has(member.hero.id)) };
+  const named = new Set(membersOf(among, over).map((member) => member.hero.id));
+  return pool.filter((hero) => named.has(hero.id));
+}
+
+/**
+ * Of `pool`, the Heroes harm can fall on in Party order, those `among` names (`namedIn`, v1.1.5-S4,
+ * DL-178). All of `pool` when there is no `among`, or when it names none of them.
  */
 export function narrowed<Hero extends { id: HeroId }>(pool: readonly Hero[], among: SetQuery | undefined, party: QueryParty): readonly Hero[] {
   if (among === undefined) return pool;
-  const named = new Set(membersOf(among, party).map((member) => member.hero.id));
-  const within = pool.filter((hero) => named.has(hero.id));
+  const within = namedIn(pool, among, party);
   return within.length === 0 ? pool : within;
 }

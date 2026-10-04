@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
 import { loadContent } from '@heroesim/content/node';
 import {
   append,
@@ -16,7 +17,7 @@ import {
   type HeroId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { regardSnapshot } from './counters.js';
 import { harnessSetup } from './creation.js';
 import { markHistory, measureDocument, playerTransferred, playGame, readAdvance, recordGame, replayingAfterSweep, validatingEveryTurn } from './play.js';
@@ -24,6 +25,12 @@ import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './polic
 import { machine } from './report.js';
 import { summarise } from './stats.js';
 import { playReport } from './sweep.js';
+
+// The engine's `serialise`, watched as it is, to count the saves a game writes (v1.1.5-S1).
+vi.mock('@heroesim/engine', async (importOriginal) => {
+  const engine = await importOriginal<typeof import('@heroesim/engine')>();
+  return { ...engine, serialise: vi.fn(engine.serialise) };
+});
 
 // Ordinary tests, run by `npm test`: a few short games under the automatic policy. The full play
 // sweep is play.harness.test.ts, behind HEROESIM_HARNESS (M2-S12, DL-34).
@@ -153,6 +160,36 @@ describe('playGame observes the World State (M3, DL-40)', () => {
     const pairs = (n: number): number => (n * (n - 1)) / 2;
     const counted = Object.values(game.observations.regardAtCountedYear?.relationships ?? {}).reduce((a, b) => a + b, 0);
     expect(counted).toBe(pairs((playerGuild(game.document.world) as Guild).rosterIds.length));
+  });
+
+  // v1.1.5-S1 (DL-174): writing a 20-year game's save at every year's end took a sixth of its time
+  // and most of its memory. Each year's is counted; the last year's is gzipped from the save
+  // `recordGame` writes once the game stops, the same document.
+  test("the save as each year ends: every year's length as its text's, counted, and the last year's gzipped once the game stops", { timeout: 30_000 }, () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 20 } };
+    const lengths: number[] = [];
+    const watched = playGame('play-a', shortYears, {
+      years: 3,
+      afterAdvance: (_before, after) => {
+        if (after.world.turn % 20 === 0) lengths.push(serialise(after).length);
+      },
+    });
+    expect(watched.observations.saves.map((save) => save.length)).toEqual(lengths);
+    expect(watched.observations.saves.map((save) => save.gzipped)).toEqual([null, null, null]);
+
+    // The save and the loaded save, written again: two texts, and none while the game is played.
+    vi.mocked(serialise).mockClear();
+    const { record } = recordGame('play-a', shortYears, { years: 3 });
+    expect(vi.mocked(serialise)).toHaveBeenCalledTimes(2);
+    const gzipped = gzipSync(serialise(watched.document)).length;
+    expect(record.observations.saves.map((save) => save.length)).toEqual(lengths);
+    expect(record.observations.saves.map((save) => save.gzipped)).toEqual([null, null, gzipped]);
+    expect(record.measures.gzipped).toBe(gzipped);
+
+    // A game stopped short of a year's end gzips no year's save.
+    const short = recordGame('play-a', shortYears, { years: 2.5 }).record;
+    expect(short.observations.saves.map((save) => save.gzipped)).toEqual([null, null]);
+    expect(short.measures.gzipped).toBeNull();
   });
 });
 

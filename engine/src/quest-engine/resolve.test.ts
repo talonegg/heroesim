@@ -72,9 +72,12 @@ interface Scene {
   deps: EngineDeps;
 }
 
-/** The player's first `size` Heroes, Stats all 8, sent through `keys` on a Quest of `difficulty`. */
+/**
+ * The player's first `size` Heroes, Stats all 8, sent through `keys` on a Quest of `difficulty`. A
+ * `size` above the starting Roster's 4 starts the Roster with `size` Heroes.
+ */
 function scene(seed: string, content: ContentSet, keys: string[], { size = 3, difficulty = 40 } = {}): Scene {
-  const deps = testDeps(pinned, content);
+  const deps = testDeps({ ...pinned, ...(size > 4 ? { startingRosterSize: size } : {}) }, content);
   const { world } = createWorld(seed, setup, deps).document;
   const guild = playerGuild(world) as Guild;
   const heroes = guild.rosterIds.slice(0, size).map((id) => world.heroes[id] as Hero);
@@ -212,10 +215,73 @@ describe('resolveQuest', () => {
     const success = resolveQuest(won.world, won.quest, won.party, won.deps).outcome;
     const failure = resolveQuest(lost.world, lost.quest, lost.party, lost.deps).outcome;
 
-    // Two of three: a success, paying 200 × 1.5 × 1.5 × 0.5, gaining 3 + 1 + 1 − 2 Fame and 40 × 1 × 2 × 2 XP.
-    expect(success).toMatchObject({ band: 'success', successes: 2, wealthDelta: 225, fameDelta: 3, xpPerHero: 160 });
-    // One of three: a failure, paying nothing, losing 3 + 1 + 2 + 2 Fame, and half XP times 2.
-    expect(failure).toMatchObject({ band: 'fail', successes: 1, wealthDelta: 0, fameDelta: -6, xpPerHero: 40 });
+    // Two of three: a success, paying 200 × 1.5 × 1.5 × 0.5, gaining 3 + 1 + 1 − 2 Fame and 40 × 1 × 2 × 2
+    // XP, 160, split across the three Heroes sent and rounded down (v1.1.5-S13, DL-182).
+    expect(success).toMatchObject({ band: 'success', successes: 2, wealthDelta: 225, fameDelta: 3, xpPerHero: 53 });
+    // One of three: a failure, paying nothing, losing 3 + 1 + 2 + 2 Fame, and half XP times 2, 40, split by three.
+    expect(failure).toMatchObject({ band: 'fail', successes: 1, wealthDelta: 0, fameDelta: -6, xpPerHero: 13 });
+  });
+
+  // v1.1.5-S13 (DL-182 item 1): the Quest's XP split across the Party sent, each share rounded down.
+  describe('the XP split', () => {
+    const content = contentWith(encounter('pass', true), encounter('miss', false));
+    /** The share each Hero of a Party of 1 to 5 (content's largest) takes of a Quest of 41 through `keys`. */
+    const shares = (keys: string[]) =>
+      [1, 2, 3, 4, 5].map((size) => {
+        const { world, quest, party, deps } = scene(`split-${size}`, content, keys, { size, difficulty: 41 });
+        expect(party.heroIds).toHaveLength(size);
+        return resolveQuest(world, quest, party, deps).outcome;
+      });
+
+    test('divides the XP by the size of the Party sent, rounded down, a Party of one taking it whole: a strong success', () => {
+      const outcomes = shares(['pass', 'pass', 'pass']);
+      expect(outcomes.map((it) => it.band)).toEqual(['strong', 'strong', 'strong', 'strong', 'strong']);
+      // 41 × 1 × 1: 41, 20.5, 13.67, 10.25 and 8.2, each rounded down.
+      expect(outcomes.map((it) => it.xpPerHero)).toEqual([41, 20, 13, 10, 8]);
+    });
+
+    test('and a plain success', () => {
+      const outcomes = shares(['pass', 'pass', 'miss']);
+      expect(outcomes.map((it) => it.band)).toEqual(['success', 'success', 'success', 'success', 'success']);
+      expect(outcomes.map((it) => it.xpPerHero)).toEqual([41, 20, 13, 10, 8]);
+    });
+
+    test('and a failure, its half XP split too', () => {
+      const outcomes = shares(['pass', 'miss', 'miss']);
+      expect(outcomes.map((it) => it.band)).toEqual(['fail', 'fail', 'fail', 'fail', 'fail']);
+      // 41 × 0.5: 20.5, 10.25, 6.83, 5.125 and 4.1, each rounded down; a Party of one loses the half point as before.
+      expect(outcomes.map((it) => it.xpPerHero)).toEqual([20, 10, 6, 5, 4]);
+    });
+
+    test('counts a Hero who dies in the divisor: their share is lost, not passed to those who come home', () => {
+      const deadly = contentWith(encounter('first', true), encounter('deadly', false, [{ kind: 'death', chance: 1 }]), encounter('third', true));
+      for (const [size, share] of [
+        [2, 20],
+        [3, 13],
+      ] as const) {
+        const { world, quest, party, deps } = scene(`split-death-${size}`, deadly, ['first', 'deadly', 'third'], { size, difficulty: 40 });
+
+        const { outcome } = resolveQuest(world, quest, party, deps);
+
+        // Two of three: a success of 40 XP, one Hero dead and `size − 1` home, each taking 40 / `size`.
+        expect(outcome).toMatchObject({ band: 'success', xpPerHero: share });
+        expect(outcome.deaths).toHaveLength(1);
+        expect(share * (size - 1)).toBeLessThan(40);
+      }
+    });
+
+    test('gives a Party of no Heroes a share of 0, not the Infinity of dividing by none, and JSON-safe', () => {
+      // `dispatch` sends no Party below the Quest's `partySizeMin`, which content holds at 1 or more, and
+      // nothing takes a Hero out of a Party; but the estimate's test resolves a Party of no one (a failure
+      // meeting no Encounter), so the resolver keeps taking one (S13's verification, DL-184).
+      const { world, quest, party, deps } = scene('split-empty', content, ['pass']);
+
+      const { outcome } = resolveQuest(world, quest, { ...party, heroIds: [] }, deps);
+
+      expect(outcome.band).toBe('fail');
+      expect(outcome.xpPerHero).toBe(0);
+      expect(JSON.parse(JSON.stringify(outcome)).xpPerHero).toBe(0);
+    });
   });
 
   test("sums the Encounters' Morale and Regard into the outcome", () => {
@@ -822,6 +888,109 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
     }
   });
 
+  // v1.1.5-S4 (DL-168 item 6, E3, DL-178): an Injury's `among` is read over the unhurt living Heroes,
+  // then gives the Heroes it names among them; a Death's, over the living Party, as before.
+  describe('an Injury on the next-weakest unhurt Hero (v1.1.5-S4)', () => {
+    const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
+    const strongestThree: SetQuery = ['top', 'party', 3, ['stat', 'strength']];
+    /** Sets the Heroes' Strength, in order. */
+    const strengths =
+      (...values: number[]) =>
+      (heroes: Hero[]): void => {
+        heroes.forEach((hero, index) => (hero.stats['strength'] = values[index] ?? 8));
+      };
+
+    // The epic's first box: the weakest hurt by one Encounter, or by the count before, the next falls on the next weakest.
+    test('with the weakest hurt, a `bottom` Injury falls on the next weakest unhurt, its three draws a count as before', () => {
+      for (let seed = 0; seed < 20; seed += 1) {
+        // Party order 12, 4, 8: the weakest second, the next weakest third.
+        const h = harmed(`next-weakest-${seed}`, [failing('first', [injury({ among: weakest })]), failing('second', [injury({ among: weakest })])], {
+          set: strengths(12, 4, 8),
+        });
+        h.quest.lootTableKey = null;
+        const twin = structuredClone(streamOf(h.world, 'quests'));
+        const [first, second] = h.resolve().encounters;
+        expect([first?.injured, second?.injured]).toEqual([[h.heroes[1]?.id], [h.heroes[2]?.id]]);
+        // Each Encounter one Check's draw, then the Injury's three.
+        for (let draw = 0; draw < 2 * (1 + 3); draw += 1) next(twin);
+        expect(streamOf(h.world, 'quests')).toEqual(twin);
+
+        const counted = harmed(`next-weakest-count-${seed}`, [failing('both', [injury({ count: 3, among: weakest })])], { set: strengths(12, 4, 8) });
+        expect(counted.resolve().encounters[0]?.injured).toEqual([counted.heroes[1]?.id, counted.heroes[2]?.id, counted.heroes[0]?.id]);
+      }
+    });
+
+    test('a `top` 3 with one of the three strongest hurt names the three strongest unhurt', () => {
+      const hit = new Set<number>();
+      for (let seed = 0; seed < 40; seed += 1) {
+        // Party order 20, 16, 12, 8, 4; the Warrior, at 16, hurt first. The scene's Roster holds four
+        // Heroes, so a fifth, the fourth's copy under a new id, joins the Party: with four, the three
+        // unhurt would be the whole pool, and a `top` 3 would name them whichever way it ranked
+        // (the S4 verification, DL-178).
+        const h = harmed(`top-three-${seed}`, [failing('front', [injury({ among: warriors })]), failing('top', [injury({ among: strongestThree })])], { size: 4 });
+        const fifth: Hero = { ...structuredClone(h.heroes[3] as Hero), id: makeId('heroes', 999_999) };
+        h.world.heroes[fifth.id] = fifth;
+        h.party.heroIds = [...h.party.heroIds, fifth.id];
+        h.heroes.push(fifth);
+        strengths(20, 16, 12, 8, 4)(h.heroes);
+        classes('mage', 'warrior', 'mage', 'mage', 'mage')(h.heroes);
+        expect(h.party.heroIds).toHaveLength(5);
+        const [front, top] = h.resolve().encounters;
+        expect(front?.injured).toEqual([h.heroes[1]?.id]);
+        expect(top?.injured).toHaveLength(1);
+        hit.add(h.heroes.findIndex((hero) => hero.id === top?.injured[0]));
+      }
+      expect(hit).toEqual(new Set([0, 2, 3]));
+    });
+
+    test("a Death's `among` still reads the living Party: the weakest, hurt, is the one it names", () => {
+      for (let seed = 0; seed < 20; seed += 1) {
+        const harm: Consequence[] = [injury({ among: weakest }), { kind: 'death', chance: 1, among: weakest }];
+        const h = harmed(`death-weakest-${seed}`, [failing('front', harm)], { set: strengths(12, 4, 8) });
+        const [result] = h.resolve().encounters;
+        expect(result?.injured).toEqual([h.heroes[1]?.id]);
+        expect(result?.died).toEqual([h.heroes[1]?.id]);
+      }
+    });
+
+    // The epic's fourth box: with the weakest hurt, an Injury and a Death with none of the fields draw
+    // as before the change, whether it lands then `pick` over the unhurt (or the living) then the Days.
+    test('with the weakest hurt, a consequence with none of the fields draws as a twin before the change', () => {
+      for (let seed = 0; seed < 30; seed += 1) {
+        const plain: Consequence[] = [injury({ chance: 0.5, count: 2 }), { kind: 'death', chance: 0.4 }];
+        const h = harmed(`plain-after-${seed}`, [failing('first', [injury({ among: weakest })]), failing('plain', plain)], { set: strengths(12, 4, 8) });
+        h.quest.lootTableKey = null;
+        const twin = structuredClone(streamOf(h.world, 'quests'));
+        const [first, second] = h.resolve().encounters;
+
+        // The first Encounter: its Check, then the `bottom` Injury's three, on the weakest.
+        for (let draw = 0; draw < 1 + 3; draw += 1) next(twin);
+        expect(first?.injured).toEqual([h.heroes[1]?.id]);
+        // The second, by hand as before v1.1.4-S4.
+        const alive = [...h.heroes];
+        const hurt = new Set<string>([h.heroes[1]?.id as string]);
+        const injured: string[] = [];
+        const died: string[] = [];
+        next(twin);
+        for (let time = 0; time < 2; time += 1) {
+          const lands = chance(twin, 0.5);
+          const unhurt = alive.filter((hero) => !hurt.has(hero.id));
+          const who = unhurt[int(twin, 0, Math.max(0, unhurt.length - 1))];
+          int(twin, 6, 12);
+          if (lands && who !== undefined) {
+            hurt.add(who.id);
+            injured.push(who.id);
+          }
+        }
+        const lands = chance(twin, 0.4);
+        const dead = alive[int(twin, 0, Math.max(0, alive.length - 1))];
+        if (lands && dead !== undefined) died.push(dead.id);
+        expect([second?.injured, second?.died]).toEqual([injured, died]);
+        expect(streamOf(h.world, 'quests')).toEqual(twin);
+      }
+    });
+  });
+
   // The epic's third box.
   // 20,000 resolutions for a ratio held to 5%, and 60,000 for three rates held to 1.5 points below: one
   // to two seconds each alone, past the default 5 s under the whole suite's load (DL-164).
@@ -1179,6 +1348,36 @@ describe('earned Traits (v1.1.4-S7)', () => {
     }
     const none = earning('among-none', [triumphant('feat', [earned('quick-study', { among: warriors })]), triumphant('again')], { set: classes('mage', 'mage', 'rogue') });
     expect(none.resolve().traits).toEqual([]);
+  });
+
+  // #52's judgement call 6 (DL-182 item 3, v1.1.5's re-close, DL-185): an earned Trait's `among` is read
+  // over the Heroes it can fall on, as an Injury's is (v1.1.5-S4, `narrowed`), not over the whole Party.
+  test("a negative Trait's `bottom` among ranks those the Encounter injured, so the weakest Hero, unhurt there, is passed over; its two draws as before", () => {
+    const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
+    const strongest: SetQuery = ['top', 'party', 1, ['stat', 'strength']];
+    // Party order 12, 4, 8: the weakest second; the Injury falls on the strongest, the first.
+    const strengths = (heroes: Hero[]): void => [12, 4, 8].forEach((value, index) => ((heroes[index] as Hero).stats['strength'] = value));
+    for (let seed = 0; seed < 20; seed += 1) {
+      const h = earning(`pool-${seed}`, [failing('ambush', [injury({ among: strongest }), earned('shaken', { among: weakest })])], { set: strengths });
+      h.quest.lootTableKey = null;
+      const twin = structuredClone(streamOf(h.world, 'quests'));
+      const { encounters, traits } = h.resolve();
+      expect(encounters[0]?.injured).toEqual([h.heroes[0]?.id]);
+      // Read over the whole Party, the `bottom` would name the second Hero, whom the Encounter did not injure, and no one would take it.
+      expect(traits).toEqual([{ heroId: h.heroes[0]?.id, traitKey: 'shaken', encounterIndex: 0, encounterKey: 'ambush' }]);
+      // One Check's draw, the Injury's three, then the Trait's two, whether it lands and on whom.
+      for (let draw = 0; draw < 1 + 3 + 2; draw += 1) next(twin);
+      expect(streamOf(h.world, 'quests')).toEqual(twin);
+    }
+  });
+
+  test("a positive Trait's among still reads the living Party, which is its pool: the weakest named", () => {
+    const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
+    const strengths = (heroes: Hero[]): void => [12, 4, 8].forEach((value, index) => ((heroes[index] as Hero).stats['strength'] = value));
+    for (let seed = 0; seed < 10; seed += 1) {
+      const h = earning(`living-${seed}`, [triumphant('feat', [earned('quick-study', { among: weakest })]), triumphant('again')], { set: strengths });
+      expect(h.resolve().traits.map((it) => it.heroId)).toEqual([h.heroes[1]?.id]);
+    }
   });
 });
 

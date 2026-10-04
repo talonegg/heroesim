@@ -272,7 +272,9 @@ function dearestWanted(
  *
  * - the Transfer keeps both Rosters within the range a Rival is generated with: the bidder's below
  *   `rivalRosterMax` and the other's above `rivalRosterMin`, so the Generator's own moves never take a
- *   Roster out of it (the epic's box, DL-59);
+ *   Roster out of it (the epic's box, DL-59). The top is the Generator's bound alone, no cap on a
+ *   Roster, which grows as far as its Guild's finances support; it is kept for now only as a
+ *   development measure, to constrain testing load, and is to be removed (backlog, DL-185);
  * - both answer as they answer any Transfer asked of them (`transferAnswer`, DL-57), the consent
  *   rule every Transfer keeps: the other lets a Hero go (`out`: its appetite and its Roster size), the
  *   consent `transferIn` itself asks, and the bidder takes one in (`in`: its appetite and its Roster
@@ -453,8 +455,9 @@ function gearBuy(world: World, guild: Guild, disposition: Disposition, deps: Eng
  *    when no one does, among those who meet one of them. So one Hero who has both goes alone, and
  *    two go only when no one Hero has both.
  * 2. It adds the Hero who most raises the chance until it reaches `partySizeMin`.
- * 3. It keeps adding the Hero who most raises it while that Hero raises it by at least the Guild's
- *    margin (`partyMarginOf`: its Disposition's `partyMargin`), up to `partySizeMax`.
+ * 3. It keeps adding the Hero who most raises it while that Hero raises it by more than the Guild's
+ *    margin (`partyMarginOf`: its Disposition's `partyMargin`), up to `partySizeMax`: by more than
+ *    nothing at a margin of 0 (v1.1.5-S6, DL-175).
  *
  * Of Heroes who raise it alike, the one who most raises the chance of a strong success goes, then the
  * lowest Hero id, so the rule is deterministic; a Quest whose Encounters are drawn on the way has no
@@ -537,10 +540,11 @@ export function bestParty(
 
   const margin = partyMarginOf(guild, deps);
   let chance = chanceOf(party);
-  // No Hero can raise the chance by more than what is left of it below 1, so none is asked then.
-  while (party.length < partySizeMax && party.length < available.length && 1 - chance.success >= margin) {
+  // No Hero can raise the chance by more than what is left of it below 1, so none is asked once that
+  // cannot pass the margin.
+  while (party.length < partySizeMax && party.length < available.length && 1 - chance.success > margin) {
     const next = best(left());
-    if (!(next.chance.success - chance.success >= margin)) break;
+    if (!(next.chance.success - chance.success > margin)) break;
     party.push(next.hero);
     chance = next.chance;
   }
@@ -570,7 +574,7 @@ function better(chance: Chance, hero: Hero, otherChance: Chance, other: Hero): b
 }
 
 /**
- * How much a Hero must raise the chance to join `guild`'s Party past `partySizeMin` (`partyFor`):
+ * How much more than this a Hero must raise the chance to join `guild`'s Party past `partySizeMin` (`partyFor`):
  * its Disposition's `partyMargin`; for a Guild with no Disposition, the player's, or with one content
  * does not define, the configuration's `playerPartyMargin` (v1.1.4-S6, DL-157).
  */

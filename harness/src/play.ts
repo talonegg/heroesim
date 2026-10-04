@@ -32,6 +32,7 @@ import {
   type EngineDeps,
   type GuildAction,
   type GuildId,
+  type LoadResult,
   type QuestId,
   type ValidationResult,
   type WorldDocument,
@@ -44,6 +45,7 @@ import {
   observe,
   observeHeroes,
   observeSave,
+  savedLength,
   takeCensus,
   type GameCounters,
   type GameObservations,
@@ -288,13 +290,14 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
     return invalid === null;
   };
 
-  // Every Hero generated with the world, and the save as each year ends (v1.1.3-S6).
+  // Every Hero generated with the world, and the save's length as each year ends (v1.1.3-S6),
+  // counted without writing it (v1.1.5-S1): `recordGame` gzips the last year's from the save it
+  // writes once the game stops.
   observeHeroes(observations, document);
   const yearEnded = (): void => {
     const { turn } = document.world;
     if (turn === 0 || turn % deps.config.turnsPerYear !== 0) return;
-    const text = serialise(document);
-    observeSave(observations, document.world, text, turn === lastTurn ? gzipSync(text).length : null);
+    observeSave(observations, document.world, savedLength(document));
   };
 
   const created: number[] = [];
@@ -359,7 +362,7 @@ export interface DocumentMeasures {
   serialiseMs: number;
   /** `deserialise`, which parses, migrates and validates the whole document (a load). */
   deserialiseMs: number;
-  /** Whether the load gave back the same text when serialised again. */
+  /** Whether the load gave back the same text when serialised again: its length and fingerprint the same. */
   roundTrips: boolean;
   /**
    * SHA-256 of `serialise(document)`, in hex: equal for two games only when their saves are byte for
@@ -367,28 +370,58 @@ export interface DocumentMeasures {
    * (M8-S1, DL-76). Not a counter: it changes none.
    */
   fingerprint: string;
+  /** Its length gzipped, as the page keeps it (DL-67), when asked for; else `null`. */
+  gzipped: number | null;
 }
 
-/** Serialises `document`, loads it back, times both, and fingerprints the save. */
+/**
+ * Serialises `document`, loads it back, times both, fingerprints the save and, when `gzip` is set,
+ * measures it gzipped. The loaded document is serialised again once the first text is out of reach,
+ * and compared with it by length and fingerprint, so that the two texts, 116 MB each at a 20-year
+ * game's end, are never held at once (v1.1.5-S1, DL-174).
+ */
 export function measureDocument(
   document: WorldDocument,
   deps: EngineDeps,
   now: () => number = () => performance.now(),
+  gzip = false,
 ): DocumentMeasures {
+  const { length, fingerprint, gzipped, serialiseMs, deserialiseMs, loaded } = saveAndLoad(document, deps, now, gzip);
+  const again = loaded.ok ? serialise(loaded.document) : null;
+  return {
+    historyEntries: document.history.entries.length,
+    serialisedLength: length,
+    serialiseMs,
+    deserialiseMs,
+    roundTrips: again !== null && again.length === length && fingerprintOf(again) === fingerprint,
+    fingerprint,
+    gzipped,
+  };
+}
+
+/** Saves `document` and loads the text back, timing both; keeps the text's length, fingerprint and gzipped length, not the text. */
+function saveAndLoad(
+  document: WorldDocument,
+  deps: EngineDeps,
+  now: () => number,
+  gzip: boolean,
+): { length: number; fingerprint: string; gzipped: number | null; serialiseMs: number; deserialiseMs: number; loaded: LoadResult } {
   const saveStarted = now();
   const text = serialise(document);
   const serialiseMs = now() - saveStarted;
   const loadStarted = now();
   const loaded = deserialise(text, deps);
   const deserialiseMs = now() - loadStarted;
-  return {
-    historyEntries: document.history.entries.length,
-    serialisedLength: text.length,
-    serialiseMs,
-    deserialiseMs,
-    roundTrips: loaded.ok && serialise(loaded.document) === text,
-    fingerprint: createHash('sha256').update(text).digest('hex'),
-  };
+  const gzipped = gzip ? gzipSync(text).length : null;
+  return { length: text.length, fingerprint: fingerprintOf(text), gzipped, serialiseMs, deserialiseMs, loaded };
+}
+
+/**
+ * SHA-256 of a save's text, in hex: `DocumentMeasures.fingerprint`'s, and the replay's (`sweep.ts`),
+ * which compares two games by it so as not to hold the first game's text (v1.1.5-S10, DL-181).
+ */
+export function fingerprintOf(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
 }
 
 /** One game of a sweep, reduced to what the report needs, so the sweep keeps no document. */
@@ -415,22 +448,30 @@ export function recordGame(
 ): { record: GameRecord; advanceMs: number[]; validateMs: number[] } {
   const game = playGame(seed, deps, options);
   const years = options.years ?? defaultYears;
+  const lastTurn = years * deps.config.turnsPerYear;
   const { document } = game;
+  const counters = countGame(document, deps, game.playerQuestDifficulty, {
+    questDifficulty: game.rivalQuestDifficulty,
+    sellerInDebt: game.sellerInDebt,
+  });
+  // The last year's save gzipped (v1.1.3-S6), from the save written here (v1.1.5-S1): a game that
+  // reached its last year's end stopped there, so its document is the one that year ended with.
+  const lastYear = lastTurn > 0 && lastTurn % deps.config.turnsPerYear === 0 && document.world.turn === lastTurn;
+  const measures = measureDocument(document, deps, options.now, lastYear);
+  const lastSave = lastYear ? game.observations.saves.at(-1) : undefined;
+  if (lastSave !== undefined) lastSave.gzipped = measures.gzipped;
   return {
     record: {
       seed,
-      counters: countGame(document, deps, game.playerQuestDifficulty, {
-        questDifficulty: game.rivalQuestDifficulty,
-        sellerInDebt: game.sellerInDebt,
-      }),
+      counters,
       observations: game.observations,
       turnsPlayed: game.turnsPlayed,
-      ranFullLength: document.world.ended === null && document.world.turn >= years * deps.config.turnsPerYear,
+      ranFullLength: document.world.ended === null && document.world.turn >= lastTurn,
       refusals: game.refusals,
       invalid: game.invalid,
       assertion: game.assertion,
       wholeValidateMs: game.wholeValidateMs,
-      measures: measureDocument(document, deps, options.now),
+      measures,
     },
     advanceMs: game.advanceMs,
     validateMs: game.validateMs,

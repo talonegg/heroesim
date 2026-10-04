@@ -18,7 +18,9 @@
 // chance never shifts a later draw, as `chance` promises for one (rng.ts).
 //
 // Harm reads the Stats (v1.1.4-S4, DL-148 item 14, harm.ts). An Injury or a Death falls on those its
-// `among` names, if any of them it can fall on; on whom is drawn by `weightedPick`, each Hero's weight
+// `among` names, if any of them it can fall on, the Query read over those it can fall on: an Injury's
+// over the unhurt living Heroes, so `bottom` 1 takes the weakest unhurt, a Death's over the living
+// Party (v1.1.5-S4, DL-168 item 6, DL-178); on whom is drawn by `weightedPick`, each Hero's weight
 // their exposure by `exposedBy`; and it lands if its first draw is below the chance times the chosen
 // Hero's guard by `guardedBy`. The draws keep their number and order: with none of the fields every
 // weight and guard is 1, and the draws are what `chance` and `pick` drew. A Morale loss
@@ -80,9 +82,9 @@ import { check, type CheckDeps, type CheckResult, type EncounterOutcome, type Fo
 import { kitOf, type ConsumableUse } from './consumables.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { endsWithFinale, sequenceFor } from './encounters.js';
-import { exposure, guard, narrowed } from './harm.js';
+import { exposure, guard, namedIn, narrowed } from './harm.js';
 import { drawLoot, type FinaleOutcome, type LootDraw } from './loot.js';
-import { membersOf, queryParty, type OnQuest, type QueryMember, type QueryParty } from './query.js';
+import { queryParty, type OnQuest, type QueryMember, type QueryParty } from './query.js';
 import { synergiesOn } from './synergy.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
@@ -147,7 +149,11 @@ export interface QuestOutcome {
   wealthDelta: number;
   /** Fame to the Guild: the Fame effect, gained on a success and lost on a failure, plus the Encounters' Fame. */
   fameDelta: number;
-  /** XP to each Hero who comes home alive: M3-S2's by band, times the Encounters' XP factors. */
+  /**
+   * XP to each Hero who comes home alive: M3-S2's by band, times the Encounters' XP factors, split
+   * across the Party sent and rounded down (v1.1.5-S13, DL-182). A Hero who dies counts in the split
+   * and takes nothing, so their share is lost.
+   */
   xpPerHero: number;
   /**
    * The Encounters' Morale consequences as written, summed; 0 moves no one. What each Hero brings
@@ -249,8 +255,9 @@ interface Working {
  * its Degree (v1.1.4-S2) applied in the order content lists them. The band follows the shares at
  * Success or better and of Triumphs (`questBand`); the Wealth is the reward times the wealth factors, rounded, on a success and
  * nothing on a failure; the Fame the Fame effect, won or lost by the band, plus the Encounters'; the
- * XP the difficulty × `xpPerDifficultyPoint` × the band's `xpBandFactor` × the XP factors, rounded
- * down. An Injury's Days are drawn from its type's range and multiplied by `infirmaryHealFactor` at
+ * XP the difficulty × `xpPerDifficultyPoint` × the band's `xpBandFactor` × the XP factors, divided by
+ * the size of the Party sent, its Dead counted, and rounded down: each Hero who comes home takes that
+ * share (v1.1.5-S13, DL-182). An Injury's Days are drawn from its type's range and multiplied by `infirmaryHealFactor` at
  * the Guild's infirmary grade now (`healFactor`, DL-53), rounded to the nearest Day and at least 1
  * (INPUTS 4.5). The consumables the Party carries add to each Check, roll a failed Encounter's again,
  * and then shorten the Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
@@ -354,7 +361,9 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       wealthDelta: paid ? Math.round(quest.reward * working.wealthFactor) : 0,
       // `0 -` rather than unary minus: a Fame effect of 0 then loses 0, not −0, which is not JSON-safe.
       fameDelta: (paid ? quest.fameEffect : 0 - quest.fameEffect) + working.fameDelta,
-      xpPerHero: Math.floor(xp),
+      // v1.1.5-S13 (DL-182 item 1): split across the Party sent, its Dead counted, so a dead Hero's share is lost.
+      // A Party of no one, which the estimate's test resolves, takes 0, not Infinity, which is not JSON-safe.
+      xpPerHero: heroes.length === 0 ? 0 : Math.floor(xp / heroes.length),
       moraleDelta: working.moraleDelta,
       moraleByHero: Object.fromEntries(working.alive.map((hero) => [hero.id, whole(working.moraleByHero[hero.id] ?? 0)])),
       regardDelta: working.regardDelta,
@@ -518,7 +527,9 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
  * Draws an earned Trait (v1.1.4-S7, DL-148 item 25): whether it lands, then on whom, two draws taken
  * whether or not it lands, the second from no one too. A positive Trait, on a Triumph's list, falls
  * among the Party still in the sequence; a negative one, on a Failure's, among those this Encounter
- * injured who are still in it; of them those `among` names, and of those the Heroes who may take it:
+ * injured who are still in it; of them those `among` names, read over them alone, so that a `bottom`
+ * or a `top` ranks only the Heroes it can fall on, as an Injury's does (`namedIn`; #52's judgement
+ * call 6, v1.1.5's re-close, DL-185), and none when it names none; of those the Heroes who may take it:
  * who may earn this one (`mayEarn`) and have drawn no Trait on this Quest, save that a negative one
  * may fall on a Hero holding a positive one, which it then takes the place of (DL-159's verification).
  * A negative one is granted only at a Failure: at a Setback that reads the failure list, having no
@@ -533,7 +544,7 @@ function earn(consequence: TraitConsequence, working: Working, harm: Harm, at: A
     return;
   }
   const pool = positive ? working.alive : working.alive.filter((hero) => harm.injured.includes(hero.id));
-  const named = consequence.among === undefined ? undefined : new Set(membersOf(consequence.among, partyNow(working, at, deps)).map((member) => member.hero.id));
+  const named = consequence.among === undefined ? undefined : new Set(namedIn(pool, consequence.among, partyNow(working, at, deps)).map((hero) => hero.id));
   const eligible = pool.filter(
     (hero) =>
       (named === undefined || named.has(hero.id)) &&
@@ -552,7 +563,8 @@ function earn(consequence: TraitConsequence, working: Working, harm: Harm, at: A
 
 /**
  * Who of `pool`, the Heroes it can fall on in Party order, a harm falls on (v1.1.4-S4, harm.ts): those
- * its `among` names, or all of `pool` when it names none of them; drawn by `weightedPick`, each Hero's
+ * its `among` names, read over `pool` (v1.1.5-S4: an Injury's the unhurt living Heroes, a Death's the
+ * living Party), or all of `pool` when it names none of them; drawn by `weightedPick`, each Hero's
  * weight their exposure by `exposedBy`; and that Hero's guard by `guardedBy`, which the chance is
  * times. One draw, even from no one. With none of the fields every weight and the guard are 1, and
  * the draw is `pick`'s, which `weightedPick` draws exactly at every weight 1.

@@ -73,6 +73,12 @@ describe('the review page', () => {
     expect(page).toMatch(/ · Tags [A-Z]/);
   });
 
+  // v1.1.5-S8 (DL-172, DL-168 item 5): a negative earned Trait reads the Degree Failure, not "failed", which takes in a Setback.
+  test('says a negative earned Trait falls on the Failure Degree only', () => {
+    expect(page).toContain('a negative one falls only on a Hero the same Encounter injured at the Degree Failure (not a Setback)');
+    expect(page).not.toMatch(/failed Encounter/i);
+  });
+
   test('with fragment, is the title, the style and the content alone, in that order, padding only the block ends', () => {
     const fragment = reviewPage({ content, core, calibration, notes: {}, made: '2026-10-03' }, { fragment: true });
     expect(fragment).toMatch(/^<title>Quest content review<\/title>\n<style>\n[^]*<\/style>\n<main>\n[^]*<\/main>\n$/);

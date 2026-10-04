@@ -685,6 +685,206 @@ test('the Board’s chances and what each Check reads, and the Party builder’s
   expect(new Set(backgrounds).size).toBe(2);
 });
 
+// v1.1.5-S12 (DL-169 items 6 to 12): the Roster's Table, at 360px and 390px on a phone and at each wider
+// width, in the light and the dark scheme. The Guildmaster's Old soldier raises the Warrior's Weaponry and
+// Mistrusts magic lowers the Mage's Arcana, so a Stat stands raised and one lowered. No sideways scroll of
+// the page and 44px targets; the Table scrolls in its own box, its Name pinned; on a wide screen the
+// Columns panel, on a phone the five tabs; and the green and the red at 4.5:1 or more on what is under them.
+test("the Roster's Table, its Columns panel and its tabs, in the light and the dark scheme: no sideways scroll, 44px targets, the Table in its own box, and the green and red legible (v1.1.5-S12)", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  await page.goto('/');
+  const setup = await guildmasterSetup(page);
+  await chooseGuildmaster(setup);
+  await setup.getByRole('radio', { name: 'Choose them' }).check();
+  await traitBox(setup, 'Old soldier').check();
+  await traitBox(setup, 'Mistrusts magic').check();
+  await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
+  const { width: projectWidth, height } = page.viewportSize() ?? { width: 0, height: 0 };
+  const phone = projectWidth < 600;
+  const widths = phone ? [360, 390] : [projectWidth];
+  const backgrounds: string[] = [];
+
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const width of widths) {
+      await page.setViewportSize({ width, height });
+      const at = `${scheme}, ${width}px`;
+      const roster = await openView(page, 'Roster');
+      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Table' }).click();
+      const table = roster.getByRole('table', { name: 'Heroes on the Roster' });
+      await expect(table).toBeVisible();
+      await expectNoHorizontalOverflow(page, `the Roster's Table, ${at}`);
+      await expectTargets(page, `the Roster's Table, ${at}`);
+
+      // The Table scrolls in its own box, its Name pinned at the box's left edge when scrolled to its end.
+      const box = roster.locator('.roster-table-wrap');
+      if (!phone) expect(await box.evaluate((element) => element.scrollWidth - element.clientWidth), `the Table wider than its box, ${at}`).toBeGreaterThan(0);
+      await box.evaluate((element) => {
+        element.scrollLeft = element.scrollWidth;
+      });
+      await expectNoHorizontalOverflow(page, `the Roster's Table scrolled to its end, ${at}`);
+      const edge = await box.boundingBox();
+      const name = await table.getByRole('columnheader', { name: 'Name' }).boundingBox();
+      if (edge === null || name === null) throw new Error(`the Table not drawn, ${at}`);
+      expect(Math.abs(name.x - edge.x), `the Name pinned at the box's edge, ${at}`).toBeLessThanOrEqual(1);
+      await box.evaluate((element) => {
+        element.scrollLeft = 0;
+      });
+
+      const raised = table.locator('td.change--up').first();
+      const lowered = table.locator('td.change--down').first();
+      if (phone) {
+        // The five tabs, Hero first; no Columns panel.
+        await expect(roster.getByRole('button', { name: 'Columns', exact: true })).toHaveCount(0);
+        const tabs = roster.getByRole('tablist', { name: 'Columns of the Table' });
+        await expect(tabs.getByRole('tab')).toHaveText(['Hero', 'Physical', 'Mental', 'Magical', 'Social']);
+        for (const tab of ['Hero', 'Physical', 'Mental', 'Magical', 'Social']) {
+          await tabs.getByRole('tab', { name: tab }).click();
+          await expect(table.getByRole('columnheader').first()).toHaveText('Name');
+          await expectNoHorizontalOverflow(page, `the Table's ${tab} tab, ${at}`);
+          await expectTargets(page, `the Table's ${tab} tab, ${at}`);
+          if (tab === 'Physical') {
+            await expect(raised).toHaveText(/^\d+ ▲/);
+            expect(await raised.evaluate(textContrast), `the green on its ground, ${at}`).toBeGreaterThanOrEqual(4.5);
+            await page.screenshot({ path: test.info().outputPath(`roster-table-physical-${scheme}-${width}.png`), fullPage: true });
+          }
+          if (tab === 'Magical') {
+            await expect(lowered).toHaveText(/^\d+ ▼/);
+            expect(await lowered.evaluate(textContrast), `the red on its ground, ${at}`).toBeGreaterThanOrEqual(4.5);
+          }
+        }
+        await tabs.getByRole('tab', { name: 'Hero' }).click();
+      } else {
+        await expect(raised).toHaveText(/^\d+ ▲/);
+        await expect(lowered).toHaveText(/^\d+ ▼/);
+        expect(await raised.evaluate(textContrast), `the green on its ground, ${at}`).toBeGreaterThanOrEqual(4.5);
+        expect(await lowered.evaluate(textContrast), `the red on its ground, ${at}`).toBeGreaterThanOrEqual(4.5);
+        // The Columns panel open, a group hidden and every column shown again.
+        await roster.getByRole('button', { name: 'Columns', exact: true }).click();
+        const panel = roster.getByRole('group', { name: 'Columns' });
+        await expect(panel.getByRole('checkbox')).toHaveCount(27);
+        await expectNoHorizontalOverflow(page, `the Columns panel, ${at}`);
+        await expectTargets(page, `the Columns panel, ${at}`);
+        await page.screenshot({ path: test.info().outputPath(`roster-table-${scheme}-${width}.png`), fullPage: true });
+        await panel.getByRole('button', { name: 'None of the Mental columns' }).click();
+        await expect(table.getByRole('columnheader', { name: 'Wits' })).toHaveCount(0);
+        await panel.getByRole('button', { name: 'Reset the columns' }).click();
+        await expect(table.getByRole('columnheader', { name: 'Wits' })).toHaveCount(1);
+        await roster.getByRole('button', { name: 'Columns', exact: true }).click();
+      }
+
+      // "Sort by" a Stat, and its direction reversed.
+      await roster.getByRole('combobox', { name: 'Sort by' }).selectOption('weaponry');
+      await roster.getByTestId('roster-direction').click();
+      await expect(roster.getByTestId('roster-direction')).toHaveText('Lowest first');
+      await expectNoHorizontalOverflow(page, `the Roster sorted, ${at}`);
+      await expectTargets(page, `the Roster sorted, ${at}`);
+      await roster.getByRole('combobox', { name: 'Sort by' }).selectOption('default');
+
+      // The tiles, each Hero's Traits and Items with them.
+      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Tiles' }).click();
+      await expect(roster.getByRole('list', { name: 'Heroes on the Roster' })).toBeVisible();
+      await expectNoHorizontalOverflow(page, `the Roster's tiles, ${at}`);
+      await expectTargets(page, `the Roster's tiles, ${at}`);
+    }
+    backgrounds.push(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+  // The dark scheme is the page's, not the test's: the body's background is the dark token's.
+  expect(new Set(backgrounds).size).toBe(2);
+});
+
+// v1.1.5-S14 (DL-182 item 4): the Roster's Unique Items, at 360px and 390px on a phone and at each wider
+// width, in the light and the dark scheme. The first Hero carries the Lantern of Stannary: on the tiles,
+// its picture before its name in its chip and their tile the gold glow; in the Table, their row the glow
+// and no picture, on each of the phone's tabs too. The gold at 3:1 or more on what is either side of it
+// (WCAG 1.4.11, a part that is not text), no sideways scroll of the page, 44px targets, and the Table in its
+// own box, its Name pinned and still outlined when scrolled to its end.
+test("the Roster's Unique Items: the picture on a tile and the gold glow on its tile and its Table row, in the light and the dark scheme: at 3:1, no sideways scroll, 44px targets, the Table in its own box (v1.1.5-S14)", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(240_000);
+  await page.goto('/');
+  await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-uniques' });
+  await holdingUniques(page, testInfo);
+  const { width: projectWidth, height } = page.viewportSize() ?? { width: 0, height: 0 };
+  const phone = projectWidth < 600;
+  const widths = phone ? [360, 390] : [projectWidth];
+  const backgrounds: string[] = [];
+
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const width of widths) {
+      await page.setViewportSize({ width, height });
+      const at = `${scheme}, ${width}px`;
+      const roster = await openView(page, 'Roster');
+      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Tiles' }).click();
+
+      // The tiles: one glows, the Lantern's picture before its name in its chip; the others neither.
+      const lit = roster.locator('li.hero-card.carries-unique');
+      await expect(lit).toHaveCount(1);
+      await lit.scrollIntoViewIfNeeded();
+      const lantern = lit.locator('.chip', { hasText: 'The Lantern of Stannary' });
+      const picture = lantern.getByTestId('item-picture');
+      await expect(picture).toBeVisible();
+      const pictureBox = await picture.boundingBox();
+      const nameBox = await lantern.getByText('The Lantern of Stannary', { exact: true }).boundingBox();
+      if (pictureBox === null || nameBox === null) throw new Error(`the Lantern's chip not drawn, ${at}`);
+      expect(pictureBox.x + pictureBox.width, `the picture before the name, ${at}`).toBeLessThanOrEqual(nameBox.x);
+      expect(await roster.locator('li.hero-card:not(.carries-unique)').count(), `the tiles without the glow, ${at}`).toBeGreaterThan(0);
+      await expect(roster.locator('li.hero-card:not(.carries-unique) [data-testid="item-picture"]')).toHaveCount(0);
+      expect(await roster.locator('li.hero-card:not(.carries-unique)').first().evaluate((element) => getComputedStyle(element).boxShadow)).toBe('none');
+      expect(await lit.evaluate(glowContrast), `the tile's gold on either side of it, ${at}`).toBeGreaterThanOrEqual(3);
+      await expectNoHorizontalOverflow(page, `the Roster's tiles with the glow, ${at}`);
+      await expectTargets(page, `the Roster's tiles with the glow, ${at}`);
+      await shotAround(page, lit, testInfo.outputPath(`roster-unique-tile-${scheme}-${width}.png`));
+
+      // The Table: the row glows, with no picture, its Items cell naming the Lantern.
+      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Table' }).click();
+      const table = roster.getByRole('table', { name: 'Heroes on the Roster' });
+      const row = table.locator('tr.carries-unique');
+      await expect(row).toHaveCount(1);
+      await expect(table.getByTestId('item-picture')).toHaveCount(0);
+      await expect(row.locator('[data-column="items"]')).toContainText('The Lantern of Stannary');
+      const box = roster.locator('.roster-table-wrap');
+      for (const tab of phone ? ['Hero', 'Physical', 'Mental', 'Magical', 'Social'] : [null]) {
+        if (tab !== null) await roster.getByRole('tablist', { name: 'Columns of the Table' }).getByRole('tab', { name: tab }).click();
+        const where = tab === null ? at : `${tab} tab, ${at}`;
+        await expect(row).toHaveCount(1);
+        await row.scrollIntoViewIfNeeded();
+        expect(await row.locator('th').evaluate(glowContrast), `the Name's gold, ${where}`).toBeGreaterThanOrEqual(3);
+        expect(await row.locator('td').last().evaluate(glowContrast), `the last cell's gold, ${where}`).toBeGreaterThanOrEqual(3);
+        expect(await table.locator('tr:not(.carries-unique) td').first().evaluate((element) => getComputedStyle(element).boxShadow)).toBe('none');
+        await expectNoHorizontalOverflow(page, `the Roster's Table with the glow, ${where}`);
+        await expectTargets(page, `the Roster's Table with the glow, ${where}`);
+        // Scrolled to its end in its own box: the Name pinned at the box's edge, its outline drawn whole.
+        await box.evaluate((element) => {
+          element.scrollLeft = element.scrollWidth;
+        });
+        await expectNoHorizontalOverflow(page, `the Roster's Table scrolled to its end with the glow, ${where}`);
+        const edge = await box.boundingBox();
+        const name = await row.locator('th').boundingBox();
+        if (edge === null || name === null) throw new Error(`the Table not drawn, ${where}`);
+        expect(Math.abs(name.x - edge.x), `the Name pinned at the box's edge, ${where}`).toBeLessThanOrEqual(1);
+        expect(await row.locator('th').evaluate(glowContrast), `the Name's gold scrolled, ${where}`).toBeGreaterThanOrEqual(3);
+        await shotAround(page, row, testInfo.outputPath(`roster-unique-row-${scheme}-${width}-${tab ?? 'all'}-end.png`));
+        await box.evaluate((element) => {
+          element.scrollLeft = 0;
+        });
+      }
+      await page.screenshot({ path: testInfo.outputPath(`roster-unique-table-${scheme}-${width}.png`), fullPage: true });
+      if (phone) await roster.getByRole('tablist', { name: 'Columns of the Table' }).getByRole('tab', { name: 'Hero' }).click();
+      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Tiles' }).click();
+    }
+    backgrounds.push(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+  // The dark scheme is the page's, not the test's: the body's background is the dark token's.
+  expect(new Set(backgrounds).size).toBe(2);
+});
+
 test("a view's first part, straight under its head, draws no rule above it, as the game menu's first part draws none (M9-S8)", async ({
   page,
 }) => {
@@ -725,4 +925,77 @@ function pressedContrast(element: Element): number {
   };
   const [high, low] = [luminance(style.color), luminance(style.backgroundColor)].sort((x, y) => y - x) as [number, number];
   return (high + 0.05) / (low + 0.05);
+}
+
+/**
+ * The contrast of an element's words on what is drawn under them (v1.1.5-S12): WCAG 2.2's ratio of its
+ * computed `color` and the first opaque `background-color` from it outwards, the page's when none is.
+ * Runs in the page.
+ */
+function textContrast(element: Element): number {
+  const channels = (colour: string): number[] => (colour.match(/[\d.]+/g) ?? []).map(Number);
+  const luminance = (colour: string): number => {
+    const [r = 0, g = 0, b = 0] = channels(colour)
+      .slice(0, 3)
+      .map((value) => {
+        const channel = value / 255;
+        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  let ground = getComputedStyle(document.body).backgroundColor;
+  for (let at: Element | null = element; at !== null; at = at.parentElement) {
+    const colour = getComputedStyle(at).backgroundColor;
+    const alpha = channels(colour)[3];
+    if (colour !== 'transparent' && (alpha === undefined || alpha > 0)) {
+      ground = colour;
+      break;
+    }
+  }
+  const [high, low] = [luminance(getComputedStyle(element).color), luminance(ground)].sort((x, y) => y - x) as [number, number];
+  return (high + 0.05) / (low + 0.05);
+}
+
+/** A screenshot of `element` and 12px about it, its glow with it, scrolled to the middle of the screen, clear of the bars. */
+async function shotAround(page: Page, element: Locator, path: string): Promise<void> {
+  await element.evaluate((each) => each.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  const box = await element.boundingBox();
+  if (box === null) throw new Error('nothing drawn to take');
+  const { width } = page.viewportSize() ?? { width: 0 };
+  const x = Math.max(0, box.x - 12);
+  await page.screenshot({ path, clip: { x, y: Math.max(0, box.y - 12), width: Math.min(width - x, box.width + 24), height: box.height + 24 } });
+}
+
+/**
+ * The contrast of a Roster tile's or row's gold outline (v1.1.5-S14), a part that is not text, on what is
+ * drawn either side of it (WCAG 1.4.11): WCAG 2.2's ratio of the first colour of its computed `box-shadow`,
+ * the outline's, and the first opaque `background-color` from the element outwards, and from its parent
+ * outwards, the page's when none is; the lesser of the two. Nought when it draws no outline. Runs in the page.
+ */
+function glowContrast(element: Element): number {
+  const channels = (colour: string): number[] => (colour.match(/[\d.]+/g) ?? []).map(Number);
+  const luminance = (colour: string): number => {
+    const [r = 0, g = 0, b = 0] = channels(colour)
+      .slice(0, 3)
+      .map((value) => {
+        const channel = value / 255;
+        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const ground = (from: Element | null): string => {
+    for (let at: Element | null = from; at !== null; at = at.parentElement) {
+      const colour = getComputedStyle(at).backgroundColor;
+      const alpha = channels(colour)[3];
+      if (colour !== 'transparent' && (alpha === undefined || alpha > 0)) return colour;
+    }
+    return getComputedStyle(document.body).backgroundColor;
+  };
+  const ratio = (a: string, b: string): number => {
+    const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+    return (high + 0.05) / (low + 0.05);
+  };
+  const outline = /rgba?\([^)]*\)/.exec(getComputedStyle(element).boxShadow)?.[0];
+  if (outline === undefined) return 0;
+  return Math.min(ratio(outline, ground(element)), ratio(outline, ground(element.parentElement)));
 }

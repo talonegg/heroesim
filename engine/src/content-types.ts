@@ -414,9 +414,10 @@ export type Degree = (typeof degrees)[number];
  */
 export interface HarmReads {
   /**
-   * The Heroes it may fall on, a Set Query over the Party, narrowed to those it can fall on; when
-   * that leaves no one, it falls on any of them, so that leaving the front rank at home never dodges
-   * its harm.
+   * The Heroes it may fall on, a Set Query read over those it can fall on: an Injury's over the
+   * unhurt living Heroes, so `bottom` 1 takes the weakest unhurt (v1.1.5-S4, DL-178), a Death's over
+   * the living Party. When it names no one, it falls on any of them, so that leaving the front rank
+   * at home never dodges its harm.
    */
   among?: SetQuery;
   /** Stats whose weakness draws the harm: the less of their range a Hero has, the likelier it is them (`exposureRange`). */
@@ -427,7 +428,8 @@ export interface HarmReads {
 
 /**
  * Up to `count` Heroes of the Party are injured with `typeKey`, each with probability `chance`,
- * each among the living who carry no Injury from this Quest yet, and of them `among` (v1.1.4-S4).
+ * each among the living who carry no Injury from this Quest yet, and of them `among` (v1.1.4-S4),
+ * read over them (v1.1.5-S4).
  */
 export interface InjuryConsequence extends HarmReads {
   kind: 'injury';
@@ -483,18 +485,19 @@ export interface FameConsequence {
 
 /**
  * A Hero earns the Hero Trait `traitKey` with probability `chance` (v1.1.4-S7, DL-148 item 25,
- * `CONTEXT.md` Earned Trait): one Hero, drawn from those `among` names (a Set Query over the Party
- * still in the sequence; every one of them when absent), and of those only the Heroes who may take
- * it: who do not hold it, hold none it excludes or that excludes it (DL-150 item 5), and have drawn no
- * other on this Quest, save that a negative one may fall on a Hero holding a positive one, and is
- * then granted in its place: at most one is granted a Hero a Quest (DL-159). When `among` names none
- * of them it falls on no one. Where it is listed says what it is:
+ * `CONTEXT.md` Earned Trait): one Hero, drawn from those `among` names (a Set Query read over the
+ * Trait's own pool, the Party still in the sequence for a positive one and those the Encounter
+ * injured for a negative one, so that a `bottom` or a `top` ranks only the Heroes it can fall on, as
+ * an Injury's does: v1.1.5's re-close, DL-185; every one of them when absent), and of those only
+ * the Heroes who may take it: who do not hold it, hold none it excludes or that excludes it (DL-150
+ * item 5), and have drawn no other on this Quest, save that a negative one may fall on a Hero holding
+ * a positive one, and is then granted in its place: at most one is granted a Hero a Quest (DL-159).
+ * When `among` names none of them it falls on no one. Where it is listed says what it is:
  *
  * - in an Encounter's `triumph` list, a positive Trait: drawn on the Triumph, held, and granted only
  *   if the Quest ends a strong success;
  * - in its `failure` list, a negative one: it falls only among the Heroes this same Encounter
- *   injured, so it follows an Injury in that list, and a Setback that reads the Failure's list may
- *   bring it.
+ *   injured, so it follows an Injury in that list, and lands only at the Failure Degree.
  *
  * It is listed nowhere else (`validateContent`). Two draws from `quests`, whether it lands and on whom,
  * taken whether or not it lands.
@@ -624,9 +627,10 @@ export interface Disposition {
   /** How readily it deals in Transfers, from 0 to 1 (M6-S2 and M6-S3 read it). */
   transferAppetite: number;
   /**
-   * How much a Hero must raise the estimated chance of success to be added to its Party past the
-   * Quest's `partySizeMin`, from 0 to 1 (v1.1.4-S6, DL-148 item 17, `partyFor`): 0 sends every Hero
-   * who raises it at all, up to `partySizeMax`; 1 never more than the fewest the Quest allows.
+   * How much more than this a Hero must raise the estimated chance of success to be added to its
+   * Party past the Quest's `partySizeMin`, from 0 to 1 (v1.1.4-S6, DL-148 item 17, `partyFor`; more
+   * than, v1.1.5-S6, DL-175): 0 sends every Hero who raises it at all, up to `partySizeMax`; 1 never
+   * more than the fewest the Quest allows.
    */
   partyMargin: number;
 }

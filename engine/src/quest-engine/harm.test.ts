@@ -79,6 +79,40 @@ describe('narrowed', () => {
     expect(narrowed(heroes, ['where', 'party', ['class', 'rogue']], party)).toBe(heroes);
     expect(narrowed(heroes.slice(2), warriors, party)).toEqual(heroes.slice(2));
   });
+
+  // v1.1.5-S4 (DL-168 item 6, E3, DL-178): among is read over the pool's own Heroes, not the whole Party.
+  test('reads among over the pool, so a `bottom` or a `top` passes over a Hero it cannot fall on to the next', () => {
+    const five = ['hero-000001', 'hero-000002', 'hero-000003', 'hero-000004', 'hero-000005'] as HeroId[];
+    const strengths = [20, 16, 12, 8, 4];
+    const ranked = {
+      members: five.map((id, index) => ({ hero: { id, classKey: 'mage' }, stats: { strength: strengths[index] } })),
+      content,
+    } as unknown as QueryParty;
+    const all = five.map((id) => ({ id }));
+    const unhurt = all.filter((_, index) => index !== 1 && index !== 4);
+
+    expect(narrowed(unhurt, ['bottom', 'party', 1, ['stat', 'strength']], ranked)).toEqual([{ id: five[3] }]);
+    expect(narrowed(unhurt, ['top', 'party', 3, ['stat', 'strength']], ranked)).toEqual(unhurt);
+    // A pool of four without the second strongest: the three strongest of it, the weakest passed over (the S4 verification).
+    const withoutSecond = all.filter((_, index) => index !== 1);
+    expect(narrowed(withoutSecond, ['top', 'party', 3, ['stat', 'strength']], ranked)).toEqual([all[0], all[2], all[3]]);
+    expect(narrowed(all.slice(0, 4), ['top', 'party', 3, ['stat', 'strength']], ranked)).toEqual(all.slice(0, 3));
+    expect(narrowed(all, ['bottom', 'party', 1, ['stat', 'strength']], ranked)).toEqual([{ id: five[4] }]);
+  });
+
+  // The S4 verification (DL-178): read over the pool, a tie still goes to the earlier in Party order, as before.
+  test('reads among over the pool with a tie to the earlier Hero in Party order', () => {
+    const five = ['hero-000001', 'hero-000002', 'hero-000003', 'hero-000004', 'hero-000005'] as HeroId[];
+    const strengths = [12, 4, 8, 8, 12];
+    const ranked = {
+      members: five.map((id, index) => ({ hero: { id, classKey: 'mage' }, stats: { strength: strengths[index] } })),
+      content,
+    } as unknown as QueryParty;
+    const withoutSecond = five.map((id) => ({ id })).filter((_, index) => index !== 1);
+
+    expect(narrowed(withoutSecond, ['bottom', 'party', 1, ['stat', 'strength']], ranked)).toEqual([{ id: five[2] }]);
+    expect(narrowed(withoutSecond, ['top', 'party', 1, ['stat', 'strength']], ranked)).toEqual([{ id: five[0] }]);
+  });
 });
 
 describe("configProblems' harm fields (DL-155)", () => {

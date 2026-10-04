@@ -13,10 +13,16 @@ import {
   type SavedDocument,
   type WorldDocument,
 } from './index.js';
+import { getHeapStatistics } from 'node:v8';
 import { createWorld } from './create.js';
+import type { EntityId } from './document.js';
+import { append } from './history.js';
 import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
+
+/** The bytes this process's heap has allocated so far; `undefined` on a Node whose V8 does not count them. */
+const allocatedBytes = (): number | undefined => (getHeapStatistics() as { total_allocated_bytes?: number }).total_allocated_bytes;
 
 // M1-S8: canonical serialisation (data-model rule 7) and a versioned, validated load (§6).
 
@@ -91,6 +97,60 @@ describe('serialise', () => {
     const hero = Object.values(document.world.heroes)[0] as Hero;
     hero.morale = Number.NaN;
     expect(() => serialise(document)).toThrow(`$.world.heroes["${hero.id}"].morale is nan`);
+  });
+
+  // v1.1.5-S1 (DL-174): JSON.stringify writes an object's array-index keys first, in ascending
+  // number, and cannot be handed an own `__proto__` key by assignment; the save sorts every key by
+  // its code units all the same.
+  test('sorts array-index keys and an own __proto__ key by their code units like every other key', () => {
+    const odd = JSON.parse('{"b":1,"10":2,"9":3,"__proto__":4,"a":5,"01":6}') as unknown;
+    const document = { ...built(), odd } as WorldDocument;
+    const text = serialise(document);
+    expect(text).toContain('"odd":{"01":6,"10":2,"9":3,"__proto__":4,"a":5,"b":1}');
+    expect(text).toBe(serialise(JSON.parse(text) as WorldDocument));
+  });
+
+  // v1.1.5-S1's verification (DL-174): each such key alone in its object, so that no other key
+  // brings the old writer in: the first and the last array index, the first number that is not one,
+  // and an own `__proto__` holding an object, which a copy would take as its prototype.
+  test('sorts each array-index key and an own __proto__ key by its code units when it is the only one in its object', () => {
+    const cases: [written: string, sorted: string][] = [
+      ['{"~":1,"0":2,"!":3}', '{"!":3,"0":2,"~":1}'],
+      ['{"~":1,"4294967294":2,"!":3}', '{"!":3,"4294967294":2,"~":1}'],
+      ['{"~":1,"4294967295":2,"!":3}', '{"!":3,"4294967295":2,"~":1}'],
+      ['{"~":1,"__proto__":{"b":2,"a":1},"!":3}', '{"!":3,"__proto__":{"a":1,"b":2},"~":1}'],
+    ];
+    for (const [written, sorted] of cases) {
+      const document = { ...built(), odd: JSON.parse(written) as unknown } as WorldDocument;
+      expect(serialise(document)).toContain(`"odd":${sorted}`);
+    }
+  });
+
+  // v1.1.5-S1 (DL-174): a 20-year game's save of 116 MB was built from a string for every value at
+  // every depth, each copied into its parent's, and allocated 22 times its length, the garbage that
+  // grew a sweep's process to 1.65 GB. The text is now written in one pass.
+  test.skipIf(allocatedBytes() === undefined)('writes a long History in one pass: it allocates a few times the text, not a string per value at every depth', () => {
+    const document = built();
+    const heroIds = Object.keys(document.world.heroes).slice(0, 3) as EntityId[];
+    const turn = document.history.entries.at(-1)?.turn ?? 0;
+    for (let n = 0; n < 20_000; n += 1) {
+      append(document.history, {
+        turn,
+        type: 'quest.encounter',
+        participants: heroIds,
+        labels: Object.fromEntries(heroIds.map((id) => [id, `Name of ${id}`])),
+        milestone: false,
+        payload: { questId: 'quest-000001', step: n, outcome: n % 3 === 0 ? 'triumph' : 'success', scores: { might: n % 17, wits: n % 13 }, heroIds },
+      });
+    }
+    // Measured once the code is warm, as a game's yearly saves find it.
+    const warm = serialise(document);
+    const before = allocatedBytes() ?? 0;
+    const text = serialise(document);
+    const allocated = (allocatedBytes() ?? 0) - before;
+    expect(text).toBe(warm);
+    expect(text.length).toBeGreaterThan(5_000_000);
+    expect(allocated).toBeLessThan(8 * text.length);
   });
 });
 

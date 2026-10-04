@@ -19,6 +19,7 @@
 import type { GuildId, HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
+import type { SortDirection } from '../state/selectors';
 import { guildPage, guildsTable, type GuildRow, type GuildSort, type GuildsTable } from '../state/world-views';
 import { GuildmasterDetails } from './guildmaster';
 import { HallDetails } from './hall';
@@ -28,7 +29,7 @@ import { Icon } from './icons';
 import { GuildBanner, PortraitThumb } from './pictures';
 import { rememberChoice, rememberedChoice } from './remembered';
 import { Part } from './section';
-import { Chip, Disclosure, SortHeader, useReturn, VisuallyHidden, type Direction } from './ui';
+import { Chip, Disclosure, SortHeader, useReturn, VisuallyHidden } from './ui';
 
 type Play = (action: GameAction) => void;
 
@@ -38,7 +39,7 @@ const sorts: readonly GuildSort[] = ['fame', 'wealth', 'name', 'disposition', 'h
 export const guildsOrderKey = 'heroesim.guildsOrder';
 
 /** Each column that orders the table, in its place, with which way it orders. */
-const columns: readonly { sort: GuildSort; label: string; direction: Direction; number: boolean }[] = [
+const columns: readonly { sort: GuildSort; label: string; direction: SortDirection; number: boolean }[] = [
   { sort: 'name', label: 'Guild', direction: 'ascending', number: false },
   { sort: 'disposition', label: 'Disposition', direction: 'ascending', number: false },
   { sort: 'fame', label: 'Fame', direction: 'descending', number: true },

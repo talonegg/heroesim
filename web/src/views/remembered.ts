@@ -5,6 +5,8 @@
 //
 // The order of the Guilds' table and of the Unattached pool are kept the same way (M9-S6, DL-106),
 // and the Board's (DL-109 item 2, Q11): display only, and for this browser, whatever game is in hand.
+// So are the Roster's view, columns, phone's tab and sort (v1.1.5-S12, DL-169 item 11), its hidden
+// columns a list.
 //
 // The Guild's part open is kept too (M9-F2, DL-112 item 5). The Hall was a view until M9-F2: a
 // browser that kept "hall" as its view opens the Guild at its Hall part.
@@ -62,4 +64,24 @@ export function rememberChoice(key: string, choice: string): void {
   } catch {
     // Nothing kept: the default next time.
   }
+}
+
+/**
+ * The list this browser keeps under `key`, in the order of `choices`, leaving out what is not one of
+ * them; `null` when nothing is kept, or nothing can be read (v1.1.5-S12).
+ */
+export function rememberedList<Choice extends string>(key: string, choices: readonly Choice[]): Choice[] | null {
+  try {
+    const kept = globalThis.localStorage?.getItem(key);
+    if (kept === null || kept === undefined) return null;
+    const listed = kept.split(',');
+    return choices.filter((choice) => listed.includes(choice));
+  } catch {
+    return null;
+  }
+}
+
+/** Keeps `list` under `key`, where the browser lets it. */
+export function rememberList(key: string, list: readonly string[]): void {
+  rememberChoice(key, list.join(','));
 }

@@ -8,6 +8,7 @@ import {
   createWorld,
   dayOf,
   defaultConfig,
+  effectiveStats,
   entriesFor,
   estimateQuest,
   guildmasterOf,
@@ -49,6 +50,7 @@ import {
   type BoardOrder,
   consumableChoices,
   countdownView,
+  defaultHeroOrder,
   guildBackgrounds,
   guildmasterSetupChoices,
   traitBudgetView,
@@ -57,9 +59,14 @@ import {
   partyRows,
   previewView,
   progressView,
+  orderWords,
+  reverseOrderName,
+  rosterColumnGroups,
+  rosterSortChoices,
   rosterView,
   sentView,
   stopView,
+  type RosterOrder,
 } from './selectors';
 
 // The views' rows (M7-S3): every number is a document field or an engine selector's answer, read
@@ -415,6 +422,63 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
   });
 });
 
+describe('the default order of Heroes (v1.1.5-S11, DL-169 item 5)', () => {
+  /** A Hero of the new game's Roster made to order: only the fields the default order reads are changed. */
+  function made(document: WorldDocument, id: string, fields: Partial<Pick<Hero, 'classKey' | 'level' | 'ageAtEntry' | 'name'>>): Hero {
+    const [base] = heroes(document);
+    if (base === undefined) throw new Error('no Hero');
+    return { ...base, id: id as HeroId, classKey: 'warrior', level: 1, ageAtEntry: 25, enteredTurn: 0, name: 'Ash Tull', ...fields };
+  }
+
+  test("sorts by Class in the content's order: Warrior, Rogue, Mage, Healer", () => {
+    const document = newGame();
+    expect(Object.values(content.classes).map((row) => row.name)).toEqual(['Warrior', 'Rogue', 'Mage', 'Healer']);
+    const healer = made(document, 'hero-000101', { classKey: 'healer', level: 9, ageAtEntry: 18, name: 'Aa' });
+    const mage = made(document, 'hero-000102', { classKey: 'mage', level: 9, ageAtEntry: 18, name: 'Ab' });
+    const rogue = made(document, 'hero-000103', { classKey: 'rogue', level: 2, ageAtEntry: 50, name: 'Zz' });
+    const warrior = made(document, 'hero-000104', { classKey: 'warrior', level: 1, ageAtEntry: 60, name: 'Zz' });
+
+    expect([healer, mage, rogue, warrior].sort(defaultHeroOrder(document)).map((hero) => hero.classKey)).toEqual(['warrior', 'rogue', 'mage', 'healer']);
+  });
+
+  test('within a Class, sorts Level highest first, then Age youngest first, then Name A–Z, then the id', () => {
+    const document = newGame();
+    const low = made(document, 'hero-000201', { level: 2, ageAtEntry: 20, name: 'Aldo' });
+    const high = made(document, 'hero-000202', { level: 5, ageAtEntry: 40, name: 'Zora' });
+    const older = made(document, 'hero-000203', { level: 2, ageAtEntry: 30, name: 'Abel' });
+    const younger = made(document, 'hero-000204', { level: 2, ageAtEntry: 20, name: 'Zeno' });
+    const twinB = made(document, 'hero-000206', { level: 2, ageAtEntry: 20, name: 'Aldo' });
+
+    const sorted = [older, twinB, younger, low, high].sort(defaultHeroOrder(document));
+
+    expect(sorted.map((hero) => hero.id)).toEqual(['hero-000202', 'hero-000201', 'hero-000206', 'hero-000204', 'hero-000203']);
+  });
+
+  test("reads Age as the page shows it, the years since the Hero's entry counted", () => {
+    const document = structuredClone(newGame());
+    document.world.turn = defaultConfig.turnsPerYear * 3;
+    // Entered at 20 three years ago: 23 now, older than one who entered at 22 today.
+    const early = made(document, 'hero-000301', { ageAtEntry: 20, name: 'Aa' });
+    const late = { ...made(document, 'hero-000302', { ageAtEntry: 22, name: 'Zz' }), enteredTurn: document.world.turn };
+
+    expect([early, late].sort(defaultHeroOrder(document)).map((hero) => hero.id)).toEqual(['hero-000302', 'hero-000301']);
+  });
+
+  test('is total, so any two Heroes have one order; and is for display only, the Roster and the save unchanged', () => {
+    const document = newGame();
+    const before = JSON.stringify(document);
+    const order = defaultHeroOrder(document);
+    const a = made(document, 'hero-000401', {});
+    const b = made(document, 'hero-000402', {});
+
+    expect(order(a, b)).toBeLessThan(0);
+    expect(order(b, a)).toBeGreaterThan(0);
+    expect(order(a, a)).toBe(0);
+    [...heroes(document)].sort(order);
+    expect(JSON.stringify(document)).toBe(before);
+  });
+});
+
 describe('the Party builder (M9-S4, DL-104)', () => {
   /**
    * A new game whose first Quest requires Herbalism and meets the restless dead and a hostile reeve,
@@ -441,14 +505,16 @@ describe('the Party builder (M9-S4, DL-104)', () => {
 
     const rows = partyRows(document, quest.id);
 
-    expect(rows?.map((row) => row.heroId)).toEqual(player(document).rosterIds);
-    expect(rows?.[0]).toEqual({
+    // All four can go: the default order, by Class (v1.1.5-S11, DL-169 item 5), not the order they joined.
+    expect(rows?.map((row) => row.name)).toEqual(['Liv Coldharbour', 'Cenric Yarrow', 'Ragnvald Brackenridge', 'Bram Netherby']);
+    expect(rows?.[3]).toEqual({
       heroId: bram.id,
       name: 'Bram Netherby',
       className: 'Healer',
       level: 1,
       why: null,
       unavailable: null,
+      chip: null,
       // The Stats the Checks read, in the order the Quest meets them (v1.1.4-S6, `statsRead`), not the template's demands.
       stats: (['spirit', 'willpower', 'weaponry', 'power', 'courage', 'resistance', 'diplomacy', 'charisma'] as const).map((key) => ({
         name: content.stats[key]?.name,
@@ -460,7 +526,7 @@ describe('the Party builder (M9-S4, DL-104)', () => {
         { name: 'Benediction', rating: 2 },
       ],
     });
-    expect(rows?.[1]).toMatchObject({
+    expect(rows?.[0]).toMatchObject({
       className: 'Warrior',
       stats: expect.arrayContaining([
         { name: 'Weaponry', value: (liv.stats.weaponry ?? 0) + 2 },
@@ -469,7 +535,8 @@ describe('the Party builder (M9-S4, DL-104)', () => {
       skills: [{ name: 'Swordcraft', rating: 2 }],
     });
     // A Rogue and a Mage have none of this Quest's Skills.
-    expect(rows?.slice(2).map((row) => row.skills)).toEqual([[], []]);
+    expect(rows?.slice(1, 3).map((row) => row.className)).toEqual(['Rogue', 'Mage']);
+    expect(rows?.slice(1, 3).map((row) => row.skills)).toEqual([[], []]);
     // v1.1.4-S3's verification: no row names a Hero's Morale; the Party's one line says what it does.
     for (const row of rows ?? []) expect(Object.keys(row).filter((key) => key.startsWith('morale'))).toEqual([]);
   });
@@ -501,15 +568,71 @@ describe('the Party builder (M9-S4, DL-104)', () => {
 
     const rows = partyRows(document, quest.id);
 
-    expect(rows?.map(({ why, unavailable }) => ({ why, unavailable }))).toEqual([
-      { why: null, unavailable: null },
-      { why: null, unavailable: null },
-      { why: 'injured', unavailable: 'Injured, healing on the night of Day 6' },
-      { why: 'in-party', unavailable: 'Away with a Party, back on the night of Day 5' },
+    // Those who can go first; then Ragnvald, back on Day 5, before Cenric, healed on Day 6 (v1.1.5-S11, DL-169 item 4).
+    expect(rows?.map(({ name, why, unavailable, chip }) => ({ name, why, unavailable, chip }))).toEqual([
+      { name: 'Liv Coldharbour', why: null, unavailable: null, chip: null },
+      { name: 'Bram Netherby', why: null, unavailable: null, chip: null },
+      { name: 'Ragnvald Brackenridge', why: 'in-party', unavailable: 'Away with a Party, back on the night of Day 5', chip: 'Away' },
+      { name: 'Cenric Yarrow', why: 'injured', unavailable: 'Injured, healing on the night of Day 6', chip: 'Injured' },
     ]);
     for (const row of rows ?? []) expect(row.why).toBe(unavailability(document.world.heroes[row.heroId] as Hero));
-    // As the Roster words it.
-    expect(rows?.slice(2).map((row) => row.unavailable)).toEqual(rosterView(document).slice(2).map((row) => row.whereabouts));
+    // The full words as the Roster words them; only the Board's chip is short (DL-169 item 2).
+    const roster = rosterView(document);
+    for (const row of rows?.slice(2) ?? []) expect(row.unavailable).toBe(roster.find((each) => each.heroId === row.heroId)?.whereabouts);
+  });
+
+  test("lists the unavailable soonest free first, the Away by their Party's return and the Injured by their healing, ties in the default order", () => {
+    const { document, quest, bram, liv, cenric, ragnvald } = builder();
+    const away = (hero: Hero, returnsOnTurn: number, number: number): void => {
+      const partyId = `party-0000${number}` as PartyId;
+      document.world.parties[partyId] = {
+        id: partyId,
+        questId: document.world.board[1] as QuestId,
+        guildId: player(document).id,
+        heroIds: [hero.id],
+        departedOnTurn: 0,
+        returnsOnTurn,
+      };
+      hero.partyId = partyId;
+    };
+    // Liv is free on Turn 14, Ragnvald and Bram both on Turn 17, Cenric on Turn 20. Ragnvald the Mage
+    // before Bram the Healer breaks their tie by the default order, against the order they joined, Bram
+    // first (S11's verification: the tie had agreed with the order of joining, and tested neither).
+    liv.injury = { typeKey: 'deep-cut', healsOnTurn: 14 };
+    away(ragnvald, 17, 91);
+    bram.injury = { typeKey: 'deep-cut', healsOnTurn: 17 };
+    away(cenric, 20, 92);
+    expect(player(document).rosterIds.indexOf(bram.id)).toBeLessThan(player(document).rosterIds.indexOf(ragnvald.id));
+
+    expect(partyRows(document, quest.id)?.map((row) => row.name)).toEqual(['Liv Coldharbour', 'Ragnvald Brackenridge', 'Bram Netherby', 'Cenric Yarrow']);
+
+    // An injured Hero who is also away reads the Injury, as the engine's `unavailability` does.
+    away(bram, 23, 93);
+    expect(partyRows(document, quest.id)?.[2]).toMatchObject({ name: 'Bram Netherby', why: 'injured', chip: 'Injured' });
+  });
+
+  test('lists last a Hero whose free Day cannot be read, and the Heroes who can go first, in the default order', () => {
+    const { document, quest, bram, liv, cenric } = builder();
+    // Liv's Party is not in the world: no Day to read, so she comes after Cenric, back on Turn 29.
+    liv.partyId = 'party-000777' as PartyId;
+    cenric.partyId = 'party-000098' as PartyId;
+    document.world.parties[cenric.partyId] = {
+      id: cenric.partyId,
+      questId: document.world.board[1] as QuestId,
+      guildId: player(document).id,
+      heroIds: [cenric.id],
+      departedOnTurn: 0,
+      returnsOnTurn: 29,
+    };
+    // Ragnvald and Bram can go; at Level 3, Bram the Healer still follows Ragnvald the Mage.
+    bram.level = 3;
+
+    expect(partyRows(document, quest.id)?.map(({ name, chip, unavailable }) => ({ name, chip, unavailable }))).toEqual([
+      { name: 'Ragnvald Brackenridge', chip: null, unavailable: null },
+      { name: 'Bram Netherby', chip: null, unavailable: null },
+      { name: 'Cenric Yarrow', chip: 'Away', unavailable: 'Away with a Party, back on the night of Day 9' },
+      { name: 'Liv Coldharbour', chip: 'Away', unavailable: 'Away with a Party' },
+    ]);
   });
 
   test('is null for a Quest not on the Board', () => {
@@ -593,7 +716,7 @@ describe('choosing a Party', () => {
 });
 
 describe('rosterView', () => {
-  test("lists the player's Roster in its order with Level, age, Morale and whereabouts", () => {
+  test("lists the player's Roster in the default order with Level, age, Morale and whereabouts (v1.1.5-S12, DL-169 item 5)", () => {
     const document = structuredClone(newGame());
     const [first] = heroes(document);
     if (first === undefined) throw new Error('no Hero');
@@ -601,9 +724,11 @@ describe('rosterView', () => {
 
     const rows = rosterView(document);
 
-    expect(rows.map((row) => row.heroId)).toEqual(player(document).rosterIds);
-    expect(rows[0]?.whereabouts).toBe('Injured, healing on the night of Day 6');
-    expect(rows[1]?.whereabouts).toBe('At the Hall');
+    // Bram the Healer joined first, and comes last: by Class, as the Board's builder lists (S11).
+    expect(rows.map((row) => row.heroId)).toEqual([...heroes(document)].sort(defaultHeroOrder(document)).map((hero) => hero.id));
+    expect(rows.map((row) => row.className)).toEqual(['Warrior', 'Rogue', 'Mage', 'Healer']);
+    expect(rows.find((row) => row.heroId === first.id)?.whereabouts).toBe('Injured, healing on the night of Day 6');
+    expect(rows[0]?.whereabouts).toBe('At the Hall');
   });
 
   test("gives each card its Morale and band apart, and why a Hero is not at the Hall, for the icon beside its words (M9-S6, DL-106)", () => {
@@ -624,11 +749,346 @@ describe('rosterView', () => {
     away.morale = 80;
     home.morale = 50;
 
-    const [first, second, third] = rosterView(document);
+    const rows = rosterView(document);
+    const [first, second, third] = [injured, away, home].map((hero) => rows.find((row) => row.heroId === hero.id));
 
     expect(first).toMatchObject({ morale: 12, moraleBand: 'wretched', why: 'injured', whereabouts: 'Injured, healing on the night of Day 6' });
     expect(second).toMatchObject({ morale: 80, moraleBand: 'high', why: 'in-party', whereabouts: 'Away with a Party, back on the night of Day 4' });
     expect(third).toMatchObject({ morale: 50, moraleBand: 'steady', why: null, whereabouts: 'At the Hall' });
+  });
+
+  test('a Hero whose Party is not in the world is Away with a Party, as the builder says, and sorts last by when free (S10, the close review)', () => {
+    const document = structuredClone(newGame());
+    const [lost] = heroes(document);
+    if (lost === undefined) throw new Error('no Hero');
+    lost.partyId = 'party-000777' as PartyId;
+
+    const row = rosterView(document).find((each) => each.heroId === lost.id);
+    const quest = document.world.board[0] as QuestId;
+
+    expect(row).toMatchObject({ why: 'in-party', whereabouts: 'Away with a Party' });
+    expect(partyRows(document, quest)?.find((each) => each.heroId === lost.id)?.unavailable).toBe(row?.whereabouts);
+    expect(heroPage(document, lost.id)?.where).toEqual({ why: 'in-party', words: 'Away with a Party' });
+    expect(rosterView(document, { key: 'free', direction: 'ascending' }).at(-1)?.heroId).toBe(lost.id);
+  });
+});
+
+describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.1.5-S12, DL-169 items 8 and 9)", () => {
+  /** A new game whose Guildmaster holds Old soldier (+1 Weaponry to Warriors) and Mistrusts magic (-1 Arcana to Mages). */
+  function table(): { document: WorldDocument; liv: Hero; ragnvald: Hero; bram: Hero } {
+    const document = structuredClone(newGame());
+    const [bram, liv, , ragnvald] = heroes(document);
+    if (bram === undefined || liv === undefined || ragnvald === undefined) throw new Error('four Heroes');
+    expect([liv.classKey, ragnvald.classKey, bram.classKey]).toEqual(['warrior', 'mage', 'healer']);
+    for (const hero of heroes(document)) hero.traits = [];
+    const guildmaster = guildmasterOf(player(document), document.world);
+    if (guildmaster === undefined) throw new Error("no player's Guildmaster");
+    guildmaster.traits = ['old-soldier', 'mistrusts-magic'];
+    return { document, liv, ragnvald, bram };
+  }
+
+  /** A Hero's row's Stat by its key. */
+  function stat(document: WorldDocument, hero: Hero, key: string) {
+    const found = rosterView(document)
+      .find((row) => row.heroId === hero.id)
+      ?.stats.find((each) => each.key === key);
+    if (found === undefined) throw new Error(`no ${key} for ${hero.name}`);
+    return found;
+  }
+
+  test("gives each Hero all 20 Stats in content's order, each its base and the effective value a Check reads, and every row its area", () => {
+    const { document, liv } = table();
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
+    const stats = Object.values(content.stats).filter((each) => each.owner === 'hero');
+    expect(stats).toHaveLength(20);
+
+    for (const row of rosterView(document)) {
+      const hero = document.world.heroes[row.heroId] as Hero;
+      const effective = effectiveStats(hero, document.world, content);
+      expect(row.stats.map((each) => each.key)).toEqual(stats.map((each) => each.key));
+      expect(row.stats.map((each) => each.name)).toEqual(stats.map((each) => each.name));
+      expect(row.stats.map((each) => each.base)).toEqual(stats.map((each) => hero.stats[each.key]));
+      expect(row.stats.map((each) => each.value)).toEqual(stats.map((each) => effective[each.key]));
+    }
+  });
+
+  test('names each source that changes a Stat, the Class bonus, Gear and Traits, and marks the net change up or down', () => {
+    const { document, liv, ragnvald } = table();
+    liv.stats['weaponry'] = 10;
+    liv.stats['strength'] = 11;
+    liv.stats['dexterity'] = 12;
+    liv.traits = ['lame', 'one-eyed'];
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
+    ragnvald.stats['arcana'] = 14;
+
+    // The Class bonus +1, the sword +2 and One-eyed -1: 12, raised.
+    expect(stat(document, liv, 'weaponry')).toEqual({
+      key: 'weaponry',
+      name: 'Weaponry',
+      base: 10,
+      value: 12,
+      change: 'up',
+      sources: [
+        { from: "the Guildmaster's Class bonus", change: 1 },
+        { from: 'Gear', change: 2 },
+        { from: 'Traits', change: -1 },
+      ],
+      words: "Base 10, +1 from the Guildmaster's Class bonus, +2 from Gear, -1 from Traits",
+    });
+    expect(stat(document, liv, 'strength')).toMatchObject({ base: 11, value: 12, change: 'up', words: 'Base 11, +1 from Gear' });
+    expect(stat(document, liv, 'dexterity')).toMatchObject({ base: 12, value: 10, change: 'down', words: 'Base 12, -2 from Traits' });
+    expect(stat(document, ragnvald, 'arcana')).toMatchObject({ base: 14, value: 13, change: 'down', words: "Base 14, -1 from the Guildmaster's Class bonus" });
+    // Nothing changes it: plain, no words, no source.
+    expect(stat(document, liv, 'charisma')).toMatchObject({ change: null, sources: [], words: null });
+    // The Class bonus is the Warrior's: the Mage's Weaponry is as it is.
+    expect(stat(document, ragnvald, 'weaponry')).toMatchObject({ change: null, words: null });
+  });
+
+  test("reads the net change after the Stat's bounds: plain at nothing, the sources still named, and the bound said", () => {
+    const { document, liv } = table();
+    // Endurance: the plate's +2 against Lame's -1 and Short-winded's -2, the Traits summed.
+    liv.traits = ['lame', 'short-winded'];
+    addStack(document.world, 'plate-harness', 1, { kind: 'hero', id: liv.id, slot: 'armour' });
+    liv.stats['endurance'] = 10;
+    // At the top: Weaponry 20, +1 from the Class bonus, held at 20.
+    liv.stats['weaponry'] = 20;
+    liv.stats['strength'] = 20;
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
+
+    expect(stat(document, liv, 'endurance')).toEqual({
+      key: 'endurance',
+      name: 'Endurance',
+      base: 10,
+      value: 9,
+      change: 'down',
+      sources: [
+        { from: 'Gear', change: 2 },
+        { from: 'Traits', change: -3 },
+      ],
+      words: 'Base 10, +2 from Gear, -3 from Traits',
+    });
+    expect(stat(document, liv, 'weaponry')).toMatchObject({
+      base: 20,
+      value: 20,
+      change: null,
+      words: "Base 20, +1 from the Guildmaster's Class bonus, +2 from Gear, held at 20",
+    });
+    // The plate's +3 Constitution against Short-winded's -1 and a base of 9: up by 2.
+    liv.stats['constitution'] = 9;
+    expect(stat(document, liv, 'constitution')).toMatchObject({ value: 11, change: 'up', words: 'Base 9, +3 from Gear, -1 from Traits' });
+    // Sources that cancel, the ring's +1 Charisma and Scarred's -1: plain, their words kept for the tooltip.
+    addStack(document.world, 'signet-ring', 1, { kind: 'hero', id: liv.id, slot: 'trinket' });
+    liv.traits = ['scarred'];
+    liv.stats['charisma'] = 10;
+    expect(stat(document, liv, 'charisma')).toMatchObject({ value: 10, change: null, words: 'Base 10, +1 from Gear, -1 from Traits' });
+  });
+
+  test("gives each Hero's Traits with their effects, and the Gear they carry by name with its effect, and nothing of Potential", () => {
+    const { document, liv } = table();
+    liv.traits = ['lame', 'battle-tried'];
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
+    createItem(document.world, 'abbots-reliquary', { kind: 'hero', id: liv.id, slot: 'trinket' });
+    // What the Guild holds is no Hero's.
+    addStack(document.world, 'padded-jack', 1, { kind: 'guild', id: player(document).id });
+
+    const rows = rosterView(document);
+    const row = rows.find((each) => each.heroId === liv.id);
+
+    expect(row?.traits).toEqual([
+      { name: 'Lame', effect: '-2 Dexterity, -1 Endurance' },
+      { name: 'Battle-tried', effect: '+2 to every Check of combat Encounters' },
+    ]);
+    expect(row?.items).toEqual([
+      { name: 'Arming sword', effect: 'Weaponry +2, Strength +1', definitionKey: 'arming-sword', unique: false },
+      { name: "The Abbot's reliquary", effect: 'Spirit +3, Willpower +2, Resistance +1', definitionKey: 'abbots-reliquary', unique: true },
+    ]);
+    // The same words as the Hero's page.
+    expect(row?.traits).toEqual(heroPage(document, liv.id)?.traits);
+    for (const other of rows.filter((each) => each.heroId !== liv.id)) expect(other.items).toEqual([]);
+    expect(JSON.stringify(rows)).not.toMatch(/potential|outlook/i);
+  });
+
+  test('says which Items are Unique, with their content key, and whether the Hero carries one: Common Items alone, or none, carry none (v1.1.5-S14, DL-182 item 4)', () => {
+    const { document, liv, ragnvald } = table();
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
+    createItem(document.world, 'lantern-of-stannary', { kind: 'hero', id: liv.id, slot: 'trinket' });
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: ragnvald.id, slot: 'weapon' });
+    // A Unique Item the Guild holds is no Hero's.
+    createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: player(document).id });
+
+    const rows = rosterView(document);
+    const row = (hero: Hero) => rows.find((each) => each.heroId === hero.id);
+
+    expect(row(liv)?.items.map(({ definitionKey, unique }) => ({ definitionKey, unique }))).toEqual([
+      { definitionKey: 'arming-sword', unique: false },
+      { definitionKey: 'lantern-of-stannary', unique: true },
+    ]);
+    expect(row(liv)?.carriesUnique).toBe(true);
+    expect(row(ragnvald)?.items.map(({ unique }) => unique)).toEqual([false]);
+    expect(row(ragnvald)?.carriesUnique).toBe(false);
+    for (const other of rows.filter((each) => each.heroId !== liv.id && each.heroId !== ragnvald.id)) {
+      expect(other.items).toEqual([]);
+      expect(other.carriesUnique).toBe(false);
+    }
+  });
+});
+
+describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
+  /** The four Heroes of a new game, made to differ. */
+  function sorted(): { document: WorldDocument; bram: Hero; liv: Hero; cenric: Hero; ragnvald: Hero } {
+    const document = structuredClone(newGame());
+    const [bram, liv, cenric, ragnvald] = heroes(document);
+    if (bram === undefined || liv === undefined || cenric === undefined || ragnvald === undefined) throw new Error('four Heroes');
+    expect([bram.name, liv.name, cenric.name, ragnvald.name]).toEqual(['Bram Netherby', 'Liv Coldharbour', 'Cenric Yarrow', 'Ragnvald Brackenridge']);
+    for (const hero of heroes(document)) hero.traits = [];
+    const guildmaster = guildmasterOf(player(document), document.world);
+    if (guildmaster !== undefined) guildmaster.traits = [];
+    return { document, bram, liv, cenric, ragnvald };
+  }
+
+  const names = (document: WorldDocument, order: RosterOrder): string[] => rosterView(document, order).map((row) => row.name.split(' ')[0] ?? '');
+
+  test('offers Default, Name, Class, Level, Age, Morale, When free and each of the 20 Stats, each with its first direction', () => {
+    const choices = rosterSortChoices();
+    expect(choices.slice(0, 7).map(({ key, label, first }) => [key, label, first])).toEqual([
+      ['default', 'Default', 'ascending'],
+      ['name', 'Name', 'ascending'],
+      ['class', 'Class', 'ascending'],
+      ['level', 'Level', 'descending'],
+      ['age', 'Age', 'ascending'],
+      ['morale', 'Morale', 'descending'],
+      ['free', 'When free', 'ascending'],
+    ]);
+    const stats = Object.values(content.stats).filter((each) => each.owner === 'hero');
+    expect(choices.slice(7).map(({ key, label, first, area }) => [key, label, first, area])).toEqual(
+      stats.map((each) => [each.key, each.name, 'descending', `${each.area.charAt(0).toUpperCase()}${each.area.slice(1)}`]),
+    );
+    expect(choices.slice(0, 7).every((choice) => choice.area === null)).toBe(true);
+  });
+
+  test('says each direction in words', () => {
+    expect(orderWords('default', 'ascending')).toBe('Default order');
+    expect(orderWords('default', 'descending')).toBe('Reversed');
+    expect(orderWords('name', 'ascending')).toBe('A to Z');
+    expect(orderWords('name', 'descending')).toBe('Z to A');
+    expect(orderWords('class', 'ascending')).toBe('Warrior first');
+    expect(orderWords('class', 'descending')).toBe('Healer first');
+    expect(orderWords('level', 'descending')).toBe('Highest first');
+    expect(orderWords('morale', 'ascending')).toBe('Lowest first');
+    expect(orderWords('strength', 'descending')).toBe('Highest first');
+    expect(orderWords('age', 'ascending')).toBe('Youngest first');
+    expect(orderWords('age', 'descending')).toBe('Oldest first');
+    expect(orderWords('free', 'ascending')).toBe('At the Hall first');
+    expect(orderWords('free', 'descending')).toBe('At the Hall last');
+  });
+
+  test("names the direction's button by its action, then the direction it is in, the shown words inside a sentence (#52's judgement call 4, DL-185)", () => {
+    expect(reverseOrderName('default', 'ascending')).toBe('Reverse the order, now default order');
+    expect(reverseOrderName('default', 'descending')).toBe('Reverse the order, now reversed');
+    expect(reverseOrderName('name', 'ascending')).toBe('Reverse the order, now A to Z');
+    expect(reverseOrderName('name', 'descending')).toBe('Reverse the order, now Z to A');
+    expect(reverseOrderName('class', 'ascending')).toBe('Reverse the order, now Warrior first');
+    expect(reverseOrderName('level', 'descending')).toBe('Reverse the order, now highest first');
+    expect(reverseOrderName('strength', 'ascending')).toBe('Reverse the order, now lowest first');
+    expect(reverseOrderName('age', 'ascending')).toBe('Reverse the order, now youngest first');
+    expect(reverseOrderName('free', 'descending')).toBe('Reverse the order, now at the Hall last');
+    // The shown words are in it, whatever their case, so a voice naming what it sees finds the button.
+    for (const key of ['default', 'name', 'class', 'level', 'age', 'morale', 'free', 'strength'] as const) {
+      for (const direction of ['ascending', 'descending'] as const) {
+        expect(reverseOrderName(key, direction).toLowerCase()).toContain(orderWords(key, direction).toLowerCase());
+      }
+    }
+  });
+
+  test('sorts by Name, Class, Level, Age and Morale either way, ties in the default order', () => {
+    const { document, bram, liv, cenric, ragnvald } = sorted();
+    expect(names(document, { key: 'default', direction: 'ascending' })).toEqual(['Liv', 'Cenric', 'Ragnvald', 'Bram']);
+    expect(names(document, { key: 'default', direction: 'descending' })).toEqual(['Bram', 'Ragnvald', 'Cenric', 'Liv']);
+    expect(names(document, { key: 'name', direction: 'ascending' })).toEqual(['Bram', 'Cenric', 'Liv', 'Ragnvald']);
+    expect(names(document, { key: 'name', direction: 'descending' })).toEqual(['Ragnvald', 'Liv', 'Cenric', 'Bram']);
+    expect(names(document, { key: 'class', direction: 'descending' })).toEqual(['Bram', 'Ragnvald', 'Cenric', 'Liv']);
+
+    // Level 3 for Bram and Cenric, 1 for the others: the ties in the default order, whichever way.
+    bram.level = 3;
+    cenric.level = 3;
+    expect(names(document, { key: 'level', direction: 'descending' })).toEqual(['Cenric', 'Bram', 'Liv', 'Ragnvald']);
+    expect(names(document, { key: 'level', direction: 'ascending' })).toEqual(['Liv', 'Ragnvald', 'Cenric', 'Bram']);
+
+    liv.ageAtEntry = 40;
+    ragnvald.ageAtEntry = 18;
+    bram.ageAtEntry = 30;
+    cenric.ageAtEntry = 30;
+    liv.enteredTurn = ragnvald.enteredTurn = bram.enteredTurn = cenric.enteredTurn = 0;
+    expect(names(document, { key: 'age', direction: 'ascending' })).toEqual(['Ragnvald', 'Cenric', 'Bram', 'Liv']);
+    expect(names(document, { key: 'age', direction: 'descending' })).toEqual(['Liv', 'Cenric', 'Bram', 'Ragnvald']);
+
+    liv.morale = 50;
+    ragnvald.morale = 50;
+    bram.morale = 80;
+    cenric.morale = 10;
+    expect(names(document, { key: 'morale', direction: 'descending' })).toEqual(['Bram', 'Liv', 'Ragnvald', 'Cenric']);
+    expect(names(document, { key: 'morale', direction: 'ascending' })).toEqual(['Cenric', 'Liv', 'Ragnvald', 'Bram']);
+  });
+
+  test("sorts by a Stat's effective value, not its base, ties in the default order", () => {
+    const { document, bram, liv, cenric, ragnvald } = sorted();
+    liv.stats['weaponry'] = 12;
+    cenric.stats['weaponry'] = 13;
+    ragnvald.stats['weaponry'] = 13;
+    bram.stats['weaponry'] = 8;
+    // The sword lifts Liv's to 14, above the two at 13.
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
+
+    expect(names(document, { key: 'weaponry', direction: 'descending' })).toEqual(['Liv', 'Cenric', 'Ragnvald', 'Bram']);
+    expect(names(document, { key: 'weaponry', direction: 'ascending' })).toEqual(['Bram', 'Cenric', 'Ragnvald', 'Liv']);
+  });
+
+  test('sorts by when free: at the Hall first, then the soonest free, a Hero with no Day to read last; reversed, the other way', () => {
+    const { document, bram, liv, cenric } = sorted();
+    bram.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
+    const partyId = 'party-000009' as PartyId;
+    document.world.parties[partyId] = { id: partyId, questId: 'quest-000001' as QuestId, guildId: player(document).id, heroIds: [cenric.id], departedOnTurn: 0, returnsOnTurn: 14 };
+    cenric.partyId = partyId;
+    liv.partyId = 'party-000777' as PartyId;
+
+    expect(names(document, { key: 'free', direction: 'ascending' })).toEqual(['Ragnvald', 'Cenric', 'Bram', 'Liv']);
+    expect(names(document, { key: 'free', direction: 'descending' })).toEqual(['Liv', 'Bram', 'Cenric', 'Ragnvald']);
+  });
+
+  test('changes nothing in the world: the Roster keeps the order the Heroes joined', () => {
+    const document = newGame();
+    const before = JSON.stringify(document);
+    for (const { key, first } of rosterSortChoices()) rosterView(document, { key, direction: first });
+    expect(JSON.stringify(document)).toBe(before);
+  });
+});
+
+describe("the Roster's Table's columns (v1.1.5-S12, DL-169 item 7)", () => {
+  test('are grouped as Hero and the four areas, each Stat in its area, each column with the sort its heading orders by', () => {
+    const groups = rosterColumnGroups();
+    expect(groups.map(({ key, label }) => [key, label])).toEqual([
+      ['hero', 'Hero'],
+      ['physical', 'Physical'],
+      ['mental', 'Mental'],
+      ['magical', 'Magical'],
+      ['social', 'Social'],
+    ]);
+    expect(groups[0]?.columns).toEqual([
+      { key: 'class', label: 'Class', sort: 'class', number: false },
+      { key: 'level', label: 'Level', sort: 'level', number: true },
+      { key: 'age', label: 'Age', sort: 'age', number: true },
+      { key: 'morale', label: 'Morale', sort: 'morale', number: true },
+      { key: 'where', label: 'Where', sort: 'free', number: false },
+      { key: 'traits', label: 'Traits', sort: null, number: false },
+      { key: 'items', label: 'Items', sort: null, number: false },
+    ]);
+    expect(groups.slice(1).map((group) => group.columns.length)).toEqual([5, 6, 5, 4]);
+    for (const group of groups.slice(1)) {
+      for (const column of group.columns) {
+        expect(content.stats[column.key]?.area).toBe(group.key);
+        expect(column).toEqual({ key: column.key, label: content.stats[column.key]?.name, sort: column.key, number: true });
+      }
+    }
   });
 });
 
