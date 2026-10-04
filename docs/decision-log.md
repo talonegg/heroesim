@@ -21984,6 +21984,199 @@ to 1 and of a Quest with no estimate, and the epic's S2 text quoting the close's
 
 ---
 
+## DL-177 — v1.1.5-S3 built: the new baseline, the player choosing its Quests by their chance over 50 games of 20 years, its replay identical; the player's failures, Deaths and Injuries halved, its early Bankruptcies gone and the late ones not, 13 of 50 as before
+
+**Status:** Accepted · **Date:** 2026-10-04 · **Decided by:** the agent, running S3 as the epic's S3
+describes, for the owner and #51. No code changed. The readings marked as the agent's are for the
+owner to change; the rule for what follows is the close's to decide (DL-168 item 16).
+
+**Context.** S1 (DL-174) and S6 (DL-175) play the same 50 games as `v1.1.4`'s close: S6's sweep
+gave every seed's last save `24bae1ff…` and the Counters equal to the close's. S2 (DL-176) then
+changed the harness's player: of the Quests it can staff it sends first the one whose `partyFor`
+Party has the highest chance of success by the estimate, ties to the higher reward, then the Quest
+id, and chooses again from the Heroes left. Nothing else changed since S6's sweep: `git diff
+b401502..3e50e1a` touches only `docs/`, `harness/src/` and `vitest.config.ts`. So each difference
+below from the close is the new player's, directly or through the Board it leaves the Rivals.
+
+**The sweep.** Run alone (no other process of ours; the owner's Playwright test-server left
+running), at `3e50e1a`: `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_YEARS=20
+HEROESIM_MILESTONE=m9-v115-s3 npm run harness -- play.harness`, core only, content 31, config 13,
+schema 6, not validated, the replay kept. 1,373.9 s in all, the games 1,215.6 s of it; the test
+passed. The report, `harness/reports/m9-v115-s3-2026-10-04.md`, is force-added.
+- *The replay ran and matched:* `seed-0001` played twice is identical (128,821,570 characters), and
+  the test asserts it (`sweep.replay.identical`). 50 of 50 saves load and serialise back alike. No
+  policy action was refused, no harness assertion broken.
+- *The fingerprint* of every seed's last save is new, `e3342dfd79f9c32b…dd1fc676`, as a new player's
+  must be (the close's `24bae1ff…`).
+- *The policy line* of the report names S2's rule.
+
+**Decision: the figures, beside `v1.1.4`'s close** (`m9-v114-close-2026-10-03.md`, equal in play to
+S6's sweep):
+
+| | S3 (the new player) | `v1.1.4`'s close |
+| --- | ---: | ---: |
+| Player's Quests taken, resolved | 382,408, 382,191 | 312,620, 312,418 |
+| Player failed / succeeded / strong | 5.8% / 19.6% / 74.6% | 12.4% / 30.6% / 57.1% |
+| Rivals failed / succeeded / strong | 12.4% / 30.8% / 56.8% | 11.7% / 30.2% / 58.1% |
+| Player bankrupt | 13 of 50 (26%) | 13 of 50 (26%) |
+| … by year (year 0 first) | 11: 1, 12: 1, 13: 1, 15: 2, 17: 1, 18: 2, 19: 5 | 0: 1, 9: 1, 12: 1, 14: 1, 15: 4, 18: 4, 19: 1 |
+| … in the first two years | 0 | 1 |
+| Years survived, mean (min) | 19.25 (11.89) | 18.65 (0.92) |
+| Player's Guild-years in play | 962.6 | 932.3 |
+| Player Deaths a game | 3.68 | 7.98 |
+| Player Injuries a game | 63.84 | 129.18 |
+| Rivals' Deaths, Injuries a game | 18.06, 305.48 | 15.20, 281.42 |
+| Player recruits a game | 8.60 | 12.44 |
+| Player Retirements | 48 | 32 |
+| Player's Heroes sent on a Quest a game | 12.60 | 16.44 |
+| Traits earned a career, player's and Rivals' | 1.578, 0.579 | 1.117, 0.594 |
+| Rival folds a game | 5.44 (272) | 5.40 (270) |
+| Rival Successions | 14 | 11 |
+| Player first in the Rankings, by Fame, by Wealth | 99.0%, 86.2% | 82.3%, 80.5% |
+| Player's Wealth after 1, 10 and 20 years | 16,918; 104,765; 90,922 | 9,588; 92,001; 102,864 |
+| Mean Level of the player's Roster after 10 and 20 years | 10.30, 11.86 | 10.05, 11.71 |
+| Levels, declines a player Guild-year | 6.13, 2.25 | 7.40, 1.94 |
+| Upkeep, Quest rewards a player Guild-year | 56,056, 63,328 (88.5%) | 54,825, 63,011 (87.0%) |
+| Player's Quests a Guild-year, reward a Quest | 397.0, 159.5 | 335.1, 188.0 |
+| Mean difficulty of the player's Quests | 38.2 | 47.3 |
+| Loot a player's Quest | 0.127 | 0.142 |
+| `advance` a Turn, mean / p99 | 4.699 / 23.863 ms | 4.966 / 24.651 ms |
+| The games, the whole run | 1,215.6 s, 1,373.9 s | 1,301.6 s, 1,448.2 s |
+
+**For the owner and #51: Party sizes and XP a Hero** (DL-166's table; XP is not split, so each Hero
+of a Party takes the Quest's XP; the close's in brackets):
+
+| The player's Party | Quests | Failed | Strong | XP a Hero | XP the Party took |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 Hero | 190,676 (49.9%) (41.7%) | 9.0% (17.6%) | 68.0% (53.8%) | 30.0 (31.0) | 30.0 (31.0) |
+| 2 | 166,328 (43.5%) (44.8%) | 2.7% (9.0%) | 81.5% (60.9%) | 59.6 (66.7) | 119.3 (133.4) |
+| 3 | 24,794 (6.5%) (12.8%) | 2.1% (7.3%) | 80.2% (56.0%) | 88.1 (90.8) | 264.4 (272.2) |
+| 4 | 387 (0.1%) (0.6%) | 3.9% (11.0%) | 46.5% (25.4%) | 79.7 (88.2) | 318.7 (352.6) |
+| 5 | 6 (0.0%) (0.0%) | 0.0% (12.5%) | 33.3% (18.8%) | 94.8 (94.3) | 474.2 (471.4) |
+| Every size, mean 1.57 (1.72) | 382,191 | 5.8% (12.4%) | 74.6% (57.1%) | 46.7 (55.0) | 84.3 (109.8) |
+
+The Rivals' are as before in shape: mean 1.70 (1.69), 51.4 XP a Hero (49.2), 97.6 a Party (93.8).
+
+**Every difference from the close, explained.** The agent's readings, from the report's tables.
+1. *Easier Quests, and fewer failures.* The player now sends its Parties where they are likeliest
+   to win, and the likeliest Quests are the easier ones: the mean difficulty of its Quests falls
+   from 47.3 to 38.2 (difficulty 10 to 39: 213,935 Quests against 123,002; 60 and over: 53,503
+   against 96,404). So its Quests fail 5.8% (12.4%), and 74.6% are strong (57.1%), the plain
+   successes falling to 19.6% (30.6%). Every Encounter kind fails less (combat 6.0% against 12.4%,
+   stealth 8.1% against 15.6%). S2's 8-seed probe read 6.0% and 73.5% (DL-176).
+2. *Smaller Parties, more Quests.* An easy Quest needs fewer Heroes to pass the margin, so half the
+   Parties go alone (49.9%, against 41.7%) and the mean Party is 1.57 Heroes (1.72). Eight Heroes in
+   smaller Parties make more Parties at once: 397.0 Quests a Guild-year against 335.1 (+18.5%).
+3. *Income level, Upkeep a little higher.* An easier Quest pays less, 159.5 a Quest against 188.0
+   (−15%), so the 18.5% more Quests bring the same income, 63,328 a Guild-year against 63,011. Upkeep
+   rises 2.2% to 56,056, the Heroes living longer at a higher Level (5 below), and takes 88.5% of the
+   Quest income (87.0%).
+4. *Harm halved.* Fewer failures and easier Encounters: Injuries 63.84 a game (129.18), Deaths 3.68
+   (7.98), the Heroes injured a Check 0.003 (0.007). Fewer Heroes die, so fewer are recruited (8.60
+   a game against 12.44), fewer are sent in all (12.60 against 16.44), more live to retire (48
+   against 32), and the Roster's Relationships are closer (95.9% close, against 92.0%).
+5. *Levels.* XP a Hero falls (46.7 against 55.0: easier Quests, smaller Parties), and fewer new
+   Heroes level fast from Level 1, so Levels a Guild-year fall to 6.13 (7.40). Yet the Heroes live
+   longer, so the Roster's mean Level is a little higher, 10.30 after 10 years (10.05) and 11.86
+   after 20 (11.71), with more of them at Potential (76.5% after 10 years against 69.3%) and more
+   declines (2.25 a Guild-year against 1.94).
+6. *More Traits earned.* More Triumphs earn more positive Traits (`wayfinder` 430 against 373,
+   `silver-tongued` 200 against 139, `battle-tried` 241 against 218), fewer Failures fewer negative
+   ones (`battle-shy` 15 against 35, `haunted` 3 against 15), and `lettered` falls (105 against 138)
+   with the arcane Checks (72,431 against 93,337). 994 Traits over 630 careers, 1.578 a career
+   (1.117): the careers are fewer and longer. S2's probe read 1.633. S5's 0.05 is still to come, so
+   S5's 1.25 to 1.75 reading will likely be passed (§4 Risks), for S5 to report.
+7. *Bankruptcies: the early ones gone, the late ones not.* The new player starts stronger: in year 0
+   its Quests are strong 38.1% (16.1%) and its Wealth after a year is 16,918 (9,588). No Guild goes
+   bankrupt before year 11 (the close had one in year 0 and one in year 9), and years survived rise
+   to 19.25 (18.65). But 13 still go, all from year 11, 8 of them from year 17. The player's Wealth
+   at a year-start peaks at about 105,000 in years 10 to 12, then falls to about 85,000 by year 19,
+   where the close's held at about 92,000 to 103,000. It is DL-166's late mechanism, now alone: the wage
+   grows with Level (`wagePerLevel` 20) while a Quest's reward does not, and the easier Quests the
+   new player takes pay less each. 13 against 13 is no change within fifty seeds' ±3 (DL-166).
+8. *Rankings.* The player leads more often, by Fame at 99.0% of year-starts (82.3%: no early slump
+   in the Rankings, 96% first after one year against 12%) and by Wealth at 86.2% (80.5%).
+9. *Loot.* 0.127 a Quest (0.142): the easier Quests' tables give none below difficulty 40. More
+   Quests leave the awards a Guild-year a little higher, 50.4 (47.6). Consumables carried 3.06 a
+   Quest (2.89), expended 0.43 (0.51), fewer rerolls and heals needed.
+10. *The Rivals, through the Board.* Rivals act in the afternoon on what the player left (pre-M0
+    D2), and the player now leaves the harder Quests: each Disposition's mean difficulty rises by 1.3
+    to 1.9 (ambitious 45.4 against 44.1, miserly 33.2 against 31.3, reckless 57.5 against 55.6,
+    steady 42.8 against 41.4). So the Rivals fail a little more (12.4% against 11.7%), and their
+    Deaths a Guild-year rise to 0.236 (0.205) and Injuries to 3.99 (3.80). Their folds are level,
+    5.44 a game (5.40); Rival Guild-years rise to 3,827.8 (3,706.6), the games running longer;
+    Successions 14 (11) and Rival-to-Rival Transfers 37 (27) are small counts that move with them.
+    The Rivals' draws also follow the player's on the shared streams, so no Rival figure is the
+    close's game for game.
+11. *The saves.* More Quests make more History: a full game's last save 121.82 MiB on average
+    (119.96), its largest 133.98 MiB (137.21); `seed-0001`'s 128.8 million characters (116.2).
+12. *The time.* `advance` a Turn 4.699 ms mean, p99 23.863 ms: as S6's 4.680 and 23.089, and below the
+    close's 4.966 and 24.651. The policy's cost lies outside `advance` (DL-176): the games took
+    1,215.6 s, 12.5% more than S6's 1,080.3 s with the same code but the policy (S2's probe read +9.5%
+    to +11%), and 6.6% less than the close's 1,301.6 s, S1's fix included. The replay took most of
+    the other 158.3 s (146.6 s at the close). As 1,000 games, 421 minutes (the close 465, S6 386).
+    The replay alone, `seed-0001`'s new game, `advance` 2.075 ms mean, p99 13.960 (the close's
+    `seed-0001`, a different game, 1.819 and 8.945).
+
+**Every DL-83 target, measured, not tuned** (the close's in brackets):
+- item 2, the player's Bankruptcy or wiped Roster in 5 to 15% of games: 26%, 13 of 50 (26%); unmet;
+- item 3, first in the Rankings at 40 to 60% of year-starts: 99.0% by Fame and 86.2% by Wealth
+  (82.3%, 80.5%); unmet, further above;
+- item 4, the player's Quests failed 20 to 30% and strong at most 50%: 5.8% and 74.6% (12.4%, 57.1%);
+  unmet, further off;
+- item 5, 1.5 to 3.5 Rival folds a game: 5.44 (5.40); unmet;
+- item 6, 25 to 40 of the player's Hero Deaths a game: 3.68 (7.98); unmet, further below;
+- item 7, Wealth held at 6 to 12 months' Upkeep after year 2: 104,765 after 10 years against 4,671 of
+  Upkeep a month, 22.4 months, and 90,922 after 20 over the 37 games in play, 19.5 months (20.1, 22.5);
+  unmet, above;
+- item 21, the Roster's mean Level after 10 years 8 to 10: 10.30 (10.05); just above;
+- item 22, the highest Level reached by year 20, 14 to 17: not measured, the report having no counter
+  for it (DL-83 item 20's counter was not built), as at the close.
+
+The baseline these are read against has now moved twice (§4 Risks): `partyFor`'s Party since
+v1.1.4-S6, and since S2 the choice of Quests by chance.
+
+**The memory.** Each seed plays in its own `shard.ts` process; each process's Windows peak working set
+(`PeakWorkingSet64`) and private bytes were read every 5 s (a scratch file, not kept). Of the 50:
+peak working set median 1,066 MiB, mean 1,051, the 40 that played long (above 900 MiB) 1,117, the
+highest 1,377 MiB (1.34 GiB); private bytes at most 1,542 MiB in a sample; the eight at once at most
+5,419 MiB together. S6's sweep: median 1,066, highest 1,354, together 5,383. The Vitest parent at most
+223 MiB.
+- *The replay's process* (new here, S6's sweep having skipped it): the Vitest worker that plays the
+  sweep's replay, 90 MiB while the shards played, reached at least 2,352 MiB peak working set (2,266
+  MiB private) in its last sample, 12:45:47, a second before the run ended; its true peak may be a
+  little higher. *A reading, the agent's:* `replay` plays `seed-0001` twice in one process and holds
+  the first game's save text (128.8 million characters) while it plays the second, beside the sweep's
+  records; no shard runs then, so the run's total stays under the shards' 5.4 GiB. It is the run's
+  largest process, and the close (S10) runs it again. A fix, if wanted, is the owner's: the replay
+  could fingerprint the first text and drop it before the second game, as S1's fix did for the
+  yearly save.
+
+**The rule for what follows, a first reading** (DL-168 item 16; the close decides it). The player's
+Bankruptcies are 13 of 50, 26%, against 5 to 15% (3 to 7 of 50). That is 6 above the band's top, twice
+fifty seeds' ±3 (DL-166), so not near the edge: on S3 alone the rule names the economy pass first, as
+`v1.1.6`. S4 (an Injury on the next-weakest unhurt Hero) and S5 (the positive earned Traits at 0.05)
+change play before the close's sweep, and S3's 13 is to be reported beside the close's (the epic's
+Gate). *The agent's reading:* the new player ends the early Bankruptcies but not the late ones, which
+come from the wage outgrowing a weak Roster's income (DL-166); neither S4 nor S5 touches the wage or
+the reward.
+
+**Checks.** No code changed, so no tests were run beyond the sweep (its test passed, its replay
+asserted identical). `npm run edit -- traits doctor` was not needed: S3 touches neither `engine/src/`
+nor `content/src/validate.ts`. Only the report, this entry and the epic change.
+
+**For the owner.**
+1. The rule's first reading: 13 of 50 bankrupt, outside the band, as at `v1.1.4`'s close.
+2. The new player moves every other DL-83 target further from its band but item 7's: fewer failures
+   (5.8%), fewer Deaths (3.68), more strong successes (74.6%), the player first more often (99.0%).
+3. Traits earned a career are 1.578 before S5 raises the four positive chances to 0.05.
+4. The replay's process now peaks at about 2.3 GiB or more, the largest of the run (above).
+
+**Actioned in:** `harness/reports/m9-v115-s3-2026-10-04.md` (force-added); the epic's S3 boxes and
+status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
