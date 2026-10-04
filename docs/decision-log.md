@@ -24684,6 +24684,43 @@ endings as before, none mixed.
 
 ---
 
+## DL-189 — v1.1.6-S3 built: the replay plays its seed once, alone and bare, and compares its last save's length and fingerprint with its shard's record
+
+2026-10-05. DL-186 item 10 (B4).
+
+- *Once.* After the sweep, `replay` (`harness/src/sweep.ts`) plays one seed once, in the parent, with
+  `PlayOptions.bare` set (new, `play.ts`: `observe`, `observeHeroes`, `observeSave`, `takeCensus` and
+  `readAdvance` skipped, so `observations` stay empty and `advanceMs` is `advance` and the policy alone)
+  and validation off; its document is serialised, reduced to length and `fingerprintOf`, and dropped.
+  `compareReplay` sets those against the `GameRecord` the shard made of the same seed
+  (`measures.serialisedLength`, `measures.fingerprint`, both already recorded: nothing was added to the
+  shard). In a parallel sweep the two plays are in two processes; in `sweepPlay` they are in one.
+- *The seed.* As before the first game to have run its full length, or the first seed when none did;
+  `replayedGame` gives the record of the wanted seed, or the first seed played when the wanted one is
+  not among the sweep's. The game bare plays is the same game (a test serialises both).
+- *The words.* The Gate's replay line reads "One seed replayed alone, its last save the same as its
+  shard recorded" (`gate.ts`, `gate.test.ts`), with `gate.json`'s source for it and the README, the
+  `HEROESIM_REPLAY` description, the sweep and module reports' replay row ("one seed played once more,
+  alone, against its shard's record") saying what is compared. The `identical` flag, the line's verdict
+  and the JSON report's shape are unchanged. The `gate.json` change is to a line's source text only; no
+  band or limit moved.
+- *Not done here.* The full `gate` (`m9-v116-s3`) is the verifier's run, alone: its fingerprint
+  `e7ae1710…`, its run about 116 s shorter than `m9-v115-s13`'s 1,983.7 s, report and JSON force-added.
+  Its acceptance box is left open.
+
+*Tests.* `sweep.test.ts`: the comparison equal, unequal (length or fingerprint) and the fallback seed;
+the existing one-character test now changes the replay's one game (`prepare`'s second call);
+`play.test.ts`: a bare game is the same game with nothing observed.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 4,887 tests passing. A `neutral` run at 4 × 2,
+alone with `HEROESIM_WORKERS=8` (`neutral m9-v116-s3-trial --expect 50f5e3d5…`): the fingerprint
+`50f5e3d52335dce6153a8a46dc2134f6072273d0d0d80dbdee8d2ccec47a355d`, "One seed replayed alone, its last
+save the same as its shard recorded: `seed-0001`: identical", "The Gate: PASS" (the two bands not
+comparable). The run's reports were not kept. No file under `engine/`, `content/`, `web/` or `cli/`
+changed, so no doctor run was due; line endings as before, none mixed.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

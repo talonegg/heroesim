@@ -132,7 +132,7 @@ export function moduleReport(installed: PlaySweep, without: PlaySweep, { deps, m
     ['Games the validator refused', ...both((sweep, totals) => (sweep.validated ? whole(totals.invalidGames) : 'not validated'))],
     ['Games a harness assertion stopped', ...both((_sweep, totals) => whole(totals.assertionGames))],
     [
-      'Byte equality, one seed played twice',
+      "Byte equality, one seed played once more, alone, against its shard's record",
       ...both((sweep) =>
         sweep.replay === null ? '—' : `\`${sweep.replay.seed}\`: ${sweep.replay.identical ? 'identical' : 'DIFFERENT'}`,
       ),

@@ -35,7 +35,7 @@
     },
     "replay": {
       "identical": true,
-      "source": "M2-S12 (DL-34), one game at a time since v1.1.5-S10 (DL-181): seed-0001 identical at v1.1.5's close, 144,371,849 characters (DL-184)"
+      "source": "M2-S12 (DL-34), since v1.1.6-S3 (DL-189) one seed played once more, alone, its last save's length and fingerprint compared with those its shard recorded: two processes; seed-0001 identical at v1.1.5's close, 144,371,849 characters (DL-184), played twice in one process then (DL-181)"
     },
     "playerBankruptcies": {
       "max": 3,

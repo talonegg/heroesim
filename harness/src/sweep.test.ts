@@ -19,7 +19,7 @@ import {
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { playReport, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { compareReplay, playReport, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (M2-S12, DL-34).
@@ -46,25 +46,52 @@ describe('sweepPlay', () => {
     expect(sweep.validation).toMatchObject({ count: 120, mean: 1 });
   });
 
-  test('plays the first seed twice more and finds the two byte-identical', () => {
+  test("plays the first seed once more and finds its last save the sweep's", () => {
     expect(sweep.workers).toBe(1);
     expect(sweep.replay).toMatchObject({ seed: 'seed-0001', identical: true, advance: { count: 60 } });
   });
 
-  // S10, the close review: nothing held that the replay finds two saves that differ. The replay's second
-  // game (`prepare`'s third call: the sweep's game, then the replay's two) is given its player's Guild a
+  // v1.1.6-S3 (DL-189): the replay compares its one play with the record the sweep made of the seed.
+  describe('the replay comparison', () => {
+    const recorded = sweep.games[0] as GameRecord;
+    const { serialisedLength, fingerprint } = recorded.measures;
+
+    test("is identical when the length and the fingerprint are both the record's", () => {
+      expect(compareReplay(recorded, { length: serialisedLength, fingerprint }, [1, 3])).toMatchObject({
+        seed: 'seed-0001',
+        identical: true,
+        length: serialisedLength,
+        advance: { count: 2, mean: 2 },
+      });
+    });
+
+    test('is not identical when either differs', () => {
+      expect(compareReplay(recorded, { length: serialisedLength, fingerprint: 'x' }, []).identical).toBe(false);
+      expect(compareReplay(recorded, { length: serialisedLength + 1, fingerprint }, []).identical).toBe(false);
+    });
+
+    test("replays the wanted seed, or the first seed played when it is not among the sweep's", () => {
+      expect(replayedGame(sweep.games, 'seed-0002')?.seed).toBe('seed-0002');
+      expect(replayedGame(sweep.games, 'seed-9999')?.seed).toBe('seed-0001');
+      expect(replayedGame(sweep.games, undefined)?.seed).toBe('seed-0001');
+      expect(replayedGame([], 'seed-0001')).toBeUndefined();
+    });
+  });
+
+  // S10, the close review: nothing held that the replay finds two saves that differ. The replay's game
+  // (`prepare`'s second call: the sweep's game, then the replay's) is given its player's Guild a
   // name one letter different, of the same length, so that only the saves' contents tell the two apart.
-  test('finds the replay not identical when its second game differs by one character of the save', () => {
+  test('finds the replay not identical when its game differs by one character of the save', () => {
     let calls = 0;
     const prepare = (document: WorldDocument): void => {
       calls += 1;
-      if (calls !== 3) return;
+      if (calls !== 2) return;
       const guild = Object.values(document.world.guilds).find((each) => each.controller.kind === 'player');
       if (guild === undefined) throw new Error("no player's Guild");
       guild.name = `${guild.name.slice(0, -1)}${guild.name.endsWith('x') ? 'y' : 'x'}`;
     };
     const changed = sweepPlay(['seed-0001'], deps, { years, prepare });
-    expect(calls).toBe(3);
+    expect(calls).toBe(2);
     expect(changed.replay).toMatchObject({ seed: 'seed-0001', identical: false, length: changed.games[0]?.measures.serialisedLength });
   });
 

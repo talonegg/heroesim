@@ -83,6 +83,13 @@ export interface PlayOptions {
   afterAdvance?: (before: WorldDocument, after: WorldDocument) => void;
   /** A millisecond clock: `performance.now` unless a test gives its own. */
   now?: () => number;
+  /**
+   * Play with the observers and the yearly measurement walks off (`observe`, `observeHeroes`,
+   * `observeSave`, `takeCensus`, `readAdvance`): the game and its document are the same, only
+   * `observations` stay empty, and `advanceMs` is the cost of `advance` and the policy alone (the
+   * replay's, v1.1.6-S3, DL-189).
+   */
+  bare?: boolean;
 }
 
 /** A policy action the rules refused: a bug in the policy, since it chooses only what they accept. */
@@ -240,6 +247,7 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
     prepare,
     afterAdvance,
     now = () => performance.now(),
+    bare = false,
   } = options;
   const lastTurn = years * deps.config.turnsPerYear;
   let { document } = createWorld(seed, setup, deps);
@@ -269,17 +277,17 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
   // Every Hero generated with the world, and the save's length as each year ends (v1.1.3-S6),
   // counted without writing it (v1.1.5-S1): `recordGame` gzips the last year's from the save it
   // writes once the game stops.
-  observeHeroes(observations, document);
+  if (!bare) observeHeroes(observations, document);
   const yearEnded = (): void => {
     const { turn } = document.world;
-    if (turn === 0 || turn % deps.config.turnsPerYear !== 0) return;
+    if (bare || turn === 0 || turn % deps.config.turnsPerYear !== 0) return;
     observeSave(observations, document.world, savedLength(document));
   };
 
   const created: number[] = [];
   if (!validating || check(0, created)) {
     while (document.world.ended === null && document.world.turn < lastTurn) {
-      observe(observations, document.world, deps);
+      if (!bare) observe(observations, document.world, deps);
       for (const action of choose(document, deps, policy)) {
         const result = applyAction(document, action, deps);
         if (!result.ok) {
@@ -296,8 +304,10 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
       const started = now();
       document = advance(document, deps).document;
       advanceMs.push(now() - started);
-      readAdvance(unadvanced, mark, document, rivalQuestDifficulty, sellerInDebt);
-      observeHeroes(observations, document);
+      if (!bare) {
+        readAdvance(unadvanced, mark, document, rivalQuestDifficulty, sellerInDebt);
+        observeHeroes(observations, document);
+      }
       yearEnded();
       afterAdvance?.(unadvanced, document);
 
@@ -308,7 +318,7 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
       if (assertion !== null) break;
     }
     // The last year's end, when the game ran its full length: the policy does not act on it.
-    if (document.world.ended === null) takeCensus(observations, document.world, deps);
+    if (!bare && document.world.ended === null) takeCensus(observations, document.world, deps);
   }
 
   const whole: number[] = [];

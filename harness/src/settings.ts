@@ -155,7 +155,7 @@ export const variables: Readonly<Record<string, { readBy: readonly (RunKind | 'v
   HEROESIM_YEARS: { readBy: ['milestone', 'succession'], means: 'the years each game is played unless it ends first' },
   HEROESIM_WORKERS: { readBy: ['milestone', 'modules', 'succession'], means: 'the child processes a sweep plays in, at most that many at once' },
   HEROESIM_VALIDATE: { readBy: ['milestone', 'modules', 'succession'], means: '1 or 0: validate after every advance' },
-  HEROESIM_REPLAY: { readBy: ['milestone'], means: '1 or 0: replay one seed after the play sweep' },
+  HEROESIM_REPLAY: { readBy: ['milestone'], means: "1 or 0: replay one seed once, alone, after the play sweep, and compare its last save with its shard's record" },
   HEROESIM_DRAFTS: { readBy: ['milestone', 'calibrate'], means: 'a directory of draft content files, each in place of the core file of its name' },
   HEROESIM_CONFIG: { readBy: ['milestone', 'calibrate'], means: 'a JSON object of config values played in place of the defaults' },
   HEROESIM_POLICY: { readBy: ['milestone'], means: "a JSON object of the automatic policy's values played in place of its defaults" },

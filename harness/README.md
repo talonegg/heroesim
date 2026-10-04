@@ -10,7 +10,7 @@ when `HEROESIM_HARNESS` is set, so `npm test` never plays it. `npm run harness` 
 | Command | What it runs |
 | --- | --- |
 | `npm run harness` | The milestone's runs: 1,000 worlds created, then 200 games of 20 years played (INPUTS 4.13) |
-| `npm run harness -- gate <milestone>` | A release's Gate: 50 games of 20 years in 8 processes, the replay played, checked against `harness/gate.json` |
+| `npm run harness -- gate <milestone>` | A release's Gate: 50 games of 20 years in 8 processes, the replay played once, alone, and compared with its shard's record, checked against `harness/gate.json` |
 | `npm run harness -- neutral <milestone> --expect <fingerprint>` | A play-neutral story's proof: 10 games of 20 years in 8 processes, about 7 minutes, its fingerprint checked against the one given (DL-186 item 30) |
 | `npm run harness -- succession` | The Succession probe: 50 games of 12 years, the first Rival's Guildmaster at 50 (M9-F1) |
 | `npm run harness -- estimate` | The estimate probe: 200 Parties and Quests, each resolved 20,000 times (v1.1.4-S5) |
@@ -53,7 +53,7 @@ Markdown and its JSON force-added (DL-186 item 28). A passing `gate` or `neutral
 
 `harness/gate.json` declares what a release's closing sweep must meet, line by line, with each line's
 source (`src/gate.ts`). Its invariants hold on any run: no policy action refused; no game invalid,
-stopped by a harness assertion, unfinished or failing its round trip; the replay identical. Its bands
+stopped by a harness assertion, unfinished or failing its round trip; the replay identical: one seed played once more, alone, its last save's length and fingerprint the same as its shard recorded. Its bands
 are set on its run, 50 games of 20 years, and read "not comparable" on a run of another shape: the
 player's Bankruptcies, at most 3 of 50, and the save after 20 years, its gzipped mean under 30 MiB.
 The Traits earned a player's Hero career and the save's uncompressed size are not lines of the Gate;

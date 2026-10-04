@@ -18,7 +18,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { describe, expect, test, vi } from 'vitest';
-import { regardSnapshot } from './counters.js';
+import { emptyObservations, regardSnapshot } from './counters.js';
 import { harnessSetup } from './creation.js';
 import { markHistory, measureDocument, playerTransferred, playGame, readAdvance, recordGame } from './play.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
@@ -91,6 +91,15 @@ describe('playGame', () => {
     const again = playGame('play-a', deps, { years });
     expect(serialise(again.document)).toBe(serialise(game.document));
     expect(serialise(playGame('play-c', deps, { years }).document)).not.toBe(serialise(game.document));
+  });
+
+  // v1.1.6-S3 (DL-189): the replay plays bare, and its game is the same.
+  test('bare, plays the same game with nothing observed', () => {
+    const bare = playGame('play-a', deps, { years, bare: true });
+    expect(serialise(bare.document)).toBe(serialise(game.document));
+    expect(bare.advanceMs).toHaveLength(game.advanceMs.length);
+    expect(bare.observations).toEqual(emptyObservations());
+    expect(bare.rivalQuestDifficulty.size).toBe(0);
   });
 
   test('without validation, validates nothing', () => {

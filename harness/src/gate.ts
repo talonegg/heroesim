@@ -5,7 +5,8 @@
 // with a DL entry.
 //
 // Its lines are of two kinds. The invariants hold on any run: no policy action refused, no game invalid,
-// stopped, unfinished or failing its round trip, and the replay identical. The bands, the player's
+// stopped, unfinished or failing its round trip, and the replay identical: one seed played once more, alone,
+// with its last save's length and fingerprint the same as its shard recorded (v1.1.6-S3, DL-189). The bands, the player's
 // Bankruptcies and the save's gzipped mean, are set on the spec's run, 50 games of 20 years: on a run of
 // another shape (the `neutral` profile's 10, a short trial) they read "not comparable", neither passing
 // nor failing. The Traits a career and the save's uncompressed size are the report's to print, not the
@@ -159,7 +160,7 @@ export function checkGate(spec: GateSpec, run: RunReport, expect: string | null 
   atMostLine('Games neither ended nor played to their last Turn', games.filter((game) => game.ending === null && !game.ranFullLength).length, lines.unfinished);
   atMostLine('Saves that fail their round trip', games.filter((game) => !game.roundTrips).length, lines.roundTrips);
   add(
-    'One seed replayed, its last save identical',
+    'One seed replayed alone, its last save the same as its shard recorded',
     run.replay?.identical === true,
     run.replay === null ? 'not replayed' : `\`${run.replay.seed}\`: ${run.replay.identical ? 'identical' : 'DIFFERENT'}`,
     'identical',

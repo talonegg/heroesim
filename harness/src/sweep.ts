@@ -1,6 +1,6 @@
 // The play sweep across seeds (M2-S12): play each seed under the automatic policy, keep only its
 // record (counters and measures, never the document), and replay one seed to check that the same
-// seed under the same policy serialises byte for byte alike. `sweepPlay` plays in this
+// seed under the same policy serialises byte for byte alike (`compareReplay`). `sweepPlay` plays in this
 // process; `sweepPlayInParallel` shares the seeds among child processes (`shard.ts`), since a
 // 20-year game takes most of a minute. `playReport` writes the result as Markdown. DL-34 records
 // the method and the numbers.
@@ -89,10 +89,11 @@ export interface PlaySweep {
   /** Milliseconds per validation after an `advance`, when validating. */
   validation: Summary;
   /**
-   * One seed played twice more in this process, after the sweep: the first to have run its full
-   * length, or the first seed when none did. Whether the two last documents serialise alike, by
-   * their length and SHA-256 (v1.1.5-S10, DL-181), and
-   * the first replay's `advance` per Turn, taken with nothing else of the sweep running.
+   * One seed played once more, alone, after the sweep: the first to have run its full length, or the
+   * first seed when none did. Whether its last document serialises as the sweep's record of the same
+   * seed did, by length and SHA-256 (`compareReplay`; two processes when the sweep ran in parallel,
+   * v1.1.6-S3, DL-189), and its `advance` per Turn, taken with nothing else of the sweep running and
+   * the observers off.
    */
   replay: { seed: string; identical: boolean; length: number; advance: Summary } | null;
   /** Milliseconds for the whole sweep, the replay included. */
@@ -111,30 +112,46 @@ export interface SweepOptions extends PlayOptions {
   replay?: boolean;
 }
 
-/**
- * One play of `seed` for the replay, reduced to what it compares: its last document's serialised
- * length and fingerprint (`fingerprintOf`, `DocumentMeasures.fingerprint`'s SHA-256) and its `advance`
- * timings. The document and its text are out of reach once it returns, so the replay never holds a
- * game while it plays the next (v1.1.5-S10, DL-181).
- */
-function playedOnce(seed: string, deps: EngineDeps, options: PlayOptions): { length: number; fingerprint: string; advanceMs: number[] } {
-  const played = playGame(seed, deps, { ...options, validate: false });
-  const text = serialise(played.document);
-  return { length: text.length, fingerprint: fingerprintOf(text), advanceMs: played.advanceMs };
+/** One play of a seed for the replay, reduced to what it compares: its last document's serialised length and fingerprint. */
+export interface ReplayPlay {
+  length: number;
+  fingerprint: string;
 }
 
 /**
- * Plays `seed` twice in this process and compares the two last documents by their serialised length
- * and fingerprint, timing the first. Each play keeps only those and its timings (`playedOnce`), so
- * that one game's document and text are gone before the other is played: holding the first's, as
- * before, took the process to about twice a game's peak (DL-177, v1.1.5-S10, DL-181).
+ * The game the replay is compared with: `wanted`'s record, or, when `wanted` is not among the sweep's
+ * seeds, the first seed played (v1.1.6-S3, DL-189).
  */
-function replay(seed: string | undefined, deps: EngineDeps, options: PlayOptions): PlaySweep['replay'] {
-  if (seed === undefined) return null;
-  const first = playedOnce(seed, deps, options);
-  const second = playedOnce(seed, deps, options);
-  const identical = first.length === second.length && first.fingerprint === second.fingerprint;
-  return { seed, identical, length: first.length, advance: summarise(first.advanceMs) };
+export function replayedGame(games: readonly GameRecord[], wanted: string | undefined): GameRecord | undefined {
+  return games.find((game) => game.seed === wanted) ?? games[0];
+}
+
+/**
+ * The replay's play set against the record the sweep's shard made of the same seed: identical when its
+ * last document's serialised length and fingerprint (`DocumentMeasures`) are both the shard's (v1.1.6-S3,
+ * DL-189). The two plays were made in two processes when the sweep ran in parallel.
+ */
+export function compareReplay(recorded: GameRecord, replayed: ReplayPlay, advanceMs: readonly number[]): NonNullable<PlaySweep['replay']> {
+  const { serialisedLength, fingerprint } = recorded.measures;
+  return {
+    seed: recorded.seed,
+    identical: replayed.length === serialisedLength && replayed.fingerprint === fingerprint,
+    length: serialisedLength,
+    advance: summarise(advanceMs),
+  };
+}
+
+/**
+ * Plays `recorded`'s seed once more, alone and bare (`PlayOptions.bare`: no observers, no yearly
+ * measurement walks, no validation), and compares its last document's length and fingerprint with the
+ * recorded game's (`compareReplay`). The document and its text are out of reach once the play returns
+ * (DL-177, v1.1.5-S10, DL-181).
+ */
+function replay(recorded: GameRecord | undefined, deps: EngineDeps, options: PlayOptions): PlaySweep['replay'] {
+  if (recorded === undefined) return null;
+  const played = playGame(recorded.seed, deps, { ...options, validate: false, bare: true });
+  const text = serialise(played.document);
+  return compareReplay(recorded, { length: text.length, fingerprint: fingerprintOf(text) }, played.advanceMs);
 }
 
 function sweepOf(
@@ -145,7 +162,8 @@ function sweepOf(
   timing: { workers: number; started: number; gamesMs: number; now: () => number },
 ): PlaySweep {
   // The longest game makes the most of the comparison, and its timing the fairest of one game.
-  const replayed = options.replay === false ? null : replay(played.games.find((game) => game.ranFullLength)?.seed ?? seeds[0], deps, options);
+  const wanted = played.games.find((game) => game.ranFullLength)?.seed ?? seeds[0];
+  const replayed = options.replay === false ? null : replay(replayedGame(played.games, wanted), deps, options);
   return {
     seeds,
     years: options.years ?? defaultYears,
@@ -163,7 +181,7 @@ function sweepOf(
 
 /**
  * Plays every seed in `seeds` in this process under `deps` and the options, then plays one of them
- * twice more (`PlaySweep.replay`) and compares the two last documents' serialisations. Never
+ * once more (`PlaySweep.replay`) and compares its last document's serialisation with the sweep's. Never
  * throws on what it finds.
  */
 export function sweepPlay(seeds: readonly string[], deps: EngineDeps, options: SweepOptions = {}): PlaySweep {
@@ -191,8 +209,8 @@ export function sweepFingerprint(games: readonly GameRecord[]): string {
  * (half the logical processors unless given) and the next starting as one finishes (v1.1.4-S10: dealt
  * in turn before, a lane of early endings sat idle to the slowest lane's end), each loading the core
  * content and playing under `deps.config` with `deps.modules`, installed by id (M8-S3, DL-78); the
- * records come back in seed order and the replay, unless `replay` is false, is played in this process
- * once they are done. The children load the core content themselves, so `deps.content` must be it: a
+ * records come back in seed order and the replay, unless `replay` is false, is played in this process,
+ * once, when they are done, and compared with the child's record. The children load the core content themselves, so `deps.content` must be it: a
  * child that loads another refuses the sweep; and each module must be the harness's own of its id
  * (`idsOf`), which is checked before any child starts.
  *
@@ -1612,7 +1630,7 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
         ['Games the validator refused', sweep.validated ? whole(totals.invalidGames) : 'not validated'],
         ['Games a harness assertion stopped', whole(totals.assertionGames)],
         [
-          'Byte equality, one seed played twice',
+          "Byte equality, one seed played once more, alone, against its shard's record",
           sweep.replay === null
             ? '—'
             : `\`${sweep.replay.seed}\`: ${sweep.replay.identical ? 'identical' : 'DIFFERENT'} (${whole(sweep.replay.length)} characters)`,
