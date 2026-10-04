@@ -5,10 +5,15 @@ import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand, type W
 import { describe, expect, test } from 'vitest';
 import {
   controllerKinds,
+  noBands,
+  noOffers,
+  noTransfers,
   noWealth,
   rivalTransferWays,
   transferDirections,
   type DispositionTally,
+  type GameCounters,
+  type HeroTally,
   type OfferTally,
   type TransferTally,
 } from './counters.js';
@@ -334,6 +339,202 @@ describe('sweepPlay', () => {
     // After the Portraits and before the Measures, so the play counters' lines stand as they were.
     expect(report.indexOf('## Portraits')).toBeLessThan(report.indexOf('## Heroes described'));
     expect(report.indexOf('## Heroes described')).toBeLessThan(report.indexOf('## Measures'));
+  });
+
+  // v1.1.6-S1 (DL-186 item 7, DL-187): the totals are one fold over each game's counters, so a counter
+  // reaches them with no line of its own. These hold every number a game's counters give to its sum,
+  // and each declared exception to its rule.
+  describe('one fold over the games', () => {
+    /** Every number in `value` by its path from `path`: `wealth.player.sales.fold`, `guildYears.rival.1`. */
+    function leaves(value: unknown, path: string, into: Map<string, number> = new Map()): Map<string, number> {
+      if (typeof value === 'number') into.set(path, value);
+      else if (typeof value === 'object' && value !== null) {
+        for (const [key, inner] of Object.entries(value)) leaves(inner, path === '' ? key : `${path}.${key}`, into);
+      }
+      return into;
+    }
+
+    /** The paths in `value` of a `null`, or of a list or record with nothing in it: a counter with no number to check. */
+    function empties(value: unknown, path: string): string[] {
+      if (value === null) return [path];
+      if (typeof value !== 'object') return [];
+      const entries = Object.entries(value);
+      if (entries.length === 0) return [path];
+      return entries.flatMap(([key, inner]) => empties(inner, `${path}.${key}`));
+    }
+
+    /** `value` with each number in it replaced by the next of `from`, `from + 1` and so on, in path order. */
+    function numbered<T>(value: T, from: number): T {
+      let next = from;
+      const renumber = (inner: unknown): unknown => {
+        if (typeof inner === 'number') return next++;
+        if (Array.isArray(inner)) return inner.map(renumber);
+        if (typeof inner === 'object' && inner !== null) return Object.fromEntries(Object.entries(inner).map(([key, each]) => [key, renumber(each)]));
+        return inner;
+      };
+      return renumber(value) as T;
+    }
+
+    const [first, second] = sweep.games as [GameRecord, GameRecord];
+    const grades = { infirmary: [1, 1], trainingYard: [1], quarters: [1, 1, 1] };
+    /** The first game's counters with a number in every counter: those a game of 20 Days leaves `null` or empty, filled. */
+    const template: GameCounters = {
+      ...first.counters,
+      traitsGainedByKey: { player: { wayfinder: 1 }, rival: { haunted: 1 } },
+      retirementAges: { player: { 61: 1 }, rival: { 63: 1 } },
+      injuriesByType: { player: { 'deep-cut': 1 }, rival: { 'broken-arm': 1 } },
+      loot: { player: { 'lesser-loot': { awards: 1, items: 1, unique: 0 } }, rival: { 'greater-loot': { awards: 1, items: 2, unique: 1 } } },
+      consumables: {
+        player: { ...first.counters.consumables.player, byDefinition: { whetstone: 1 } },
+        rival: { ...first.counters.consumables.rival, byDefinition: { lockpicks: 1 } },
+      },
+      improvementGrades: { player: grades, rival: grades },
+      improvementGradesByDisposition: { steady: grades },
+      patronYears: [12, 12],
+      silentPatronYears: [1, 0],
+      transfersBySide: { steady: { ambitious: noTransfers() } },
+      offers: { player: { steady: noOffers() } },
+      moduleEvents: { 'probe.fired': 1 },
+      moduleEffects: { probe: { 'hero.injured': 1 } },
+    };
+    const games = [numbered(template, 1), numbered(template, 10_000)].map((counters, index) => ({ ...(index === 0 ? first : second), counters }));
+    const summed = sweepTotals({ ...sweep, games }, deps.config.turnsPerYear);
+
+    test('the fixture gives every counter a number to check', () => {
+      expect(empties(template, 'counters')).toEqual(['counters.ending']);
+    });
+
+    test("adds every number of each game's counters into the totals at the same path, but the last Turn's", () => {
+      const [a, b] = games.map((game) => leaves(game.counters, ''));
+      const totalled = leaves(summed, '');
+      const paths = [...leaves({ ...template, lastTurn: undefined }, '').keys()];
+      expect(paths.length).toBeGreaterThan(300);
+      for (const path of paths) expect(totalled.get(path), path).toBe((a?.get(path) ?? Number.NaN) + (b?.get(path) ?? Number.NaN));
+    });
+
+    test('reads the ending and the last Turn apart: the endings, the year each ended in, and the years survived', () => {
+      const ended = [
+        { ...first, counters: { ...first.counters, ending: 'bankruptcy' as const, lastTurn: deps.config.turnsPerYear / 2 } },
+        { ...second, counters: { ...second.counters, ending: null, lastTurn: deps.config.turnsPerYear * 1.5 } },
+      ];
+      const totals = sweepTotals({ ...sweep, years: 2, games: ended }, deps.config.turnsPerYear);
+      expect(totals.endings).toEqual({ retirement: 0, bankruptcy: 1, 'roster-wiped': 0, survived: 1 });
+      expect(totals.endedInYear).toEqual([1, 0]);
+      expect(totals.yearsSurvived).toMatchObject({ count: 2, min: 0.5, max: 1.5 });
+      expect(totals).not.toHaveProperty('ending');
+      expect(totals).not.toHaveProperty('lastTurn');
+    });
+
+    test('takes the longest texts as the longest of any game, adding the rest of the Heroes', () => {
+      const heroes: HeroTally[] = [
+        { generated: 3, pictured: 1, silhouettes: 2, repeats: 0, longestAppearance: 250, longestBiography: 100, blank: 1 },
+        { generated: 4, pictured: 2, silhouettes: 2, repeats: 1, longestAppearance: 90, longestBiography: 400, blank: 0 },
+      ];
+      const described = sweep.games.map((game, index) => ({ ...game, observations: { ...game.observations, heroes: heroes[index] as HeroTally } }));
+      expect(sweepTotals({ ...sweep, games: described }, deps.config.turnsPerYear).heroes).toEqual({
+        generated: 7,
+        pictured: 3,
+        silhouettes: 4,
+        repeats: 1,
+        longestAppearance: 250,
+        longestBiography: 400,
+        blank: 1,
+      });
+    });
+
+    test("counts the player's place in the Rankings one-hot each year, a year with no ranking adding nothing", () => {
+      const rankings = [
+        [null, { fame: 3, wealth: 1, guilds: 5 }],
+        [null, { fame: 1, wealth: 1, guilds: 5 }, { fame: 2, wealth: 4, guilds: 5 }],
+      ];
+      const ranked = sweep.games.map((game, index) => ({ ...game, observations: { ...game.observations, rankings: rankings[index] ?? [] } }));
+      const totals = sweepTotals({ ...sweep, games: ranked }, deps.config.turnsPerYear);
+      expect(totals.rankings).toHaveLength(3);
+      expect(0 in totals.rankings).toBe(false);
+      expect(totals.rankings[1]).toEqual({ games: 2, fame: [1, 0, 1], wealth: [2] });
+      expect(totals.rankings[2]).toEqual({ games: 1, fame: [0, 1], wealth: [0, 0, 0, 1] });
+    });
+
+    test("joins the saves and the Rivals' year-starts: each game's numbers kept, in the games' order", () => {
+      const rivals = [
+        [[{ disposition: 'steady', heroes: 5, wealth: 400 }, { disposition: 'miserly', heroes: 4, wealth: 300 }], []],
+        [[{ disposition: 'steady', heroes: 6, wealth: 500 }], [{ disposition: 'reckless', heroes: 7, wealth: 900 }]],
+      ];
+      const saves = [
+        [{ length: 10, heroFields: 1, gzipped: null }],
+        [
+          { length: 20, heroFields: 2, gzipped: null },
+          { length: 30, heroFields: 3, gzipped: 4 },
+        ],
+      ];
+      const joined = sweep.games.map((game, index) => ({
+        ...game,
+        observations: { ...game.observations, rivals: rivals[index] ?? [], saves: saves[index] ?? [] },
+      }));
+      const totals = sweepTotals({ ...sweep, games: joined }, deps.config.turnsPerYear);
+      expect(totals.rivalYearStarts).toEqual([
+        { steady: { heroes: [5, 6], wealth: [400, 500] }, miserly: { heroes: [4], wealth: [300] } },
+        { reckless: { heroes: [7], wealth: [900] } },
+      ]);
+      expect(totals.saves).toEqual([
+        { lengths: [10, 20], heroFields: [1, 2], gzipped: [] },
+        { lengths: [30], heroFields: [3], gzipped: [4] },
+      ]);
+    });
+
+    test('counts games: those of the sweep, those in play as each year began, those with a Regard to count and those that reached year 10', () => {
+      const regard = { relationships: noBands(), guildmasterForPatrons: noBands(), guildmasterForHeroes: { ...noBands(), friendly: 2 } };
+      const counted = sweep.games.map((game, index) => ({
+        ...game,
+        counters: { ...game.counters, improvementGrades: index === 0 ? { player: grades, rival: grades } : null },
+        observations: {
+          ...game.observations,
+          rosters: index === 0 ? [...game.observations.rosters, ...game.observations.rosters] : game.observations.rosters,
+          regardAtCountedYear: index === 0 ? null : regard,
+        },
+      }));
+      const totals = sweepTotals({ ...sweep, games: counted }, deps.config.turnsPerYear);
+      expect(totals.games).toBe(2);
+      expect(totals.rosters.map((sum) => sum.games)).toEqual([2, 1]);
+      expect(totals.regardAtCountedYear).toMatchObject({ games: 1, guildmasterForHeroes: { friendly: 2 } });
+      expect(totals.gamesAtCountedYear).toBe(1);
+      expect(totals.improvementGrades.player).toEqual(grades);
+    });
+
+    test('counts the refusals, the signings refused, and the games invalid or stopped by an assertion', () => {
+      const refusal = (reason: string) => ({ rejection: { reason } }) as unknown as GameRecord['refusals'][number];
+      const refused = sweep.games.map((game, index) => ({
+        ...game,
+        refusals: index === 0 ? [refusal('signing-refused'), refusal('no-wealth')] : [refusal('signing-refused')],
+        invalid: index === 0 ? ({ turn: 3, problems: ['x'] } as unknown as GameRecord['invalid']) : null,
+        assertion: index === 1 ? ({ turn: 4, message: 'x' } as unknown as GameRecord['assertion']) : null,
+      }));
+      expect(sweepTotals({ ...sweep, games: refused }, deps.config.turnsPerYear)).toMatchObject({
+        refusals: 3,
+        signingRefused: 2,
+        invalidGames: 1,
+        assertionGames: 1,
+      });
+    });
+
+    test('starts from nothing: a sweep of no games totals every counter at 0, or empty', () => {
+      const none = sweepTotals({ ...sweep, games: [] }, deps.config.turnsPerYear);
+      expect(none.games).toBe(0);
+      expect([...leaves({ ...none, yearsSurvived: undefined }, '').values()].every((n) => n === 0)).toBe(true);
+      const noGrades = { infirmary: [], trainingYard: [], quarters: [] };
+      expect(none.improvementGrades).toEqual({ player: noGrades, rival: noGrades });
+      expect(none.endedInYear).toEqual([0]);
+      expect(none.rivalFolds).toEqual({ retirement: 0, bankruptcy: 0, 'roster-wiped': 0 });
+    });
+
+    test('refuses a counter it cannot total, or one whose shape differs between games, so it fails the sweep rather than reading 0', () => {
+      const worded = sweep.games.map((game) => ({ ...game, counters: { ...game.counters, note: 'a word' } as GameCounters }));
+      expect(() => sweepTotals({ ...sweep, games: worded }, deps.config.turnsPerYear)).toThrow(TypeError);
+      const reshaped = sweep.games.map((game, index) =>
+        index === 0 ? game : { ...game, counters: { ...game.counters, rivalSuccessions: [1] } as unknown as GameCounters },
+      );
+      expect(() => sweepTotals({ ...sweep, games: reshaped }, deps.config.turnsPerYear)).toThrow(TypeError);
+    });
   });
 
   test("fingerprints the sweep: SHA-256 over each seed's line of its seed and its last save's fingerprint, in seed order", () => {

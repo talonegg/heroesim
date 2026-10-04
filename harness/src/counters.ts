@@ -647,10 +647,11 @@ export interface SynergyTally {
   byKey: Record<string, number>;
 }
 
-const noEncounters = (): EncounterCounts =>
+/** Every Encounter kind's Checks at 0 (one source of the empty tallies with the sweep's totals, v1.1.6-S1, DL-187). */
+export const noEncounters = (): EncounterCounts =>
   Object.fromEntries(encounterKinds.map((kind) => [kind, { success: 0, failure: 0, injured: 0, died: 0 }])) as EncounterCounts;
 
-const noSynergies = (): SynergyTally => ({ quests: 0, withAny: 0, applied: 0, byKey: {} });
+export const noSynergies = (): SynergyTally => ({ quests: 0, withAny: 0, applied: 0, byKey: {} });
 
 /**
  * A kind of Guild's resolved Quests sent with Parties of one size (v1.1.4-S10, DL-148 item 19): each
@@ -717,7 +718,7 @@ function addGuildYears(series: number[], from: number, to: number, turnsPerYear:
   }
 }
 
-function noGrowth(): GrowthAgainstDecline {
+export function noGrowth(): GrowthAgainstDecline {
   return {
     guilds: 0,
     guildYearsBefore: 0,
@@ -791,10 +792,15 @@ function progressionCounters(
   return { levelsGained, declines, growthAgainstDecline: growth };
 }
 
-/** A grade count for each facility, as long as content's grades of it go, all zero. */
-function noGrades(content: EngineDeps['content']): GradeCounts {
+/**
+ * A grade count for each facility, as long as `content`'s grades of it go, all zero; without `content`,
+ * each empty, as the sweep's totals begin before a game adds its counts (v1.1.6-S1, DL-187).
+ */
+export function noGrades(content?: EngineDeps['content']): GradeCounts {
   const top = (facility: FacilityKey): number =>
-    Object.values(content.improvements).reduce((most, row) => (row.facility === facility ? Math.max(most, row.grade) : most), 0);
+    content === undefined
+      ? -1
+      : Object.values(content.improvements).reduce((most, row) => (row.facility === facility ? Math.max(most, row.grade) : most), 0);
   return Object.fromEntries(facilityKeys.map((facility) => [facility, Array.from({ length: top(facility) + 1 }, () => 0)])) as GradeCounts;
 }
 
@@ -1539,8 +1545,8 @@ export interface SaveSize {
   gzipped: number | null;
 }
 
-const noFameGate = (): FameGate => ({ heroDays: 0, guildDays: 0, guildDaysWithAny: 0 });
-const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
+export const noFameGate = (): FameGate => ({ heroDays: 0, guildDays: 0, guildDaysWithAny: 0 });
+export const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
 
 export function emptyObservations(): GameObservations {
   return {

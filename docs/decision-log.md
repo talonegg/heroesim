@@ -24279,6 +24279,107 @@ effect when v1.1.6 reaches `main`.
 
 ---
 
+## DL-187 — v1.1.6-S1 built: a sweep's totals by one fold over each game's counters, with a short declared list of exceptions; the empty tallies from `counters.ts` only; one `percent` formatter; a 4 × 2 run's report the same line for line but the timings
+
+**Status:** Accepted · **Date:** 2026-10-05 · **Decided by:** the owner's answers B1 (a) and SF3 (b)
+(DL-186 items 7 and 19), built by the agent as the epic's S1 describes it, test first. The readings
+marked as the agent's are for the owner to change. A second Opus agent verifies it.
+
+**Context.** At `98fd80f` `sweepTotals` (`harness/src/sweep.ts`) summed each game's counters by hand,
+about 120 lines, one or more for each counter: a counter added to `GameCounters` and not to those lines
+read 0 in every report without an error (the review's B1). `SweepTotals` repeated `GameCounters`' fields
+by hand, and `sweep.ts` kept its own copies of five empty tallies `counters.ts` also had (`noGrowth`,
+`noGrades`, `noCensus`, `noEncounters`, `noSynergies`). The share formatter "n (x.y%)" was written three
+times: `sweep.ts`'s `percent`, `playReport`'s `share` and `succession.ts`'s `share` (SF3).
+
+**What was built.**
+
+1. **One fold** (`fold` in `sweep.ts`). Each game gives the totals what it holds, shaped as they are
+   (`contributionOf`), and the fold adds it in: a number adds; a list of numbers adds by index; a list of
+   objects and a record merge by index and by key, an entry the totals lack starting at its zero
+   (`zeroOf`); an object recurses; a `null`, a counter the game did not give (`improvementGrades` before
+   year 10, a year with no ranking), adds nothing. `sweepTotals` is now its starting totals, every
+   counter at 0 or empty, and one line folding each game in.
+2. **The exceptions, declared.** By a field's key in the fold: `greatest`, `longestAppearance` and
+   `longestBiography`, take the greater; `joined`, `saves` and `rivalYearStarts`, join each game's
+   numbers into one list a year (the report's medians and maxima need them). In what a game gives:
+   `games` is 1 a game, as are the Rosters', the Regard's and the Rankings' own `games` and
+   `gamesAtCountedYear` (1 when the game gave `improvementGrades`); a place in the Rankings counts
+   one-hot; the ending and the last Turn are read apart, into `endings`, `endedInYear` (one-hot at the
+   ending's year) and `yearsSurvived`; the refusals, the signings refused and the games invalid or
+   stopped by an assertion count from the record. The code was read for these and they are all there
+   are: every other total was a plain sum of the same field.
+3. **The fold refuses what it cannot total** (the agent's reading). A string or other value with no
+   sum, or two games whose counter differs in shape, throws a `TypeError`, so a counter of a new kind
+   fails the sweep rather than reading 0. No counter today is refused.
+4. **`SweepTotals` from `GameCounters`' type.** `SweepTotals` is `Totalled<Omit<GameCounters, 'ending' |
+   'lastTurn'>> & GameTotals`: every counter of `GameCounters`, none `null`, and `GameTotals`, the 16
+   totals no counter gives (from the games' endings, observations and records), with their comments.
+   A field added to `GameCounters` is in the totals' type, and `contributionOf`'s return type and the
+   starting totals must then name it, or the build fails. `rivalFolds` is now typed by ending reason, as
+   `GameCounters`' is, in place of `Record<string, number>`; the counters' comments live on
+   `GameCounters` only.
+5. **The starting totals kept, in their order** (the agent's reading). The starting totals stay
+   written out, field by field: they set the zero of an empty sweep and of a counter no game gives
+   (an Improvement's grades before year 10 are four empty lists, the Regard 0 in every band), and the
+   order the module report lists the core counters in (`coreCounters`). Their order is the old one.
+6. **The report's own sums through the fold.** `playReport`'s sums across controllers, kinds and sides
+   (the old `addFields` and `addSeries`, ten calls) use `addInto`, the fold, so the harness adds numbers
+   one way.
+7. **One source of the empty tallies.** `noGrowth`, `noGrades`, `noCensus`, `noEncounters` and
+   `noSynergies` are exported from `counters.ts` and `sweep.ts`'s copies are gone; `noFameGate` too, for
+   the starting totals (the agent's addition). `noGrades(content?)` gives each facility's grades as long
+   as `content`'s go, as before, and empty lists without `content`, as the totals begin.
+8. **One `percent`** (`harness/src/report.ts`, beside `fixed` and `whole`): `n` as a share of `of` to one
+   place, a dash when `of` is 0. `sweep.ts`'s `percent` and `playReport`'s `share` and `succession.ts`'s
+   `share` are gone, their calls using it; the heroes section's own `share` ("n (x.y%)") calls it.
+
+**The tests.** `harness/src/sweep.test.ts`, a new block "one fold over the games", on the two games of
+20 Days the file already plays:
+- *Every numeric leaf reaches the totals.* The first game's counters, with the counters such a game
+  leaves `null` or empty filled (Improvement grades, Retirement ages, offers, Transfers by side, module
+  events and the like), each number then renumbered so every leaf is distinct, as two games; every
+  numeric path of `GameCounters` but `lastTurn` (over 300) must read in the totals the sum of the two.
+  A companion test holds the fixture to having no `null` or empty counter but `ending`, so a new counter
+  a short game leaves empty asks to be filled. On the old code it passed, and failed when one of its
+  lines (`traitsLost`) was taken out.
+- *Each exception:* the longest texts the greater, the other Hero counts summed; the Rankings one-hot,
+  a year with no ranking adding nothing (a hole kept); the saves and the Rivals' year-starts joined in
+  the games' order; the games counted, those in play each year, those with a Regard and those at year
+  10; the endings, the year each ended in and the years survived from the ending and the last Turn;
+  the refusals, the signings refused, the games invalid and stopped; a sweep of no games all zero, the
+  grades four empty lists; a counter it cannot total, or one whose shape differs, refused.
+- `harness/src/report.test.ts`: `percent`, 33.3%, 123.4%, 0.0% and a dash of none.
+
+The refusal test and `percent`'s failed before the code; the rest pass on the old code too, as a
+refactoring's should, and each failed under a mutation of the new code: 11 mutations (each `greatest`
+key, each `joined` key, the one-hot, the sweep's and the Rosters' `games`, a key skipped, the refusal,
+the greater taken as a sum, the signings refused, `endedInYear`), each failing at least one test, the
+file restored after each.
+
+**Proof that nothing moved.**
+- *The 4 × 2 run.* `HEROESIM_SEEDS=4 HEROESIM_YEARS=2 HEROESIM_WORKERS=8 HEROESIM_MILESTONE=m9-v116-s1
+  npm run harness`, alone, at `98fd80f` before any change and again after: the two reports (481 lines)
+  differ only in the run's start time and the timings (the summary's `advance` and run time, the
+  Measures' `advance`, `serialise` and `deserialise` rows, and the targets' rows from them). The
+  fingerprint `50f5e3d52335dce6153a8a46dc2134f6072273d0d0d80dbdee8d2ccec47a355d` both times, the replay
+  identical at 12,546,336 characters. The reports are not committed (SF12's policy is S2's).
+- *The totals themselves, key order included.* A scratch test, deleted, wrote `sweepTotals`' output and
+  `coreCounters`' list as JSON for six cases before the change and after: two games of 20 Days; no game;
+  two games of 10.5 years (Improvement grades and the Regard at year 10 given); two games of 20 Days with
+  the probe module; the module report's `counterDeltas`; and two games given an ending, holes in the
+  Rankings, saves, module events, refusals and an invalid and a stopped game. The 197,079 bytes were the
+  same byte for byte.
+
+**Checks.** `npm run lint` clean; `npm run typecheck` clean; `npm test` 185 files and 4,846 tests (4,835
+at v1.1.5, and 11 new). No file under `engine/src/` or `content/` changed, so no doctor run was due and
+no game could move. Line endings: every touched file CRLF in the working tree as before, none mixed.
+
+**Open for the owner.** Nothing to decide. Two readings to look at: the fold refusing what it cannot
+total (item 3), and the starting totals kept written out for their zeros and their order (item 5).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

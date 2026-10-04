@@ -33,7 +33,7 @@ import { dealSeeds, runShardJobs } from './children.js';
 import { harnessSetup } from './creation.js';
 import { playGame } from './play.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
-import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
+import { fixed, localTimestamp, markdownTable, percent, whole, type Machine } from './report.js';
 import type { ShardJob } from './shard.js';
 
 /** The age the first Rival's Guildmaster is set to at founding (DL-113 item 7). */
@@ -340,7 +340,6 @@ export function successionReport(games: readonly ProbeGame[], context: Successio
   const rivalFoldsAfter = succeeded.filter((game) => game.rivalFoldedOnTurn !== null && game.after !== null && game.rivalFoldedOnTurn >= game.after.turn);
   const otherRivals = succeeded.reduce((sum, game) => sum + game.otherRivalsInPlay, 0);
   const otherFolds = succeeded.reduce((sum, game) => sum + game.otherRivalFoldsAfter, 0);
-  const share = (n: number, of: number): string => (of === 0 ? '—' : `${fixed((100 * n) / of, 1)}%`);
   const turnsOf = (list: readonly SuccessionRecord[]): string => {
     const byTurn = new Map<number, number>();
     for (const it of list) byTurn.set(it.turn, (byTurn.get(it.turn) ?? 0) + 1);
@@ -448,8 +447,8 @@ export function successionReport(games: readonly ProbeGame[], context: Successio
     markdownTable(
       ['Rivals', 'In play', 'Folded after', 'Share'],
       [
-        ['The first Rival, succeeded', whole(succeeded.length), whole(rivalFoldsAfter.length), share(rivalFoldsAfter.length, succeeded.length)],
-        ['The other Rivals', whole(otherRivals), whole(otherFolds), share(otherFolds, otherRivals)],
+        ['The first Rival, succeeded', whole(succeeded.length), whole(rivalFoldsAfter.length), percent(rivalFoldsAfter.length, succeeded.length)],
+        ['The other Rivals', whole(otherRivals), whole(otherFolds), percent(otherFolds, otherRivals)],
       ],
       ['left', 'right', 'right', 'right'],
     ),

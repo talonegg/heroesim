@@ -8,6 +8,7 @@ import {
   localTimestamp,
   machine,
   markdownTable,
+  percent,
   reportPath,
   reportsDir,
   whole,
@@ -31,6 +32,14 @@ describe('numbers', () => {
     expect(fixed(0.1234, 3)).toBe('0.123');
     expect(fixed(Number.NaN)).toBe('—');
     expect(whole(1000)).toBe('1,000');
+  });
+
+  // v1.1.6-S1 (DL-186 item 19, DL-187): one share formatter for the play report and the Succession probe's.
+  test('percent gives a share of a whole to one place, a dash of none', () => {
+    expect(percent(1, 3)).toBe('33.3%');
+    expect(percent(1234, 1000)).toBe('123.4%');
+    expect(percent(0, 7)).toBe('0.0%');
+    expect(percent(5, 0)).toBe('—');
   });
 });
 

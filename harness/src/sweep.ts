@@ -15,7 +15,6 @@ import {
   serialise,
   type EngineDeps,
   type FacilityKey,
-  type QuestBand,
   type RegardBand,
 } from '@heroesim/engine';
 import {
@@ -30,12 +29,16 @@ import {
   noConsumables,
   noDifficulty,
   noDisposition,
+  noEncounters,
+  noFameGate,
   noGear,
-  noOffers,
+  noGrades,
+  noGrowth,
   noHeroes,
   noPartySize,
   noPortraits,
   noPurchases,
+  noSynergies,
   noTransfers,
   noWealth,
   offerEndCauses,
@@ -45,25 +48,20 @@ import {
   transferDirections,
   type ByController,
   type ByYear,
-  type ConsumableTally,
   type ControllerKind,
   type DifficultyTally,
-  type DispositionTally,
   type EncounterCounts,
   type FameGate,
-  type GearTally,
-  type GradeCounts,
-  type GrowthAgainstDecline,
+  type GameCounters,
   type LootTally,
   type MarketTally,
-  type OfferTally,
   type PartySizeTally,
   type HeroTally,
   type PortraitTally,
   type RegardSnapshot,
+  type RivalAtYearStart,
   type RivalTransferWay,
   type RosterCensus,
-  type SynergyTally,
   type TransferDirection,
   type TransferTally,
   type WealthFlows,
@@ -72,7 +70,7 @@ import { harnessSetup } from './creation.js';
 import { idsOf } from './modules.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { defaultYears, fingerprintOf, playGame, type GameRecord, type PlayOptions } from './play.js';
-import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
+import { fixed, localTimestamp, markdownTable, percent, whole, type Machine } from './report.js';
 import { runShardJobs } from './children.js';
 import { playSeeds, type PlayedSeeds, type ShardJob } from './shard.js';
 import { summarise, type Summary } from './stats.js';
@@ -256,25 +254,23 @@ export async function sweepPlayInParallel(
 
 // ── Totals ───────────────────────────────────────────────────────────────────────────────────
 
-/** Sums of each counter across the sweep's games. */
-export interface SweepTotals {
+/**
+ * A game's counters as the sweep totals them: every one of `GameCounters` but the game's ending and
+ * last Turn, which the totals read apart (`endings`, `endedInYear`, `yearsSurvived`), and none `null`:
+ * a counter a game leaves `null` is totalled over the games that gave it.
+ */
+type Totalled<T> = { [K in keyof T]: Exclude<T[K], null> };
+
+/**
+ * Sums of each counter across the sweep's games, one fold over each game's counters and observations
+ * (v1.1.6-S1, DL-186 item 7, DL-187): `GameCounters`' own as `Totalled`, so a new counter is in the
+ * totals without a line of its own, and what the games' observations and records give, below.
+ */
+export type SweepTotals = Totalled<Omit<GameCounters, 'ending' | 'lastTurn'>> & GameTotals;
+
+/** The totals no field of `GameCounters` gives: from each game's ending, observations and record. */
+export interface GameTotals {
   games: number;
-  questsTaken: ByController;
-  questsResolved: Record<ControllerKind, Record<QuestBand, number>>;
-  heroesInjured: ByController;
-  heroesDied: ByController;
-  heroesRecruited: ByController;
-  heroesRetired: ByController;
-  /** `hero.trait-gained` and `hero.trait-lost`, and the Heroes sent on a Quest (v1.1.4-S7). */
-  traitsGained: ByController;
-  traitsLost: ByController;
-  questingHeroes: ByController;
-  /** `hero.trait-gained` by the Trait's key, and the Quests resolved by the size of the Party sent (v1.1.4-S10). */
-  traitsGainedByKey: Record<ControllerKind, Record<string, number>>;
-  partySizes: Record<ControllerKind, Record<string, PartySizeTally>>;
-  rivalFolds: Record<string, number>;
-  /** `guildmaster.succeeded` across the games (M9-S2, DL-102). */
-  rivalSuccessions: number;
   /** Games by how they ended; `survived` for a game that ran its full length. */
   endings: Record<string, number>;
   /** Years each game lasted: to its ending, or its full length. */
@@ -283,68 +279,21 @@ export interface SweepTotals {
   endedInYear: number[];
   refusals: number;
   invalidGames: number;
-  // M3's counters (DL-40).
-  /** Guild-years in play, Levels gained and declines, by controller and year, summed over the games. */
-  guildYears: ByYear;
-  levelsGained: ByYear;
-  declines: ByYear;
-  /** `hero.retired` by controller and age. */
-  retirementAges: Record<ControllerKind, Record<string, number>>;
-  growthAgainstDecline: Record<ControllerKind, GrowthAgainstDecline>;
-  /** The games that reached year `countedYear`, and their Improvement grades summed. */
+  /** The games that reached year `countedYear`: those that gave `improvementGrades`. */
   gamesAtCountedYear: number;
-  improvementGrades: Record<ControllerKind, GradeCounts>;
   fameGate: Record<ControllerKind, FameGate>;
   /** `signing-refused` among the policy's refused actions: it asks only Heroes who would sign. */
   signingRefused: number;
   /** The Rosters as each year begins, summed over the games in play then, and how many were. */
   rosters: ({ games: number } & Record<ControllerKind, RosterCensus>)[];
-  // M4's counters (DL-55).
-  encounters: Record<ControllerKind, EncounterCounts>;
-  synergies: Record<ControllerKind, SynergyTally>;
-  injuriesByType: Record<ControllerKind, Record<string, number>>;
-  /** Patron-years in each year played in full, and the silent ones, summed over the games that played it. */
-  patronYears: number[];
-  silentPatronYears: number[];
   /** The player's Guild's Regard after `countedYear` years, summed over the games in play then, and how many were. */
   regardAtCountedYear: { games: number } & RegardSnapshot;
-  // M5's counters (DL-62).
-  wealth: Record<ControllerKind, WealthFlows>;
-  loot: Record<ControllerKind, Record<string, LootTally>>;
-  consumables: Record<ControllerKind, ConsumableTally>;
-  gear: Record<ControllerKind, GearTally>;
-  /** The player's Quests by difficulty band and by year, summed over the games that recorded them. */
-  playerQuestsByDifficulty: DifficultyTally[];
-  playerQuestsByYear: DifficultyTally[];
-  // M6's counters (DL-69).
-  transfers: Record<TransferDirection, TransferTally>;
-  rivalTransfers: Record<RivalTransferWay, TransferTally>;
-  transfersBySide: Record<string, Record<string, TransferTally>>;
-  transfersBack: number;
-  offers: Record<string, Record<string, OfferTally>>;
-  dispositions: Record<string, DispositionTally>;
-  marketPurchases: Record<string, MarketTally>;
-  /** The Improvement grades by Disposition, summed over the games that reached year `countedYear`. */
-  improvementGradesByDisposition: Record<string, GradeCounts>;
   /** For each year, 0 the new world, each Disposition's Rivals in play as it began, over the games in play then. */
   rivalYearStarts: Record<string, RivalYearStarts>[];
   /** For each year, the player's Guild's places in the Rankings as it began, over the games in play then. */
   rankings: RankingTally[];
   /** Games a harness assertion stopped (DL-69). */
   assertionGames: number;
-  // M8's counters (DL-78).
-  /** Each module event type, by count; empty with no module installed. */
-  moduleEvents: Record<string, number>;
-  /** The core's events each module's effects made, by module and type; empty with no module installed. */
-  moduleEffects: Record<string, Record<string, number>>;
-  // M9-S1's counters (DL-101).
-  /** `guild.below-floor` and `guild.floor-recovered`, by controller, summed over the games. */
-  belowFloor: ByController;
-  floorRecovered: ByController;
-  // v1.1.3-S5's counters (DL-134 item 9).
-  /** Every Guildmaster who entered play and how their Portraits fit them, by controller, summed over the games. */
-  portraits: Record<ControllerKind, PortraitTally>;
-  // v1.1.3-S6's counters (DL-134 item 9, DL-135 item 6).
   /** Every Hero generated and their Portraits and texts, summed over the games; the longest the longest of any game. */
   heroes: HeroTally;
   /** The saves as each year ended, over the games: index k is after k + 1 years. */
@@ -372,89 +321,118 @@ export interface RankingTally {
   wealth: number[];
 }
 
+/**
+ * The fold's exceptions to adding (DL-186 item 7), by a field's key wherever it stands. The longest
+ * texts are the longest of any game. The saves and the Rivals' year-starts keep each game's numbers,
+ * joined into one list a year, for the report's medians and maxima. The rest of the exceptions are in
+ * what a game gives the fold (`contributionOf`): `games` counts games, as do the Rosters', the Regard's
+ * and the Rankings' own `games`; a place in the Rankings counts one-hot.
+ */
+const greatest: ReadonlySet<string> = new Set(['longestAppearance', 'longestBiography']);
+const joined: ReadonlySet<string> = new Set(['saves', 'rivalYearStarts']);
+
+/** `value` with every number 0 and every list empty: where a total starts that the sweep has none of yet. */
+function zeroOf(value: unknown): unknown {
+  if (typeof value === 'number') return 0;
+  if (Array.isArray(value)) return [];
+  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, zeroOf(inner)]));
+  throw new TypeError(`The sweep's totals cannot total ${JSON.stringify(value)}`);
+}
+
+/**
+ * Adds `from`, what one game gives, into `into`, the totals so far, and returns the total, keyed by
+ * `key`: a number adds (or takes the greater, under `greatest`); a list of numbers adds by index (or,
+ * under a key `joined`, joins); a list of objects and a record merge by index and by key, an entry the
+ * totals lack starting at `zeroOf` it; and `null`, a counter the game did not give, adds nothing.
+ *
+ * @throws TypeError on a value it cannot total, such as a string, or on two that differ in shape: a
+ * counter of a new kind fails the sweep rather than reading 0
+ */
+function fold(into: unknown, from: unknown, key: string, joining: boolean): unknown {
+  if (typeof from === 'number' && typeof into === 'number') return greatest.has(key) ? Math.max(into, from) : into + from;
+  if (Array.isArray(from) && Array.isArray(into)) {
+    if (joining && from.every((item) => typeof item === 'number')) {
+      into.push(...from);
+      return into;
+    }
+    from.forEach((item: unknown, index) => {
+      if (item === null) return;
+      if (typeof item === 'number') while (into.length < index) into.push(0);
+      into[index] = fold(into[index] ?? zeroOf(item), item, key, joining);
+    });
+    return into;
+  }
+  if (typeof from === 'object' && from !== null && typeof into === 'object' && into !== null && !Array.isArray(from) && !Array.isArray(into)) {
+    const total = into as Record<string, unknown>;
+    for (const [inner, value] of Object.entries(from)) {
+      if (value !== null) total[inner] = fold(total[inner] ?? zeroOf(value), value, inner, joining || joined.has(inner));
+    }
+    return into;
+  }
+  throw new TypeError(`The sweep's totals cannot add ${JSON.stringify(from)} to ${JSON.stringify(into)} at ${JSON.stringify(key)}`);
+}
+
+/** Adds `from` into `into` as the totals add a game (`fold`): the report's own sums, across controllers, kinds and sides. */
+function addInto<T extends object>(into: T, from: Readonly<T>): void {
+  fold(into, from, '', false);
+}
+
+/** `place` one-hot: a list as long as it, 1 at its last index and 0 before. */
+const oneHot = (place: number): number[] => Array.from({ length: place }, (_, index) => (index === place - 1 ? 1 : 0));
+
+/**
+ * What one game gives the totals, shaped as they are: its counters but its ending and last Turn, then
+ * those and its observations and record as the totals count them (each a game's 1, an ending's year
+ * and a place in the Rankings one-hot, each Rival's year-start and save in a list to join). Every field
+ * of the totals but `yearsSurvived`, read from the games apart.
+ */
+function contributionOf(game: GameRecord, turnsPerYear: number, years: number): Record<Exclude<keyof SweepTotals, 'yearsSurvived'>, unknown> {
+  const { counters, observations, refusals, invalid, assertion } = game;
+  const { ending, lastTurn, ...counted } = counters;
+  const byDisposition = (rivals: readonly RivalAtYearStart[]): Record<string, RivalYearStarts> => {
+    const starts: Record<string, RivalYearStarts> = {};
+    for (const { disposition, heroes, wealth } of rivals) {
+      const start = (starts[disposition] ??= { heroes: [], wealth: [] });
+      start.heroes.push(heroes);
+      start.wealth.push(wealth);
+    }
+    return starts;
+  };
+  return {
+    ...counted,
+    games: 1,
+    endings: { [ending ?? 'survived']: 1 },
+    endedInYear: ending === null ? [] : oneHot(Math.min(Math.floor(lastTurn / turnsPerYear), years - 1) + 1),
+    refusals: refusals.length,
+    invalidGames: invalid === null ? 0 : 1,
+    gamesAtCountedYear: counters.improvementGrades === null ? 0 : 1,
+    fameGate: observations.fameGate,
+    signingRefused: refusals.filter(({ rejection }) => rejection.reason === 'signing-refused').length,
+    rosters: observations.rosters.map((census) => ({ games: 1, ...census })),
+    regardAtCountedYear: observations.regardAtCountedYear === null ? null : { games: 1, ...observations.regardAtCountedYear },
+    rivalYearStarts: observations.rivals.map(byDisposition),
+    rankings: observations.rankings.map((ranking) =>
+      ranking === null ? null : { games: 1, fame: oneHot(ranking.fame), wealth: oneHot(ranking.wealth) },
+    ),
+    assertionGames: assertion === null ? 0 : 1,
+    heroes: observations.heroes,
+    saves: observations.saves.map((save) => ({
+      lengths: [save.length],
+      heroFields: [save.heroFields],
+      gzipped: save.gzipped === null ? [] : [save.gzipped],
+    })),
+  };
+}
+
 const zero = (): ByController => ({ player: 0, rival: 0 });
 
-/** Adds each of `from` to the same index of `into`, lengthening `into` with zeros to reach it. */
-function addSeries(into: number[], from: readonly number[]): void {
-  from.forEach((n, index) => {
-    while (into.length <= index) into.push(0);
-    into[index] = (into[index] ?? 0) + n;
-  });
-}
-
-/** Adds each numeric field of `from` to `into`'s. */
-function addFields<T extends object>(into: T, from: T): void {
-  const target = into as Record<string, number>;
-  for (const [key, n] of Object.entries(from as Record<string, number>)) target[key] = (target[key] ?? 0) + n;
-}
-
-const noGrowth = (): GrowthAgainstDecline => ({
-  guilds: 0,
-  guildYearsBefore: 0,
-  levelsBefore: 0,
-  guildYearsAfter: 0,
-  levelsAfter: 0,
-  pointsGrownAfter: 0,
-  pointsDeclinedAfter: 0,
-});
-const noGrades = (): GradeCounts => Object.fromEntries(facilityKeys.map((facility) => [facility, []])) as unknown as GradeCounts;
-const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
-const noEncounters = (): EncounterCounts =>
-  Object.fromEntries(encounterKinds.map((kind) => [kind, { success: 0, failure: 0, injured: 0, died: 0 }])) as EncounterCounts;
-const noSynergies = (): SynergyTally => ({ quests: 0, withAny: 0, applied: 0, byKey: {} });
-
-/** Adds one game's Wealth flows to the sweep's. */
-function addWealth(into: WealthFlows, from: WealthFlows): void {
-  const { sales, itemsSold, ...flat } = from;
-  addFields(into, flat as WealthFlows);
-  addFields(into.sales, sales);
-  addFields(into.itemsSold, itemsSold);
-}
-
-/** Adds one game's consumables to the sweep's. */
-function addConsumables(into: ConsumableTally, from: ConsumableTally): void {
-  const { byEffect, byDefinition, ...flat } = from;
-  addFields(into, flat as ConsumableTally);
-  addFields(into.byEffect, byEffect);
-  addFields(into.byDefinition, byDefinition);
-}
-
-/** Adds each tally of `from` to the same index of `into`, lengthening `into` to reach it. */
-function addTallies(into: DifficultyTally[], from: readonly DifficultyTally[] | null): void {
-  (from ?? []).forEach((tally, index) => {
-    while (into.length <= index) into.push(noDifficulty());
-    addFields(into[index] as DifficultyTally, tally);
-  });
-}
-
-/** Adds one game's counts by side, then side again, to the sweep's, each made by `none` where the sweep has none. */
-function addBySides<T extends object>(
-  into: Record<string, Record<string, T>>,
-  from: Readonly<Record<string, Readonly<Record<string, T>>>>,
-  none: () => T,
-  add: (into: T, from: T) => void,
-): void {
-  for (const [first, inner] of Object.entries(from)) {
-    for (const [second, tally] of Object.entries(inner)) add(((into[first] ??= {})[second] ??= none()), tally);
-  }
-}
-
-function addOffers(into: OfferTally, from: OfferTally): void {
-  const { ended, ...flat } = from;
-  addFields(into, flat as OfferTally);
-  addFields(into.ended, ended);
-}
-
-function addDisposition(into: DispositionTally, from: DispositionTally): void {
-  const { questsResolved, folds, ...flat } = from;
-  addFields(into, flat as DispositionTally);
-  addFields(into.questsResolved, questsResolved);
-  addFields(into.folds, folds);
-}
-
+/**
+ * The sweep's totals: from every counter at 0, or empty, each game folded in (`fold`, v1.1.6-S1,
+ * DL-187). The order of the fields here is the order the module report lists the counters in.
+ */
 export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals {
   const totals: SweepTotals = {
-    games: sweep.games.length,
+    games: 0,
     questsTaken: zero(),
     questsResolved: { player: { fail: 0, success: 0, strong: 0 }, rival: { fail: 0, success: 0, strong: 0 } },
     heroesInjured: zero(),
@@ -466,7 +444,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     questingHeroes: zero(),
     traitsGainedByKey: { player: {}, rival: {} },
     partySizes: { player: {}, rival: {} },
-    rivalFolds: Object.fromEntries(endingReasons.map((reason) => [reason, 0])),
+    rivalFolds: Object.fromEntries(endingReasons.map((reason) => [reason, 0])) as GameCounters['rivalFolds'],
     rivalSuccessions: 0,
     endings: { ...Object.fromEntries(endingReasons.map((reason) => [reason, 0])), survived: 0 },
     yearsSurvived: summarise(sweep.games.map((game) => game.counters.lastTurn / turnsPerYear)),
@@ -480,7 +458,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     growthAgainstDecline: { player: noGrowth(), rival: noGrowth() },
     gamesAtCountedYear: 0,
     improvementGrades: { player: noGrades(), rival: noGrades() },
-    fameGate: { player: { heroDays: 0, guildDays: 0, guildDaysWithAny: 0 }, rival: { heroDays: 0, guildDays: 0, guildDaysWithAny: 0 } },
+    fameGate: { player: noFameGate(), rival: noFameGate() },
     signingRefused: 0,
     rosters: [],
     encounters: { player: noEncounters(), rival: noEncounters() },
@@ -514,121 +492,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     heroes: noHeroes(),
     saves: [],
   };
-  for (const { counters, observations, refusals, invalid, assertion } of sweep.games) {
-    addTallies(totals.playerQuestsByDifficulty, counters.playerQuestsByDifficulty);
-    addTallies(totals.playerQuestsByYear, counters.playerQuestsByYear);
-    for (const direction of transferDirections) addFields(totals.transfers[direction], counters.transfers[direction]);
-    for (const way of rivalTransferWays) addFields(totals.rivalTransfers[way], counters.rivalTransfers[way]);
-    addBySides(totals.transfersBySide, counters.transfersBySide, noTransfers, addFields);
-    totals.transfersBack += counters.transfersBack;
-    addBySides(totals.offers, counters.offers, noOffers, addOffers);
-    for (const [disposition, tally] of Object.entries(counters.dispositions)) addDisposition((totals.dispositions[disposition] ??= noDisposition()), tally);
-    for (const [side, tally] of Object.entries(counters.marketPurchases)) addFields((totals.marketPurchases[side] ??= noPurchases()), tally);
-    for (const [disposition, grades] of Object.entries(counters.improvementGradesByDisposition ?? {})) {
-      const into = (totals.improvementGradesByDisposition[disposition] ??= noGrades());
-      for (const facility of facilityKeys) addSeries(into[facility], grades[facility]);
-    }
-    observations.rivals.forEach((rivals, year) => {
-      const byDisposition = (totals.rivalYearStarts[year] ??= {});
-      for (const { disposition, heroes, wealth } of rivals) {
-        const starts = (byDisposition[disposition] ??= { heroes: [], wealth: [] });
-        starts.heroes.push(heroes);
-        starts.wealth.push(wealth);
-      }
-    });
-    observations.rankings.forEach((ranking, year) => {
-      if (ranking === null) return;
-      const tally = (totals.rankings[year] ??= { games: 0, fame: [], wealth: [] });
-      tally.games += 1;
-      addSeries(tally.fame, Array.from({ length: ranking.fame }, (_, index) => (index === ranking.fame - 1 ? 1 : 0)));
-      addSeries(tally.wealth, Array.from({ length: ranking.wealth }, (_, index) => (index === ranking.wealth - 1 ? 1 : 0)));
-    });
-    if (assertion !== null) totals.assertionGames += 1;
-    // v1.1.3-S6's: summed, but the longest texts the longest of any game.
-    const { longestAppearance, longestBiography, ...counts } = observations.heroes;
-    const { longestAppearance: appearanceSoFar, longestBiography: biographySoFar } = totals.heroes;
-    addFields(totals.heroes, { ...counts, longestAppearance: 0, longestBiography: 0 });
-    totals.heroes.longestAppearance = Math.max(appearanceSoFar, longestAppearance);
-    totals.heroes.longestBiography = Math.max(biographySoFar, longestBiography);
-    observations.saves.forEach((save, year) => {
-      const into = (totals.saves[year] ??= { lengths: [], heroFields: [], gzipped: [] });
-      into.lengths.push(save.length);
-      into.heroFields.push(save.heroFields);
-      if (save.gzipped !== null) into.gzipped.push(save.gzipped);
-    });
-    addFields(totals.moduleEvents, counters.moduleEvents);
-    for (const [moduleId, byType] of Object.entries(counters.moduleEffects)) addFields((totals.moduleEffects[moduleId] ??= {}), byType);
-    for (const kind of controllerKinds) {
-      addWealth(totals.wealth[kind], counters.wealth[kind]);
-      for (const [table, tally] of Object.entries(counters.loot[kind])) {
-        addFields((totals.loot[kind][table] ??= { awards: 0, items: 0, unique: 0 }), tally);
-      }
-      addConsumables(totals.consumables[kind], counters.consumables[kind]);
-      const { returned, ...moves } = counters.gear[kind];
-      addFields(totals.gear[kind], moves as GearTally);
-      addFields(totals.gear[kind].returned, returned);
-      totals.questsTaken[kind] += counters.questsTaken[kind];
-      totals.heroesInjured[kind] += counters.heroesInjured[kind];
-      totals.heroesDied[kind] += counters.heroesDied[kind];
-      totals.heroesRecruited[kind] += counters.heroesRecruited[kind];
-      totals.heroesRetired[kind] += counters.heroesRetired[kind];
-      totals.traitsGained[kind] += counters.traitsGained[kind];
-      totals.traitsLost[kind] += counters.traitsLost[kind];
-      totals.questingHeroes[kind] += counters.questingHeroes[kind];
-      addFields(totals.traitsGainedByKey[kind], counters.traitsGainedByKey[kind]);
-      for (const [size, tally] of Object.entries(counters.partySizes[kind])) addFields((totals.partySizes[kind][size] ??= noPartySize()), tally);
-      totals.belowFloor[kind] += counters.belowFloor[kind];
-      totals.floorRecovered[kind] += counters.floorRecovered[kind];
-      addFields(totals.portraits[kind], counters.portraits[kind]);
-      for (const [band, n] of Object.entries(counters.questsResolved[kind])) {
-        totals.questsResolved[kind][band as QuestBand] += n;
-      }
-      addSeries(totals.guildYears[kind], counters.guildYears[kind]);
-      addSeries(totals.levelsGained[kind], counters.levelsGained[kind]);
-      addSeries(totals.declines[kind], counters.declines[kind]);
-      addFields(totals.retirementAges[kind], counters.retirementAges[kind]);
-      addFields(totals.growthAgainstDecline[kind], counters.growthAgainstDecline[kind]);
-      addFields(totals.fameGate[kind], observations.fameGate[kind]);
-      for (const facility of facilityKeys) {
-        const grades = counters.improvementGrades?.[kind][facility];
-        if (grades !== undefined) addSeries(totals.improvementGrades[kind][facility], grades);
-      }
-      for (const encounterKind of encounterKinds) addFields(totals.encounters[kind][encounterKind], counters.encounters[kind][encounterKind]);
-      const synergies = totals.synergies[kind];
-      synergies.quests += counters.synergies[kind].quests;
-      synergies.withAny += counters.synergies[kind].withAny;
-      synergies.applied += counters.synergies[kind].applied;
-      addFields(synergies.byKey, counters.synergies[kind].byKey);
-      addFields(totals.injuriesByType[kind], counters.injuriesByType[kind]);
-    }
-    addSeries(totals.patronYears, counters.patronYears);
-    addSeries(totals.silentPatronYears, counters.silentPatronYears);
-    const regard = observations.regardAtCountedYear;
-    if (regard !== null) {
-      totals.regardAtCountedYear.games += 1;
-      addFields(totals.regardAtCountedYear.relationships, regard.relationships);
-      addFields(totals.regardAtCountedYear.guildmasterForPatrons, regard.guildmasterForPatrons);
-      addFields(totals.regardAtCountedYear.guildmasterForHeroes, regard.guildmasterForHeroes);
-    }
-    if (counters.improvementGrades !== null) totals.gamesAtCountedYear += 1;
-    observations.rosters.forEach((census, year) => {
-      totals.rosters[year] ??= { games: 0, player: noCensus(), rival: noCensus() };
-      const sum = totals.rosters[year];
-      sum.games += 1;
-      for (const kind of controllerKinds) addFields(sum[kind], census[kind]);
-    });
-    totals.signingRefused += refusals.filter(({ rejection }) => rejection.reason === 'signing-refused').length;
-    for (const [reason, n] of Object.entries(counters.rivalFolds)) totals.rivalFolds[reason] = (totals.rivalFolds[reason] ?? 0) + n;
-    totals.rivalSuccessions += counters.rivalSuccessions;
-    const ending = counters.ending ?? 'survived';
-    totals.endings[ending] = (totals.endings[ending] ?? 0) + 1;
-    if (counters.ending !== null) {
-      const year = Math.min(Math.floor(counters.lastTurn / turnsPerYear), totals.endedInYear.length - 1);
-      totals.endedInYear[year] = (totals.endedInYear[year] ?? 0) + 1;
-    }
-    totals.refusals += refusals.length;
-    if (invalid !== null) totals.invalidGames += 1;
-  }
+  for (const game of sweep.games) fold(totals, contributionOf(game, turnsPerYear, totals.endedInYear.length), '', false);
   return totals;
 }
 
@@ -663,9 +527,6 @@ const rosterOf = (kind: ControllerKind): string => (kind === 'player' ? "the pla
 
 /** `n / of` to `digits` places, a dash when `of` is 0. */
 const ratio = (n: number, of: number, digits = 2): string => (of === 0 ? '—' : fixed(n / of, digits));
-
-/** `n` as a share of `of`, a dash when `of` is 0. */
-const percent = (n: number, of: number): string => (of === 0 ? '—' : `${fixed((100 * n) / of, 1)}%`);
 
 const sum = (values: readonly number[]): number => values.reduce((total, n) => total + n, 0);
 
@@ -895,7 +756,7 @@ function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
   const sizeRows = controllerKinds.flatMap((kind) => {
     const bySize = totals.partySizes[kind];
     const all = noPartySize();
-    for (const tally of Object.values(bySize)) addFields(all, tally);
+    for (const tally of Object.values(bySize)) addInto(all, tally);
     const cells = (tally: PartySizeTally): string[] => [
       `${whole(tally.quests)} (${percent(tally.quests, all.quests)})`,
       percent(tally.fail, tally.quests),
@@ -936,7 +797,7 @@ function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
 function questEngineSection(totals: SweepTotals, deps: EngineDeps): string[] {
   const kindTotal = (kind: ControllerKind): EncounterTally => {
     const all: EncounterTally = { success: 0, failure: 0, injured: 0, died: 0 };
-    for (const encounterKind of encounterKinds) addFields(all, totals.encounters[kind][encounterKind]);
+    for (const encounterKind of encounterKinds) addInto(all, totals.encounters[kind][encounterKind]);
     return all;
   };
   const encounterCells = (tally: EncounterTally): string[] => {
@@ -1074,7 +935,7 @@ function itemsSection(totals: SweepTotals, deps: EngineDeps): string[] {
   const tables = keysOf(Object.keys(deps.content.lootTables), totals.loot.player, totals.loot.rival);
   const lootAll = (kind: ControllerKind): LootTally => {
     const all: LootTally = { awards: 0, items: 0, unique: 0 };
-    for (const tally of Object.values(totals.loot[kind])) addFields(all, tally);
+    for (const tally of Object.values(totals.loot[kind])) addInto(all, tally);
     return all;
   };
   const lootCells = (kind: ControllerKind, tally: LootTally | undefined): string[] => {
@@ -1103,7 +964,7 @@ function itemsSection(totals: SweepTotals, deps: EngineDeps): string[] {
   );
   const yearRows = totals.playerQuestsByYear.map((tally, year) => [whole(year), ...difficultyCells(tally)]);
   const allDifficulty = noDifficulty();
-  for (const tally of totals.playerQuestsByDifficulty) addFields(allDifficulty, tally);
+  for (const tally of totals.playerQuestsByDifficulty) addInto(allDifficulty, tally);
   const difficultyHeader = ['Quests resolved', 'Mean difficulty', 'Strong', 'Loot awards', 'Loot a Quest', 'Unique'];
   const difficultyLines =
     allDifficulty.quests === 0
@@ -1245,7 +1106,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     ratio(tally.fees, tally.transfers, 0),
   ];
   const everyTransfer = noTransfers();
-  for (const direction of transferDirections) addFields(everyTransfer, totals.transfers[direction]);
+  for (const direction of transferDirections) addInto(everyTransfer, totals.transfers[direction]);
   const directionLabels: Record<TransferDirection, string> = {
     in: "Into the player's Guild",
     out: "Out of the player's Guild",
@@ -1267,8 +1128,8 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     const bought = noTransfers();
     const sold = noTransfers();
     for (const other of sides) {
-      addFields(bought, pair(other, side));
-      addFields(sold, pair(side, other));
+      addInto(bought, pair(other, side));
+      addInto(sold, pair(side, other));
     }
     return [
       capital(sideLabel(side)),
@@ -1357,7 +1218,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     const all = { games: 0, counts: [] as number[] };
     const rows = totals.rankings.map((tally, year) => {
       all.games += tally.games;
-      addSeries(all.counts, tally[by]);
+      addInto(all.counts, tally[by]);
       return [
         whole(year),
         whole(tally.games),
@@ -1381,7 +1242,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
   // Market purchases by buyer.
   const purchasesOf = (keys: readonly string[]): MarketTally => {
     const all = noPurchases();
-    for (const key of keys) addFields(all, totals.marketPurchases[key] ?? noPurchases());
+    for (const key of keys) addInto(all, totals.marketPurchases[key] ?? noPurchases());
     return all;
   };
   const purchaseCells = (tally: MarketTally, guildYears: number): string[] => [
@@ -1542,7 +1403,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
 function portraitsSection(totals: SweepTotals): string[] {
   const { player, rival } = totals.portraits;
   const all: PortraitTally = { ...noPortraits() };
-  for (const tally of [player, rival]) addFields(all, tally);
+  for (const tally of [player, rival]) addInto(all, tally);
   const row = (label: string, pick: (tally: PortraitTally) => number, of: (tally: PortraitTally) => number): string[] => [
     label,
     ...[player, rival, all].map((tally) => `${whole(pick(tally))} (${percent(pick(tally), of(tally))})`),
@@ -1640,7 +1501,6 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
   const range = count === 0 ? 'no seeds' : `\`${sweep.seeds[0]}\` to \`${sweep.seeds[count - 1]}\``;
   const ms = (value: number): string => fixed(value, 3);
   const perGame = (n: number): string => (totals.games === 0 ? '—' : fixed(n / totals.games, 2));
-  const share = (n: number, of: number): string => (of === 0 ? '—' : `${fixed((100 * n) / of, 1)}%`);
 
   const yearsText = Number.isInteger(sweep.years) ? whole(sweep.years) : fixed(sweep.years, 2);
   const full = sweep.games.filter((game) => game.ranFullLength);
@@ -1675,9 +1535,9 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       kind === 'player' ? "The player's Guild" : 'The Rivals',
       whole(totals.questsTaken[kind]),
       whole(all),
-      `${whole(bands.fail)} (${share(bands.fail, all)})`,
-      `${whole(bands.success)} (${share(bands.success, all)})`,
-      `${whole(bands.strong)} (${share(bands.strong, all)})`,
+      `${whole(bands.fail)} (${percent(bands.fail, all)})`,
+      `${whole(bands.success)} (${percent(bands.success, all)})`,
+      `${whole(bands.strong)} (${percent(bands.strong, all)})`,
     ];
   };
   const heroRow = (label: string, counts: ByController): string[] => [

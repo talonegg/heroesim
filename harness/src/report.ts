@@ -81,6 +81,11 @@ export function whole(value: number): string {
   return fixed(value, 0);
 }
 
+/** `n` as a share of `of`, to one place: `33.3%`; a dash when `of` is 0 (v1.1.6-S1, DL-186 item 19). */
+export function percent(n: number, of: number): string {
+  return of === 0 ? '—' : `${fixed((100 * n) / of, 1)}%`;
+}
+
 export type Align = 'left' | 'right';
 
 /**
