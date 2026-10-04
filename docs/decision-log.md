@@ -23881,7 +23881,7 @@ loosening had dropped.
 
 ## DL-185 — v1.1.5's re-close: the owner's answers since DL-182 (the light glow kept, #51's comments posted, #52's calls 4 and 6 built and 8 deferred, no Roster capped); the direction button named by its action, an earned Trait's `among` read over its own pool, the Roster checks at the range's top removed; every check passing, the estimate probe equal to the close's to the digit, and S13's sweep standing as the closing sweep
 
-**Status:** Accepted; the re-close complete, the release awaiting the owner · **Date:** 2026-10-04 ·
+**Status:** Accepted; the re-close complete and verified, the release awaiting the owner · **Date:** 2026-10-04 ·
 **Decided by:** the owner (decisions 1 to 4, quoted as the orchestrator relayed them); the fixes,
 their tests, the checks and the readings marked as the agent's, by the agent, as part of S10 (the
 epic's §0, item 15).
@@ -24103,6 +24103,66 @@ pointers at DL-148 item 19, DL-180's "For the owner", DL-184 item 1 and DL-184's
 `harness/reports/m9-v115-reclose-estimate-2026-10-04.md` (force-added);
 `docs/planning/epics/v1.1.5-release.md` (the Gate's XP split, S13's rule, §2, "Deliberately not",
 S10's re-close box, the status); `docs/planning/epics/README.md`'s v1.1.5 row.
+
+**The verification** (a second Opus agent, at `7b3e9d3`; the closing sweep not run again). What was
+built is the owner's answers as recorded; nothing changes play, which one game played at both commits
+shows; every check passes; nothing to fix.
+- *Call 4, the direction button.* `reverseOrderName` gives "Reverse the order, now …" for every key both
+  ways (`selectors.test.ts`), the shown words `orderWords`, `capitalised(orderPhrase(…))`, unchanged in
+  every state; the button carries the name as its `aria-label` and no `title`, its arrow and words in an
+  `aria-hidden` `span` with the tooltip, so nothing is read twice; the name begins with a capital, Class
+  names, "Hall" (a term) and "A to Z" keep theirs mid-sentence, the rest lower case (`ui-text.md` rules
+  1 to 4). Mutated, each put back: the `aria-label` removed, the `title` put back on the button, the
+  `span` not `aria-hidden`, the name as the state alone, and the phrase capitalised mid-sentence each
+  fail the new tests; the shown words lower-cased fail six Roster tests and the capitals guard. The one
+  `e2e` locator is the `data-testid`, its "Lowest first" still true.
+- *Call 6, an earned Trait's `among`.* `namedIn` is `narrowed`'s old body less its fallback, and
+  `narrowed` is that plus the fallback, so an Injury's Heroes are the same for every input. `earn` still
+  draws `next`, then `pick` or `next`, in every branch; `namedIn` and `membersOf` draw nothing, and
+  `partyNow` is called under the same condition as before. Mutated, each put back: `among` read over the
+  whole living Party fails the new test; the Injury's fallback taken into `earn` fails the two "names no
+  one" tests; skipping the second draw when none is named fails the two-draws test; `narrowed` without
+  its fallback fails three of `harm.test.ts`'s and S4's tests, and over the whole Party five, the new
+  Trait test among them. A scan of
+  every JSON file under `content/` (its `dist/` too) finds eight `kind: "trait"` consequences, all in
+  `encounters.json`, none with an `among`. `quests-conclude.test.ts` is unchanged since `dacf83b`, its
+  three History fingerprints passing.
+- *No Roster capped.* The test's two checks at the top went (the median of every year-end, and under
+  the harness flag each year's median, at or below `rivalRosterMax`); `expectWithinTheRule` and the
+  floor's three checks stay. `grep` of the code and docs (this log aside) for `rivalRosterMax`, a cap
+  or a ceiling finds the range read only as the starting range, the floor and the Generator's own bound:
+  `config.ts`, `transferBid`'s comment, `CONTEXT.md`'s Roster and Transfer Generator, `docs/plan.md`'s
+  backlog item and the test agree; `transfers.test.ts`'s "the range's ceiling" is the Generator's
+  bound; `INPUTS-REQUIRED.md` already said "no Roster cap" (DL-30, DL-83 item 28); no other cap on a
+  Roster exists in `engine/src`, `web/src` or `cli/src`. The harness policy's `rosterLimit` 8 is DL-185's
+  reading, unchanged.
+- *The closing sweep's standing.* `git diff dacf83b..7b3e9d3 -- engine/ content/` (nothing under
+  `content/`, `harness/src/`, `tools/` or `cli/`): comments; `namedIn`, unreached by content 32 as
+  above; and `8d9241d`'s share of 0 for a Party of no Heroes, which `dispatch` never sends (every
+  template's `partySizeMin` 1 or more). Played to be sure, alone, `HEROESIM_SEEDS=1 HEROESIM_YEARS=20`:
+  `seed-0001` at `7b3e9d3` with the replay, identical at 144,371,849 characters, S13's sweep's length;
+  and with `dacf83b`'s `harm.ts` and `resolve.ts` (put back after): both last saves
+  `14f2cd1374eb…f1aa3809`, and every counter of the two reports equal, only the timings and the replay
+  differing. Neither report kept. S13's sweep stands.
+- *The probe.* `diff` of `m9-v115-close-estimate-2026-10-04.md` and
+  `m9-v115-reclose-estimate-2026-10-04.md`: the run line alone.
+- *Checks,* each alone: `npm run edit -- traits doctor` before and after, no drift (110 reads), the doc
+  fresh, the content passing, no pending edits. `npm run lint` and `npm run typecheck` clean. `npm
+  test`: 185 files, 4,835 tests, all passing (164.5 s), the eslint-based tests within their time. `npm
+  run e2e -w web`: 103 passed (50.9 s), check-bundle passing, the script 816,412 bytes.
+- *The Gate,* walked again: as read above, every bullet met but the release; the evidence for the
+  checks, the estimate, the Traits and the closing sweep is this verification's own.
+- *The record.* DL-185 is accurate. Every changed file keeps one ending (`git ls-files --eol`: the
+  repository's copies LF; the source, `CONTEXT.md`, `docs/plan.md` and the epics README CRLF in the working
+  tree, the log, the epic and the report LF). `git status` clean before this entry.
+- *For the owner, two readings* (no change made):
+  1. An earned Trait's `among` ranks its pool before asking who may take it (`mayEarn`, a Trait already
+     drawn on the Quest), so a `bottom` naming a Hero who already holds the Trait gives it no one,
+     where an Injury's, whose pool is already those it can hurt, goes to the next. The comments' "ranks
+     only the Heroes it can fall on" means the pool. Reached by no content today; ranking over those
+     who may take it is the other way, if content comes to want it.
+  2. The button's tooltip is on its shown part, so the button's padding shows none (W3's way, as the
+     Table's tooltips).
 
 ---
 
