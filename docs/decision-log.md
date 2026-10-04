@@ -22641,6 +22641,186 @@ baseline of 2.32 (DL-179); and reading 1's "at most one a Quest" now says "a Her
 
 ---
 
+## DL-180 — v1.1.5-S9 run: the split-XP trial, for information: each Hero of a Party taking the Quest's XP divided by the Party's size, on a scratch change never committed; over 50 games of 20 years no player Guild goes bankrupt (S5's 12), the Roster's mean Level after 10 years 8.34 (10.35), Upkeep 74.7% of the Quest income (87.8%)
+
+**Status:** Recorded · **Date:** 2026-10-04 · **Decided by:** nothing decided: the agent ran the trial
+the epic's S9 describes (DL-168 item 3, DL-148 item 19), for the owner and #51. The XP split as a rule
+stays the owner's, on S3's and these numbers (the epic's "Deliberately not in v1.1.5"). The readings
+marked as the agent's are for the owner to change.
+
+**Context.** DL-148 item 19 left splitting XP across the Party until the balance pass's numbers, and
+DL-166's table showed why it matters: XP is not split, so each Hero of a Party takes the Quest's whole
+XP and a Party of three takes nine times a solo Hero's in all. DL-168 item 3 asked for one
+information-only 50 × 20 sweep with the XP split, *the agent's reading* being that each Hero of a
+Party takes the Quest's XP divided by the Party's size. The epic runs it on S5's commit, so that it
+measures the play the economy pass starts from, and S5's sweep (DL-179, `m9-v115-s5-2026-10-04.md`)
+is the one it is read against: the trial differs from it by the split alone (and a report line).
+
+**The trial's change** (a scratch change in the working tree at `8e1d2fe`, never committed; its whole
+`git diff`, 86 lines, kept in the session's scratchpad as `s9-split-xp.diff` for #51):
+1. *The rule, one line of the engine.* A Quest's XP is worked out in `resolveQuest`
+   (`engine/src/quest-engine/resolve.ts`) and given by `questsConclude`
+   (`engine/src/phases/quests-conclude.ts`), which adds `outcome.xpPerHero` to each Hero who comes
+   home alive and emits `hero.xp-gained`. The trial changed only the outcome's field:
+
+   ```diff
+   -      xpPerHero: Math.floor(xp),
+   +      xpPerHero: Math.floor(xp / heroes.length),
+   ```
+
+   where `xp` is, as shipped, the difficulty × `xpPerDifficultyPoint` (1) × the band's `xpBandFactor`
+   (fail 0.5, success 1, strong 1) × the Encounters' XP factors, and `heroes` the Party sent
+   (`party.heroIds`). So:
+   - *The size is the Party sent,* its Deaths included: a Hero who dies takes nothing, as before, and
+     their share is lost, not passed to the others.
+   - *The rounding follows the store.* `hero.xp` holds whole numbers (the shipped rule rounds down), so
+     the share is rounded down too: `floor(xp / n)`, which for a whole `n` equals splitting the shipped
+     whole XP, `floor(floor(xp) / n)`. Up to `n − 1` points a Quest are lost to the rounding. A Party of
+     one takes exactly what it took before.
+   - *Whatever the band,* and for every Guild: the player's and the Rivals' Parties alike, since both
+     resolve through the one Quest Engine (ADR-0002's note). No draw is added or moved: XP draws
+     nothing. Everything else is as at S5's commit, content 32, config 13, schema 6.
+   - `resolve.test.ts`'s XP test fails under it (a Party of three, 160 → 53), as a rule change must;
+     no test was changed, the change being scratch.
+2. *A scratch counter, the highest Level reached* (DL-83 item 22, whose counter was never built:
+   DL-177). `harness/src/counters.ts` read, for each game, the highest `level` of the player's
+   `hero.levelled` entries before year 10 and in the whole game (1 if none); `sweep.ts` summarised them
+   over the games in one line of the report's M3 section. A Hero recruited above that Level who never
+   levelled on the player's Guild is not seen; the policy recruits the cheapest Hero who would sign, so
+   the agent reads the gap as nil. S5's sweep had no such counter, so S5's highest Level is not known
+   (below), and no baseline sweep was run for it.
+
+**The sweep.** Run alone (no other process of ours; the owner's Playwright test-server left running),
+the scratch change typechecked first: `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_YEARS=20
+HEROESIM_REPLAY=0 HEROESIM_MILESTONE=m9-v115-s9-trial npm run harness -- play.harness`, core only,
+content 32, config 13, schema 6, not validated, the replay skipped (the epic's §0). 1,747.8 s, the
+games 1,747.4 s of it; the test passed. 50 of 50 saves load and serialise back alike; no policy action
+refused, no harness assertion broken; the fingerprint `e7ae1710…6369f369`, a trial's. The report was
+not kept (the epic's §0): copied to the scratchpad and deleted from `harness/reports/`. Then the
+scratch change was reverted (`git checkout --` of the three files): `git status` clean, `git diff
+8e1d2fe` empty, `npm run typecheck` run again on the reverted code, no trial code left in the engine's
+`dist`.
+
+**The trial beside S5's sweep** (`m9-v115-s5-2026-10-04.md`; the split the only difference in play):
+
+| | S9 (XP split) | S5 (not split) | Change |
+| --- | ---: | ---: | ---: |
+| **Player bankrupt** | **0 of 50 (0%)** | 12 of 50 (24%) | −12 |
+| … by year (year 0 first) | none | 10: 1, 12: 2, 14: 3, 15: 1, 16: 2, 17: 1, 18: 1, 19: 1 | |
+| … fell below the floor (`guild.below-floor`) | 0 | 82 | |
+| Years survived, mean (min) | 20.00 (20.00) | 18.87 (10.94) | +1.13 |
+| Player's Guild-years in play | 1,000.0 | 943.6 | +6.0% |
+| Player's Quests resolved; a Guild-year | 403,168; 403.2 | 374,495; 396.9 | +7.7%; +1.6% |
+| Player failed / succeeded / strong | 6.79% / 20.52% / 72.68% | 5.14% / 18.41% / 76.46% | +1.65 / +2.11 / −3.78 points |
+| Rivals failed / succeeded / strong | 13.29% / 31.72% / 54.99% | 11.75% / 29.55% / 58.70% | +1.54 / +2.17 / −3.71 points |
+| Player Deaths a game (a Guild-year) | 4.28 (0.214) | 3.24 (0.172) | +52 in all, +25% a Guild-year |
+| Player Injuries a game (a Guild-year) | 72.52 (3.63) | 54.42 (2.88) | +26% a Guild-year |
+| Rivals' Deaths, Injuries a game | 24.66, 411.64 | 16.96, 289.80 | +45%, +42% |
+| Traits earned a career, the player's | 2.178 (1,472 / 676) | 2.322 (1,407 / 606) | −0.144 |
+| Traits earned a career, the Rivals' | 1.259 (4,890 / 3,883) | 1.131 (3,920 / 3,466) | +0.128 |
+| **Mean Level of the player's Roster after 10 years** | **8.34** | 10.35 | −2.01 |
+| … after 20 years (the games in play) | 9.51 (50) | 11.86 (38) | −2.35 |
+| Highest Level a player's Hero reached by year 10, a game | mean 8.98 (8 to 9) | not counted | |
+| Highest Level a player's Hero reached in the game, a game | mean 11.58, median 12 (11 to 12) | not counted | |
+| Levels, declines a player Guild-year | 4.97, 2.28 | 6.13, 2.16 | −18.9%, +5.6% |
+| Heroes with a Stat at Potential after 10 years | 51.0% | 75.3% | −24.3 points |
+| **Upkeep, Quest rewards a player Guild-year** | **45,664.3; 61,150.1 (74.7%)** | 56,166.8; 64,003.0 (87.8%) | −18.7%; −4.5% |
+| Reward a player's Quest; mean difficulty | 151.7; 36.8 | 161.3; 38.3 | −6.0% |
+| Player's Wealth after 10 and 20 years | 159,162; 215,079 | 108,386; 98,847 | +47%, +118% |
+| Player recruits, Retirements, Heroes sent | 477, 63, 676 | 406, 45, 606 | |
+| Rival folds a game | 2.74 (137) | 5.44 (272) | −135 |
+| Rival Successions | 45 | 18 | |
+| Rivals' Roster, mean at a year-start; Guild-years | 7.69; 3,988.6 | 5.71; 3,751.9 | |
+| Player first in the Rankings, by Fame, by Wealth | 91.6%, 91.0% | 97.2%, 87.5% | |
+| Loot a player's Quest | 0.101 | 0.128 | |
+| `advance` a Turn, mean / p99 | 7.374 / 53.244 ms | 4.806 / 24.876 ms | +53% |
+| The games | 1,747.4 s | 1,213.9 s | +44% |
+
+**Party sizes and XP a Hero** (DL-166's table; in the trial XP *is* split, so "XP a Hero" is the
+share each Hero who came home took, and "XP the Party took" the shares summed; the report's own
+heading still says "XP is not split", its text unchanged by the scratch counter; S5's in brackets):
+
+| The player's Party | Quests | Failed | Strong | XP a Hero | XP the Party took |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 Hero | 206,631 (51.3%) (49.9%) | 10.2% (7.9%) | 66.5% (70.4%) | 29.7 (30.4) | 29.7 (30.3) |
+| 2 | 171,172 (42.5%) (43.5%) | 3.3% (2.4%) | 79.7% (82.8%) | 27.7 (60.0) | 55.3 (120.0) |
+| 3 | 24,782 (6.1%) (6.4%) | 2.9% (1.9%) | 76.1% (81.1%) | 27.9 (88.3) | 83.6 (264.8) |
+| 4 | 569 (0.1%) (0.1%) | 6.3% (3.7%) | 46.2% (48.3%) | 19.6 (80.5) | 78.4 (321.7) |
+| 5 | 14 (0.0%) (0.0%) | 0.0% (0.0%) | 21.4% (25.0%) | 17.4 (96.8) | 86.8 (483.8) |
+| Every size, mean 1.55 (1.57) | 403,168 (374,495) | 6.8% (5.1%) | 72.7% (76.5%) | 28.7 (47.0) | 44.0 (84.8) |
+
+The Rivals': mean 1.85 (1.72), 30.0 XP a Hero (52.2), 54.2 a Party (100.0); a Party of three 27.5 a
+Hero (83.6).
+
+**The agent's readings.**
+1. *A Hero's XP a Quest now barely depends on the Party's size.* About 28 a Hero whether alone or in
+   two or three (the larger Party's harder Quest about offsetting the split), against 30, 60 and 88
+   unsplit. The XP a Hero falls 39% (28.7 against 47.0), the XP the Party took 48% (44.0 against
+   84.8). The player's Parties stay as they were (mean 1.55 against 1.57): `partyFor` chooses by the
+   chance, not the XP, so the split changes who levels, not who goes.
+2. *So Levels come slower and stop lower.* Levels a Guild-year −18.9%; the Roster's mean Level after
+   10 years 8.34 (10.35), after 20 years 9.51 (11.86), and half the Roster at Potential after 10 years
+   (51.0% against 75.3%). Every trial game's highest Hero by year 10, Level 8 or 9, stands below S5's
+   mean Roster Level then (10.35), so S5's highest Level by year 10 was higher in every likelihood,
+   though S5 did not count it. In the trial the highest Level reached in a game is 11 or 12 (mean
+   11.58).
+3. *The wage follows the Level, and the Bankruptcies go.* Upkeep is `wagePerLevel` (20) a Level of
+   each living Hero, plus the Hall (DL-177's verification), so the lower Levels cut it 18.7%
+   (45,664 against 56,167 a Guild-year), while the Quest income falls only 4.5% (more Quests, each
+   paying 6% less, slightly easier). Upkeep takes 74.7% of the Quest income (87.8%), the Wealth
+   climbs every year to 215,079 after 20 (S5's peaks near 111,700 in year 13 and falls to 98,847), no
+   player Guild ever falls below the floor (S5's 82 times), and none goes bankrupt. It is DL-177
+   item 7's late mechanism, the wage outgrowing a reward that does not grow with Level, slowed enough
+   not to reach the income within 20 years.
+4. *The Heroes are weaker, so they are hurt more.* Lower Stats fail more (6.8% against 5.1%) and
+   triumph less (72.7% against 76.5%); Deaths and Injuries a Guild-year rise about a quarter. The
+   Deaths' rise, 52, is about 2.7 times the standard deviation of the difference of two such counts
+   (√(162 + 214) ≈ 19.4): beyond the noise. Fewer Triumphs earn fewer positive Traits a Quest, but more
+   careers in longer games and more Quests: 2.178 a player's career against the 2.32 baseline (−6%).
+5. *The Rivals, too.* Their wage falls with their Levels, so they fold half as often (2.74 a game,
+   within DL-83 item 5's 1.5 to 3.5, against 5.44), keep larger Rosters (7.69 at a year-start against
+   5.71; `ambitious` 8.9, `reckless` 10.6) and live long enough to retire their Guildmasters more (45
+   Successions against 18). Their Traits a career rise (1.259 against 1.131), their careers longer.
+6. *The time.* `advance` +53% and the games +44%: larger Rival Rosters give `partyFor` more Heroes to
+   search, and every game runs its full 20 years (1,000 Guild-years against 943.6). A shipped split
+   would need its time read again.
+7. *The DL-83 targets, for information:* item 2, Bankruptcies 5 to 15%: 0%, below the band (S5 24%,
+   above it); item 21, the Roster's mean Level after 10 years 8 to 10: 8.34, inside (S5 10.35, just
+   above); item 22, the highest Level by year 20, 14 to 17: 11.58, below (S5 not counted); item 5,
+   Rival folds 1.5 to 3.5: 2.74, inside (S5 5.44); item 4, failed 20 to 30% and strong at most 50%:
+   6.8% and 72.7%, still off; item 6, 25 to 40 Deaths a game: 4.28, still off; item 3, first in the
+   Rankings 40 to 60%: 91.6% and 91.0%, still off; item 7, Wealth at 6 to 12 months' Upkeep: 41.8
+   months after 10 years (S5 23.2), further above.
+
+**DL-168 item 16's rule, for information only.** The rule reads the close's sweep, which ships no split.
+On the trial the player's Bankruptcies are 0 of 50, against 3 to 7: they leave the band on the other
+side, from 5 above its top (S5's 12) to 3 below its bottom. *The agent's reading:* the split alone
+removes the late Bankruptcies the band is above, and overshoots it; with it the economy pass would
+start from a Guild that never fails rather than one that fails late, and the wage, the reward and the
+Market would be tuned toward the band from below. Which way is the owner's (#51).
+
+**Checks.** `npm run edit -- traits doctor` before the scratch change and after its revert: no drift
+(110 reads), the doc fresh, the content passing, no pending edits, both. `npm run typecheck` passed
+with the scratch change and again after the revert. Before the sweep, a one-seed, one-year probe of
+the scratch counter (`m9-v115-s9-probe`, its report deleted at once) and `resolve.test.ts` alone (70
+passing, its XP test failing as expected under the split) were run, neither during the sweep. No code
+is committed: lint and the full test suite were not run, the tree being `8e1d2fe`'s. Only this entry
+and the epic change.
+
+**For the owner.**
+1. *The split, on these numbers, ends the player's Bankruptcies* (0 of 50 against S5's 12) by slowing
+   Levels and with them the wage, and it puts the rule's count below its band. It also lowers the
+   Roster's Level after 10 years into DL-83 item 21's band (8.34), and the highest Level reached
+   (11.58 a game) further below item 22's 14 to 17, and raises Deaths and Injuries about a quarter.
+2. *Whether to split XP,* and how (by the Party sent or by those who come home, rounded down or
+   otherwise), is yours for #51; the diff above rebuilds this trial.
+3. #51's comment with these numbers is prepared for the orchestrator to post (the story does not touch
+   GitHub).
+
+**Actioned in:** the epic's S9 boxes and status. No code, content or report kept.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
