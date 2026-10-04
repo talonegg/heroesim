@@ -23493,6 +23493,70 @@ added); `npm run edit -- traits doctor` reports no drift (110 reads) before and 
 `picture`); `web/src/styles.css`; `CONTEXT.md`'s Unique Item; the tests named above;
 `docs/planning/epics/v1.1.5-release.md` (S14's boxes, the status).
 
+**The verification** (a second Opus agent, at `6a581e3`). What was built is the owner's words as
+DL-182 item 4 reads them, each test fails without its code, and every figure above holds. Nothing to
+fix; two things the owner may want to see are below.
+- *The owner's words.* On the Tiles a Unique Item's chip carries `ItemPicture` before its name (the
+  chest's Silhouette in the shipped build; the Barrow King's blade's picture over it in
+  `pictures.test.tsx`'s catalogue), and the carrier's tile the thin gold glow; in the Table the row
+  glows and holds no picture; a Hero with only Common Items, or none, is as before. `unique` is the
+  content's flag (`definition?.unique === true`), read as a Hero's page reads it (`selectors.ts`'s Gear
+  rows); `itemsOf` reads `carriedGear`, every slot of the Hero's own, so a Unique Item in any slot
+  counts (the trinket in `selectors.test.ts` and `roster.test.tsx`, the weapon in `pictures.test.tsx`),
+  and one in the Guild's Stores does not (the selectors test and the layout spec, each with the Barrow
+  King's blade held by the Guild). Nothing else reads `carriesUnique` or draws `carries-unique`: no
+  change to the Board, the pool, the Rival Rosters or a Hero's page, and `git diff 545a2d1..6a581e3`
+  touches nothing under `engine/`, `content/`, `tools/` or `harness/`.
+- *The mutations, each put back* (`git status` clean after each). The glow on every tile: the Tiles
+  test fails. The picture drawn in the Table's Items cell: the Table test fails. `unique` read as
+  "is gear": four tests fail (both selectors tests, the Tiles and the Table); `carriesUnique` as "carries
+  any Item": three; as "the first Item is Unique": the selectors test and the capitals guard. The tile's
+  rule unscoped (`.carries-unique`), the row's (`tr.carries-unique > td:last-child` without
+  `.roster-table`), a gold outline on every `.hero-card`, a gold ring on `.chip .item-picture`, and the
+  tile's ring 3px: the scoping test fails each time. `--gold` light set to `--warn`'s value: the pair
+  test fails; to a paler `#c89400`, and dark to `#5a4510`: the light and the dark contrast tests fail;
+  the dark `--gold` taken out: the pair test and "the dark scheme redefines every colour". The test
+  written after its code, `pictures.test.tsx`'s, fails with the tile's `picture` taken out and with
+  every chip given the Lantern's key in place of its own (the blade's picture then missing).
+- *The page,* looked at in the layout spec's screenshots and in a throwaway spec of the verifier's,
+  deleted (360, 390 and 1280px, light and dark). The tile's 2px gold and glow drawn whole at 360px
+  inside the 16px gutter; the row's lines drawn on the pinned Name and on the cells scrolling under it,
+  the right line on the last cell at the scroll's end; a Hero carrying two Unique Items, two pictures
+  and one glow; a Roster of one, its row drawn whole; Name alone (every column hidden from Columns),
+  `th:last-child`'s four sides and inset glow, no page overflow. Hidden columns are not rendered
+  (`shownColumns`), so `:last-child` is always the last cell shown, on every phone tab. The page has
+  no `data-theme` or other scheme of its own (`styles.css`'s `color-scheme: light dark` and the
+  `prefers-color-scheme` block only), so the dark pair misses nothing. `Chip` renders `picture` only
+  when given (no other `<Chip>` passes one); the picture is `aria-hidden` with an empty `alt`
+  outside the `spoken` part, so nothing is read twice (W3's pattern); `.chip .item-picture` outranks
+  `.item-picture` by specificity, wherever it stands in the sheet.
+- *The contrast,* from the hex values (WCAG 2.2's luminance): light `#a57800` 3.4975:1 on `#f5f0e6`
+  and 3.7801:1 on `#fcf9f3`; dark `#f0b90b` 10.1619:1 on `#181410` and 9.2741:1 on `#221d17`: 3.50,
+  3.78, 10.16 and 9.27 as written. The gold against brass, warning and focus: 1.55, 1.63 and the
+  dark 1.03, 1.10 against brass and warning, distinct as hues and values rather than by contrast.
+- *The checks,* at `6a581e3`, each alone: `npm run edit -- traits doctor` no drift (110 reads), the doc
+  fresh, the content passing, no pending edits, before and after; `npm run lint` clean; `npm run
+  typecheck` clean; `npm test` 185 files, 4,824 tests passing (the eslint-based tests within time);
+  `npm run e2e -w web` 103 passed, check-bundle passing, the script `index-aFO4J7Mm.js` 816,035 bytes
+  (1,415 over the close's 814,620). `CONTEXT.md`'s Unique Item reads as built. Each changed file has
+  one line ending throughout: the code, the tests, the spec and `CONTEXT.md` CRLF, `decision-log.md`
+  and the epic LF, as at `545a2d1` (the entry's "Each changed file keeps its CRLF endings" means
+  these: the two LF files keep theirs).
+- *For the owner,* readings to change or keep, none a defect:
+  1. *The tile's outer side in the light scheme.* The layout spec measures the gold against the
+     first opaque ground either side, the paper (3.50:1) and the tile (3.78:1). Sampled from the
+     rendered page, the pixel just outside the ring is the glow over the paper, `rgb(227 214 180)`,
+     2.75:1 against the gold, 3.16:1 at 6px out; the inner side, the tile's surface, is 3.78:1. In
+     the dark scheme the pixel beside the ring gives 6.86:1. The glow is decoration (the chip names
+     the Item), and the 2px band holds 3:1 on its inner side, so it is left as built; a fainter light
+     glow (about 20 to 25% in place of 40%, by the same sampling) would hold 3:1 outside too, at the
+     cost of a softer look.
+  2. *The glowing row's Name sits 0.5rem right of the others'* (the builder's reading 3), visible at
+     every width in the Table.
+
+**Verified in:** `git diff 545a2d1..6a581e3`; the mutations above; the layout spec's screenshots
+(`web/test-results/`); the checks above.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
