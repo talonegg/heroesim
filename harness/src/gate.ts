@@ -5,12 +5,12 @@
 // with a DL entry.
 //
 // Its lines are of two kinds. The invariants hold on any run: no policy action refused, no game invalid,
-// stopped, unfinished or failing its round trip, and the replay identical: one seed played once more, alone,
-// with its last save's length and fingerprint the same as its shard recorded (v1.1.6-S3, DL-189). The bands, the player's
-// Bankruptcies and the save's gzipped mean, are set on the spec's run, 50 games of 20 years: on a run of
-// another shape (the `neutral` profile's 10, a short trial) they read "not comparable", neither passing
-// nor failing. The Traits a career and the save's uncompressed size are the report's to print, not the
-// Gate's to hold (the owner's answers, DL-188).
+// stopped, unfinished or failing its round trip, and the replay identical: one seed played once more,
+// alone, its last save's length and fingerprint the same as its shard recorded (v1.1.6-S3, DL-189).
+// The bands, the player's Bankruptcies and the save's gzipped mean, are set on the spec's run, 50 games
+// of 20 years: on a run of another shape (the `neutral` profile's 10, a short trial) they read "not
+// comparable", neither passing nor failing. The Traits a career and the save's uncompressed size are
+// the report's to print, not the Gate's to hold (the owner's answers, DL-188).
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

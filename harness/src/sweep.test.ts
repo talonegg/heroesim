@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand, type WorldDocument } from '@heroesim/engine';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
   controllerKinds,
   noBands,
+  observe,
   noOffers,
   noTransfers,
   noWealth,
@@ -23,6 +24,12 @@ import { compareReplay, playReport, replayedGame, sweepFingerprint, sweepPlay, s
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (M2-S12, DL-34).
+
+// The observer of each Turn, watched as it plays, so a test can count the Turns observed (v1.1.6-S3).
+vi.mock('./counters.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./counters.js')>();
+  return { ...actual, observe: vi.fn(actual.observe) };
+});
 
 const content = loadContent();
 const deps: EngineDeps = { config: { ...defaultConfig }, content };
@@ -75,6 +82,14 @@ describe('sweepPlay', () => {
       expect(replayedGame(sweep.games, 'seed-9999')?.seed).toBe('seed-0001');
       expect(replayedGame(sweep.games, undefined)?.seed).toBe('seed-0001');
       expect(replayedGame([], 'seed-0001')).toBeUndefined();
+    });
+
+    test('plays bare: the sweep observes each of its Turns, the replay none', () => {
+      vi.mocked(observe).mockClear();
+      const once = sweepPlay(['seed-0001'], deps, { years });
+      expect(once.replay).toMatchObject({ identical: true, advance: { count: 60 } });
+      expect(vi.mocked(observe)).toHaveBeenCalledTimes(once.games[0]?.turnsPlayed ?? 0);
+      expect(once.games[0]?.turnsPlayed).toBe(60);
     });
   });
 

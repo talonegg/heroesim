@@ -210,9 +210,9 @@ export function sweepFingerprint(games: readonly GameRecord[]): string {
  * in turn before, a lane of early endings sat idle to the slowest lane's end), each loading the core
  * content and playing under `deps.config` with `deps.modules`, installed by id (M8-S3, DL-78); the
  * records come back in seed order and the replay, unless `replay` is false, is played in this process,
- * once, when they are done, and compared with the child's record. The children load the core content themselves, so `deps.content` must be it: a
- * child that loads another refuses the sweep; and each module must be the harness's own of its id
- * (`idsOf`), which is checked before any child starts.
+ * once, when they are done, and compared with the child's record. The children load the core content
+ * themselves, so `deps.content` must be it: a child that loads another refuses the sweep; and each
+ * module must be the harness's own of its id (`idsOf`), which is checked before any child starts.
  *
  * @throws Error when a child fails or played with other content, or a module is not the harness's:
  * a broken run, not a finding

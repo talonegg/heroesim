@@ -86,8 +86,8 @@ export interface PlayOptions {
   /**
    * Play with the observers and the yearly measurement walks off (`observe`, `observeHeroes`,
    * `observeSave`, `takeCensus`, `readAdvance`): the game and its document are the same, only
-   * `observations` stay empty, and `advanceMs` is the cost of `advance` and the policy alone (the
-   * replay's, v1.1.6-S3, DL-189).
+   * `observations` stay empty. `advanceMs` times `advance` alone, as it always does, with none of
+   * the observers' work about it (the replay's, v1.1.6-S3, DL-189).
    */
   bare?: boolean;
 }
