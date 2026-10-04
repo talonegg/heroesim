@@ -22869,12 +22869,12 @@ readings, corrected here. Nothing in code or content to fix.
 
 ---
 
-## DL-181 — v1.1.5-S10, the close: the close review's findings fixed test first, the replay's peak from 1,861 MiB to 1,244 MiB with the same result; [the checks, the closing sweep and the rule's outcome to follow]
+## DL-181 — v1.1.5-S10, the close: the close review's findings fixed test first, the replay's peak from 1,861 MiB to 1,244 MiB with the same result; every check passing, the closing sweep playing S5's games with its replay identical at a peak of 1,346 MiB, the estimate's two checks held on the shipped content, and 12 of 50 player Guilds bankrupt, so the economy pass comes first, as `v1.1.6`
 
-**Status:** In progress · **Date:** 2026-10-04 · **Decided by:** the close review's findings, fixed by
-the agent as the orchestrator listed them; the judgement calls below are the owner's. The checks, the
-closing sweep and the rule's outcome are added to this entry by a later agent (the sections marked
-below).
+**Status:** Accepted; the close complete, the release awaiting the owner · **Date:** 2026-10-04 ·
+**Decided by:** the close review's findings, fixed by the agent as the orchestrator listed them; the
+judgement calls below are the owner's. The checks, the closing sweep and the rule's outcome (DL-168
+item 16, the owner's rule, applied by the agent) were added by the close's next agent.
 
 **Context.** The epic's S10 opens with a code review of the whole patch, `75ee77f..7b22999`, S11's and
 S12's included, its findings fixed test first. This entry's first part records the fixes: three in
@@ -22991,25 +22991,195 @@ fresh, the content passing, no pending edits (no engine source touched). No swee
 
 ### The checks
 
-*[To be added by the close's next agent: `npm run lint`, `typecheck`, `test` and `e2e -w web` with
-check-bundle; the estimate probe's two checks on the shipped content (S7); `npm run edit -- traits
-doctor`.]*
+Run at `2fd8938`, the review's fixes committed, each alone, nothing else of ours running (the owner's
+Playwright test-server left running, as before):
+- `npm run lint`: clean.
+- `npm run typecheck`: clean.
+- `npm test`: 185 files, 4,818 tests, all passing (127.8 s); the two eslint-based tests did not time out.
+- `npm run e2e -w web`: 100 passed (46.0 s), the Board's and the Roster's specs among them, with the
+  Roster's Table, its panel and its tabs at 360px in light and dark (`layout.spec.ts`). Its build's
+  check-bundle passes: "2 built files, no network or filesystem reference, every script within 850 kB".
+  The script is 814,620 bytes (`index-CsErff-L.js`), 35,380 bytes under 850 kB, so the owner's 900 kB
+  (DL-169 item 12) was not needed. `v1.1.4` shipped 800,111 bytes: v1.1.5 adds 14,509, nearly all
+  S11's and S12's.
+- `npm run edit -- traits doctor`: no drift, the register listing all 110 reads of a Trait; the doc
+  fresh; the content passing; no pending edits. Run again after the sweep and the probe, the same.
+- *The estimate probe* (the Gate's "The estimate", S7, DL-173's answer), on the shipped content,
+  content 32, run alone after the sweep: `HEROESIM_PROBE=estimate HEROESIM_MILESTONE=m9-v115-close-estimate
+  npm run harness`, 200 samples × 20,000 seeds, the same 588 Encounters of 1,418 Checks (474 of
+  several), 103 Parties carrying, 349 Encounters carrying Morale; 491.5 s; the harness test passed.
+  The report, `harness/reports/m9-v115-close-estimate-2026-10-04.md`, is force-added.
+
+  | Measure | Encounter's Degrees | Success or better | Quest's bands | Quest's success | Beyond the limit |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | No one falls (held, 2 points, every chance) | 0.99 | 1.18 | 0.92 | 0.92 | 0 of 3,740 |
+  | Morale in (the Quest's held, 3 points) | 23.65, reported | 4.64, reported | 1.61 | 1.61 | Quest 0 of 800; Encounters 8 (7 and 1) |
+
+  - *Both held checks pass.* With no one falling every chance is within 2 points, the widest
+    `estimate-0070`'s Encounter 4 Success or better, 1.18 points (3.36 standard errors). With Morale in,
+    the Quest's bands and success are within 3 points, the widest `estimate-0169`'s success, estimated
+    36.77% and resolved 35.16%, 1.61 points (4.79 standard errors).
+  - *The Encounters' gaps with Morale in, reported, not held* (DL-173's answer): Degrees at most 23.65
+    points (68.07 standard errors), Success or better 4.64 (14.55), 8 chances beyond 3 points, the
+    widest `estimate-0064`'s Encounter 5 Failure, estimated 40.76% and resolved 64.42%, as DL-173
+    traced it. Mean gaps 0.166, 0.143, 0.129 and 0.168 points.
+  - *Against S7's run* (`m9-v115-s7-estimate-2026-10-04.md`, content 31): every figure equal to the
+    digit, the report differing only in its date and time (491.5 s against 484.9 s). S4 and S5 changed
+    harm and the content since, and neither reaches the probe (the agent's reading, from the code):
+    the probe takes every Injury and Death out of both measures, so S4's Injury `among` is never read;
+    and S5's four chances move only whether an earned Trait lands, `earn` taking its two draws, whether
+    it lands and on whom, at any chance (`resolve.ts`), and the Trait is held for `questsConclude` to
+    grant, so it changes no later Check of the same Quest. The same draws, Degrees and bands follow.
 
 ### The closing sweep
 
-*[To be added: the 50 × 20 sweep, core only, the replay kept, against S5's by fingerprint, S3's
-baseline and `v1.1.4`'s close; each play change's share; the Traits a player's Hero career against
-2.32.]*
+Run alone at `2fd8938` (no other process of ours; the owner's Playwright test-server left running),
+after the checks above: `HEROESIM_WORKERS=8 HEROESIM_SEEDS=50 HEROESIM_YEARS=20
+HEROESIM_MILESTONE=m9-v115-close npm run harness -- play.harness`, core only, content 32, config 13,
+schema 6, not validated, the replay kept. 1,432.7 s in all, the games 1,267.1 s of it; the test passed.
+The report, `harness/reports/m9-v115-close-2026-10-04.md`, is force-added. 50 of 50 saves load and
+serialise back alike; no policy action refused, no harness assertion broken.
+
+- *It plays S5's games* (`m9-v115-s5-2026-10-04.md`, DL-179), as expected: nothing after S5's sweep
+  (`0f09174`) changes play. `git diff 0f09174..2fd8938` touches no file under `engine/`, `content/` or
+  `tools/`; under `harness/src/` only the replay (`play.ts`'s `fingerprintOf` exported, `sweep.ts`'s
+  `playedOnce`, E3) and its test; the rest is the page and the docs. The fingerprint of every seed's
+  last save is S5's, `37fabc967f85186ea829889b006ed0d5b525b3c9892a9053eca6004fb18cff9d`, and lines 27 to
+  693 of the two reports, the Counters through the Rivals, the Portraits, the Heroes described and the
+  last document's lengths, are equal byte for byte (SHA-256 `170ffa93…39175ba` each). The two reports
+  differ only in their title, start time, the replay's row (S5's skipped), and the timings: `advance`,
+  `serialise`, `deserialise` and the run's times.
+- *The replay ran and matched:* `seed-0002` played twice is identical (137,606,607 characters), and the
+  test asserts it. The replay plays the first seed that ran its full 20 years (`sweep.ts`); `seed-0001`,
+  S3's, goes bankrupt in this play, so it is `seed-0002`, whose save is 15% longer than the 119-million
+  character `seed-0001` game this entry's E3 measured. Its `advance` alone: 2.210 ms a Turn mean, p99
+  12.936 ms.
+- *The memory,* each `node` process's Windows peak working set (`PeakWorkingSet64`), working set and
+  private bytes read every 5 s (a scratch file, not kept):
+  - *The replay's process,* the Vitest worker, held 91 MiB while the shards played, then peaked at
+    **1,346 MiB** (private bytes at most 1,294 MiB in a sample), reached at 16:08:47 in the first
+    replayed game's close; its working set fell to about 530 MiB between the two games, and the
+    second was at 1,169 MiB in the last sample, a second before the run ended, so its own peak may lie
+    a little above that sample, unread. S3's sweep, the old form, reached at least 2,352 MiB (DL-177);
+    E3's measure above, a shorter game alone, 1,244 MiB. The fix holds one game at a time, as built:
+    about 1.3 GiB for a 137.6-million-character game with the sweep's 50 records beside it.
+  - *The shards:* 50 processes, peak working set median 1,074 MiB, mean 1,060, the 38 that played long
+    (above 900 MiB) median 1,153, the highest 1,503 MiB (the largest save at year 20 is 137.60 MiB,
+    S3's 133.98); private bytes at most 1,378 MiB in a sample; the eight at once at most 4,845 MiB
+    together. The Vitest parent at most 224 MiB. No process was killed.
+- *The time.* `advance` a Turn 5.028 ms mean, p99 25.967 ms (S5's 4.806, 24.876), the games 1,267.1 s
+  (1,213.9 s): 4 to 5% slower with the same engine, content and games, the agent reads it as a sweep's
+  run-to-run spread (S3 to S5's three runs spread 1,203.4 to 1,215.6 s). The replay took most of the
+  other 165.6 s (S3's 158.3 s, a shorter save). As 1,000 games, 448 minutes.
+
+**Against S3's baseline and `v1.1.4`'s close,** each play change's share (S4's from `m9-v115-s4`
+against S3's, DL-178; S5's from S5's against S4's, DL-179; the close equal to S5's, so the two shares
+sum to the close's difference from S3):
+
+| | The close (= S5) | S3's baseline | `v1.1.4`'s close | S4's share | S5's share |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Player bankrupt | 12 of 50 (24%) | 13 of 50 (26%) | 13 of 50 (26%) | 0 | −1 |
+| … by year (year 0 first) | 10: 1, 12: 2, 14: 3, 15: 1, 16: 2, 17: 1, 18: 1, 19: 1 | 11: 1, 12: 1, 13: 1, 15: 2, 17: 1, 18: 2, 19: 5 | 0: 1, 9: 1, 12: 1, 14: 1, 15: 4, 18: 4, 19: 1 | | |
+| … in the first two years | 0 | 0 | 1 | 0 | 0 |
+| Years survived, mean (min) | 18.87 (10.94) | 19.25 (11.89) | 18.65 (0.92) | −0.02 | −0.36 |
+| Player's Quests resolved | 374,495 | 382,191 | 312,418 | −248 | −7,448 |
+| Player failed / strong | 5.14% / 76.46% | 5.81% / 74.63% | 12.38% / 57.07% | +0.00 / −0.00 points | −0.68 / +1.83 points |
+| Rivals failed / strong | 11.75% / 58.70% | 12.43% / 56.80% | 11.71% / 58.10% | +0.05 / −0.15 points | −0.73 / +2.06 points |
+| Player Injuries a game | 54.42 | 63.84 | 129.18 | −0.70 | −8.72 |
+| Player Deaths a game | 3.24 | 3.68 | 7.98 | −0.06 | −0.38 |
+| **Traits earned a player's Hero career** | **2.322** | 1.578 | 1.117 | −0.007 | +0.751 |
+| … the Rivals' | 1.131 | 0.579 | 0.594 | −0.007 | +0.559 |
+| Rival folds a game | 5.44 | 5.44 | 5.40 | +0.04 | −0.04 |
+| The player's mean Party | 1.57 | 1.57 | 1.72 | 0 | 0 |
+| Mean Level of the player's Roster after 10 years | 10.35 | 10.30 | 10.05 | +0.01 | +0.04 |
+| Player's Wealth after 10, 20 years | 108,386; 98,847 | 104,765; 90,922 | 92,001; 102,864 | −309; +442 | +3,930; +7,483 |
+| Upkeep, Quest rewards a player Guild-year | 56,167; 64,003 (87.8%) | 56,056; 63,328 (88.5%) | 54,825; 63,011 (87.0%) | −31; −14 | +142; +689 |
+| First in the Rankings, by Fame, by Wealth | 97.2%, 87.5% | 99.0%, 86.2% | 82.3%, 80.5% | −0.3, −0.5 points | −1.5, +1.8 points |
+| `advance` a Turn, mean / p99 | 5.028 / 25.967 ms | 4.699 / 23.863 ms | 4.966 / 24.651 ms | | |
+| The games, the whole run | 1,267.1 s, 1,432.7 s | 1,215.6 s, 1,373.9 s | 1,301.6 s, 1,448.2 s | | |
+| The replay | `seed-0002`, identical, 137,606,607 | `seed-0001`, identical, 128,821,570 | `seed-0001`, identical, 116,207,395 | | |
+
+**Every difference explained** (the agent's readings; each figure is a report's):
+1. *From `v1.1.4`'s close to S3:* the new player's (S2), as DL-177 explains each: easier Quests (mean
+   difficulty 38.3 here, 38.2 at S3, 47.3 at the close), half the failures, harm halved, smaller
+   Parties and more Quests, the Rivals left the harder ones, and the early Bankruptcies gone.
+2. *S4's share is nil within the noise* (DL-178): an Injury moving to the next-weakest unhurt Hero
+   changes a struck Hero about once in 1,500 ranking draws; the shares move by under 0.01 points for
+   the player and 0.2 for the Rivals, Injuries −1.1%, Bankruptcies 13 and 13, Traits −0.007.
+3. *S5's share is the Traits* (DL-179): the four positive earned Traits at 0.05 lift the player's
+   Traits earned a career from 1.571 to 2.322 and the Rivals' from 0.572 to 1.131, and through their
+   +2 and +1 to Checks the player's Quests fail 0.68 points less and are strong 1.83 points more,
+   Injuries −13.8%, Deaths −10.5% (within about a standard deviation), the Wealth higher. 12 of 50
+   bankrupt against 13 is within fifty seeds' ±3, the Bankruptcies earlier on average (mean year 14.75
+   against S3's 16.46 and S4's 16.38), as DL-179 item 4 reads it.
+4. *The time:* the run's spread above; S5's sweep and this one play the same games.
+
+**The Gate's "Rare Traits":** 2.322 Traits earned a player's Hero career (the four positive 2.297 of
+it), the Rivals' 1.131: S5's baseline, 2.32 and 1.13 (the owner's steer, DL-179), to the digit, as the
+games are S5's. The DL-83 targets read as S5's (DL-179, DL-177's list): item 2 Bankruptcies 24%; item
+3 first at 97.2% and 87.5% of year-starts; item 4 failed 5.1% and strong 76.5%; item 5 Rival folds 5.44;
+item 6 Deaths 3.24; item 7 the Wealth after 10 years 108,386, about 23 months of Upkeep; item 21 the
+mean Level after 10 years 10.35, just above 8 to 10; item 22 not counted. Each unmet but item 21's near
+miss, recorded for #51, not tuned.
 
 ### The rule for what follows
 
-*[To be added: DL-168 item 16, the player's Bankruptcies against 3 to 7 of 50, S3's 13 beside them;
-the next release named here, in `docs/plan.md` §4 and #51.]*
+DL-168 item 16, read as its agent's reading says, on this closing sweep: the player's Bankruptcies
+against DL-83 item 2's 5 to 15% of games, 3 to 7 of 50.
+
+| | Player bankrupt | Share | The band, 3 to 7 of 50 |
+| --- | ---: | ---: | --- |
+| **The closing sweep** | **12 of 50** | **24%** | **above it** |
+| S3's baseline, the new player alone | 13 of 50 | 26% | above it |
+
+**The outcome: outside the band, so the economy pass comes first, as `v1.1.6`, before v1.2's Random
+Events (M10).** As DL-168 item 16 says, this supersedes DL-83 item 1's and DL-148 item 3's order, the
+economy after Random Events. The closing sweep and S3's fall on the same side, so there is nothing
+for the owner to weigh between them (item 16's reading); both stand above the band's top by about
+twice fifty seeds' ±3 (DL-166, §4 Risks), so the outcome is not near an edge. The Bankruptcies are all
+late, from year 10, none in the first two years: DL-166's late mechanism, the wage growing with Level
+(`wagePerLevel` 20) and a Quest's reward not, which the new player and S4 and S5 left in place. S9's
+trial (DL-180), for information only, took the same play to 0 of 50, below the band.
+
+The next release is named here, in `docs/plan.md` §4 (v1.1.5's entry and the economy pass added as
+`v1.1.6` before Random Events), and in the epic. #51's comment is prepared for the owner, not posted
+(the session's `s10-issue-51-comment.md`): the rule's outcome and the release line, `v1.1.6` before
+Random Events, its scope #51's (DL-168 items 2, 3, 9, 12 and 16).
+
+**The Gate,** except the release (the epic's S10 first box):
+- *The memory:* met (DL-174, DL-175); the replay's own memory fixed here (E3) and measured above.
+- *`partyFor`'s real gain:* met (DL-175). *The new player:* met (DL-176, DL-177). *Each play change
+  measured alone:* met (DL-178, DL-179).
+- *Rare Traits:* met, 2.32 against the baseline of 2.32 (above).
+- *The estimate:* met, both held checks passing on the shipped content (above).
+- *The words:* met (DL-172). *The Board:* met (DL-170, W2 and W3 here). *The Roster:* met (DL-171,
+  W1, W3 and W5 here).
+- *The split-XP trial:* met (DL-180), none of its code in the patch; #51's comment prepared.
+- *The rule for what follows:* applied (above), the next release named here, in `docs/plan.md` and in
+  #51's comment for the owner to post.
+- *Traits:* the doctor reports no drift at the close.
+- *The checks:* met (above), the script 814,620 bytes under 850 kB.
+- *The release:* the owner's.
+
+**For the owner** (open at the close):
+1. *The release* (DL-124; the epic's S10): push `v1.1.5-dev`; fast-forward `v1.1-release` to it and
+   push (`git checkout v1.1-release`, `git merge --ff-only v1.1.5-dev`, `git push origin
+   v1.1-release`); merge the pull request CI raises, which tags `v1.1.5` on `main`, deploys it and
+   writes its GitHub Release; see `e2e:live` pass on both addresses; then tick S10's second box.
+   Dependabot's `target-branch`es name `v1.1.5-dev` from then (§0).
+2. *Two comments on #51 to post,* prepared in the session's scratchpad: `s9-issue-51-comment.md`, the
+   split-XP trial (DL-180), and `s10-issue-51-comment.md`, the rule's outcome and the release line
+   (above).
+3. *The nine judgement calls* of the review, listed above, each left as it is unless you say.
+4. *`v1.1.6`,* the economy pass: its plan, from #51, is yours to start.
 
 **Actioned in:** `CONTEXT.md`; `harness/src/play.ts`, `sweep.ts`, `sweep.test.ts`;
 `web/src/state/selectors.ts`, `selectors.test.ts`; `web/src/views/ui.tsx`, `roster-table.tsx`,
 `roster.tsx`, `guilds.tsx`, `section.tsx`, `roster.test.tsx`, `board.test.tsx`; `web/src/styles.css`,
-`styles.test.ts`; the epic's status.
+`styles.test.ts`; the epic's status. The close: `harness/reports/m9-v115-close-2026-10-04.md` and
+`m9-v115-close-estimate-2026-10-04.md` (force-added); `docs/plan.md` §4; the epic's Gate outcome,
+S10's first box and status; `docs/planning/epics/README.md`'s v1.1.5 row; #51's comment prepared for
+the owner.
 
 ---
 
