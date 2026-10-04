@@ -202,13 +202,9 @@ function filteredByTrait(entry: string, content: ContentJson, file: ContentFileN
   return { change: { [file]: root }, use: use(entry, file, [...path, 2]) };
 }
 
-/** Refuses a row of `file` that is not there, or is in the old form with no Query (v1.1.4-S1), saying what to do. */
-function queryRow(content: ContentJson, file: ContentFileName, key: string, written: (row: Record<string, unknown>) => boolean, what: string): void {
-  const row = at(content[file], [key]);
-  if (!isObject(row)) throw new UseRefusal(`${file}: ${key} is not there`);
-  if (!written(row)) {
-    throw new UseRefusal(`${file}: ${key} is ${what} in the old form, with no Query to filter: ask the owner to have it written in Queries (as v1.1.4-S10 writes the shipped content), then assign`);
-  }
+/** Refuses a row of `file` that is not there. */
+function queryRow(content: ContentJson, file: ContentFileName, key: string): void {
+  if (!isObject(at(content[file], [key]))) throw new UseRefusal(`${file}: ${key} is not there`);
 }
 
 // ── The content ────────────────────────────────────────────────────────────────────────────────
@@ -401,7 +397,7 @@ const encounterHasTrait: ContentEntry = {
     apply(content, key, target) {
       const encounter = named(target, 'encounter');
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: a Query reads a Hero's Traits`);
-      queryRow(content, 'encounters.json', encounter, (row) => Array.isArray(row.checks), 'an Encounter');
+      queryRow(content, 'encounters.json', encounter);
       return filteredByTrait('encounter-has-trait', content, 'encounters.json', [encounter, ...targetPath(target, 'path')], key);
     },
   },
@@ -434,7 +430,7 @@ const synergyHasTrait: ContentEntry = {
     apply(content, key, target) {
       const synergy = named(target, 'synergy');
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: a Query reads a Hero's Traits`);
-      queryRow(content, 'synergies.json', synergy, (row) => Array.isArray(row.requires), 'a Synergy');
+      queryRow(content, 'synergies.json', synergy);
       if (target.path !== undefined) return filteredByTrait('synergy-has-trait', content, 'synergies.json', [synergy, ...targetPath(target, 'path')], key);
       const root = copyOf(content, 'synergies.json');
       const requires = listAt(root, [synergy, 'requires'], 'synergies.json');

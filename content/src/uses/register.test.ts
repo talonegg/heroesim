@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { contentFiles, parseContent, type ContentFileName } from '../index.js';
 import { contentDir } from '../node.js';
@@ -15,18 +14,6 @@ import { contentEntries, engineEntriesOf, register, rulesFor, usesOf, type Conte
 /** The shipped content as JSON, by file. */
 function shipped(): Record<ContentFileName, unknown> {
   return Object.fromEntries(contentFiles.map((file) => [file, JSON.parse(readFileSync(join(contentDir, file), 'utf8'))])) as Record<ContentFileName, unknown>;
-}
-
-/**
- * The shipped content with its Encounters, Synergies and Quest templates as content 25 wrote them, in
- * the old form (`content/src/old-form/`), which the register refuses to filter (v1.1.4-S10).
- */
-function oldForm(): Record<ContentFileName, unknown> {
-  const content = shipped();
-  for (const file of ['encounters.json', 'synergies.json', 'quest-templates.json'] as const) {
-    content[file] = JSON.parse(readFileSync(fileURLToPath(new URL(`../old-form/${file}`, import.meta.url)), 'utf8'));
-  }
-  return content;
 }
 
 /**
@@ -216,12 +203,12 @@ describe('a use added and removed', () => {
     expect(usesOf({ ...next, ...made?.change }, 'scarred').map((use) => use.at)).toContain('encounters.json: ambush-on-the-road.checks.0.score.1.1.1.2');
   });
 
-  test('refuses an Encounter or a Synergy in the old form, saying so and what to do', () => {
-    const content = oldForm();
-    expect(() => entry('encounter-has-trait').add?.apply(content, 'lame', { encounter: 'ambush-on-the-road', path: 'checks.0.score.1' })).toThrow(
-      'encounters.json: ambush-on-the-road is an Encounter in the old form, with no Query to filter: ask the owner',
+  test('refuses an Encounter or a Synergy that is not there', () => {
+    const content = shipped();
+    expect(() => entry('encounter-has-trait').add?.apply(content, 'lame', { encounter: 'no-such-encounter', path: 'checks.0.score.1' })).toThrow(
+      'encounters.json: no-such-encounter is not there',
     );
-    expect(() => entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'shield-wall' })).toThrow('synergies.json: shield-wall is a Synergy in the old form');
+    expect(() => entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'no-such-synergy' })).toThrow('synergies.json: no-such-synergy is not there');
   });
 
   test("a Triumph's list is copied from the Success's before a positive Trait is added to it", () => {
@@ -261,7 +248,6 @@ describe('a use added and removed', () => {
     expect(() => entry('portrait-callings').add?.apply(content, 'scarred', { calling: 'soldier', side: 'suits' })).toThrow('is not a Guildmaster Trait');
     expect(() => entry('portrait-callings').add?.apply(content, 'spendthrift', { calling: 'merchant', side: 'suits' })).toThrow('clashes names "spendthrift" already');
     expect(() => entry('encounter-has-trait').add?.apply(content, 'lame', { encounter: 'ambush-on-the-road', path: 'checks.0.score.2' })).toThrow('is not a Set Query');
-    expect(() => entry('synergy-has-trait').add?.apply(oldForm(), 'lame', { synergy: 'shield-wall' })).toThrow('old form');
     expect(() => entry('excludes').add?.apply(content, 'lame', { trait: 'miser' })).toThrow('not of the same list');
   });
 });

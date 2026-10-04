@@ -24986,6 +24986,61 @@ that reaches play changed (the CLI's usage text and the portrait tool only), so 
 
 ---
 
+## DL-192 — v1.1.6-S6 built: the old content form retired; the content version 33; the `neutral` baseline `e3adc353…`, the version being in the saved document
+
+2026-10-05. DL-186 item 8 (B2).
+
+- *Before.* The doctor read no drift (110 reads of a Trait, the content passing its checks, no pending
+  edits). Of the shipped files, 29 of 29 Encounters have `checks` a list and none a `demands`,
+  `aggregate` or `skillKeys`; 9 of 9 Synergies have `requires` a list. Two tests in `content.test.ts`
+  hold it now.
+- *Gone.* From `content/src/parse.ts`: `OldFormKeys`, `oldFormCheck`, the `aggregates` table and the
+  old branch of `synergyRequires`, with the parser's `known` sets; the parser reads an Encounter's
+  `checks` and a Synergy's `requires` as lists and nothing else. A Synergy whose `requires` is not a
+  list is refused as "is not a list of conditions on the Party" (an Encounter with no `checks` as its
+  `checks` missing, and its old fields as not fields of an Encounter). `content/src/old-form/` (three
+  files, content 25's Encounters, Synergies and Quest templates). `EncounterAggregate` from the
+  engine's `content-types.ts`, and the two comments there that described the old form. The
+  register's refusal, in `content/src/uses/register.ts`: `queryRow` now refuses only a row that is
+  not there. `checkDemands` and `checkReferences` stay in `validate.ts`, which still uses them for the
+  Quest templates and the rest; `parse.ts` no longer imports them.
+- *The tests.* The fixtures of `refusals.test.ts` that were content 25 (`oldFiles`, `withOldJson`,
+  `OldRequires` and the old row types) read the shipped files now; the tests of the old form's own
+  refusals (a demand's Stat, weights summing to 1, a Skill, an aggregate, a Class's count) are gone,
+  and the S8 tests on tags, Finales and lore are rewritten on the shipped content (Encounters removed
+  from it to leave no lore Encounter, or only Finales of arcane kind). Two tests hold the old form
+  refused. The register's and the editor's tests of the old-form refusal are gone, the register's
+  replaced by one of a row that is not there. The engine's test builders `oldFormCheck` and
+  `oldFormRequires` stay (the engine's tests build Checks and requirements through them); their
+  aggregate type is theirs now, `CheckAggregate`, and their comments say they build a form content
+  no longer reads.
+- *The version* 32 to 33 in `content/version.json`, edited as the file is laid out (the write module's
+  raise is the tools' own, in a Finish), its changelog line saying the old form is no longer read.
+  `content.test.ts` reads the file; nothing else pins 32.
+- *The refusal's words gone from the built script.* `npm run build`: the script 814,895 bytes, none of
+  "names no Class and no Skill", "a count is a whole number from 1", "what a Synergy requires",
+  "with no Query to filter" or "in the old form" in it. `web/src/bundle.test.ts` holds the five.
+- *The `neutral` baseline.* `neutral m9-v116-s6 --expect 4e9edae0…` (10 games of 20 years, 546.5 s)
+  FAILED on the fingerprint alone: `e3adc35390098c46e05e59ddcc155a93bf11f9a2f869b7075be91190f05e7a5f`;
+  every other line of the Gate passed, the replay identical. The fingerprint hashes each seed's last
+  save, whose `meta` holds the content version. Shown: the 4 × 2 quick check gives `a8f4025b…`
+  with the version 33, and `50f5e3d5…`, S1's, with `content/version.json` put back to 32 and the
+  rest of the change in place. So the code reaching play changed nothing, and the version alone
+  moved the fingerprint. **The baseline is now `e3adc353…`** (`harness/README.md` names it): the
+  `--expect` of S8, S9, S10, S13, S16 and S18; the full `gate`'s `e7ae1710…` and the quick check's
+  `50f5e3d5…` are the content 32's, and move to the new version at the next run of each, as the
+  version moves them. The reports were not committed.
+- *Checks.* `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,930 tests passing; `npm run
+  build` and check-bundle passing; the doctor reads no drift after. `npm run e2e -w web` not run: no
+  file under `web/` but a test changed. Line endings as before, none mixed.
+
+*Judgement calls, for the owner to see.* (1) The S8 tests were written on content 25's shape (two
+arcane Encounters, no lore, no Finale); I put them on the shipped content by removing Encounters in
+the test, rather than keep a copy of the old files. (2) The old form's Class and Skill checks (a
+count of 1 or more, no Skill twice) went with it; the same Queries are `validateContent`'s.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

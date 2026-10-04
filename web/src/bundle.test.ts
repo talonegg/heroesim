@@ -140,6 +140,15 @@ describe('the production build', { timeout: 120_000 }, () => {
     expect(text).not.toContain(mark);
   });
 
+  // v1.1.6-S6 (DL-192): the old form of an Encounter and a Synergy is no longer read, so the words
+  // its refusals were written in, which v1.1.5's parser and register held, are in no built file.
+  test("holds none of the words the old content form's refusals were written in", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    const marks = ['names no Class and no Skill', 'a count is a whole number from 1', 'what a Synergy requires', 'with no Query to filter', 'in the old form'];
+    expect(marks.filter((mark) => text.includes(mark))).toEqual([]);
+  });
+
   test('builds a script under the 850 kB the gate allows', () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
     expect(statSync(path.join(outDir, 'assets', script)).size).toBeLessThan(scriptLimit);

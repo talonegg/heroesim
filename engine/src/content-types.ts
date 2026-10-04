@@ -287,13 +287,6 @@ export const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'
 
 export type EncounterKind = (typeof encounterKinds)[number];
 
-/**
- * How the old form of an Encounter reads the Party's Stats on its demands (M4-S2): `best` takes the
- * best Hero's value of each Stat, `sum` the Party's sum of it. Since v1.1.4-S1 the old form loads
- * into one Check whose score is a Query of the same reading (`EncounterCheck`).
- */
-export type EncounterAggregate = 'best' | 'sum';
-
 // Queries (v1.1.4-S1, DL-148 items 4 to 6, ADR-0010): how content reads the Party. A Query is a JSON
 // array, operator first, of one of five types, each read where its type is expected. A Set is some
 // of the Party's Heroes; a Hero one of them, or none; a Val a number read of the current Hero; a Pred
@@ -363,10 +356,8 @@ export type CheckKey = string;
 /**
  * One Check of an Encounter (v1.1.4-S1, DL-148 item 7): the Party's capability is its `score`, a
  * Num Query, plus a bonus for the best rating held of each of its `skills`, against its target,
- * `flat` plus `difficultyFactor` times the Quest's difficulty. The old form of an Encounter
- * (`demands`, `aggregate`, `skillKeys`, `difficultyFactor`) loads into one, keyed and named as its
- * Encounter, whose score is `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order
- * of its demands. An Encounter has one to four since v1.1.4-S2, combined by its `pass`.
+ * `flat` plus `difficultyFactor` times the Quest's difficulty. An Encounter has one to four since
+ * v1.1.4-S2, combined by its `pass`.
  */
 export interface EncounterCheck {
   key: CheckKey;
@@ -547,9 +538,7 @@ export interface Encounter {
 
 /**
  * What a Party must hold for a Synergy to apply (M4-S3; v1.1.4-S1, DL-148 item 20): Party-level
- * conditions, at least one, every one of which must hold. The old form, a count for each Class and
- * a list of Skills, loads into `[">=", ["count", ["where", "party", ["class", k]]], n]` for each
- * Class, then `[">=", ["max", "party", ["skill", k]], 1]` for each Skill.
+ * conditions, at least one, every one of which must hold.
  */
 export type SynergyRequires = PartyCondition[];
 

@@ -18,7 +18,6 @@ import type {
   ContentSet,
   Disposition,
   Encounter,
-  EncounterAggregate,
   EncounterCheck,
   EncounterKind,
   GuildmasterTrait,
@@ -220,15 +219,18 @@ function demandsOf(demands: string): [string, number][] {
   });
 }
 
+/** How a test Check's score reads each demanded Stat over the Party: `best` as `max`, `sum` as `sum`. */
+export type CheckAggregate = 'best' | 'sum';
+
 /**
- * The one Check an Encounter in the old form loads into (v1.1.4-S1), as content's parser makes it:
+ * The one Check an Encounter in the old form a test builds (the form content no longer reads, DL-192):
  * keyed and named `key` and `name`, its score the weighted `aggregate` of each demanded Stat over the
  * Party, added up in the order of `demands`, with `skillKeys` its Skills.
  */
 export function oldFormCheck(
   key: string,
   name: string,
-  aggregate: EncounterAggregate,
+  aggregate: CheckAggregate,
   demands: readonly (readonly [string, number])[],
   skillKeys: readonly string[],
   difficultyFactor: number,
@@ -238,8 +240,8 @@ export function oldFormCheck(
 }
 
 /**
- * The conditions a Synergy's requirement in the old form loads into (v1.1.4-S1), as content's
- * parser makes them: at least `n` of each Class named, then each Skill held at a rating of 1 or more.
+ * The conditions a Synergy's requirement in the old form a test builds (the form content no longer reads, DL-192):
+ * at least `n` of each Class named, then each Skill held at a rating of 1 or more.
  */
 export function oldFormRequires(requires: { classes?: Record<string, number>; skills?: readonly string[] }): SynergyRequires {
   return [
@@ -260,7 +262,7 @@ export function oldFormRequires(requires: { classes?: Record<string, number>; sk
 function encounter(
   key: string,
   kind: EncounterKind,
-  aggregate: EncounterAggregate,
+  aggregate: CheckAggregate,
   demands: string,
   skills: string,
   difficultyFactor: number,

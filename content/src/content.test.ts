@@ -563,7 +563,18 @@ describe('loadContent()', () => {
       }
     });
 
-    test('use every kind of consequence the old form used', () => {
+    // v1.1.6-S6 (DL-192): the old form is no longer read, so every shipped row is in the new one: an
+    // Encounter's `checks` a list, a Synergy's `requires` a list (29 of 29 and 9 of 9 when it was retired).
+    test('are every one written with a list of Checks, and none in the old form', () => {
+      const written = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<string, Record<string, unknown>>;
+      expect(Object.keys(written)).toHaveLength(Object.keys(content.encounters).length);
+      for (const [key, row] of Object.entries(written)) {
+        expect(Array.isArray(row['checks']), key).toBe(true);
+        for (const field of ['demands', 'aggregate', 'skillKeys', 'difficultyFactor']) expect(row, `${key}.${field}`).not.toHaveProperty(field);
+      }
+    });
+
+    test('use every kind of consequence Encounters once used', () => {
       const used = new Set(encounters.flatMap((it) => Object.values(it.consequences).flatMap((list) => (list ?? []).map((consequence) => consequence.kind))));
       expect([...used]).toEqual(expect.arrayContaining(['injury', 'death', 'morale', 'regard', 'xp', 'wealth', 'fame']));
     });
@@ -604,6 +615,13 @@ describe('loadContent()', () => {
   // INPUTS 6.4: six starter Synergies, among them Warrior + Healer, Rogue + Mage and three Warriors;
   // v1.1.4-S10 writes them as Queries over the Party, and three more that read Stats and Levels (DL-162).
   describe('Synergies (M4-S3, v1.1.4-S10)', () => {
+    // v1.1.6-S6 (DL-192): see the Encounters'; every Synergy's `requires` is a list of conditions on the Party.
+    test('are every one written with a list of conditions, and none in the old form', () => {
+      const written = JSON.parse(readFileSync(join(contentDir, 'synergies.json'), 'utf8')) as Record<string, Record<string, unknown>>;
+      expect(Object.keys(written)).toHaveLength(Object.keys(content.synergies).length);
+      for (const [key, row] of Object.entries(written)) expect(Array.isArray(row['requires']), key).toBe(true);
+    });
+
     const synergies = Object.values(content.synergies);
     /** Each Synergy's requirement as `synergies.json` writes it: conditions on the Party. */
     const written = JSON.parse(readFileSync(join(contentDir, 'synergies.json'), 'utf8')) as Record<string, { requires: unknown }>;

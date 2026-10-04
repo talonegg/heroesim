@@ -517,16 +517,6 @@ describe('assign and unassign', () => {
     expect(again.json.uses.map((use) => use.at)).toContain('encounters.json: ambush-on-the-road.checks.0.score.1.1.1.2');
   });
 
-  test('an Encounter in the old form is refused, saying so', async () => {
-    const dir = scratch();
-    // The ambush as content 25 wrote it, in the old form (v1.1.4-S10 wrote the shipped one in Checks).
-    const old = JSON.parse(readFileSync(new URL('../../../content/src/old-form/encounters.json', import.meta.url), 'utf8')) as Record<string, unknown>;
-    writeContentJson(dir, 'encounters.json', { ...readContentJson<Record<string, unknown>>(dir, 'encounters.json'), 'ambush-on-the-road': old['ambush-on-the-road'] });
-    git(dir, 'commit', '--quiet', '-am', 'the old form');
-    const refused = await json<Failure>(dir, 'traits', 'assign', 'scarred', 'encounter-has-trait', 'encounter=ambush-on-the-road', 'path=checks.0.score.1');
-    expect(refused.json.problems[0]).toMatch(/^encounters\.json: ambush-on-the-road is an Encounter in the old form, with no Query to filter: ask the owner/);
-  });
-
   test('a change that changes nothing is not held', async () => {
     const dir = scratch();
     const same = await json<{ ok: boolean; unchanged?: boolean; pending: number }>(dir, 'traits', 'change', 'thrifty', '--cost', '2');

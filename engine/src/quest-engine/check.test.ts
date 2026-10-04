@@ -2,12 +2,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import type { EngineDeps } from '../config.js';
-import type { EncounterAggregate, EncounterCheck } from '../content-types.js';
+import type { EncounterCheck } from '../content-types.js';
 import type { Guild, GuildId, Guildmaster, Hero, World } from '../document.js';
 import { streamOf } from '../generators/draw.js';
 import { generateHero } from '../generators/heroes.js';
 import { next } from '../rng.js';
-import { buildDocument, heroStatKeys, oldFormCheck, testDeps, testWorld } from '../world.test-support.js';
+import { buildDocument, type CheckAggregate, heroStatKeys, oldFormCheck, testDeps, testWorld } from '../world.test-support.js';
 import { capability as capabilityOf, check as checkOf } from './check.js';
 import { queryParty } from './query.js';
 
@@ -23,7 +23,7 @@ const combat = { kind: 'combat' } as const;
 
 /** A Check in the old form: `hold-the-line`'s from the test content, with `fields` changed. */
 function encounterWith(
-  fields: { demands?: [string, number][]; aggregate?: EncounterAggregate; skillKeys?: string[]; difficultyFactor?: number } = {},
+  fields: { demands?: [string, number][]; aggregate?: CheckAggregate; skillKeys?: string[]; difficultyFactor?: number } = {},
 ): EncounterCheck {
   const { demands = [['strength', 0.5], ['constitution', 0.5]], aggregate = 'sum', skillKeys = ['shieldwork', 'tactics'], difficultyFactor = 0.3 } = fields;
   return oldFormCheck('hold-the-line', 'Hold the line', aggregate, demands, skillKeys, difficultyFactor);
@@ -52,7 +52,7 @@ function party(seed: string, count: number, value = 8): { world: World; heroes: 
 }
 
 describe('capability', () => {
-  const twoStats = (aggregate: EncounterAggregate, skillKeys: string[] = []) =>
+  const twoStats = (aggregate: CheckAggregate, skillKeys: string[] = []) =>
     encounterWith({ demands: [['strength', 0.5], ['courage', 0.5]], aggregate, skillKeys });
 
   test("with `best`, weighs the best member's value of each Stat", () => {
