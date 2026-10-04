@@ -22711,7 +22711,7 @@ scratch change was reverted (`git checkout --` of the three files): `git status`
 | Years survived, mean (min) | 20.00 (20.00) | 18.87 (10.94) | +1.13 |
 | Player's Guild-years in play | 1,000.0 | 943.6 | +6.0% |
 | Player's Quests resolved; a Guild-year | 403,168; 403.2 | 374,495; 396.9 | +7.7%; +1.6% |
-| Player failed / succeeded / strong | 6.79% / 20.52% / 72.68% | 5.14% / 18.41% / 76.46% | +1.65 / +2.11 / −3.78 points |
+| Player failed / succeeded / strong | 6.79% / 20.52% / 72.68% | 5.14% / 18.41% / 76.46% | +1.66 / +2.12 / −3.77 points |
 | Rivals failed / succeeded / strong | 13.29% / 31.72% / 54.99% | 11.75% / 29.55% / 58.70% | +1.54 / +2.17 / −3.71 points |
 | Player Deaths a game (a Guild-year) | 4.28 (0.214) | 3.24 (0.172) | +52 in all, +25% a Guild-year |
 | Player Injuries a game (a Guild-year) | 72.52 (3.63) | 54.42 (2.88) | +26% a Guild-year |
@@ -22722,7 +22722,7 @@ scratch change was reverted (`git checkout --` of the three files): `git status`
 | … after 20 years (the games in play) | 9.51 (50) | 11.86 (38) | −2.35 |
 | Highest Level a player's Hero reached by year 10, a game | mean 8.98 (8 to 9) | not counted | |
 | Highest Level a player's Hero reached in the game, a game | mean 11.58, median 12 (11 to 12) | not counted | |
-| Levels, declines a player Guild-year | 4.97, 2.28 | 6.13, 2.16 | −18.9%, +5.6% |
+| Levels, declines a player Guild-year | 4.97, 2.28 | 6.13, 2.16 | −18.9%, +5.4% |
 | Heroes with a Stat at Potential after 10 years | 51.0% | 75.3% | −24.3 points |
 | **Upkeep, Quest rewards a player Guild-year** | **45,664.3; 61,150.1 (74.7%)** | 56,166.8; 64,003.0 (87.8%) | −18.7%; −4.5% |
 | Reward a player's Quest; mean difficulty | 151.7; 36.8 | 161.3; 38.3 | −6.0% |
@@ -22773,14 +22773,16 @@ Hero (83.6).
    item 7's late mechanism, the wage outgrowing a reward that does not grow with Level, slowed enough
    not to reach the income within 20 years.
 4. *The Heroes are weaker, so they are hurt more.* Lower Stats fail more (6.8% against 5.1%) and
-   triumph less (72.7% against 76.5%); Deaths and Injuries a Guild-year rise about a quarter. The
+   end strong less often (72.7% against 76.5%); Deaths and Injuries a Guild-year rise about a quarter. The
    Deaths' rise, 52, is about 2.7 times the standard deviation of the difference of two such counts
-   (√(162 + 214) ≈ 19.4): beyond the noise. Fewer Triumphs earn fewer positive Traits a Quest, but more
-   careers in longer games and more Quests: 2.178 a player's career against the 2.32 baseline (−6%).
+   (√(162 + 214) ≈ 19.4): beyond the noise. Fewer strong successes keep slightly fewer positive Traits a
+   Hero's Quest (1,456 in 625,667, against 1,392 in 586,779: −1.9%), and a Hero sent goes on fewer
+   Quests (926 against 968, −4.4%): 2.178 a player's career against the 2.32 baseline (−6%).
 5. *The Rivals, too.* Their wage falls with their Levels, so they fold half as often (2.74 a game,
    within DL-83 item 5's 1.5 to 3.5, against 5.44), keep larger Rosters (7.69 at a year-start against
    5.71; `ambitious` 8.9, `reckless` 10.6) and live long enough to retire their Guildmasters more (45
-   Successions against 18). Their Traits a career rise (1.259 against 1.131), their careers longer.
+   Successions against 18). Their Traits a career rise (1.259 against 1.131), their careers longer (419
+   Quests a Hero sent against 360).
 6. *The time.* `advance` +53% and the games +44%: larger Rival Rosters give `partyFor` more Heroes to
    search, and every game runs its full 20 years (1,000 Guild-years against 943.6). A shipped split
    would need its time read again.
@@ -22790,7 +22792,7 @@ Hero (83.6).
    Rival folds 1.5 to 3.5: 2.74, inside (S5 5.44); item 4, failed 20 to 30% and strong at most 50%:
    6.8% and 72.7%, still off; item 6, 25 to 40 Deaths a game: 4.28, still off; item 3, first in the
    Rankings 40 to 60%: 91.6% and 91.0%, still off; item 7, Wealth at 6 to 12 months' Upkeep: 41.8
-   months after 10 years (S5 23.2), further above.
+   months after 10 years (S5 23.2), against the mean Upkeep a Guild-year over the game, further above.
 
 **DL-168 item 16's rule, for information only.** The rule reads the close's sweep, which ships no split.
 On the trial the player's Bankruptcies are 0 of 50, against 3 to 7: they leave the band on the other
@@ -22818,6 +22820,52 @@ and the epic change.
    GitHub).
 
 **Actioned in:** the epic's S9 boxes and status. No code, content or report kept.
+
+**The verification** (a second Opus agent, at `c44a2c3`; the trial not run again). No trial code is in
+the patch; the diff rebuilds the trial; the figures are the two reports' but for three cells and two
+readings, corrected here. Nothing in code or content to fix.
+- *The patch.* `git diff 8e1d2fe..c44a2c3 --stat` is `docs/decision-log.md` and the epic only; `git
+  status` clean. Neither `xp / heroes.length`, `highestLevel`, `playerHighestLevel` nor "S9 TRIAL" is
+  anywhere in `engine/src`, `engine/dist` or `harness/src` (`hero.levelled` is the shipped event);
+  `engine/dist`'s `resolve.js` still reads `xpPerHero: Math.floor(xp)`; no S9 report in
+  `harness/reports/`.
+- *The diff* (`s9-split-xp.diff`, 86 lines) applies cleanly to the tree (`git apply --check`): one
+  engine line, `xpPerHero: Math.floor(xp / heroes.length)` with a comment, and the scratch counter in
+  `harness/src/counters.ts` and `sweep.ts` only. In `resolveQuest`, `heroes` is
+  `party.heroIds.map(...)`, the Party sent, and `working.alive` is a copy of it, so the Dead stay in the
+  divisor; `questsConclude` adds `outcome.xpPerHero` to each of the Party's `survivors` (`diedOnTurn`
+  null) and emits `hero.xp-gained`. `xpPerDifficultyPoint` 1 and `xpBandFactor` 0.5 / 1 / 1 are
+  `config.ts`'s; `resolve.test.ts`'s scene is three Heroes, so its 160 becomes 53. Enough for #51.
+- *The figures.* Every cell of both tables recomputed from the trial's report (the scratchpad copy) and
+  `m9-v115-s5-2026-10-04.md`. Corrected: the player's shares' changes, 6.792 / 20.525 / 72.683% against
+  5.136 / 18.410 / 76.455%, are +1.66 / +2.12 / −3.77 points, not the rounded cells' +1.65 / +2.11 /
+  −3.78 (the Rivals' +1.54 / +2.17 / −3.71 hold); and the declines a Guild-year, 2.275 against 2,036 /
+  943.6 = 2.158, are +5.4%, not +5.6%. The rest hold: 403,168 / 374,495 +7.7% and 403.2 / 396.9
+  +1.6%; 1,000 / 943.6 +6.0%; Deaths 0.214 / 0.172 +24.6%, Injuries 3.626 / 2.884 +25.7%, the Rivals'
+  +45% and +42%; 1,472 / 676 = 2.178, 1,407 / 606 = 2.322, 4,890 / 3,883 = 1.259, 3,920 / 3,466 =
+  1.131; Levels 4.972 / 6.131 −18.9%; Upkeep 45,664.3 / 56,166.8 −18.7%, rewards 61,150.1 / 64,003.0
+  −4.5%, 74.7% and 87.8%; a Quest's reward 151.7 / 161.3 −6.0%; the Wealth +47% and +118%; `advance`
+  +53%, the games +44%; the by-year Bankruptcies sum to 12; each Party size's share, failed, strong
+  and XP, the means 1.55 and 1.57 (1.552, 1.567) and the Rivals' 1.85, 30.0, 54.2 and 27.5 (83.6).
+- *The readings.* The wage −18.7% and income −4.5%, Deaths and Injuries a Guild-year about a quarter
+  up, the games 44% slower, √(162 + 214) = 19.4 and 52 / 19.4 = 2.7, S5's Wealth peaking at 111,676
+  in year 13 and the trial's rising every year, 12 − 7 = 5 above the band and 3 − 0 = 3 below, and DL-83
+  items 2, 3, 4, 5, 6, 21 and 22 (8 to 10 after 10 years, 14 to 17 by year 20) as read. Reading 2's
+  inference holds: a game's highest Level is at least its Roster's mean (the unseen recruit above it
+  aside, read as nil above), so S5's mean highest by year 10 is at least 10.35, above every trial game's 8 or 9. Corrected: reading 4's "triumph less" now says
+  "end strong less often" (the Quest band, not the Degree), and its Traits sentence, which had careers
+  longer, now gives the two causes from the counts: positive Traits a Hero's Quest −1.9% (1,456 /
+  625,667 against 1,392 / 586,779) and Quests a Hero sent −4.4% (926 against 968); reading 5 gains the
+  Rivals' 419 Quests a Hero sent against 360; item 7's 41.8 and 23.2 months say they divide by the
+  game's mean Upkeep.
+- *#51's comment* (`s9-issue-51-comment.md`, not posted) matches this entry; its Rivals reading, which
+  put the games' time on the Rivals' Rosters alone, now gives both causes and `advance` +53%, as reading
+  6 does. Ready for the orchestrator to post.
+- *The epic.* S9's two boxes ticked with this entry's evidence; the first is met once the orchestrator
+  posts the comment. The status now reads S9 run and verified.
+- *Checks.* `npm run edit -- traits doctor`: no drift (110 reads), the doc fresh, the content passing,
+  no pending edits. No code changed, so lint and the tests were not run. The decision log and the
+  epic keep their LF endings.
 
 ---
 
