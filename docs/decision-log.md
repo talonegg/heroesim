@@ -22871,7 +22871,7 @@ readings, corrected here. Nothing in code or content to fix.
 
 ## DL-181 — v1.1.5-S10, the close: the close review's findings fixed test first, the replay's peak from 1,861 MiB to 1,244 MiB with the same result; every check passing, the closing sweep playing S5's games with its replay identical at a peak of 1,346 MiB, the estimate's two checks held on the shipped content, and 12 of 50 player Guilds bankrupt, so the economy pass comes first, as `v1.1.6`
 
-**Status:** Accepted; the close complete, the release awaiting the owner · **Date:** 2026-10-04 ·
+**Status:** Accepted and verified; the close complete, the release awaiting the owner · **Date:** 2026-10-04 ·
 **Decided by:** the close review's findings, fixed by the agent as the orchestrator listed them; the
 judgement calls below are the owner's. The checks, the closing sweep and the rule's outcome (DL-168
 item 16, the owner's rule, applied by the agent) were added by the close's next agent.
@@ -23180,6 +23180,75 @@ Random Events, its scope #51's (DL-168 items 2, 3, 9, 12 and 16).
 `m9-v115-close-estimate-2026-10-04.md` (force-added); `docs/plan.md` §4; the epic's Gate outcome,
 S10's first box and status; `docs/planning/epics/README.md`'s v1.1.5 row; #51's comment prepared for
 the owner.
+
+**The verification** (a second Opus agent, at `84de9bf`; the sweep and the probe not run again). The
+review's fixes do what this entry says, each test failing without its fix; every figure of the close
+is the reports'; the rule's outcome is written alike everywhere. Nothing to fix.
+- *The fixes, each mutated and put back* (`git status` clean after each):
+  - E2/E3: `replay`'s comparison made by the lengths alone, and E2's test fails; at `84de9bf` it
+    passes. `playedOnce` returns `{ length, fingerprint, advanceMs }` only; `advanceMs` is the play's
+    own array of numbers, so the `PlayedGame`, its document and the text are unreachable once its frame
+    returns, before the second play. The sweep's options carry no `afterAdvance` (only
+    `succession.ts`'s probe has one), and E2's `prepare` keeps no document. The scratch measure's two
+    records (`replaypeak-before.txt`, `-after.txt`) read 1,861 and 1,244 MiB, 1,096 alone, the same
+    fingerprint `3530086b…`, as the table above.
+  - W2: `partyRows` with those who can go left in their joining order: the new test fails, and the
+    test as at `7b22999`, put back with the same mutation, passes, as said.
+  - W3: `Tipped`'s `title` moved to a part around the hidden words (three Table tests fail), and
+    `Chip`'s back on its frame (three tests fail, the Board's "Away" and its rows', and the tiles' Item
+    chip).
+  - W4: the new line taken out, and the new `selectors.test.ts` test fails. The engine's
+    `unavailability` reads an Injury before a Party, so `whereabouts` and `unavailableUntil` agree for
+    an injured Hero whose Party is gone too.
+  - No other words change: the Board's and the Roster's words are as before but W1's help and W4's
+    edge; `PlaySweep['replay']` and the report's row are as before (S3's and the close's rows alike).
+    Two small effects the entry does not name, read as harmless: a Trait or Item whose effect words are
+    empty is no longer underlined as having a tooltip (`Tipped` with `title` null, as `.named-thing`'s
+    comment means; no shipped gear has no modifiers, and a Trait with none reads "No effect"); and a
+    `Chip` with `spoken` shows its tooltip over its words, not its icon (judgement call 1's matter).
+- *The close's figures.* Every cell of the table above recomputed from the five reports (the close,
+  S5, S4, S3, `v1.1.4`'s close): the counts, the shares to the second decimal (5.136 / 76.455%,
+  11.748 / 58.704%; S4's +0.001 / −0.001 and +0.047 / −0.146; S5's −0.676 / +1.825 and −0.728 /
+  +2.055), the Bankruptcies by year from the games in play each year (sums 12, 13, 13), the Upkeep
+  shares 87.8 / 88.5 / 87.0%, the rankings' "every year" rows, the timings and the replays. The
+  readings' figures hold: Injuries −13.8% and Deaths −10.5% (S5 against S4), the mean bankrupt year
+  14.75 / 16.46 / 16.38, the four positive Traits 1,392 of 606 careers = 2.297, the largest save
+  137.60 MiB, `seed-0002`'s save 15.3% longer than E3's game, the run's spread 1,203.4 to 1,215.6 s.
+  The memory sampler's file (`s10-close-mem.csv`) gives the replay's worker 1,346 MiB peak and 1,294
+  private, the 50 shards median 1,074, mean 1,060, at most 1,503 (1,378 private), 4,845 together, the
+  parent 224.
+- *The same games.* The fingerprint is S5's (`37fabc96…`, line 23 equal), and lines 27 to 693 of the
+  two reports hash alike (SHA-256 `170ffa93…39175ba`); `diff` finds only the title, the start time,
+  the replay's row and the timings. `git diff 0f09174..2fd8938` touches nothing under `engine/`,
+  `content/` or `tools/`, and under `harness/` only the replay.
+- *The probe.* The close's estimate report and S7's differ in their date and time line alone. The
+  reason holds in the engine: `earn` (`resolve.ts`) draws `next` and then one more (`pick`'s one
+  `int`, or `next` when no one is eligible or the Degree earns none) whatever the chance, the chance
+  only deciding whether the Trait is pushed to `working.earned`; that list is read only after the
+  Encounters, for the outcome's Traits, so no Check, Degree or band moves. The probe takes Injuries
+  and Deaths out of both measures, so S4's `among` is never read.
+- *The rule.* 12 of 50 against 3 to 7 (DL-168 item 16's reading of 5 to 15%), S3's 13 beside it:
+  the economy pass first, as `v1.1.6`, before Random Events, said alike here, in `docs/plan.md` §4
+  (v1.1.5's entry, the new `v1.1.6` line and Random Events' amendment), in the epic (objective,
+  "Deliberately not", status, S10's box) and in the epics README's row.
+- *#51's comments.* `s10-issue-51-comment.md` matches this entry (the counts, years 10 to 19, the
+  fingerprint, the scope DL-168 items 2, 3, 9, 12 and 16); its "`v1.1.6-dev` cut from `main` after
+  `v1.1.5`" is the branch practice of §0, not a decision of this entry. `s9-issue-51-comment.md` is as
+  DL-180's verification left it (its S5 column checked again: 11.86, 98,847, 5.44). Both concise; they
+  are to be posted in that order, the second pointing to "the comment above".
+- *The Gate,* bullet by bullet: the memory met (DL-174; S6's sweep `24bae1ff…` as `v1.1.4`'s close,
+  DL-175); `partyFor`'s real gain met (DL-175); the new player met (DL-176, DL-177); each play change
+  measured alone met (DL-178, DL-179); Rare Traits met (2.322 against 2.32); the estimate met (1.18
+  within 2, 1.61 within 3, the Encounters' 23.65 reported); the words met (DL-172; no "failed
+  Encounter" in `CONTEXT.md`, `docs/requirements.md` or `cli/src/`'s pages); the Board and the Roster
+  met (DL-170, DL-171, W1 to W5 here, `e2e`); the split-XP trial met (`resolve.ts` still
+  `Math.floor(xp)`); the rule applied (above); Traits met (the doctor below); the checks met (below);
+  the release not met, the owner's.
+- *The checks,* at `84de9bf`, each alone: `npm run edit -- traits doctor` no drift (110 reads), the doc
+  fresh, the content passing, no pending edits; `npm run lint` clean; `npm run typecheck` clean; `npm
+  test` 185 files, 4,818 tests passing (the eslint-based tests within time); `npm run e2e -w web` 100
+  passed, check-bundle passing, the script `index-CsErff-L.js` 814,620 bytes. Every file the close
+  touched has one line ending (the index LF throughout, no file mixed); `git status` clean.
 
 ---
 
