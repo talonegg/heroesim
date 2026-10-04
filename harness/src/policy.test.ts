@@ -305,6 +305,29 @@ describe('automaticPolicy', () => {
       expect(second.heroIds.some((heroId) => first.heroIds.includes(heroId))).toBe(false);
     });
 
+    test('holds a chance to at most 1, as `partyFor` does: one above it by a sum’s rounding ties with a certain one, and the reward decides', () => {
+      const { document, quests } = scene();
+      openBoard(quests);
+      const [low] = quests;
+      const top = quests.at(-1) as Quest;
+      if (low === undefined) throw new Error('No Quest');
+      chances.of = (quest) => (quest.id === low.id ? 1 + Number.EPSILON : quest.id === top.id ? 1 : 0.5);
+
+      expect(dispatches(automaticPolicy(document, fewest))[0]?.questId).toBe(top.id);
+    });
+
+    test('reads a Quest with no estimate, its Encounters drawn on the way, as a chance of 0', () => {
+      const { document, guild, quests } = scene();
+      openBoard(quests);
+      const top = quests.at(-1) as Quest;
+      const next = quests.at(-2) as Quest;
+      top.encounterKeys = [];
+      expect(bestParty(document.world, guild, top, availableHeroes(document.world, guild), fewest)?.estimate).toBeNull();
+      // Every other Quest unlikely, but likelier than none.
+      chances.of = () => 0.05;
+
+      expect(dispatches(automaticPolicy(document, fewest))[0]?.questId).toBe(next.id);
+    });
   });
 
   test('chooses only what the rules accept, applied in order: a build, or with building out of reach a recruit', () => {

@@ -21913,10 +21913,74 @@ so the doctor was run once, at the close. `policy.ts`, `policy.test.ts`, `sweep.
 5. *The harness project's 30 s test timeout* (item 4 above) is a change to the test setup, not to
    the game. The owner may prefer per-test timeouts.
 
+**The verification** (a second Opus agent, at `c8c87d5`). The rule is DL-168 item 2's reading, the
+form committed chooses as the form probed did, Turn by Turn, and the tests hold it. Two claims the
+docs make were untested, and now are.
+- *The rule.* Of `staffed`'s Quests, `likeliest` takes the highest chance, then the higher reward,
+  then the lower Quest id (`compareByCodeUnit`, ascending, as `byReward` and every id tie in the
+  engine break; DL-168's "then the Quest id" names no direction, so this is the agents' reading).
+  The chance is the dispatched Party's: one `bestParty` call gives both the `heroIds` sent and the
+  estimate, the one its search last read of that Party, carrying nothing, held to 1 by the same
+  `Math.min` as `partyFor`'s `chanceIn`. The margin is `playerPartyMargin` (`partyMarginOf` reads the
+  player's Guild as its own). The decline, the equip, `consumablesFor` and the purchase are the lines
+  they were.
+- *Determinism.* `before` is a total order, the Quest ids being unique, and `likeliest` a strict scan,
+  so the Board's order cannot matter. No Map or Set is iterated (the Set of Heroes sent is only
+  asked), and the chances are the estimate's own arithmetic. "Draws no random number … chooses alike
+  twice" and `play.test.ts`'s byte-for-byte replay pass.
+- *The skip is exact.* `bestParty` is `null` exactly when `requiredParty` is, and `requiredParty` is
+  monotone in the Heroes: no Hero of both the Class and the Skill, no Hero of one of them, or too few
+  Heroes, stays so with fewer. The world, the Guild and the deps do not change between choices. So a
+  Quest once unstaffable cannot become staffable later in the Turn, and asking it again gives `null`.
+  *Shown in play:* a scratch copy of the policy in the probe's first form (each choice asking every
+  offered Quest not yet sent) beside the committed one, both asked on the same document every Turn of
+  `seed-0001` to `seed-0003` for 3 years, default config. 9,720 Turns, 3,539 dispatches, 661 Turns
+  sending more than one Party, and 974 Turns in which the first form asked again 2,293 Quests already
+  unstaffable: no Turn's actions differ, and each seed's last save fingerprints the same under either
+  form (`098a8eb1…`, `65673d6d…`, `b79bd5cc…`). The comparison was seen to catch a difference: a first
+  form whose chances tie within 0.02 differed on 136 Turns of `seed-0001`. Run alone; the scratch
+  deleted.
+- *Mutations, each alone, each put back,* on the committed form (DL-176's counts of 6 and 9 were on
+  the optimised form). The reward's tie turned round fails 5 tests; the Quest id descending 2 (both
+  tie tests); the lowest chance first 4; the Parties kept stale 8; the Parties staffed afresh but the
+  chances read once 1 (the mock's test); the Quests whose Party lost a Hero dropped 5; the chosen
+  Quest not removed 6; only the first Quest left asked again 5; the chance not compared at all (the
+  reward order) 3. *Survived:* the chance not held to 1, and a Quest with no estimate read as 1, not
+  0. Both are claims of `staffed`'s doc and of DL-176 item 1 and reading 2. *Fixed* with two tests,
+  each seen failing on its mutation and passing on the code: "holds a chance to at most 1" (the mock
+  gives the lowest reward 1 + 2^-52 and the highest 1, and the reward decides) and "reads a Quest with
+  no estimate … as a chance of 0" (the highest reward's Encounters taken away, its estimate asserted
+  `null`, the others at 0.05).
+- *The mock.* It spreads the real engine and wraps `bestParty` alone. It answers only while a test
+  sets `chances.of`, only for a Party with an estimate, and only the chance; `afterEach` clears it.
+  `partyFor` inside the engine calls the unwrapped `bestParty`, so every Party is real.
+- *The timeout.* Under the whole suite, the harness's short-game tests take about 1.7 to 2 times as
+  long as at `b401502` (one run with `b401502`'s policy and tests, against two now): "refuses two
+  sweeps" 3.7 s against 7.2 and 6.3, "plays a seed alike twice" 3.0 against 5.0 and 4.8, "the player's
+  Guild's Regard as year 10 begins" 2.6 against 5.3 and 4.0, "one for every Quest the policy took" 2.6
+  against 5.3 and 4.1, and "fingerprint the last document" 4.1 against 3.1 and 4.4 (noisy). Alone,
+  "refuses two sweeps" takes 0.78 s against 1.34 and "fingerprint" 0.51 against 0.84 (DL-176's "about
+  1.3 s" is the first's). The rise is even, the policy's early-Turn cost DL-176 measured, and no test
+  stands apart, so the 30 s hides no other slowdown. Four tests passed 5 s in these runs, not two.
+  *A reading, the agent's:* a project-wide 30 s also lets any harness test grow sixfold unseen.
+  Per-test timeouts on the short-game tests, as `play.test.ts` and `sweep.test.ts` give their slowest,
+  would hold that, and are the owner's choice (reading 5). Left as built.
+- *The figures* (reading 3, confirmed). `m9-v114-close-2026-10-03.md` reads `advance` mean 4.966 ms,
+  p99 24.651 ms; 4.701 and 23.276 are `m9-v114-s10-2026-10-03.md`'s (DL-166). DL-169 item 17 quotes
+  S10's as the close's: its body is left as recorded and corrected here. The epic's S2 text now
+  quotes the close's.
+- *Unchanged elsewhere.* `git diff b401502..c8c87d5` touches only `docs/`, `harness/src/` and
+  `vitest.config.ts`: nothing under `engine/src/`, `content/` or `web/`.
+- *Checks.* Lint and typecheck pass. `npm test` twice: 185 files, 4,808 tests passing each time, no
+  flake, the two eslint-based tests within time. The doctor at the close: no drift, 110 reads of a
+  Trait, the doc fresh, the content passing, no pending edits. `policy.test.ts` and the epic keep
+  their CRLF endings.
+
 **Actioned in:** `harness/src/policy.ts` (the rule, its docs); `harness/src/policy.test.ts` (the new
 block, the mock, four tests made to tie their chances, the consumables test's chances set);
 `harness/src/sweep.ts` (the report's policy line); `vitest.config.ts` (the harness project's test
-timeout); the epic's S2 boxes and status.
+timeout); the epic's S2 boxes and status; the verification, `policy.test.ts`'s tests of the chance held
+to 1 and of a Quest with no estimate, and the epic's S2 text quoting the close's `advance`.
 
 ---
 
