@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { chanceBandNames, defaultConfig, moraleBandNames, type GameConfig } from './config.js';
 import { checkConfig, configRules, playConfig, playDeps } from './config-check.js';
-import type { ContentSet, Improvement, Stat } from './content-types.js';
 import type { Module } from './modules.js';
+import { cyrb128, int } from './rng.js';
 import { testContent, testMeta } from './world.test-support.js';
 
 // v1.1.6-S7 (DL-186 item 12, DL-193): every setting checked, from one table of rules, before any play.
@@ -10,8 +10,7 @@ import { testContent, testMeta } from './world.test-support.js';
 const content = testContent;
 
 /** The settings a config with `changes` breaks the rules of. */
-const broken = (changes: Readonly<Record<string, unknown>>, against: ContentSet = content): string[] =>
-  checkConfig({ ...defaultConfig, ...changes }, against).map((problem) => problem.setting);
+const broken = (changes: Readonly<Record<string, unknown>>): string[] => checkConfig({ ...defaultConfig, ...changes }).map((problem) => problem.setting);
 
 describe('the rules', () => {
   test('one for every setting of GameConfig, and none for a setting it lacks: 120 settings', () => {
@@ -19,27 +18,34 @@ describe('the rules', () => {
     expect(Object.keys(configRules)).toHaveLength(120);
   });
 
-  test('the defaults break none, against the test content', () => {
-    expect(checkConfig(defaultConfig, content)).toEqual([]);
+  test('the defaults break none', () => {
+    expect(checkConfig(defaultConfig)).toEqual([]);
   });
 
   test('a setting missing is named, as missing', () => {
     const config: Record<string, unknown> = { ...defaultConfig };
     delete config['boardSize'];
-    expect(checkConfig(config, content)).toEqual([{ setting: 'boardSize', message: 'boardSize is missing; it is a whole number, at least 0' }]);
+    expect(checkConfig(config)).toEqual([{ setting: 'boardSize', message: 'boardSize is missing; it is a whole number, at least 0' }]);
   });
 
   test('a problem names its setting, its value and what it is to be, in GameConfig\'s order', () => {
-    expect(checkConfig({ ...defaultConfig, checkVariance: 2, boardSize: -1 }, content)).toEqual([
+    expect(checkConfig({ ...defaultConfig, checkVariance: 2, boardSize: -1 })).toEqual([
       { setting: 'boardSize', message: 'boardSize is -1; it is a whole number, at least 0' },
       { setting: 'checkVariance', message: 'checkVariance is 2; it is a share from 0 to 1' },
     ]);
   });
 
+  test('a whole number is a safe integer, as `int` asks of its bounds', () => {
+    expect(broken({ startingWealth: 2 ** 53 - 1 })).toEqual([]);
+    expect(broken({ startingWealth: 2 ** 53 })).toEqual(['startingWealth']);
+    expect(broken({ heroStartingAgeMax: 1e17 })).toContain('heroStartingAgeMax');
+    expect(broken({ rivalStartingWealthMin: -(2 ** 53) })).toContain('rivalStartingWealthMin');
+  });
+
   test('never throws, whatever a save holds', () => {
     for (const value of [null, 'x', {}, true, Number.NaN, undefined]) {
       for (const setting of Object.keys(defaultConfig)) {
-        expect(() => checkConfig({ ...defaultConfig, [setting]: value }, content), `${setting} = ${String(value)}`).not.toThrow();
+        expect(() => checkConfig({ ...defaultConfig, [setting]: value }), `${setting} = ${String(value)}`).not.toThrow();
         expect(broken({ [setting]: value }), `${setting} = ${String(value)}`).toContain(setting);
       }
     }
@@ -257,7 +263,7 @@ describe('each setting', () => {
 
   test.each(Object.entries(cases))('%s: its rule refuses what it is not, naming it, and allows its edges', (setting, { refused, allowed }) => {
     for (const value of refused) {
-      const problem = checkConfig({ ...defaultConfig, [setting]: value }, content).find((found) => found.setting === setting);
+      const problem = checkConfig({ ...defaultConfig, [setting]: value }).find((found) => found.setting === setting);
       expect(problem?.message.startsWith(`${setting} is `), JSON.stringify(value) ?? String(value)).toBe(true);
     }
     for (const value of allowed) expect(broken({ [setting]: value }), JSON.stringify(value)).toEqual([]);
@@ -279,19 +285,39 @@ describe('a Min and its Max', () => {
   test.each(pairs)('%s ≤ its Max: the Max is refused below the Min, named, and allowed at it', (min, max) => {
     const at = (defaultConfig[min] as number) + 5;
     const settings = { ...defaultConfig, [min]: at };
-    expect(configRules[max](at - 1, settings, content)).toBeDefined();
-    expect(configRules[max](at, settings, content)).toBeUndefined();
+    expect(configRules[max](at - 1, settings)).toBeDefined();
+    expect(configRules[max](at, settings)).toBeUndefined();
     expect(broken({ [max]: (defaultConfig[min] as number) - 1 })).toContain(max);
   });
 
   test("the Max's words name the Min and its value", () => {
-    expect(checkConfig({ ...defaultConfig, rivalRosterMax: 3 }, content)).toEqual([
+    expect(checkConfig({ ...defaultConfig, rivalRosterMax: 3 })).toEqual([
       { setting: 'rivalRosterMax', message: 'rivalRosterMax is 3; it is a whole number, at least rivalRosterMin (4)' },
     ]);
   });
 
   test('a Min that is no number is named alone, its Max not checked against it', () => {
     expect(broken({ rivalRosterMin: 'four' })).toEqual(['rivalRosterMin']);
+  });
+
+  /** The pairs `int` draws between: all but Morale's, a scale nothing draws a value on. */
+  const drawn = pairs.filter(([min]) => min !== 'moraleMin');
+
+  test.each(drawn)("%s to its Max: at most 2^32 values, as many as `int` draws from, the Max named past them", (min, max) => {
+    const from = defaultConfig[min] as number;
+    expect(broken({ [max]: from + 2 ** 32 - 1 })).toEqual([]);
+    expect(() => int(cyrb128('span'), from, from + 2 ** 32 - 1)).not.toThrow();
+    expect(broken({ [max]: from + 2 ** 32 })).toEqual([max]);
+    expect(() => int(cyrb128('span'), from, from + 2 ** 32)).toThrow(RangeError);
+  });
+
+  test("a Min far below its Max is named on the Max, with the most a draw spans", () => {
+    expect(checkConfig({ ...defaultConfig, rivalStartingWealthMin: -5_000_000_000 })).toEqual([
+      {
+        setting: 'rivalStartingWealthMax',
+        message: 'rivalStartingWealthMax is 700; it is a whole number from rivalStartingWealthMin (-5000000000) to 4294967295 above it, the most a draw spans',
+      },
+    ]);
   });
 });
 
@@ -309,42 +335,26 @@ describe('the bands, in their order', () => {
 
   test('the chance bands from unlikely, hopeless being below them', () => {
     expect(chanceBandNames[0]).toBe('hopeless');
-    expect(checkConfig({ ...defaultConfig, chanceBands: { ...defaultConfig.chanceBands, even: 0.7 } }, content)[0]?.message).toBe(
+    expect(checkConfig({ ...defaultConfig, chanceBands: { ...defaultConfig.chanceBands, even: 0.7 } })[0]?.message).toBe(
       'chanceBands is {"unlikely":0.1,"even":0.7,"likely":0.65,"near-certain":0.9}; it holds unlikely < even < likely < near-certain, each a finite number, above 0 and below 1',
     );
   });
 });
 
-describe('the lists a content release may outgrow', () => {
-  /** The test content with the infirmary's grades to `top`. */
-  const infirmaryTo = (top: number): ContentSet => ({
-    ...content,
-    improvements: Object.fromEntries([
-      ...Object.entries(content.improvements).filter(([, improvement]) => improvement.facility !== 'infirmary'),
-      ...Array.from({ length: top }, (_, index): [string, Improvement] => [`infirmary-${index + 1}`, { key: `infirmary-${index + 1}`, name: 'Infirmary', facility: 'infirmary', grade: index + 1, cost: 100 }]),
-    ]),
-  });
-
-  test('a heal factor list of at least one is sound whatever grades content has, a grade past it reading the last (DL-193)', () => {
-    for (const top of [0, 1, 4, 6]) {
-      expect(broken({}, infirmaryTo(top)), `top ${top}`).toEqual([]);
-      expect(broken({ infirmaryHealFactor: [1, 0.5] }, infirmaryTo(top)), `top ${top}`).toEqual([]);
-    }
-    expect(broken({ infirmaryHealFactor: [] }, infirmaryTo(4))).toEqual(['infirmaryHealFactor']);
-    expect(checkConfig({ ...defaultConfig, infirmaryHealFactor: [] }, content)[0]?.message).toBe(
+describe('the lists a content release may outgrow: no rule reads the content (DL-193)', () => {
+  test('a heal factor list of at least one is sound, whatever grades content has, a grade past it reading the last', () => {
+    expect(broken({ infirmaryHealFactor: [1] })).toEqual([]);
+    expect(broken({ infirmaryHealFactor: [1, 0.5, 0.25, 0.2, 0.1, 0.05, 0.01] })).toEqual([]);
+    expect(broken({ infirmaryHealFactor: [] })).toEqual(['infirmaryHealFactor']);
+    expect(checkConfig({ ...defaultConfig, infirmaryHealFactor: [] })[0]?.message).toBe(
       'infirmaryHealFactor is []; it is a list of at least one factor, one for each infirmary grade from 0, a grade past the list reading the last, each a finite number above 0',
     );
   });
 
-  test("the decline's areas may be any Stat areas, one content has no Hero Stat of included, none twice (DL-193)", () => {
-    const noPhysical: ContentSet = {
-      ...content,
-      stats: Object.fromEntries(Object.entries(content.stats).map(([key, stat]): [string, Stat] => [key, stat.owner === 'hero' && stat.area === 'physical' ? { ...stat, area: 'mental' } : stat])),
-    };
-    expect(broken({}, noPhysical)).toEqual([]);
-    expect(broken({ declineAreas: ['social', 'magical'] }, noPhysical)).toEqual([]);
-    expect(broken({ declineAreas: ['physical', 'physical'] }, noPhysical)).toEqual(['declineAreas']);
-    expect(checkConfig({ ...defaultConfig, declineAreas: ['spiritual'] }, content)[0]?.message).toBe(
+  test("the decline's areas may be any Stat areas, whether or not content has a Hero Stat of each, none twice", () => {
+    expect(broken({ declineAreas: ['social', 'magical'] })).toEqual([]);
+    expect(broken({ declineAreas: ['physical', 'physical'] })).toEqual(['declineAreas']);
+    expect(checkConfig({ ...defaultConfig, declineAreas: ['spiritual'] })[0]?.message).toBe(
       'declineAreas is ["spiritual"]; it is a list of physical, mental, magical, social, none twice',
     );
   });
@@ -353,11 +363,11 @@ describe('the lists a content release may outgrow', () => {
 describe('playConfig', () => {
   test("is the defaults with the saved values over them, a setting the save lacks the default's, a field GameConfig lacks left out", () => {
     const saved = { boardSize: 3, retiredField: 7 };
-    expect(playConfig(saved, content)).toEqual({ ok: true, config: { ...defaultConfig, boardSize: 3 } });
+    expect(playConfig(saved)).toEqual({ ok: true, config: { ...defaultConfig, boardSize: 3 } });
   });
 
   test('refuses a saved value its rule refuses, naming each', () => {
-    const played = playConfig({ boardSize: 1.5, sellRatio: 1 }, content);
+    const played = playConfig({ boardSize: 1.5, sellRatio: 1 });
     expect(played).toMatchObject({ ok: false, refusal: { kind: 'unsound-config', problems: [{ setting: 'boardSize' }, { setting: 'sellRatio' }] } });
     expect(!played.ok && played.refusal.message).toBe(
       "The game's config is unsound: boardSize is 1.5; it is a whole number, at least 0; sellRatio is 1; it is a finite number, at least 0 and below 1",

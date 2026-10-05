@@ -14,17 +14,16 @@ import { newRules, rebase } from './rebase.js';
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /**
- * A game made under the rules of version 1, `meta.configVersion` (v1.1.6-S7, DL-193), and this
- * release's defaults, at `configVersion`, with one default changed: `turnsPerYear` 12, so that the
- * rules a game plays under show which it has.
+ * A game made under the rules of version 1, `meta.configVersion` (v1.1.6-S7, DL-193), one of which
+ * differs from this release's defaults: `turnsPerYear` 12, so that the rules a game plays under show
+ * which it has.
  */
 function olderGame(seed: string): WorldDocument {
   const { document } = createWorld(seed, setup, testDeps());
   document.meta.configVersion = 1;
+  document.meta.config = { ...document.meta.config, turnsPerYear: 12 };
   return document;
 }
-const laterDefaults: GameConfig = { ...defaultConfig, turnsPerYear: 12 };
-const later: EngineDeps = { config: laterDefaults, content: testContent };
 
 /** The deps a front end plays a loaded game under: its own config, filled forward (`playDeps`). */
 function played(document: WorldDocument): EngineDeps {
@@ -54,7 +53,7 @@ afterEach(() => {
 });
 
 describe('a save under older rules', () => {
-  test('plays under its own configVersion until rebase adopts the new defaults, once', () => {
+  test("plays under its own rules until rebase adopts this release's defaults, once", () => {
     const created = olderGame('rebase');
 
     // Loaded by this release.
@@ -63,15 +62,15 @@ describe('a save under older rules', () => {
     let document = loaded.document;
 
     const before = rulesOfTheNextTurn(document, played(document));
-    expect(before.config).toMatchObject({ turnsPerYear: defaultConfig.turnsPerYear });
+    expect(before.config).toMatchObject({ turnsPerYear: 12 });
     document = withValid(before.document, testDeps());
     expect(document.meta.configVersion).toBe(1);
 
-    const rebased = rebase(document, later);
+    const rebased = rebase(document);
     if (!rebased.ok) throw new Error(`Rejected ${rebased.rejection.reason}`);
     document = withValid(rebased.document, testDeps());
 
-    expect(document.meta.config).toEqual(laterDefaults);
+    expect(document.meta.config).toEqual(defaultConfig);
     expect(document.meta.configVersion).toBe(configVersion);
     expect(count(document.history, 'world.rules-adopted')).toBe(1);
     expect(rebased.events).toEqual([
@@ -88,32 +87,32 @@ describe('a save under older rules', () => {
     expect(document.history.milestones.at(-1)).toBe(document.history.entries.length - 1);
 
     const after = rulesOfTheNextTurn(document, played(document));
-    expect(after.config).toMatchObject({ turnsPerYear: 12 });
+    expect(after.config).toMatchObject({ turnsPerYear: defaultConfig.turnsPerYear });
 
-    const again = rebase(after.document, later);
+    const again = rebase(after.document);
     expect(again).toEqual({ ok: false, rejection: { action: 'rebase', reason: 'already-current', configVersion } });
     expect(count(after.document.history, 'world.rules-adopted')).toBe(1);
   });
 
   test('survives a save and a load under the new rules', () => {
     const created = olderGame('rebase-saved');
-    const rebased = rebase(created, later);
+    const rebased = rebase(created);
     if (!rebased.ok) throw new Error(`Rejected ${rebased.rejection.reason}`);
 
     const loaded = deserialise(serialise(rebased.document), { content: testContent });
 
-    expect(loaded.ok && loaded.document.meta.config).toEqual(laterDefaults);
+    expect(loaded.ok && loaded.document.meta.config).toEqual(defaultConfig);
     expect(loaded.ok && loaded.document.meta.configVersion).toBe(configVersion);
-    expect(loaded.ok && loaded.deps.config).toEqual(laterDefaults);
+    expect(loaded.ok && loaded.deps.config).toEqual(defaultConfig);
   });
 });
 
 describe('rebase', () => {
-  test('refuses a game already under the rules it is given, changing nothing', () => {
+  test("refuses a game already under this release's rules, changing nothing", () => {
     const document = createWorld('current', setup, testDeps()).document;
     const before = serialise(document);
 
-    const result = rebase(document, testDeps());
+    const result = rebase(document);
 
     expect(result).toEqual({
       ok: false,
@@ -127,13 +126,13 @@ describe('rebase', () => {
     Object.freeze(document.meta.config);
     Object.freeze(document.meta);
 
-    const result = rebase(document, later);
+    const result = rebase(document);
 
     if (!result.ok) throw new Error(`Rejected ${result.rejection.reason}`);
     expect(result.document.meta).not.toBe(document.meta);
-    expect(result.document.meta.config).not.toBe(laterDefaults);
+    expect(result.document.meta.config).not.toBe(defaultConfig);
     expect(document.meta.configVersion).toBe(1);
-    expect(result.document.meta).toEqual({ ...document.meta, configVersion, config: laterDefaults });
+    expect(result.document.meta).toEqual({ ...document.meta, configVersion, config: defaultConfig });
     expect(result.document.world).toBe(document.world);
     expect(result.document.history).toBe(document.history);
   });
@@ -144,22 +143,24 @@ describe('rebase', () => {
     saved.retiredField = 7;
     document.meta.configVersion = configVersion + 1;
 
-    const result = rebase(document, testDeps());
+    const result = rebase(document);
 
     if (!result.ok) throw new Error(`Rejected ${result.rejection.reason}`);
     expect(result.document.meta.config).toEqual(defaultConfig);
     expect(result.events[0]?.payload).toEqual({ oldConfigVersion: configVersion + 1, newConfigVersion: configVersion });
   });
 
-  test('is what applyAction does with a rebase action', () => {
+  test("is what applyAction does with a rebase action, under the deps the game plays under: it adopts this release's defaults, not the game's own", () => {
     const one = olderGame('apply');
     const two = olderGame('apply');
-    const deps = later;
+    const deps = played(two);
+    expect(deps.config.turnsPerYear).toBe(12);
 
-    const direct = rebase(one, deps);
+    const direct = rebase(one);
     const applied = applyAction(two, { kind: 'rebase' }, deps);
     expect(direct.ok && applied.ok).toBe(true);
 
+    expect(applied.ok && applied.document.meta.config).toEqual(defaultConfig);
     expect(applied.ok && serialise(applied.document)).toBe(direct.ok && serialise(direct.document));
     // `two`'s meta is untouched, so it is the rebased document that is now current.
     expect(applied.ok && applyAction(applied.document, { kind: 'rebase' }, deps)).toMatchObject({
@@ -188,7 +189,7 @@ describe('newRules', () => {
 
   test('is null after the rebase it offered', () => {
     const document = olderGame('adopted');
-    const rebased = rebase(document, later);
+    const rebased = rebase(document);
     if (!rebased.ok) throw new Error(`Rejected ${rebased.rejection.reason}`);
 
     expect(newRules(rebased.document.meta)).toBeNull();

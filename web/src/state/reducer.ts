@@ -44,7 +44,6 @@ import {
   fastForward,
   playDeps as enginePlayDeps,
   playerGuild,
-  rebase,
   setupRefusal,
   type ActionRejection,
   type BackgroundKey,
@@ -379,7 +378,7 @@ function withModules(modules: readonly Module[]): Pick<EngineDeps, 'modules'> {
   return modules.length === 0 ? {} : { modules };
 }
 
-/** The engine's own deps, with `modules` installed: to start a game and rebase one (a save is read by `deserialise`, DL-193). */
+/** The engine's own deps, with `modules` installed: to start a game, or rebase one (a save is read by `deserialise`, DL-193). */
 function engineDeps(modules: readonly Module[]): EngineDeps {
   return { config: defaultConfig, content, ...withModules(modules) };
 }
@@ -388,8 +387,8 @@ function run(document: WorldDocument | null, play: Play, modules: readonly Modul
   if (play.kind === 'newGame') return newGame(play, modules);
   if (play.kind === 'load') return load(play, modules);
   if (document === null) return refused(play.kind, 'no-game');
-  // Not the play deps: under them every save would already be current (the CLI's `rebase`).
-  if (play.kind === 'rebase') return rebase(document, engineDeps(modules));
+  // `rebase` adopts the engine's own defaults whatever deps it is given (DL-205); an ended game may too.
+  if (play.kind === 'rebase') return applyAction(document, play, engineDeps(modules));
 
   const { ended } = document.world;
   if (ended !== null) return { ok: false, rejection: { action: play.kind, reason: 'game-ended', ending: ended } };

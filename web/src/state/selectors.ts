@@ -755,8 +755,11 @@ export function rosterSortChoices(set: ContentSet = content): RosterSortChoice[]
   return [...heroSorts, ...heroStats(set).map((stat): RosterSortChoice => ({ key: stat.key, label: stat.name, first: 'descending', area: capitalised(stat.area) }))];
 }
 
-/** The direction of a sort as it reads inside a sentence: `highest first`, `A to Z`, `Warrior first`. */
-function orderPhrase(key: RosterSortKey, direction: SortDirection, set: ContentSet): string {
+/**
+ * The direction of a sort as it reads inside a sentence: `highest first`, `A to Z`, `Warrior first`.
+ * It reads the page's content, as the sort does (`byClass`), so the words say the order shown (DL-205).
+ */
+function orderPhrase(key: RosterSortKey, direction: SortDirection): string {
   const up = direction === 'ascending';
   switch (key) {
     case 'default':
@@ -765,8 +768,8 @@ function orderPhrase(key: RosterSortKey, direction: SortDirection, set: ContentS
       return up ? 'A to Z' : 'Z to A';
     case 'class': {
       // The first and last in the declared order the sort reads (`classComparator`, DL-186 item 24).
-      const first = up ? set.classOrder[0] : set.classOrder.at(-1);
-      return `${first === undefined ? 'Class' : nameIn(set.classes, first)} first`;
+      const first = up ? content.classOrder[0] : content.classOrder.at(-1);
+      return `${first === undefined ? 'Class' : nameIn(content.classes, first)} first`;
     }
     case 'age':
       return up ? 'youngest first' : 'oldest first';
@@ -778,8 +781,8 @@ function orderPhrase(key: RosterSortKey, direction: SortDirection, set: ContentS
 }
 
 /** The direction of a sort in words, as its button says it: `Highest first`, `A to Z`, `Warrior first`. */
-export function orderWords(key: RosterSortKey, direction: SortDirection, set: ContentSet = content): string {
-  return capitalised(orderPhrase(key, direction, set));
+export function orderWords(key: RosterSortKey, direction: SortDirection): string {
+  return capitalised(orderPhrase(key, direction));
 }
 
 /**
@@ -787,8 +790,8 @@ export function orderWords(key: RosterSortKey, direction: SortDirection, set: Co
  * the direction the sort is in, as `Reverse the order, now A to Z`. The shown words stand in it, so a
  * voice that names what it sees finds the button.
  */
-export function reverseOrderName(key: RosterSortKey, direction: SortDirection, set: ContentSet = content): string {
-  return `Reverse the order, now ${orderPhrase(key, direction, set)}`;
+export function reverseOrderName(key: RosterSortKey, direction: SortDirection): string {
+  return `Reverse the order, now ${orderPhrase(key, direction)}`;
 }
 
 /** A column of the Roster's Table: its key, its heading, the sort its heading orders by, and whether it holds a number. */

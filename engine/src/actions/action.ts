@@ -89,14 +89,14 @@ export type RejectionOf<A extends Action> = Extract<ActionRejection, Rejection<A
 
 /**
  * Applies `action` to `document`: the one way a front end takes an action (v1.1.6-S8, DL-186 item
- * 9). `rebase` changes the save's rules; every other action is a Guild's, its rule
- * (`applyGuildAction`) run on a copy of the document's world by `applyToCopy`, so a document that
- * shares the old world is left as it was (DL-24), and its events appended to the History. A refusal
- * changes nothing. The result's rejection is narrowed to the action's own.
+ * 9). `rebase` changes the save's rules to this release's defaults, whatever `deps` holds (DL-205);
+ * every other action is a Guild's, its rule (`applyGuildAction`) run on a copy of the document's
+ * world by `applyToCopy`, so a document that shares the old world is left as it was (DL-24), and its
+ * events appended to the History. A refusal changes nothing. The result's rejection is narrowed to the action's own.
  */
 export function applyAction<A extends Action>(document: WorldDocument, action: A, deps: EngineDeps): ActionResult<RejectionOf<A>> {
   const result =
-    action.kind === 'rebase' ? rebase(document, deps) : applyToCopy(document, (world) => applyGuildAction(world, action, deps));
+    action.kind === 'rebase' ? rebase(document) : applyToCopy(document, (world) => applyGuildAction(world, action, deps));
   // A rule refuses only with its own action's rejections, which `RejectionOf` names.
   return result as ActionResult<RejectionOf<A>>;
 }

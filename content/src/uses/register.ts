@@ -11,6 +11,7 @@
 // (`sources`, which the drift test checks both ways) and those its rule runs through that read none
 // themselves (`through`, which the drift test checks are there).
 
+import { degrees } from '@heroesim/engine';
 import type { ContentFileName } from '../parse.js';
 import {
   at,
@@ -301,9 +302,6 @@ const injuryLeavesTrait: ContentEntry = {
   },
 };
 
-/** The Degrees whose lists an Encounter's consequences may hold (v1.1.4-S2). */
-const outcomeLists = ['triumph', 'success', 'setback', 'failure'] as const;
-
 const encounterTraitConsequence: ContentEntry = {
   place: 'content',
   id: 'encounter-trait',
@@ -315,7 +313,7 @@ const encounterTraitConsequence: ContentEntry = {
   blocksRemoval: true,
   find(content, key) {
     return entriesOf(content['encounters.json']).flatMap(([encounter, row]) =>
-      outcomeLists.flatMap((degree) => {
+      degrees.flatMap((degree) => {
         const list = at(row, ['consequences', degree]);
         return (Array.isArray(list) ? list : []).flatMap((consequence, index) =>
           isObject(consequence) && consequence.kind === 'trait' && consequence.traitKey === key

@@ -2,7 +2,7 @@
 // front end plays a loaded game under its own `meta.config`, filled forward with the current
 // defaults, so tuning reaches a game only when the player says so, and the History says when.
 
-import { configVersion, type EngineDeps } from '../config.js';
+import { configVersion, defaultConfig } from '../config.js';
 import type { Meta, WorldDocument } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { append } from '../history.js';
@@ -30,17 +30,17 @@ export function newRules(meta: Pick<Meta, 'configVersion'>): { from: number; to:
 }
 
 /**
- * Rewrites `meta.config` to `deps.config` (a copy, whole: a field the save had and `deps.config`
- * lacks goes) and `meta.configVersion` to this release's `configVersion`, and appends
- * `world.rules-adopted`, a Milestone carrying the old and the new version. A front end passes the
- * current `defaultConfig` as `deps.config`, never the config it plays the save under. Rejected
- * `already-current` when the game's version is this release's.
+ * Rewrites `meta.config` to this release's `defaultConfig` (a copy, whole: a field the save had and
+ * `defaultConfig` lacks goes) and `meta.configVersion` to this release's `configVersion`, and appends
+ * `world.rules-adopted`, a Milestone carrying the old and the new version. It reads no deps, so the
+ * config a game plays under can never be what it adopts (DL-205). Rejected `already-current` when
+ * the game's version is this release's.
  *
  * The returned document has a new `meta`; the old document's `meta` is left alone, since `meta`
  * is shared by reference across the documents of successive Turns. `world` does not change and is
  * shared too, as `history` always is.
  */
-export function rebase(document: WorldDocument, deps: EngineDeps): ActionResult<RebaseRejection> {
+export function rebase(document: WorldDocument): ActionResult<RebaseRejection> {
   const { meta, world, history } = document;
   const oldConfigVersion = meta.configVersion;
   const newConfigVersion = configVersion;
@@ -54,5 +54,5 @@ export function rebase(document: WorldDocument, deps: EngineDeps): ActionResult<
     payload: { oldConfigVersion, newConfigVersion },
   });
   append(history, adopted);
-  return { ok: true, document: { meta: { ...meta, configVersion, config: { ...deps.config } }, world, history }, events: [adopted] };
+  return { ok: true, document: { meta: { ...meta, configVersion, config: { ...defaultConfig } }, world, history }, events: [adopted] };
 }

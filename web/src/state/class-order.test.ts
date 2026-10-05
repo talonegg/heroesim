@@ -1,17 +1,22 @@
 import { createWorld, defaultConfig, playerGuild, unattachedHeroes, type Hero, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
-import { defaultHeroOrder, orderWords } from './selectors';
+import { defaultHeroOrder, orderWords, reverseOrderName } from './selectors';
 import { poolView } from './trade-views';
 
 // The page's lists by Class read the declared order (`class-order.json`, v1.1.6-S14, DL-186 item 24),
-// not the order of `classes.json`' keys: here the page's content set lists its Classes backwards.
+// not the order of `classes.json`' keys: here the page's content set lists its Classes backwards, and
+// declares an order of its own, which the sort and its words both read, from the one content set
+// (v1.1.6-S19, DL-205).
 vi.mock('../content', async (importOriginal) => {
   const real = await importOriginal<typeof import('../content')>();
-  return { ...real, content: { ...real.content, classes: Object.fromEntries(Object.entries(real.content.classes).reverse()) } };
+  return {
+    ...real,
+    content: { ...real.content, classes: Object.fromEntries(Object.entries(real.content.classes).reverse()), classOrder: ['mage', 'healer', 'warrior', 'rogue'] },
+  };
 });
 
-const declared = ['Warrior', 'Rogue', 'Mage', 'Healer'];
+const declared = ['Mage', 'Healer', 'Warrior', 'Rogue'];
 const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' };
 
 function newGame(): WorldDocument {
@@ -23,9 +28,9 @@ function classesIn(names: readonly string[]): string[] {
   return [...new Set(names)];
 }
 
-describe("the page's Class order with classes.json's keys reversed", () => {
-  test('is still Warrior, Rogue, Mage, Healer: the content set, the default Hero order, the Unattached pool and the sort button', () => {
-    expect(Object.values(content.classes).map((each) => each.name)).toEqual([...declared].reverse());
+describe("the page's Class order with classes.json's keys reversed and an order of its own declared", () => {
+  test('is the declared order, Mage, Healer, Warrior, Rogue: the default Hero order, the Unattached pool and the sort button', () => {
+    expect(Object.values(content.classes).map((each) => each.name)).toEqual(['Healer', 'Mage', 'Rogue', 'Warrior']);
 
     const document = newGame();
     const heroes = [...(playerGuild(document.world)?.rosterIds ?? []), ...unattachedHeroes(document.world).map((hero) => hero.id)].map(
@@ -36,6 +41,7 @@ describe("the page's Class order with classes.json's keys reversed", () => {
     expect(classesIn(sorted)).toEqual(declared);
 
     expect(classesIn(poolView(document, 'class').rows.map((row) => row.className))).toEqual(declared);
-    expect([orderWords('class', 'ascending'), orderWords('class', 'descending')]).toEqual(['Warrior first', 'Healer first']);
+    expect([orderWords('class', 'ascending'), orderWords('class', 'descending')]).toEqual(['Mage first', 'Rogue first']);
+    expect(reverseOrderName('class', 'descending')).toBe('Reverse the order, now Rogue first');
   });
 });

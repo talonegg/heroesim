@@ -71,7 +71,7 @@ export type {
   UnequipRequest,
   WrongSlot,
 } from './actions/equip.js';
-export { newRules, rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
+export { newRules, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
 export type {
   GuildFoldedRejection,
   HeroNotUnattachedRejection,

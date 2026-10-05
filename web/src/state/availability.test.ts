@@ -27,18 +27,23 @@ function withParty(world: World, hero: Hero, returnsOnTurn: number): void {
 }
 
 describe('whether a Hero can be injured and in a Party at once', () => {
-  test('never, in any Hero of any Guild on any Turn of two played years: an Injury is dealt as the Party comes home, and a module refuses a Hero away', () => {
+  // 730 Turns played, a game's whole walk: given 30 s, as a walk of the engine is under the whole
+  // suite's load, where it passed 5 s (DL-205); the Heroes found both are gathered, not each read by
+  // an expect, which cost as much as the play (DL-164).
+  test('never, in any Hero of any Guild on any of 730 Turns played: an Injury is dealt as the Party comes home, and a module refuses a Hero away', { timeout: 30_000 }, () => {
     let document = newGame('availability-both');
     let injured = 0;
     let away = 0;
+    const both: string[] = [];
     for (let turn = 0; turn < 730; turn += 1) {
       document = advance(document, deps).document;
       for (const hero of Object.values(document.world.heroes)) {
         if (hero.injury !== null) injured += 1;
         if (hero.partyId !== null) away += 1;
-        expect(hero.injury !== null && hero.partyId !== null, `${hero.id} on Turn ${document.world.turn}`).toBe(false);
+        if (hero.injury !== null && hero.partyId !== null) both.push(`${hero.id} on Turn ${document.world.turn}`);
       }
     }
+    expect(both).toEqual([]);
     // The test is not vacuous: Heroes were injured and were away.
     expect(injured).toBeGreaterThan(0);
     expect(away).toBeGreaterThan(0);

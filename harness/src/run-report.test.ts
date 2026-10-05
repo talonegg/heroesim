@@ -7,7 +7,8 @@ import { defaultConfig, type EngineDeps } from '@heroesim/engine';
 import { afterAll, describe, expect, test } from 'vitest';
 import { checkGate, readGateSpec } from './gate.js';
 import { defaultPolicyConfig } from './policy.js';
-import { machine } from './report.js';
+import { coreCounters } from './module-report.js';
+import { machine, whole } from './report.js';
 import { addCommand, compareRuns, jsonPathOf, parseRunReport, readRunReport, runReport, runReportJson, writeRunReport, type RunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
 import { sweepFingerprint, sweepPlay, sweepTotals, type PlaySweep } from './sweep.js';
@@ -107,6 +108,26 @@ describe('compare', () => {
     fewer.years = 2;
     fewer.seeds = ['seed-0001'];
     expect(compareRuns(b, fewer)).toEqual(expect.arrayContaining(['Seeds: 1 only in a, 0 only in b.', `Years: ${years} → 2.`, '  refusals: 1 → 0 (−1)']));
+  });
+
+  // v1.1.6-S19 (DL-205): the save's size as each year ended is a measure, as the worlds are: a change
+  // of the save's shape or its config moves it while no play counter moves.
+  test("lists the save's sizes moved apart from the counters, as measures", () => {
+    // A year's saves, which these games are too short to reach.
+    const a: RunReport = { ...report, totals: { ...report.totals, saves: [{ lengths: [900, 950], heroFields: [300, 320], gzipped: [200, 210] }] } };
+    const b = structuredClone(a);
+    b.totals.saves = [{ lengths: [910, 960], heroFields: [300, 320], gzipped: [200, 210] }];
+    b.totals.refusals = 1;
+    const lines = compareRuns(a, b);
+    expect(lines.filter((line) => line.startsWith('  saves'))).toEqual(['  saves[].lengths[]: 1,850 → 1,870 (+20)']);
+    expect(lines.slice(lines.indexOf('  refusals: 0 → 1 (+1)') + 1)).toEqual(["Measures moved, the save's size as each year ended, not play: 1.", '  saves[].lengths[]: 1,850 → 1,870 (+20)']);
+    // The counters are the module report's core counters but the save's three sizes.
+    const counters = [...coreCounters(a.totals).keys()].filter((counter) => !counter.startsWith('saves'));
+    expect(coreCounters(a.totals).size - counters.length).toBe(3);
+    expect(lines).toContain(`Counters: 1 moved, ${whole(counters.length - 1)} the same.`);
+    const same = compareRuns(a, structuredClone(a));
+    expect(same.filter((line) => line.startsWith('Measures'))).toEqual([]);
+    expect(same).toContain(`Counters: 0 moved, ${whole(counters.length)} the same.`);
   });
 
   // v1.1.6-S2's verification (DL-188): a seed one run alone played is not a save that differs, and a

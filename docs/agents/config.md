@@ -30,7 +30,7 @@ npm run edit -- config finish --reason "<why> (DL-NNN)"
 - **`set`** reads the value as JSON where it is JSON (`25`, `0.5`, `{"female":1,"male":3}`,
   `["strong"]`) and as text where not (`warm`), an object's keys in the file's order whatever order
   they are given in. Each edit is checked at once with the engine's
-  `checkConfig` against the content, with every pending edit made, and refused, naming the
+  `checkConfig`, with every pending edit made, and refused, naming the
   setting, where a rule refuses it: `boardSize is -1; it is a whole number, at least 0`. A setting
   another's rule reads is named too: a Min set above its Max names the Max. Nothing is written to
   the file before `finish`; the edits are held in `.editor/config.json`, which git ignores.

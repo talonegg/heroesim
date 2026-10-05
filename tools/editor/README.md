@@ -185,13 +185,12 @@ npm run edit -- config set wagePerLevel 25
 npm run edit -- config finish --reason "the economy pass's wages (DL-210)"
 ```
 
-- **Each `set` is checked** with the engine's `checkConfig` against the content at the root, every
-  pending edit made, and refused where a rule refuses it, each problem naming its setting
+- **Each `set` is checked** with the engine's `checkConfig`, every pending edit made, and refused where a rule refuses it, each problem naming its setting
   (`boardSize is -1; it is a whole number, at least 0`); a Min set above its Max names the Max. It is
   held in `.editor/config.json`, as the Traits' edits are in `.editor/traits.json`; nothing is
   written to `config.json` before "Finish". A setting set again replaces its edit, set back to its
   value in the file is no longer pending, and set to the value it has is not held.
-- **"Finish"** checks the settings again, against the content as it is then; writes `config.json`
+- **"Finish"** checks the settings again, as the file is then; writes `config.json`
   in its own layout (`editJson`), so `git diff` shows the values changed, the version and the
   changelog's new line, `<version> from <why>: <setting> <was> to <value>, ….`; and runs `npm test`.
   A test that fails puts the file back and keeps the edits pending. `--reason` is required, and is

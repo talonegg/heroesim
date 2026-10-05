@@ -202,7 +202,7 @@ describe('finish', () => {
     expect(status(dir)).toBe('');
   });
 
-  test('checks the settings again against the content as it is, refusing what checkConfig refuses', async () => {
+  test('checks the settings again as the file is, refusing what checkConfig refuses', async () => {
     const dir = scratch();
     await json(dir, 'config', 'set', 'boardSize', '7');
     // Another hand changes the file under the edit: a Min above its Max.
@@ -273,6 +273,34 @@ describe("the Traits' journal and lock, shared", () => {
     plant();
     expect((await json<{ recovered: string[] }>(dir, 'config', 'pending')).json.recovered).toEqual([file]);
     expect(readFileSync(file)).toEqual(bytes);
+    expect(status(dir)).toBe('');
+  });
+
+  // v1.1.6-S19 (DL-205): show and set put a cut-off "Finish" back before they read the file, so
+  // that what is "in the file" is never the cut-off write.
+  test('show and set read the file as put back from a config Finish cut off, never as it was cut off', async () => {
+    const dir = scratch();
+    const file = configPath(dir);
+    const bytes = readFileSync(file);
+    await json(dir, 'config', 'set', 'wagePerLevel', '25');
+    /** A config Finish cut off after writing the edit and the version raised. */
+    const plant = (): void => {
+      writeAtomically(journalPath(dir), JSON.stringify({ pid: 2 ** 22 + 7, startedAt: '2026-10-05T00:00:00Z', contentVersion: 36, edits: 1, files: { [file]: bytes.toString('base64') } }));
+      const written = readConfig(dir);
+      writeFileSync(file, bytes.toString('utf8').replace('"wagePerLevel": 20', '"wagePerLevel": 25').replace(`"version": ${written.version}`, `"version": ${written.version + 1}`));
+      expect(readConfig(dir).sections.guilds?.wagePerLevel).toBe(25);
+    };
+
+    plant();
+    const shown = await json<{ recovered: string[]; sections: { section: string; settings: { setting: string; was?: unknown }[] }[] }>(dir, 'config', 'show', 'guilds');
+    expect(shown.json.recovered).toEqual([file]);
+    expect(shown.json.sections[0]?.settings.find((view) => view.setting === 'wagePerLevel')).toEqual({ setting: 'wagePerLevel', value: 25, pending: true, was: 20 });
+
+    plant();
+    const set = await json<{ recovered: string[]; value: unknown; was: unknown; pending: number }>(dir, 'config', 'set', 'wagePerLevel', '20');
+    expect(set.json).toMatchObject({ recovered: [file], value: 20, was: 20, pending: 0 });
+    expect(readFileSync(file)).toEqual(bytes);
+    expect((await json<{ edits: unknown[] }>(dir, 'config', 'pending')).json.edits).toEqual([]);
     expect(status(dir)).toBe('');
   });
 });

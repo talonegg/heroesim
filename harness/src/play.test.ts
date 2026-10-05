@@ -59,13 +59,13 @@ const dealing: EngineDeps = {
 // under the deps the engine's `playDeps` gives it, as a front end's does.
 describe('runConfig', () => {
   test("is the defaults with HEROESIM_CONFIG's values over them", () => {
-    expect(runConfig({ marketSize: 14 }, content)).toEqual({ ...defaultConfig, marketSize: 14 });
-    expect(runConfig({}, content)).toEqual(defaultConfig);
+    expect(runConfig({ marketSize: 14 })).toEqual({ ...defaultConfig, marketSize: 14 });
+    expect(runConfig({})).toEqual(defaultConfig);
   });
 
   test('refuses a setting its rule refuses, naming each', () => {
-    expect(() => runConfig({ checkVariance: 2 }, content)).toThrow(new RangeError('HEROESIM_CONFIG: checkVariance is 2; it is a share from 0 to 1'));
-    expect(() => runConfig({ boardSize: 1.5, sellRatio: 1 }, content)).toThrow(/^HEROESIM_CONFIG: boardSize is 1\.5; .*; HEROESIM_CONFIG: sellRatio is 1; /);
+    expect(() => runConfig({ checkVariance: 2 })).toThrow(new RangeError('HEROESIM_CONFIG: checkVariance is 2; it is a share from 0 to 1'));
+    expect(() => runConfig({ boardSize: 1.5, sellRatio: 1 })).toThrow(/^HEROESIM_CONFIG: boardSize is 1\.5; .*; HEROESIM_CONFIG: sellRatio is 1; /);
   });
 
   test('a game whose config breaks a rule is refused before its first Turn, naming the setting', () => {

@@ -40,7 +40,7 @@ test.runIf(run !== null)(`${seeds.length} games of ${run?.years ?? 0} years play
   const drafted = drafts === null ? null : loadDrafts(drafts);
   const content = drafted?.content ?? loadContent();
   // Every setting checked before any game, a bad one refused by name (v1.1.6-S7, DL-193).
-  const deps: EngineDeps = { config: runConfig(configured, content), content };
+  const deps: EngineDeps = { config: runConfig(configured), content };
   const policy = { ...defaultPolicyConfig, ...policyChanged };
 
   const sweep = await sweepPlayInParallel(seeds, deps, { validate, replay, workers, years, policy, ...(drafts === null ? {} : { drafts }) });

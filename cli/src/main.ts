@@ -16,6 +16,7 @@
 import { existsSync } from 'node:fs';
 import {
   advance,
+  applyAction,
   createWorld,
   defaultConfig,
   entriesBetween,
@@ -23,7 +24,6 @@ import {
   fastForward,
   parseId,
   playerGuild,
-  rebase,
   setupRefusal,
   type ContentSet,
   type EngineDeps,
@@ -446,15 +446,15 @@ function fastForwardTurns(
 }
 
 /**
- * `rebase`: the save adopts this release's `defaultConfig` and `configVersion`. Not the play deps
- * `open` gives, whose config is the save's own filled forward. Refused, writing nothing, when the
- * save's `meta.configVersion` is this release's already.
+ * `rebase`: the save adopts this release's `defaultConfig` and `configVersion`, through `applyAction`
+ * as every action, whatever deps it is given (DL-205). Refused, writing nothing, when the save's
+ * `meta.configVersion` is this release's already.
  */
 function rebaseRules({ io, content, path }: Context): Exit {
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
   const was = opened.document.meta.configVersion;
-  const result = rebase(opened.document, { config: defaultConfig, content });
+  const result = applyAction(opened.document, { kind: 'rebase' }, opened.deps);
   if (!result.ok) {
     return refuse(io, `${path} already plays under this release's rules, configVersion ${was}.`);
   }

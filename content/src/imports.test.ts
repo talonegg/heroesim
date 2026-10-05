@@ -82,7 +82,7 @@ describe("content's types come from @heroesim/engine", () => {
       importsOf(ast).some((it) => it.from === '@heroesim/engine'),
     );
 
-    expect(fromEngine.map(({ file }) => file).sort()).toEqual(['node.ts', 'parse.ts', 'validate.ts']);
+    expect(fromEngine.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['node.ts', 'parse.ts', 'uses/register.ts', 'validate.ts']);
   });
 
   test('every import of another package, tests included, is of the engine by name', () => {
@@ -94,12 +94,12 @@ describe("content's types come from @heroesim/engine", () => {
   });
 
   // DL-186 item 6 (v1.1.6-S5): content may take the engine's values, so it repeats none of them.
-  test("takes the engine's values too: the parser and the checks import some", () => {
+  test("takes the engine's values too: the parser, the checks and the register of a Trait's uses import some", () => {
     const withValues = sources('content', false).filter(({ ast }) =>
       importsOf(ast).some((it) => it.from === '@heroesim/engine' && !it.typeOnly),
     );
 
-    expect(withValues.map(({ file }) => file).sort()).toEqual(['parse.ts', 'validate.ts']);
+    expect(withValues.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['parse.ts', 'uses/register.ts', 'validate.ts']);
   });
 
   test('content declares none of those types itself', () => {
@@ -123,6 +123,8 @@ describe("content repeats none of the engine's values", () => {
     gearSlotKeys: engine.gearSlotKeys,
     descriptiveAttributes: engine.descriptiveAttributes,
     sexes: engine.sexes,
+    degrees: engine.degrees,
+    purchaseSteps: engine.purchaseSteps,
   };
 
   /** `name: true` or `name: 60`: an entry of a table of choices or of bounds, not of data built per name. */

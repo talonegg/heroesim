@@ -41,7 +41,9 @@ async function until(test: () => boolean, what: string, ms = 60_000): Promise<vo
 }
 
 describe('a "Finish" cut off', () => {
-  test('killed while its tests run, its files are put back by the next command, the edits still pending', async () => {
+  // A process of its own, which compiles the editor as it starts: under the whole suite's load that
+  // took most of the project's 60 s, so the test is given 180 s and its wait 120 s (DL-205).
+  test('killed while its tests run, its files are put back by the next command, the edits still pending', { timeout: 180_000 }, async () => {
     const dir = scratch();
     await json(dir, 'traits', 'change', 'thrifty', '--cost', '3');
     plantOutcome(dir, 'hang');
@@ -54,7 +56,7 @@ describe('a "Finish" cut off', () => {
       detached: process.platform !== 'win32',
     });
     const exited = new Promise((resolve) => child.on('exit', resolve));
-    await until(() => existsSync(path.join(dir, 'tests-started.txt')), 'the planted tests to start');
+    await until(() => existsSync(path.join(dir, 'tests-started.txt')), 'the planted tests to start', 120_000);
     expect(status(dir).split('\n').filter((line) => line !== '').sort()).toEqual([
       ' M content/guildmaster-traits.json',
       ' M content/version.json',
@@ -68,6 +70,9 @@ describe('a "Finish" cut off', () => {
         // the whole suite's load (DL-164): the "Finish" killed is what counts, and the journal says so.
       }
     } else process.kill(-(child.pid ?? 0), 'SIGKILL');
+    // The "Finish" itself, should the tree's kill have missed it, so that its exit, which the test
+    // waits for, comes (DL-205).
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
     await exited;
     expect(existsSync(journalPath(dir))).toBe(true);
     expect(journalState(dir)).toBe('cut-off');

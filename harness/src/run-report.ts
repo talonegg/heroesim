@@ -15,7 +15,7 @@ import type { PolicyConfig } from './policy.js';
 import { fixed, whole, type Machine } from './report.js';
 import type { ProfileName } from './settings.js';
 import type { Summary } from './stats.js';
-import { counterDeltas } from './module-report.js';
+import { coreCounters, counterDeltas, type CounterDelta } from './module-report.js';
 import { sweepFingerprint, sweepTotals, type PlaySweep, type SweepTotals } from './sweep.js';
 
 /** The report's format: raised when its shape changes, so a reader refuses a report it cannot read. */
@@ -204,10 +204,23 @@ function changedKeys(a: Readonly<Record<string, unknown>>, b: Readonly<Record<st
 const valueOf = (n: number): string => (Number.isInteger(n) ? whole(n) : fixed(n, 3));
 
 /**
+ * Whether a core counter is a measure rather than play: the save's size as each year ended, which a
+ * change of the save's shape or its `meta.config` moves while no play counter does (DL-205).
+ */
+const isMeasure = (counter: string): boolean => counter.startsWith('saves[]');
+
+/** A counter's line: its path, its value in `a` and in `b`, and the change. */
+function deltaLine(delta: CounterDelta): string {
+  const change = delta.with - delta.without;
+  return `  ${delta.counter}: ${valueOf(delta.without)} → ${valueOf(delta.with)} (${change > 0 ? '+' : '−'}${valueOf(Math.abs(change))})`;
+}
+
+/**
  * What moved between two runs' reports, `a` then `b` (DL-186 item 13), as lines to print: what each
  * played; whether their fingerprints agree and, if not, the seeds whose last saves differ; the seeds,
- * years, content, config and policy where they differ; and every core counter that moved
- * (`counterDeltas`), with how many did not. Timings are not counters, and are left out.
+ * years, content, config and policy where they differ; every core counter that moved
+ * (`counterDeltas`), with how many did not; and, apart, the save's sizes moved, which are measures,
+ * not play (DL-205). Timings are not counters, and are left out.
  */
 export function compareRuns(a: RunReport, b: RunReport): string[] {
   const played = (label: string, run: RunReport): string =>
@@ -239,10 +252,11 @@ export function compareRuns(a: RunReport, b: RunReport): string[] {
   }
 
   const { moved, unchanged } = counterDeltas(a.totals, b.totals);
-  lines.push('', `Counters: ${whole(moved.length)} moved, ${whole(unchanged)} the same.`);
-  for (const delta of moved) {
-    const change = delta.with - delta.without;
-    lines.push(`  ${delta.counter}: ${valueOf(delta.without)} → ${valueOf(delta.with)} (${change > 0 ? '+' : '−'}${valueOf(Math.abs(change))})`);
-  }
+  const measures = moved.filter((delta) => isMeasure(delta.counter));
+  const counters = moved.filter((delta) => !isMeasure(delta.counter));
+  const measured = new Set([...coreCounters(a.totals).keys(), ...coreCounters(b.totals).keys()].filter(isMeasure)).size;
+  lines.push('', `Counters: ${whole(counters.length)} moved, ${whole(unchanged - (measured - measures.length))} the same.`);
+  lines.push(...counters.map(deltaLine));
+  if (measures.length > 0) lines.push(`Measures moved, the save's size as each year ended, not play: ${whole(measures.length)}.`, ...measures.map(deltaLine));
   return lines;
 }

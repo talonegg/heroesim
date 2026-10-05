@@ -48,10 +48,12 @@ describe('the production build', { timeout: 120_000 }, () => {
   let outDir: string;
   let built: { status: number | null; output: string };
 
+  // The build is the hook's, whose time the describe's timeout does not set: 10 s by default, which a
+  // build under the whole suite's load passed (DL-205).
   beforeAll(() => {
     outDir = temporaryDir();
     built = run([vite, 'build', '--configLoader', 'runner', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
-  });
+  }, 120_000);
 
   test('builds', () => {
     expect(built.status, built.output).toBe(0);

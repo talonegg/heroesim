@@ -36,7 +36,6 @@ import {
   timeOfDay,
   validate,
   type ActionRejection,
-  type ContentSet,
   type EngineDeps,
   type GameConfig,
   type GuildAction,
@@ -64,12 +63,12 @@ import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './polic
 
 /**
  * The config a run plays: `defaultConfig` with `HEROESIM_CONFIG`'s values over it (`configured`),
- * every setting checked against `content` by the engine's `playConfig` (v1.1.6-S7, DL-193).
+ * every setting checked by the engine's `playConfig` (v1.1.6-S7, DL-193).
  *
  * @throws RangeError naming each setting refused, as `HEROESIM_CONFIG: <problem>`, before any game
  */
-export function runConfig(configured: Readonly<Partial<GameConfig>>, content: ContentSet): GameConfig {
-  const played = playConfig(configured, content);
+export function runConfig(configured: Readonly<Partial<GameConfig>>): GameConfig {
+  const played = playConfig(configured);
   if (!played.ok) throw new RangeError(played.refusal.problems.map((problem) => `HEROESIM_CONFIG: ${problem.message}`).join('; '));
   return played.config;
 }

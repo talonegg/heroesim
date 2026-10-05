@@ -414,7 +414,7 @@ export default defineConfig(
         },
         {
           group: ['@heroesim/cli', '@heroesim/web', '@heroesim/harness'],
-          message: 'The portrait tool takes the engine and content only; the front ends and the harness are not its.',
+          message: 'The tools take the engine, content and the words; the front ends and the harness are not theirs.',
         },
         { regex: `^(\\.\\./){3,}(${packages.join('|')})(/|$)`, message: byNameOnly },
       ],

@@ -18,10 +18,11 @@ import {
   type TransferTally,
   type WorldSize,
 } from './counters.js';
+import { copyTimes } from './gate.js';
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { compareReplay, copyTimes, playReport, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { compareReplay, playReport, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (M2-S12, DL-34).

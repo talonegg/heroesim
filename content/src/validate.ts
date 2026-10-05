@@ -19,6 +19,7 @@ import type {
 } from '@heroesim/engine';
 import {
   biographyTraitSentences,
+  degrees,
   descriptiveAttributeMaxLength,
   encounterKinds,
   facilityKeys,
@@ -909,7 +910,7 @@ function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): 
     });
     if (encounter.pass !== undefined) checkPass(`${where}.pass`, encounter.pass, checks.map((it) => it.key), problems);
     else if (checks.length > 1) problems.push(`${where}.pass is missing: an Encounter of several Checks combines them by a pass formula`);
-    for (const degree of ['success', 'failure', 'triumph', 'setback'] as const) {
+    for (const degree of degrees) {
       encounter.consequences[degree]?.forEach((consequence, index, list) => {
         const at = `${where}.consequences.${degree}.${index}`;
         checkConsequence(at, consequence, set, keys, problems);

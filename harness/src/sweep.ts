@@ -71,7 +71,7 @@ import {
   type WealthFlows,
 } from './counters.js';
 import { harnessSetup } from './creation.js';
-import { gateSection, readGateSpec, type GateResult, type GateSpec } from './gate.js';
+import { copyTimes, gateSection, readGateSpec, type GateResult, type GateSpec } from './gate.js';
 import { idsOf } from './modules.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { defaultYears, fingerprintOf, playGame, type GameRecord, type PlayOptions } from './play.js';
@@ -1541,11 +1541,6 @@ function heroesSection(totals: SweepTotals): string[] {
       `gzipped, as the page keeps it in IndexedDB (DL-67): mean ${mebibytes(gzipped.mean)} MiB, max ${mebibytes(gzipped.max)} MiB.`,
     '',
   ];
-}
-
-/** Every copy timed as the years ended, over the games: the per-Turn copy's time (v1.1.6-S17, DL-203). */
-export function copyTimes(worlds: readonly WorldYear[]): number[] {
-  return worlds.flatMap((year) => year.copyMs);
 }
 
 /**

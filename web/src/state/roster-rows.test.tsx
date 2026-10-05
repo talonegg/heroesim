@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
 import { rosterList, section } from '../views/page.test-support';
 import { played, started } from './game.test-support';
+import type * as Selectors from './selectors';
 import { rosterRows, rosterSortChoices, sortedRoster } from './selectors';
 
 // v1.1.6-S13 (DL-186 item 22): the Roster's rows apart from their sorting. The rows are built once for
@@ -15,11 +16,18 @@ vi.mock('@heroesim/engine', async (importOriginal) => {
   const engine = await importOriginal<typeof Engine>();
   return { ...engine, statBreakdown: vi.fn(engine.statBreakdown) };
 });
+// The sorts too, so that a test can count them (v1.1.6-S19, DL-205).
+vi.mock('./selectors', async (importOriginal) => {
+  const selectors = await importOriginal<typeof Selectors>();
+  return { ...selectors, sortedRoster: vi.fn(selectors.sortedRoster) };
+});
 
 const breakdowns = vi.mocked(statBreakdown);
+const sorts = vi.mocked(sortedRoster);
 
 beforeEach(() => {
   breakdowns.mockClear();
+  sorts.mockClear();
 });
 
 afterEach(cleanup);
@@ -80,5 +88,25 @@ describe("the Roster's rows, built once for a document (v1.1.6-S13)", () => {
     expect(names()).toEqual([...byDefault].sort().reverse());
 
     expect(breakdowns.mock.calls.length).toBe(calls);
+  });
+
+  // v1.1.6-S19 (DL-205): the sort in force is one value while it is kept, so a render for another
+  // reason sorts nothing again.
+  test('the Roster view: a render for another reason, the Columns opened and closed, sorts nothing again', () => {
+    render(<App initial={started()} />);
+    const roster = section('Roster');
+    fireEvent.click(within(roster).getByRole('button', { name: 'Table' }));
+    const sorted = sorts.mock.calls.length;
+    expect(sorted).toBeGreaterThan(0);
+
+    const columns = within(roster).getByRole('button', { name: 'Columns' });
+    fireEvent.click(columns);
+    expect(columns.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(columns);
+    expect(columns.getAttribute('aria-expanded')).toBe('false');
+    expect(sorts.mock.calls.length).toBe(sorted);
+
+    fireEvent.click(within(roster).getByTestId('roster-direction'));
+    expect(sorts.mock.calls.length).toBe(sorted + 1);
   });
 });

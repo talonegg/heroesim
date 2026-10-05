@@ -1,7 +1,7 @@
 // The editor's config kind (v1.1.6-S18, DL-186 item 15, DL-204): the tuning values, the defaults'
 // settings in `engine/src/config.json`, read by section, set one at a time and held as pending in
-// `.editor/config.json`, as the Traits' edits are, each checked with the engine's `checkConfig`
-// against the content as it is made. "Finish" checks them again, writes the file in its own layout
+// `.editor/config.json`, as the Traits' edits are, each checked with the engine's `checkConfig` as
+// it is made. "Finish" checks them again, writes the file in its own layout
 // (`editJson`, of content's write module) with `version` raised by one and a line of its changelog
 // saying why, and runs `npm test`, putting the file back if any test fails. It never commits.
 //
@@ -13,7 +13,6 @@
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { checkConfig, flattenConfig } from '@heroesim/engine';
-import { loadContent } from '@heroesim/content/node';
 import { editJson, readContentVersion, transaction, Undone, NotUndone } from '@heroesim/content/write';
 import { Refused, pendingPath } from './editor.js';
 import { beginJournal, Busy, busyProblems, endJournal, journalState, releaseJournal, restoreJournal, writeAtomically } from './finish-journal.js';
@@ -149,7 +148,7 @@ export class ConfigEditor {
     return working;
   }
 
-  /** `checkConfig`'s problems with `sections`, against the content at the root: each names its setting. */
+  /** `checkConfig`'s problems with `sections`: each names its setting. */
   #problems(sections: Sections): string[] {
     let flat: Record<string, unknown>;
     try {
@@ -157,13 +156,14 @@ export class ConfigEditor {
     } catch (error) {
       return [error instanceof Error ? error.message : String(error)];
     }
-    return checkConfig(flat, loadContent(path.join(this.root, 'content'))).map((problem) => problem.message);
+    return checkConfig(flat).map((problem) => problem.message);
   }
 
   /** Every section, or the one named, its settings with the pending edits made. */
   show(section?: string): SectionView[] {
-    const { json } = readConfigFile(this.root);
+    // The edits first: a "Finish" cut off is put back before the file is read (DL-205).
     const edits = this.edits();
+    const { json } = readConfigFile(this.root);
     const working = this.#working(json.sections, edits);
     if (section !== undefined && !Object.hasOwn(working, section)) throw new Refused([`"${section}" is not a section of config.json: ${Object.keys(working).join(', ')}`]);
     return Object.entries(working)
@@ -178,14 +178,15 @@ export class ConfigEditor {
   }
 
   /**
-   * Sets `setting` to `value`, pending, once the settings with it pass `checkConfig` against the
-   * content; refused, each problem named by its setting, where they do not. A setting set again
+   * Sets `setting` to `value`, pending, once the settings with it pass `checkConfig`; refused, each
+   * problem named by its setting, where they do not. A setting set again
    * replaces its pending edit, and one set back to its value on disk is no longer pending; a value as
    * it is already is not held.
    */
   set(setting: string, given: unknown): { setting: string; section: string; value: unknown; was: unknown; unchanged?: true } {
-    const { json } = readConfigFile(this.root);
+    // The edits first: a "Finish" cut off is put back before the file is read (DL-205).
     const edits = this.edits();
+    const { json } = readConfigFile(this.root);
     const section = this.#sectionOf(json.sections, setting);
     if (section === undefined) throw new Refused([`"${setting}" is not a setting of config.json; \`config show\` lists them by section`]);
     const was = json.sections[section]?.[setting];
@@ -219,7 +220,7 @@ export class ConfigEditor {
   /**
    * Writes the pending edits into `config.json`, raises its `version` by one with a line of its
    * changelog, `<version> from <reason>: <setting> <was> to <value>, …`, and runs the tests. The
-   * settings are checked with `checkConfig` first, against the content as it is now. If any test
+   * settings are checked with `checkConfig` first. If any test
    * fails the file is put back and the edits stay pending; on success they are cleared. Never commits.
    */
   async finish(reason: string, runTests: TestRunner = npmTest, onLine: (line: string) => void = () => {}): Promise<ConfigFinished> {

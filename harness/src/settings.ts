@@ -237,9 +237,9 @@ function jsonObject(env: Env, name: string, what: string): Record<string, unknow
 
 /**
  * `HEROESIM_CONFIG` (v1.1.4-S9's verification, DL-162): config values for trials of what a tuning step
- * would set, so that none is changed in engine/src/config.ts to try it. Refuses a key that is not a
- * config key; the values are checked against the run's content, every setting by its rule, when the
- * run starts (`runConfig`, v1.1.6-S7, DL-193).
+ * would set, so that none is changed in `engine/src/config.json` (the editor's `config set`, DL-204)
+ * to try it. Refuses a key that is not a config key; the values are checked, every setting by its
+ * rule, when the run starts (`runConfig`, v1.1.6-S7, DL-193).
  */
 function configOf(env: Env): Partial<GameConfig> {
   const changes = jsonObject(env, 'HEROESIM_CONFIG', 'config keys');

@@ -23,9 +23,9 @@ type Settings = Readonly<Record<string, unknown>>;
 
 /**
  * One setting's rule: `undefined` for a sound value, else what the value is to be, the words after
- * "<setting> is <value>; ". It may read the other settings and the content.
+ * "<setting> is <value>; ". It may read the other settings, never the content (DL-193).
  */
-export type ConfigRule = (value: unknown, settings: Settings, content: ContentSet) => string | undefined;
+export type ConfigRule = (value: unknown, settings: Settings) => string | undefined;
 
 /** Every Stat area, in the order of `StatArea`; a record, so that `tsc` asks for an area `StatArea` gains. */
 const statAreas = Object.keys({ physical: true, mental: true, magical: true, social: true } satisfies Record<StatArea, true>);
@@ -58,7 +58,7 @@ function boundWords(bound: Bound, settings: Settings): string {
 
 /** Whether `value` is a number `spec` allows. */
 function allows(spec: NumberSpec, value: unknown, settings: Settings): boolean {
-  if (!isNumber(value) || (spec.whole === true && !Number.isInteger(value))) return false;
+  if (!isNumber(value) || (spec.whole === true && !Number.isSafeInteger(value))) return false;
   const min = boundOf(spec.min, settings);
   const above = boundOf(spec.above, settings);
   const max = boundOf(spec.max, settings);
@@ -87,8 +87,28 @@ function numeric(spec: NumberSpec): ConfigRule {
   return (value, settings) => (allows(spec, value, settings) ? undefined : numberWords(spec, settings));
 }
 
+/** A whole number: a safe integer, as `int` asks of its bounds (`rng.ts`). */
 const whole = (spec: Omit<NumberSpec, 'whole'> = {}): ConfigRule => numeric({ ...spec, whole: true });
 const finite = (spec: Omit<NumberSpec, 'whole'> = {}): ConfigRule => numeric(spec);
+/** The most values `int` draws between (`rng.ts`): 2^32. */
+const drawSpan = 2 ** 32;
+
+/**
+ * A Max `int` draws to from its Min: a whole number at least the Min, and at most `drawSpan` values
+ * from the Min to it, so that a config the rules allow never throws at a draw (DL-205).
+ */
+function drawnMax(min: keyof GameConfig): ConfigRule {
+  const atLeast = whole({ min });
+  return (value, settings) => {
+    const refused = atLeast(value, settings);
+    if (refused !== undefined) return refused;
+    const from = boundOf(min, settings);
+    return from === undefined || (value as number) - from + 1 <= drawSpan
+      ? undefined
+      : `it is a whole number from ${boundWords(min, settings)} to ${drawSpan - 1} above it, the most a draw spans`;
+  };
+}
+
 /** A share from 0 to 1. */
 const share: ConfigRule = numeric({ min: 0, max: 1, words: 'it is a share from 0 to 1' });
 
@@ -191,7 +211,8 @@ const healFactors: ConfigRule = (value) =>
 const declineAreaList: ConfigRule = listOf(statAreas);
 
 /**
- * Every setting's rule (v1.1.6-S7, DL-193), in `GameConfig`'s order. A Min's Max is at least the Min;
+ * Every setting's rule (v1.1.6-S7, DL-193), in `GameConfig`'s order. A Min's Max is at least the Min,
+ * and spans no more than a draw does where `int` draws between them;
  * a count, a Day, an age or a sum of Wealth is a whole number; a chance or a share is from 0 to 1;
  * what `GameConfig` says is negative is at most 0; a divisor is above 0.
  */
@@ -203,34 +224,34 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   startingWealth: whole(),
   rivalCount: whole({ min: 0 }),
   rivalRosterMin: whole({ min: 0 }),
-  rivalRosterMax: whole({ min: 'rivalRosterMin' }),
+  rivalRosterMax: drawnMax('rivalRosterMin'),
   rivalHireReserveUpkeeps: finite({ min: 0 }),
   rivalStartingWealthMin: whole(),
-  rivalStartingWealthMax: whole({ min: 'rivalStartingWealthMin' }),
+  rivalStartingWealthMax: drawnMax('rivalStartingWealthMin'),
   patronCount: whole({ min: 1 }),
   unattachedPoolSize: whole({ min: 0 }),
 
   heroStartingAgeMin: whole({ min: 0 }),
-  heroStartingAgeMax: whole({ min: 'heroStartingAgeMin' }),
+  heroStartingAgeMax: drawnMax('heroStartingAgeMin'),
   heroSexWeights: sexWeights,
   statBaseMin: whole({ min: 0 }),
-  statBaseMax: whole({ min: 'statBaseMin' }),
+  statBaseMax: drawnMax('statBaseMin'),
   statBiasMin: whole({ min: 0 }),
-  statBiasMax: whole({ min: 'statBiasMin' }),
+  statBiasMax: drawnMax('statBiasMin'),
   potentialGapMin: whole({ min: 0 }),
-  potentialGapMax: whole({ min: 'potentialGapMin' }),
+  potentialGapMax: drawnMax('potentialGapMin'),
   startingSkillsMin: whole({ min: 0 }),
-  startingSkillsMax: whole({ min: 'startingSkillsMin' }),
+  startingSkillsMax: drawnMax('startingSkillsMin'),
   startingSkillRatingMax: whole({ min: 1 }),
   moraleBaseline: finite({ min: 'moraleMin', max: 'moraleMax' }),
 
   guildmasterStartingAgeMin: whole({ min: 0 }),
-  guildmasterStartingAgeMax: whole({ min: 'guildmasterStartingAgeMin' }),
+  guildmasterStartingAgeMax: drawnMax('guildmasterStartingAgeMin'),
   guildmasterStatMin: whole({ min: 0 }),
-  guildmasterStatMax: whole({ min: 'guildmasterStatMin' }),
+  guildmasterStatMax: drawnMax('guildmasterStatMin'),
   guildmasterStatPoints: whole({ min: 0 }),
   guildmasterTraitsMin: whole({ min: 0 }),
-  guildmasterTraitsMax: whole({ min: 'guildmasterTraitsMin' }),
+  guildmasterTraitsMax: drawnMax('guildmasterTraitsMin'),
   guildmasterTraitBudget: finite(),
 
   upkeepEveryDays: whole({ min: 1 }),
@@ -248,7 +269,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   questOfferDays: whole({ min: 1 }),
   // A Quest's difficulty is above 0 (`resolveQuest`, `estimateQuest`).
   questDifficultyMin: whole({ min: 1 }),
-  questDifficultyMax: whole({ min: 'questDifficultyMin' }),
+  questDifficultyMax: drawnMax('questDifficultyMin'),
   // A tag shared never makes an Encounter rarer (DL-160).
   encounterTagWeight: finite({ min: 1 }),
 
@@ -339,7 +360,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
 
   marketSize: whole({ min: 0 }),
   marketStackMin: whole({ min: 1 }),
-  marketStackMax: whole({ min: 'marketStackMin' }),
+  marketStackMax: drawnMax('marketStackMin'),
   // An Item sells for less than it costs (R31).
   sellRatio: finite({ min: 0, below: 1 }),
   lootOnlyPrice: whole({ min: 0 }),
@@ -352,15 +373,14 @@ function shown(value: unknown): string {
 }
 
 /**
- * What is wrong with `settings` under `content`, a problem for each setting its rule refuses, in
- * `GameConfig`'s order; none for a sound config. Never throws, whatever it is given: a save's config
- * is read text.
+ * What is wrong with `settings`, a problem for each setting its rule refuses, in `GameConfig`'s
+ * order; none for a sound config. Never throws, whatever it is given: a save's config is read text.
  */
-export function checkConfig(settings: Readonly<GameConfig> | Settings, content: ContentSet): ConfigProblem[] {
+export function checkConfig(settings: Readonly<GameConfig> | Settings): ConfigProblem[] {
   const read = settings as Settings;
   return (Object.keys(configRules) as (keyof GameConfig)[]).flatMap((setting) => {
     const value = Object.hasOwn(read, setting) ? read[setting] : undefined;
-    const expected = configRules[setting](value, read, content);
+    const expected = configRules[setting](value, read);
     return expected === undefined ? [] : [{ setting, message: `${setting} is ${shown(value)}; ${expected}` }];
   });
 }
@@ -378,11 +398,11 @@ export interface UnsoundConfig {
  * rule 5), checked whole (`checkConfig`). What `playDeps` merges a save's `meta.config` with, and the
  * harness its `HEROESIM_CONFIG`.
  */
-export function playConfig(saved: Settings, content: ContentSet): { ok: true; config: GameConfig } | { ok: false; refusal: UnsoundConfig } {
+export function playConfig(saved: Settings): { ok: true; config: GameConfig } | { ok: false; refusal: UnsoundConfig } {
   const merged = Object.fromEntries(
     Object.keys(defaultConfig).map((setting) => [setting, Object.hasOwn(saved, setting) ? saved[setting] : defaultConfig[setting as keyof GameConfig]]),
   );
-  const problems = checkConfig(merged, content);
+  const problems = checkConfig(merged);
   if (problems.length === 0) return { ok: true, config: merged as unknown as GameConfig };
   const message = `The game's config is unsound: ${problems.map((problem) => problem.message).join('; ')}`;
   return { ok: false, refusal: { kind: 'unsound-config', problems, message } };
@@ -398,7 +418,7 @@ export function playDeps(
   content: ContentSet,
   modules: readonly Module[] = [],
 ): { ok: true; deps: EngineDeps } | { ok: false; refusal: UnsoundConfig } {
-  const played = playConfig(document.meta.config as unknown as Settings, content);
+  const played = playConfig(document.meta.config as unknown as Settings);
   if (!played.ok) return played;
   return { ok: true, deps: { config: played.config, content, ...(modules.length === 0 ? {} : { modules }) } };
 }

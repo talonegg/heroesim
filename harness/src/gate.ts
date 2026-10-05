@@ -19,6 +19,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { fixed, markdownTable, whole } from './report.js';
 import type { RunReport } from './run-report.js';
+import type { WorldYear } from './sweep.js';
 
 /** `harness/gate.json`. */
 export const gatePath = fileURLToPath(new URL('../gate.json', import.meta.url));
@@ -149,6 +150,11 @@ const mebibyte = 1024 * 1024;
 const yearsOf = (n: number): string => `${n} ${n === 1 ? 'year' : 'years'}`;
 const mean = (values: readonly number[]): number => (values.length === 0 ? Number.NaN : values.reduce((sum, n) => sum + n, 0) / values.length);
 
+/** Every copy timed as the years ended, over the games: the per-Turn copy's time (v1.1.6-S17, DL-203). */
+export function copyTimes(worlds: readonly WorldYear[]): number[] {
+  return worlds.flatMap((year) => year.copyMs);
+}
+
 /**
  * `run` checked against `spec`, line by line, and its fingerprint against `expect` when given (the
  * `neutral` profile's `--expect`). An invariant passes or fails; a band reads "not comparable" on a run
@@ -197,8 +203,8 @@ export function checkGate(spec: GateSpec, run: RunReport, expect: string | null 
     const meanMiB = mean(gzipped) / mebibyte;
     return { pass: meanMiB < saveGzipped.meanMiB, measured: `mean ${fixed(meanMiB, 2)} MiB, max ${fixed(Math.max(...gzipped) / mebibyte, 2)} MiB, over ${whole(gzipped.length)} games` };
   });
-  // Every copy timed as the years ended (`copyTimes`); a report from before v1.1.6-S17 has none.
-  const copies = (totals.worlds ?? []).flatMap((year) => year.copyMs);
+  // A report from before v1.1.6-S17 has no copy times.
+  const copies = copyTimes(totals.worlds ?? []);
   const copyMeasured = copies.length === 0 ? 'not measured' : `mean ${fixed(mean(copies), 3)} ms, over ${whole(copies.length)} copies`;
   const copyLine = "The per-Turn copy's time";
   if (copyMs.baselineMeanMs === null) {

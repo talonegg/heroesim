@@ -15,7 +15,7 @@ when `HEROESIM_HARNESS` is set, so `npm test` never plays it. `npm run harness` 
 | `npm run harness -- succession` | The Succession probe: 50 games of 12 years, the first Rival's Guildmaster at 50 (M9-F1) |
 | `npm run harness -- estimate` | The estimate probe: 200 Parties and Quests, each resolved 20,000 times (v1.1.4-S5) |
 | `npm run harness -- calibrate` | The calibration of the content, or of drafts (v1.1.4-S9) |
-| `npm run harness -- compare <a> <b>` | What moved between two play sweeps' JSON reports |
+| `npm run harness -- compare <a> <b>` | What moved between two play sweeps' JSON reports: the play counters, and apart from them the save's sizes, measures that the save's shape and its config move (DL-205) |
 
 `<milestone>` names the report: `m<n>` or `m<n>-<name>`, as `m9-v116-s3`. Words after a command, or any
 other words, pass through to Vitest: `npm run harness -- play.harness` plays the play sweep alone.
@@ -31,8 +31,9 @@ schema 7, config version 16, content version 36; S16's was `64020971…` at conf
 check at content 36 and config version 16 is `948be72d1c156791960e40fd3ba48b58621283527ebf2cc3dcce820b622d5cb4`.
 It changes only with a DL entry, as at a story that changes play or the save's shape (v1.1.6-S7 and S17) or
 raises the content version or the config version, both of which every save records (with `meta.config`).
-The full `gate`'s, 50 × 20, is `ecede9c07ee4ac031f62bec25a0848c73008b9fdefe9416083975f390c06e6fa`
-(`m9-v116-s17`, DL-203: schema 7, config version 15, content version 36; S7's was `143a44c7…` at 34).
+The full `gate`'s, 50 × 20, was, at S17 (config version 15),
+`ecede9c07ee4ac031f62bec25a0848c73008b9fdefe9416083975f390c06e6fa` (`m9-v116-s17`, DL-203: schema 7, content
+version 36; S7's was `143a44c7…` at 34); S18's config version 16 moves it at its next run.
 
 ## Settings
 

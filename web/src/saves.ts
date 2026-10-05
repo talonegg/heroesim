@@ -1,8 +1,8 @@
 // Saves kept in the browser (M7-S4, DL-67). A save is the game's save text, the canonical JSON the
 // CLI writes (`saveText`, the engine's `serialise`), compressed with `CompressionStream("gzip")` into
 // a Blob and kept in IndexedDB, in the database `heroesim.saves`, under a name the player gives.
-// `load` gives the text back, which the reducer's `load` play reads with `deserialise` under the
-// engine's own config, exactly as it reads a file (DL-20, DL-65). `export` gives the uncompressed
+// `load` gives the text back, which the reducer's `load` play reads with `deserialise`, its config
+// checked by the engine's `playDeps`, exactly as it reads a file (DL-20, DL-65, DL-193). `export` gives the uncompressed
 // text as the file the CLI reads, byte for byte; `import` reads such a file for that same play.
 //
 // A browser may keep nothing for the page: a private window, site data blocked, a sandboxed frame.

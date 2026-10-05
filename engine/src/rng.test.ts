@@ -444,18 +444,22 @@ describe('weightedPick (M4-S5, DL-43)', () => {
   // size (the weights' total) before comparing it to a whole number, so the floating-point rounding of the
   // product is the same on both and no bucket's edge falls differently; held here for the list sizes a draw
   // is made over and a few beyond them.
+  // A third state, stepped by one `next` a draw, holds each to one draw; the states are compared word
+  // by word, as a copy and a join each draw made the sweep pass 5 s under the whole suite's load (DL-205).
   test('with every weight 1, for every length from 1 to 64 and some beyond, is pick from the same state, one draw', () => {
+    const same = (a: State, b: State): boolean => a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
     for (const length of [...Array.from({ length: 64 }, (_, index) => index + 1), 97, 128, 255, 1000]) {
       const items = Array.from({ length }, (_, index) => index);
       const ones = items.map(() => 1);
       const weighted = generation(`weighted-sizes-${length}`);
       const picked = generation(`weighted-sizes-${length}`);
+      const stepped = generation(`weighted-sizes-${length}`);
       const differing: { draw: number; drawn: number; pick: number }[] = [];
       for (let i = 0; i < 5000; i += 1) {
-        const afterOne = advancedCopy(picked, 1);
+        next(stepped);
         const drawn = weightedPick(weighted, items, ones);
         const pickedItem = pick(picked, items);
-        if (drawn !== pickedItem || weighted.join() !== picked.join() || picked.join() !== afterOne.join()) {
+        if (drawn !== pickedItem || !same(weighted, picked) || !same(picked, stepped)) {
           differing.push({ draw: i, drawn, pick: pickedItem });
         }
       }

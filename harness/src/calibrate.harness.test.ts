@@ -38,7 +38,7 @@ test.runIf(probe !== null)('the content is calibrated, and the estimate holds to
   const aim: TuningAim | undefined = probe.tune === null ? undefined : { ...defaultTuningAim, chance: probe.tune, flatShare: probe.flat };
   if (aim !== undefined && draftDir !== null) {
     const { content } = loadDrafts(draftDir);
-    const deps: EngineDeps = { config: runConfig(configured, content), content };
+    const deps: EngineDeps = { config: runConfig(configured), content };
     const pool = heroPool(`calibrate-level-${aim.level}`, aim.level, settings.pool, deps);
     const factors = tunedFactors(pool, aim, settings.parties, deps);
     const path = join(draftDir, 'encounters.json');
@@ -58,7 +58,7 @@ test.runIf(probe !== null)('the content is calibrated, and the estimate holds to
   }
 
   const { content, drafted } = loadDrafts(draftDir);
-  const deps: EngineDeps = { config: runConfig(configured, content), content };
+  const deps: EngineDeps = { config: runConfig(configured), content };
   const calibration = calibrate(settings, deps, drafted);
   const seconds = (Date.now() - startedAt.getTime()) / 1000;
   const set = settingsSet('calibrate').filter((it) => !it.startsWith('HEROESIM_PROBE=') && !it.startsWith('HEROESIM_CALIBRATION_OUT='));

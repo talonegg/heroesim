@@ -68,7 +68,8 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
   const columnKeys = useMemo(() => groups.flatMap((group) => group.columns.map((column) => column.key)), [groups]);
   const [shownAs, setShownAs] = useRemembered(preferences.rosterView);
   const [keptOrderOf, keepOrder] = useRemembered(preferences.rosterOrder);
-  const order = orderKept(keptOrderOf);
+  // One value while the sort kept is the same, so that the rows are sorted only when it changes (DL-205).
+  const order = useMemo(() => orderKept(keptOrderOf), [keptOrderOf]);
   const [hidden, setHidden] = useRemembered(preferences.rosterColumns);
   const [tab, setTab] = useRemembered(preferences.rosterTab);
   const [columnsOpen, setColumnsOpen] = useState(false);

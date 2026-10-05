@@ -13,7 +13,6 @@ import {
   offeredQuests,
   playerGuild,
   probe,
-  rebase,
   serialise,
   unattachedHeroes,
   type EngineDeps,
@@ -56,7 +55,6 @@ vi.mock('@heroesim/engine', async (importOriginal) => {
     createWorld: vi.fn(engine.createWorld),
     deserialise: vi.fn(engine.deserialise),
     fastForward: vi.fn(engine.fastForward),
-    rebase: vi.fn(engine.rebase),
   };
 });
 
@@ -340,7 +338,8 @@ describe('the rules a game plays under', () => {
     const loaded = play(started(), { kind: 'load', text: olderRules(started()) });
     const rebased = play(loaded, { kind: 'rebase' });
 
-    expect(lastDeps(rebase)).toEqual({ config: defaultConfig, content });
+    expect(vi.mocked(applyAction).mock.calls.at(-1)?.[1]).toEqual({ kind: 'rebase' });
+    expect(lastDeps(applyAction)).toEqual({ config: defaultConfig, content });
     expect(documentOf(rebased).meta.config).toEqual(defaultConfig);
     expect(rebased.log.map((event) => event.type)).toEqual(['world.rules-adopted']);
 
@@ -416,7 +415,7 @@ describe('the modules installed (M8-S4): none unless the page is given some', ()
     withProbe(forwarded, { kind: 'unequip', heroId, slot: 'weapon' });
     expect(lastDeps(applyAction)).toEqual(expected);
     withProbe(forwarded, { kind: 'rebase' });
-    expect(lastDeps(rebase)).toEqual(expected);
+    expect(lastDeps(applyAction)).toEqual(expected);
     withProbe(initialGameState, { kind: 'load', text: serialise(documentOf(state)) });
     expect(lastDeps(deserialise)).toEqual({ content, modules: [probe] });
   });

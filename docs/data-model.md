@@ -53,7 +53,7 @@ its own configuration and never rebases. The play config comes from one seam, th
 `defaultConfig` with `meta.config` over it, so a field the save has keeps its value, a field it
 predates reads as the current default and a field the current `GameConfig` lacks is ignored (rule
 5); then every setting is checked by its rule (`checkConfig`: ranges, every Min at most its Max,
-the bands in their order, the lists content sizes), and a save with a setting no rule allows is
+the bands in their order, each list's members), and a save with a setting no rule allows is
 refused at load, naming it (v1.1.6-S7, DL-186 item 12, DL-193). No config migration exists;
 `rebase` is the only thing that rewrites `meta.config` (pre-M0 review D3). `configVersion` is the
 engine's, bumped in the decision log whenever a default changes (owner, 2026-09-25, pre-M0 review
