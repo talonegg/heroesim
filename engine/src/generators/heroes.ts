@@ -42,7 +42,7 @@ const lowestSkillRating = 1;
 const highestSkillRating = 5;
 
 export interface HeroOptions extends DrawsFrom {
-  /** The Hero's Class; drawn uniformly from content when omitted. */
+  /** The Hero's Class; drawn from content by the Classes' weights (`pickByWeight`, DL-202) when omitted. */
   classKey?: ClassKey;
   /**
    * Stored as given (DL-19), with the XP that Level takes, `xpForLevel`, so that the Hero's XP and

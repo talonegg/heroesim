@@ -9,7 +9,7 @@ import type { PatronGenerated } from '../events.js';
 import { checkName, pickByWeight, pickUnusedBy, sortedRows, streamOf, type DrawsFrom } from './draw.js';
 
 export interface PatronOptions extends DrawsFrom {
-  /** Drawn uniformly from content's Spheres when omitted. */
+  /** Drawn from content's Spheres by their weights (`pickByWeight`, DL-202) when omitted. */
   sphereKey?: SphereKey;
   /**
    * Drawn from content's Patron names that no Patron in the world has, when omitted, with the sex

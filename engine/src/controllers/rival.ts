@@ -53,12 +53,13 @@ import {
  *    (`preferredQuest`), drawing from `rivals` to choose among Quests of the same difficulty;
  * 3. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
  *    (`purchaseSteps`' order when it has none, as here, v1.1.6-S16, DL-202):
- *    - build the next grade of the first facility of its Hall, in the Hall's order (the infirmary,
- *      the training yard, the quarters), whose next grade's cost its Wealth is above `buildThreshold`
- *      times (`hallBuild`: M3-S6 built the infirmary alone, M6-S4 every facility);
- *    - buy one piece of gear at the Market for its Heroes who lack it, armour first, then the other
- *      slots in `gearSlotKeys`' order: the dearest whose price its Wealth is above `gearThreshold`
- *      times (`gearBuy`, the engine's `gearPurchase`, M6-S4);
+ *    - build the next grade of the first facility of its Hall, in its `buildOrder` (the Hall's order
+ *      when it has none: the infirmary, the training yard, the quarters), whose next grade's cost its
+ *      Wealth is above `buildThreshold` times (`hallBuild`: M3-S6 built the infirmary alone, M6-S4
+ *      every facility);
+ *    - buy one piece of gear at the Market for its Heroes who lack it, in its `gearSlotOrder` (when it
+ *      has none, armour first, then the other slots in `gearSlotKeys`' order): the dearest whose price
+ *      its Wealth is above `gearThreshold` times (`gearBuy`, the engine's `gearPurchase`, M6-S4);
  *    - while it would hire (`hiringBudget`: its Wealth above `recruitThreshold` times its Upkeep, or
  *      its Roster below `rivalRosterMin` with `rivalHireReserveUpkeeps` Upkeeps to keep, DL-60) and its
  *      Roster has room enough by `transferAppetite`, seek the Hero it wants from another Guild with the

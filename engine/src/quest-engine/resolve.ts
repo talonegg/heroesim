@@ -373,7 +373,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     encounters,
     traits,
     consumables: kit.used,
-    // M5-S5: Loot, the sequence's last draws (loot.ts, DL-52), needing a Finale's Triumph (v1.1.4-S8).
+    // M5-S5: Loot, the sequence's last draws (loot.ts, DL-52), needing its Finale at a Degree in `lootOnFinaleDegrees` (v1.1.4-S8, DL-202).
     loot: drawLoot(world, quest, band, deps, finaleOf(quest, sequence, encounters, deps)),
   };
 }

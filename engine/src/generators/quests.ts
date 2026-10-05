@@ -18,7 +18,7 @@ import { clamp, pickByWeight, sortedRows, streamOf, type DrawsFrom } from './dra
 export const boardStream: StreamName = 'board';
 
 export interface QuestOptions extends DrawsFrom {
-  /** One of the Patron's templates; drawn uniformly from them when omitted. */
+  /** One of the Patron's templates; drawn from them by their weights (`pickByWeight`, DL-202) when omitted. */
   templateKey?: QuestTemplateKey;
   /**
    * The stream the Encounter sequence is drawn from: `encounters` when omitted. A module's
@@ -46,7 +46,8 @@ export function templatesFor(content: Pick<ContentSet, 'questTemplates'>, sphere
  * `options.stream` (`board` by default) and from no other stream, and returns it with its
  * `quest.offered` event for the caller to append. In draw order (DL-25):
  *
- * 1. the template, uniformly among the Patron's (no draw when `templateKey` is given);
+ * 1. the template, among the Patron's by their weights, one draw (`pickByWeight`, DL-202; none when
+ *    `templateKey` is given);
  * 2. the difficulty, `int` over the template's range held inside `questDifficultyMin/Max`;
  * 3. the duration in Days, `int` over the template's range, stored as `durationTurns`.
  *
