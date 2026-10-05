@@ -1,11 +1,19 @@
+import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { guildPartKey, rememberedGuildPart, rememberedList, rememberedView, rememberGuildPart, rememberList, rememberView, viewKey } from './remembered';
+import { preferences, rememberedGuildPart, rememberedList, rememberedPreference, rememberList, rememberPreference, useRemembered } from './remembered';
+
+const viewKey = preferences.view.key;
+const guildPartKey = preferences.guildPart.key;
+const rememberedView = () => rememberedPreference(preferences.view);
+const rememberView = (view: Parameters<typeof rememberPreference<typeof preferences.view>>[1]) => rememberPreference(preferences.view, view);
+const rememberGuildPart = (part: Parameters<typeof rememberPreference<typeof preferences.guildPart>>[1]) => rememberPreference(preferences.guildPart, part);
 
 // What this browser remembers of the page (M9-S3, DL-103; M9-F2, DL-115): the view open, and the
 // Guild's part open. The Hall was a view until M9-F2 and is a part of the Guild since: a browser
 // that remembers the Hall view opens the Guild at its Hall (DL-112 item 5).
 
 afterEach(() => {
+  cleanup();
   localStorage.clear();
   vi.restoreAllMocks();
 });
@@ -79,5 +87,95 @@ describe("a list remembered, as the Roster's hidden columns are (v1.1.5-S12, DL-
 
     rememberList('heroesim.test', ['class']);
     expect(rememberedList('heroesim.test', choices)).toBeNull();
+  });
+});
+
+/** Every storage access refused, as a private window or blocked site data does. */
+function refuseStorage(): void {
+  vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    throw new DOMException('The operation is insecure.', 'SecurityError');
+  });
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+  });
+}
+
+describe('the table of the nine viewing preferences (v1.1.6-S15, DL-186 item 25)', () => {
+  const table = Object.entries(preferences);
+
+  test('is nine, each under a key of its own, prefixed "heroesim."', () => {
+    expect(table).toHaveLength(9);
+    const keys = table.map(([, { key }]) => key);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const key of keys) expect(key).toMatch(/^heroesim\.[A-Za-z]+$/);
+  });
+
+  test("keeps the keys a player's browser already holds", () => {
+    expect(table.map(([, { key }]) => key).sort()).toEqual(
+      ['view', 'guildPart', 'boardOrder', 'guildsOrder', 'poolOrder', 'rosterView', 'rosterOrder', 'rosterColumns', 'rosterTab'].map((name) => `heroesim.${name}`).sort(),
+    );
+  });
+
+  test("each has choices, and a fallback that is one of them (a list's, empty)", () => {
+    for (const [name, { choices, fallback }] of table) {
+      expect(choices.length, name).toBeGreaterThan(0);
+      if (Array.isArray(fallback)) expect(fallback, name).toEqual([]);
+      else expect(choices, name).toContain(fallback);
+    }
+  });
+
+  test('a stored value outside the choices falls back, and one inside is read', () => {
+    for (const [name, which] of table) {
+      localStorage.setItem(which.key, 'by-moonlight');
+      const fallback = Array.isArray(which.fallback) ? [] : which.fallback;
+      expect(rememberedPreference(which as never), name).toEqual(fallback);
+      const [first = ''] = which.choices;
+      localStorage.setItem(which.key, first);
+      expect(rememberedPreference(which as never), name).toEqual(Array.isArray(which.fallback) ? [first] : first);
+    }
+  });
+
+  test('storage refused leaves every default, and keeping one does not throw', () => {
+    refuseStorage();
+    for (const [name, which] of table) {
+      expect(rememberedPreference(which as never), name).toEqual(which.fallback);
+      expect(() => rememberPreference(which as never, which.choices[0] as never), name).not.toThrow();
+    }
+  });
+});
+
+describe('useRemembered', () => {
+  test('opens on what is kept, and keeps what is set, nothing before', () => {
+    expect(renderHook(() => useRemembered(preferences.poolOrder)).result.current[0]).toBe('listed');
+    expect(localStorage.getItem(preferences.poolOrder.key)).toBeNull();
+
+    localStorage.setItem(preferences.poolOrder.key, 'fee');
+    const { result } = renderHook(() => useRemembered(preferences.poolOrder));
+    expect(result.current[0]).toBe('fee');
+    act(() => result.current[1]('class'));
+    expect(result.current[0]).toBe('class');
+    expect(localStorage.getItem(preferences.poolOrder.key)).toBe('class');
+  });
+
+  test('a list is kept as the list', () => {
+    const { result } = renderHook(() => useRemembered(preferences.rosterColumns));
+    expect(result.current[0]).toEqual([]);
+    const [first = '', second = ''] = preferences.rosterColumns.choices;
+    act(() => result.current[1]([first, second]));
+    expect(localStorage.getItem(preferences.rosterColumns.key)).toBe(`${first},${second}`);
+  });
+
+  test('the Guild part reads the Hall view kept before M9-F2', () => {
+    localStorage.setItem(viewKey, 'hall');
+    const { result } = renderHook(() => useRemembered(preferences.guildPart, rememberedGuildPart));
+    expect(result.current[0]).toBe('hall');
+  });
+
+  test('storage refused, it opens on the default and a set still changes the page', () => {
+    refuseStorage();
+    const { result } = renderHook(() => useRemembered(preferences.view));
+    expect(result.current[0]).toBe('guild');
+    act(() => result.current[1]('market'));
+    expect(result.current[0]).toBe('market');
   });
 });

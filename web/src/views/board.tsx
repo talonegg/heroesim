@@ -54,12 +54,6 @@ const orders: readonly (readonly [BoardOrder, string])[] = [
   ['leaves', 'Leaving soonest'],
 ];
 
-/** The orders, as this browser may keep one (Q11). */
-export const boardOrders: readonly BoardOrder[] = orders.map(([order]) => order);
-
-/** The key this browser keeps the Board's order under. */
-export const boardOrderKey = 'heroesim.boardOrder';
-
 /** Each kind of Encounter's icon (M9-S3's set). */
 const encounterIcons: Readonly<Record<EncounterKind, IconName>> = {
   combat: 'combat',

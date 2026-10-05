@@ -26115,6 +26115,18 @@ script 815,773 bytes; `npm run e2e -w web` 103 passing. No code that reaches pla
 
 ---
 
+## DL-201 — v1.1.6-S15 built: the page's widths named in `breakpoints`, held to the style sheet by a test; the nine viewing preferences in one table with one `useRemembered` hook
+
+2026-10-05. DL-186 items 23 (SF7) and 25 (SF9).
+
+- *The doctor.* Not run: the story touches neither `engine/src/` nor `content/src/validate.ts`, and AGENTS.md asks for it only then.
+- *Breakpoints* (`web/src/breakpoints.ts`). `breakpoints = { small: 420, phone: 600, wide: 900, rail: 1100 }`, and `narrowQuery` built from `phone` (`(max-width: 599px)`, as before; `ui.tsx` imports it, no longer declares it). Every width in `styles.css` is already one of the four (min-width 600, 900 and 1100; max-width 599 and 419, a pixel under `phone` and `small`), so the page's layout did not change and no stylesheet line was touched. `matchMedia` is asked only through `narrowQuery` (`useNarrow`); no other JS width exists. `breakpoints.test.ts` reads `styles.css` and holds each `@media` `min-width` to a declared width and each `max-width` to one a pixel under; a width in `em` fails too; every breakpoint is used. Mutated to confirm: `419px` made `430px` fails two tests; restored.
+- *Remembered preferences* (`web/src/views/remembered.ts`). One table, `preferences`, of the nine (`view`, `guildPart`, `boardOrder`, `guildsOrder`, `poolOrder`, `rosterView`, `rosterOrder`, `rosterColumns`, `rosterTab`), each `{ key, choices, fallback }` (a list's fallback is empty); and `useRemembered(preference, read?)` returning `[value, set]`, `set` setting the state and keeping it. The keys are unchanged (a test lists them). Every read and write stays in try/catch (`rememberedChoice`, `rememberChoice`, `rememberedList`, `rememberList`, still exported). The per-view key constants (`boardOrderKey`, `guildsOrderKey`, `poolOrderKey`, the four `roster*Key`, `viewKey`, `guildPartKey`), `rememberedView`, `rememberView`, `rememberGuildPart`, the Board's `boardOrders`, the pool's `orders` and the Guilds' `sorts` are gone, their choices now the table's. The app (view, Guild part, Board's order), the Roster (four preferences), the pool and the Guilds table read through the hook; `rememberedGuildPart` stays as the Guild part's `read`, since it also reads the Hall view kept before M9-F2. The saves stay in `saves.ts`, untouched.
+- *Tests.* Keys nine, unique, `heroesim.`-prefixed and the ones a browser already holds; each fallback among its choices; a stored value outside the choices falls back and one inside is read, for every preference; storage refused (throwing `getItem` and `setItem`) leaves every default and does not throw, also through the hook, where a set still changes the page.
+- *Checks.* `npm run lint` and `typecheck` clean; `npm test` 210 files, 5,791 tests passing; `npm run build` and check-bundle passing, the script 816,378 bytes (816,136 before, 242 more); `npm run e2e -w web` 103 passing. No sweep (no play code). Line endings as their directories, none mixed.
+
+*Judgement calls, for the owner to see.* (1) The view and the Guild part are now kept when set, not by an effect on mount and change: a browser has nothing stored until the player first changes view (before, the view in force was stored as the page mounted). What a player sees is the same. (2) `toGuildHome` sets both while rendering, so they are kept during a render, as it already set the state there.
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
