@@ -375,6 +375,7 @@ describe('a Query, held in memory', () => {
     ['a sex that is a number', 'among', ['where', 'party', ['sex', 1]], [
       '.2.1: 1 is not a sex: female or male',
     ]],
+    ['a Hero Trait', 'score', ['count', ['where', 'party', ['has-trait', 'battle-tried']]], []],
     // top, bottom, has-skill and ranked's numbers, and weighted's pairs.
     ['top of 0', 'score', ['count', ['top', 'party', 0, ['level']]], [
       '.1.2 is 0; top\'s n is a whole number from 1',
@@ -421,6 +422,7 @@ describe('a Query, held in memory', () => {
       '.1.3.2 is 1; a weight is a finite number of 0 or more',
       '.1.3.3 is null; a weight is a finite number of 0 or more',
     ]],
+    ['ranked with a weight of 0', 'score', ['ranked', 'party', ['stat', 'wits'], [1, 0]], []],
     ['weighted of a word', 'requirement', ['>=', ['max', 'party', ['weighted', 'strength']], 1], [
       '.1.2.1 is "strength"; weighted\'s Stats are a list of one or more [Stat, weight] pairs',
     ]],
@@ -506,6 +508,15 @@ describe('a Query, held in memory', () => {
     ['a Set filtered by Sex, by a Skill', 'score', ['sum', ['where', 'party', ['sex', 'female']], ['skill', 'tactics']], []],
     ['a Set filtered by Sex, by Morale', 'score', ['avg', ['where', 'party', ['sex', 'female']], ['morale']], []],
     ['a Set filtered by Sex, by age', 'score', ['max', ['where', 'party', ['sex', 'female']], ['age']], []],
+    ['a Set filtered by Sex, by a Level plus one', 'score', ['sum', ['where', 'party', ['sex', 'female']], ['+', 1, ['level']]], []],
+    ['a Set filtered by Sex, by a Level less one', 'score', ['avg', ['where', 'party', ['sex', 'male']], ['-', ['level'], 1]], []],
+    ['a Set filtered by Sex, by a product of numbers', 'score', ['sum', ['where', 'party', ['sex', 'female']], ['*', 2, 3]], [
+      ': a Set filtered by Sex is counted; Sex decides who takes part, never a number (DL-148 item 6)',
+    ]],
+    ['a Set filtered by Sex, a Stat summed, plus one', 'score', ['+', ['sum', ['where', 'party', ['sex', 'female']], ['stat', 'strength']], 1], []],
+    ['a Set filtered by Sex, counted, plus one', 'score', ['+', ['count', ['where', 'party', ['sex', 'female']]], 1], [
+      '.1: a Set filtered by Sex is counted; Sex decides who takes part, never a number (DL-148 item 6)',
+    ]],
     // Size.
     ['more than 64 nodes', 'requirement', ['>=', ['+', ...Array.from({ length: 62 }, () => 1)], 1], [
       ' has 65 nodes; a Query has at most 64',
@@ -714,6 +725,37 @@ describe('a Query, held in memory', () => {
     ['a count of a subtracted sum of a Stat', 'score', ['count', ['-', 0, ['sum', 'party', ['stat', 'wits']]]], [
       '.1: "-" makes a Val or a Num, where a Set is expected',
     ]],
+    ['a Stat that may be negative under a negative', 'score', ['*', -1, ['*', ['-', ['count', 'party'], 3], ['max', 'party', ['stat', 'wits']]]], [
+      '.2: "*" multiplies a Stat a Hero adds by a number that may be negative; form would then raise the score of a hurt or low-spirited Hero',
+    ]],
+    ['a Stat times a word', 'score', ['*', 'x', ['max', 'party', ['stat', 'wits']]], [
+      '.1 is "x"; expected a Num, a list with its operator first',
+      ': "*" multiplies a Stat a Hero adds by a number that may be negative; form would then raise the score of a hurt or low-spirited Hero',
+    ]],
+    ['a Stat times a weighted of no pairs', 'score', ['sum', 'party', ['*', ['weighted', 'x'], ['stat', 'wits']]], [
+      '.2.1.1 is "x"; weighted\'s Stats are a list of one or more [Stat, weight] pairs',
+      '.2: "*" multiplies a Stat a Hero adds by a number that may be negative; form would then raise the score of a hurt or low-spirited Hero',
+    ]],
+    ['a Stat times a ranked of a negative weight', 'score', ['*', ['ranked', 'party', ['level'], [-1]], ['max', 'party', ['stat', 'wits']]], [
+      '.1.3.0 is -1; a weight is a finite number of 0 or more',
+      ': "*" multiplies a Stat a Hero adds by a negative number; form would then raise the score of a hurt or low-spirited Hero',
+    ]],
+    ['a Stat times -1 and a least of nothing', 'score', ['*', -1, ['least'], ['max', 'party', ['stat', 'wits']]], [
+      '.2: "least" takes 1 argument or more; it has 0',
+    ]],
+    ['a Stat times a product of numbers, negative', 'score', ['*', ['*', 2, -0.5], ['max', 'party', ['stat', 'wits']]], [
+      ': "*" multiplies a Stat a Hero adds by a negative number; form would then raise the score of a hurt or low-spirited Hero',
+    ]],
+    ['a Num where a Val stands, of a subtracted Stat', 'score', ['sum', 'party', ['count', ['-', 0, ['stat', 'wits']]]], [
+      '.2: "count" makes a Num, where a Val is expected',
+    ]],
+    ['a Val where a Num stands, of a subtracted sum of a Stat', 'score', ['+', 1, ['level', ['-', 0, ['sum', 'party', ['stat', 'wits']]]]], [
+      '.2: "level" makes a Val, where a Num is expected',
+    ]],
+    ['a Stat times a sum of numbers, the Val negative', 'score', ['*', ['sum', 3, -1], ['max', 'party', ['stat', 'wits']]], [
+      '.1.1 is 3; a number stands for a Val or a Num, not a Set',
+      ': "*" multiplies a Stat a Hero adds by a negative number; form would then raise the score of a hurt or low-spirited Hero',
+    ]],
     // Accepted.
     ['a Stat less a number', 'score', ['sum', 'party', ['-', ['stat', 'strength'], 2]], []],
     ['a sum less a count of Heroes filtered by a Stat', 'score', ['-', ['sum', 'party', ['stat', 'strength']], ['count', ['where', 'party', ['<', ['stat', 'wits'], 8]]]], []],
@@ -733,6 +775,13 @@ describe('a Query, held in memory', () => {
     ['a Stat times a count less nought', 'score', ['*', ['-', ['count', 'party'], 0], ['max', 'party', ['stat', 'wits']]], []],
     ['a Stat times the greatest of numbers, one negative', 'score', ['*', ['greatest', 1, -2], ['max', 'party', ['stat', 'wits']]], []],
     ['a Stat times nought', 'score', ['*', 0, ['max', 'party', ['stat', 'wits']]], []],
+    ['a Stat times a sum of Levels', 'score', ['*', ['sum', 'party', ['level']], ['max', 'party', ['stat', 'wits']]], []],
+    ['a Stat times a mean of Levels', 'score', ['*', ['avg', 'party', ['level']], ['max', 'party', ['stat', 'wits']]], []],
+    ['a Stat times the most of Levels', 'score', ['*', ['max', 'party', ['level']], ['max', 'party', ['stat', 'wits']]], []],
+    ['a Stat times the least of Levels', 'score', ['*', ['min', 'party', ['level']], ['max', 'party', ['stat', 'wits']]], []],
+    ['a Stat times the best Hero\'s Level', 'score', ['*', ['of', ['best', 'party', ['level']], ['level']], ['max', 'party', ['stat', 'wits']]], []],
+    ['a Stat times the least of 1 and a count', 'score', ['*', ['least', 1, ['count', 'party']], ['max', 'party', ['stat', 'wits']]], []],
+    ['a Stat times the greatest of 1 and a count', 'score', ['*', ['greatest', 1, ['count', 'party']], ['max', 'party', ['stat', 'wits']]], []],
     ['a Set filtered by Sex, a Stat summed', 'score', ['sum', ['where', 'party', ['sex', 'female']], ['stat', 'strength']], []],
     ['a Set filtered by Sex, the best Level', 'score', ['max', ['where', 'party', ['sex', 'female']], ['level']], []],
     ['a Set filtered by Sex, its best Hero read', 'score', ['of', ['best', ['where', 'party', ['sex', 'male']], ['level']], ['level']], []],

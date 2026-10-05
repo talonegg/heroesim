@@ -25655,6 +25655,43 @@ a condition whose comparison is none of the five now throws, as every other type
 Query (`describe.ts`) still switches on its operators: the story's table drives the evaluator and
 the checks; the account is the front ends' and was left. ADR-0010 carries a dated amendment.
 
+*The verification* (2026-10-05, a second Opus agent, at `3137a4f`). The doctor read no drift before
+and after (107 reads of a Trait, the doc fresh). *The refusals against the old checker.* 129 mutants
+of `8a00f7d`'s `validate.ts`, put back in place, each run against `query-refusals.test.ts` alone (a
+no-op control passing): every turn of the node walk (each type's leaf, the operator's own row, the
+counts of arguments, each kind of argument, the size), each key, number and list, Sex and its count,
+`readsHero`, the sign walk, `signOf` operator by operator, `constantOf`, `belowOf`, `misplaced`,
+`arity`, and the callers (a raw Check, the requirement's gate, each `among`). 106 killed; 19 more
+changed a refusal no case held: a Hero Trait accepted, a weight of 0, a Num carrying its Sex filter
+up, a Val sum and difference that reads a Hero beside a number, a product of numbers alone, a
+turn's culprit under a negative, a factor that is a word or a `weighted` of no pairs, the sign of
+`sum`, `avg`, `max`, `min`, `of`, `least` and `greatest` and of `ranked`'s weights, an empty
+`least`, a product of numbers, and a constant under an operator of no arithmetic. 21 cases added,
+and two more for an operator of another type whose arguments the sign walk must not enter (a mutant
+of `problems.ts`' gates, the old `belowOf`'s `null`): 259 Queries, each run against the old
+`validate.ts` put back and passing there, and passing after. Then 125 of the 129 killed; the four
+left change no problem (`readsHero` asked of a node not a Val, the Sex count asked of a node not a
+Num, `!== true` for `=== false`, and a culprit named where the polarity turns without going below
+nought), since no Set stands under a Val and every Num above a filter has reset it. The same
+mutants where `problems.ts` holds the same text (97), with 37 of its own (the place, the signature
+read into fixed, optional and rest, each switch's answers and each gate), against the content test
+alone: 128 of 134 killed, the four above and two more equivalent (the row looked up by plain
+property, since no property of an object's prototype has a `signature`; `count`'s Set walked as a
+Val, whose operators the walk does not know). *The evaluator,* line for line against `8a00f7d`'s
+`query.ts`: each row the old case's expression, the members in Party order (`"party"` copied,
+`where` and `top`/`bottom` filtering the inner Set in order), ranking ties by index, an empty Set 0,
+no Hero 0, `ranked` cut to its weights, the throw's words for each type; only `holds` differs, as
+said. It is reached by `meetsRequirement` alone, over `content.synergies`, and every content set is
+`parseContent`'s (the CLI, the harness, drafts, the portrait tool) or the page's bundled files, which
+the build validates (`content-gate.ts`); test support builds only `>=`; no Module holds a Query. *The
+script:* 814,768 bytes again; none of eight phrases of the checks' words, nor `queryProblems`, in
+it; the 519 bytes are the rows' `signature` lists, seen in the minified rows. `queryProblems` and
+its two types are exported for content's checker, production. No code that plays changed, so
+`neutral` was not run again; the build's stands. *Checks:* `npm run lint` and `typecheck` clean;
+`npm test` 197 files, 5,547 tests passing (S8's `testing.test.ts` among them); `npm run build` and
+check-bundle passing; `npm run e2e -w web` 103 passing. Line endings as each file's before, none
+mixed.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
