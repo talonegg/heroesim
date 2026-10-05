@@ -560,6 +560,22 @@ describe('document-shape', () => {
 
   test.each<[string, Mutation, string]>([
     ['a missing table', (d) => drop(d.world, 'offers'), '$.world.offers'],
+    // v1.1.6-S7 (DL-193): the version of the defaults is `meta`'s, a whole number. `meta` is shared
+    // between documents, so each is changed on a copy.
+    [
+      'a meta without the version of its defaults, as schema 6 wrote it (v1.1.6-S7)',
+      (d) => {
+        const meta = { ...d.meta };
+        drop(meta, 'configVersion');
+        set(d, 'meta', meta);
+      },
+      '$.meta.configVersion',
+    ],
+    [
+      'a version of the defaults that is not a whole number (v1.1.6-S7)',
+      (d) => set(d, 'meta', { ...d.meta, configVersion: 13.5 }),
+      '$.meta.configVersion',
+    ],
     ['a missing field', (d) => drop(hero(d, ids.partyHero), 'stats'), `${heroPath}.stats`],
     ['a field of the wrong kind', (d) => set(hero(d, ids.partyHero), 'traits', 'none'), `${heroPath}.traits`],
     ['a row that is not an object', (d) => set(d.world.patrons, ids.patron, 'Maud'), patronPath],

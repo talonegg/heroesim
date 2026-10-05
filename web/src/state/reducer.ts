@@ -379,7 +379,7 @@ function withModules(modules: readonly Module[]): Pick<EngineDeps, 'modules'> {
   return modules.length === 0 ? {} : { modules };
 }
 
-/** The engine's own deps, with `modules` installed: to read a save (DL-20), start a game, and rebase one. */
+/** The engine's own deps, with `modules` installed: to start a game and rebase one (a save is read by `deserialise`, DL-193). */
 function engineDeps(modules: readonly Module[]): EngineDeps {
   return { config: defaultConfig, content, ...withModules(modules) };
 }

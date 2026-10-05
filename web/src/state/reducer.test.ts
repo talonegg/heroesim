@@ -330,6 +330,13 @@ describe('the rules a game plays under', () => {
     expect(loaded.document).toBeNull();
   });
 
+  test("a game in hand whose config breaks a rule is a bug, which the page's playDeps throws on, naming the setting (DL-193)", () => {
+    const document = documentOf(started());
+    const unsound: WorldDocument = { ...document, meta: { ...document.meta, config: { ...document.meta.config, boardSize: -1 } } };
+
+    expect(() => playDeps(unsound)).toThrow("The game's config is unsound: boardSize is -1; it is a whole number, at least 0");
+  });
+
   test("rebase adopts the current defaults, not the save's own; a second rebase is refused", () => {
     const loaded = play(started(), { kind: 'load', text: olderRules(started()) });
     const rebased = play(loaded, { kind: 'rebase' });

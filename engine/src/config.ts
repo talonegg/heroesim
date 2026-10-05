@@ -536,8 +536,9 @@ export const regardBandNames = ['hostile', 'cool', 'neutral', 'warm', 'close'] a
 export type RegardBand = (typeof regardBandNames)[number];
 
 /**
- * The defaults' version, written as `meta.configVersion` (v1.1.6-S7, DL-193). Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
- * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
+ * The defaults' version, written as `meta.configVersion` (v1.1.6-S7, DL-193). Raised, with a
+ * decision-log entry, whenever a default in `defaultConfig` changes; `rebase` records the old and
+ * the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
  * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 twice over, on two lines at once, from
  * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 twice over again, from
  * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
