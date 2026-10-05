@@ -112,6 +112,9 @@ describe('availabilityOf', () => {
     const document = newGame();
     const hero = Object.assign(firstHero(document), change);
     expect(availabilityOf(hero, document.world)).toEqual({ why, freeOnTurn: null, where: words, until: words, chip });
+    // On no Roster, they say so first, as the Roster's words always did (v1.1.6-S14's verification, DL-200).
+    Object.assign(hero, { guildId: null, unattachedSince: 12 });
+    expect(availabilityOf(hero, document.world)).toEqual({ why, freeOnTurn: null, where: words, until: words, chip });
   });
 
   test('a Hero on no Roster is at no Hall, and can go if nothing else stops them', () => {

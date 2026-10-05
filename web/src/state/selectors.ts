@@ -764,8 +764,9 @@ function orderPhrase(key: RosterSortKey, direction: SortDirection, set: ContentS
     case 'name':
       return up ? 'A to Z' : 'Z to A';
     case 'class': {
-      const classes = Object.values(set.classes);
-      return `${(up ? classes[0] : classes.at(-1))?.name ?? 'Class'} first`;
+      // The first and last in the declared order the sort reads (`classComparator`, DL-186 item 24).
+      const first = up ? set.classOrder[0] : set.classOrder.at(-1);
+      return `${first === undefined ? 'Class' : nameIn(set.classes, first)} first`;
     }
     case 'age':
       return up ? 'youngest first' : 'oldest first';

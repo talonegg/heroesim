@@ -24,6 +24,7 @@ import {
   transferFee,
   unattachedHeroes,
   unavailability,
+  type ContentSet,
   type Guild,
   type Hero,
   type HeroId,
@@ -983,6 +984,15 @@ describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
     expect(orderWords('age', 'descending')).toBe('Oldest first');
     expect(orderWords('free', 'ascending')).toBe('At the Hall first');
     expect(orderWords('free', 'descending')).toBe('At the Hall last');
+  });
+
+  test("names the Class first and last in the content's declared order, not by classes.json's keys (v1.1.6-S14's verification, DL-200)", () => {
+    const reordered: ContentSet = { ...content, classes: Object.fromEntries(Object.entries(content.classes).reverse()) };
+    expect(orderWords('class', 'ascending', reordered)).toBe('Warrior first');
+    expect(orderWords('class', 'descending', reordered)).toBe('Healer first');
+    const declared: ContentSet = { ...content, classOrder: ['mage', 'healer', 'warrior', 'rogue'] };
+    expect(orderWords('class', 'ascending', declared)).toBe('Mage first');
+    expect(reverseOrderName('class', 'descending', declared)).toBe('Reverse the order, now Rogue first');
   });
 
   test("names the direction's button by its action, then the direction it is in, the shown words inside a sentence (#52's judgement call 4, DL-185)", () => {

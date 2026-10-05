@@ -187,9 +187,9 @@ describe("the Classes' order", () => {
   });
 
   test.each([
-    ['a Class missing', (json: string[]) => void json.pop(), 'classOrder: healer is a Class and is not in the order; list each Class once'],
-    ['a Class twice', (json: string[]) => void json.push('mage'), 'classOrder: mage is listed twice; list each Class once'],
-    ['a key that is no Class', (json: string[]) => void json.push('bard'), 'classOrder: bard is not a Class'],
+    ['a Class missing', (json: string[]) => void json.pop(), 'classOrder: "healer" is a Class and is not in the order; list each Class once'],
+    ['a Class twice', (json: string[]) => void json.push('mage'), 'classOrder: "mage" is listed twice; list each Class once'],
+    ['a key that is no Class', (json: string[]) => void json.push('bard'), 'classOrder: "bard" is not a Class'],
   ])('is refused with %s, naming it', (_name, change, problem) => {
     expect(refusalOf(() => parseContent(withJson('class-order.json', change))).message).toContain(problem);
   });
