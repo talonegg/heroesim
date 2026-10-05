@@ -89,6 +89,17 @@ export function shownValue(value: unknown): string {
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
+/**
+ * `value` with its keys in `like`'s order, at every depth, where both are objects: the file's order,
+ * whatever order a value is given in, so that a reordering alone is no change (v1.1.6-S18's
+ * verification, DL-204).
+ */
+function inOrderOf(value: unknown, like: unknown): unknown {
+  if (!isRecord(value) || !isRecord(like)) return value;
+  const keys = [...Object.keys(like).filter((key) => Object.hasOwn(value, key)), ...Object.keys(value).filter((key) => !Object.hasOwn(like, key))];
+  return Object.fromEntries(keys.map((key) => [key, inOrderOf(value[key], like[key])]));
+}
+
 export class ConfigEditor {
   /** The files the last call put back from a "Finish" cut off, if any. */
   recovered: string[] = [];
@@ -172,12 +183,13 @@ export class ConfigEditor {
    * replaces its pending edit, and one set back to its value on disk is no longer pending; a value as
    * it is already is not held.
    */
-  set(setting: string, value: unknown): { setting: string; section: string; value: unknown; was: unknown; unchanged?: true } {
+  set(setting: string, given: unknown): { setting: string; section: string; value: unknown; was: unknown; unchanged?: true } {
     const { json } = readConfigFile(this.root);
     const edits = this.edits();
     const section = this.#sectionOf(json.sections, setting);
     if (section === undefined) throw new Refused([`"${setting}" is not a setting of config.json; \`config show\` lists them by section`]);
     const was = json.sections[section]?.[setting];
+    const value = inOrderOf(given, was);
     const before = this.#working(json.sections, edits)[section]?.[setting];
     if (same(before, value)) return { setting, section, value, was, unchanged: true };
     const others = edits.filter((edit) => edit.setting !== setting);

@@ -174,7 +174,7 @@ change, its field, its rule and its value made together ([`docs/agents/config.md
 | Command | What it does |
 | --- | --- |
 | `config show [<section>]` | Every section's settings, or one section's, with the pending edits made, each pending one beside its value in the file |
-| `config set <setting> <value>` | Sets a value, pending; the value read as JSON where it is JSON (`25`, `{"female":1,"male":3}`), as text where not (`warm`) |
+| `config set <setting> <value>` | Sets a value, pending; the value read as JSON where it is JSON (`25`, `{"female":1,"male":3}`), as text where not (`warm`); an object's keys taken in the file's order |
 | `config pending` | The pending edits |
 | `config discard [<setting>]` | Drops one setting's pending edit, or all |
 | `config finish --reason <why>` | Writes the pending edits, raises the config version with a line of its changelog, runs `npm test` |

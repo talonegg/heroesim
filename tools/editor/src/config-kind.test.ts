@@ -2,8 +2,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import type { Deps } from './cli.js';
-import { configPath } from './config-kind.js';
-import { pendingPath } from './editor.js';
+import { ConfigEditor, configPath } from './config-kind.js';
+import { Editor, pendingPath } from './editor.js';
+import { journalPath, journalState, writeAtomically } from './finish-journal.js';
 import { command, git, json, plantOutcome, scratchRepository, status } from './test-support.js';
 
 // The editor's config kind (v1.1.6-S18, DL-186 item 15, DL-204), each command driven on a scratch
@@ -83,6 +84,23 @@ describe('set', () => {
     ]);
   });
 
+  // v1.1.6-S18's verification (DL-204): an object's keys given in another order are the same value,
+  // and are held in the file's order, so that a reordering alone neither raises the version nor
+  // rewrites the file.
+  test("reads an object's keys in the file's order, whatever order they are given in", async () => {
+    const dir = scratch();
+    const same = await json<{ unchanged?: true; pending: number }>(dir, 'config', 'set', 'heroSexWeights', '{"male":1,"female":1}');
+    expect(same.json).toMatchObject({ unchanged: true, pending: 0 });
+
+    expect((await json(dir, 'config', 'set', 'heroSexWeights', '{"male":3,"female":1}')).code).toBe(0);
+    const [edit] = (await json<{ edits: { setting: string; value: Record<string, number> }[] }>(dir, 'config', 'pending')).json.edits;
+    expect(edit?.setting).toBe('heroSexWeights');
+    expect(Object.entries(edit?.value ?? {})).toEqual([
+      ['female', 1],
+      ['male', 3],
+    ]);
+  });
+
   test("refuses a value checkConfig refuses, naming the setting, and holds nothing", async () => {
     const dir = scratch();
     const negative = await json<Failure>(dir, 'config', 'set', 'boardSize', '-1');
@@ -156,12 +174,15 @@ describe('finish', () => {
   test('a test that fails puts the file back and keeps the edits pending', async () => {
     const dir = scratch();
     plantOutcome(dir, 'fail');
+    const bytes = readFileSync(configPath(dir));
     await json(dir, 'config', 'set', 'wagePerLevel', '25');
 
     const failed = await json<Failure>(dir, 'config', 'finish', '--reason', 'a trial');
 
     expect(failed.code).toBe(1);
     expect(failed.json.kind).toBe('undone');
+    // Byte for byte, its line ends included (v1.1.6-S18's verification).
+    expect(readFileSync(configPath(dir))).toEqual(bytes);
     expect(status(dir)).toBe('');
     expect((await json<{ edits: unknown[] }>(dir, 'config', 'pending')).json.edits).toEqual([{ setting: 'wagePerLevel', value: 25 }]);
   });
@@ -201,5 +222,57 @@ describe('finish', () => {
     const misplaced = await command(['traits', 'list', '--reason', 'x', '--root', dir]);
     expect(misplaced.code).toBe(2);
     expect(misplaced.err).toContain("--reason is config finish's alone");
+  });
+});
+
+// v1.1.6-S18's verification (DL-204): the config kind's "Finish" and the Traits' share one journal
+// and lock, so neither kind writes or reads while the other's tests run, and a "Finish" of either
+// kind cut off is put back by the next command of either.
+describe("the Traits' journal and lock, shared", () => {
+  test("while a config Finish's tests run, every command of either kind is refused as busy", async () => {
+    const dir = scratch();
+    await json(dir, 'config', 'set', 'wagePerLevel', '25');
+    const during: Record<string, string> = {};
+    const finished = await new ConfigEditor(dir).finish('a trial', async (root) => {
+      during.traits = (await json<Failure>(root, 'traits', 'list')).json.kind;
+      during.traitsFinish = (await json<Failure>(root, 'traits', 'finish')).json.kind;
+      during.config = (await json<Failure>(root, 'config', 'set', 'boardSize', '7')).json.kind;
+      return { ok: true, exitCode: 0, failures: [], tail: [] };
+    });
+    expect(during).toEqual({ traits: 'busy', traitsFinish: 'busy', config: 'busy' });
+    expect(finished.configVersion).toEqual({ from: readConfig(dir).version - 1, to: readConfig(dir).version });
+    expect(journalState(dir)).toBe('none');
+  });
+
+  test("while a Traits Finish's tests run, the config kind is refused as busy", async () => {
+    const dir = scratch();
+    await json(dir, 'traits', 'change', 'thrifty', '--cost', '3');
+    await json(dir, 'config', 'set', 'wagePerLevel', '25');
+    const during: Record<string, string> = {};
+    await new Editor(dir).finish(async (root) => {
+      during.set = (await json<Failure>(root, 'config', 'set', 'boardSize', '7')).json.kind;
+      during.finish = (await json<Failure>(root, 'config', 'finish', '--reason', 'a trial')).json.kind;
+      return { ok: true, exitCode: 0, failures: [], tail: [] };
+    });
+    expect(during).toEqual({ set: 'busy', finish: 'busy' });
+    expect(status(dir)).not.toContain('engine/src/config.json');
+    expect((await json<{ edits: unknown[] }>(dir, 'config', 'pending')).json.edits).toEqual([{ setting: 'wagePerLevel', value: 25 }]);
+  });
+
+  test('a config Finish cut off is put back by the next command of either kind, byte for byte', async () => {
+    const dir = scratch();
+    const file = configPath(dir);
+    const bytes = readFileSync(file);
+    const plant = (): void => {
+      writeAtomically(journalPath(dir), JSON.stringify({ pid: 2 ** 22 + 7, startedAt: '2026-10-05T00:00:00Z', contentVersion: 36, edits: 1, files: { [file]: bytes.toString('base64') } }));
+      writeFileSync(file, '{}\n');
+    };
+    plant();
+    expect((await json<{ recovered: string[] }>(dir, 'traits', 'pending')).json.recovered).toEqual([file]);
+    expect(readFileSync(file)).toEqual(bytes);
+    plant();
+    expect((await json<{ recovered: string[] }>(dir, 'config', 'pending')).json.recovered).toEqual([file]);
+    expect(readFileSync(file)).toEqual(bytes);
+    expect(status(dir)).toBe('');
   });
 });
