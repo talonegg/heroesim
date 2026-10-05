@@ -26,10 +26,11 @@ Sweeps run one at a time, with nothing else running, since a 20-year game's proc
 1.3 GB (DL-184).
 
 The current `neutral` baseline, every play-neutral story's `--expect`, is
-`e3adc35390098c46e05e59ddcc155a93bf11f9a2f869b7075be91190f05e7a5f` (`m9-v116-s6`, v1.1.6-S6, DL-192: the
-content version, 33, is in the saved document). It changes only with a DL entry, as at a story that changes play or the save's shape
-(v1.1.6-S7 and S17). v1.1.6-S7 changed the save's shape (DL-193), so it no longer holds: the first
-`neutral` run after S7's verification, alone, gives the next.
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602` (`m9-v116-s7-neutral`, v1.1.6-S7's
+verification, DL-193: schema 7, config version 14, content version 34). It changes only with a DL entry,
+as at a story that changes play or the save's shape (v1.1.6-S7 and S17) or raises the content version.
+The full `gate`'s, 50 × 20, is `143a44c770f94185d5565da7457c87c32bebc97e78ddfab9ed186f2d83d881b9`
+(`m9-v116-s7`, DL-193).
 
 ## Settings
 

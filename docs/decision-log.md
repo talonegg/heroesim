@@ -25209,6 +25209,63 @@ config rather than returning a refusal, since no game in hand can have one. (4) 
 baseline `e3adc353…` no longer holds: the first `neutral` run after this story's verification gives
 the next.
 
+*Verified* (2026-10-05, by a second agent, adversarially, at `4dfdadd`). *The lazy checks:* each
+removed check of `configProblems`, `encounterTagWeightProblem` (the Quest Engine's, the estimate's,
+the Quest Generator's and `drawSequence`'s) and `HEROESIM_CONFIG`'s set against its rule: the same
+bounds and strictness for `checkVariance`, `checkDegrees`, `strongTriumphShare`, the form factors
+(`steady` 1, the rest ordered, each finite above 0), `hurtCheckFactor`, `exposureRange`,
+`guardRange`, `chanceBands` (strictly rising, above 0 and below 1), `playerPartyMargin` and
+`encounterTagWeight`; none looser, and stricter only where the old let a string, an infinity or an
+extra key through. No other check of a setting is left in play code. *The ranges* read against each
+setting's comment and default: sound. `startingWealth` and `rivalStartingWealthMin` any whole number
+(a Guild may start in debt) and `turnsPerYear` from 1 (no rule divides it by the Turns of a Day
+but as a fraction, and tests play 20) stand; `guildmasterTraitBudget` any finite number stands too,
+since the empty set is always legal. *Compile:* a rule taken out of `configRules` fails `tsc`
+(TS2741, naming the setting). *Every load path* goes through `playDeps`: the CLI (`openSave`, and so
+`show`, `advance`, `load` and `rebase`), the page (`load`, play, Fast forward), the harness (`runConfig`
+for the play sweep and the calibration, `playGame` for every game, the replay and the Succession
+probe, and the round trip's `deserialise`); the creation sweep, the estimate probe, the modules run
+and the sample play `defaultConfig`, which takes no `HEROESIM_CONFIG`; no tool loads a save; no
+`{ ...defaultConfig, ... }` merge is left in a play path, the new game's and `rebase`'s
+`defaultConfig` as the plan says. *`demands`:* searched again over the engine, content, the CLI, the
+page, the harness (its probes and the estimate) and the tools: only tests' `demandsCheck` (a
+Check's Query) and comments saying no view shows them. *The checker and data-model.md agree* on
+`meta.configVersion` (an integer) and the Quest row. *The page's sentence* ("Cannot load the save:
+The game's config is unsound: …") follows its siblings and `docs/agents/ui-text.md`. *Mutations of
+the seam:* 15, of `deserialise`'s refusal and schema, `playConfig`'s merge and check, `playDeps`'
+modules, `playGame`'s and `runConfig`'s checks, the page's and the CLI's loads, `rebase`'s
+`meta.configVersion` and `newRules`, the checker's `meta.configVersion` and `unknown-slot`, and
+`createWorld`'s version: two survived, the checker's `configVersion: 'integer'` and the page's
+`playDeps` throwing on an unsound game in hand. *Fixed* (`a89a76c`), test first: two
+`document-shape` cases in `validate.test.ts` (a `meta` without `configVersion`, and one of 13.5) and
+a test of the page's `playDeps` throwing, naming the setting; each mutant then killed. The page's
+`engineDeps` comment no longer says it reads a save; two over-long lines (`configVersion`'s comment,
+`approach.md`) rewrapped. *Checks:* the doctor no drift before and after (110 reads of a Trait);
+`npm run lint` and `typecheck` clean; `npm test` 191 files, 5,057 tests passing; the build and
+check-bundle passing, the script 818,180 bytes; `npm run e2e -w web` 103 passing. Line endings: the
+85 changed files outside the log and the epic `w/crlf`, those two `w/lf`, as before; none mixed.
+*The full `gate`, alone* (`HEROESIM_WORKERS=8`, `m9-v116-s7`, 1,869 s): the fingerprint
+`143a44c770f94185d5565da7457c87c32bebc97e78ddfab9ed186f2d83d881b9`, the Gate PASS, the replay of
+`seed-0001` identical, no player Bankruptcy, the save after 20 years 17.95 MiB gzipped on the mean.
+`compare` against S3's (`m9-v116-s3`, `e7ae1710…`): content 32 to 34, the config's `schemaVersion`,
+`configVersion` and `gearSlots` absent, and of 519 counters 517 the same; the two moved are the
+save's size, not play: the last saves 1,723,806 characters shorter in all (73,377,046,185 to
+73,375,322,379) and 11,032 bytes gzipped, the Quest rows' `demands` gone. No play counter moved. The
+reports are committed. *The `neutral` baseline,* alone (`m9-v116-s7-neutral`, 536 s, the Gate PASS,
+the replay identical): `bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, now in
+`harness/README.md`, every play-neutral story's `--expect`; its reports not committed.
+
+*Open for the owner.* (1) *Lists sized by content against a save.* `infirmaryHealFactor` must hold
+exactly one factor for each infirmary grade content has, though its comment and `healFactor` read a
+grade past the list as its last factor; and `declineAreas` must name areas of content's Hero Stats,
+where rule 5 warns of a content key a save names rather than refusing it. So a content release that
+adds an infirmary grade, or drops a Stat area, would refuse every save made before it at load, and
+`rebase` could not mend one, since rebasing needs a load. (a) Keep the rules as the plan wrote them
+(today's content and defaults agree); (b) allow a shorter list for the infirmary (at least one
+factor) and any Stat area, the rules reading as the code does. Recommendation: (b), small, before
+S16 or S18 next touch content's grades. (2) A save whose config is unsound cannot be rebased to the
+defaults for the same reason; none can arise but by hand, so no change is proposed.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
