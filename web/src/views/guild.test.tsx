@@ -107,6 +107,16 @@ describe("the Guild's parts (M9-F2)", () => {
     expect(within(guild()).getByRole('tabpanel', { name: 'Hall' })).toBeDefined();
   });
 
+  test('a view remembered as "hall" is put right as the page opens: the part chosen after it is the one the Guild opens at again (v1.1.6-S15)', () => {
+    localStorage.setItem('heroesim.view', 'hall');
+    const { unmount } = render(<App initial={started()} />);
+    fireEvent.click(within(guild()).getByRole('tab', { name: 'Stores' }));
+    unmount();
+
+    render(<App initial={started()} />);
+    expect(within(guild()).getByRole('tabpanel', { name: 'Stores' })).toBeDefined();
+  });
+
   test("the status bar's Bankruptcy countdown opens the Guild at its Home, where the countdown is said in full, from any part and view", () => {
     render(<App initial={withWealth(started(), -100, 0)} />);
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Hall' }));

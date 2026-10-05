@@ -985,8 +985,8 @@ describe("the Roster's choices in a browser that refuses its storage (v1.1.5-S12
     fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Columns' })).getByRole('checkbox', { name: 'Age' }));
 
     const kept = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index) ?? '')
-      // The view and the Guild's part open, as the page has always kept them.
-      .filter((key) => key !== 'heroesim.view' && key !== 'heroesim.guildPart');
+      // The page's other preferences, each kept as the page opens on it (v1.1.6-S15's verification, DL-201).
+      .filter((key) => !['heroesim.view', 'heroesim.guildPart', 'heroesim.boardOrder', 'heroesim.poolOrder'].includes(key));
     expect(kept.sort()).toEqual(['heroesim.rosterColumns', 'heroesim.rosterOrder', 'heroesim.rosterTab', 'heroesim.rosterView']);
   });
 });

@@ -4,7 +4,7 @@
 // table's entries are read and kept through `useRemembered`, and the saves are not here: they
 // stay in `saves.ts`.
 
-import { useCallback, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { rosterColumnGroups, rosterSortChoices, type BoardOrder } from '../state/selectors';
 import type { PoolOrder } from '../state/trade-views';
 import type { GuildSort } from '../state/world-views';
@@ -89,20 +89,17 @@ export function rememberedGuildPart(): GuildPartId {
 }
 
 /**
- * A preference as state: what this browser keeps of `which` as the page opens, and a setter that
- * sets it and keeps it, where the browser lets it. Nothing is kept until it is set. `read` is for a
- * preference with a reading of its own, as the Guild's part has (`rememberedGuildPart`).
+ * A preference as state: what this browser keeps of `which` as the page opens, and a setter. What is
+ * in force is kept, where the browser lets it, once the render that holds it is committed, the one
+ * the page opens on too: never while rendering, as Guild › Home is set in the render a play ends in
+ * and a render may be run twice or set aside; and a view kept as the Hall of before M9-F2 is put
+ * right as the page opens. `read` is for a preference with a reading of its own, as the Guild's part
+ * has (`rememberedGuildPart`).
  */
 export function useRemembered<Which extends Preference>(which: Which, read: () => Kept<Which> = () => rememberedPreference(which)): [Kept<Which>, (next: Kept<Which>) => void] {
   const [value, setValue] = useState<Kept<Which>>(read);
-  const set = useCallback(
-    (next: Kept<Which>): void => {
-      setValue(next);
-      rememberPreference(which, next);
-    },
-    [which],
-  );
-  return [value, set];
+  useEffect(() => rememberPreference(which, value), [which, value]);
+  return [value, setValue];
 }
 
 /** What this browser keeps under `key`, if it is one of `choices`; `fallback` when not, or when nothing can be read. */

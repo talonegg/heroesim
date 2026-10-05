@@ -1,4 +1,5 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
+import { useLayoutEffect } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { preferences, rememberedGuildPart, rememberedList, rememberedPreference, rememberList, rememberPreference, useRemembered } from './remembered';
 
@@ -14,8 +15,8 @@ const rememberGuildPart = (part: Parameters<typeof rememberPreference<typeof pre
 
 afterEach(() => {
   cleanup();
-  localStorage.clear();
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
 describe('the view and the Guild part remembered (M9-F2)', () => {
@@ -145,9 +146,9 @@ describe('the table of the nine viewing preferences (v1.1.6-S15, DL-186 item 25)
 });
 
 describe('useRemembered', () => {
-  test('opens on what is kept, and keeps what is set, nothing before', () => {
+  test('opens on what is kept, and keeps what is in force: the fallback it opens on, and what is set', () => {
     expect(renderHook(() => useRemembered(preferences.poolOrder)).result.current[0]).toBe('listed');
-    expect(localStorage.getItem(preferences.poolOrder.key)).toBeNull();
+    expect(localStorage.getItem(preferences.poolOrder.key)).toBe('listed');
 
     localStorage.setItem(preferences.poolOrder.key, 'fee');
     const { result } = renderHook(() => useRemembered(preferences.poolOrder));
@@ -155,6 +156,43 @@ describe('useRemembered', () => {
     act(() => result.current[1]('class'));
     expect(result.current[0]).toBe('class');
     expect(localStorage.getItem(preferences.poolOrder.key)).toBe('class');
+  });
+
+  test('keeps nothing while rendering: a set made in a render, as Guild › Home is opened, is kept once the render is committed', () => {
+    let rendering = false;
+    const keptWhileRendering: boolean[] = [];
+    const setItem = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+      keptWhileRendering.push(rendering);
+      setItem.call(this, key, value);
+    });
+    const { result } = renderHook(() => {
+      rendering = true;
+      const [view, setView] = useRemembered(preferences.view);
+      if (view !== 'market') setView('market');
+      useLayoutEffect(() => {
+        rendering = false;
+      });
+      return view;
+    });
+    expect(result.current).toBe('market');
+    expect(localStorage.getItem(preferences.view.key)).toBe('market');
+    expect(keptWhileRendering.length).toBeGreaterThan(0);
+    expect(keptWhileRendering).not.toContain(true);
+  });
+
+  test('where `localStorage` itself cannot be reached, every preference opens on its default and a set still changes the page', () => {
+    vi.spyOn(globalThis, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    });
+    expect(() => globalThis.localStorage).toThrow();
+    for (const [name, which] of Object.entries(preferences)) {
+      const { result } = renderHook(() => useRemembered(which as never));
+      expect(result.current[0], name).toEqual(which.fallback);
+      const next = Array.isArray(which.fallback) ? which.choices.slice(0, 1) : which.choices.at(-1);
+      act(() => (result.current[1] as (next: unknown) => void)(next));
+      expect(result.current[0], name).toEqual(next);
+    }
   });
 
   test('a list is kept as the list', () => {
