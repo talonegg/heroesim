@@ -118,7 +118,8 @@ describe("the engine's entry", () => {
 
 describe('@heroesim/engine/testing', () => {
   test('production code imports nothing from it', () => {
-    const offenders = production.filter((file) => readFileSync(`${root}${file}`, 'utf8').includes("'@heroesim/engine/testing'"));
+    // Either quote: ESLint's rule reads the specifier, whatever quotes it.
+    const offenders = production.filter((file) => /(['"])@heroesim\/engine\/testing\1/.test(readFileSync(`${root}${file}`, 'utf8')));
 
     expect(offenders).toEqual([]);
   });

@@ -97,7 +97,12 @@ serialise(document) / deserialise(text, deps)   -> one format, one version field
 
 The action list is amended 2026-09-28. `recall?` is struck: no Party is recalled (DL-89). The
 actions it had missed are added, as DL-86 corrects: `offerTransfer`, `acceptTransfer` and
-`declineTransfer` from M6 (DL-57), and `unequip` from M5 (DL-49).
+`declineTransfer` from M6 (DL-57), and `unequip` from M5 (DL-49). Each is taken through one
+entry, `applyAction(document, action, deps)`, the action a value told apart by its `kind` and
+the rejection narrowed to that action's own; the function each had of its own is gone. The
+engine's entry exports what the front ends, the harness, content and the tools use, and what only
+tests take is `@heroesim/engine/testing`, which production code may not import (amended
+2026-10-05, DL-194).
 
 Rules read `deps.config`. A front end passes the document's own `meta.config`, so a loaded
 game plays under the rules it was started with; `rebase` rewrites `meta.config` to the

@@ -25279,6 +25279,14 @@ the area list cut to `physical`: each fails 2 tests, restored. The comment on th
 says so; `data-model.md` and `config.ts` describe neither rule. The doctor read no drift before
 and after; no play changed (the defaults pass both rules), so no sweep.
 
+*Verified* (with S8's, DL-194): the rules read as the answer and as `healFactor` does (the grade
+held from 0 to the list's last, an empty list reading 1, which the rule refuses). The new tests run
+against the rules before the answer: 3 red, so they could fail. Mutants, each red in 1 or 2 tests:
+the length bound at 0, `isNumber` dropped, a factor of 0 allowed, each of three areas dropped from
+the list, a fifth area added, the list capped at 4. The areas' list is now a record that `satisfies
+Record<StatArea, true>`, so an area `StatArea` gains fails `tsc` rather than being refused at load;
+the same areas, order and words. The `neutral` run after it: the baseline, the same (DL-194).
+
 ---
 
 ## DL-194 — v1.1.6-S8 built: the engine's entry narrowed to what its callers use, the test-only names in `@heroesim/engine/testing`; one action dispatch, `applyAction`; one Roster walk, `activeRosterHeroes`; one row lookup, `rowOf` and `requireRow`
@@ -25393,6 +25401,53 @@ public with no package taking them, for a module's author. (3) The test-only rea
 `count`, `findStack`) went to `/testing` by the rule, though none writes; one a front end comes to
 need moves back to the entry. (4) `rowOf` took every inline row lookup of its form, 57, not only the
 21 the plan counted. (5) `training` walks in Guild id order now; it draws and emits nothing.
+
+*The verification* (2026-10-05, a second Opus agent; with `0b002ed`, DL-193's answer, after it).
+The doctor read no drift before and after (108 reads of a Trait). *The walk.* Each phase's walk at
+`f16cf1a` read against `activeRosterHeroes`: `ageing` and `levelUps` walked the live Roster,
+`heroState` a copy of each Guild's Roster taken at its turn, the new walk one list taken before
+any. They differ only where a phase changes another Hero's Roster, death or Retirement than the
+Hero it visits, adds a Hero, or meets a Hero on two Rosters or twice on one: `heroState` takes only
+the retiring Hero off its own Roster, the other three change no Roster, death or Retirement, none
+adds a Hero, and the save's checker refuses the last (`hero-on-two-rosters`). The Guilds' order,
+the folded, the dead, the retired and a missing id the same in all four. `training`'s
+`guildmasterOf` and `coachingMultiplier` only read; it draws nothing, emits nothing, and adds each
+Hero the same XP. `roster-walk.test.ts` run against `f16cf1a`'s four phases: 6 of 6 passing, so it
+was written against the old code. *`rowOf`.* Every replaced site read in the diff: own property,
+`undefined` or the throw, and the words ("<id> is not in world.<table>" in `effects.ts` and
+`resolve.ts`, "<id> is not in the world" in `quests-conclude.ts` and `modules.ts`, `emit.ts`' own)
+kept; a guarded lookup still `undefined`. No inline row lookup is left in the engine; `streamOf`'s
+`world.rng` and the descriptions' sentence lists, value maps, took `rowOf` as well, the same
+lookup. *The entry,* loaded: 124 values, none of the plan's named (`takeId`, `createItem`,
+`moveItem`, `moveStack`, `adjustRegard`, `applyToCopy`, every `apply*` but `applyAction`,
+`createHistory`, `emptyDocument`, `generateGuild`, `generateRival`, `rivalChoices`); `/testing` 14.
+Each old wrapper was `applyToCopy` over its rule, and each CLI command and the estimate probe pass
+the same request with its `kind`. Content's own rule bars `/testing` too. *Mutants:* a production
+import of `/testing` in the CLI (lint and `testing.test.ts` red), a re-export of it from the
+harness (lint red), `adjustRegard` re-exported from the entry (2 tests red), `inflictInjury` (1),
+`export *` of `items.ts` (3); but the same import in the page written with double quotes, lint red
+and **the test green**. *Fixed,* test first: (1) `testing.test.ts` reads the specifier in either
+quote; the double-quoted mutant now red. (2) `applyAction`'s one cast had no test:
+`actions/action.test.ts` holds `RejectionOf` to each of the 14 actions' own rejection, the whole
+union for `Action` and both for an action of two kinds, and `applyAction`'s result for an action
+written in place, by `tsc`; `RejectionOf` as every rejection, as one reason's, and `applyAction`
+returning every rejection each fail the typecheck. (3) `docs/approach.md` §3 still had each action
+a function `(document, params, deps)`: amended for `applyAction` and `/testing`. `CONTEXT.md`, the
+ADRs, `AGENTS.md`, `docs/agents/` and the READMEs name no removed wrapper or hidden value
+(`data-model.md`'s `adjustRegard` is a module's effect kind); comments naming an action by its
+kind still read true. *Checks:* `npm run lint` and `typecheck` clean; `npm test` 194 files, 5,085
+tests passing (`recovery.test.ts` and `server.test.ts` passing in the full run); the build and
+check-bundle passing, the script 814,044 bytes; `npm run e2e -w web` 103 passing. Line endings as
+each file's before, none mixed. *The `neutral` run,* alone (`HEROESIM_WORKERS=8`,
+`m9-v116-s8-verify-neutral`, 533 s, `--expect` the baseline, `0b002ed` and these fixes in):
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, the same, the Gate PASS, the
+replay of `seed-0001` identical; its reports not committed.
+*For the owner to see:* five values that write to a world or a stream stay public because the
+harness's production code takes them on its own scratch worlds: `addStack` (the estimate probe),
+`generateHero`, `generateQuest`, `growOneLevel` and `resolveQuest` (the calibration). Item 9 hides
+the mutators "as Opus classifies them", and the build classified by who takes a value; hiding these
+would move the calibration onto `/testing`, which production code may not import, or onto an
+entry of its own. No change proposed.
 
 ---
 

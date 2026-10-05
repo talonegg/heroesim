@@ -26,8 +26,8 @@ type Settings = Readonly<Record<string, unknown>>;
  */
 export type ConfigRule = (value: unknown, settings: Settings, content: ContentSet) => string | undefined;
 
-/** Every Stat area, in the order of `StatArea`. */
-const statAreas: readonly StatArea[] = ['physical', 'mental', 'magical', 'social'];
+/** Every Stat area, in the order of `StatArea`; a record, so that `tsc` asks for an area `StatArea` gains. */
+const statAreas = Object.keys({ physical: true, mental: true, magical: true, social: true } satisfies Record<StatArea, true>);
 
 /** A bound: a number, or another setting, read at the check. */
 type Bound = number | keyof GameConfig;
