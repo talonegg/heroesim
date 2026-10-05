@@ -25449,6 +25449,86 @@ the mutators "as Opus classifies them", and the build classified by who takes a 
 would move the calibration onto `/testing`, which production code may not import, or onto an
 entry of its own. No change proposed.
 
+## DL-195 — v1.1.6-S9 built: who harm falls on owned by `harm.ts`, `strike`, `chooseEarner` and `moraleOf` with each consequence's pool, `among`, exposure, guard and draws; `resolve.ts` asks and applies
+
+2026-10-05. DL-186 item 4 (A4).
+
+- *Before.* The doctor read no drift (108 reads of a Trait, the content passing its checks, no
+  pending edits).
+- *The pools, read from the code* (the authority over the plan's summary). An Injury's: the living
+  Party without those carrying an Injury from the Quest, a fresh pool for each of its `count`. A
+  Death's: the living Party, the hurt in it. A positive Trait's (drawn at a Triumph or a Success):
+  the living Party. A negative Trait's (at a Failure): not every Hero hurt on the Quest, as the
+  plan's "the injured" might read, but those *this Encounter* injured who still live; at a Setback
+  that reads the failure list, no one. `among` and its fallback: an Injury's and a Death's read over
+  their pool and, naming none of it, all of the pool (`narrowed`); an earned Trait's read over its
+  own pool with no fallback, naming none of it, no one (`namedIn`, DL-185). Exposure weights the
+  second draw and guard the chance, for an Injury and a Death only; the Morale loss's guard, a loss
+  `steadiedBy` some Stats, a gain as written.
+- *Characterisation first.* `resolve.test.ts` gained "harm and earned Traits across seeds, draw for
+  draw": 300 seeds of a Party of four, its Stats, Classes and held Traits varied by seed, through
+  five Encounters met at all four Degrees (`checkVariance` 0.4), each Degree's list reading every
+  field (`among` naming some, all or none of its pool, `exposedBy`, `guardedBy`, `steadiedBy` on a
+  loss and a gain, a Death among the hurt, Traits positive and negative, with and without `among`);
+  the SHA-256 of the resolutions and the `quests` stream after each, `cc68247a…`, recorded against
+  the code before the move and passing on it (run again with the old `resolve.ts` and `harm.ts`
+  stashed back in), then after.
+- *`harm.ts`' interface* (tests first, red for want of the functions, then green):
+  - `strike(consequence, candidates, party, stream, deps)`: for one count of an Injury, or a
+    Death, two draws, whether it lands then on whom (`weightedPick` by exposure, or one draw from no
+    one), returning the Hero it lands on or `undefined`; it owns the pool, `among` and its fallback,
+    exposure and guard. The Injury's Days stay `resolve.ts`' third draw, after it.
+  - `chooseEarner(consequence, degree, candidates, drawn, party, stream, deps)`: two draws, whether
+    it lands then on whom (`pick`, or one from no one), returning the Hero and whether the Trait is
+    positive; it owns the pool, `among` without fallback, the Setback's no one, `mayEarn` and the
+    one-a-Quest rule with its exception for a negative Trait.
+  - `moraleOf(consequence, living, party, deps)`: each living Hero's own share, by id in Party order;
+    no draw.
+  - `Candidates` (the living, those hurt on the Quest, those injured by this Encounter) and `party`,
+    a function, so that the Party as the Queries read it is still taken only when a field needs it,
+    as before.
+  - `resolve.ts`' `struck`, `earn` and `byId` gone; `apply` asks the three and applies what they
+    return, and `candidatesOf` builds the `Candidates`. `resolve.ts` no longer imports `mayEarn`,
+    `pick`, `weightedPick` or `next`.
+- *The tests at the interface*, 18 in `harm.test.ts`: each pool (the Injury's never a hurt Hero,
+  the Death's reaching the hurt, the positive Trait's the hurt in it, the negative Trait's those
+  injured here who live, not one hurt before nor one since dead), each `among` read over its pool
+  (the next weakest unhurt; the hurt weakest for a Death; the weaker of the two injured here), the
+  fallback (whole pool for harm when `among` names none of it; no one for a Trait), the draws (two
+  whatever lands, counted by a twin of the stream, for every branch: no one to hit, chance 0, the
+  fields, the Setback, no one eligible), the landing (below the chance times the guard; on whom
+  `weightedPick` by exposure, by twin, over 200 seeds), the eligibility (holds it, conflicts, drew
+  one, a held positive no bar to a negative), the Morale shares, and that no Party is read without
+  a field.
+- *Mutations* of `harm.ts`, each run against `harm.test.ts` and the fingerprint, the file restored
+  after each: 27 of 27 killed by `harm.test.ts` (each pool swapped, the fallbacks dropped or added,
+  `among` read over the whole Party, the draw from no one dropped, the draws reordered, guard,
+  exposure, `mayEarn`, the one-a-Quest rule, its exception, the chance and the positive flag
+  dropped, the Setback's second draw dropped or the Setback read as a Failure, the Morale guard
+  dropped or put on a gain, and the Party read always); 24 of them by the fingerprint too, the three
+  it passes being the Party read always, which changes no play.
+
+*What changed for Traits.* The read of `mayEarn` and `.traits` moved from `resolve.ts`' `earn` to
+`harm.ts`' `chooseEarner`. The register's `earned-trait` entry (`content/src/uses/register.ts`)
+lists `resolve.ts`: `apply` and `harm.ts`: `chooseEarner` where it listed `apply` and `earn`, and
+`docs/agents/traits.md` was written again from it (`traits doc`). No Trait, effect, event or use
+changed. The doctor read no drift after, with 108 reads of a Trait.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 194 files, 5,104 tests passing; `npm run
+build` and check-bundle passing, the script 814,249 bytes, 23 fewer than S8's 814,272. Line endings
+as before, none mixed.
+
+*Proof.* The `neutral` run after, alone (`HEROESIM_WORKERS=8`, `m9-v116-s9-neutral`, 523 s,
+`--expect` S7's baseline): the fingerprint
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, the same, the Gate PASS, the
+replay of `seed-0001` identical. Every game as it was. Its reports not committed.
+
+*Calls made, for the owner to see.* (1) `strike` takes the whether-it-lands draw as well as the
+who, so that each branch's two draws are harm.ts's; the Injury's Days stay `resolve.ts`' and come
+after. (2) `party` is passed as a function, not a Party, so that a consequence with none of the
+fields still reads no Party, as before: the plan's signature, with that one change. (3) The Morale
+share is a third function, `moraleOf`, beside the plan's two.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

@@ -689,7 +689,8 @@ const engineEntries: readonly EngineEntry[] = [
     events: ['hero.trait-gained'],
     reads: "A `trait` consequence: drawn on a Triumph and granted on a strong success, or falling on a Hero the Encounter injured on a Failure; never one held, one in conflict, or a second on a Quest. Granted at the Quest's end with `hero.trait-gained` (DL-148 item 25).",
     sources: [
-      { file: 'engine/src/quest-engine/resolve.ts', names: ['apply', 'earn'] },
+      { file: 'engine/src/quest-engine/resolve.ts', names: ['apply'] },
+      { file: 'engine/src/quest-engine/harm.ts', names: ['chooseEarner'] },
       { file: 'engine/src/phases/quests-conclude.ts', names: ['conclude'] },
       { file: 'engine/src/traits.ts', names: ['mayEarn'] },
     ],

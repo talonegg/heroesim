@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
 import { configVersion, defaultConfig, type EngineDeps } from '../config.js';
 import {
@@ -1483,6 +1484,82 @@ describe('a Finale and Loot (v1.1.4-S8)', () => {
     const [darkAfter = 0, lightAfter = 0] = capabilities(['tomb-wise']);
     expect(darkAfter).toBeCloseTo(darkBefore + 3, 10);
     expect(lightAfter).toBeCloseTo(lightBefore, 10);
+  });
+});
+
+// v1.1.6-S9 (DL-186 item 4, DL-195): who harm and an earned Trait fall on, and their draws, moved into
+// harm.ts draw for draw. A Party of four, its Stats, Classes and Traits varied by seed, through five
+// Encounters met at every Degree, each Degree's list reading every field: `among` matching some, all or
+// none of its pool, `exposedBy`, `guardedBy`, `steadiedBy`, a Death on the hurt, Traits positive and
+// negative. The fingerprint was recorded against resolve.ts before the move, so it holds the
+// resolutions and the `quests` stream after them to the draw.
+describe('harm and earned Traits across seeds, draw for draw (v1.1.6-S9)', () => {
+  const trait = (key: string, excludes: string[] = []) => ({ key, name: key, excludes, effects: [] });
+  const heroTraits = {
+    ...testContent.heroTraits,
+    'battle-hardened': trait('battle-hardened', ['shaken']),
+    shaken: trait('shaken', ['battle-hardened']),
+    'quick-study': trait('quick-study'),
+  };
+  const earned = (traitKey: string, fields: Partial<TraitConsequence> = {}): TraitConsequence => ({ kind: 'trait', traitKey, chance: 0.6, ...fields });
+  const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 0.7, count: 1, ...fields });
+  const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
+  const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
+  const hurt: SetQuery = ['where', 'party', ['hurt']];
+  /** An Encounter of summed Strength against `factor` × the difficulty, met at any Degree within `checkVariance`. */
+  const chancy = (key: string, factor: number, consequences: Encounter['consequences']): Encounter => ({
+    ...encounter(key, true),
+    checks: [demandsCheck(key, key, 'sum', [['strength', 1]], [], factor)],
+    consequences,
+  });
+  const lists: Encounter['consequences'] = {
+    triumph: [earned('quick-study', { among: weakest }), earned('battle-hardened'), { kind: 'morale', delta: 3, steadiedBy: ['courage'] }],
+    success: [{ kind: 'morale', delta: -2, steadiedBy: ['courage'] }, injury({ chance: 0.3, exposedBy: ['constitution'] })],
+    setback: [injury({ chance: 0.6, among: warriors, guardedBy: ['endurance'] }), earned('shaken')],
+    failure: [
+      injury({ count: 2, among: weakest, exposedBy: ['constitution'], guardedBy: ['endurance'] }),
+      { kind: 'death', chance: 0.25, among: hurt, exposedBy: ['strength'], guardedBy: ['constitution'] },
+      earned('shaken', { among: weakest }),
+      earned('scarred'),
+      { kind: 'morale', delta: -6, steadiedBy: ['courage', 'endurance'] },
+    ],
+  };
+  const sequence = [
+    chancy('first', 0.75, lists),
+    chancy('second', 0.8, { ...lists, failure: [injury({ count: 3, among: warriors }), { kind: 'death', chance: 0.3 }, earned('shaken')] }),
+    chancy('third', 0.7, lists),
+    chancy('fourth', 0.85, { ...lists, triumph: [earned('quick-study', { among: warriors }), earned('scarred', { chance: 1, among: hurt })] }),
+    chancy('fifth', 0.75, lists),
+  ];
+
+  test('resolves 300 seeds to the fingerprint recorded before the move, every Degree, harm and Trait met', () => {
+    const resolutions: unknown[] = [];
+    const seen = { degrees: new Set<string>(), injuries: 0, deaths: 0, positive: 0, negative: 0 };
+    for (let seed = 0; seed < 300; seed += 1) {
+      const s = scene(`pinned-${seed}`, { ...contentWith(...sequence), synergies: {}, heroTraits }, sequence.map((it) => it.key), { size: 4 });
+      s.heroes.forEach((hero, index) => {
+        Object.assign(hero.stats, {
+          strength: 4 + ((5 * index + seed) % 9),
+          constitution: 1 + ((7 * index + 3 * seed) % 20),
+          endurance: 1 + ((11 * index + seed) % 20),
+          courage: 1 + ((13 * index + 5 * seed) % 20),
+        });
+        hero.classKey = ['warrior', 'mage', 'rogue'][(index + seed) % 3] as string;
+        if ((seed + index) % 5 === 0) hero.traits.push('shaken');
+        if ((seed + index) % 7 === 0) hero.traits.push('quick-study');
+      });
+      const deps = { ...s.deps, config: { ...s.deps.config, checkVariance: 0.4 } };
+      const resolved = resolveQuest(s.world, s.quest, s.party, deps);
+      resolutions.push([resolved, streamOf(s.world, 'quests')]);
+      for (const result of resolved.encounters) seen.degrees.add(result.degree);
+      seen.injuries += resolved.encounters.reduce((total, result) => total + result.injured.length, 0);
+      seen.deaths += resolved.outcome.deaths.length;
+      seen.positive += resolved.traits.filter((it) => it.traitKey === 'quick-study' || it.traitKey === 'battle-hardened').length;
+      seen.negative += resolved.traits.filter((it) => it.traitKey === 'shaken').length;
+    }
+    expect([...seen.degrees].sort()).toEqual(['failure', 'setback', 'success', 'triumph']);
+    expect(Math.min(seen.injuries, seen.deaths, seen.positive, seen.negative)).toBeGreaterThan(0);
+    expect(createHash('sha256').update(JSON.stringify(resolutions)).digest('hex')).toBe('cc68247a91e2de98f28b80633fc933b27a7c939930998631750085b04f96b726');
   });
 });
 

@@ -264,7 +264,7 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 
 - **Reads:** A `trait` consequence: drawn on a Triumph and granted on a strong success, or falling on a Hero the Encounter injured on a Failure; never one held, one in conflict, or a second on a Quest. Granted at the Quest's end with `hero.trait-gained` (DL-148 item 25).
 - **Traits:** Hero; events `hero.trait-gained`.
-- **Where it reads them:** `engine/src/quest-engine/resolve.ts`: `apply`, `earn`; `engine/src/phases/quests-conclude.ts`: `conclude`; `engine/src/traits.ts`: `mayEarn`.
+- **Where it reads them:** `engine/src/quest-engine/resolve.ts`: `apply`; `engine/src/quest-engine/harm.ts`: `chooseEarner`; `engine/src/phases/quests-conclude.ts`: `conclude`; `engine/src/traits.ts`: `mayEarn`.
 
 ### `trait-events`: hero.trait-gained and hero.trait-lost
 
