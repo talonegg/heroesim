@@ -1,6 +1,6 @@
 // Transfers (M6-S2, R28, INPUTS 7.6, DL-57): a Hero moves between two Guilds' Rosters for a fee.
-// Five actions, each a world-level rule and a document-level wrapper (DL-30), which every Guild takes
-// alike, a front end by the wrapper and a Rival's controller by the rule (ADR-0002):
+// Five actions, each a rule on a world it changes in place (DL-30), which every Guild takes alike, a
+// front end by `applyAction` and a Rival's controller on the Turn's copy (ADR-0002):
 //
 // - `transferIn`: a Guild takes a Hero from another Guild's Roster, if that Guild consents now;
 // - `transferOut`: a Guild sends one of its Heroes to another Guild, if that Guild consents now;
@@ -15,6 +15,7 @@
 import type { EngineDeps } from '../config.js';
 import { transferAnswer, type TransferRefusalReason, type TransferSide } from '../controllers/rival.js';
 import {
+  rowOf,
   takeId,
   type Guild,
   type GuildId,
@@ -25,13 +26,12 @@ import {
   type TransferOffer,
   type Turn,
   type World,
-  type WorldDocument,
 } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { transferFee } from '../selectors.js';
 import { makeTransfer, offerExpiresOnTurn, offerParticipants, offerTerms, transferLock } from '../transfer.js';
-import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
+import type { Rejection, WorldActionResult } from './result.js';
 
 // ── Actions ──────────────────────────────────────────────────────────────────────────────────
 
@@ -212,16 +212,16 @@ export type TransferRejection =
 
 /** The Guild `guildId` names; throws on one the world lacks, since Guild rows are never removed. */
 function guildOf(world: Pick<World, 'guilds'>, guildId: GuildId): Guild {
-  const guild = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
+  const guild = rowOf(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`No Guild in the world has the id ${guildId}`);
   return guild;
 }
 
 /** The Hero and the Guild whose Roster they are on, or `undefined` when they are on none. */
 function onRoster(world: Pick<World, 'heroes' | 'guilds'>, heroId: HeroId): { hero: Hero; guild: Guild } | undefined {
-  const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+  const hero = rowOf(world.heroes, heroId);
   if (hero === undefined || hero.guildId === null) return undefined;
-  const guild = Object.hasOwn(world.guilds, hero.guildId) ? world.guilds[hero.guildId] : undefined;
+  const guild = rowOf(world.guilds, hero.guildId);
   if (guild === undefined || !guild.rosterIds.includes(heroId)) return undefined;
   return { hero, guild };
 }
@@ -252,18 +252,11 @@ function feeFor(world: Pick<World, 'guildmasters'>, hero: Hero, to: Guild, deps:
  * Refused, changing nothing: `guild-folded`, `hero-not-on-roster` (on no other Guild's Roster),
  * `same-guild` (the Guild's own Hero), `hero-in-party`, `recently-transferred` (`transferLock`),
  * `transfer-refused` (the other Guild does not consent, or answers only offers),
- * `insufficient-wealth`, in that order. Throws only on a Guild id the world does not hold. The
- * returned document has a new `world`, a copy (DL-24).
+ * `insufficient-wealth`, in that order. Throws only on a Guild id the world does not hold.
+ *
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
-export function transferIn(
-  document: WorldDocument,
-  request: Omit<TransferInAction, 'kind'>,
-  deps: EngineDeps,
-): ActionResult<TransferInRejection> {
-  return applyToCopy(document, (world) => applyTransferIn(world, request, deps));
-}
-
-/** `transferIn`'s rule on a world it changes in place (DL-30). A refusal changes nothing. */
 export function applyTransferIn(
   world: World,
   { guildId, heroId }: Omit<TransferInAction, 'kind'>,
@@ -303,16 +296,10 @@ export function applyTransferIn(
  * `hero-in-party`, `recently-transferred`, `transfer-refused`, `insufficient-wealth` (of the Guild
  * taking the Hero), in that order. Throws only on a Guild id the world does not hold, which a front
  * end checks first.
+ *
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
-export function transferOut(
-  document: WorldDocument,
-  request: Omit<TransferOutAction, 'kind'>,
-  deps: EngineDeps,
-): ActionResult<TransferOutRejection> {
-  return applyToCopy(document, (world) => applyTransferOut(world, request, deps));
-}
-
-/** `transferOut`'s rule on a world it changes in place (DL-30). A refusal changes nothing. */
 export function applyTransferOut(
   world: World,
   { guildId, heroId, toGuildId }: Omit<TransferOutAction, 'kind'>,
@@ -357,16 +344,10 @@ export function applyTransferOut(
  * `recently-transferred`, `no-offer-needed` (the Hero's Guild answers at once, by its Disposition:
  * `transferIn` asks it), `offer-pending` (the Guild's own offer for the Hero stands),
  * `insufficient-wealth`, in that order.
+ *
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
-export function offerTransfer(
-  document: WorldDocument,
-  request: Omit<OfferTransferAction, 'kind'>,
-  deps: EngineDeps,
-): ActionResult<OfferTransferRejection> {
-  return applyToCopy(document, (world) => applyOfferTransfer(world, request, deps));
-}
-
-/** `offerTransfer`'s rule on a world it changes in place (DL-30). A refusal changes nothing. */
 export function applyOfferTransfer(
   world: World,
   { guildId, heroId }: Omit<OfferTransferAction, 'kind'>,
@@ -416,7 +397,7 @@ export function applyOfferTransfer(
 
 /** The pending offer `offerId` that asks `guildId`, or `undefined`. */
 function offerTo(world: Pick<World, 'offers'>, guildId: GuildId, offerId: OfferId): TransferOffer | undefined {
-  const offer = Object.hasOwn(world.offers, offerId) ? world.offers[offerId] : undefined;
+  const offer = rowOf(world.offers, offerId);
   return offer?.fromGuildId === guildId ? offer : undefined;
 }
 
@@ -431,16 +412,10 @@ function offerTo(world: Pick<World, 'offers'>, guildId: GuildId, offerId: OfferI
  * `offer-not-found` (no such offer pending, or one asking another Guild), `hero-in-party` (the Hero
  * is away: the offer can be accepted once they are home, until it expires), `insufficient-wealth`
  * (the offering Guild can no longer pay), in that order.
+ *
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
-export function acceptTransfer(
-  document: WorldDocument,
-  request: Omit<AcceptTransferAction, 'kind'>,
-  deps: EngineDeps,
-): ActionResult<AcceptTransferRejection> {
-  return applyToCopy(document, (world) => applyAcceptTransfer(world, request, deps));
-}
-
-/** `acceptTransfer`'s rule on a world it changes in place (DL-30). A refusal changes nothing. */
 export function applyAcceptTransfer(
   world: World,
   { guildId, offerId }: Omit<AcceptTransferAction, 'kind'>,
@@ -469,16 +444,10 @@ export function applyAcceptTransfer(
  * `guildId` declines the Transfer Offer `offerId`: the offer is removed with
  * `guild.transfer-offer-declined`, and nothing else changes. Refused, changing nothing:
  * `guild-folded`, `offer-not-found` (no such offer pending, or one asking another Guild).
+ *
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
-export function declineTransfer(
-  document: WorldDocument,
-  request: Omit<DeclineTransferAction, 'kind'>,
-  deps: EngineDeps,
-): ActionResult<DeclineTransferRejection> {
-  return applyToCopy(document, (world) => applyDeclineTransfer(world, request, deps));
-}
-
-/** `declineTransfer`'s rule on a world it changes in place (DL-30). A refusal changes nothing. */
 export function applyDeclineTransfer(
   world: World,
   { guildId, offerId }: Omit<DeclineTransferAction, 'kind'>,

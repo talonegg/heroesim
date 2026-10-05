@@ -11,6 +11,7 @@
 // (`sources`, which the drift test checks both ways) and those its rule runs through that read none
 // themselves (`through`, which the drift test checks are there).
 
+import { degrees } from '@heroesim/engine';
 import type { ContentFileName } from '../parse.js';
 import {
   at,
@@ -75,6 +76,12 @@ export interface ContentEntry {
   add: { how: string; target: Readonly<Record<string, string>>; apply(content: ContentJson, key: string, target: UseTarget): AddedUse } | null;
   /** How a use is removed, where it is safe. `null` where it is not. */
   remove: { how: string; apply(content: ContentJson, use: TraitUse): ContentChange } | null;
+  /**
+   * How a use is changed in place, where it holds values besides the key (v1.1.6-S4, DL-186 item 14):
+   * the values it changes, in words, and the change. `null` where a use is the key alone, which is
+   * changed by taking it out and adding another.
+   */
+  update: { how: string; fields: Readonly<Record<string, string>>; apply(content: ContentJson, use: TraitUse, values: UseTarget): ContentChange } | null;
 }
 
 /** Top-level declarations of one source file, named from the repository's root. */
@@ -114,6 +121,17 @@ function use(entry: string, file: ContentFileName, path: JsonPath): TraitUse {
 function named(target: UseTarget, field: string): string {
   const value = target[field];
   if (typeof value !== 'string' || value === '') throw new UseRefusal(`the target's ${field} is wanted`);
+  return value;
+}
+
+/**
+ * A trait consequence's chance, above 0 and at most 1 as its entry's words say, or a refusal naming
+ * it (`what`: "the chance", "the target's chance"). The content's checks take 0, a consequence that
+ * never comes (the verification of v1.1.6-S4).
+ */
+function chanceOf(value: unknown, what: string): number {
+  if (typeof value !== 'number') throw new UseRefusal(`${what} is wanted: a number`);
+  if (!(value > 0 && value <= 1)) throw new UseRefusal(`${what} is ${value}; it is above 0 and at most 1`);
   return value;
 }
 
@@ -185,13 +203,9 @@ function filteredByTrait(entry: string, content: ContentJson, file: ContentFileN
   return { change: { [file]: root }, use: use(entry, file, [...path, 2]) };
 }
 
-/** Refuses a row of `file` that is not there, or is in the old form with no Query (v1.1.4-S1), saying what to do. */
-function queryRow(content: ContentJson, file: ContentFileName, key: string, written: (row: Record<string, unknown>) => boolean, what: string): void {
-  const row = at(content[file], [key]);
-  if (!isObject(row)) throw new UseRefusal(`${file}: ${key} is not there`);
-  if (!written(row)) {
-    throw new UseRefusal(`${file}: ${key} is ${what} in the old form, with no Query to filter: ask the owner to have it written in Queries (as v1.1.4-S10 writes the shipped content), then assign`);
-  }
+/** Refuses a row of `file` that is not there. */
+function queryRow(content: ContentJson, file: ContentFileName, key: string): void {
+  if (!isObject(at(content[file], [key]))) throw new UseRefusal(`${file}: ${key} is not there`);
 }
 
 // ── The content ────────────────────────────────────────────────────────────────────────────────
@@ -231,6 +245,7 @@ const excludes: ContentEntry = {
       return { change: { [file]: root }, use: use('excludes', file, [other, 'excludes', listAt(root, [other, 'excludes'], file).indexOf(key)]) };
     },
   },
+  update: null,
   remove: {
     how: 'The key is taken out of that Trait\'s `excludes`, and that Trait out of the key\'s, both ways.',
     apply(content, found) {
@@ -276,6 +291,7 @@ const injuryLeavesTrait: ContentEntry = {
       return { change: { 'injuries.json': root }, use: use('injury-leaves-trait', 'injuries.json', [injury, 'leavesTrait']) };
     },
   },
+  update: null,
   remove: {
     how: "The Injury's `leavesTrait` is set to `null`: it leaves no Trait.",
     apply(content, found) {
@@ -285,9 +301,6 @@ const injuryLeavesTrait: ContentEntry = {
     },
   },
 };
-
-/** The Degrees whose lists an Encounter's consequences may hold (v1.1.4-S2). */
-const outcomeLists = ['triumph', 'success', 'setback', 'failure'] as const;
 
 const encounterTraitConsequence: ContentEntry = {
   place: 'content',
@@ -300,7 +313,7 @@ const encounterTraitConsequence: ContentEntry = {
   blocksRemoval: true,
   find(content, key) {
     return entriesOf(content['encounters.json']).flatMap(([encounter, row]) =>
-      outcomeLists.flatMap((degree) => {
+      degrees.flatMap((degree) => {
         const list = at(row, ['consequences', degree]);
         return (Array.isArray(list) ? list : []).flatMap((consequence, index) =>
           isObject(consequence) && consequence.kind === 'trait' && consequence.traitKey === key
@@ -319,8 +332,7 @@ const encounterTraitConsequence: ContentEntry = {
       const degree = named(target, 'degree');
       if (degree !== 'triumph' && degree !== 'failure') throw new UseRefusal('the target\'s degree is "triumph" or "failure"');
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: an Encounter grants a Hero Trait`);
-      const chance = target.chance;
-      if (typeof chance !== 'number') throw new UseRefusal("the target's chance is wanted: a number");
+      const chance = chanceOf(target.chance, "the target's chance");
       const root = copyOf(content, 'encounters.json');
       const consequences = objectAt(root, [encounter, 'consequences'], 'encounters.json');
       if (degree === 'triumph' && !Array.isArray(consequences.triumph)) consequences.triumph = structuredClone(Array.isArray(consequences.success) ? consequences.success : []);
@@ -328,6 +340,19 @@ const encounterTraitConsequence: ContentEntry = {
       if (list.some((each) => isObject(each) && each.kind === 'trait' && each.traitKey === key)) throw new UseRefusal(`encounters.json: ${encounter}.consequences.${degree} gives "${key}" already`);
       list.push({ kind: 'trait', traitKey: key, chance, ...(target.among === undefined ? {} : { among: target.among }) });
       return { change: { 'encounters.json': root }, use: use('encounter-trait', 'encounters.json', [encounter, 'consequences', degree, list.length - 1]) };
+    },
+  },
+  update: {
+    how: "The consequence's `chance` or `among`, or both, are set in its place; an `among` of `null` takes it out, so that any Hero of the Party may take the Trait.",
+    fields: { chance: 'optional: the chance, above 0 and at most 1', among: 'optional: a Set Query of who may take it, or `null` for any Hero' },
+    apply(content, found, values) {
+      const root = copyOf(content, 'encounters.json');
+      const consequence = objectAt(root, found.path, 'encounters.json');
+      if (consequence.kind !== 'trait') throw new UseRefusal(`encounters.json: ${pathText(found.path)} is not a trait consequence`);
+      if (values.chance !== undefined) consequence.chance = chanceOf(values.chance, 'the chance');
+      if (values.among === null) delete consequence.among;
+      else if (values.among !== undefined) consequence.among = values.among;
+      return { 'encounters.json': root };
     },
   },
   remove: {
@@ -370,10 +395,11 @@ const encounterHasTrait: ContentEntry = {
     apply(content, key, target) {
       const encounter = named(target, 'encounter');
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: a Query reads a Hero's Traits`);
-      queryRow(content, 'encounters.json', encounter, (row) => Array.isArray(row.checks), 'an Encounter');
+      queryRow(content, 'encounters.json', encounter);
       return filteredByTrait('encounter-has-trait', content, 'encounters.json', [encounter, ...targetPath(target, 'path')], key);
     },
   },
+  update: null,
   remove: hasTraitRemoval,
 };
 
@@ -402,7 +428,7 @@ const synergyHasTrait: ContentEntry = {
     apply(content, key, target) {
       const synergy = named(target, 'synergy');
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: a Query reads a Hero's Traits`);
-      queryRow(content, 'synergies.json', synergy, (row) => Array.isArray(row.requires), 'a Synergy');
+      queryRow(content, 'synergies.json', synergy);
       if (target.path !== undefined) return filteredByTrait('synergy-has-trait', content, 'synergies.json', [synergy, ...targetPath(target, 'path')], key);
       const root = copyOf(content, 'synergies.json');
       const requires = listAt(root, [synergy, 'requires'], 'synergies.json');
@@ -411,6 +437,7 @@ const synergyHasTrait: ContentEntry = {
       return { change: { 'synergies.json': root }, use: use('synergy-has-trait', 'synergies.json', [synergy, 'requires', requires.length - 1, 1, 1, 2]) };
     },
   },
+  update: null,
   remove: {
     how: `${hasTraitRemoval.how} The condition \`add\` makes without a path is taken out of \`requires\` whole.`,
     apply(content, found) {
@@ -458,6 +485,21 @@ const biographySentences: ContentEntry = {
       if (sentences.includes(sentence)) throw new UseRefusal(`descriptions.json: ${pathText([...place, key])} holds that sentence already`);
       sentences.push(sentence);
       return { change: { 'descriptions.json': root }, use: use('biography-sentences', 'descriptions.json', [...place, key, sentences.length - 1]) };
+    },
+  },
+  update: {
+    how: 'The sentence is put in place of the one there, keeping its place in the list.',
+    fields: { sentence: 'the sentence in place of the one there, with the slots a Biography fills: `{He}`, `{his}`' },
+    apply(content, found, values) {
+      const sentence = values.sentence;
+      if (typeof sentence !== 'string' || sentence === '') throw new UseRefusal('the sentence is wanted');
+      const root = copyOf(content, 'descriptions.json');
+      const sentences = listAt(root, found.path.slice(0, -1), 'descriptions.json');
+      const index = found.path.at(-1);
+      if (typeof index !== 'number' || typeof sentences[index] !== 'string') throw new UseRefusal(`descriptions.json: ${pathText(found.path)} is not there`);
+      if (sentences.some((each, other) => other !== index && each === sentence)) throw new UseRefusal(`descriptions.json: ${pathText(found.path.slice(0, -1))} holds that sentence already`);
+      sentences[index] = sentence;
+      return { 'descriptions.json': root };
     },
   },
   remove: {
@@ -508,6 +550,7 @@ const portraitCallings: ContentEntry = {
       return { change: { 'descriptions.json': root }, use: use('portrait-callings', 'descriptions.json', ['callings', calling, side, listed.length - 1]) };
     },
   },
+  update: null,
   remove: {
     how: 'The key is taken out of that list.',
     apply(content, found) {
@@ -547,6 +590,7 @@ const portraitFeatures: ContentEntry = {
       return { change: { 'portrait-appearances.json': root }, use: use('portrait-features', 'portrait-appearances.json', ['features', feature, 'shows', listed.length - 1]) };
     },
   },
+  update: null,
   remove: {
     how: "The key is taken out of the Feature's `shows`, and `shows` with it once empty.",
     apply(content, found) {
@@ -583,13 +627,13 @@ const engineEntries: readonly EngineEntry[] = [
   }),
   engine({
     id: 'effective-stats',
-    title: "A Hero Trait's Stat changes, in effectiveStats",
+    title: "A Hero Trait's Stat changes, in statBreakdown and effectiveStats",
     lists: ['hero'],
     effectKinds: ['statModifiers'],
-    reads: "The sum of the `statModifiers` of the Hero Traits a Hero holds, added to the base beside the Guildmaster's Class bonus and gear, so it shows wherever a Stat shows: every Check, Query, harm share, the estimate and a Hero's page (DL-148 item 24).",
+    reads: "The sum of the `statModifiers` of the Hero Traits a Hero holds, added to the base beside the Guildmaster's Class bonus and gear in `statBreakdown`, whose total is `effectiveStats`, so it shows wherever a Stat shows: every Check, Query, harm share, the estimate, the Roster and a Hero's page (DL-148 item 24, DL-186 item 3).",
     sources: [
       { file: 'engine/src/traits.ts', names: ['traitStatModifiers'] },
-      { file: 'engine/src/selectors.ts', names: ['effectiveStats'] },
+      { file: 'engine/src/selectors.ts', names: ['statBreakdown'] },
     ],
   }),
   engine({
@@ -608,11 +652,11 @@ const engineEntries: readonly EngineEntry[] = [
     title: "The Guildmaster's Trait readers",
     lists: ['guildmaster'],
     effectKinds: ['classStatBonus', 'guildMoraleShift', 'upkeepFactor'],
-    reads: "Each effect of the Guildmaster's Traits: a Class Stat bonus in `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).",
+    reads: "Each effect of the Guildmaster's Traits: a Class Stat bonus in `statBreakdown`, whose total is `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).",
     sources: [
       { file: 'engine/src/guildmaster.ts', names: ['traitEffects', 'traitMoraleShift', 'traitUpkeepFactor', 'traitStatBonuses'] },
       { file: 'engine/src/morale.ts', names: ['moraleBaselineFor'] },
-      { file: 'engine/src/selectors.ts', names: ['upkeepParts', 'effectiveStats'] },
+      { file: 'engine/src/selectors.ts', names: ['upkeepParts', 'statBreakdown'] },
     ],
   }),
   engine({
@@ -643,7 +687,8 @@ const engineEntries: readonly EngineEntry[] = [
     events: ['hero.trait-gained'],
     reads: "A `trait` consequence: drawn on a Triumph and granted on a strong success, or falling on a Hero the Encounter injured on a Failure; never one held, one in conflict, or a second on a Quest. Granted at the Quest's end with `hero.trait-gained` (DL-148 item 25).",
     sources: [
-      { file: 'engine/src/quest-engine/resolve.ts', names: ['apply', 'earn'] },
+      { file: 'engine/src/quest-engine/resolve.ts', names: ['apply'] },
+      { file: 'engine/src/quest-engine/harm.ts', names: ['chooseEarner'] },
       { file: 'engine/src/phases/quests-conclude.ts', names: ['conclude'] },
       { file: 'engine/src/traits.ts', names: ['mayEarn'] },
     ],
@@ -664,9 +709,9 @@ const engineEntries: readonly EngineEntry[] = [
     id: 'has-trait',
     title: 'has-trait in a Query',
     lists: ['hero'],
-    reads: 'The `["has-trait", key]` predicate: whether the current Hero holds a Hero Trait content defines (v1.1.4-S1), and its account for the Board.',
+    reads: 'The `["has-trait", key]` predicate: whether the current Hero holds a Hero Trait content defines (v1.1.4-S1), its row of the Query operators (v1.1.6-S10), and its account for the Board.',
     sources: [
-      { file: 'engine/src/quest-engine/query.ts', names: ['is'] },
+      { file: 'engine/src/quest-engine/query/operators.ts', names: ['operators'] },
       { file: 'engine/src/quest-engine/describe.ts', names: ['predAccount'] },
     ],
   }),
@@ -707,11 +752,11 @@ const engineEntries: readonly EngineEntry[] = [
           'checkEncounters',
           'checkConsequence',
           'checkTraits',
-          'operators',
           'queryKeys',
-          'queryArgument',
         ],
       },
+      // The Queries' keys, a has-trait's among them, checked by the engine for content (v1.1.6-S10, DL-186 item 6).
+      { file: 'engine/src/quest-engine/query/problems.ts', names: ['queryArgument'] },
     ],
   }),
 ];
@@ -720,7 +765,7 @@ const engineEntries: readonly EngineEntry[] = [
  * The engine's Trait helpers: the declarations whose job is to read a Trait. A call or other
  * reference of one is a read of a Trait for the drift test, as the lists and kinds themselves are
  * (the verification of v1.1.4-S12), so a rule that reads a Trait only through a helper is listed too.
- * The rules that call those rules in turn (every caller of `effectiveStats`, say) are not: they read
+ * The rules that call those rules in turn (every caller of `statBreakdown` or `effectiveStats`, say) are not: they read
  * Stats, not Traits.
  */
 export const traitHelpers: readonly SourcePlace[] = [

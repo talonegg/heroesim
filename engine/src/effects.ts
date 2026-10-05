@@ -20,10 +20,11 @@ import type { GameConfig } from './config.js';
 import type { ContentSet, InjuryTypeKey, QuestTemplateKey } from './content-types.js';
 import {
   parseId,
+  requireRow,
+  rowOf,
   type EntityId,
   type GuildId,
   type GuildmasterId,
-  type Hero,
   type HeroId,
   type ModuleId,
   type PatronId,
@@ -39,6 +40,7 @@ import { changeMorale } from './morale.js';
 import { adjustRegard, guildmasterRegard, patronRegardChanged } from './regard.js';
 import type { StreamName } from './rng.js';
 import { healFactor } from './selectors.js';
+import { writeOnce } from './world-copy.js';
 
 // ── The effects ──────────────────────────────────────────────────────────────────────────────
 
@@ -108,8 +110,9 @@ export const moduleEffectKinds = Object.freeze([
 /**
  * Why an effect was refused, having changed nothing: the effect's `kind` and a kebab-case `reason`.
  * A Hero dead, retired or gone from the pool is `hero-gone`; a Hero away in a Party, `hero-away`;
- * one already carrying an Injury, `hero-injured`; a folded Guild, `guild-folded`; a Hero out of play
- * or the Guildmaster of a folded Guild holding Regard, `holder-gone`.
+ * one already carrying an Injury, `hero-injured`; a folded Guild, `guild-folded`; a Hero out of play,
+ * a retired Guildmaster (v1.1.6-S17, DL-203) or the Guildmaster of a folded Guild holding Regard,
+ * `holder-gone`.
  */
 export type EffectRejection =
   | { effect: 'adjustMorale'; reason: 'hero-gone' }
@@ -176,14 +179,14 @@ export function applyEffect(world: World, effect: ModuleEffect, ctx: EffectConte
 
 function applyMorale(world: World, effect: AdjustMorale, ctx: EffectContext): EffectResult {
   checkWhole(effect.delta, effect.kind, 'delta');
-  const hero = rowIn(world.heroes, effect.heroId, 'heroes');
+  const hero = requireRow(world.heroes, effect.heroId, 'heroes');
   if (outOfPlay(hero)) return { ok: false, rejection: { effect: effect.kind, reason: 'hero-gone' } };
   return applied(effect, [changeMorale(hero, effect.delta, 'module', ctx.config, ctx.emit)], ctx);
 }
 
 function applyWealth(world: World, effect: AdjustWealth, ctx: EffectContext): EffectResult {
   checkWhole(effect.delta, effect.kind, 'delta');
-  const guild = rowIn(world.guilds, effect.guildId, 'guilds');
+  const guild = requireRow(world.guilds, effect.guildId, 'guilds');
   if (guild.foldedOnTurn !== null) return { ok: false, rejection: { effect: effect.kind, reason: 'guild-folded' } };
   const before = guild.wealth;
   guild.wealth = before + effect.delta;
@@ -202,22 +205,23 @@ function applyRegard(world: World, effect: AdjustRegard, ctx: EffectContext): Ef
   const { config, turn, moduleId } = ctx;
   switch (holder?.table) {
     case 'patrons': {
-      const patron = rowIn(world.patrons, holderId as PatronId, 'patrons');
+      const patron = requireRow(world.patrons, holderId as PatronId, 'patrons');
       if (entity.table !== 'guilds') throw new RangeError(`A Patron holds Regard for Guilds, not ${entityId}`);
       const change = adjustRegard(patron.regard, entityId, delta, turn, moduleId, config);
       return applied(effect, patronRegardChanged(ctx, patron.id, entityId as GuildId, 'module', change), ctx);
     }
     case 'guildmasters': {
-      const guildmaster = rowIn(world.guildmasters, holderId as GuildmasterId, 'guildmasters');
+      const guildmaster = requireRow(world.guildmasters, holderId as GuildmasterId, 'guildmasters');
       if (!['patrons', 'heroes', 'guildmasters'].includes(entity.table)) {
         throw new RangeError(`A Guildmaster holds Regard for Patrons, Heroes and Guildmasters, not ${entityId}`);
       }
-      const guild = Object.hasOwn(world.guilds, guildmaster.guildId) ? world.guilds[guildmaster.guildId] : undefined;
-      if (guild === undefined || guild.foldedOnTurn !== null) return refused;
+      // A retired Guildmaster is out of play, their row written once and shared (ADR-0011, DL-203).
+      const guild = rowOf(world.guilds, guildmaster.guildId);
+      if (guild === undefined || guild.foldedOnTurn !== null || writeOnce.guildmasters(guildmaster)) return refused;
       return applied(effect, guildmasterRegard(ctx, guildmaster, entityId, delta, 'module', moduleId), ctx);
     }
     case 'heroes': {
-      const hero = rowIn(world.heroes, holderId as HeroId, 'heroes');
+      const hero = requireRow(world.heroes, holderId as HeroId, 'heroes');
       if (entity.table !== 'heroes') throw new RangeError(`A Hero holds Regard for other Heroes, not ${entityId}`);
       if (outOfPlay(hero)) return refused;
       const change = adjustRegard(hero.regard, entityId, delta, turn, moduleId, config);
@@ -233,13 +237,13 @@ function applyInjury(world: World, effect: Injure, ctx: EffectContext): EffectRe
   checkWhole(days, effect.kind, 'days');
   if (days < 1) throw new RangeError(`injure's days is a whole number from 1; got ${days}`);
   if (!Object.hasOwn(ctx.content.injuries, typeKey)) throw new RangeError(`Content defines no Injury type ${JSON.stringify(typeKey)}`);
-  const hero = rowIn(world.heroes, heroId, 'heroes');
+  const hero = requireRow(world.heroes, heroId, 'heroes');
   const refuse = (reason: 'hero-gone' | 'hero-away' | 'hero-injured'): EffectResult => ({ ok: false, rejection: { effect: effect.kind, reason } });
   if (outOfPlay(hero)) return refuse('hero-gone');
   if (hero.partyId !== null) return refuse('hero-away');
   if (hero.injury !== null) return refuse('hero-injured');
   // A Hero on no Roster has no infirmary: the factor of none, grade 0.
-  const guild = hero.guildId !== null && Object.hasOwn(world.guilds, hero.guildId) ? world.guilds[hero.guildId] : undefined;
+  const guild = hero.guildId !== null ? rowOf(world.guilds, hero.guildId) : undefined;
   const factor = healFactor(guild ?? { hall: { infirmary: 0 } }, ctx.config);
   const healsOnTurn = inflictInjury(hero, typeKey, healDays(days, factor), ctx.turn);
   const payload = { heroId, questId: null, typeKey, healsOnTurn, moduleId: ctx.moduleId };
@@ -247,7 +251,7 @@ function applyInjury(world: World, effect: Injure, ctx: EffectContext): EffectRe
 }
 
 function applyOfferQuest(world: World, effect: OfferQuest, ctx: EffectContext): EffectResult {
-  const patron = rowIn(world.patrons, effect.patronId, 'patrons');
+  const patron = requireRow(world.patrons, effect.patronId, 'patrons');
   if (ctx.streamName === undefined) throw new RangeError(`The ${ctx.moduleId} module registered no stream to draw a Quest from`);
   // A module's stream is kept in `world.rng` under its own name, beside the core's (modules.ts).
   const stream = ctx.streamName as StreamName;
@@ -264,16 +268,8 @@ function applied(effect: ModuleEffect, events: EngineEvent[], ctx: Pick<EffectCo
   return { ok: true, effect, events };
 }
 
-/** Whether `hero` is out of play: dead, retired, or gone from the pool unrecruited (DL-27). */
-function outOfPlay(hero: Pick<Hero, 'diedOnTurn' | 'retiredOnTurn' | 'leftPoolOnTurn'>): boolean {
-  return hero.diedOnTurn !== null || hero.retiredOnTurn !== null || hero.leftPoolOnTurn !== null;
-}
-
-function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string, table: string): Row {
-  const row = Object.hasOwn(rows, id) ? rows[id] : undefined;
-  if (row === undefined) throw new RangeError(`${id} is not in world.${table}`);
-  return row;
-}
+/** Whether `hero` is out of play: dead, retired, or gone from the pool unrecruited (DL-27); their row written once (ADR-0011). */
+const outOfPlay = writeOnce.heroes;
 
 function checkWhole(value: number, kind: ModuleEffectKind, field: string): void {
   if (!Number.isSafeInteger(value)) throw new RangeError(`${kind}'s ${field} is a whole number; got ${value}`);

@@ -151,6 +151,27 @@ export function compareByCodeUnit(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+// ── Row lookup ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The row `rows` holds under `id`, read as an own property, so that a key of `Object.prototype`
+ * (`constructor`, `__proto__`) reads as absent in a table built here or parsed from JSON; `undefined`
+ * when the table has none (v1.1.6-S8, DL-186 item 26).
+ */
+export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
+  return Object.hasOwn(rows, id) ? rows[id] : undefined;
+}
+
+/**
+ * The row `rows` holds under `id`, which must be there: a programming error throws a `RangeError`,
+ * "<id> is not in world.<table>" when `table` is given and "<id> is not in the world" when not.
+ */
+export function requireRow<Row>(rows: Readonly<Record<string, Row>>, id: string, table?: string): Row {
+  const found = rowOf(rows, id);
+  if (found === undefined) throw new RangeError(table === undefined ? `${id} is not in the world` : `${id} is not in world.${table}`);
+  return found;
+}
+
 // ── Values shared by rows ────────────────────────────────────────────────────────────────────
 
 /** An absolute Turn index from 0. Day and time of day are derived from it (data-model §3.1). */
@@ -180,6 +201,9 @@ export type StatValues = Record<StatKey, number>;
 
 /** A Skill's rating; a Hero without the Skill has no entry for it. */
 export type SkillRating = 1 | 2 | 3 | 4 | 5;
+/** The Skill scale's ends, `SkillRating`'s least and greatest: the Hero generator's and `checkConfig`'s. */
+export const lowestSkillRating = 1;
+export const highestSkillRating = 5;
 
 /** The Hall's facilities, each at a grade raised by Improvements (M3-S6). */
 export const facilityKeys = ['infirmary', 'trainingYard', 'quarters'] as const;
@@ -197,9 +221,6 @@ export interface Injury {
   typeKey: InjuryTypeKey;
   healsOnTurn: Turn;
 }
-
-/** A Stat a Quest assesses and its weight in the assessment. */
-export type Demand = [statKey: StatKey, weight: number];
 
 export interface QuestRequirements {
   partySizeMin: number;
@@ -402,7 +423,6 @@ export interface Quest {
   fameEffect: number;
   /** durationDays × 3, from the template's range. */
   durationTurns: number;
-  demands: Demand[];
   skillKeys: SkillKey[];
   /** Drawn at generation from M4; empty before. */
   encounterKeys: EncounterKey[];
@@ -457,13 +477,32 @@ export interface Stack {
 
 // ── Sections (data-model §1–§4) ──────────────────────────────────────────────────────────────
 
+/**
+ * The World State schema this engine writes as `meta.version`; a load compares the two and
+ * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27);
+ * 3 from the M6 verification, whose Heroes gained `transferredOnTurn` (DL-60); 4 from M9-S2, whose
+ * Guildmasters gained the descriptive Attributes and `retiredOnTurn` (DL-102); 5 from v1.1.2-S3,
+ * whose Guildmasters gained `portraitKey` and Patrons `sex`, and which refuses every older save
+ * rather than migrating it (DL-125 item 10.2, DL-130); 6 from v1.1.3-S6, whose Heroes gained
+ * `portraitKey`, `appearance` and `biography`, and which refuses every older save likewise (DL-135
+ * item 7); 7 from v1.1.6-S7, whose `meta` gained `configVersion`, whose config lost
+ * `schemaVersion`, `configVersion` and `gearSlots`, and whose Quests lost `demands`, refusing every
+ * older save likewise (DL-193).
+ */
+export const schemaVersion = 7;
+
 export interface Meta {
-  /** Schema version of this document. */
+  /** Schema version of this document: `schemaVersion` when it was written. */
   version: number;
   /** The master seed the world was created from. */
   seed: string;
   /** The content set the world was created under. */
   content: ContentRef;
+  /**
+   * The version of the defaults `config` was taken from (`configVersion`, config.ts): set at
+   * creation, and only `rebase` rewrites it (v1.1.6-S7, DL-193).
+   */
+  configVersion: number;
   /** Every tunable as it was at creation; only `rebase` rewrites it. Rules read `deps.config`. */
   config: GameConfig;
   /** Supplied by the caller and never read by rules: a front end's clock, or `"harness"`. */

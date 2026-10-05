@@ -25,12 +25,14 @@ words are terms; this decides how they, and the words around them, are written.
 | Age, Sex, Male, Female | age, sex | Labels and values (DL-111 item 9, DL-112 item 4) |
 | Unattached pool | Unattached Pool | "Pool" is no term; Unattached Hero is |
 | Debug: Whole History | Debug: whole History | The owner's wording (DL-120) |
+| an Offer, a Module, their Gear | an offer, a module, their gear | Terms, in the CLI as on the page (v1.1.6-S11, DL-197; the narration's, one for both, v1.1.6-S12, DL-198) |
+| No effect | no effect | A Trait's effects stand alone (v1.1.6-S11, DL-197) |
 
 ## How
 
-- **Capitalise data in the selector that builds the text,** with `capitalised()`
-  (`web/src/state/names.ts`), so that each text is made in one place and reads the same wherever
-  it is shown.
+- **Capitalise data in the selector that builds the text,** with `capitalised()` (`@heroesim/words`,
+  which the CLI reads too), so that each text is made in one place and reads the same wherever it is
+  shown.
 - **Never with CSS `text-transform: capitalize`,** which capitalises every word.
 - **The tracked capitals of small labels stay a style** (DL-103 item 11): table headers, `dt`s,
   legends, `h6`s and captions render in capitals. The source under them still follows the rule, for

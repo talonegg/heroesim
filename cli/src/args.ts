@@ -5,6 +5,7 @@
 
 import {
   defaultConfig,
+  descriptiveAttributeMaxLength as bounds,
   gearSlotKeys,
   guildmasterStatKeys,
   isId,
@@ -24,11 +25,12 @@ import {
   type StackId,
   type StopCondition,
 } from '@heroesim/engine';
+import { listed } from '@heroesim/words';
 import { cliModules, isCliModule } from './modules.js';
 import { currentSave } from './saves.js';
 
 /** The Guildmaster Stats' keys, the rules' own, in words: `negotiation, inspiration, ... and judgement`. */
-const statKeysWords = ((keys: string[]) => `${keys.slice(0, -1).join(', ')} and ${keys.at(-1) ?? ''}`)(Object.values(guildmasterStatKeys));
+const statKeysWords = listed(Object.values(guildmasterStatKeys));
 
 export const usage = `Usage: heroesim <command> [flags]
 
@@ -44,8 +46,8 @@ Commands:
       their sex; their age, ${defaultConfig.guildmasterStartingAgeMin} to ${defaultConfig.guildmasterStartingAgeMax} (a Guildmaster retires at ${defaultConfig.guildmasterRetirementAge}); their Traits, by
       key, within the Trait budget (a buff costs points and a penalty refunds them, and
       two Traits that exclude each other cannot be held together), or none; and their
-      Birthplace, Appearance and Biography, short texts no rule reads (at most 60, 280
-      and 1,000 characters). --portrait names a Guildmaster picture by its key, of the
+      Birthplace, Appearance and Biography, short texts no rule reads (at most ${bounds.birthplace}, ${bounds.appearance}
+      and ${bounds.biography.toLocaleString('en-GB')} characters). --portrait names a Guildmaster picture by its key, of the
       sex given, or making the Guildmaster of its sex, whatever it fits; without --age,
       their age is drawn within the picture's. Left out, one is chosen to fit them, and
       where none fits the Guildmaster shows its Silhouette. --stats sets every

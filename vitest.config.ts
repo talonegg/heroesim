@@ -13,7 +13,10 @@ import { configDefaults, defineConfig } from 'vitest/config';
 //
 // The portrait tool, tools/portraits, is a workspace package outside the five (v1.1.3-S2), and so
 // is the content editor, tools/editor (v1.1.4-S12).
-const nodePackages = ['engine', 'content', 'harness', 'cli'];
+//
+// The words the CLI and the page share, words/ (v1.1.6-S11, DL-186 item 1), run in a browser; their
+// tests word content's rows read from disk, so they run on Node with the other packages.
+const nodePackages = ['engine', 'content', 'words', 'harness', 'cli'];
 const harnessRuns = '**/*.harness.test.ts';
 
 export default defineConfig({

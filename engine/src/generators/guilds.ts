@@ -7,6 +7,7 @@ import type { EngineDeps, GameConfig } from '../config.js';
 import type { BackgroundKey, ContentSet, DispositionKey, GuildmasterTrait, PortraitKey, TraitKey } from '../content-types.js';
 import {
   facilityKeys,
+  rowOf,
   takeId,
   type Controller,
   type EntityId,
@@ -33,6 +34,7 @@ import {
   drawCount,
   drawPersonName,
   drawUnusedPersonName,
+  pickByWeight,
   pickInDraws,
   pickUnused,
   sexes,
@@ -132,7 +134,7 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
 
   const name = options.name ?? drawGuildName(state, content.names.guild, Object.values(world.guilds));
   const backgroundKey =
-    options.backgroundKey ?? pick(state, sortedKeys(content.backgrounds, (row) => row.owner === 'guild'));
+    options.backgroundKey ?? pickByWeight(state, sortedRows(content.backgrounds, (row) => row.owner === 'guild')).key;
 
   const guildId = takeId(world, 'guilds');
   const guildmasterId = takeId(world, 'guildmasters');
@@ -305,7 +307,7 @@ function namesInUse(world: World): Set<string> {
   const names = new Set<string>();
   for (const guild of Object.values(world.guilds)) {
     if (guild.foldedOnTurn !== null) continue;
-    const guildmaster = Object.hasOwn(world.guildmasters, guild.guildmasterId) ? world.guildmasters[guild.guildmasterId] : undefined;
+    const guildmaster = rowOf(world.guildmasters, guild.guildmasterId);
     if (guildmaster !== undefined) names.add(guildmaster.name);
   }
   for (const hero of Object.values(world.heroes)) {

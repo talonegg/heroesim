@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { EncounterKind, GuildmasterTraitEffect, StatArea } from '@heroesim/engine';
+import { descriptiveAttributeMaxLength, encounterKinds, facilityKeys, gearSlotKeys, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { contentFiles, contentWarnings, descriptionBounds, longestDescriptions, parseContent, validateContent } from './index.js';
+import { contentFiles, contentWarnings, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
 
 // The core content set as the Node entry loads it from this package's directory (M1-S4).
@@ -15,9 +15,13 @@ describe('loadContent()', () => {
   /** A Guildmaster Trait's effect that helps the Guild: DL-100 item 3's buff. */
   const buff = (effect: GuildmasterTraitEffect): boolean => (effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0);
 
-  test("is the core content set, at the version its last change raised it to (parse.ts's comment says why)", () => {
+  // The content version is data, `version.json` (v1.1.6-S4, DL-186 item 14): the tools raise it there,
+  // and this test reads it, pinning no number of its own.
+  test('is the core content set, at the version its file holds, whose changelog says why it was last raised', () => {
+    const file = JSON.parse(readFileSync(join(contentDir, 'version.json'), 'utf8')) as { version: number; changelog: string[] };
     expect(content.id).toBe('core');
-    expect(content.version).toBe(32);
+    expect(content.version).toBe(file.version);
+    expect(file.changelog.at(-1)).toMatch(new RegExp(`^${file.version} from `));
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
@@ -194,13 +198,12 @@ describe('loadContent()', () => {
       for (const [where, list] of lists) expect(list?.length ?? 0, where).toBeGreaterThanOrEqual(1);
     });
 
-    test("proves the longest Birthplace, Appearance and Biography, a Guildmaster's and a Hero's, within 60, 280 and 1,000 characters", () => {
+    test("proves the longest Birthplace, Appearance and Biography, a Guildmaster's and a Hero's, within the engine's bounds", () => {
       const longest = longestDescriptions(content);
-      expect(longest.birthplace).toBeLessThanOrEqual(descriptionBounds.birthplace);
-      expect(longest.appearance).toBeLessThanOrEqual(descriptionBounds.appearance);
-      expect(longest.biography).toBeLessThanOrEqual(descriptionBounds.biography);
-      expect(longest.heroBiography).toBeLessThanOrEqual(descriptionBounds.biography);
-      expect(descriptionBounds).toEqual({ birthplace: 60, appearance: 280, biography: 1000 });
+      expect(longest.birthplace).toBeLessThanOrEqual(descriptiveAttributeMaxLength.birthplace);
+      expect(longest.appearance).toBeLessThanOrEqual(descriptiveAttributeMaxLength.appearance);
+      expect(longest.biography).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
+      expect(longest.heroBiography).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
     });
 
     test('names no clothing, armour, gear or ornament in any Appearance, drawn or mapped (DL-127 item 2)', () => {
@@ -307,7 +310,7 @@ describe('loadContent()', () => {
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
     const improvements = Object.values(content.improvements);
-    for (const facility of ['infirmary', 'trainingYard', 'quarters'] as const) {
+    for (const facility of facilityKeys) {
       const grades = improvements
         .filter((it) => it.facility === facility)
         .sort((a, b) => a.grade - b.grade)
@@ -436,11 +439,8 @@ describe('loadContent()', () => {
       }
     });
 
-    test('each weigh demands on Hero Stats summing to 1, and name Skills from skills.json', () => {
+    test('each name Skills from skills.json', () => {
       for (const it of templates) {
-        const sum = it.demands.reduce((total, [, weight]) => total + weight, 0);
-        expect(sum, it.key).toBeCloseTo(1, 6);
-        for (const [statKey] of it.demands) expect(content.stats[statKey]?.owner, it.key).toBe('hero');
         expect(it.skillKeys.length, it.key).toBeGreaterThan(0);
         for (const skillKey of it.skillKeys) expect(content.skills[skillKey], it.key).toBeDefined();
       }
@@ -494,8 +494,6 @@ describe('loadContent()', () => {
       string,
       { checks: Record<string, unknown>[]; pass?: unknown; consequences: Record<string, unknown[]> }
     >;
-    // The engine's union, written out: content imports only types from the engine (ADR-0006).
-    const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth', 'lore'] as const satisfies readonly EncounterKind[];
     const finales = new Set(Object.values(content.questTemplates).flatMap((it) => (it.finale === undefined ? [] : [it.finale])));
 
     test('are twenty-nine of the six kinds, four of them lore and four Finales (DL-162)', () => {
@@ -562,7 +560,26 @@ describe('loadContent()', () => {
       }
     });
 
-    test('use every kind of consequence the old form used', () => {
+    // v1.1.6-S6 (DL-192): the old form is no longer read, so every shipped row is in the new one: an
+    // Encounter's `checks` a list, a Synergy's `requires` a list (29 of 29 and 9 of 9 when it was retired).
+    // v1.1.6-S7 (DL-193): nor does a Quest template carry `demands`, which no rule read (12 of 12 when
+    // they went).
+    test('carry no demands, as written', () => {
+      const written = JSON.parse(readFileSync(join(contentDir, 'quest-templates.json'), 'utf8')) as Record<string, Record<string, unknown>>;
+      expect(Object.keys(written)).toHaveLength(12);
+      for (const [key, row] of Object.entries(written)) expect(row, key).not.toHaveProperty('demands');
+    });
+
+    test('are every one written with a list of Checks, and none in the old form', () => {
+      const written = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<string, Record<string, unknown>>;
+      expect(Object.keys(written)).toHaveLength(Object.keys(content.encounters).length);
+      for (const [key, row] of Object.entries(written)) {
+        expect(Array.isArray(row['checks']), key).toBe(true);
+        for (const field of ['demands', 'aggregate', 'skillKeys', 'difficultyFactor']) expect(row, `${key}.${field}`).not.toHaveProperty(field);
+      }
+    });
+
+    test('use every kind of consequence Encounters once used', () => {
       const used = new Set(encounters.flatMap((it) => Object.values(it.consequences).flatMap((list) => (list ?? []).map((consequence) => consequence.kind))));
       expect([...used]).toEqual(expect.arrayContaining(['injury', 'death', 'morale', 'regard', 'xp', 'wealth', 'fame']));
     });
@@ -603,6 +620,13 @@ describe('loadContent()', () => {
   // INPUTS 6.4: six starter Synergies, among them Warrior + Healer, Rogue + Mage and three Warriors;
   // v1.1.4-S10 writes them as Queries over the Party, and three more that read Stats and Levels (DL-162).
   describe('Synergies (M4-S3, v1.1.4-S10)', () => {
+    // v1.1.6-S6 (DL-192): see the Encounters'; every Synergy's `requires` is a list of conditions on the Party.
+    test('are every one written with a list of conditions, and none in the old form', () => {
+      const written = JSON.parse(readFileSync(join(contentDir, 'synergies.json'), 'utf8')) as Record<string, Record<string, unknown>>;
+      expect(Object.keys(written)).toHaveLength(Object.keys(content.synergies).length);
+      for (const [key, row] of Object.entries(written)) expect(Array.isArray(row['requires']), key).toBe(true);
+    });
+
     const synergies = Object.values(content.synergies);
     /** Each Synergy's requirement as `synergies.json` writes it: conditions on the Party. */
     const written = JSON.parse(readFileSync(join(contentDir, 'synergies.json'), 'utf8')) as Record<string, { requires: unknown }>;
@@ -655,7 +679,7 @@ describe('loadContent()', () => {
     });
 
     test('hold a line of three common gear to each slot, one of each grade, dearer and stronger by grade (INPUTS 7.1)', () => {
-      for (const slot of ['weapon', 'armour', 'trinket'] as const) {
+      for (const slot of gearSlotKeys) {
         const line = lines
           .filter((it) => it.slot === slot)
           .sort((a, b) => grades.indexOf(a.tags[0] ?? '') - grades.indexOf(b.tags[0] ?? ''));
@@ -695,7 +719,7 @@ describe('loadContent()', () => {
     test('make the unique gear Loot only, among them one of each slot', () => {
       const unique = gear.filter((it) => it.unique);
       for (const it of unique) expect(it.buyPrice, it.key).toBeNull();
-      expect(new Set(unique.map((it) => it.slot))).toEqual(new Set(['weapon', 'armour', 'trinket']));
+      expect(new Set(unique.map((it) => it.slot))).toEqual(new Set(gearSlotKeys));
     });
 
     test('have two consumables of each effect, common, their kinds Encounter kinds content has', () => {

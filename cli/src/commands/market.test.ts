@@ -7,18 +7,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   addStack,
-  count,
-  createItem,
-  defaultConfig,
   deserialise,
-  findStack,
   holdings,
-  marketHolder,
   playerGuild,
   serialise,
   type Guild,
   type WorldDocument,
 } from '@heroesim/engine';
+import { count, createItem, findStack, marketHolder } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from '../main.js';
@@ -52,7 +48,7 @@ const current = (): string => join(dir, '.saves', 'current.json');
 const saved = (): string => readFileSync(current(), 'utf8');
 
 function document(): WorldDocument {
-  const loaded = deserialise(saved(), { config: defaultConfig, content });
+  const loaded = deserialise(saved(), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }

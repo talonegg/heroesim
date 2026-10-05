@@ -22,22 +22,26 @@
 import type { HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
-import { orderWords, reverseOrderName, rosterColumnGroups, rosterSortChoices, rosterView, type RosterOrder, type RosterRow, type RosterSortKey } from '../state/selectors';
+import {
+  orderWords,
+  reverseOrderName,
+  rosterColumnGroups,
+  rosterRows,
+  rosterSortChoices,
+  sortedRoster,
+  type RosterOrder,
+  type RosterRow,
+  type RosterSortKey,
+} from '../state/selectors';
 import { HeroPage } from './hero-page';
 import { Icon } from './icons';
 import { Offers } from './offers';
 import { ItemPicture, PortraitThumb } from './pictures';
 import { Pool } from './pool';
-import { rememberChoice, rememberedChoice, rememberedList, rememberList } from './remembered';
+import { preferences, useRemembered } from './remembered';
 import { ColumnsPanel, nameId, RosterTable } from './roster-table';
 import { View } from './section';
 import { Chip, FilterChips, moraleTones, Tabs, useNarrow, useReturn } from './ui';
-
-/** The keys this browser keeps the Roster's choices under (DL-169 item 11). */
-export const rosterViewKey = 'heroesim.rosterView';
-export const rosterColumnsKey = 'heroesim.rosterColumns';
-export const rosterTabKey = 'heroesim.rosterTab';
-export const rosterOrderKey = 'heroesim.rosterOrder';
 
 /** How the Roster shows its Heroes. */
 type ShownAs = 'tiles' | 'table';
@@ -52,37 +56,27 @@ function keptOrder(order: RosterOrder): string {
   return `${order.key}:${order.direction}`;
 }
 
+/** The sort a kept one names. */
+function orderKept(kept: string): RosterOrder {
+  const [key = 'default', direction] = kept.split(':');
+  return { key, direction: direction === 'descending' ? 'descending' : 'ascending' };
+}
+
 export function Roster({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
   const groups = useMemo(() => rosterColumnGroups(), []);
   const sorts = useMemo(() => rosterSortChoices(), []);
   const columnKeys = useMemo(() => groups.flatMap((group) => group.columns.map((column) => column.key)), [groups]);
-  const [shownAs, setShownAs] = useState<ShownAs>(() =>
-    rememberedChoice(
-      rosterViewKey,
-      shownAsChoices.map(({ key }) => key),
-      'tiles',
-    ),
-  );
-  const [order, setOrder] = useState<RosterOrder>(() => {
-    const kept = rememberedChoice(
-      rosterOrderKey,
-      sorts.flatMap(({ key }) => [`${key}:ascending`, `${key}:descending`]),
-      null,
-    );
-    const [key = 'default', direction] = kept?.split(':') ?? [];
-    return { key, direction: direction === 'descending' ? 'descending' : 'ascending' };
-  });
-  const [hidden, setHidden] = useState<readonly string[]>(() => rememberedList(rosterColumnsKey, columnKeys) ?? []);
-  const [tab, setTab] = useState<string>(() =>
-    rememberedChoice(
-      rosterTabKey,
-      groups.map(({ key }) => key),
-      'hero',
-    ),
-  );
+  const [shownAs, setShownAs] = useRemembered(preferences.rosterView);
+  const [keptOrderOf, keepOrder] = useRemembered(preferences.rosterOrder);
+  // One value while the sort kept is the same, so that the rows are sorted only when it changes (DL-205).
+  const order = useMemo(() => orderKept(keptOrderOf), [keptOrderOf]);
+  const [hidden, setHidden] = useRemembered(preferences.rosterColumns);
+  const [tab, setTab] = useRemembered(preferences.rosterTab);
   const [columnsOpen, setColumnsOpen] = useState(false);
   const narrow = useNarrow();
-  const rows = useMemo(() => rosterView(document, order), [document, order]);
+  // The rows are built once a document (`rosterRows`), and a new sort only sorts them (v1.1.6-S13, DL-186 item 22).
+  const built = useMemo(() => rosterRows(document), [document]);
+  const rows = useMemo(() => sortedRoster(built, order), [built, order]);
   const [open, setOpen] = useState<HeroId | null>(null);
   const back = useReturn();
   useEffect(() => {
@@ -91,8 +85,7 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
 
   const firstDirection = (key: RosterSortKey) => sorts.find((sort) => sort.key === key)?.first ?? 'ascending';
   const sortBy = (next: RosterOrder): void => {
-    setOrder(next);
-    rememberChoice(rosterOrderKey, keptOrder(next));
+    keepOrder(keptOrder(next));
   };
   /** The sort in force, the other way. */
   const reversed = (): RosterOrder => ({ key: order.key, direction: order.direction === 'ascending' ? 'descending' : 'ascending' });
@@ -105,7 +98,6 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
   const hide = (next: string[]): void => {
     const sorted = columnKeys.filter((key) => next.includes(key));
     setHidden(sorted);
-    rememberList(rosterColumnsKey, sorted);
   };
 
   if (open !== null) {
@@ -148,7 +140,6 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
               onShow={(key) => {
                 if (key === null) return;
                 setShownAs(key);
-                rememberChoice(rosterViewKey, key);
               }}
             />
             <div className="roster__sort">
@@ -211,7 +202,6 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
               open={tabGroup?.key ?? 'hero'}
               onOpen={(key) => {
                 setTab(key);
-                rememberChoice(rosterTabKey, key);
               }}
               idOf={(key) => `roster-tab-${key}`}
             >

@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'vitest';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import type { ContentSet } from '../content-types.js';
@@ -12,6 +11,7 @@ import { nightOf, timeOfDay } from '../time.js';
 import { harmlessContent, testContent, testDeps, withValid } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { training } from './training.js';
+import { applyAction } from '../actions/action.js';
 
 // M3-S2: the night phase `training`, the training yard's XP (DL-36). The yard's grade is set on the
 // Hall directly: M3-S6's `build` raises it in play.
@@ -137,7 +137,7 @@ describe('training', () => {
       .find(({ requirements: { classKey, skillKey, partySizeMin } }) => classKey === undefined && skillKey === undefined && partySizeMin <= 1);
     if (open === undefined) throw new Error('No Quest a lone Hero may take on the Board');
     const [sentId, homeId] = player(start.world).rosterIds as [HeroId, HeroId];
-    const sent = dispatch(start, { guildId: player(start.world).id, questId: open.id, heroIds: [sentId] }, deps);
+    const sent = applyAction(start, { kind: 'dispatch', guildId: player(start.world).id, questId: open.id, heroIds: [sentId] }, deps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     const returnsOnTurn = Object.values(sent.document.world.parties)[0]?.returnsOnTurn ?? Number.NaN;
 

@@ -8,7 +8,16 @@
 // `emit` only makes the event. The caller returns it, and `advance` or the action appends it to
 // the History through `append`, the History's one writer (ADR-0008). The choices here are DL-24.
 
-import { isId, parseId, type EntityId, type EventType, type Hero, type ModuleId, type World } from './document.js';
+import {
+  isId,
+  parseId,
+  rowOf,
+  type EntityId,
+  type EventType,
+  type Hero,
+  type ModuleId,
+  type World,
+} from './document.js';
 import { isEngineEvent, isMilestone, type EngineEventOf, type EngineEventType, type ModuleEvent } from './events.js';
 
 /** What a rule writes to emit an event: its type, the entities it touches, and its payload. */
@@ -85,25 +94,25 @@ function entryOf(world: World, type: EventType, participants: readonly EntityId[
   const given = [...new Set(participants)];
   const named = [...given];
   for (const id of given) {
-    const row = rowOf(world, id);
+    const row = participantRow(world, id);
     if (!isId('heroes', id)) continue;
     const { guildId } = row as Hero;
     if (guildId !== null && !named.includes(guildId)) named.push(guildId);
   }
   const labels: Record<EntityId, string> = {};
   for (const id of named) {
-    const row = rowOf(world, id);
+    const row = participantRow(world, id);
     if ('name' in row && typeof row.name === 'string') labels[id] = row.name;
   }
   return { turn: world.turn, type, participants: named, labels, milestone, payload };
 }
 
 /** The row `id` names in `world`, which must be there. */
-function rowOf(world: World, id: EntityId): object {
+function participantRow(world: World, id: EntityId): object {
   const parsed = parseId(id);
   if (parsed === null) throw new TypeError(`A participant is an entity id; got ${JSON.stringify(id)}`);
   const rows: Readonly<Record<string, object>> = world[parsed.table];
-  const row = Object.hasOwn(rows, id) ? rows[id] : undefined;
+  const row = rowOf(rows, id);
   if (row === undefined) {
     throw new RangeError(`${id} is not in world.${parsed.table}: a rule emits its event before it removes a row`);
   }

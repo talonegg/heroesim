@@ -5,25 +5,32 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  defaultConfig,
   deserialise,
-  makeId,
   guildmasterOf,
+  playDeps,
   playerGuild,
   rankings,
   serialise,
   signingFee,
   unattachedHeroes,
+  type EngineDeps,
   type Guild,
   type Hero,
   type WorldDocument,
 } from '@heroesim/engine';
+import { makeId } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from '../main.js';
-import { playDeps } from '../saves.js';
 
 const content = loadContent();
+
+/** The deps a game plays under: the engine's `playDeps` over its own config (DL-193). */
+function depsOf(document: WorldDocument): EngineDeps {
+  const played = playDeps(document, content);
+  if (!played.ok) throw new Error(played.refusal.message);
+  return played.deps;
+}
 
 let dir: string;
 
@@ -53,7 +60,7 @@ const saved = (): string => readFileSync(current(), 'utf8');
 
 /** The save, loaded and validated as the CLI loads it. */
 function document(): WorldDocument {
-  const loaded = deserialise(saved(), { config: defaultConfig, content });
+  const loaded = deserialise(saved(), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }
@@ -75,7 +82,7 @@ function newWorld(): { guild: Guild; hero: Hero; fee: number } {
   const guild = playerGuild(created.world);
   const [hero] = unattachedHeroes(created.world);
   if (guild === undefined || hero === undefined) throw new Error('The world is incomplete');
-  return { guild, hero, fee: signingFee(hero, playDeps(created, content), guildmasterOf(guild, created.world)) };
+  return { guild, hero, fee: signingFee(hero, depsOf(created), guildmasterOf(guild, created.world)) };
 }
 
 /** The line of `output` that starts with `id`: a row of a table keyed by id. */
@@ -173,7 +180,7 @@ describe('the views', () => {
   test("show pool prints each Hero's signing fee from the engine's selector", () => {
     newWorld();
     const created = document();
-    const deps = playDeps(created, content);
+    const deps = depsOf(created);
     // The fee the player's Guild pays: its Guildmaster's Negotiation applied (M4-S5).
     const buyer = guildmasterOf(playerGuild(created.world) as Guild, created.world);
 

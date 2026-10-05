@@ -16,9 +16,9 @@
 // Quest with a Finale draws two fewer. An Encounter named as any template's Finale is never drawn into a
 // place, so writing one changes no other Quest's draws.
 
-import { encounterTagWeightProblem, type GameConfig } from '../config.js';
+import type { GameConfig } from '../config.js';
 import type { ContentSet, Encounter, EncounterKey, EncounterKind, QuestTagKey, QuestTemplate } from '../content-types.js';
-import type { Quest, World } from '../document.js';
+import { rowOf, type Quest, type World } from '../document.js';
 import { clamp, sortedRows, streamOf, type Stream } from '../generators/draw.js';
 import { pick, weightedPick, type StreamName } from '../rng.js';
 
@@ -101,7 +101,6 @@ export function tagWeight(encounter: Pick<Encounter, 'tags'>, tags: readonly Que
  * template's kinds as listed (`pick`), then an Encounter of that kind, each weighted by the tags it
  * shares with the template (`tagWeight`, one `weightedPick`). Two draws a place, from `state`. With
  * a Finale, the last place is the Finale, drawing nothing, and the `count - 1` before it are drawn.
- * Throws, drawing nothing, under an unsound `encounterTagWeight` (`configProblems`).
  */
 export function drawSequence(
   state: Stream,
@@ -109,8 +108,6 @@ export function drawSequence(
   count: number,
   config: Pick<GameConfig, 'encounterTagWeight'>,
 ): EncounterKey[] {
-  const problem = encounterTagWeightProblem(config.encounterTagWeight);
-  if (problem !== undefined) throw new RangeError(`The Encounter draw's configuration: ${problem}`);
   const weights = plan.pools.map((pool) => pool.map((encounter) => tagWeight(encounter, plan.tags, config)));
   // Each kind by its place in the template's list: `pick` over them draws as it drew over the pools.
   const kinds = plan.pools.map((_, index) => index);
@@ -131,7 +128,7 @@ export function drawSequence(
  * holds any.
  */
 export function storedSequence(quest: Pick<Quest, 'encounterKeys'>, content: Pick<ContentSet, 'encounters'>): Encounter[] {
-  return quest.encounterKeys.flatMap((key) => (Object.hasOwn(content.encounters, key) ? [content.encounters[key] as Encounter] : []));
+  return quest.encounterKeys.flatMap((key) => rowOf(content.encounters, key) ?? []);
 }
 
 /**
@@ -176,6 +173,6 @@ export function endsWithFinale(
   sequence: readonly Pick<Encounter, 'key'>[],
   content: Pick<ContentSet, 'questTemplates'>,
 ): boolean {
-  const finale = Object.hasOwn(content.questTemplates, templateKey) ? content.questTemplates[templateKey]?.finale : undefined;
+  const finale = rowOf(content.questTemplates, templateKey)?.finale;
   return finale !== undefined && sequence.at(-1)?.key === finale;
 }

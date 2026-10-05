@@ -31,7 +31,7 @@ import type {
   StatKey,
   Synergy,
 } from './content-types.js';
-import type { Guild, Hero, HeroId, Quest, Stack, World } from './document.js';
+import { rowOf, type Guild, type Hero, type HeroId, type Quest, type Stack, type World } from './document.js';
 import { guildmasterOf, negotiatedReward } from './guildmaster.js';
 import { holdings, itemDefinition } from './items.js';
 import { describeQuery, statsIn } from './quest-engine/describe.js';
@@ -121,11 +121,11 @@ export function previewDispatch(world: World, request: DispatchRequest, deps: En
   const refusal = dispatchRefusal(world, request, deps);
   const { content, config } = deps;
   const guild = world.guilds[request.guildId] as Guild;
-  const quest = own(world.quests, request.questId);
+  const quest = rowOf(world.quests, request.questId);
   if (quest === undefined || quest.status !== 'offered' || !world.board.includes(quest.id)) return null;
 
-  const heroes = request.heroIds.flatMap((heroId) => own(world.heroes, heroId) ?? []);
-  const encounterKinds = quest.encounterKeys.flatMap((key) => own(content.encounters, key)?.kind ?? []);
+  const heroes = request.heroIds.flatMap((heroId) => rowOf(world.heroes, heroId) ?? []);
+  const encounterKinds = quest.encounterKeys.flatMap((key) => rowOf(content.encounters, key)?.kind ?? []);
   const kindsReached = (applies: (kind: EncounterKind) => boolean): number | null =>
     encounterKinds.length === 0 ? null : encounterKinds.filter(applies).length;
 
@@ -186,7 +186,7 @@ function requirementsOf(quest: Quest, heroes: readonly Hero[]): RequirementStatu
  */
 function problemsOf(guild: Guild, heroIds: readonly HeroId[], world: World): PartyProblem[] {
   return heroIds.flatMap((heroId): PartyProblem[] => {
-    const hero = own(world.heroes, heroId);
+    const hero = rowOf(world.heroes, heroId);
     if (hero === undefined || hero.guildId !== guild.id) return [{ heroId, hero, because: 'not-on-roster' }];
     const because = unavailability(hero);
     return because === null ? [] : [{ heroId, hero, because }];
@@ -206,7 +206,7 @@ export function skillsThatHelp(
   const keys =
     quest.encounterKeys.length === 0
       ? quest.skillKeys
-      : [...new Set(quest.encounterKeys.flatMap((key) => own(content.encounters, key)?.checks.flatMap((it) => it.skills) ?? []))];
+      : [...new Set(quest.encounterKeys.flatMap((key) => rowOf(content.encounters, key)?.checks.flatMap((it) => it.skills) ?? []))];
   return keys.filter((key) => Object.hasOwn(content.skills, key));
 }
 
@@ -217,11 +217,6 @@ export function skillsThatHelp(
  * each Hero's value of them, where it showed the template's demands, which no view shows now.
  */
 export function statsRead(quest: Pick<Quest, 'encounterKeys'>, content: Pick<ContentSet, 'encounters' | 'stats'>): StatKey[] {
-  const keys = quest.encounterKeys.flatMap((key) => own(content.encounters, key)?.checks.flatMap((it) => statsIn(describeQuery(it.score))) ?? []);
-  return [...new Set(keys)].filter((key) => own(content.stats, key)?.owner === 'hero');
-}
-
-/** The row keyed `id`, looked up without falling through to `Object.prototype`. */
-function own<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
-  return Object.hasOwn(rows, id) ? rows[id] : undefined;
+  const keys = quest.encounterKeys.flatMap((key) => rowOf(content.encounters, key)?.checks.flatMap((it) => statsIn(describeQuery(it.score))) ?? []);
+  return [...new Set(keys)].filter((key) => rowOf(content.stats, key)?.owner === 'hero');
 }

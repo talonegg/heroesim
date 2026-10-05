@@ -18,7 +18,15 @@
 //   version 1, so the path from a save to `migrateSlice` is exercised.
 
 import type { InjuryTypeKey } from '../content-types.js';
-import { compareByCodeUnit, type GuildId, type HeroId, type ModuleId, type PatronId, type Turn } from '../document.js';
+import {
+  compareByCodeUnit,
+  rowOf,
+  type GuildId,
+  type HeroId,
+  type ModuleId,
+  type PatronId,
+  type Turn,
+} from '../document.js';
 import type { EffectRejection, EffectResult, ModuleEffect, ModuleEffects } from '../effects.js';
 import type { ModuleEvent, TurnEvent } from '../events.js';
 import type { Module, ModuleContext, ModuleResult, ReadonlyWorld, SliceFailure } from '../modules.js';
@@ -183,7 +191,7 @@ function readyHeroes(world: ReadonlyWorld): ReadyHero[] {
   for (const guild of Object.values(world.guilds)) {
     if (guild.foldedOnTurn !== null) continue;
     for (const heroId of guild.rosterIds) {
-      const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+      const hero = rowOf(world.heroes, heroId);
       if (hero !== undefined && hero.partyId === null && hero.injury === null) ready.push({ heroId, guildId: guild.id });
     }
   }

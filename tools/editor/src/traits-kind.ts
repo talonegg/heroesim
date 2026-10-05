@@ -5,7 +5,8 @@
 // checks require, so the editor writes it into the other Trait too; a Trait removed is taken out of
 // every other Trait's `excludes` (item 10). Its uses are found through the register
 // (`content/src/uses/`), and a use is added or taken out there (`assign`, `unassign`, v1.1.4-S13,
-// item 13) where the register's entry says how, and only so.
+// item 13), or changed in place (`update`, v1.1.6-S4, DL-186 item 14), where the register's entry says
+// how, and only so.
 
 import { contentEntries, rulesFor, traitFiles, usesOf, UseRefusal, type ContentEntry, type ContentJson, type TraitList, type TraitUse } from '@heroesim/content/uses';
 import { encounterKinds, type GuildmasterTraitEffectKind, type HeroTraitEffectKind } from '@heroesim/engine';
@@ -232,6 +233,7 @@ export const traitsKind: Kind = {
       lists: entry.lists,
       add: entry.add === null ? null : { how: entry.add.how, target: entry.add.target },
       remove: entry.remove === null ? null : { how: entry.remove.how },
+      update: entry.update === null ? null : { how: entry.update.how, fields: entry.update.fields },
     }));
   },
 
@@ -254,5 +256,18 @@ export const traitsKind: Kind = {
     const use = entry.find(content, key).find((each) => each.at === at);
     if (use === undefined) return { content: null, problems: [`"${key}" has no use in ${id} at ${at}`] };
     return changed(content, () => ({ change: remove.apply(content, use) }));
+  },
+
+  update(content, key, id, at, values) {
+    const { entry, problems } = entryOf(id);
+    if (entry === null) return { content: null, problems };
+    const update = entry.update;
+    if (update === null) return { content: null, problems: [`the register says of ${id} that a use there is the key alone: unassign it and assign another`] };
+    // A value the entry does not name is named, for the register would pass it by.
+    const unknown = Object.keys(values).filter((field) => !Object.hasOwn(update.fields, field));
+    if (unknown.length > 0) return { content: null, problems: unknown.map((field) => `${field}: not a value of ${id}'s use, which takes ${Object.keys(update.fields).join(', ')}`) };
+    const use = entry.find(content, key).find((each) => each.at === at);
+    if (use === undefined) return { content: null, problems: [`"${key}" has no use in ${id} at ${at}`] };
+    return changed(content, () => ({ change: update.apply(content, use, values) }));
   },
 };

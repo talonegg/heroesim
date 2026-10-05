@@ -1,0 +1,182 @@
+{
+  "version": 16,
+  "changelog": [
+    "2 from M2-S12's first balance pass (DL-35).",
+    "3 from M3's wage for Levels (DL-36).",
+    "4 twice over, on two lines at once, from M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42).",
+    "5 twice over again, from merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53).",
+    "6 from merging those, so that no save made under either 5 reads as current (DL-55).",
+    "7 from merging that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61).",
+    "8 from the M5 close's Loot threshold (DL-62).",
+    "5, on a parallel branch, from M6-S1, which moved the Rivals' two thresholds into their Dispositions' rows (DL-56).",
+    "9 from merging the main line's 8 with that 5, so that no save made under either reads as current (DL-63).",
+    "10 from the M6 close's Transfer lock of a season (DL-69).",
+    "11 from M9-S2's Trait budget, `guildmasterTraitBudget` (DL-102).",
+    "12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114).",
+    "13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints` (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), S6's `playerPartyMargin` (DL-148, DL-157), and S8's `encounterTagWeight` (DL-148, DL-160). S10's balance pass changes defaults under it too, `checkVariance` 0.2 to 0.4 first (DL-165), then the Degrees, `strongTriumphShare` and the form factors (DL-166), as no game has been released under 13.",
+    "14 from v1.1.6-S7, whose config lost `schemaVersion`, `configVersion` and `gearSlots`, every other default as it was (DL-193).",
+    "15 from v1.1.6-S16, which adds `heroSexWeights` and `lootOnFinaleDegrees`, at the draw and the rule they had before (DL-202).",
+    "16 from v1.1.6-S18, which moves the defaults' values into this file, `engine/src/config.json`, in sections, every value as it was (DL-204)."
+  ],
+  "sections": {
+    "world": {
+      "turnsPerYear": 1080,
+      "startingRosterSize": 4,
+      "startingWealth": 500,
+      "rivalCount": 4,
+      "rivalRosterMin": 4,
+      "rivalRosterMax": 8,
+      "rivalHireReserveUpkeeps": 3,
+      "rivalStartingWealthMin": 300,
+      "rivalStartingWealthMax": 700,
+      "patronCount": 12,
+      "unattachedPoolSize": 8
+    },
+    "heroes": {
+      "heroStartingAgeMin": 18,
+      "heroStartingAgeMax": 36,
+      "heroSexWeights": { "female": 1, "male": 1 },
+      "statBaseMin": 3,
+      "statBaseMax": 10,
+      "statBiasMin": 2,
+      "statBiasMax": 4,
+      "potentialGapMin": 3,
+      "potentialGapMax": 12,
+      "startingSkillsMin": 1,
+      "startingSkillsMax": 2,
+      "startingSkillRatingMax": 2,
+      "moraleBaseline": 60
+    },
+    "guildmasters": {
+      "guildmasterStartingAgeMin": 21,
+      "guildmasterStartingAgeMax": 50,
+      "guildmasterStatMin": 5,
+      "guildmasterStatMax": 15,
+      "guildmasterStatPoints": 50,
+      "guildmasterTraitsMin": 0,
+      "guildmasterTraitsMax": 2,
+      "guildmasterTraitBudget": 1
+    },
+    "guilds": {
+      "upkeepEveryDays": 10,
+      "wagePerLevel": 20,
+      "hallMaintenancePerGrade": 10,
+      "bankruptcyFloor": 0,
+      "bankruptcyGraceDays": 30,
+      "fameFloor": 0
+    },
+    "recruitment": {
+      "signingFeeBase": 50,
+      "signingFeePerLevel": 25,
+      "signingFeeStatDivisor": 4,
+      "unattachedStayDays": 10,
+      "fameRequiredPerLevel": 10
+    },
+    "board": {
+      "boardSize": 6,
+      "questOfferDays": 3,
+      "questDifficultyMin": 10,
+      "questDifficultyMax": 100,
+      "encounterTagWeight": 3
+    },
+    "quest": {
+      "checkVariance": 0.4,
+      "skillBonusPerRating": 2,
+      "bandBySuccessShare": { "successAbove": 0.5, "strongAtLeast": 1 },
+      "checkDegrees": { "triumph": 1.35, "success": 1, "setback": 0.75 },
+      "strongTriumphShare": 0.6,
+      "moraleCheckFactor": {
+        "wretched": 0.93,
+        "low": 0.97,
+        "steady": 1,
+        "high": 1.03,
+        "elated": 1.06
+      },
+      "hurtCheckFactor": 0.93,
+      "exposureRange": 2,
+      "guardRange": 0.5,
+      "chanceBands": { "unlikely": 0.1, "even": 0.35, "likely": 0.65, "near-certain": 0.9 },
+      "playerPartyMargin": 0.05
+    },
+    "heroState": {
+      "moraleMin": 0,
+      "moraleMax": 100,
+      "moraleDrift": 1,
+      "moraleBands": { "wretched": 0, "low": 20, "steady": 40, "high": 75, "elated": 90 },
+      "moraleOnRosterDeath": -10,
+      "moraleOnStrongSuccess": 5,
+      "heroRetirementAge": 45,
+      "heroRetirementChancePerYear": 0.02,
+      "heroRetirementInjuredMultiplier": 2,
+      "infirmaryHealFactor": [1, 0.5, 0.3333333333333333, 0.25],
+      "quartersMoraleBonus": 5
+    },
+    "ageing": {
+      "potentialHintBands": { "modest": 0, "promising": 6, "exceptional": 10 },
+      "declineAge": 40,
+      "declinePerYear": 1,
+      "declineAreas": ["physical"]
+    },
+    "endings": { "guildmasterRetirementAge": 61, "rivalReplacementDays": 30 },
+    "progression": {
+      "xpCurveBase": 100,
+      "xpCurveExponent": 2,
+      "levelCap": 20,
+      "growthPointsPerLevel": 3,
+      "xpPerDifficultyPoint": 1,
+      "xpBandFactor": { "fail": 0.5, "success": 1, "strong": 1 },
+      "xpPerTrainingDay": 2
+    },
+    "regard": {
+      "regardMin": -20,
+      "regardMax": 20,
+      "regardBands": { "hostile": -20, "cool": -12, "neutral": -4, "warm": 4, "close": 12 },
+      "regardPerSharedQuest": 1,
+      "regardOnSuccessBonus": 0.5,
+      "regardDecayPerYear": 0.25,
+      "teamworkRange": 0.1
+    },
+    "patrons": {
+      "patronRegardOnSuccess": 1,
+      "patronRegardOnFailure": -2,
+      "patronRegardOnExpiry": -1,
+      "patronRegardRecoveryPerYear": 0.5,
+      "boardRegardWeight": 1
+    },
+    "guildmasterStats": {
+      "negotiationRange": 0.1,
+      "inspirationMoraleShift": 10,
+      "coachingFactor": 0.5,
+      "influenceFactor": 0.5,
+      "judgementHintSharpening": 0.25
+    },
+    "guildmasterRegard": {
+      "guildmasterRegardOnPatronSuccess": 1,
+      "guildmasterRegardOnPatronFailure": -1,
+      "guildmasterRegardOnHeroSuccess": 1,
+      "guildmasterRegardOnHeroFailure": -1
+    },
+    "transfers": {
+      "transferFeeFactor": 2,
+      "transferMoraleCost": -15,
+      "transferRegardBand": "warm",
+      "guildmasterRegardPerTransferDeal": 2,
+      "transferOfferDays": 3,
+      "transferGeneratorEveryDays": 7,
+      "transferGeneratorChance": 0.5,
+      "transferLockDays": 90
+    },
+    "loot": {
+      "lootDifficultyThreshold": 35,
+      "lootOnBands": ["strong"],
+      "lootOnFinaleDegrees": ["triumph"]
+    },
+    "market": {
+      "marketSize": 10,
+      "marketStackMin": 1,
+      "marketStackMax": 5,
+      "sellRatio": 0.5,
+      "lootOnlyPrice": 600
+    }
+  }
+}

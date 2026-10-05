@@ -9,7 +9,17 @@
 
 import type { EngineDeps } from './config.js';
 import { staffableQuests } from './controllers/rival.js';
-import type { GuildId, HeroId, ModuleId, OfferId, PartyId, Quest, QuestId, World } from './document.js';
+import {
+  rowOf,
+  type GuildId,
+  type HeroId,
+  type ModuleId,
+  type OfferId,
+  type PartyId,
+  type Quest,
+  type QuestId,
+  type World,
+} from './document.js';
 import type { TurnEvent } from './events.js';
 import { unattachedHeroes } from './selectors.js';
 
@@ -137,10 +147,10 @@ interface Staffing {
 }
 
 function staffingOf(world: World, guildId: GuildId, deps: EngineDeps): Staffing {
-  const guild = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
+  const guild = rowOf(world.guilds, guildId);
   if (guild === undefined) return { idle: true, quests: () => [] };
   const idle = !guild.rosterIds.some((heroId) => {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    const hero = rowOf(world.heroes, heroId);
     return hero !== undefined && hero.partyId !== null;
   });
   let quests: readonly Quest[] | undefined;

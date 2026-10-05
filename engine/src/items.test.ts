@@ -1,16 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import {
   addStack,
-  createItem,
   defaultConfig,
-  findStack,
+  gearSlotKeys,
   holdings,
   itemDefinition,
-  makeId,
-  moveItem,
-  moveStack,
-  removeFromStack,
-  sameHolder,
   validate,
   type Holder,
   type ItemDefinitionKey,
@@ -18,6 +12,8 @@ import {
   type StackId,
   type World,
 } from './index.js';
+import { createItem, findStack, moveItem, moveStack, removeFromStack, sameHolder } from './items.js';
+import { makeId } from './document.js';
 import { cyrb128, int, pick } from './rng.js';
 import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
 
@@ -372,8 +368,8 @@ describe('itemDefinition and gearSlots', () => {
     expect(itemDefinition(testContent, 'constructor')).toBeUndefined();
   });
 
-  test('every Hero has the three gear slots of INPUTS 7.1 by default', () => {
-    expect(defaultConfig.gearSlots).toEqual(['weapon', 'armour', 'trinket']);
-    expect(Object.isFrozen(defaultConfig.gearSlots)).toBe(true);
+  test("every Hero has the three gear slots of INPUTS 7.1, the engine's and no setting (DL-193)", () => {
+    expect(gearSlotKeys).toEqual(['weapon', 'armour', 'trinket']);
+    expect(defaultConfig).not.toHaveProperty('gearSlots');
   });
 });

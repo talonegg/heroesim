@@ -1,19 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, expectTypeOf, test } from 'vitest';
 import {
+  configVersion,
   defaultConfig,
+  schemaVersion,
   descriptiveAttributeLabels,
   descriptiveAttributes,
-  emptyDocument,
   facilityKeys,
-  idPrefixes,
   isId,
-  isJsonSafe,
-  makeId,
-  maxIdNumber,
   parseId,
-  streamNames,
-  tableNames,
   type Controller,
   type Entry,
   type FacilityKey,
@@ -43,14 +38,17 @@ import {
   type World,
   type WorldDocument,
 } from './index.js';
-import { createStreams } from './rng.js';
+import { emptyDocument, idPrefixes, makeId, maxIdNumber, requireRow, rowOf, tableNames } from './document.js';
+import { isJsonSafe } from './json-safe.js';
+import { createStreams, streamNames } from './rng.js';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────────────────────
 
 const meta: Meta = {
-  version: defaultConfig.schemaVersion,
+  version: schemaVersion,
   seed: 'amber-fox-4821',
   content: { id: 'core', version: 1 },
+  configVersion,
   config: { ...defaultConfig },
   createdAt: 'harness',
 };
@@ -166,10 +164,6 @@ const quest: Quest = {
   reward: 120,
   fameEffect: 2,
   durationTurns: 12,
-  demands: [
-    ['strength', 0.6],
-    ['courage', 0.4],
-  ],
   skillKeys: ['swordplay'],
   encounterKeys: [],
   requirements: { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'swordplay' },
@@ -655,5 +649,30 @@ describe('the types match data-model.md', () => {
     expectTypeOf<Hero['skills'][string]>().toEqualTypeOf<1 | 2 | 3 | 4 | 5>();
     expectTypeOf<Hero['guildId']>().toEqualTypeOf<GuildId | null>();
     expectTypeOf<World['board']>().toEqualTypeOf<QuestId[]>();
+  });
+});
+
+// v1.1.6-S8 (DL-186 item 26): the one row lookup the engine's rules share.
+describe('rowOf and requireRow', () => {
+  const rows: Record<string, { name: string }> = { 'hero-000001': { name: 'Ada' } };
+  const parsed: Record<string, { name: string }> = JSON.parse('{"__proto__": {"name": "Own"}}');
+
+  test('rowOf gives the row a table holds under an id, and undefined for an id it lacks', () => {
+    expect(rowOf(rows, 'hero-000001')).toBe(rows['hero-000001']);
+    expect(rowOf(rows, 'hero-000002')).toBeUndefined();
+  });
+
+  test("rowOf reads no key of Object.prototype as a row, but reads a table's own __proto__ key", () => {
+    expect(rowOf(rows, 'constructor')).toBeUndefined();
+    expect(rowOf(rows, '__proto__')).toBeUndefined();
+    expect(rowOf(rows, 'toString')).toBeUndefined();
+    expect(rowOf(parsed, '__proto__')).toEqual({ name: 'Own' });
+  });
+
+  test('requireRow gives the row, and throws a RangeError naming the id and the table for one it lacks', () => {
+    expect(requireRow(rows, 'hero-000001', 'heroes')).toBe(rows['hero-000001']);
+    expect(() => requireRow(rows, 'hero-000002', 'heroes')).toThrow(new RangeError('hero-000002 is not in world.heroes'));
+    expect(() => requireRow(rows, 'hero-000002')).toThrow(new RangeError('hero-000002 is not in the world'));
+    expect(() => requireRow(rows, 'constructor')).toThrow(RangeError);
   });
 });

@@ -3,11 +3,13 @@
 // bytes and the harness checks determinism by comparing them.
 //
 // A load parses the text, brings an older document forward one schema version at a time through
-// the migration chain, and validates the result. Every refusal is a typed `reason`, never a throw:
-// a save file is outside the engine's control. The choices the epic left open are DL-20.
+// the migration chain, validates the result and checks its config, every setting (`playDeps`,
+// DL-193). Every refusal is a typed `reason`, never a throw: a save file is outside the engine's
+// control. The choices the epic left open are DL-20.
 
-import type { EngineDeps } from './config.js';
-import type { WorldDocument } from './document.js';
+import type { EngineDeps, LoadDeps } from './config.js';
+import { playDeps, type UnsoundConfig } from './config-check.js';
+import { schemaVersion, type WorldDocument } from './document.js';
 import { findJsonUnsafe } from './json-safe.js';
 import { migrateSlices } from './modules.js';
 import { validate, type ValidationFailure, type ValidationWarning } from './validate.js';
@@ -125,7 +127,8 @@ export type LoadRefusal =
   | { kind: 'malformed-json'; message: string }
   | { kind: 'not-a-document'; message: string }
   | { kind: 'unsupported-version'; documentVersion: number; schemaVersion: number; message: string }
-  | { kind: 'invalid'; failures: ValidationFailure[]; message: string };
+  | { kind: 'invalid'; failures: ValidationFailure[]; message: string }
+  | UnsoundConfig;
 
 /**
  * Brings `document` forward to `schemaVersion`, one step per version, forward only. Refuses,
@@ -169,21 +172,19 @@ export function migrate(
 // ── Load ─────────────────────────────────────────────────────────────────────────────────────
 
 export type LoadResult =
-  | { ok: true; document: WorldDocument; warnings: ValidationWarning[] }
+  | { ok: true; document: WorldDocument; warnings: ValidationWarning[]; deps: EngineDeps }
   | { ok: false; reason: LoadRefusal };
 
 /**
- * Reads a save: parses `text`, checks `meta.version` against `deps.config.schemaVersion`, runs
+ * Reads a save: parses `text`, checks `meta.version` against this engine's `schemaVersion`, runs
  * the migration chain, then each installed module's `migrateSlice` on its slice (M8-S1,
  * `migrateSlices`), then the validator against `deps.content` and `deps.modules`, which has each
- * module validate its slice. The warnings (content keys the content does not define, rule 5, and
- * slices no installed module owns) come back beside the document; nothing is repaired.
- *
- * `deps.config` here is the engine's own configuration, `defaultConfig` in a front end: one built
- * as `{ ...defaultConfig, ...meta.config }` carries the save's own `schemaVersion` and would skip
- * every migration. Front ends build that merged config for play, after the load (DL-20).
+ * module validate its slice, and last the game's own config, by `playDeps`: a setting no rule allows
+ * refuses the save, naming it (`unsound-config`, v1.1.6-S7, DL-193). The warnings (content keys the
+ * content does not define, rule 5, and slices no installed module owns) come back beside the
+ * document and the deps to play it under; nothing is repaired.
  */
-export function deserialise(text: string, deps: EngineDeps): LoadResult {
+export function deserialise(text: string, deps: LoadDeps): LoadResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -196,14 +197,17 @@ export function deserialise(text: string, deps: EngineDeps): LoadResult {
     return { ok: false, reason: { kind: 'not-a-document', message } };
   }
 
-  const migrated = migrate(parsed, deps.config.schemaVersion);
+  const migrated = migrate(parsed, schemaVersion);
   if (!migrated.ok) return migrated;
   const sliced = migrateSlices(migrated.document, deps);
   if (!sliced.ok) return { ok: false, reason: invalid(sliced.failures) };
 
   const result = validate(sliced.document, deps);
   if (!result.ok) return { ok: false, reason: invalid(result.failures) };
-  return { ok: true, document: sliced.document as unknown as WorldDocument, warnings: result.warnings };
+  const document = sliced.document as unknown as WorldDocument;
+  const played = playDeps(document, deps.content, deps.modules);
+  if (!played.ok) return { ok: false, reason: played.refusal };
+  return { ok: true, document, warnings: result.warnings, deps: played.deps };
 }
 
 function invalid(failures: ValidationFailure[]): LoadRefusal {

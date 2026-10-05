@@ -5,7 +5,7 @@
 
 import { moraleBandNames, type GameConfig, type MoraleBand } from './config.js';
 import type { ContentSet } from './content-types.js';
-import type { Hero, QuestId, World } from './document.js';
+import { rowOf, type Hero, type QuestId, type World } from './document.js';
 import type { Emit } from './emit.js';
 import type { HeroMoraleChanged, MoraleCause } from './events.js';
 import { guildmasterOf, inspirationShift, traitMoraleShift } from './guildmaster.js';
@@ -39,7 +39,7 @@ export function moraleBaselineFor(
   >,
   content: Pick<ContentSet, 'stats' | 'guildmasterTraits'>,
 ): number {
-  const guild = hero.guildId !== null && Object.hasOwn(world.guilds, hero.guildId) ? world.guilds[hero.guildId] : undefined;
+  const guild = hero.guildId !== null ? rowOf(world.guilds, hero.guildId) : undefined;
   if (guild === undefined) return Math.min(config.moraleMax, Math.max(config.moraleMin, config.moraleBaseline));
   const guildmaster = guildmasterOf(guild, world);
   const baseline =

@@ -1,7 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { loadContent } from '@heroesim/content/node';
-import { append, compareByCodeUnit, createWorld, defaultConfig, makeId, retirementTurn, type EngineDeps, type Guild } from '@heroesim/engine';
+import { compareByCodeUnit, createWorld, defaultConfig, retirementTurn, type EngineDeps, type Guild } from '@heroesim/engine';
+import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { harnessSetup } from './creation.js';
 import { machine } from './report.js';
@@ -9,8 +8,6 @@ import { seedNames } from './seeds.js';
 import {
   foldedAmong,
   probeInParallel,
-  probeName,
-  probeNames,
   probeSeeds,
   setFirstRivalGuildmasterAge,
   successionProbeAge,
@@ -34,22 +31,6 @@ function rivalsOf(world: { guilds: Record<string, Guild> }): Guild[] {
     .filter((guild) => guild.controller.kind === 'rival')
     .sort((a, b) => compareByCodeUnit(a.id, b.id));
 }
-
-describe('probeName, from HEROESIM_PROBE', () => {
-  test('is null when unset or blank, "succession" for the Succession probe, and refuses anything else', () => {
-    expect(probeName(undefined)).toBeNull();
-    expect(probeName('  ')).toBeNull();
-    expect(probeName(' Succession ')).toBe('succession');
-    expect(() => probeName('successions')).toThrow(RangeError);
-  });
-
-  test('"calibrate" names the calibration (v1.1.4-S9), and run.mjs knows the same probes, so that `npm run harness -- calibrate` sets it', () => {
-    expect(probeName('calibrate')).toBe('calibrate');
-    const script = readFileSync(fileURLToPath(new URL('../run.mjs', import.meta.url)), 'utf8');
-    const listed = /const probes = \[([^\]]*)\];/.exec(script)?.[1] ?? '';
-    expect([...listed.matchAll(/'([a-z-]+)'/g)].map((it) => it[1])).toEqual([...probeNames]);
-  });
-});
 
 describe('setFirstRivalGuildmasterAge', () => {
   test("sets the first Rival's Guildmaster, in id order, to the age at founding, and changes nothing else", () => {
@@ -138,9 +119,11 @@ describe('the Succession probe over a few seeds', () => {
     for (const game of games) expect(report).toContain(game.seed);
   });
 
-  // Two child processes, each starting tsx and loading the content, as sweep.test.ts's: given as long.
-  test('plays the same games shared among child processes', { timeout: 120_000 }, async () => {
-    const parallel = await probeInParallel(seeds.slice(0, 2), shortYears, { years, age: successionProbeAge, workers: 2 });
-    expect(parallel).toEqual(games.slice(0, 2));
+  // Child processes, each starting tsx and loading the content, as sweep.test.ts's: given as long. Since
+  // v1.1.6-S2 (DL-186 item 20) each seed is a child of its own, at most `workers` at once, the next as
+  // one ends, as the play sweep's are: three seeds in two processes come back in seed order.
+  test('plays the same games shared among child processes, one seed a child, more seeds than processes', { timeout: 120_000 }, async () => {
+    const parallel = await probeInParallel(seeds, shortYears, { years, age: successionProbeAge, workers: 2 });
+    expect(parallel).toEqual(games);
   });
 });

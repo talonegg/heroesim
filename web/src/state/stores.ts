@@ -11,6 +11,7 @@
 import {
   carriedGear,
   compareByCodeUnit,
+  gearSlotKeys,
   holdings,
   itemDefinition,
   playerGuild,
@@ -22,11 +23,12 @@ import {
   type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
+import { capitalised, kindOf, listed } from '@heroesim/words';
 import { content } from '../content';
-import { capitalised, rowOf } from './names';
-import { listed, questNamer, textOf, type Segment } from './narrate';
+import { rowOf } from './names';
+import { questNamer, textOf, type Segment } from './namer';
 import { playDeps } from './reducer';
-import { kindKeyOf, kindOf, type MarketKind } from './trade-views';
+import { kindKeyOf, type MarketKind } from './trade-views';
 
 /** Where an Item is: in the Holding, carried by a Hero on the Roster, or with a Party away. */
 export type StoresWhere = 'held' | 'carried' | 'party';
@@ -80,7 +82,7 @@ export interface StoresView {
 }
 
 /** `1 Item`, `6 Items`. */
-function itemsWords(count: number): string {
+function itemCountWords(count: number): string {
   return `${count} ${count === 1 ? 'Item' : 'Items'}`;
 }
 
@@ -145,7 +147,7 @@ export function storesView(document: WorldDocument, filter: StoresFilter): Store
     });
   const owned = [...held, ...carried, ...away];
 
-  const kinds = [...deps.config.gearSlots, 'consumable' as const].flatMap((key) => {
+  const kinds = [...gearSlotKeys, 'consumable' as const].flatMap((key) => {
     const count = owned.filter((row) => row.kindKey === key).length;
     return count === 0 ? [] : [{ key, label: capitalised(key), count }];
   });
@@ -164,7 +166,7 @@ export function storesView(document: WorldDocument, filter: StoresFilter): Store
   const summary =
     total === 0
       ? `${guild.name} owns nothing: no Item is held, carried by a Hero or with a Party.`
-      : `${guild.name} owns ${itemsWords(total)}: ${listed(parts.flatMap(([count, words]) => (count === 0 ? [] : [`${count} ${words}`])))}.`;
+      : `${guild.name} owns ${itemCountWords(total)}: ${listed(parts.flatMap(([count, words]) => (count === 0 ? [] : [`${count} ${words}`])))}.`;
 
   return {
     guildName: guild.name,

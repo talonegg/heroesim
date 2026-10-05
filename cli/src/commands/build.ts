@@ -6,7 +6,7 @@
 // into words here (ADR-0003).
 
 import {
-  build,
+  applyAction,
   nextImprovement,
   playerGuild,
   upkeep,
@@ -16,7 +16,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { facilityIs, facilityNames, nameIn } from '../render.js';
+import { facilityIs, facilityNames, nameIn } from '@heroesim/words';
 import type { CommandOutcome } from './outcome.js';
 
 /** The engine's rejection in words. */
@@ -50,7 +50,7 @@ export function buildImprovement(
   const guild = playerGuild(document.world);
   if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
 
-  const result = build(document, { guildId: guild.id, facility: command.facility }, deps);
+  const result = applyAction(document, { kind: 'build', guildId: guild.id, facility: command.facility }, deps);
   if (!result.ok) return { ok: false, problem: explain(result.rejection, guild.name) };
 
   const { world } = result.document;

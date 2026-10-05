@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
 import { chromium, type Page } from '@playwright/test';
-import { readContentVersion } from '@heroesim/portraits';
+import { readContentVersion } from '@heroesim/content/write';
 import { afterEach, describe, expect, test } from 'vitest';
 import { Editor } from './editor.js';
 import { serve, type Served } from './server.js';
@@ -124,11 +124,11 @@ describe('the API', () => {
   });
 
   test('refuses a second "Finish", and every other call, while one runs; and clears only the edits it read', async () => {
-    const { runner, release } = heldRunner();
+    const { runner, release, started } = heldRunner();
     const { dir, page, api } = await served(runner);
     await api('PUT', '/api/traits/thrifty', { cost: 3 });
     expect((await api('POST', '/api/finish')).status).toBe(202);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await started;
     expect((await api('GET', '/api/finish')).json).toMatchObject({ state: 'running', lines: [expect.stringContaining('Running the tests'), 'Running…'] });
     expect((await api('POST', '/api/finish')).status).toBe(409);
 
@@ -165,9 +165,9 @@ describe('the API', () => {
     const { dir, page, api } = await served();
     await api('PUT', '/api/traits/thrifty', { cost: 3 });
     // Another "Finish", as a command line's, holds the lock.
-    const { runner, release } = heldRunner();
+    const { runner, release, started } = heldRunner();
     const other = new Editor(dir).finish(runner).catch((error: unknown) => error);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await started;
     expect((await api('POST', '/api/finish')).status).toBe(202);
     await page.finishing();
     expect((await api('GET', '/api/finish')).json).toMatchObject({ state: 'failed', kind: 'busy', problems: [expect.stringContaining('"Finish" is running'), expect.stringContaining('names process')] });
@@ -209,15 +209,22 @@ describe('the API', () => {
   });
 });
 
-/** A test run that waits until released, passing or failing as it is told. */
-function heldRunner(): { runner: TestRunner; release: (ok: boolean) => void } {
+/**
+ * A test run that waits until released, passing or failing as it is told; `started` once it runs, its
+ * "Finish" then holding the lock with its files written. A test waits for it, never for a fixed time,
+ * which under the whole suite's load was at times too short (DL-205).
+ */
+function heldRunner(): { runner: TestRunner; release: (ok: boolean) => void; started: Promise<void> } {
   let release: (ok: boolean) => void = () => {};
+  let begun: () => void = () => {};
+  const started = new Promise<void>((resolve) => (begun = resolve));
   const runner: TestRunner = (_root, onLine) =>
     new Promise((resolve) => {
       onLine('Running…');
       release = (ok) => resolve({ ok, exitCode: ok ? 0 : 1, failures: ok ? [] : ['× held'], tail: [] });
+      begun();
     });
-  return { runner, release: (ok) => release(ok) };
+  return { runner, release: (ok) => release(ok), started };
 }
 
 function chromiumInstalled(): boolean {
@@ -320,7 +327,7 @@ describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
     // Another "Finish", as a command line's, holds the lock: a removal and a Finish are refused as busy.
     const other = heldRunner();
     const finishing = new Editor(dir).finish(other.runner).catch((error: unknown) => error);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await other.started;
     await tab.locator('tr[data-key=lame] button[data-action=remove]').click();
     await tab.locator('#message', { hasText: 'Not removed: "Finish" is running' }).waitFor();
     expect(await tab.locator('#message').innerText()).not.toContain('is used');

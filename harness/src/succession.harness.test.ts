@@ -1,33 +1,33 @@
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, type EngineDeps } from '@heroesim/engine';
 import { expect, test } from 'vitest';
-import { validatingEveryTurn } from './play.js';
-import { machine, reportPath, writeReport } from './report.js';
-import { seedCount, seedNames, yearCount } from './seeds.js';
-import { defaultProbeSeedCount, defaultProbeYears, probeInParallel, probeName, successionProbeAge, successionReport } from './succession.js';
-import { defaultWorkers } from './sweep.js';
+import { machine, print, reportPath, writeReport } from './report.js';
+import { seedNames } from './seeds.js';
+import { runSettings } from './settings.js';
+import { probeInParallel, successionProbeAge, successionReport } from './succession.js';
 
 // M9-F1's Succession probe (DL-113 item 7), collected only by the harness-run project and run only
-// when HEROESIM_PROBE names it (`HEROESIM_PROBE=succession npm run harness`), in place of the
-// milestone's creation and play runs: set the first Rival's Guildmaster, in id order, to 50 at
-// founding, play HEROESIM_SEEDS games (50 by default) from `seed-0001` for HEROESIM_YEARS years (12
-// by default) under the automatic policy, the core content and `defaultConfig`, shared among child
-// processes; with HEROESIM_VALIDATE=1, validate after every advance; and write the Successions, the
-// Rival across its Succession, the Regard held for it and the folds after to
-// harness/reports/m9-succession-<date>.md. M9-F6 runs it and records it in its DL.
+// when HEROESIM_PROBE names it (`npm run harness -- succession`), in place of the milestone's creation
+// and play runs: set the first Rival's Guildmaster, in id order, to 50 at founding, play HEROESIM_SEEDS
+// games (50 by default) from `seed-0001` for HEROESIM_YEARS years (12 by default) under the automatic
+// policy, the core content and `defaultConfig`, each in a child process of its own, HEROESIM_WORKERS
+// at once (v1.1.6-S2: the sweep's queue); with HEROESIM_VALIDATE=1, validate after every advance; and
+// write the Successions, the Rival across its Succession, the Regard held for it and the folds after
+// to harness/reports/m9-succession-<date>.md. M9-F6 runs it and records it in its DL.
 
-const probing = probeName() === 'succession';
-const seeds = seedNames(seedCount(process.env.HEROESIM_SEEDS, defaultProbeSeedCount));
-const years = yearCount(process.env.HEROESIM_YEARS, defaultProbeYears);
-const validate = validatingEveryTurn();
+const settings = runSettings();
+const probe = settings.run === 'succession' ? settings : null;
+const seeds = seedNames(probe?.games ?? 0);
 
-test.runIf(probing)(
-  `${seeds.length} games of ${years} years with the first Rival's Guildmaster at ${successionProbeAge}`,
+test.runIf(probe !== null)(
+  `${seeds.length} games of ${probe?.years ?? 0} years with the first Rival's Guildmaster at ${successionProbeAge}`,
   { timeout: 24 * 60 * 60_000 },
   async () => {
+    if (probe === null) return;
+    const { years, validate } = probe;
     const startedAt = new Date();
     const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
-    const workers = Math.min(defaultWorkers(), seeds.length);
+    const workers = Math.min(probe.workers, seeds.length);
 
     const games = await probeInParallel(seeds, deps, { years, validate, workers, age: successionProbeAge });
     const report = successionReport(games, { deps, years, age: successionProbeAge, machine: machine(), startedAt, workers, validated: validate });
@@ -35,7 +35,7 @@ test.runIf(probing)(
 
     // The report is written before anything is asserted, so a failing run leaves it to read.
     const succeeded = games.filter((game) => game.after !== null).length;
-    console.log(`${seeds.length} games: the first Rival succeeded in ${succeeded}\nReport: ${path}`);
+    print(`${seeds.length} games: the first Rival succeeded in ${succeeded}\nReport: ${path}`);
     expect(games).toHaveLength(seeds.length);
     expect(games.filter((game) => game.invalid).map((game) => game.seed)).toEqual([]);
     expect(games.reduce((sum, game) => sum + game.refusals, 0)).toBe(0);

@@ -12,33 +12,26 @@
 // The `progression` stream is the only one this phase moves, `growthPointsPerLevel` draws for each
 // Level gained, and none on a night no Hero gains one.
 
-import { compareByCodeUnit } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { streamOf } from '../generators/draw.js';
 import { growOneLevel, levelsDue } from '../progression.js';
 import type { PhaseRun } from './phase.js';
+import { activeRosterHeroes } from './roster-walk.js';
 
 export const levelUps: PhaseRun = (world, ctx) => {
   const events: EngineEvent[] = [];
-  const guilds = Object.values(world.guilds)
-    .filter((guild) => guild.foldedOnTurn === null)
-    .sort((a, b) => compareByCodeUnit(a.id, b.id));
-  for (const guild of guilds) {
-    for (const heroId of guild.rosterIds) {
-      const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
-      if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) continue;
-      const due = levelsDue(hero, ctx.config);
-      for (let gained = 0; gained < due; gained += 1) {
-        const { statDeltas, pointsLost } = growOneLevel(hero, streamOf(world, 'progression'), ctx);
-        hero.level += 1;
-        events.push(
-          ctx.emit({
-            type: 'hero.levelled',
-            participants: [hero.id],
-            payload: { heroId: hero.id, guildId: guild.id, level: hero.level, statDeltas, pointsLost },
-          }),
-        );
-      }
+  for (const { guild, hero } of activeRosterHeroes(world)) {
+    const due = levelsDue(hero, ctx.config);
+    for (let gained = 0; gained < due; gained += 1) {
+      const { statDeltas, pointsLost } = growOneLevel(hero, streamOf(world, 'progression'), ctx);
+      hero.level += 1;
+      events.push(
+        ctx.emit({
+          type: 'hero.levelled',
+          participants: [hero.id],
+          payload: { heroId: hero.id, guildId: guild.id, level: hero.level, statDeltas, pointsLost },
+        }),
+      );
     }
   }
   return events;

@@ -11,17 +11,15 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { contentChecks, editJson, NotUndone, raiseContentVersion, transaction, Undone } from '@heroesim/content/write';
+import { capitalised } from '@heroesim/words';
 import { dataUrlOf, isPicture, type Chromium } from './chromium.js';
 import { check } from './check.js';
-import { contentChecks } from './content-checks.js';
-import { raiseContentVersion } from './content-version.js';
 import { convert } from './convert.js';
 import { fingerprint } from './fingerprint.js';
-import { editJson } from './json-edit.js';
 import { datePattern, intakeDir, nextRun, today } from './records.js';
-import { formatRegistry, isRole, isSex, nextKey, picturePaths, readRegistry, registryPath, roles, type Role, type Sex } from './registry.js';
-import { DraftError, NotUndone, Undone } from './errors.js';
-import { transaction } from './transaction.js';
+import { formatRegistry, isRole, isSex, nextKey, picturePaths, readRegistry, registryPath, roles, sexes, type Role, type Sex } from './registry.js';
+import { DraftError } from './errors.js';
 
 /** One upload in a draft: where it is, its sex where the draft says it, and its drafted row. */
 export interface DraftPicture {
@@ -84,7 +82,7 @@ export function parseDraft(root: string, json: unknown): Draft & { pictures: (Dr
       continue;
     }
     if (role !== undefined && role !== folders.role) problems.push(`${where}.role: ${String(role)}, and its inbox folder says ${folders.role}`);
-    if (sex !== undefined && !isSex(sex)) problems.push(`${where}.sex: female or male`);
+    if (sex !== undefined && !isSex(sex)) problems.push(`${where}.sex: ${sexes.join(' or ')}`);
     const resolvedSex = isSex(sex) ? sex : folders.sex;
     if (resolvedSex === null) problems.push(`${where}.sex: wanted, since its inbox folder has no male/ or female/`);
     if (!isObject(row)) problems.push(`${where}.row: the picture's row, an object, is wanted`);
@@ -120,8 +118,6 @@ function shown(root: string, file: string): string {
   return path.relative(root, path.resolve(root, file)).replace(/\\/g, '/');
 }
 
-const capital = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1);
-
 /** The intake report: the draft's text, its `{{key:<n>}}` given each picture's key, and a table. */
 export function intakeReport(root: string, run: string, draft: Draft, taken: readonly TakenIn[], version: Intake['contentVersion']): string {
   const text = draft.report.replace(/\{\{key:(\d+)\}\}/g, (whole, index: string) => taken[Number(index)]?.key ?? whole).trim();
@@ -130,9 +126,9 @@ export function intakeReport(root: string, run: string, draft: Draft, taken: rea
   else {
     lines.push('| Upload | Key | Role | Sex | Picture | Thumbnail |', '| --- | --- | --- | --- | --- | --- |');
     for (const each of taken) {
-      const sex = each.folderSex !== null && each.folderSex !== each.sex ? `${capital(each.sex)} (its folder says ${each.folderSex})` : capital(each.sex);
+      const sex = each.folderSex !== null && each.folderSex !== each.sex ? `${capitalised(each.sex)} (its folder says ${each.folderSex})` : capitalised(each.sex);
       lines.push(
-        `| \`${shown(root, each.source)}\` | \`${each.key}\` | ${capital(each.role)} | ${sex} | ` +
+        `| \`${shown(root, each.source)}\` | \`${each.key}\` | ${capitalised(each.role)} | ${sex} | ` +
           `${each.picture.bytes} bytes at ${each.picture.quality} | ${each.thumbnail.bytes} bytes at ${each.thumbnail.quality} |`,
       );
     }

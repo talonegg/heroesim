@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
@@ -13,6 +12,7 @@ import { durationDaysOf, nightOf } from '../time.js';
 import { buildDocument, harmlessContent, plannedStreams, testDeps, withValid } from '../world.test-support.js';
 import { heroState, lastAnniversaryNight, retirementChance } from './hero-state.js';
 import { phaseContext } from './phase.js';
+import { applyAction } from '../actions/action.js';
 
 // M2-S6: the night's Hero State Engine (DL-29). Documents a test inspects after `advance` are held
 // to the validator; a test of one rule over many nights runs the phase alone on a world whose Turn
@@ -344,7 +344,7 @@ describe('Retirement', () => {
     }
     if (quest === undefined) throw new Error('No Quest to send them on');
     const away = ids.slice(0, 2);
-    const sent = dispatch(morning, { guildId: (playerGuild(morning.world) as Guild).id, questId: quest.id, heroIds: away }, deps);
+    const sent = applyAction(morning, { kind: 'dispatch', guildId: (playerGuild(morning.world) as Guild).id, questId: quest.id, heroIds: away }, deps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     const returnsOnTurn = nightOf(day + durationDaysOf(quest));
 

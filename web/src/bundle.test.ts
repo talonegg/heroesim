@@ -48,10 +48,12 @@ describe('the production build', { timeout: 120_000 }, () => {
   let outDir: string;
   let built: { status: number | null; output: string };
 
+  // The build is the hook's, whose time the describe's timeout does not set: 10 s by default, which a
+  // build under the whole suite's load passed (DL-205).
   beforeAll(() => {
     outDir = temporaryDir();
     built = run([vite, 'build', '--configLoader', 'runner', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
-  });
+  }, 120_000);
 
   test('builds', () => {
     expect(built.status, built.output).toBe(0);
@@ -121,6 +123,43 @@ describe('the production build', { timeout: 120_000 }, () => {
     const [, base] = /new URL\(`[\w.-]+\.webp`,(\w+)\)/.exec(text) ?? [];
     expect(base).toBeDefined();
     for (const picture of pictures) expect(text.includes(`new URL(\`${picture}\`,${base})`), picture).toBe(true);
+  });
+
+  // v1.1.6-S4 (DL-186 item 14): the content version is data, `content/version.json`, which the page
+  // bundles with the content, but its changelog is for the people who read the file, and is bundled
+  // empty; and the tools' write module, `@heroesim/content/write`, is in no built file.
+  test("bundles the content version without its changelog, and none of content's write module", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    const written = JSON.parse(readFileSync(path.join(contentDir, 'version.json'), 'utf8')) as { version: number; changelog: string[] };
+    const bundled = JSON.stringify({ version: written.version, changelog: [] });
+    expect(text.includes(bundled) || text.includes(JSON.stringify(bundled).slice(1, -1))).toBe(true);
+    expect(written.changelog.length).toBeGreaterThan(10);
+    for (const entry of written.changelog) expect(text.includes(entry.slice(0, 40)), entry).toBe(false);
+    const write = readFileSync(path.join(contentDir, 'src', 'write', 'errors.ts'), 'utf8');
+    const mark = 'could not be put back';
+    expect(write).toContain(mark);
+    expect(text).not.toContain(mark);
+  });
+
+  // v1.1.6-S18 (DL-186 item 15, DL-204): the defaults' values are data, `engine/src/config.json`,
+  // which the engine imports; its changelog is for the people who read the file, and is bundled empty.
+  test("bundles the defaults' values without their changelog", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    const written = JSON.parse(readFileSync(path.join(webDir, '..', 'engine', 'src', 'config.json'), 'utf8')) as { changelog: string[] };
+    expect(written.changelog.length).toBeGreaterThan(10);
+    for (const entry of written.changelog) expect(text.includes(entry.slice(0, 40)), entry).toBe(false);
+    expect(text).toContain('guildmasterRegardOnPatronSuccess');
+  });
+
+  // v1.1.6-S6 (DL-192): the old form of an Encounter and a Synergy is no longer read, so the words
+  // its refusals were written in, which v1.1.5's parser and register held, are in no built file.
+  test("holds none of the words the old content form's refusals were written in", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    const marks = ['names no Class and no Skill', 'a count is a whole number from 1', 'what a Synergy requires', 'with no Query to filter', 'in the old form'];
+    expect(marks.filter((mark) => text.includes(mark))).toEqual([]);
   });
 
   test('builds a script under the 850 kB the gate allows', () => {

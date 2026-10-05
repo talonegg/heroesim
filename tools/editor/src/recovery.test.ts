@@ -2,7 +2,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { NotUndone, readContentVersion } from '@heroesim/portraits';
+import { NotUndone, readContentVersion } from '@heroesim/content/write';
 import { afterEach, describe, expect, test } from 'vitest';
 import { Editor } from './editor.js';
 import { journalPath, journalState, onSignals, writeAtomically } from './finish-journal.js';
@@ -41,7 +41,9 @@ async function until(test: () => boolean, what: string, ms = 60_000): Promise<vo
 }
 
 describe('a "Finish" cut off', () => {
-  test('killed while its tests run, its files are put back by the next command, the edits still pending', async () => {
+  // A process of its own, which compiles the editor as it starts: under the whole suite's load that
+  // took most of the project's 60 s, so the test is given 180 s and its wait 120 s (DL-205).
+  test('killed while its tests run, its files are put back by the next command, the edits still pending', { timeout: 180_000 }, async () => {
     const dir = scratch();
     await json(dir, 'traits', 'change', 'thrifty', '--cost', '3');
     plantOutcome(dir, 'hang');
@@ -54,11 +56,10 @@ describe('a "Finish" cut off', () => {
       detached: process.platform !== 'win32',
     });
     const exited = new Promise((resolve) => child.on('exit', resolve));
-    await until(() => existsSync(path.join(dir, 'tests-started.txt')), 'the planted tests to start');
+    await until(() => existsSync(path.join(dir, 'tests-started.txt')), 'the planted tests to start', 120_000);
     expect(status(dir).split('\n').filter((line) => line !== '').sort()).toEqual([
       ' M content/guildmaster-traits.json',
-      ' M content/src/content.test.ts',
-      ' M content/src/parse.ts',
+      ' M content/version.json',
     ]);
     expect(readContentVersion(dir)).toBe(version + 1);
     if (process.platform === 'win32') {
@@ -69,6 +70,9 @@ describe('a "Finish" cut off', () => {
         // the whole suite's load (DL-164): the "Finish" killed is what counts, and the journal says so.
       }
     } else process.kill(-(child.pid ?? 0), 'SIGKILL');
+    // The "Finish" itself, should the tree's kill have missed it, so that its exit, which the test
+    // waits for, comes (DL-205).
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
     await exited;
     expect(existsSync(journalPath(dir))).toBe(true);
     expect(journalState(dir)).toBe('cut-off');
@@ -77,8 +81,7 @@ describe('a "Finish" cut off', () => {
     expect(listed.code).toBe(0);
     expect(listed.json.recovered.map((file) => path.relative(dir, file).replace(/\\/g, '/')).sort()).toEqual([
       'content/guildmaster-traits.json',
-      'content/src/content.test.ts',
-      'content/src/parse.ts',
+      'content/version.json',
     ]);
     expect(listed.json.pending).toBe(1);
     expect(status(dir)).toBe('');
@@ -167,8 +170,7 @@ describe('a "Finish" cut off', () => {
     expect(pending.json.edits).toHaveLength(1);
     expect(pending.json.recovered.map((each) => path.relative(dir, each).replace(/\\/g, '/')).sort()).toEqual([
       'content/guildmaster-traits.json',
-      'content/src/content.test.ts',
-      'content/src/parse.ts',
+      'content/version.json',
     ]);
     expect(status(dir)).toBe('');
     expect(existsSync(journalPath(dir))).toBe(false);
@@ -191,7 +193,7 @@ describe('a "Finish" cut off', () => {
     proc.emit('SIGINT');
 
     expect(proc.exitCode).toBe(130);
-    expect(said).toEqual(['Stopped: "Finish" was cut off, and 3 files are put back as they were.']);
+    expect(said).toEqual(['Stopped: "Finish" was cut off, and 2 files are put back as they were.']);
     expect(status(dir)).toBe('');
     expect(journalState(dir)).toBe('none');
     release(false);

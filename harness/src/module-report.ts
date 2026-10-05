@@ -5,15 +5,19 @@
 // the games with a module installed are other games from the first effect on, while no core stream
 // moves because a module drew (M8-S1's box 2).
 
-import { dayOf, timeOfDay, type EngineDeps } from '@heroesim/engine';
+import { configVersion, dayOf, schemaVersion, timeOfDay, type EngineDeps } from '@heroesim/engine';
 import { endingReasons } from './counters.js';
 import { harnessSetup } from './creation.js';
 import type { GameRecord } from './play.js';
 import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
 import { sweepFingerprint, sweepTotals, type PlaySweep, type SweepTotals } from './sweep.js';
 
-/** The fields of `SweepTotals` that are the modules' own counters, left out of the core's. */
-const modulesOwn: readonly (keyof SweepTotals)[] = ['moduleEvents', 'moduleEffects'];
+/**
+ * The fields of `SweepTotals` left out of the core's counters: the modules' own counters, and the
+ * World State's measures as each year ended, whose copy times differ between two runs of one game
+ * (v1.1.6-S17, DL-203).
+ */
+const notCore: readonly (keyof SweepTotals)[] = ['moduleEvents', 'moduleEffects', 'worlds'];
 
 /** Adds every number in `value` to `into` by its path from `path`; a list's entries share the list's path and `[]`. */
 function addLeaves(into: Map<string, number>, value: unknown, path: string): void {
@@ -30,12 +34,13 @@ function addLeaves(into: Map<string, number>, value: unknown, path: string): voi
  * Every core counter in `totals`, by its path: `heroesInjured.player`, `wealth.rival.sales.fold`.
  * The entries of a list (years, bands, places in the Rankings, Rivals) are summed into one number at
  * the list's path followed by `[]`: `levelsGained.player[]`, `rosters[].player.wealth`. The modules'
- * own counters (`moduleEvents`, `moduleEffects`) are left out. In the order `sweepTotals` gives them.
+ * own counters (`moduleEvents`, `moduleEffects`) and the World State's measures (`worlds`) are left
+ * out. In the order `sweepTotals` gives them.
  */
 export function coreCounters(totals: SweepTotals): Map<string, number> {
   const counters = new Map<string, number>();
   for (const [key, value] of Object.entries(totals)) {
-    if (!modulesOwn.includes(key as keyof SweepTotals)) addLeaves(counters, value, key);
+    if (!notCore.includes(key as keyof SweepTotals)) addLeaves(counters, value, key);
   }
   return counters;
 }
@@ -132,7 +137,7 @@ export function moduleReport(installed: PlaySweep, without: PlaySweep, { deps, m
     ['Games the validator refused', ...both((sweep, totals) => (sweep.validated ? whole(totals.invalidGames) : 'not validated'))],
     ['Games a harness assertion stopped', ...both((_sweep, totals) => whole(totals.assertionGames))],
     [
-      'Byte equality, one seed played twice',
+      "Byte equality, one seed played once more, alone, against its shard's record",
       ...both((sweep) =>
         sweep.replay === null ? '—' : `\`${sweep.replay.seed}\`: ${sweep.replay.identical ? 'identical' : 'DIFFERENT'}`,
       ),
@@ -166,8 +171,8 @@ export function moduleReport(installed: PlaySweep, without: PlaySweep, { deps, m
     '',
     `Run begun ${localTimestamp(startedAt)} · ${whole(count)} seeds, ${range} · up to ${yearsText} years ` +
       `(${whole(installed.years * config.turnsPerYear)} Turns) each, played twice: with ${named} installed, and with no module · ` +
-      `content \`${content.id}\` version ${content.version} · config version ${config.configVersion}, schema version ` +
-      `${config.schemaVersion} · \`createdAt: "${harnessSetup.createdAt}"\` · the automatic policy, as in the milestones' ` +
+      `content \`${content.id}\` version ${content.version} · config version ${configVersion}, schema version ` +
+      `${schemaVersion} · \`createdAt: "${harnessSetup.createdAt}"\` · the automatic policy, as in the milestones' ` +
       `play runs · validated after every advance: ${installed.validated && without.validated ? 'yes' : 'no'}`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +

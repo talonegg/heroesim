@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import type { Consequence, ContentSet, Encounter } from '../content-types.js';
@@ -29,6 +28,7 @@ import {
 } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { questsConclude } from './quests-conclude.js';
+import { applyAction } from '../actions/action.js';
 
 // M2-S5: the night's `questsConclude` (DL-29), through M4-S2's Quest Engine (DL-42). Parties are
 // sent by `dispatch` from created worlds and played to the afternoon before they come home; a test
@@ -134,7 +134,7 @@ function sentAway(
   if (open === undefined) throw new Error(`No open Quest for ${size} on ${seed}'s first Board`);
   for (const [definitionKey, quantity] of consumables) addStack(start.world, definitionKey, quantity, { kind: 'guild', id: guild.id });
   const carried = consumables.map(([definitionKey, quantity]) => ({ definitionKey, quantity }));
-  const sent = dispatch(start, { guildId: guild.id, questId: open.id, heroIds, consumables: carried }, deps);
+  const sent = applyAction(start, { kind: 'dispatch', guildId: guild.id, questId: open.id, heroIds, consumables: carried }, deps);
   if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
   const quest = sent.document.world.quests[open.id] as Quest;
   if (difficulty !== undefined) quest.difficulty = difficulty;
@@ -522,7 +522,7 @@ describe('questsConclude', () => {
         });
         const size = quest.requirements.partySizeMin;
         if (quest.requirements.classKey !== undefined || quest.requirements.skillKey !== undefined || free.length < size) continue;
-        const sent = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds: free.slice(0, size) }, deps);
+        const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: free.slice(0, size) }, deps);
         if (sent.ok) document = sent.document;
       }
       const result = advance(document, deps);

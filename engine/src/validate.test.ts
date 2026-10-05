@@ -1,15 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import {
   advance,
-  append,
   createWorld,
-  makeId,
   parseId,
-  passiveEntryTypes,
-  refusalChecks,
-  takeId,
   validate,
-  warningChecks,
   type ContentSet,
   type Guild,
   type Guildmaster,
@@ -26,6 +20,9 @@ import {
   type WarningCheck,
   type WorldDocument,
 } from './index.js';
+import { append } from './history.js';
+import { makeId, takeId } from './document.js';
+import { passiveEntryTypes, refusalChecks, warningChecks } from './validate.js';
 import { buildDocument, fixtureTurn, heroStatKeys, testContent, testDeps, withValid } from './world.test-support.js';
 
 // M1-S7: the validator of data-model §6. Each refusal test mutates the valid fixture document into
@@ -249,6 +246,29 @@ describe('§6: a Hero on two Rosters, or in two Parties, or on a Roster of a Gui
   });
 });
 
+// v1.1.6-S17 (ADR-0011, DL-203): a Hero out of play is written once, frozen and shared by the per-Turn
+// copy; the rules that walk a Roster or a Party write those they find, so a save with one there is
+// refused, not played until a write to the frozen row throws.
+describe('a Hero out of play on a Roster or in a Party (v1.1.6-S17, ADR-0011)', () => {
+  test('a dead Hero back on their Roster is refused, naming the Hero', () => {
+    expect(refusals((d) => guild(d, ids.playerGuild).rosterIds.push(ids.deadHero))).toEqual([
+      failure('departed-hero-in-play', ids.deadHero),
+    ]);
+  });
+
+  test('a retired Hero left on their Roster is refused, naming the Hero', () => {
+    expect(refusals((d) => (hero(d, idleHero).retiredOnTurn = 30))).toEqual([failure('departed-hero-in-play', idleHero)]);
+  });
+
+  test('a dead Hero still in their Party is refused once, naming the Hero', () => {
+    const dead = (d: Doc): void => {
+      hero(d, ids.partyHero).diedOnTurn = 30;
+      guild(d, ids.playerGuild).rosterIds = guild(d, ids.playerGuild).rosterIds.filter((id) => id !== ids.partyHero);
+    };
+    expect(refusals(dead)).toEqual([failure('departed-hero-in-play', ids.partyHero)]);
+  });
+});
+
 describe("§6: a Hero's pool fields disagree with their Guild (DL-27)", () => {
   test.each<[string, Mutation, string]>([
     [
@@ -259,7 +279,6 @@ describe("§6: a Hero's pool fields disagree with their Guild (DL-27)", () => {
       },
       unattachedHero,
     ],
-    ['a Hero on a Roster marked as gone from the pool', (d) => (hero(d, idleHero).leftPoolOnTurn = 30), idleHero],
     ['a pool Hero marked as gone from it too', (d) => (hero(d, unattachedHero).leftPoolOnTurn = 30), unattachedHero],
     ['a pool Hero who has retired', (d) => (hero(d, unattachedHero).retiredOnTurn = 30), unattachedHero],
     [
@@ -269,6 +288,13 @@ describe("§6: a Hero's pool fields disagree with their Guild (DL-27)", () => {
     ],
   ])('%s is refused', (_, mutate, id) => {
     expect(refusals(mutate)).toEqual([failure('unattached-mismatch', id)]);
+  });
+
+  test('a Hero on a Roster marked as gone from the pool is refused, and as out of play on a Roster (v1.1.6-S17)', () => {
+    expect(refusals((d) => (hero(d, idleHero).leftPoolOnTurn = 30))).toEqual([
+      failure('unattached-mismatch', idleHero),
+      failure('departed-hero-in-play', idleHero),
+    ]);
   });
 
   test.each<[string, Mutation]>([
@@ -560,16 +586,27 @@ describe('document-shape', () => {
 
   test.each<[string, Mutation, string]>([
     ['a missing table', (d) => drop(d.world, 'offers'), '$.world.offers'],
+    // v1.1.6-S7 (DL-193): the version of the defaults is `meta`'s, a whole number. `meta` is shared
+    // between documents, so each is changed on a copy.
+    [
+      'a meta without the version of its defaults, as schema 6 wrote it (v1.1.6-S7)',
+      (d) => {
+        const meta = { ...d.meta };
+        drop(meta, 'configVersion');
+        set(d, 'meta', meta);
+      },
+      '$.meta.configVersion',
+    ],
+    [
+      'a version of the defaults that is not a whole number (v1.1.6-S7)',
+      (d) => set(d, 'meta', { ...d.meta, configVersion: 13.5 }),
+      '$.meta.configVersion',
+    ],
     ['a missing field', (d) => drop(hero(d, ids.partyHero), 'stats'), `${heroPath}.stats`],
     ['a field of the wrong kind', (d) => set(hero(d, ids.partyHero), 'traits', 'none'), `${heroPath}.traits`],
     ['a row that is not an object', (d) => set(d.world.patrons, ids.patron, 'Maud'), patronPath],
     ['an entry without a payload', (d) => drop(d.history.entries[0] ?? {}, 'payload'), '$.history.entries[0].payload'],
     ['an index that is not a list', (d) => set(d.history.byType, 'hero.died', 4), '$.history.byType["hero.died"]'],
-    [
-      'a Quest demand that is not a pair',
-      (d) => set(quest(d, ids.takenQuest).demands, '0', 'strength'),
-      `$.world.quests["${ids.takenQuest}"].demands[0]`,
-    ],
     [
       'a holder of no kind the tables know',
       (d) => set(item(d, ids.item), 'holder', { kind: 'vault' }),
@@ -713,7 +750,6 @@ describe('a key the content does not define warns and never refuses', () => {
   });
 
   const gm = ids.playerGuildmaster;
-  const offered = ids.offeredQuest;
   test.each<[string, Mutation, WarningCheck, string, string]>([
     [
       'a Guildmaster Stat on a Hero',
@@ -723,7 +759,6 @@ describe('a key the content does not define warns and never refuses', () => {
       'judgement',
     ],
     ['a Hero Stat on a Guildmaster', (d) => (guildmaster(d, gm).stats.strength = 9), 'unknown-stat', gm, 'strength'],
-    ['a Quest demand', (d) => quest(d, offered).demands.push(['luck', 1]), 'unknown-stat', offered, 'luck'],
     ['a Class', (d) => (hero(d, idleHero).classKey = 'bard'), 'unknown-class', idleHero, 'bard'],
     [
       'a Class a Quest requires',
@@ -868,12 +903,14 @@ describe('a key the content does not define warns and never refuses', () => {
     expect(warnings((d) => (guildmaster(d, gm).portraitKey = null))).toEqual([]);
   });
 
-  test('an Item a Hero holds in a slot the config does not list warns, naming the slot (M5-S1)', () => {
+  test('an Item a Hero holds in a slot that is no gear slot warns, naming the slot (M5-S1, DL-193)', () => {
     const { document } = buildDocument();
-    const result = validate(document, testDeps({ gearSlots: ['weapon', 'armour'] }));
+    Object.assign(document.world.items[ids.item]?.holder ?? {}, { slot: 'belt' });
+    const result = validate(document, testDeps());
 
     expect(result.ok && result.warnings.map(({ check, id, key }) => ({ check, id, key }))).toEqual([
-      { check: 'unknown-slot', id: ids.item, key: 'trinket' },
+      { check: 'unknown-slot', id: ids.item, key: 'belt' },
+      { check: 'misplaced-item', id: ids.item, key: expect.any(String) },
     ]);
   });
 

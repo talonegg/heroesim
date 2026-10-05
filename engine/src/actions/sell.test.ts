@@ -8,8 +8,7 @@ import { playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { buildDocument, testDeps, withValid } from '../world.test-support.js';
 import { applyAction, applyGuildAction } from './action.js';
-import { buy } from './buy.js';
-import { sell, type SellRequest } from './sell.js';
+import type { SellRequest } from './sell.js';
 
 // M5-S4: selling to the Market (R31, DL-51). `sellRatio` and the Loot-only price are pinned; the
 // test content prices a Healing draught at 30, a Whetstone at 25. The built document holds a stack
@@ -30,7 +29,7 @@ describe('sell', () => {
     const { document, ids } = built();
     const guildId = ids.playerGuild;
 
-    const result = sell(document, { guildId, stackId: ids.guildStack, quantity: 2 }, deps);
+    const result = applyAction(document, { kind: 'sell', guildId, stackId: ids.guildStack, quantity: 2 }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
@@ -59,7 +58,7 @@ describe('sell', () => {
     const { document, ids } = built();
     const whetstones = addStack(document.world, 'whetstone', 3, { kind: 'guild', id: ids.playerGuild });
 
-    const result = sell(document, { guildId: ids.playerGuild, stackId: whetstones, quantity: 3 }, deps);
+    const result = applyAction(document, { kind: 'sell', guildId: ids.playerGuild, stackId: whetstones, quantity: 3 }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
@@ -73,7 +72,7 @@ describe('sell', () => {
     const { document, ids } = built();
     const blade = createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: ids.playerGuild });
 
-    const result = sell(document, { guildId: ids.playerGuild, itemId: blade }, deps);
+    const result = applyAction(document, { kind: 'sell', guildId: ids.playerGuild, itemId: blade }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
@@ -106,7 +105,7 @@ describe('sell', () => {
     const request = arrange(ids, document);
     const before = serialise(document);
 
-    const result = sell(document, request, deps);
+    const result = applyAction(document, { kind: 'sell', ...request }, deps);
 
     expect(result.ok ? 'sold' : result.rejection.reason).toBe(reason);
     expect(serialise(document)).toBe(before);
@@ -123,7 +122,7 @@ describe('sell', () => {
     const lost = addStack(document.world, 'a-lost-item', 1, { kind: 'guild', id: ids.playerGuild });
     withValid(document, deps, { allowWarnings: true });
 
-    const result = sell(document, { guildId: ids.playerGuild, stackId: lost, quantity: 1 }, deps);
+    const result = applyAction(document, { kind: 'sell', guildId: ids.playerGuild, stackId: lost, quantity: 1 }, deps);
 
     expect(result).toEqual({ ok: false, rejection: { action: 'sell', reason: 'unknown-item', definitionKey: 'a-lost-item' } });
   });
@@ -134,11 +133,11 @@ describe('sell', () => {
     const listed = addStack(document.world, 'a-lost-item', 1, marketHolder);
     withValid(document, deps, { allowWarnings: true });
 
-    expect(sell(document, { guildId: ids.playerGuild, itemId: carried }, deps)).toEqual({
+    expect(applyAction(document, { kind: 'sell', guildId: ids.playerGuild, itemId: carried }, deps)).toEqual({
       ok: false,
       rejection: { action: 'sell', reason: 'equipped', id: carried, heroId: ids.partyHero, slot: 'weapon' },
     });
-    expect(sell(document, { guildId: ids.playerGuild, stackId: listed, quantity: 1 }, deps)).toEqual({
+    expect(applyAction(document, { kind: 'sell', guildId: ids.playerGuild, stackId: listed, quantity: 1 }, deps)).toEqual({
       ok: false,
       rejection: { action: 'sell', reason: 'not-held-by-guild', id: listed },
     });
@@ -147,23 +146,21 @@ describe('sell', () => {
   test('throws on a programming error: a quantity that is not a whole number from 1, a Guild the world lacks', () => {
     const { document, ids } = built();
 
-    expect(() => sell(document, { guildId: ids.playerGuild, stackId: ids.guildStack, quantity: 0 }, deps)).toThrow(RangeError);
-    expect(() => sell(document, { guildId: 'guild-000099' as GuildId, itemId: ids.item }, deps)).toThrow(RangeError);
+    expect(() => applyAction(document, { kind: 'sell', guildId: ids.playerGuild, stackId: ids.guildStack, quantity: 0 }, deps)).toThrow(RangeError);
+    expect(() => applyAction(document, { kind: 'sell', guildId: 'guild-000099' as GuildId, itemId: ids.item }, deps)).toThrow(RangeError);
   });
 
-  test('is what applyAction does with a sell action, and the rule a controller applies in place (DL-30)', () => {
+  test('is the rule applyAction runs on a copy of the world, and a controller in place (DL-30)', () => {
     const { document, ids } = built();
     const action = { kind: 'sell', guildId: ids.playerGuild, stackId: ids.guildStack, quantity: 3 } as const;
     const world = structuredClone(document.world);
 
-    const direct = sell(document, action, deps);
     const applied = applyAction(document, action, deps);
     const inPlace = applyGuildAction(world, action, deps);
 
-    if (!direct.ok || !inPlace.ok) throw new Error('Refused');
-    expect(applied.ok && serialise(applied.document)).toBe(serialise(direct.document));
-    expect(world).toEqual(direct.document.world);
-    expect(inPlace.events).toEqual(direct.events);
+    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
+    expect(world).toEqual(applied.document.world);
+    expect(inPlace.events).toEqual(applied.events);
   });
 
   test('a sold stack is for sale until the next morning’s refresh; a sold unique Item past it, and costs its full price to buy back', () => {
@@ -175,7 +172,7 @@ describe('sell', () => {
     const blade = createItem(start.world, 'barrow-kings-blade', holder);
     let document = withValid(start, deps);
     for (const request of [{ guildId: guild.id, stackId: kit, quantity: 2 }, { guildId: guild.id, itemId: blade }]) {
-      const result = sell(document, request, deps);
+      const result = applyAction(document, { kind: 'sell', ...request }, deps);
       if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
       document = withValid(result.document, deps);
     }
@@ -189,7 +186,7 @@ describe('sell', () => {
     expect(holdings(document.world, marketHolder).items.map((item) => item.id)).toEqual([blade]);
 
     const wealth = document.world.guilds[guild.id]?.wealth ?? 0;
-    const bought = buy(document, { guildId: guild.id, definitionKey: 'barrow-kings-blade', quantity: 1 }, deps);
+    const bought = applyAction(document, { kind: 'buy', guildId: guild.id, definitionKey: 'barrow-kings-blade', quantity: 1 }, deps);
     if (!bought.ok) throw new Error(`Refused: ${bought.rejection.reason}`);
     expect(withValid(bought.document, deps).world.guilds[guild.id]?.wealth).toBe(wealth - 600);
   });

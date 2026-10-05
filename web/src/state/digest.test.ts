@@ -3,9 +3,9 @@ import { describe, expect, test } from 'vitest';
 import { leavingTodayView, navCounts, partiesOutView, railView } from './digest';
 import { cameHome as partyHome, changed, played, started, withOffer, withPartyOut, withReturn } from './game.test-support';
 import { initialGameState, type GameState } from './reducer';
-import { boardView, rosterView, whenOf } from './selectors';
+import { boardView, rosterRows, sortedRoster, whenOf } from './selectors';
 import { historyView, leftOutOfYourGuild } from './history';
-import { narrate, narrationFor } from './narrate';
+import { narrateText, narrationFor } from './namer';
 import { content } from '../content';
 
 // What the shell reads (M9-S3, DL-103): the counts on the navigation, the home view's digest and the
@@ -20,7 +20,7 @@ function documentOf(state: GameState): WorldDocument {
 /** The last play's events, each as the History narrates it. */
 function sentencesOf(state: GameState): string[] {
   const narration = narrationFor(documentOf(state), content);
-  return state.log.map((event) => narrate(event, narration));
+  return state.log.map((event) => narrateText(event, narration));
 }
 
 function playerOf(state: GameState): Guild {
@@ -94,7 +94,7 @@ describe('partiesOutView', () => {
     const [sent] = sentencesOf(state);
     expect(sent).toBe(`The Lantern sent ${row?.heroes} on ${row?.quest}, back on ${row?.returns}.`);
     // And the Roster says each of them is away until that night.
-    const away = rosterView(documentOf(state)).filter((hero) => hero.whereabouts === `Away with a Party, back on ${row?.returns}`);
+    const away = sortedRoster(rosterRows(documentOf(state))).filter((hero) => hero.whereabouts === `Away with a Party, back on ${row?.returns}`);
     expect(away.map((hero) => hero.name).sort()).toEqual([...(row?.names ?? [])].sort());
   });
 
@@ -137,7 +137,7 @@ describe('railView', () => {
     const narration = narrationFor(document, content);
     const history = entriesFor(document.history, guild.id)
       .filter((entry) => !leftOutOfYourGuild.has(entry.type))
-      .map((entry) => ({ when: whenOf(entry.turn), sentence: narrate(entry as never, narration) }));
+      .map((entry) => ({ when: whenOf(entry.turn), sentence: narrateText(entry as never, narration) }));
     const rail = railView(state, 8);
 
     expect(rail?.guildName).toBe('The Lantern');

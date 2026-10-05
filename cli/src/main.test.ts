@@ -8,26 +8,23 @@ import {
   addStack,
   advance,
   ageOf,
+  applyAction,
   availableHeroes,
-  count,
+  configVersion,
   createWorld,
   dayOf,
   defaultConfig,
   describeQuery,
   deserialise,
-  dispatch,
   effectiveStats,
   estimateQuest,
   fastForward,
-  makeId,
   guildmasterOf,
   isModuleEvent,
   judgedHintBands,
-  nightOf,
-  partyFor,
   potentialHint,
-  potentialHints,
   probe,
+  schemaVersion,
   serialise,
   upkeep,
   type EntityId,
@@ -39,11 +36,12 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
+import { count, makeId, nightOf, partyFor, potentialHints } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
+import { chanceWords, shownPercent, queryWords } from '@heroesim/words';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from './main.js';
-import { chanceWords, shownPercent, queryWords } from './query-words.js';
-import { narrate } from './narrate.js';
+import { narrateLine } from './namer.js';
 
 const content = loadContent();
 const clock = new Date('2026-09-26T09:30:00.000Z');
@@ -84,7 +82,7 @@ const current = (): string => join(dir, '.saves', 'current.json');
 const saved = (path = current()): string => readFileSync(path, 'utf8');
 
 function document(path = current()): WorldDocument {
-  const loaded = deserialise(saved(path), { config: defaultConfig, content });
+  const loaded = deserialise(saved(path), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }
@@ -1103,9 +1101,9 @@ describe('dispatch (M2-S4)', () => {
   test('sends the Party the engine sends, saves it, and prints the Party, the return Day and the Rivals reminder', () => {
     const before = document();
     const { questId, heroIds } = openQuest(before.world);
-    const expected = dispatch(
+    const expected = applyAction(
       before,
-      { guildId: playerId, questId, heroIds },
+      { kind: 'dispatch', guildId: playerId, questId, heroIds },
       { config: { ...defaultConfig, ...before.meta.config }, content },
     );
     if (!expected.ok) throw new Error(`Rejected ${expected.rejection.reason}`);
@@ -1211,9 +1209,9 @@ describe('dispatch (M2-S4)', () => {
         { definitionKey: 'healing-draught', quantity: 2 },
         { definitionKey: 'whetstone', quantity: 1 },
       ];
-      const expected = dispatch(
+      const expected = applyAction(
         before,
-        { guildId: playerId, questId, heroIds, consumables },
+        { kind: 'dispatch', guildId: playerId, questId, heroIds, consumables },
         { config: { ...defaultConfig, ...before.meta.config }, content },
       );
       if (!expected.ok) throw new Error(`Rejected ${expected.rejection.reason}`);
@@ -1286,7 +1284,7 @@ describe('rebase', () => {
     const run = play(['rebase']);
 
     expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain(`already plays under this release's rules, configVersion ${defaultConfig.configVersion}`);
+    expect(run.err).toContain(`already plays under this release's rules, configVersion ${configVersion}`);
     expect(saved()).toBe(original);
   });
 
@@ -1294,7 +1292,7 @@ describe('rebase', () => {
     newDemo();
     // A save from a release whose rules were one version older, with a year of three Turns.
     edit((edited) => {
-      edited.meta.config.configVersion = defaultConfig.configVersion - 1;
+      edited.meta.configVersion = configVersion - 1;
       edited.meta.config.turnsPerYear = 3;
     });
 
@@ -1304,8 +1302,9 @@ describe('rebase', () => {
     const run = play(['rebase']);
 
     expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toContain(`configVersion ${defaultConfig.configVersion - 1} to ${defaultConfig.configVersion}`);
+    expect(run.out).toContain(`configVersion ${configVersion - 1} to ${configVersion}`);
     expect(document().meta.config).toEqual(defaultConfig);
+    expect(document().meta.configVersion).toBe(configVersion);
     expect(adopted()).toBe(1);
     expect(play(['show']).out).toContain('Turn 3 (Day 1, morning, Year 0)');
     expect(play(['show', 'history']).out).toMatch(/^\s*3\s+world\.rules-adopted\s+Yes/m);
@@ -1417,8 +1416,24 @@ describe('save and load', () => {
     // The save is kept until the player replaces it: a new game over it, which then loads.
     expect(newDemo().code).toBe(exitCodes.refused);
     expect(newDemo('--force').code).toBe(exitCodes.ok);
-    expect(JSON.parse(saved())).toMatchObject({ meta: { version: 6 } });
+    expect(JSON.parse(saved())).toMatchObject({ meta: { version: schemaVersion } });
     expect(play(['show']).code).toBe(exitCodes.ok);
+  });
+
+  test('a save whose config breaks a rule is refused at load, naming the setting, and left as it was (v1.1.6-S7, DL-193)', () => {
+    newDemo();
+    edit((edited) => {
+      edited.meta.config.boardSize = -2;
+    });
+    const original = saved();
+
+    for (const argv of [['show'], ['advance'], ['load', current()]]) {
+      const run = play(argv);
+      expect(run.code, argv.join(' ')).toBe(exitCodes.refused);
+      expect(run.err).toBe(`Cannot load ${current()}: The game's config is unsound: boardSize is -2; it is a whole number, at least 0.
+`);
+    }
+    expect(saved()).toBe(original);
   });
 
   test('the newer-schema refusal names both versions', () => {
@@ -1429,7 +1444,7 @@ describe('save and load', () => {
     const run = play(['load', bad]);
 
     expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain(`version 999 and this engine reads version ${defaultConfig.schemaVersion}`);
+    expect(run.err).toContain(`version 999 and this engine reads version ${schemaVersion}`);
   });
 
   test('load refuses a file that is not there, and save --as a save that is not there', () => {
@@ -1484,8 +1499,8 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(saved()).toBe(serialise(expected));
     expect(fired.turn).toBe(11);
-    const line = narrate(fired, content);
-    expect(line).toMatch(/^The probe module recorded probe\.fired for .+ \(hero-\d{6}\), .+\.$/);
+    const line = narrateLine(fired, content);
+    expect(line).toMatch(/^The probe Module recorded probe\.fired for .+ \(hero-\d{6}\), .+\.$/);
     const lines = run.out.split('\n');
     const at = lines.findIndex((text) => text.endsWith(line));
     expect(at).toBeGreaterThan(-1);
@@ -1515,7 +1530,7 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(saved()).toBe(serialise(expected));
     expect(run.out).toContain(`Played ${turn} Turns. Now Turn ${turn} (Day 30, afternoon, Year 0).`);
-    expect(run.out).toContain('Stopped: the probe module asked to stop.');
+    expect(run.out).toContain('Stopped: the probe Module asked to stop.');
   });
 
   test('advance --until with --modules plays the probe too', () => {

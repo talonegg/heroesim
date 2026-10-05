@@ -1,12 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { contentFiles, parseContent, type ContentFileName } from '../index.js';
 import { contentDir } from '../node.js';
 import { generatedPart, registerDoc, withGeneratedPart, docBegins, docEnds } from './doc.js';
-import { UseRefusal, type ContentJson } from './json.js';
-import { contentEntries, engineEntriesOf, register, rulesFor, usesOf, type ContentEntry } from './register.js';
+import { at, setAt, UseRefusal, type ContentJson } from './json.js';
+import { contentEntries, engineEntriesOf, register, rulesFor, usesOf, type ContentEntry, type TraitUse } from './register.js';
 
 // The register of a Trait's uses (v1.1.4-S12, DL-150 item 14): each content entry finds the uses the
 // shipped content holds, adds one where it says how, and takes it out again, the content passing its
@@ -15,18 +14,6 @@ import { contentEntries, engineEntriesOf, register, rulesFor, usesOf, type Conte
 /** The shipped content as JSON, by file. */
 function shipped(): Record<ContentFileName, unknown> {
   return Object.fromEntries(contentFiles.map((file) => [file, JSON.parse(readFileSync(join(contentDir, file), 'utf8'))])) as Record<ContentFileName, unknown>;
-}
-
-/**
- * The shipped content with its Encounters, Synergies and Quest templates as content 25 wrote them, in
- * the old form (`content/src/old-form/`), which the register refuses to filter (v1.1.4-S10).
- */
-function oldForm(): Record<ContentFileName, unknown> {
-  const content = shipped();
-  for (const file of ['encounters.json', 'synergies.json', 'quest-templates.json'] as const) {
-    content[file] = JSON.parse(readFileSync(fileURLToPath(new URL(`../old-form/${file}`, import.meta.url)), 'utf8'));
-  }
-  return content;
 }
 
 /**
@@ -216,12 +203,12 @@ describe('a use added and removed', () => {
     expect(usesOf({ ...next, ...made?.change }, 'scarred').map((use) => use.at)).toContain('encounters.json: ambush-on-the-road.checks.0.score.1.1.1.2');
   });
 
-  test('refuses an Encounter or a Synergy in the old form, saying so and what to do', () => {
-    const content = oldForm();
-    expect(() => entry('encounter-has-trait').add?.apply(content, 'lame', { encounter: 'ambush-on-the-road', path: 'checks.0.score.1' })).toThrow(
-      'encounters.json: ambush-on-the-road is an Encounter in the old form, with no Query to filter: ask the owner',
+  test('refuses an Encounter or a Synergy that is not there', () => {
+    const content = shipped();
+    expect(() => entry('encounter-has-trait').add?.apply(content, 'lame', { encounter: 'no-such-encounter', path: 'checks.0.score.1' })).toThrow(
+      'encounters.json: no-such-encounter is not there',
     );
-    expect(() => entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'shield-wall' })).toThrow('synergies.json: shield-wall is a Synergy in the old form');
+    expect(() => entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'no-such-synergy' })).toThrow('synergies.json: no-such-synergy is not there');
   });
 
   test("a Triumph's list is copied from the Success's before a positive Trait is added to it", () => {
@@ -261,8 +248,82 @@ describe('a use added and removed', () => {
     expect(() => entry('portrait-callings').add?.apply(content, 'scarred', { calling: 'soldier', side: 'suits' })).toThrow('is not a Guildmaster Trait');
     expect(() => entry('portrait-callings').add?.apply(content, 'spendthrift', { calling: 'merchant', side: 'suits' })).toThrow('clashes names "spendthrift" already');
     expect(() => entry('encounter-has-trait').add?.apply(content, 'lame', { encounter: 'ambush-on-the-road', path: 'checks.0.score.2' })).toThrow('is not a Set Query');
-    expect(() => entry('synergy-has-trait').add?.apply(oldForm(), 'lame', { synergy: 'shield-wall' })).toThrow('old form');
     expect(() => entry('excludes').add?.apply(content, 'lame', { trait: 'miser' })).toThrow('not of the same list');
+  });
+});
+
+// v1.1.6-S4 (DL-186 item 14): a use changed in place, where its entry holds values besides the key: a
+// trait consequence's chance or among, a Biography sentence's words. Any other entry has none.
+describe('a use changed in place', () => {
+  /** The shipped use of `key` in `id`, the first. */
+  function shippedUse(content: ContentJson, key: string, id: string): TraitUse {
+    const found = usesOf(content, key).find((use) => use.entry === id);
+    if (found === undefined) throw new Error(`no use of ${key} in ${id}`);
+    return found;
+  }
+
+  test("a trait consequence's chance changed, the rest of the content as it was, passing its checks", () => {
+    const content = shipped();
+    const use = shippedUse(content, 'battle-shy', 'encounter-trait');
+    const change = entry('encounter-trait').update?.apply(content, use, { chance: 0.12 });
+    const changed = { ...content, ...change };
+
+    expect(Object.keys(change ?? {})).toEqual(['encounters.json']);
+    expect(at(changed['encounters.json'], use.path)).toEqual({ ...(at(content['encounters.json'], use.path) as object), chance: 0.12 });
+    expect(passes(changed)).toBe(true);
+    expect(usesOf(changed, 'battle-shy')).toEqual(usesOf(content, 'battle-shy'));
+    // Only that value: the file as JSON differs at that place alone.
+    const back = structuredClone(changed['encounters.json']);
+    setAt(back, [...use.path, 'chance'], (at(content['encounters.json'], use.path) as { chance: number }).chance, 'encounters.json');
+    expect(back).toEqual(content['encounters.json']);
+  });
+
+  test("a trait consequence's among given, and taken out again with null", () => {
+    const content = shipped();
+    const use = shippedUse(content, 'battle-shy', 'encounter-trait');
+    const among = ['where', 'party', ['class', 'warrior']];
+    const given = { ...content, ...entry('encounter-trait').update?.apply(content, use, { among }) };
+    expect(at(given['encounters.json'], [...use.path, 'among'])).toEqual(among);
+    expect(passes(given)).toBe(true);
+    const taken = { ...given, ...entry('encounter-trait').update?.apply(given, use, { among: null }) };
+    expect(taken['encounters.json']).toEqual(content['encounters.json']);
+  });
+
+  test('a Biography sentence changed in its place, the others standing', () => {
+    const content = shipped();
+    const use = shippedUse(content, 'lame', 'biography-sentences');
+    const changed = { ...content, ...entry('biography-sentences').update?.apply(content, use, { sentence: '{He} limps, and does not say why.' }) };
+    expect(at(changed['descriptions.json'], use.path)).toBe('{He} limps, and does not say why.');
+    expect(usesOf(changed, 'lame')).toEqual(usesOf(content, 'lame'));
+    expect(passes(changed)).toBe(true);
+  });
+
+  test('refuses a value of the wrong type, a sentence the list holds already, and a use that is not there, naming why', () => {
+    const content = shipped();
+    const use = shippedUse(content, 'battle-shy', 'encounter-trait');
+    expect(() => entry('encounter-trait').update?.apply(content, use, { chance: 'often' })).toThrow("the chance is wanted: a number");
+    expect(() => entry('encounter-trait').update?.apply(content, { ...use, path: [...use.path.slice(0, -1), 99] }, { chance: 0.1 })).toThrow(UseRefusal);
+    const sentence = shippedUse(content, 'lame', 'biography-sentences');
+    const other = at(content['descriptions.json'], [...sentence.path.slice(0, -1), 1]);
+    expect(() => entry('biography-sentences').update?.apply(content, sentence, { sentence: other })).toThrow('holds that sentence already');
+  });
+
+  // The verification of v1.1.6-S4: a chance is "above 0 and at most 1", as the entry's words say, in
+  // an update and an assignment alike; the content's checks take 0, a consequence that never comes.
+  test.each([0, -0.1, 1.5])('refuses a chance of %s, changed or assigned, naming the bound', (chance) => {
+    const content = shipped();
+    const use = shippedUse(content, 'battle-shy', 'encounter-trait');
+    expect(() => entry('encounter-trait').update?.apply(content, use, { chance })).toThrow(`the chance is ${chance}; it is above 0 and at most 1`);
+    expect(() => entry('encounter-trait').add?.apply(content, 'battle-shy', { encounter: 'hold-the-line', degree: 'failure', chance })).toThrow(
+      `the target's chance is ${chance}; it is above 0 and at most 1`,
+    );
+    expect(Object.keys(entry('encounter-trait').update?.apply(content, use, { chance: 1 }) ?? {})).toEqual(['encounters.json']);
+  });
+
+  test('is offered only where a use holds values besides the key', () => {
+    expect(contentEntries().flatMap((each) => (each.update === null ? [] : [each.id]))).toEqual(['encounter-trait', 'biography-sentences']);
+    expect(Object.keys(entry('encounter-trait').update?.fields ?? {})).toEqual(['chance', 'among']);
+    expect(Object.keys(entry('biography-sentences').update?.fields ?? {})).toEqual(['sentence']);
   });
 });
 

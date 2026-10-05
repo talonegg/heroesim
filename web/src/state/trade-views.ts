@@ -8,7 +8,7 @@
 
 import {
   ageOf,
-  compareByCodeUnit,
+  gearSlotKeys,
   guildmasterOf,
   holdings,
   itemDefinition,
@@ -19,6 +19,7 @@ import {
   signingFee,
   signingRefusal,
   unattachedHeroes,
+  type Hero,
   type HeroId,
   type ItemDefinition,
   type ItemDefinitionKey,
@@ -29,43 +30,17 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
+import { capitalised, itemEffectWords, kindOf, nameIn, nightOf } from '@heroesim/words';
 import { content } from '../content';
-import { capitalised, nameIn, nightOf, rowOf, transferCostWords } from './names';
+import { rowOf, transferCostWords } from './names';
 import { playDeps } from './reducer';
+import { defaultHeroOrder } from './selectors';
 
 // ── The Market ───────────────────────────────────────────────────────────────────────────────
 
-/**
- * An Item's kind as a cell says it: its Gear slot or Consumable, and whether it is a Unique Item,
- * `Weapon Gear, Unique Item`, its first word the Kind filter's chip (DL-125 item 9). The Stores says
- * it too (M9-F3).
- */
-export function kindOf(definition: ItemDefinition): string {
-  const kind = definition.kind === 'gear' ? `${capitalised(definition.slot)} Gear` : 'Consumable';
-  return definition.unique ? `${kind}, Unique Item` : kind;
-}
-
-/** What an Item does, in the CLI's Market's words as a cell begins them: Gear's Stat modifiers, a Consumable's effect. */
-function doesOf(definition: ItemDefinition): string {
-  return capitalised(effectOf(definition));
-}
-
-function effectOf(definition: ItemDefinition): string {
-  if (definition.kind === 'gear') {
-    return Object.entries(definition.statModifiers)
-      .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${delta > 0 ? `+${delta}` : String(delta)}`)
-      .join(', ');
-  }
-  const { effect } = definition;
-  switch (effect.kind) {
-    case 'bonus':
-      return `+${effect.flat} on a ${effect.kinds.join(' or ')} Encounter`;
-    case 'reroll':
-      return `rolls a failed ${effect.kinds.join(' or ')} Encounter again`;
-    case 'heal':
-      return `an Injury on the Quest heals ${effect.days} Days sooner`;
-  }
-}
+// An Item's kind as a cell says it (`kindOf`), `Weapon Gear, Unique Item`, its first word the Kind
+// filter's chip (DL-125 item 9), which the Stores says too (M9-F3); and what it does, as the CLI's
+// Market says it (`itemEffectWords`): `@heroesim/words` (v1.1.6-S11, DL-186 item 1).
 
 /** A kind of Item the Market's table can be filtered by: a gear slot, or `consumable` (M9-S6). */
 export type MarketKind = SlotKey | 'consumable';
@@ -141,11 +116,11 @@ export function marketView(document: WorldDocument, only: MarketKind | null = nu
     name: definition.name,
     kind: kindOf(definition),
     kindKey: kindKeyOf(definition),
-    does: doesOf(definition),
+    does: itemEffectWords(definition, content),
     quantity,
     price,
   }));
-  const kinds = [...deps.config.gearSlots, 'consumable' as const].flatMap((key) => {
+  const kinds = [...gearSlotKeys, 'consumable' as const].flatMap((key) => {
     const count = listed.filter((row) => row.kindKey === key).length;
     return count === 0 ? [] : [{ key, label: capitalised(key), count }];
   });
@@ -158,7 +133,7 @@ export function marketView(document: WorldDocument, only: MarketKind | null = nu
     const definition = itemDefinition(content, key);
     return definition === undefined
       ? { definitionKey: key, unique: false, kind: '', does: '' }
-      : { definitionKey: key, unique: definition.unique, kind: kindOf(definition), does: doesOf(definition) };
+      : { definitionKey: key, unique: definition.unique, kind: kindOf(definition), does: itemEffectWords(definition, content) };
   };
   const held: HeldForSale[] = [
     ...stacks.map((stack) => ({
@@ -202,7 +177,7 @@ export interface PoolRow {
   willSign: boolean | null;
 }
 
-/** How the pool may be ordered for display (M9-S6): as it lists them, by Class A to Z, or by fee, lowest first. */
+/** How the pool may be ordered for display (M9-S6): as it lists them, by Class in the content's order, or by fee, lowest first. */
 export type PoolOrder = 'listed' | 'class' | 'fee';
 
 export interface PoolView {
@@ -213,15 +188,17 @@ export interface PoolView {
 
 /**
  * `show pool`: the Unattached Heroes, each with the fee and whether they would sign, in id order, or
- * by Class A to Z or fee lowest first, ties in id order: an order for display, which changes nothing
- * in the world (M9-S6, the review's B8).
+ * by Class in the content's declared order, ties in the Roster's default order (`defaultHeroOrder`,
+ * v1.1.6-S14, DL-186 item 24), or by fee lowest first, ties in id order: an order for display, which
+ * changes nothing in the world (M9-S6, the review's B8).
  */
 export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): PoolView {
   const { world } = document;
   const deps = playDeps(document);
   const guild = playerGuild(world);
   const buyer = guild === undefined ? undefined : guildmasterOf(guild, world);
-  const rows = unattachedHeroes(world).map((hero) => {
+  const heroes = unattachedHeroes(world);
+  const rows = heroes.map((hero) => {
     const refusal = guild === undefined ? null : signingRefusal(guild, hero, deps.config);
     return {
       heroId: hero.id,
@@ -238,8 +215,12 @@ export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): 
       willSign: guild === undefined ? null : refusal === null,
     };
   });
-  // A stable sort: ties keep the pool's own order.
-  if (order === 'class') rows.sort((a, b) => compareByCodeUnit(a.className, b.className));
+  // A stable sort: a fee's ties keep the pool's own order; a Class's are the Roster's default order, which begins with the Class.
+  if (order === 'class') {
+    const byDefault = defaultHeroOrder(document);
+    const heroOf = new Map(heroes.map((hero) => [hero.id, hero]));
+    rows.sort((a, b) => byDefault(heroOf.get(a.heroId) as Hero, heroOf.get(b.heroId) as Hero));
+  }
   if (order === 'fee') rows.sort((a, b) => a.fee - b.fee);
   const note =
     guild === undefined ? null : `${guild.name} has ${guild.fame} Fame. A Hero who needs more will not sign for it until it has that much.`;

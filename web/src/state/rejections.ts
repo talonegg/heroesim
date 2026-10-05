@@ -14,16 +14,12 @@ import {
   sexes,
   traitOf,
   type ContentSet,
-  type EndingReason,
-  type FacilityKey,
-  type GearUnavailability,
   type Guild,
   type TransferRefusalReason,
   type UnmetRequirement,
-  type Unavailability,
   type World,
 } from '@heroesim/engine';
-import { listed } from './names';
+import { capitalised, endingWords, facilityIs, facilityNames, gearUnavailableWords, listed, nameIn, unavailableWords } from '@heroesim/words';
 import type { DocumentPlayKind, GameRefusal, PlayRejection } from './reducer';
 
 // ── Kinds ────────────────────────────────────────────────────────────────────────────────────
@@ -62,11 +58,6 @@ function rowOf<Row>(rows: Readonly<Record<string, Row>> | undefined, id: string)
   return rows !== undefined && Object.hasOwn(rows, id) ? rows[id] : undefined;
 }
 
-/** A content row's name; a key the content does not define is shown as it is (data-model rule 5). */
-function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
-  return rowOf(rows, key)?.name ?? key;
-}
-
 function heroCalled({ world }: Setting, heroId: string): string {
   return rowOf(world?.heroes, heroId)?.name ?? 'that Hero';
 }
@@ -94,41 +85,6 @@ function heldCalled({ world, content }: Setting, id: string): string {
 function itemCalled({ content }: Setting, definitionKey: string): string {
   return nameIn(content.items, definitionKey);
 }
-
-/** A Hall facility as a sentence names one (`CONTEXT.md`, Hall), and the verb it takes. */
-export const facilityNames: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'infirmary',
-  trainingYard: 'training yard',
-  quarters: 'quarters',
-});
-
-export const facilityIs: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'is',
-  trainingYard: 'is',
-  quarters: 'are',
-});
-
-/** Why a Hero cannot go on a Quest, after their name (the CLI's `dispatch`). */
-const unavailableWords: Readonly<Record<Unavailability, string>> = Object.freeze({
-  injured: 'is injured',
-  dead: 'is dead',
-  retired: 'has retired',
-  'in-party': 'is away with a Party',
-});
-
-/** Why a Hero's gear cannot be changed, after their name (the CLI's `equip`). */
-const gearUnavailableWords: Readonly<Record<GearUnavailability, string>> = Object.freeze({
-  dead: 'is dead',
-  retired: 'has retired',
-  'in-party': 'is away on a Quest, and their Gear is with them',
-});
-
-/** What befell a Guild at its ending, after its name (the CLI's `game.ended`). */
-export const endingWords: Readonly<Record<EndingReason, string>> = Object.freeze({
-  retirement: 'lost its Guildmaster to Retirement',
-  bankruptcy: 'went bankrupt',
-  'roster-wiped': 'had its Roster wiped out',
-});
 
 /** A requirement a Party misses, in words (the CLI's `requirementWords`). */
 function requirementWords(unmet: UnmetRequirement, { content }: Setting): string {
@@ -229,6 +185,8 @@ const sentences: Sentences = {
   'load unsupported-version': ({ documentVersion, schemaVersion, message }) =>
     documentVersion < schemaVersion ? 'This game was saved by an older Heroesim and cannot be loaded.' : `Cannot load the save: ${message}.`,
   'load invalid': ({ message }) => `Cannot load the save: ${message}.`,
+  // A setting its rule refuses, named in the engine's words (v1.1.6-S7, DL-193).
+  'load unsound-config': ({ message }) => `Cannot load the save: ${message}.`,
 
   // rebase (the CLI's `rebase`).
   'rebase already-current': ({ configVersion }) =>
@@ -370,7 +328,7 @@ export const rejectionKinds = Object.freeze(Object.keys(sentences)) as readonly 
 export function rejectionSentence(rejection: PlayRejection, world: World | null, content: ContentSet): string {
   const words = sentences[rejectionKind(rejection)] as (rejection: PlayRejection, setting: Setting) => string;
   const sentence = words(rejection, { world, content, player: world === null ? undefined : playerGuild(world) });
-  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+  return capitalised(sentence);
 }
 
 /**

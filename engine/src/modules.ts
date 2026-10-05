@@ -18,17 +18,18 @@
 
 import type { EngineDeps, GameConfig, MoraleBand } from './config.js';
 import type { ContentSet } from './content-types.js';
-import type {
-  EntityId,
-  GuildId,
-  GuildmasterId,
-  Hero,
-  HeroId,
-  ModuleId,
-  Quest,
-  StatValues,
-  Turn,
-  World,
+import {
+  requireRow,
+  type EntityId,
+  type GuildId,
+  type GuildmasterId,
+  type Hero,
+  type HeroId,
+  type ModuleId,
+  type Quest,
+  type StatValues,
+  type Turn,
+  type World,
 } from './document.js';
 import { applyEffect, effectsApi, type ModuleEffects } from './effects.js';
 import { eventEmitter, moduleEventEmitter, type ModuleEmit } from './emit.js';
@@ -221,7 +222,7 @@ export class ModuleError extends Error {
  * RangeError, a programming error, on an empty id, two modules with one id, or a stream named as
  * a core stream or another module's is.
  */
-export function installedModules(deps: EngineDeps): readonly Module[] {
+export function installedModules(deps: Pick<EngineDeps, 'modules'>): readonly Module[] {
   const modules = deps.modules ?? [];
   if (modules.length === 0) return modules;
   const ids = new Set<string>();
@@ -486,15 +487,10 @@ function selectorsOver(view: ReadonlyWorld, ctx: PhaseContext, call: ModuleCall)
   // The selectors read and never write, so the view serves as the world they are written against.
   const world = view as unknown as World;
   const { config, content, turn } = ctx;
-  const row = <Row>(rows: Readonly<Record<string, Row>>, id: string): Row => {
-    const found = Object.hasOwn(rows, id) ? rows[id] : undefined;
-    if (found === undefined) throw new RangeError(`${id} is not in the world`);
-    return found;
-  };
   const holderOf = (id: EntityId): { regard: World['heroes'][HeroId]['regard'] } => {
     for (const table of ['patrons', 'guildmasters', 'heroes', 'guilds'] as const) {
       const rows: Readonly<Record<string, { regard: World['heroes'][HeroId]['regard'] }>> = world[table];
-      if (Object.hasOwn(rows, id)) return row(rows, id);
+      if (Object.hasOwn(rows, id)) return requireRow(rows, id);
     }
     throw new RangeError(`${id} holds no Regard in the world`);
   };
@@ -502,11 +498,11 @@ function selectorsOver(view: ReadonlyWorld, ctx: PhaseContext, call: ModuleCall)
     unattachedHeroes: () => unattachedHeroes(world),
     offeredQuests: () => offeredQuests(world),
     rankings: (by) => rankings(world, by),
-    upkeep: (guildId) => upkeep(row(world.guilds, guildId), world, config, content),
-    effectiveStats: (heroId) => effectiveStats(row(world.heroes, heroId), world, content),
-    moraleBand: (heroId) => moraleBand(row(world.heroes, heroId).morale, config),
+    upkeep: (guildId) => upkeep(requireRow(world.guilds, guildId), world, config, content),
+    effectiveStats: (heroId) => effectiveStats(requireRow(world.heroes, heroId), world, content),
+    moraleBand: (heroId) => moraleBand(requireRow(world.heroes, heroId).morale, config),
     regard: (holderId, entityId) => regardValue(holderOf(holderId).regard, entityId),
-    age: (personId) => ageOf(Object.hasOwn(world.heroes, personId) ? row(world.heroes, personId) : row(world.guildmasters, personId), turn, config),
+    age: (personId) => ageOf(Object.hasOwn(world.heroes, personId) ? requireRow(world.heroes, personId) : requireRow(world.guildmasters, personId), turn, config),
   };
   // Each selector works for the call it was given to, as the rest of the context does.
   const bound = Object.entries(selectors).map(([name, select]: [string, (...args: never[]) => unknown]) => [
@@ -542,7 +538,7 @@ function thrownMessage(error: unknown): string {
  */
 export function migrateSlices(
   document: SavedDocument,
-  deps: EngineDeps,
+  deps: Pick<EngineDeps, 'modules'>,
 ): { ok: true; document: SavedDocument } | { ok: false; failures: ValidationFailure[] } {
   const { world } = document;
   if (!isObject(world) || !isObject(world.modules)) return { ok: true, document };
@@ -566,7 +562,7 @@ export function migrateSlices(
  * `module-slice` failures; a module that throws on its slice refuses it. An installed module with
  * no slice is not asked: the world gains it when next played (`ensureModules`).
  */
-export function sliceFailures(world: World, deps: EngineDeps): ValidationFailure[] {
+export function sliceFailures(world: World, deps: Pick<EngineDeps, 'modules'>): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
   for (const module of installedModules(deps)) {
     const { id } = module;
@@ -585,7 +581,7 @@ export function sliceFailures(world: World, deps: EngineDeps): ValidationFailure
  * never read, as an unknown content key is (data-model rule 5); its module may have been
  * uninstalled.
  */
-export function unknownSlices(world: World, deps: EngineDeps): ValidationWarning[] {
+export function unknownSlices(world: World, deps: Pick<EngineDeps, 'modules'>): ValidationWarning[] {
   const installed = new Set(installedModules(deps).map((module) => module.id));
   return Object.keys(world.modules)
     .filter((id) => !installed.has(id))

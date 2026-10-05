@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'vitest';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Encounter, EncounterKind, Synergy } from '../content-types.js';
@@ -10,12 +9,12 @@ import type { EngineEvent, EngineEventOf, TurnEvent } from '../events.js';
 import { generateHero } from '../generators/heroes.js';
 import { playerGuild } from '../selectors.js';
 import {
+  classSkillRequires,
+  demandsCheck,
   encounterCapability as capability,
   encounterCheck as check,
   harmlessContent,
   heroStatKeys,
-  oldFormCheck,
-  oldFormRequires,
   testContent,
   testDeps,
   testWorld,
@@ -24,12 +23,13 @@ import {
 import { queryParty } from './query.js';
 import { resolveQuest } from './resolve.js';
 import { appliesOn, meetsRequirement, synergiesFor, synergiesOn, synergyBonus } from './synergy.js';
+import { applyAction } from '../actions/action.js';
 
 // M4-S3: Synergies (R26, INPUTS 6.4, DL-45), matched on the Party's Classes and Skills and added to
-// the Check on the Encounter kinds each names. The test content carries the core's six, in the old
-// form loaded into Queries as content's parser loads it (v1.1.4-S1); a test that needs others writes
-// them. The config values a Check relies on are pinned, and every document the engine makes here is
-// asserted valid.
+// the Check on the Encounter kinds each names. The test content carries the core's six, built from
+// counts of Classes and lists of Skills (`classSkillRequires`) as content's old form loaded until
+// DL-192; a test that needs others writes them. The config values a Check relies on are pinned, and
+// every document the engine makes here is asserted valid.
 
 const pinned = { rivalCount: 0, checkVariance: 0, skillBonusPerRating: 2, bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 } };
 const deps = testDeps(pinned);
@@ -54,7 +54,7 @@ function encounterOf(kind: EncounterKind, skillKeys: string[] = []): Encounter {
     key: `test-${kind}`,
     name: `Test ${kind}`,
     kind,
-    checks: [oldFormCheck(`test-${kind}`, `Test ${kind}`, 'sum', [['strength', 1]], skillKeys, 1)],
+    checks: [demandsCheck(`test-${kind}`, `Test ${kind}`, 'sum', [['strength', 1]], skillKeys, 1)],
     consequences: { success: [], failure: [] },
   };
 }
@@ -82,7 +82,7 @@ describe('synergiesFor', () => {
     const [mage, healer, warrior] = heroes as [Hero, Hero, Hero];
     mage.skills = { warding: 1 };
     healer.skills = { benediction: 4 };
-    const both = oldFormRequires({ skills: ['warding', 'benediction'] });
+    const both = classSkillRequires({ skills: ['warding', 'benediction'] });
 
     expect(keysOf(synergiesFor(as(world, [mage, healer]), testContent))).toEqual(['wards-and-blessings']);
     expect(keysOf(synergiesFor(as(world, [mage, warrior]), testContent))).toEqual([]);
@@ -171,7 +171,7 @@ describe('the Synergy term of the capability', () => {
     warrior.skills = { tactics: 3 };
     const onWarrior = (key: string, bonus: Synergy['bonus']): [string, Synergy] => [
       key,
-      { key, name: key, requires: oldFormRequires({ classes: { warrior: 1 } }), bonus },
+      { key, name: key, requires: classSkillRequires({ classes: { warrior: 1 } }), bonus },
     ];
     const rows = [onWarrior('a', { factor: 1.2 }), onWarrior('b', { flat: 2 }), onWarrior('c', { factor: 1.5 }), onWarrior('d', { flat: 3, factor: 1.1 })];
     const listed = (order: [string, Synergy][]): EngineDeps => testDeps(pinned, { ...testContent, synergies: Object.fromEntries(order) });
@@ -263,7 +263,7 @@ describe("the Quest's outcome lists the Synergies that applied", () => {
         classKey === undefined && skillKey === undefined && partySizeMin <= 2 && 2 <= partySizeMax,
       );
     if (open === undefined) throw new Error('No open Quest for two on the first Board');
-    const sent = dispatch(withValid(start, gameDeps), { guildId: guild.id, questId: open.id, heroIds }, gameDeps);
+    const sent = applyAction(withValid(start, gameDeps), { kind: 'dispatch', guildId: guild.id, questId: open.id, heroIds }, gameDeps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     const quest = sent.document.world.quests[open.id] as Quest;
     quest.encounterKeys = ['the-long-march', 'a-hostile-reeve'];

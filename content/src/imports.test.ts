@@ -3,13 +3,16 @@ import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ESLint } from 'eslint';
 import ts from 'typescript';
+import * as engine from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
+import * as content from './index.js';
 import { contentDir } from './node.js';
 
-// The shape of content is the engine's; the content package imports it as types and the
-// engine imports nothing back (ADR-0006, ADR-0007, pre-M0 review A3). ESLint enforces the
-// imports (engine/src/boundary.test.ts proves its rules fire); these tests read the real
-// sources and project files, so that the arrangement itself is checked, not only the rules.
+// The shape of content is the engine's; the content package imports its types and its values, and
+// the engine imports nothing back, so the graph stays acyclic (ADR-0006, ADR-0007, pre-M0 review A3
+// as refined by DL-186 item 6). ESLint enforces the imports (engine/src/boundary.test.ts proves its
+// rules fire); these tests read the real sources and project files, so that the arrangement itself
+// is checked, not only the rules.
 
 const root = join(contentDir, '..');
 
@@ -55,7 +58,8 @@ function importsOf(ast: ts.SourceFile): { from: string; typeOnly: boolean }[] {
 
 describe('the sources these tests read', () => {
   test("leave out engine/src/boundary.test.ts's probe files, which come and go while other tests run", () => {
-    // A probe as boundary.test.ts writes one: a value import from the engine, which the tests below refuse.
+    // A probe as boundary.test.ts writes one: a value import from the engine, which the tests below would
+    // count among the files that take the engine's values.
     const file = `boundary-probe-${randomUUID()}.ts`;
     const path = join(root, 'content', 'src', file);
     writeFileSync(path, "import { x } from '@heroesim/engine';\nexport { x };\n");
@@ -78,15 +82,24 @@ describe("content's types come from @heroesim/engine", () => {
       importsOf(ast).some((it) => it.from === '@heroesim/engine'),
     );
 
-    expect(fromEngine.map(({ file }) => file).sort()).toEqual(['node.ts', 'parse.ts', 'validate.ts']);
+    expect(fromEngine.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['node.ts', 'parse.ts', 'uses/register.ts', 'validate.ts']);
   });
 
-  test('every import from the engine, tests included, is of types only', () => {
+  test('every import of another package, tests included, is of the engine by name', () => {
     for (const { file, ast } of sources('content')) {
       for (const it of importsOf(ast).filter((each) => each.from.startsWith('@heroesim/'))) {
-        expect({ file, ...it }).toEqual({ file, from: '@heroesim/engine', typeOnly: true });
+        expect({ file, from: it.from }).toEqual({ file, from: '@heroesim/engine' });
       }
     }
+  });
+
+  // DL-186 item 6 (v1.1.6-S5): content may take the engine's values, so it repeats none of them.
+  test("takes the engine's values too: the parser, the checks and the register of a Trait's uses import some", () => {
+    const withValues = sources('content', false).filter(({ ast }) =>
+      importsOf(ast).some((it) => it.from === '@heroesim/engine' && !it.typeOnly),
+    );
+
+    expect(withValues.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['parse.ts', 'uses/register.ts', 'validate.ts']);
   });
 
   test('content declares none of those types itself', () => {
@@ -97,6 +110,59 @@ describe("content's types come from @heroesim/engine", () => {
 
       expect(declared.filter((name) => engineTypes.includes(name)), file).toEqual([]);
     }
+  });
+});
+
+// The copies DL-186 item 6 retired (v1.1.6-S5): content's own sources write out none of the engine's
+// lists, as an array of its members or a table keyed by them, and its entry exports no name the
+// engine exports, as `descriptionBounds` and the Biography's Trait sentence counts once were.
+describe("content repeats none of the engine's values", () => {
+  const lists: Record<string, readonly string[]> = {
+    encounterKinds: engine.encounterKinds,
+    facilityKeys: engine.facilityKeys,
+    gearSlotKeys: engine.gearSlotKeys,
+    descriptiveAttributes: engine.descriptiveAttributes,
+    sexes: engine.sexes,
+    degrees: engine.degrees,
+    purchaseSteps: engine.purchaseSteps,
+  };
+
+  /** `name: true` or `name: 60`: an entry of a table of choices or of bounds, not of data built per name. */
+  const isTableEntry = (it: ts.ObjectLiteralElementLike): boolean =>
+    ts.isPropertyAssignment(it) &&
+    (ts.isIdentifier(it.name) || ts.isStringLiteral(it.name)) &&
+    (it.initializer.kind === ts.SyntaxKind.TrueKeyword || ts.isNumericLiteral(it.initializer));
+
+  /** The names each array of strings, or table of choices or bounds, in a file holds, with the line it starts on. */
+  function literalsOf(ast: ts.SourceFile): { line: number; names: string[] }[] {
+    const found: { line: number; names: string[] }[] = [];
+    const visit = (node: ts.Node): void => {
+      let names: string[] | null = null;
+      if (ts.isArrayLiteralExpression(node) && node.elements.every((it) => ts.isStringLiteral(it))) {
+        names = node.elements.map((it) => (it as ts.StringLiteral).text);
+      } else if (ts.isObjectLiteralExpression(node) && node.properties.every(isTableEntry)) {
+        names = node.properties.map((it) => (it.name as ts.Identifier | ts.StringLiteral).text);
+      }
+      if (names !== null && names.length > 0) {
+        found.push({ line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1, names });
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(ast);
+    return found;
+  }
+
+  test.each(Object.keys(lists))("no source writes out the engine's %s", (name) => {
+    const members = [...(lists[name] ?? [])].sort().join(' ');
+    for (const { file, ast } of sources('content', false)) {
+      const copies = literalsOf(ast).filter((it) => [...new Set(it.names)].sort().join(' ') === members);
+
+      expect(copies.map((it) => `${file}:${it.line}`)).toEqual([]);
+    }
+  });
+
+  test('the entry exports no name the engine exports', () => {
+    expect(Object.keys(content).filter((name) => Object.hasOwn(engine, name))).toEqual([]);
   });
 });
 
@@ -190,5 +256,47 @@ describe('@heroesim/content/uses', { timeout: 30_000 }, () => {
 
   test('nor may another subpath by a tool', async () => {
     expect(await lint('tools/editor', '@heroesim/content/uses/register')).toHaveLength(1);
+  });
+});
+
+// The tools' write module (v1.1.6-S4, DL-186 item 14), content's third subpath: Node's, and the tools'
+// alone, so no byte of it is in the page's script and no front end or the harness writes content.
+describe('@heroesim/content/write', { timeout: 30_000 }, () => {
+  const eslint = new ESLint({ cwd: root });
+  const lint = async (pkg: string, specifier: string, file = 'subpath-probe.ts') => {
+    const [result] = await eslint.lintText(`import { x } from '${specifier}';\nexport { x };\n`, {
+      filePath: join(root, pkg, 'src', file),
+    });
+    return (result?.messages ?? []).filter((message) => message.severity === 2);
+  };
+
+  test.each(['tools/editor', 'tools/portraits'])('may be imported by %s', async (pkg) => {
+    expect(await lint(pkg, '@heroesim/content/write')).toEqual([]);
+  });
+
+  test.each(['web', 'cli', 'harness', 'engine'])('may not be imported by %s', async (pkg) => {
+    const errors = await lint(pkg, '@heroesim/content/write');
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe('@typescript-eslint/no-restricted-imports');
+  });
+
+  test("nor by web's tests, nor may another subpath be by a tool", async () => {
+    expect(await lint('web', '@heroesim/content/write', 'subpath-probe.test.ts')).toHaveLength(1);
+    expect(await lint('tools/editor', '@heroesim/content/write/version')).toHaveLength(1);
+  });
+
+  test('may use Node, as the Node entry may, where the rest of content may not', async () => {
+    const node = "import { readFileSync } from 'node:fs';\nexport const x = readFileSync;\n";
+    const [write] = await eslint.lintText(node, { filePath: join(root, 'content', 'src', 'write', 'subpath-probe.ts') });
+    const [pure] = await eslint.lintText(node, { filePath: join(root, 'content', 'src', 'subpath-probe.ts') });
+    expect((write?.messages ?? []).filter((message) => message.severity === 2)).toEqual([]);
+    expect((pure?.messages ?? []).filter((message) => message.severity === 2)).toHaveLength(1);
+  });
+
+  test('is no export of the pure entry, which the page imports', () => {
+    const entry = sources('content', false).find(({ file }) => file === 'index.ts');
+    expect(entry).toBeDefined();
+    expect(importsOf(entry?.ast as ts.SourceFile).filter((it) => it.from.includes('write'))).toEqual([]);
   });
 });

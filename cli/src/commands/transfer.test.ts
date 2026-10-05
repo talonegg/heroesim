@@ -54,7 +54,7 @@ function play(argv: string[]): { code: number; out: string; err: string } {
 const current = (): string => join(dir, '.saves', 'current.json');
 
 function document(): WorldDocument {
-  const loaded = deserialise(readFileSync(current(), 'utf8'), { config: defaultConfig, content });
+  const loaded = deserialise(readFileSync(current(), 'utf8'), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }
@@ -224,7 +224,7 @@ describe('Transfer Offers (M6-S2)', () => {
 
     const declined = play(['decline', '--offer', offerId]);
     expect(declined).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(declined.out).toContain(`The Test declined ${rivalName}'s offer for ${name} (${heroId}) (${offerId}).`);
+    expect(declined.out).toContain(`The Test declined ${rivalName}'s Offer for ${name} (${heroId}) (${offerId}).`);
     expect(document().world.offers).toEqual({});
     expect(play(['show', 'offers']).out).toBe("No Transfer Offer stands for The Test's Heroes.\n");
     expect(play(['decline', '--offer', offerId])).toMatchObject({

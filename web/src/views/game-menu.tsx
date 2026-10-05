@@ -11,10 +11,9 @@
 
 import type { Module, WorldDocument } from '@heroesim/engine';
 import { useEffect, useRef, type KeyboardEvent } from 'react';
+import { capitalised, listed } from '@heroesim/words';
 import { content } from '../content';
 import type { Saves } from '../saves';
-import { capitalised } from '../state/names';
-import { listed } from '../state/narrate';
 import type { GameAction, GameState } from '../state/reducer';
 import { GameFile } from './game-file';
 import { Icon } from './icons';

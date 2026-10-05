@@ -1,13 +1,11 @@
 import { loadContent } from '@heroesim/content/node';
 import {
   advance,
-  append,
+  applyAction,
   compareByCodeUnit,
   createWorld,
   defaultConfig,
-  dispatch,
   dispositionOf,
-  makeId,
   milestoneTypes,
   playerGuild,
   serialise,
@@ -25,9 +23,11 @@ import {
   type RegardMap,
   type WorldDocument,
 } from '@heroesim/engine';
+import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { harnessSetup } from './creation.js';
 import {
+  copiesTimed,
   countGame,
   emptyObservations,
   heroFieldsLength,
@@ -40,6 +40,7 @@ import {
   observe,
   observeHeroes,
   observeSave,
+  observeWorld,
   playerRanking,
   portraitCounters,
   questsTakenByController,
@@ -64,7 +65,7 @@ function playerDispatches(document: WorldDocument): WorldDocument {
   parties.sort((a, b) => a.length - b.length);
   for (const questId of document.world.board) {
     for (const heroIds of parties) {
-      const result = dispatch(document, { guildId: guild.id, questId, heroIds }, deps);
+      const result = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId, heroIds }, deps);
       if (result.ok) return result.document;
     }
   }
@@ -1364,6 +1365,37 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
       { length: text.length, heroFields: heroFieldsLength(document.world), gzipped: null },
       { length: text.length, heroFields: heroFieldsLength(document.world), gzipped: 1234 },
     ]);
+  });
+
+  // v1.1.6-S17 (DL-203): the World State's size, its rows and the per-Turn copy's time as a year ends.
+  test('the World State as a year ends: its characters in the save, its rows in play and written once, and the copy timed', () => {
+    const { document, player, rivals } = fixture('counters-world');
+    const { world } = document;
+    const heroId = firstHero(player);
+    Object.assign(world.heroes[heroId] as Hero, { diedOnTurn: 3 });
+    Object.assign(world.guilds[rivals[0].id] as Guild, { foldedOnTurn: 5 });
+    Object.assign(world.guildmasters[rivals[1].guildmasterId] as Guildmaster, { retiredOnTurn: 6 });
+    const before = serialise(document);
+    let clock = 0;
+    const observations = emptyObservations();
+    observeWorld(observations, world, () => (clock += 6));
+
+    const heroes = Object.keys(world.heroes).length;
+    const guildmasters = Object.keys(world.guildmasters).length;
+    const others = ['patrons', 'quests', 'parties', 'items', 'stacks', 'offers'] as const;
+    expect(observations.worlds).toEqual([
+      {
+        characters: savedLength(world),
+        heroes: { live: heroes - 1, writeOnce: 1 },
+        guildmasters: { live: guildmasters - 1, writeOnce: 1 },
+        guilds: { live: 2, writeOnce: 1 },
+        otherRows: others.reduce((sum, table) => sum + Object.keys(world[table]).length, 0),
+        copyMs: 6 / copiesTimed,
+      },
+    ]);
+    expect(observations.worlds[0]?.characters).toBe(JSON.stringify(world).length);
+    // The copies are dropped: the world plays on as it stood.
+    expect(serialise(document)).toBe(before);
   });
 
   // v1.1.5-S1 (DL-174): the years' saves are measured, not written.

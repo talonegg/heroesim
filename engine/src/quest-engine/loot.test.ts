@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import { questBands, type EngineDeps, type GameConfig, type QuestBand } from '../config.js';
-import type { ContentSet, LootTable } from '../content-types.js';
+import type { ContentSet, Degree, LootTable } from '../content-types.js';
 import { availableHeroes, partyFor, staffableQuests } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, Party, Quest, WorldDocument } from '../document.js';
@@ -15,6 +14,7 @@ import { playerGuild } from '../selectors.js';
 import { nightOf } from '../time.js';
 import { plannedStreams, testContent, testDeps, testWorld, withEncounters, withValid } from '../world.test-support.js';
 import { drawLoot } from './loot.js';
+import { applyAction } from '../actions/action.js';
 
 // M5-S5: Loot (DL-52). `drawLoot` is tested on its own for the bands, the draws and uniqueness; the
 // night's `questsConclude` for the award, played through `advance` from created worlds whose Party is
@@ -135,6 +135,22 @@ describe('drawLoot', () => {
     expect(drawLoot(testWorld('finale-success-band', deps), { lootTableKey: 'whetstones' }, 'success', deps, 'triumph')).toBeNull();
   });
 
+  // v1.1.6-S16 (DL-202): the Degrees a Finale may end at for Loot are `lootOnFinaleDegrees`, the Triumph alone by default.
+  test("on a Quest with a Finale, awards when the Finale ended at a Degree in lootOnFinaleDegrees, and always on a Quest with none", () => {
+    const awardedFor = (lootOnFinaleDegrees: readonly Degree[]) =>
+      (['none', 'triumph', 'success', 'setback', 'failure', 'unmet'] as const).filter((finale) => {
+        const deps = lootDeps({ lootOnFinaleDegrees }, content);
+        return drawLoot(testWorld(`finale-degrees-${finale}`, deps), { lootTableKey: 'whetstones' }, 'strong', deps, finale) !== null;
+      });
+
+    expect(awardedFor(['triumph'])).toEqual(['none', 'triumph']);
+    expect(awardedFor(['triumph', 'success'])).toEqual(['none', 'triumph', 'success']);
+    expect(awardedFor(['failure', 'setback'])).toEqual(['none', 'setback', 'failure']);
+    // A Finale the Party never reached is unmet, which is no Degree: it awards nothing under any list.
+    expect(awardedFor(['failure', 'setback', 'success', 'triumph'])).toEqual(['none', 'triumph', 'success', 'setback', 'failure']);
+    expect(awardedFor([])).toEqual(['none']);
+  });
+
   test("draws entries in proportion to their weights, each quantity inside its entry's range", () => {
     const deps = lootDeps({}, withTables(testContent, table('three-to-one', ['whetstone', 3, 1, 3], ['lockpicks', 1, 2, 5])));
     const world = testWorld('weights', deps);
@@ -193,7 +209,7 @@ function sent(seed: string, deps: EngineDeps, lootTableKey: string | null, { riv
       classKey === undefined && skillKey === undefined && partySizeMin <= 2 && 2 <= partySizeMax,
     );
   if (open === undefined) throw new Error(`No open Quest on ${seed}'s first Board`);
-  const result = dispatch(start, { guildId: guild.id, questId: open.id, heroIds }, deps);
+  const result = applyAction(start, { kind: 'dispatch', guildId: guild.id, questId: open.id, heroIds }, deps);
   if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
   const quest = result.document.world.quests[open.id] as Quest;
   quest.lootTableKey = lootTableKey;
@@ -304,7 +320,7 @@ describe("questsConclude's Loot", () => {
       .find(({ requirements: r }) => r.classKey === undefined && r.skillKey === undefined && r.partySizeMin <= 2 && 2 <= r.partySizeMax);
     if (open === undefined) throw new Error('No open Quest');
     for (const lootTableKey of ['the-blade', 'blade-or-whetstones']) {
-      const again = dispatch(structuredClone(document), { guildId: first.guildId, questId: open.id, heroIds }, deps);
+      const again = applyAction(structuredClone(document), { kind: 'dispatch', guildId: first.guildId, questId: open.id, heroIds }, deps);
       if (!again.ok) throw new Error(again.rejection.reason);
       const quest = again.document.world.quests[open.id] as Quest;
       quest.lootTableKey = lootTableKey;
@@ -358,7 +374,7 @@ function season(seed: string, regime: Regime, days: number, deps: EngineDeps): {
       const party = partyFor(world, guild, quest, available, deps) ?? [];
       const rest = available.map((hero) => hero.id).filter((id) => !party.includes(id));
       const heroIds = [...party, ...rest].slice(0, quest.requirements.partySizeMax);
-      const result = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds }, deps);
+      const result = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds }, deps);
       if (result.ok) {
         document = result.document;
         difficulty.set(quest.id, quest.difficulty);

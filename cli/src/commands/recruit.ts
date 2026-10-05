@@ -5,7 +5,7 @@
 // It imports main.ts's output helpers, and main.ts imports it to register the command; each reads
 // the other only when a command runs, never while the modules load.
 
-import { isId, playerGuild, recruit, type HeroRecruited, type RecruitRejection } from '@heroesim/engine';
+import { applyAction, isId, playerGuild, type HeroRecruited, type RecruitRejection } from '@heroesim/engine';
 import { exitCodes, noActionAfterTheEnd, open, over, refuse, say, type Context, type Exit } from '../main.js';
 import { rowIn } from '../render.js';
 import { writeSave } from '../saves.js';
@@ -30,7 +30,7 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
   const hero = rowIn(document.world.heroes, heroId);
   if (hero === undefined) return refuse(io, `${path} has no Hero ${heroId}.`);
 
-  const result = recruit(document, { guildId: guild.id, heroId }, deps);
+  const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId }, deps);
   if (!result.ok) return refuse(io, refusal(result.rejection, `${hero.name} (${heroId})`, guild.name));
 
   writeSave(path, result.document);

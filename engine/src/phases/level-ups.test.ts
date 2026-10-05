@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'vitest';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import { defaultConfig, type EngineDeps, type GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
@@ -14,6 +13,7 @@ import { nightOf, timeOfDay } from '../time.js';
 import { testDeps, withValid } from '../world.test-support.js';
 import { levelUps } from './level-ups.js';
 import { phaseContext } from './phase.js';
+import { applyAction } from '../actions/action.js';
 
 // M3-S1: the night phase `levelUps` (DL-36). Worlds are created and played through `advance`, each
 // document held to the validator; a test of the rule alone runs the phase on a world moved to a
@@ -156,7 +156,7 @@ describe('levelUps', () => {
       .find(({ requirements: { classKey, skillKey, partySizeMin } }) => classKey === undefined && skillKey === undefined && partySizeMin <= 1);
     if (open === undefined) throw new Error('No Quest a lone Hero may take on the Board');
     const guildId = player(morning.world).id;
-    const sent = dispatch(morning, { guildId, questId: open.id, heroIds: [heroId] }, deps);
+    const sent = applyAction(morning, { kind: 'dispatch', guildId, questId: open.id, heroIds: [heroId] }, deps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     const returnsOnTurn = Object.values(sent.document.world.parties)[0]?.returnsOnTurn ?? Number.NaN;
     expect(timeOfDay(returnsOnTurn)).toBe('night');
@@ -185,8 +185,8 @@ describe('levelUps', () => {
     expect(upkeep(player(after.world), after.world, deps.config) - upkeepBefore).toBe(3 * 70);
   });
 
-  test("the default wage is 20 a Level since Heroes gain Levels (DL-36), kept by M3's run (DL-41), the Quest Engine (DL-42), M3's verification (DL-53) and M6-S1 (DL-56), under configVersion 13 (DL-55, DL-61, DL-62, DL-63, DL-69, DL-102, DL-113, DL-152)", () => {
-    expect(defaultConfig).toMatchObject({ wagePerLevel: 20, configVersion: 13 });
+  test('the default wage is 20 a Level, since Heroes gain Levels (DL-36)', () => {
+    expect(defaultConfig).toMatchObject({ wagePerLevel: 20 });
   });
 
   test('moves the progression stream alone, growthPointsPerLevel draws a Level, and none on a night no one levels', () => {

@@ -41,9 +41,8 @@ import {
   type StatValues,
   type TraitKey,
 } from '@heroesim/engine';
+import { capitalised, listed, nameIn } from '@heroesim/words';
 import { content } from '../content';
-import { capitalised, nameIn } from './names';
-import { listed } from './narrate';
 import { newGameRefusal, type NewGame } from './reducer';
 import { rejectionSentence } from './rejections';
 import { guildmasterSetupChoices, traitBudgetView, type TraitChoice } from './selectors';

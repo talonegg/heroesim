@@ -1,7 +1,8 @@
 // The content schema's rules across rows: what a single row's shape cannot show (M1-S4).
 // `parseContent` runs this on every set it builds; a set assembled in memory, by a test or a
 // later module, runs it directly. Since v1.1.4-S1 it holds every Query, an Encounter's Checks'
-// scores and a Synergy's requirements, to its types, its keys and its size (ADR-0010).
+// scores and a Synergy's requirements, to its types, its keys and its size (ADR-0010), through the
+// engine's `queryProblems` since v1.1.6-S10 (DL-186 item 6).
 
 import type {
   Consequence,
@@ -10,13 +11,22 @@ import type {
   Degree,
   Descriptions,
   EncounterCheck,
-  EncounterKind,
-  FacilityKey,
   HarmReads,
   PortraitAppearance,
   PortraitRole,
+  QueryKeys,
   Sex,
-  SlotKey,
+} from '@heroesim/engine';
+import {
+  biographyTraitSentences,
+  degrees,
+  descriptiveAttributeMaxLength,
+  encounterKinds,
+  facilityKeys,
+  gearSlotKeys,
+  heroBiographyTraitSentences,
+  purchaseSteps,
+  queryProblems,
 } from '@heroesim/engine';
 
 /**
@@ -41,19 +51,12 @@ export class ContentError extends Error {
 export const growthSumTolerance = 0.001;
 
 /**
- * How far a Quest template's, or an Encounter's, demand weights may sum from 1 (M2-S3, M4-S1):
- * written by hand, like growth, and read as proportions, so near 1 is as good as exactly 1.
+ * Whether `value` is one of the engine's `list`: the Hall's facilities (`facilityKeys`), the kinds of
+ * Encounter (`encounterKinds`) or the gear slots (`gearSlotKeys`), read from the engine (DL-186 item 6).
  */
-export const demandSumTolerance = 0.001;
-
-/** The Hall's facilities an Improvement may raise (`FacilityKey`): the compiler holds it to the union. */
-const facilities: Readonly<Record<FacilityKey, true>> = { infirmary: true, trainingYard: true, quarters: true };
-
-/** The kinds of Encounter a Synergy, an Item or a Hero Trait may name (`EncounterKind`): the compiler holds it to the union. */
-const encounterKinds: Readonly<Record<EncounterKind, true>> = { combat: true, travel: true, social: true, arcane: true, stealth: true, lore: true };
-
-/** The gear slots an Item may be made for (`SlotKey`, the engine's `gearSlotKeys`): the compiler holds it to the union. */
-const gearSlots: Readonly<Record<SlotKey, true>> = { weapon: true, armour: true, trinket: true };
+function isOneOf(list: readonly string[], value: string): boolean {
+  return list.includes(value);
+}
 
 /** Lower-case letters and digits in words joined by single hyphens, starting with a letter. */
 const kebabCase = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -112,12 +115,32 @@ export function validateContent(set: ContentSet): ContentSet {
       .map(([key]) => key),
   );
   const skills = new Set(Object.keys(set.skills));
+  // A weight, where a row has one, is above 0, so that a draw can land on it and the odds are weights (v1.1.6-S16, DL-202).
+  for (const table of ['classes', 'backgrounds', 'spheres', 'questTemplates'] as const) {
+    for (const [key, row] of Object.entries(set[table])) {
+      const { weight } = row as { weight?: number };
+      if (weight !== undefined && !(Number.isFinite(weight) && weight > 0)) {
+        problems.push(`${table}.${key}.weight is ${weight}; it is a number above 0, or absent for 1`);
+      }
+    }
+  }
   for (const [key, it] of Object.entries(set.classes)) {
     const where = `classes.${key}`;
     checkReferences(`${where}.leadingStats`, it.leadingStats, heroStats, 'a Hero Stat', problems);
     checkReferences(`${where}.gatedSkills`, it.gatedSkills, skills, 'a Skill', problems);
     checkReferences(`${where}.growth`, Object.keys(it.growth), heroStats, 'a Hero Stat', problems);
     checkGrowth(`${where}.growth`, it.growth, problems);
+  }
+
+  // The Classes' order lists each Class once (v1.1.6-S14, DL-186 item 24).
+  const listedClasses = new Set<string>();
+  for (const classKey of set.classOrder) {
+    if (!Object.hasOwn(set.classes, classKey)) problems.push(`classOrder: "${classKey}" is not a Class`);
+    else if (listedClasses.has(classKey)) problems.push(`classOrder: "${classKey}" is listed twice; list each Class once`);
+    listedClasses.add(classKey);
+  }
+  for (const classKey of Object.keys(set.classes)) {
+    if (!listedClasses.has(classKey)) problems.push(`classOrder: "${classKey}" is a Class and is not in the order; list each Class once`);
   }
 
   const spheres = new Set(Object.keys(set.spheres));
@@ -141,7 +164,6 @@ export function validateContent(set: ContentSet): ContentSet {
     if (!(template.fameEffect >= 0)) {
       problems.push(`${where}.fameEffect is ${template.fameEffect}; it is a whole number of 0 or more`);
     }
-    checkDemands(`${where}.demands`, template.demands, heroStats, problems);
     checkReferences(`${where}.skillKeys`, template.skillKeys, skills, 'a Skill', problems);
     const { classKey, skillKey } = template.requires;
     if (classKey !== undefined && !classes.has(classKey)) {
@@ -231,13 +253,6 @@ function checkPortraits(portraits: ContentSet['portraits'], problems: string[]):
   for (const key of repeated(keys)) problems.push(`portraits: "${key}" is listed twice`);
 }
 
-/**
- * The most characters (Unicode code points, once trimmed) each descriptive Attribute holds: the
- * engine's `descriptiveAttributeMaxLength` (M9-S2, DL-102), which this package, importing only the
- * engine's types, repeats. A test beside both holds them equal (`cli/src/descriptions.test.ts`).
- */
-export const descriptionBounds = Object.freeze({ birthplace: 60, appearance: 280, biography: 1000 });
-
 /** The most characters a picture's narrative holds (DL-134 items 3 and 9): within an Appearance's 280. */
 export const narrativeMaxLength = 260;
 
@@ -253,18 +268,6 @@ export const hooksMax = 2;
  * picture that fits shows the Silhouette (DL-135 item 3).
  */
 export const picturesWanted = 3;
-
-/**
- * How many of a Guildmaster's Traits the Biography gives a sentence, the first in their order: the
- * engine's `biographyTraitSentences` (v1.1.2-S5), repeated here as the bounds are.
- */
-export const biographyTraitSentences = 2;
-
-/**
- * How many of a Hero's Traits their Biography gives a sentence, the first in their order (v1.1.3-S1):
- * as many as a Guildmaster's. v1.1.3-S6's `describeHero` repeats it, or changes it here with itself.
- */
-export const heroBiographyTraitSentences = 2;
 
 /** A text's length as the engine counts it: Unicode code points, so an accented letter counts once. */
 function lengthOf(text: string): number {
@@ -515,7 +518,7 @@ export function longestDescriptions(set: Pick<ContentSet, 'descriptions' | 'port
   let heroBiography = 0;
   for (const sex of Object.keys(descriptions.appearance) as Sex[]) {
     const words = descriptions.pronouns[sex];
-    const sentence = (text: string): number => lengthOf(filledWith(text, words, 'x'.repeat(descriptionBounds.birthplace)));
+    const sentence = (text: string): number => lengthOf(filledWith(text, words, 'x'.repeat(descriptiveAttributeMaxLength.birthplace)));
     const longest = (texts: readonly string[] | undefined): number => most((texts ?? []).map(sentence));
     for (const phrases of Object.values(descriptions.appearance[sex])) {
       const slot = (name: (typeof appearanceSlots)[number]): number => most((phrases[name] ?? []).map((phrase) => lengthOf(phrase)));
@@ -650,8 +653,8 @@ function checkDescriptions(
     if (!written(place) || /[{}]/.test(place)) {
       problems.push(`${where} is ${JSON.stringify(place)}; it is a place's name, trimmed, beginning with a capital`);
     }
-    if (lengthOf(place) > descriptionBounds.birthplace) {
-      problems.push(`${where} is ${lengthOf(place)} characters; a Birthplace holds at most ${descriptionBounds.birthplace}`);
+    if (lengthOf(place) > descriptiveAttributeMaxLength.birthplace) {
+      problems.push(`${where} is ${lengthOf(place)} characters; a Birthplace holds at most ${descriptiveAttributeMaxLength.birthplace}`);
     }
   });
   for (const place of repeated(birthplaces)) problems.push(`descriptions.birthplaces: "${place}" is listed twice`);
@@ -763,9 +766,9 @@ function checkDescriptions(
   const longest = longestDescriptions(set);
   const names = { appearance: 'Appearance', biography: 'Biography', heroBiography: "Hero's Biography" } as const;
   for (const [attribute, bound] of [
-    ['appearance', descriptionBounds.appearance],
-    ['biography', descriptionBounds.biography],
-    ['heroBiography', descriptionBounds.biography],
+    ['appearance', descriptiveAttributeMaxLength.appearance],
+    ['biography', descriptiveAttributeMaxLength.biography],
+    ['heroBiography', descriptiveAttributeMaxLength.biography],
   ] as const) {
     if (longest[attribute] > bound) {
       problems.push(`descriptions.${attribute}: the longest ${names[attribute]} it can write is ${longest[attribute]} characters; it holds at most ${bound}`);
@@ -797,6 +800,24 @@ function checkDispositions(dispositions: ContentSet['dispositions'], problems: s
       const value = disposition[field];
       if (!(value >= 0)) problems.push(`${where}.${field} is ${value}; it is a number of 0 or more`);
     }
+    // The orders it buys and builds in, when written, list each of their keys once (v1.1.6-S16, DL-202).
+    checkOrder(`${where}.purchaseOrder`, disposition.purchaseOrder, purchaseSteps, problems);
+    checkOrder(`${where}.gearSlotOrder`, disposition.gearSlotOrder, gearSlotKeys, problems);
+    checkOrder(`${where}.buildOrder`, disposition.buildOrder, facilityKeys, problems);
+  }
+}
+
+/** An order, when written, is a permutation of `keys`: each listed once, and none left out. */
+function checkOrder(where: string, order: readonly string[] | undefined, keys: readonly string[], problems: string[]): void {
+  if (order === undefined) return;
+  const listed = new Set<string>();
+  for (const key of order) {
+    if (!keys.includes(key)) problems.push(`${where}: "${key}" is not one of ${keys.join(', ')}`);
+    else if (listed.has(key)) problems.push(`${where}: "${key}" is listed twice; list each of ${keys.join(', ')} once`);
+    listed.add(key);
+  }
+  for (const key of keys) {
+    if (!listed.has(key)) problems.push(`${where}: "${key}" is not in the order; list each of ${keys.join(', ')} once`);
   }
 }
 
@@ -810,8 +831,8 @@ function checkImprovements(improvements: ContentSet['improvements'], problems: s
   for (const [key, improvement] of Object.entries(improvements)) {
     const where = `improvements.${key}`;
     const { facility, grade, cost } = improvement;
-    if (!Object.hasOwn(facilities, facility)) {
-      problems.push(`${where}.facility: "${facility}" is not a Hall facility (${Object.keys(facilities).join(', ')})`);
+    if (!isOneOf(facilityKeys, facility)) {
+      problems.push(`${where}.facility: "${facility}" is not a Hall facility (${facilityKeys.join(', ')})`);
     } else {
       grades.set(facility, [...(grades.get(facility) ?? []), grade]);
     }
@@ -858,11 +879,10 @@ export const encounterChecksMax = 4;
 /**
  * The Encounters (M4-S1): tags, if any, in kebab-case, none twice (v1.1.4-S8); one to four Checks
  * (v1.1.4-S1, v1.1.4-S2), each keyed in kebab-case once, named, scored by a Num Query
- * (`checkQuery`), helped by Skills that exist, and aimed at a target above 0 (`checkTarget`); a pass
+ * (`queryProblems`), helped by Skills that exist, and aimed at a target above 0 (`checkTarget`); a pass
  * formula naming every Check once (`checkPass`), which one Check may leave out; and consequences by
  * Degree, each within its kind's bounds, an Injury naming a type content defines. The epic's first
- * box: an unknown Stat, Skill or Injury type is refused. The old form's demands are held as they
- * load (`parseContent`).
+ * box: an unknown Stat, Skill or Injury type is refused.
  */
 function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): void {
   for (const [key, encounter] of Object.entries(set.encounters)) {
@@ -881,8 +901,7 @@ function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): 
       const at = `${where}.checks.${index}`;
       if (!kebabCase.test(it.key)) problems.push(`${at}.key: "${it.key}" is not kebab-case`);
       if (it.name.trim() === '') problems.push(`${at}.name is empty: a Check is named for the narration and the Board`);
-      checkQuery(`${at}.score`, it.score, 'num', keys, problems);
-      if (it.raw !== true) checkInversions(`${at}.score`, it.score, 'num', problems);
+      problems.push(...queryProblems(it.score, it.raw === true ? 'raw score' : 'score', keys, `${at}.score`));
       checkReferences(`${at}.skills`, it.skills, keys.skills, 'a Skill', problems);
       checkTarget(at, it, problems);
       if (it.raw === true && it.skills.length > 0) {
@@ -891,7 +910,7 @@ function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): 
     });
     if (encounter.pass !== undefined) checkPass(`${where}.pass`, encounter.pass, checks.map((it) => it.key), problems);
     else if (checks.length > 1) problems.push(`${where}.pass is missing: an Encounter of several Checks combines them by a pass formula`);
-    for (const degree of ['success', 'failure', 'triumph', 'setback'] as const) {
+    for (const degree of degrees) {
       encounter.consequences[degree]?.forEach((consequence, index, list) => {
         const at = `${where}.consequences.${degree}.${index}`;
         checkConsequence(at, consequence, set, keys, problems);
@@ -1016,14 +1035,14 @@ function checkConsequence(where: string, consequence: Consequence, set: ContentS
     case 'trait':
       if (!Object.hasOwn(set.heroTraits, consequence.traitKey)) problems.push(`${where}.traitKey: "${consequence.traitKey}" is not a Hero Trait`);
       probability(consequence.chance);
-      if (consequence.among !== undefined) checkQuery(`${where}.among`, consequence.among, 'set', keys, problems);
+      if (consequence.among !== undefined) problems.push(...queryProblems(consequence.among, 'among', keys, `${where}.among`));
       return;
   }
 }
 
 /** An Injury's or a Death's `among`, `exposedBy` and `guardedBy` (v1.1.4-S4), each where it stands. */
 function checkHarmReads(where: string, consequence: HarmReads, keys: QueryKeys, problems: string[]): void {
-  if (consequence.among !== undefined) checkQuery(`${where}.among`, consequence.among, 'set', keys, problems);
+  if (consequence.among !== undefined) problems.push(...queryProblems(consequence.among, 'among', keys, `${where}.among`));
   if (consequence.exposedBy !== undefined) checkStatList(`${where}.exposedBy`, consequence.exposedBy, keys, problems);
   if (consequence.guardedBy !== undefined) checkStatList(`${where}.guardedBy`, consequence.guardedBy, keys, problems);
 }
@@ -1112,7 +1131,7 @@ function checkTraits(
           const tags = effect.tags ?? [];
           if (kinds.length + tags.length === 0) problems.push(`${at} names no Encounter kind and no tag: it adds to the Encounters it names`);
           // v1.1.4-S14: each kind one of Encounter's, which the parser cannot see in a set built in memory.
-          for (const kind of kinds) if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${at}.kinds: "${kind}" is not a kind of Encounter`);
+          for (const kind of kinds) if (!isOneOf(encounterKinds, kind)) problems.push(`${at}.kinds: "${kind}" is not a kind of Encounter`);
           for (const kind of repeated(kinds)) problems.push(`${at}.kinds: "${kind}" is listed twice`);
           for (const tag of tags) if (!kebabCase.test(tag)) problems.push(`${at}.tags: "${tag}" is not kebab-case`);
           for (const tag of repeated(tags)) problems.push(`${at}.tags: "${tag}" is listed twice`);
@@ -1147,10 +1166,9 @@ function checkExclusions(
 
 /**
  * The Synergies (M4-S3, DL-45): each requires one or more conditions on the Party, each a Query
- * (v1.1.4-S1, DL-148 item 20, `checkQuery`); adds a `flat` above 0, a `factor` above 1 or both, a
+ * (v1.1.4-S1, DL-148 item 20, `queryProblems`); adds a `flat` above 0, a `factor` above 1 or both, a
  * Synergy being a bonus and a factor in content a multiplier; and names, if any, one or more
- * Encounter kinds, none twice. The old form's Classes and Skills are held as they load
- * (`parseContent`).
+ * Encounter kinds, none twice.
  */
 function checkSynergies(synergies: ContentSet['synergies'], keys: QueryKeys, problems: string[]): void {
   for (const [key, synergy] of Object.entries(synergies)) {
@@ -1160,8 +1178,7 @@ function checkSynergies(synergies: ContentSet['synergies'], keys: QueryKeys, pro
       problems.push(`${where}.requires is ${JSON.stringify(requires)}; expected a list of conditions on the Party`);
     } else {
       if (requires.length === 0) problems.push(`${where}.requires is empty: a Synergy is for a Party that meets something`);
-      const gate = { ...keys, sexFilters: false };
-      requires.forEach((condition, index) => checkQuery(`${where}.requires.${index}`, condition, 'condition', gate, problems));
+      requires.forEach((condition, index) => problems.push(...queryProblems(condition, 'requirement', keys, `${where}.requires.${index}`)));
     }
     if (bonus.flat === undefined && bonus.factor === undefined) {
       problems.push(`${where}.bonus is empty: a Synergy adds a flat, a factor or both`);
@@ -1175,7 +1192,7 @@ function checkSynergies(synergies: ContentSet['synergies'], keys: QueryKeys, pro
     if (kinds !== undefined) {
       if (kinds.length === 0) problems.push(`${where}.kinds is empty: leave it out for a Synergy on every kind`);
       for (const kind of kinds) {
-        if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
+        if (!isOneOf(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
       }
       for (const kind of repeated(kinds)) problems.push(`${where}.kinds: "${kind}" is listed twice`);
     }
@@ -1203,8 +1220,8 @@ function checkItems(items: ContentSet['items'], heroStats: ReadonlySet<string>, 
     for (const tag of repeated(item.tags)) problems.push(`${where}.tags: "${tag}" is listed twice`);
     switch (item.kind) {
       case 'gear': {
-        if (!Object.hasOwn(gearSlots, item.slot)) {
-          problems.push(`${where}.slot: "${item.slot}" is not a gear slot (${Object.keys(gearSlots).join(', ')})`);
+        if (!isOneOf(gearSlotKeys, item.slot)) {
+          problems.push(`${where}.slot: "${item.slot}" is not a gear slot (${gearSlotKeys.join(', ')})`);
         }
         if (Reflect.has(item, 'effect')) problems.push(`${where}.effect: gear has no effect; only a consumable has one`);
         const modifiers = Object.entries(item.statModifiers);
@@ -1234,7 +1251,7 @@ function checkConsumableEffect(where: string, effect: ConsumableEffect, problems
   const kinds = (listed: readonly string[]): void => {
     if (listed.length === 0) problems.push(`${where}.kinds is empty: the effect works on the Encounter kinds it names`);
     for (const kind of listed) {
-      if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
+      if (!isOneOf(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
     }
     for (const kind of repeated(listed)) problems.push(`${where}.kinds: "${kind}" is listed twice`);
   };
@@ -1282,131 +1299,15 @@ function checkLootTables(set: ContentSet, problems: string[]): void {
   }
 }
 
-// Queries (v1.1.4-S1, DL-148 items 4 to 6, ADR-0010). A Query is held to its type at every node, to
-// the keys content defines, and to a size; and Sex is held to filters, so that it decides who takes
-// part and never a value. Every problem names the Query's path, each argument by its place in its
-// array, as `encounters.<key>.checks.0.score.1.2`.
-
-/** The most nodes a Query may hold: each operator, each number and each `"party"` (v1.1.4-S1). */
-export const queryNodesMax = 64;
-
-/** How deep a Query may nest, an operator's node one below it (v1.1.4-S1). */
-export const queryDepthMax = 12;
-
-/** The five types of Query, and a condition on the Party, which a Synergy's requirement lists. */
-type QueryType = 'set' | 'hero' | 'val' | 'pred' | 'num' | 'condition';
-
-/** What an argument of an operator is: a Query of a type, a key, or a number or list of its own. */
-type QueryArgument =
-  | QueryType
-  | 'stat'
-  | 'skill'
-  | 'class'
-  | 'background'
-  | 'trait'
-  | 'sex'
-  | 'heroes'
-  | 'rating'
-  | 'weights'
-  | 'pairs';
-
-/** An operator's arguments: those it always takes, then as many more of `rest` (one at least) or `optional` ones. */
-interface Signature {
-  args: readonly QueryArgument[];
-  rest?: QueryArgument;
-  optional?: readonly QueryArgument[];
-}
-
-const comparisons = ['>=', '>', '<', '<=', '='] as const;
-const arithmetic = (type: 'val' | 'num'): Record<string, Signature> => ({
-  '+': { args: [], rest: type },
-  '-': { args: [type, type] },
-  '*': { args: [], rest: type },
-});
-
-/** Every operator of each type (content-types.ts's `SetQuery` to `NumQuery`, and `PartyCondition`). */
-const operators: Readonly<Record<QueryType, Readonly<Record<string, Signature>>>> = {
-  set: {
-    where: { args: ['set', 'pred'] },
-    top: { args: ['set', 'heroes', 'val'] },
-    bottom: { args: ['set', 'heroes', 'val'] },
-  },
-  hero: {
-    best: { args: ['set', 'val'] },
-    worst: { args: ['set', 'val'] },
-  },
-  val: {
-    stat: { args: ['stat'] },
-    skill: { args: ['skill'] },
-    level: { args: [] },
-    morale: { args: [] },
-    age: { args: [] },
-    weighted: { args: ['pairs'] },
-    ...arithmetic('val'),
-  },
-  pred: {
-    class: { args: [], rest: 'class' },
-    background: { args: [], rest: 'background' },
-    sex: { args: ['sex'] },
-    'has-skill': { args: ['skill'], optional: ['rating'] },
-    'has-trait': { args: ['trait'] },
-    hurt: { args: [] },
-    ...Object.fromEntries(comparisons.map((comparison): [string, Signature] => [comparison, { args: ['val', 'val'] }])),
-    and: { args: [], rest: 'pred' },
-    or: { args: [], rest: 'pred' },
-    not: { args: ['pred'] },
-  },
-  num: {
-    ...Object.fromEntries(['sum', 'avg', 'max', 'min'].map((it): [string, Signature] => [it, { args: ['set', 'val'] }])),
-    count: { args: ['set'] },
-    ranked: { args: ['set', 'val', 'weights'] },
-    of: { args: ['hero', 'val'] },
-    ...arithmetic('num'),
-    least: { args: [], rest: 'num' },
-    greatest: { args: [], rest: 'num' },
-  },
-  condition: Object.fromEntries(comparisons.map((comparison): [string, Signature] => [comparison, { args: ['num', 'num'] }])),
-};
-
-const typeNames: Readonly<Record<QueryType, string>> = {
-  set: 'a Set',
-  hero: 'a Hero',
-  val: 'a Val',
-  pred: 'a Pred',
-  num: 'a Num',
-  condition: 'a condition on the Party',
-};
+// Queries (v1.1.4-S1, DL-148 items 4 to 6, ADR-0010) are held to their type, keys, size and Sex, and
+// a Check's score to its signs, by the engine's `queryProblems`, from its operators' own signatures
+// (v1.1.6-S10, DL-186 item 6); every problem names the Query's path, as
+// `encounters.<key>.checks.0.score.1.2`. These checks give it the keys content defines.
 
 /**
- * The keys a Query may name: content's Hero Stats, Skills, Classes, Hero Backgrounds and Hero Traits;
- * and whether Sex may filter it at all. A Check's score may filter by Sex; a Synergy's requirement may
- * not, since it is a gate, so that any reading of Sex in it would be a value (DL-151's verification).
+ * The keys `set` defines that a Query may name: its Hero Stats, Skills, Classes, Hero Backgrounds and
+ * Hero Traits.
  */
-interface QueryKeys {
-  heroStats: ReadonlySet<string>;
-  skills: ReadonlySet<string>;
-  classes: ReadonlySet<string>;
-  heroBackgrounds: ReadonlySet<string>;
-  heroTraits: ReadonlySet<string>;
-  sexFilters: boolean;
-}
-
-/** What a Query's node comes to, for the checks above it. */
-interface QueryShape {
-  nodes: number;
-  depth: number;
-  /** A Set, or the Hero of one, filtered by Sex somewhere within. */
-  bySex: boolean;
-  /**
-   * A Val that reads something of the Hero: not a number alone, nor a read of the Hero only times a
-   * literal 0, nor a `weighted` of no weight but 0.
-   */
-  readsHero: boolean;
-}
-
-const leaf: QueryShape = { nodes: 1, depth: 1, bySex: false, readsHero: false };
-
-/** The keys `set` defines that a Query may name. */
 function queryKeys(set: ContentSet): QueryKeys {
   const owned = (rows: Readonly<Record<string, { owner: string }>>): Set<string> =>
     new Set(Object.entries(rows).flatMap(([key, row]) => (row.owner === 'hero' ? [key] : [])));
@@ -1416,362 +1317,11 @@ function queryKeys(set: ContentSet): QueryKeys {
     classes: new Set(Object.keys(set.classes)),
     heroBackgrounds: owned(set.backgrounds),
     heroTraits: new Set(Object.keys(set.heroTraits)),
-    sexFilters: true,
   };
-}
-
-/**
- * `query`, at `where`, as a Query of `type`: each node an operator of that type with its arguments,
- * or a number where a Val or a Num stands, or `"party"` where a Set does; each key one content
- * defines; at most `queryNodesMax` nodes and `queryDepthMax` deep; `["sex", …]` only as a filter's
- * Pred, and only where `keys.sexFilters` allows it; and no Set filtered by Sex counted, by `count` or
- * by a value that reads nothing of a Hero.
- */
-function checkQuery(where: string, query: unknown, type: QueryType, keys: QueryKeys, problems: string[]): void {
-  const { nodes, depth } = queryNode(where, query, type, keys, problems);
-  if (nodes > queryNodesMax) problems.push(`${where} has ${nodes} nodes; a Query has at most ${queryNodesMax}`);
-  if (depth > queryDepthMax) problems.push(`${where} is ${depth} deep; a Query is at most ${queryDepthMax} deep`);
-}
-
-/** One node of a Query, and every node below it. */
-function queryNode(where: string, query: unknown, type: QueryType, keys: QueryKeys, problems: string[]): QueryShape {
-  if (typeof query === 'number') {
-    if (type !== 'val' && type !== 'num') problems.push(`${where} is ${query}; a number stands for a Val or a Num, not ${typeNames[type]}`);
-    else if (!Number.isFinite(query)) problems.push(`${where} is ${query}; a number in a Query is finite`);
-    return leaf;
-  }
-  if (query === 'party') {
-    if (type !== 'set') problems.push(`${where} is "party", a Set; ${typeNames[type]} stands here`);
-    return leaf;
-  }
-  const [operator, ...args] = Array.isArray(query) ? (query as unknown[]) : [];
-  if (typeof operator !== 'string') {
-    problems.push(`${where} is ${JSON.stringify(query)}; expected ${typeNames[type]}, a list with its operator first`);
-    return leaf;
-  }
-  const signature = Object.hasOwn(operators[type], operator) ? operators[type][operator] : undefined;
-  if (signature === undefined) {
-    problems.push(`${where}: ${misplaced(operator, type)}`);
-    return leaf;
-  }
-  const fixed = signature.args.length;
-  const most = signature.rest === undefined ? fixed + (signature.optional?.length ?? 0) : Infinity;
-  const least = signature.rest === undefined ? fixed : fixed + 1;
-  if (args.length < least || args.length > most) {
-    problems.push(`${where}: "${operator}" takes ${arity(least, most)}; it has ${args.length}`);
-    return leaf;
-  }
-  const shapes = args.map((arg, index) => {
-    const kind = signature.args[index] ?? signature.optional?.[index - fixed] ?? signature.rest ?? 'num';
-    return queryArgument(`${where}.${index + 1}`, arg, kind, operator, keys, problems);
-  });
-  const below = shapes.filter((shape): shape is QueryShape => shape !== null);
-  const shape: QueryShape = {
-    nodes: 1 + below.reduce((total, it) => total + it.nodes, 0),
-    depth: 1 + Math.max(0, ...below.map((it) => it.depth)),
-    bySex: below.some((it) => it.bySex),
-    readsHero: type === 'val' && readsHero(operator, args, below),
-  };
-  if (operator === 'sex') {
-    if (!keys.sexFilters) {
-      problems.push(`${where}: ["sex", …] stands in no Synergy's requirement: a requirement is a condition on the Party, and Sex decides only who takes part in a Check (DL-148 item 6)`);
-    }
-    return { ...shape, bySex: true };
-  }
-  if (type === 'set' || type === 'hero' || type === 'pred') return shape;
-  // A Num of a Set (or of its Hero) filtered by Sex: counted, if it reads nothing of a Hero.
-  const [of, value] = below;
-  if (type === 'num' && of?.bySex === true && (operator === 'count' || value?.readsHero === false)) {
-    problems.push(`${where}: a Set filtered by Sex is counted; Sex decides who takes part, never a number (DL-148 item 6)`);
-  }
-  return { ...shape, bySex: false };
-}
-
-/**
- * Whether a Val node of `operator` reads something of the Hero: an operand of `+` or `-` that does; a
- * product with one that does and no literal 0 among its factors; a `weighted` with a weight other than
- * 0; and every other operator, which reads the Hero itself.
- */
-function readsHero(operator: string, args: readonly unknown[], below: readonly QueryShape[]): boolean {
-  switch (operator) {
-    case '+':
-    case '-':
-      return below.some((it) => it.readsHero);
-    case '*':
-      return !args.includes(0) && below.some((it) => it.readsHero);
-    case 'weighted': {
-      const [pairs] = args;
-      return Array.isArray(pairs) && pairs.some((pair: unknown) => !Array.isArray(pair) || pair[1] !== 0);
-    }
-    default:
-      return true;
-  }
-}
-
-/** One argument of `operator`: a Query of its type, with its shape, or a key or number checked here, with none. */
-function queryArgument(
-  where: string,
-  arg: unknown,
-  kind: QueryArgument,
-  operator: string,
-  keys: QueryKeys,
-  problems: string[],
-): QueryShape | null {
-  const key = (known: ReadonlySet<string>, what: string): null => {
-    if (typeof arg !== 'string' || !known.has(arg)) problems.push(`${where}: ${JSON.stringify(arg)} is not ${what}`);
-    return null;
-  };
-  switch (kind) {
-    case 'stat':
-      return key(keys.heroStats, 'a Hero Stat');
-    case 'skill':
-      return key(keys.skills, 'a Skill');
-    case 'class':
-      return key(keys.classes, 'a Class');
-    case 'background':
-      return key(keys.heroBackgrounds, 'a Hero Background');
-    case 'trait':
-      return key(keys.heroTraits, 'a Hero Trait');
-    case 'sex':
-      return key(new Set<Sex>(['female', 'male']), 'a sex: female or male');
-    case 'heroes':
-      if (!(Number.isInteger(arg) && (arg as number) >= 1)) {
-        problems.push(`${where} is ${JSON.stringify(arg)}; ${operator}'s n is a whole number from 1`);
-      }
-      return null;
-    case 'rating':
-      if (!(Number.isInteger(arg) && (arg as number) >= 1)) {
-        problems.push(`${where} is ${JSON.stringify(arg)}; has-skill's least rating is a whole number from 1`);
-      }
-      return null;
-    case 'weights':
-      if (!Array.isArray(arg) || arg.length === 0) {
-        problems.push(`${where} is ${JSON.stringify(arg)}; ranked's weights are a list of one or more`);
-        return null;
-      }
-      arg.forEach((weight: unknown, index) => {
-        if (!(typeof weight === 'number' && Number.isFinite(weight) && weight >= 0)) {
-          problems.push(`${where}.${index} is ${String(weight)}; a weight is a finite number of 0 or more`);
-        }
-      });
-      return null;
-    case 'pairs':
-      if (!Array.isArray(arg) || arg.length === 0) {
-        problems.push(`${where} is ${JSON.stringify(arg)}; weighted's Stats are a list of one or more [Stat, weight] pairs`);
-        return null;
-      }
-      arg.forEach((pair: unknown, index) => {
-        const [statKey, weight, ...more] = Array.isArray(pair) ? (pair as unknown[]) : [];
-        if (!Array.isArray(pair) || more.length > 0 || !(typeof weight === 'number' && Number.isFinite(weight))) {
-          problems.push(`${where}.${index} is ${JSON.stringify(pair)}; expected a [Stat, weight] pair, the weight a finite number`);
-        } else if (typeof statKey !== 'string' || !keys.heroStats.has(statKey)) {
-          problems.push(`${where}.${index}.0: ${JSON.stringify(statKey)} is not a Hero Stat`);
-        }
-      });
-      return null;
-    default:
-      return queryNode(where, arg, kind, keys, problems);
-  }
-}
-
-/**
- * A Check's score turns no Stat a Hero adds against itself (v1.1.4-S3's verification, DL-154;
- * v1.1.4-S9 and its verification, DL-162; ADR-0010). Form scales each Stat a Hero adds into a score
- * (query.ts), so a Stat that counts against the score would be scaled too, and a wound or low
- * spirits would raise the score.
- *
- * The walk carries the sign each node adds into the score with (its polarity) down to every `stat`
- * and `weighted` pair, multiplying it by the sign of each operand beside it (`signOf`): a `-` flips
- * its right operand, a `*` multiplies by its other operands, a `weighted` or `ranked` by its weights.
- * A Stat whose polarity may be negative is refused, naming the node that last turned it so:
- *
- * - a `-` whose right operand reads the Stat;
- * - a `weighted` that gives the Stat a negative weight;
- * - a `*` whose other operands are, or may be, negative (a count less a number, say);
- * - a `ranked` with a negative weight.
- *
- * So twice negated, a Stat counts for the score again, and is accepted. A raw Check, read without
- * form, and a Synergy's requirement, read as the Heroes are, are not held to it. Run on a score
- * `checkQuery` has checked; a node of the wrong shape is that check's to refuse, and passed over here.
- */
-function checkInversions(
-  where: string,
-  query: unknown,
-  type: 'num' | 'val',
-  problems: string[],
-  polarity: Sign = positive,
-  culprit = '',
-): void {
-  if (!Array.isArray(query)) return;
-  const [operator, ...args] = query as unknown[];
-  const inverts = 'form would then raise the score of a hurt or low-spirited Hero';
-  const refuse = (problem: string): void => {
-    if (!problems.includes(problem)) problems.push(problem);
-  };
-  // A child's culprit: this node, when it turned the polarity to one that may be negative; else the parent's.
-  const turned = (child: Sign, problem: string): string => (child.down && !sameSign(child, polarity) ? problem : culprit);
-  if (type === 'val' && operator === 'stat') {
-    if (polarity.down) refuse(culprit);
-    return;
-  }
-  if (type === 'val' && operator === 'weighted') {
-    if (!Array.isArray(args[0])) return;
-    (args[0] as unknown[]).forEach((pair, index) => {
-      const [statKey, weight] = Array.isArray(pair) ? (pair as unknown[]) : [];
-      if (typeof weight !== 'number') return;
-      const child = times(polarity, signOfNumber(weight));
-      if (child.down) refuse(turned(child, `${where}.1.${index}.1: weighted gives ${JSON.stringify(statKey)} a negative weight; ${inverts}`));
-    });
-    return;
-  }
-  const signs = operator === '*' ? args.map((arg) => signOf(arg, type)) : [];
-  for (const [index, arg] of args.entries()) {
-    const below = belowOf(operator, index, type);
-    if (below === null) continue;
-    let child = polarity;
-    let problem = culprit;
-    if (operator === '-' && index === 1) {
-      child = flip(polarity);
-      problem = turned(child, `${where}.2: "-" subtracts a Stat a Hero adds; ${inverts}`);
-    } else if (operator === '*') {
-      const others = signs.reduce<Sign>((product, sign, other) => (other === index ? product : times(product, sign)), positive);
-      child = times(polarity, others);
-      const by = others.down && !others.up ? 'a negative number' : 'a number that may be negative';
-      problem = turned(child, `${where}: "*" multiplies a Stat a Hero adds by ${by}; ${inverts}`);
-    } else if (operator === 'ranked') {
-      child = times(polarity, signOfWeights(args[2]));
-      problem = turned(child, `${where}.3: "ranked" gives a negative weight to a value that reads a Stat a Hero adds; ${inverts}`);
-    }
-    checkInversions(`${where}.${index + 1}`, arg, below, problems, child, problem);
-  }
-}
-
-/** Whether a value may be above nought (`up`), and whether it may be below (`down`); a value of nought alone is neither. */
-interface Sign {
-  readonly up: boolean;
-  readonly down: boolean;
-}
-
-const positive: Sign = { up: true, down: false };
-const anySign: Sign = { up: true, down: true };
-const nought: Sign = { up: false, down: false };
-const flip = (sign: Sign): Sign => ({ up: sign.down, down: sign.up });
-const times = (left: Sign, right: Sign): Sign => ({
-  up: (left.up && right.up) || (left.down && right.down),
-  down: (left.up && right.down) || (left.down && right.up),
-});
-const either = (left: Sign, right: Sign): Sign => ({ up: left.up || right.up, down: left.down || right.down });
-const sameSign = (left: Sign, right: Sign): boolean => left.up === right.up && left.down === right.down;
-const signOfNumber = (value: number): Sign => ({ up: value > 0, down: value < 0 });
-
-/** The signs a list of weights may give: each weight's, together; any sign when it is not a list of numbers. */
-function signOfWeights(weights: unknown): Sign {
-  if (!Array.isArray(weights)) return anySign;
-  return (weights as unknown[]).reduce<Sign>((sign, weight) => either(sign, typeof weight === 'number' ? signOfNumber(weight) : anySign), nought);
-}
-
-/**
- * The signs `query`, a Num or a Val, may take for any Party: a constant's own; a Stat, a Skill
- * rating, Level, Morale, age and a count are never below nought; sums, differences, products and
- * the rest follow their operands. An operator it does not know may take any sign.
- */
-function signOf(query: unknown, type: 'num' | 'val'): Sign {
-  const constant = constantOf(query);
-  if (constant !== null) return signOfNumber(constant);
-  if (!Array.isArray(query)) return anySign;
-  const [operator, ...args] = query as unknown[];
-  switch (operator) {
-    case '+':
-      return args.reduce<Sign>((sign, arg) => either(sign, signOf(arg, type)), nought);
-    case '-':
-      return either(signOf(args[0], type), flip(signOf(args[1], type)));
-    case '*':
-      return args.reduce<Sign>((sign, arg) => times(sign, signOf(arg, type)), positive);
-  }
-  if (type === 'val') {
-    switch (operator) {
-      case 'stat':
-      case 'skill':
-      case 'level':
-      case 'morale':
-      case 'age':
-        return positive;
-      case 'weighted':
-        return Array.isArray(args[0])
-          ? signOfWeights((args[0] as unknown[]).map((pair) => (Array.isArray(pair) ? (pair as unknown[])[1] : undefined)))
-          : anySign;
-      default:
-        return anySign;
-    }
-  }
-  switch (operator) {
-    case 'count':
-      return positive;
-    case 'sum':
-    case 'avg':
-    case 'max':
-    case 'min':
-    case 'of':
-      return signOf(args[1], 'val');
-    case 'ranked':
-      return times(signOf(args[1], 'val'), signOfWeights(args[2]));
-    case 'least':
-    case 'greatest':
-      return args.reduce<Sign>((sign, arg) => either(sign, signOf(arg, 'num')), nought);
-    default:
-      return anySign;
-  }
-}
-
-/** The value of `query` when it is a number, or `+`, `-`, `*`, `least` or `greatest` of numbers alone; `null` when it reads anything else. */
-function constantOf(query: unknown): number | null {
-  if (typeof query === 'number') return query;
-  if (!Array.isArray(query)) return null;
-  const [operator, ...args] = query as unknown[];
-  const values = args.map(constantOf);
-  if (values.length === 0 || values.some((value) => value === null)) return null;
-  const numbers = values as number[];
-  switch (operator) {
-    case '+':
-      return numbers.reduce((sum, value) => sum + value, 0);
-    case '-':
-      return numbers.length === 2 ? (numbers[0] as number) - (numbers[1] as number) : null;
-    case '*':
-      return numbers.reduce((product, value) => product * value, 1);
-    case 'least':
-      return Math.min(...numbers);
-    case 'greatest':
-      return Math.max(...numbers);
-    default:
-      return null;
-  }
-}
-
-/** What the argument at `index` of a Num's or a Val's `operator` adds into its value: a Num, a Val, or nothing (a Set, a Hero, a key, a weight). */
-function belowOf(operator: unknown, index: number, type: 'num' | 'val'): 'num' | 'val' | null {
-  if (operator === '+' || operator === '-' || operator === '*') return type;
-  if (type === 'num' && (operator === 'least' || operator === 'greatest')) return 'num';
-  if (type === 'num' && index === 1 && (operator === 'sum' || operator === 'avg' || operator === 'max' || operator === 'min' || operator === 'ranked' || operator === 'of')) return 'val';
-  return null;
-}
-
-/** Why `operator` cannot stand where a Query of `type` is expected. */
-function misplaced(operator: string, type: QueryType): string {
-  if (operator === 'sex') return '["sex", …] stands only as the Pred of a where filter: Sex decides who takes part, never a value (DL-148 item 6)';
-  const types = (Object.keys(operators) as QueryType[]).filter((it) => Object.hasOwn(operators[it], operator));
-  if (types.length === 0) return `"${operator}" is not an operator of a Query`;
-  return `"${operator}" makes ${types.map((it) => typeNames[it]).join(' or ')}, where ${typeNames[type]} is expected`;
-}
-
-/** How many arguments an operator takes, in words. */
-function arity(least: number, most: number): string {
-  const count = (n: number): string => (n === 0 ? 'no arguments' : n === 1 ? '1 argument' : `${n} arguments`);
-  if (most === Infinity) return `${count(least)} or more`;
-  return least === most ? count(least) : `${least} or ${most} arguments`;
 }
 
 /** Every key must name a row of the table it refers to, and appear once. */
-export function checkReferences(
+function checkReferences(
   where: string,
   keys: readonly string[],
   known: ReadonlySet<string>,
@@ -1802,36 +1352,6 @@ function checkGrowth(where: string, growth: Readonly<Record<string, number>>, pr
 function checkRange(where: string, field: string, min: number, max: number, floor: number, problems: string[]): void {
   if (min < floor) problems.push(`${where}.${field}Min is ${min}; it is at least ${floor}`);
   if (min > max) problems.push(`${where}.${field}Min ${min} is greater than ${field}Max ${max}`);
-}
-
-/**
- * A Quest template's demands: at least one, each a Hero Stat once with a weight above 0, the
- * weights summing to 1 within the tolerance (M2-S3's acceptance).
- */
-export function checkDemands(
-  where: string,
-  demands: readonly (readonly [string, number])[],
-  heroStats: ReadonlySet<string>,
-  problems: string[],
-): void {
-  if (demands.length === 0) problems.push(`${where} is empty: a Quest assesses at least one Stat`);
-  checkReferences(
-    where,
-    demands.map(([key]) => key),
-    heroStats,
-    'a Hero Stat',
-    problems,
-  );
-  let sum = 0;
-  for (const [key, weight] of demands) {
-    if (Number.isFinite(weight)) sum += weight;
-    if (!(Number.isFinite(weight) && weight > 0)) {
-      problems.push(`${where}: "${key}" has weight ${weight}; a demand's weight is above 0`);
-    }
-  }
-  if (demands.length > 0 && Math.abs(sum - 1) > demandSumTolerance) {
-    problems.push(`${where}: weights sum to ${Number(sum.toFixed(4))}, not 1`);
-  }
 }
 
 /** The values that appear more than once, each once, in order of their second appearance. */

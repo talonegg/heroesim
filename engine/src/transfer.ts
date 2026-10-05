@@ -9,6 +9,7 @@
 import { regardBandNames, type EngineDeps, type GameConfig } from './config.js';
 import {
   compareByCodeUnit,
+  rowOf,
   type Guild,
   type Hero,
   type HeroId,
@@ -104,7 +105,7 @@ function transferMoraleCost(
   const lowest = regardBandNames.indexOf(config.transferRegardBand);
   const events: EngineEvent[] = [];
   for (const friendId of from.rosterIds) {
-    const friend = Object.hasOwn(world.heroes, friendId) ? world.heroes[friendId] : undefined;
+    const friend = rowOf(world.heroes, friendId);
     if (friend === undefined) continue;
     const band = regardBand(regardValue(friend.regard, heroId), config);
     if (regardBandNames.indexOf(band) < lowest) continue;
@@ -210,8 +211,8 @@ export function withdrawOffers(
  * (`offerExpiry`) removes such an offer beside the expired ones.
  */
 export function offerLapse(world: Pick<World, 'guilds'>, offer: TransferOffer): TransferOfferEndCause | null {
-  const from = Object.hasOwn(world.guilds, offer.fromGuildId) ? world.guilds[offer.fromGuildId] : undefined;
-  const to = Object.hasOwn(world.guilds, offer.toGuildId) ? world.guilds[offer.toGuildId] : undefined;
+  const from = rowOf(world.guilds, offer.fromGuildId);
+  const to = rowOf(world.guilds, offer.toGuildId);
   if (from === undefined || to === undefined || from.foldedOnTurn !== null || to.foldedOnTurn !== null) return 'guild-folded';
   return from.rosterIds.includes(offer.heroId) ? null : 'hero-left';
 }

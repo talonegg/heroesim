@@ -6,9 +6,7 @@
 // traits.ts). One roll from the `quests` stream scales it by up to
 // ±`checkVariance`, or the Check's own `variance`, and the roll against the target, `flat` plus
 // `difficultyFactor` times the Quest's difficulty, gives the Check's Degree (v1.1.4-S2, degree.ts):
-// a Success or better when it reaches the target. An Encounter in the old form has one Check, whose
-// score weighs the best Hero's value of each demanded Stat, or the Party's sum, as its `aggregate`
-// said (M4-S2).
+// a Success or better when it reaches the target.
 //
 // The score is read with each Hero's form (v1.1.4-S3, form.ts, query.ts): the Stat values a Hero adds
 // into it are times their form, and nothing else in the capability is. A raw Check is read without

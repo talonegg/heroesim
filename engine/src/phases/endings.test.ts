@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { StopReason } from '../stops.js';
 import { defaultConfig, type EngineDeps } from '../config.js';
@@ -30,6 +29,7 @@ import { plannedStreams, testContent, testDeps, thriftyRivals, withDispositions,
 import { ageSpanOf, portraitSexOf } from '../portraits.js';
 import { endings } from './endings.js';
 import { phaseContext } from './phase.js';
+import { applyAction } from '../actions/action.js';
 
 // M2-S10: the endings (DL-28). Each ending is arranged on a world `createWorld` made, then played
 // through `advance`; every document a test inspects is held to the validator.
@@ -305,12 +305,11 @@ describe("the player's ending ends the game", () => {
 // Turn `retirementTurn` gives, which the endings read. The year is the default's 1,080 Turns: the
 // world is moved to the night before, and the Rivals stilled.
 describe('Retirement at 61, on the Turn retirementTurn gives (M9-F1)', () => {
-  test('the defaults: every Guildmaster starts 21 to 50 and retires at 61, under configVersion 13 (DL-152)', () => {
+  test('the defaults: every Guildmaster starts 21 to 50 and retires at 61 (DL-113)', () => {
     expect(defaultConfig).toMatchObject({
       guildmasterStartingAgeMin: 21,
       guildmasterStartingAgeMax: 50,
       guildmasterRetirementAge: 61,
-      configVersion: 13,
     });
   });
 
@@ -557,7 +556,6 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       reward: 120,
       fameEffect: 2,
       durationTurns: 9,
-      demands: [['strength', 1]],
       skillKeys: [],
       encounterKeys: [],
       requirements: { partySizeMin: 1, partySizeMax: 3 },
@@ -940,7 +938,6 @@ describe("a fold's one order (DL-54)", () => {
       marketSize: 0,
       sellRatio: 0.5,
       lootOnlyPrice: 600,
-      gearSlots: ['weapon', 'armour', 'trinket'],
       bankruptcyGraceDays: 0,
     });
     stillRivalControllers();
@@ -971,7 +968,7 @@ describe("a fold's one order (DL-54)", () => {
       { definitionKey: 'healing-draught', quantity: 2 },
       { definitionKey: 'whetstone', quantity: 1 },
     ];
-    const sent = dispatch(start, { guildId: rival.id, questId: quest.id, heroIds, consumables }, deps);
+    const sent = applyAction(start, { kind: 'dispatch', guildId: rival.id, questId: quest.id, heroIds, consumables }, deps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     const eve = withValid(sent.document, deps);
     const party = Object.values(eve.world.parties).find((it) => it.guildId === rival.id);

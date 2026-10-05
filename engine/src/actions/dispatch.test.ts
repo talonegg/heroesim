@@ -14,7 +14,7 @@ import { dayOf, durationDaysOf, nightOf, timeOfDay } from '../time.js';
 import { validate } from '../validate.js';
 import { buildDocument, fixtureTurn, harmlessContent, testDeps, withValid, type FixtureIds } from '../world.test-support.js';
 import { applyAction } from './action.js';
-import { dispatch, type ConsumableRequest, type DispatchRejection, type DispatchRequest } from './dispatch.js';
+import { applyDispatch, type ConsumableRequest, type DispatchRejection, type DispatchRequest } from './dispatch.js';
 
 // No Rivals in a created world: from M2-S9 they take Quests off the Board each afternoon, and
 // these tests play Turns to watch the player's own Parties.
@@ -45,7 +45,7 @@ function heroOf(world: World, heroId: HeroId): Hero {
 function rejected(document: WorldDocument, request: DispatchRequest): DispatchRejection {
   const before = serialise(document);
   const entries = document.history.entries.length;
-  const result = dispatch(document, request, deps);
+  const result = applyAction(document, { kind: 'dispatch', ...request }, deps);
   expect(serialise(document)).toBe(before);
   expect(document.history.entries).toHaveLength(entries);
   if (result.ok) throw new Error('Expected a rejection');
@@ -59,7 +59,7 @@ describe('dispatch', () => {
     const quest = questOf(document.world, questId);
     const worldBefore = structuredClone(document.world);
 
-    const result = dispatch(document, { guildId: ids.playerGuild, questId, heroIds: [rogue, mage] }, deps);
+    const result = applyAction(document, { kind: 'dispatch', guildId: ids.playerGuild, questId, heroIds: [rogue, mage] }, deps);
 
     if (!result.ok) throw new Error(`Rejected ${result.rejection.reason}`);
     const next = withValid(result.document, deps);
@@ -106,21 +106,24 @@ describe('dispatch', () => {
     expect(next.history).toBe(document.history);
   });
 
-  test('is what applyAction does with a dispatch action', () => {
-    const one = built();
-    const two = built();
-    const request = { guildId: one.ids.playerGuild, questId: one.ids.offeredQuest, heroIds: [one.rogue, one.healer] };
+  test('is the rule applyAction runs on a copy of the world', () => {
+    const { document, ids, rogue, healer } = built();
+    const request = { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, healer] };
+    const world = structuredClone(document.world);
 
-    const direct = dispatch(one.document, request, deps);
-    const applied = applyAction(two.document, { kind: 'dispatch', ...request }, deps);
+    const applied = applyAction(document, { kind: 'dispatch', ...request }, deps);
+    const inPlace = applyDispatch(world, request, deps);
 
-    expect(applied.ok && serialise(withValid(applied.document, deps))).toBe(direct.ok && serialise(direct.document));
+    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
+    withValid(applied.document, deps);
+    expect(world).toEqual(applied.document.world);
+    expect(inPlace.events).toEqual(applied.events);
   });
 
   test('leaves a document the validator accepts: quest.partyIds and party.questId agree, as it checks', () => {
     const { document, ids, rogue, mage } = built();
     const request = { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, mage] };
-    const result = dispatch(document, request, deps);
+    const result = applyAction(document, { kind: 'dispatch', ...request }, deps);
     if (!result.ok) throw new Error(`Rejected ${result.rejection.reason}`);
     const next = withValid(result.document, deps);
     const [partyId] = questOf(next.world, ids.offeredQuest).partyIds;
@@ -216,8 +219,8 @@ describe('dispatch', () => {
       questOf(small.world, ids.offeredQuest).requirements.partySizeMax = 2;
       expect(rejected(withValid(small, deps), request([rogue, mage, healer]))).toEqual(refusal(3, 2));
 
-      expect(dispatch(document, request([rogue, mage]), deps).ok).toBe(true);
-      expect(dispatch(document, request([rogue, mage, healer]), deps).ok).toBe(true);
+      expect(applyAction(document, { kind: 'dispatch', ...request([rogue, mage]) }, deps).ok).toBe(true);
+      expect(applyAction(document, { kind: 'dispatch', ...request([rogue, mage, healer]) }, deps).ok).toBe(true);
     });
 
     test('requirement-unmet: naming each requirement the Party misses, class and skill, in that order (M4-S5)', () => {
@@ -245,7 +248,7 @@ describe('dispatch', () => {
       expect(rejected(demanding, request([healer]))).toEqual(unmet(needsMage, needsLockpicking));
       expect(rejected(demanding, request([rogue, healer]))).toEqual(unmet(needsMage));
       expect(rejected(demanding, request([mage, healer]))).toEqual(unmet(needsLockpicking));
-      expect(dispatch(demanding, request([mage, rogue]), deps).ok).toBe(true);
+      expect(applyAction(demanding, { kind: 'dispatch', ...request([mage, rogue]) }, deps).ok).toBe(true);
 
       // Every requirement missed at once: the size, the Class and the Skill.
       quest.requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
@@ -265,7 +268,7 @@ describe('dispatch', () => {
       expect(rejection.reason).toBe('requirement-unmet');
       expect(rejection.reason === 'requirement-unmet' && rejection.unmet).toEqual([{ requirement: 'class', classKey: 'healer' }]);
       expect(heroOf(wanting.world, healer).classKey).toBe('healer');
-      expect(dispatch(wanting, request([rogue, healer]), deps).ok).toBe(true);
+      expect(applyAction(wanting, { kind: 'dispatch', ...request([rogue, healer]) }, deps).ok).toBe(true);
     });
 
     test('guild-folded: a Guild that has folded sends no Party, whatever else the request gets right', () => {
@@ -279,7 +282,7 @@ describe('dispatch', () => {
 
       expect(rejected(folded, { guildId: ids.rivalGuild, questId: ids.offeredQuest, heroIds: pair })).toEqual(refusal);
       expect(rejected(folded, { guildId: ids.rivalGuild, questId: ids.takenQuest, heroIds: [] })).toEqual(refusal);
-      expect(dispatch(document, { guildId: ids.rivalGuild, questId: ids.offeredQuest, heroIds: pair }, deps).ok).toBe(
+      expect(applyAction(document, { kind: 'dispatch', guildId: ids.rivalGuild, questId: ids.offeredQuest, heroIds: pair }, deps).ok).toBe(
         true,
       );
     });
@@ -305,10 +308,10 @@ describe('dispatch', () => {
     const { document, ids, rogue } = built();
 
     expect(() =>
-      dispatch(document, { guildId: 'guild-000099' as GuildId, questId: ids.offeredQuest, heroIds: [rogue] }, deps),
+      applyAction(document, { kind: 'dispatch', guildId: 'guild-000099' as GuildId, questId: ids.offeredQuest, heroIds: [rogue] }, deps),
     ).toThrow(/guild-000099/);
     expect(() =>
-      dispatch(document, { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, rogue] }, deps),
+      applyAction(document, { kind: 'dispatch', guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, rogue] }, deps),
     ).toThrow(new RegExp(rogue));
   });
 });
@@ -333,7 +336,7 @@ describe('dispatch with consumables', () => {
       { definitionKey: 'whetstone', quantity: 2 },
     ];
 
-    const result = dispatch(document, { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds, consumables }, deps);
+    const result = applyAction(document, { kind: 'dispatch', guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds, consumables }, deps);
 
     if (!result.ok) throw new Error(`Rejected ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
@@ -381,7 +384,7 @@ describe('dispatch with consumables', () => {
       held: 3,
       requested: 4,
     });
-    expect(dispatch(document, carrying('healing-draught', 3), deps).ok).toBe(true);
+    expect(applyAction(document, { kind: 'dispatch', ...carrying('healing-draught', 3) }, deps).ok).toBe(true);
   });
 
   test('checks the consumables after the requirements, each in the order given', () => {
@@ -405,7 +408,7 @@ describe('dispatch with consumables', () => {
   test('throws on a programming error: a consumable named twice, or a quantity that is not a whole number from 1', () => {
     const { document, ids, heroIds } = stocked();
     const carrying = (consumables: ConsumableRequest[]) => () =>
-      dispatch(document, { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds, consumables }, deps);
+      applyAction(document, { kind: 'dispatch', guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds, consumables }, deps);
 
     expect(
       carrying([
@@ -451,7 +454,7 @@ function sent(
 ): { document: WorldDocument; quest: Quest; partyId: PartyId } {
   const guild = playerGuild(document.world) as Guild;
   const quest = openQuest(document.world, heroIds.length, minDays);
-  const result = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds }, deps);
+  const result = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds }, deps);
   if (!result.ok) throw new Error(`Rejected ${result.rejection.reason}`);
   const [partyId] = questOf(result.document.world, quest.id).partyIds;
   if (partyId === undefined) throw new Error('No Party');
@@ -491,7 +494,7 @@ describe('a Party in play', () => {
     for (let turn = away.world.turn; turn < returnsOnTurn; turn += 1) {
       document = playTo(document, turn);
       const questId = document.world.board[0] as QuestId;
-      const again = dispatch(document, { guildId: guild.id, questId, heroIds: [first] }, deps);
+      const again = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId, heroIds: [first] }, deps);
       expect(again, `Turn ${turn}`).toEqual({
         ok: false,
         rejection: { action: 'dispatch', reason: 'hero-unavailable', heroId: first, because: 'in-party' },
@@ -524,7 +527,7 @@ describe('a Party in play', () => {
         const morning = playTo(night, nightOf(day + k) + 1, unharmed);
         expect([dayOf(morning.world.turn), timeOfDay(morning.world.turn)]).toEqual([day + k + 1, 'morning']);
         const next = openQuest(morning.world, heroIds.length, 0);
-        const again = dispatch(morning, { guildId: guild.id, questId: next.id, heroIds }, unharmed);
+        const again = applyAction(morning, { kind: 'dispatch', guildId: guild.id, questId: next.id, heroIds }, unharmed);
         expect(again.ok, `left on Turn ${turn}`).toBe(true);
       }
     }

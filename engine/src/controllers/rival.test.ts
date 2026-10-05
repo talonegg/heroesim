@@ -1123,13 +1123,13 @@ describe('buying gear at the Market (M6-S4)', () => {
     expect(bought()).toEqual([]);
   });
 
-  test('buys nothing for a slot the config does not list, and nothing that is not gear', () => {
-    const noArmour = buying(3, { gearSlots: ['weapon', 'trinket'] });
-    const { world, rival } = outfitting('no-armour-slot', noArmour, [['plate-harness', 5], ['short-sword', 5]]);
+  test('buys nothing that is not gear', () => {
+    const deps = buying(3);
+    const { world, rival } = outfitting('not-gear', deps, [['plate-harness', 5]]);
 
-    expect(buysOf(world, rival, noArmour).map((buy) => buy.definitionKey)).toEqual(['short-sword']);
-    stockMarket(world, [['plate-harness', 5], ['whetstone', 5]]); // a consumable is not gear
-    expect(buysOf(world, rival, noArmour)).toEqual([]);
+    expect(buysOf(world, rival, deps).map((buy) => buy.definitionKey)).toEqual(['plate-harness']);
+    stockMarket(world, [['whetstone', 5]]); // a consumable is not gear
+    expect(buysOf(world, rival, deps)).toEqual([]);
   });
 
   test('buys after it builds and before it hires: build, then buy, then recruit', () => {

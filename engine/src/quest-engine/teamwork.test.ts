@@ -5,10 +5,10 @@ import { generateHero } from '../generators/heroes.js';
 import { relationship } from '../hero-regard.js';
 import { regardBand } from '../regard.js';
 import {
+  demandsCheck,
   encounterCapability as capability,
   encounterCheck as check,
   heroStatKeys,
-  oldFormCheck,
   testContent,
   testDeps,
   testWorld,
@@ -98,7 +98,7 @@ describe('the Check with teamwork', () => {
     regardAll(hostile, -20);
     const encounter: Encounter = {
       ...structuredClone(testContent.encounters['hold-the-line'] as Encounter),
-      checks: [oldFormCheck('hold-the-line', 'Hold the line', 'sum', [['strength', 0.5], ['constitution', 0.5]], [], 1)],
+      checks: [demandsCheck('hold-the-line', 'Hold the line', 'sum', [['strength', 0.5], ['constitution', 0.5]], [], 1)],
     };
     const quest = { difficulty: 16 };
 

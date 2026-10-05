@@ -8,7 +8,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { ContentFileName } from '@heroesim/content';
-import { formatJson } from '@heroesim/portraits';
+import { formatJson } from '@heroesim/content/write';
 import { afterAll } from 'vitest';
 import { run, type Deps } from './cli.js';
 import { repositoryRoot } from './content-files.js';
@@ -71,14 +71,16 @@ function templateRepository(): string {
     recursive: true,
     filter: (source) => {
       const relative = path.relative(path.join(root, 'content'), source).replace(/\\/g, '/');
-      return relative === '' || relative.endsWith('.json') || ['src', 'src/parse.ts', 'src/content.test.ts', 'src/validate.ts'].includes(relative);
+      return relative === '' || relative.endsWith('.json') || ['src', 'src/validate.ts'].includes(relative);
     },
   });
   cpSync(path.join(root, 'docs', 'agents', 'traits.md'), path.join(dir, 'docs', 'agents', 'traits.md'));
   writeFileSync(path.join(dir, 'package.json'), `${JSON.stringify({ name: 'scratch', private: true, scripts: { test: 'node planted-test.mjs' } }, null, 2)}\n`);
   writeFileSync(path.join(dir, 'planted-test.mjs'), plantedTest);
   writeFileSync(path.join(dir, 'test-outcome.txt'), 'pass\n');
-  writeFileSync(path.join(dir, '.gitignore'), '.editor/\ntests-started.txt\nengine/\n');
+  // The defaults' values, which the config kind writes (v1.1.6-S18), committed; the rest of engine/src/ ignored.
+  cpSync(path.join(root, 'engine', 'src', 'config.json'), path.join(dir, 'engine', 'src', 'config.json'));
+  writeFileSync(path.join(dir, '.gitignore'), '.editor/\ntests-started.txt\nengine/src/*\n!engine/src/config.json\n');
   // No template: git's sample hooks are files each copy would copy for nothing.
   git(dir, 'init', '--quiet', '--template=');
   git(dir, 'add', '--all');
@@ -88,9 +90,10 @@ function templateRepository(): string {
 }
 
 /**
- * A scratch copy of this repository's content (its JSON, and the source that holds the content
- * version and its checks) and `docs/agents/traits.md`, committed, with a planted `npm test` that
- * passes; removed by the function it returns with. With `engine`, `engine/src/` too, which only the
+ * A scratch copy of this repository's content (its JSON, `version.json` among it, and the source of
+ * its checks, which the drift check reads) and `docs/agents/traits.md`, committed, with a planted `npm test` that
+ * passes; removed by the function it returns with. Its `engine/src/config.json` is committed, which
+ * the config kind writes (v1.1.6-S18). With `engine`, the rest of `engine/src/` too, which only the
  * drift check reads (the doctor's, `drift.ts`): copied beside the commit and ignored by git, since
  * the editor never writes it, as copying and committing its files for every test took most of the
  * editor's tests' time (DL-164).

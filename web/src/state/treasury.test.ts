@@ -1,23 +1,14 @@
 import {
   advance,
+  applyAction,
   availableHeroes,
-  build,
-  buy,
-  createProbe,
   createWorld,
   defaultConfig,
-  dispatch,
   holdings,
-  makeId,
   marketStock,
   nextUpkeepDay,
   offeredQuests,
-  partyFor,
   playerGuild,
-  recruit,
-  sell,
-  transferIn,
-  transferOut,
   unattachedHeroes,
   upkeepParts,
   type EngineDeps,
@@ -27,6 +18,7 @@ import {
   type GuildId,
   type WorldDocument,
 } from '@heroesim/engine';
+import { createProbe, makeId, partyFor } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { changed, played, started, withWealth } from './game.test-support';
@@ -136,28 +128,28 @@ function playersMonth(document: WorldDocument, month: number): WorldDocument {
   const guildId = (playerGuild(next.world)?.id ?? lantern) as GuildId;
   const guild = () => next.world.guilds[guildId];
   const [signed] = unattachedHeroes(next.world);
-  if (signed !== undefined) next = tried(next, recruit(next, { guildId, heroId: signed.id }, deps));
-  next = tried(next, build(next, { guildId, facility: month % 2 === 0 ? 'infirmary' : 'quarters' }, deps));
+  if (signed !== undefined) next = tried(next, applyAction(next, { kind: 'recruit', guildId, heroId: signed.id }, deps));
+  next = tried(next, applyAction(next, { kind: 'build', guildId, facility: month % 2 === 0 ? 'infirmary' : 'quarters' }, deps));
   const cheapest = [...marketStock(next.world, deps)].sort((a, b) => a.price - b.price)[0];
-  if (cheapest !== undefined) next = tried(next, buy(next, { guildId, definitionKey: cheapest.definition.key, quantity: 1 }, deps));
+  if (cheapest !== undefined) next = tried(next, applyAction(next, { kind: 'buy', guildId, definitionKey: cheapest.definition.key, quantity: 1 }, deps));
   const [stack] = holdings(next.world, { kind: 'guild', id: guildId }).stacks;
-  if (stack !== undefined) next = tried(next, sell(next, { guildId, stackId: stack.id, quantity: 1 }, deps));
+  if (stack !== undefined) next = tried(next, applyAction(next, { kind: 'sell', guildId, stackId: stack.id, quantity: 1 }, deps));
   const available = availableHeroes(next.world, guild() ?? { rosterIds: [] });
   const owner = guild();
   for (const quest of offeredQuests(next.world)) {
     if (owner === undefined) break;
     const heroIds = partyFor(next.world, owner, quest, available, deps);
     if (heroIds === null) continue;
-    next = tried(next, dispatch(next, { guildId, questId: quest.id, heroIds }, deps));
+    next = tried(next, applyAction(next, { kind: 'dispatch', guildId, questId: quest.id, heroIds }, deps));
     break;
   }
   if (month % 3 === 0) {
     const rival = Object.values(next.world.guilds).find((other) => other.id !== guildId && other.foldedOnTurn === null && other.rosterIds.length > 1);
     const theirs = rival?.rosterIds[0];
-    if (rival !== undefined && theirs !== undefined) next = tried(next, transferIn(next, { guildId, heroId: theirs }, deps));
+    if (rival !== undefined && theirs !== undefined) next = tried(next, applyAction(next, { kind: 'transferIn', guildId, heroId: theirs }, deps));
     const ours = guild()?.rosterIds.at(-1);
     if (rival !== undefined && ours !== undefined && (guild()?.rosterIds.length ?? 0) > 2) {
-      next = tried(next, transferOut(next, { guildId, heroId: ours, toGuildId: rival.id }, deps));
+      next = tried(next, applyAction(next, { kind: 'transferOut', guildId, heroId: ours, toGuildId: rival.id }, deps));
     }
   }
   return next;

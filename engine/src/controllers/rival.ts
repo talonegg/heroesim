@@ -17,8 +17,17 @@ import type { GuildAction } from '../actions/action.js';
 import { dispatchRefusal, unavailability, type DispatchAction } from '../actions/dispatch.js';
 import type { TransferInAction } from '../actions/transfer.js';
 import type { EngineDeps } from '../config.js';
-import type { ContentSet, Disposition, SlotKey } from '../content-types.js';
-import { compareByCodeUnit, facilityKeys, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
+import { gearSlotKeys, purchaseSteps, type ContentSet, type Disposition, type PurchaseStep, type SlotKey } from '../content-types.js';
+import {
+  compareByCodeUnit,
+  facilityKeys,
+  rowOf,
+  type Guild,
+  type Hero,
+  type HeroId,
+  type Quest,
+  type World,
+} from '../document.js';
 import { gearChoices, gearPurchase } from '../gear.js';
 import { streamOf } from '../generators/draw.js';
 import { guildmasterOf } from '../guildmaster.js';
@@ -42,13 +51,15 @@ import {
  *    which moves no Wealth and sends no one;
  * 2. dispatch to the Quest its `questRiskAppetite` prefers among those it can staff
  *    (`preferredQuest`), drawing from `rivals` to choose among Quests of the same difficulty;
- * 3. make one purchase, the first of these that applies:
- *    - build the next grade of the first facility of its Hall, in the Hall's order (the infirmary,
- *      the training yard, the quarters), whose next grade's cost its Wealth is above `buildThreshold`
- *      times (`hallBuild`: M3-S6 built the infirmary alone, M6-S4 every facility);
- *    - buy one piece of gear at the Market for its Heroes who lack it, armour first, then the other
- *      slots in `config.gearSlots`'s order: the dearest whose price its Wealth is above `gearThreshold`
- *      times (`gearBuy`, the engine's `gearPurchase`, M6-S4);
+ * 3. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
+ *    (`purchaseSteps`' order when it has none, as here, v1.1.6-S16, DL-202):
+ *    - build the next grade of the first facility of its Hall, in its `buildOrder` (the Hall's order
+ *      when it has none: the infirmary, the training yard, the quarters), whose next grade's cost its
+ *      Wealth is above `buildThreshold` times (`hallBuild`: M3-S6 built the infirmary alone, M6-S4
+ *      every facility);
+ *    - buy one piece of gear at the Market for its Heroes who lack it, in its `gearSlotOrder` (when it
+ *      has none, armour first, then the other slots in `gearSlotKeys`' order): the dearest whose price
+ *      its Wealth is above `gearThreshold` times (`gearBuy`, the engine's `gearPurchase`, M6-S4);
  *    - while it would hire (`hiringBudget`: its Wealth above `recruitThreshold` times its Upkeep, or
  *      its Roster below `rivalRosterMin` with `rivalHireReserveUpkeeps` Upkeeps to keep, DL-60) and its
  *      Roster has room enough by `transferAppetite`, seek the Hero it wants from another Guild with the
@@ -79,13 +90,23 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
   const choices: GuildAction[] = [...gearChoices(world, guild, deps)];
   const quest = preferredQuest(world, guild, disposition, deps);
   if (quest !== null) choices.push(quest);
-  const purchase =
-    hallBuild(guild, disposition, deps) ??
-    gearBuy(world, guild, disposition, deps) ??
-    transferChoice(world, guild, disposition, deps) ??
-    cheapestHire(world, guild, deps) ??
-    debtTransfer(world, guild, new Set(quest?.heroIds ?? []), deps);
-  if (purchase !== null) choices.push(purchase);
+  const dispatched = new Set(quest?.heroIds ?? []);
+  const attempts: Record<PurchaseStep, () => GuildAction | null> = {
+    build: () => hallBuild(guild, disposition, deps),
+    gear: () => gearBuy(world, guild, disposition, deps),
+    transfer: () => transferChoice(world, guild, disposition, deps),
+    recruit: () => cheapestHire(world, guild, deps),
+    debt: () => debtTransfer(world, guild, dispatched, deps),
+  };
+  // Each step is tried only when the ones before it made nothing, so that the draw `transfer` takes is
+  // taken only then.
+  for (const step of disposition.purchaseOrder ?? purchaseSteps) {
+    const purchase = attempts[step]();
+    if (purchase !== null) {
+      choices.push(purchase);
+      break;
+    }
+  }
   return choices;
 }
 
@@ -203,7 +224,7 @@ function otherGuilds(world: Pick<World, 'guilds'>, guild: Pick<Guild, 'id'>): Gu
  */
 function transferable(world: Pick<World, 'heroes' | 'turn'>, guild: Pick<Guild, 'rosterIds'>, config: EngineDeps['config']): Hero[] {
   return guild.rosterIds.flatMap((heroId) => {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    const hero = rowOf(world.heroes, heroId);
     return hero !== undefined && hero.partyId === null && transferLock(hero, world.turn, config) === null ? [hero] : [];
   });
 }
@@ -342,7 +363,7 @@ function debtTransfer(world: World, guild: Guild, dispatched: ReadonlySet<HeroId
 export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'rosterIds'>): Hero[] {
   const heroes: Hero[] = [];
   for (const heroId of guild.rosterIds) {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    const hero = rowOf(world.heroes, heroId);
     if (hero !== undefined && unavailability(hero) === null) heroes.push(hero);
   }
   return heroes;
@@ -408,8 +429,8 @@ function preferredQuest(world: World, guild: Guild, disposition: Disposition, de
 }
 
 /**
- * A build of the next grade of the first facility of `guild`'s Hall, in the Hall's order
- * (`facilityKeys`: the infirmary, the training yard, the quarters), whose next grade's cost its Wealth
+ * A build of the next grade of the first facility of `guild`'s Hall, in its Disposition's `buildOrder`
+ * (`facilityKeys`' order when it has none: the infirmary, the training yard, the quarters), whose next grade's cost its Wealth
  * is above its Disposition's `buildThreshold` times (`affordableImprovement`); `null` when there is
  * none, every facility being at its top grade or dearer than its Wealth allows (M6-S4, DL-58). The
  * infirmary comes first, as it came alone in M3-S6 (DL-38); a dearer grade of it that is out of reach
@@ -417,31 +438,33 @@ function preferredQuest(world: World, guild: Guild, disposition: Disposition, de
  * its practice yard meanwhile. Draws nothing.
  */
 function hallBuild(guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
-  const facility = facilityKeys.find(
+  const facility = (disposition.buildOrder ?? facilityKeys).find(
     (key) => affordableImprovement(guild, key, disposition.buildThreshold, deps.content) !== null,
   );
   return facility === undefined ? null : { kind: 'build', guildId: guild.id, facility };
 }
 
 /**
- * The slots a Rival buys gear for, in the order it buys: armour first (M6-S4), then the other slots
- * `config.gearSlots` lists, in its order. Armour first because it keeps the Heroes the Guild has alive
- * and on their feet, as the harness's policy buys armour before it recruits (DL-51).
+ * The slots a Rival buys gear for when its Disposition has no `gearSlotOrder`, in the order it buys:
+ * armour first (M6-S4), then the other gear slots, in `gearSlotKeys`' order (DL-193). Armour first
+ * because it keeps the Heroes the Guild has alive and on their feet, as the harness's policy buys
+ * armour before it recruits (DL-51).
  */
-function purchaseOrder(slots: readonly SlotKey[]): SlotKey[] {
-  return [...slots.filter((slot) => slot === 'armour'), ...slots.filter((slot) => slot !== 'armour')];
-}
+const armourFirst: readonly SlotKey[] = [
+  ...gearSlotKeys.filter((slot) => slot === 'armour'),
+  ...gearSlotKeys.filter((slot) => slot !== 'armour'),
+];
 
 /**
  * One piece of gear `guild` buys at the Market this afternoon, or `null` (M6-S4, DL-58): the engine's
- * `gearPurchase` over the slots in `purchaseOrder`, armour first, with its Disposition's
+ * `gearPurchase` over the slots in its Disposition's `gearSlotOrder` (armour first when it has none), with its
  * `gearThreshold` — for the first slot whose Heroes lacking it outnumber the pieces the Guild holds
  * for them, the dearest piece the Market has for sale whose price its Wealth is above `gearThreshold`
  * times, the lowest key among equal prices. A slot with nothing to buy for it, or nothing within its
  * means, gives way to the next. Draws nothing.
  */
 function gearBuy(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
-  return gearPurchase(world, guild, purchaseOrder(deps.config.gearSlots), disposition.gearThreshold, deps);
+  return gearPurchase(world, guild, disposition.gearSlotOrder ?? armourFirst, disposition.gearThreshold, deps);
 }
 
 /**

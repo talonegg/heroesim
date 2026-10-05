@@ -9,7 +9,7 @@
 // content set mirrors its keys. It is not exported from the package (DL-20). The harness checks
 // the engine against the real content (M1-S10).
 
-import { defaultConfig, type EngineDeps, type GameConfig } from './config.js';
+import { configVersion, defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type {
   AppearancePhrases,
   Class,
@@ -18,7 +18,6 @@ import type {
   ContentSet,
   Disposition,
   Encounter,
-  EncounterAggregate,
   EncounterCheck,
   EncounterKind,
   GuildmasterTrait,
@@ -45,6 +44,7 @@ import {
   emptyDocument,
   facilityKeys,
   makeId,
+  schemaVersion,
   type EntityId,
   type Entry,
   type EventType,
@@ -167,8 +167,8 @@ const templateLoot: Readonly<Record<string, string>> = {
 };
 
 /**
- * A Quest template of `sphere` from its ranges as `[min, max]`, its demands as `stat:weight`
- * pairs and its Skills, each a space-separated list. The reward is four Wealth per difficulty
+ * A Quest template of `sphere` from its ranges as `[min, max]` and its Skills, a space-separated
+ * list. The reward is four Wealth per difficulty
  * and the Fame effect 2, as INPUTS 4.2's defaults put them. Its Encounter kinds and counts are
  * `templateEncounters`', and its Loot table `templateLoot`'s.
  */
@@ -178,7 +178,6 @@ function questTemplate(
   [difficultyMin, difficultyMax]: [number, number],
   [durationDaysMin, durationDaysMax]: [number, number],
   [partySizeMin, partySizeMax]: [number, number],
-  demands: string,
   skills: string,
   requires: QuestTemplateRequires = {},
 ): [string, QuestTemplate] {
@@ -198,10 +197,6 @@ function questTemplate(
       fameEffect: 2,
       partySizeMin,
       partySizeMax,
-      demands: demands.split(' ').map((pair) => {
-        const [statKey = '', weight = ''] = pair.split(':');
-        return [statKey, Number(weight)];
-      }),
       skillKeys: skills.split(' '),
       requires,
       lootTableKey: templateLoot[key] ?? null,
@@ -220,15 +215,19 @@ function demandsOf(demands: string): [string, number][] {
   });
 }
 
+/** How a test Check's score reads each demanded Stat over the Party: `best` as `max`, `sum` as `sum`. */
+export type CheckAggregate = 'best' | 'sum';
+
 /**
- * The one Check an Encounter in the old form loads into (v1.1.4-S1), as content's parser makes it:
- * keyed and named `key` and `name`, its score the weighted `aggregate` of each demanded Stat over the
- * Party, added up in the order of `demands`, with `skillKeys` its Skills.
+ * A test's Check built from weighted demands, as content's old form of an Encounter loaded into one
+ * until it was retired (v1.1.4-S1 to DL-192): keyed and named `key` and `name`, its score the weighted
+ * `aggregate` of each demanded Stat over the Party, added up in the order of `demands`, with
+ * `skillKeys` its Skills.
  */
-export function oldFormCheck(
+export function demandsCheck(
   key: string,
   name: string,
-  aggregate: EncounterAggregate,
+  aggregate: CheckAggregate,
   demands: readonly (readonly [string, number])[],
   skillKeys: readonly string[],
   difficultyFactor: number,
@@ -238,10 +237,11 @@ export function oldFormCheck(
 }
 
 /**
- * The conditions a Synergy's requirement in the old form loads into (v1.1.4-S1), as content's
- * parser makes them: at least `n` of each Class named, then each Skill held at a rating of 1 or more.
+ * A test's Synergy requirement built from counts of Classes and a list of Skills, as content's old form
+ * loaded into conditions until it was retired (v1.1.4-S1 to DL-192): at least `n` of each Class named,
+ * then each Skill held at a rating of 1 or more.
  */
-export function oldFormRequires(requires: { classes?: Record<string, number>; skills?: readonly string[] }): SynergyRequires {
+export function classSkillRequires(requires: { classes?: Record<string, number>; skills?: readonly string[] }): SynergyRequires {
   return [
     ...Object.entries(requires.classes ?? {}).map(([classKey, count]): SynergyRequires[number] => [
       '>=',
@@ -254,13 +254,13 @@ export function oldFormRequires(requires: { classes?: Record<string, number>; sk
 
 /**
  * An Encounter (M4-S1) from its kind, aggregate, demands as `stat:weight` pairs, Skills as a
- * space-separated list (or none), difficulty factor and consequences: in the old form, loaded into
- * its one Check (`oldFormCheck`).
+ * space-separated list (or none), difficulty factor and consequences, its one Check built from the
+ * demands (`demandsCheck`).
  */
 function encounter(
   key: string,
   kind: EncounterKind,
-  aggregate: EncounterAggregate,
+  aggregate: CheckAggregate,
   demands: string,
   skills: string,
   difficultyFactor: number,
@@ -273,20 +273,20 @@ function encounter(
       key,
       name: title(key),
       kind,
-      checks: [oldFormCheck(key, title(key), aggregate, demandsOf(demands), skills === '' ? [] : skills.split(' '), difficultyFactor)],
+      checks: [demandsCheck(key, title(key), aggregate, demandsOf(demands), skills === '' ? [] : skills.split(' '), difficultyFactor)],
       consequences: { success, failure },
     },
   ];
 }
 
-/** A Synergy (M4-S3) from what it requires in the old form (`oldFormRequires`), its bonus and, when it has them, its kinds. */
+/** A Synergy (M4-S3) from the Classes and Skills it requires (`classSkillRequires`), its bonus and, when it has them, its kinds. */
 function synergy(
   key: string,
-  requires: Parameters<typeof oldFormRequires>[0],
+  requires: Parameters<typeof classSkillRequires>[0],
   bonus: Synergy['bonus'],
   kinds?: EncounterKind[],
 ): [string, Synergy] {
-  return [key, { key, name: title(key), requires: oldFormRequires(requires), bonus, ...(kinds === undefined ? {} : { kinds }) }];
+  return [key, { key, name: title(key), requires: classSkillRequires(requires), bonus, ...(kinds === undefined ? {} : { kinds }) }];
 }
 
 /**
@@ -402,6 +402,7 @@ export const testContent: ContentSet = deepFreeze({
     heroClass('mage', 'intelligence arcana power spelllore', 'evocation warding runecraft'),
     heroClass('healer', 'knowledge willpower spirit charisma', 'field-surgery herbalism benediction'),
   ]),
+  classOrder: ['warrior', 'rogue', 'mage', 'healer'],
   skills: keyed(
     {},
     ...['swordcraft', 'shieldwork', 'tactics', 'lockpicking', 'stealth', 'trapcraft'],
@@ -448,32 +449,32 @@ export const testContent: ContentSet = deepFreeze({
       ...patronNames('female', 'Orabel Quint'),
     ],
   },
-  // key, Sphere, difficulty, Days and Party size ranges; then demands, Skills, requirements.
+  // key, Sphere, difficulty, Days and Party size ranges; then Skills, requirements.
   questTemplates: Object.fromEntries([
     questTemplate('clear-the-barrow', 'crown', [30, 70], [3, 6], [2, 4],
-      'strength:0.5 courage:0.5', 'swordcraft benediction'),
+      'swordcraft benediction'),
     questTemplate('hold-the-border-fort', 'crown', [50, 90], [5, 9], [3, 4],
-      'strength:0.5 leadership:0.5', 'tactics shieldwork', { classKey: 'warrior' }),
+      'tactics shieldwork', { classKey: 'warrior' }),
     questTemplate('escort-the-tithe', 'church', [10, 35], [2, 4], [1, 3],
-      'endurance:0.5 perception:0.5', 'tactics field-surgery'),
+      'tactics field-surgery'),
     questTemplate('lay-the-restless-dead', 'church', [40, 80], [3, 6], [2, 4],
-      'spirit:0.4 willpower:0.3 courage:0.3', 'benediction warding', { classKey: 'healer' }),
+      'benediction warding', { classKey: 'healer' }),
     questTemplate('guard-the-caravan', 'merchants', [20, 55], [3, 7], [2, 4],
-      'weaponry:0.5 perception:0.5', 'tactics trapcraft'),
+      'tactics trapcraft'),
     questTemplate('recover-the-strongbox', 'merchants', [25, 60], [2, 5], [1, 3],
-      'dexterity:0.4 wits:0.3 adaptability:0.3', 'lockpicking trapcraft'),
+      'lockpicking trapcraft'),
     questTemplate('the-beast-of-the-fells', 'villages', [35, 75], [3, 7], [2, 4],
-      'strength:0.5 perception:0.5', 'swordcraft stealth'),
+      'swordcraft stealth'),
     questTemplate('the-sickness-at-the-mill', 'villages', [10, 30], [2, 3], [1, 2],
-      'knowledge:0.4 willpower:0.3 charisma:0.3', 'herbalism field-surgery'),
+      'herbalism field-surgery'),
     questTemplate('survey-the-old-workings', 'scholars', [25, 60], [3, 6], [2, 3],
-      'intelligence:0.5 perception:0.5', 'runecraft trapcraft'),
+      'runecraft trapcraft'),
     questTemplate('break-the-sealed-vault', 'scholars', [60, 100], [5, 10], [3, 5],
-      'arcana:0.5 spelllore:0.5', 'warding runecraft', { classKey: 'mage' }),
+      'warding runecraft', { classKey: 'mage' }),
     questTemplate('a-quiet-word', 'underworld', [15, 45], [2, 4], [1, 2],
-      'wits:0.5 diplomacy:0.5', 'stealth lockpicking'),
+      'stealth lockpicking'),
     questTemplate('the-counting-house-job', 'underworld', [45, 85], [3, 6], [2, 4],
-      'dexterity:0.5 wits:0.5', 'lockpicking stealth', { skillKey: 'lockpicking' }),
+      'lockpicking stealth', { skillKey: 'lockpicking' }),
   ]),
   // key, Days to heal, the Trait it leaves (M2-S5): some leave a Hero Trait, some none.
   injuries: Object.fromEntries([
@@ -850,9 +851,10 @@ export const certainHarmContent: ContentSet = withEncounters({
  */
 export function testWorld(seed: string, deps: EngineDeps, names: readonly string[] = streamNames): World {
   const meta: Meta = {
-    version: deps.config.schemaVersion,
+    version: schemaVersion,
     seed,
     content: { id: deps.content.id, version: deps.content.version },
+    configVersion,
     config: { ...deps.config },
     createdAt: 'test',
   };
@@ -864,9 +866,10 @@ export function testWorld(seed: string, deps: EngineDeps, names: readonly string
 // ── Documents ────────────────────────────────────────────────────────────────────────────────
 
 export const testMeta: Meta = {
-  version: defaultConfig.schemaVersion,
+  version: schemaVersion,
   seed: 'amber-fox-4821',
   content: { id: testContent.id, version: testContent.version },
+  configVersion,
   config: { ...defaultConfig },
   createdAt: 'harness',
 };
@@ -1058,7 +1061,6 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     reward: 120,
     fameEffect: 2,
     durationTurns: 9,
-    demands: [['strength', 0.6], ['courage', 0.4]] as [string, number][],
     skillKeys: ['swordcraft'],
     encounterKeys: [],
     requirements: { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'swordcraft' },

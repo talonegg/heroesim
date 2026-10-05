@@ -15,6 +15,7 @@
 import type { ContentSet, ItemDefinition, ItemDefinitionKey } from './content-types.js';
 import {
   compareByCodeUnit,
+  rowOf,
   takeId,
   type HeroId,
   type Holder,
@@ -42,7 +43,7 @@ export function itemDefinition(
   content: Pick<ContentSet, 'items'>,
   definitionKey: ItemDefinitionKey,
 ): ItemDefinition | undefined {
-  return Object.hasOwn(content.items, definitionKey) ? content.items[definitionKey] : undefined;
+  return rowOf(content.items, definitionKey);
 }
 
 /** True when `a` and `b` are the same holder: the same kind, the same row, and for a Hero the same slot. */
@@ -148,7 +149,7 @@ export function moveStack(
  * @throws RangeError when `itemId` names no Item
  */
 export function moveItem(world: Pick<World, 'items'>, itemId: ItemId, toHolder: Holder): void {
-  const item = Object.hasOwn(world.items, itemId) ? world.items[itemId] : undefined;
+  const item = rowOf(world.items, itemId);
   if (item === undefined) throw new RangeError(`No unique Item is ${itemId}`);
   item.holder = copyHolder(toHolder);
 }
@@ -210,7 +211,7 @@ export function createItem(
 
 /** The stack under `stackId`, which must exist. */
 function stackOf(world: Pick<World, 'stacks'>, stackId: StackId): Stack {
-  const stack = Object.hasOwn(world.stacks, stackId) ? world.stacks[stackId] : undefined;
+  const stack = rowOf(world.stacks, stackId);
   if (stack === undefined) throw new RangeError(`No stack is ${stackId}`);
   return stack;
 }

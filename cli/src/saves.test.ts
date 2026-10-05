@@ -1,10 +1,10 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { createWorld, defaultConfig, probe, serialise, type WorldDocument } from '@heroesim/engine';
+import { createWorld, defaultConfig, probe, schemaVersion, serialise, type WorldDocument } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { openSave, playDeps, readSave, saveDir, savePath, writeSave } from './saves.js';
+import { openSave, readSave, saveDir, savePath, writeSave } from './saves.js';
 
 const content = loadContent();
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: '2026-09-26T00:00:00.000Z' };
@@ -60,20 +60,31 @@ describe('opening a save', () => {
     expect(opened.deps.content).toBe(content);
   });
 
-  test("compares meta.version with this code's schemaVersion, never with the save's own config", () => {
-    // Were the play config merged before the load, the save's own schemaVersion (999) would be
-    // the one compared, the check would pass, and no migration would ever run (DL-20 item 11).
+  test("compares meta.version with the engine's schemaVersion, never with the save's own config", () => {
+    // The schema's version is the engine's since v1.1.6-S7, no setting (DL-193); a save's config that
+    // holds one is not read for it (DL-20 item 11).
     const text = edited((saved) => {
       saved.meta.version = 999;
-      saved.meta.config.schemaVersion = 999;
+      saved.meta.config.schemaVersion = 7;
     });
 
     const opened = openSave(text, content);
 
     expect(opened).toMatchObject({
       ok: false,
-      reason: { kind: 'unsupported-version', documentVersion: 999, schemaVersion: defaultConfig.schemaVersion },
+      reason: { kind: 'unsupported-version', documentVersion: 999, schemaVersion },
     });
+  });
+
+  test('refuses a save whose config breaks a rule, naming the setting (DL-193)', () => {
+    const text = edited((saved) => {
+      saved.meta.config.boardSize = -2;
+    });
+
+    const opened = openSave(text, content);
+
+    expect(opened).toMatchObject({ ok: false, reason: { kind: 'unsound-config', problems: [{ setting: 'boardSize' }] } });
+    expect(!opened.ok && opened.reason.message).toBe("The game's config is unsound: boardSize is -2; it is a whole number, at least 0");
   });
 
   test("plays under the save's own config, filled forward with the current defaults", () => {
@@ -93,12 +104,13 @@ describe('opening a save', () => {
     expect(opened.document.meta.config).not.toHaveProperty('startingWealth');
   });
 
-  test('playDeps copies: changing the play config leaves the document and the defaults alone', () => {
+  test('the play deps copy: changing the play config leaves the document and the defaults alone', () => {
     const document = newDocument();
-    const deps = playDeps(document, content);
-    deps.config.turnsPerYear = 1;
+    const opened = openSave(serialise(document), content);
+    if (!opened.ok) throw new Error(opened.reason.message);
+    opened.deps.config.turnsPerYear = 1;
 
-    expect(document.meta.config.turnsPerYear).toBe(defaultConfig.turnsPerYear);
+    expect(opened.document.meta.config.turnsPerYear).toBe(defaultConfig.turnsPerYear);
     expect(defaultConfig.turnsPerYear).not.toBe(1);
   });
 
@@ -112,7 +124,6 @@ describe('opening a save', () => {
     expect(installed.ok && installed.deps.modules).toEqual([probe]);
     expect(not.ok && not.warnings.map((warning) => warning.check)).toEqual(['unknown-module']);
     expect(not.ok && not.deps).not.toHaveProperty('modules');
-    expect(playDeps(newDocument(), content)).not.toHaveProperty('modules');
   });
 
   test('refuses a missing file and a corrupted one with a reason', () => {

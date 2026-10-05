@@ -24166,6 +24166,2147 @@ shows; every check passes; nothing to fix.
 
 ---
 
+## DL-186 — v1.1.6 planned: the owner's answers to an architecture review after v1.1.5, every candidate and small fix in scope as 19 stories with no new gameplay; the harness's Gate declared and run by one command, content and configuration as checked data, deeper engine modules, one set of words, and a `neutral` profile for play-neutral stories
+
+**Status:** Accepted · **Date:** 2026-10-05 · **Decided by:** the owner, walking an architecture review
+through one item at a time (items 1 to 28), approving the plan, a `neutral` profile and a backlog item
+(items 29 to 31), as the orchestrator relayed them. The readings marked as the agent's, the stories,
+their acceptance and the sessions are the agent's, in `docs/planning/epics/v1.1.6-release.md`.
+
+**Context.** After `v1.1.5`'s release (DL-185, pull request #54), the owner asked the agent to
+"identify opportunity to reduce redundancy, resource usage and bloat, while identifying opportunity
+to turn code into configurations to help future enhancement and tuning", by the
+improve-codebase-architecture skill. Four read-only agents explored the engine, the page, the
+harness with the CLI and the editor, and content with the flow of tuning; the agent checked their
+main claims against the code and published a report of 16 candidates and 12 small fixes, each with a
+before and after (<https://claude.ai/artifact/3dFMwTnhqVSyqB7maXvqr7>). The owner then asked: "walk me
+through each item of the architecture review 1 at a time, including small fixes, in order to build a
+detailed scope for 1.1.6". For each item the agent gave what it is, what doing it takes, its pros and
+cons in the short and long term, the options and a recommendation; the owner answered with a letter.
+What was found, at `a4cb33d`:
+- `engine/src/config.ts` is the most changed file (53 commits; 45 of the 67 that touched it changed
+  only values); `configProblems` checks 10 of its 121 settings, lazily, at four call sites; the play
+  config's merge is written in the CLI and in the page.
+- The CLI's and the page's words are copies (`query-words.ts` differs by one import), and they have
+  drifted: "an offer" and "an Offer", "a module" and "a Module", "no effect" and "No effect".
+- Two v1.1.5 bugs (S4, #52's call 6) were in how `resolve.ts` calls `harm.ts`, not in `harm.ts`.
+- A sweep's totals are summed by hand; a counter left out reads 0 without an error.
+- The content version is raised by regexes over `parse.ts` and its test; the editor cannot change a
+  use's value, so S5 took four unassigns and four assigns.
+- 29 of 29 Encounters and 9 of 9 Synergies use the new form; the old form's loader is still built,
+  tested and shipped.
+- The save after 20 years has grown from 47.1 MiB (M7) to 136.7 MiB uncompressed (v1.1.5-S13), against
+  a target of 20 MiB met only gzipped.
+
+**Decision.** The owner's letter, and what it puts in scope. The review's items are A1–A6 (deepen),
+B1–B5 (cut), C1–C5 (configure) and SF1–SF12 (small fixes).
+
+1. **A1, one words module: (a), in full.** `@heroesim/words`, browser-safe, for the CLI, the page
+   and the tools: the shared tables, then the narration behind a Namer seam (the CLI's "Name
+   (hero-000004)", the page's clickable name), and `quest-review.ts` moved in; the drift settled to
+   the page's capitals. Two stories (S11, S12).
+2. **A2, whether a Hero can go: (a).** One `availabilityOf(hero, world)` in the page's state; the
+   Party looked up once; a missing Party read one way; first a test of whether a Hero can be injured
+   and in a Party at once. Not exported by the engine (S14).
+3. **A3, a Stat's breakdown: (a).** The engine's `statBreakdown`, `effectiveStats` its total in the
+   same order; the page and the CLI put it in words. A Hero's page's sources tooltip is not in scope
+   (item 31's backlog note) (S13).
+4. **A4, harm targeting: (a).** `harm.ts` owns the pool, `among`, exposure, guard and the draws of
+   each consequence (`strike`, `chooseEarner`); `resolve.ts` asks (S9).
+5. **A5, the Party builder: (b), with A2.** `partyBuilder` in `party-choices.ts`, built in A2's story
+   (S14).
+6. **A6, the Query language: (a), both layers.** Decision A3 refined: the content package may import
+   the engine's values as well as its types; the engine still imports nothing from content. The
+   copied tables go (S5). One operator table beside the evaluator, with `queryProblems` that content's
+   checker calls (S10).
+7. **B1, a sweep's totals: (a).** One fold with declared exceptions, the empty tallies from
+   `counters.ts` only (S1).
+8. **B2, the old content form: (a), with its extension.** The form retired (S6); the Quest's
+   `demands` removed once confirmed unread in play, the story stopping for the owner if not, its
+   sweep shared with C1's (S7).
+9. **B3, the engine's interface: (b), targeted.** Mutators and internal helpers hidden, the test-only
+   names in `@heroesim/engine/testing`, one action dispatch; `export *` kept for modules of types
+   (S8).
+10. **B4, the replay: (a).** Once, alone, compared with the shard that played the same seed (S3).
+11. **B5, the per-Turn copy: (a), in v1.1.6.** The write-once data outside the copy, by a new ADR
+    amending ADR-0008; its design grilled with the owner when the story starts; the copy's time
+    measured (S17).
+12. **C1, the config's seam: (a), flat.** `playDeps` and `checkConfig` over every setting;
+    `schemaVersion` and `configVersion` to the document's meta; `gearSlots` gone; the grouping left to
+    C4's data file (S7).
+13. **C2, run settings and the Gate: (a), in full.** `RunSettings`, profiles, the JSON report,
+    `compare` and `harness/gate.json`, checked by a `gate` run; the first spec shown to the owner
+    before it binds (S2).
+14. **C3, the content version: (a).** `content/version.json`, `@heroesim/content/write`, and the
+    editor's `update` for a use (S4).
+15. **C4, the tuning values: (a).** `engine/src/config.json` in sections, flattened on load;
+    `configVersion` in it; the comment trail trimmed; the editor's config kind (S18).
+16. **C5, the knobs: (c), all, the sex weight included.** Weights on Classes, Backgrounds, Quest
+    templates and Spheres, the sex weight, the Rivals' purchase, gear and build orders, and the
+    Finale's loot degrees, each defaulting to today's play (S16).
+17. **SF1, the report's "20 years": (c), with C2** (S2).
+18. **SF2, the report's text bounds: (a), with A6's first layer** (S5).
+19. **SF3, the percent formatter: (b), with B1** (S1).
+20. **SF4, the Succession probe's seeds: (a), with C2** (S2).
+21. **SF5, the save's target: (b), with C2.** Measured gzipped, under 20 MiB, with a growth guard on
+    the uncompressed mean (S2).
+22. **SF6, the Roster's re-sort: (a), with A3** (S13).
+23. **SF7, the breakpoints: (a).** Named in TypeScript, a test holding the CSS to them (S15).
+24. **SF8, the Class order: (a), with A2.** Declared in content; one comparator; the pool's Class sort
+    fixed (S14).
+25. **SF9, the remembered preferences: (a).** One table and a hook (S15).
+26. **SF10, the Roster walk and the row lookup: (a), with B3** (S8).
+27. **SF11, comments that repeat the log: (a), the rule only, with C4** (S18).
+28. **SF12, the reports policy: (a), with C2.** A report a DL entry or a release's Gate cites is
+    committed, its Markdown and JSON (S2).
+29. **The plan approved.** The 19 stories in the epic's order, on a new local branch `v1.1.6-dev` cut
+    from `a4cb33d`; nothing pushed or built until the owner says.
+30. **A `neutral` profile** in S2: 10 seeds × 20 years with `--expect <fingerprint>`, about 7
+    minutes, for the play-neutral stories (S5, S8, S9, S10, S13, S16, S18); the full 50 × 20 for S3,
+    S7, S17 and the close.
+31. **Two backlog items** in `docs/plan.md` §4: the History's size and the save's compression
+    investigated (the owner's yes); a Hero's page showing a Stat's sources (A3's option b, not
+    chosen).
+
+**Actioned in:** `docs/planning/epics/v1.1.6-release.md` (new); `docs/plan.md` §4;
+`docs/planning/epics/README.md`.
+
+**Since.** The owner, the same day: "Push v1.1.6-dev" and "Move Dependabot to v1.1.6-dev": the
+branch pushed, and Dependabot's `target-branch`es moved to it (`dc97b68`, DL-147 item 6), taking
+effect when v1.1.6 reaches `main`.
+
+**Open:** the first `gate.json`, the owner's approval in S2.
+
+---
+
+## DL-187 — v1.1.6-S1 built: a sweep's totals by one fold over each game's counters, with a short declared list of exceptions; the empty tallies from `counters.ts` only; one `percent` formatter; a 4 × 2 run's report the same line for line but the timings
+
+**Status:** Accepted · **Date:** 2026-10-05 · **Decided by:** the owner's answers B1 (a) and SF3 (b)
+(DL-186 items 7 and 19), built by the agent as the epic's S1 describes it, test first. The readings
+marked as the agent's are for the owner to change. A second Opus agent verifies it.
+
+**Context.** At `98fd80f` `sweepTotals` (`harness/src/sweep.ts`) summed each game's counters by hand,
+about 120 lines, one or more for each counter: a counter added to `GameCounters` and not to those lines
+read 0 in every report without an error (the review's B1). `SweepTotals` repeated `GameCounters`' fields
+by hand, and `sweep.ts` kept its own copies of five empty tallies `counters.ts` also had (`noGrowth`,
+`noGrades`, `noCensus`, `noEncounters`, `noSynergies`). The share formatter "n (x.y%)" was written three
+times: `sweep.ts`'s `percent`, `playReport`'s `share` and `succession.ts`'s `share` (SF3).
+
+**What was built.**
+
+1. **One fold** (`fold` in `sweep.ts`). Each game gives the totals what it holds, shaped as they are
+   (`contributionOf`), and the fold adds it in: a number adds; a list of numbers adds by index; a list of
+   objects and a record merge by index and by key, an entry the totals lack starting at its zero
+   (`zeroOf`); an object recurses; a `null`, a counter the game did not give (`improvementGrades` before
+   year 10, a year with no ranking), adds nothing. `sweepTotals` is now its starting totals, every
+   counter at 0 or empty, and one line folding each game in.
+2. **The exceptions, declared.** By a field's key in the fold: `greatest`, `longestAppearance` and
+   `longestBiography`, take the greater; `joined`, `saves` and `rivalYearStarts`, join each game's
+   numbers into one list a year (the report's medians and maxima need them). In what a game gives:
+   `games` is 1 a game, as are the Rosters', the Regard's and the Rankings' own `games` and
+   `gamesAtCountedYear` (1 when the game gave `improvementGrades`); a place in the Rankings counts
+   one-hot; the ending and the last Turn are read apart, into `endings`, `endedInYear` (one-hot at the
+   ending's year) and `yearsSurvived`; the refusals, the signings refused and the games invalid or
+   stopped by an assertion count from the record. The code was read for these and they are all there
+   are: every other total was a plain sum of the same field.
+3. **The fold refuses what it cannot total** (the agent's reading). A string or other value with no
+   sum, or two games whose counter differs in shape, throws a `TypeError`, so a counter of a new kind
+   fails the sweep rather than reading 0. No counter today is refused.
+4. **`SweepTotals` from `GameCounters`' type.** `SweepTotals` is `Totalled<Omit<GameCounters, 'ending' |
+   'lastTurn'>> & GameTotals`: every counter of `GameCounters`, none `null`, and `GameTotals`, the 16
+   totals no counter gives (from the games' endings, observations and records), with their comments.
+   A field added to `GameCounters` is in the totals' type, and `contributionOf`'s return type and the
+   starting totals must then name it, or the build fails. `rivalFolds` is now typed by ending reason, as
+   `GameCounters`' is, in place of `Record<string, number>`; the counters' comments live on
+   `GameCounters` only.
+5. **The starting totals kept, in their order** (the agent's reading). The starting totals stay
+   written out, field by field: they set the zero of an empty sweep and of a counter no game gives
+   (an Improvement's grades before year 10 are four empty lists, the Regard 0 in every band), and the
+   order the module report lists the core counters in (`coreCounters`). Their order is the old one.
+6. **The report's own sums through the fold.** `playReport`'s sums across controllers, kinds and sides
+   (the old `addFields` and `addSeries`, ten calls) use `addInto`, the fold, so the harness adds numbers
+   one way.
+7. **One source of the empty tallies.** `noGrowth`, `noGrades`, `noCensus`, `noEncounters` and
+   `noSynergies` are exported from `counters.ts` and `sweep.ts`'s copies are gone; `noFameGate` too, for
+   the starting totals (the agent's addition). `noGrades(content?)` gives each facility's grades as long
+   as `content`'s go, as before, and empty lists without `content`, as the totals begin.
+8. **One `percent`** (`harness/src/report.ts`, beside `fixed` and `whole`): `n` as a share of `of` to one
+   place, a dash when `of` is 0. `sweep.ts`'s `percent` and `playReport`'s `share` and `succession.ts`'s
+   `share` are gone, their calls using it; the heroes section's own `share` ("n (x.y%)") calls it.
+
+**The tests.** `harness/src/sweep.test.ts`, a new block "one fold over the games", on the two games of
+20 Days the file already plays:
+- *Every numeric leaf reaches the totals.* The first game's counters, with the counters such a game
+  leaves `null` or empty filled (Improvement grades, Retirement ages, offers, Transfers by side, module
+  events and the like), each number then renumbered so every leaf is distinct, as two games; every
+  numeric path of `GameCounters` but `lastTurn` (over 300) must read in the totals the sum of the two.
+  A companion test holds the fixture to having no `null` or empty counter but `ending`, so a new counter
+  a short game leaves empty asks to be filled. On the old code it passed, and failed when one of its
+  lines (`traitsLost`) was taken out.
+- *Each exception:* the longest texts the greater, the other Hero counts summed; the Rankings one-hot,
+  a year with no ranking adding nothing (a hole kept); the saves and the Rivals' year-starts joined in
+  the games' order; the games counted, those in play each year, those with a Regard and those at year
+  10; the endings, the year each ended in and the years survived from the ending and the last Turn;
+  the refusals, the signings refused, the games invalid and stopped; a sweep of no games all zero, the
+  grades four empty lists; a counter it cannot total, or one whose shape differs, refused.
+- `harness/src/report.test.ts`: `percent`, 33.3%, 123.4%, 0.0% and a dash of none.
+
+The refusal test and `percent`'s failed before the code; the rest pass on the old code too, as a
+refactoring's should, and each failed under a mutation of the new code: 11 mutations (each `greatest`
+key, each `joined` key, the one-hot, the sweep's and the Rosters' `games`, a key skipped, the refusal,
+the greater taken as a sum, the signings refused, `endedInYear`), each failing at least one test, the
+file restored after each.
+
+**Proof that nothing moved.**
+- *The 4 × 2 run.* `HEROESIM_SEEDS=4 HEROESIM_YEARS=2 HEROESIM_WORKERS=8 HEROESIM_MILESTONE=m9-v116-s1
+  npm run harness`, alone, at `98fd80f` before any change and again after: the two reports (481 lines)
+  differ only in the run's start time and the timings (the summary's `advance` and run time, the
+  Measures' `advance`, `serialise` and `deserialise` rows, and the targets' rows from them). The
+  fingerprint `50f5e3d52335dce6153a8a46dc2134f6072273d0d0d80dbdee8d2ccec47a355d` both times, the replay
+  identical at 12,546,336 characters. The reports are not committed (SF12's policy is S2's).
+- *The totals themselves, key order included.* A scratch test, deleted, wrote `sweepTotals`' output and
+  `coreCounters`' list as JSON for six cases before the change and after: two games of 20 Days; no game;
+  two games of 10.5 years (Improvement grades and the Regard at year 10 given); two games of 20 Days with
+  the probe module; the module report's `counterDeltas`; and two games given an ending, holes in the
+  Rankings, saves, module events, refusals and an invalid and a stopped game. The 197,079 bytes were the
+  same byte for byte.
+
+**Checks.** `npm run lint` clean; `npm run typecheck` clean; `npm test` 185 files and 4,846 tests (4,835
+at v1.1.5, and 11 new). No file under `engine/src/` or `content/` changed, so no doctor run was due and
+no game could move. Line endings: every touched file CRLF in the working tree as before, none mixed.
+
+**Open for the owner.** Nothing to decide. Two readings to look at: the fold refusing what it cannot
+total (item 3), and the starting totals kept written out for their zeros and their order (item 5).
+
+**The verification** (a second Opus agent, at `6faf487`; the 4 × 2 run not played again, its two
+reports read: they differ in the start time and the timings only). What was built is DL-186 items 7 and
+19 as the story asks; nothing changes a total, a report or a game; one test added, nothing else to fix.
+- *The old sums against the fold, field by field.* Every line of the old loop has its counterpart: the
+  plain sums by the fold's numbers, lists and records (each entry the totals lacked began at the same
+  empty tally `zeroOf` gives, as every game's entry is made by `noOffers`, `noPartySize`, `noTransfers`,
+  `noDisposition`, `noPurchases`, `noDifficulty` or `noCensus`, so the keys and their order agree); the
+  `null`s (`improvementGrades`, `improvementGradesByDisposition`, `playerQuestsByDifficulty` and
+  `ByYear`, the Regard, a year with no ranking) adding nothing; the longest texts, the one-hot places,
+  the joined saves and year-starts, `games` and the 1-a-game counts, `endedInYear`'s clamp to the last
+  year. No field of `GameCounters` or of the observations it reads holds a `null` below its top level,
+  so `zeroOf` never meets one. `SweepTotals`' fields and their order are the old ones, so
+  `coreCounters`' order is kept. Checked again independently: the old `sweep.ts` (at `98fd80f`) beside
+  the new in a scratch test, deleted, on three sweeps (three games of 20 Days; the same games with every
+  counter given, partial records, `null`s, endings including one on the last Turn, holes in the
+  Rankings, saves, year-starts, an invalid game; no games): `sweepTotals`' JSON and the whole
+  `playReport` the same, character for character, and the test failing when one `greatest` key was
+  taken out.
+- *Mutated, each put back:* 21 mutations of the fold, `contributionOf`, `zeroOf`, `addInto` and
+  `noGrades`, beyond the builder's 11 (a `null` folded in a list or a record, `joined` not passed down,
+  the Rosters' census, the Rivals' `fameGate`, the Regard's bands, the gzipped and `heroFields` saves,
+  the invalid, stopped and year-10 games, the refusals, the endings, `endedInYear` for a survivor, the
+  zero keeping its number, a list's zero not empty, the report's sums skipped, the shape refusal gone, a
+  year-start's Wealth, the grades' empty lists): 20 each failed one or more tests. One survived:
+  `endedInYear` without its clamp to the sweep's last year, which the old code had too and a game
+  ending on its last Turn reaches. Fixed by a test, "counts a game that ended on the sweep's last Turn
+  in its last year" (`sweep.test.ts`), passing on the code and failing under that mutation.
+- *The rest.* No file under `engine/`, `content/`, `web/` or `cli/` changed. The share formatter's
+  other copies are gone; `module-report.ts`'s `change` (a signed change) and `calibrate.ts`'s and
+  `estimate.ts`'s are other formats. No document but the log and the epic names the old sums. Line
+  endings: the harness files CRLF in the working tree, the log and the epic LF, as before; none mixed
+  (the entry's "every touched file CRLF" means the code). `npm run lint` and `npm run typecheck` clean;
+  `npm test` 185 files and 4,847 tests (4,846 and the one added).
+
+---
+
+## DL-188 — v1.1.6-S2 built: one parser of a run's settings, the `gate` and `neutral` profiles, a JSON report beside each play sweep's Markdown, `compare`, the Gate's first spec in `harness/gate.json` (approved by the owner with the Traits-a-career band taken out and the save's gzipped mean under 30 MiB, no growth guard), the save's target measured gzipped, the years label, the Succession probe on the sweep's queue, and the reports policy
+
+**Status:** Accepted; the Gate's first spec approved by the owner on 2026-10-05, two of its lines
+changed (below, "The owner's answers") · **Date:** 2026-10-05 · **Decided by:** the owner's answers C2
+(a), SF1 (c), SF4 (a), SF5 (b) and SF12 (a), and the `neutral` profile (DL-186 items 13, 17, 20, 21, 28
+and 30), built by the agent as the epic's S2 describes it; the Gate's spec by the owner's answers of
+2026-10-05. The readings marked as the agent's are for the owner to change. A second Opus agent verifies it.
+
+**Context.** At `333ed79` (S1 verified) a harness run read 17 `HEROESIM_*` variables in four modules and
+five test files, each with its own parse (`HEROESIM_MILESTONE` with `??` in one and `?.trim() ||` in
+another), `HEROESIM_SEEDS` meaning four things, and the probe list written twice (`run.mjs` and
+`succession.ts`, a test holding them equal). The Gate's run was typed by hand (`HEROESIM_WORKERS=8
+HEROESIM_SEEDS=50 HEROESIM_YEARS=20 … -- play.harness`), its bands lived in epic prose and two runs were
+compared by reading their Markdown. The report's "Save after 20 years" row set the uncompressed mean,
+136.69 MiB at v1.1.5's close, against "under 20 MiB", which data-model §7 had measured gzipped since
+DL-84, and its "20 years" labels were written whatever the run's years. The Succession probe still dealt
+its seeds in turn among its processes, the idle-lane problem v1.1.4-S10 fixed for the play sweep.
+
+**What was built.**
+
+1. **One parser** (`harness/src/settings.ts`). `runSettings(env)` reads every variable a run reads and
+   decides the run: a probe, a module run or the milestone's, with its profile. Each run's settings are
+   a type of their own (`MilestoneSettings`, `ModulesSettings`, `SuccessionSettings`, `EstimateSettings`,
+   `CalibrateSettings`), so each probe names its own; `variables` lists every variable with the runs
+   that read it. A bad value is refused with a `RangeError` naming the variable, as before, and now also
+   `HEROESIM_TUNE` outside 0 to 1, `HEROESIM_FLAT` outside 0 to below 1, `HEROESIM_TUNE` without
+   `HEROESIM_DRAFTS` and a milestone `reportPath` would refuse, all at parse rather than inside the test.
+   *The agent's addition:* an unknown `HEROESIM_*` name is refused by name (`HEROESIM_SEED=50` played
+   1,000 seeds before), the three other packages' variables (`HEROESIM_SAVE_DIR`, `_LIVE_URL`,
+   `_DEPLOY_RECORD`) left alone. The old per-variable parsers (`seedCount`, `yearCount`, `configChanges`,
+   `validatingEveryTurn`, `replayingAfterSweep`, `defaultWorkers`, `moduleIds`, `probeName`,
+   `calibrationDrafts`) are gone, their tests moved to `settings.test.ts`; no other harness source reads
+   `process.env`, which a test holds (`main.ts` passes it on to Vitest, reading none).
+2. **`HEROESIM_SEEDS`' four meanings, named apart:** `worlds` (a creation sweep's), `games` (a play sweep's,
+   a module run's or the Succession probe's), `resolutions` (the seeds each estimate sample is resolved
+   for) and `spotSeeds` (a calibration's spot-check seeds). The variable is one; the settings say which.
+3. **The probe list in one place** (`probeNames`, beside `profileNames`, in `settings.ts`). `run.mjs` is
+   gone: `npm run harness` is `tsx harness/src/main.ts`, whose words `commandLine` reads, so the command
+   line and the settings share the list, and the test holding two copies equal went with them.
+4. **The profiles** (`profiles`, one table). `npm run harness -- gate <milestone>` plays the play sweep
+   alone, 50 games of 20 years in 8 processes, the replay played; `neutral <milestone>` 10 of 20 years in
+   8 (DL-186 item 30); either takes `--expect <fingerprint>`. The words reach the run as
+   `HEROESIM_PROFILE`, `HEROESIM_MILESTONE` and `HEROESIM_EXPECT`. The milestone's run keeps INPUTS 4.13's
+   1,000 worlds and 200 games on half the processors; the probes and the module run keep theirs
+   (Succession 50 × 12, estimate 200 × 20,000, calibration 120 Parties and 4,000 spot seeds, modules 50).
+   A variable set overrides its profile (`HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- gate m9-x`
+   plays the Gate's run small). A profile with a probe or modules is refused; a profile's run creates no
+   worlds.
+5. **The policy overridable** (`HEROESIM_POLICY`), a JSON object of `PolicyConfig` keys, as `HEROESIM_CONFIG`
+   is the engine's config's: an unknown key, a value not a number from 0 and a count not whole
+   (`rosterLimit`, `consumableStock`) refused. It reaches the child processes through the shard job's
+   `policy`, as the default did, and the report's header names it ("the policy's defaults changed by
+   `{…}`"). *The agent's reading:* the milestone's play sweep reads it, as it reads `HEROESIM_CONFIG`; the
+   Succession probe and the module run play the defaults, as they play the default config.
+6. **The JSON report** (`harness/src/run-report.ts`). Beside each play sweep's Markdown report,
+   `<milestone>-<date>.json`: the format (1), the milestone, profile, start, the variables set, the
+   machine, the seeds, years, processes and validation, the content with its drafts, the config played
+   and its changes, the policy played and its changes, the modules, the fingerprint, the replay, a line
+   for each game (its seed, last save's fingerprint and length, Turns, ending, round trip, invalid,
+   stopped, refusals), the timings and `sweepTotals` (S1's fold), and the Gate's lines when checked. A
+   number JSON cannot hold (an empty series' `NaN`) is written as its name and read back, so it
+   round-trips. *The agent's reading:* "each Markdown report" is each play sweep's, the reports the Gate
+   and `compare` read; the probes, the module run and the creation sweep keep their Markdown alone (the
+   calibration has its own `calibration.json`).
+7. **`compare`** (`npm run harness -- compare <a> <b>`, `compareRuns`). Each run's line; whether the
+   fingerprints agree and, if not, the seeds whose last saves differ; the seeds, years, content, config,
+   policy and modules where they differ; and every core counter that moved (`counterDeltas`), with how
+   many did not. Timings are not counters and are left out. A report is named by its path, its JSON or
+   Markdown, or its name in `harness/reports/`.
+8. **The Gate's spec and its check** (`harness/gate.json`, `harness/src/gate.ts`). The spec is data,
+   checked on reading (a line missing, a line it does not know, a value of the wrong kind, a band upside
+   down: each refused by its path). `checkGate` checks a run's JSON report line by line: the invariants
+   (no policy action refused; no game invalid, stopped, unfinished or failing its round trip; the replay
+   identical) on any run; the bands (Traits a career, the player's Bankruptcies, the save gzipped and its
+   growth) only on a run of the spec's shape, 50 games of 20 years, reading "not comparable" on any
+   other, so the `neutral` profile checks the invariants and its `--expect`. A run passes when no line
+   fails. A `gate` or `neutral` run, or any run given `HEROESIM_EXPECT`, prints each line's verdict,
+   writes them as "## The Gate" in its Markdown (after the summary) and into its JSON, and fails its test
+   when a line fails. The estimate probe reads its two limits from the spec (`estimateTolerance` and
+   `estimateMoraleTolerance`, still 0.02 and 0.03) and prints its two Gate lines. **The spec is drafted,
+   awaiting the owner's approval** (`"status": "drafted"`, printed and written as "drafted, awaiting the
+   owner's approval"); it binds once the owner approves it, its baselines then changing only with a DL
+   entry. S17's copy-time line is left for S17 (a note in the spec).
+9. **The save's target** (DL-186 item 21). The report's "Save after 20 years" row reads its targets from
+   `gate.json` and names the measures: "gzipped, the mean under 20 MiB; uncompressed, the mean at most
+   150.36 MiB, v1.1.5's 136.69 MiB +10%", measured "gzipped: mean, max; uncompressed: mean, max".
+   data-model §7 says so, the growth guard marked as awaiting the owner's approval with the spec.
+10. **The years label and the 20-year rows** (DL-186 item 17). The label of the last documents' measures
+    reads the run's years ("the 4 games that ran 2 years"); on a run of other than 20 years the two
+    20-year target rows, "Harness: 1,000 games of 20 years" and "Save after 20 years", read "not
+    comparable: this run played N years". The "Load a save" row keeps its measure, its label now true.
+11. **The Succession probe on the sweep's queue** (DL-186 item 20). `probeInParallel` gives each seed a
+    child of its own, `workers` at once, the next as one ends, through `runShardJobs`' lanes, as the play
+    sweep does; `dealSeeds` had no other caller and is gone.
+12. **The reports policy** (DL-186 item 28). `.gitignore`'s comment, `report.ts`'s `reportsDir` and the
+    new `harness/README.md` (linked from the README's new "Harness" section) say it: a report a DL entry
+    or a release's Gate cites is committed, its Markdown and its JSON force-added. A passing `gate` or
+    `neutral` run prints the line, `git add -f harness/reports/<name>.md harness/reports/<name>.json`.
+    INPUTS §9 lists every harness variable.
+13. **The run's lines seen** (the agent's finding). Under Vitest 5 a passing test's `console.log` is held
+    back, so the play sweep's closing lines (its fingerprint and report path among them) were not shown
+    on the terminal; the six harness runs now print through `print` (`report.ts`), straight to stdout.
+
+**The Gate's first spec, drafted for the owner** (`harness/gate.json`; each value's source is in the spec
+as its `source`). The baseline is v1.1.5's closing sweep, S13's (`m9-v115-s13-2026-10-04.md`, fingerprint
+`e7ae1710…6369f369`, DL-184, standing at the re-close, DL-185), on its run of 50 games of 20 years.
+
+| Line | Value | Where it comes from |
+| --- | --- | --- |
+| Policy actions refused | at most 0 | M2-S12 (DL-34); 0 at v1.1.5's close |
+| Games the validator refused | at most 0 | DL-34; read only when validated, which a Gate run is not (v1.1.5's was not) |
+| Games a harness assertion stopped | at most 0 | M6-S3 (DL-59, DL-69); 0 at v1.1.5's close |
+| Games neither ended nor at their last Turn | at most 0 | DL-34, `play.harness.test.ts`; 50 of 50 at v1.1.5's close |
+| Saves failing their round trip | at most 0 | DL-34; 50 of 50 round-tripped at v1.1.5's close |
+| The replay | identical | DL-34, DL-181; `seed-0001` identical, 144,371,849 characters (DL-184) |
+| Traits earned a player's Hero career | 2.078 to 2.278 | v1.1.5's 2.178 (1,472 over 676, DL-184); **±0.10, the agent's proposal** (a change of no effect moved it 0.007, DL-178; the split 0.144) |
+| The player's Bankruptcies | at most 3 of 50 | v1.1.5's 0 of 50 (DL-184); **at most 3, the agent's proposal**: the baseline and fifty seeds' ±3 (DL-166); DL-168 item 16's 3 to 7 is not this line |
+| The save after 20 years, gzipped | mean under 20 MiB | data-model §7 (DL-84), DL-186 item 21; **the mean, the agent's reading**; v1.1.5: mean 17.95, max 21.08 MiB |
+| The save after 20 years, uncompressed | mean at most 150.36 MiB | v1.1.5's mean 143,329,439 characters, 136.69 MiB; **+10% without a DL entry, the agent's proposal** (DL-186 item 21) |
+| The estimate, no one falling | every chance within 2 points | v1.1.4-S5 (DL-156); the widest 1.18 at v1.1.5's re-close (DL-185) |
+| The estimate, Morale in | the Quest's bands and success within 3 points | v1.1.5-S7 (DL-173, the owner's answer); the widest 1.61 (DL-185) |
+
+**The tests.** `harness/src/settings.test.ts` (new, 51): the milestone's run unset and with every
+variable set, blanks as unset; each profile's values and a variable overriding one; the probes' and the
+module run's own; `HEROESIM_SEEDS` read as each of its four meanings; 32 bad values, each refused by its
+variable's name; the other packages' variables left alone; `settingsSet`; the command line's words, and
+five it refuses; and no harness source but `settings.ts` reading the environment. `harness/src/gate.test.ts`
+(new, 20): the shipped spec whole, drafted and holding the figures above, the estimate's limits the spec's,
+and a spec refused for each kind of fault; a passing run, every line passing with its measure and limit;
+twelve failing runs, each failing its one line alone (each invariant, the replay missing, the Traits
+above and below, the Bankruptcies, the gzipped mean at 20 MiB, the uncompressed mean past 10%); each band
+at its edge passing; the fingerprint line only when expected; the bands "not comparable" on a run of
+another shape (its games, its years or both), the invariants still held; the printed lines and the
+Markdown section. `harness/src/run-report.test.ts` (new, 6): the JSON report's totals, fingerprint, config,
+policy and games; its round trip through JSON and a file, `NaN` and the infinities included; a report of
+another format refused; its path and `addCommand`; `compare` on two runs of the same games (no counter
+moved) and on two that differ (the seed whose save differs, the config and policy changed, each counter
+moved, seeds and years). `sweep.test.ts`: the save's targets read from the spec and both 20-year rows
+"not comparable" on the file's 0.06-year sweep and the same sweep labelled 2 and 1 years, comparable at
+20; the policy's changes in the header; the Gate's section after the summary. `succession.test.ts`: three
+seeds in two processes on the queue, the serial games. The tests were written beside the code, not
+before it; to hold them to it, 17 mutations of the new code were run (a profile ignoring its variable,
+the unknown name, the whole-number check, each comparison of the Gate, comparability by games and by
+years, the replay, the verdict, an unknown spec key, the JSON reviver, `compare`'s policy, the report's
+comparability, label and policy line, the probe's dealt mapping), each restored after: 16 failed at
+least one test; one survived (comparability read by the years alone, the games ignored), and a test was
+added that fails under it and under its twin (by the games alone).
+
+**Proof, small runs, each alone with `HEROESIM_WORKERS=8`.**
+- *The play sweep, 4 seeds × 2 years,* at `333ed79` before any change and again after
+  (`HEROESIM_SEEDS=4 HEROESIM_YEARS=2 HEROESIM_MILESTONE=m9-v116-s2 npm run harness -- play.harness`):
+  the fingerprint `50f5e3d52335dce6153a8a46dc2134f6072273d0d0d80dbdee8d2ccec47a355d` both times (S1's);
+  the two reports (481 lines) differ in the start time, the timings and the three target rows this story
+  changes: "Harness: 1,000 games of 20 years" and "Save after 20 years" now "not comparable: this run
+  played 2 years", and "Load a save" labelled "(the 4 games that ran 2 years)" where it said 20.
+- *The Succession probe, 4 seeds × 2 years* (`HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness --
+  succession`), before and after: the two reports differ in the start time alone (the report has no
+  timings), the games shared among 4 processes both times.
+- *`gate` and `neutral`, small*: `npm run harness -- gate m9-v116-s2-gate` and `neutral
+  m9-v116-s2-neutral --expect 50f5e3d5…`, each with `HEROESIM_SEEDS=4 HEROESIM_YEARS=2`: the six
+  invariants and the fingerprint pass, the four bands "not comparable: this run played 4 games of 2
+  years", "The Gate: PASS" and the `git add -f` line printed, the section written into both reports.
+- *`compare`*: the play sweep against the `neutral` run, "Fingerprints: the same", 0 counters moved and
+  442 the same; against a trial with `HEROESIM_POLICY='{"rosterLimit":10}'` (fingerprint `1a4ed2e3…`),
+  the four seeds' saves differing, "Policy: rosterLimit: 8 → 10", 270 counters moved and 175 the same,
+  the trial's report naming the policy changed: the policy reaches the child processes.
+- No 50 × 20 or 10 × 20 sweep was run. The small runs' reports are not committed (none is cited as a
+  Gate's).
+
+**Checks.** `npm run lint` clean; `npm run typecheck` clean; `npm test` 188 files and 4,881 tests (4,847
+at S1's verification: three files added, the moved parsers' tests counted once). No file under `engine/`,
+`content/`, `web/` or `cli/` changed, so no doctor run was due and no game could move; `e2e` not run, no
+page changed. Line endings: every harness source, the README, `.gitignore`, `data-model.md` and INPUTS
+CRLF in the working tree as before, the new files CRLF as their neighbours, the log and the epic LF; none
+mixed.
+
+**Open for the owner.**
+1. **The Gate's first spec** (the table above): approve it, or change any line. On approval its `status`
+   becomes `approved`, recorded with the owner's words in this entry, and the epic's box is ticked.
+2. **The growth guard:** the uncompressed mean after 20 years at most 10% above the last release's without
+   a DL entry (150.36 MiB on v1.1.5's 136.69).
+3. **The gzipped measure is the mean.** v1.1.5's largest gzipped save is 21.08 MiB, already over 20: held
+   by the largest, v1.1.5's own closing sweep would fail the line.
+4. **The two bands proposed:** Traits a player's Hero career 2.178 ± 0.10, and the player's Bankruptcies at
+   most 3 of 50.
+5. *Readings to look at:* the bands checked only on a 50 × 20 run (the `neutral` profile checks the
+   invariants and its fingerprint); the JSON report written for play sweeps only; an unknown `HEROESIM_*`
+   name refused; `HEROESIM_POLICY` read by the play sweep only; the calibration's command line now listing
+   its variables in the settings' order.
+
+**Actioned in:** `harness/src/settings.ts`, `gate.ts`, `run-report.ts`, `main.ts` (new) and their tests;
+`harness/gate.json` and `harness/README.md` (new); `harness/run.mjs` (removed); `package.json`'s `harness`
+script; `harness/src/sweep.ts`, `succession.ts`, `children.ts`, `estimate.ts`, `seeds.ts`, `play.ts`,
+`modules.ts`, `calibrate.ts`, `report.ts`, the six `*.harness.test.ts` and the tests of the moved parsers;
+`.gitignore`; `README.md`; `docs/data-model.md` §7; `docs/planning/epics/INPUTS-REQUIRED.md` §9;
+`docs/planning/epics/v1.1.6-release.md` (S2's boxes, all but the owner's approval).
+
+**The verification** (a second Opus agent, 2026-10-05, at `6cef0ac` on `333ed79`). The diff read in full
+against the epic's S2 and DL-186 items 13, 17, 20, 21, 28 and 30. *The variables:* every `HEROESIM_*`
+name in the repository at `333ed79` and at `6cef0ac` listed; each of the 16 the harness read at the base
+(its sources and tests, `run.mjs`) is parsed by `settings.ts`, none still read elsewhere in `harness/src`;
+no workflow in `.github/` and no `package.json` script but `harness` calls `run.mjs` or sets a harness
+variable; no doc, skill or `AGENTS.md` names `run.mjs` or a removed parser but the epics' history. The
+profiles' values, the override (a variable over its profile; the command line's words over the shell's),
+the refusals, `--expect`, `compare` and the reports read again against the code. *Small runs, each alone
+with `HEROESIM_WORKERS=8`:* `neutral m9-v116-s2v --expect 50f5e3d5…` at 4 × 2, the fingerprint S1's
+`50f5e3d5…a355d`, six invariants and the fingerprint passing, the four bands "not comparable", the Gate
+section, the 2-year label and both "not comparable" rows in the Markdown, the JSON read back (format 1,
+its variables, `gate.pass`); the same with `HEROESIM_POLICY='{"rosterLimit":10}'` and `HEROESIM_REPLAY=0`,
+fingerprint `1a4ed2e3…` (the builder's), failing on the fingerprint and the replay alone, the test failing
+and the exit code 1; `compare` of the two, "Policy: rosterLimit: 8 → 10", 270 counters moved and 175 the
+same, and of a report with itself, the same; `compare` of a missing report and `HEROESIM_SEED=4` each
+refused by name; the Succession probe at 4 × 2 on the queue. The small runs' reports were not kept.
+*Mutations:* 41 of the new code, each restored after: 31 failed a test at once; two were equivalent (an
+invariant's `n <= max` as `n < max + 1`; the Gate's save read at the last year rather than the spec's 20th,
+the same on a run of the spec's years); one (`probeInParallel` without its concurrency, every child at
+once) cannot be seen in a test's games, and is held by reading; seven survived, each now failing a test
+added: a game that ended early, by a Bankruptcy, counted unfinished by the Gate; `compare` counting a
+seed one run alone played among the saves that differ, and not naming a change of content or of
+modules; each game's line of the JSON report not reading its ending or its assertion (its validation and
+refusals held by the same test); and the report's 20-year row reading another year's gzipped saves. *Fixed:* `HEROESIM_OWNER_PICTURES`, which the
+portrait tool's owner test reads, was refused as an unknown harness name, so a shell that set it for
+that test could run no sweep: it joins the other packages' variables left alone (a test first, red, then
+green), and INPUTS §9 now lists it and `HEROESIM_DEPLOY_RECORD`, which it had missed; `print`'s newline,
+a line break inside its template text, written `\n`. *Checks:* `npm run lint` and `typecheck` clean;
+`npm test` 188 files and 4,884 tests (3 added); no file under `engine/`, `content/`, `web/` or `cli/`
+changed, so no doctor run was due; line endings as before, none mixed. `harness/gate.json`'s values and
+`status` (`drafted`) untouched: the owner's approval stays open, with the epic's box.
+
+**The owner's answers** (2026-10-05, to "Open for the owner" above).
+1. *The fixed lines:* approved as drafted: no policy action refused, no game invalid, stopped or
+   unfinished, no save failing its round trip, the replay identical, the estimate within 0.02 and 0.03.
+2. *Traits earned per player Hero's career:* "don't hold in gate". The band is taken out of the spec and
+   the Gate's checks; the report keeps printing the number.
+3. *Player Bankruptcies:* at most 3 of 50, approved as proposed.
+4. *The save after 20 years:* "stay under 30mb". Asked to clarify, the owner chose the gzipped **mean**
+   under 30 MiB, not every save, and to **drop** the growth guard on the uncompressed mean: no guard, the
+   report still printing the sizes.
+
+**Actioned.** `harness/gate.json`: `"status": "approved"`; `traitsPerCareer` and `saveGrowth` removed;
+`saveGzipped.meanMiB` 30; the sources of the Bankruptcies and the save naming the owner's answers; the
+first note saying the spec approved. `harness/src/gate.ts`: the two lines gone from the spec's type and
+shape and from `checkGate`, with the band-upside-down and growth-share checks that only they used, so
+either key in a spec is now refused as "not a line of the spec"; the Gate checks six invariants, the
+fingerprint when expected, and two bands, the Bankruptcies and the save's gzipped mean. `sweep.ts`'s
+"Save after 20 years" row reads "gzipped, the mean under 30 MiB (`harness/gate.json`)", its measures
+unchanged (gzipped and uncompressed, mean and max); the "Traits earned per Hero career" line unchanged.
+Tests first, red then green: `gate.test.ts` holds the shipped spec approved with its eight lines, the
+Bankruptcies' 3 and the save's 30 and the estimate's 0.02 and 0.03; a passing run with saves of 27 and
+31 MiB gzipped (the mean held, not the largest); the save line failing at a mean of 30 MiB and at 29 and
+32, passing just under 30; the two removed keys refused; a run of 9 Traits a career and 400 MiB
+uncompressed passing with no Traits or uncompressed line; two bands "not comparable" on another shape;
+the printed heading "approved", and "drafted, awaiting the owner's approval" for a drafted spec.
+`sweep.test.ts`' save row the new one. Docs: data-model §7's paragraph on the save's target (30 MiB, the
+mean, no guard); `harness/README.md`'s Gate section; the epic's Gate, S2's Gate spec and save's target
+bullets amended with dated notes and the owner's-approval box ticked; `plan.md`'s History-size backlog
+item amended (no growth guard); the epics index's v1.1.6 row. DL-186 stays as it is.
+
+*Checks:* `npm run lint` and `typecheck` clean; `npm test` 188 files and 4,883 tests (4,884 less the two
+Traits failures and the uncompressed failure, plus a second gzipped failure and the no-line test). A
+`neutral` run at 4 × 2, alone with `HEROESIM_WORKERS=8` (`neutral m9-v116-s2o --expect 50f5e3d5…`): the
+fingerprint S1's `50f5e3d5…a355d`, "The Gate (harness/gate.json, approved)", six invariants and the
+fingerprint passing, the Bankruptcies and the gzipped save "not comparable: this run played 4 games of
+2 years" (at most 3 of 50; mean under 30.00 MiB), "The Gate: PASS"; the report's save row "gzipped, the
+mean under 30 MiB (`harness/gate.json`)" and its Traits-a-career line printed. The run's reports were
+not kept. No file under `engine/`, `content/`, `web/` or `cli/` changed, so no doctor run was due; line
+endings as before, none mixed.
+
+---
+
+## DL-189 — v1.1.6-S3 built: the replay plays its seed once, alone and bare, and compares its last save's length and fingerprint with its shard's record
+
+2026-10-05. DL-186 item 10 (B4).
+
+- *Once.* After the sweep, `replay` (`harness/src/sweep.ts`) plays one seed once, in the parent, with
+  `PlayOptions.bare` set (new, `play.ts`: `observe`, `observeHeroes`, `observeSave`, `takeCensus` and
+  `readAdvance` skipped, so `observations` stay empty and `advanceMs` is `advance` and the policy alone)
+  and validation off; its document is serialised, reduced to length and `fingerprintOf`, and dropped.
+  `compareReplay` sets those against the `GameRecord` the shard made of the same seed
+  (`measures.serialisedLength`, `measures.fingerprint`, both already recorded: nothing was added to the
+  shard). In a parallel sweep the two plays are in two processes; in `sweepPlay` they are in one.
+- *The seed.* As before the first game to have run its full length, or the first seed when none did;
+  `replayedGame` gives the record of the wanted seed, or the first seed played when the wanted one is
+  not among the sweep's. The game bare plays is the same game (a test serialises both).
+- *The words.* The Gate's replay line reads "One seed replayed alone, its last save the same as its
+  shard recorded" (`gate.ts`, `gate.test.ts`), with `gate.json`'s source for it and the README, the
+  `HEROESIM_REPLAY` description, the sweep and module reports' replay row ("one seed played once more,
+  alone, against its shard's record") saying what is compared. The `identical` flag, the line's verdict
+  and the JSON report's shape are unchanged. The `gate.json` change is to a line's source text only; no
+  band or limit moved.
+- *Not done here.* The full `gate` (`m9-v116-s3`) is the verifier's run, alone: its fingerprint
+  `e7ae1710…`, its run about 116 s shorter than `m9-v115-s13`'s 1,983.7 s, report and JSON force-added.
+  Its acceptance box is left open.
+
+*Tests.* `sweep.test.ts`: the comparison equal, unequal (length or fingerprint) and the fallback seed;
+the existing one-character test now changes the replay's one game (`prepare`'s second call);
+`play.test.ts`: a bare game is the same game with nothing observed.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 4,887 tests passing. A `neutral` run at 4 × 2,
+alone with `HEROESIM_WORKERS=8` (`neutral m9-v116-s3-trial --expect 50f5e3d5…`): the fingerprint
+`50f5e3d52335dce6153a8a46dc2134f6072273d0d0d80dbdee8d2ccec47a355d`, "One seed replayed alone, its last
+save the same as its shard recorded: `seed-0001`: identical", "The Gate: PASS" (the two bands not
+comparable). The run's reports were not kept. No file under `engine/`, `content/`, `web/` or `cli/`
+changed, so no doctor run was due; line endings as before, none mixed.
+
+**The verification** (2026-10-05, opus). Read against item 10 and S3's section, and d296ce2 against
+DL-188's owner's answers: `gate.json` approved with six invariants and the replay, the Bankruptcies at
+most 3 of 50 and the gzipped mean under 30 MiB (`<`, "under"), `traitsPerCareer` and `saveGrowth` gone
+from the file, the type, the shape and `checkGate`, a spec carrying either refused; the docs in step
+(data-model §7, the README, the epic's dated notes, `plan.md`, the epics index). The comparison is
+independent in a parallel sweep: the record is `measureDocument`'s in the child (`recordGame`), the
+replay `playGame` in the parent, with the same years, policy and config as the child's job. It cannot
+pass vacuously: no replay is "not replayed", a fail; the replay's fingerprint is always a SHA-256, so
+an empty record cannot match; a game stopped by the validator is replayed without validation and
+differs; an assertion stops both plays alike; a game that ended is a whole game and is compared as
+one. `bare` skips only writers to `observations` and the maps `recordGame` reads (`observe`,
+`observeHeroes`, `observeSave`, `takeCensus`, `readAdvance`): none touches the document or draws from
+its random state, and the Gate itself sets a bare replay against an observed shard, so a difference
+would fail it, never pass it. `advanceMs` still times `advance` alone, as before (the observers were
+never inside it): the bare option's comment, which said "and the policy", corrected. *Mutations*, each
+restored: `compareReplay`'s `&&` as `||`, its length or its fingerprint dropped, `replayedGame`'s
+fallback dropped, the replay set against its own record, `observe` run when bare, `advanceMs` not
+pushed when bare: each failed a test. Two survived: `takeCensus` run when bare (equivalent: with no
+census taken it fires only at Turn 0) and the replay played not bare, now caught by a new test in
+`sweep.test.ts` (`observe` watched: the sweep observes each of its 60 Turns, the replay none), red
+with the mutation and green without. Three paragraphs rewrapped (the README's Gate, `gate.ts`'s head,
+`sweepPlayInParallel`'s comment). *Checks:* `npm run lint` and `typecheck` clean; `npm test` 4,888
+tests passing (one added); line endings as before, none mixed. Committed as 78b76e1.
+
+*The baseline.* The first full `gate`, alone, `HEROESIM_WORKERS=8 npm run harness -- gate m9-v116-s3
+--expect e7ae1710…`: the fingerprint
+`e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369`, `v1.1.5`-S13's; "One seed replayed
+alone, its last save the same as its shard recorded: `seed-0001`: identical" (144,371,849 characters);
+no refusal, no game stopped or unfinished, every save round-tripping; the player's Bankruptcies 0 of
+50; the save after 20 years gzipped mean 17.95 MiB, max 21.08 MiB (uncompressed mean 136.69 MiB, max
+159.16 MiB); Traits per player Hero career 2.178; "The Gate: PASS". 1,826.0 s in all, the games
+1,682.4 s of it: 157.7 s shorter than `m9-v115-s13`'s 1,983.7 s (games 1,751.7 s). The replay's part
+fell from 232.0 s (two plays) to 143.6 s (one), 88.4 s; the rest is the games, 69.3 s faster on the
+day. `advance` 7.076 ms mean, p99 50.822 ms under 8 processes (7.405, 53.667 at S13); alone, bare,
+4.785 ms mean, p99 49.290 ms (3.716, 37.680 at S13, then not bare): slower alone on the day, so the
+per-Turn time is the machine's, not the bareness's (DL-81 item 2's day-to-day rate). Its Markdown and
+JSON, `harness/reports/m9-v116-s3-2026-10-05.{md,json}`, force-added: v1.1.6's baseline for `compare`
+(S7, S17).
+
+---
+
+## DL-190 — v1.1.6-S4 built: the content version as data, `content/version.json`; one write module for the tools, `@heroesim/content/write`; the editor's `update` of a use in place
+
+2026-10-05. DL-186 item 14 (C3).
+
+- *The version file.* `content/version.json`, `{ "version": 32, "changelog": [...] }`, holds the
+  content version and the changelog that was `parse.ts`' comment, its words moved as they stood, one
+  line for each raise (`"28 from v1.1.4-S10's balance pass, …"`). It is a content file, last of
+  `contentFiles`, so every reader of content takes it as it takes the rest: `readContent` reads
+  `version` from it (a whole number of at least 1, beside a list of strings and no other field, each
+  refused by name), `loadContent`, the drafts, the page's bundle and the build's content gate among
+  them. `export const contentVersion` and its comment are gone from `parse.ts`, and the pure entry no
+  longer exports it. `content.version` is 32, as it was; the content's JSON files are byte for byte as
+  they were. `content.test.ts` reads the file in place of its pinned number, and holds the
+  changelog's last line to the version.
+- *The tools write JSON.* `raiseContentVersion` reads the file, raises `version` by one and adds a
+  line, `<n> from <why>.`, writing it in its own layout (`editJson`): `git diff` shows the version's
+  line, the last line's comma and the new line. The two regular expressions that read and wrote
+  `parse.ts` and `content.test.ts` are gone, with the editor's wrapping of the comment to 100 columns;
+  no source of either tool names either file (a test holds it).
+- *One write module.* `@heroesim/content/write` (`content/src/write/`), a subpath of content for Node:
+  `transaction` and `Transaction`, `Undone` and `NotUndone`, `editJson` and the JSON layout
+  (`formatJson`), the text checks (`contentChecks`, `contentTexts`, `textChecks`) and the version
+  (`versionPath`, `readContentVersion`, `raiseContentVersion`), moved from `tools/portraits` with
+  their tests (`json-edit.test.ts`, and `records.test.ts`' layout and transaction tests as
+  `write.test.ts`). Both tools import them from there; the portrait tool keeps `DraftError`, and its
+  entry for the editor, `tools/portraits/src/index.ts`, is gone, so the editor no longer depends on
+  the portrait tool. A transaction names the problems of any error that carries them, not only
+  `Undone`'s and the portrait tool's draft refusal. *The page never takes it:* ESLint allows the
+  subpath to the tools alone and Node built-ins to `content/src/write/` (`imports.test.ts` proves
+  both, and that the pure entry does not re-export it); `bundle.test.ts` finds none of its words in
+  the built script.
+- *The bundle.* The page bundles `version.json` with its changelog emptied (`web/vite.config.ts`'s
+  compact-content plugin): the changelog is for the file's readers, some 4.5 kB the page never shows.
+  The script is 816,878 bytes, 466 more than `v1.1.5`'s 816,412 (the version's file and its check),
+  within the 850 kB limit.
+- *The editor's `update`.* `traits update <key> <entry> <at> <field>=<value> … [--target …]` changes
+  one use of a Trait where it stands, held as pending (`{ op: "update", list, key, entry, at, values }`)
+  and checked with the content's checks as every edit is, then "Finish" as before, which writes the
+  file and raises the version through `version.json` ("1 use updated, of battle-shy"). The register's
+  content entries gain `update`, where a use holds values besides the key: an Encounter's trait
+  consequence its `chance` and `among` (`among` `null` takes it out), a Biography sentence its words.
+  The other six entries' uses are the key alone, and refuse it: unassign and assign. A use not there
+  is refused naming the Trait's uses, a value the entry does not change by name, and a value as it is
+  already is not held. `docs/agents/traits.md`'s register part (written by `traits doc`) gains an
+  Update column and a "Changing a use" line for each entry; its hand-written part, the editor's
+  README, the portrait tool's README and the `trait-assign` skill describe `update` and the version's
+  file.
+
+*What changed for Traits.* The register's eight content entries each gained `update` (two with a
+way, six `null`); no engine entry, effect kind, event or use in content changed. The doctor read no
+drift before and after ("the register lists all 110 reads of a Trait", the doc fresh, the content
+passing, no pending edits). No Trait or use of one was changed, so no "Finish" ran on the real
+content.
+
+*Tests.* `refusals.test.ts`: the version read from its file, and refused without it, as no whole
+number, below 1, without a changelog and with a field it does not know. `version.test.ts` (new): read
+from a root, raised in a scratch copy with only those three lines changing and the line ends kept,
+put back with a failed transaction, a file without a version refused by name, and no tool's source
+naming `parse.ts` or `content.test.ts`. `write.test.ts`: a failure's own problems named when a file
+cannot be put back. `register.test.ts`: a chance changed and nothing else, an `among` given and taken
+out, a Biography sentence changed in its place, the refusals, and which entries offer it.
+`imports.test.ts`: the subpath the tools' alone, Node allowed in it. `cli.test.ts` (editor): a chance
+changed, pending, then "Finish" writing that one line and raising the version through its file, in a
+scratch copy; a use that does not exist refused, naming the uses; five more refusals; a value
+unchanged not held; a Biography sentence by `--target`. The editor's and the portrait tool's intake,
+apply and recovery tests now read the version's file. `bundle.test.ts`: the version bundled without
+its changelog, and none of the write module.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,924 tests passing; `npm run
+build` and check-bundle passing (816,878 bytes); `npm run e2e -w web` 103 passing. A `neutral` run at
+4 × 2, alone with `HEROESIM_WORKERS=8` (`neutral m9-v116-s4-trial --expect 50f5e3d5…`): the
+fingerprint `50f5e3d52335dce6153a8a46dc2134f6072273d0d0d80dbdee8d2ccec47a355d`, the replay
+identical, "The Gate: PASS" (the two bands not comparable); its reports were not kept. Line endings as
+before, none mixed.
+
+*Calls made, for the owner to see.* (1) Raises 2 to 17, which one paragraph of the comment ran together
+with semicolons, are a line each, each ended with a full stop, as is the note that v1.1.2-S4 and S5
+kept 16; the words are otherwise as they stood, and the comment's opening sentence, what the version is
+for, opens the comment of the version's reader in `parse.ts`. (2) `version.json` is read as a content
+file, so the page carries it, its changelog emptied by the build, rather than the version being
+compiled in. (3) `update` changes the two kinds of use that hold a value; a use that is a key alone is
+changed as before, by unassigning and assigning.
+
+**The verification** (2026-10-05, opus). Read against item 14 and S4's section, and 2647244 against
+cec4de8. *The changelog:* the comment at cec4de8, word for word against `version.json`'s lines, the
+same words, the only change each `;` between raises made a `.`; no content JSON but `version.json`
+changed. *The version:* 32 from the Node entry, the page (its set held deep-equal to the Node entry's)
+and every reader of `content.version` in the harness, the CLI and the save's `meta.content`; no source
+reads the old export but one lint probe in `engine/src/boundary.test.ts`, which still imported
+`contentVersion` (ESLint does not check a name exists), now `contentSetId`. *The page:* the built
+script 816,878 bytes, its hash unchanged by this verification; `{"version":32,"changelog":[]}` in it
+and none of the write module's words (`could not be put back`, `raiseContentVersion`, `rollback`,
+`keepLines`); `@heroesim/content/write` and a relative path into `content/src/write/` added to
+`web/src/content.ts` each refused by lint, then removed. *The raise:* `traits update` and "Finish" in a
+scratch repository: `encounters.json` and `descriptions.json` one line each, `version.json` its version,
+the last line's comma and `33 from the content editor's Finish of 2026-10-05 (2 uses updated, of
+battle-shy, lame).`; a failed Finish leaves `git status` clean (`cli.test.ts`). *The refusals:* a
+place not there (naming the uses), a value the entry does not change, an entry whose use is the key
+alone, an unknown entry or Trait, no value, a chance `often`, an `among` of `5` or a bad operator, an
+empty sentence, each refused, nothing held. One gap: the entry's words say a chance is "above 0 and
+at most 1", but `chance=0` was held, the content's checks taking 0 to 1, and `assign` took 0 too; the
+register now refuses a chance outside its words in both (`chanceOf`), tested first
+(`register.test.ts` red at 0, -0.1 and 1.5, then green; `cli.test.ts`'s rows for 1.5 and 0 by the
+register, and an `among` of 5 for the content's checks, where 1.5 was). No tool reads or writes a
+TypeScript file by a regular expression: the drift check's `reads.ts` parses `engine/src/` with
+TypeScript's parser and writes nothing. *Mutations*, each restored: the changelog line not added, the
+version a constant in `readContent`, the unchanged update held, `update`'s unknown value let by,
+`among: null` not taken out, a sentence the list holds let in, `transaction`'s named problems
+dropped, `write` taken from the tools' lint pattern, the changelog bundled, the old regular expression
+put back in `runs.ts`: each failed a test. *Words:* the skill's refusal line now names the bound, and
+four lines over 100 columns in the skill and the doc's hand-written head rewrapped; `vite.config.ts`'
+"some 6 kB" now 5 (the changelog is 4,896 bytes). The doctor read no drift before and after.
+*Checks:* `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,929 tests passing (five
+added; one run first failed `guild.test.tsx`'s wait under load, DL-167's flake, passing alone
+and on the rerun); `npm run build` and check-bundle passing (816,878 bytes); `npm run e2e -w web` 103
+passing. No sweep run: nothing played changed. Line endings as before, none mixed.
+
+---
+
+## DL-191 — v1.1.6-S5 built: content imports the engine's values as well as its types; the copied tables gone, read from the engine; the sweep report's text bounds the engine's; the `neutral` baseline `4e9edae0…`
+
+2026-10-05. DL-186 items 6 (A6, layer 1) and 18 (SF2).
+
+- *The `neutral` baseline.* Before any change, `neutral m9-v116-neutral-base`, alone with
+  `HEROESIM_WORKERS=8` (10 games of 20 years, 553.9 s): the fingerprint
+  `4e9edae04e49a43c92e4cdec1105bef34e2c4e5b314c8e5dbec45a08b203efa0`, the replay identical, "The
+  Gate: PASS" (the two bands not comparable at 10 games). **It is the `--expect` of every
+  play-neutral story from here (S8, S9, S10, S13, S16, S18)**, and changes only with a DL entry, as
+  at S7 and S17, which change the save's shape. `harness/README.md` names it. Its reports were not
+  kept.
+- *The rule* (Decision A3 refined). The content package may import the engine's values as well as
+  its types; the engine still imports nothing from content, not even a type, and the graph stays
+  acyclic (ADR-0007). ESLint's content block no longer limits `@heroesim/engine` to `import type`;
+  it still refuses any other package, any subpath of the engine, a relative path out of content and
+  Node outside the Node entry and the write module. The engine's blocks are unchanged.
+  `engine/src/boundary.test.ts` now holds a value import of the engine allowed in content, and a
+  subpath of the engine refused, where a value import was refused. The pre-M0 review's A3 in this
+  log, `docs/planning/epics/M1-world-state.md` and the comments citing A3 (content's entry,
+  `content-types.ts`, `eslint.config.js`, `imports.test.ts`) carry a dated amendment or the refined
+  words. ADR-0007 states only that the engine has no dependencies, which stands; it is unchanged, as
+  is `CONTEXT.md`, which states no import rule.
+- *The copies gone*, each read from the engine:
+  - the Encounter kinds (`encounterKinds`), the Hall's facilities (`facilityKeys`) and the gear slots
+    (`gearSlotKeys`): `parse.ts`' three choice tables are built from the engine's lists by
+    `choicesOf`; `validate.ts`' three tables are gone, its checks asking `isOneOf(<engine list>, …)`,
+    the refusals' words as they were (the lists in the same order);
+  - the text bounds: `descriptionBounds` is gone from `validate.ts` and the entry, its readers
+    reading the engine's `descriptiveAttributeMaxLength`; the portrait tool's corpus reports the
+    engine's bounds under `bounds` as before, now imported from the engine;
+  - the Biography's Trait sentence counts: `biographyTraitSentences` and
+    `heroBiographyTraitSentences` gone from `validate.ts` and the entry, `longestDescriptions`
+    reading the engine's two;
+  - and one more, of the same kind: the sexes (`sexes`), written out in `parse.ts`' `sexChoices` and
+    in the Query check's `sex` argument, now the engine's list.
+  The test that held the copies equal, `cli/src/descriptions.test.ts`' "the content validator's
+  bounds are the engine's", is gone, and that file's two bounds of 280 and 1,000 read the engine's;
+  the rest of the file, which holds the engine's writing to the validator's longest, stays.
+  `content.test.ts` reads the engine's lists for its facilities, gear slots and Encounter kinds, and
+  the engine's bounds, where it wrote them out. The engine's comments that said the validator
+  "repeats" its counts say it reads them.
+- *The report's bounds* (SF2). The sweep report's "at most 280" and "at most 1,000" are
+  `whole(descriptiveAttributeMaxLength.…)`: the same words.
+
+*Tests.* `imports.test.ts`: every import of another package by content, tests included, is of the
+engine by name (types or values); `parse.ts` and `validate.ts` import the engine's values; no source
+of content writes out the engine's Encounter kinds, facilities, gear slots, descriptive Attributes or
+sexes, as an array of its members or a table of `true`s or numbers keyed by them (each was red at the
+start, naming `parse.ts:104`, `105`, `119`, `121` and `validate.ts:239`, then `validate.ts:1521`, the
+`sex` argument, found by the test); the entry exports no name the engine exports (red on the two
+sentence counts). `boundary.test.ts` as above.
+
+*What changed for Traits.* Nothing: no entry of the register, effect, event or use. The doctor read no
+drift before and after ("the register lists all 110 reads of a Trait", the doc fresh, the content
+passing, no pending edits).
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,936 tests passing (seven more:
+eight added, one removed); `npm run build` and check-bundle passing: the script 816,785 bytes, 93
+fewer than S4's 816,878 (the engine's lists were already in it; content's copies are gone). The
+`neutral` run after the change, alone (`neutral m9-v116-s5 --expect 4e9edae0…`, 546.5 s): the
+fingerprint `4e9edae0…` as expected, the replay identical, "The Gate: PASS", its report's two bound
+rows "at most 280" and "at most 1,000"; its reports were not kept. `npm run e2e -w web` not run: no
+file under `web/` changed. Line endings as before, none mixed.
+
+*Calls made, for the owner to see.* (1) `cli/src/descriptions.test.ts` keeps its tests of the
+engine's writing over the core; only the test that held the copies equal went. (2) The sexes were
+not named in the story, but are a copy of the same kind, so they went too. (3) The baseline run's
+reports and this story's were not committed, as S4's trial was not: the fingerprint is in this entry
+and the README.
+
+*The verification* (2026-10-05). The diff `2591047..f2588ef` read against the story and DL-186 items
+6 and 18; the doctor read no drift before and after. *Mutations, each restored:* a table of `true`s
+for the gear slots and the facilities, a frozen array of the Encounter kinds in another order, a
+table of the three bounds and a `Set` of the sexes, re-added to `validate.ts`, turned the five
+"no source writes out" tests red, each naming its line; `heroBiographyTraitSentences` exported again
+from the entry turned "the entry exports no name the engine exports" red; a type import of content
+in the engine turned "not even a type" red, and ESLint refused it. The engine declares no
+dependency and its `tsconfig.json` no reference; content and the portrait tool reference the engine
+only, so the graph stays acyclic. No consumer reads the removed exports. *The words unchanged:* the
+whole of `refusals.test.ts` passed with `parse.ts`, `validate.ts` and the entry put back as they
+were at `2591047`; the engine's lists are in the order the copies were, so every list in a refusal
+reads as before. *Findings, fixed test first:*
+- The Hall facility's two refusals (the parser's "expected one of infirmary, trainingYard, quarters"
+  and the checks' "is not a Hall facility (…)") had no test holding their words; one now holds both
+  (red with the list's separator changed).
+- The portrait tool wrote out its own `Sex` and `sexes` (`tools/portraits/src/registry.ts`), a copy of
+  the kind S5 took out of content; it now re-exports the engine's, its `isSex` reads the list, and
+  `write-rows.ts`' refusal "female or male" is `sexes.join(' or ')`, the same words. A test holds the
+  list to the engine's (red before).
+- The CLI's usage wrote out "at most 60, 280 and 1,000 characters", as the report did before SF2; it
+  now reads `descriptiveAttributeMaxLength`, its text the same. A test builds the words from the
+  engine's bounds (red with the engine's Appearance bound raised by one, before the fix; green after).
+- A stale comment in `imports.test.ts` said the tests refuse a value import of the engine; and
+  `docs/planning/epics/M0-skeleton.md`' rule for `content/**` ("types only") had no amendment, as
+  M1's has; both now say the rule as refined.
+Left as they are: labels keyed by a facility or kind (`cli/src/render.ts`, `web/src/state/rejections.ts`,
+`world-views.ts`, `board.tsx`, `icons.tsx`) are words per member, not copies; tests outside content
+that write a list out as data (gear slots in a test's config, `['female', 'male']` loops) are fixtures.
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,939 tests passing (three
+more); two earlier full runs each lost one editor test under load (`recovery.test.ts`, then
+`server.test.ts`'s Chromium page), both passing alone and in the third full run, and no file of the
+editor changed. `npm run build` and check-bundle passing, the script 816,785 bytes as built. No code
+that reaches play changed (the CLI's usage text and the portrait tool only), so the builder's
+`neutral` run stands. Line endings as before, none mixed.
+
+---
+
+## DL-192 — v1.1.6-S6 built: the old content form retired; the content version 33; the `neutral` baseline `e3adc353…`, the version being in the saved document
+
+2026-10-05. DL-186 item 8 (B2).
+
+- *Before.* The doctor read no drift (110 reads of a Trait, the content passing its checks, no pending
+  edits). Of the shipped files, 29 of 29 Encounters have `checks` a list and none a `demands`,
+  `aggregate` or `skillKeys`; 9 of 9 Synergies have `requires` a list. Two tests in `content.test.ts`
+  hold it now.
+- *Gone.* From `content/src/parse.ts`: `OldFormKeys`, `oldFormCheck`, the `aggregates` table and the
+  old branch of `synergyRequires`, with the parser's `known` sets; the parser reads an Encounter's
+  `checks` and a Synergy's `requires` as lists and nothing else. A Synergy whose `requires` is not a
+  list is refused as "is not a list of conditions on the Party" (an Encounter with no `checks` as its
+  `checks` missing, and its old fields as not fields of an Encounter). `content/src/old-form/` (three
+  files, content 25's Encounters, Synergies and Quest templates). `EncounterAggregate` from the
+  engine's `content-types.ts`, and the two comments there that described the old form. The
+  register's refusal, in `content/src/uses/register.ts`: `queryRow` now refuses only a row that is
+  not there. `checkDemands` and `checkReferences` stay in `validate.ts`, which still uses them for the
+  Quest templates and the rest; `parse.ts` no longer imports them.
+- *The tests.* The fixtures of `refusals.test.ts` that were content 25 (`oldFiles`, `withOldJson`,
+  `OldRequires` and the old row types) read the shipped files now; the tests of the old form's own
+  refusals (a demand's Stat, weights summing to 1, a Skill, an aggregate, a Class's count) are gone,
+  and the S8 tests on tags, Finales and lore are rewritten on the shipped content (Encounters removed
+  from it to leave no lore Encounter, or only Finales of arcane kind). Two tests hold the old form
+  refused. The register's and the editor's tests of the old-form refusal are gone, the register's
+  replaced by one of a row that is not there. The engine's test builders `oldFormCheck` and
+  `oldFormRequires` stay (the engine's tests build Checks and requirements through them); their
+  aggregate type is theirs now, `CheckAggregate`, and their comments say they build a form content
+  no longer reads.
+- *The version* 32 to 33 in `content/version.json`, edited as the file is laid out (the write module's
+  raise is the tools' own, in a Finish), its changelog line saying the old form is no longer read.
+  `content.test.ts` reads the file; nothing else pins 32.
+- *The refusal's words gone from the built script.* `npm run build`: the script 814,895 bytes, none of
+  "names no Class and no Skill", "a count is a whole number from 1", "what a Synergy requires",
+  "with no Query to filter" or "in the old form" in it. `web/src/bundle.test.ts` holds the five.
+- *The `neutral` baseline.* `neutral m9-v116-s6 --expect 4e9edae0…` (10 games of 20 years, 546.5 s)
+  FAILED on the fingerprint alone: `e3adc35390098c46e05e59ddcc155a93bf11f9a2f869b7075be91190f05e7a5f`;
+  every other line of the Gate passed, the replay identical. The fingerprint hashes each seed's last
+  save, whose `meta` holds the content version. Shown: the 4 × 2 quick check gives `a8f4025b…`
+  with the version 33, and `50f5e3d5…`, S1's, with `content/version.json` put back to 32 and the
+  rest of the change in place. So the code reaching play changed nothing, and the version alone
+  moved the fingerprint. **The baseline is now `e3adc353…`** (`harness/README.md` names it): the
+  `--expect` of S8, S9, S10, S13, S16 and S18; the full `gate`'s `e7ae1710…` and the quick check's
+  `50f5e3d5…` are the content 32's, and move to the new version at the next run of each, as the
+  version moves them. The reports were not committed.
+- *Checks.* `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,930 tests passing; `npm run
+  build` and check-bundle passing; the doctor reads no drift after. `npm run e2e -w web` not run: no
+  file under `web/` but a test changed. Line endings as before, none mixed.
+
+*Judgement calls, for the owner to see.* (1) The S8 tests were written on content 25's shape (two
+arcane Encounters, no lore, no Finale); I put them on the shipped content by removing Encounters in
+the test, rather than keep a copy of the old files. (2) The old form's Class and Skill checks (a
+count of 1 or more, no Skill twice) went with it; the same Queries are `validateContent`'s.
+
+*The verification* (opus, 2026-10-05). Read `66aa536..e844595` against S6's boxes and DL-186 item 8;
+the doctor read no drift before and after (110 reads). Checked and held:
+
+- *The version's line.* `raiseContentVersion` run on a scratch copy of the version-32 file with the
+  same reason writes `content/version.json` byte for byte as the hand edit (CRLF kept).
+- *Only the version moved the fingerprint.* With this verification's changes in place, the 4 × 2
+  quick check alone (`HEROESIM_WORKERS=8`) gives `50f5e3d5…`, S1's, with `version.json` put back to
+  32, and `a8f4025b200ef9d7563b7c0bf9abeb28fc216b50635ae09ba4f659e59954066f` at 33, the replay
+  identical and the Gate passing each time; the file restored and the reports deleted. The quick
+  check's fingerprint at content 33 is `a8f4025b…`.
+- *The S8 rewrite in `refusals.test.ts`.* Every refusal it tested before is still tested, on the
+  shipped content: the Finale-only kind for the lay and the vault, a Finale of any kind, lore named
+  everywhere, no lore Encounter. The old form's own refusals have their new-form counterparts in
+  the Query and Check tables (an unknown or Guildmaster Stat, an unknown Skill or Class, an empty
+  requirement) but one: a Check's Skill listed twice, which had no test; one is added.
+- *The bundle.* The parser is in the built script (its words are), so the bundle test bites: with
+  "in the old form" put back into a refusal of `parse.ts` it fails; restored.
+
+Fixed:
+
+- *A missing `requires`* read "is not a list of conditions on the Party", unlike every other
+  missing field. The parser's rows now have `list(field, expected)`, through the reader's own
+  wording: "synergies.json: sword-and-salve.requires is missing; expected a list of conditions on
+  the Party", and for the old form `… is {"classes":{"warrior":1},"skills":["tactics"]}; expected a
+  list of conditions on the Party`; the two tests changed first and failed. An Encounter without
+  `checks` already reads "is missing; expected a list of objects".
+- *Left over in the parser:* `RowReader.where` (only the old form used it) gone and its `problems`
+  private; `checkDemands` and `checkReferences` no longer exported from `validate.ts`, whose own
+  rules are their only callers now.
+- *Words that still described the old form as read:* the trait-assign skill's "The old form" bullet,
+  whose refusal is gone (removed); ADR-0010 amended (dated) to say the old forms are no longer
+  read; the comments of `validate.ts`' Encounters and Synergies, of `check.ts` and `synergy.ts`, of
+  `check.test.ts` ("as `encounters.json` still does"), and of `readsAsOne` and the card's `one` in
+  the CLI and the page.
+- *The engine's test builders* renamed for what they build, `oldFormCheck` to `demandsCheck` and
+  `oldFormRequires` to `classSkillRequires` (tests only, 27 places), their comments saying the form
+  they copy was content's until DL-192.
+
+Checks: `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,931 tests passing (one added);
+`npm run build` and check-bundle passing (814,867 bytes); `npm run e2e -w web` 103 passing. Line
+endings as before, none mixed.
+
+*For the owner.* No shipped Encounter is now one Check named as its Encounter, so `readsAsOne` (the
+CLI's and the page's) and the card's `one` serve only tests and the old saves no longer kept; they
+are left for the story that next touches those words.
+
+---
+
+## DL-193 — v1.1.6-S7 built: one `playDeps` and `checkConfig` over all 118 settings, a rule each; the versions in `meta` and the gear slots the engine's; the Quests' `demands` gone, found unread in play; schema 7, config version 14, content version 34
+
+2026-10-05. DL-186 items 8 (B2's extension) and 12 (C1).
+
+- *Before.* The doctor read no drift (110 reads of a Trait, the content passing its checks, no
+  pending edits). The 4 × 2 quick check at HEAD (`39378b2`), alone with `HEROESIM_WORKERS=8`
+  (`HEROESIM_SEEDS=4 HEROESIM_YEARS=2 … neutral m9-v116-s7-before --expect a8f4025b…`): `a8f4025b…`
+  as S6 left it, the replay identical, the Gate PASS. Its reports were kept outside the repository
+  for `compare`, not committed.
+- *Quest `demands`: unread in play, so removed (the story's stop condition).* By search: the only
+  code that touched a Quest's or a template's `demands` was the Quest Generator, which copied the
+  template's onto the Quest row, and the save's checker, which checked the row's shape (a list of
+  pairs) and warned of a Stat content lacks in it. No rule, controller, selector, estimate, the
+  harness's policy, the CLI or the page read it; their comments name the template's demands only to
+  say no view has shown them since v1.1.4-S6. By test: a probe (not kept) played three seeds for
+  half a year each (540 Turns), under the shipped content, with every template's demands one other
+  Hero Stat, and with none; the three last documents serialised equal once each Quest row's
+  `demands` was taken out, and the altered games' rows carried the altered demands. So nothing in
+  play reads them. Gone: from the 12 shipped templates (and the 12 of `docs/quests/drafts/`, which
+  the calibration loads), `QuestTemplate.demands`, its parser (`RowReader.weightedKeys`) and checks
+  (`checkDemands`, `demandSumTolerance`, exported by content's entry), the Quest row's `demands` and
+  `Demand`, the generator's copy, and the save's checker's shape field, pair walk and unknown-Stat
+  warning. A template that names `demands` is refused as "not a field of a Quest template".
+- *The settings: 121 counted, 118 checked.* `GameConfig` had 121 fields at HEAD (143 leaves,
+  counting each band of the records). Three are no tuning and left it: `schemaVersion`, now
+  `schemaVersion` in `document.ts`, written as `meta.version` as before; `configVersion`, now
+  `configVersion` in `config.ts`, written as a new `meta.configVersion`; and `gearSlots`, for the
+  engine's `gearSlotKeys` (S5). The other 118 each have one rule in `configRules`
+  (`engine/src/config-check.ts`), typed so a setting without one does not compile, and a test holds
+  the table's keys to `defaultConfig`'s. The rules, from the settings' comments and uses: a count, a
+  Day, an age or a sum of Wealth a whole number; each range's bound (for instance `boardSize` from
+  0, `patronCount`, `levelCap`, `upkeepEveryDays` from 1, `questDifficultyMin` from 1, since a
+  difficulty is above 0); a chance or a share from 0 to 1; what `GameConfig` says is negative at
+  most 0 (the Morale and Regard losses); a divisor above 0; `sellRatio` below 1; 13 Min ≤ Max pairs,
+  the Max's rule naming its Min and the Min's value, and Regard's scale around neutral (`regardMin`
+  below 0, `regardMax` above); the bands rising strictly (`moraleBands` within `moraleMin` and
+  `moraleMax`, `regardBands` within Regard's scale, `potentialHintBands` from 0, `chanceBands` above
+  0 and below 1), and each a record of exactly its bands; the form factors and the Degrees in order
+  and `bandBySuccessShare`'s two shares ordered (the rules `configProblems` held, their bounds
+  kept); `xpBandFactor` a factor for each Quest band; `transferRegardBand` one of the Regard bands
+  and `lootOnBands` Quest bands, none twice; and two lists sized by content, `infirmaryHealFactor`
+  one factor for each infirmary grade content has, 0 included (4), and `declineAreas` areas of
+  content's Hero Stats. A problem reads "<setting> is <value>; <what it is to be>": "boardSize is
+  -1; it is a whole number, at least 0". The lazy checks are gone from `resolveQuest`,
+  `questEstimator` (and so `estimateQuest`), the Quest Generator and `drawSequence`, with
+  `configProblems` and `encounterTagWeightProblem`; their tests moved into the table's.
+- *One seam.* `playDeps(document, content, modules)`: `playConfig` lays `meta.config` over
+  `defaultConfig` (a setting the save lacks reads as the default; a field `GameConfig` lacks is left
+  out of the play config, and kept in the save, rule 5), checks every setting, and gives the deps or
+  `{ kind: 'unsound-config', problems, message }`. `deserialise` takes the content and modules
+  (`LoadDeps`: no config, since the schema's version is the engine's), migrates and validates as
+  before, then calls `playDeps`: a save with a bad setting is refused, naming it, and a sound one
+  comes back with the deps to play it under. *The CLI:* `openSave` uses those deps; its `playDeps`
+  merge is gone; a bad save is refused "Cannot load <path>: The game's config is unsound: boardSize
+  is -2; …". *The page:* its `playDeps` is the engine's (it throws on a refusal, which a game in
+  hand cannot have: loaded, made under `defaultConfig`, or rebased to it), its merge gone; `load`
+  passes the content and modules; the refusal reads "Cannot load the save: The game's config is
+  unsound: …". *The harness:* `runConfig` checks `HEROESIM_CONFIG` over the defaults against the
+  run's content, by `playConfig`, before any game of a play run or the calibration (`settings.ts`
+  still refuses a key that is no setting); `playGame` plays every game under `playDeps` over its own
+  document, refusing before the first Turn.
+- *Structure out of the tuning.* `rebase` writes `meta.configVersion` with the config and `newRules`
+  compares it with `configVersion`; the checker's `meta` shape holds it. The gear slots are
+  `gearSlotKeys` everywhere `gearSlots` was read: `equip`, `gearChoices`, `gearPurchase`, the
+  Rivals' purchase order (armour, then weapon, then trinket, as before), the checker's
+  `unknown-slot` warning (a slot that is no gear slot), the CLI's gear rows and the page's gear
+  rows, holdings and Market kinds. The engine still reads a flat config (S18 groups it).
+- *The versions.* `schemaVersion` 6 to 7: a save of 6, as `v1.1.5` wrote it, is refused in the words
+  for an older Heroesim's save (save compatibility not required). `configVersion` 13 to 14, its
+  changelog line saying every default is as it was. The content version 33 to 34 through
+  `content/version.json`, by the write module's `raiseContentVersion` called in a `transaction` (the
+  12 template lines removed as text, so the file's layout stands): "34 from v1.1.6-S7, whose Quest
+  templates no longer carry `demands`, which no rule had read since v1.1.4-S6 and no Quest copies
+  now (DL-193)." The harness's JSON report gains `configVersion` and `schemaVersion`, its format
+  kept at 1 so that `compare` reads the reports before it, whose config holds them.
+- *Docs.* `data-model.md` §1, §2 (`meta.configVersion`, the seam, the check), §3.2 (the Quest row),
+  §3.3 and §6's table (the gear slots), §6 (schema 7); `CONTEXT.md` (Quest template; Stat demand,
+  gone); `approach.md` and `requirements.md` amended; `harness/README.md` (`runConfig`; the
+  `neutral` baseline no longer holding).
+
+*Tests.* `config-check.test.ts` (new): one rule for every setting, 118; the defaults sound; a
+missing setting named; the words; never a throw, any value of any setting named; for each setting
+the values its rule refuses and those it allows at its edges; each of the 13 pairs, its Max refused
+below its Min and allowed at it; the bands within their scales; the content-sized lists against
+content with another top grade and with no physical Hero Stat; `playConfig` and `playDeps`.
+*Mutations:* each of the 118 rules replaced by one that allows anything, each whole-number rule by a
+finite one, each bounded rule by its kind unbounded, and each share by 0 to 2 and by −1 to 1: 284
+mutations, each turning `config-check.test.ts` red, none surviving (the file restored after each).
+`serialise.test.ts`: the deps a load gives, a save refused as `unsound-config` naming each of three
+settings, the schema the engine's whatever the save's config says, a v1.1.5 save (schema 6) refused.
+`rebase.test.ts` on `meta.configVersion`. The CLI: a save with a bad setting refused by `show`,
+`advance` and `load`, and left as it was; `openSave`'s deps. The page: a bad save refused at load,
+its words, and the rejection's sentence pinned; the load's deps. The harness: `runConfig` and a game
+refused before its first Turn. Content: no template written with `demands`; a template naming them
+refused.
+
+*Proof.* The 4 × 2 quick check after, alone (`HEROESIM_WORKERS=8`, `neutral m9-v116-s7-after`): the
+fingerprint `208a23fd2905674aa9ef659eb1c7c4aa392d7a382fde03659adde036f4c424f3`, new (the save's
+shape and the content version changed), the replay identical, the Gate PASS but the expected
+fingerprint. `npm run harness -- compare` of the two: the content 33 to 34, the config's
+`schemaVersion`, `configVersion` and `gearSlots` absent, and of 442 counters 440 the same; the two
+that moved are the save's measures, not play: the last saves 11,416 characters shorter in all
+(73,830,786 to 73,819,370) and 804 bytes gzipped, the Quest rows' `demands` gone. No play counter
+moved. The reports were not committed. The full `gate` is the verifier's.
+
+*What changed for Traits.* Nothing: no entry of the register, effect, event or use. The doctor read
+no drift after (110 reads of a Trait, the doc fresh, the content passing, no pending edits).
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 191 files, 5,054 tests passing; `npm run
+build` and check-bundle passing, the script 818,180 bytes, 3,313 more than S6's 814,867 (the rules
+and their words), within 850 kB; `npm run e2e -w web` 103 passing. Line endings as before, none
+mixed.
+
+*Calls made, for the owner to see.* (1) Each rule's range is the agent's reading of its setting's
+comment and use; where a test plays a value on purpose, the rule allows it (a starting Wealth of
+−1,000, a year of 20 Turns), so `startingWealth` and `rivalStartingWealthMin` are any whole number
+and `turnsPerYear` a whole number from 1. (2) A field `GameConfig` lacks is left out of the play
+config rather than carried in it; the save keeps it. (3) The page's `playDeps` throws on an unsound
+config rather than returning a refusal, since no game in hand can have one. (4) The `neutral`
+baseline `e3adc353…` no longer holds: the first `neutral` run after this story's verification gives
+the next.
+
+*Verified* (2026-10-05, by a second agent, adversarially, at `4dfdadd`). *The lazy checks:* each
+removed check of `configProblems`, `encounterTagWeightProblem` (the Quest Engine's, the estimate's,
+the Quest Generator's and `drawSequence`'s) and `HEROESIM_CONFIG`'s set against its rule: the same
+bounds and strictness for `checkVariance`, `checkDegrees`, `strongTriumphShare`, the form factors
+(`steady` 1, the rest ordered, each finite above 0), `hurtCheckFactor`, `exposureRange`,
+`guardRange`, `chanceBands` (strictly rising, above 0 and below 1), `playerPartyMargin` and
+`encounterTagWeight`; none looser, and stricter only where the old let a string, an infinity or an
+extra key through. No other check of a setting is left in play code. *The ranges* read against each
+setting's comment and default: sound. `startingWealth` and `rivalStartingWealthMin` any whole number
+(a Guild may start in debt) and `turnsPerYear` from 1 (no rule divides it by the Turns of a Day
+but as a fraction, and tests play 20) stand; `guildmasterTraitBudget` any finite number stands too,
+since the empty set is always legal. *Compile:* a rule taken out of `configRules` fails `tsc`
+(TS2741, naming the setting). *Every load path* goes through `playDeps`: the CLI (`openSave`, and so
+`show`, `advance`, `load` and `rebase`), the page (`load`, play, Fast forward), the harness (`runConfig`
+for the play sweep and the calibration, `playGame` for every game, the replay and the Succession
+probe, and the round trip's `deserialise`); the creation sweep, the estimate probe, the modules run
+and the sample play `defaultConfig`, which takes no `HEROESIM_CONFIG`; no tool loads a save; no
+`{ ...defaultConfig, ... }` merge is left in a play path, the new game's and `rebase`'s
+`defaultConfig` as the plan says. *`demands`:* searched again over the engine, content, the CLI, the
+page, the harness (its probes and the estimate) and the tools: only tests' `demandsCheck` (a
+Check's Query) and comments saying no view shows them. *The checker and data-model.md agree* on
+`meta.configVersion` (an integer) and the Quest row. *The page's sentence* ("Cannot load the save:
+The game's config is unsound: …") follows its siblings and `docs/agents/ui-text.md`. *Mutations of
+the seam:* 15, of `deserialise`'s refusal and schema, `playConfig`'s merge and check, `playDeps`'
+modules, `playGame`'s and `runConfig`'s checks, the page's and the CLI's loads, `rebase`'s
+`meta.configVersion` and `newRules`, the checker's `meta.configVersion` and `unknown-slot`, and
+`createWorld`'s version: two survived, the checker's `configVersion: 'integer'` and the page's
+`playDeps` throwing on an unsound game in hand. *Fixed* (`a89a76c`), test first: two
+`document-shape` cases in `validate.test.ts` (a `meta` without `configVersion`, and one of 13.5) and
+a test of the page's `playDeps` throwing, naming the setting; each mutant then killed. The page's
+`engineDeps` comment no longer says it reads a save; two over-long lines (`configVersion`'s comment,
+`approach.md`) rewrapped. *Checks:* the doctor no drift before and after (110 reads of a Trait);
+`npm run lint` and `typecheck` clean; `npm test` 191 files, 5,057 tests passing; the build and
+check-bundle passing, the script 818,180 bytes; `npm run e2e -w web` 103 passing. Line endings: the
+85 changed files outside the log and the epic `w/crlf`, those two `w/lf`, as before; none mixed.
+*The full `gate`, alone* (`HEROESIM_WORKERS=8`, `m9-v116-s7`, 1,869 s): the fingerprint
+`143a44c770f94185d5565da7457c87c32bebc97e78ddfab9ed186f2d83d881b9`, the Gate PASS, the replay of
+`seed-0001` identical, no player Bankruptcy, the save after 20 years 17.95 MiB gzipped on the mean.
+`compare` against S3's (`m9-v116-s3`, `e7ae1710…`): content 32 to 34, the config's `schemaVersion`,
+`configVersion` and `gearSlots` absent, and of 519 counters 517 the same; the two moved are the
+save's size, not play: the last saves 1,723,806 characters shorter in all (73,377,046,185 to
+73,375,322,379) and 11,032 bytes gzipped, the Quest rows' `demands` gone. No play counter moved. The
+reports are committed. *The `neutral` baseline,* alone (`m9-v116-s7-neutral`, 536 s, the Gate PASS,
+the replay identical): `bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, now in
+`harness/README.md`, every play-neutral story's `--expect`; its reports not committed.
+
+*Open for the owner.* (1) *Lists sized by content against a save.* `infirmaryHealFactor` must hold
+exactly one factor for each infirmary grade content has, though its comment and `healFactor` read a
+grade past the list as its last factor; and `declineAreas` must name areas of content's Hero Stats,
+where rule 5 warns of a content key a save names rather than refusing it. So a content release that
+adds an infirmary grade, or drops a Stat area, would refuse every save made before it at load, and
+`rebase` could not mend one, since rebasing needs a load. (a) Keep the rules as the plan wrote them
+(today's content and defaults agree); (b) allow a shorter list for the infirmary (at least one
+factor) and any Stat area, the rules reading as the code does. Recommendation: (b), small, before
+S16 or S18 next touch content's grades. (2) A save whose config is unsound cannot be rebased to the
+defaults for the same reason; none can arise but by hand, so no change is proposed.
+
+*The owner's answer* (2026-10-05, item 1): "(b) Loosen to match code." `infirmaryHealFactor` now
+needs at least one factor, each a finite number above 0, whatever grades content has; a grade past
+the list reads the last, as `healFactor` does. `declineAreas` is any of the four Stat areas, none
+twice; an area content has no Hero Stat of is allowed (it draws nothing). `checkConfig` has no
+warning channel (rule 5's warning belongs to the document checker), so the rule neither refuses nor
+warns, and none was added. Item 2 stands, no change. Tests first, in `config-check.test.ts`: the
+old refusals (a list of 3 or of 5, an area content lacks) now allowed; an empty list, a zero, a NaN
+or an infinite factor, an unknown area and a repeated area still refused, in the words; content
+with 0, 1, 4 and 6 infirmary grades sound. Mutations: the length bound at 0 or at exactly 4, and
+the area list cut to `physical`: each fails 2 tests, restored. The comment on the check's head
+says so; `data-model.md` and `config.ts` describe neither rule. The doctor read no drift before
+and after; no play changed (the defaults pass both rules), so no sweep.
+
+*Verified* (with S8's, DL-194): the rules read as the answer and as `healFactor` does (the grade
+held from 0 to the list's last, an empty list reading 1, which the rule refuses). The new tests run
+against the rules before the answer: 3 red, so they could fail. Mutants, each red in 1 or 2 tests:
+the length bound at 0, `isNumber` dropped, a factor of 0 allowed, each of three areas dropped from
+the list, a fifth area added, the list capped at 4. The areas' list is now a record that `satisfies
+Record<StatArea, true>`, so an area `StatArea` gains fails `tsc` rather than being refused at load;
+the same areas, order and words. The `neutral` run after it: the baseline, the same (DL-194).
+
+---
+
+## DL-194 — v1.1.6-S8 built: the engine's entry narrowed to what its callers use, the test-only names in `@heroesim/engine/testing`; one action dispatch, `applyAction`; one Roster walk, `activeRosterHeroes`; one row lookup, `rowOf` and `requireRow`
+
+2026-10-05. DL-186 items 9 (B3) and 26 (SF10).
+
+- *Before.* The doctor read no drift (110 reads of a Trait, the content passing its checks, no
+  pending edits).
+- *The classification* (the agent's, as the plan has Opus classify). Every export of the engine's
+  entry at HEAD (`f16cf1a`), 746 (303 values, 443 types), was read with TypeScript's checker and
+  matched against every named import of `@heroesim/engine` in the CLI, content, the harness, the page
+  (its source, tests and Playwright specs) and the two tools, a file being production code unless it
+  is a test, a test's support or setup file, or a Playwright spec. Of the 303 values, 129 were taken
+  by production code, 17 by tests only and 157 by no other package. What became of them:
+  - *Public, 124:* the 118 production code takes (the 129 less the 11 document-level actions the
+    CLI and the harness called, which go); the module seam's error and two tables, `ModuleError`,
+    `hookNames` and `moduleEffectKinds`, kept for a module's author though no package takes them
+    yet; and the three values of `events.ts`, a module of types whose `export *` stays as the plan
+    says (`isMilestone` and `milestoneTypes`, which only tests take, and `milestoneWhen`).
+  - *`@heroesim/engine/testing`, 14:* `append`, `count`, `createHistory`, `createItem`, `findStack`,
+    `makeId`, `marketHolder`, `createProbe`, `partyFor`, `describeHero`, `nightOf`, `chanceBand`,
+    `chanceBandNames` and `potentialHints` (`engine/src/testing.ts`). The 17 less `offerTransfer`,
+    which goes with the other actions, and the two values of `events.ts`.
+  - *Hidden, 153:* every value no other package takes: `takeId`, `moveItem`, `moveStack`,
+    `removeFromStack`, `adjustRegard`, `applyToCopy`, `applyGuildAction` and the twelve `apply*`
+    rules, `emptyDocument`, `generateGuild`, `generateRival`, `generatePatron`, `rivalChoices`,
+    `staffableQuests`, `transferAnswer`, the Regard and Hero Regard mutators and their event helpers,
+    the stop conditions, the Quest Engine's internals (`check`, `evaluate`, `teamwork`, the
+    Synergies', the forms', the consumables' and the Encounters' helpers), the Guildmaster's
+    factors, `checkConfig` and `configRules` (the rules untouched; `playConfig` and `playDeps` stay),
+    `migrate` and `migrations`, the validator's check tables, the id tables, `streamNames` and the
+    like. They stay exported from their modules for the engine's own code and tests.
+  - *Gone, 12:* the document-level actions (`build`, `buy`, `dispatch`, `equip`, `unequip`,
+    `recruit`, `sell`, `transferIn`, `transferOut`, `offerTransfer`, `acceptTransfer`,
+    `declineTransfer`), below.
+  - *Types:* all 443 stay but the five that only the hidden generators' signatures name
+    (`GeneratedGuild`, `GuildOptions`, `RivalOptions`, `GeneratedPatron`, `PatronOptions`), and one is
+    new (`RejectionOf`): no type writes to a world, so the single writer (ADR-0008) loses nothing by
+    them, and each names a shape a caller is handed. `export *` stays for `events.ts`,
+    `content-types.ts` and the modules every value of which stays (`advance.ts`, `create.ts`,
+    `fast-forward.ts`, `preview.ts`); the rest are named lists. The action modules list every Action,
+    Request and Rejection type as before.
+- *`@heroesim/engine/testing`.* A second entry in `engine/package.json`'s `exports`. ESLint bars it
+  from production code by its own rule (`engineTesting`, "…is the engine's entry for tests…") in the
+  harness, the CLI and the page, and allows it in their tests, support and setup files and the
+  page's Playwright specs (the tools' rule bars every subpath of the engine, as before);
+  `boundary.test.ts` proves both ways for each of the three. The page's
+  `*.test-support.ts` files, linted as browser source until now, are linted as tests.
+  `engine/src/testing.test.ts` reads every package's sources: no production file imports
+  `/testing`; the entry exports none of the plan's named mutators, the hidden helpers or the gone
+  actions; every value the entry exports is taken by production code, the module seam's or a module
+  of types'; and `/testing` holds exactly what tests take and the entry does not.
+- *One action dispatch.* `applyAction` is `rebase`, or `applyToCopy` over `applyGuildAction`, and
+  generic: its rejection is narrowed to the action's own (`RejectionOf<A>`, the rejections whose
+  `action` is the action's `kind`), by one cast. The twelve document-level wrappers are gone; each
+  rule's comment now carries the wrapper's (its checks, their order, what it throws on) and says
+  `applyAction` runs it on a copy and a Rival's controller on the Turn's. The CLI's `build`,
+  `dispatch`, `equip`, `unequip`, `buy`, `sell`, `recruit`, `transfer`, `accept` and `decline`
+  commands, the harness's estimate probe and every test call `applyAction` with the action's `kind`.
+  The tests that compared a wrapper with `applyAction` (build, buy, dispatch, recruit, sell) now
+  compare `applyAction` with the rule run in place on a copy of the world: the same world and the
+  same events.
+- *One Roster walk.* `activeRosterHeroes(world)` (`engine/src/phases/roster-walk.ts`): the Guilds
+  that have not folded by id in code-unit order, each Roster in its own order, the dead, the retired
+  and an id the world lacks skipped, each Hero with its Guild; the list is taken before the walk,
+  as `heroState`'s copy of the Roster was, so a Retirement does not cut it short. `ageing`,
+  `heroState`, `levelUps` and `training` walk it. The first three walked exactly this before;
+  `training` walked the Guilds in the order the table holds them, but it draws nothing and emits
+  nothing, so no game can move, and its Coaching factor is now read for each Hero rather than each
+  Guild. The probe module's walk is not a phase's (it sorts by Hero id and does not skip the dead)
+  and is left. `roster-walk.test.ts`, written against the phases as they were and passing before
+  they changed: the walk pinned on a world made awkward for it (the Guilds inserted in reverse, each
+  Roster reversed, a dead and a retired Hero left on Rosters, an id the world lacks, a folded Guild
+  keeping its Roster); and each phase's events in the order a reference walk, the old code's, gives:
+  a `hero.levelled`, a `hero.declined` and a `hero.retired` for each Hero, their draws in that
+  order, and the Day's XP for each Hero walked and no other.
+- *One row lookup.* `rowOf(rows, id)` (an own property or `undefined`) and `requireRow(rows, id,
+  table?)` (throwing "<id> is not in world.<table>", or "<id> is not in the world" with no table) in
+  `document.ts`. They replace the seven private helpers (`own` in `dispatch.ts`, `equip.ts` and
+  `preview.ts`; `rowIn` in `sell.ts` and `effects.ts`; `row` in `quests-conclude.ts` and
+  `resolve.ts`) and `selectorsOver`'s closure in `modules.ts`, each call site's words and its throw
+  or `undefined` kept, and 57 inline `Object.hasOwn(t, k) ? t[k] : undefined` lookups of a world's
+  or content's row (the plan counted 21; every one of the form was taken). Where a guard stood before
+  the lookup (`hero.guildId !== null && …`) it is a conditional, so the lookup still gives
+  `undefined`, not `false`. Lookups of a value map (Stat values, the History's indexes, the
+  migration chain, the Degrees by key) and `validate.ts`' own `rowOf`, which takes any value as an
+  id, are left. `emit.ts`' private `rowOf` is renamed `participantRow`.
+- *Mutations*, each turning its test red, the file restored after each: the walk unsorted, its
+  retired check dropped, its folded check dropped, each Roster walked backward; `rowOf` without the
+  own-property check, `requireRow`'s words; `takeId` and `makeId` exported from the entry, a value
+  added to `/testing` that no test takes; the lint rule for `/testing` taken out; `applyAction` not
+  running the rule. 11 of 11 killed.
+
+*What changed for Traits.* Nothing: no entry of the register, effect, event or use. The doctor read
+no drift after, with 108 reads of a Trait: `traitOf` and `heroTraitOf` each name `content.heroTraits`
+once through `rowOf` where the inline lookup named it twice, in the same declarations, so the
+register stands.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 193 files, 5,082 tests passing; `npm run
+build` and check-bundle passing, the script 814,272 bytes, 3,908 fewer than S7's 818,180;
+`npm run e2e -w web` 103 passing. Line endings as before, none mixed.
+
+*Proof.* The `neutral` run after, alone (`HEROESIM_WORKERS=8`, `m9-v116-s8-neutral`, 532 s,
+`--expect` S7's baseline): the fingerprint
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, the same, the Gate PASS, the
+replay of `seed-0001` identical. Every game as it was. Its reports not committed.
+
+*Calls made, for the owner to see.* (1) Types stay, but the hidden generators' five: option (b)
+hides the mutators and helpers, and a type mutates nothing. (2) The module seam's three values stay
+public with no package taking them, for a module's author. (3) The test-only readers (`nightOf`,
+`chanceBand`, `chanceBandNames`, `potentialHints`, `describeHero`, `partyFor`, `marketHolder`,
+`count`, `findStack`) went to `/testing` by the rule, though none writes; one a front end comes to
+need moves back to the entry. (4) `rowOf` took every inline row lookup of its form, 57, not only the
+21 the plan counted. (5) `training` walks in Guild id order now; it draws and emits nothing.
+
+*The verification* (2026-10-05, a second Opus agent; with `0b002ed`, DL-193's answer, after it).
+The doctor read no drift before and after (108 reads of a Trait). *The walk.* Each phase's walk at
+`f16cf1a` read against `activeRosterHeroes`: `ageing` and `levelUps` walked the live Roster,
+`heroState` a copy of each Guild's Roster taken at its turn, the new walk one list taken before
+any. They differ only where a phase changes another Hero's Roster, death or Retirement than the
+Hero it visits, adds a Hero, or meets a Hero on two Rosters or twice on one: `heroState` takes only
+the retiring Hero off its own Roster, the other three change no Roster, death or Retirement, none
+adds a Hero, and the save's checker refuses the last (`hero-on-two-rosters`). The Guilds' order,
+the folded, the dead, the retired and a missing id the same in all four. `training`'s
+`guildmasterOf` and `coachingMultiplier` only read; it draws nothing, emits nothing, and adds each
+Hero the same XP. `roster-walk.test.ts` run against `f16cf1a`'s four phases: 6 of 6 passing, so it
+was written against the old code. *`rowOf`.* Every replaced site read in the diff: own property,
+`undefined` or the throw, and the words ("<id> is not in world.<table>" in `effects.ts` and
+`resolve.ts`, "<id> is not in the world" in `quests-conclude.ts` and `modules.ts`, `emit.ts`' own)
+kept; a guarded lookup still `undefined`. No inline row lookup is left in the engine; `streamOf`'s
+`world.rng` and the descriptions' sentence lists, value maps, took `rowOf` as well, the same
+lookup. *The entry,* loaded: 124 values, none of the plan's named (`takeId`, `createItem`,
+`moveItem`, `moveStack`, `adjustRegard`, `applyToCopy`, every `apply*` but `applyAction`,
+`createHistory`, `emptyDocument`, `generateGuild`, `generateRival`, `rivalChoices`); `/testing` 14.
+Each old wrapper was `applyToCopy` over its rule, and each CLI command and the estimate probe pass
+the same request with its `kind`. Content's own rule bars `/testing` too. *Mutants:* a production
+import of `/testing` in the CLI (lint and `testing.test.ts` red), a re-export of it from the
+harness (lint red), `adjustRegard` re-exported from the entry (2 tests red), `inflictInjury` (1),
+`export *` of `items.ts` (3); but the same import in the page written with double quotes, lint red
+and **the test green**. *Fixed,* test first: (1) `testing.test.ts` reads the specifier in either
+quote; the double-quoted mutant now red. (2) `applyAction`'s one cast had no test:
+`actions/action.test.ts` holds `RejectionOf` to each of the 14 actions' own rejection, the whole
+union for `Action` and both for an action of two kinds, and `applyAction`'s result for an action
+written in place, by `tsc`; `RejectionOf` as every rejection, as one reason's, and `applyAction`
+returning every rejection each fail the typecheck. (3) `docs/approach.md` §3 still had each action
+a function `(document, params, deps)`: amended for `applyAction` and `/testing`. `CONTEXT.md`, the
+ADRs, `AGENTS.md`, `docs/agents/` and the READMEs name no removed wrapper or hidden value
+(`data-model.md`'s `adjustRegard` is a module's effect kind); comments naming an action by its
+kind still read true. *Checks:* `npm run lint` and `typecheck` clean; `npm test` 194 files, 5,085
+tests passing (`recovery.test.ts` and `server.test.ts` passing in the full run); the build and
+check-bundle passing, the script 814,044 bytes; `npm run e2e -w web` 103 passing. Line endings as
+each file's before, none mixed. *The `neutral` run,* alone (`HEROESIM_WORKERS=8`,
+`m9-v116-s8-verify-neutral`, 533 s, `--expect` the baseline, `0b002ed` and these fixes in):
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, the same, the Gate PASS, the
+replay of `seed-0001` identical; its reports not committed.
+*For the owner to see:* five values that write to a world or a stream stay public because the
+harness's production code takes them on its own scratch worlds: `addStack` (the estimate probe),
+`generateHero`, `generateQuest`, `growOneLevel` and `resolveQuest` (the calibration). Item 9 hides
+the mutators "as Opus classifies them", and the build classified by who takes a value; hiding these
+would move the calibration onto `/testing`, which production code may not import, or onto an
+entry of its own. No change proposed.
+
+## DL-195 — v1.1.6-S9 built: who harm falls on owned by `harm.ts`, `strike`, `chooseEarner` and `moraleOf` with each consequence's pool, `among`, exposure, guard and draws; `resolve.ts` asks and applies
+
+2026-10-05. DL-186 item 4 (A4).
+
+- *Before.* The doctor read no drift (108 reads of a Trait, the content passing its checks, no
+  pending edits).
+- *The pools, read from the code* (the authority over the plan's summary). An Injury's: the living
+  Party without those carrying an Injury from the Quest, a fresh pool for each of its `count`. A
+  Death's: the living Party, the hurt in it. A positive Trait's (drawn at a Triumph or a Success):
+  the living Party. A negative Trait's (at a Failure): not every Hero hurt on the Quest, as the
+  plan's "the injured" might read, but those *this Encounter* injured who still live; at a Setback
+  that reads the failure list, no one. `among` and its fallback: an Injury's and a Death's read over
+  their pool and, naming none of it, all of the pool (`narrowed`); an earned Trait's read over its
+  own pool with no fallback, naming none of it, no one (`namedIn`, DL-185). Exposure weights the
+  second draw and guard the chance, for an Injury and a Death only; the Morale loss's guard, a loss
+  `steadiedBy` some Stats, a gain as written.
+- *Characterisation first.* `resolve.test.ts` gained "harm and earned Traits across seeds, draw for
+  draw": 300 seeds of a Party of four, its Stats, Classes and held Traits varied by seed, through
+  five Encounters met at all four Degrees (`checkVariance` 0.4), each Degree's list reading every
+  field (`among` naming some, all or none of its pool, `exposedBy`, `guardedBy`, `steadiedBy` on a
+  loss and a gain, a Death among the hurt, Traits positive and negative, with and without `among`);
+  the SHA-256 of the resolutions and the `quests` stream after each, `cc68247a…`, recorded against
+  the code before the move and passing on it (run again with the old `resolve.ts` and `harm.ts`
+  stashed back in), then after.
+- *`harm.ts`' interface* (tests first, red for want of the functions, then green):
+  - `strike(consequence, candidates, party, stream, deps)`: for one count of an Injury, or a
+    Death, two draws, whether it lands then on whom (`weightedPick` by exposure, or one draw from no
+    one), returning the Hero it lands on or `undefined`; it owns the pool, `among` and its fallback,
+    exposure and guard. The Injury's Days stay `resolve.ts`' third draw, after it.
+  - `chooseEarner(consequence, degree, candidates, drawn, party, stream, deps)`: two draws, whether
+    it lands then on whom (`pick`, or one from no one), returning the Hero and whether the Trait is
+    positive; it owns the pool, `among` without fallback, the Setback's no one, `mayEarn` and the
+    one-a-Quest rule with its exception for a negative Trait.
+  - `moraleOf(consequence, living, party, deps)`: each living Hero's own share, by id in Party order;
+    no draw.
+  - `Candidates` (the living, those hurt on the Quest, those injured by this Encounter) and `party`,
+    a function, so that the Party as the Queries read it is still taken only when a field needs it,
+    as before.
+  - `resolve.ts`' `struck`, `earn` and `byId` gone; `apply` asks the three and applies what they
+    return, and `candidatesOf` builds the `Candidates`. `resolve.ts` no longer imports `mayEarn`,
+    `pick`, `weightedPick` or `next`.
+- *The tests at the interface*, 18 in `harm.test.ts`: each pool (the Injury's never a hurt Hero,
+  the Death's reaching the hurt, the positive Trait's the hurt in it, the negative Trait's those
+  injured here who live, not one hurt before nor one since dead), each `among` read over its pool
+  (the next weakest unhurt; the hurt weakest for a Death; the weaker of the two injured here), the
+  fallback (whole pool for harm when `among` names none of it; no one for a Trait), the draws (two
+  whatever lands, counted by a twin of the stream, for every branch: no one to hit, chance 0, the
+  fields, the Setback, no one eligible), the landing (below the chance times the guard; on whom
+  `weightedPick` by exposure, by twin, over 200 seeds), the eligibility (holds it, conflicts, drew
+  one, a held positive no bar to a negative), the Morale shares, and that no Party is read without
+  a field.
+- *Mutations* of `harm.ts`, each run against `harm.test.ts` and the fingerprint, the file restored
+  after each: 27 of 27 killed by `harm.test.ts` (each pool swapped, the fallbacks dropped or added,
+  `among` read over the whole Party, the draw from no one dropped, the draws reordered, guard,
+  exposure, `mayEarn`, the one-a-Quest rule, its exception, the chance and the positive flag
+  dropped, the Setback's second draw dropped or the Setback read as a Failure, the Morale guard
+  dropped or put on a gain, and the Party read always); 24 of them by the fingerprint too, the three
+  it passes being the Party read always, which changes no play.
+
+*What changed for Traits.* The read of `mayEarn` and `.traits` moved from `resolve.ts`' `earn` to
+`harm.ts`' `chooseEarner`. The register's `earned-trait` entry (`content/src/uses/register.ts`)
+lists `resolve.ts`: `apply` and `harm.ts`: `chooseEarner` where it listed `apply` and `earn`, and
+`docs/agents/traits.md` was written again from it (`traits doc`). No Trait, effect, event or use
+changed. The doctor read no drift after, with 108 reads of a Trait.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 194 files, 5,104 tests passing; `npm run
+build` and check-bundle passing, the script 814,249 bytes, 23 fewer than S8's 814,272. Line endings
+as before, none mixed.
+
+*Proof.* The `neutral` run after, alone (`HEROESIM_WORKERS=8`, `m9-v116-s9-neutral`, 523 s,
+`--expect` S7's baseline): the fingerprint
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, the same, the Gate PASS, the
+replay of `seed-0001` identical. Every game as it was. Its reports not committed.
+
+*Calls made, for the owner to see.* (1) `strike` takes the whether-it-lands draw as well as the
+who, so that each branch's two draws are harm.ts's; the Injury's Days stay `resolve.ts`' and come
+after. (2) `party` is passed as a function, not a Party, so that a consequence with none of the
+fields still reads no Party, as before: the plan's signature, with that one change. (3) The Morale
+share is a third function, `moraleOf`, beside the plan's two.
+
+*The verification* (2026-10-05, a second Opus agent, at `448c06a`). The doctor read no drift before
+and after (108 reads of a Trait, the doc fresh). *Line for line,* `struck` and `earn` at `2493784`
+against `strike` and `chooseEarner`: the same pools (the unhurt from `working.injuries`, read again
+for each count of an Injury; the Death's `working.alive`; a negative Trait's the living in Party
+order filtered by `harm.injured`), the same `among` (`narrowed` for harm, `namedIn` for a Trait), the
+same draws in the same order on the `quests` stream in every branch: the first `next` before any
+pool, then `weightedPick` or `pick`, or one `next` from no one, an empty pool after `among`, a
+Setback, or no one eligible; the Party read after the first draw and only for a field, as before;
+the Injury's Days still `int` after the two; a dead Hero out of `living` before any later
+consequence of the Encounter. `moraleOf` the same arithmetic, `delta × guard` for a steadied loss,
+the rounding still `whole` in `resolve.ts`. *The fingerprint* passes with `2493784`'s `resolve.ts`
+and `harm.ts` put back, so it was taken against the old code. *Mutants,* 20 against the fingerprint
+alone (a no-op control passing): every pool swapped, `among` over the whole Party for each, the
+fallbacks dropped or added, the draw from no one dropped in each of the three branches, the Setback's
+second draw dropped and the Setback read as a Failure, the one-a-Quest rule and its exception,
+`mayEarn`, guard, exposure, the Morale guard dropped or put on a gain, and, in `resolve.ts`, the
+`Candidates` built once before an Injury's counts or its hurt read from `harm.injured`: 19 killed by
+the fingerprint, the twentieth `<` as `<=`, equal in effect on a continuous draw; the 18 of
+`harm.ts` killed by `harm.test.ts` too. So the fingerprint reaches every branch; no case added.
+*The register:* `docs/agents/traits.md`'s guardrails have drift mended by changing
+`content/src/uses/register.ts` by hand (step 2) and writing its doc part with `traits doc` (step 3);
+the rule against hand edits is for Traits and their uses in content, and none changed. The build
+followed it. *The interface:* `resolve.ts` imports only `strike`, `chooseEarner`, `moraleOf` and
+`Candidates`; nothing of `Working`, `Harm` or `Applying` crosses. *Fixed:* `namedIn` was still
+exported with no importer, now `harm.ts`' own; `meanShare`, `exposure`, `guard` and `narrowed`
+stay exported for their tests, as before. No code that plays changed (the script the same
+814,249 bytes), so `neutral` was not run again; the build's stands. *Checks:* `npm run lint` and
+`typecheck` clean; `npm test` 194 files, 5,104 tests passing; the build and check-bundle passing.
+Line endings as each file's before, none mixed.
+
+---
+
+## DL-196 — v1.1.6-S10 built: one Query operator table, a row for each operator of each type with its signature and its evaluation, driving the evaluator; `queryProblems` in the engine, which content's checker calls, its own table and sign analysis gone; every refusal in the same words
+
+2026-10-05. DL-186 item 6 (A6, layer 2).
+
+- *Before.* The doctor read no drift (108 reads of a Trait, the content passing its checks, no
+  pending edits).
+- *Characterisation first.* `content/src/query-refusals.test.ts`: 236 Queries, each put in one place
+  of the shipped content in memory (a Check's score, a raw Check's, a Synergy's requirement, an
+  Injury's, a Death's or an earned Trait's `among`), and `validateContent`'s whole list of problems
+  held word for word, in order, each after its place's path: a leaf or a node of each wrong type
+  (numbers where a Set, a Hero, a Pred or a condition stands, `Infinity` and `NaN`, `"party"`, words,
+  objects, empty lists, `null`), an operator of another type or of none (`constructor`, `__proto__`),
+  Sex outside a filter, every form of the number of arguments, every key and its kinds, `top`'s,
+  `bottom`'s, `has-skill`'s, `ranked`'s and `weighted`'s numbers and lists, a Set filtered by Sex
+  counted by each road and in a requirement, the size, a Check's score turning a Stat against itself
+  by each operator, malformed nodes beside it, and the accepted forms. 215 written first, passing on
+  `validate.ts` as it was; 21 more added after the mutation sweep below (a Skill, Morale or age of a
+  Set filtered by Sex, the sign of each Num and of a Level, a sum of numbers, an argument a key or no
+  argument should be), each run against `8a00f7d`'s `validate.ts` put back and passing there. It
+  passes unchanged after.
+- *The table* (`engine/src/quest-engine/query/operators.ts`). `operators`, a row for each operator of
+  each type, `{ signature, evaluate }`, in the order the types are named (Set, Hero, Val, Pred, Num,
+  condition). A signature is its arguments' kinds in order, the last of which may be `kind?` (left
+  out) or `kind...` (one or more), typed from the kinds. Each row's `evaluate` is typed from
+  content-types.ts' lists: a row missing for one of their operators, or one of the wrong shape, fails
+  to compile. The five comparisons share a row in a Pred and another in a condition, `compare` telling
+  them apart. `evaluate`, `holds`, `membersOf`, `heroOf`, `valueOf` and `is` walk it, looking up each
+  node's row as its own property (`rowOf`), and throw on an operator the type has not, as before;
+  `query.ts` keeps `queryParty` and the Party's types and exports the six. Every value as before: the
+  same reductions in the same order, from the same starts, the same ties.
+- *`queryProblems(query, place, keys, where)`* (`query/problems.ts`, exported from the entry). The
+  plan's `(query, type, keys)` refined to what content needs: `place`, one of `score`, `raw score`,
+  `requirement` and `among`, sets the type (a Num, a Num, a condition, a Set), whether Sex may filter
+  (not in a requirement) and whether the signs are held (in a `score` only); `where` is the path each
+  problem names; `keys` (`QueryKeys`) the Hero Stats, Skills, Classes, Hero Backgrounds and Hero
+  Traits content defines. It returns the problems in content's order (types, keys and Sex, then size,
+  then signs). It reads each node's signature from the table; the sign analysis is beside it, its
+  answers for each operator (`signOfVal`, `signOfNum`, `valBelow`, `numBelow`, `readsHero`) each a
+  switch over every operator of its type with no default, so a new operator fails to compile until its
+  sign is said. `queryNodesMax` and `queryDepthMax` moved with it.
+- *Content's checker.* `validate.ts` calls `queryProblems` at its four places and keeps `queryKeys`;
+  its signature table, type names, node and argument walks, `misplaced`, `arity`, `readsHero` and the
+  sign analysis (`checkInversions`, `signOf`, `constantOf`, `belowOf` and the signs) are gone: 1,793
+  lines to 1,326. The Synergy's `{ ...keys, sexFilters: false }` is the `requirement` place.
+- *The script.* The page imports the table for evaluation and never `queryProblems`; the checks are a
+  module the page does not reach, and the build carries none of their words (searched for in the
+  built script). It is 814,768 bytes, 519 more than S9's 814,249: the rows' signatures.
+- *Tests at the table's interface.* `query/problems.test.ts`: each operator's signature written out
+  apart from the table and held through `queryProblems` (a node of sound arguments accepted, one
+  short and one over refused in the words of its number, each argument of another kind refused at its
+  place in its own words), the table's operators and the order of its types, and the four places.
+  `query/operators.test.ts`: each comparison on a number less than, equal to and greater than another,
+  in a Pred and a condition, one row each, and the throw. `check.test.ts`: the two new files never
+  name the Guildmaster or the Guild's dealings, and the table imports only `rowOf` as a value. The
+  evaluator's own tests (`query.test.ts` and the Check's, Synergy's, harm's and resolution's) pass
+  unchanged, `resolve.test.ts`' fingerprint of 300 seeds among them.
+- *Mutations*, each run with the file restored after, a no-op control surviving each sweep: the
+  table, 85 (each row's signature, a kind, an optional or a rest changed, 37; each row's evaluation,
+  each comparison and the shared helpers, 48), against `query.test.ts` and the two new tests: 84
+  killed; the 85th, `ranked` read without cutting the ranking to its weights, is equivalent (a weight
+  past the list is 0). The checks, 64 (an operator answered wrongly in `readsHero`, each sign,
+  `constantOf`, `valBelow` and `numBelow`, and each of the walk's turns), against the content test
+  and `problems.test.ts`: 61 killed; the three left equivalent (`constantOf` of a product, whose sign
+  is its factors'; `valBelow` of `stat` and of `weighted`, which the walk answers before asking).
+
+*What changed for Traits.* No Trait, effect, event or use. The reads moved with the code: the
+register's `has-trait` entry names `query/operators.ts`' `operators` where it named `query.ts`'
+`is`; `content-checks` no longer names `validate.ts`' `operators` and `queryArgument`, and names
+`query/problems.ts`' `queryArgument`, which holds a `has-trait`'s key to the Hero Traits (the drift
+fix of `docs/agents/traits.md`'s guardrails, step 2, by hand; the doc written again with `traits
+doc`). The doctor read no drift after, with 107 reads of a Trait (one fewer: `has-trait` is written once, as its row's key, where `is`
+and content's table each wrote it).
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 197 files, 5,524 tests passing; `npm run
+build` and check-bundle passing, the script 814,768 bytes, within 1 kB of S9's; `npm run e2e -w web`
+103 passing. Line endings as each file's before, the new files CRLF as their neighbours, none mixed.
+
+*Proof.* The `neutral` run after, alone (`HEROESIM_WORKERS=8`, `m9-v116-s10-neutral`, 531 s,
+`--expect` S7's baseline): the fingerprint
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, the same, the Gate PASS, the
+replay of `seed-0001` identical. Every game as it was. Its reports not committed.
+
+*Calls made, for the owner to see.* (1) `queryProblems` takes the place a Query stands in, not its
+type, and the path: the place says what content's checker said with a type, a `sexFilters` and a
+`raw` together. (2) A signature is a short list of kinds (`['skill', 'rating?']`, `['val...']`), so
+the table costs the script 519 bytes; the checks read it. (3) The sign of each operator is answered
+beside the checks, not in the rows, so the script carries none of it; each answer is a switch the
+compiler holds complete. (4) The refusals' words are now the engine's, as content wrote them: an
+author's, never the player's, so ADR-0003 (events, not prose) is not touched by them. (5) `holds` of
+a condition whose comparison is none of the five now throws, as every other type did; it returned
+`undefined` before. Only a Query built in memory and never checked reaches it. (6) The account of a
+Query (`describe.ts`) still switches on its operators: the story's table drives the evaluator and
+the checks; the account is the front ends' and was left. ADR-0010 carries a dated amendment.
+
+*The verification* (2026-10-05, a second Opus agent, at `3137a4f`). The doctor read no drift before
+and after (107 reads of a Trait, the doc fresh). *The refusals against the old checker.* 129 mutants
+of `8a00f7d`'s `validate.ts`, put back in place, each run against `query-refusals.test.ts` alone (a
+no-op control passing): every turn of the node walk (each type's leaf, the operator's own row, the
+counts of arguments, each kind of argument, the size), each key, number and list, Sex and its count,
+`readsHero`, the sign walk, `signOf` operator by operator, `constantOf`, `belowOf`, `misplaced`,
+`arity`, and the callers (a raw Check, the requirement's gate, each `among`). 106 killed; 19 more
+changed a refusal no case held: a Hero Trait accepted, a weight of 0, a Num carrying its Sex filter
+up, a Val sum and difference that reads a Hero beside a number, a product of numbers alone, a
+turn's culprit under a negative, a factor that is a word or a `weighted` of no pairs, the sign of
+`sum`, `avg`, `max`, `min`, `of`, `least` and `greatest` and of `ranked`'s weights, an empty
+`least`, a product of numbers, and a constant under an operator of no arithmetic. 21 cases added,
+and two more for an operator of another type whose arguments the sign walk must not enter (a mutant
+of `problems.ts`' gates, the old `belowOf`'s `null`): 259 Queries, each run against the old
+`validate.ts` put back and passing there, and passing after. Then 125 of the 129 killed; the four
+left change no problem (`readsHero` asked of a node not a Val, the Sex count asked of a node not a
+Num, `!== true` for `=== false`, and a culprit named where the polarity turns without going below
+nought), since no Set stands under a Val and every Num above a filter has reset it. The same
+mutants where `problems.ts` holds the same text (97), with 37 of its own (the place, the signature
+read into fixed, optional and rest, each switch's answers and each gate), against the content test
+alone: 128 of 134 killed, the four above and two more equivalent (the row looked up by plain
+property, since no property of an object's prototype has a `signature`; `count`'s Set walked as a
+Val, whose operators the walk does not know). *The evaluator,* line for line against `8a00f7d`'s
+`query.ts`: each row the old case's expression, the members in Party order (`"party"` copied,
+`where` and `top`/`bottom` filtering the inner Set in order), ranking ties by index, an empty Set 0,
+no Hero 0, `ranked` cut to its weights, the throw's words for each type; only `holds` differs, as
+said. It is reached by `meetsRequirement` alone, over `content.synergies`, and every content set is
+`parseContent`'s (the CLI, the harness, drafts, the portrait tool) or the page's bundled files, which
+the build validates (`content-gate.ts`); test support builds only `>=`; no Module holds a Query. *The
+script:* 814,768 bytes again; none of eight phrases of the checks' words, nor `queryProblems`, in
+it; the 519 bytes are the rows' `signature` lists, seen in the minified rows. `queryProblems` and
+its two types are exported for content's checker, production. No code that plays changed, so
+`neutral` was not run again; the build's stands. *Checks:* `npm run lint` and `typecheck` clean;
+`npm test` 197 files, 5,547 tests passing (S8's `testing.test.ts` among them); `npm run build` and
+check-bundle passing; `npm run e2e -w web` 103 passing. Line endings as each file's before, none
+mixed.
+
+---
+
+## DL-197 — v1.1.6-S11 built: `@heroesim/words`, a sixth package that runs in a browser, holding the Query words, the Trait and Item effect words, the seed words, the words for why a Hero cannot go, `nameIn` and `capitalised`; the CLI's and the page's copies gone, and the drift settled to the page's capitals
+
+2026-10-05. DL-186 item 1 (A1, part 1).
+
+- *Before.* The doctor read no drift (107 reads of a Trait, the content passing its checks, no
+  pending edits). It was run because `engine/src/testing.test.ts` changes (below); no play code in
+  `engine/src/` changes.
+- *The package.* `words/` (`@heroesim/words`, its entry `src/index.ts`, no dependency declared), in
+  the root's workspaces and `tsconfig.json`'s references, Vitest's Node projects, and the CLI's and
+  the page's references; npm links it as it links the others, so Vite resolves it by name with no
+  alias (`web/vite.config.ts` has none for any package). ESLint's `wordsImports`: its source takes
+  the engine, types and values, by name and nothing else of ours (not content, its Node entry, a
+  front end, the harness or `@heroesim/engine/testing`), no Node built-in and no React (`react`,
+  `react-dom` and their subpaths), in `.ts` and `.tsx`; its tests run on Node and may take content,
+  its Node entry, the engine's test entry and Node built-ins, to word content's own rows. `words` is
+  in the rules' package list, so a relative path into it is refused from every package; the CLI, the
+  page, the harness and the tools take it by name; the engine and content may not.
+  `words/src/imports.test.ts` proves each way (37 cases, linting probes as text) and that the
+  manifest declares no dependency; with the React rule, the Node rule, the source's package rule or
+  the block's files mutated, 4, 4, 4 and 17 of its cases fail. `engine/src/testing.test.ts` reads
+  `words/src` among the packages' sources, so the engine values the words take count as taken (it
+  failed without, `chanceBand` and `chanceBandNames` read as unused by tests).
+- *Its modules,* each with one test table (`test.each`):
+  - `names.ts`: `nameIn`, `capitalised`, `listed` (with `and`, or `or`) and `signed` (15 cases).
+  - `query.ts`, the CLI's `query-words.ts` moved (`git mv`) and the page's deleted: `chanceWords`,
+    `shownPercent`, `encounterReadings`, `readsAsOne` and `queryWords`, its private `joined` now
+    `listed`. Its test is the CLI's moved, 37 operators worded; the page's was the same less one
+    assertion.
+  - `effects.ts`: `traitEffectWords`, `modifierWords` (Gear's Stat modifiers), `consumableEffectWords`
+    (a Party's preview), `itemEffectWords` (the Market's cell, standing alone), `kindWords` and
+    `kindOf` (with ", Unique Item"). Its table holds the CLI's and the page's Trait cases merged, every
+    Item in content beginning as a cell must, and a key content lacks.
+  - `availability.ts`: `unavailableWords`, `unavailableChipWords` (the Board's chip) and
+    `gearUnavailableWords`, each reason by the table.
+  - `seed.ts`, the CLI's moved and the page's deleted: `readableSeed`, its cases a table.
+- *The copies gone.* CLI: `render.ts`' `nameIn`, `capitalised`, `kindWords`, `modifierWords` and
+  `traitEffectWords`; `query-words.ts`; `seed.ts`; `dispatch.ts`' and `equip.ts`' unavailable words;
+  `market.ts`' `kindOf` and `effectOf`; `preview.ts`' `listWords` and the Consumable's words;
+  `quest-review.ts`' `capitalised` and `listed`; `narrate.ts` takes `nameIn` from the package. Page:
+  `names.ts`' `nameIn`, `listed`, `capitalised`, `signed` and `traitEffectWords`; `query-words.ts`;
+  `seed.ts`; `narrate.ts`' and `rejections.ts`' private `nameIn`, and `narrate.ts`' re-export of
+  `listed`; `rejections.ts`' and `selectors.ts`' unavailable words; `selectors.ts`' Consumable's
+  words, `modifierWords` and Gear's kind; `trade-views.ts`' `kindOf`, `doesOf` and `effectOf`. Every
+  caller imports from `@heroesim/words`; the moved tests (the page's `names.test.ts` and
+  `query-words.test.ts`, the CLI's three Trait cases in `render.test.ts`) are the package's.
+- *Where the copies differed,* every pair read side by side:
+  - `query-words.ts`: the import of `nameIn` and the header only; their tests by one assertion.
+  - `seed.ts`: the header only.
+  - `traitEffectWords`: none as "no effect" (CLI) and "No effect" (page).
+  - Why a Hero's Gear cannot be changed: "their gear" (CLI `equip`) and "their Gear" (page).
+  - The Market's Consumable words: "Rolls…" and "An Injury…" capitalised where made (CLI), lower case
+    and capitalised by `doesOf` (page): the same text.
+  - `modifierWords`, the preview's Consumable words, `kindWords` and `kindOf`, the three copies of
+    why a Hero cannot go, `nameIn`, `capitalised`, `listed` and `signed`: the same.
+  - Not moved, the narration's (S12): its Regard tables' "when an offer of theirs went untaken" and
+    "through a module", twice (CLI), against "an Offer" and "a Module" (page). Their words are settled
+    here in the CLI's `narrate.ts`, as the plan has this story settle them; the tables move with the
+    narration. Left for S12, in sentences the CLI words apart: "'s offer for" (the
+    `transfer-offer-declined` and `-expired` lines), and "The <x> module recorded" and "A module" (a
+    Module's own event), where the page has "Offer" and "Module".
+- *The CLI's words that change,* each to the page's capitals (docs/agents/ui-text.md):
+  1. "no effect" to "No effect": `show guildmaster`'s Traits table and `show hero`'s Traits, for a
+     Trait with no effect (none in content; the review page capitalised it already).
+  2. "is away on a Quest, and their gear is with them" to "…their Gear…": `equip` and `unequip`
+     refusing a Hero away on a Quest.
+  3. "when an offer of theirs went untaken" to "…an Offer…": a Patron's Regard moved by an Offer
+     left to expire.
+  4. "through a module" to "through a Module": a Patron's and a Hero's Regard moved by a Module's
+     effect.
+
+  The CLI's expectations changed: `narrate.test.ts`' two "through a module", now "through a Module";
+  one assertion added there for the Offer. Every other CLI expectation stands as it was.
+  `docs/agents/ui-text.md` lists the four words and points `capitalised()` at the package;
+  `docs/approach.md` §5 lists `words/`.
+
+*What changed for Traits.* Nothing: the doctor read no drift after, 107 reads of a Trait.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 199 files, 5,583 tests passing (S10's
+5,547); the words' own 6 files, 124 tests; `npm run build` and check-bundle passing, the script
+814,385 bytes, 383 fewer than S10's 814,768, each table in it once; `npm run e2e -w web` 103 passing.
+Line endings as each file's before, none mixed; the new files CRLF in the working tree as the others
+are. No sweep: no play code changed.
+
+*Calls made, for the owner to see.* (1) The narration's own tables stay in the two `narrate.ts` for
+S12, which moves the narration; only their drifted words are settled now. (2) "No effect" in the
+CLI's `show hero` stands in brackets after a Trait's name, where the page's stands alone in a cell:
+one word for both, and no Trait in content has no effect. (3) The words' tests read content from
+disk through `@heroesim/content/node`, as the page's tests do; the package's source never does.
+(4) The Board's chip words, the page's alone, moved with the other words for why a Hero cannot go,
+where S14's `availabilityOf` can read them.
+
+*The verification* (2026-10-05, a second Opus agent, at `3bfc381`). *The package.* No package of
+the game declares another workspace package as a dependency (the CLI, the page, content and the
+harness name none; npm links each by the root's `workspaces`), so `words/package.json` declaring
+none is the convention, not a gap; `words/tsconfig.json` references the engine and content (the
+tests'), the CLI's and the page's reference it, and `tsc -b --force` builds every project in order.
+*A lint hole, closed.* A dynamic `import('node:fs')`, `process`, `Buffer`, `__dirname`,
+`__filename` and `global` in `words/src` all passed lint, the import rules seeing only static
+imports (the page's build would refuse the first; the CLI's would not). ESLint now refuses in the
+words' source an `import()` (`no-restricted-syntax`) and the globals only Node defines (`process`,
+`Buffer`, `__dirname`, `__filename`, `global`, `require`, `module`, `exports`;
+`no-restricted-globals`), its tests excepted: `imports.test.ts` gains six cases, each .ts and
+.tsx, failing before the rules, and its tests' case uses both. *The copies.* Five definitions of
+the package's words were left: the CLI's `setup.ts` `listed` (and `traitName`, a `nameIn`), both
+`narrate.ts`' `signed` and the CLI's narration's `listed`, all the same text; and the quest
+review's `signed`, which writes U+2212 and differs, renamed `minusSigned`. Four inline copies, the
+same words: the CLI's `args.ts` list of the Guildmaster Stats' keys (`listed`) and the page's
+capital in `rejectionSentence`, `narrateSegments` and the Quest report's opening
+(`capitalised`). Each now reads the package. A test in `imports.test.ts` reads every source of the
+CLI and the page, tests aside, and fails on a top-level `function`, `const` or `let` named as a
+value the package exports; it failed on the five, and on a copy put back in `setup.ts` or
+`board.tsx`. Copies outside the two front ends stay, for their owners: the harness's `capital` in
+`sweep.ts` and the portrait tool's in `write-rows.ts`; the content editor's `effectWords` words a
+draft's raw effect by its keys, by design. *The words' tests,* 33 mutants of the five modules: 30
+killed, one equivalent (`shownPercent`'s cap of 95 as 100: below a chance of 1 the twentieths stop at
+19), and two not: two Classes in a filter away from the Party (`or` as `and`, either clause) and
+`readsAsOne` without its name check, gaps in the Query test the CLI's held since v1.1.4. A case and
+an assertion added; both killed. *The CLI's four words,* read in the diff: `narrate.test.ts`' two
+"through a Module" and the Offer's assertion; "No effect" in the words' table; "their Gear" held by
+no CLI test, now by one in `equip.test.ts`, `equip` and `unequip` refusing a Hero dispatched,
+failing with "their gear". Every other CLI and page expectation unchanged but its import; the page's
+tests moved word for word but the one assertion the build named. *Capitals,* at every use of the
+moved tables: each refusal and preview continues a sentence as before; the Board's chip capitalised
+where made; "No effect" alone in `show guildmaster`'s cell and the review, and in brackets after a
+Trait's name in `show hero`, as the build's call (2) says. *S12's seam:* the narration's tables are
+the two `narrate.ts`' alone, now with no word of the package defined in them; the CLI's "'s offer
+for", "The <x> module recorded" and "A module" left for S12 as listed. *Checks:* the doctor read no
+drift (107 reads of a Trait); no play code changed (`engine/src` only `testing.test.ts`), so no
+sweep. `npm run lint` and `typecheck` clean; `npm test` 199 files, 5,593 tests passing (ten more);
+`npm run e2e -w web` 103 passing, check-bundle passing, the script 814,242 bytes, 143 fewer. Line
+endings as each file's before, none mixed.
+
+---
+
+## DL-198 — v1.1.6-S12 built: one narration in `@heroesim/words`, its sentences' names as slots a Namer fills, the CLI's with the ids its commands take and the page's with names that open; the two `narrate.ts` gone, the narration's capitals settled to the page's, and the Quest review's page moved in
+
+2026-10-05. DL-186 item 1 (A1, part 2).
+
+- *Before.* No play code changes: nothing in `engine/src/` or `content/src/validate.ts` is touched,
+  so no sweep. The doctor read no drift after all the same (107 reads of a Trait).
+- *The narration* (`words/src/narrate.ts`). `narrate(event, content)` gives a `Sentence`: its words
+  and a slot for each name in it, neighbouring words one piece. A slot carries the id it was read
+  from and what it names:
+  - `name`: a Guild, a Guildmaster, a Patron, or whoever a Guildmaster's Regard or a module's event
+    concerns, by the label the event carries, with the table its id is of;
+  - `hero`: a Hero the sentence names as a Hero (the CLI adds the id);
+  - `quest`: a Quest, with its template's name where the event gives it;
+  - `party`: a Party, with its Guild where the page says "the Guild's Party", or its Heroes where
+    the page names them instead;
+  - `offer`: the Transfer Offer a Transfer accepted;
+  - `ids`: the ids a command takes after what they name, `(stack-000004)`.
+
+  One map keyed by every event type, as the page's was, so `tsc -b` refuses a type the engine adds
+  until it has a sentence; `narratedTypes`; a module's own event worded for any type. Beside it, the
+  words both front ends held twice: `crossed`, `itemsWords`, `degreeWords`, `endingWords`,
+  `facilityNames` and `facilityIs` (the CLI's `render.ts` and the page's `rejections.ts` each had the
+  last three), `nightOf` (the page's `names.ts` had it), and `resolvedParts`, a Party's outcome cut
+  at its band for the page's return. `sentenceText(sentence, namer)` reads a sentence through a
+  Namer, `type Namer<T> = (slot: Slot) => T`.
+- *The CLI's Namer* (`cli/src/namer.ts`): `cliNamer`, a Hero `Name (hero-000004)`, someone else by
+  label, a Quest `Template (quest-000003)` or its id, a Party and an Offer by id, the ids in brackets,
+  an id where there is no label; `narrateLine(event, content)` for `equip`, `transfer`, `accept`,
+  `decline` and `advance`. Why a fast forward stopped (`narrateStop`) and `renderAdvance` move to
+  `cli/src/advance.ts`.
+- *The page's Namer* (`web/src/state/namer.ts`): `pageNamer(questName)` fills each slot as the page
+  has always named it: a Guild's, Hero's, Guildmaster's or Patron's name as a segment carrying its id
+  and table, which `Names` (`views/history-entries.tsx`) draws as a button that opens whom it names;
+  someone with no label by what they are, `a Hero`; a Quest by its template's name or `questName`; a
+  Party as the Guild's `Party` or by its Heroes; "its Transfer Offer"; no id. `narrateSegments`
+  capitalises the sentence's opening as before; `narrateText` (the old `narrate`), `resolvedWords`,
+  `textOf`, `questNamer` and `narrationFor` keep their places. The adapter that makes elements is the
+  page's, in `web`; the package imports no React. Why time stopped moves to `web/src/state/stops.ts`.
+- *The Quest review* (`words/src/quest-review.ts`, `git mv` with its test): `reviewPage`, `passWords`
+  and `consequenceWords`, where the harness and the tools may read it; it reads nothing from disk.
+  `cli/src/quest-review.ts` is the thin entry that reads the drafts, the calibration and the notes
+  and writes the page, so `npm run quest-review` is unchanged: run on `731f1aa` and after with
+  `--out`, the two pages are the same but the date. The page's script holds none of it.
+- *The harness's and the portrait tool's `capital`* (`harness/src/sweep.ts`,
+  `tools/portraits/src/write-rows.ts`): each `charAt(0).toUpperCase()` and the rest, as `capitalised`
+  is, so each reads the package's now; their `tsconfig.json`s reference `words`.
+- *The CLI's words that change,* each to the page's capitals (`docs/agents/ui-text.md`), the
+  narration's last:
+  1. "declined <Guild>'s offer for" to "…'s Offer for" (`guild.transfer-offer-declined`);
+  2. "<Guild>'s offer for … expired unanswered" (or lapsed) to "…'s Offer for…"
+     (`guild.transfer-offer-expired`);
+  3. "The <x> module recorded" to "The <x> Module recorded", and "A module recorded" to "A Module
+     recorded" (a module's own event);
+  4. "Stopped: the <x> module asked to stop." to "…the <x> Module asked to stop." (the stop, which
+     DL-197 did not list; the page says "Module").
+
+  The CLI's tests changed only there: `namer.test.ts` (the old `narrate.test.ts`) two Offers and four
+  Modules, `advance.test.ts` and `main.test.ts` the stop's Module, `main.test.ts` the module's line,
+  `transfer.test.ts` the declined Offer. Every other CLI expectation stands as it was, and a year of a
+  CLI game (`new --seed s12-check`, `advance --turns 360 --modules probe`, `advance --until
+  decision,offer,staffable --max 400`, `show history`; 1,548 lines) printed the same on `731f1aa` and
+  after, line for line, but the probe's two lines. Every page expectation stands as it was; the
+  page's tests moved with their files and read `narrateText` where they read `narrate`.
+- *The tests.* `words/src/narrate.test.ts`: a sample of each of the 46 event types and its sentence,
+  read through a Namer of the test's own that writes each slot as what it holds
+  (`<hero:hero-000007|Brenna Ashcombe>`), so the table pins the words and the slots apart from either
+  front end; it fails on a type of the engine's union with no sentence, and on any type listed as not
+  narrated (the list is empty); each slot names an id the event names; neighbouring words are one
+  piece; twelve variations, a module's own event, the outcome's cut and the words beside. The CLI's
+  Namer: each slot kind (`cli/src/namer.test.ts`). The page's: each slot kind as segments, every
+  sample's slots filled with no id (`web/src/state/namer.test.ts`), and the elements drawn, each name
+  a button that opens whom it names and no button where no shell gives links
+  (`web/src/views/names.test.tsx`). `words/src/imports.test.ts`' check of the copies reads the new
+  files' names; it found the page's Stores' own `itemsWords` (`1 Item`, `6 Items`), other words under
+  the package's name, renamed `itemCountWords`.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 203 files, 5,730 tests passing (S11's
+5,593); the words' own 8 files, 250 tests; `npm run build` and check-bundle passing, the script
+815,402 bytes, 1,160 more than S11's 814,242 (the slots and the page's Namer; the review page none
+of it); `npm run e2e -w web` 103 passing; `npm run edit -- traits doctor` no drift. Line endings as
+each file's before, CRLF in the working tree, none mixed. No sweep: no play code changed.
+
+*Calls made, for the owner to see.* (1) Why a fast forward stopped stays each front end's
+(`cli/src/advance.ts`, `web/src/state/stops.ts`), as framing: a stop is the fast forward's answer,
+not a History entry, and five of its nine sentences differ by what each front end does with it (the
+CLI lists the ids of the Parties and Quests its commands take and names the command, "(show board)",
+"Answer with accept --offer <id>…"; the page counts the Parties and gives a button). (2) A Hero a
+Guildmaster's Regard is for is a `name` slot, not a `hero`, so the CLI names them by label alone, as
+it did; a Hero in a module's event is a `hero`, with the id, as it was. (3) A unique Item's Loot reads
+`itemsWords` as a common one's does: the same words, since content's check holds a unique Item's
+quantity at 1. (4) The page's Namer gives segments, which the page's state keeps beside each
+sentence, and `Names` makes the elements: a Namer that made React elements in the state would take
+React into `state/`.
+
+*The verification* (2026-10-05, a second Opus agent, at `50a052f`). *The CLI's words.* The
+build's game played again on `731f1aa` and after (`new --seed s12-check`, `advance --turns 1080
+--modules probe`, two fast forwards, `show history`; 1,639 lines): the same but the probe's two
+lines. A longer game besides, driven by a script that answers every stop (`dispatch` of the Board's
+best Party after `preview`, `recruit` from the pool, `buy` and `equip` every seventh stop; 1,609
+commands to Turn 657, 66,836 lines): the same but the seven stops' and five events' "Module". And
+the old `narrate` (`cli/src/narrate.ts` at `731f1aa`, copied beside the new for a test since
+deleted) against `narrateLine` over every entry of four harness games of six years and the two CLI
+games, 309,308 entries: equal but for the capitals listed, seven lines in all (six a Module's, one
+declined Offer). *The page's words and names.* The old page `narrate.ts` against `pageNamer`'s
+`narrateSegments`, `narrateText` and `resolvedWords`, deep-equal, over the same games and three
+more (316,974 entries, 38 of the 46 types and the probe's), and over the build's samples with
+their labels and with none, each variation of cause, reason, band, Offer, Loot, Synergies and
+consumable effect, and a module's event of any namespace, none and unlabelled participants (180
+events): every segment the same, each name the same text, id and table, so each name the page made
+a button still is one and opens the same row; `Names` changed only its import. *The table holds the
+union.* A sentence taken out of the map fails `narrate.test.ts` (three cases) and `tsc -b`; a Namer
+mutated (the CLI's `name` slot, the page's Patron not a name) fails each Namer's tests. *The Quest
+review.* `words/src/quest-review.ts` is the old file less its I/O and its imports from the package's
+own modules, line for line; `npm run quest-review` with `--out` and with `--fragment --out` on
+`731f1aa` and after writes byte-identical pages. A `node:fs` import and `process` put in it are
+refused by lint. *The script's 1,160 bytes,* read in unminified builds by module: the narration was
+the page's `narrate.ts` (33,188 bytes) and the tables in `rejections.ts` and `names.ts` (682); it is
+now `words/src/narrate.ts` (18,884), `state/namer.ts` (15,988) and `state/stops.ts` (2,178), 3,180
+more with comments. The growth is the seam: every sentence builds slot objects, the `ids` slots the
+page discards among them, and the page's Namer and its second join run over them. Nothing of the
+review is in the script (`reviewPage`, `passWords`, `consequenceWords` and its words absent), nor
+the CLI's Namer, `sentenceText` or `narratedTypes`, nor a Node built-in. *The calls.* (1) The stops
+staying each front end's fits DL-186 item 1 and the story, which name the narration of events and
+its two `narrate.ts`; the stop is not an event, and five of its nine sentences differ in what each
+front end can offer. Four are the same words in two places (the game over, the Bankruptcy floor, the
+Module, the cap), with no test tying them, and the Module's capital is the drift DL-197 missed; a
+note for the owner, not a fork. (2) The Regard's subject as a `name` keeps the CLI's line as it was,
+which the acceptance asks; the slot's `table` still says it is a Hero. (3) Segments, not elements,
+keep React out of `state/` and the package, and change nothing the page draws. None needs the
+owner's decision. *Left as found:* two inline "the night of Day ${dayOf(…)}" in the CLI
+(`dispatch.ts`'s return, `render.ts`'s Injury), parts of longer sentences, not copies of `nightOf`.
+Nothing to fix. *Checks:* `npm run lint` and `typecheck` clean; `npm test` 203 files, 5,730 tests
+passing; `npm run e2e -w web` 103 passing, check-bundle passing, the script 815,402 bytes; the
+doctor no drift (107 reads). Line endings as each file's before, none mixed.
+
+## DL-199 — v1.1.6-S13 built: the engine's `statBreakdown`, each Hero Stat's base, its three sources in the order added, its effective value and whether its range held it, `effectiveStats` its total; the page's Roster and a Hero's page putting it in words; the Roster's rows built once a document and sorted apart
+
+2026-10-05. DL-186 items 3 (A3) and 22 (SF6).
+
+- *Before.* The doctor read no drift (107 reads of a Trait, the content passing its checks, no
+  pending edits).
+- *What `effectiveStats` did* (read at `07a2514`): for each of content's Hero Stats in content's
+  order, its base (`baseStat`, the default for a Stat the row lacks), plus the Guildmaster's Class
+  bonus (`traitStatBonuses` of the Guildmaster of the Hero's Guild, none for a Hero on no Roster),
+  plus the Gear (`gearModifiers`, what the Hero carries in their own slots), plus the Traits
+  (`traitStatModifiers`), added left to right, `base + bonus + worn + marked`, then held once inside
+  the Stat's range, `Math.min(max, Math.max(min, sum))`. Three sources, no other.
+- *The characterisation first* (`engine/src/stat-breakdown.test.ts`). The old `effectiveStats`, word
+  for word, as the test's reference; 30 generated worlds (`createWorld`, two Rivals, a pool of four;
+  a seeded mulberry32), every Hero of every Guild and the pool given random base Stats (a tenth
+  missing, a tenth at -4, 0, 1, 20, 21 or 27), a random Class (now and then one content lacks),
+  random Hero Traits (now and then a key content lacks), random gear in their slots (now and then in
+  a slot not its own, or of a definition content lacks), every Guildmaster random Traits, over a
+  content with Class bonuses on several Classes and Stats and Hero Traits that change Stats: 600
+  Heroes, 3,574 of their Stats moved from the base, every Stat strictly equal and in the same key order. Passing on the old code before the
+  change, and after it.
+- *`statBreakdown(hero, world, content)`* (`engine/src/selectors.ts`), the same signature and reads
+  as `effectiveStats`: for each Hero Stat in content's order a `StatParts`, `{ base, sources,
+  effective, clamped }`, `sources` the three in the order added, `classBonus`, `gear`, `traits`, each
+  with its `change`, every one listed though it adds 0, so the sum is the same four terms in the same
+  order; `clamped` whether the sum lay outside the range. `effectiveStats` is its total: each Stat's
+  `effective`, keyed as before. Exported with `StatBreakdown`, `StatParts` and `StatSource`; the
+  page takes it (DL-194's rule, a production user). `gearModifiers`, `traitStatBonuses` and
+  `traitStatModifiers` leave the entry, the page having been their only user outside the engine; they
+  stay exported from their modules for the engine's own code.
+- *Its tests*: every Hero Stat in content's order and no Guildmaster Stat, a missing base at the
+  default; the Class bonus (two Traits on one Stat, another Class's not counted, none on no Roster);
+  the Gear (two pieces on one Stat, one in a slot not its own counting nothing); the Traits (two
+  effects of one Trait, an `encounterBonus` Trait and a key content lacks moving nothing); the three
+  in order; the clamp at the top and the bottom, and a base beyond the range; the clamp once, at the
+  end (2 - 3 + 3 + 3 is 5, not 7); and `effectiveStats` equal to the breakdown's total, `clamped` to
+  whether the sum is the value, over the 600 generated Heroes (1,065 Stats held).
+- *The words* (`words/src/stats.ts`): `statSourceWords`, each source after "from" ("the
+  Guildmaster's Class bonus", "Gear", "Traits"), `statSourcesMoving` and `statPartsWords`, `Base 10,
+  +2 from Gear, held at 20` or `null`, the page's `rosterStats`' words moved, a test table.
+- *The page.* `rosterStats` reads the breakdown and puts it in those words, no sum of its own; the
+  "held at" is the breakdown's `clamped`, where it summed the sources and compared. `statValues`, the
+  base and value a Hero's page's lift (`signed(effective - base)`) and the Party builder read, is the
+  breakdown's. The page imports no source sum and no `effectiveStats` now.
+- *Rows apart from sorting.* `rosterView(document, order)` becomes `rosterRows(document)`, the
+  Roster's rows with the Hero and when they are free beside each, in the order they joined, and the
+  default order read at the document's Turn, built once for each document and kept in a `WeakMap`
+  keyed by the document: every play replaces the document the page holds (`reducer.ts`, ADR-0008's
+  copy), so a document's rows never change, and one let go is let go with its rows. `sortedRoster(rows,
+  order)` sorts a copy, the same comparators and ties as before. The Roster view memoises the rows
+  on the document and the sort on the rows and the order. `web/src/state/roster-rows.test.tsx`
+  counts builds by the engine's `statBreakdown`, which a build calls once a Hero (the entry wrapped in
+  a spy, as `reducer.test.ts` does): the same rows for the same document and one build, new rows for
+  a played one; every sort either way gives the rows already built, calls nothing and leaves them in
+  the order the Heroes joined; and in the Roster view, a new "Sort by" and its direction reorder the
+  tiles with no call.
+- *The page's tests re-pointed*, their expectations unchanged: `selectors.test.ts` and
+  `digest.test.ts` call `sortedRoster(rosterRows(document), order)`; two helpers that change the
+  world in place between reads (a Stat's words, the sorts) read a new document each time, `{
+  ...document }`, as each play gives the page. The Roster's words the same: every expectation of
+  `selectors.test.ts` and `roster.test.tsx` stands.
+- *The register.* The Traits' reads moved from `effectiveStats` to `statBreakdown`: the doctor read
+  drift until `effective-stats` and `guildmaster-effects` named `statBreakdown`, their words saying
+  `effectiveStats` is its total; `docs/agents/traits.md` regenerated (`traits doc`).
+- *Mutations*, each turning its test red, the file restored after each: the rows not kept (built on
+  every call); the view building the rows again on a sort; the sort in place; a clamp after the Class
+  bonus as well as at the end; `clamped` as "at the top"; the Traits counted under the Gear;
+  `effectiveStats` leaving out the Traits; the words without "held at"; the page dropping a source.
+  9 of 9 killed.
+
+*The CLI.* Unchanged: `show hero` and `equip` read `effectiveStats`, which gives what it gave; the
+story leaves the CLI's reading of the breakdown optional, and its words would change its lines.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 206 files, 5,752 tests passing (S12's
+5,730); `npm run build` and check-bundle passing, the script 815,773 bytes, 371 more than S12's
+815,402 (the words' module and the rows' map); `npm run e2e -w web` 103 passing. Line endings as
+each file's before, none mixed; the four new files LF.
+
+*Proof.* The `neutral` run after, alone (`HEROESIM_WORKERS=8`, `m9-v116-s13-neutral`, 280 s,
+`--expect` S7's baseline): the fingerprint
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, the same, the Gate PASS, the
+replay of `seed-0001` identical; advance 3.285 ms mean, 23.045 ms p99. Every game as it was. Its
+reports not committed. The doctor read no drift after (107 reads of a Trait).
+
+*Calls made, for the owner to see.* (1) Each Stat's breakdown lists all three sources, a 0 among
+them, so `effectiveStats` adds the same four terms in the same order as before; the words leave out
+a source that adds 0, as the Roster did. (2) The sources are the three sums, not each Item or Trait
+apart, as the story names them; a Hero's page's sources tooltip stays in the backlog (DL-186 item
+31). (3) The rows are kept by the document's identity: a test or a tool that changes a document in
+place and reads its Roster again reads the rows first built (two page tests did, and now read a new
+document). (4) `gearModifiers`, `traitStatBonuses` and `traitStatModifiers` are hidden from the
+engine's entry by DL-194's rule; a front end that comes to need one reads the breakdown.
+
+*The verification* (2026-10-05, a second Opus agent, at `aaf9c98`). The doctor read no drift before
+and after (107 reads). *`effectiveStats` the same.* The diff read against `07a2514`: the base, the
+three sums and their `Object.hasOwn` reads unchanged, the four terms added left to right in one
+expression and held once, a Hero on no Roster given no bonus, misplaced or unknown gear and unknown
+Traits counting nothing, the keys inserted in content's order and read back by `Object.entries` in
+it. Over played worlds besides the generated ones: the old code, word for word, against the new in
+a test since deleted, after every Turn of four harness games of four years under the automatic
+policy and the core content (`seed-0001` to `seed-0004`, 17,280 Turns), every Hero of the world
+(the player's, the Rivals', the pool, the retired and the Dead): 778,759 Heroes read, 15,575,180
+Stats equal by `Object.is` in the same key order, 2,886,247 moved from the base, 93,273 by a Class
+bonus, 2,124,079 by Gear, 1,053,456 by Traits, 5,547 held; `clamped` whether the sum is the value
+for each. Every caller on the paths that play (the Query's Party, the modules' view, the CLI's `show
+hero` and `equip`) still calls `effectiveStats`; the page alone reads `statBreakdown`, and nothing
+of the page reaches play. A cost noted, not a fork: the breakdown's objects make `effectiveStats`
+about a quarter slower a call (6.9 to 8.7 µs a Hero, timed old against new on a played world); the
+`neutral` run's `advance` did not rise (3.285 ms mean against S10's 6.940, the same games, so the
+machine's and not the code's). *The rows' cache.* Every play the page makes replaces its document:
+`applyAction` copies the world (`applyToCopy`), `advance` and each fast forward's step give a new
+document, `rebase` a new one with the same world and a new `meta`, a load or a new game a new one;
+an ended world's `advance` gives the same document back unchanged. No code of `web/src` outside its
+tests assigns into a document, its world or a row, and the rows read only the document and the
+page's content (no History, no preference), so the History appended in place between a fast
+forward's steps changes nothing they hold. The Hero's page and the Party builder build their own
+reading. *The page's tests.* Re-pointed only: no expectation's text changed in `selectors.test.ts`,
+`digest.test.ts` or `roster.test.tsx`. *Mutations,* besides the build's nine, each red and restored:
+`statValues` giving the base as the value (four tests of the Party builder and a Hero's page), and
+`statPartsWords` saying nothing of a Stat held with no source moving it (its table). *The entry.*
+`statBreakdown` and its types are taken by production (the page, the words), and the three sums
+left the entry, as `testing.test.ts` holds. *The register* mended as `docs/agents/traits.md` says,
+the doc regenerated. *Line endings:* the four new files were checked out LF beside directories of
+CRLF (`engine/src`, `web/src/state`, `words/src`); checked out again, now CRLF in the working tree
+as their neighbours, the index LF, none mixed. Nothing to fix in the code. *Checks:* `npm run lint`
+and `typecheck` clean; `npm test` 206 files, 5,752 tests passing; build and check-bundle passing, the
+script 815,773 bytes; `npm run e2e -w web` 103 passing. No code that reaches play changed, so no
+`neutral` run.
+
+---
+
+## DL-200 — v1.1.6-S14 built: `availabilityOf`, one reading of whether a Hero can go; `partyBuilder`, the Board's rows without React; the Classes' order declared in `class-order.json` and read by one comparator; the content version 35; the `neutral` baseline `7298b502…`
+
+2026-10-05. DL-186 items 2 (A2), 5 (A5) and 24 (SF8).
+
+- *The doctor.* Not run before the build (corrected 2026-10-05 by the orchestrator: the builder reported it did not run the doctor before changing `content/src/validate.ts`; this line had said it did). After: no drift (107 reads of a Trait), the content passing its checks, no pending edits; the verification ran it before and after its own changes, below.
+- *Can a Hero be injured and in a Party at once? No.* Read in the engine: an Injury is dealt as a Quest concludes (`quests-conclude.ts`), which clears `partyId` for every survivor in the same phase; a module's `injure` is refused for a Hero with a Party (`hero-away`, `effects.ts`); `dispatch` refuses an injured Hero. Held by a test (`web/src/state/availability.test.ts`): over 730 Turns of a played world, no Hero of any Guild or the pool ever holds both (the run saw Heroes injured and Heroes away, so it is not vacuous). The one odd state a world can hold is a `partyId` with no Party row, handled below. Were both held, the page reads the Injury first, as the engine's `unavailability` does; the old `whereabouts` read the Party first, which no world shows.
+- *`availabilityOf(hero, world)`* (`web/src/state/availability.ts`): `{ why, freeOnTurn, where, until, chip }`, the Party looked up once. `why` is the engine's `unavailability`; `freeOnTurn` is -Infinity when the Hero can go, the Turn the Injury heals or the Party returns, else `null`; `where` the Roster's words (`At the Hall`, `Died on Day 9`, `In the Unattached pool`); `until` the same words for a Hero who cannot go, `null` otherwise; `chip` the Board's `Away` or `Injured`. A Hero whose Party the world no longer holds reads one way in all five: Away with a Party, `freeOnTurn` null, so they sort after every Hero with a Day (the Roster's `free` sort and the Party builder's order). `freeFrom`, `whereabouts`, `unavailableUntil` (with `awayWords`, `healingWords`) are gone from `selectors.ts`; the Roster's rows, the Party builder's rows and a Hero's page read `availabilityOf`. Tests: each reason (none, injured, in a Party, dead, retired), the missing Party, a Hero on no Roster, and both at once. No row field changed its words.
+- *`partyBuilder(document, questId, choice)`* (`web/src/state/party-choices.ts`): `rows` (each with `chosen`), `stocks` (each with `carrying`), `party` (those chosen who can still go), `consumables` (those carried, at most what is held) and `preview`; with `toggled(choice, heroId, on)` and `carrying(choice, definitionKey, quantity)`. `board.tsx`'s `Builder` renders them and computes none. Tested without React (`party-choices.test.ts`): the chosen marks, a Hero hurt after being chosen dropping out, a quantity held to what the Guild holds, the preview equal to `previewView`'s, a Quest off the Board, `toggled` and `carrying` leaving their input alone. `board.test.tsx` passes unchanged: the Board's behaviour is the same, so no expectation needed re-pointing.
+- *The Classes' order, declared* (item 24). `content/class-order.json`, a list of Class keys (`["warrior", "rogue", "mage", "healer"]`), `ContentSet.classOrder`; `validateContent` requires each Class exactly once and refuses a key that is no Class, a Class twice and a Class missing, each naming it (`classOrder: healer is a Class and is not in the order; list each Class once`). A file of its own rather than a field on each Class, because "each once" is then one list to read and refuse. One comparator, `classComparator(content)` in the engine (`engine/src/class-order.ts`), built once for a content set's list, a Class the content does not define after the declared ones by its key; the engine's draws (`sortedKeys`, which deal the Classes alphabetically) are not touched. The default Hero order (so the Roster and the Board's Party builder) reads it in place of `Object.keys(content.classes)`; tested with `classes.json`'s keys reversed in a scratch copy, the order kept.
+- *The pool's Class sort was A to Z by name* (Healer, Mage, Rogue, Warrior), the one list that disagreed. It is now by the declared order, **ties in the Roster's default order** (Level highest first, Age youngest first, Name A to Z, then id: `defaultHeroOrder`), in place of the pool's own (id) order. The pool's test and the Roster view's pool test were re-pointed to say so. The pool's `listed` and `fee` orders are as before.
+- *The CLI's lists.* The CLI sorts no list by Class (`show roster` keeps the Guild's own order, `show pool` the id order), so no CLI list reads the comparator; `classComparator` is in the engine's entry for the first that does. Changing those orders would change CLI output, which the story does not ask.
+- *The version* 34 to 35 through the write module's `raiseContentVersion` (a scratch run of it), its changelog line saying the Class order is declared.
+- *The `neutral` baseline.* `neutral m9-v116-s14 --expect bfbd3701…` (10 games of 20 years, 472.4 s) FAILED on the fingerprint alone: `7298b50207f77bb6d0a5ba5255e3520c796f746d936d94a20ce38202ed117482`; every other line passed or was not comparable at 10 games, the replay identical. As DL-192: the fingerprint hashes each seed's last save, whose `meta` holds the content version. Shown: the 4 × 2 quick check gives `0082146222404990afda7d25d031f2a89d5ed279a45c4b942ace1b8671bd8f33` with the version 35, and `208a23fd…`, S7's, with `content/version.json` put back to 34 and the rest of the change in place, the Gate PASS each time. So the code reaching play changed nothing, and the version alone moved the fingerprint. **The baseline is now `7298b50207f77bb6d0a5ba5255e3520c796f746d936d94a20ce38202ed117482`** (`harness/README.md`), the `--expect` of S15 onward; the full `gate`'s `143a44c7…` moves with the next run of it. The reports were not committed.
+- *Checks.* `npm run lint` and `typecheck` clean; `npm test` 208 files, 5,776 tests passing; `npm run build` and check-bundle passing, the script 816,122 bytes (815,773 before, 349 more); `npm run e2e -w web` 103 passing; the doctor no drift after (not run before; see above). Line endings as their directories, none mixed.
+
+*Judgement calls, for the owner to see.* (1) The pool's Class ties are the Roster's default order, not the id order the earlier test held, as DL-186 item 24 reads. (2) A file for the order rather than a field on each Class. (3) No CLI list sorts by Class, so none was changed.
+
+*The verification* (2026-10-05, a second Opus agent, at `e1868db`). The doctor read no drift before and after (107 reads of a Trait; the content passing its checks, no pending edits). *`availabilityOf` the same as the three it replaced.* The old `freeFrom`, `whereabouts` and `unavailableUntil` of `67f54ba`, word for word, against `availabilityOf` in a test since deleted, after every Turn of four harness games of four years under the automatic policy (`seed-0001` to `seed-0004`, 17,280 Turns), every Hero of the world: 778,759 Heroes read (228,384 free, 452,166 away, 6,942 injured, 91,267 dead; 138,188 in the pool, 5,888 on no Roster), `why`, `freeOnTurn`, `where`, `until` and `chip` equal to the old readings and the old chip each time. Every 15th Turn (1,152 documents), the old selectors module of `67f54ba` against the new: the Roster sorted by each of eight keys both ways, the Party builder's rows for every Quest on the Board (6,912) and a Hero's page for every Hero of the world (51,951), deep-equal; the pool by `listed` and by fee equal, by Class the same Heroes in the new order. No retired Hero and no missing Party arose in those games; by reading, the only case the two differ on is an Injury and a Party at once, which the build's test shows no world holds, and the dead or retired off any Roster read the same (a test added, below). The chip's word is `@heroesim/words`' `unavailableChipWords` and the night `nightOf`, as before; the longer words stay the page's, as before; no row's words changed. *The Party builder.* `board.test.tsx` unchanged and still drives the ticks, the steppers, the chips and the send through `partyBuilder`; `party-choices.test.ts` covers its branches without React. *Mutations,* each red and restored: a missing Party's `freeOnTurn` as Infinity, the Party kept without `why === null`, the stepper not held to what is held, `classComparator` without the declared place, the doubled Class not refused, the pool's Class sort taken out, the page's Class sort read from `classes.json`' keys (the new test below), `where` without the dead and retired first (survived; the test added below). *The Class order everywhere the page lists by Class:* the Roster's `class` sort and default order, the Party builder, the pool, and no other sort of Classes in `web/src`, `cli/src` or `words/src`. **Found and fixed:** the Roster's sort button named the first Class of `classes.json`' keys (`Object.values(set.classes)[0]`), so with the keys reordered it would read "Healer first" over a Warrior-first list; `orderPhrase` now names the first and last of `classOrder` (a test with the keys reversed and with another declared order, red before). A new `web/src/state/class-order.test.ts` gives the page a content set with `classes.json`' keys reversed (by `vi.mock` of `../content`) and holds the default Hero order, the pool's Class sort and the sort button to Warrior, Rogue, Mage, Healer: the acceptance's "the order kept when the keys are reordered" for the page, which the build had shown only in a scratch copy. **Found and fixed:** the three refusals now quote the key as the checker's others do (`classOrder: "healer" is a Class and is not in the order; list each Class once`, `"mage" is listed twice`, `"bard" is not a Class`), their tests first. A Dead or Retired Hero in the pool is held to read the Day they died or retired (`availability.test.ts`). *The CLI:* confirmed it sorts no list by Class (`show roster` in the Guild's order, `show pool` in id order, the Party preview's requirements in the Quest's); the builder's call stands. The harness's creation and estimate reports list Classes in `classes.json`' key order (the same order today); they are reports, outside the story's lists, noted only. *The pool's ties:* "the owner's default order" is DL-169 item 5's (Class, Level, Age, Name), which `defaultHeroOrder` is. *Content:* `class-order.json` in `contentFiles`, so in the page's bundle (`import.meta.glob`), the build's content gate, the editor's and the portrait tool's readers and the Node reader; the version line as `raiseContentVersion` writes it. No code that reaches play changed (the checker's words and the page alone), so no `neutral` run; the build's 4 × 2 at 34 and 35 stands. *Line endings* as their directories, none mixed. *Checks:* `npm run lint` and `typecheck` clean; `npm test` 209 files, 5,778 tests passing; build and check-bundle passing, the script 816,136 bytes; `npm run e2e -w web` 103 passing.
+
+---
+
+## DL-201 — v1.1.6-S15 built: the page's widths named in `breakpoints`, held to the style sheet by a test; the nine viewing preferences in one table with one `useRemembered` hook
+
+2026-10-05. DL-186 items 23 (SF7) and 25 (SF9).
+
+- *The doctor.* Not run: the story touches neither `engine/src/` nor `content/src/validate.ts`, and AGENTS.md asks for it only then.
+- *Breakpoints* (`web/src/breakpoints.ts`). `breakpoints = { small: 420, phone: 600, wide: 900, rail: 1100 }`, and `narrowQuery` built from `phone` (`(max-width: 599px)`, as before; `ui.tsx` imports it, no longer declares it). Every width in `styles.css` is already one of the four (min-width 600, 900 and 1100; max-width 599 and 419, a pixel under `phone` and `small`), so the page's layout did not change and no stylesheet line was touched. `matchMedia` is asked only through `narrowQuery` (`useNarrow`); no other JS width exists. `breakpoints.test.ts` reads `styles.css` and holds each `@media` `min-width` to a declared width and each `max-width` to one a pixel under; a width in `em` fails too; every breakpoint is used. Mutated to confirm: `419px` made `430px` fails two tests; restored.
+- *Remembered preferences* (`web/src/views/remembered.ts`). One table, `preferences`, of the nine (`view`, `guildPart`, `boardOrder`, `guildsOrder`, `poolOrder`, `rosterView`, `rosterOrder`, `rosterColumns`, `rosterTab`), each `{ key, choices, fallback }` (a list's fallback is empty); and `useRemembered(preference, read?)` returning `[value, set]`, `set` setting the state and keeping it. The keys are unchanged (a test lists them). Every read and write stays in try/catch (`rememberedChoice`, `rememberChoice`, `rememberedList`, `rememberList`, still exported). The per-view key constants (`boardOrderKey`, `guildsOrderKey`, `poolOrderKey`, the four `roster*Key`, `viewKey`, `guildPartKey`), `rememberedView`, `rememberView`, `rememberGuildPart`, the Board's `boardOrders`, the pool's `orders` and the Guilds' `sorts` are gone, their choices now the table's. The app (view, Guild part, Board's order), the Roster (four preferences), the pool and the Guilds table read through the hook; `rememberedGuildPart` stays as the Guild part's `read`, since it also reads the Hall view kept before M9-F2. The saves stay in `saves.ts`, untouched.
+- *Tests.* Keys nine, unique, `heroesim.`-prefixed and the ones a browser already holds; each fallback among its choices; a stored value outside the choices falls back and one inside is read, for every preference; storage refused (throwing `getItem` and `setItem`) leaves every default and does not throw, also through the hook, where a set still changes the page.
+- *Checks.* `npm run lint` and `typecheck` clean; `npm test` 210 files, 5,791 tests passing; `npm run build` and check-bundle passing, the script 816,378 bytes (816,136 before, 242 more); `npm run e2e -w web` 103 passing. No sweep (no play code). Line endings as their directories, none mixed.
+
+*Judgement calls, for the owner to see.* (1) The view and the Guild part are now kept when set, not by an effect on mount and change: a browser has nothing stored until the player first changes view (before, the view in force was stored as the page mounted). What a player sees is the same. (2) `toGuildHome` sets both while rendering, so they are kept during a render, as it already set the state there.
+
+*The verification* (2026-10-05, a second Opus agent, at `7a98424`). The doctor not run, as the build (no `engine/src/` or `content/src/validate.ts` change). *The nine against the old code of `960f66b`.* Each key, its choices and its fallback the same as the old reads and writes: the view (`viewIds`, `guild`), the Guild part (`guildParts`, `home`, and the Hall view of before M9-F2 still read through `rememberedGuildPart`), the Board's four orders (`posted`), the Guilds' six sorts (`fame`), the pool's three (`listed`), the Roster's view (`tiles`), sort (each sort both ways; the old `null` fallback read as `default` ascending, which `default:ascending` is), hidden columns (a list, empty) and phone tab (`hero`). No other reader or writer of `localStorage` in `web/src` but `saves.ts`'s. *The style sheet.* `styles.css` is the only one under `web/src` and `index.html` has none; its `@media` widths all stand on the four; but it has three `@container` queries in rem (`hero-page` at 34rem, `facilities` and `guildmaster` at 46rem) the build's test did not look at, since it read only lines starting `@media`. **Found and fixed:** the parts' widths are named in `containerBreakpoints = { pairs: 34, wide: 46 }` (rem; no stylesheet line changed), and `breakpoints.test.ts` now reads every `@media` and `@container` prelude wherever it stands (indented in another rule, over lines, comments taken out), holds a container's `min-width` to a part's width in rem, and fails any width it cannot read: the range syntax (`width <= 599px`, `600px <= width < 900px`), `min-inline-size`, an `em` or a container's `max-width`; a test holds `styles.css` the only sheet. **Found and fixed:** keeping in the setter wrote `localStorage` while rendering, since `toGuildHome` sets the view and the Guild part in the render a play ends in (a side effect in render, run twice under `StrictMode` and kept even for a render React sets aside); and, as nothing was kept as the page opened, a browser holding the Hall view of before M9-F2 kept it until the player changed view, so a part chosen in the Guild was lost on the next load, which opened at the Hall again. `useRemembered` now keeps what is in force in an effect after the render is committed (`useEffect(() => rememberPreference(which, value), [which, value])`), the value the page opens on too, as the view and the Guild part were kept before S15; its setter is the state's. Tests first, each red before: a set made during a render is kept only after the commit (`remembered.test.ts`, a `useLayoutEffect` marking the render's end); the Hall view put right as the page opens and a part chosen after it reopened (`guild.test.tsx`). So DL-201's judgement call (1) is undone: a browser keeps the view and the Guild part as the page opens, as before S15; and the other seven are now kept as the page opens on them as well (the Board's and the pool's order appear at once), which the Roster's "its four keys and nothing else" test now allows for. *Storage refused:* a test with `localStorage` itself throwing on access (the getter), each of the nine through `useRemembered` in a rendered hook: the default, and a set still changing the page; the sandboxed frame's e2e is the same in Chromium. *Mutations,* each red and restored (18): a container width 36rem, a range `(width < 420px)`, `1100px` made `1000px`; the keeping effect removed; the `try` around reading and around keeping removed; each of the six fixed fallbacks changed (Board, Guilds, pool, Roster view, sort, tab), the view's and the Guild part's; a choice dropped from the Board's, the Guilds' and the pool's; the Hall view's reading removed. Noted, not changed: the Board's orders are listed twice, its labels in `board.tsx` and its choices in the table (the Guilds' and the pool's were already apart from their labels before S15); a dropped choice fails `board.test.tsx`. *Line endings* as their directories, none mixed. *Checks:* `npm run lint` and `typecheck` clean; `npm test` 210 files, 5,795 tests passing; build and check-bundle passing, the script 816,374 bytes; `npm run e2e -w web` 103 passing.
+
+## DL-202 — v1.1.6-S16 built: an optional `weight` on a Class, Background, Quest template and Sphere, drawn by `weightedPick`; a new Hero's sex by `heroSexWeights`; a Disposition's `purchaseOrder`, `gearSlotOrder` and `buildOrder`; `lootOnFinaleDegrees`; config version 15, content version 36; the `neutral` baseline `64020971…`
+
+2026-10-05. DL-186 item 16 (C5), with the Rivals' orders and the Finale's loot as the story names them.
+
+- *The doctor.* Run before any change: no drift (107 reads of a Trait; `docs/agents/traits.md` fresh; the content passing its checks; no pending edits). Run after: the same, no drift.
+- *`weightedPick` and `pick`* (ADR-0009: draw counts and order must not change). `weightedPick` is in play already (the Board's Patrons, the Encounters, who harm falls on, Loot), so its arithmetic is not touched. The test first: with every weight 1 it returns `pick`'s item from the same single draw and leaves the stream where `pick` leaves it, for every list size from 1 to 64 and 97, 128, 255 and 1,000, 5,000 draws each (`rng.test.ts`, beside the existing lengths 1 to 8 at 20,000). It holds because both multiply the one draw by the list's size (the weights' total, an exact whole number) and compare against whole numbers, so the product's rounding is the same on both sides. No fallback to `pick` was needed.
+- *The weights.* `weight?: number` on `Class`, `Background`, `Sphere` and `QuestTemplate`, 1 when absent (`weightOf`, `pickByWeight` in `generators/draw.ts`). The Hero Generator draws its Background and Class, the Guild Generator its Background (a Guild Background), the Patron Generator its Sphere and the Quest Generator its template by `pickByWeight`, over the same rows in the same key order, one draw each. Not weighted: the Classes a Guild's starting Roster is dealt (`dealEvenly`), the Spheres dealt to the Patrons at creation (`dealEvenly`), a Guildmaster's sex and the Guild's Disposition. The shipped files carry no `weight`. The parser reads it where written; `validateContent` refuses one that is 0, negative or not finite, naming the row (`classes.warrior.weight is 0; it is a number above 0, or absent for 1`).
+- *A Hero's sex* by `heroSexWeights: { female: 1, male: 1 }` (`weightedPick` over `sexes`, one draw, as `pick(state, sexes)` was). Its rule (`config-check.ts`): exactly the two sexes, each 0 or more, one above 0. A Guildmaster's sex stays `pick` (the story names the Hero's).
+- *The Rivals' orders.* `Disposition.purchaseOrder` (each of `purchaseSteps`, new in `content-types.ts`: `build`, `gear`, `transfer`, `recruit`, `debt`, once), `gearSlotOrder` (each of `gearSlotKeys` once) and `buildOrder` (each facility once), each optional. Absent, today's: that step order (`rivalChoices` tries the steps in turn, each only when the ones before made nothing, so the Transfer step's draw is taken only then, as the `??` chain did), armour then the other slots in `gearSlotKeys`' order, and `facilityKeys`' order. The parser reads each as a list of the engine's keys; the checker refuses a key listed twice, one left out and one that is none of them, naming the Disposition and the order. None of the four shipped rows writes an order.
+- *`lootOnFinaleDegrees`*, `['triumph']`: a Quest whose template names a Finale awards Loot only when the Finale ended at one of these Degrees (`drawLoot` read the Triumph in code); a Quest with no Finale is unaffected and `unmet` is never a Degree. Its rule: a list of the Degrees (`listOf(degrees)`), none twice. S7's count of rules is now 120, one for each of the two new settings.
+- *Versions.* `configVersion` 14 to 15 with its changelog line (`config.ts`), the five tests that pinned 14 moved to 15; content version 35 to 36 through `raiseContentVersion` (a scratch run of the write module), its changelog line saying what the version adds.
+- *Tests.* `weights.test.ts` (new): a Hero's sex, Background and Class, and a Guild's Background, drawn as `pick` draws them over 400 Heroes with no weight and with every weight 1; a Class, Background, Sphere, template and sex weighted 0 never drawn, a heavy Class the likeliest, a sex at 1:3 near 0.75. `rival-orders.test.ts` (new): each default, each order written, a step that does not apply passed over. `refusals.test.ts`: the weights and the three orders read, refused when 0, negative, not a number, missing, twice or unknown. `config-check.test.ts`: the two new settings' cases. `loot.test.ts`: the Degrees list.
+- *Checks.* `npm run lint` and `typecheck` clean; `npm test` 212 files, 5,831 tests passing; `npm run build` and check-bundle passing, the script 817,223 bytes (816,374 before, 849 more); `npm run e2e -w web` 103 passing; the doctor no drift after. Line endings as their directories, none mixed.
+- *The `neutral` baseline.* `neutral m9-v116-s16-neutral --expect 7298b502…` (10 games of 20 years, alone, `HEROESIM_WORKERS=8`) FAILED on the fingerprint alone: `64020971a7ace93ced9bb45c2dae6d9ad330fa2404b3639cda30e7b739b9d1d1`; every other line passed. As DL-192 and DL-200: the fingerprint hashes each seed's last save, which records the content version and the configVersion. **It also records `meta.config`, so the two new settings, `heroSexWeights` and `lootOnFinaleDegrees`, are in every save**, which the story's brief did not name. Shown by the 4 × 2 quick check (`HEROESIM_WORKERS=8 HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- neutral <name>`, the Gate PASS each time): with `content/version.json` put back to 35 and `configVersion` to 14 and the rest in place it gave `c6517896d6a5586d9f976b7100cde1591a83a3436e6b569312669e6c22ee0f5f`, not S14's `00821462…`; with the two settings also taken out of `defaultConfig` and their rules, and the two reads given their old literals (the sex's weights of 1 and 1, the Triumph alone), it gave `0082146222404990afda7d25d031f2a89d5ed279a45c4b942ace1b8671bd8f33`, S14's. So the code reaching play changed nothing: the three records in the save (the content version, the configVersion and the two settings in `meta.config`) alone moved the fingerprint. All the temporary changes were put back after (the files byte for byte, restored from copies). **The baseline is now `64020971a7ace93ced9bb45c2dae6d9ad330fa2404b3639cda30e7b739b9d1d1`** (`harness/README.md`), the `--expect` of S17 onward; the 4 × 2 quick check at content 36 and config version 15 is `340876aec96189dc267a8ec9aa293e0eb71960467a812f0ecd0060dcefc0d073`. The full `gate`'s `143a44c7…` moves with the next run of it. The reports were not committed.
+
+*Judgement calls, for the owner to see.* (1) The weights stand on the draws made one at a time (a new Hero, Guild, Patron, Quest); the Classes and Spheres dealt evenly at creation stay even, as "every Class once before any twice" is their purpose, so a Class weight skews Heroes generated one by one (the pool's refill, a Succession's Hero) but not a Guild's first Roster. Say if the deals should read the weights too. (2) `heroSexWeights` allows a weight of 0 for one sex (a world of one sex), not both; no weight on a Guildmaster's sex is offered. (3) The Rivals' orders are on the Disposition, not the config, so a Rival's content row can say them; the shipped rows write none.
+
+*The verification* (2026-10-05, a second Opus agent, at `6d468bf`). The doctor read no drift before and after (107 reads of a Trait; the content passing its checks; no pending edits). *`weightedPick` against `pick`, re-derived.* `next` returns a whole number below 2^32 divided by 2^32, exactly; `pick` takes the floor of the draw times n through `int`, and `weightedPick` with every weight 1 compares the draw times n (the total, an exact whole number) against 1, 2 and on to n, so lands on that floor too; the product is exact on both sides while n is below 2^21; one `next` each. *The call sites.* A Hero's Background (`sortedKeys` is `sortedRows(...).map(key)`, so the same rows in the same order), a Hero's Class, a Guild's Background, a Patron's Sphere and a Quest's template (`offered`, the same list): one draw each over the same list as before. The sex was `pick(state, sexes)` and is `weightedPick` over the same `sexes`, female then male. No other uniform draw of a Class, Background, Sphere or template in `engine/src`. *`rivalChoices`.* The old `??` chain called a step only when those before it returned `null` (each returns a `GuildAction` or `null`, never `undefined`); the loop calls the same five in the same order and stops at the first that makes something, the debt step's Set of dispatched Heroes now made before the loop, which draws nothing; `armourFirst` is the old `purchaseOrder(gearSlotKeys)`, made once; `buildOrder ?? facilityKeys` as before. So a Rival with no Wealth, a full Roster or a debt takes the same steps, and the Transfer's one `rivals` draw only when the build and the gear made nothing. A mutation trying every step before choosing turned `rival.test.ts` and `quests-conclude.test.ts` red. *`drawLoot`.* The list is read where the `'triumph'` literal stood, after both draws, so two draws in every Degree and when `unmet`. *Play unchanged, independently.* The 4 × 2 quick check, alone (`HEROESIM_WORKERS=8`), with `content/version.json` as at `1ab3a14`, `configVersion` 14, the two settings and their rules taken out and the two reads given literals (the sex's weights `[1, 1]` still through `weightedPick`, `['triumph']`): `0082146222404990afda7d25d031f2a89d5ed279a45c4b942ace1b8671bd8f33`, S14's, the Gate PASS; every file then put back and checked by SHA-256 against its copy, and the quick check at HEAD `340876ae…`. No `neutral` run here, since no code reaching play changed. *DL-186 item 16 and the build's three calls.* The review's C5 named the one-at-a-time draws (a Hero's Class and Background, a Guild's Background, a template, a Sphere), the purchase priority as the Disposition's `purchaseOrder`, the gear and build orders on the Disposition and the Finale's Loot as "config beside `lootOnBands`"; the owner's (c) took all of it and added the sex weight. The deals at creation are not named there and the story says "a new Hero's sex", so calls (1) and (2) are readings for the owner to see, not departures; call (3) is the review's own. *Bounds.* `heroSexWeights`: both sexes and nothing else, each a finite number of 0 or more, one above 0 (0 for one sex allowed, a world of one sex); `lootOnFinaleDegrees`: the four Degrees, none twice, `unmet` refused, the empty list allowed (no Loot on a Quest with a Finale). Content: a weight finite and above 0; an order a permutation, a key that is none of the engine's refused by the parser, a key twice or left out by the checker, each naming the Disposition and the order. *Mutations,* each red and restored (9): the sexes' list reversed; `pickByWeight` ignoring the weights; the gear default as `gearSlotKeys`; `buildOrder` ignored; the sex rule's "one above 0" removed; a content weight of 0 allowed; the "listed twice" check removed; the Loot list replaced by the old literal; the steps tried eagerly (above). **Found and fixed:** comments still giving the old draws and the old rule: a Hero's Class, a Patron's Sphere and a Quest's template "drawn uniformly" (`heroes.ts`, `patrons.ts`, `quests.ts` twice), Loot needing "a Triumph" (`loot.ts` twice, `resolve.ts`), and `rivalChoices`' account of the build and gear steps without the two orders; comments only. Noted, not changed: the Quest review's Finales section (`words/src/quest-review.ts`) says Loot "needs its Triumph", the default, as the review reads no config. *Line endings* as their directories, none mixed. *Checks:* `npm run lint` and `typecheck` clean; `npm test` 212 files, 5,831 tests passing; build and check-bundle passing, the script 817,223 bytes; `npm run e2e -w web` 103 passing.
+
+## DL-203 — v1.1.6-S17 built: the per-Turn copy by hand, `copyWorld`, the write-once rows (dead, retired and gone Heroes, retired Guildmasters, folded Guilds) frozen and shared by reference, the rest copied in key order, the save unchanged (ADR-0011, amending ADR-0008); a Module's `adjustRegard` refusing a retired Guildmaster; the World State and the copy's time as sweep measures; the Gate's copy-time line, its baseline left to the full gate
+
+2026-10-05. DL-186 item 11 (B5), with the owner's design answers taken as the story started.
+
+**The owner's answers** (2026-10-05, asked by the orchestrator, recorded verbatim in ADR-0011):
+
+1. Design: "(c) Custom copy (Recommended)": same saved shape, no schema change, fingerprints hold;
+   replace the per-Turn `structuredClone` of `world` with a hand copy that reuses frozen write-once
+   rows by reference and deep-copies live rows (insertion order kept); a JSON-style copy runs at
+   about 1/3 of structuredClone's cost (DL-174). A hidden write to a frozen row throws, which
+   doubles as the "nothing writes the shared data" test.
+2. What is shared: "Departed + texts + retired GMs": dead, retired and left-pool Heroes' rows, plus
+   every Hero's and Guildmaster's texts (appearance, biography, birthplace), plus retired
+   Guildmasters and folded Guilds. This closes the Module `adjustRegard` hole: a Module may no
+   longer adjust a retired Guildmaster's Regard (refused as it refuses departed Heroes,
+   `outOfPlay`); no shipped content uses it.
+3. The Gate's per-Turn copy-time line: "Mean ≤ baseline +25% (Recommended)": the mean copy time
+   over the run, the baseline measured at S17's full gate, may grow at most 25% without a DL entry.
+
+**What was built.**
+- *The doctor.* Run before any change: no drift (107 reads of a Trait; `docs/agents/traits.md` fresh; the content passing its checks; no pending edits). Run after: the same, no drift.
+- *Measured first* (`bb06d59`, play unchanged). The copy named: `copyWorld(world)` in `engine/src/world-copy.ts`, still `structuredClone` then, called by `advance` and `applyToCopy`; with it `writeOnce`, one predicate a table for the rows out of play for good (a Hero dead, retired or gone from the pool; a retired Guildmaster; a folded Guild), exported for the harness. The seam is the harness's, not the engine's: as each year ends the play loop's `observeWorld` (`counters.ts`) times three copies of the year-end world by the engine's `copyWorld` on the harness's clock, the year's figure their mean, and drops them; no timing code in the engine. With it `world`'s length in the save's characters (`savedLength`), and its rows: Heroes, Guildmasters and Guilds in play and written once, and the other tables' rows. The sweep joins them by year (`totals.worlds`, joined as the saves are), the Markdown prints a section, "The World State and its copy", and a `copyWorld` row in the Measures; the JSON carries them in its totals; `compare` leaves them out of the core counters (`coreCounters`' `notCore`), since copy times differ between two runs of one game. A year-end sample, not every Turn's copy: timing every copy would need a clock in the engine, and the mean over the years' ends weighs each year as its Turns do.
+- *ADR-0011* (`docs/adr/0011-write-once-rows-are-shared-by-reference-outside-the-per-turn-copy.md`), amending ADR-0008 (its header says so): the owner's three answers, the design and its consequences. ADR-0004 needs no amendment: the save is the same snapshot.
+- *The copy* (`f1b07de`). `copyWorld` walks `world` in its key order; in `heroes`, `guildmasters` and `guilds` a write-once row is frozen all the way down (once; a row already frozen is passed) and shared by reference; every other value is copied, lists item by item and objects key by key in `for…in` order, which is the order `structuredClone` keeps (integer-like keys first, then insertion order), `__proto__` as an own key kept one, `undefined` and `-0` kept. Strings are never copied by it, so every Appearance, Biography and Birthplace is shared by reference with no freezing and no table of its own: answer 2's texts fall out of the hand copy. *When a row is frozen:* by the first copy made of a world in which it is write-once (the next Turn's, or an action's between Turns), not as it leaves play, since the night that takes a Hero out of play writes them again (a retiring Hero's gear is moved after they are marked; a dead Hero's Party is cleared). From then a write throws a TypeError where it is made: the engine's modules are ES modules, in strict mode. The document copied from has its write-once rows frozen as they are shared; their values are unchanged. A loaded save's rows are not frozen until its first copy. `structuredClone` is gone from `advance.ts` and `actions/result.ts`.
+- *`adjustRegard`* (answer 2). A retired Guildmaster as a holder is refused `holder-gone`, as a Hero out of play and the Guildmaster of a folded Guild are (`effects.ts`); `outOfPlay` is now `writeOnce.heroes`. Test first: before the fix the effect threw "Cannot add property patron-000001, object is not extensible", the freeze finding the hole.
+- *The read-only view* (`read-only.ts`). It already handed back a frozen object's own properties as they are, as a Proxy's invariant demands; its comment ("the World State is never frozen") is corrected, and it is tested: a module reads a frozen row whole (`JSON.stringify`, its descriptors, its Stats and Regard), and a write to it through the view, or into the frozen Stats, Traits or Regard the view hands back, fails the Turn naming the module. Removing the frozen branch of the `get` trap turns the reading test red (checked, restored).
+- *Tests.* `engine/src/world-copy.test.ts` (new): over three seeds of 240 Turns (a year of 12 Turns), every 7th world's copy equal to `structuredClone`'s, every object's own keys in the same order at every depth, and the same `JSON.stringify` text; 120 Turns whose saves with either copy are the same text; each write-once row shared by reference and frozen through, every other object of the copy new and not frozen; the odd JSON-safe values; `advance` sharing the rows between the document given and the one it returns, the given world's text unchanged; a loaded save's rows unfrozen until its first copy and its next 24 saves the same as the played document's; a write to a shared row throwing. `harness/src/write-once.test.ts` (new): three seeds of 40 short years (20 Turns each) under the automatic policy and the probe module (`probeFireBelow` 0.5), a Rival put in debt so a Guild folds: after every `advance` each write-once row of the world it was given is frozen and the same object in the world it gave (16,788 Hero, 1,410 Guildmaster and 1,584 Guild row-Turns shared at the build), every 50th Turn's copy saving as `structuredClone`'s, no refusal, the probe fired. Plus `effects.test.ts` (the retired Guildmaster), `module-hooks.test.ts` (the view), `gate.test.ts`, `counters.test.ts`, `play.test.ts`, `sweep.test.ts` and `module-report.test.ts` for the measures. No existing test changed a frozen row, and none needed a thawed copy (a test's `structuredClone` of a document makes rows that are not frozen). The CLI, the page, the estimate probe and the Succession probe change only worlds just created; the page changes no document (S13).
+- *The Gate* (answer 3). `harness/gate.json`'s `copyMs` line: `growth` 0.25, `baselineMeanMs` **`null`**; `checkGate`'s line "The per-Turn copy's time": the mean of every copy timed as the years ended, at most the baseline + 25%, a band (not comparable on a run of another shape than 50 × 20); while the baseline is `null` it reads "not comparable" on any run, its mean printed. The `neutral` run's figure is **not** used as the baseline: it is 10 games, not the spec's run. The baseline is to be set from S17's full gate by its verification.
+- *Docs.* data-model §1 (the copy and the write-once rows) and §7 (the historical set built without a section of its own); ADR-0008's header; the harness README's Gate; `read-only.ts`'s and `advance.ts`'s comments. `CONTEXT.md` names no copy, so is unchanged.
+
+**Before and after** (`neutral`, 10 games of 20 years, 8 processes, alone; the reports not committed):
+
+| | Before (`bb06d59`, `structuredClone`) | After (`f1b07de`, `copyWorld` by hand) |
+| --- | ---: | ---: |
+| Fingerprint, `--expect 64020971…` | PASS | PASS, the same |
+| `copyWorld` as each year ended, mean ms (200 samples) | 1.485 | 1.052 (−29%) |
+| The copy at year 20, mean ms | 1.735 | 1.025 (−41%) |
+| `advance` per Turn, mean ms, 8 processes | 3.238 | 4.308 |
+| `advance` per Turn, mean ms, `seed-0001` replayed alone | 3.022 | 3.898 |
+| The run, wall clock | 281.0 s | 374.0 s |
+
+The World State is small: 0.27 MiB of save at year 20, 41 Heroes in play and 55 written once, 7.9 Guildmasters of whom 0.7 retired, 2.9 Guilds folded, 229 other rows (Items, stacks, Quests and the like), the same in both runs. The copy is near half of `advance`'s time. The sweeps' `advance` times went the wrong way, so the copies were set against each other in one process, alternately, on `seed-0001` for 12 years bare (a scratch switch in `copyWorld`, never committed, the file put back from Git): `structuredClone` 4.201, 4.175, 4.051 ms a Turn; the hand copy 3.640, 3.457, 3.417; the hand copy with nothing frozen or shared 3.667, 3.455, 3.525. So the hand copy makes a Turn about 15% faster (3.50 against 4.14 ms; 60 s against 72 s a 12-year game), and the slower `neutral` after was the machine (DL-81 item 6: a factor of up to three between days). A micro-benchmark on a 300-Turn world: `structuredClone` 0.29 ms, `JSON.parse(JSON.stringify())` 0.24, `copyWorld` 0.095. *For the owner:* the gain is the hand copy's; freezing and sharing the write-once rows adds nothing measurable at 12 years (half the rows are written once only near year 20), and costs nothing either; it is kept for answer 2 and for the guarantee that nothing writes those rows.
+
+**Checks.** `npm run lint` and `typecheck` clean; `npm test` 214 files, 5,850 tests passing (one whole run had the editor's `recovery.test.ts` time out under the suite's load; it passed alone and on the next whole run); `npm run e2e -w web` 103 passing, its build and check-bundle passing, the script 817,886 bytes (817,223 before); the doctor no drift before and after. Line endings as their directories, none mixed. **The full `gate` was not run here**: the verification runs it, `compare`s it with S3's baseline and sets `copyMs.baselineMeanMs` from it.
+
+*Judgement calls, for the owner to see.* None of a gameplay or data-shape kind: the save, its schema and its fingerprints are unchanged. (1) The copy's time is sampled as each year ends (three copies of the year-end world), not every Turn's copy, to keep the clock out of the engine. (2) The copy-time line binds a machine whose single-thread speed varies by up to three times between days (DL-81 item 6), so a 25% margin may fail on a slow day with no change; the line is the owner's answer and stands. (3) A retired Guildmaster's row is written once, but the Guildmaster of a folded Guild who has not retired is not, as answer 2 names; nothing was found writing it.
+
+*The verification* (2026-10-05, a second Opus agent, at `f6b9e68`). The doctor read no drift before and after (107 reads of a Trait; the content passing its checks; no pending edits). *The answers.* ADR-0011's three answers are word for word the owner's as the orchestrator recorded them, and its account of the design is the code's. *The copy.* `copyWorld` walks each object's own keys by `for…in` (plain objects, no inherited keys), which is the order `structuredClone` keeps; lists item by item; the `rng` tuples, the counters, the Board, the Offers and the module slices are copied like any value, never frozen (`writeOnce` names only `heroes`, `guildmasters` and `guilds`), so a module's slice stays its own to change in place. The tests compare it with `structuredClone` key for key and by the save's text over three seeds of 240 Turns, the probe's 40-year games and a loaded save. *Each predicate final, every writer read.* Every write to a Hero, Guildmaster or Guild row in `engine/src` was traced (two read-only sweeps of the engine, then checked by hand where they pointed). A Hero leaves play only on a night: `questsConclude` kills them on their Party's return, clears `partyId` and takes them off the Roster the same night (no one dies away, the Party row deleted that night); `heroState` retires only a Hero not in a Party and takes them off the Roster; the pool refresh sets `leftPoolOnTurn` (clearing `unattachedSince`) or deletes the row. After that night nothing writes them: the nightly walks go through `activeRosterHeroes` or the Roster (dead and retired skipped), `gearReturn` moves only Item and stack rows and reads the Hero, Hero Regard writes only the living holder's map, every action refuses before writing (`recruit` needs `unattachedSince`, `dispatch` and `equip` refuse the gone, the Transfers need the Roster), and the module effects refuse through `outOfPlay`. A Guildmaster retires only in the Succession, the Guild naming the successor in the same step; the player's Guildmaster is never marked retired (the game ends); a fold retires no one; every Regard write reaches the Guildmaster in office through a Guild in play, and `adjustRegard` now refuses a retired one. A folded Guild is skipped by `guildState`, the endings, the quests' conclusion, the Rivals (`rivalChoices` is empty), the Transfers phase and every action (each refusing a folded Guild before writing); its Offers are withdrawn at the fold. No in-place `sort`, `reverse` or `splice` in the CLI, the page, `words` or the harness touches a list read from the world (each sorts a list it made); the harness's writes to rows are on worlds just created; nothing outside `copyWorld` shallow-copies a world and writes a row of it (the estimate's homecoming runs on its own copies). *Mutations,* each red and restored (5): `copyTable` sharing the live rows too (49 tests red); `frozen` not reaching inside a row (7); the copy's keys sorted (2); the retired Guildmaster's refusal removed (1); the deaths left on the Roster (the probe's games, below). *Timing, in one process, alternately* (`seed-0001`, 10 years bare, no module, a scratch switch in `copyWorld` never committed, the file put back from Git): `advance` a Turn with `structuredClone` 3.771, 3.667, 3.734, 3.659 ms (mean 3.708); by hand 2.711, 2.801, 2.933, 2.839 (mean 2.821), 24% faster, the same save length each game (wall clock 57 against 42 s). The slower `neutral` after was the machine, as the build found. **Found and fixed:** (1) the safety of the rows rests on two facts no check held: no Hero out of play on a Roster, none in a Party. A save hand-made or damaged that way was accepted, and would now throw a TypeError mid-Turn (a Transfer's `hero.guildId`, a Morale walk over a Roster, a fold, a Quest's conclusion writing the frozen row) instead of being refused. Test first: a new refusal `departed-hero-in-play` (`validate.ts`, data-model §6): a Hero dead, retired or gone from the pool on a Roster, in a Party or with a `partyId`, one failure a Hero; four tests (`validate.test.ts`), the old "on a Roster marked as gone from the pool" case now naming both checks. The probe's games in `write-once.test.ts` now validate after every `advance` and expect no refusal; taking the deaths off the Roster out of `questsConclude` turns that test red at Turn 362 (restored). The engine never makes such a save, so no game changes. (2) `harness/src/write-once.test.ts` was the only file in `harness/src` written with LF; now CRLF as its directory. *Checks:* `npm run lint` and `typecheck` clean; `npm test` 214 files, 5,853 tests passing; build and check-bundle passing, the script 818,398 bytes; `npm run e2e -w web` 103 passing.
+
+*The full `gate`* (2026-10-05, the verification, at `43ea8eb`, alone, `HEROESIM_WORKERS=8`, no `--expect`): `m9-v116-s17`, 50 games of 20 years, 871 s; fingerprint `ecede9c07ee4ac031f62bec25a0848c73008b9fdefe9416083975f390c06e6fa` (schema 7, config version 15, content version 36; S7's `143a44c7…` at 34); **the Gate PASS**: no refusal, no game invalid, stopped or unfinished, every round trip whole, `seed-0001` replayed alone identical (144,370,431 characters), the player's Bankruptcies 0 of 50, the save after 20 years 17.95 MiB gzipped (max 21.08); 50 survived; Rivals folded 137, succeeded 45. *`compare`* against S3's report (`m9-v116-s3`): 517 counters the same, 2 moved, both the save's size (lengths −1,650,806 characters and gzipped −9,405 bytes over the 1,000 year-end saves, S7's `demands` gone less the new settings in `meta.config`); against S7's (`m9-v116-s7`): 517 the same, the lengths +73,000 (73 characters a save: `heroSexWeights` and `lootOnFinaleDegrees` in `meta.config`) and gzipped +1,627. No play counter moved. *The copy* as each year ended: mean 0.847 ms over 1,000 copies (p50 0.761, p99 1.942), 0.474 ms as the first year ended and 0.916 ms as the twentieth; this sets `harness/gate.json`'s `copyMs.baselineMeanMs` at **0.847** (the limit 1.059 ms), its source naming this run, and `gate.test.ts` holds the shipped value and that a run at it passes and one over 25% fails (red at `null` first). *The Turn:* `advance` mean 3.346 ms, p50 1.736, p99 29.870 (S7's full gate, with `structuredClone`: 7.242, 4.723, 52.179; S3's 7.076), the run 871 s against S7's 1,869. Not all of that halving is the copy's (at most about 1.5 ms of a Turn at year 20, DL-174); the rest is the machine's day (DL-81 item 6) and whatever the stories since S7 changed, which no full gate measured apart; the controlled A/B above is the copy's own figure, 24%. The reports, Markdown and JSON, are committed. *Checks after:* `npm run lint` and `typecheck` clean; `npm test` 214 files, 5,854 tests passing (one whole run had the editor's `recovery.test.ts` time out under the suite's load, as the build saw; it passed alone and on the next whole run); the doctor no drift.
+
+## DL-204 — v1.1.6-S18 built: the tuning values as data, `engine/src/config.json` in 18 sections with the config version and its changelog, read flat as before; the editor's config kind, `npm run edit -- config`; the comment rule; config version 16; the `neutral` baseline `6282414c…`
+
+2026-10-05. DL-186 items 15 (C4) and 27 (SF11).
+
+- *The doctor.* Run before any change: no drift (107 reads of a Trait; `docs/agents/traits.md` fresh; the content passing its checks; no pending edits). Run after: the same.
+- *The file.* `engine/src/config.json` holds `version`, `changelog` and `sections`: the 120 settings in 18 sections by what they tune, each a run of `GameConfig`'s fields in their order (`world` the year and the starting world, the Rivals' ranges among it; `heroes`, `guildmasters`, `guilds` the Upkeep and Bankruptcy, `recruitment`, `board`, `quest`, `heroState`, `ageing`, `endings`, `progression`, `regard`, `patrons`, `guildmasterStats`, `guildmasterRegard`, `transfers`, `loot`, `market`). It was written once from `defaultConfig` by a scratch script (the layout of content's write module, `formatJson`). `config.ts` imports it as JSON (`with { type: 'json' }`; the engine's `tsconfig.json` includes `src/**/*.json`, no other setting needed under TypeScript 6), and `defaultConfig` is `flattenConfig(configSections)`, frozen all the way down: the sections end to end, each in its order, a setting in two sections refused naming both. *Order:* the flat config's keys are `GameConfig`'s order, as before, so `playConfig`'s merge, the harness's report JSON and every iteration see the same order; the sections were chosen as runs of that order (a `rivals` section would have split the starting world's run, so the Rivals' ranges stay in `world`). The save's `meta.config` is written with sorted keys anyway. *Values:* a scratch comparison of the old literal and the new flat config, `Object.is` on every leaf and the keys' order at every depth: identical, `infirmaryHealFactor`'s ⅓ included (`0.3333333333333333` reads back as `1 / 3`). `configVersion` and `configChangelog` are the file's; the changelog is the old comment's history, a line for each raise as S4 did for the content's (each `;` between raises a `.`, "and, on a parallel branch, 5 from M6-S1" as "5, on a parallel branch, from M6-S1"), and the new line `16 from v1.1.6-S18, which moves the defaults' values into this file, …, every value as it was (DL-204).` Exported: `checkConfig` and `flattenConfig` from the engine's entry, for the editor.
+- *Zero-dependency and browser-safe.* The engine imports only its own JSON (ESLint's engine rules pass). Vitest, the CLI under tsx, the harness's children (`node --import tsx`) and Vite read it as they are. The page bundles the file with its changelog empty (`web/vite.config.ts`' `compactConfig`, as `compactContent` does `content/version.json`'s); `bundle.test.ts` holds that no changelog line is in the script (red before the plugin). The script: 818,799 bytes, 401 more than 818,398 (the sections' names; 820,844 before the changelog was emptied), within 850 kB.
+- *The comments* (item 27). `config.ts`'s header and each field say what the setting is and why, citing the deciding entry; the value histories went: `wagePerLevel`'s 5, 70 and 20 (DL-35, DL-36), `checkDegrees`' 1.25 and `strongTriumphShare`'s 0.5 (DL-166, DL-168), the form factors' and `hurtCheckFactor`'s first values (DL-154, DL-166), `checkVariance`'s ±20% (DL-165), the Guildmasters' ages 30 to 45 and 65 (DL-113), `transferLockDays`' 30 (DL-60, DL-69), `lootDifficultyThreshold`'s 25 (DL-62), the stories' list of fields, the removed stub's fields (DL-42 item 14) and the Rivals' multiples (DL-56): each found in the log before it was deleted, so no note was needed. The section headers name their sections. The five tests that pinned `configVersion` at 15 (`create`, `guilds`, `endings`, `level-ups`, `resolve`) pin it no more, since every config "Finish" raises it: `config.test.ts` holds the version to the file and the changelog's last line to the version; their value pins stay, and `resolve.test.ts`' history comment is one line citing DL-166. The rule is `docs/agents/comments.md`, linked from `AGENTS.md`.
+- *The editor's config kind.* `config show [<section>]`, `config set <setting> <value>` (JSON where it is JSON, else text), `config pending`, `config discard [<setting>]` and `config finish --reason <why>` (`tools/editor/src/config-kind.ts`, wired into `cli.ts`; commands alone, the page has none). Each `set` is checked at once with `checkConfig` against the root's content, every pending edit made, and refused naming the setting (`boardSize is -1; it is a whole number, at least 0`; a Min above its Max names the Max); held in `.editor/config.json`. "Finish" checks again, writes the file in its own layout through S4's write module (`editJson`, `transaction`), raises `version` with the line `<n> from <why>: <setting> <was> to <value>, ….`, runs `npm test`, and puts the file back if a test fails; it takes the Traits' journal and lock. `--reason` is required and `config finish`'s alone. Docs: the editor's README (a section and the usage), `docs/agents/config.md` linked from `AGENTS.md`, `data-model.md` §2.
+- *Tests.* `engine/src/config.test.ts` (new, 8): the sections' keys equal to `keyof GameConfig` by type (`expectTypeOf`), every setting once in the file's text, the flat keys equal to `configRules`' in order (120), each value the file's, frozen through, the version and changelog, `flattenConfig`'s order and its refusal. `tools/editor/src/config-kind.test.ts` (new, 13, each in a scratch copy whose `engine/src/config.json` is committed, never the real file): show, a section refused, a value set and pending with the file unchanged, values as JSON and text, a bad value refused by `checkConfig` naming the setting (and the Max for a Min), an unknown setting, replace, back to the file's, unchanged, discard, "Finish" writing two values with the version raised and its line (`git diff --numstat` 5 and 4), a failing test putting the file back with the edits kept, the reason wanted, the settings checked again at "Finish". *Mutations*, each restored: `set`'s and "Finish"'s check skipped (2 tests red), the version not raised (1 red); the bundle plugin removed (1 red, before it was written).
+- *Proof: the values moved, nothing changed.* With `config.json`'s `version` set to 15 for the run, and everything else as built, `neutral m9-v116-s18-at15 --expect 64020971…` alone (`HEROESIM_WORKERS=8`, 226 s): **PASS**, the fingerprint `64020971a7ace93ced9bb45c2dae6d9ad330fa2404b3639cda30e7b739b9d1d1`, the replay identical, the Gate PASS: every save byte for byte as S16's and S17's, `meta.config` included. The file then put back (SHA-256 the same as its copy). *The raise* (the plan's §2: S18 raises `configVersion`): 15 to 16. The 4 × 2 quick check at 16, alone: `948be72d1c156791960e40fd3ba48b58621283527ebf2cc3dcce820b622d5cb4`, the Gate PASS. `neutral m9-v116-s18-neutral` at 16, alone (432 s): **`6282414caa9681445c3ba849400506ce10510713ce9eff8173c2372e46e4ed10`**, the replay identical, the Gate PASS; the version alone moved it, as the run at 15 shows. It is the new baseline (`harness/README.md`, the brief); the full `gate`'s `ecede9c0…` moves with its next run. The reports were not committed.
+- *Checks.* `npm run lint` and `typecheck` clean; `npm test` 216 files, 5,876 tests passing (one whole run had `rng.test.ts`' weighted-pick sweep and `availability.test.ts`' two-year walk over 5 s under the suite's load, each passing alone and in the next whole run); `npm run build` and check-bundle passing (818,799 bytes); `npm run e2e -w web` 103 passing. Line endings as their directories (the new files CRLF), none mixed.
+
+*Judgement calls, for the owner to see.* (1) *Sections* as runs of `GameConfig`'s order, so the flat order holds without a table of it: the Rivals' starting ranges sit in `world`, and `rivalReplacementDays` in `endings`. (2) *Tests that pin a default* (`wagePerLevel` 20, the Guildmasters' ages, the Degrees, `guildmasterStatPoints`, the budget) and every test whose numbers rest on a default will fail a config "Finish" for that setting, putting it back; `docs/agents/config.md` says to change those tests in the same story. The `configVersion` pins went, since they would fail every "Finish". (3) `--reason` is required, so a raise always says why. (4) The changelog is bundled empty, as the content version's is.
+
+*The verification* (2026-10-05, a second Opus agent, at `7a2bfdf`). The doctor read no drift before and after (107 reads of a Trait; the content passing its checks; no pending edits). *The values, compared again.* A scratch script imported the old `config.ts` from `40568de` beside the new and walked both: 120 settings, 146 leaves, every one equal by `Object.is`, the keys' order the same at every depth, and every object and list frozen in both (the old literal froze each nested value, so the deep freeze makes nothing newly frozen and no writer can newly throw); `JSON.stringify` of the two identical; `0.3333333333333333` reads back as exactly `1 / 3` (the nearest double, which the 17-digit form names). `configSections` is new and frozen; nothing imports `config.json` but `config.ts`, and the editor reads the file by `fs` and works on a `structuredClone`. *Values moved, nothing changed, re-run:* with `config.json`'s `version` set to 15 (by a script, the file's CRLF kept), the 4 × 2 quick check alone (`HEROESIM_WORKERS=8`) gave `340876aec96189dc267a8ec9aa293e0eb71960467a812f0ecd0060dcefc0d073`, S16's, the Gate PASS, the replay identical; the file then put back, its SHA-256 `5a2e269e…` as before; at 16, `948be72d…`, the Gate PASS. The reports were deleted. *The histories.* Fifteen settings' removed histories were found in the log: `wagePerLevel` 5 → 70 → 20 (DL-35's table, DL-36 item 10), `checkVariance` 0.2 → 0.4 (DL-165 item 2), `checkDegrees.triumph` 1.25 → 1.35 and `strongTriumphShare` 0.5 → 0.6 (DL-166 item 3), `moraleCheckFactor`'s first values and `hurtCheckFactor` 0.85 → 0.93 (DL-154, DL-166 item 4), the Guildmasters' 30 to 45 and 65 (DL-113 item 4), `transferLockDays` 30 → 90 (DL-60 item 2, DL-69), `lootDifficultyThreshold` 25 → 35 (DL-62), `infirmaryHealFactor`'s fourth grade (DL-53), `guildmasterStatPoints`' mean of 10 (DL-149), the stub's fields (DL-29, DL-42), `recruitWealthMultiple` (DL-30) and `buildWealthMultiple` (DL-38); none lost. Every one of the 120 fields keeps its doc comment as before (a script over both files), and the provisional notes on the form factors stay. The five `configVersion` pins' work is `config.test.ts`' (the version the file's, its changelog's last line naming it); their value pins stay. *The config kind, driven by hand* (pending only, then discarded): a negative number (`-12`), a fraction, a list, an object and a word set; `.5` and `1/3` read as text and refused as not a share; `true`, `6.5` and `"6"` refused for a whole number; an object missing or adding a key refused; `1e1` read as 10; an unknown setting refused. *Found and fixed, test first:* an object given in another key order (`{"male":1,"female":1}`) was held as a change of `heroSexWeights`, so a "Finish" would have raised the version and rewritten the file for no value changed; `set` now takes an object's keys in the file's order (`inOrderOf`), so it is "unchanged", and a changed object is held in the file's order (red before, green after; the README and `docs/agents/config.md` say so). *Added tests* (`config-kind.test.ts`, 13 to 17): the failing "Finish" puts the file back byte for byte, its line ends included; while a config "Finish"'s tests run, `traits list`, `traits finish` and `config set` are refused as busy, and while a Traits "Finish"'s run, `config set` and `config finish` are, the config file untouched and its edit still pending; a config "Finish" cut off is put back byte for byte by the next command of either kind. The shared lock's check-then-write (no atomic create) is as the Traits' was, not S18's. *The bundle:* 818,799 bytes, `version:16,changelog:[]` in the script and no changelog line. *Checks.* `npm run lint` and `typecheck` clean; `npm test` 216 files, 5,880 tests: the first whole run had `rng.test.ts`' weighted-pick sweep and `availability.test.ts`' two-year walk time out at 5 s (both passing alone, and the second whole run passing in full), the same two as the build's run, and `recovery.test.ts` did not fail in either run, for S19; `npm run build` and check-bundle passing; `npm run e2e -w web` 103 passing. Line endings as their files (CRLF), none mixed.
+
+## DL-205 — v1.1.6-S19, the close: the close review's findings fixed: a whole setting a safe integer and each Min and Max `int` draws between at most 2^32 values apart; `rebase` adopting the engine's defaults whatever deps it is given, the front ends through `applyAction`; no config rule reads content; `compare` listing the save's sizes apart as measures; the config kind putting back a cut-off "Finish" before it reads; the engine's `degrees` in content; the Roster's sort memoised; the Class order's words from the page's content; the cited reports committed; the whole suite's flakes fixed
+
+2026-10-05 to 2026-10-06. The close review of v1.1.6 (`a4cb33d..10de43d`, four read-only reviews: the engine and docs, the harness, content and the tools, the front ends). Each finding was checked against the code before it was fixed, and each fix made test first, the test failing before it. Neither the full gate nor the release was run here.
+
+- *The doctor.* Run before any change: no drift (107 reads of a Trait; `docs/agents/traits.md` fresh; the content passing its checks; no pending edits). Run after: the same.
+
+**Engine.**
+
+- *E1, a config the rules allow that throws at the first draw.* `int` (`rng.ts`) throws unless both bounds are safe integers and the span, max − min + 1, is at most 2^32; `checkConfig`'s `whole` asked only `Number.isInteger`, and no rule bounded a span, so `heroStartingAgeMax: 1e17` or `rivalStartingWealthMin: -5e9` passed `playDeps` and threw in the generators. *Fix* (`engine/src/config-check.ts`): `whole` asks `Number.isSafeInteger`; the Max of each of the 12 pairs `int` draws between (all of the 13 Min/Max pairs but Morale's, a scale nothing draws on; `questDifficultyMin/Max` included, the template's range clamped inside it) has `drawnMax`: a whole number at least its Min and at most 2^32 − 1 above it, refused as `rivalStartingWealthMax is 700; it is a whole number from rivalStartingWealthMin (-5000000000) to 4294967295 above it, the most a draw spans`; the words of a Max below its Min unchanged. The defaults pass. *Tests* (`config-check.test.ts`): 2^53 − 1 allowed and 2^53, 1e17 and −2^53 refused; for each of the 12 pairs the Max at Min + 2^32 − 1 allowed and `int` drawing from it, at Min + 2^32 refused naming the Max and `int` throwing; the −5e9 Min's words. Play is unchanged: only refusals are added.
+- *E2, `applyAction`'s `rebase` a trap.* `rebase(document, deps)` wrote `deps.config` into `meta.config`, so a caller passing the play deps, as for every other action, raised `configVersion` and logged `world.rules-adopted` while keeping the save's own values; both front ends avoided it only by calling `rebase` directly with `defaultConfig`. *Fix*, the one that keeps DL-194's one dispatch: `rebase(document)` reads no deps and adopts the engine's own `defaultConfig`; `applyAction`'s branch calls it so, whatever `deps` holds; `rebase` leaves the engine's index (its action and rejection types stay), and the CLI's `rebase` command and the page's reducer take it through `applyAction` as every other action (the CLI with the play deps `open` gives). *Tests* (`rebase.test.ts`): an older game plays under its own `turnsPerYear` 12 until `rebase` adopts the defaults; `applyAction` with the game's play deps (`turnsPerYear` 12) adopts `defaultConfig`, the same save as `rebase`'s; the reducer's tests read the rebase through the `applyAction` spy. The CLI's rebase tests pass unchanged.
+- *E3, the reducer's stale comment* (`web/src/state/reducer.ts`): now says `rebase` adopts the engine's defaults whatever deps it is given.
+- *E4, `docs/data-model.md`*: "the lists content sizes" is "each list's members".
+- *E5, the unused `content`.* No rule read it. `ConfigRule`, `checkConfig` and `playConfig` take no content (`playDeps` keeps it for the deps it returns), nor the harness's `runConfig`; the editor's config kind no longer loads the content to check a value, and its comments, `docs/agents/config.md` and `tools/editor/README.md` no longer say "against the content". The tests of the lists a content release may outgrow keep their claims without a content set.
+
+**Harness.**
+
+- *H1, the reports policy* (DL-186 item 28). Every report a DL entry from DL-187 to DL-204, the epic or the README cites, and that this machine still holds, is force-added, its Markdown and JSON: `m9-v116-s2o` (DL-188), `m9-v116-neutral-base` and `m9-v116-s5` (DL-191, the epic's S5), `m9-v116-s6` (DL-192), `m9-v116-s7-neutral` (DL-193), `m9-v116-s8-neutral` and `m9-v116-s8-verify-neutral` (DL-194), `m9-v116-s9-neutral` (DL-195), `m9-v116-s10-neutral` (DL-196), `m9-v116-s13-neutral` (DL-199), `m9-v116-s16-neutral` (DL-202), `m9-v116-s17-before` and `m9-v116-s17-after` (DL-203's "before and after", cited by what they are rather than by name), `m9-v116-s18-at15` and `m9-v116-s18-neutral` (DL-204; the README's baseline), and this entry's `m9-v116-s19-neutral`, all dated 2026-10-05. `m9-v116-s3`, `-s7` and `-s17` were already tracked. Reports on this machine that no entry cites (`-s6-q32`, `-s6-q33`, `-s16-4x2*`, `-s18-quick`) are left out.
+- *H2, `compare` counting the save's sizes as play counters.* `compareRuns` (`harness/src/run-report.ts`) lists `saves[]` (the lengths, the Heroes' fields and the gzipped lengths as each year ended) apart, under "Measures moved, the save's size as each year ended, not play: N.", after the counters, and only when one moved; "Counters: N moved, M the same" counts the play counters alone. The module report's `coreCounters` and `counterDeltas` are unchanged. *Test* (`run-report.test.ts`): a run whose save lengths alone moved, with one refusal, reads "Counters: 1 moved", its `saves[].lengths[]` line under the measures' heading and not among the counters; two equal runs print no measures; the counters are the module report's core counters but the three sizes.
+- *H3, the README's full-gate fingerprint*: `ecede9c0…` "was, at S17 (config version 15)", S18's config version 16 moving it at its next run.
+- *H4, `settings.ts`' comment on `HEROESIM_CONFIG`*: names `engine/src/config.json` and the editor's `config set`, and no longer says the values are checked against the content.
+- *H5, `copyTimes` written twice* (optional, taken): it moves to `gate.ts`, which `checkGate` and `sweep.ts`' report both call (`gate.ts` takes `WorldYear` from `sweep.ts` as a type alone, so no import cycle at run time).
+
+**Content and tools.**
+
+- *C1, the config kind reading a cut-off "Finish".* `config show` and `config set` read `config.json` before `edits()` put back a cut-off "Finish", so `was` was the cut-off write: setting a value back to the one put back held a needless edit, whose "Finish" would raise the config version for nothing. *Fix* (`tools/editor/src/config-kind.ts`): both take the edits first, as `finish` does. *Test* (`config-kind.test.ts`): with `wagePerLevel 25` pending and a cut-off journal planted over a `config.json` written with 25 and the version raised, `config show guilds` gives the file put back and `was` 20; `config set wagePerLevel 20` answers `was` 20, holds no edit, and leaves the file byte for byte.
+- *C2, a copy of the engine's `degrees`.* `content/src/validate.ts` wrote out the four Degrees; so did the register of a Trait's uses (`content/src/uses/register.ts`, `outcomeLists`), which the widened test found. Both read the engine's `degrees`; the order in which problems and uses are listed may now differ, the words the same (every refusal test passed unchanged). *Test* (`imports.test.ts`): `degrees` and `purchaseSteps` join the lists content may not write out (red on both files before); the two tests naming which content files import the engine add `uses/register.ts`.
+- *C3, the tools' lint message* (`eslint.config.js`): "The tools take the engine, content and the words; the front ends and the harness are not theirs."
+
+**Front ends.**
+
+- *F1, the Roster's sort memo never hit* (`web/src/views/roster.tsx`): `order` is memoised on the sort kept, so a render for another reason sorts nothing. *Test* (`roster-rows.test.tsx`, `sortedRoster` wrapped in a spy): opening and closing the Columns panel sorts nothing again (4 sorts before the fix, 2 after), and a reversed direction sorts once.
+- *F2, two stale comments*: `web/src/saves.ts` (a save is read by `deserialise`, its config checked by `playDeps`) and `web/src/views/rules-notice.tsx` (`meta.configVersion` against this release's `configVersion`, `newRules`).
+- *F3, the Class sort and its words from two content sets.* The simpler production: `orderWords` and `reverseOrderName` take no content set and read the page's, as `byClass` does. *Test* (`class-order.test.ts`): the page's content mocked with `classes.json`' keys reversed and an order of its own declared (Mage, Healer, Warrior, Rogue): the default Hero order, the Unattached pool and the sort button's words ("Mage first", "Rogue first", "Reverse the order, now Rogue first") all follow it; `selectors.test.ts`' test of words from another set goes, its claim held here.
+
+**T1, the whole suite's flakes.** A first whole run here failed `availability.test.ts`' walk (5,706 ms under load, 785 ms alone); `rng.test.ts`' weighted-pick sweep took 1,001 ms alone, and timed out in a whole run at S18; a later run failed `bundle.test.ts`' build hook at 10 s. The causes and fixes:
+
+- `rng.test.ts`, the sweep over list sizes 1 to 64 and beyond: each of its 340,000 draws cloned a state and joined three; a third state stepped by one `next` a draw now holds each to one draw, the states compared word by word: 221 ms alone, the claim unchanged.
+- `availability.test.ts`, a walk of 730 Turns (its title said "two played years"; a year is 1,080 Turns, so it now says "730 Turns"): the Heroes found both injured and away are gathered rather than each read by an `expect`, and the walk, a genuine game's play, is given 30 s (624 ms alone).
+- `bundle.test.ts`: the describe's 120 s set the tests' timeout, not the hook's, and the production build runs in `beforeAll` under the default 10 s; the hook now has 120 s.
+- `tools/editor/src/server.test.ts`: three tests waited a fixed 50 ms for a held "Finish" to take the lock and reach its tests; under load it had not, the assertion failed with the held run never released, and the test waited out its time. `heldRunner` now gives a `started` promise, settled as the run begins, and the tests wait for it.
+- `tools/editor/src/recovery.test.ts`, the "Finish" spawned and killed: its process compiles the editor as it starts, and its wait for the planted tests was the project's whole 60 s; the test now has 180 s and the wait 120 s, and should `taskkill /T` miss the "Finish" itself (it may fail as a process of the tree ends), the child is killed directly, so that the exit the test awaits comes.
+
+**Play unchanged.** `neutral m9-v116-s19-neutral --expect 6282414c…`, alone (`HEROESIM_WORKERS=8`): **PASS**, 410.6 s, the fingerprint `6282414caa9681445c3ba849400506ce10510713ce9eff8173c2372e46e4ed10`, the replay of `seed-0001` identical, the Gate PASS (its three bands not comparable at 10 games, as ever); its reports force-added.
+
+**Checks.** `npm run lint` and `typecheck` clean; `npm test` three whole runs in a row after the fixes, each 216 files and 5,898 tests passing (170 to 174 s); `npm run build -w web` and check-bundle passing, the script 818,938 bytes (818,799 before: the span rule); `npm run e2e -w web` 103 passing. The doctor no drift before and after. Line endings as their files', none mixed.
+
+*Rejected findings.* None: each was found as described. The front review's F3 and the harness's H5 were latent or optional, and were taken in their simplest form.
+
+*Reports missing.* These reports, cited by DL-187 to DL-204, are no longer on this machine: `m9-v116-s1` (DL-187), `m9-v116-s2`, `m9-v116-s2-gate`, `m9-v116-s2-neutral` and `m9-v116-s2v` (DL-188), `m9-v116-s3-trial` (DL-189), `m9-v116-s4-trial` (DL-190), `m9-v116-s7-before` and `m9-v116-s7-after` (DL-193), and `m9-v116-s14` (DL-200). Each was deleted at the time, against the reports policy (DL-186 item 28), by the orchestrator's mistaken brief, which said not to commit `neutral` reports; their numbers stand in the DL entries that cite them.
+
+*The verification* (2026-10-06, a second Opus agent, `10de43d..c8c4e6f`). The diff read against the four reviews; each fix mutated back to the code it replaced and its test run, then restored byte for byte: E1, `whole` back to `Number.isInteger`, fails "a whole number is a safe integer"; two pairs' `drawnMax` back to `whole({ min })` fail their two span tests and the −5e9 Min's words (3 tests); E2, `applyAction` passing `deps.config` to `rebase` again, fails `rebase.test.ts`' `applyAction` test and the CLI's rebase test (the page passes the engine's own deps, so its test holds either way); C1, `show` and `set` reading the file before the edits, fails the cut-off test; C2, the four Degrees written out again in `validate.ts`, and alone in `uses/register.ts`, each fails `imports.test.ts`; F1, `order` unmemoised, fails the Roster's sort count; H2, `isMeasure` matching nothing, fails the measures test. F3's test passes either way, as the page's content is the one set both read whether or not the words take a `set`: the finding was latent, and its fix narrows the words' signature. E1's span is `int`'s exactly: each bound a safe integer, and max − min + 1 at most 2^32, computed as `int` computes it; the 12 pairs are every config-fed `int` draw (`guilds.ts`, `heroes.ts`, `quests.ts` clamped, `market-refresh.ts`, `drawCount`), Morale's and Regard's scales drawn on by none; the defaults pass. E5: no caller passes content to `checkConfig`, `playConfig` or `runConfig` (`tsc -b`, and a grep). H1: every `m9-v116-*` report that DL-187 to DL-205, the epic and `harness/README.md` name is tracked, both files, or is among this entry's ten missing; the six untracked on this machine are cited by none. T1: each flake fix keeps its claim: the weighted-pick sweep's third state is the old `advancedCopy` held across the draws, a stronger check; the availability walk's title now says the 730 Turns it plays (a year is 1,080), its claim gathered and asserted once; the recovery test's extra kill only ensures the exit it awaits, a child already gone answering ESRCH, which Node ignores; the server tests wait for the held run to begin rather than 50 ms.
+
+*Found and fixed.* `startingSkillRatingMax`, a whole number from 1 by its rule, was checked lazily by the Hero generator, which throws above 5 (`SkillRating`): a config `playDeps` allowed (6) threw at the first Hero, E1's kind of hole. *Fix:* its rule is a whole number from 1 to 5, the scale's ends now `lowestSkillRating` and `highestSkillRating` in `document.ts` beside `SkillRating`, read by the generator's guard and the rule both (`startingSkillRatingMax is 6; it is a whole number, at least 1 and at most 5`). *Test:* its case in `config-check.test.ts`, refusing 0, 1.5, 6 and Infinity and allowing 1 and 5 (red before). Only a refusal is added; play is unchanged.
+
+*Checks.* The doctor no drift before and after (107 reads). `npm run lint` and `typecheck` clean; `npm test` twice, each 216 files and 5,898 tests passing (175 s, 176 s); `npm run build -w web` and check-bundle passing, the script 818,996 bytes; `npm run e2e -w web` 103 passing. Line endings as their files'.
+
+*The close* (2026-10-06, the same agent, at `4171b63`, nothing else running). *The full gate*, `HEROESIM_WORKERS=8 npm run harness -- gate m9-v116-s19`, alone: 50 games of 20 years in 1,470 s, the fingerprint `bce997d27793192742247d4a7e4adc1ee80a9460752a8c7847258e0495cf2d77` (schema 7, config version 16, content version 36). Against `harness/gate.json`, line by line: no policy action refused (0); no game invalid (0, not validated after every advance), stopped (0) or unfinished (0, all 50 survived); no save failing its round trip (0); `seed-0001` replayed alone, identical; the player's Bankruptcies 0 of 50 (at most 3); the save after 20 years 17.95 MiB gzipped on the mean, 21.08 MiB the largest (under 30): all **PASS**. The per-Turn copy's time: mean 1.350 ms over 1,000 copies, against at most 1.059 ms (0.847 ms + 25%): **FAIL**, so the run reads "The Gate: FAIL". `advance` 5.748 ms a Turn under 8 processes (S17's 3.346), 3.110 ms alone (S17's 2.460); Rival folds 137, Successions 45, as at S17. *The estimate*, `npm run harness -- estimate`, alone: 200 samples × 20,000 seeds in 691 s; no one falling, the widest gap 1.18 points (within 2); Morale in, 1.61 points (within 3): both **PASS**. *Compare*: against S17's (`m9-v116-s17-2026-10-05`), "Counters: 0 moved, 516 the same", the one measure moved the gzipped saves' total by 1 byte (the config version's digit); against S3's (`m9-v116-s3-2026-10-05`), "Counters: 0 moved, 516 the same", the measures the saves' lengths (−1,650,806 characters, S7's shape) and gzipped lengths (−9,404 bytes): no play counter moved, H2's measures heading reading as it should.
+
+*The copy's time investigated.* Every run since S18's `neutral` (2026-10-05 22:29) reads the copy at about 1.33 ms: `m9-v116-s18-neutral` 1.355, `m9-v116-s19-neutral` 1.321, this gate 1.350, each with `advance` near 5.7 ms; S17's `after` `neutral` at 21:00 read 1.052, and S17's gate at 21:53 0.847, the baseline. To tell the code from the machine, S17's tree (`40568de`) and this one were played in turn on this machine, `seed-0001` for 5 years by the harness's policy, each in its own process, twice: `advance` 1.603 and 1.558 ms at S17, 1.609 and 1.575 ms now; `copyWorld` of the year-5 world 0.310 and 0.275 ms at S17, 0.285 and 0.285 ms now; the same save, 32,333,783 characters. The code copies as fast as S17's: the line measures this machine's speed, which DL-203's judgement call 2 foresaw varying (on AC, the Performance scheme). The spec was not loosened, and the gate not run again, its three readings since 22:29 agreeing.
+
+*Open for the owner.* (1) *The copy-time line.* (a) Run the full gate again on a day the machine copies near S17's speed; (b) set `copyMs.baselineMeanMs` to this gate's 1.350 ms by this entry, the A/B showing the code unchanged; (c) restate the line on a measure the machine's speed does not move, such as the copy's share of `advance`'s time (0.253 at S17, 0.235 here), a change to the spec. Recommendation: (b) for this release, (c) in the backlog. Until the answer, the Gate is not met and the epic's box stays unticked. (2) The release, on the owner's word (DL-124).
+
+*The owner's answer* (2026-10-06, asked by the orchestrator with the three options and the recommendation): "(a) Re-run on a faster day". The spec stands as approved (DL-188, DL-203): `copyMs.baselineMeanMs` stays 0.847 ms, its limit 1.059 ms. The full `gate` is run again, alone, when the machine copies near S17's speed; until a run meets every line, the Gate is not met, the epic's box stays unticked and the release waits.
+
+*Recorded.* The gate's Markdown and JSON and the estimate's Markdown force-added (`m9-v116-s19-2026-10-06`, `m9-estimate-2026-10-06`). The epic's status, `docs/plan.md` §4 and the epics README say built and verified, the Gate awaiting the owner's answer; `harness/README.md` names `bce997d2…` the full gate's fingerprint.
+
+*For the owner: the readings DL-187 to DL-205 left as judgement calls,* none of them a fork, each standing unless the owner says otherwise:
+
+- DL-187: the fold refuses a counter it cannot total, and the starting totals stay written out for their zeros and their order.
+- DL-188: the Gate's bands are checked only on a 50 × 20 run (`neutral` checks the invariants and its fingerprint); the JSON report is written for play sweeps only; an unknown `HEROESIM_*` name is refused; `HEROESIM_POLICY` is read by the play sweep only.
+- DL-190: `version.json` is read as a content file, so the page carries it with its changelog emptied by the build; `update` changes only a use that holds a value, a key-only use still changed by unassign and assign.
+- DL-191: the sexes went with the copied tables, though S5 did not name them.
+- DL-192: the S8 tests moved onto the shipped content by removing Encounters in the test; the old form's Class and Skill checks went with it, the same Queries being `validateContent`'s.
+- DL-193: each of the 120 rules' ranges is the agent's reading of its setting (a starting Wealth any whole number, a year from 1 Turn); a field `GameConfig` lacks is left out of the play config but kept in the save; the page's `playDeps` throws rather than refusing; a save whose config is unsound cannot be rebased (none can arise but by hand).
+- DL-194: the engine's types stay public but the hidden generators' five; the module seam's three values stay public; the test-only readers went to `/testing`; `training` now walks in Guild id order (no draw, no event).
+- DL-195: `strike` takes the whether-it-lands draw as well as who; the Injury's Days stay `resolve.ts`'; the Morale share a third function, `moraleOf`.
+- DL-196: the refusals' words are the engine's; `holds` now throws on an unknown comparison (only a Query built in memory reaches it); the account of a Query (`describe.ts`) still switches on its operators.
+- DL-197: "No effect" one word for the CLI's brackets and the page's cell; the Board's chip words moved with the other availability words.
+- DL-198: why a fast forward stopped stays each front end's own framing; a Guildmaster's Regard subject is a name slot, so the CLI names that Hero by label alone.
+- DL-199: a Stat's breakdown lists all three sources, a 0 among them; the Roster's rows are kept by the document's identity, so a document changed in place reads its first rows.
+- DL-200: the pool's Class ties follow the Roster's default order; the Class order is a file, not a field on each Class; no CLI list sorts by Class.
+- DL-201: the view and the Guild part are stored only once the player first changes them, not as the page mounts.
+- DL-202: Class and Sphere weights skew the draws made one at a time but not a Guild's first Roster, dealt evenly; `heroSexWeights` allows 0 for one sex, not both, and no weight on a Guildmaster's sex; the Rivals' orders are on the Disposition, and no shipped row writes one.
+- DL-203: the copy's time is sampled as each year ends, not every Turn; its 25% line may fail on a slow day of this machine with no change; a folded Guild's Guildmaster who has not retired is not frozen.
+- DL-204: the config's sections are runs of `GameConfig`'s order (the Rivals' starting ranges in `world`, `rivalReplacementDays` in `endings`); tests pinning a default fail a config "Finish" of that setting until changed in the same story; `--reason` is required; the changelog is bundled empty.
+- DL-205: F3 and H5 were taken in their simplest form (the order's words read the page's content alone; `copyTimes` lives in `gate.ts`); ten cited reports are gone from this machine, their numbers standing in their entries; `startingSkillRatingMax` is held to the Skill scale, 1 to 5.
+
+*The Gate met* (2026-10-06, the orchestrator on the owner's word, "rerun with 8", the owner's answer (a); checked by an Opus agent, read-only). A first attempt at about 08:16 was stopped by Claude Code for low system memory after about 3 minutes and gave no result. The full gate was then run again alone, nothing else running, on the same code (`9f9ad38`, whose commits since `4171b63` change only docs and reports): `HEROESIM_WORKERS=8 npm run harness -- gate m9-v116-s19-rerun1`, 08:20 to 08:35, exit 0: 50 games of 20 years in 853.3 s, the fingerprint `bce997d27793192742247d4a7e4adc1ee80a9460752a8c7847258e0495cf2d77`, the first closing run's (`m9-v116-s19`): each of the 50 seeds' last save the same by fingerprint and length, the same code playing the same games. Against `harness/gate.json`, line by line, each read from the JSON and its games recounted: policy actions refused 0 (at most 0); games invalid 0, not validated after every advance (at most 0); stopped 0 (at most 0); unfinished 0, all 50 survived (at most 0); saves failing their round trip 0 (at most 0); `seed-0001` replayed alone, identical, 144,370,431 characters; the player's Bankruptcies 0 of 50 (at most 3); the save after 20 years 17.95 MiB gzipped on the mean, 21.08 MiB the largest (mean under 30), the gzipped total 940,895,715 bytes, the first run's to the byte; the per-Turn copy's time, mean **0.826 ms** over 1,000 copies (0.477 ms as the first year ended, 0.891 ms as the twentieth), against at most 1.059 ms (0.847 ms + 25%): every line **PASS**, "The Gate: PASS". `advance` 3.178 ms a Turn mean under 8 processes (S17's 3.346, the first closing run's 5.748), 27.970 ms p99; Rival folds 137, Successions 45, as before. The first closing run's 1.350 ms was the machine's speed that day, as its A/B found: this run reads 0.826 ms on the same code. *Compare*, `npm run harness -- compare`: against the first closing run (`m9-v116-s19-2026-10-06`), "Fingerprints: the same. Every seed played the same game.", "Counters: 0 moved, 516 the same", no measure moved; against S17's (`m9-v116-s17-2026-10-05`), "Counters: 0 moved, 516 the same", the one measure the gzipped saves' total by 1 byte (940,895,714 to 940,895,715, the config version's digit), as the first closing run read; against S3's (`m9-v116-s3-2026-10-05`), "Counters: 0 moved, 516 the same", the measures the saves' lengths (−1,650,806 characters) and gzipped lengths (−9,404 bytes), as before. The estimate stands from the close (1.18 and 1.61 points, within 2 and 3; not run again, the code unchanged). The spec unchanged (`copyMs.baselineMeanMs` 0.847 ms). *Recorded:* the run's Markdown and JSON force-added (`m9-v116-s19-rerun1-2026-10-06`); the epic's "The Gate met" ticked; its status, `docs/plan.md` §4 and the epics README say built, verified, the Gate met, awaiting the owner's word to release (DL-124), whose box stays unticked.
+
+*The owner's word to release* (2026-10-06): "commence release". By DL-124: `v1.1.6-dev` pushed, `v1.1-release` fast-forwarded to it and pushed; CI raises the pull request to `main`, the owner merges it, then `npm run e2e:live -w web`.
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
@@ -24211,6 +26352,12 @@ package is added.
 
 **Actioned in:** M1-S4 (acceptance asserts the engine imports nothing from content and `tsc -b`
 builds as a DAG).
+
+*Amended 2026-10-05 (DL-186 item 6, built in v1.1.6-S5, DL-191).* The content package may import
+the engine's values as well as its types, so it reads the engine's lists and bounds (the Encounter
+kinds, the Hall's facilities, the gear slots, the descriptive Attributes' lengths, the Biography's
+Trait sentences) rather than repeating them. The engine still imports nothing from content, and the
+graph stays acyclic (ADR-0007).
 
 ### A4 — The stub ignores Skills; R15 says it reads them
 

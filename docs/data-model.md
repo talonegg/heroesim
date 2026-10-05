@@ -3,7 +3,7 @@
 The shape of the World State document, settled 2026-09-25 after three rounds of questioning.
 The TypeScript types in `engine/` are the truth once they exist; this document records the
 sections, the tables, the rules, and what the validator refuses. Vocabulary is
-[`../CONTEXT.md`](../CONTEXT.md). Decisions hard to reverse are ADR-0008 and ADR-0009.
+[`../CONTEXT.md`](../CONTEXT.md). Decisions hard to reverse are ADR-0008 (amended by ADR-0011) and ADR-0009.
 
 ## 1. The document
 
@@ -11,16 +11,21 @@ One JSON document, three top-level sections with different lifecycles:
 
 | Section | Lifecycle | Holds |
 | --- | --- | --- |
-| `meta` | Written at creation; changed by the `rebase` action, which rewrites `config`, and by a migration on load, which rewrites `version` (§6; amended 2026-09-28, DL-86, originally "changed only by the `rebase` action") | schema version, seed, content set id and version, the configuration in force, creation timestamp supplied by the caller |
-| `world` | Copied once per Turn with `structuredClone`, then mutated | every table, the Board, random stream states, id counters, module slices, the current Turn |
+| `meta` | Written at creation; changed by the `rebase` action, which rewrites `config` and `configVersion`, and by a migration on load, which rewrites `version` (§6; amended 2026-09-28, DL-86, originally "changed only by the `rebase` action") | schema version, seed, content set id and version, the configuration in force and the version of the defaults it was taken from, creation timestamp supplied by the caller |
+| `world` | Copied once per Turn by `copyWorld`, then mutated; its write-once rows frozen and shared by reference, not copied (ADR-0011; amended 2026-10-05, DL-203, originally "with `structuredClone`") | every table, the Board, random stream states, id counters, module slices, the current Turn |
 | `history` | Append-only, shared by reference across Turns, never copied | entries and their indexes |
 
 Decided, to be built (amended 2026-09-28): a load under content of another version also
 updates `meta.content` (§2, DL-84), and from schema 4 `meta` records the modules a game was
 created with (§3.4, DL-82).
 
-`advance(document, deps)` clones `world`, mutates the clone, appends to `history`, and
-returns a new document that shares `meta` and `history` with the old one. `deps` is
+`advance(document, deps)` copies `world` (`copyWorld`), mutates the copy, appends to `history`, and
+returns a new document that shares `meta` and `history` with the old one. The copy is by hand
+(ADR-0011, DL-203): the rows out of play for good, the dead, retired and gone Heroes, the retired
+Guildmasters and the folded Guilds (`writeOnce`), are frozen all the way down by the first copy made
+of a world that holds them as such, and shared by reference with the copy; every other value is
+copied with each object's keys in their order, so the copy equals `structuredClone`'s and the save
+is unchanged. The texts, being strings, are shared by any copy that is not a clone. `deps` is
 `{ config, content, modules }`, the same object every engine entry point takes (approach §3). The History is the
 one deliberate exception to "state in, new state out": the previous reference sees new entries
 too, and nothing but the engine's append function may touch it (ADR-0008).
@@ -31,23 +36,33 @@ too, and nothing but the engine's append function may touch it (ADR-0008).
 version:        integer          schema version of this document
 seed:           string           master seed the world was created from
 content:        { id, version }  the content set the world was created under
+configVersion:  integer          the version of the defaults `config` was taken from
 config:         GameConfig       every tunable, as it was at creation
 createdAt:      string           supplied by the caller, never read by rules: the clock from
                                  a front end, a fixed value from the harness so two runs of a
                                  seed compare byte for byte
 ```
 
-Rules read `deps.config`, never `meta.config` directly. A front end passes `meta.config` as
-`deps.config`, so a loaded game continues under the rules it was started with; the `rebase`
-action rewrites `meta.config` to the current `defaultConfig` and appends a
-`world.rules-adopted` Milestone carrying the old and new `configVersion`, so tuning reaches a
-game when the player chooses and the History records when. The harness passes its own
-configuration as `deps.config` and never rebases. A front end builds `deps.config` as
-`{ ...defaultConfig, ...meta.config }`: a field the save has keeps its value, a field it
-predates reads as the current default, a field the current `GameConfig` lacks is ignored
-(rule 5). No config migration exists; `rebase` is the only thing that rewrites `meta.config`
-(pre-M0 review D3). `configVersion` is a field of `GameConfig`,
-bumped in the decision log whenever a default changes (owner, 2026-09-25, pre-M0 review D1).
+Rules read `deps.config`, never `meta.config` directly. A front end plays a loaded game under
+`meta.config`, so it continues under the rules it was started with; the `rebase` action rewrites
+`meta.config` to the current `defaultConfig` and `meta.configVersion` to the current
+`configVersion`, and appends a `world.rules-adopted` Milestone carrying the old and new versions,
+so tuning reaches a game when the player chooses and the History records when. The harness plays
+its own configuration and never rebases. The play config comes from one seam, the engine's
+`playDeps(document, content, modules)`, which every front end, the harness and a save's load use:
+`defaultConfig` with `meta.config` over it, so a field the save has keeps its value, a field it
+predates reads as the current default and a field the current `GameConfig` lacks is ignored (rule
+5); then every setting is checked by its rule (`checkConfig`: ranges, every Min at most its Max,
+the bands in their order, each list's members), and a save with a setting no rule allows is
+refused at load, naming it (v1.1.6-S7, DL-186 item 12, DL-193). No config migration exists;
+`rebase` is the only thing that rewrites `meta.config` (pre-M0 review D3). `configVersion` is the
+engine's, bumped in the decision log whenever a default changes (owner, 2026-09-25, pre-M0 review
+D1); `meta` has held it since schema 7, and the schema's version and the gear slots are no settings
+(DL-193). The defaults' values, the config version and its changelog are data,
+`engine/src/config.json`, the settings in sections, which the engine reads flat as `defaultConfig`;
+a value changes through the content editor's config kind, which checks it, raises the version with
+a line of the changelog and runs the tests (v1.1.6-S18, DL-186 item 15, DL-204;
+`docs/agents/config.md`).
 
 Where pre-M0 review D3's record says tuning reaches every game, D1 governs: tuning reaches a
 saved game only through `rebase`, except that a config field newer than the save follows the
@@ -227,7 +242,6 @@ Guildmasters, and their Regard for a Guild is read through its Guildmaster, neve
 id, templateKey, patronId
 difficulty, tags, reward, fameEffect
 durationTurns:  integer                     durationDays × 3, from the template's range
-demands:        [StatKey, weight][]         copied from the template at generation
 skillKeys:      SkillKey[]                  copied from the template at generation
 encounterKeys:  string[]                    drawn at generation (M4); empty before. Weighted by the tags
                                             each shares with the template, and the last the template's
@@ -296,7 +310,7 @@ holder:         { kind: "hero", id, slot } | { kind: "guild", id } | { kind: "pa
 One stack per (definition, holder, slot); the validator refuses duplicates. "What is Brenna
 carrying" is a filter over both tables; cache an index only if the harness shows it slow. Both
 tables share one holder type: the Market holds a folded Guild's unique Items as well as stacks
-(pre-M0 review D6, DL-48). A Hero's `slot` is one of `config.gearSlots`, and a slot holds one
+(pre-M0 review D6, DL-48). A Hero's `slot` is one of the engine's `gearSlotKeys`, and a slot holds one
 Item at most: one unique Item or one stack of 1. `engine/src/items.ts` moves Items between
 holders and keeps these rules. The Market's stacks are replaced each morning from the `market`
 stream; a unique Item it lists stays until a Guild buys it (M5-S4, DL-51).
@@ -406,7 +420,8 @@ exists, the load is refused with the versions named. Modules migrate their own s
 the chain and before the validator, each reading its own version from inside its slice (DL-76).
 Since schema 5 the chain is empty: a save of schema 4 or before is refused, and a front end says it
 was saved by an older Heroesim (DL-125 item 10.2, DL-130). Since schema 6 a save of schema 5, as
-`v1.1.2` wrote it, is refused in the same words (DL-135 item 7, v1.1.3-S6).
+`v1.1.2` wrote it, is refused in the same words (DL-135 item 7, v1.1.3-S6), and since schema 7 a
+save of schema 6, as `v1.1.5` wrote it (DL-193, v1.1.6-S7).
 
 The hand-written validator runs on every load and, in tests, after every `advance`. It never
 runs per Turn in play.
@@ -419,6 +434,7 @@ runs per Turn in play.
 | A Guildmaster whose `guildId` differs from the Guild that names them | refuse |
 | A Guild in play that names a retired Guildmaster (DL-102) | refuse |
 | A folded Guild with a Hero on its Roster or a Party of its own (DL-28) | refuse |
+| A Hero out of play (dead, retired or gone from the pool) on a Roster or in a Party, or with a `partyId`: their row is written once and frozen by the per-Turn copy (v1.1.6-S17, ADR-0011, DL-203) | refuse |
 | `quest.partyIds` and `party.questId` disagree, or more Parties than the build allows | refuse |
 | Two stacks with the same definition, holder and slot | refuse |
 | A stack whose quantity is below 1; a Hero's gear slot holding more than one Item (DL-48) | refuse |
@@ -429,7 +445,7 @@ runs per Turn in play.
 | A Guildmaster's, Hero's or Patron's `sex` that is not `"female"` or `"male"` (a Patron's may be `null`): a shape error, since a front end finds a Portrait's folder by it (v1.1.2-S6, DL-133) | refuse |
 | A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define; a Guildmaster's Trait that is no Guildmaster Trait, or a Hero's that is no Hero Trait | warn |
 | Two Traits a Guildmaster or a Hero holds of which one excludes the other (`excluded-traits`, v1.1.4-S7, DL-150 item 3) | warn |
-| An Item a Hero holds in a slot `gearSlots` does not list, or that is not gear for its slot (DL-48) | warn |
+| An Item a Hero holds in a slot that is no gear slot (`gearSlotKeys`), or that is not gear for its slot (DL-48) | warn |
 | A Guildmaster's `portraitKey` that names no Guildmaster picture in content, or one of the other sex (DL-130); a Hero's that names no Hero picture, or one of the other sex (v1.1.3-S6) | warn |
 | A module slice no installed module owns (DL-76) | warn |
 
@@ -454,9 +470,17 @@ recorded and did not chase (DL-08), are kept beside them.
 | Save after 20 years | under 19.07 MiB (first written "under 20 MB") | gzipped: 12.08 MiB for `seed-0001`, the one twenty-year save measured compressed (DL-67 item 8), whose bytes the M8 run reproduced (DL-81 item 2); uncompressed: mean 99.21 MiB, max 118.29 MiB |
 | Load a save | under 1 s | mean 4.62 s, max 7.82 s under 16 processes' load |
 
-Two details are open: how far past its figure a later run may go before it counts as a
-regression, and the compressed mean over a run, which the harness measures once it gzips its
-saves. The machine's single-thread rate varied by a factor of about three between days (DL-81
+*The save's target, since v1.1.6-S2 (DL-186 item 21, DL-188).* A save after 20 years is measured
+gzipped, as the page keeps it: the mean over a Gate run's 20-year saves, under 30 MiB. The owner's
+answer, approving the Gate's first spec (DL-188): "stay under 30mb", the mean and not every save. It is
+a line of the harness's Gate, `harness/gate.json`, which changes only with a DL entry; the harness's
+report reads it from there and names the measure. No guard holds the uncompressed size, which has
+grown from 99.21 MiB (M8) to 136.69 MiB at `v1.1.5`; the report prints it beside the gzipped sizes.
+At `v1.1.5`'s close (DL-184) the gzipped mean was 17.95 MiB, its largest 21.08 MiB, and the
+uncompressed mean 136.69 MiB.
+
+How far past its figure a later run may go before it counts as a regression is open for the other
+measures. The machine's single-thread rate varied by a factor of about three between days (DL-81
 item 6: a Turn alone took 1.5 ms on 2026-09-27 and about 4 ms on 2026-09-28), so the figures
 for a Turn alone and a year of fast forward depend on the day they were taken.
 
@@ -469,8 +493,9 @@ too. A leaner entry shape (DL-81's leaner `quest.encounter` entry) is not taken 
 schema change is made for it (the owner's decision, where the agents recommended lean entries as
 well as gzip). For the cost of a Turn, the lever decided is to profile first and then to keep
 the rows out of play (dead and retired Heroes, old Loot and the like) as a historical set that
-each Turn references and appends to but does not copy, in the spirit of ADR-0008 (DL-84; to be
-built). A browser's `localStorage` holds about
+each Turn references and appends to but does not copy, in the spirit of ADR-0008 (DL-84). Built in
+v1.1.6-S17 (ADR-0011, DL-203) without a section of its own: the write-once rows stay in their tables,
+frozen and shared by reference by the per-Turn copy, so the saved shape is unchanged. A browser's `localStorage` holds about
 5 MiB per origin, so the web front end saves to IndexedDB.
 
 ## 8. Type sketch

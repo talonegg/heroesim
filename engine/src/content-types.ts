@@ -1,6 +1,7 @@
 // The shape of content belongs to the engine, because the engine is what reads it by key
-// (ADR-0006). `@heroesim/content` imports these types and only parses and validates text into
-// them; the engine imports nothing from content (pre-M0 review A3).
+// (ADR-0006). `@heroesim/content` imports these types, and the lists here it checks against, and
+// only parses and validates text into them; the engine imports nothing from content (pre-M0 review
+// A3 as refined by DL-186 item 6).
 //
 // M1-S1 defined the keys the World State stores and the content set's identity; M1-S4 the row
 // types (`Stat`, `Class`, `Skill`, `Trait`, `Background`, `Sphere`, `Names`) and their tables in
@@ -48,13 +49,23 @@ export type ItemTagKey = string;
 
 /**
  * The gear slots an Item can be made for (M5-S1, INPUTS 7.1): a closed list, as the Encounter kinds
- * are, so content validation refuses a slot no Hero could have. Which of them a Hero has is
- * `GameConfig.gearSlots` (all three by default). A new slot is an engine change (DL-48).
+ * are, so content validation refuses a slot no Hero could have. Every Hero has all of them, in this
+ * order, the order a front end lists them (DL-193). A new slot is an engine change (DL-48).
  */
 export const gearSlotKeys = ['weapon', 'armour', 'trinket'] as const;
 
 /** A gear slot on a Hero: one of `gearSlotKeys` (M5-S1). */
 export type SlotKey = (typeof gearSlotKeys)[number];
+/**
+ * The purchases a Rival may make in an afternoon, each tried in its Disposition's `purchaseOrder`, the
+ * first that applies made (v1.1.6-S16, DL-202): build a facility's next grade, buy gear, seek a Transfer,
+ * recruit from the pool, and pay a debt by a Transfer out. This is today's order.
+ */
+export const purchaseSteps = ['build', 'gear', 'transfer', 'recruit', 'debt'] as const;
+
+/** One of a Rival's purchases: one of `purchaseSteps`. */
+export type PurchaseStep = (typeof purchaseSteps)[number];
+
 /** A Hall Improvement, one grade of one facility (M3-S6, `improvements.json`). */
 export type ImprovementKey = string;
 /** A Synergy, a bonus for a combination of Classes or Skills in a Party (M4-S3, `synergies.json`). */
@@ -92,6 +103,11 @@ export interface Class {
    * left out gets none.
    */
   growth: Record<StatKey, number>;
+  /**
+   * Its weight in the draw of a new Hero's Class, a number above 0; 1 when absent
+   * (v1.1.6-S16, DL-186 item 16, DL-202). Rows all at 1 are drawn as equally likely.
+   */
+  weight?: number;
 }
 
 /** A Skill, rated 1 to 5 on a Hero (R15; `skills.json`). */
@@ -203,12 +219,22 @@ export interface Background {
    * Portrait prefers a picture of its Station. A Guild Background has none.
    */
   station?: StationKey;
+  /**
+   * Its weight in the draw of a Hero's or a Guild's Background, a number above 0; 1 when absent
+   * (v1.1.6-S16, DL-186 item 16, DL-202). Rows all at 1 are drawn as equally likely.
+   */
+  weight?: number;
 }
 
 /** The walk of life a Patron belongs to (INPUTS 3.8; `spheres.json`). */
 export interface Sphere {
   key: SphereKey;
   name: string;
+  /**
+   * Its weight in the draw of a new Patron's Sphere, a number above 0; 1 when absent
+   * (v1.1.6-S16, DL-186 item 16, DL-202). Rows all at 1 are drawn as equally likely.
+   */
+  weight?: number;
 }
 
 /** What a Party must include to take a Quest: a Hero of a Class, a Hero with a Skill, or both. */
@@ -241,12 +267,6 @@ export interface QuestTemplate {
   fameEffect: number;
   partySizeMin: number;
   partySizeMax: number;
-  /**
-   * The Hero Stats the work asks for, each with a weight; the weights sum to 1 (DL-06). From M4-S2
-   * the Check reads its Encounters' Checks instead, and from v1.1.4-S6 no rule reads them and no view
-   * shows them: `partyFor` chooses by the chance estimate (DL-148 items 16 and 17).
-   */
-  demands: [statKey: StatKey, weight: number][];
   /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
   skillKeys: SkillKey[];
   requires: QuestTemplateRequires;
@@ -270,6 +290,12 @@ export interface QuestTemplate {
   encountersMin: number;
   encountersMax: number;
   /**
+   * Its weight in the draw of the Quest template of a new Quest, a number above 0; 1 when absent
+   * (v1.1.6-S16, DL-186 item 16, DL-202). Rows all at 1 are drawn as equally likely.
+   */
+  weight?: number;
+
+  /**
    * Its Finale (v1.1.4-S8, DL-148 items 22 and 23): an Encounter content defines, of any kind, always
    * the last of a Quest's Encounters, in the last of its `encounterCount` places, the places before it
    * drawn as before. An Encounter some template names as its Finale is never drawn into a place. On a
@@ -286,19 +312,13 @@ export const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'
 
 export type EncounterKind = (typeof encounterKinds)[number];
 
-/**
- * How the old form of an Encounter reads the Party's Stats on its demands (M4-S2): `best` takes the
- * best Hero's value of each Stat, `sum` the Party's sum of it. Since v1.1.4-S1 the old form loads
- * into one Check whose score is a Query of the same reading (`EncounterCheck`).
- */
-export type EncounterAggregate = 'best' | 'sum';
-
 // Queries (v1.1.4-S1, DL-148 items 4 to 6, ADR-0010): how content reads the Party. A Query is a JSON
 // array, operator first, of one of five types, each read where its type is expected. A Set is some
 // of the Party's Heroes; a Hero one of them, or none; a Val a number read of the current Hero; a Pred
 // a fact of the current Hero; a Num a number of the Party. A number is a Val or a Num, as `+`, `-` and
-// `*` are, by where they stand. The engine evaluates them (`quest-engine/query.ts`); content
-// validation holds their shape, keys and size, and where Sex may stand.
+// `*` are, by where they stand. The engine evaluates them by a table of their operators, a row
+// each (`quest-engine/query/operators.ts`, v1.1.6-S10); content validation holds their shape, keys
+// and size, and where Sex may stand, by the engine's `queryProblems`, which reads the same rows.
 
 /** Some of the Party's Heroes, in Party order: `"party"` is every member still in the sequence. */
 export type SetQuery =
@@ -362,10 +382,8 @@ export type CheckKey = string;
 /**
  * One Check of an Encounter (v1.1.4-S1, DL-148 item 7): the Party's capability is its `score`, a
  * Num Query, plus a bonus for the best rating held of each of its `skills`, against its target,
- * `flat` plus `difficultyFactor` times the Quest's difficulty. The old form of an Encounter
- * (`demands`, `aggregate`, `skillKeys`, `difficultyFactor`) loads into one, keyed and named as its
- * Encounter, whose score is `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order
- * of its demands. An Encounter has one to four since v1.1.4-S2, combined by its `pass`.
+ * `flat` plus `difficultyFactor` times the Quest's difficulty. An Encounter has one to four since
+ * v1.1.4-S2, combined by its `pass`.
  */
 export interface EncounterCheck {
   key: CheckKey;
@@ -546,9 +564,7 @@ export interface Encounter {
 
 /**
  * What a Party must hold for a Synergy to apply (M4-S3; v1.1.4-S1, DL-148 item 20): Party-level
- * conditions, at least one, every one of which must hold. The old form, a count for each Class and
- * a list of Skills, loads into `[">=", ["count", ["where", "party", ["class", k]]], n]` for each
- * Class, then `[">=", ["max", "party", ["skill", k]], 1]` for each Skill.
+ * conditions, at least one, every one of which must hold.
  */
 export type SynergyRequires = PartyCondition[];
 
@@ -633,6 +649,21 @@ export interface Disposition {
    * more than the fewest the Quest allows.
    */
   partyMargin: number;
+  /**
+   * The order it tries its purchases in, the first that applies made (v1.1.6-S16, DL-186 item 16,
+   * DL-202): each of `purchaseSteps` once. When absent, `purchaseSteps`' own order.
+   */
+  purchaseOrder?: PurchaseStep[];
+  /**
+   * The order it buys gear for the slots in, each of `gearSlotKeys` once; when absent, armour first,
+   * then the other slots in `gearSlotKeys`' order.
+   */
+  gearSlotOrder?: SlotKey[];
+  /**
+   * The order it builds the facilities of its Hall in, each of the Hall's facilities once; when absent,
+   * the Hall's own order (the infirmary, the training yard, the quarters).
+   */
+  buildOrder?: FacilityKey[];
 }
 
 /**
@@ -950,6 +981,8 @@ export interface ContentSet {
   version: number;
   stats: Record<StatKey, Stat>;
   classes: Record<ClassKey, Class>;
+  /** The Classes' order, each Class once (v1.1.6-S14, DL-186 item 24): the order every list shows them in (`classComparator`). */
+  classOrder: readonly ClassKey[];
   skills: Record<SkillKey, Skill>;
   /** The Guildmaster Traits (v1.1.4-S7, DL-150 item 1), keyed apart from the Hero Traits. */
   guildmasterTraits: Record<TraitKey, GuildmasterTrait>;

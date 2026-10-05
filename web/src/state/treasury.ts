@@ -23,9 +23,9 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
+import { signed } from '@heroesim/words';
 import { content } from '../content';
-import { signed } from './names';
-import { narrateSegments, narrationFor, textOf, type Segment } from './narrate';
+import { narrateSegments, narrationFor, textOf, type Segment } from './namer';
 import { playDeps } from './reducer';
 import { countdownView, historyPageSize, whenOf } from './selectors';
 

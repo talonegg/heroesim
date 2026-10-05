@@ -7,14 +7,10 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { contentChecks, contentTexts, editJson, formatJson, NotUndone, raiseContentVersion, textChecks, transaction, Undone } from '@heroesim/content/write';
 import { check } from './check.js';
-import { contentChecks, contentTexts, textChecks } from './content-checks.js';
-import { DraftError, NotUndone, Undone } from './errors.js';
-import { raiseContentVersion } from './content-version.js';
-import { editJson } from './json-edit.js';
-import { formatJson } from './json-format.js';
+import { DraftError } from './errors.js';
 import { analysisDir, datePattern, nextRun, runPattern, today } from './records.js';
-import { transaction } from './transaction.js';
 
 /** A run's three files, by the draft's field that holds each. */
 export const runFiles = {

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { contentEntries, usesOf } from '@heroesim/content/uses';
-import { readContentVersion } from '@heroesim/portraits';
+import { readContentVersion } from '@heroesim/content/write';
 import { afterEach, describe, expect, test } from 'vitest';
 import { readContentFiles } from './content-files.js';
 import type { Deps } from './cli.js';
@@ -424,11 +424,8 @@ describe('assign and unassign', () => {
     expect([...finished.json.changed].sort()).toEqual(['descriptions.json', 'hero-traits.json', 'injuries.json']);
     expect(readContentJson(dir, 'injuries.json')['shattered-knee']).toMatchObject({ leavesTrait: null });
     expect(readContentJson(dir, 'hero-traits.json').lame).toBeUndefined();
-    // The content version's comment says it in a few words, within the source's 100 columns.
-    const parse = readFileSync(path.join(dir, 'content', 'src', 'parse.ts'), 'utf8');
-    const comment = parse.slice(parse.lastIndexOf('\n', parse.indexOf("from the content editor's Finish of")) + 1, parse.indexOf('export const contentVersion')).split(/\r?\n/);
-    expect(comment.join(' ')).toContain('removed lame; 4 uses unassigned, of lame).');
-    for (const line of comment) expect(line.length).toBeLessThanOrEqual(100);
+    // The content version's changelog says it in a few words, a line of `version.json` (v1.1.6-S4).
+    expect(readContentJson<{ changelog: string[] }>(dir, 'version.json').changelog.at(-1)).toMatch(/ from the content editor's Finish of \d{4}-\d\d-\d\d \(removed lame; 4 uses unassigned, of lame\)\.$/);
   });
 
   test('"Finish" writes each assignment into its file, changing only those lines', async () => {
@@ -520,16 +517,6 @@ describe('assign and unassign', () => {
     expect(again.json.uses.map((use) => use.at)).toContain('encounters.json: ambush-on-the-road.checks.0.score.1.1.1.2');
   });
 
-  test('an Encounter in the old form is refused, saying so', async () => {
-    const dir = scratch();
-    // The ambush as content 25 wrote it, in the old form (v1.1.4-S10 wrote the shipped one in Checks).
-    const old = JSON.parse(readFileSync(new URL('../../../content/src/old-form/encounters.json', import.meta.url), 'utf8')) as Record<string, unknown>;
-    writeContentJson(dir, 'encounters.json', { ...readContentJson<Record<string, unknown>>(dir, 'encounters.json'), 'ambush-on-the-road': old['ambush-on-the-road'] });
-    git(dir, 'commit', '--quiet', '-am', 'the old form');
-    const refused = await json<Failure>(dir, 'traits', 'assign', 'scarred', 'encounter-has-trait', 'encounter=ambush-on-the-road', 'path=checks.0.score.1');
-    expect(refused.json.problems[0]).toMatch(/^encounters\.json: ambush-on-the-road is an Encounter in the old form, with no Query to filter: ask the owner/);
-  });
-
   test('a change that changes nothing is not held', async () => {
     const dir = scratch();
     const same = await json<{ ok: boolean; unchanged?: boolean; pending: number }>(dir, 'traits', 'change', 'thrifty', '--cost', '2');
@@ -546,6 +533,109 @@ describe('assign and unassign', () => {
     const unassigned = await command(['traits', 'unassign', 'lame', 'injury-leaves-trait', 'injuries.json:', 'shattered-knee.leavesTrait', '--root', dir]);
     expect(unassigned.out).toBe('Unassigned, pending: lame no longer used at injuries.json: shattered-knee.leavesTrait\n  4 uses left');
     expect((await command(['traits', 'pending', '--root', dir])).out).toBe('1. assign hero lame (injury-leaves-trait)\n2. unassign hero lame (injury-leaves-trait)');
+  });
+});
+
+// The editor's `update` (v1.1.6-S4, DL-186 item 14): one use of a Trait changed in place, its chance
+// or another value of that use, held as pending and checked as every edit is, then "Finish" as ever.
+describe('update', () => {
+  type Updated = { ok: true; key: string; entry: string; at: string; uses: { at: string; entry: string }[]; pending: number; unchanged?: true };
+
+  /** Where battle-shy's shipped trait consequence stands, as `traits uses` gives it. */
+  async function battleShy(dir: string): Promise<string> {
+    const uses = (await json<{ uses: { at: string; entry: string }[] }>(dir, 'traits', 'uses', 'battle-shy')).json.uses;
+    const at = uses.find((use) => use.entry === 'encounter-trait')?.at;
+    if (at === undefined) throw new Error('battle-shy has no trait consequence');
+    return at;
+  }
+
+  /** The value at a use's place in the scratch copy's encounters.json. */
+  function consequenceAt(dir: string, at: string): Record<string, unknown> {
+    let here: unknown = readContentJson(dir, 'encounters.json');
+    for (const step of (at.split(': ')[1] ?? '').split('.')) here = (here as Record<string, unknown>)[step];
+    return here as Record<string, unknown>;
+  }
+
+  test('a chance changed in place, pending; "Finish" writes that line alone and raises the version through its file', async () => {
+    const dir = scratch();
+    const at = await battleShy(dir);
+    const before = consequenceAt(dir, at);
+    const version = readContentVersion(dir);
+
+    const updated = await json<Updated>(dir, 'traits', 'update', 'battle-shy', 'encounter-trait', at, 'chance=0.12');
+    expect(updated.code).toBe(0);
+    expect(updated.json).toMatchObject({ ok: true, key: 'battle-shy', entry: 'encounter-trait', at, pending: 1 });
+    expect(updated.json.uses.map((use) => use.at)).toContain(at);
+    // Nothing is written before "Finish".
+    expect(status(dir)).toBe('');
+    expect((await json<{ edits: unknown[] }>(dir, 'traits', 'pending')).json.edits).toEqual([{ op: 'update', list: 'hero', key: 'battle-shy', entry: 'encounter-trait', at, values: { chance: 0.12 } }]);
+
+    const finished = await json<{ changed: string[]; contentVersion: { from: number; to: number } }>(dir, 'traits', 'finish');
+    expect(finished.code).toBe(0);
+    expect(finished.json).toMatchObject({ changed: ['encounters.json'], contentVersion: { from: version, to: version + 1 } });
+    expect(consequenceAt(dir, at)).toEqual({ ...before, chance: 0.12 });
+    expect(readContentVersion(dir)).toBe(version + 1);
+    expect(readContentJson<{ changelog: string[] }>(dir, 'version.json').changelog.at(-1)).toMatch(new RegExp(`^${version + 1} from the content editor's Finish of \\d{4}-\\d\\d-\\d\\d \\(1 use updated, of battle-shy\\)\\.$`));
+    expect(status(dir).split('\n').filter((line) => line !== '').sort()).toEqual([' M content/encounters.json', ' M content/version.json']);
+    expect(git(dir, 'diff', '--numstat', '--', 'content/encounters.json').trim()).toBe('1\t1\tcontent/encounters.json');
+  });
+
+  test("a use that does not exist is refused, naming the Trait's uses, and nothing is held", async () => {
+    const dir = scratch();
+    const refused = await json<Failure>(dir, 'traits', 'update', 'battle-shy', 'encounter-trait', 'encounters.json: ambush-on-the-road.consequences.failure.9', 'chance=0.1');
+
+    expect(refused.code).toBe(1);
+    expect(refused.json.kind).toBe('refused');
+    expect(refused.json.problems[0]).toBe('"battle-shy" has no use in encounter-trait at encounters.json: ambush-on-the-road.consequences.failure.9; its uses:');
+    expect(refused.json.problems.slice(1)).toContain(`encounter-trait at ${await battleShy(dir)}`);
+    expect(existsSync(pendingPath(dir, 'traits'))).toBe(false);
+  });
+
+  test.each([
+    ['a use whose entry holds the key alone', ['lame', 'injury-leaves-trait', 'shattered-knee.leavesTrait', 'leavesTrait=scarred'], 'the register says of injury-leaves-trait that a use there is the key alone: unassign it and assign another'],
+    ['a value its entry does not change', ['battle-shy', 'encounter-trait', '@', 'odds=0.1'], "odds: not a value of encounter-trait's use, which takes chance, among"],
+    ['a chance beyond its bound, by the register', ['battle-shy', 'encounter-trait', '@', 'chance=1.5'], 'the chance is 1.5; it is above 0 and at most 1'],
+    ['a chance of 0, which the content checks take', ['battle-shy', 'encounter-trait', '@', 'chance=0'], 'the chance is 0; it is above 0 and at most 1'],
+    ['an among the content checks refuse', ['battle-shy', 'encounter-trait', '@', 'among=5'], 'among is 5; a number stands for a Val or a Num, not a Set'],
+    ['a value of the wrong type, by the register', ['battle-shy', 'encounter-trait', '@', 'chance=often'], 'the chance is wanted: a number'],
+    ['a Trait there is not', ['brave', 'encounter-trait', '@', 'chance=0.1'], '"brave" is not a key of Traits'],
+  ])('refuses %s, naming why, and holds nothing', async (_name, args, problem) => {
+    const dir = scratch();
+    const at = await battleShy(dir);
+    const refused = await json<Failure>(dir, 'traits', 'update', ...args.map((arg) => (arg === '@' ? at : arg)));
+
+    expect(refused.code).toBe(1);
+    expect(refused.json.kind).toBe('refused');
+    expect(refused.json.problems.join('\n')).toContain(problem);
+    expect(existsSync(pendingPath(dir, 'traits'))).toBe(false);
+  });
+
+  test('a value as it is already is not held; a line without a value or a place exits 2', async () => {
+    const dir = scratch();
+    const at = await battleShy(dir);
+    const chance = consequenceAt(dir, at).chance;
+    const same = await json<Updated>(dir, 'traits', 'update', 'battle-shy', 'encounter-trait', at, `chance=${String(chance)}`);
+    expect(same.json).toMatchObject({ ok: true, unchanged: true, pending: 0 });
+    expect(existsSync(pendingPath(dir, 'traits'))).toBe(false);
+
+    expect((await command(['traits', 'update', 'battle-shy', 'encounter-trait', at, '--root', dir])).code).toBe(2);
+    expect((await command(['traits', 'update', 'battle-shy', 'encounter-trait', 'chance=0.1', '--root', dir])).code).toBe(2);
+  });
+
+  test('a Biography sentence changed in its place, by --target, and the text says what was changed', async () => {
+    const dir = scratch();
+    const target = path.join(dir, 'sentence.json');
+    writeFileSync(target, JSON.stringify({ sentence: '{He} limps, and does not say why.' }));
+    const text = await command(['traits', 'update', 'lame', 'biography-sentences', 'heroBiography.traits.lame.1', '--target', `@${target}`, '--root', dir]);
+    rmSync(target);
+
+    expect(text.code).toBe(0);
+    expect(text.out).toBe('Updated, pending: lame at descriptions.json: heroBiography.traits.lame.1');
+    expect((await command(['traits', 'pending', '--root', dir])).out).toBe('1. update hero lame (biography-sentences)');
+    const working = await json<{ row: unknown; uses: { at: string }[] }>(dir, 'traits', 'show', 'lame');
+    expect(working.json.uses.map((use) => use.at)).toContain('descriptions.json: heroBiography.traits.lame.1');
+    expect((await json<{ changed: string[] }>(dir, 'traits', 'finish')).json.changed).toEqual(['descriptions.json']);
+    expect(readContentJson<{ heroBiography: { traits: Record<string, string[]> } }>(dir, 'descriptions.json').heroBiography.traits.lame?.[1]).toBe('{He} limps, and does not say why.');
   });
 });
 
@@ -580,14 +670,17 @@ describe('finish', () => {
     expect(status(dir).split('\n').filter((line) => line !== '').sort()).toEqual([
       ' M content/guildmaster-traits.json',
       ' M content/hero-traits.json',
-      ' M content/src/content.test.ts',
-      ' M content/src/parse.ts',
+      ' M content/version.json',
     ]);
     // Each file changes only where its value does.
     const numstat = git(dir, 'diff', '--numstat', '--', 'content/guildmaster-traits.json', 'content/hero-traits.json');
     expect(numstat.trim().split('\n')).toEqual(['1\t1\tcontent/guildmaster-traits.json', '3\t2\tcontent/hero-traits.json']);
     expect(readContentJson(dir, 'hero-traits.json').brave).toEqual({ name: 'Brave', excludes: ['scarred'], effects: [{ kind: 'statModifiers', modifiers: { courage: 2 } }] });
-    expect(readFileSync(path.join(dir, 'content', 'src', 'parse.ts'), 'utf8')).toContain(`${version + 1} from the content editor's Finish of`);
+    // Raised through its file, `version.json`, a line of whose changelog says why (v1.1.6-S4).
+    expect(readContentJson<{ version: number; changelog: string[] }>(dir, 'version.json')).toMatchObject({ version: version + 1 });
+    expect(readContentJson<{ changelog: string[] }>(dir, 'version.json').changelog.at(-1)).toMatch(new RegExp(`^${version + 1} from the content editor's Finish of `));
+    const raised = git(dir, 'diff', '--numstat', '--', 'content/version.json');
+    expect(raised.trim()).toMatch(/^[23]\t[12]\tcontent\/version\.json$/);
     expect(existsSync(pendingPath(dir, 'traits'))).toBe(false);
 
     // Nothing pending: a second Finish changes nothing, the version included.

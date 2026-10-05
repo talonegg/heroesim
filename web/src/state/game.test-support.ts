@@ -6,28 +6,25 @@
 
 import {
   addStack,
-  append,
+  applyAction,
   availableHeroes,
-  createItem,
+  configVersion,
   dayOf,
   defaultConfig,
   durationDaysOf,
   estimateQuest,
   isId,
   isMilestone,
-  makeId,
-  offerTransfer,
   offeredQuests,
   parseId,
-  partyFor,
   playerGuild,
   type ConsumableRequest,
   type Degree,
   type EncounterOutcome,
-  type FormDecided,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
+  type FormDecided,
   type Guild,
   type Hero,
   type HeroId,
@@ -46,6 +43,7 @@ import {
   type StatKey,
   type WorldDocument,
 } from '@heroesim/engine';
+import { append, createItem, makeId, partyFor } from '@heroesim/engine/testing';
 import { content } from '../content';
 import { gameReducer, initialGameState, playDeps, type GameState, type Play } from './reducer';
 
@@ -455,7 +453,7 @@ export function withOffer(state: GameState): GameState {
   const rival = Object.values(document.world.guilds).find((guild) => guild.id !== player.id);
   const heroId = player.rosterIds[0];
   if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
-  const offered = offerTransfer(document, { guildId: rival.id, heroId }, { config: { ...defaultConfig, ...document.meta.config }, content });
+  const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId }, { config: { ...defaultConfig, ...document.meta.config }, content });
   if (!offered.ok) throw new Error(`offerTransfer refused: ${offered.rejection.reason}`);
   return { ...rich, document: offered.document };
 }
@@ -483,8 +481,7 @@ export function withWorldNews(state: GameState): GameState {
 /** The game's rules `behind` config versions older than this release's, as a save from an earlier release has. */
 export function withOlderRules(state: GameState, behind = 1): GameState {
   const document = documentOf(state);
-  const config = { ...document.meta.config, configVersion: defaultConfig.configVersion - behind };
-  return { ...state, document: { ...document, meta: { ...document.meta, config } } };
+  return { ...state, document: { ...document, meta: { ...document.meta, configVersion: configVersion - behind } } };
 }
 
 /** A Hero by id and name. */

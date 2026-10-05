@@ -382,13 +382,44 @@ the agents recommended that story features be modules and rule extensions core i
   support. *Added 2026-10-04 (DL-185), by the owner's answer at v1.1.5's re-close: "the transfer
   generator cap stays purely for development and constraining testing load for now, will remove
   this in the future".*
-- **What follows `v1.1.5`:** to be decided by the owner (DL-182 item 2, "Decide later").
+- **The History's size and the save's compression investigated, in the backlog:** the save after 20
+  years has grown from 47.1 MiB (M7) to 136.7 MiB uncompressed (v1.1.5-S13), most of it History, about
+  11,700 entries a year at about 475 characters each; shorter entries, or compressed saves, to be
+  weighed. `v1.1.6`'s growth guard (S2) watches it meanwhile. *Added 2026-10-05 (DL-186 item 31), the
+  owner's yes. Amended 2026-10-05 (DL-188): no growth guard, by the owner's answer; the Gate holds the
+  gzipped mean under 30 MiB and the harness's report prints the uncompressed size.*
+- **A Hero's page showing a Stat's sources, in the backlog:** the Roster's tooltip ("Base 12, +2 from
+  Gear…") on a Hero's page too, once `v1.1.6`'s `statBreakdown` exists. *Added 2026-10-05 (DL-186
+  item 31): A3's option (b), not chosen for `v1.1.6`.*
+- **Next: `v1.1.6`, deeper modules, less duplication, and tuning as checked data**, on `v1.1.6-dev`
+  ([epic](./planning/epics/v1.1.6-release.md), DL-186). The owner's answers to an architecture review
+  after `v1.1.5`, every candidate and small fix in scope, no new gameplay, 19 stories:
+  - the harness's tooling: a sweep's totals by one fold; one parser of the run's settings with
+    profiles (`gate`, `neutral`); a JSON report, `compare`, and a declared Gate spec
+    (`harness/gate.json`) a `gate` run checks; the replay played once against the shard's record;
+  - content and configuration as checked data: the content version as a data file and the editor's
+    `update` for a use; content importing the engine's values; `playDeps` checking all 121 settings;
+    the old content form and the Quests' `demands` gone; the tuning values in `engine/src/config.json`
+    with the editor's config kind;
+  - deeper engine modules: harm targeting in `harm.ts`; one Query operator table; a Stat's breakdown;
+    the engine's interface narrowed; the write-once data outside the per-Turn copy (ADR-0011);
+  - one set of words for the CLI and the page, and the page's plumbing: whether a Hero can go, the
+    Party builder, a declared Class order, breakpoints and remembered preferences;
+  - new knobs defaulting to today's play: draw weights, the sex weight, the Rivals' orders and the
+    Finale's loot.
+
+  *Added 2026-10-05 (DL-186). What follows `v1.1.5` had been left to the owner (DL-182 item 2).*
+  *Built and verified on `v1.1.6-dev` 2026-10-05 to 2026-10-06 (DL-187 to DL-205), no play counter
+  moved; the Gate met: the closing full `gate`, run again alone on the owner's answer, meets every
+  line, the per-Turn copy's time 0.826 ms (1.350 ms on the first run, the machine's speed and not
+  the code) (DL-205): the release awaits the owner's word.*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.* *Amended 2026-10-03 (DL-168): after `v1.1.5`, or after a `v1.1.6`
   economy pass, by DL-168 item 16's rule.* *Amended 2026-10-04 (DL-181): after `v1.1.6`, the rule
   having named the economy pass first.* *Amended 2026-10-04 (DL-182): there is no `v1.1.6` economy
-  pass; when Random Events comes is the owner's to decide.*
+  pass; when Random Events comes is the owner's to decide.* *Amended 2026-10-05 (DL-186): `v1.1.6` is the
+  architecture work, with no gameplay; when Random Events comes is still the owner's to decide.*
 - **After Random Events, in an order chosen at its close:**
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Scouting and hidden information.

@@ -3,8 +3,8 @@
 // one that depends on the values drawn.
 
 import type { Names } from '../content-types.js';
-import { compareByCodeUnit, type Sex, type World } from '../document.js';
-import { int, next, pick, shuffle, type StreamName } from '../rng.js';
+import { compareByCodeUnit, rowOf, type Sex, type World } from '../document.js';
+import { int, next, pick, shuffle, weightedPick, type StreamName } from '../rng.js';
 
 /** A stream's state, reached through `world.rng` as the rest of the engine reaches it (M1-S2). */
 export type Stream = World['rng'][StreamName];
@@ -20,7 +20,7 @@ export const defaultStream: StreamName = 'generation';
 
 /** The state of `world`'s stream `name`. Throws when the world has no such stream. */
 export function streamOf(world: World, name: StreamName = defaultStream): Stream {
-  const state = Object.hasOwn(world.rng, name) ? world.rng[name] : undefined;
+  const state = rowOf(world.rng, name);
   if (state === undefined) throw new RangeError(`The world has no random stream named ${JSON.stringify(name)}`);
   return state;
 }
@@ -44,6 +44,18 @@ export function sortedKeys<Row extends { key: string }>(
   keep: (row: Row) => boolean = () => true,
 ): string[] {
   return sortedRows(table, keep).map((row) => row.key);
+}
+
+/** A row's weight in a draw: its `weight`, 1 when it has none (v1.1.6-S16, DL-202). */
+export const weightOf = (row: { weight?: number }): number => row.weight ?? 1;
+
+/**
+ * One of `rows`, each drawn in proportion to its weight, from one draw (v1.1.6-S16, DL-186 item 16,
+ * DL-202): with every weight 1, which is every row's when none has a `weight`, the row `pick` picks from
+ * the same state, so a game plays as it did before rows were weighted. Throws on an empty list.
+ */
+export function pickByWeight<Row extends { weight?: number }>(state: Stream, rows: readonly Row[]): Row {
+  return weightedPick(state, rows, rows.map(weightOf));
 }
 
 /**

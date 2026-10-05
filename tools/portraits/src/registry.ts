@@ -4,7 +4,8 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { formatJson } from './json-format.js';
+import { formatJson } from '@heroesim/content/write';
+import { sexes, type Sex } from '@heroesim/engine';
 import type { Fingerprint } from './fingerprint.js';
 
 /**
@@ -17,8 +18,8 @@ export const roles = {
 } as const;
 
 export type Role = keyof typeof roles;
-export type Sex = 'female' | 'male';
-export const sexes: readonly Sex[] = ['female', 'male'];
+/** The engine's sexes, read rather than repeated (DL-186 item 6). */
+export { sexes, type Sex };
 export type Status = 'live' | 'retired';
 
 export function isRole(value: unknown): value is Role {
@@ -26,7 +27,7 @@ export function isRole(value: unknown): value is Role {
 }
 
 export function isSex(value: unknown): value is Sex {
-  return value === 'female' || value === 'male';
+  return typeof value === 'string' && (sexes as readonly string[]).includes(value);
 }
 
 /** One key's entry. */

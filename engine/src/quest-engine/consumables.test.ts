@@ -9,7 +9,7 @@ import { streamOf, type Stream } from '../generators/draw.js';
 import { addStack } from '../items.js';
 import { next } from '../rng.js';
 import { playerGuild } from '../selectors.js';
-import { encounterCapability as capability, heroStatKeys, oldFormCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
+import { demandsCheck, encounterCapability as capability, heroStatKeys, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { resolveQuest } from './resolve.js';
 
 // M5-S3 (DL-50): the consumables a Party carries, used as the Quest Engine resolves its sequence. A
@@ -36,7 +36,7 @@ function encounter(key: string, kind: EncounterKind, pass: boolean, failure: Con
     key,
     name: key,
     kind,
-    checks: [oldFormCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000)],
+    checks: [demandsCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000)],
     consequences: { success, failure },
   };
 }
@@ -341,7 +341,7 @@ describe('consumables.ts', () => {
 // short of Success, one draw each in the order listed, and the new rolls stand.
 describe('on an Encounter of several Checks (v1.1.4-S2)', () => {
   /** A Check keyed `key` of the Party's summed Strength, which any Party of 8s meets (`pass`) or misses. */
-  const strength = (key: string, pass: boolean) => oldFormCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000);
+  const strength = (key: string, pass: boolean) => demandsCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000);
   /** An Encounter keyed `key` of `kind`: a met Check `met`, then a missed one `missed` and another `also`, all three needed. */
   const threefold = (key: string, kind: EncounterKind): Encounter => ({
     key,

@@ -10,6 +10,7 @@
 // (`mayEarn`), and one an Injury leaves replaces those it conflicts with (`replacedBy`).
 
 import type { ContentSet, Encounter, HeroTrait, HeroTraitEffect, StatKey, Trait, TraitKey } from './content-types.js';
+import { rowOf } from './document.js';
 
 /** What the Traits are read from: both lists. */
 export type TraitContent = Pick<ContentSet, 'guildmasterTraits' | 'heroTraits'>;
@@ -17,7 +18,7 @@ export type TraitContent = Pick<ContentSet, 'guildmasterTraits' | 'heroTraits'>;
 /** The Trait keyed `key` in either list, or `undefined` for a key content does not define (rule 5). */
 export function traitOf(content: TraitContent, key: TraitKey): Trait | undefined {
   if (Object.hasOwn(content.guildmasterTraits, key)) return content.guildmasterTraits[key];
-  return Object.hasOwn(content.heroTraits, key) ? content.heroTraits[key] : undefined;
+  return rowOf(content.heroTraits, key);
 }
 
 /** Whether one of two Traits excludes the other, read from either side. */
@@ -43,7 +44,7 @@ export type HeroTraitContent = Pick<ContentSet, 'heroTraits'>;
 
 /** The Hero Trait keyed `key`, or `undefined` for a key content does not define as one (rule 5). */
 function heroTraitOf(content: HeroTraitContent, key: TraitKey): HeroTrait | undefined {
-  return Object.hasOwn(content.heroTraits, key) ? content.heroTraits[key] : undefined;
+  return rowOf(content.heroTraits, key);
 }
 
 /** Every effect of the Hero Traits `traits` lists, in the Traits' order and then each Trait's; a key no Hero Trait has bears on nothing. */

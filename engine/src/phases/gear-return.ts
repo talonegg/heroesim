@@ -9,7 +9,7 @@
 // ending checks, so a Guild that folds tonight has its dead Heroes' gear back before the fold does
 // anything with the Guild's holding. It draws nothing.
 
-import { compareByCodeUnit, type HeroId } from '../document.js';
+import { compareByCodeUnit, rowOf, type HeroId } from '../document.js';
 import type { EngineEvent, GearReturnCause } from '../events.js';
 import { returnGear } from '../gear.js';
 import type { PhaseRun } from './phase.js';
@@ -21,7 +21,7 @@ export const gearReturn: PhaseRun = (world, ctx) => {
   }
   const events: EngineEvent[] = [];
   for (const heroId of [...carriers].sort(compareByCodeUnit)) {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    const hero = rowOf(world.heroes, heroId);
     // A Hero on no Roster carries nothing (a fold returns its Heroes' gear first); a Hero with no row
     // is the validator's to refuse.
     if (hero === undefined || hero.guildId === null) continue;

@@ -1,0 +1,72 @@
+{
+  "status": "approved",
+  "decided": "DL-188",
+  "baseline": {
+    "release": "v1.1.5",
+    "report": "harness/reports/m9-v115-s13-2026-10-04.md",
+    "fingerprint": "e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369",
+    "source": "v1.1.5's closing sweep, S13's (DL-184), standing as the closing sweep at the re-close (DL-185): 50 games of 20 years in 8 processes, the replay kept"
+  },
+  "run": {
+    "games": 50,
+    "years": 20,
+    "source": "v1.1.5's Gate sweeps, S3 to S13, each 50 games of 20 years (DL-177 to DL-184); the gate profile (DL-186 item 13)"
+  },
+  "lines": {
+    "refusals": {
+      "max": 0,
+      "source": "M2-S12 (DL-34): the policy chooses only what the rules accept, so a refusal is a bug; 0 at v1.1.5's close (DL-184)"
+    },
+    "invalid": {
+      "max": 0,
+      "source": "M2-S12 (DL-34): a game the validator refuses; 0 at every close; read only when validated after every advance, which a Gate run is not (v1.1.5's was not)"
+    },
+    "stopped": {
+      "max": 0,
+      "source": "M6-S3's harness assertion (DL-59, DL-69): no hero.transferred names the player's Guild; 0 at v1.1.5's close (DL-184)"
+    },
+    "unfinished": {
+      "max": 0,
+      "source": "M2-S12 (DL-34): every game ends or plays to its last Turn; 50 of 50 at v1.1.5's close (DL-184)"
+    },
+    "roundTrips": {
+      "max": 0,
+      "source": "M2-S12 (DL-34): every last save loads and serialises back identically; 50 of 50 at v1.1.5's close (DL-184)"
+    },
+    "replay": {
+      "identical": true,
+      "source": "M2-S12 (DL-34), since v1.1.6-S3 (DL-189) one seed played once more, alone, its last save's length and fingerprint compared with those its shard recorded: two processes; seed-0001 identical at v1.1.5's close, 144,371,849 characters (DL-184), played twice in one process then (DL-181)"
+    },
+    "playerBankruptcies": {
+      "max": 3,
+      "baseline": 0,
+      "source": "the owner's answer (DL-188): at most 3 of 50, the baseline and fifty seeds' ±3 (DL-166), as proposed; v1.1.5's closing sweep: 0 of 50 (DL-184); DL-168 item 16's 3 to 7 decided what followed v1.1.5 and is not this line"
+    },
+    "saveGzipped": {
+      "meanMiB": 30,
+      "baselineMeanMiB": 17.95,
+      "baselineMaxMiB": 21.08,
+      "source": "the owner's answer (DL-188): \"stay under 30mb\", the mean over the run's games, not every save, measured gzipped as the page keeps it (DL-67, DL-186 item 21, data-model §7); no guard on the uncompressed size, which the report prints; v1.1.5's closing sweep: mean 17.95 MiB, max 21.08 MiB gzipped (DL-184's report)"
+    },
+    "copyMs": {
+      "growth": 0.25,
+      "baselineMeanMs": 0.847,
+      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, may grow at most 25% over its baseline without a DL entry; the baseline measured at v1.1.6-S17's full gate by its verification (DL-203; harness/reports/m9-v116-s17-2026-10-05, 50 games of 20 years, 8 processes): mean 0.847 ms over 1,000 copies, 0.474 ms as the first year ended and 0.916 ms as the twentieth"
+    }
+  },
+  "estimate": {
+    "noOneFalls": {
+      "within": 0.02,
+      "source": "v1.1.4-S5 (DL-156): every chance within 2 points of the resolver's rate with no one falling; held at v1.1.5's re-close, the widest 1.18 points (DL-185)"
+    },
+    "moraleInQuest": {
+      "within": 0.03,
+      "source": "v1.1.5-S7 (DL-173, the owner's answer): the Quest's bands and success within 3 points with Morale's consequences in; held at v1.1.5's re-close, the widest 1.61 points (DL-185)"
+    }
+  },
+  "notes": [
+    "Drafted by v1.1.6-S2 from v1.1.5's epic and closing sweep, and approved by the owner on 2026-10-05 with the Traits a career taken out and the save's gzipped mean set under 30 MiB, no guard on its uncompressed size (DL-188). Its lines and baselines change only with a DL entry (DL-186 item 13).",
+    "The bands are set on the run above: on a run of another shape they read not comparable. The estimate's two limits are checked by npm run harness -- estimate, not by a gate run.",
+    "S17 added the per-Turn copy's time line (DL-186 item 11, DL-203), its baseline set from S17's full gate by its verification."
+  ]
+}

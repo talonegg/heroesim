@@ -7,6 +7,9 @@
 import type { EngineDeps } from '../config.js';
 import type { Class, ClassKey, SkillKey } from '../content-types.js';
 import {
+  highestSkillRating,
+  lowestSkillRating,
+  rowOf,
   takeId,
   type EntityId,
   type Guild,
@@ -20,13 +23,13 @@ import type { HeroGenerated } from '../events.js';
 import { describeNewHero, heroDescriptionsStream } from '../descriptions.js';
 import { giveHeroPortrait, heroPortraitsStream } from '../portraits.js';
 import { xpForLevel } from '../progression.js';
-import { int, pick, shuffle } from '../rng.js';
+import { int, shuffle, weightedPick } from '../rng.js';
 import {
   clamp,
   drawCount,
   drawPersonName,
+  pickByWeight,
   sexes,
-  sortedKeys,
   sortedRows,
   streamOf,
   type DrawsFrom,
@@ -36,12 +39,8 @@ import {
 /** A generated Hero's Level unless the caller gives one. */
 const firstLevel = 1;
 
-/** The Skill scale, `SkillRating`: a Hero's rating runs from 1 to 5. */
-const lowestSkillRating = 1;
-const highestSkillRating = 5;
-
 export interface HeroOptions extends DrawsFrom {
-  /** The Hero's Class; drawn uniformly from content when omitted. */
+  /** The Hero's Class; drawn from content by the Classes' weights (`pickByWeight`, DL-202) when omitted. */
   classKey?: ClassKey;
   /**
    * Stored as given (DL-19), with the XP that Level takes, `xpForLevel`, so that the Hero's XP and
@@ -89,10 +88,11 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
   streamOf(world, heroPortraitsStream);
   streamOf(world, heroDescriptionsStream);
 
-  const sex = pick(state, sexes);
+  // The sex by its weight in `heroSexWeights` (v1.1.6-S16, DL-202), one draw whatever the weights.
+  const sex = weightedPick(state, sexes, sexes.map((one) => config.heroSexWeights[one]));
   const name = drawPersonName(state, content.names, sex);
-  const backgroundKey = pick(state, sortedKeys(content.backgrounds, (row) => row.owner === 'hero'));
-  const heroClass = givenClass ?? classOf(deps, pick(state, sortedKeys(content.classes)));
+  const backgroundKey = pickByWeight(state, sortedRows(content.backgrounds, (row) => row.owner === 'hero')).key;
+  const heroClass = givenClass ?? pickByWeight(state, sortedRows(content.classes));
   const ageAtEntry = int(state, config.heroStartingAgeMin, config.heroStartingAgeMax);
   const { stats, potential } = drawStats(state, deps, heroClass);
   const skills = drawSkills(state, deps, heroClass);
@@ -186,13 +186,13 @@ function drawSkills(state: Stream, { config }: EngineDeps, heroClass: Class): Re
 }
 
 function classOf({ content }: EngineDeps, key: ClassKey): Class {
-  const found = Object.hasOwn(content.classes, key) ? content.classes[key] : undefined;
+  const found = rowOf(content.classes, key);
   if (found === undefined) throw new RangeError(`No Class in content is keyed ${JSON.stringify(key)}`);
   return found;
 }
 
 function guildOf(world: World, id: GuildId): Guild {
-  const found = Object.hasOwn(world.guilds, id) ? world.guilds[id] : undefined;
+  const found = rowOf(world.guilds, id);
   if (found === undefined) throw new RangeError(`No Guild in the world has the id ${id}`);
   return found;
 }

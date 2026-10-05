@@ -1,13 +1,16 @@
 # The content editor
 
 `tools/editor` is the owner's content editor (DL-150 items 7 to 12, v1.1.4-S12): a local page and
-the commands under it. Traits are its first kind, and in v1.1.4 its only one; Encounters and the
-rest come when the owner asks. It is never built into the game or deployed. The guardrails, and the
-register of every use of a Trait, are in [`docs/agents/traits.md`](../../docs/agents/traits.md).
+the commands under it. Traits are its first kind; the tuning values, `engine/src/config.json`, its
+second, from v1.1.6-S18 (DL-186 item 15, DL-204), as commands alone; Encounters and the rest come
+when the owner asks. It is never built into the game or deployed. The guardrails, and the register of
+every use of a Trait, are in [`docs/agents/traits.md`](../../docs/agents/traits.md); the tuning
+values' in [`docs/agents/config.md`](../../docs/agents/config.md).
 
 ```sh
 npm run edit                                        # the page, at http://127.0.0.1:4180/
 npm run edit -- traits <command> [--root <dir>] [--json]
+npm run edit -- config <command> [--root <dir>] [--json]
 ```
 
 - **`--root <dir>`** works on another copy of the repository; this one by default. It must hold a
@@ -26,11 +29,12 @@ npm run edit -- traits <command> [--root <dir>] [--json]
 
 ## Pending edits
 
-Each `add`, `change`, `remove`, `assign` and `unassign` is checked with the content's own checks
+Each `add`, `change`, `remove`, `assign`, `unassign` and `update` is checked with the content's own checks
 (`@heroesim/content`) as it is made, and held as pending in `.editor/traits.json` under the root, which git ignores, written
 whole or not at all. The file holds each edit as it was made: a row added whole, a change as the
 fields it gave (so it never carries an exclusion another edit wrote into it), a removal by its key,
-an assignment by its entry and target, an unassignment by its entry and place.
+an assignment by its entry and target, an unassignment by its entry and place, an update by its
+entry, place and the values it gave.
 Whenever it is read, the edits are made again on the content as it is on disk, so the page and
 separate command lines share them, and nothing in the content's files changes before `finish`. Every
 list of edits is checked before it is saved, a removal's and a discard's too. An edit that no longer
@@ -51,6 +55,7 @@ checks and names their problems.
 | `traits remove <key>` | Removes a Trait; refused while it is used, naming every use |
 | `traits assign <key> <entry> [<field>=<value> ...]` | Adds a use of a Trait in other content, through the register's entry; `--target <json or @file>` gives the fields too |
 | `traits unassign <key> <entry> <at>` | Takes a use out, by its place as `uses` gives it (`injuries.json: deep-cut.leavesTrait`, or `deep-cut.leavesTrait`) |
+| `traits update <key> <entry> <at> [<field>=<value> ...]` | Changes a use in place, by its place as `uses` gives it: a trait consequence's `chance` or `among`, a Biography sentence's words; `--target <json or @file>` gives the values too |
 | `traits pending` | The pending edits |
 | `traits discard [<key>]` | Drops one Trait's pending edits, or all |
 | `traits finish` | Writes the pending edits, raises the content version, runs `npm test` |
@@ -110,11 +115,29 @@ npm run edit -- traits unassign lame injury-leaves-trait shattered-knee.leavesTr
 - **Taking out a `has-trait`** the register cannot take out with its Query keeping a meaning (one
   inside a `not`, say) is refused: the owner decides how that Query is rewritten.
 
+## Changing a use in place
+
+`update` (v1.1.6-S4, DL-186 item 14) changes one use of a Trait where it stands, through the
+register's entry for it, where the use holds values besides the key: an Encounter's `trait`
+consequence its `chance` and `among` (`among=null` takes it out), a Biography sentence its words. A
+use that is the key alone (an Injury's `leavesTrait`, a `has-trait`, an `excludes`) is refused:
+`unassign` it and `assign` another. The place is the use's `at` as `uses` gives it, and the values
+are read as `assign`'s fields are. It is a pending edit like the rest, written by "Finish"; a use
+that is not there is refused, naming the Trait's uses, and a value as it is already is not held.
+
+```sh
+npm run edit -- traits uses battle-shy
+npm run edit -- traits update battle-shy encounter-trait "encounters.json: hold-the-line.consequences.failure.2" chance=0.1
+npm run edit -- traits update lame biography-sentences heroBiography.traits.lame.1 --target @sentence.json
+```
+
 ## Finish
 
-1. It writes each changed file into its own layout (the portrait tool's `editJson`, keeping a row on
-   one line where it was), so `git diff` shows only what changed.
-2. It raises the content version by one, with a line in its comment naming the edits.
+1. It writes each changed file into its own layout (`editJson`, of content's write module
+   `@heroesim/content/write`, keeping a row on one line where it was), so `git diff` shows only what
+   changed.
+2. It raises the content version by one in `content/version.json` (v1.1.6-S4), with a line of its
+   changelog naming the edits.
 3. It runs `npm test`, its lines shown as they come (on stderr, or on the page).
 4. If any test fails, every file is put back and the edits stay pending; the failures are reported.
    Otherwise the edits it read are cleared.
@@ -141,6 +164,41 @@ scratch copy rather than the whole suite inside itself.
 - **A file not put back** (`not-undone`), by a "Finish" whose tests failed, keeps its journal, the
   only copy of the bytes before: the next command, or `traits recover`, tries again.
 
+## The config kind
+
+`config` (v1.1.6-S18, DL-186 item 15, DL-204) changes the tuning values, the defaults of every
+setting of `GameConfig`, which `engine/src/config.json` holds in sections beside the config version
+and its changelog. A setting is changed here, never added or removed: a new setting is an engine
+change, its field, its rule and its value made together ([`docs/agents/config.md`](../../docs/agents/config.md)).
+
+| Command | What it does |
+| --- | --- |
+| `config show [<section>]` | Every section's settings, or one section's, with the pending edits made, each pending one beside its value in the file |
+| `config set <setting> <value>` | Sets a value, pending; the value read as JSON where it is JSON (`25`, `{"female":1,"male":3}`), as text where not (`warm`); an object's keys taken in the file's order |
+| `config pending` | The pending edits |
+| `config discard [<setting>]` | Drops one setting's pending edit, or all |
+| `config finish --reason <why>` | Writes the pending edits, raises the config version with a line of its changelog, runs `npm test` |
+
+```sh
+npm run edit -- config show guilds
+npm run edit -- config set wagePerLevel 25
+npm run edit -- config finish --reason "the economy pass's wages (DL-210)"
+```
+
+- **Each `set` is checked** with the engine's `checkConfig`, every pending edit made, and refused where a rule refuses it, each problem naming its setting
+  (`boardSize is -1; it is a whole number, at least 0`); a Min set above its Max names the Max. It is
+  held in `.editor/config.json`, as the Traits' edits are in `.editor/traits.json`; nothing is
+  written to `config.json` before "Finish". A setting set again replaces its edit, set back to its
+  value in the file is no longer pending, and set to the value it has is not held.
+- **"Finish"** checks the settings again, as the file is then; writes `config.json`
+  in its own layout (`editJson`), so `git diff` shows the values changed, the version and the
+  changelog's new line, `<version> from <why>: <setting> <was> to <value>, ….`; and runs `npm test`.
+  A test that fails puts the file back and keeps the edits pending. `--reason` is required, and is
+  `config finish`'s alone: a raise says why, citing its decision-log entry. It never commits, and it
+  takes the Traits' journal and lock, so neither kind writes while the other's tests run.
+- **A test that pins a default**, or rests its numbers on one, fails "Finish" for that setting:
+  change it in the same story, then finish again.
+
 ## The page
 
 `npm run edit` serves `page/` from the repository on 127.0.0.1, at desktop widths, through a small
@@ -151,7 +209,7 @@ hold its text; Remove names every use when it is refused; Discard and Doctor do 
 "Finish" shows the test run's lines and its result, every control waiting while it runs. A call
 refused because a "Finish" runs elsewhere, from a command line or another page, says so, apart from a
 removal refused by its uses and a "Finish" put back (v1.1.4-S14). `assign` and `unassign` are the
-commands' alone (DL-163 item 6): the page has no control for them.
+commands' alone (DL-163 item 6): the page has no control for them, nor for the config kind.
 
 Only its own page may call the API: a request whose Host is not `127.0.0.1:<port>` or
 `localhost:<port>` (a name rebound to this machine) or whose Origin is another page's is refused

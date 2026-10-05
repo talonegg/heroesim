@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { loadContent } from '@heroesim/content/node';
 import {
-  append,
   applyAction,
   createWorld,
   defaultConfig,
@@ -17,10 +16,11 @@ import {
   type HeroId,
   type WorldDocument,
 } from '@heroesim/engine';
+import { append } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
-import { regardSnapshot } from './counters.js';
+import { emptyObservations, regardSnapshot } from './counters.js';
 import { harnessSetup } from './creation.js';
-import { markHistory, measureDocument, playerTransferred, playGame, readAdvance, recordGame, replayingAfterSweep, validatingEveryTurn } from './play.js';
+import { markHistory, measureDocument, playerTransferred, playGame, readAdvance, recordGame, runConfig } from './play.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { machine } from './report.js';
 import { summarise } from './stats.js';
@@ -55,37 +55,21 @@ const dealing: EngineDeps = {
   },
 };
 
-describe('validatingEveryTurn reads HEROESIM_VALIDATE (INPUTS §9)', () => {
-  test.each([
-    [undefined, false],
-    ['', false],
-    ['0', false],
-    ['false', false],
-    ['1', true],
-    [' TRUE ', true],
-  ])('%j is %s', (value, expected) => {
-    expect(validatingEveryTurn(value)).toBe(expected);
+// v1.1.6-S7 (DL-193): a run's config is checked, every setting, before any game; and a game plays
+// under the deps the engine's `playDeps` gives it, as a front end's does.
+describe('runConfig', () => {
+  test("is the defaults with HEROESIM_CONFIG's values over them", () => {
+    expect(runConfig({ marketSize: 14 })).toEqual({ ...defaultConfig, marketSize: 14 });
+    expect(runConfig({})).toEqual(defaultConfig);
   });
 
-  test('refuses anything else rather than not validating', () => {
-    expect(() => validatingEveryTurn('yes')).toThrow(/HEROESIM_VALIDATE/);
-  });
-});
-
-describe('replayingAfterSweep reads HEROESIM_REPLAY (v1.1.4-S10)', () => {
-  test.each([
-    [undefined, true],
-    ['', true],
-    ['1', true],
-    [' TRUE ', true],
-    ['0', false],
-    ['false', false],
-  ])('%j is %s', (value, expected) => {
-    expect(replayingAfterSweep(value)).toBe(expected);
+  test('refuses a setting its rule refuses, naming each', () => {
+    expect(() => runConfig({ checkVariance: 2 })).toThrow(new RangeError('HEROESIM_CONFIG: checkVariance is 2; it is a share from 0 to 1'));
+    expect(() => runConfig({ boardSize: 1.5, sellRatio: 1 })).toThrow(/^HEROESIM_CONFIG: boardSize is 1\.5; .*; HEROESIM_CONFIG: sellRatio is 1; /);
   });
 
-  test('refuses anything else rather than guessing', () => {
-    expect(() => replayingAfterSweep('no')).toThrow('HEROESIM_REPLAY is 1 or 0, not "no"');
+  test('a game whose config breaks a rule is refused before its first Turn, naming the setting', () => {
+    expect(() => playGame('unsound', { config: { ...defaultConfig, checkVariance: 2 }, content }, { years })).toThrow(/checkVariance is 2; it is a share from 0 to 1/);
   });
 });
 
@@ -125,6 +109,15 @@ describe('playGame', () => {
     const again = playGame('play-a', deps, { years });
     expect(serialise(again.document)).toBe(serialise(game.document));
     expect(serialise(playGame('play-c', deps, { years }).document)).not.toBe(serialise(game.document));
+  });
+
+  // v1.1.6-S3 (DL-189): the replay plays bare, and its game is the same.
+  test('bare, plays the same game with nothing observed', () => {
+    const bare = playGame('play-a', deps, { years, bare: true });
+    expect(serialise(bare.document)).toBe(serialise(game.document));
+    expect(bare.advanceMs).toHaveLength(game.advanceMs.length);
+    expect(bare.observations).toEqual(emptyObservations());
+    expect(bare.rivalQuestDifficulty.size).toBe(0);
   });
 
   test('without validation, validates nothing', () => {
@@ -168,14 +161,20 @@ describe('playGame observes the World State (M3, DL-40)', () => {
   test("the save as each year ends: every year's length as its text's, counted, and the last year's gzipped once the game stops", { timeout: 30_000 }, () => {
     const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 20 } };
     const lengths: number[] = [];
+    const worldLengths: number[] = [];
     const watched = playGame('play-a', shortYears, {
       years: 3,
       afterAdvance: (_before, after) => {
-        if (after.world.turn % 20 === 0) lengths.push(serialise(after).length);
+        if (after.world.turn % 20 !== 0) return;
+        lengths.push(serialise(after).length);
+        worldLengths.push(JSON.stringify(after.world).length);
       },
     });
     expect(watched.observations.saves.map((save) => save.length)).toEqual(lengths);
     expect(watched.observations.saves.map((save) => save.gzipped)).toEqual([null, null, null]);
+    // v1.1.6-S17 (DL-203): the World State beside the save as each year ends.
+    expect(watched.observations.worlds.map((world) => world.characters)).toEqual(worldLengths);
+    expect(watched.observations.worlds.every((world) => world.copyMs >= 0)).toBe(true);
 
     // The save and the loaded save, written again: two texts, and none while the game is played.
     vi.mocked(serialise).mockClear();

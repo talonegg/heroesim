@@ -28,6 +28,7 @@ import {
   descriptiveAttributeLabels,
   descriptiveAttributes,
   effectiveStats,
+  gearSlotKeys,
   guildmasterOf,
   guildmasterRegardForGuild,
   holdings,
@@ -58,16 +59,25 @@ import {
   type Guild,
   type Guildmaster,
   type Hero,
-  type ItemDefinition,
   type Patron,
   type Quest,
   type RankingMeasure,
   type Stack,
-  type TraitEffect,
   type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
-import { chanceWords, encounterReadings, shownPercent, readsAsOne } from './query-words.js';
+import {
+  capitalised,
+  chanceWords,
+  encounterReadings,
+  facilityNames,
+  kindWords,
+  modifierWords,
+  nameIn,
+  readsAsOne,
+  shownPercent,
+  traitEffectWords,
+} from '@heroesim/words';
 
 // ── Tables ───────────────────────────────────────────────────────────────────────────────────
 
@@ -107,11 +117,8 @@ function fields(pairs: readonly (readonly [string, string])[]): string[] {
 }
 
 // ── Names ────────────────────────────────────────────────────────────────────────────────────
-
-/** A content row's display name; a key the content does not define is shown as it is (rule 5). */
-export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
-  return Object.hasOwn(rows, key) ? (rows[key]?.name ?? key) : key;
-}
+// A content row's name, an Item's kind and what it does, a Trait's effects: `@heroesim/words`
+// (v1.1.6-S11, DL-186 item 1).
 
 /**
  * The row of `rows` keyed by `id`, or `undefined` when there is none: an ordinary lookup that
@@ -119,29 +126,6 @@ export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: st
  */
 export function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
   return Object.hasOwn(rows, id) ? rows[id] : undefined;
-}
-
-/** A Hall facility as the CLI names one in a sentence (`CONTEXT.md`, Hall). */
-export const facilityNames: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'infirmary',
-  trainingYard: 'training yard',
-  quarters: 'quarters',
-});
-
-/** The verb a facility's name takes in a sentence: the infirmary is, the quarters are. */
-export const facilityIs: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'is',
-  trainingYard: 'is',
-  quarters: 'are',
-});
-
-/** An Item's kind as a column shows it, as the web's Kind cell does: `Weapon Gear` for Gear of its slot, or `Consumable`. */
-export function kindWords(definition: ItemDefinition): string {
-  return definition.kind === 'gear' ? `${capitalised(definition.slot)} Gear` : 'Consumable';
-}
-
-function capitalised(word: string): string {
-  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 function none(list: readonly string[]): string {
@@ -397,16 +381,9 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
   ];
 }
 
-/** Gear's Stat modifiers in words, `Weaponry +2, Strength +1` (M5-S2). */
-export function modifierWords(gear: Extract<ItemDefinition, { kind: 'gear' }>, content: ContentSet): string {
-  return Object.entries(gear.statModifiers)
-    .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${delta > 0 ? `+${delta}` : String(delta)}`)
-    .join(', ');
-}
-
 /**
- * The gear a Hero carries (M5-S2): a row for each slot `config.gearSlots` lists, the Item in it or
- * `none`, then any Item held in a slot the config does not list, as the engine's `carriedGear` gives.
+ * The gear a Hero carries (M5-S2): a row for each gear slot (`gearSlotKeys`), the Item in it or
+ * `none`, then any Item held in a slot that is no gear slot, as the engine's `carriedGear` gives.
  */
 function gearRows(hero: Hero, document: WorldDocument, deps: EngineDeps): string[][] {
   const carried: (UniqueItem | Stack)[] = carriedGear(document.world, hero.id);
@@ -420,7 +397,7 @@ function gearRows(hero: Hero, document: WorldDocument, deps: EngineDeps): string
       definition?.kind === 'gear' ? modifierWords(definition, deps.content) : '',
     ];
   };
-  const listed: string[] = [...deps.config.gearSlots];
+  const listed: string[] = [...gearSlotKeys];
   return [
     ...listed.flatMap((slot) => {
       const inSlot = carried.filter((row) => slotOf(row) === slot);
@@ -664,39 +641,6 @@ const guildmasterRules: Readonly<Record<string, string>> = Object.freeze({
   influence: "The Regard a Patron's Quest earns",
   judgement: 'How sharp the Potential hints read',
 });
-
-/**
- * A Trait's effects in words (M4-S5), each in the Trait's order and joined by commas (v1.1.4-S7):
- * `+1 Weaponry to Warriors`, `Upkeep ×0.9`, a Hero Trait's `-2 Dexterity, -1 Endurance` and `+2 to
- * every Check of combat or travel Encounters`; `no effect` for none.
- */
-export function traitEffectWords(effects: readonly TraitEffect[], content: ContentSet): string {
-  if (effects.length === 0) return 'no effect';
-  return effects.map((effect) => effectWords(effect, content)).join(', ');
-}
-
-/** One effect of a Trait in words, as `traitEffectWords` joins them. */
-function effectWords(effect: TraitEffect, content: ContentSet): string {
-  const signed = (n: number): string => (n > 0 ? `+${n}` : String(n));
-  switch (effect.kind) {
-    case 'classStatBonus':
-      return `${signed(effect.delta)} ${nameIn(content.stats, effect.statKey)} to ${nameIn(content.classes, effect.classKey)}s`;
-    case 'guildMoraleShift':
-      return `Morale baseline ${signed(effect.delta)}`;
-    case 'upkeepFactor':
-      return `Upkeep ×${effect.factor}`;
-    case 'statModifiers':
-      return Object.entries(effect.modifiers)
-        .map(([statKey, delta]) => `${signed(delta)} ${nameIn(content.stats, statKey)}`)
-        .join(', ');
-    case 'encounterBonus': {
-      const kinds = effect.kinds ?? [];
-      const tags = effect.tags ?? [];
-      const on = [...(kinds.length === 0 ? [] : [`${kinds.join(' or ')} Encounters`]), ...(tags.length === 0 ? [] : [`Encounters tagged ${tags.join(' or ')}`])];
-      return `${signed(effect.flat)} to every Check of ${on.join(' or ')}`;
-    }
-  }
-}
 
 /**
  * `show guildmaster [guildId]` (M4-S5, R8, R9): the Guildmaster of the player's Guild, or of the

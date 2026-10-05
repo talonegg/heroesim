@@ -5,10 +5,11 @@ import globals from 'globals';
 import { builtinModules } from 'node:module';
 import tseslint from 'typescript-eslint';
 
-// Harvested from v1 (feature/poc) and trimmed to v2's five packages (approach §5, M0-S2).
+// Harvested from v1 (feature/poc) and trimmed to v2's five packages (approach §5, M0-S2), and the
+// words the front ends share, a sixth (v1.1.6-S11, DL-186 item 1).
 // engine/src/boundary.test.ts proves each rule below fires; change the two together.
 
-const packages = ['engine', 'content', 'harness', 'cli', 'web'];
+const packages = ['engine', 'content', 'words', 'harness', 'cli', 'web'];
 
 /**
  * A relative import that climbs out of `self` into another package's directory. `climbs` is the
@@ -26,25 +27,43 @@ const byNameOnly =
 // Every package exports only its entry, so no subpath exists to import, with one exception:
 // content's Node entry, `@heroesim/content/node` (M1-S4, DL-14 item 7), which reads the content
 // files with node:fs. The harness and the CLI run on Node and may import it; the web runs in a
-// browser and may not, except in its tests, which run on Node (M7-S1, DL-64). A second, content's
-// register of a Trait's uses, `@heroesim/content/uses`, is the tools' alone (v1.1.4-S12; the tools'
-// block below). content/src/imports.test.ts proves each.
+// browser and may not, except in its tests, which run on Node (M7-S1, DL-64). Two more, content's
+// register of a Trait's uses, `@heroesim/content/uses` (v1.1.4-S12), and its write module,
+// `@heroesim/content/write` (v1.1.6-S4), are the tools' alone (the tools' block below).
+// content/src/imports.test.ts proves each. The engine's test entry, `@heroesim/engine/testing`, has
+// its own rule, `engineTesting`, so that a production import of it reads that rule's words.
 function noSubpath({ node }) {
   return {
-    regex: node ? '^@heroesim/(?!content/node$)[^/]+/' : '^@heroesim/[^/]+/',
+    regex: node ? '^@heroesim/(?!content/node$|engine/testing$)[^/]+/' : '^@heroesim/(?!engine/testing$)[^/]+/',
     message:
       'Import a package by its name only; its entry is all it exports, and ' +
       '`@heroesim/content/node` is for the CLI and the harness, never the browser (approach §5).',
   };
 }
 
+/**
+ * The engine's test entry, `@heroesim/engine/testing` (v1.1.6-S8, DL-186 item 9): rows, ids and
+ * History built by hand and the probe's factory, for tests alone. Production code, every file but a
+ * test, its support files and the page's Playwright specs, may not import it; engine/src/testing.test.ts
+ * holds the packages' sources to it as well.
+ */
+const engineTesting = {
+  regex: '^@heroesim/engine/testing$',
+  message:
+    "`@heroesim/engine/testing` is the engine's entry for tests: production code imports the engine " +
+    'by its name only (DL-186 item 9).',
+};
+
+/** The files of a package that are tests: test files, their support files, the page's Playwright specs. */
+const testFiles = (pkg) => [`${pkg}/**/*.test.{ts,tsx}`, `${pkg}/**/*test-support.{ts,tsx}`, `${pkg}/**/test-setup.ts`];
+
 const nodeBuiltins = `^(node:.*|(${builtinModules.join('|')})(/.*)?)$`;
 
 const nodeBuiltin = {
   regex: nodeBuiltins,
   message:
-    "Node built-ins belong only in content's Node entry, src/node.ts; the rest of content " +
-    'must run in a browser (approach §5).',
+    "Node built-ins belong only in content's Node entry, src/node.ts, and its write module for the " +
+    'tools, src/write/; the rest of content must run in a browser (approach §5).',
 };
 
 const browserBuiltin = {
@@ -80,18 +99,13 @@ const engineTests = {
   ],
 };
 
-/** content: the engine's types only, and Node built-ins only in its Node entry. */
+/**
+ * content: the engine's types and values, by name, and Node built-ins only in its Node entry. The
+ * engine imports nothing back, so the graph stays acyclic (pre-M0 review A3 as refined by DL-186
+ * item 6; ADR-0007).
+ */
 function contentImports({ node }) {
   return {
-    paths: [
-      {
-        name: '@heroesim/engine',
-        allowTypeImports: true,
-        message:
-          "Content takes only the engine's types (`import type`); its job is parsing text " +
-          'into them (pre-M0 review A3).',
-      },
-    ],
     patterns: [
       {
         regex: '^@heroesim/(?!engine$)',
@@ -104,16 +118,62 @@ function contentImports({ node }) {
 }
 
 /**
- * harness, cli and web: engine and content by name; neither front end imports the other. The web
+ * words, `@heroesim/words` (v1.1.6-S11, DL-186 item 1): the words the CLI, the page and the tools
+ * share, which run in a browser. Its source takes the engine's types and values by name and nothing
+ * else of ours, never content, a front end or the harness; no Node built-in; no React, which is the
+ * page's alone. Its tests run on Node and word content's own rows: they may take content, its Node
+ * entry and the engine's test entry, and Node built-ins.
+ */
+function wordsImports({ tests = false } = {}) {
+  return {
+    patterns: [
+      tests
+        ? {
+            regex: '^@heroesim/(?!(engine|engine/testing|content|content/node)$)',
+            message: "The words' tests import the engine and content by name, never a front end or the harness (DL-186 item 1).",
+          }
+        : {
+            regex: '^@heroesim/(?!engine$)',
+            message:
+              'The words import no package but the engine, and that by name: never content, a front end, ' +
+              "the harness or the engine's test entry (DL-186 item 1).",
+          },
+      relativeInto('words', byNameOnly),
+      ...(tests
+        ? []
+        : [
+            {
+              regex: nodeBuiltins,
+              message:
+                'The words run in a browser as well as on Node: they import no Node built-in (DL-186 item 1, ' +
+                'principle 12).',
+            },
+            {
+              regex: '^react(-dom)?(/|$)',
+              message: "The words are text, which the CLI and the tools read too: they import no React, the page's alone (DL-186 item 1).",
+            },
+          ]),
+    ],
+  };
+}
+
+/** A refusal in the words' source: what it may not use, and why. */
+function wordsInABrowser(what) {
+  return `The words run in a browser as well as on Node: ${what} (DL-186 item 1, principle 12).`;
+}
+
+/**
+ * harness, cli and web: engine, content and words by name; neither front end imports the other. The web
  * page's source, which runs in a browser, imports no Node built-in (`browser`); its tests, which
  * run on Node, may take content's Node entry to compare the bundled content with it (`node`;
  * M7-S1, DL-64). Under `web/src/` a relative path leaves the package only after two climbs
  * (`climbs`; DL-65).
  */
-function consumerImports(self, forbidden, { node = self !== 'web', browser = false, climbs = 1 } = {}) {
+function consumerImports(self, forbidden, { node = self !== 'web', browser = false, climbs = 1, tests = false } = {}) {
   return {
     patterns: [
       noSubpath({ node }),
+      ...(tests ? [] : [engineTesting]),
       {
         group: forbidden.map((name) => `@heroesim/${name}`),
         message:
@@ -272,8 +332,34 @@ export default defineConfig(
     rules: restrictImports(contentImports({ node: false })),
   },
   {
-    files: ['content/src/node.ts', 'content/**/*.test.ts'],
+    files: ['content/src/node.ts', 'content/src/write/**/*.ts', 'content/**/*.test.ts'],
     rules: restrictImports(contentImports({ node: true })),
+  },
+
+  // The words' source reaches Node by no other road either: no dynamic `import()`, which the import
+  // rules cannot see, and no global only Node defines (v1.1.6-S11's verification, DL-197). Its tests
+  // run on Node and may.
+  {
+    files: ['words/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['error', { selector: 'ImportExpression', message: wordsInABrowser('no dynamic `import()`') }],
+      'no-restricted-globals': [
+        'error',
+        ...['process', 'Buffer', '__dirname', '__filename', 'global', 'require', 'module', 'exports'].map((name) => ({
+          name,
+          message: wordsInABrowser(`no \`${name}\`, which only Node defines`),
+        })),
+      ],
+      ...restrictImports(wordsImports()),
+    },
+  },
+  {
+    files: testFiles('words'),
+    rules: {
+      'no-restricted-syntax': 'off',
+      'no-restricted-globals': 'off',
+      ...restrictImports(wordsImports({ tests: true })),
+    },
   },
 
   {
@@ -281,8 +367,16 @@ export default defineConfig(
     rules: restrictImports(consumerImports('harness', ['cli', 'web'])),
   },
   {
+    files: testFiles('harness'),
+    rules: restrictImports(consumerImports('harness', ['cli', 'web'], { tests: true })),
+  },
+  {
     files: ['cli/**/*.ts'],
     rules: restrictImports(consumerImports('cli', ['web'])),
+  },
+  {
+    files: testFiles('cli'),
+    rules: restrictImports(consumerImports('cli', ['web'], { tests: true })),
   },
   // web: its configuration files and Playwright specs run on Node, the page's source in a browser,
   // and its tests on Node again. A later block replaces an earlier block's options.
@@ -295,27 +389,32 @@ export default defineConfig(
     rules: restrictImports(consumerImports('web', ['cli'], { browser: true, climbs: 2 })),
   },
   {
-    files: ['web/src/**/*.test.{ts,tsx}'],
-    rules: restrictImports(consumerImports('web', ['cli'], { node: true, climbs: 2 })),
+    files: ['web/e2e/**/*.ts'],
+    rules: restrictImports(consumerImports('web', ['cli'], { tests: true })),
+  },
+  {
+    files: testFiles('web/src'),
+    rules: restrictImports(consumerImports('web', ['cli'], { node: true, climbs: 2, tests: true })),
   },
 
   // The portrait tool (v1.1.3-S2) and the content editor (v1.1.4-S12): Node packages outside the game,
   // which take content's checks by name, content's Node entry among them, and import neither front end
-  // nor the harness. The editor, and only a tool, takes the register of a Trait's uses,
-  // `@heroesim/content/uses`, which the game never imports.
+  // nor the harness. Only a tool takes the register of a Trait's uses, `@heroesim/content/uses`, and
+  // content's write module, `@heroesim/content/write` (v1.1.6-S4), which the game never imports.
   {
     files: ['tools/**/*.ts'],
     rules: restrictImports({
       patterns: [
         {
-          regex: '^@heroesim/(?!content/(node|uses)$)[^/]+/',
+          regex: '^@heroesim/(?!content/(node|uses|write)$)[^/]+/',
           message:
-            "Import a package by its name only; its entry is all it exports, but for content's Node entry " +
-            'and its register of uses, `@heroesim/content/node` and `@heroesim/content/uses` (approach §5).',
+            "Import a package by its name only; its entry is all it exports, but for content's Node entry, " +
+            'its register of uses and its write module, `@heroesim/content/node`, `@heroesim/content/uses` ' +
+            'and `@heroesim/content/write` (approach §5).',
         },
         {
           group: ['@heroesim/cli', '@heroesim/web', '@heroesim/harness'],
-          message: 'The portrait tool takes the engine and content only; the front ends and the harness are not its.',
+          message: 'The tools take the engine, content and the words; the front ends and the harness are not theirs.',
         },
         { regex: `^(\\.\\./){3,}(${packages.join('|')})(/|$)`, message: byNameOnly },
       ],

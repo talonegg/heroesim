@@ -42,10 +42,10 @@ import {
   type Sex,
   type WorldDocument,
 } from '@heroesim/engine';
+import { capitalised, endingWords, facilityNames, nameIn, traitEffectWords } from '@heroesim/words';
 import { content } from '../content';
-import { capitalised, controllerWords, nameIn, placeWords, rowOf, traitEffectWords } from './names';
+import { controllerWords, placeWords, rowOf } from './names';
 import { playDeps } from './reducer';
-import { endingWords, facilityNames } from './rejections';
 
 /** The Guild named, or the player's when none is. */
 function guildOf(document: WorldDocument, guildId: GuildId | undefined): Guild | undefined {

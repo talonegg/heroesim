@@ -10,6 +10,7 @@
 
 import type { MoraleBand, RegardBand } from '@heroesim/engine';
 import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { narrowQuery } from '../breakpoints';
 import type { SortDirection } from '../state/selectors';
 import { Icon, type IconName } from './icons';
 
@@ -420,11 +421,8 @@ export function useReturn(): { opened: (id: string) => void; closed: () => void 
   };
 }
 
-/** A phone's width, as the style sheet's own breakpoint writes it: under 600px. */
-export const narrowQuery = '(max-width: 599px)';
-
 /**
- * Whether the page is a phone's width, under 600px (v1.1.5-S12): for what a phone shows in place of
+ * Whether the page is a phone's width, under `breakpoints.phone` (v1.1.5-S12): for what a phone shows in place of
  * what a wide screen does, as the Roster's Table shows tabs for its Columns panel. `false` where the
  * browser cannot say.
  */

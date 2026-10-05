@@ -11,6 +11,7 @@ import { phaseContext } from './phases/phase.js';
 import { runTurn } from './pipeline.js';
 import { ensureStreams } from './rng.js';
 import { endedStop, type StopReason } from './stops.js';
+import { copyWorld } from './world-copy.js';
 
 export interface AdvanceResult {
   /** A new document: a new `world`, the same `meta` and `history`. */
@@ -31,13 +32,14 @@ export interface AdvanceResult {
 }
 
 /**
- * Plays the next Turn (data-model §1): copies `world` once with `structuredClone`, gives the copy
+ * Plays the next Turn (data-model §1): copies `world` once (`copyWorld`), gives the copy
  * any core random stream it lacks (`ensureStreams`) and any installed module's stream and slice it
  * lacks (`ensureModules`), advances its Turn by one, runs the pipeline's phases for the new Turn's
  * time of day on the copy under `deps.config`, `deps.content` and `deps.modules`, whose hooks run
  * at their three positions, appends every event to the History through `append`, and
  * returns a document with the new `world` that shares `meta` and `history` with the old one. The
- * old document's `world` is left as it was; its `history` sees the new entries too (ADR-0008).
+ * old document's `world` is left as it was, its write-once rows frozen and shared with the new one
+ * (ADR-0011); its `history` sees the new entries too (ADR-0008).
  *
  * On an ended world (`world.ended` set, M2-S10) nothing happens: the same document comes back,
  * with no events and `stoppedBecause: { kind: 'ended' }`. The Turn whose phases end the game
@@ -50,7 +52,7 @@ export function advance(document: WorldDocument, deps: EngineDeps): AdvanceResul
   const ended = endedStop(document.world);
   if (ended !== null) return { document, events: [], stoppedBecause: ended };
 
-  const world = structuredClone(document.world);
+  const world = copyWorld(document.world);
   // A save made before a stream existed gains it here, seeded as a new world's (DL-25); one made
   // before a module was installed gains its stream and slice likewise (DL-76).
   ensureStreams(world, document.meta.seed);

@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // Node's types serve the tests, which read content from disk. The package's own source runs in a
+    // browser and may import neither Node nor React: ESLint forbids both (v1.1.6-S11, DL-186 item 1).
+    "types": ["node"]
+  },
+  "include": ["src"],
+  // Content only for the tests, which word the content's own rows.
+  "references": [{ "path": "../engine" }, { "path": "../content" }]
+}

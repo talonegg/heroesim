@@ -1,42 +1,26 @@
-import {
-  biographyTraitSentences as contentTraitSentences,
-  descriptionBounds,
-  heroBiographyTraitSentences as contentHeroTraitSentences,
-  longestDescriptions,
-} from '@heroesim/content';
+import { longestDescriptions } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
 import {
-  biographyTraitSentences,
   createWorld,
   defaultConfig,
+  describeGuildmaster,
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
-  describeGuildmaster,
-  describeHero,
-  heroBiographyTraitSentences,
   sexes,
   type DescriptiveAttribute,
 } from '@heroesim/engine';
+import { describeHero } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 
 // The Guildmaster described over the core (v1.1.2-S5, DL-125 item 6), where both packages meet: the
-// content validator, which imports only the engine's types, repeats the engine's bounds and its count
-// of Trait sentences to prove nothing written passes them; this holds the two to each other, and the
-// engine's writing to the validator's longest over many requests.
+// content validator reads the engine's bounds and its count of Trait sentences (DL-186 item 6) to
+// prove nothing written passes them; this holds the engine's writing to the validator's longest over
+// many requests.
 
 const content = loadContent();
 const deps = { config: defaultConfig, content };
 const guildBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'guild').map((row) => row.key);
 const guildmasterTraits = Object.keys(content.guildmasterTraits);
-
-describe("the content validator's bounds are the engine's", () => {
-  test('60, 280 and 1,000 characters, and two Trait sentences', () => {
-    expect({ ...descriptionBounds }).toEqual({ ...descriptiveAttributeMaxLength });
-    expect(contentTraitSentences).toBe(biographyTraitSentences);
-    // A Hero's too (v1.1.3-S6): `describeHero` writes the shape `longestDescriptions` bounds.
-    expect(contentHeroTraitSentences).toBe(heroBiographyTraitSentences);
-  });
-});
 
 describe('describeGuildmaster over the core', () => {
   const longest = longestDescriptions(content);
@@ -67,8 +51,8 @@ describe('describeGuildmaster over the core', () => {
     expect(index).toBe(2 * 30 * guildBackgrounds.length * 5);
     // The longest proved are bounds, not the lengths met: a sample comes near them.
     expect(seen.appearance).toBeGreaterThan(longest.appearance - 60);
-    expect(longest.appearance).toBeLessThanOrEqual(280);
-    expect(longest.biography).toBeLessThanOrEqual(1000);
+    expect(longest.appearance).toBeLessThanOrEqual(descriptiveAttributeMaxLength.appearance);
+    expect(longest.biography).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
   });
 
   test("with either of the owner's pictures, the Appearance is its narrative, as written, over many seeds (DL-127 item 4)", () => {

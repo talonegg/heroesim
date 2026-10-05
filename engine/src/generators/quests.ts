@@ -4,21 +4,21 @@
 // a live save without altering Quests already offered (data-model §3.2). The draw order and the
 // formulas are DL-25; changing them changes every seed's Board.
 
-import { encounterTagWeightProblem, type EngineDeps } from '../config.js';
+import type { EngineDeps } from '../config.js';
 import type { ContentSet, QuestTemplate, QuestTemplateKey, SphereKey } from '../content-types.js';
-import { takeId, type Demand, type Patron, type Quest, type QuestRequirements, type World } from '../document.js';
+import { takeId, type Patron, type Quest, type QuestRequirements, type World } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import type { QuestOffered } from '../events.js';
 import { drawSequence, encounterCount, encounterStream, sequencePlan } from '../quest-engine/encounters.js';
-import { int, pick, type StreamName } from '../rng.js';
+import { int, type StreamName } from '../rng.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
-import { clamp, sortedRows, streamOf, type DrawsFrom } from './draw.js';
+import { clamp, pickByWeight, sortedRows, streamOf, type DrawsFrom } from './draw.js';
 
 /** The stream the Board is drawn from (pre-M0 review D7), unless the caller names another. */
 export const boardStream: StreamName = 'board';
 
 export interface QuestOptions extends DrawsFrom {
-  /** One of the Patron's templates; drawn uniformly from them when omitted. */
+  /** One of the Patron's templates; drawn from them by their weights (`pickByWeight`, DL-202) when omitted. */
   templateKey?: QuestTemplateKey;
   /**
    * The stream the Encounter sequence is drawn from: `encounters` when omitted. A module's
@@ -46,7 +46,8 @@ export function templatesFor(content: Pick<ContentSet, 'questTemplates'>, sphere
  * `options.stream` (`board` by default) and from no other stream, and returns it with its
  * `quest.offered` event for the caller to append. In draw order (DL-25):
  *
- * 1. the template, uniformly among the Patron's (no draw when `templateKey` is given);
+ * 1. the template, among the Patron's by their weights, one draw (`pickByWeight`, DL-202; none when
+ *    `templateKey` is given);
  * 2. the difficulty, `int` over the template's range held inside `questDifficultyMin/Max`;
  * 3. the duration in Days, `int` over the template's range, stored as `durationTurns`.
  *
@@ -65,8 +66,8 @@ export function templatesFor(content: Pick<ContentSet, 'questTemplates'>, sphere
  *
  * Throws, changing nothing, on a programming error: a Patron not in the world, a Sphere no
  * template serves, a `templateKey` that is not one of the Patron's, a stream the world lacks, an
- * Encounter kind of the Patron's templates that content has no Encounter of but Finales, a Finale
- * content does not define, or an unsound `encounterTagWeight`.
+ * Encounter kind of the Patron's templates that content has no Encounter of but Finales, or a Finale
+ * content does not define.
  */
 export function generateQuest(
   world: World,
@@ -89,10 +90,8 @@ export function generateQuest(
   const sequenceState = streamOf(world, options.sequenceStream ?? encounterStream);
   // Checked for every template the Patron offers before any draw, so a throw changes nothing.
   const plans = new Map(offered.map((template) => [template.key, sequencePlan(template, content)]));
-  const unsound = encounterTagWeightProblem(config.encounterTagWeight);
-  if (unsound !== undefined) throw new RangeError(`The Encounter draw's configuration: ${unsound}`);
 
-  const template = givenTemplate ?? pick(state, offered);
+  const template = givenTemplate ?? pickByWeight(state, offered);
   const scale = (value: number): number => clamp(value, config.questDifficultyMin, config.questDifficultyMax);
   const difficulty = int(state, scale(template.difficultyMin), scale(template.difficultyMax));
   const durationDays = int(state, template.durationDaysMin, template.durationDaysMax);
@@ -110,7 +109,6 @@ export function generateQuest(
     reward: Math.round(difficulty * template.rewardPerDifficulty),
     fameEffect: template.fameEffect,
     durationTurns: durationDays * turnsPerDay,
-    demands: template.demands.map(([statKey, weight]): Demand => [statKey, weight]),
     skillKeys: [...template.skillKeys],
     encounterKeys,
     requirements: requirementsOf(template),

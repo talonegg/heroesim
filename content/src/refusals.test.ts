@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type {
   Background,
   Class,
@@ -34,6 +33,7 @@ type Rows<Row> = Record<string, Omit<Row, 'key'>>;
 interface Files {
   'stats.json': Rows<Stat>;
   'classes.json': Rows<Class>;
+  'class-order.json': string[];
   'skills.json': Rows<Skill>;
   'guildmaster-traits.json': Rows<GuildmasterTrait>;
   'hero-traits.json': Rows<HeroTrait>;
@@ -51,48 +51,19 @@ interface Files {
   'portraits.json': Portraits;
   'portrait-appearances.json': PortraitAppearances;
   'descriptions.json': Descriptions;
+  'version.json': { version: unknown; changelog: unknown; [field: string]: unknown };
 }
 
-/** An Encounter as `encounters.json` writes it: the old form, which loads into one Check (v1.1.4-S1). */
-type EncounterRow = Omit<Encounter, 'key' | 'checks'> & {
-  demands: [string, number][];
-  aggregate: string;
-  skillKeys: string[];
-  difficultyFactor: number;
-};
+/** An Encounter as `encounters.json` writes it. */
+type EncounterRow = Omit<Encounter, 'key'>;
 
-/** A Synergy's requirement in the old form (M4-S3), which loads into Queries (v1.1.4-S1). */
-interface OldRequires {
-  classes?: Record<string, number>;
-  skills?: string[];
-}
-
-/** A Synergy as `synergies.json` writes it: its requirement in the old form, or as conditions on the Party. */
-type SynergyRow = Omit<Synergy, 'key' | 'requires'> & { requires: OldRequires | unknown[] };
+/** A Synergy as `synergies.json` writes it: its requirement as conditions on the Party. */
+type SynergyRow = Omit<Synergy, 'key'>;
 
 function realFiles(): Record<string, string> {
   return Object.fromEntries(
     contentFiles.map((name) => [name, readFileSync(join(contentDir, name), 'utf8')]),
   );
-}
-
-/** The files `oldFiles` takes from `old-form/`. */
-const oldFormFiles = ['encounters.json', 'synergies.json', 'quest-templates.json'] as const;
-
-/**
- * The real files with the Encounters, Synergies and Quest templates as content 25 wrote them
- * (v1.1.4-S8): every Encounter and Synergy in the old form, which still loads (v1.1.4-S1), two arcane
- * Encounters, no lore and no Finale. The old form's refusals, and S2's and S8's tests written on that
- * content, keep it as their fixture since v1.1.4-S10 wrote the content in the new form (DL-165).
- */
-function oldFiles(): Record<string, string> {
-  const dir = fileURLToPath(new URL('./old-form/', import.meta.url));
-  return { ...realFiles(), ...Object.fromEntries(oldFormFiles.map((name) => [name, readFileSync(join(dir, name), 'utf8')])) };
-}
-
-/** `oldFiles` with one of them changed as JSON. */
-function withOldJson<File extends keyof Files>(file: File, change: (json: Files[File]) => void): Record<string, string> {
-  return changed(oldFiles(), file, change);
 }
 
 /** The real files with one of them changed as JSON. */
@@ -201,6 +172,37 @@ describe('the real content', () => {
   });
 });
 
+// The Classes' order, declared (v1.1.6-S14, DL-186 item 24): each Class once, in the order every list shows them.
+describe("the Classes' order", () => {
+  test('is the Warrior, Rogue, Mage and Healer, kept when classes.json lists its keys in another order', () => {
+    expect(parseContent(realFiles()).classOrder).toEqual(['warrior', 'rogue', 'mage', 'healer']);
+    const reordered = withText(
+      'classes.json',
+      JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(readFileSync(join(contentDir, 'classes.json'), 'utf8')) as Record<string, unknown>).reverse()), null, 2),
+    );
+    const set = parseContent(reordered);
+
+    expect(Object.keys(set.classes)).toEqual(['healer', 'mage', 'rogue', 'warrior']);
+    expect(set.classOrder).toEqual(['warrior', 'rogue', 'mage', 'healer']);
+  });
+
+  test.each([
+    ['a Class missing', (json: string[]) => void json.pop(), 'classOrder: "healer" is a Class and is not in the order; list each Class once'],
+    ['a Class twice', (json: string[]) => void json.push('mage'), 'classOrder: "mage" is listed twice; list each Class once'],
+    ['a key that is no Class', (json: string[]) => void json.push('bard'), 'classOrder: "bard" is not a Class'],
+  ])('is refused with %s, naming it', (_name, change, problem) => {
+    expect(refusalOf(() => parseContent(withJson('class-order.json', change))).message).toContain(problem);
+  });
+
+  test('is refused without its file, or as anything but a list of keys', () => {
+    const { 'class-order.json': _order, ...files } = realFiles();
+    void _order;
+
+    expect(refusalOf(() => parseContent(files)).message).toContain('class-order.json: missing');
+    expect(refusalOf(() => parseContent(withText('class-order.json', '{"warrior": 1}'))).message).toContain('class-order.json: must be a list of Class keys');
+  });
+});
+
 describe('a Class naming a Stat or Skill that does not exist', () => {
   test('is refused for an unknown leading Stat, naming the Class and the Stat', () => {
     const files = withJson('classes.json', (json) => warrior(json).leadingStats.push('strenght'));
@@ -298,6 +300,33 @@ describe('a duplicate key, found in the raw text because JSON.parse keeps only t
     expect(refusalOf(() => parseContent(files)).message).toMatch(
       /classes\.json: duplicate key "strength" in warrior\.growth/,
     );
+  });
+});
+
+// The content version, as data (v1.1.6-S4, DL-186 item 14): read from `version.json` with the rest.
+describe('the content version', () => {
+  test('is read from version.json, as the tools raise it there', () => {
+    const files = withJson('version.json', (json) => {
+      json.version = 7;
+    });
+
+    expect(parseContent(files).version).toBe(7);
+  });
+
+  test('is refused without its file, naming it', () => {
+    const { 'version.json': _version, ...files } = realFiles();
+    void _version;
+
+    expect(refusalOf(() => parseContent(files)).message).toContain('version.json: missing');
+  });
+
+  test.each([
+    ['a version that is no whole number', (json: Files['version.json']) => void (json.version = 32.5), 'version.json: version is 32.5; expected a whole number'],
+    ['a version below 1', (json: Files['version.json']) => void (json.version = 0), 'version.json: version is 0; expected a whole number of at least 1'],
+    ['no changelog', (json: Files['version.json']) => void delete json.changelog, 'version.json: changelog is missing; expected a list of strings'],
+    ['a field it does not know', (json: Files['version.json']) => void (json.notes = 'x'), 'version.json: notes is not a field of the content version'],
+  ])('is refused with %s, naming it', (_name, change, problem) => {
+    expect(refusalOf(() => parseContent(withJson('version.json', change))).message).toContain(problem);
   });
 });
 
@@ -1002,31 +1031,16 @@ describe("a Class's growth", () => {
 });
 
 describe('a Quest template', () => {
-  test('whose demand weights do not sum to 1 is refused, naming the template and the sum', () => {
+  // DL-193: a Quest template carries no `demands` since v1.1.6-S7.
+  test('with demands is refused, as a field a Quest template does not have', () => {
     const files = withJson('quest-templates.json', (json) => {
-      barrow(json).demands[0] = ['strength', 0.5];
+      Object.assign(barrow(json), { demands: [['strength', 1]] });
     });
 
-    expect(refusalOf(() => parseContent(files)).message).toMatch(
-      /questTemplates\.clear-the-barrow\.demands: weights sum to 1\.2, not 1/,
-    );
-  });
-
-  test('with a demand of no weight, or no demand at all, is refused', () => {
-    const zero = withJson('quest-templates.json', (json) => {
-      barrow(json).demands = [['strength', 1], ['courage', 0]];
-    });
-    const none = withJson('quest-templates.json', (json) => {
-      barrow(json).demands = [];
-    });
-
-    expect(refusalOf(() => parseContent(zero)).message).toMatch(/clear-the-barrow\.demands.*"courage"/);
-    expect(refusalOf(() => parseContent(none)).message).toMatch(/clear-the-barrow\.demands is empty/);
+    expect(refusalOf(() => parseContent(files)).message).toMatch(/clear-the-barrow\.demands is not a field of a Quest template/);
   });
 
   test.each<[string, (it: Template) => void, RegExp]>([
-    ['a demand on a Stat that does not exist', (it) => (it.demands[0] = ['strenght', 0.3]), /demands.*"strenght"/],
-    ['a demand on a Guildmaster Stat', (it) => (it.demands[0] = ['negotiation', 0.3]), /demands.*"negotiation"/],
     ['a Skill that does not exist', (it) => void it.skillKeys.push('axemanship'), /skillKeys.*"axemanship"/],
     ['a Sphere that does not exist', (it) => void it.sphereKeys.push('the-sea'), /sphereKeys.*"the-sea"/],
     ['a required Class that does not exist', (it) => (it.requires = { classKey: 'bard' }), /requires\.classKey.*"bard"/],
@@ -1120,19 +1134,13 @@ describe("a Quest template's Encounters (M4-S1)", () => {
 describe('an Encounter (M4-S1)', () => {
   const ambush = (json: Files['encounters.json']) => json['ambush-on-the-road'] as EncounterRow;
 
-  // v1.1.4-S1: the old form's demands and Skills are held as they load, in the words the author wrote.
   test.each<[string, (it: EncounterRow) => void, RegExp]>([
-    ['a demand on a Stat that does not exist', (it) => (it.demands[0] = ['strenght', 0.4]), /encounters\.json: ambush-on-the-road\.demands: "strenght" is not a Hero Stat/],
-    ['a demand on a Guildmaster Stat', (it) => (it.demands[0] = ['judgement', 0.4]), /encounters\.json: ambush-on-the-road\.demands: "judgement" is not a Hero Stat/],
-    ['a demand on a Stat listed twice', (it) => (it.demands[1] = ['weaponry', 0.3]), /encounters\.json: ambush-on-the-road\.demands: "weaponry" is listed twice/],
-    ['a Skill that does not exist', (it) => void it.skillKeys.push('axemanship'), /encounters\.json: ambush-on-the-road\.skillKeys: "axemanship" is not a Skill/],
     [
       'an Injury of a type that does not exist',
       (it) => void it.consequences.failure.push({ kind: 'injury', typeKey: 'frostbite', chance: 0.1, count: 1 }),
       /encounters\.ambush-on-the-road\.consequences\.failure\.2\.typeKey: "frostbite" is not an Injury type/,
     ],
-    ['demand weights not summing to 1', (it) => (it.demands[0] = ['weaponry', 0.6]), /ambush-on-the-road\.demands: weights sum to 1\.2, not 1/],
-    ['a difficulty factor of 0', (it) => (it.difficultyFactor = 0), /encounters\.ambush-on-the-road\.checks\.0\.difficultyFactor is 0/],
+    ['a difficulty factor of 0', (it) => void Object.assign(it.checks[0]!, { flat: undefined, difficultyFactor: 0 }), /encounters\.ambush-on-the-road\.checks\.0\.difficultyFactor is 0/],
     [
       'a chance above 1',
       (it) => void it.consequences.failure.push({ kind: 'death', chance: 1.5 }),
@@ -1149,19 +1157,19 @@ describe('an Encounter (M4-S1)', () => {
       /ambush-on-the-road\.consequences\.success\.1\.factor is -1/,
     ],
   ])('with %s is refused, naming the Encounter', (_, change, problem) => {
-    const files = withOldJson('encounters.json', (json) => change(ambush(json)));
+    const files = withJson('encounters.json', (json) => change(ambush(json)));
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
   });
 
   test('with a consequence of an unknown kind, or a field its kind lacks, is refused, naming it', () => {
-    const unknown = withOldJson('encounters.json', (json) => {
+    const unknown = withJson('encounters.json', (json) => {
       Object.assign(ambush(json).consequences, { success: [{ kind: 'loot', table: 'hoard' }] });
     });
-    const extra = withOldJson('encounters.json', (json) => {
+    const extra = withJson('encounters.json', (json) => {
       Object.assign(ambush(json).consequences, { success: [{ kind: 'fame', delta: 1, factor: 2 }] });
     });
-    const outcome = withOldJson('encounters.json', (json) => {
+    const outcome = withJson('encounters.json', (json) => {
       Object.assign(ambush(json).consequences, { draw: [] });
     });
 
@@ -1172,35 +1180,36 @@ describe('an Encounter (M4-S1)', () => {
     expect(refusalOf(() => parseContent(outcome)).message).toMatch(/ambush-on-the-road\.consequences\.draw is not a field/);
   });
 
-  test('of a kind or aggregate outside the choices is refused, naming the choices', () => {
-    const files = withOldJson('encounters.json', (json) => {
-      Object.assign(ambush(json), { kind: 'naval', aggregate: 'worst' });
+  // DL-192: the old form of an Encounter, `demands`, `aggregate` and `skillKeys` for one Check, is not read.
+  test('in the old form is refused, as an Encounter with no Checks', () => {
+    const files = withJson('encounters.json', (json) => {
+      const { name, kind, consequences } = ambush(json);
+      json['ambush-on-the-road'] = { name, kind, consequences, demands: [['strength', 1]], aggregate: 'sum', skillKeys: [], difficultyFactor: 1 } as unknown as EncounterRow;
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+
+    expect(message).toMatch(/ambush-on-the-road\.checks is missing/);
+    expect(message).toMatch(/ambush-on-the-road\.demands is not a field of an Encounter/);
+  });
+
+  test('of a kind outside the choices is refused, naming the choices', () => {
+    const files = withJson('encounters.json', (json) => {
+      Object.assign(ambush(json), { kind: 'naval' });
     });
 
     const { message } = refusalOf(() => parseContent(files));
 
     expect(message).toMatch(/ambush-on-the-road\.kind is "naval"; expected one of combat, travel, social, arcane, stealth, lore/);
-    expect(message).toMatch(/ambush-on-the-road\.aggregate is "worst"; expected one of best, sum/);
   });
 });
 
 // M4-S3: a Synergy naming an unknown Class, Skill or Encounter kind is refused, as is a count below
 // 1, a bonus that is not one, and a requirement of nothing (DL-45).
 describe('a Synergy (M4-S3)', () => {
-  type Row = SynergyRow & { requires: OldRequires };
-  const salve = (json: Files['synergies.json']) => json['sword-and-salve'] as Row;
-  const classes = (it: Row): Record<string, number> => (it.requires.classes ??= {});
+  const salve = (json: Files['synergies.json']) => json['sword-and-salve'] as SynergyRow;
 
-  // v1.1.4-S1: the old form's Classes and Skills are held as they load, in the words the author wrote.
-  test.each<[string, (it: Row) => void, RegExp]>([
-    ['a Class that does not exist', (it) => (classes(it)['paladin'] = 1), /synergies\.json: sword-and-salve\.requires\.classes: "paladin" is not a Class/],
-    ['a Skill that does not exist', (it) => (it.requires.skills = ['axemanship']), /synergies\.json: sword-and-salve\.requires\.skills: "axemanship" is not a Skill/],
-    ['a Skill listed twice', (it) => (it.requires.skills = ['tactics', 'tactics']), /sword-and-salve\.requires\.skills: "tactics" is listed twice/],
-    ['a count of 0', (it) => (classes(it)['warrior'] = 0), /sword-and-salve\.requires\.classes\.warrior is 0; a count is a whole number from 1/],
-    ['a negative count', (it) => (classes(it)['healer'] = -1), /sword-and-salve\.requires\.classes\.healer is -1; a count is a whole number from 1/],
-    ['a count that is not whole', (it) => (classes(it)['warrior'] = 1.5), /sword-and-salve\.requires\.classes\.warrior is 1\.5; a count is a whole number from 1/],
-    ['a requirement of nothing', (it) => (it.requires = {}), /sword-and-salve\.requires names no Class and no Skill/],
-    ['a requirement listed empty', (it) => (it.requires = { classes: {}, skills: [] }), /sword-and-salve\.requires names no Class and no Skill/],
+  test.each<[string, (it: SynergyRow) => void, RegExp]>([
     ['no bonus', (it) => (it.bonus = {}), /sword-and-salve\.bonus is empty/],
     ['a flat of 0', (it) => (it.bonus = { flat: 0 }), /sword-and-salve\.bonus\.flat is 0; it is a number above 0/],
     ['a factor of 1', (it) => (it.bonus = { factor: 1 }), /sword-and-salve\.bonus\.factor is 1; it multiplies, so it is a number above 1/],
@@ -1208,13 +1217,13 @@ describe('a Synergy (M4-S3)', () => {
     ['no kinds, listed empty', (it) => (it.kinds = []), /sword-and-salve\.kinds is empty/],
     ['a kind listed twice', (it) => (it.kinds = ['combat', 'combat']), /sword-and-salve\.kinds: "combat" is listed twice/],
   ])('with %s is refused, naming the Synergy', (_, change, problem) => {
-    const files = withOldJson('synergies.json', (json) => change(salve(json)));
+    const files = withJson('synergies.json', (json) => change(salve(json)));
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
   });
 
   test('with a kind that is not one of the six is refused, naming the field and the choices', () => {
-    const files = withOldJson('synergies.json', (json) => {
+    const files = withJson('synergies.json', (json) => {
       Object.assign(salve(json), { kinds: ['combat', 'naval'] });
     });
 
@@ -1223,40 +1232,45 @@ describe('a Synergy (M4-S3)', () => {
     );
   });
 
-  test('with a field its row, requirement or bonus lacks, or a count that is not a number, is refused, naming it', () => {
-    const row = withOldJson('synergies.json', (json) => void Object.assign(salve(json), { chance: 0.5 }));
-    const requires = withOldJson('synergies.json', (json) => void Object.assign(salve(json).requires, { traits: ['scarred'] }));
-    const bonus = withOldJson('synergies.json', (json) => void Object.assign(salve(json).bonus, { delta: 2 }));
-    const count = withOldJson('synergies.json', (json) => void Object.assign(salve(json).requires, { classes: { warrior: 'two' } }));
+  test('with a field its row or bonus lacks is refused, naming it', () => {
+    const row = withJson('synergies.json', (json) => void Object.assign(salve(json), { chance: 0.5 }));
+    const bonus = withJson('synergies.json', (json) => void Object.assign(salve(json).bonus, { delta: 2 }));
 
     expect(refusalOf(() => parseContent(row)).message).toMatch(/synergies\.json: sword-and-salve\.chance is not a field of a Synergy/);
-    expect(refusalOf(() => parseContent(requires)).message).toMatch(/sword-and-salve\.requires\.traits is not a field of what a Synergy requires/);
     expect(refusalOf(() => parseContent(bonus)).message).toMatch(/sword-and-salve\.bonus\.delta is not a field of a Synergy's bonus/);
-    expect(refusalOf(() => parseContent(count)).message).toMatch(/sword-and-salve\.requires\.classes is \{"warrior":"two"\}; expected an object of numbers/);
   });
 
   test('with no requires or bonus is refused, and without kinds is accepted, for every kind', () => {
-    const missing = withOldJson('synergies.json', (json) => {
+    const missing = withJson('synergies.json', (json) => {
       Reflect.deleteProperty(salve(json), 'requires');
       Reflect.deleteProperty(salve(json), 'bonus');
     });
-    const everyKind = withOldJson('synergies.json', (json) => {
+    const everyKind = withJson('synergies.json', (json) => {
       Reflect.deleteProperty(salve(json), 'kinds');
     });
 
     const { message } = refusalOf(() => parseContent(missing));
-    expect(message).toMatch(/sword-and-salve\.requires is missing/);
+    expect(message).toMatch(/synergies\.json: sword-and-salve\.requires is missing; expected a list of conditions on the Party/);
     expect(message).toMatch(/sword-and-salve\.bonus is missing/);
     expect(parseContent(everyKind).synergies['sword-and-salve']).not.toHaveProperty('kinds');
   });
 
   test('with its requirement as conditions on the Party, is read as written; and an empty list is refused', () => {
     const written = [['>=', ['count', ['where', 'party', ['class', 'warrior']]], 2]];
-    const files = withOldJson('synergies.json', (json) => void (salve(json).requires = written as unknown as OldRequires));
-    const empty = withOldJson('synergies.json', (json) => void (salve(json).requires = [] as unknown as OldRequires));
+    const files = withJson('synergies.json', (json) => void (salve(json).requires = written as unknown as SynergyRow['requires']));
+    const empty = withJson('synergies.json', (json) => void (salve(json).requires = [] as unknown as SynergyRow['requires']));
 
     expect(parseContent(files).synergies['sword-and-salve']?.requires).toEqual(written);
     expect(refusalOf(() => parseContent(empty)).message).toMatch(/synergies\.sword-and-salve\.requires is empty/);
+  });
+
+  // DL-192: the old form of a Synergy's requirement, a count for each Class and a list of Skills, is not read.
+  test('with its requirement in the old form is refused, as no list of conditions on the Party', () => {
+    const files = withJson('synergies.json', (json) => void Object.assign(salve(json), { requires: { classes: { warrior: 1 }, skills: ['tactics'] } }));
+
+    expect(refusalOf(() => parseContent(files)).message).toContain(
+      'synergies.json: sword-and-salve.requires is {"classes":{"warrior":1},"skills":["tactics"]}; expected a list of conditions on the Party',
+    );
   });
 
   test('the file is required, and may hold none', () => {
@@ -1270,11 +1284,11 @@ describe('a Synergy (M4-S3)', () => {
 
 // v1.1.4-S1: every refusal of a Query names its path, each argument by its place in its array
 // (DL-148 items 4 to 6). A Synergy's requirement, as conditions on the Party, holds each one here; an
-// Encounter's Check, which the files still write in the old form, is held in memory below.
+// Encounter's Check is held in memory below.
 describe('a Query (v1.1.4-S1)', () => {
   /** The real files with Sword and salve requiring `condition` alone. */
   const requiring = (condition: unknown) =>
-    withJson('synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).requires = [condition]));
+    withJson('synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).requires = [condition] as SynergyRow['requires']));
   /** `count` of the Set `set`, at least 1: a condition that puts `set` at `requires.0.1.1`. */
   const counted = (set: unknown) => ['>=', ['count', set], 1];
   /** `max` of the Val `val` over the Party, at least 1: a condition that puts `val` at `requires.0.1.2`. */
@@ -1895,6 +1909,21 @@ describe('validateContent on a set built in memory', () => {
     expect(message).toMatch(/items\.whetstone\.effect\.kinds: "naval" is not a kind of Encounter/);
   });
 
+  // The Hall's facilities named in the refusal's words, which v1.1.6-S5 reads from the engine (DL-191).
+  test('refuses an Improvement of a facility that is not one, naming the facilities, in the file and in memory', () => {
+    const files = realFiles();
+    files['improvements.json'] = (files['improvements.json'] ?? '').replace('"facility": "infirmary"', '"facility": "kitchen"');
+    const content = loadContent();
+    Object.assign(content.improvements['infirmary-1'] ?? {}, { facility: 'kitchen' });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(
+      /improvements\.json: infirmary-1\.facility is "kitchen"; expected one of infirmary, trainingYard, quarters/,
+    );
+    expect(refusalOf(() => validateContent(content)).message).toMatch(
+      /improvements\.infirmary-1\.facility: "kitchen" is not a Hall facility \(infirmary, trainingYard, quarters\)/,
+    );
+  });
+
   test("refuses a Hero Trait's encounterBonus on a kind of Encounter that is not one, which the parser cannot see in memory (v1.1.4-S14)", () => {
     const content = loadContent();
     Object.assign(content.heroTraits['battle-tried']?.effects[0] ?? {}, { kinds: ['combat', 'naval'] });
@@ -1943,7 +1972,7 @@ describe('an Encounter in the new form (v1.1.4-S2)', () => {
   });
   /** `ambush-on-the-road` rewritten in the new form, with `fields` in place of its own. */
   const rewritten = (fields: Record<string, unknown> = {}) =>
-    withOldJson('encounters.json', (json) => {
+    withJson('encounters.json', (json) => {
       const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
       (json as Record<string, unknown>)['ambush-on-the-road'] = {
         name,
@@ -1955,7 +1984,7 @@ describe('an Encounter in the new form (v1.1.4-S2)', () => {
       };
     });
 
-  test('loads as written, beside Encounters in the old form', () => {
+  test('loads as written', () => {
     const content = parseContent(rewritten());
     const ambush = content.encounters['ambush-on-the-road'] as Encounter;
 
@@ -1963,11 +1992,6 @@ describe('an Encounter in the new form (v1.1.4-S2)', () => {
     expect(ambush.checks[2]).toEqual({ ...checkRow('wits', { flat: 4, variance: 0 }) });
     expect(ambush.pass).toEqual(['or', ['and', 'front', 'nerve'], 'wits']);
     expect(ambush.consequences).toMatchObject({ triumph: [{ kind: 'fame', delta: 2 }], setback: [{ kind: 'morale', delta: -1 }] });
-    // An old one beside it loads as before: one Check, no formula, no lists by Degree.
-    const reeve = content.encounters['a-hostile-reeve'] as Encounter;
-    expect(reeve.checks).toHaveLength(1);
-    expect(reeve.pass).toBeUndefined();
-    expect(Object.keys(reeve.consequences)).toEqual(['success', 'failure']);
   });
 
   test('of one Check, may leave out its pass formula, and a raw gate of a flat and no difficulty factor is accepted', () => {
@@ -1997,6 +2021,7 @@ describe('an Encounter in the new form (v1.1.4-S2)', () => {
     ['a Check with a field it lacks', { checks: [checkRow('front', { aggregate: 'sum' })], pass: 'front' }, /encounters\.json: ambush-on-the-road\.checks\.0\.aggregate is not a field of an Encounter's Check/],
     ['a Check with no score', { checks: [checkRow('front', { score: undefined })], pass: 'front' }, path('checks.0.score')],
     ['a Check with a Skill content lacks', { checks: [checkRow('front', { skills: ['axemanship'] })], pass: 'front' }, path('checks.0.skills: "axemanship" is not a Skill')],
+    ['a Check with a Skill listed twice', { checks: [checkRow('front', { skills: ['tactics', 'tactics'] })], pass: 'front' }, path('checks.0.skills: "tactics" is listed twice')],
     ['the old form beside the new', { demands: [['strength', 1]] }, /encounters\.json: ambush-on-the-road\.demands is not a field of an Encounter/],
     ['a raw Check with Skills', { checks: [checkRow('front', { raw: true })], pass: 'front' }, path('checks.0.skills lists 1; a raw Check is its score alone, and lists no Skills')],
     ['a raw that is not true or false', { checks: [checkRow('front', { raw: 'yes', skills: [] })], pass: 'front' }, /ambush-on-the-road\.checks\.0\.raw is "yes"; expected true or false/],
@@ -2056,7 +2081,7 @@ describe("a Check's score that subtracts a Stat (v1.1.4-S3)", () => {
 
   test("a Synergy's requirement, read as the Heroes are, may subtract a Stat", () => {
     const condition = ['>=', ['-', 40, ['sum', 'party', ['stat', 'strength']]], 1];
-    const files = withJson('synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).requires = [condition]));
+    const files = withJson('synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).requires = [condition] as SynergyRow['requires']));
     expect(parseContent(files).synergies['sword-and-salve']?.requires).toEqual([condition]);
   });
 
@@ -2231,9 +2256,12 @@ describe('an earned Trait (v1.1.4-S7)', () => {
 
 describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
   /** The real files with `ambush-on-the-road` changed. */
-  const ambushed = (change: (it: EncounterRow) => void) => withOldJson('encounters.json', (json) => change(json['ambush-on-the-road'] as EncounterRow));
+  const ambushed = (change: (it: EncounterRow) => void) => withJson('encounters.json', (json) => change(json['ambush-on-the-road'] as EncounterRow));
   /** `files` with the barrow's template changed. */
-  const barrowed = (change: (it: Template) => void, files = oldFiles()) => changed(files, 'quest-templates.json', (json) => change(barrow(json)));
+  const barrowed = (change: (it: Template) => void, files = realFiles()) => changed(files, 'quest-templates.json', (json) => change(barrow(json)));
+  /** `files` without the Encounters keyed `keys`. */
+  const without = (files: Record<string, string>, keys: string[]) =>
+    changed(files, 'encounters.json', (json) => keys.forEach((key) => Reflect.deleteProperty(json, key)));
   /** A lore Encounter keyed `a-riddle`, the sealed door's Check. */
   const riddle = (files: Record<string, string>) =>
     changed(files, 'encounters.json', (json) => {
@@ -2247,7 +2275,7 @@ describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
     expect(content.questTemplates['clear-the-barrow']?.finale).toBe('hold-the-line');
     const untagged = parseContent(ambushed((it) => delete it.tags));
     expect(untagged.encounters['ambush-on-the-road']).not.toHaveProperty('tags');
-    expect(untagged.questTemplates['hold-the-border-fort']).not.toHaveProperty('finale');
+    expect(untagged.questTemplates['clear-the-barrow']).not.toHaveProperty('finale');
   });
 
   test.each<[string, (it: EncounterRow) => void, RegExp]>([
@@ -2266,12 +2294,8 @@ describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
   });
 
   test('a kind whose every Encounter is a Finale, which is never drawn, is refused for each template that draws it', () => {
-    // The two arcane Encounters made Finales: the barrow's, and the vault's.
-    const files = changed(
-      barrowed((it) => (it.finale = 'the-sealed-door')),
-      'quest-templates.json',
-      (json) => void ((json['break-the-sealed-vault'] as Template).finale = 'a-restless-power'),
-    );
+    // The four arcane Encounters that are not Finales gone: the two left are the lay's and the vault's.
+    const files = without(realFiles(), ['the-sealed-door', 'a-restless-power', 'the-hungry-ward', 'the-dead-light']);
     const { message } = refusalOf(() => parseContent(files));
     expect(message).toMatch(/questTemplates\.lay-the-restless-dead\.encounterKinds: every Encounter of kind "arcane" is a Finale, which is never drawn/);
     expect(message).toMatch(/questTemplates\.break-the-sealed-vault\.encounterKinds: every Encounter of kind "arcane" is a Finale/);
@@ -2279,12 +2303,12 @@ describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
   });
 
   test("a Finale may be of any kind, one its template's places are not drawn from", () => {
-    const files = barrowed((it) => (it.finale = 'a-riddle'), riddle(oldFiles()));
+    const files = barrowed((it) => (it.finale = 'a-riddle'), riddle(realFiles()));
     expect(parseContent(files).questTemplates['clear-the-barrow']?.finale).toBe('a-riddle');
   });
 
   test('lore is a kind an Encounter, a template, a Synergy, a consumable and a Hero Trait may name', () => {
-    let files = riddle(oldFiles());
+    let files = riddle(realFiles());
     files = barrowed((it) => (it.encounterKinds = [...it.encounterKinds, 'lore']), files);
     files = changed(files, 'synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).kinds = ['lore']));
     files = changed(files, 'items.json', (json) => void Object.assign(json['whetstone'] ?? {}, { effect: { kind: 'bonus', flat: 3, kinds: ['lore'] } }));
@@ -2298,8 +2322,93 @@ describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
   });
 
   test('a template drawing lore when content has no lore Encounter is refused, naming the kind', () => {
-    expect(refusalOf(() => parseContent(barrowed((it) => (it.encounterKinds = ['lore'])))).message).toMatch(
+    const files = without(realFiles(), ['old-records', 'a-riddle-at-the-gate', 'the-cause-of-the-sickness', 'the-names-of-the-dead']);
+    expect(refusalOf(() => parseContent(barrowed((it) => (it.encounterKinds = ['lore']), files))).message).toMatch(
       /questTemplates\.clear-the-barrow\.encounterKinds: no Encounter is of kind "lore"/,
     );
+  });
+});
+
+// Draw weights and the Rivals' orders (v1.1.6-S16, DL-186 item 16, DL-202): a weight above 0 where written,
+// and each order a permutation of its keys, where written; the shipped files write neither.
+describe('a weight', () => {
+  const rowOfEach: [keyof Files, string][] = [
+    ['classes.json', 'warrior'],
+    ['backgrounds.json', 'farm-born'],
+    ['spheres.json', 'crown'],
+    ['quest-templates.json', 'clear-the-barrow'],
+  ];
+
+  test('is on no shipped row, and a row without one reads as having none', () => {
+    const set = parseContent(realFiles());
+    for (const table of [set.classes, set.backgrounds, set.spheres, set.questTemplates]) {
+      for (const row of Object.values(table)) expect(row.weight).toBeUndefined();
+    }
+  });
+
+  test.each(rowOfEach)('is read from a row of %s when it has one, and a positive number is accepted', (file, key) => {
+    const files = withJson(file, (json) => void Object.assign((json as Record<string, object>)[key] as object, { weight: 2.5 }));
+    const set = parseContent(files);
+    const table = { 'classes.json': set.classes, 'backgrounds.json': set.backgrounds, 'spheres.json': set.spheres, 'quest-templates.json': set.questTemplates }[file as string] as Record<string, { weight?: number }>;
+
+    expect(table[key]?.weight).toBe(2.5);
+  });
+
+  test.each([
+    ['classes.json', 'classes', 'warrior'],
+    ['backgrounds.json', 'backgrounds', 'farm-born'],
+    ['spheres.json', 'spheres', 'crown'],
+    ['quest-templates.json', 'questTemplates', 'clear-the-barrow'],
+  ] as const)('of %s that is 0, negative or not a number is refused, naming it', (file, table, key) => {
+    for (const weight of [0, -1]) {
+      const files = withJson(file, (json) => void Object.assign((json as Record<string, object>)[key] as object, { weight }));
+      expect(refusalOf(() => parseContent(files)).message).toContain(`${table}.${key}.weight is ${weight}; it is a number above 0, or absent for 1`);
+    }
+    const text = withJson(file, (json) => void Object.assign((json as Record<string, object>)[key] as object, { weight: 'heavy' }));
+    expect(refusalOf(() => parseContent(text)).message).toContain(`${key}.weight is "heavy"`);
+  });
+});
+
+describe("a Disposition's orders", () => {
+  const steady = (json: Files['dispositions.json']) => json['steady'] as Omit<Disposition, 'key'>;
+  const written = (change: (it: Record<string, unknown>) => void) =>
+    withJson('dispositions.json', (json) => change(steady(json) as unknown as Record<string, unknown>));
+
+  test('are on no shipped Disposition, and any permutation written is read as written', () => {
+    for (const disposition of Object.values(parseContent(realFiles()).dispositions)) {
+      expect([disposition.purchaseOrder, disposition.gearSlotOrder, disposition.buildOrder]).toEqual([undefined, undefined, undefined]);
+    }
+    const set = parseContent(
+      written((it) => {
+        it['purchaseOrder'] = ['debt', 'recruit', 'transfer', 'gear', 'build'];
+        it['gearSlotOrder'] = ['trinket', 'weapon', 'armour'];
+        it['buildOrder'] = ['quarters', 'infirmary', 'trainingYard'];
+      }),
+    );
+
+    expect(set.dispositions['steady']).toMatchObject({
+      purchaseOrder: ['debt', 'recruit', 'transfer', 'gear', 'build'],
+      gearSlotOrder: ['trinket', 'weapon', 'armour'],
+      buildOrder: ['quarters', 'infirmary', 'trainingYard'],
+    });
+  });
+
+  test.each<[string, string, string[], string]>([
+    ['purchaseOrder', 'a step missing', ['build', 'gear', 'transfer', 'recruit'], 'dispositions.steady.purchaseOrder: "debt" is not in the order; list each of build, gear, transfer, recruit, debt once'],
+    ['purchaseOrder', 'a step twice', ['build', 'gear', 'transfer', 'recruit', 'debt', 'gear'], 'dispositions.steady.purchaseOrder: "gear" is listed twice'],
+    ['gearSlotOrder', 'a slot missing', ['armour', 'weapon'], 'dispositions.steady.gearSlotOrder: "trinket" is not in the order; list each of weapon, armour, trinket once'],
+    ['gearSlotOrder', 'a slot twice', ['armour', 'armour', 'weapon', 'trinket'], 'dispositions.steady.gearSlotOrder: "armour" is listed twice'],
+    ['buildOrder', 'a facility missing', ['infirmary', 'quarters'], 'dispositions.steady.buildOrder: "trainingYard" is not in the order'],
+    ['buildOrder', 'a facility twice', ['infirmary', 'infirmary', 'trainingYard', 'quarters'], 'dispositions.steady.buildOrder: "infirmary" is listed twice'],
+  ])('%s with %s is refused, naming it', (field, _what, order, problem) => {
+    expect(refusalOf(() => parseContent(written((it) => void (it[field] = order)))).message).toContain(problem);
+  });
+
+  test.each([
+    ['purchaseOrder', ['build', 'sell', 'gear', 'transfer', 'recruit', 'debt']],
+    ['gearSlotOrder', ['weapon', 'armour', 'ring']],
+    ['buildOrder', ['infirmary', 'trainingYard', 'quarters', 'library']],
+  ])('%s naming a key it has none of is refused by the parser', (field, order) => {
+    expect(refusalOf(() => parseContent(written((it) => void (it[field] = order)))).message).toContain(`steady.${field} is`);
   });
 });

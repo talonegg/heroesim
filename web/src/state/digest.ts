@@ -18,11 +18,12 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
+import { listed, nightOf } from '@heroesim/words';
 import { content } from '../content';
 import { historyEntries, historyFilter } from './history';
 import { returnEntry, type ReturnEntry } from './quest-return';
-import { nightOf, rowOf } from './names';
-import { listed, narrationFor, questNamer } from './narrate';
+import { rowOf } from './names';
+import { narrationFor, questNamer } from './namer';
 import type { GameState } from './reducer';
 import { boardView, linesOf, type LogLine } from './selectors';
 import { offersView } from './trade-views';

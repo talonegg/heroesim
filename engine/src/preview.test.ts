@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { dispatch, dispatchRefusal, type DispatchRequest } from './actions/dispatch.js';
+import { dispatchRefusal, type DispatchRequest } from './actions/dispatch.js';
 import type { Encounter, NumQuery } from './content-types.js';
 import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from './document.js';
 import { guildmasterOf, negotiatedReward } from './guildmaster.js';
@@ -10,6 +10,7 @@ import { queryParty } from './quest-engine/query.js';
 import { synergiesFor } from './quest-engine/synergy.js';
 import { serialise } from './serialise.js';
 import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
+import { applyAction } from './actions/action.js';
 
 // The dispatch preview (M7-S3, DL-66): what a proposed Party would meet on a Quest from the Board,
 // moved into the engine from the CLI's `preview` so that both front ends show the rule's own
@@ -210,7 +211,7 @@ describe('previewDispatch', () => {
         const preview = previewDispatch(document.world, asked, deps);
         expect(preview?.refusal).toEqual(dispatchRefusal(document.world, asked, deps));
       });
-      const sent = dispatch(document, asked, deps);
+      const sent = applyAction(document, { kind: 'dispatch', ...asked }, deps);
       expect(dispatchRefusal(document.world, asked, deps)).toEqual(sent.ok ? null : sent.rejection);
     }
   });

@@ -6,8 +6,8 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { crc32, deflateSync } from 'node:zlib';
+import { formatJson } from '@heroesim/content/write';
 import { repositoryRoot } from './cli.js';
-import { formatJson } from './json-format.js';
 
 /** The repository the tests read: this one. */
 export const root = repositoryRoot;
@@ -30,8 +30,8 @@ export function status(dir: string): string {
 }
 
 /**
- * A scratch copy of this repository's `content/` (its JSON, and the source that holds the content
- * version), `media/` and the inbox, committed; removed by the function it returns with.
+ * A scratch copy of this repository's `content/` (its JSON, the content version's `version.json`
+ * among it), `media/` and the inbox, committed; removed by the function it returns with.
  */
 export function scratchRepository(): { dir: string; remove: () => void } {
   const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-portraits-'));
@@ -40,7 +40,7 @@ export function scratchRepository(): { dir: string; remove: () => void } {
     recursive: true,
     filter: (source) => {
       const relative = path.relative(path.join(root, 'content'), source).replace(/\\/g, '/');
-      return relative === '' || relative.endsWith('.json') || relative === 'src' || relative === 'src/parse.ts' || relative === 'src/content.test.ts';
+      return relative === '' || relative.endsWith('.json');
     },
   });
   copy('media/portraits');

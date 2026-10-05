@@ -1,5 +1,9 @@
 # The History is append-only and shared by reference outside the per-Turn copy
 
+*Amended by [ADR-0011](0011-write-once-rows-are-shared-by-reference-outside-the-per-turn-copy.md)
+(2026-10-05, DL-203): the copy is made by hand (`copyWorld`), not with `structuredClone`, and the
+write-once rows are frozen and shared by reference outside it, as the History is.*
+
 The engine produces each Turn's state by copying the `world` section once with
 `structuredClone` and mutating the copy. The `history` section is unbounded (R36), so copying
 it each Turn would make a Turn cost grow with the age of the game. Instead `history` sits

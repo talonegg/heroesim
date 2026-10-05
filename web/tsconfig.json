@@ -14,5 +14,5 @@
     "types": ["node", "vite/client"]
   },
   "include": ["src", "e2e", "vite.config.ts", "content-gate.ts", "playwright.config.ts", "playwright.measure.config.ts", "playwright.live.config.ts"],
-  "references": [{ "path": "../engine" }, { "path": "../content" }]
+  "references": [{ "path": "../engine" }, { "path": "../content" }, { "path": "../words" }]
 }

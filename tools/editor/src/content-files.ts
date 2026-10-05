@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { contentFiles, type ContentFileName } from '@heroesim/content';
 import type { ContentJson } from '@heroesim/content/uses';
-import { editJson } from '@heroesim/portraits';
+import { editJson } from '@heroesim/content/write';
 
 /** This repository's root, three folders above this file. */
 export const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));

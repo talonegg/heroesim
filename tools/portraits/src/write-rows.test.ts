@@ -1,13 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { contentChecks, editJson, readContentVersion, Undone } from '@heroesim/content/write';
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { chromiumInstalled, launchChromium, type Chromium } from './chromium.js';
 import { check } from './check.js';
 import { run } from './cli.js';
-import { contentChecks } from './content-checks.js';
-import { readContentVersion } from './content-version.js';
-import { DraftError, Undone } from './errors.js';
-import { editJson } from './json-edit.js';
+import { DraftError } from './errors.js';
 import { picturePaths, type Registry } from './registry.js';
 import { apply, writeRun } from './runs.js';
 import { git, noisePng, readJson, root, scratchRepository, status, upload, writeJson } from './test-support.js';
@@ -156,7 +154,10 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
     expect(intake.pictures.map((each) => each.key)).toEqual(['gm-male-02']);
     expect(intake.contentVersion).toEqual({ from: before, to: before + 1 });
     expect(readContentVersion(dir)).toBe(before + 1);
-    expect(readFileSync(path.join(dir, 'content/src/content.test.ts'), 'utf8')).toContain(`expect(content.version).toBe(${before + 1});`);
+    // Raised through its file, a line of the changelog saying why (v1.1.6-S4, DL-186 item 14).
+    expect(readJson<{ changelog: string[] }>(dir, 'content/version.json').changelog.at(-1)).toBe(
+      `${before + 1} from the portrait tool's intake 2026-10-02 (\`docs/portraits/intake/2026-10-02.md\`).`,
+    );
     const registry = readJson<Registry>(dir, 'media/portraits/registry.json');
     expect(registry.portraits['gm-male-02']).toMatchObject({ role: 'guildmaster', sex: 'male', status: 'live' });
     expect(readJson<Record<string, Record<string, string[]>>>(dir, 'content/portraits.json').guildmaster?.male).toEqual(['gm-male-01', 'gm-male-02']);
@@ -172,8 +173,7 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
       [
         ' M content/portrait-appearances.json',
         ' M content/portraits.json',
-        ' M content/src/content.test.ts',
-        ' M content/src/parse.ts',
+        ' M content/version.json',
         ' M media/portraits/registry.json',
         '?? docs/portraits/intake/2026-10-02.md',
         '?? media/portraits/guildmasters/male/gm-male-02.thumb.webp',
@@ -304,7 +304,7 @@ describe('write-run and apply', () => {
     expect(readJson<{ portraits: Record<string, { narrative: string }> }>(dir, 'content/portrait-appearances.json').portraits['gm-male-01']?.narrative).toBe(
       'A weathered face, and eyes that have seen the road.',
     );
-    expect(readFileSync(path.join(dir, 'content/src/parse.ts'), 'utf8')).toContain(
+    expect(readJson<{ changelog: string[] }>(dir, 'content/version.json').changelog.at(-1)).toBe(
       `${before + 1} from the portrait tool's apply of analysis run 2026-10-02 (\`docs/portraits/analysis/2026-10-02.md\`).`,
     );
     // The same run again changes nothing.
@@ -335,8 +335,7 @@ describe('write-run and apply', () => {
     expect(JSON.parse(out)).toMatchObject({ ok: true, run: more.run, changed: ['content/descriptions.json'] });
     expect(numstat(dir)).toEqual({
       'content/descriptions.json': [2, 1],
-      'content/src/content.test.ts': [1, 1],
-      'content/src/parse.ts': [2, 1],
+      'content/version.json': [3, 2],
     });
   });
 

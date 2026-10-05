@@ -2,31 +2,31 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import type { EngineDeps } from '../config.js';
-import type { EncounterAggregate, EncounterCheck } from '../content-types.js';
+import type { EncounterCheck } from '../content-types.js';
 import type { Guild, GuildId, Guildmaster, Hero, World } from '../document.js';
 import { streamOf } from '../generators/draw.js';
 import { generateHero } from '../generators/heroes.js';
 import { next } from '../rng.js';
-import { buildDocument, heroStatKeys, oldFormCheck, testDeps, testWorld } from '../world.test-support.js';
+import { buildDocument, type CheckAggregate, demandsCheck, heroStatKeys, testDeps, testWorld } from '../world.test-support.js';
 import { capability as capabilityOf, check as checkOf } from './check.js';
 import { queryParty } from './query.js';
 
 // M4-S2: the Check (INPUTS 6.2, DL-42). Heroes are generated, then given the Stats and Skills a test
 // needs; the config values a test relies on are pinned. Since v1.1.4-S1 an Encounter's Check scores
-// by a Query; these tests write it in the old form, as `encounters.json` still does, so that they
-// hold the old reading.
+// by a Query; these tests build it from weighted demands (`demandsCheck`), as the old form of an
+// Encounter loaded until DL-192, so that they hold that reading.
 
 const deps = testDeps({ checkVariance: 0, skillBonusPerRating: 2 });
 
 /** The kind of Encounter the tests' Checks are of. */
 const combat = { kind: 'combat' } as const;
 
-/** A Check in the old form: `hold-the-line`'s from the test content, with `fields` changed. */
+/** A Check built from demands: `hold-the-line`'s from the test content, with `fields` changed. */
 function encounterWith(
-  fields: { demands?: [string, number][]; aggregate?: EncounterAggregate; skillKeys?: string[]; difficultyFactor?: number } = {},
+  fields: { demands?: [string, number][]; aggregate?: CheckAggregate; skillKeys?: string[]; difficultyFactor?: number } = {},
 ): EncounterCheck {
   const { demands = [['strength', 0.5], ['constitution', 0.5]], aggregate = 'sum', skillKeys = ['shieldwork', 'tactics'], difficultyFactor = 0.3 } = fields;
-  return oldFormCheck('hold-the-line', 'Hold the line', aggregate, demands, skillKeys, difficultyFactor);
+  return demandsCheck('hold-the-line', 'Hold the line', aggregate, demands, skillKeys, difficultyFactor);
 }
 
 /** `heroes`' capability on `encounterCheck`, the Party taken as the Quest Engine takes it. */
@@ -52,7 +52,7 @@ function party(seed: string, count: number, value = 8): { world: World; heroes: 
 }
 
 describe('capability', () => {
-  const twoStats = (aggregate: EncounterAggregate, skillKeys: string[] = []) =>
+  const twoStats = (aggregate: CheckAggregate, skillKeys: string[] = []) =>
     encounterWith({ demands: [['strength', 0.5], ['courage', 0.5]], aggregate, skillKeys });
 
   test("with `best`, weighs the best member's value of each Stat", () => {
@@ -255,5 +255,36 @@ describe('query.ts', () => {
       { from: './form.js', names: ['formOf', 'workingMorale'], typeOnly: false },
     ]);
     expect(imports.filter((it) => it.typeOnly).map((it) => it.from)).toEqual(['../config.js', '../content-types.js', '../document.js']);
+  });
+});
+
+// v1.1.6-S10 (DL-186 item 6): the operators the Queries are evaluated by, and their checks, are held
+// to the same: they read only the Party's own Heroes, as query.ts does.
+describe.each(['query/operators.ts', 'query/problems.ts'])('%s', (file) => {
+  const source = readFileSync(fileURLToPath(new URL(`./${file}`, import.meta.url)), 'utf8');
+
+  test('never mentions the Guildmaster', () => {
+    expect(source.toLowerCase()).not.toContain('guildmaster');
+  });
+
+  test("reads nothing of the Guild's dealings: no Wealth, Fame, Treasury, Upkeep, Patron or Rival", () => {
+    expect(source.toLowerCase()).not.toMatch(/wealth|fame|treasury|upkeep|patron|rival/);
+  });
+});
+
+describe('query/operators.ts', () => {
+  test("imports as a value only the row lookup, and otherwise only types: content's, the document's and the Party's", () => {
+    const source = readFileSync(fileURLToPath(new URL('./query/operators.ts', import.meta.url)), 'utf8');
+    const imports = [...source.matchAll(/^import (type )?\{([^}]*)\} from '([^']+)';\r?$/gm)].map(([, type, names = '', from]) => ({
+      from,
+      names: names.split(',').map((name) => name.trim()).filter((name) => name !== ''),
+      typeOnly: type !== undefined,
+    }));
+
+    expect(imports).toEqual([
+      { from: '../../content-types.js', names: ['HeroQuery', 'NumQuery', 'PartyCondition', 'PredQuery', 'QueryComparison', 'SetQuery', 'ValQuery'], typeOnly: true },
+      { from: '../../document.js', names: ['rowOf', 'type Hero'], typeOnly: false },
+      { from: '../query.js', names: ['QueryContent', 'QueryMember', 'QueryParty'], typeOnly: true },
+    ]);
   });
 });

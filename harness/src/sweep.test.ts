@@ -1,24 +1,37 @@
 import { createHash } from 'node:crypto';
-import { availableParallelism } from 'node:os';
 import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand, type WorldDocument } from '@heroesim/engine';
-import { describe, expect, test } from 'vitest';
+import { defaultConfig, encounterKinds, schemaVersion, type EngineDeps, type RegardBand, type WorldDocument } from '@heroesim/engine';
+import { describe, expect, test, vi } from 'vitest';
 import {
   controllerKinds,
+  noBands,
+  observe,
+  noOffers,
+  noTransfers,
   noWealth,
   rivalTransferWays,
   transferDirections,
   type DispositionTally,
+  type GameCounters,
+  type HeroTally,
   type OfferTally,
   type TransferTally,
+  type WorldSize,
 } from './counters.js';
+import { copyTimes } from './gate.js';
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { defaultWorkers, playReport, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { compareReplay, playReport, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (M2-S12, DL-34).
+
+// The observer of each Turn, watched as it plays, so a test can count the Turns observed (v1.1.6-S3).
+vi.mock('./counters.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./counters.js')>();
+  return { ...actual, observe: vi.fn(actual.observe) };
+});
 
 const content = loadContent();
 const deps: EngineDeps = { config: { ...defaultConfig }, content };
@@ -29,23 +42,6 @@ function tickingClock(): () => number {
   let t = 0;
   return () => (t += 1);
 }
-
-// v1.1.4-S10: a sweep plays fewer games at once when HEROESIM_WORKERS says so, on a machine short of memory.
-describe('defaultWorkers', () => {
-  test('plays on half the logical processors when HEROESIM_WORKERS is unset or blank, and on its count when set', () => {
-    const half = Math.max(1, Math.floor(availableParallelism() / 2));
-    expect(defaultWorkers(undefined)).toBe(half);
-    expect(defaultWorkers(' ')).toBe(half);
-    expect(defaultWorkers('8')).toBe(8);
-    expect(defaultWorkers(' 1 ')).toBe(1);
-  });
-
-  test('refuses a count that is not a whole number from 1', () => {
-    for (const value of ['0', '-2', '2.5', 'eight']) {
-      expect(() => defaultWorkers(value)).toThrow(`HEROESIM_WORKERS must be a whole number from 1, not ${JSON.stringify(value)}`);
-    }
-  });
-});
 
 describe('sweepPlay', () => {
   const seeds = seedNames(2);
@@ -59,25 +55,60 @@ describe('sweepPlay', () => {
     expect(sweep.validation).toMatchObject({ count: 120, mean: 1 });
   });
 
-  test('plays the first seed twice more and finds the two byte-identical', () => {
+  test("plays the first seed once more and finds its last save the sweep's", () => {
     expect(sweep.workers).toBe(1);
     expect(sweep.replay).toMatchObject({ seed: 'seed-0001', identical: true, advance: { count: 60 } });
   });
 
-  // S10, the close review: nothing held that the replay finds two saves that differ. The replay's second
-  // game (`prepare`'s third call: the sweep's game, then the replay's two) is given its player's Guild a
+  // v1.1.6-S3 (DL-189): the replay compares its one play with the record the sweep made of the seed.
+  describe('the replay comparison', () => {
+    const recorded = sweep.games[0] as GameRecord;
+    const { serialisedLength, fingerprint } = recorded.measures;
+
+    test("is identical when the length and the fingerprint are both the record's", () => {
+      expect(compareReplay(recorded, { length: serialisedLength, fingerprint }, [1, 3])).toMatchObject({
+        seed: 'seed-0001',
+        identical: true,
+        length: serialisedLength,
+        advance: { count: 2, mean: 2 },
+      });
+    });
+
+    test('is not identical when either differs', () => {
+      expect(compareReplay(recorded, { length: serialisedLength, fingerprint: 'x' }, []).identical).toBe(false);
+      expect(compareReplay(recorded, { length: serialisedLength + 1, fingerprint }, []).identical).toBe(false);
+    });
+
+    test("replays the wanted seed, or the first seed played when it is not among the sweep's", () => {
+      expect(replayedGame(sweep.games, 'seed-0002')?.seed).toBe('seed-0002');
+      expect(replayedGame(sweep.games, 'seed-9999')?.seed).toBe('seed-0001');
+      expect(replayedGame(sweep.games, undefined)?.seed).toBe('seed-0001');
+      expect(replayedGame([], 'seed-0001')).toBeUndefined();
+    });
+
+    test('plays bare: the sweep observes each of its Turns, the replay none', () => {
+      vi.mocked(observe).mockClear();
+      const once = sweepPlay(['seed-0001'], deps, { years });
+      expect(once.replay).toMatchObject({ identical: true, advance: { count: 60 } });
+      expect(vi.mocked(observe)).toHaveBeenCalledTimes(once.games[0]?.turnsPlayed ?? 0);
+      expect(once.games[0]?.turnsPlayed).toBe(60);
+    });
+  });
+
+  // S10, the close review: nothing held that the replay finds two saves that differ. The replay's game
+  // (`prepare`'s second call: the sweep's game, then the replay's) is given its player's Guild a
   // name one letter different, of the same length, so that only the saves' contents tell the two apart.
-  test('finds the replay not identical when its second game differs by one character of the save', () => {
+  test('finds the replay not identical when its game differs by one character of the save', () => {
     let calls = 0;
     const prepare = (document: WorldDocument): void => {
       calls += 1;
-      if (calls !== 3) return;
+      if (calls !== 2) return;
       const guild = Object.values(document.world.guilds).find((each) => each.controller.kind === 'player');
       if (guild === undefined) throw new Error("no player's Guild");
       guild.name = `${guild.name.slice(0, -1)}${guild.name.endsWith('x') ? 'y' : 'x'}`;
     };
     const changed = sweepPlay(['seed-0001'], deps, { years, prepare });
-    expect(calls).toBe(3);
+    expect(calls).toBe(2);
     expect(changed.replay).toMatchObject({ seed: 'seed-0001', identical: false, length: changed.games[0]?.measures.serialisedLength });
   });
 
@@ -336,6 +367,243 @@ describe('sweepPlay', () => {
     expect(report.indexOf('## Heroes described')).toBeLessThan(report.indexOf('## Measures'));
   });
 
+  // v1.1.6-S1 (DL-186 item 7, DL-187): the totals are one fold over each game's counters, so a counter
+  // reaches them with no line of its own. These hold every number a game's counters give to its sum,
+  // and each declared exception to its rule.
+  describe('one fold over the games', () => {
+    /** Every number in `value` by its path from `path`: `wealth.player.sales.fold`, `guildYears.rival.1`. */
+    function leaves(value: unknown, path: string, into: Map<string, number> = new Map()): Map<string, number> {
+      if (typeof value === 'number') into.set(path, value);
+      else if (typeof value === 'object' && value !== null) {
+        for (const [key, inner] of Object.entries(value)) leaves(inner, path === '' ? key : `${path}.${key}`, into);
+      }
+      return into;
+    }
+
+    /** The paths in `value` of a `null`, or of a list or record with nothing in it: a counter with no number to check. */
+    function empties(value: unknown, path: string): string[] {
+      if (value === null) return [path];
+      if (typeof value !== 'object') return [];
+      const entries = Object.entries(value);
+      if (entries.length === 0) return [path];
+      return entries.flatMap(([key, inner]) => empties(inner, `${path}.${key}`));
+    }
+
+    /** `value` with each number in it replaced by the next of `from`, `from + 1` and so on, in path order. */
+    function numbered<T>(value: T, from: number): T {
+      let next = from;
+      const renumber = (inner: unknown): unknown => {
+        if (typeof inner === 'number') return next++;
+        if (Array.isArray(inner)) return inner.map(renumber);
+        if (typeof inner === 'object' && inner !== null) return Object.fromEntries(Object.entries(inner).map(([key, each]) => [key, renumber(each)]));
+        return inner;
+      };
+      return renumber(value) as T;
+    }
+
+    const [first, second] = sweep.games as [GameRecord, GameRecord];
+    const grades = { infirmary: [1, 1], trainingYard: [1], quarters: [1, 1, 1] };
+    /** The first game's counters with a number in every counter: those a game of 20 Days leaves `null` or empty, filled. */
+    const template: GameCounters = {
+      ...first.counters,
+      traitsGainedByKey: { player: { wayfinder: 1 }, rival: { haunted: 1 } },
+      retirementAges: { player: { 61: 1 }, rival: { 63: 1 } },
+      injuriesByType: { player: { 'deep-cut': 1 }, rival: { 'broken-arm': 1 } },
+      loot: { player: { 'lesser-loot': { awards: 1, items: 1, unique: 0 } }, rival: { 'greater-loot': { awards: 1, items: 2, unique: 1 } } },
+      consumables: {
+        player: { ...first.counters.consumables.player, byDefinition: { whetstone: 1 } },
+        rival: { ...first.counters.consumables.rival, byDefinition: { lockpicks: 1 } },
+      },
+      improvementGrades: { player: grades, rival: grades },
+      improvementGradesByDisposition: { steady: grades },
+      patronYears: [12, 12],
+      silentPatronYears: [1, 0],
+      transfersBySide: { steady: { ambitious: noTransfers() } },
+      offers: { player: { steady: noOffers() } },
+      moduleEvents: { 'probe.fired': 1 },
+      moduleEffects: { probe: { 'hero.injured': 1 } },
+    };
+    const games = [numbered(template, 1), numbered(template, 10_000)].map((counters, index) => ({ ...(index === 0 ? first : second), counters }));
+    const summed = sweepTotals({ ...sweep, games }, deps.config.turnsPerYear);
+
+    test('the fixture gives every counter a number to check', () => {
+      expect(empties(template, 'counters')).toEqual(['counters.ending']);
+    });
+
+    test("adds every number of each game's counters into the totals at the same path, but the last Turn's", () => {
+      const [a, b] = games.map((game) => leaves(game.counters, ''));
+      const totalled = leaves(summed, '');
+      const paths = [...leaves({ ...template, lastTurn: undefined }, '').keys()];
+      expect(paths.length).toBeGreaterThan(300);
+      for (const path of paths) expect(totalled.get(path), path).toBe((a?.get(path) ?? Number.NaN) + (b?.get(path) ?? Number.NaN));
+    });
+
+    test('reads the ending and the last Turn apart: the endings, the year each ended in, and the years survived', () => {
+      const ended = [
+        { ...first, counters: { ...first.counters, ending: 'bankruptcy' as const, lastTurn: deps.config.turnsPerYear / 2 } },
+        { ...second, counters: { ...second.counters, ending: null, lastTurn: deps.config.turnsPerYear * 1.5 } },
+      ];
+      const totals = sweepTotals({ ...sweep, years: 2, games: ended }, deps.config.turnsPerYear);
+      expect(totals.endings).toEqual({ retirement: 0, bankruptcy: 1, 'roster-wiped': 0, survived: 1 });
+      expect(totals.endedInYear).toEqual([1, 0]);
+      expect(totals.yearsSurvived).toMatchObject({ count: 2, min: 0.5, max: 1.5 });
+      expect(totals).not.toHaveProperty('ending');
+      expect(totals).not.toHaveProperty('lastTurn');
+    });
+
+    test("counts a game that ended on the sweep's last Turn in its last year, not a year after it", () => {
+      const last = deps.config.turnsPerYear * 2;
+      const ended = sweep.games.map((game) => ({ ...game, counters: { ...game.counters, ending: 'roster-wiped' as const, lastTurn: last } }));
+      expect(sweepTotals({ ...sweep, years: 2, games: ended }, deps.config.turnsPerYear).endedInYear).toEqual([0, 2]);
+    });
+
+    test('takes the longest texts as the longest of any game, adding the rest of the Heroes', () => {
+      const heroes: HeroTally[] = [
+        { generated: 3, pictured: 1, silhouettes: 2, repeats: 0, longestAppearance: 250, longestBiography: 100, blank: 1 },
+        { generated: 4, pictured: 2, silhouettes: 2, repeats: 1, longestAppearance: 90, longestBiography: 400, blank: 0 },
+      ];
+      const described = sweep.games.map((game, index) => ({ ...game, observations: { ...game.observations, heroes: heroes[index] as HeroTally } }));
+      expect(sweepTotals({ ...sweep, games: described }, deps.config.turnsPerYear).heroes).toEqual({
+        generated: 7,
+        pictured: 3,
+        silhouettes: 4,
+        repeats: 1,
+        longestAppearance: 250,
+        longestBiography: 400,
+        blank: 1,
+      });
+    });
+
+    test("counts the player's place in the Rankings one-hot each year, a year with no ranking adding nothing", () => {
+      const rankings = [
+        [null, { fame: 3, wealth: 1, guilds: 5 }],
+        [null, { fame: 1, wealth: 1, guilds: 5 }, { fame: 2, wealth: 4, guilds: 5 }],
+      ];
+      const ranked = sweep.games.map((game, index) => ({ ...game, observations: { ...game.observations, rankings: rankings[index] ?? [] } }));
+      const totals = sweepTotals({ ...sweep, games: ranked }, deps.config.turnsPerYear);
+      expect(totals.rankings).toHaveLength(3);
+      expect(0 in totals.rankings).toBe(false);
+      expect(totals.rankings[1]).toEqual({ games: 2, fame: [1, 0, 1], wealth: [2] });
+      expect(totals.rankings[2]).toEqual({ games: 1, fame: [0, 1], wealth: [0, 0, 0, 1] });
+    });
+
+    test("joins the saves and the Rivals' year-starts: each game's numbers kept, in the games' order", () => {
+      const rivals = [
+        [[{ disposition: 'steady', heroes: 5, wealth: 400 }, { disposition: 'miserly', heroes: 4, wealth: 300 }], []],
+        [[{ disposition: 'steady', heroes: 6, wealth: 500 }], [{ disposition: 'reckless', heroes: 7, wealth: 900 }]],
+      ];
+      const saves = [
+        [{ length: 10, heroFields: 1, gzipped: null }],
+        [
+          { length: 20, heroFields: 2, gzipped: null },
+          { length: 30, heroFields: 3, gzipped: 4 },
+        ],
+      ];
+      const joined = sweep.games.map((game, index) => ({
+        ...game,
+        observations: { ...game.observations, rivals: rivals[index] ?? [], saves: saves[index] ?? [] },
+      }));
+      const totals = sweepTotals({ ...sweep, games: joined }, deps.config.turnsPerYear);
+      expect(totals.rivalYearStarts).toEqual([
+        { steady: { heroes: [5, 6], wealth: [400, 500] }, miserly: { heroes: [4], wealth: [300] } },
+        { reckless: { heroes: [7], wealth: [900] } },
+      ]);
+      expect(totals.saves).toEqual([
+        { lengths: [10, 20], heroFields: [1, 2], gzipped: [] },
+        { lengths: [30], heroFields: [3], gzipped: [4] },
+      ]);
+    });
+
+    // v1.1.6-S17 (DL-203): the World State as each year ended, joined as the saves are.
+    test("joins the worlds as each year ended: each game's numbers kept, in the games' order, and renders them with the copy's time", () => {
+      const world = (n: number): WorldSize => ({
+        characters: n * 1024 * 1024,
+        heroes: { live: 10 * n, writeOnce: n },
+        guildmasters: { live: 3, writeOnce: n },
+        guilds: { live: 3, writeOnce: 0 },
+        otherRows: 100 * n,
+        copyMs: n / 2,
+      });
+      const worlds = [[world(1), world(2)], [world(3)]];
+      const joined = sweep.games.map((game, index) => ({ ...game, observations: { ...game.observations, worlds: worlds[index] ?? [] } }));
+      const played = { ...sweep, games: joined };
+      const totals = sweepTotals(played, deps.config.turnsPerYear);
+      expect(totals.worlds).toEqual([
+        {
+          characters: [1024 * 1024, 3 * 1024 * 1024],
+          heroes: { live: [10, 30], writeOnce: [1, 3] },
+          guildmasters: { live: [3, 3], writeOnce: [1, 3] },
+          guilds: { live: [3, 3], writeOnce: [0, 0] },
+          otherRows: [100, 300],
+          copyMs: [0.5, 1.5],
+        },
+        { characters: [2 * 1024 * 1024], heroes: { live: [20], writeOnce: [2] }, guildmasters: { live: [3], writeOnce: [2] }, guilds: { live: [3], writeOnce: [0] }, otherRows: [200], copyMs: [1] },
+      ]);
+      expect(copyTimes(totals.worlds)).toEqual([0.5, 1.5, 1]);
+      const report = playReport(played, { deps, machine: machine(), startedAt: new Date(2026, 9, 5, 12), milestone: 'm9-v116-s17' });
+      expect(report).toContain('## The World State and its copy (v1.1.6-S17)');
+      expect(report).toContain('| 1 | 2 | 2.00 | 20.0 | 2.0 | 3.0 | 2.0 | 3.0 | 0.0 | 200.0 | 1.000 | 1.500 |');
+      expect(report).toContain('| 2 | 1 | 2.00 | 20.0 | 2.0 | 3.0 | 2.0 | 3.0 | 0.0 | 200.0 | 1.000 | 1.000 |');
+      expect(report).toMatch(/\| `copyWorld`, `advance`'s copy, timed as each year ended \| 1\.000 \|/);
+      expect(report.indexOf('## Heroes described')).toBeLessThan(report.indexOf('## The World State and its copy'));
+      expect(report.indexOf('## The World State and its copy')).toBeLessThan(report.indexOf('## Measures'));
+    });
+
+    test('counts games: those of the sweep, those in play as each year began, those with a Regard to count and those that reached year 10', () => {
+      const regard = { relationships: noBands(), guildmasterForPatrons: noBands(), guildmasterForHeroes: { ...noBands(), friendly: 2 } };
+      const counted = sweep.games.map((game, index) => ({
+        ...game,
+        counters: { ...game.counters, improvementGrades: index === 0 ? { player: grades, rival: grades } : null },
+        observations: {
+          ...game.observations,
+          rosters: index === 0 ? [...game.observations.rosters, ...game.observations.rosters] : game.observations.rosters,
+          regardAtCountedYear: index === 0 ? null : regard,
+        },
+      }));
+      const totals = sweepTotals({ ...sweep, games: counted }, deps.config.turnsPerYear);
+      expect(totals.games).toBe(2);
+      expect(totals.rosters.map((sum) => sum.games)).toEqual([2, 1]);
+      expect(totals.regardAtCountedYear).toMatchObject({ games: 1, guildmasterForHeroes: { friendly: 2 } });
+      expect(totals.gamesAtCountedYear).toBe(1);
+      expect(totals.improvementGrades.player).toEqual(grades);
+    });
+
+    test('counts the refusals, the signings refused, and the games invalid or stopped by an assertion', () => {
+      const refusal = (reason: string) => ({ rejection: { reason } }) as unknown as GameRecord['refusals'][number];
+      const refused = sweep.games.map((game, index) => ({
+        ...game,
+        refusals: index === 0 ? [refusal('signing-refused'), refusal('no-wealth')] : [refusal('signing-refused')],
+        invalid: index === 0 ? ({ turn: 3, problems: ['x'] } as unknown as GameRecord['invalid']) : null,
+        assertion: index === 1 ? ({ turn: 4, message: 'x' } as unknown as GameRecord['assertion']) : null,
+      }));
+      expect(sweepTotals({ ...sweep, games: refused }, deps.config.turnsPerYear)).toMatchObject({
+        refusals: 3,
+        signingRefused: 2,
+        invalidGames: 1,
+        assertionGames: 1,
+      });
+    });
+
+    test('starts from nothing: a sweep of no games totals every counter at 0, or empty', () => {
+      const none = sweepTotals({ ...sweep, games: [] }, deps.config.turnsPerYear);
+      expect(none.games).toBe(0);
+      expect([...leaves({ ...none, yearsSurvived: undefined }, '').values()].every((n) => n === 0)).toBe(true);
+      const noGrades = { infirmary: [], trainingYard: [], quarters: [] };
+      expect(none.improvementGrades).toEqual({ player: noGrades, rival: noGrades });
+      expect(none.endedInYear).toEqual([0]);
+      expect(none.rivalFolds).toEqual({ retirement: 0, bankruptcy: 0, 'roster-wiped': 0 });
+    });
+
+    test('refuses a counter it cannot total, or one whose shape differs between games, so it fails the sweep rather than reading 0', () => {
+      const worded = sweep.games.map((game) => ({ ...game, counters: { ...game.counters, note: 'a word' } as GameCounters }));
+      expect(() => sweepTotals({ ...sweep, games: worded }, deps.config.turnsPerYear)).toThrow(TypeError);
+      const reshaped = sweep.games.map((game, index) =>
+        index === 0 ? game : { ...game, counters: { ...game.counters, rivalSuccessions: [1] } as unknown as GameCounters },
+      );
+      expect(() => sweepTotals({ ...sweep, games: reshaped }, deps.config.turnsPerYear)).toThrow(TypeError);
+    });
+  });
+
   test("fingerprints the sweep: SHA-256 over each seed's line of its seed and its last save's fingerprint, in seed order", () => {
     const lines = sweep.games.map((game) => `${game.seed}\t${game.measures.fingerprint}\n`).join('');
 
@@ -361,9 +629,9 @@ describe('sweepPlay', () => {
     });
 
     test('names the config it changed from the defaults, and nothing when it changed none (v1.1.4-S9 verification)', () => {
-      expect(report).toContain(`schema version ${deps.config.schemaVersion} · \`createdAt`);
+      expect(report).toContain(`schema version ${schemaVersion} · \`createdAt`);
       const changed = playReport(sweep, { ...context, configured: { checkVariance: 0.4, marketSize: 14 } });
-      expect(changed).toContain(`schema version ${deps.config.schemaVersion}, the defaults changed by \`{"checkVariance":0.4,"marketSize":14}\` · \`createdAt`);
+      expect(changed).toContain(`schema version ${schemaVersion}, the defaults changed by \`{"checkVariance":0.4,"marketSize":14}\` · \`createdAt`);
     });
 
     test('states the seeds, the endings, byte equality and the measures against the targets', () => {
@@ -376,8 +644,60 @@ describe('sweepPlay', () => {
       expect(report).toContain('| Games the validator refused | 0 |');
       expect(report).toContain('`seed-0001`: identical');
       expect(report).toContain('| Advance one Turn | under 5 ms |');
-      expect(report).toContain('| Save after 20 years | under 20 MiB |');
       expect(report).toContain(`Node ${process.version}`);
+    });
+
+    // v1.1.6-S2 (DL-186 items 17 and 21): the years label reads the run's years, a run of other than 20
+    // is set against no 20-year target, and the save's target is the Gate's, its gzipped mean (DL-188).
+    test("reads the save's target from the Gate's spec, and sets a run of other than 20 years against no 20-year target", () => {
+      const saveTarget =
+        '| Save after 20 years | gzipped, the mean under 30 MiB (`harness/gate.json`) |';
+      expect(report).toContain(`${saveTarget} not comparable: this run played 0.06 years |`);
+      expect(report).toContain('| Harness: 1,000 games of 20 years | under 10 min | not comparable: this run played 0.06 years |');
+      expect(report).toContain('(the 2 games that ran 0.06 years) |');
+      expect(report).not.toContain('ran 20 years');
+
+      const twoYears = playReport({ ...sweep, years: 2 }, context);
+      expect(twoYears).toContain(`${saveTarget} not comparable: this run played 2 years |`);
+      expect(twoYears).toContain('| Harness: 1,000 games of 20 years | under 10 min | not comparable: this run played 2 years |');
+      expect(twoYears).toContain('(the 2 games that ran 2 years) |');
+      expect(playReport({ ...sweep, years: 1 }, context)).toContain('not comparable: this run played 1 year |');
+
+      const twenty = playReport({ ...sweep, years: 20 }, context);
+      expect(twenty).toContain(`${saveTarget} gzipped: mean`);
+      expect(twenty).toMatch(/\| Harness: 1,000 games of 20 years \| under 10 min \| [\d,]+ min \(this run's wall-clock time/);
+      expect(twenty).toContain('(the 2 games that ran 20 years) |');
+      expect(twenty).not.toContain('not comparable');
+
+      // v1.1.6-S2's verification (DL-188): the gzipped measure is the saves' after the 20th year.
+      const mebibyte = 1024 * 1024;
+      const savedFor20Years = (gzipped: number): PlaySweep['games'][number]['observations']['saves'] =>
+        Array.from({ length: 20 }, (_, year) => ({ length: 140 * mebibyte, heroFields: 0, gzipped: year === 19 ? gzipped : null }));
+      const [first, second] = sweep.games as [PlaySweep['games'][number], PlaySweep['games'][number]];
+      const measured = playReport(
+        {
+          ...sweep,
+          years: 20,
+          games: [
+            { ...first, observations: { ...first.observations, saves: savedFor20Years(17 * mebibyte) } },
+            { ...second, observations: { ...second.observations, saves: savedFor20Years(21 * mebibyte) } },
+          ],
+        },
+        context,
+      );
+      expect(measured).toContain(`${saveTarget} gzipped: mean 19.00 MiB, max 21.00 MiB; uncompressed: mean`);
+    });
+
+    test("names the policy's values it changed from the defaults (v1.1.6-S2), and writes the Gate's lines when checked", () => {
+      expect(report).not.toContain("the policy's defaults changed");
+      expect(playReport(sweep, { ...context, policyChanged: { rosterLimit: 10 } })).toContain(
+        `schema version ${schemaVersion} · the policy's defaults changed by \`{"rosterLimit":10}\` · \`createdAt`,
+      );
+      expect(report).not.toContain('## The Gate');
+      const gate = { pass: true, status: 'drafted' as const, lines: [{ line: 'Policy actions the rules refused', verdict: 'pass' as const, measured: '0', limit: 'at most 0', source: 'DL-34' }] };
+      const checked = playReport(sweep, { ...context, gate });
+      expect(checked).toContain('| Policy actions the rules refused | pass | 0 | at most 0 | DL-34 |');
+      expect(checked.indexOf('## The Gate')).toBeLessThan(checked.indexOf('## Counters'));
     });
 
     test("names its milestone and gives M3's counters", () => {

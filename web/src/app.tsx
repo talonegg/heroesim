@@ -44,8 +44,8 @@ import { rulesNotice } from './state/game-file';
 import { modulesFromQuery } from './state/modules';
 import { noPartyChoices, standingChoices, withChoice, type PartyChoices } from './state/party-choices';
 import { useGame, type GameState } from './state/reducer';
-import { headerView, progressView, stopView, type BoardOrder } from './state/selectors';
-import { Board, boardOrderKey, boardOrders } from './views/board';
+import { headerView, progressView, stopView } from './state/selectors';
+import { Board } from './views/board';
 import { GameMenu, installedWords } from './views/game-menu';
 import { GuildView } from './views/guild';
 import { Guildmaster } from './views/guildmaster';
@@ -58,14 +58,7 @@ import { reportHeadingId } from './views/quest-report';
 import { Rail } from './views/rail';
 import { Rankings } from './views/rankings';
 import { Refusal } from './views/refusal';
-import {
-  rememberChoice,
-  rememberedChoice,
-  rememberedGuildPart,
-  rememberedView,
-  rememberGuildPart,
-  rememberView,
-} from './views/remembered';
+import { preferences, rememberedGuildPart, useRemembered } from './views/remembered';
 import { Roster } from './views/roster';
 import { headingOf, isGuildPart, viewIds, viewOf, type GuildPartId, type PartId, type SectionId, type ViewId } from './views/section';
 import { StatusBar } from './views/status-bar';
@@ -99,9 +92,9 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const { document: current, busy, pending } = game;
   // The game in hand when the player asked for a new one; the form shows while it is still in hand.
   const [replacing, setReplacing] = useState<WorldDocument | null>(null);
-  const [view, setView] = useState<ViewId>(rememberedView);
+  const [view, setView] = useRemembered(preferences.view);
   // The Guild's part open, a tab under its heading (M9-F2): kept from view to view and in this browser.
-  const [guildPart, setGuildPart] = useState<GuildPartId>(rememberedGuildPart);
+  const [guildPart, setGuildPart] = useRemembered(preferences.guildPart, rememberedGuildPart);
   const [menuOpen, setMenuOpen] = useState(false);
   // What the shell keeps for the views: the Quest whose Party is open, so the home view can open
   // one; the Parties chosen and not sent, by Quest, so leaving the Board loses none (DL-109 item 2,
@@ -112,7 +105,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const [partyChoices, setPartyChoices] = useState<PartyChoices>(noPartyChoices);
   // How the Board is ordered: display only, kept from view to view (M9-S4, DL-104) and in this
   // browser, as the Rankings' and the pool's are (DL-109 item 2, Q11).
-  const [boardOrder, setBoardOrder] = useState<BoardOrder>(() => rememberedChoice(boardOrderKey, boardOrders, 'posted'));
+  const [boardOrder, setBoardOrder] = useRemembered(preferences.boardOrder);
   const [rankingsGuild, setRankingsGuild] = useState<GuildId | null>(null);
   const [whose, setWhose] = useState<HistoryWhose>(null);
   // An older Quest report, opened from its entry in the rail or the History, which stands in Guild ›
@@ -229,9 +222,6 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     if (home !== undefined && game.rejection === null) toGuildHome(reportHeadingId(home));
   }
 
-  useEffect(() => rememberView(view), [view]);
-  useEffect(() => rememberGuildPart(guildPart), [guildPart]);
-
   useEffect(() => {
     if (focus === null) return;
     const target = document.getElementById(focus.id) ?? document.getElementById(focus.fallback);
@@ -338,10 +328,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
                 open={boardQuest}
                 onOpen={setBoardQuest}
                 order={boardOrder}
-                onOrder={(order) => {
-                  setBoardOrder(order);
-                  rememberChoice(boardOrderKey, order);
-                }}
+                onOrder={setBoardOrder}
                 choices={choices}
                 onChoice={(questId, choice) => setPartyChoices(withChoice(choices, questId, choice))}
                 onGuild={() => open('home')}

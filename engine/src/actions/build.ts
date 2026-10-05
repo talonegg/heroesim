@@ -1,18 +1,25 @@
 // `build` (M3-S6, R33, INPUTS 7.3, DL-38): a Guild buys a Hall Improvement, raising one facility of
 // its Hall by one grade for the next grade's cost in content (`improvements.json`). Moved from M5 so
 // that the infirmary (M2-S6) and the training yard (M3-S2) are exercised from the milestones whose
-// rules read them (pre-M0 review D8). Every Guild builds through this one rule, the player's front
-// end by `build` and a Rival's controller by `applyBuild` (ADR-0002, DL-30).
+// rules read them (pre-M0 review D8). Every Guild builds through this one rule, `applyBuild`, the
+// player's front end by `applyAction` and a Rival's controller on the Turn's copy (ADR-0002, DL-30).
 //
 // What a grade does is read where the grade matters, never here: the infirmary when an Injury is
 // inflicted (`infirmaryHealFactor`), the training yard by the night's training (M3-S2), the quarters
 // by the Morale baseline (`moraleBaselineFor`), and every grade by Upkeep's Hall maintenance.
 
 import type { EngineDeps } from '../config.js';
-import { facilityKeys, type FacilityKey, type Guild, type GuildId, type World, type WorldDocument } from '../document.js';
+import {
+  facilityKeys,
+  rowOf,
+  type FacilityKey,
+  type Guild,
+  type GuildId,
+  type World,
+} from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { nextImprovement } from '../selectors.js';
-import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
+import type { Rejection, WorldActionResult } from './result.js';
 
 export interface BuildAction {
   kind: 'build';
@@ -55,25 +62,15 @@ export type BuildRejection = BuildGuildFolded | MaxGrade | BuildInsufficientWeal
  * `insufficient-wealth`, in that order. Throws on a programming error: a Guild id the world does
  * not hold, or a facility that is not one of the Hall's.
  *
- * The returned document has a new `world`, a copy, so a document that shares the old one is left
- * as it was (DL-24); `meta` and `history` are shared, and the event is appended to the History.
- */
-export function build(document: WorldDocument, request: BuildRequest, deps: EngineDeps): ActionResult<BuildRejection> {
-  return applyToCopy(document, (world) => applyBuild(world, request, deps));
-}
-
-/**
- * `build`'s rule on a world it changes in place: the same checks in the same order, the same
- * changes and the same `guild.improved`, which it returns rather than appends. `build` runs it on a
- * copy of a document's world; a Rival controller runs it on the Turn's copy (DL-30). A refusal
- * changes nothing. Throws on the programming errors `build` throws on.
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
 export function applyBuild(
   world: World,
   { guildId, facility }: BuildRequest,
   deps: EngineDeps,
 ): WorldActionResult<BuildRejection> {
-  const guild: Guild | undefined = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
+  const guild: Guild | undefined = rowOf(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`No Guild in the world has the id ${guildId}`);
   if (!(facilityKeys as readonly string[]).includes(facility)) {
     throw new RangeError(`The Hall has no facility ${JSON.stringify(facility)}; it has ${facilityKeys.join(', ')}`);

@@ -49,8 +49,8 @@
 
 import type { DescriptiveAttribute, PortraitKey, Sex, StatKey, StatValues, TraitKey } from '@heroesim/engine';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { readableSeed } from '@heroesim/words';
 import type { Saves } from '../saves';
-import { readableSeed } from '../seed';
 import type { GameAction, NewGame as NewGamePlay, PlayRejection } from '../state/reducer';
 import { guildBackgrounds } from '../state/selectors';
 import {

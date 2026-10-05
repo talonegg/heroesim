@@ -3,6 +3,7 @@
   "references": [
     { "path": "engine" },
     { "path": "content" },
+    { "path": "words" },
     { "path": "harness" },
     { "path": "cli" },
     { "path": "web" },

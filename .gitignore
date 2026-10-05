@@ -8,9 +8,10 @@ coverage/
 .saves/
 harness/samples/
 
-# Every harness run writes a report here. Only the report of a milestone's tagged run is
-# committed, force-added with `git add -f harness/reports/m<n>-<date>.md`; once tracked, Git
-# follows it despite this line (M1-S10, DL-13).
+# Every harness run writes a report here, its Markdown and, for a play sweep, its JSON beside it.
+# A report a DL entry or a release's Gate cites is committed, both files force-added with the line a
+# passing `gate` run prints, `git add -f harness/reports/<name>.md harness/reports/<name>.json`; once
+# tracked, Git follows them despite this line (M1-S10, DL-13; v1.1.6-S2, DL-186 item 28).
 harness/reports/*
 web/dist/
 test-results/

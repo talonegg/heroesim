@@ -3,7 +3,7 @@
 // Turns through the real actions and timing every `advance`. Counters come from the History
 // (`counters.ts`), and what it cannot give from the World State before the policy acts on each
 // Turn (`observe`, M3, DL-40), after each `advance` the Heroes it generated and, as each year ends, the
-// save's size (v1.1.3-S6), and, for each Quest the policy sends a Party on, from the Quest's row
+// save's size (v1.1.3-S6) and the World State's with the per-Turn copy's time (v1.1.6-S17), and, for each Quest the policy sends a Party on, from the Quest's row
 // as it dispatches (its difficulty, M5, DL-62); and, for the Rivals' afternoons, from the world as
 // each `advance` found it: the difficulty of each Quest a Rival took, and whether the seller of each
 // Transfer was in debt (M6, DL-69). Measures from the harness's clock. DL-34 records the method.
@@ -15,6 +15,11 @@
 //
 // The harness may read the clock and the environment: it is not the engine (ADR-0001 binds the
 // engine only).
+//
+// A game plays under the deps a front end would give it, the engine's `playDeps` over its own
+// `meta.config`, checked before its first Turn; and a run's `HEROESIM_CONFIG` is checked by the
+// engine's `playConfig` before any game starts (`runConfig`), so a bad setting is refused by name
+// (v1.1.6-S7, DL-186 item 12, DL-193).
 
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
@@ -24,12 +29,15 @@ import {
   createWorld,
   deserialise,
   isId,
+  playConfig,
+  playDeps,
   playerGuild,
   serialise,
   timeOfDay,
   validate,
   type ActionRejection,
   type EngineDeps,
+  type GameConfig,
   type GuildAction,
   type GuildId,
   type LoadResult,
@@ -45,6 +53,7 @@ import {
   observe,
   observeHeroes,
   observeSave,
+  observeWorld,
   savedLength,
   takeCensus,
   type GameCounters,
@@ -52,32 +61,32 @@ import {
 } from './counters.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 
+/**
+ * The config a run plays: `defaultConfig` with `HEROESIM_CONFIG`'s values over it (`configured`),
+ * every setting checked by the engine's `playConfig` (v1.1.6-S7, DL-193).
+ *
+ * @throws RangeError naming each setting refused, as `HEROESIM_CONFIG: <problem>`, before any game
+ */
+export function runConfig(configured: Readonly<Partial<GameConfig>>): GameConfig {
+  const played = playConfig(configured);
+  if (!played.ok) throw new RangeError(played.refusal.problems.map((problem) => `HEROESIM_CONFIG: ${problem.message}`).join('; '));
+  return played.config;
+}
+
+/**
+ * The deps `document` plays under, as a front end's: the engine's `playDeps` over its own config,
+ * `given`'s content and modules (v1.1.6-S7, DL-193).
+ *
+ * @throws RangeError naming each setting refused: the run's config was not checked by `runConfig`
+ */
+function playedDeps(document: WorldDocument, given: EngineDeps): EngineDeps {
+  const played = playDeps(document, given.content, given.modules);
+  if (!played.ok) throw new RangeError(played.refusal.message);
+  return played.deps;
+}
+
 /** Years a harness game is played for when it does not end first (INPUTS 4.13). */
 export const defaultYears = 20;
-
-/**
- * Whether `HEROESIM_VALIDATE` asks for the validator after every `advance` (INPUTS §9): `1` or
- * `true` does, unset, blank, `0` or `false` does not. Throws on anything else, so a mistyped flag
- * fails the run rather than silently not validating.
- */
-export function validatingEveryTurn(value: string | undefined = process.env.HEROESIM_VALIDATE): boolean {
-  const flag = (value ?? '').trim().toLowerCase();
-  if (flag === '' || flag === '0' || flag === 'false') return false;
-  if (flag === '1' || flag === 'true') return true;
-  throw new RangeError(`HEROESIM_VALIDATE is 1 or 0, not ${JSON.stringify(value)}`);
-}
-
-/**
- * Whether `HEROESIM_REPLAY` asks a play sweep to replay one seed after it (v1.1.4-S10): unset, blank,
- * `1` or `true` does, `0` or `false` does not, for a tuning trial that wants only the counters and
- * not the replay's check and timing. Throws on anything else, so a mistyped flag fails the run.
- */
-export function replayingAfterSweep(value: string | undefined = process.env.HEROESIM_REPLAY): boolean {
-  const flag = (value ?? '').trim().toLowerCase();
-  if (flag === '' || flag === '1' || flag === 'true') return true;
-  if (flag === '0' || flag === 'false') return false;
-  throw new RangeError(`HEROESIM_REPLAY is 1 or 0, not ${JSON.stringify(value)}`);
-}
 
 export interface PlayOptions {
   /** Years to play unless the game ends first: `years × turnsPerYear` Turns at most. */
@@ -107,6 +116,13 @@ export interface PlayOptions {
   afterAdvance?: (before: WorldDocument, after: WorldDocument) => void;
   /** A millisecond clock: `performance.now` unless a test gives its own. */
   now?: () => number;
+  /**
+   * Play with the observers and the yearly measurement walks off (`observe`, `observeHeroes`,
+   * `observeSave`, `takeCensus`, `readAdvance`): the game and its document are the same, only
+   * `observations` stay empty. `advanceMs` times `advance` alone, as it always does, with none of
+   * the observers' work about it (the replay's, v1.1.6-S3, DL-189).
+   */
+  bare?: boolean;
 }
 
 /** A policy action the rules refused: a bug in the policy, since it chooses only what they accept. */
@@ -254,7 +270,7 @@ const troubled = (result: ValidationResult): boolean => !result.ok || result.war
  * warning, or at a broken assertion. Never throws on what it finds: a refused action or document,
  * or a broken assertion, is recorded.
  */
-export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = {}): PlayedGame {
+export function playGame(seed: string, given: EngineDeps, options: PlayOptions = {}): PlayedGame {
   const {
     years = defaultYears,
     validate: validating = false,
@@ -264,10 +280,12 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
     prepare,
     afterAdvance,
     now = () => performance.now(),
+    bare = false,
   } = options;
-  const lastTurn = years * deps.config.turnsPerYear;
-  let { document } = createWorld(seed, setup, deps);
+  let { document } = createWorld(seed, setup, given);
   prepare?.(document);
+  const deps = playedDeps(document, given);
+  const lastTurn = years * deps.config.turnsPerYear;
   const advanceMs: number[] = [];
   const validateMs: number[] = [];
   const refusals: PolicyRefusal[] = [];
@@ -292,18 +310,20 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
 
   // Every Hero generated with the world, and the save's length as each year ends (v1.1.3-S6),
   // counted without writing it (v1.1.5-S1): `recordGame` gzips the last year's from the save it
-  // writes once the game stops.
-  observeHeroes(observations, document);
+  // writes once the game stops. With it, the World State's size and the per-Turn copy's time
+  // (v1.1.6-S17, DL-203).
+  if (!bare) observeHeroes(observations, document);
   const yearEnded = (): void => {
     const { turn } = document.world;
-    if (turn === 0 || turn % deps.config.turnsPerYear !== 0) return;
+    if (bare || turn === 0 || turn % deps.config.turnsPerYear !== 0) return;
     observeSave(observations, document.world, savedLength(document));
+    observeWorld(observations, document.world, now);
   };
 
   const created: number[] = [];
   if (!validating || check(0, created)) {
     while (document.world.ended === null && document.world.turn < lastTurn) {
-      observe(observations, document.world, deps);
+      if (!bare) observe(observations, document.world, deps);
       for (const action of choose(document, deps, policy)) {
         const result = applyAction(document, action, deps);
         if (!result.ok) {
@@ -320,8 +340,10 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
       const started = now();
       document = advance(document, deps).document;
       advanceMs.push(now() - started);
-      readAdvance(unadvanced, mark, document, rivalQuestDifficulty, sellerInDebt);
-      observeHeroes(observations, document);
+      if (!bare) {
+        readAdvance(unadvanced, mark, document, rivalQuestDifficulty, sellerInDebt);
+        observeHeroes(observations, document);
+      }
       yearEnded();
       afterAdvance?.(unadvanced, document);
 
@@ -332,7 +354,7 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
       if (assertion !== null) break;
     }
     // The last year's end, when the game ran its full length: the policy does not act on it.
-    if (document.world.ended === null) takeCensus(observations, document.world, deps);
+    if (!bare && document.world.ended === null) takeCensus(observations, document.world, deps);
   }
 
   const whole: number[] = [];

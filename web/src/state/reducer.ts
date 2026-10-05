@@ -13,10 +13,12 @@
 // StrictMode, as it may when it replays updates. `useGame` runs `gameReducer` itself, once per
 // play, and hands React the state it made.
 //
-// The rules a game plays under are the CLI's (`cli/src/saves.ts`, data-model §2, pre-M0 review D3):
-// a save is read with the engine's own `defaultConfig`, so its schema version is compared and
-// migrated (DL-20); it is played with `{ ...defaultConfig, ...meta.config }`; a new game starts
-// under `defaultConfig`; `rebase` adopts `defaultConfig`.
+// The rules a game plays under are the CLI's (data-model §2, pre-M0 review D3): a save is read by the
+// engine's `deserialise`, which compares and migrates its schema version (DL-20) and refuses a save
+// whose config breaks a rule, naming the setting; it is played under the engine's `playDeps`, its
+// own config filled forward with the current defaults and checked (v1.1.6-S7, DL-186 item 12,
+// DL-193), the page making no merge of its own; a new game starts under `defaultConfig`; `rebase`
+// adopts `defaultConfig`.
 //
 // The modules installed are the reducer's deps beside the state (M8-S4, DL-79): the page's address
 // names them (`modules.ts`, a test switch), `useGame` is given them, and every engine call a play
@@ -40,8 +42,8 @@ import {
   defaultConfig,
   deserialise,
   fastForward,
+  playDeps as enginePlayDeps,
   playerGuild,
-  rebase,
   setupRefusal,
   type ActionRejection,
   type BackgroundKey,
@@ -360,11 +362,15 @@ type Outcome =
   | { ok: false; rejection: PlayRejection };
 
 /**
- * The deps a game plays under: its own config, filled forward with the current defaults (D3), and
- * the modules installed, none unless given (M8-S4). The selectors, which run no hook, give none.
+ * The deps a game plays under, the engine's `playDeps`: its own config, filled forward with the
+ * current defaults (D3) and checked, and the modules installed, none unless given (M8-S4). The
+ * selectors, which run no hook, give none. A game in hand was loaded, checked by `deserialise`, or
+ * made or rebased under `defaultConfig`, so its config is sound; one that is not is a bug, and throws.
  */
 export function playDeps(document: WorldDocument, modules: readonly Module[] = noModules): EngineDeps {
-  return { config: { ...defaultConfig, ...document.meta.config }, content, ...withModules(modules) };
+  const played = enginePlayDeps(document, content, modules);
+  if (!played.ok) throw new Error(played.refusal.message);
+  return played.deps;
 }
 
 /** `{ modules }` when there are any: with none, the deps are what they were before M8. */
@@ -372,7 +378,7 @@ function withModules(modules: readonly Module[]): Pick<EngineDeps, 'modules'> {
   return modules.length === 0 ? {} : { modules };
 }
 
-/** The engine's own deps, with `modules` installed: to read a save (DL-20), start a game, and rebase one. */
+/** The engine's own deps, with `modules` installed: to start a game, or rebase one (a save is read by `deserialise`, DL-193). */
 function engineDeps(modules: readonly Module[]): EngineDeps {
   return { config: defaultConfig, content, ...withModules(modules) };
 }
@@ -381,8 +387,8 @@ function run(document: WorldDocument | null, play: Play, modules: readonly Modul
   if (play.kind === 'newGame') return newGame(play, modules);
   if (play.kind === 'load') return load(play, modules);
   if (document === null) return refused(play.kind, 'no-game');
-  // Not the play deps: under them every save would already be current (the CLI's `rebase`).
-  if (play.kind === 'rebase') return rebase(document, engineDeps(modules));
+  // `rebase` adopts the engine's own defaults whatever deps it is given (DL-205); an ended game may too.
+  if (play.kind === 'rebase') return applyAction(document, play, engineDeps(modules));
 
   const { ended } = document.world;
   if (ended !== null) return { ok: false, rejection: { action: play.kind, reason: 'game-ended', ending: ended } };
@@ -455,12 +461,12 @@ function newGame(play: NewGame, modules: readonly Module[]): Outcome {
 }
 
 /**
- * A save's text read with the engine's own config, so its schema is compared with the engine's and
- * not its own (DL-20; an older one is refused since schema 5, DL-125 item 10.2), and with `modules`
- * installed, so each checks its own slice; a slice none owns is warned of and kept.
+ * A save's text read by the engine, its schema compared with the engine's (DL-20; an older one is
+ * refused since schema 5, DL-125 item 10.2) and its config checked, every setting (DL-193), with
+ * `modules` installed, so each checks its own slice; a slice none owns is warned of and kept.
  */
 function load({ text, from }: Load, modules: readonly Module[]): Outcome {
-  const loaded = deserialise(text, engineDeps(modules));
+  const loaded = deserialise(text, { content, ...withModules(modules) });
   if (!loaded.ok) {
     const { kind, ...rest } = loaded.reason;
     const rejection = { action: 'load', reason: kind, ...rest, ...(from === undefined ? {} : { from }) } as LoadRejection;

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
 import { createWorld } from './create.js';
-import type { Guild, GuildId, Hero, HeroId, PatronId, WorldDocument } from './document.js';
+import { makeId, type Guild, type Guildmaster, type GuildmasterId, type GuildId, type Hero, type HeroId, type PatronId, type WorldDocument } from './document.js';
 import type { EffectResult } from './effects.js';
 import { isEngineEvent, type EngineEvent, type EngineEventOf, type EngineEventType, type TurnEvent } from './events.js';
 import { healDays } from './injuries.js';
@@ -323,6 +323,32 @@ describe('adjustRegard', () => {
 
     expect(only(results)).toEqual({ ok: false, rejection: { effect: 'adjustRegard', reason: 'holder-gone' } });
     expect(after.world.guildmasters[guildmasterId as never]?.regard).toEqual(before.world.guildmasters[guildmasterId as never]?.regard);
+  });
+
+  // v1.1.6-S17 (ADR-0011, the owner's answer 2 in DL-203): a retired Guildmaster's row is written once,
+  // frozen and shared by the per-Turn copy, so a module may no longer move their Regard.
+  test('refuses a retired Guildmaster as a holder, changing nothing', () => {
+    let retiredId = '';
+    let patronId = '';
+    const { results, before, after } = onFirstAfternoon(
+      'regard-retired',
+      (world, ctx) => {
+        patronId = Object.keys(world.patrons)[0] as string;
+        return [ctx.effects.adjustRegard({ holderId: retiredId as never, entityId: patronId as never, delta: 10 })];
+      },
+      (document) => {
+        // A Rival's Guildmaster before their successor, retired: their row kept, their Guild in play.
+        const { world } = document;
+        const rival = Object.values(world.guilds).find((row) => row.controller.kind === 'rival') as Guild;
+        const was = world.guildmasters[rival.guildmasterId] as Guildmaster;
+        retiredId = makeId('guildmasters', world.counters.guildmasters);
+        world.counters.guildmasters += 1;
+        world.guildmasters[retiredId as GuildmasterId] = { ...structuredClone(was), id: retiredId as GuildmasterId, retiredOnTurn: 0 };
+      },
+    );
+
+    expect(only(results)).toEqual({ ok: false, rejection: { effect: 'adjustRegard', reason: 'holder-gone' } });
+    expect(after.world.guildmasters[retiredId as never]?.regard).toEqual(before.world.guildmasters[retiredId as never]?.regard);
   });
 
   test.each<[string, (world: ReadonlyWorld) => { holderId: string; entityId: string }]>([

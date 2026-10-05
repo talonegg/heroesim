@@ -6,9 +6,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   addStack,
-  count,
-  createItem,
-  defaultConfig,
   deserialise,
   holdings,
   playerGuild,
@@ -19,6 +16,7 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
+import { count, createItem } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from '../main.js';
@@ -52,7 +50,7 @@ const current = (): string => join(dir, '.saves', 'current.json');
 const saved = (): string => readFileSync(current(), 'utf8');
 
 function document(): WorldDocument {
-  const loaded = deserialise(saved(), { config: defaultConfig, content });
+  const loaded = deserialise(saved(), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }
@@ -75,8 +73,6 @@ interface Stocked {
 function stocked(): Stocked {
   expect(play(['new', '--seed', 'demo', '--guild', 'The Test', '--master', 'Ada']).code).toBe(exitCodes.ok);
   const edited = document();
-  // The slots these tests rely on, pinned in the save's own config (INPUTS 7.1).
-  edited.meta.config.gearSlots = ['weapon', 'armour', 'trinket'];
   const { world } = edited;
   const guild = playerGuild(world) as Guild;
   for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
@@ -177,6 +173,28 @@ describe('equip and unequip', () => {
     const occupied = play(['equip', '--hero', hero.id, '--stack', blades]);
     expect(occupied.code).toBe(exitCodes.refused);
     expect(occupied.err).toMatch(/'s weapon slot holds Masterwork blade \(stack-\d{6}\): unequip it first\.$/m);
+  });
+
+  // v1.1.6-S11 (DL-197): "their Gear", a glossary term, as the page says it; "their gear" until then.
+  test('refuses to change the Gear of a Hero away on a Quest, and writes nothing', () => {
+    const { hero, guild, blades } = stocked();
+    expect(play(['equip', '--hero', hero.id, '--stack', blades]).code).toBe(exitCodes.ok);
+    const { world } = document();
+    const questId = world.board.find((id) => world.quests[id]?.templateKey === 'guard-the-caravan');
+    if (questId === undefined) throw new Error('The demo Board has changed');
+    expect(play(['dispatch', '--quest', questId, '--heroes', guild.rosterIds.slice(0, 2).join(',')]).code).toBe(exitCodes.ok);
+    const before = saved();
+
+    const away = `${hero.name} (${hero.id}) is away on a Quest, and their Gear is with them.`;
+    for (const argv of [
+      ['equip', '--hero', hero.id, '--stack', blades],
+      ['unequip', '--hero', hero.id, '--slot', 'weapon'],
+    ]) {
+      const run = play(argv);
+      expect(run.code, argv[0]).toBe(exitCodes.refused);
+      expect(run.err, argv[0]).toContain(away);
+    }
+    expect(saved()).toBe(before);
   });
 
   test('refuses a bad command line as a usage error, and writes nothing', () => {

@@ -14,7 +14,7 @@
 
 import type { GameConfig, PotentialHint } from './config.js';
 import type { ClassKey, ContentSet, GuildmasterTrait, GuildmasterTraitEffect, Stat, StatKey } from './content-types.js';
-import type { Guild, Guildmaster, World } from './document.js';
+import { rowOf, type Guild, type Guildmaster, type World } from './document.js';
 import { sortedRows } from './generators/draw.js';
 import { baseStat } from './selectors.js';
 
@@ -62,7 +62,7 @@ export function guildmasterOf(
   guild: Pick<Guild, 'guildmasterId'>,
   world: Pick<World, 'guildmasters'>,
 ): Guildmaster | undefined {
-  return Object.hasOwn(world.guildmasters, guild.guildmasterId) ? world.guildmasters[guild.guildmasterId] : undefined;
+  return rowOf(world.guildmasters, guild.guildmasterId);
 }
 
 /**
@@ -76,7 +76,7 @@ export function statShare(
   content: Pick<ContentSet, 'stats'>,
 ): number | null {
   const key: StatKey = guildmasterStatKeys[rule];
-  const stat = Object.hasOwn(content.stats, key) ? content.stats[key] : undefined;
+  const stat = rowOf(content.stats, key);
   if (stat === undefined || stat.owner !== 'guildmaster' || !(stat.max > stat.min)) return null;
   const share = (baseStat(guildmaster.stats, stat) - stat.min) / (stat.max - stat.min);
   return Math.min(1, Math.max(0, share));

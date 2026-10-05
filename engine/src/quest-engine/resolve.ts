@@ -17,24 +17,19 @@
 // whom, its Days), a Death two (whether, on whom); taken whether or not they land, so tuning a
 // chance never shifts a later draw, as `chance` promises for one (rng.ts).
 //
-// Harm reads the Stats (v1.1.4-S4, DL-148 item 14, harm.ts). An Injury or a Death falls on those its
-// `among` names, if any of them it can fall on, the Query read over those it can fall on: an Injury's
-// over the unhurt living Heroes, so `bottom` 1 takes the weakest unhurt, a Death's over the living
-// Party (v1.1.5-S4, DL-168 item 6, DL-178); on whom is drawn by `weightedPick`, each Hero's weight
-// their exposure by `exposedBy`; and it lands if its first draw is below the chance times the chosen
-// Hero's guard by `guardedBy`. The draws keep their number and order: with none of the fields every
-// weight and guard is 1, and the draws are what `chance` and `pick` drew. A Morale loss
-// `steadiedBy` some Stats is less for a Hero with more of them, so each Hero's Morale on the Quest,
-// and what they bring home (`moraleByHero`), is their own.
+// Harm reads the Stats (v1.1.4-S4, DL-148 item 14). Who an Injury or a Death falls on, whether it
+// lands, and each Hero's share of a Morale loss `steadiedBy` some Stats are harm.ts's (`strike`,
+// `moraleOf`; v1.1.6-S9, DL-186 item 4): this file asks, then applies. An Injury falls on the unhurt
+// living Heroes, a Death on the living Party, of them those its `among` names (v1.1.5-S4, DL-178), by
+// exposure and guard; so each Hero's Morale on the Quest, and what they bring home (`moraleByHero`),
+// is their own.
 // Heroes earn Traits (v1.1.4-S7, DL-148 item 25, DL-150 item 5): a `trait` consequence takes two
-// draws in its place, whether it lands and on whom, whether or not it lands, before Loot's. A
-// positive Trait, on a Triumph's list, falls among the Party still in the sequence and is held until
-// the band is known, granted only on a strong success; a negative one, on a Failure's, falls only
-// among the Heroes the same Encounter injured. Either falls only on a Hero who may take it: who does
-// not hold it and holds none it conflicts with (`mayEarn`), and has drawn no other on this Quest, a
-// held positive one aside for a negative Trait, which then stands in its place (DL-159's
-// verification). The Traits are the resolution's `traits`, for `questsConclude` to grant, at most one a
-// Hero, a Hero who died taking none.
+// draws in its place, whether it lands and on whom, whether or not it lands, before Loot's; who it
+// falls on is harm.ts's (`chooseEarner`). A positive Trait, on a Triumph's list, falls among the Party
+// still in the sequence and is held until the band is known, granted only on a strong success; a
+// negative one, on a Failure's, falls only among the Heroes the same Encounter injured, and stands in
+// the place of a positive one its Hero drew (DL-159's verification). The Traits are the resolution's
+// `traits`, for `questsConclude` to grant, at most one a Hero, a Hero who died taking none.
 // After the sequence, Loot's two draws for a Quest with a Loot table, whatever the band (M5-S5,
 // loot.ts, DL-52), and whatever its Finale did: a Quest ending with its template's Finale has Loot
 // only if the Finale ended a Triumph (v1.1.4-S8, DL-148 item 23).
@@ -57,7 +52,7 @@
 // phase `questsConclude`'s. Rivals' Parties resolve through it exactly as the player's do
 // (ADR-0002 as amended by pre-M0 review A1).
 
-import { configProblems, type GameConfig, type QuestBand } from '../config.js';
+import type { GameConfig, QuestBand } from '../config.js';
 import type {
   CheckKey,
   Consequence,
@@ -65,26 +60,33 @@ import type {
   Encounter,
   EncounterKey,
   EncounterKind,
-  HarmReads,
   InjuryTypeKey,
   PassFormula,
   SynergyKey,
-  TraitConsequence,
   TraitKey,
 } from '../content-types.js';
-import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Party, type Quest, type World } from '../document.js';
+import {
+  compareByCodeUnit,
+  requireRow,
+  rowOf,
+  type Guild,
+  type Hero,
+  type HeroId,
+  type Party,
+  type Quest,
+  type World,
+} from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { healDays } from '../injuries.js';
-import { int, next, pick, weightedPick } from '../rng.js';
+import { int } from '../rng.js';
 import { healFactor } from '../selectors.js';
-import { mayEarn } from '../traits.js';
 import { check, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './check.js';
 import { kitOf, type ConsumableUse } from './consumables.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { endsWithFinale, sequenceFor } from './encounters.js';
-import { exposure, guard, namedIn, narrowed } from './harm.js';
+import { chooseEarner, moraleOf, strike, type Candidates } from './harm.js';
 import { drawLoot, type FinaleOutcome, type LootDraw } from './loot.js';
-import { queryParty, type OnQuest, type QueryMember, type QueryParty } from './query.js';
+import { queryParty, type OnQuest, type QueryParty } from './query.js';
 import { synergiesOn } from './synergy.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
@@ -263,17 +265,14 @@ interface Working {
  * and then shorten the Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
  *
  * Changes nothing but the streams. Throws on a programming error: a Hero or Guild not in the world, a
- * configuration whose Degrees or form factors are unsound (`configProblems`), a difficulty that is not above 0, an
- * Encounter with no Check, or with several and no pass formula, or a formula naming a Check it
+ * difficulty that is not above 0, an Encounter with no Check, or with several and no pass formula, or a formula naming a Check it
  * lacks, an Injury type content lacks, or a world without the `quests` stream.
  */
 export function resolveQuest(world: World, quest: Quest, party: Party, deps: CheckDeps): Resolution {
   const { config } = deps;
-  const [problem] = configProblems(config);
-  if (problem !== undefined) throw new RangeError(`The Quest Engine's configuration: ${problem}`);
   if (!(quest.difficulty > 0)) throw new RangeError(`${quest.id} has difficulty ${quest.difficulty}; it is above 0`);
-  const heroes = party.heroIds.map((heroId) => row(world.heroes, heroId, 'heroes'));
-  const guild = row<Guild>(world.guilds, party.guildId, 'guilds');
+  const heroes = party.heroIds.map((heroId) => requireRow(world.heroes, heroId, 'heroes'));
+  const guild = requireRow<Guild>(world.guilds, party.guildId, 'guilds');
   const state = streamOf(world, 'quests');
   const sequence = sequenceFor(world, quest, deps);
   const kit = kitOf(world, party, deps.content);
@@ -374,7 +373,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     encounters,
     traits,
     consumables: kit.used,
-    // M5-S5: Loot, the sequence's last draws (loot.ts, DL-52), needing a Finale's Triumph (v1.1.4-S8).
+    // M5-S5: Loot, the sequence's last draws (loot.ts, DL-52), needing its Finale at a Degree in `lootOnFinaleDegrees` (v1.1.4-S8, DL-202).
     loot: drawLoot(world, quest, band, deps, finaleOf(quest, sequence, encounters, deps)),
   };
 }
@@ -468,15 +467,14 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
   const { state } = at;
   switch (consequence.kind) {
     case 'injury': {
-      const type = Object.hasOwn(content.injuries, consequence.typeKey) ? content.injuries[consequence.typeKey] : undefined;
+      const type = rowOf(content.injuries, consequence.typeKey);
       if (type === undefined) throw new RangeError(`Content defines no Injury type ${JSON.stringify(consequence.typeKey)}`);
       const factor = healFactor(at.guild, config);
       for (let time = 0; time < consequence.count; time += 1) {
-        const u = next(state);
-        const unhurt = working.alive.filter((hero) => !working.injuries.some((injury) => injury.heroId === hero.id));
-        const { hero: hurt, guarded } = struck(consequence, unhurt, working, at, deps);
+        // Whether it lands and on whom, two draws (harm.ts), then its Days, a third, whether or not it lands.
+        const hurt = strike(consequence, candidatesOf(working, harm), () => partyNow(working, at, deps), state, deps);
         const days = int(state, type.healDaysMin, type.healDaysMax);
-        if (hurt !== undefined && u < consequence.chance * guarded) {
+        if (hurt !== undefined) {
           working.injuries.push({ heroId: hurt.id, typeKey: type.key, healDays: healDays(days, factor) });
           harm.injured.push(hurt.id);
         }
@@ -484,9 +482,8 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
       return;
     }
     case 'death': {
-      const u = next(state);
-      const { hero: dead, guarded } = struck(consequence, working.alive, working, at, deps);
-      if (dead !== undefined && u < consequence.chance * guarded) {
+      const dead = strike(consequence, candidatesOf(working, harm), () => partyNow(working, at, deps), state, deps);
+      if (dead !== undefined) {
         working.deaths.push(dead.id);
         working.alive = working.alive.filter((hero) => hero.id !== dead.id);
         working.injuries = working.injuries.filter((injury) => injury.heroId !== dead.id);
@@ -497,11 +494,8 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
     case 'morale': {
       working.moraleDelta += consequence.delta;
       // v1.1.4-S4: a loss steadied by some Stats is each Hero's own, times their guard; a gain is as written.
-      const steadied = consequence.delta < 0 && consequence.steadiedBy !== undefined ? byId(partyNow(working, at, deps)) : undefined;
-      for (const hero of working.alive) {
-        const member = steadied?.get(hero.id);
-        const own = member === undefined ? consequence.delta : consequence.delta * guard(member, consequence.steadiedBy, content, config);
-        working.moraleByHero[hero.id] = (working.moraleByHero[hero.id] ?? 0) + own;
+      for (const [heroId, own] of moraleOf(consequence, working.alive, () => partyNow(working, at, deps), deps)) {
+        working.moraleByHero[heroId] = (working.moraleByHero[heroId] ?? 0) + own;
       }
       return;
     }
@@ -517,81 +511,16 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
     case 'fame':
       working.fameDelta += consequence.delta;
       return;
-    case 'trait':
-      earn(consequence, working, harm, at, deps);
+    case 'trait': {
+      // v1.1.4-S7: whether it lands and on whom, two draws whether or not it does (harm.ts).
+      const earner = chooseEarner(consequence, at.degree, candidatesOf(working, harm), working.earned, () => partyNow(working, at, deps), state, deps);
+      if (earner !== undefined) {
+        const { encounterIndex, encounterKey } = at;
+        working.earned.push({ heroId: earner.hero.id, traitKey: consequence.traitKey, encounterIndex, encounterKey, positive: earner.positive });
+      }
       return;
+    }
   }
-}
-
-/**
- * Draws an earned Trait (v1.1.4-S7, DL-148 item 25): whether it lands, then on whom, two draws taken
- * whether or not it lands, the second from no one too. A positive Trait, on a Triumph's list, falls
- * among the Party still in the sequence; a negative one, on a Failure's, among those this Encounter
- * injured who are still in it; of them those `among` names, read over them alone, so that a `bottom`
- * or a `top` ranks only the Heroes it can fall on, as an Injury's does (`namedIn`; #52's judgement
- * call 6, v1.1.5's re-close, DL-185), and none when it names none; of those the Heroes who may take it:
- * who may earn this one (`mayEarn`) and have drawn no Trait on this Quest, save that a negative one
- * may fall on a Hero holding a positive one, which it then takes the place of (DL-159's verification).
- * A negative one is granted only at a Failure: at a Setback that reads the failure list, having no
- * list of its own, it falls on no one, its two draws still taken (v1.1.4-S14).
- */
-function earn(consequence: TraitConsequence, working: Working, harm: Harm, at: Applying, deps: CheckDeps): void {
-  const { state } = at;
-  const u = next(state);
-  const positive = succeeded(at.degree);
-  if (!positive && at.degree !== 'failure') {
-    next(state);
-    return;
-  }
-  const pool = positive ? working.alive : working.alive.filter((hero) => harm.injured.includes(hero.id));
-  const named = consequence.among === undefined ? undefined : new Set(namedIn(pool, consequence.among, partyNow(working, at, deps)).map((hero) => hero.id));
-  const eligible = pool.filter(
-    (hero) =>
-      (named === undefined || named.has(hero.id)) &&
-      !working.earned.some((it) => it.heroId === hero.id && (positive || !it.positive)) &&
-      mayEarn(hero.traits, consequence.traitKey, deps.content),
-  );
-  if (eligible.length === 0) {
-    next(state);
-    return;
-  }
-  const hero = pick(state, eligible);
-  if (u < consequence.chance) {
-    working.earned.push({ heroId: hero.id, traitKey: consequence.traitKey, encounterIndex: at.encounterIndex, encounterKey: at.encounterKey, positive });
-  }
-}
-
-/**
- * Who of `pool`, the Heroes it can fall on in Party order, a harm falls on (v1.1.4-S4, harm.ts): those
- * its `among` names, read over `pool` (v1.1.5-S4: an Injury's the unhurt living Heroes, a Death's the
- * living Party), or all of `pool` when it names none of them; drawn by `weightedPick`, each Hero's
- * weight their exposure by `exposedBy`; and that Hero's guard by `guardedBy`, which the chance is
- * times. One draw, even from no one. With none of the fields every weight and the guard are 1, and
- * the draw is `pick`'s, which `weightedPick` draws exactly at every weight 1.
- */
-function struck(
-  consequence: HarmReads,
-  pool: readonly Hero[],
-  working: Working,
-  at: Applying,
-  deps: CheckDeps,
-): { hero: Hero | undefined; guarded: number } {
-  const { among, exposedBy, guardedBy } = consequence;
-  const reads = among !== undefined || exposedBy !== undefined || guardedBy !== undefined;
-  const party = reads ? partyNow(working, at, deps) : undefined;
-  const within = party === undefined ? pool : narrowed(pool, among, party);
-  if (within.length === 0) {
-    next(at.state);
-    return { hero: undefined, guarded: 1 };
-  }
-  const members = party === undefined ? undefined : byId(party);
-  const weightOf = (hero: Hero): number => {
-    const member = members?.get(hero.id);
-    return member === undefined ? 1 : exposure(member, exposedBy, deps.content, deps.config);
-  };
-  const hero = weightedPick(at.state, within, within.map(weightOf));
-  const member = members?.get(hero.id);
-  return { hero, guarded: member === undefined ? 1 : guard(member, guardedBy, deps.content, deps.config) };
 }
 
 /** A Hero's Morale from the Quest, rounded to a whole number, and never −0, which is not JSON-safe. */
@@ -599,19 +528,15 @@ function whole(delta: number): number {
   return Math.round(delta) + 0;
 }
 
+/**
+ * Who harm may fall on as `working` and this Encounter's `harm` stand (harm.ts, `Candidates`): the
+ * living in Party order, those carrying an Injury from the Quest, and those this Encounter injured.
+ */
+function candidatesOf(working: Working, harm: Harm): Candidates<Hero> {
+  return { living: working.alive, hurt: new Set(working.injuries.map((injury) => injury.heroId)), injuredHere: harm.injured };
+}
+
 /** The Party's living members as the Queries read them now, its harm so far applied. */
 function partyNow(working: Working, at: Applying, deps: CheckDeps): QueryParty {
   return queryParty(working.alive, at.world, deps, onQuestOf(working));
-}
-
-/** `party`'s members by their Hero's id. */
-function byId(party: QueryParty): Map<HeroId, QueryMember> {
-  return new Map(party.members.map((member) => [member.hero.id, member]));
-}
-
-/** The row `id` names in `rows`, which must be there. */
-function row<Row>(rows: Readonly<Record<string, Row>>, id: string, table: string): Row {
-  const found = Object.hasOwn(rows, id) ? rows[id] : undefined;
-  if (found === undefined) throw new RangeError(`${id} is not in world.${table}`);
-  return found;
 }

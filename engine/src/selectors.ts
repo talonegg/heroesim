@@ -6,9 +6,10 @@
 // rest beside them. Time's selectors, `ageOf` among them, are in time.ts.
 
 import type { EngineDeps, GameConfig } from './config.js';
-import type { ContentSet, DispositionKey, Improvement, Stat } from './content-types.js';
+import type { ContentSet, DispositionKey, Improvement, Stat, StatKey } from './content-types.js';
 import {
   compareByCodeUnit,
+  rowOf,
   type FacilityKey,
   type Guild,
   type GuildId,
@@ -193,7 +194,7 @@ export function cheapestUnattached(
 export function offeredQuests(world: Pick<World, 'board' | 'quests'>): Quest[] {
   const offered: Quest[] = [];
   for (const questId of world.board) {
-    const quest = Object.hasOwn(world.quests, questId) ? world.quests[questId] : undefined;
+    const quest = rowOf(world.quests, questId);
     if (quest !== undefined && quest.status === 'offered') offered.push(quest);
   }
   return offered;
@@ -338,7 +339,7 @@ export function upkeepParts(
   content?: Pick<ContentSet, 'guildmasterTraits'>,
 ): UpkeepParts {
   const wages = guild.rosterIds.reduce((total, heroId) => {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    const hero = rowOf(world.heroes, heroId);
     if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) return total;
     return total + config.wagePerLevel * hero.level;
   }, 0);
@@ -368,41 +369,96 @@ export function nextUpkeepDay(turn: Turn, config: Pick<GameConfig, 'upkeepEveryD
   return nightOf(upkeepDay) > turn ? upkeepDay : upkeepDay + every;
 }
 
+/** What moves a Hero's Stat from its base (v1.1.6-S13), in the order `statBreakdown` adds them. */
+export type StatSource = 'classBonus' | 'gear' | 'traits';
+
 /**
- * `hero`'s effective Stats (data-model rule 1: a selector, never stored; `hero.stats` keeps base
- * values only): each of content's Hero Stats, its base value (`baseStat`, a Stat the row lacks
- * reading content's default), plus the `classStatBonus` Traits of the Guildmaster of the Hero's
- * Guild for the Hero's Class (M4-S5, DL-43), plus the Stat modifiers of the gear the Hero carries in
- * its own slots (`gearModifiers`, M5-S2), plus the `statModifiers` of the Hero Traits the Hero holds
- * (`traitStatModifiers`, v1.1.4-S7, DL-148 item 24), held inside the Stat's content range once, after
- * every modifier is added, so the order they are added in never matters (DL-49). A Hero on no Roster has
- * no Guildmaster's bonus; gear counts wherever it is rightly placed, a misplaced Item or one content
- * does not define counting for nothing. Every Guild alike (ADR-0002), so a Rival's Guildmaster's
- * Traits and a Rival's gear work on the Rival's Heroes as the player's work on the player's.
+ * One Hero Stat taken apart (v1.1.6-S13, DL-186 item 3): its base, each source with what it adds, in
+ * the order added, every source listed though it adds 0, the effective value a Check reads, and
+ * whether the Stat's range held it.
+ */
+export interface StatParts {
+  base: number;
+  sources: readonly { source: StatSource; change: number }[];
+  effective: number;
+  /** Whether the base and the sources summed outside the Stat's range, and the effective value is its bound. */
+  clamped: boolean;
+}
+
+/** A Hero's Stats taken apart, keyed by Stat in content's order: `statBreakdown`'s. */
+export type StatBreakdown = Record<StatKey, StatParts>;
+
+/** The value of `key` in a sum by Stat, 0 for a Stat it has no entry for. */
+function sumOf(by: Record<StatKey, number>, key: StatKey): number {
+  return Object.hasOwn(by, key) ? (by[key] ?? 0) : 0;
+}
+
+/**
+ * `hero`'s Stats taken apart (v1.1.6-S13, DL-186 item 3; data-model rule 1: a selector, never
+ * stored; `hero.stats` keeps base values only): each of content's Hero Stats, its base value
+ * (`baseStat`, a Stat the row lacks reading content's default), plus the `classStatBonus` Traits of
+ * the Guildmaster of the Hero's Guild for the Hero's Class (M4-S5, DL-43), plus the Stat modifiers of
+ * the gear the Hero carries in its own slots (`gearModifiers`, M5-S2), plus the `statModifiers` of the
+ * Hero Traits the Hero holds (`traitStatModifiers`, v1.1.4-S7, DL-148 item 24), added in that order
+ * and held inside the Stat's content range once, after every source is added (DL-49). A Hero on no
+ * Roster has no Guildmaster's bonus; gear counts wherever it is rightly placed, a misplaced Item or
+ * one content does not define counting for nothing. Every Guild alike (ADR-0002), so a Rival's
+ * Guildmaster's Traits and a Rival's gear work on the Rival's Heroes as the player's work on the
+ * player's.
+ *
+ * `effectiveStats` is its total. The page's Roster and a Hero's page put it in words; nothing else
+ * does a source's sum. It keeps the epic's signature `(hero, world, content)` and so reads no config:
+ * `equip` alone asks whether a slot is a gear slot (DL-49). Any later modifier belongs here too
+ * (DL-42 item 9, DL-43 item 8, DL-44).
+ */
+export function statBreakdown(
+  hero: Pick<Hero, 'id' | 'stats' | 'classKey' | 'guildId' | 'traits'>,
+  world: Pick<World, 'guilds' | 'guildmasters' | 'items' | 'stacks'>,
+  content: Pick<ContentSet, 'stats' | 'guildmasterTraits' | 'heroTraits' | 'items'>,
+): StatBreakdown {
+  const guild = hero.guildId !== null ? rowOf(world.guilds, hero.guildId) : undefined;
+  const bonuses = guild === undefined ? {} : traitStatBonuses(guildmasterOf(guild, world), hero.classKey, content);
+  const gear = gearModifiers(hero.id, world, content);
+  const marks = traitStatModifiers(hero, content);
+  const breakdown: StatBreakdown = {};
+  for (const stat of Object.values(content.stats)) {
+    if (stat.owner !== 'hero') continue;
+    const base = baseStat(hero.stats, stat);
+    const bonus = sumOf(bonuses, stat.key);
+    const worn = sumOf(gear, stat.key);
+    const marked = sumOf(marks, stat.key);
+    // Added left to right and held once, as `effectiveStats` always has: a Check's draws read it.
+    const sum = base + bonus + worn + marked;
+    const effective = Math.min(stat.max, Math.max(stat.min, sum));
+    breakdown[stat.key] = {
+      base,
+      sources: [
+        { source: 'classBonus', change: bonus },
+        { source: 'gear', change: worn },
+        { source: 'traits', change: marked },
+      ],
+      effective,
+      clamped: effective !== sum,
+    };
+  }
+  return breakdown;
+}
+
+/**
+ * `hero`'s effective Stats: `statBreakdown`'s total, each Stat's effective value, keyed by Stat in
+ * content's order (v1.1.6-S13, DL-186 item 3).
  *
  * The one statement of a Hero's Stats as a Quest assesses them: the Quest Engine's Check reads it
- * (M4-S2, `quest-engine/check.ts`'s `capability`), and `show hero` shows it beside the base. It keeps
- * the epic's signature `(hero, world, content)` and so reads no config: `equip` alone asks which
- * slots `config.gearSlots` lists (DL-49). Any later modifier belongs here too (DL-42 item 9, DL-43
- * item 8, DL-44). Nothing Guild-side reads it: fees, Upkeep and growth read base Stats.
+ * (M4-S2, `quest-engine/check.ts`'s `capability`), and `show hero` shows it beside the base. Nothing
+ * Guild-side reads it: fees, Upkeep and growth read base Stats.
  */
 export function effectiveStats(
   hero: Pick<Hero, 'id' | 'stats' | 'classKey' | 'guildId' | 'traits'>,
   world: Pick<World, 'guilds' | 'guildmasters' | 'items' | 'stacks'>,
   content: Pick<ContentSet, 'stats' | 'guildmasterTraits' | 'heroTraits' | 'items'>,
 ): StatValues {
-  const guild = hero.guildId !== null && Object.hasOwn(world.guilds, hero.guildId) ? world.guilds[hero.guildId] : undefined;
-  const bonuses = guild === undefined ? {} : traitStatBonuses(guildmasterOf(guild, world), hero.classKey, content);
-  const gear = gearModifiers(hero.id, world, content);
-  const marks = traitStatModifiers(hero, content);
   const effective: StatValues = {};
-  for (const stat of Object.values(content.stats)) {
-    if (stat.owner !== 'hero') continue;
-    const bonus = Object.hasOwn(bonuses, stat.key) ? (bonuses[stat.key] ?? 0) : 0;
-    const worn = Object.hasOwn(gear, stat.key) ? (gear[stat.key] ?? 0) : 0;
-    const marked = Object.hasOwn(marks, stat.key) ? (marks[stat.key] ?? 0) : 0;
-    effective[stat.key] = Math.min(stat.max, Math.max(stat.min, baseStat(hero.stats, stat) + bonus + worn + marked));
-  }
+  for (const [key, parts] of Object.entries(statBreakdown(hero, world, content))) effective[key] = parts.effective;
   return effective;
 }
 

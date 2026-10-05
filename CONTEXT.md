@@ -310,7 +310,7 @@ the Quest Engine.
 _Avoid_: Mission, Commission, Job, Contract, Task
 
 **Quest template**:
-A content row a Quest is drawn from: its Spheres, Stat demands, Skills, requirements, the ranges
+A content row a Quest is drawn from: its Spheres, Skills, requirements, the ranges
 of its difficulty, duration and Party size, its reward and Fame effect, its tags, its Loot
 table, its kinds of Encounter and any Finale. A Quest copies what it carries at generation, so a
 changed template never alters a Quest already offered (DL-25). Its tags weight the draw of its
@@ -320,11 +320,11 @@ Random Events' conditions (DL-82).
 _Avoid_: Quest type, Blueprint, Archetype
 
 **Stat demand**:
-A Hero Stat a piece of work asks for, with a weight; a Quest template's or an Encounter's
-weights sum to one. A Quest's demands describe the work as a whole; each Check reads its
-Encounter's (DL-06, DL-42). From v1.1.4-S6 a Quest's are shown nowhere and read by no rule: the
-Board shows what each Check reads, and the Rivals choose by the chance estimate (DL-148 items 16
-and 17, DL-157).
+A Hero Stat a piece of work asked for, with a weight; a Quest template's or an Encounter's
+weights summed to one (DL-06, DL-42). Gone: from v1.1.4-S6 a Quest's were shown nowhere and read
+by no rule (DL-148 items 16 and 17, DL-157), an Encounter's went with content's old form in
+v1.1.6-S6 (DL-192), and a Quest template's and a Quest's in v1.1.6-S7 (DL-193). What a Check reads
+is its Query (ADR-0010); the Board shows it.
 _Avoid_: Requirement (a Quest's requirements are its Party size and any Class or Skill it needs),
 Weighting
 

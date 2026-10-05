@@ -163,9 +163,46 @@ describe('engine/package.json', () => {
   });
 });
 
+// v1.1.6-S8 (DL-186 item 9): the engine's test entry, for tests alone.
+describe("the engine's test entry, @heroesim/engine/testing", { timeout: 30_000 }, () => {
+  const code = "import { makeId } from '@heroesim/engine/testing';\nexport { makeId };";
+
+  test('is declared beside the entry in engine/package.json', () => {
+    const manifest = JSON.parse(readFileSync(`${root}engine/package.json`, 'utf8')) as { exports: Record<string, string> };
+
+    expect(manifest.exports).toEqual({ '.': './src/index.ts', './testing': './src/testing.ts' });
+  });
+
+  test.each([
+    ['cli', 'ts'],
+    ['harness', 'ts'],
+    ['web', 'ts'],
+    ['web', 'tsx'],
+  ])('%s production code (.%s) may not import it', async (pkg, extension) => {
+    const errors = await lintProbe(pkg, code, extension);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe(restrictedImports);
+    expect(errors[0]?.message).toContain('DL-186 item 9');
+  });
+
+  test.each([
+    ['cli', 'test.ts'],
+    ['harness', 'test.ts'],
+    ['harness', 'test-support.ts'],
+    ['web', 'test.ts'],
+    ['web', 'test.tsx'],
+    ['web', 'test-support.ts'],
+  ])('%s tests (.%s) may import it', async (pkg, extension) => {
+    expect(await lintProbe(pkg, code, extension)).toEqual([]);
+  });
+});
+
 describe('the other packages reach each other by name only', { timeout: 30_000 }, () => {
   test.each([
     ['content', "import type { World } from '@heroesim/engine';\nexport type { World };"],
+    // DL-186 item 6 (v1.1.6-S5): content takes the engine's values as well as its types.
+    ['content', "import { encounterKinds } from '@heroesim/engine';\nexport { encounterKinds };"],
     ['cli', "import { x } from '@heroesim/engine';\nimport { y } from '@heroesim/content';\nexport { x, y };"],
     ['web', "import { x } from '@heroesim/engine';\nimport { y } from '@heroesim/content';\nexport { x, y };"],
     ['harness', "import { x } from '@heroesim/engine';\nexport { x };"],
@@ -174,7 +211,7 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
   });
 
   test.each([
-    ['content', 'a value from the engine', "import { x } from '@heroesim/engine';\nexport { x };"],
+    ['content', 'a subpath of the engine', "import { x } from '@heroesim/engine/src/index.ts';\nexport { x };"],
     ['content', 'a Node built-in outside its Node entry', "import fs from 'node:fs';\nexport { fs };"],
     ['content', 'a front end', "import x from '@heroesim/cli';\nexport { x };"],
     ['cli', 'web', "import x from '@heroesim/web';\nexport { x };"],
@@ -209,9 +246,9 @@ describe("web/'s page, components included", { timeout: 30_000 }, () => {
   test('a component may import the engine and content by name', async () => {
     const code = [
       "import type { ContentSet } from '@heroesim/engine';",
-      "import { contentVersion } from '@heroesim/content';",
+      "import { contentSetId } from '@heroesim/content';",
       'export const Version = (props: { set: ContentSet }) => (',
-      '  <p>{props.set.id} {contentVersion}</p>',
+      '  <p>{contentSetId} {props.set.version}</p>',
       ');',
     ].join('\n');
 

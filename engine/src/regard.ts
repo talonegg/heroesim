@@ -27,6 +27,7 @@ import { regardBandNames, type GameConfig, type RegardBand } from './config.js';
 import type { ContentSet } from './content-types.js';
 import {
   compareByCodeUnit,
+  rowOf,
   type EntityId,
   type Guild,
   type GuildId,
@@ -119,7 +120,7 @@ export function adjustRegard(
  * band moved (rule 10).
  */
 export function recoverRegard(map: RegardMap, id: EntityId, step: number, config: RegardConfig): RegardChange {
-  const entry = Object.hasOwn(map, id) ? map[id] : undefined;
+  const entry = rowOf(map, id);
   const before = entry?.value ?? 0;
   const after = before > 0 ? Math.max(0, before - step) : Math.min(0, before + step);
   if (entry !== undefined) {
@@ -194,7 +195,7 @@ export function guildmasterRegardForGuild(
   guildId: GuildId,
   world: Pick<World, 'guilds'>,
 ): number {
-  const guild = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
+  const guild = rowOf(world.guilds, guildId);
   return guild === undefined ? 0 : regardValue(guildmaster.regard, guild.guildmasterId);
 }
 
@@ -237,7 +238,7 @@ export function regardOnQuestResolved(world: World, ctx: RegardContext, resolved
   const cause: PatronRegardCause & GuildmasterRegardCause = succeeded ? 'quest-success' : 'quest-failure';
   const guildmaster = guildmasterOf(guild, world);
 
-  const patron = Object.hasOwn(world.patrons, patronId) ? world.patrons[patronId] : undefined;
+  const patron = rowOf(world.patrons, patronId);
   if (patron !== undefined) {
     const delta = succeeded
       ? config.patronRegardOnSuccess * influenceMultiplier(guildmaster, content, config)
@@ -262,7 +263,7 @@ export function regardOnQuestResolved(world: World, ctx: RegardContext, resolved
  * refresh calls it for each Quest it expires.
  */
 export function regardOnOfferExpired(world: World, ctx: RegardContext, patronId: PatronId): EngineEvent[] {
-  const patron = Object.hasOwn(world.patrons, patronId) ? world.patrons[patronId] : undefined;
+  const patron = rowOf(world.patrons, patronId);
   if (patron === undefined || ctx.config.patronRegardOnExpiry === 0) return [];
   const events: EngineEvent[] = [];
   for (const guild of guildsInPlay(world)) {

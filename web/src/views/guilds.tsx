@@ -27,16 +27,11 @@ import { HeroPage } from './hero-page';
 import { useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
 import { GuildBanner, PortraitThumb } from './pictures';
-import { rememberChoice, rememberedChoice } from './remembered';
+import { preferences, useRemembered } from './remembered';
 import { Part } from './section';
 import { Chip, Disclosure, SortHeader, useReturn, VisuallyHidden } from './ui';
 
 type Play = (action: GameAction) => void;
-
-const sorts: readonly GuildSort[] = ['fame', 'wealth', 'name', 'disposition', 'heroes', 'upkeep'];
-
-/** The key this browser keeps the Guilds' order under. */
-export const guildsOrderKey = 'heroesim.guildsOrder';
 
 /** Each column that orders the table, in its place, with which way it orders. */
 const columns: readonly { sort: GuildSort; label: string; direction: SortDirection; number: boolean }[] = [
@@ -67,7 +62,7 @@ export function Guilds({
   open?: GuildId | null;
   onOpen?: (guildId: GuildId | null) => void;
 }) {
-  const [sort, setSort] = useState<GuildSort>(() => rememberedChoice(guildsOrderKey, sorts, 'fame'));
+  const [sort, setSort] = useRemembered(preferences.guildsOrder);
   const table = useMemo(() => guildsTable(document, sort), [document, sort]);
   const [own, setOwn] = useState<GuildId | null>(null);
   const open = given === undefined ? own : given;
@@ -79,10 +74,7 @@ export function Guilds({
         <GuildsTableView
           table={table}
           sort={sort}
-          onSort={(next) => {
-            setSort(next);
-            rememberChoice(guildsOrderKey, next);
-          }}
+          onSort={setSort}
           onOpen={(guildId) => {
             back.opened(rowId(guildId));
             setOpen(guildId);

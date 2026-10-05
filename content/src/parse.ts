@@ -19,7 +19,6 @@ import type {
   Descriptions,
   Disposition,
   Encounter,
-  EncounterAggregate,
   EncounterCheck,
   EncounterKind,
   FacilityKey,
@@ -48,6 +47,7 @@ import type {
   PortraitAppearances,
   PortraitRole,
   Portraits,
+  PurchaseStep,
   QuestTemplate,
   QuestTemplateRequires,
   SetQuery,
@@ -62,77 +62,18 @@ import type {
   SynergyBonus,
   SynergyRequires,
 } from '@heroesim/engine';
+import { encounterKinds as encounterKindList, facilityKeys, gearSlotKeys, purchaseSteps, sexes } from '@heroesim/engine';
 import { findDuplicateKeys } from './duplicate-keys.js';
-import { checkDemands, checkReferences, ContentError, validateContent } from './validate.js';
+import { ContentError, validateContent } from './validate.js';
 
 /** The content set this package holds, as `meta.content` records it. */
 export const contentSetId = 'core';
-/**
- * Raised whenever the content changes, so a document says which content it was created under:
- * 2 from M2-S3, which added the Quest templates; 3 from M2-S9, which added the Dispositions; 4
- * from M2-S5, which added the Injury types; 5 from M3-S6, which added the Hall Improvements; 6 from
- * M4-S1, which added the Encounters and each Quest template's Encounter kinds and counts, and, on
- * a parallel branch, from M4-S5, which gave the Guildmaster Traits their effects (DL-43); 7 from
- * their merge, which holds both (DL-44); 8 from M4-S3, which added the Synergies (DL-45); 9 from
- * M5-S1, which added the Item definitions (DL-48); 10 from M5-S5, which added the Loot tables and
- * the Quest templates' tables (DL-52); 11 from merging those with the main line's 8, taken past
- * every number a line in flight has used for other content (DL-61); 12 from the M5 close's Loot,
- * rarer unique Items and two templates without a table (DL-62), and, on a parallel branch, from
- * M6-S1, which added the four named Dispositions and their weights (DL-56), and M6-S4, which gave
- * `reckless` a `gearThreshold` of 3 for 1.5 (DL-58); 13 from their merge, which holds both (DL-63);
- * 14 from the M6 close's balance pass on the four Dispositions' rows (DL-69); 15 from M9-S2, which
- * gave every Trait a cost against the Trait budget and a list of the Traits it excludes (DL-102); 16
- * from v1.1.2-S3, which added the Portraits (`portraits.json`) and gave each Patron's name its sex
- * (DL-125 items 3 and 5, DL-130). v1.1.2-S4's two pictures in `portraits.json` and their rows in
- * `portrait-appearances.json` keep 16: no release has held 16 without them (DL-131); so does
- * v1.1.2-S5's `descriptions.json`, for the same reason (DL-132). 17 from v1.1.3-S1, which gave each
- * picture's row its role's fields and `features` in the place of `keywords`, `descriptions.json` the
- * Stations, Tempers and Callings and their sentences and a Hero's Biography's, and each Hero Background
- * its Station (DL-134, DL-135); no rule reads them yet.
- * 18 from the portrait tool's intake 2026-10-01 (`docs/portraits/intake/2026-10-01.md`).
- * 19 from the portrait tool's apply of analysis run 2026-10-01 (`docs/portraits/analysis/2026-10-01.md`).
- * 20 from the portrait tool's apply of analysis run 2026-10-02 (`docs/portraits/analysis/2026-10-02.md`).
- * 21 from v1.1.4-S1, which loads each Encounter into a list of Checks scored by Queries and each Synergy's
- * requirements into Queries over the Party (DL-151); the files keep their old form, and nothing is re-authored.
- * v1.1.4-S2's new form of an Encounter, `checks` and `pass`, keeps 21: no file is written in it yet (DL-152).
- * 22 from v1.1.4-S6, which gives each Disposition its `partyMargin` (DL-157).
- * 23 from v1.1.4-S7, which moves `traits.json` into `guildmaster-traits.json` and `hero-traits.json`,
- * each Trait's `effect` into `effects`, a list, and drops `owner` (DL-158); the same games are played.
- * 24 from v1.1.4-S7's second step, which gives the four Injury Traits their `statModifiers` (DL-148
- * item 24, DL-159).
- * 25 from v1.1.4-S8, which gives today's Encounters their `tags`, matched to the templates' (DL-148
- * item 22, DL-160); no template names a Finale and no Encounter is of the `lore` kind until S10.
- * 26 from v1.1.4-S10, which writes the drafts the owner approved (DL-162, DL-165): 29 Encounters in
- * Checks, among them four `lore` and four Finales, each Check rolling within `checkVariance`; the
- * templates' Finales, `lore` kinds and the tags `holy` and `study`; six Mental and Social trinkets;
- * and the Synergies written as Queries, three of them new. The earned Traits, and their uses in the
- * Encounters, come through the content editor.
- * 27 from the content editor's Finish of 2026-10-03 (added battle-tried, wayfinder,
- * silver-tongued, lettered, battle-shy, haunted; 26 uses assigned, of battle-tried, wayfinder,
- * silver-tongued, lettered, battle-shy, haunted).
- * 28 from v1.1.4-S10's balance pass, which tunes every Check's flat term and difficulty
- * factor so that random Parties of 3 at Level 5 meet each Encounter at difficulty 60 with a
- * chance of 0.5, not S9's 0.44, 40% of each target still its flat term: about 5% easier
- * (DL-166).
- * 29 from the content editor's Finish of 2026-10-03 (4 uses assigned, of wayfinder, battle-tried,
- * silver-tongued, lettered; 4 uses unassigned, of wayfinder, battle-tried, silver-tongued,
- * lettered).
- * 30 from v1.1.4-S10's balance pass again, which tunes every Check's flat term and difficulty
- * factor to a chance of 0.56 at the same aim, about 5% easier again, since the rarer earned
- * Traits left more Guilds bankrupt (DL-166).
- * 31 from the content editor's Finish of 2026-10-03 (4 uses assigned, of wayfinder, battle-tried,
- * silver-tongued, lettered; 4 uses unassigned, of wayfinder, battle-tried, silver-tongued,
- * lettered).
- * 32 from the content editor's Finish of 2026-10-04 (4 uses assigned, of battle-tried, wayfinder,
- * silver-tongued, lettered; 4 uses unassigned, of battle-tried, wayfinder, silver-tongued,
- * lettered).
- */
-export const contentVersion = 32;
 
-/** The files of a content set, named as they sit in the content directory. */
+/** The files of a content set, named as they sit in the content directory; the last holds its version (v1.1.6-S4). */
 export const contentFiles = [
   'stats.json',
   'classes.json',
+  'class-order.json',
   'skills.json',
   'guildmaster-traits.json',
   'hero-traits.json',
@@ -150,20 +91,41 @@ export const contentFiles = [
   'portraits.json',
   'portrait-appearances.json',
   'descriptions.json',
+  'version.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
 
+/** A row's optional `weight`, as the field to spread into it (v1.1.6-S16, DL-202); that it is above 0 is `validateContent`'s rule. */
+function weightField(row: RowReader): { weight?: number } {
+  const weight = row.optional('weight', (field) => row.number(field));
+  return weight === undefined ? {} : { weight };
+}
+
+/** A row's optional order `field`, a list of `choices` as the field to spread into it; that it holds each once is `validateContent`'s rule. */
+function orderField<Field extends string, Choice extends string>(
+  row: RowReader,
+  field: Field,
+  choices: Record<Choice, true>,
+): { [Key in Field]?: Choice[] } {
+  const order = row.optional(field, (name) => row.oneOfEach(name, choices));
+  return (order === undefined ? {} : { [field]: order }) as { [Key in Field]?: Choice[] };
+}
+
+/** The engine's list of a union's members as the choices of a field (DL-186 item 6: content repeats none). */
+function choicesOf<Choice extends string>(list: readonly Choice[]): Record<Choice, true> {
+  return Object.fromEntries(list.map((choice) => [choice, true])) as Record<Choice, true>;
+}
+
 // The choices for each enumerated field. Keyed by the engine's union, so the compiler refuses
-// a list that misses or invents a member.
+// a list that misses or invents a member; where the engine lists the union's members, its list.
 const statAreas: Record<StatArea, true> = { physical: true, mental: true, magical: true, social: true };
 const statOwners: Record<StatOwner, true> = { hero: true, guildmaster: true };
 const guildmasterTraitEffectKinds: Record<GuildmasterTraitEffectKind, true> = { classStatBonus: true, guildMoraleShift: true, upkeepFactor: true };
 const heroTraitEffectKinds: Record<HeroTraitEffectKind, true> = { statModifiers: true, encounterBonus: true };
 const backgroundOwners: Record<BackgroundOwner, true> = { hero: true, guild: true };
-const facilities: Record<FacilityKey, true> = { infirmary: true, trainingYard: true, quarters: true };
-const encounterKinds: Record<EncounterKind, true> = { combat: true, travel: true, social: true, arcane: true, stealth: true, lore: true };
-const aggregates: Record<EncounterAggregate, true> = { best: true, sum: true };
+const facilities: Record<FacilityKey, true> = choicesOf(facilityKeys);
+const encounterKinds: Record<EncounterKind, true> = choicesOf(encounterKindList);
 const consequenceKinds: Record<ConsequenceKind, true> = {
   injury: true,
   death: true,
@@ -176,9 +138,10 @@ const consequenceKinds: Record<ConsequenceKind, true> = {
 };
 const regardBetween: Record<'party', true> = { party: true };
 const itemKinds: Record<ItemKind, true> = { gear: true, consumable: true };
-const gearSlots: Record<SlotKey, true> = { weapon: true, armour: true, trinket: true };
+const gearSlots: Record<SlotKey, true> = choicesOf(gearSlotKeys);
+const purchaseStepChoices: Record<PurchaseStep, true> = choicesOf(purchaseSteps);
 const consumableEffectKinds: Record<ConsumableEffectKind, true> = { reroll: true, bonus: true, heal: true };
-const sexChoices: Record<Sex, true> = { female: true, male: true };
+const sexChoices: Record<Sex, true> = choicesOf(sexes);
 const portraitRoles: Record<PortraitRole, true> = { guildmaster: true, hero: true, patron: true };
 
 /**
@@ -217,23 +180,17 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
     leadingStats: row.strings('leadingStats'),
     gatedSkills: row.strings('gatedSkills'),
     growth: row.numbers('growth'),
+    ...weightField(row),
   }));
   const skills = table<Skill>('skills.json', json('skills.json'), problems, 'a Skill', (row) => ({
     name: row.string('name'),
   }));
-  // What the old forms of an Encounter and a Synergy name is checked as they load (v1.1.4-S1), in the
-  // words of the form the author wrote; a Query's keys are `validateContent`'s.
-  const known: OldFormKeys = {
-    heroStats: new Set(Object.values(stats).flatMap((stat) => (stat.owner === 'hero' ? [stat.key] : []))),
-    classes: new Set(Object.keys(classes)),
-    skills: new Set(Object.keys(skills)),
-  };
-
   const set: ContentSet = {
     id: contentSetId,
-    version: contentVersion,
+    version: contentVersion(json('version.json'), problems),
     stats,
     classes,
+    classOrder: classOrder(json('class-order.json'), problems),
     skills,
     // The two lists of Traits (v1.1.4-S7, DL-150 item 1); that a key is in one list only is `validateContent`'s rule.
     guildmasterTraits: table<GuildmasterTrait>('guildmaster-traits.json', json('guildmaster-traits.json'), problems, 'a Guildmaster Trait', (row) => ({
@@ -256,11 +213,12 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
         const shape = { name: row.string('name'), owner: row.oneOf('owner', backgroundOwners) };
         // A Hero Background's Station (v1.1.3-S1, DL-135 item 5): which owner has one is `validateContent`'s rule.
         const station = row.optional('station', (field) => row.string(field));
-        return station === undefined ? shape : { ...shape, station };
+        return { ...shape, ...(station === undefined ? {} : { station }), ...weightField(row) };
       },
     ),
     spheres: table<Sphere>('spheres.json', json('spheres.json'), problems, 'a Sphere', (row) => ({
       name: row.string('name'),
+      ...weightField(row),
     })),
     names: names(json('names.json'), problems),
     questTemplates: table<QuestTemplate>(
@@ -283,7 +241,6 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
           fameEffect: row.integer('fameEffect'),
           partySizeMin: row.integer('partySizeMin'),
           partySizeMax: row.integer('partySizeMax'),
-          demands: row.weightedKeys('demands'),
           skillKeys: row.strings('skillKeys'),
           requires: requires(row.child('requires')),
           lootTableKey: row.stringOrNull('lootTableKey'),
@@ -291,6 +248,7 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
           encountersMin: row.integer('encountersMin'),
           encountersMax: row.integer('encountersMax'),
           ...(finale === undefined ? {} : { finale }),
+          ...weightField(row),
         };
       },
     ),
@@ -302,6 +260,10 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
       gearThreshold: row.number('gearThreshold'),
       transferAppetite: row.number('transferAppetite'),
       partyMargin: row.number('partyMargin'),
+      // The orders it buys and builds in, each when written; each is a permutation, which `validateContent` holds (v1.1.6-S16).
+      ...orderField(row, 'purchaseOrder', purchaseStepChoices),
+      ...orderField(row, 'gearSlotOrder', gearSlots),
+      ...orderField(row, 'buildOrder', facilities),
     })),
     injuries: table<InjuryType>('injuries.json', json('injuries.json'), problems, 'an Injury type', (row) => ({
       name: row.string('name'),
@@ -321,22 +283,20 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
         cost: row.integer('cost'),
       }),
     ),
-    encounters: table<Encounter>('encounters.json', json('encounters.json'), problems, 'an Encounter', (row, key) => {
+    encounters: table<Encounter>('encounters.json', json('encounters.json'), problems, 'an Encounter', (row) => {
       const name = row.string('name');
       // v1.1.4-S8: its tags, none when absent.
       const tags = row.optional('tags', (field) => row.strings(field));
       const shape = { name, kind: row.oneOf('kind', encounterKinds), ...(tags === undefined ? {} : { tags }) };
-      // v1.1.4-S2: the new form, `checks` and `pass`, or the old, which loads into one Check.
-      const consequences = (): Encounter['consequences'] => outcomes(row.child('consequences'));
-      if (row.value('checks') === undefined) return { ...shape, checks: [oldFormCheck(row, key, name, known)], consequences: consequences() };
+      // v1.1.4-S2: its `checks` and `pass`; the old form is no longer read (DL-192).
       const checks = row.children('checks').map(encounterCheck);
       const pass = row.optional('pass', (field) => row.value(field) as PassFormula);
-      return { ...shape, checks, ...(pass === undefined ? {} : { pass }), consequences: consequences() };
+      return { ...shape, checks, ...(pass === undefined ? {} : { pass }), consequences: outcomes(row.child('consequences')) };
     }),
     synergies: table<Synergy>('synergies.json', json('synergies.json'), problems, 'a Synergy', (row) => {
       const shape = {
         name: row.string('name'),
-        requires: synergyRequires(row, known),
+        requires: synergyRequires(row),
         bonus: synergyBonus(row.child('bonus')),
       };
       const kinds = row.optional('kinds', (field) => row.oneOfEach(field, encounterKinds));
@@ -407,6 +367,36 @@ function table<Row extends { key: string }>(
     row.refuseUnknown(what);
   }
   return rows;
+}
+
+/**
+ * The content version (v1.1.6-S4, DL-186 item 14), raised whenever the content changes, so a document
+ * says which content it was created under: `version.json`'s `version`, beside its `changelog`, a
+ * sentence for each raise saying why (`<n> from <what raised it>.`). The tools raise it through
+ * `@heroesim/content/write`; nothing else writes it.
+ */
+function contentVersion(json: unknown, problems: string[]): number {
+  if (json === undefined) return 0;
+  if (!isObject(json)) {
+    problems.push('version.json: must be an object of the version and its changelog');
+    return 0;
+  }
+  const top = new RowReader('version.json', [], json, problems);
+  const version = top.integer('version');
+  if (Number.isInteger(json.version) && version < 1) problems.push(`version.json: version is ${version}; expected a whole number of at least 1`);
+  top.strings('changelog');
+  top.refuseUnknown('the content version');
+  return version;
+}
+
+/** The Classes' order (v1.1.6-S14, DL-186 item 24): a list of Class keys; that each Class is listed once is `validateContent`'s rule. */
+function classOrder(json: unknown, problems: string[]): string[] {
+  if (json === undefined) return [];
+  if (!Array.isArray(json) || !json.every((key) => typeof key === 'string')) {
+    problems.push('class-order.json: must be a list of Class keys');
+    return [];
+  }
+  return json;
 }
 
 function names(json: unknown, problems: string[]): Names {
@@ -754,61 +744,13 @@ function requires(reader: RowReader): QuestTemplateRequires {
   return { ...(classKey === undefined ? {} : { classKey }), ...(skillKey === undefined ? {} : { skillKey }) };
 }
 
-/** The keys an old form may name, as content defines them (v1.1.4-S1). */
-interface OldFormKeys {
-  heroStats: ReadonlySet<string>;
-  classes: ReadonlySet<string>;
-  skills: ReadonlySet<string>;
-}
-
 /**
- * The one Check an Encounter in the old form loads into (v1.1.4-S1, DL-151): keyed and named as its
- * Encounter, its score `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order of its
- * `demands`, `best` reading as `max`, its Skills its `skillKeys` and its `difficultyFactor` its own, so
- * that every Check scores what it did to the last bit. The demands are held here as a Quest
- * template's are, each a Hero Stat once with a weight above 0, the weights summing to 1, and each
- * Skill one content defines, once; the Check itself is `validateContent`'s.
+ * What a Synergy requires (M4-S3; v1.1.4-S1, DL-148 item 20): a list of Party-level conditions, each
+ * a Num compared with another, read as written and held by `validateContent`. The old form, a count
+ * for each Class and a list of Skills, is no longer read (DL-192).
  */
-function oldFormCheck(row: RowReader, key: string, name: string, known: OldFormKeys): EncounterCheck {
-  const demands = row.weightedKeys('demands');
-  const aggregate = row.oneOf('aggregate', aggregates);
-  const skillKeys = row.strings('skillKeys');
-  checkDemands(row.where('demands'), demands, known.heroStats, row.problems);
-  checkReferences(row.where('skillKeys'), skillKeys, known.skills, 'a Skill', row.problems);
-  const read = aggregate === 'best' ? 'max' : 'sum';
-  const terms = demands.map(([statKey, weight]): NumQuery => ['*', weight, [read, 'party', ['stat', statKey]]]);
-  return { key, name, score: ['+', ...terms], skills: skillKeys, difficultyFactor: row.number('difficultyFactor') };
-}
-
-/**
- * What a Synergy requires (M4-S3; v1.1.4-S1, DL-148 item 20): a list of Party-level conditions,
- * each a Num compared with another, read as written and held by `validateContent`; or the old form,
- * a count for each Class it names and the Skills it names, either or both and nothing else, which
- * loads into `[">=", ["count", ["where", "party", ["class", k]]], n]` for each Class, then
- * `[">=", ["max", "party", ["skill", k]], 1]` for each Skill. The old form is held here: every Class
- * and Skill one content defines, a count a whole number from 1, no Skill twice, and something named.
- */
-function synergyRequires(row: RowReader, known: OldFormKeys): SynergyRequires {
-  if (Array.isArray(row.value('requires'))) return row.value('requires') as PartyCondition[];
-  const reader = row.child('requires');
-  const classes = reader.optional('classes', (field) => reader.numbers(field)) ?? {};
-  const skills = reader.optional('skills', (field) => reader.strings(field)) ?? [];
-  reader.refuseUnknown('what a Synergy requires');
-  const counts = Object.entries(classes);
-  if (counts.length === 0 && skills.length === 0) {
-    row.problems.push(`${row.where('requires')} names no Class and no Skill: a Synergy is for a combination of them`);
-  }
-  checkReferences(reader.where('classes'), Object.keys(classes), known.classes, 'a Class', row.problems);
-  for (const [classKey, count] of counts) {
-    if (!(Number.isInteger(count) && count >= 1)) {
-      row.problems.push(`${reader.where('classes')}.${classKey} is ${count}; a count is a whole number from 1`);
-    }
-  }
-  checkReferences(reader.where('skills'), skills, known.skills, 'a Skill', row.problems);
-  return [
-    ...counts.map(([classKey, count]): PartyCondition => ['>=', ['count', ['where', 'party', ['class', classKey]]], count]),
-    ...skills.map((skillKey): PartyCondition => ['>=', ['max', 'party', ['skill', skillKey]], 1]),
-  ];
+function synergyRequires(row: RowReader): SynergyRequires {
+  return row.list('requires', 'a list of conditions on the Party') as PartyCondition[];
 }
 
 /** A Synergy's bonus (M4-S3): a `flat`, a `factor`, either or both, and nothing else. */
@@ -917,18 +859,13 @@ class RowReader {
     private readonly file: ContentFileName,
     private readonly prefix: readonly string[],
     private readonly raw: Record<string, unknown>,
-    /** Where the problems found are recorded: a caller may record one of its own, with `where`. */
-    readonly problems: string[],
+    /** Where the problems found are recorded. */
+    private readonly problems: string[],
   ) {}
 
   /** `field`'s value as it stands, of any type, then counted as read: for a value checked elsewhere. */
   value(field: string): unknown {
     return this.field(field);
-  }
-
-  /** Where `field` is, as a problem names it: `file: key.field`. */
-  where(field: string): string {
-    return this.path(field);
   }
 
   string(field: string): string {
@@ -1030,13 +967,11 @@ class RowReader {
     return [];
   }
 
-  /** A list of `[key, weight]` pairs, such as a Quest template's demands. */
-  weightedKeys(field: string): [string, number][] {
+  /** A list of anything, `expected` saying what it is a list of, such as a Synergy's conditions; each item is the validator's. */
+  list(field: string, expected: string): unknown[] {
     const value = this.field(field);
-    const isPair = (item: unknown): item is [string, number] =>
-      Array.isArray(item) && item.length === 2 && typeof item[0] === 'string' && typeof item[1] === 'number';
-    if (Array.isArray(value) && value.every(isPair)) return value.map(([key, weight]) => [key, weight]);
-    this.wrong(field, value, 'a list of [key, weight] pairs');
+    if (Array.isArray(value)) return value;
+    this.wrong(field, value, expected);
     return [];
   }
 

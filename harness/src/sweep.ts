@@ -1,25 +1,28 @@
 // The play sweep across seeds (M2-S12): play each seed under the automatic policy, keep only its
 // record (counters and measures, never the document), and replay one seed to check that the same
-// seed under the same policy serialises byte for byte alike. `sweepPlay` plays in this
+// seed under the same policy serialises byte for byte alike (`compareReplay`). `sweepPlay` plays in this
 // process; `sweepPlayInParallel` shares the seeds among child processes (`shard.ts`), since a
 // 20-year game takes most of a minute. `playReport` writes the result as Markdown. DL-34 records
 // the method and the numbers.
 
 import { createHash } from 'node:crypto';
-import { availableParallelism } from 'node:os';
 import {
   compareByCodeUnit,
+  configVersion,
+  descriptiveAttributeMaxLength,
   encounterKinds,
   facilityKeys,
   regardBandNames,
+  schemaVersion,
   serialise,
   type EngineDeps,
   type FacilityKey,
-  type QuestBand,
   type RegardBand,
 } from '@heroesim/engine';
+import { capitalised } from '@heroesim/words';
 import {
   consumableEffects,
+  copiesTimed,
   controllerKinds,
   countedYear,
   difficultyBandWidth,
@@ -30,12 +33,16 @@ import {
   noConsumables,
   noDifficulty,
   noDisposition,
+  noEncounters,
+  noFameGate,
   noGear,
-  noOffers,
+  noGrades,
+  noGrowth,
   noHeroes,
   noPartySize,
   noPortraits,
   noPurchases,
+  noSynergies,
   noTransfers,
   noWealth,
   offerEndCauses,
@@ -45,35 +52,32 @@ import {
   transferDirections,
   type ByController,
   type ByYear,
-  type ConsumableTally,
   type ControllerKind,
   type DifficultyTally,
-  type DispositionTally,
   type EncounterCounts,
   type FameGate,
-  type GearTally,
-  type GradeCounts,
-  type GrowthAgainstDecline,
+  type GameCounters,
   type LootTally,
   type MarketTally,
-  type OfferTally,
   type PartySizeTally,
   type HeroTally,
   type PortraitTally,
   type RegardSnapshot,
+  type RivalAtYearStart,
   type RivalTransferWay,
   type RosterCensus,
-  type SynergyTally,
   type TransferDirection,
   type TransferTally,
   type WealthFlows,
 } from './counters.js';
 import { harnessSetup } from './creation.js';
+import { copyTimes, gateSection, readGateSpec, type GateResult, type GateSpec } from './gate.js';
 import { idsOf } from './modules.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { defaultYears, fingerprintOf, playGame, type GameRecord, type PlayOptions } from './play.js';
-import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
+import { fixed, localTimestamp, markdownTable, percent, whole, type Machine } from './report.js';
 import { runShardJobs } from './children.js';
+import { halfTheProcessors } from './settings.js';
 import { playSeeds, type PlayedSeeds, type ShardJob } from './shard.js';
 import { summarise, type Summary } from './stats.js';
 
@@ -90,10 +94,11 @@ export interface PlaySweep {
   /** Milliseconds per validation after an `advance`, when validating. */
   validation: Summary;
   /**
-   * One seed played twice more in this process, after the sweep: the first to have run its full
-   * length, or the first seed when none did. Whether the two last documents serialise alike, by
-   * their length and SHA-256 (v1.1.5-S10, DL-181), and
-   * the first replay's `advance` per Turn, taken with nothing else of the sweep running.
+   * One seed played once more, alone, after the sweep: the first to have run its full length, or the
+   * first seed when none did. Whether its last document serialises as the sweep's record of the same
+   * seed did, by length and SHA-256 (`compareReplay`; two processes when the sweep ran in parallel,
+   * v1.1.6-S3, DL-189), and its `advance` per Turn, taken with nothing else of the sweep running and
+   * the observers off.
    */
   replay: { seed: string; identical: boolean; length: number; advance: Summary } | null;
   /** Milliseconds for the whole sweep, the replay included. */
@@ -112,30 +117,46 @@ export interface SweepOptions extends PlayOptions {
   replay?: boolean;
 }
 
-/**
- * One play of `seed` for the replay, reduced to what it compares: its last document's serialised
- * length and fingerprint (`fingerprintOf`, `DocumentMeasures.fingerprint`'s SHA-256) and its `advance`
- * timings. The document and its text are out of reach once it returns, so the replay never holds a
- * game while it plays the next (v1.1.5-S10, DL-181).
- */
-function playedOnce(seed: string, deps: EngineDeps, options: PlayOptions): { length: number; fingerprint: string; advanceMs: number[] } {
-  const played = playGame(seed, deps, { ...options, validate: false });
-  const text = serialise(played.document);
-  return { length: text.length, fingerprint: fingerprintOf(text), advanceMs: played.advanceMs };
+/** One play of a seed for the replay, reduced to what it compares: its last document's serialised length and fingerprint. */
+export interface ReplayPlay {
+  length: number;
+  fingerprint: string;
 }
 
 /**
- * Plays `seed` twice in this process and compares the two last documents by their serialised length
- * and fingerprint, timing the first. Each play keeps only those and its timings (`playedOnce`), so
- * that one game's document and text are gone before the other is played: holding the first's, as
- * before, took the process to about twice a game's peak (DL-177, v1.1.5-S10, DL-181).
+ * The game the replay is compared with: `wanted`'s record, or, when `wanted` is not among the sweep's
+ * seeds, the first seed played (v1.1.6-S3, DL-189).
  */
-function replay(seed: string | undefined, deps: EngineDeps, options: PlayOptions): PlaySweep['replay'] {
-  if (seed === undefined) return null;
-  const first = playedOnce(seed, deps, options);
-  const second = playedOnce(seed, deps, options);
-  const identical = first.length === second.length && first.fingerprint === second.fingerprint;
-  return { seed, identical, length: first.length, advance: summarise(first.advanceMs) };
+export function replayedGame(games: readonly GameRecord[], wanted: string | undefined): GameRecord | undefined {
+  return games.find((game) => game.seed === wanted) ?? games[0];
+}
+
+/**
+ * The replay's play set against the record the sweep's shard made of the same seed: identical when its
+ * last document's serialised length and fingerprint (`DocumentMeasures`) are both the shard's (v1.1.6-S3,
+ * DL-189). The two plays were made in two processes when the sweep ran in parallel.
+ */
+export function compareReplay(recorded: GameRecord, replayed: ReplayPlay, advanceMs: readonly number[]): NonNullable<PlaySweep['replay']> {
+  const { serialisedLength, fingerprint } = recorded.measures;
+  return {
+    seed: recorded.seed,
+    identical: replayed.length === serialisedLength && replayed.fingerprint === fingerprint,
+    length: serialisedLength,
+    advance: summarise(advanceMs),
+  };
+}
+
+/**
+ * Plays `recorded`'s seed once more, alone and bare (`PlayOptions.bare`: no observers, no yearly
+ * measurement walks, no validation), and compares its last document's length and fingerprint with the
+ * recorded game's (`compareReplay`). The document and its text are out of reach once the play returns
+ * (DL-177, v1.1.5-S10, DL-181).
+ */
+function replay(recorded: GameRecord | undefined, deps: EngineDeps, options: PlayOptions): PlaySweep['replay'] {
+  if (recorded === undefined) return null;
+  const played = playGame(recorded.seed, deps, { ...options, validate: false, bare: true });
+  const text = serialise(played.document);
+  return compareReplay(recorded, { length: text.length, fingerprint: fingerprintOf(text) }, played.advanceMs);
 }
 
 function sweepOf(
@@ -146,7 +167,8 @@ function sweepOf(
   timing: { workers: number; started: number; gamesMs: number; now: () => number },
 ): PlaySweep {
   // The longest game makes the most of the comparison, and its timing the fairest of one game.
-  const replayed = options.replay === false ? null : replay(played.games.find((game) => game.ranFullLength)?.seed ?? seeds[0], deps, options);
+  const wanted = played.games.find((game) => game.ranFullLength)?.seed ?? seeds[0];
+  const replayed = options.replay === false ? null : replay(replayedGame(played.games, wanted), deps, options);
   return {
     seeds,
     years: options.years ?? defaultYears,
@@ -164,7 +186,7 @@ function sweepOf(
 
 /**
  * Plays every seed in `seeds` in this process under `deps` and the options, then plays one of them
- * twice more (`PlaySweep.replay`) and compares the two last documents' serialisations. Never
+ * once more (`PlaySweep.replay`) and compares its last document's serialisation with the sweep's. Never
  * throws on what it finds.
  */
 export function sweepPlay(seeds: readonly string[], deps: EngineDeps, options: SweepOptions = {}): PlaySweep {
@@ -188,28 +210,14 @@ export function sweepFingerprint(games: readonly GameRecord[]): string {
 }
 
 /**
- * Processes a parallel sweep uses by default: `HEROESIM_WORKERS`, a whole number from 1 (v1.1.4-S10:
- * each game's save nears 120 MB by year 20, so a machine short of memory plays fewer at once), or
- * half the logical processors, one a core with SMT, when it is unset or blank. Throws on anything
- * else, so a mistyped count fails the run.
- */
-export function defaultWorkers(value: string | undefined = process.env.HEROESIM_WORKERS): number {
-  if (value === undefined || value.trim() === '') return Math.max(1, Math.floor(availableParallelism() / 2));
-  const workers = Number(value.trim());
-  if (!Number.isSafeInteger(workers) || workers < 1) {
-    throw new RangeError(`HEROESIM_WORKERS must be a whole number from 1, not ${JSON.stringify(value)}`);
-  }
-  return workers;
-}
-
-/**
  * `sweepPlay`, with each seed played in a child process of its own (`shard.ts`), `workers` at once
- * and the next starting as one finishes (v1.1.4-S10: dealt in turn before, a lane of early endings
- * sat idle to the slowest lane's end), each loading the core content and playing under
- * `deps.config` with `deps.modules`, installed by id (M8-S3, DL-78); the records come back in seed
- * order and the replay, unless `replay` is false, is played in this process once they are done. The children load the core content themselves, so `deps.content` must be it: a
- * child that loads another refuses the sweep; and each module must be the harness's own of its id
- * (`idsOf`), which is checked before any child starts.
+ * (half the logical processors unless given) and the next starting as one finishes (v1.1.4-S10: dealt
+ * in turn before, a lane of early endings sat idle to the slowest lane's end), each loading the core
+ * content and playing under `deps.config` with `deps.modules`, installed by id (M8-S3, DL-78); the
+ * records come back in seed order and the replay, unless `replay` is false, is played in this process,
+ * once, when they are done, and compared with the child's record. The children load the core content
+ * themselves, so `deps.content` must be it: a child that loads another refuses the sweep; and each
+ * module must be the harness's own of its id (`idsOf`), which is checked before any child starts.
  *
  * @throws Error when a child fails or played with other content, or a module is not the harness's:
  * a broken run, not a finding
@@ -220,7 +228,7 @@ export async function sweepPlayInParallel(
   options: SweepOptions & { workers?: number; drafts?: string } = {},
 ): Promise<PlaySweep> {
   const now = options.now ?? (() => performance.now());
-  const workers = Math.max(1, Math.min(options.workers ?? defaultWorkers(), seeds.length));
+  const workers = Math.max(1, Math.min(options.workers ?? halfTheProcessors(), seeds.length));
   const modules = idsOf(deps.modules);
   const started = now();
   const jobs = seeds.map(
@@ -256,25 +264,23 @@ export async function sweepPlayInParallel(
 
 // ── Totals ───────────────────────────────────────────────────────────────────────────────────
 
-/** Sums of each counter across the sweep's games. */
-export interface SweepTotals {
+/**
+ * A game's counters as the sweep totals them: every one of `GameCounters` but the game's ending and
+ * last Turn, which the totals read apart (`endings`, `endedInYear`, `yearsSurvived`), and none `null`:
+ * a counter a game leaves `null` is totalled over the games that gave it.
+ */
+type Totalled<T> = { [K in keyof T]: Exclude<T[K], null> };
+
+/**
+ * Sums of each counter across the sweep's games, one fold over each game's counters and observations
+ * (v1.1.6-S1, DL-186 item 7, DL-187): `GameCounters`' own as `Totalled`, so a new counter is in the
+ * totals without a line of its own, and what the games' observations and records give, below.
+ */
+export type SweepTotals = Totalled<Omit<GameCounters, 'ending' | 'lastTurn'>> & GameTotals;
+
+/** The totals no field of `GameCounters` gives: from each game's ending, observations and record. */
+export interface GameTotals {
   games: number;
-  questsTaken: ByController;
-  questsResolved: Record<ControllerKind, Record<QuestBand, number>>;
-  heroesInjured: ByController;
-  heroesDied: ByController;
-  heroesRecruited: ByController;
-  heroesRetired: ByController;
-  /** `hero.trait-gained` and `hero.trait-lost`, and the Heroes sent on a Quest (v1.1.4-S7). */
-  traitsGained: ByController;
-  traitsLost: ByController;
-  questingHeroes: ByController;
-  /** `hero.trait-gained` by the Trait's key, and the Quests resolved by the size of the Party sent (v1.1.4-S10). */
-  traitsGainedByKey: Record<ControllerKind, Record<string, number>>;
-  partySizes: Record<ControllerKind, Record<string, PartySizeTally>>;
-  rivalFolds: Record<string, number>;
-  /** `guildmaster.succeeded` across the games (M9-S2, DL-102). */
-  rivalSuccessions: number;
   /** Games by how they ended; `survived` for a game that ran its full length. */
   endings: Record<string, number>;
   /** Years each game lasted: to its ending, or its full length. */
@@ -283,72 +289,46 @@ export interface SweepTotals {
   endedInYear: number[];
   refusals: number;
   invalidGames: number;
-  // M3's counters (DL-40).
-  /** Guild-years in play, Levels gained and declines, by controller and year, summed over the games. */
-  guildYears: ByYear;
-  levelsGained: ByYear;
-  declines: ByYear;
-  /** `hero.retired` by controller and age. */
-  retirementAges: Record<ControllerKind, Record<string, number>>;
-  growthAgainstDecline: Record<ControllerKind, GrowthAgainstDecline>;
-  /** The games that reached year `countedYear`, and their Improvement grades summed. */
+  /** The games that reached year `countedYear`: those that gave `improvementGrades`. */
   gamesAtCountedYear: number;
-  improvementGrades: Record<ControllerKind, GradeCounts>;
   fameGate: Record<ControllerKind, FameGate>;
   /** `signing-refused` among the policy's refused actions: it asks only Heroes who would sign. */
   signingRefused: number;
   /** The Rosters as each year begins, summed over the games in play then, and how many were. */
   rosters: ({ games: number } & Record<ControllerKind, RosterCensus>)[];
-  // M4's counters (DL-55).
-  encounters: Record<ControllerKind, EncounterCounts>;
-  synergies: Record<ControllerKind, SynergyTally>;
-  injuriesByType: Record<ControllerKind, Record<string, number>>;
-  /** Patron-years in each year played in full, and the silent ones, summed over the games that played it. */
-  patronYears: number[];
-  silentPatronYears: number[];
   /** The player's Guild's Regard after `countedYear` years, summed over the games in play then, and how many were. */
   regardAtCountedYear: { games: number } & RegardSnapshot;
-  // M5's counters (DL-62).
-  wealth: Record<ControllerKind, WealthFlows>;
-  loot: Record<ControllerKind, Record<string, LootTally>>;
-  consumables: Record<ControllerKind, ConsumableTally>;
-  gear: Record<ControllerKind, GearTally>;
-  /** The player's Quests by difficulty band and by year, summed over the games that recorded them. */
-  playerQuestsByDifficulty: DifficultyTally[];
-  playerQuestsByYear: DifficultyTally[];
-  // M6's counters (DL-69).
-  transfers: Record<TransferDirection, TransferTally>;
-  rivalTransfers: Record<RivalTransferWay, TransferTally>;
-  transfersBySide: Record<string, Record<string, TransferTally>>;
-  transfersBack: number;
-  offers: Record<string, Record<string, OfferTally>>;
-  dispositions: Record<string, DispositionTally>;
-  marketPurchases: Record<string, MarketTally>;
-  /** The Improvement grades by Disposition, summed over the games that reached year `countedYear`. */
-  improvementGradesByDisposition: Record<string, GradeCounts>;
   /** For each year, 0 the new world, each Disposition's Rivals in play as it began, over the games in play then. */
   rivalYearStarts: Record<string, RivalYearStarts>[];
   /** For each year, the player's Guild's places in the Rankings as it began, over the games in play then. */
   rankings: RankingTally[];
   /** Games a harness assertion stopped (DL-69). */
   assertionGames: number;
-  // M8's counters (DL-78).
-  /** Each module event type, by count; empty with no module installed. */
-  moduleEvents: Record<string, number>;
-  /** The core's events each module's effects made, by module and type; empty with no module installed. */
-  moduleEffects: Record<string, Record<string, number>>;
-  // M9-S1's counters (DL-101).
-  /** `guild.below-floor` and `guild.floor-recovered`, by controller, summed over the games. */
-  belowFloor: ByController;
-  floorRecovered: ByController;
-  // v1.1.3-S5's counters (DL-134 item 9).
-  /** Every Guildmaster who entered play and how their Portraits fit them, by controller, summed over the games. */
-  portraits: Record<ControllerKind, PortraitTally>;
-  // v1.1.3-S6's counters (DL-134 item 9, DL-135 item 6).
   /** Every Hero generated and their Portraits and texts, summed over the games; the longest the longest of any game. */
   heroes: HeroTally;
   /** The saves as each year ended, over the games: index k is after k + 1 years. */
   saves: SaveYear[];
+  /**
+   * The World State as each year ended, over the games: index k is after k + 1 years (v1.1.6-S17,
+   * DL-203). Measures, not play counters: the copy's time differs between two runs of one game.
+   */
+  worlds: WorldYear[];
+}
+
+/** Rows of a table as a year ended, over the games: each game's live and written once. */
+export interface RowsYear {
+  live: number[];
+  writeOnce: number[];
+}
+
+/** The World State of the games that reached a year's end (`observeWorld`): each game's numbers. */
+export interface WorldYear {
+  characters: number[];
+  heroes: RowsYear;
+  guildmasters: RowsYear;
+  guilds: RowsYear;
+  otherRows: number[];
+  copyMs: number[];
 }
 
 /** The saves of the games that reached a year's end. */
@@ -372,89 +352,126 @@ export interface RankingTally {
   wealth: number[];
 }
 
+/**
+ * The fold's exceptions to adding (DL-186 item 7), by a field's key wherever it stands. The longest
+ * texts are the longest of any game. The saves, the worlds and the Rivals' year-starts keep each game's numbers,
+ * joined into one list a year, for the report's medians and maxima. The rest of the exceptions are in
+ * what a game gives the fold (`contributionOf`): `games` counts games, as do the Rosters', the Regard's
+ * and the Rankings' own `games`; a place in the Rankings counts one-hot.
+ */
+const greatest: ReadonlySet<string> = new Set(['longestAppearance', 'longestBiography']);
+const joined: ReadonlySet<string> = new Set(['saves', 'worlds', 'rivalYearStarts']);
+
+/** `value` with every number 0 and every list empty: where a total starts that the sweep has none of yet. */
+function zeroOf(value: unknown): unknown {
+  if (typeof value === 'number') return 0;
+  if (Array.isArray(value)) return [];
+  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, zeroOf(inner)]));
+  throw new TypeError(`The sweep's totals cannot total ${JSON.stringify(value)}`);
+}
+
+/**
+ * Adds `from`, what one game gives, into `into`, the totals so far, and returns the total, keyed by
+ * `key`: a number adds (or takes the greater, under `greatest`); a list of numbers adds by index (or,
+ * under a key `joined`, joins); a list of objects and a record merge by index and by key, an entry the
+ * totals lack starting at `zeroOf` it; and `null`, a counter the game did not give, adds nothing.
+ *
+ * @throws TypeError on a value it cannot total, such as a string, or on two that differ in shape: a
+ * counter of a new kind fails the sweep rather than reading 0
+ */
+function fold(into: unknown, from: unknown, key: string, joining: boolean): unknown {
+  if (typeof from === 'number' && typeof into === 'number') return greatest.has(key) ? Math.max(into, from) : into + from;
+  if (Array.isArray(from) && Array.isArray(into)) {
+    if (joining && from.every((item) => typeof item === 'number')) {
+      into.push(...from);
+      return into;
+    }
+    from.forEach((item: unknown, index) => {
+      if (item === null) return;
+      if (typeof item === 'number') while (into.length < index) into.push(0);
+      into[index] = fold(into[index] ?? zeroOf(item), item, key, joining);
+    });
+    return into;
+  }
+  if (typeof from === 'object' && from !== null && typeof into === 'object' && into !== null && !Array.isArray(from) && !Array.isArray(into)) {
+    const total = into as Record<string, unknown>;
+    for (const [inner, value] of Object.entries(from)) {
+      if (value !== null) total[inner] = fold(total[inner] ?? zeroOf(value), value, inner, joining || joined.has(inner));
+    }
+    return into;
+  }
+  throw new TypeError(`The sweep's totals cannot add ${JSON.stringify(from)} to ${JSON.stringify(into)} at ${JSON.stringify(key)}`);
+}
+
+/** Adds `from` into `into` as the totals add a game (`fold`): the report's own sums, across controllers, kinds and sides. */
+function addInto<T extends object>(into: T, from: Readonly<T>): void {
+  fold(into, from, '', false);
+}
+
+/** `place` one-hot: a list as long as it, 1 at its last index and 0 before. */
+const oneHot = (place: number): number[] => Array.from({ length: place }, (_, index) => (index === place - 1 ? 1 : 0));
+
+/**
+ * What one game gives the totals, shaped as they are: its counters but its ending and last Turn, then
+ * those and its observations and record as the totals count them (each a game's 1, an ending's year
+ * and a place in the Rankings one-hot, each Rival's year-start and save in a list to join). Every field
+ * of the totals but `yearsSurvived`, read from the games apart.
+ */
+function contributionOf(game: GameRecord, turnsPerYear: number, years: number): Record<Exclude<keyof SweepTotals, 'yearsSurvived'>, unknown> {
+  const { counters, observations, refusals, invalid, assertion } = game;
+  const { ending, lastTurn, ...counted } = counters;
+  const byDisposition = (rivals: readonly RivalAtYearStart[]): Record<string, RivalYearStarts> => {
+    const starts: Record<string, RivalYearStarts> = {};
+    for (const { disposition, heroes, wealth } of rivals) {
+      const start = (starts[disposition] ??= { heroes: [], wealth: [] });
+      start.heroes.push(heroes);
+      start.wealth.push(wealth);
+    }
+    return starts;
+  };
+  return {
+    ...counted,
+    games: 1,
+    endings: { [ending ?? 'survived']: 1 },
+    endedInYear: ending === null ? [] : oneHot(Math.min(Math.floor(lastTurn / turnsPerYear), years - 1) + 1),
+    refusals: refusals.length,
+    invalidGames: invalid === null ? 0 : 1,
+    gamesAtCountedYear: counters.improvementGrades === null ? 0 : 1,
+    fameGate: observations.fameGate,
+    signingRefused: refusals.filter(({ rejection }) => rejection.reason === 'signing-refused').length,
+    rosters: observations.rosters.map((census) => ({ games: 1, ...census })),
+    regardAtCountedYear: observations.regardAtCountedYear === null ? null : { games: 1, ...observations.regardAtCountedYear },
+    rivalYearStarts: observations.rivals.map(byDisposition),
+    rankings: observations.rankings.map((ranking) =>
+      ranking === null ? null : { games: 1, fame: oneHot(ranking.fame), wealth: oneHot(ranking.wealth) },
+    ),
+    assertionGames: assertion === null ? 0 : 1,
+    heroes: observations.heroes,
+    saves: observations.saves.map((save) => ({
+      lengths: [save.length],
+      heroFields: [save.heroFields],
+      gzipped: save.gzipped === null ? [] : [save.gzipped],
+    })),
+    worlds: observations.worlds.map((world) => ({
+      characters: [world.characters],
+      heroes: { live: [world.heroes.live], writeOnce: [world.heroes.writeOnce] },
+      guildmasters: { live: [world.guildmasters.live], writeOnce: [world.guildmasters.writeOnce] },
+      guilds: { live: [world.guilds.live], writeOnce: [world.guilds.writeOnce] },
+      otherRows: [world.otherRows],
+      copyMs: [world.copyMs],
+    })),
+  };
+}
+
 const zero = (): ByController => ({ player: 0, rival: 0 });
 
-/** Adds each of `from` to the same index of `into`, lengthening `into` with zeros to reach it. */
-function addSeries(into: number[], from: readonly number[]): void {
-  from.forEach((n, index) => {
-    while (into.length <= index) into.push(0);
-    into[index] = (into[index] ?? 0) + n;
-  });
-}
-
-/** Adds each numeric field of `from` to `into`'s. */
-function addFields<T extends object>(into: T, from: T): void {
-  const target = into as Record<string, number>;
-  for (const [key, n] of Object.entries(from as Record<string, number>)) target[key] = (target[key] ?? 0) + n;
-}
-
-const noGrowth = (): GrowthAgainstDecline => ({
-  guilds: 0,
-  guildYearsBefore: 0,
-  levelsBefore: 0,
-  guildYearsAfter: 0,
-  levelsAfter: 0,
-  pointsGrownAfter: 0,
-  pointsDeclinedAfter: 0,
-});
-const noGrades = (): GradeCounts => Object.fromEntries(facilityKeys.map((facility) => [facility, []])) as unknown as GradeCounts;
-const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
-const noEncounters = (): EncounterCounts =>
-  Object.fromEntries(encounterKinds.map((kind) => [kind, { success: 0, failure: 0, injured: 0, died: 0 }])) as EncounterCounts;
-const noSynergies = (): SynergyTally => ({ quests: 0, withAny: 0, applied: 0, byKey: {} });
-
-/** Adds one game's Wealth flows to the sweep's. */
-function addWealth(into: WealthFlows, from: WealthFlows): void {
-  const { sales, itemsSold, ...flat } = from;
-  addFields(into, flat as WealthFlows);
-  addFields(into.sales, sales);
-  addFields(into.itemsSold, itemsSold);
-}
-
-/** Adds one game's consumables to the sweep's. */
-function addConsumables(into: ConsumableTally, from: ConsumableTally): void {
-  const { byEffect, byDefinition, ...flat } = from;
-  addFields(into, flat as ConsumableTally);
-  addFields(into.byEffect, byEffect);
-  addFields(into.byDefinition, byDefinition);
-}
-
-/** Adds each tally of `from` to the same index of `into`, lengthening `into` to reach it. */
-function addTallies(into: DifficultyTally[], from: readonly DifficultyTally[] | null): void {
-  (from ?? []).forEach((tally, index) => {
-    while (into.length <= index) into.push(noDifficulty());
-    addFields(into[index] as DifficultyTally, tally);
-  });
-}
-
-/** Adds one game's counts by side, then side again, to the sweep's, each made by `none` where the sweep has none. */
-function addBySides<T extends object>(
-  into: Record<string, Record<string, T>>,
-  from: Readonly<Record<string, Readonly<Record<string, T>>>>,
-  none: () => T,
-  add: (into: T, from: T) => void,
-): void {
-  for (const [first, inner] of Object.entries(from)) {
-    for (const [second, tally] of Object.entries(inner)) add(((into[first] ??= {})[second] ??= none()), tally);
-  }
-}
-
-function addOffers(into: OfferTally, from: OfferTally): void {
-  const { ended, ...flat } = from;
-  addFields(into, flat as OfferTally);
-  addFields(into.ended, ended);
-}
-
-function addDisposition(into: DispositionTally, from: DispositionTally): void {
-  const { questsResolved, folds, ...flat } = from;
-  addFields(into, flat as DispositionTally);
-  addFields(into.questsResolved, questsResolved);
-  addFields(into.folds, folds);
-}
-
+/**
+ * The sweep's totals: from every counter at 0, or empty, each game folded in (`fold`, v1.1.6-S1,
+ * DL-187). The order of the fields here is the order the module report lists the counters in.
+ */
 export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals {
   const totals: SweepTotals = {
-    games: sweep.games.length,
+    games: 0,
     questsTaken: zero(),
     questsResolved: { player: { fail: 0, success: 0, strong: 0 }, rival: { fail: 0, success: 0, strong: 0 } },
     heroesInjured: zero(),
@@ -466,7 +483,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     questingHeroes: zero(),
     traitsGainedByKey: { player: {}, rival: {} },
     partySizes: { player: {}, rival: {} },
-    rivalFolds: Object.fromEntries(endingReasons.map((reason) => [reason, 0])),
+    rivalFolds: Object.fromEntries(endingReasons.map((reason) => [reason, 0])) as GameCounters['rivalFolds'],
     rivalSuccessions: 0,
     endings: { ...Object.fromEntries(endingReasons.map((reason) => [reason, 0])), survived: 0 },
     yearsSurvived: summarise(sweep.games.map((game) => game.counters.lastTurn / turnsPerYear)),
@@ -480,7 +497,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     growthAgainstDecline: { player: noGrowth(), rival: noGrowth() },
     gamesAtCountedYear: 0,
     improvementGrades: { player: noGrades(), rival: noGrades() },
-    fameGate: { player: { heroDays: 0, guildDays: 0, guildDaysWithAny: 0 }, rival: { heroDays: 0, guildDays: 0, guildDaysWithAny: 0 } },
+    fameGate: { player: noFameGate(), rival: noFameGate() },
     signingRefused: 0,
     rosters: [],
     encounters: { player: noEncounters(), rival: noEncounters() },
@@ -513,122 +530,9 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     portraits: { player: noPortraits(), rival: noPortraits() },
     heroes: noHeroes(),
     saves: [],
+    worlds: [],
   };
-  for (const { counters, observations, refusals, invalid, assertion } of sweep.games) {
-    addTallies(totals.playerQuestsByDifficulty, counters.playerQuestsByDifficulty);
-    addTallies(totals.playerQuestsByYear, counters.playerQuestsByYear);
-    for (const direction of transferDirections) addFields(totals.transfers[direction], counters.transfers[direction]);
-    for (const way of rivalTransferWays) addFields(totals.rivalTransfers[way], counters.rivalTransfers[way]);
-    addBySides(totals.transfersBySide, counters.transfersBySide, noTransfers, addFields);
-    totals.transfersBack += counters.transfersBack;
-    addBySides(totals.offers, counters.offers, noOffers, addOffers);
-    for (const [disposition, tally] of Object.entries(counters.dispositions)) addDisposition((totals.dispositions[disposition] ??= noDisposition()), tally);
-    for (const [side, tally] of Object.entries(counters.marketPurchases)) addFields((totals.marketPurchases[side] ??= noPurchases()), tally);
-    for (const [disposition, grades] of Object.entries(counters.improvementGradesByDisposition ?? {})) {
-      const into = (totals.improvementGradesByDisposition[disposition] ??= noGrades());
-      for (const facility of facilityKeys) addSeries(into[facility], grades[facility]);
-    }
-    observations.rivals.forEach((rivals, year) => {
-      const byDisposition = (totals.rivalYearStarts[year] ??= {});
-      for (const { disposition, heroes, wealth } of rivals) {
-        const starts = (byDisposition[disposition] ??= { heroes: [], wealth: [] });
-        starts.heroes.push(heroes);
-        starts.wealth.push(wealth);
-      }
-    });
-    observations.rankings.forEach((ranking, year) => {
-      if (ranking === null) return;
-      const tally = (totals.rankings[year] ??= { games: 0, fame: [], wealth: [] });
-      tally.games += 1;
-      addSeries(tally.fame, Array.from({ length: ranking.fame }, (_, index) => (index === ranking.fame - 1 ? 1 : 0)));
-      addSeries(tally.wealth, Array.from({ length: ranking.wealth }, (_, index) => (index === ranking.wealth - 1 ? 1 : 0)));
-    });
-    if (assertion !== null) totals.assertionGames += 1;
-    // v1.1.3-S6's: summed, but the longest texts the longest of any game.
-    const { longestAppearance, longestBiography, ...counts } = observations.heroes;
-    const { longestAppearance: appearanceSoFar, longestBiography: biographySoFar } = totals.heroes;
-    addFields(totals.heroes, { ...counts, longestAppearance: 0, longestBiography: 0 });
-    totals.heroes.longestAppearance = Math.max(appearanceSoFar, longestAppearance);
-    totals.heroes.longestBiography = Math.max(biographySoFar, longestBiography);
-    observations.saves.forEach((save, year) => {
-      const into = (totals.saves[year] ??= { lengths: [], heroFields: [], gzipped: [] });
-      into.lengths.push(save.length);
-      into.heroFields.push(save.heroFields);
-      if (save.gzipped !== null) into.gzipped.push(save.gzipped);
-    });
-    addFields(totals.moduleEvents, counters.moduleEvents);
-    for (const [moduleId, byType] of Object.entries(counters.moduleEffects)) addFields((totals.moduleEffects[moduleId] ??= {}), byType);
-    for (const kind of controllerKinds) {
-      addWealth(totals.wealth[kind], counters.wealth[kind]);
-      for (const [table, tally] of Object.entries(counters.loot[kind])) {
-        addFields((totals.loot[kind][table] ??= { awards: 0, items: 0, unique: 0 }), tally);
-      }
-      addConsumables(totals.consumables[kind], counters.consumables[kind]);
-      const { returned, ...moves } = counters.gear[kind];
-      addFields(totals.gear[kind], moves as GearTally);
-      addFields(totals.gear[kind].returned, returned);
-      totals.questsTaken[kind] += counters.questsTaken[kind];
-      totals.heroesInjured[kind] += counters.heroesInjured[kind];
-      totals.heroesDied[kind] += counters.heroesDied[kind];
-      totals.heroesRecruited[kind] += counters.heroesRecruited[kind];
-      totals.heroesRetired[kind] += counters.heroesRetired[kind];
-      totals.traitsGained[kind] += counters.traitsGained[kind];
-      totals.traitsLost[kind] += counters.traitsLost[kind];
-      totals.questingHeroes[kind] += counters.questingHeroes[kind];
-      addFields(totals.traitsGainedByKey[kind], counters.traitsGainedByKey[kind]);
-      for (const [size, tally] of Object.entries(counters.partySizes[kind])) addFields((totals.partySizes[kind][size] ??= noPartySize()), tally);
-      totals.belowFloor[kind] += counters.belowFloor[kind];
-      totals.floorRecovered[kind] += counters.floorRecovered[kind];
-      addFields(totals.portraits[kind], counters.portraits[kind]);
-      for (const [band, n] of Object.entries(counters.questsResolved[kind])) {
-        totals.questsResolved[kind][band as QuestBand] += n;
-      }
-      addSeries(totals.guildYears[kind], counters.guildYears[kind]);
-      addSeries(totals.levelsGained[kind], counters.levelsGained[kind]);
-      addSeries(totals.declines[kind], counters.declines[kind]);
-      addFields(totals.retirementAges[kind], counters.retirementAges[kind]);
-      addFields(totals.growthAgainstDecline[kind], counters.growthAgainstDecline[kind]);
-      addFields(totals.fameGate[kind], observations.fameGate[kind]);
-      for (const facility of facilityKeys) {
-        const grades = counters.improvementGrades?.[kind][facility];
-        if (grades !== undefined) addSeries(totals.improvementGrades[kind][facility], grades);
-      }
-      for (const encounterKind of encounterKinds) addFields(totals.encounters[kind][encounterKind], counters.encounters[kind][encounterKind]);
-      const synergies = totals.synergies[kind];
-      synergies.quests += counters.synergies[kind].quests;
-      synergies.withAny += counters.synergies[kind].withAny;
-      synergies.applied += counters.synergies[kind].applied;
-      addFields(synergies.byKey, counters.synergies[kind].byKey);
-      addFields(totals.injuriesByType[kind], counters.injuriesByType[kind]);
-    }
-    addSeries(totals.patronYears, counters.patronYears);
-    addSeries(totals.silentPatronYears, counters.silentPatronYears);
-    const regard = observations.regardAtCountedYear;
-    if (regard !== null) {
-      totals.regardAtCountedYear.games += 1;
-      addFields(totals.regardAtCountedYear.relationships, regard.relationships);
-      addFields(totals.regardAtCountedYear.guildmasterForPatrons, regard.guildmasterForPatrons);
-      addFields(totals.regardAtCountedYear.guildmasterForHeroes, regard.guildmasterForHeroes);
-    }
-    if (counters.improvementGrades !== null) totals.gamesAtCountedYear += 1;
-    observations.rosters.forEach((census, year) => {
-      totals.rosters[year] ??= { games: 0, player: noCensus(), rival: noCensus() };
-      const sum = totals.rosters[year];
-      sum.games += 1;
-      for (const kind of controllerKinds) addFields(sum[kind], census[kind]);
-    });
-    totals.signingRefused += refusals.filter(({ rejection }) => rejection.reason === 'signing-refused').length;
-    for (const [reason, n] of Object.entries(counters.rivalFolds)) totals.rivalFolds[reason] = (totals.rivalFolds[reason] ?? 0) + n;
-    totals.rivalSuccessions += counters.rivalSuccessions;
-    const ending = counters.ending ?? 'survived';
-    totals.endings[ending] = (totals.endings[ending] ?? 0) + 1;
-    if (counters.ending !== null) {
-      const year = Math.min(Math.floor(counters.lastTurn / turnsPerYear), totals.endedInYear.length - 1);
-      totals.endedInYear[year] = (totals.endedInYear[year] ?? 0) + 1;
-    }
-    totals.refusals += refusals.length;
-    if (invalid !== null) totals.invalidGames += 1;
-  }
+  for (const game of sweep.games) fold(totals, contributionOf(game, turnsPerYear, totals.endedInYear.length), '', false);
   return totals;
 }
 
@@ -644,16 +548,27 @@ export interface PlayReportContext {
   drafted?: string[];
   /** The config values played in place of `defaultConfig`'s (v1.1.4-S9's verification, `HEROESIM_CONFIG`); none when absent. */
   configured?: Readonly<Record<string, unknown>>;
+  /** The policy's values played in place of `defaultPolicyConfig`'s (v1.1.6-S2, `HEROESIM_POLICY`); none when absent. */
+  policyChanged?: Readonly<Record<string, unknown>>;
+  /** The Gate's spec the save's target is read from: `harness/gate.json` unless given (v1.1.6-S2, DL-186 item 21, DL-188). */
+  spec?: GateSpec;
+  /** The run checked against the Gate (`checkGate`), for a profile's run; none when absent. */
+  gate?: GateResult | null;
 }
 
-/** data-model §7's targets, provisional, to set the measures against (DL-08). */
+/**
+ * data-model §7's targets, provisional, to set the measures against (DL-08). The save's is the Gate's
+ * (`harness/gate.json`, v1.1.6-S2, DL-186 item 21, DL-188).
+ */
 const targets = {
   advanceMs: 5,
   yearMs: 1000,
-  saveBytes: 20 * 1024 * 1024,
   loadMs: 1000,
   harnessMinutesPerThousand: 10,
 };
+
+/** The years data-model §7's targets are set on: "1,000 games of 20 years", "a save after 20 years". */
+const targetYears = 20;
 
 const listed = 20;
 
@@ -663,9 +578,6 @@ const rosterOf = (kind: ControllerKind): string => (kind === 'player' ? "the pla
 
 /** `n / of` to `digits` places, a dash when `of` is 0. */
 const ratio = (n: number, of: number, digits = 2): string => (of === 0 ? '—' : fixed(n / of, digits));
-
-/** `n` as a share of `of`, a dash when `of` is 0. */
-const percent = (n: number, of: number): string => (of === 0 ? '—' : `${fixed((100 * n) / of, 1)}%`);
 
 const sum = (values: readonly number[]): number => values.reduce((total, n) => total + n, 0);
 
@@ -895,7 +807,7 @@ function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
   const sizeRows = controllerKinds.flatMap((kind) => {
     const bySize = totals.partySizes[kind];
     const all = noPartySize();
-    for (const tally of Object.values(bySize)) addFields(all, tally);
+    for (const tally of Object.values(bySize)) addInto(all, tally);
     const cells = (tally: PartySizeTally): string[] => [
       `${whole(tally.quests)} (${percent(tally.quests, all.quests)})`,
       percent(tally.fail, tally.quests),
@@ -936,7 +848,7 @@ function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
 function questEngineSection(totals: SweepTotals, deps: EngineDeps): string[] {
   const kindTotal = (kind: ControllerKind): EncounterTally => {
     const all: EncounterTally = { success: 0, failure: 0, injured: 0, died: 0 };
-    for (const encounterKind of encounterKinds) addFields(all, totals.encounters[kind][encounterKind]);
+    for (const encounterKind of encounterKinds) addInto(all, totals.encounters[kind][encounterKind]);
     return all;
   };
   const encounterCells = (tally: EncounterTally): string[] => {
@@ -1074,7 +986,7 @@ function itemsSection(totals: SweepTotals, deps: EngineDeps): string[] {
   const tables = keysOf(Object.keys(deps.content.lootTables), totals.loot.player, totals.loot.rival);
   const lootAll = (kind: ControllerKind): LootTally => {
     const all: LootTally = { awards: 0, items: 0, unique: 0 };
-    for (const tally of Object.values(totals.loot[kind])) addFields(all, tally);
+    for (const tally of Object.values(totals.loot[kind])) addInto(all, tally);
     return all;
   };
   const lootCells = (kind: ControllerKind, tally: LootTally | undefined): string[] => {
@@ -1103,7 +1015,7 @@ function itemsSection(totals: SweepTotals, deps: EngineDeps): string[] {
   );
   const yearRows = totals.playerQuestsByYear.map((tally, year) => [whole(year), ...difficultyCells(tally)]);
   const allDifficulty = noDifficulty();
-  for (const tally of totals.playerQuestsByDifficulty) addFields(allDifficulty, tally);
+  for (const tally of totals.playerQuestsByDifficulty) addInto(allDifficulty, tally);
   const difficultyHeader = ['Quests resolved', 'Mean difficulty', 'Strong', 'Loot awards', 'Loot a Quest', 'Unique'];
   const difficultyLines =
     allDifficulty.quests === 0
@@ -1234,7 +1146,6 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     ),
   ];
   const sideLabel = (side: string): string => (side === playerSide ? "the player's Guild" : `\`${side}\``);
-  const capital = (text: string): string => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
   const perGame = (n: number): string => ratio(n, totals.games);
 
   // Transfers.
@@ -1245,7 +1156,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     ratio(tally.fees, tally.transfers, 0),
   ];
   const everyTransfer = noTransfers();
-  for (const direction of transferDirections) addFields(everyTransfer, totals.transfers[direction]);
+  for (const direction of transferDirections) addInto(everyTransfer, totals.transfers[direction]);
   const directionLabels: Record<TransferDirection, string> = {
     in: "Into the player's Guild",
     out: "Out of the player's Guild",
@@ -1267,11 +1178,11 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     const bought = noTransfers();
     const sold = noTransfers();
     for (const other of sides) {
-      addFields(bought, pair(other, side));
-      addFields(sold, pair(side, other));
+      addInto(bought, pair(other, side));
+      addInto(sold, pair(side, other));
     }
     return [
-      capital(sideLabel(side)),
+      capitalised(sideLabel(side)),
       whole(bought.transfers),
       whole(bought.fees),
       whole(sold.transfers),
@@ -1279,7 +1190,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
       whole(bought.transfers - sold.transfers),
     ];
   });
-  const matrixRows = sides.map((seller) => [capital(sideLabel(seller)), ...sides.map((buyer) => whole(pair(seller, buyer).transfers))]);
+  const matrixRows = sides.map((seller) => [capitalised(sideLabel(seller)), ...sides.map((buyer) => whole(pair(seller, buyer).transfers))]);
 
   // Offers.
   const offerRows = sides.flatMap((maker) =>
@@ -1289,7 +1200,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
       const ended = sum(offerEndCauses.map((cause) => tally.ended[cause]));
       return [
         [
-          `${capital(sideLabel(maker))} to ${sideLabel(asked)}`,
+          `${capitalised(sideLabel(maker))} to ${sideLabel(asked)}`,
           whole(tally.made),
           ratio(tally.fees, tally.made, 0),
           whole(tally.accepted),
@@ -1357,7 +1268,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     const all = { games: 0, counts: [] as number[] };
     const rows = totals.rankings.map((tally, year) => {
       all.games += tally.games;
-      addSeries(all.counts, tally[by]);
+      addInto(all.counts, tally[by]);
       return [
         whole(year),
         whole(tally.games),
@@ -1381,7 +1292,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
   // Market purchases by buyer.
   const purchasesOf = (keys: readonly string[]): MarketTally => {
     const all = noPurchases();
-    for (const key of keys) addFields(all, totals.marketPurchases[key] ?? noPurchases());
+    for (const key of keys) addInto(all, totals.marketPurchases[key] ?? noPurchases());
     return all;
   };
   const purchaseCells = (tally: MarketTally, guildYears: number): string[] => [
@@ -1457,7 +1368,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     markdownTable(['Side', 'Bought', 'Fees paid', 'Sold', 'Fees taken', 'Net Heroes'], sideRows, ['left', 'right', 'right', 'right', 'right', 'right']),
     '',
     markdownTable(
-      ['Sold by, bought by', ...sides.map((side) => capital(sideLabel(side)))],
+      ['Sold by, bought by', ...sides.map((side) => capitalised(sideLabel(side)))],
       matrixRows,
       ['left', ...sides.map(() => 'right' as const)],
     ),
@@ -1542,7 +1453,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
 function portraitsSection(totals: SweepTotals): string[] {
   const { player, rival } = totals.portraits;
   const all: PortraitTally = { ...noPortraits() };
-  for (const tally of [player, rival]) addFields(all, tally);
+  for (const tally of [player, rival]) addInto(all, tally);
   const row = (label: string, pick: (tally: PortraitTally) => number, of: (tally: PortraitTally) => number): string[] => [
     label,
     ...[player, rival, all].map((tally) => `${whole(pick(tally))} (${percent(pick(tally), of(tally))})`),
@@ -1599,8 +1510,8 @@ function heroesSection(totals: SweepTotals): string[] {
         ['With the Silhouette', share(heroes.silhouettes, heroes.generated)],
         ['Given a picture another Hero on a Roster or in the pool held (a repeat)', share(heroes.repeats, heroes.pictured)],
         ['With an empty Appearance or Biography', whole(heroes.blank)],
-        ['The longest Appearance written, in characters (at most 280)', whole(heroes.longestAppearance)],
-        ['The longest Biography written, in characters (at most 1,000)', whole(heroes.longestBiography)],
+        [`The longest Appearance written, in characters (at most ${whole(descriptiveAttributeMaxLength.appearance)})`, whole(heroes.longestAppearance)],
+        [`The longest Biography written, in characters (at most ${whole(descriptiveAttributeMaxLength.biography)})`, whole(heroes.longestBiography)],
       ],
       ['left', 'right'],
     ),
@@ -1632,15 +1543,53 @@ function heroesSection(totals: SweepTotals): string[] {
   ];
 }
 
+/**
+ * v1.1.6-S17's (DL-186 item 11, DL-203): the World State as each year ended, its length in the save's
+ * characters, its rows in play and written once (dead, retired or gone Heroes, retired Guildmasters,
+ * folded Guilds), the other tables' rows, and the per-Turn copy's time, `copyWorld` timed there.
+ */
+function worldsSection(totals: SweepTotals): string[] {
+  const mean = (values: readonly number[]): string => fixed(summarise(values).mean, 1);
+  return [
+    '## The World State and its copy (v1.1.6-S17)',
+    '',
+    "The World State as each year ended, over the games that reached it: `world`'s length in the save, in characters; " +
+      "its rows in play and written once, which no rule writes again (the engine's `writeOnce`); and the per-Turn copy " +
+      `that \`advance\` and each action make, \`copyWorld(world)\`, timed there, the mean of ${whole(copiesTimed)} copies. ` +
+      'Measures, not play counters: `compare` leaves them out.',
+    '',
+    markdownTable(
+      ['Year', 'Games', 'Mean MiB', 'Heroes in play', 'Heroes written once', 'Guildmasters in office', 'Retired', 'Guilds in play', 'Folded', 'Other rows', 'Copy, mean ms', 'Copy, max ms'],
+      totals.worlds.map((year, index) => [
+        String(index + 1),
+        whole(year.characters.length),
+        mebibytes(summarise(year.characters).mean),
+        mean(year.heroes.live),
+        mean(year.heroes.writeOnce),
+        mean(year.guildmasters.live),
+        mean(year.guildmasters.writeOnce),
+        mean(year.guilds.live),
+        mean(year.guilds.writeOnce),
+        mean(year.otherRows),
+        fixed(summarise(year.copyMs).mean, 3),
+        fixed(summarise(year.copyMs).max, 3),
+      ]),
+      ['right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
+    ),
+    '',
+  ];
+}
+
 /** The sweep as a Markdown report. */
-export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milestone, drafted = [], configured = {} }: PlayReportContext): string {
+export function playReport(sweep: PlaySweep, context: PlayReportContext): string {
+  const { deps, machine, startedAt, milestone, drafted = [], configured = {}, policyChanged = {}, gate = null } = context;
+  const spec = context.spec ?? readGateSpec();
   const { config, content } = deps;
   const totals = sweepTotals(sweep, config.turnsPerYear);
   const count = sweep.seeds.length;
   const range = count === 0 ? 'no seeds' : `\`${sweep.seeds[0]}\` to \`${sweep.seeds[count - 1]}\``;
   const ms = (value: number): string => fixed(value, 3);
   const perGame = (n: number): string => (totals.games === 0 ? '—' : fixed(n / totals.games, 2));
-  const share = (n: number, of: number): string => (of === 0 ? '—' : `${fixed((100 * n) / of, 1)}%`);
 
   const yearsText = Number.isInteger(sweep.years) ? whole(sweep.years) : fixed(sweep.years, 2);
   const full = sweep.games.filter((game) => game.ranFullLength);
@@ -1662,7 +1611,13 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     sweep.replay === null || sweep.workers === 1
       ? ''
       : `; mean ${ms(alone.mean)} ms, p99 ${ms(alone.p99)} ms alone (\`${sweep.replay.seed}\` replayed)`;
-  const sizeOf = full.length > 0 ? `the ${whole(full.length)} games that ran 20 years` : 'last documents: no game ran 20 years';
+  const sizeOf = full.length > 0 ? `the ${whole(full.length)} games that ran ${yearsText} years` : `last documents: no game ran ${yearsText} years`;
+  // v1.1.6-S2 (DL-186 item 17): a run of other than 20 years cannot be set against a 20-year target.
+  const comparable = sweep.years === targetYears;
+  const notComparable = `not comparable: this run played ${yearsText} ${sweep.years === 1 ? 'year' : 'years'}`;
+  const lastSave = sweep.years === targetYears ? totals.saves[targetYears - 1] : undefined;
+  const gzipped = summarise(lastSave?.gzipped ?? []);
+  const { saveGzipped } = spec.lines;
   // What 1,000 games of 20 years would take at this run's cost per Turn played, all included.
   const turnsPlayed = sweep.games.reduce((sum, game) => sum + game.turnsPlayed, 0);
   const perThousandMinutes =
@@ -1675,9 +1630,9 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       kind === 'player' ? "The player's Guild" : 'The Rivals',
       whole(totals.questsTaken[kind]),
       whole(all),
-      `${whole(bands.fail)} (${share(bands.fail, all)})`,
-      `${whole(bands.success)} (${share(bands.success, all)})`,
-      `${whole(bands.strong)} (${share(bands.strong, all)})`,
+      `${whole(bands.fail)} (${percent(bands.fail, all)})`,
+      `${whole(bands.success)} (${percent(bands.success, all)})`,
+      `${whole(bands.strong)} (${percent(bands.strong, all)})`,
     ];
   };
   const heroRow = (label: string, counts: ByController): string[] => [
@@ -1703,8 +1658,9 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     `Run begun ${localTimestamp(startedAt)} · ${whole(count)} seeds, ${range} · up to ${yearsText} years ` +
       `(${whole(sweep.years * config.turnsPerYear)} Turns) each · content \`${content.id}\` version ${content.version}` +
       `${drafted.length === 0 ? '' : ` with the drafts of ${drafted.map((name) => `\`${name}\``).join(', ')}`} · ` +
-      `config version ${config.configVersion}, schema version ${config.schemaVersion}` +
+      `config version ${configVersion}, schema version ${schemaVersion}` +
       `${Object.keys(configured).length === 0 ? '' : `, the defaults changed by \`${JSON.stringify(configured)}\``} · ` +
+      `${Object.keys(policyChanged).length === 0 ? '' : `the policy's defaults changed by \`${JSON.stringify(policyChanged)}\` · `}` +
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,
     '',
     `Policy (INPUTS 4.14): first decline every Transfer Offer made for its Heroes (M6-S2); then the gear it holds ` +
@@ -1745,7 +1701,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
         ['Games the validator refused', sweep.validated ? whole(totals.invalidGames) : 'not validated'],
         ['Games a harness assertion stopped', whole(totals.assertionGames)],
         [
-          'Byte equality, one seed played twice',
+          "Byte equality, one seed played once more, alone, against its shard's record",
           sweep.replay === null
             ? '—'
             : `\`${sweep.replay.seed}\`: ${sweep.replay.identical ? 'identical' : 'DIFFERENT'} (${whole(sweep.replay.length)} characters)`,
@@ -1757,6 +1713,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       ],
     ),
     '',
+    ...(gate === null ? [] : gateSection(gate)),
     '## Counters',
     '',
     'Read from each game\'s History through `history.byType`; an entry counts for the Guild it names.',
@@ -1813,6 +1770,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     ...rivalsSection(totals, deps),
     ...portraitsSection(totals),
     ...heroesSection(totals),
+    ...worldsSection(totals),
     '## Measures',
     '',
     markdownTable(
@@ -1820,6 +1778,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       [
         summaryRow('`advance`', sweep.advance, 3),
         ...(sweep.replay === null ? [] : [summaryRow(`\`advance\`, \`${sweep.replay.seed}\` replayed alone`, sweep.replay.advance, 3)]),
+        summaryRow("`copyWorld`, `advance`'s copy, timed as each year ended", summarise(copyTimes(totals.worlds)), 3),
         ...(sweep.validated ? [summaryRow('`validate` after it', sweep.validation, 3)] : []),
       ],
       ['left', 'right', 'right', 'right', 'right', 'right'],
@@ -1854,16 +1813,21 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
           `${fixed(yearMs, 0)} ms (mean \`advance\`${sweep.replay === null ? '' : ' alone'} × ${whole(config.turnsPerYear)} Turns)`,
         ],
         [
-          'Harness: 1,000 games of 20 years',
+          `Harness: 1,000 games of ${targetYears} years`,
           `under ${targets.harnessMinutesPerThousand} min`,
-          `${fixed(perThousandMinutes, 0)} min (this run's wall-clock time per Turn played in ${sweep.workers} ` +
-            `${sweep.workers === 1 ? 'process' : 'processes'}, ${sweep.validated ? 'validation' : 'no validation'} ` +
-            `included, × ${whole(20 * config.turnsPerYear)} Turns × 1,000 games)`,
+          comparable
+            ? `${fixed(perThousandMinutes, 0)} min (this run's wall-clock time per Turn played in ${sweep.workers} ` +
+              `${sweep.workers === 1 ? 'process' : 'processes'}, ${sweep.validated ? 'validation' : 'no validation'} ` +
+              `included, × ${whole(targetYears * config.turnsPerYear)} Turns × 1,000 games)`
+            : notComparable,
         ],
         [
-          'Save after 20 years',
-          'under 20 MiB',
-          `mean ${fixed(lengths.mean / 1024 / 1024, 2)} MiB, max ${fixed(lengths.max / 1024 / 1024, 2)} MiB (${sizeOf})`,
+          `Save after ${targetYears} years`,
+          `gzipped, the mean under ${fixed(saveGzipped.meanMiB, 0)} MiB (\`harness/gate.json\`)`,
+          comparable
+            ? `gzipped: mean ${mebibytes(gzipped.mean)} MiB, max ${mebibytes(gzipped.max)} MiB; uncompressed: mean ` +
+              `${mebibytes(lengths.mean)} MiB, max ${mebibytes(lengths.max)} MiB (${sizeOf})`
+            : notComparable,
         ],
         ['Load a save', `under ${targets.loadMs / 1000} s`, `mean ${fixed(loadMs.mean, 0)} ms, max ${fixed(loadMs.max, 0)} ms${load} (${sizeOf})`],
       ],

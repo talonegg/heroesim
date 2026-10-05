@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { configProblems, defaultConfig, moraleBandNames } from '../config.js';
+import { defaultConfig } from '../config.js';
 import { formEffect, formOf, meanForm, workingMorale, type FormEffect } from './form.js';
 
 // v1.1.4-S3 (DL-148 items 9 to 12, DL-154): a Hero's form, from the band of their Morale on the Quest
@@ -58,43 +58,3 @@ describe('the Party builder\'s line, from the mean form', () => {
   });
 });
 
-describe('configProblems', () => {
-  const ones = { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 };
-  const withFactors = (moraleCheckFactor: Partial<typeof config.moraleCheckFactor>, hurtCheckFactor = config.hurtCheckFactor) =>
-    configProblems({ ...config, moraleCheckFactor: moraleCheckFactor as typeof config.moraleCheckFactor, hurtCheckFactor });
-
-  test('finds none in the defaults, nor with every factor 1, the rule before v1.1.4-S3', () => {
-    expect(configProblems(config)).toEqual([]);
-    expect(withFactors(ones, 1)).toEqual([]);
-  });
-
-  test.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, undefined])('names a Morale band whose factor is %s', (bad) => {
-    for (const band of moraleBandNames) {
-      expect(withFactors({ ...config.moraleCheckFactor, [band]: bad })).toContain(`moraleCheckFactor.${band} is ${bad}; it is a finite number above 0`);
-    }
-  });
-
-  test('names a Morale band missing from moraleCheckFactor', () => {
-    const moraleCheckFactor = { ...config.moraleCheckFactor };
-    Reflect.deleteProperty(moraleCheckFactor, 'steady');
-    expect(withFactors(moraleCheckFactor)).toContain('moraleCheckFactor.steady is undefined; it is a finite number above 0');
-  });
-
-  test('refuses a steady band whose factor is not 1, the band that changes nothing', () => {
-    expect(withFactors({ ...config.moraleCheckFactor, steady: 1.02 })).toEqual(['moraleCheckFactor.steady is 1.02; it is 1, the band that changes nothing']);
-  });
-
-  test.each([
-    { wretched: 0.95, low: 0.93 },
-    { low: 1.01 },
-    { high: 0.99 },
-    { elated: 1.02 },
-  ])('refuses factors out of the bands\' order, %j: wretched ≤ low ≤ 1 ≤ high ≤ elated', (moved) => {
-    const factors = { ...config.moraleCheckFactor, ...moved };
-    expect(withFactors(factors)).toEqual([`moraleCheckFactor is ${JSON.stringify(factors)}; wretched ≤ low ≤ steady ≤ high ≤ elated`]);
-  });
-
-  test.each([0, -0.5, 1.01, Number.NaN, Number.POSITIVE_INFINITY])('refuses a hurtCheckFactor of %s: above 0 and at most 1, so a wound never helps', (bad) => {
-    expect(withFactors(config.moraleCheckFactor, bad)).toEqual([`hurtCheckFactor is ${bad}; it is above 0 and at most 1, so that a wound never helps`]);
-  });
-});

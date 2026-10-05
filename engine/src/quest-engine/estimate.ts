@@ -36,7 +36,7 @@
 // meets none of them, and fails.
 
 import { checkProposedParty, type ConsumableRequest } from '../actions/dispatch.js';
-import { chanceBandNames, configProblems, type ChanceBand, type GameConfig, type QuestBand } from '../config.js';
+import { chanceBandNames, type ChanceBand, type GameConfig, type QuestBand } from '../config.js';
 import { degrees, type CheckKey, type Degree, type Encounter, type EncounterKey, type EncounterKind } from '../content-types.js';
 import { compareByCodeUnit, type Hero, type HeroId, type Quest, type World } from '../document.js';
 import { eventEmitter } from '../emit.js';
@@ -124,9 +124,8 @@ export function chanceToReach(capable: number, variance: number, x: number): num
  * `encounterKeys`. A carried key that is no consumable carries nothing (data-model
  * rule 5). Draws nothing, and changes nothing.
  *
- * Throws on a programming error, as `resolveQuest` does: a configuration with a problem
- * (`configProblems`), a difficulty that is not above 0, an Encounter with no Check, or with several
- * and no pass formula.
+ * Throws on a programming error, as `resolveQuest` does: a difficulty that is not above 0, an
+ * Encounter with no Check, or with several and no pass formula.
  */
 export function estimateQuest(
   world: World,
@@ -143,8 +142,8 @@ export function estimateQuest(
  * `partyFor`): each Hero of the pool is brought home, and read as a Query reads them (`queryParty`:
  * their effective Stats, Morale, age and form, each of their own alone), once, however many Parties
  * are estimated, and each estimate equals `estimateQuest`'s for the same Party and consumables. A
- * Hero outside the pool is brought home on each call. Throws as `estimateQuest` does: on a configuration
- * with a problem or a difficulty not above 0 at once, and on a Party or consumables `dispatch` would
+ * Hero outside the pool is brought home on each call. Throws as `estimateQuest` does: on a difficulty
+ * not above 0 at once, and on a Party or consumables `dispatch` would
  * throw on, or a malformed Encounter, at the call.
  */
 export function questEstimator(
@@ -154,8 +153,6 @@ export function questEstimator(
   deps: CheckDeps,
 ): (heroes: readonly Hero[], carried?: readonly ConsumableRequest[]) => QuestEstimate | null {
   const { config, content } = deps;
-  const [problem] = configProblems(config);
-  if (problem !== undefined) throw new RangeError(`The Quest Engine's configuration: ${problem}`);
   if (!(quest.difficulty > 0)) throw new RangeError(`A Quest of difficulty ${quest.difficulty} has no estimate; it is above 0`);
   const sequence = storedSequence(quest, content);
   // Brought home only when a Party is first estimated, since a Quest of no known Encounters needs none.

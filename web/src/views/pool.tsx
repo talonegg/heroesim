@@ -16,14 +16,9 @@ import type { GameAction } from '../state/reducer';
 import { poolView, type PoolOrder } from '../state/trade-views';
 import { HeroPage } from './hero-page';
 import { PortraitThumb } from './pictures';
-import { rememberChoice, rememberedChoice } from './remembered';
+import { preferences, useRemembered } from './remembered';
 import { Part } from './section';
 import { SortHeader, useReturn, VisuallyHidden } from './ui';
-
-const orders: readonly PoolOrder[] = ['listed', 'class', 'fee'];
-
-/** The key this browser keeps the pool's order under. */
-export const poolOrderKey = 'heroesim.poolOrder';
 
 /** The id of a row's name, which opens the Hero's page and takes the keyboard back when it closes. */
 function rowId(heroId: HeroId): string {
@@ -36,7 +31,7 @@ function signsId(heroId: HeroId): string {
 }
 
 export function Pool({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
-  const [order, setOrder] = useState<PoolOrder>(() => rememberedChoice(poolOrderKey, orders, 'listed'));
+  const [order, setOrder] = useRemembered(preferences.poolOrder);
   const view = useMemo(() => poolView(document, order), [document, order]);
   const [open, setOpen] = useState<HeroId | null>(null);
   const back = useReturn();
@@ -48,7 +43,6 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
   function orderBy(next: Exclude<PoolOrder, 'listed'>): void {
     const chosen = order === next ? 'listed' : next;
     setOrder(chosen);
-    rememberChoice(poolOrderKey, chosen);
   }
 
   if (open !== null) {

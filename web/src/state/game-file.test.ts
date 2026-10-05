@@ -1,4 +1,4 @@
-import { createWorld, dayOf, defaultConfig, deserialise, serialise, type WorldDocument } from '@heroesim/engine';
+import { configVersion, createWorld, dayOf, defaultConfig, deserialise, serialise, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { rulesNotice, saveFileName, saveText } from './game-file';
@@ -37,9 +37,9 @@ describe('rulesNotice', () => {
   test("names the game's rules and this release's while the game's are behind, and nothing once they are not", () => {
     const current = newGame();
     const older = structuredClone(current);
-    older.meta.config.configVersion = defaultConfig.configVersion - 3;
+    older.meta.configVersion = configVersion - 3;
 
     expect(rulesNotice(current)).toBeNull();
-    expect(rulesNotice(older)).toEqual({ from: defaultConfig.configVersion - 3, to: defaultConfig.configVersion });
+    expect(rulesNotice(older)).toEqual({ from: configVersion - 3, to: configVersion });
   });
 });

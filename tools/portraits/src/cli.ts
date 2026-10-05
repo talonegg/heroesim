@@ -7,18 +7,18 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { NotUndone, transaction, Undone } from '@heroesim/content/write';
 import { dataUrlOf, isPicture, withChromium, type Chromium } from './chromium.js';
 import { check } from './check.js';
 import { convert, Refusal } from './convert.js';
 import { corpus, corpusText } from './corpus.js';
 import { diffRun, diffText } from './diff.js';
-import { DraftError, NotUndone, Undone } from './errors.js';
+import { DraftError } from './errors.js';
 import { datePattern } from './records.js';
 import { distance, fingerprint, type Fingerprint } from './fingerprint.js';
 import { readRegistry } from './registry.js';
 import { apply, writeRun } from './runs.js';
 import { writeRows } from './write-rows.js';
-import { transaction } from './transaction.js';
 
 /** This repository's root, three folders above this file. */
 export const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));

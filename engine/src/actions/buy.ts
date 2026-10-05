@@ -1,14 +1,14 @@
 // `buy` (M5-S4, R31, DL-51): a Guild buys Items the Market has for sale, at the Market price. Every
-// Guild buys through this one rule, a front end by `buy` and a controller by `applyBuy` (ADR-0002,
-// DL-30); from M6-S4 every Disposition buys gear by it (`gearPurchase`, DL-58).
+// Guild buys through this one rule, `applyBuy`, a front end by `applyAction` and a controller on the
+// Turn's copy (ADR-0002, DL-30); from M6-S4 every Disposition buys gear by it (`gearPurchase`, DL-58).
 
 import type { EngineDeps } from '../config.js';
 import type { ItemDefinitionKey } from '../content-types.js';
-import type { Guild, GuildId, ItemId, World, WorldDocument } from '../document.js';
+import { rowOf, type Guild, type GuildId, type ItemId, type World } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { findStack, holdings, itemDefinition, moveItem, moveStack } from '../items.js';
 import { marketHolder, marketPrice } from '../market.js';
-import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
+import type { Rejection, WorldActionResult } from './result.js';
 
 export interface BuyAction {
   kind: 'buy';
@@ -63,24 +63,15 @@ export type BuyRejection = BuyGuildFolded | NotInMarket | BuyInsufficientQuantit
  * `insufficient-wealth`, in that order. Throws on a programming error: a Guild id the world does not
  * hold, or a quantity that is not a whole number from 1.
  *
- * The returned document has a new `world`, a copy, so a document that shares the old one is left as
- * it was (DL-24); `meta` and `history` are shared, and the event is appended to the History.
- */
-export function buy(document: WorldDocument, request: BuyRequest, deps: EngineDeps): ActionResult<BuyRejection> {
-  return applyToCopy(document, (world) => applyBuy(world, request, deps));
-}
-
-/**
- * `buy`'s rule on a world it changes in place: the same checks in the same order, the same changes
- * and the same `item.bought`, which it returns rather than appends (DL-30). A refusal changes
- * nothing. Throws on the programming errors `buy` throws on.
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
 export function applyBuy(
   world: World,
   { guildId, definitionKey, quantity }: BuyRequest,
   deps: EngineDeps,
 ): WorldActionResult<BuyRejection> {
-  const guild: Guild | undefined = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
+  const guild: Guild | undefined = rowOf(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`No Guild in the world has the id ${guildId}`);
   if (!Number.isSafeInteger(quantity) || quantity < 1) {
     throw new RangeError(`A Guild buys a whole number of Items from 1, not ${quantity}`);

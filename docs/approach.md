@@ -97,7 +97,12 @@ serialise(document) / deserialise(text, deps)   -> one format, one version field
 
 The action list is amended 2026-09-28. `recall?` is struck: no Party is recalled (DL-89). The
 actions it had missed are added, as DL-86 corrects: `offerTransfer`, `acceptTransfer` and
-`declineTransfer` from M6 (DL-57), and `unequip` from M5 (DL-49).
+`declineTransfer` from M6 (DL-57), and `unequip` from M5 (DL-49). Each is taken through one
+entry, `applyAction(document, action, deps)`, the action a value told apart by its `kind` and
+the rejection narrowed to that action's own; the function each had of its own is gone. The
+engine's entry exports what the front ends, the harness, content and the tools use, and what only
+tests take is `@heroesim/engine/testing`, which production code may not import (amended
+2026-10-05, DL-194).
 
 Rules read `deps.config`. A front end passes the document's own `meta.config`, so a loaded
 game plays under the rules it was started with; `rebase` rewrites `meta.config` to the
@@ -105,9 +110,11 @@ current defaults and records a `world.rules-adopted` Milestone, so tuning reache
 the player says so and the History says when. The harness passes its configuration
 explicitly (owner, 2026-09-25, pre-M0 review D1). Where pre-M0 review D3's record says tuning
 reaches every game, D1 governs: a config field newer than a save follows the current default
-until the save is rebased (amended 2026-09-28, DL-84). Content has no `rebase`: a content
-change reaches a saved game when it is loaded (D3). Decided, to be built: on load a content
-version other than `meta.content`'s is shown, a `world.content-changed` Milestone is appended
+until the save is rebased (amended 2026-09-28, DL-84). Every front end, the harness and a save's
+load take the play config from one engine seam, `playDeps`, which fills `meta.config` forward with
+the current defaults and checks every setting before any play (amended 2026-10-05, DL-193).
+Content has no `rebase`: a content change reaches a saved game when it is loaded (D3). Decided,
+to be built: on load a content version other than `meta.content`'s is shown, a `world.content-changed` Milestone is appended
 and `meta.content` is updated, so the History says when content changed as it says when rules
 were adopted (amended 2026-09-28, DL-84).
 
@@ -134,6 +141,8 @@ both), TypeScript, Vitest, ESLint.
 ```
 engine/     pure rules, state, generators, engines; zero dependencies; tests beside
 content/    JSON content and a loader with a pure entry (browser) and a Node entry
+words/      the words the front ends and the tools share, the narration and the Quest review's
+            page among them; runs in a browser (v1.1.6-S11, S12)
 harness/    automatic policy, seed sweeps, counters; runs under Vitest with an env flag
 cli/        terminal front end; local file saves
 web/        browser front end; static build for Cloudflare Pages; browser saves

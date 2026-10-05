@@ -3,9 +3,10 @@
 How Traits are found, added, changed, removed and used in other content (DL-150 items 7 to 16,
 v1.1.4-S12 and S13). The content editor, `tools/editor` (its README has every command), makes each
 change to a Trait and to each use of one. The register, `content/src/uses/`, lists every place a
-Trait is used, in content and in the engine; the editor finds a Trait's uses, and adds and takes out a
-use, through it. The Trait skills drive the editor's commands for a session. The part of this file
-after the guardrails is written from the register; the rest is written by hand.
+Trait is used, in content and in the engine; the editor finds a Trait's uses, and adds, takes out and
+changes in place a use (`update`, v1.1.6-S4), through it. The Trait skills drive the editor's
+commands for a session. The part of this file after the guardrails is written from the register; the
+rest is written by hand.
 
 ```sh
 npm run edit                                   # the page, on this machine only
@@ -16,7 +17,7 @@ npm run edit -- traits <command> [--root <dir>] [--json]
 | --- | --- | --- |
 | `trait-find` | find a Trait by name, effect or use; the content that uses it; the rules and events that read Traits | nothing |
 | `trait-edit` | add, change or remove a Trait | the Trait lists, through `add`, `change`, `remove` and `finish` |
-| `trait-assign` | add or take out a Trait's use in other content | the content holding the use, through `assign`, `unassign` and `finish` |
+| `trait-assign` | add, take out or change in place a Trait's use in other content | the content holding the use, through `assign`, `unassign`, `update` and `finish` |
 
 Ask Claude Code for one by name, or say what you want done to a Trait; each works on the current
 branch, from the repository's root.
@@ -51,7 +52,8 @@ branch, from the repository's root.
 - **Each edit is checked as it is made** with the content's own checks, and held as pending in
   `.editor/traits.json`, which git ignores, until "Finish".
 - **Each session's edits end with "Finish"** (DL-150 item 11). It writes the files, raises the content
-  version by one and runs `npm test`; if any test fails, every file is put back and the edits stay
+  version by one in its file, `content/version.json`, a line of whose changelog names the edits
+  (v1.1.6-S4), and runs `npm test`; if any test fails, every file is put back and the edits stay
   pending. It takes as long as the suite, a few minutes. Edits left pending at a session's end are
   named to the owner, never left silently.
 - **When Finish is undone,** read each failure for what it holds:
@@ -109,16 +111,16 @@ From v1.1.4-S13 on, in this epic and every one after it (DL-150 item 14):
 
 Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 rules of the engine and checks of the content that read a Trait. The editor's `uses` and `find` read the first; the drift test holds the second to the code.
 
-| Entry | Where | Holds | Refuses removal | Add | Remove |
-| --- | --- | --- | --- | --- | --- |
-| `excludes` | guildmaster-traits.json, hero-traits.json | guildmaster, hero | no | yes | yes |
-| `injury-leaves-trait` | injuries.json | hero | yes | yes | yes |
-| `encounter-trait` | encounters.json | hero | yes | yes | yes |
-| `encounter-has-trait` | encounters.json | hero | yes | yes | yes |
-| `synergy-has-trait` | synergies.json | hero | yes | yes | yes |
-| `biography-sentences` | descriptions.json | guildmaster, hero | yes | yes | yes |
-| `portrait-callings` | descriptions.json | guildmaster | yes | yes | yes |
-| `portrait-features` | portrait-appearances.json | hero | yes | yes | yes |
+| Entry | Where | Holds | Refuses removal | Add | Remove | Update |
+| --- | --- | --- | --- | --- | --- | --- |
+| `excludes` | guildmaster-traits.json, hero-traits.json | guildmaster, hero | no | yes | yes | no |
+| `injury-leaves-trait` | injuries.json | hero | yes | yes | yes | no |
+| `encounter-trait` | encounters.json | hero | yes | yes | yes | yes |
+| `encounter-has-trait` | encounters.json | hero | yes | yes | yes | no |
+| `synergy-has-trait` | synergies.json | hero | yes | yes | yes | no |
+| `biography-sentences` | descriptions.json | guildmaster, hero | yes | yes | yes | yes |
+| `portrait-callings` | descriptions.json | guildmaster | yes | yes | yes | no |
+| `portrait-features` | portrait-appearances.json | hero | yes | yes | yes | no |
 
 | Rule | Reads | Effects | Events |
 | --- | --- | --- | --- |
@@ -145,6 +147,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 - **Removal:** the editor takes the key out itself when the Trait is removed.
 - **Adding a use:** Each Trait's `excludes` names the other, both ways, as the content's checks hold. The target: `trait`, the other Trait's key, of the same list. `traits assign <key> excludes trait=…`.
 - **Removing a use:** The key is taken out of that Trait's `excludes`, and that Trait out of the key's, both ways. `traits unassign <key> excludes <at>`, its place as `traits uses` gives it.
+- **Changing a use:** a use here is the key alone: take it out and add another.
 
 ### `injury-leaves-trait`: An Injury's leavesTrait
 
@@ -154,6 +157,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 - **Removal:** a use here refuses the Trait's removal, naming it.
 - **Adding a use:** The Injury's `leavesTrait` is set to the key; an Injury that leaves another Trait is refused. The target: `injury`, the Injury's key. `traits assign <key> injury-leaves-trait injury=…`.
 - **Removing a use:** The Injury's `leavesTrait` is set to `null`: it leaves no Trait. `traits unassign <key> injury-leaves-trait <at>`, its place as `traits uses` gives it.
+- **Changing a use:** a use here is the key alone: take it out and add another.
 
 ### `encounter-trait`: An Encounter's trait consequence
 
@@ -163,6 +167,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 - **Removal:** a use here refuses the Trait's removal, naming it.
 - **Adding a use:** A `{ "kind": "trait", "traitKey", "chance", "among"? }` is added at the end of the Encounter's `triumph` or `failure` list. An Encounter with no `triumph` list, whose Triumph reads its `success` list, is given one copied from it first, so a Triumph brings what it brought. The target: `encounter`, the Encounter's key; `degree`, `triumph` (a positive Trait) or `failure` (a negative one); `chance`, the chance, above 0 and at most 1; `among`, optional: a Set Query of who may take it. `traits assign <key> encounter-trait encounter=… degree=… chance=… [among=…]`.
 - **Removing a use:** The consequence is taken out of its list. A `triumph` list left equal to the `success` list goes with it, as the Encounter's Triumph then reads the `success` list. `traits unassign <key> encounter-trait <at>`, its place as `traits uses` gives it.
+- **Changing a use:** The consequence's `chance` or `among`, or both, are set in its place; an `among` of `null` takes it out, so that any Hero of the Party may take the Trait. The values: `chance`, optional: the chance, above 0 and at most 1; `among`, optional: a Set Query of who may take it, or `null` for any Hero. `traits update <key> encounter-trait <at> [chance=…] [among=…]`, its place as `traits uses` gives it.
 
 ### `encounter-has-trait`: has-trait in an Encounter's Queries
 
@@ -172,6 +177,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 - **Removal:** a use here refuses the Trait's removal, naming it.
 - **Adding a use:** The Set Query at the path is filtered to the Heroes holding the key: `["where", <Set>, ["has-trait", key]]`. The target: `encounter`, the Encounter's key; `path`, the path, within the Encounter, of a Set Query: `checks.0.score.1`. `traits assign <key> encounter-has-trait encounter=… path=…`.
 - **Removing a use:** Where it filters a `where`, the `where` becomes its Set unfiltered; in an `and` or `or`, it is taken out (one of two left stands alone). Anywhere else it is refused: ask the owner how the Query should read without it. `traits unassign <key> encounter-has-trait <at>`, its place as `traits uses` gives it.
+- **Changing a use:** a use here is the key alone: take it out and add another.
 
 ### `synergy-has-trait`: has-trait in a Synergy's requires
 
@@ -181,6 +187,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 - **Removal:** a use here refuses the Trait's removal, naming it.
 - **Adding a use:** With a path, the Set Query there is filtered as an Encounter's is. Without one, the condition `[">=", ["count", ["where", "party", ["has-trait", key]]], 1]` is added to `requires`, which must be written as Queries. The target: `synergy`, the Synergy's key; `path`, optional: the path, within the Synergy, of a Set Query. `traits assign <key> synergy-has-trait synergy=… [path=…]`.
 - **Removing a use:** Where it filters a `where`, the `where` becomes its Set unfiltered; in an `and` or `or`, it is taken out (one of two left stands alone). Anywhere else it is refused: ask the owner how the Query should read without it. The condition `add` makes without a path is taken out of `requires` whole. `traits unassign <key> synergy-has-trait <at>`, its place as `traits uses` gives it.
+- **Changing a use:** a use here is the key alone: take it out and add another.
 
 ### `biography-sentences`: Biography sentences by Trait
 
@@ -190,6 +197,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 - **Removal:** a use here refuses the Trait's removal, naming it.
 - **Adding a use:** The sentence is added at the end of the key's list, under its own list's place, which is made where there is none. The target: `sentence`, the sentence, with the slots a Biography fills: `{He}`, `{his}`. `traits assign <key> biography-sentences sentence=…`.
 - **Removing a use:** The sentence is taken out of the key's list, and the list with it once empty. `traits unassign <key> biography-sentences <at>`, its place as `traits uses` gives it.
+- **Changing a use:** The sentence is put in place of the one there, keeping its place in the list. The values: `sentence`, the sentence in place of the one there, with the slots a Biography fills: `{He}`, `{his}`. `traits update <key> biography-sentences <at> sentence=…`, its place as `traits uses` gives it.
 
 ### `portrait-callings`: A Calling's suits and clashes
 
@@ -199,6 +207,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 - **Removal:** a use here refuses the Trait's removal, naming it.
 - **Adding a use:** The key is added at the end of the Calling's `suits` or `clashes`; one already in the other is refused. The target: `calling`, the Calling's key; `side`, `suits` or `clashes`. `traits assign <key> portrait-callings calling=… side=…`.
 - **Removing a use:** The key is taken out of that list. `traits unassign <key> portrait-callings <at>`, its place as `traits uses` gives it.
+- **Changing a use:** a use here is the key alone: take it out and add another.
 
 ### `portrait-features`: A Feature's shows
 
@@ -208,6 +217,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 - **Removal:** a use here refuses the Trait's removal, naming it.
 - **Adding a use:** The key is added at the end of the Feature's `shows`, which is made where there is none. The target: `feature`, the Feature's key. `traits assign <key> portrait-features feature=…`.
 - **Removing a use:** The key is taken out of the Feature's `shows`, and `shows` with it once empty. `traits unassign <key> portrait-features <at>`, its place as `traits uses` gives it.
+- **Changing a use:** a use here is the key alone: take it out and add another.
 
 ## In the engine and the content's checks
 
@@ -220,11 +230,11 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 - **Where it reads them:** `engine/src/traits.ts`: `traitOf`, `heroTraitOf`, `heroTraitEffects`, `excludedPair`; `engine/src/guildmaster.ts`: `guildmasterTraitsOf`.
 - **Through:** `engine/src/traits.ts`: `excludeEachOther`.
 
-### `effective-stats`: A Hero Trait's Stat changes, in effectiveStats
+### `effective-stats`: A Hero Trait's Stat changes, in statBreakdown and effectiveStats
 
-- **Reads:** The sum of the `statModifiers` of the Hero Traits a Hero holds, added to the base beside the Guildmaster's Class bonus and gear, so it shows wherever a Stat shows: every Check, Query, harm share, the estimate and a Hero's page (DL-148 item 24).
+- **Reads:** The sum of the `statModifiers` of the Hero Traits a Hero holds, added to the base beside the Guildmaster's Class bonus and gear in `statBreakdown`, whose total is `effectiveStats`, so it shows wherever a Stat shows: every Check, Query, harm share, the estimate, the Roster and a Hero's page (DL-148 item 24, DL-186 item 3).
 - **Traits:** Hero; effects `statModifiers`.
-- **Where it reads them:** `engine/src/traits.ts`: `traitStatModifiers`; `engine/src/selectors.ts`: `effectiveStats`.
+- **Where it reads them:** `engine/src/traits.ts`: `traitStatModifiers`; `engine/src/selectors.ts`: `statBreakdown`.
 
 ### `encounter-bonus`: The Check's Encounter bonus
 
@@ -234,9 +244,9 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 
 ### `guildmaster-effects`: The Guildmaster's Trait readers
 
-- **Reads:** Each effect of the Guildmaster's Traits: a Class Stat bonus in `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).
+- **Reads:** Each effect of the Guildmaster's Traits: a Class Stat bonus in `statBreakdown`, whose total is `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).
 - **Traits:** Guildmaster; effects `classStatBonus`, `guildMoraleShift`, `upkeepFactor`.
-- **Where it reads them:** `engine/src/guildmaster.ts`: `traitEffects`, `traitMoraleShift`, `traitUpkeepFactor`, `traitStatBonuses`; `engine/src/morale.ts`: `moraleBaselineFor`; `engine/src/selectors.ts`: `upkeepParts`, `effectiveStats`.
+- **Where it reads them:** `engine/src/guildmaster.ts`: `traitEffects`, `traitMoraleShift`, `traitUpkeepFactor`, `traitStatBonuses`; `engine/src/morale.ts`: `moraleBaselineFor`; `engine/src/selectors.ts`: `upkeepParts`, `statBreakdown`.
 
 ### `guildmaster-setup`: Setup's Trait budget, and the drawn Guildmaster's Traits
 
@@ -254,7 +264,7 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 
 - **Reads:** A `trait` consequence: drawn on a Triumph and granted on a strong success, or falling on a Hero the Encounter injured on a Failure; never one held, one in conflict, or a second on a Quest. Granted at the Quest's end with `hero.trait-gained` (DL-148 item 25).
 - **Traits:** Hero; events `hero.trait-gained`.
-- **Where it reads them:** `engine/src/quest-engine/resolve.ts`: `apply`, `earn`; `engine/src/phases/quests-conclude.ts`: `conclude`; `engine/src/traits.ts`: `mayEarn`.
+- **Where it reads them:** `engine/src/quest-engine/resolve.ts`: `apply`; `engine/src/quest-engine/harm.ts`: `chooseEarner`; `engine/src/phases/quests-conclude.ts`: `conclude`; `engine/src/traits.ts`: `mayEarn`.
 
 ### `trait-events`: hero.trait-gained and hero.trait-lost
 
@@ -264,9 +274,9 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 
 ### `has-trait`: has-trait in a Query
 
-- **Reads:** The `["has-trait", key]` predicate: whether the current Hero holds a Hero Trait content defines (v1.1.4-S1), and its account for the Board.
+- **Reads:** The `["has-trait", key]` predicate: whether the current Hero holds a Hero Trait content defines (v1.1.4-S1), its row of the Query operators (v1.1.6-S10), and its account for the Board.
 - **Traits:** Hero.
-- **Where it reads them:** `engine/src/quest-engine/query.ts`: `is`; `engine/src/quest-engine/describe.ts`: `predAccount`.
+- **Where it reads them:** `engine/src/quest-engine/query/operators.ts`: `operators`; `engine/src/quest-engine/describe.ts`: `predAccount`.
 
 ### `biography-and-portrait`: The Biography and the Portrait choice
 
@@ -285,6 +295,6 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 
 - **Reads:** Every Trait and every use of one in content (`validateContent`): a key in one list only, exclusions held both ways, each effect's values, and each key a use names defined in its list. The editor checks each pending edit with them.
 - **Traits:** Guildmaster and Hero; effects `classStatBonus`, `guildMoraleShift`, `upkeepFactor`, `statModifiers`, `encounterBonus`.
-- **Where it reads them:** `content/src/validate.ts`: `validateContent`, `checkPortraitAppearances`, `longestDescriptions`, `checkDescriptions`, `checkEncounters`, `checkConsequence`, `checkTraits`, `operators`, `queryKeys`, `queryArgument`.
+- **Where it reads them:** `content/src/validate.ts`: `validateContent`, `checkPortraitAppearances`, `longestDescriptions`, `checkDescriptions`, `checkEncounters`, `checkConsequence`, `checkTraits`, `queryKeys`; `engine/src/quest-engine/query/problems.ts`: `queryArgument`.
 
 <!-- The register's part ends. -->

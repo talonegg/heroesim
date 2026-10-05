@@ -3,7 +3,7 @@
 // act, and each story that touches the engine at its close. Like every command it first puts back the
 // files of a "Finish" cut off, and says so; while one runs it says that, and checks no edit.
 
-import { contentChecks } from '@heroesim/portraits';
+import { contentChecks } from '@heroesim/content/write';
 import { drift, type Drift } from './drift.js';
 import { Editor } from './editor.js';
 import { Busy } from './finish-journal.js';
