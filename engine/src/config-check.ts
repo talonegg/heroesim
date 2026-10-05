@@ -8,7 +8,7 @@
 
 import { chanceBandNames, defaultConfig, moraleBandNames, potentialHints, questBands, regardBandNames, type EngineDeps, type GameConfig } from './config.js';
 import { degrees, type ContentSet, type StatArea } from './content-types.js';
-import type { Meta } from './document.js';
+import { highestSkillRating, lowestSkillRating, type Meta } from './document.js';
 import { sexes } from './generators/draw.js';
 import type { Module } from './modules.js';
 
@@ -242,7 +242,8 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   potentialGapMax: drawnMax('potentialGapMin'),
   startingSkillsMin: whole({ min: 0 }),
   startingSkillsMax: drawnMax('startingSkillsMin'),
-  startingSkillRatingMax: whole({ min: 1 }),
+  // A Skill rating (`SkillRating`): the Hero generator draws a starting rating up to it.
+  startingSkillRatingMax: whole({ min: lowestSkillRating, max: highestSkillRating }),
   moraleBaseline: finite({ min: 'moraleMin', max: 'moraleMax' }),
 
   guildmasterStartingAgeMin: whole({ min: 0 }),

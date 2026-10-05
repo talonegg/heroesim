@@ -201,6 +201,9 @@ export type StatValues = Record<StatKey, number>;
 
 /** A Skill's rating; a Hero without the Skill has no entry for it. */
 export type SkillRating = 1 | 2 | 3 | 4 | 5;
+/** The Skill scale's ends, `SkillRating`'s least and greatest: the Hero generator's and `checkConfig`'s. */
+export const lowestSkillRating = 1;
+export const highestSkillRating = 5;
 
 /** The Hall's facilities, each at a grade raised by Improvements (M3-S6). */
 export const facilityKeys = ['infirmary', 'trainingYard', 'quarters'] as const;

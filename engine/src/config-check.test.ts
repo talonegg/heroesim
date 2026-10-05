@@ -98,7 +98,8 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   potentialGapMax: { refused: [2, 12.5], allowed: [3, 20] },
   startingSkillsMin: { refused: [-1, 0.5], allowed: [0, 2] },
   startingSkillsMax: { refused: [0, 2.5], allowed: [1, 3] },
-  startingSkillRatingMax: wholeFrom(1),
+  // A Skill rating, 1 to 5 (`SkillRating`): the Hero generator draws a starting rating up to it (DL-205's verification).
+  startingSkillRatingMax: { refused: [0, 1.5, 6, Number.POSITIVE_INFINITY], allowed: [1, 5] },
   moraleBaseline: { refused: [-0.5, 100.5, Number.NaN], allowed: [0, 60.5, 100] },
   guildmasterStartingAgeMin: { refused: [-1, 21.5], allowed: [0, 50] },
   guildmasterStartingAgeMax: { refused: [20, 50.5], allowed: [21, 60] },

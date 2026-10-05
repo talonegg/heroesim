@@ -7,6 +7,8 @@
 import type { EngineDeps } from '../config.js';
 import type { Class, ClassKey, SkillKey } from '../content-types.js';
 import {
+  highestSkillRating,
+  lowestSkillRating,
   rowOf,
   takeId,
   type EntityId,
@@ -36,10 +38,6 @@ import {
 
 /** A generated Hero's Level unless the caller gives one. */
 const firstLevel = 1;
-
-/** The Skill scale, `SkillRating`: a Hero's rating runs from 1 to 5. */
-const lowestSkillRating = 1;
-const highestSkillRating = 5;
 
 export interface HeroOptions extends DrawsFrom {
   /** The Hero's Class; drawn from content by the Classes' weights (`pickByWeight`, DL-202) when omitted. */
