@@ -1,7 +1,5 @@
 import {
   advance,
-  append,
-  createHistory,
   createWorld,
   dayOf,
   defaultConfig,
@@ -20,6 +18,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
+import { append, createHistory } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { cameHome, changed, played as playedState, started, withPartyOut, withReturn, withTheGone, withWorldNews } from './game.test-support';

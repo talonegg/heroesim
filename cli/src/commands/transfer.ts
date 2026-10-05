@@ -8,13 +8,10 @@
 // put into words here (ADR-0003), and a fee is the engine's `transferFee`.
 
 import {
-  acceptTransfer,
+  applyAction,
   dayOf,
-  declineTransfer,
   offersTo,
   playerGuild,
-  transferIn,
-  transferOut,
   type AcceptTransferRejection,
   type DeclineTransferRejection,
   type EngineDeps,
@@ -111,11 +108,11 @@ export function transferHero(
   if (player === undefined) return { ok: false, problem: "The save has no player's Guild." };
   if ('to' in command) {
     if (rowIn(world.guilds, command.to) === undefined) return { ok: false, problem: `The save has no Guild ${command.to} (show guilds).` };
-    const result = transferOut(document, { guildId: player.id, heroId: command.hero, toGuildId: command.to }, deps);
+    const result = applyAction(document, { kind: 'transferOut', guildId: player.id, heroId: command.hero, toGuildId: command.to }, deps);
     if (!result.ok) return { ok: false, problem: explain(result.rejection, player, world) };
     return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
   }
-  const result = transferIn(document, { guildId: player.id, heroId: command.hero }, deps);
+  const result = applyAction(document, { kind: 'transferIn', guildId: player.id, heroId: command.hero }, deps);
   if (!result.ok) return { ok: false, problem: explain(result.rejection, player, world) };
   return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
 }
@@ -129,8 +126,8 @@ export function answerOffer(
   const { world } = document;
   const player = playerGuild(world);
   if (player === undefined) return { ok: false, problem: "The save has no player's Guild." };
-  const request = { guildId: player.id, offerId: command.offer };
-  const result = command.name === 'accept' ? acceptTransfer(document, request, deps) : declineTransfer(document, request, deps);
+  const kind = command.name === 'accept' ? 'acceptTransfer' : 'declineTransfer';
+  const result = applyAction(document, { kind, guildId: player.id, offerId: command.offer }, deps);
   if (!result.ok) return { ok: false, problem: explain(result.rejection, player, world) };
   return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
 }

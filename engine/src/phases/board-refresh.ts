@@ -5,7 +5,7 @@
 // play (R22, M4-S5, closing DL-25's uniform draw). `createWorld` runs the same refresh at Turn 0, so
 // a new game opens on a full Board (DL-25).
 
-import { compareByCodeUnit, type Patron, type QuestId, type World } from '../document.js';
+import { compareByCodeUnit, rowOf, type Patron, type QuestId, type World } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { boardStream, generateQuest, templatesFor } from '../generators/quests.js';
 import { streamOf } from '../generators/draw.js';
@@ -26,7 +26,7 @@ function expireQuests(world: World, ctx: PhaseContext): EngineEvent[] {
   const events: EngineEvent[] = [];
   const kept: QuestId[] = [];
   for (const questId of world.board) {
-    const quest = Object.hasOwn(world.quests, questId) ? world.quests[questId] : undefined;
+    const quest = rowOf(world.quests, questId);
     if (quest === undefined || quest.status !== 'offered' || quest.expiresOnTurn >= ctx.turn) {
       kept.push(questId);
       continue;

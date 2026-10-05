@@ -2,8 +2,6 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   defaultConfig,
   deserialise,
-  migrate,
-  migrations,
   schemaVersion,
   serialise,
   type EngineDeps,
@@ -14,6 +12,7 @@ import {
   type SavedDocument,
   type WorldDocument,
 } from './index.js';
+import { migrate, migrations } from './serialise.js';
 import { getHeapStatistics } from 'node:v8';
 import { createWorld } from './create.js';
 import type { EntityId } from './document.js';

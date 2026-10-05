@@ -43,10 +43,10 @@ import { createHash } from 'node:crypto';
 import {
   addStack,
   advance,
+  applyAction,
   capability,
   createWorld,
   degrees,
-  dispatch,
   encounterKinds,
   estimateQuest,
   moraleBand,
@@ -263,7 +263,7 @@ export function drawSample(seed: string, deps: EngineDeps): Drawn {
   const bandsAtFirst = heroes.map((hero) => moraleBand(hero.morale, deps.config));
 
   // Sent, and played to the afternoon before the night it comes home.
-  const sent = dispatch(created, { guildId: guild.id, questId, heroIds: heroes.map((hero) => hero.id), consumables: carried }, sampled);
+  const sent = applyAction(created, { kind: 'dispatch', guildId: guild.id, questId, heroIds: heroes.map((hero) => hero.id), consumables: carried }, sampled);
   if (!sent.ok) throw new Error(`${seed}: dispatch refused the Party, ${sent.rejection.reason}`);
   let document = sent.document;
   const party = Object.values(document.world.parties).find((it) => it.questId === questId) as Party;

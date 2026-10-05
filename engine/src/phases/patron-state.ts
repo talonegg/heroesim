@@ -8,7 +8,7 @@
 // value from one band into another. Patrons in id order, Guilds in id order; a folded Guild is out of
 // play and its entries are left as they stand. It draws nothing.
 
-import { compareByCodeUnit, type GuildId } from '../document.js';
+import { compareByCodeUnit, rowOf, type GuildId } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { patronRegardChanged, recoverRegard, regardReach } from '../regard.js';
 import { turnsPerDay } from '../time.js';
@@ -25,7 +25,7 @@ export const patronState: PhaseRun = (world, ctx) => {
   for (const patron of patrons) {
     const guildIds = (Object.keys(patron.regard) as GuildId[]).sort(compareByCodeUnit);
     for (const guildId of guildIds) {
-      const guild = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
+      const guild = rowOf(world.guilds, guildId);
       if (guild === undefined || guild.foldedOnTurn !== null) continue;
       const change = recoverRegard(patron.regard, guildId, step, config);
       events.push(...patronRegardChanged(ctx, patron.id, guildId, 'recovery', change));

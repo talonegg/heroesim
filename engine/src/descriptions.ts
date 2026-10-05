@@ -31,7 +31,7 @@ import type {
   PortraitKey,
   TraitKey,
 } from './content-types.js';
-import type { DescriptiveAttribute, Guildmaster, Hero, Sex, World } from './document.js';
+import { rowOf, type DescriptiveAttribute, type Guildmaster, type Hero, type Sex, type World } from './document.js';
 import { pickOrNone, streamOf, type Stream } from './generators/draw.js';
 import { ageSpanOf, portraitRowOf } from './portraits.js';
 import { createStreams } from './rng.js';
@@ -122,7 +122,7 @@ function write(state: Stream, content: Pick<ContentSet, 'descriptions' | 'portra
 
   const { biography: sentences } = descriptions;
   const listed = <T>(lists: Readonly<Record<string, T>>, key: string | undefined): T | undefined =>
-    key !== undefined && Object.hasOwn(lists, key) ? lists[key] : undefined;
+    key !== undefined ? rowOf(lists, key) : undefined;
   /** The picture's own sentences, or the band's where it has none or there is no picture. */
   const ownElseBand = (own: readonly string[] | undefined, byBand: Readonly<Record<string, string[]>>): readonly string[] =>
     own !== undefined && own.length > 0 ? own : (listed(byBand, band) ?? []);
@@ -277,7 +277,7 @@ export function describeHero(state: Stream, content: Pick<ContentSet, 'descripti
 
   const sentences = descriptions.heroBiography;
   const listed = <T>(lists: Readonly<Record<string, T>>, key: string | undefined): T | undefined =>
-    key !== undefined && Object.hasOwn(lists, key) ? lists[key] : undefined;
+    key !== undefined ? rowOf(lists, key) : undefined;
   const classSentences = [...(listed(listed(sentences.classes, facts.classKey) ?? {}, band) ?? []), ...(pictured?.hooks ?? [])];
   const temperClosings = pictured === undefined ? [] : (listed(descriptions.biography.temperClosings, pictured.temper) ?? []);
   const closings = temperClosings.length > 0 ? temperClosings : (listed(sentences.closings, band) ?? []);

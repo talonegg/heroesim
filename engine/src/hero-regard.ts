@@ -25,6 +25,7 @@ import {
   compareByCodeUnit,
   isId,
   parseId,
+  rowOf,
   type EntityId,
   type Hero,
   type HeroId,
@@ -177,7 +178,7 @@ function holderOf(id: EntityId, world: Pick<World, 'guilds' | 'guildmasters' | '
   const table = parseId(id)?.table;
   if (table === undefined || !regardTables.has(table)) return undefined;
   const rows = world[table as 'guilds' | 'guildmasters' | 'heroes' | 'patrons'] as Readonly<Record<string, Holder>>;
-  return Object.hasOwn(rows, id) ? rows[id] : undefined;
+  return rowOf(rows, id);
 }
 
 /**
@@ -223,7 +224,7 @@ export function relationshipBandCounts(
   config: Pick<GameConfig, 'regardMin' | 'regardMax' | 'regardBands'>,
 ): Record<RegardBand, number> {
   const counts = Object.fromEntries(regardBandNames.map((band) => [band, 0])) as Record<RegardBand, number>;
-  const heroes = heroIds.flatMap((id) => (Object.hasOwn(world.heroes, id) ? [world.heroes[id] as Hero] : []));
+  const heroes = heroIds.flatMap((id) => rowOf(world.heroes, id) ?? []);
   for (let i = 0; i < heroes.length; i += 1) {
     for (let j = i + 1; j < heroes.length; j += 1) {
       counts[regardBand(relationshipBetween(heroes[i] as Hero, heroes[j] as Hero, config), config)] += 1;

@@ -1,31 +1,38 @@
 // @heroesim/engine: pure rules, state, generators and engines; imports nothing outside itself.
+//
+// Its values are what the other packages' production code uses, with the module seam's error and
+// tables (v1.1.6-S8, DL-186 item 9): the mutators and the engine's own helpers are not exported, and
+// what only tests take is `@heroesim/engine/testing` (testing.ts). Every type stays, but the hidden
+// generators' options and results. `export *` stays for the modules of types (events, content's
+// types) and for modules whose every value a caller uses; testing.test.ts holds the entry to this.
 
-export * from './actions/action.js';
 export {
-  applyBuild,
-  build,
-  type BuildAction,
-  type BuildGuildFolded,
-  type BuildInsufficientWealth,
-  type BuildRejection,
-  type BuildRequest,
-  type MaxGrade,
+  applyAction,
+  type Action,
+  type ActionKind,
+  type ActionRejection,
+  type GuildAction,
+  type GuildActionRejection,
+  type RejectionOf,
+} from './actions/action.js';
+export type {
+  BuildAction,
+  BuildGuildFolded,
+  BuildInsufficientWealth,
+  BuildRejection,
+  BuildRequest,
+  MaxGrade,
 } from './actions/build.js';
-export {
-  applyBuy,
-  buy,
-  type BuyAction,
-  type BuyGuildFolded,
-  type BuyInsufficientQuantity,
-  type BuyInsufficientWealth,
-  type BuyRejection,
-  type BuyRequest,
-  type NotInMarket,
+export type {
+  BuyAction,
+  BuyGuildFolded,
+  BuyInsufficientQuantity,
+  BuyInsufficientWealth,
+  BuyRejection,
+  BuyRequest,
+  NotInMarket,
 } from './actions/buy.js';
 export {
-  applyDispatch,
-  dispatch,
-  dispatchRefusal,
   unavailability,
   unmetRequirements,
   type ConsumableRequest,
@@ -41,103 +48,94 @@ export {
   type QuestNotOffered,
   type RequirementKind,
   type RequirementUnmet,
-  type UnmetRequirement,
   type Unavailability,
+  type UnmetRequirement,
 } from './actions/dispatch.js';
-export {
-  applyEquip,
-  applyUnequip,
-  equip,
-  unequip,
-  type EquipAction,
-  type EquipGuildFolded,
-  type EquipHeroNotOnRoster,
-  type EquipHeroUnavailable,
-  type EquipRejection,
-  type EquipRequest,
-  type GearRef,
-  type NotGear,
-  type NotHeldByGuild,
-  type SlotEmpty,
-  type SlotOccupied,
-  type UnequipAction,
-  type UnequipGuildFolded,
-  type UnequipHeroNotOnRoster,
-  type UnequipHeroUnavailable,
-  type UnequipRejection,
-  type UnequipRequest,
-  type WrongSlot,
+export type {
+  EquipAction,
+  EquipGuildFolded,
+  EquipHeroNotOnRoster,
+  EquipHeroUnavailable,
+  EquipRejection,
+  EquipRequest,
+  GearRef,
+  NotGear,
+  NotHeldByGuild,
+  SlotEmpty,
+  SlotOccupied,
+  UnequipAction,
+  UnequipGuildFolded,
+  UnequipHeroNotOnRoster,
+  UnequipHeroUnavailable,
+  UnequipRejection,
+  UnequipRequest,
+  WrongSlot,
 } from './actions/equip.js';
 export { newRules, rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
-export {
-  applyRecruit,
-  recruit,
-  type GuildFoldedRejection,
-  type HeroNotUnattachedRejection,
-  type InsufficientWealthRejection,
-  type RecruitAction,
-  type RecruitRejection,
-  type SigningRefusedRejection,
+export type {
+  GuildFoldedRejection,
+  HeroNotUnattachedRejection,
+  InsufficientWealthRejection,
+  RecruitAction,
+  RecruitRejection,
+  SigningRefusedRejection,
 } from './actions/recruit.js';
-export * from './actions/result.js';
-export {
-  applySell,
-  sell,
-  type SellAction,
-  type SellEquipped,
-  type SellGuildFolded,
-  type SellInsufficientQuantity,
-  type SellItemAction,
-  type SellNotHeldByGuild,
-  type SellRejection,
-  type SellRequest,
-  type SellStackAction,
-  type SellUnknownItem,
+export type { ActionResult, Rejection, WorldActionResult } from './actions/result.js';
+export type {
+  SellAction,
+  SellEquipped,
+  SellGuildFolded,
+  SellInsufficientQuantity,
+  SellItemAction,
+  SellNotHeldByGuild,
+  SellRejection,
+  SellRequest,
+  SellStackAction,
+  SellUnknownItem,
 } from './actions/sell.js';
-export {
-  acceptTransfer,
-  applyAcceptTransfer,
-  applyDeclineTransfer,
-  applyOfferTransfer,
-  applyTransferIn,
-  applyTransferOut,
-  declineTransfer,
-  offerTransfer,
-  transferIn,
-  transferOut,
-  type AcceptTransferAction,
-  type AcceptTransferRejection,
-  type DeclineTransferAction,
-  type DeclineTransferRejection,
-  type NoOfferNeeded,
-  type OfferNotFound,
-  type OfferPending,
-  type OfferTransferAction,
-  type OfferTransferRejection,
-  type TransferAction,
-  type TransferGuildFolded,
-  type TransferHeroInParty,
-  type TransferHeroNotOnRoster,
-  type TransferInAction,
-  type TransferInRejection,
-  type TransferInsufficientWealth,
-  type TransferOutAction,
-  type TransferOutRejection,
-  type TransferRefused,
-  type TransferRejection,
-  type TransferSameGuild,
+export type {
+  AcceptTransferAction,
+  AcceptTransferRejection,
+  DeclineTransferAction,
+  DeclineTransferRejection,
+  NoOfferNeeded,
+  OfferNotFound,
+  OfferPending,
+  OfferTransferAction,
+  OfferTransferRejection,
+  TransferAction,
+  TransferGuildFolded,
+  TransferHeroInParty,
+  TransferHeroNotOnRoster,
+  TransferInAction,
+  TransferInRejection,
+  TransferInsufficientWealth,
+  TransferOutAction,
+  TransferOutRejection,
+  TransferRefused,
+  TransferRejection,
+  TransferSameGuild,
 } from './actions/transfer.js';
 export * from './advance.js';
-export * from './config.js';
-export * from './config-check.js';
+export {
+  configVersion,
+  defaultConfig,
+  questBands,
+  regardBandNames,
+  type ChanceBand,
+  type EngineDeps,
+  type GameConfig,
+  type LoadDeps,
+  type MoraleBand,
+  type PotentialHint,
+  type QuestBand,
+  type RegardBand,
+} from './config.js';
+export { playConfig, playDeps, type ConfigProblem, type ConfigRule, type UnsoundConfig } from './config-check.js';
 export * from './content-types.js';
 export {
   availableHeroes,
   bestParty,
-  partyFor,
-  rivalChoices,
-  staffableQuests,
-  transferAnswer,
   type BestParty,
   type TransferAnswer,
   type TransferRefusalReason,
@@ -147,17 +145,69 @@ export * from './create.js';
 export {
   biographyTraitSentences,
   describeGuildmaster,
-  describeHero,
   heroBiographyTraitSentences,
-  heroDescriptionDraws,
-  heroDescriptionsStream,
   type DescribeRequest,
   type DescriptionFacts,
   type GuildmasterDescription,
   type HeroDescription,
   type HeroFacts,
 } from './descriptions.js';
-export * from './document.js';
+export {
+  compareByCodeUnit,
+  descriptiveAttributeLabels,
+  descriptiveAttributeMaxLength,
+  descriptiveAttributes,
+  facilityKeys,
+  isId,
+  parseId,
+  schemaVersion,
+  type Controller,
+  type DescriptiveAttribute,
+  type Ending,
+  type EndingReason,
+  type EntityId,
+  type Entry,
+  type EventType,
+  type FacilityKey,
+  type Guild,
+  type GuildId,
+  type Guildmaster,
+  type GuildmasterId,
+  type Hall,
+  type Hero,
+  type HeroId,
+  type History,
+  type Holder,
+  type HolderKind,
+  type IdOf,
+  type IdTypes,
+  type Injury,
+  type ItemId,
+  type Meta,
+  type ModuleId,
+  type OfferId,
+  type Party,
+  type PartyId,
+  type Patron,
+  type PatronId,
+  type Quest,
+  type QuestId,
+  type QuestRequirements,
+  type QuestStatus,
+  type RegardEntry,
+  type RegardMap,
+  type Sex,
+  type SkillRating,
+  type Stack,
+  type StackId,
+  type StatValues,
+  type TableName,
+  type TransferOffer,
+  type Turn,
+  type UniqueItem,
+  type World,
+  type WorldDocument,
+} from './document.js';
 export {
   moduleEffectKinds,
   type AdjustMorale,
@@ -174,28 +224,22 @@ export {
 export type { ModuleEmit, ModuleEventDraft } from './emit.js';
 export * from './events.js';
 export * from './fast-forward.js';
-export * from './gear.js';
-export * from './guildmaster.js';
+export { carriedGear, gearChoices, gearModifiers, gearPurchase, type GearUnavailability } from './gear.js';
 export {
-  dealtDisposition,
-  generateGuild,
-  generateRival,
-  type GeneratedGuild,
-  type GuildOptions,
-  type RivalOptions,
-} from './generators/guilds.js';
+  guildmasterOf,
+  guildmasterStatKeys,
+  guildmasterStatsOf,
+  guildmasterTraitsOf,
+  judgedHintBands,
+  traitStatBonuses,
+  type GuildmasterContent,
+  type GuildmasterRule,
+  type GuildmasterTraits,
+} from './guildmaster.js';
 export { sexes } from './generators/draw.js';
 export {
-  ageIntoPortrait,
-  ageSpanOf,
   callingClashes,
-  choosePortrait,
-  guildmasterPortraitsInUse,
-  heroPortraitsInUse,
-  heroPortraitsStream,
-  portraitNotes,
   portraitRowOf,
-  portraitSexOf,
   portraitsOf,
   type AgeSpan,
   type CallingClash,
@@ -207,13 +251,12 @@ export { generateHero, type GeneratedHero, type HeroOptions } from './generators
 // A Level's growth, for the harness's calibration (v1.1.4-S9, DL-162), which raises a generated Hero
 // to a Level as the `levelUps` phase would.
 export { growOneLevel, type Growth } from './progression.js';
-export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
-export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
-export * from './hero-regard.js';
-export * from './history.js';
-export * from './items.js';
-export * from './json-safe.js';
-export * from './market.js';
+export { generateQuest, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
+export { relationship, relationshipBandCounts, type HeroRegardContext } from './hero-regard.js';
+export { entriesBetween, entriesFor, type HistoryPage } from './history.js';
+export { addStack, holdings, itemDefinition, type HolderQuery, type Holdings } from './items.js';
+export type { JsonUnsafe, JsonUnsafeKind, JsonValue } from './json-safe.js';
+export { marketStock, sellPrice, type MarketListing } from './market.js';
 export {
   hookNames,
   ModuleError,
@@ -230,12 +273,7 @@ export {
 // The probe module (M8-S3, DL-78) is test-only: for tests, the harness (`HEROESIM_MODULES=probe`)
 // and the front ends' test-only switches, never installed by default or by a front end on its own.
 export {
-  createProbe,
   probe,
-  probeDefaults,
-  probeId,
-  probeSliceFailures,
-  probeSliceVersion,
   type ProbeEffectOutcome,
   type ProbeFired,
   type ProbeFiredPayload,
@@ -243,14 +281,23 @@ export {
   type ProbeTunables,
 } from './modules/probe.js';
 export type { ReadonlyDeep } from './read-only.js';
-export * from './regard.js';
-export { moraleBand, moraleBaselineFor } from './morale.js';
+export {
+  guildmasterRegardForGuild,
+  patronRegardFor,
+  regardBand,
+  regardBandCounts,
+  regardValue,
+  type RegardChange,
+  type RegardConfig,
+  type RegardContext,
+  type ResolvedForRegard,
+} from './regard.js';
+export { moraleBand } from './morale.js';
 export { potentialHint } from './potential.js';
 export * from './preview.js';
-export { capability, check, targetOf, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './quest-engine/check.js';
+export { capability, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './quest-engine/check.js';
 export {
   describeQuery,
-  statsIn,
   type HeroAccount,
   type PredAccount,
   type QueryAccount,
@@ -258,7 +305,6 @@ export {
   type ValAccount,
 } from './quest-engine/describe.js';
 export {
-  chanceBand,
   chanceToReach,
   estimateQuest,
   questEstimator,
@@ -267,13 +313,10 @@ export {
   type EncounterEstimate,
   type QuestEstimate,
 } from './quest-engine/estimate.js';
-export { formEffect, formEffects, formOf, meanForm, workingMorale, type FormConfig, type FormEffect } from './quest-engine/form.js';
-export { expendUsed, kitOf, sendHome, type ConsumableUse, type Kit } from './quest-engine/consumables.js';
-export { degreeOf, passDegree, passOf, succeeded, type Decided } from './quest-engine/degree.js';
-export { encounterCount, sequenceFor, storedSequence } from './quest-engine/encounters.js';
-export { teamwork } from './quest-engine/teamwork.js';
+export type { FormConfig, FormEffect } from './quest-engine/form.js';
+export type { ConsumableUse, Kit } from './quest-engine/consumables.js';
+export { passDegree, passOf, type Decided } from './quest-engine/degree.js';
 export {
-  questBand,
   resolveQuest,
   type CheckRoll,
   type EncounterResult,
@@ -281,31 +324,48 @@ export {
   type QuestOutcome,
   type Resolution,
 } from './quest-engine/resolve.js';
+export { queryParty, type OnQuest, type QueryContent, type QueryMember, type QueryParty } from './quest-engine/query.js';
 export {
-  evaluate,
-  heroOf,
-  holds,
-  is,
-  membersOf,
-  queryParty,
-  valueOf,
-  type QueryContent,
-  type OnQuest,
-  type QueryMember,
-  type QueryParty,
-} from './quest-engine/query.js';
-export { appliesOn, meetsRequirement, synergiesFor, synergiesOn, synergyBonus } from './quest-engine/synergy.js';
-export * from './selectors.js';
-export * from './serialise.js';
-export * from './stops.js';
-export * from './time.js';
-export * from './traits.js';
+  affordableImprovement,
+  bankruptcyCountdown,
+  baseStat,
+  cheapestUnattached,
+  dispositionOf,
+  effectiveStats,
+  nextImprovement,
+  nextUpkeepDay,
+  offeredQuests,
+  playerGuild,
+  rankingPlaces,
+  rankings,
+  signingFee,
+  signingRefusal,
+  transferFee,
+  unattachedHeroes,
+  unsignableHeroes,
+  upkeep,
+  upkeepParts,
+  type BankruptcyCountdown,
+  type Hire,
+  type Ranking,
+  type RankingMeasure,
+  type RankingPlace,
+  type SigningRefusal,
+  type UpkeepParts,
+} from './selectors.js';
+export { deserialise, serialise, type LoadRefusal, type LoadResult, type Migration, type SavedDocument } from './serialise.js';
+export type { ModuleStopReason, PlayedTurn, StopCondition, StopReason, StopReasonKind } from './stops.js';
+export { ageOf, dayOf, durationDaysOf, retirementTurn, retiresOn, timeOfDay, yearOf, type Aged, type TimeOfDay } from './time.js';
+export { traitOf, traitStatModifiers, type BonusTarget, type HeroTraitContent, type TraitContent } from './traits.js';
+export { offersTo } from './transfer.js';
 export {
-  offerExpiresBy,
-  offerExpiresOnTurn,
-  offersTo,
-  pendingOffers,
-} from './transfer.js';
-export * from './validate.js';
+  validate,
+  type RefusalCheck,
+  type ValidateOptions,
+  type ValidationFailure,
+  type ValidationResult,
+  type ValidationWarning,
+  type WarningCheck,
+} from './validate.js';
 // A stream's state type stays inside the engine: nothing reaches it except through `world.rng`.
-export { streamNames, type StreamName } from './rng.js';
+export type { StreamName } from './rng.js';

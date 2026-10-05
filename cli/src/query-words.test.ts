@@ -1,5 +1,6 @@
 import { loadContent } from '@heroesim/content/node';
-import { chanceBand, chanceBandNames, defaultConfig, describeQuery, type NumQuery } from '@heroesim/engine';
+import { defaultConfig, describeQuery, type NumQuery } from '@heroesim/engine';
+import { chanceBand, chanceBandNames } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { chanceWords, encounterReadings, shownPercent, queryWords, readsAsOne } from './query-words.js';
 

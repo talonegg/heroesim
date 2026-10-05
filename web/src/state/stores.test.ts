@@ -1,10 +1,8 @@
 import {
   addStack,
   availableHeroes,
-  createItem,
   holdings,
   offeredQuests,
-  partyFor,
   playerGuild,
   sellPrice,
   type Guild,
@@ -12,6 +10,7 @@ import {
   type HolderQuery,
   type WorldDocument,
 } from '@heroesim/engine';
+import { createItem, partyFor } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { changed, holding, played, started } from './game.test-support';
 import { playDeps, type GameState } from './reducer';

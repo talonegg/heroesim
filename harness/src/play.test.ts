@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { loadContent } from '@heroesim/content/node';
 import {
-  append,
   applyAction,
   createWorld,
   defaultConfig,
@@ -17,6 +16,7 @@ import {
   type HeroId,
   type WorldDocument,
 } from '@heroesim/engine';
+import { append } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { emptyObservations, regardSnapshot } from './counters.js';
 import { harnessSetup } from './creation.js';

@@ -1,4 +1,13 @@
-import { append, dayOf, entriesFor, makeId, playerGuild, unattachedHeroes, type EngineEventOf, type HeroId, type WorldDocument } from '@heroesim/engine';
+import {
+  dayOf,
+  entriesFor,
+  playerGuild,
+  unattachedHeroes,
+  type EngineEventOf,
+  type HeroId,
+  type WorldDocument,
+} from '@heroesim/engine';
+import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
 import { cameHome, changed, played, started, withPartyOut, withReturn, withWealth, type Written } from './game.test-support';

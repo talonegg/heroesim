@@ -10,9 +10,6 @@ import {
   defaultConfig,
   gearChoices,
   holdings,
-  makeId,
-  marketHolder,
-  partyFor,
   playerGuild,
   serialise,
   signingFee,
@@ -27,6 +24,7 @@ import {
   type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
+import { makeId, marketHolder, partyFor } from '@heroesim/engine/testing';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { harnessSetup } from './creation.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';

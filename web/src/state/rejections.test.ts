@@ -3,13 +3,13 @@ import {
   createWorld,
   dayOf,
   defaultConfig,
-  makeId,
-  schemaVersion,
   playerGuild,
+  schemaVersion,
   type Guild,
   type Hero,
   type World,
 } from '@heroesim/engine';
+import { makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import type { PlayRejection } from './reducer';

@@ -20,6 +20,7 @@ import {
 } from './content-types.js';
 import {
   compareByCodeUnit,
+  rowOf,
   type EntityId,
   type Guild,
   type GuildId,
@@ -227,7 +228,7 @@ export function gearChoices(
   }
   const free = new Map<SlotKey, HeroId[]>(gearSlotKeys.map((slot) => [slot, []]));
   for (const heroId of guild.rosterIds) {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    const hero = rowOf(world.heroes, heroId);
     if (hero === undefined || gearUnavailability(hero) !== null) continue;
     for (const slot of gearSlotKeys) if (filled.get(heroId)?.has(slot) !== true) free.get(slot)?.push(heroId);
   }
@@ -287,7 +288,7 @@ export function gearPurchase(
   for (const item of Object.values(world.items)) tally(item, 1);
   for (const stack of Object.values(world.stacks)) tally(stack, stack.quantity);
   const living = guild.rosterIds.filter((heroId) => {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    const hero = rowOf(world.heroes, heroId);
     return hero !== undefined && hero.diedOnTurn === null && hero.retiredOnTurn === null;
   });
 

@@ -9,8 +9,7 @@ import { effectiveStats, playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { testContent, testDeps, withValid } from '../world.test-support.js';
 import { applyAction, applyGuildAction } from './action.js';
-import { dispatch } from './dispatch.js';
-import { equip, unequip, type EquipRejection, type EquipRequest, type UnequipRejection } from './equip.js';
+import type { EquipRejection, EquipRequest, UnequipRejection } from './equip.js';
 
 // M5-S2: `equip` and `unequip` (DL-49). Worlds are made by `createWorld` with no Rivals, and the
 // player's Guild is handed the Items a test needs; every document a test makes is held to the
@@ -58,7 +57,7 @@ function scene(seed = 'equip', with_: EngineDeps = deps): Scene {
 }
 
 function equipped(document: WorldDocument, request: EquipRequest, with_: EngineDeps = deps): WorldDocument {
-  const result = equip(document, request, with_);
+  const result = applyAction(document, { kind: 'equip', ...request }, with_);
   if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
   return withValid(result.document, with_);
 }
@@ -76,7 +75,7 @@ describe('equip', () => {
     const { document, guild, hero, blades } = scene();
     const before = effectiveStats(hero, document.world, deps.content);
 
-    const result = equip(document, { guildId: guild.id, heroId: hero.id, stackId: blades }, deps);
+    const result = applyAction(document, { kind: 'equip', guildId: guild.id, heroId: hero.id, stackId: blades }, deps);
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const after = withValid(result.document, deps);
     const geared = after.world.heroes[hero.id] as Hero;
@@ -91,7 +90,7 @@ describe('equip', () => {
   test('a common Item takes one unit of the stack; the rest stays in the holding; item.equipped names who and what', () => {
     const { document, guild, hero, blades } = scene();
 
-    const result = equip(document, { guildId: guild.id, heroId: hero.id, stackId: blades }, deps);
+    const result = applyAction(document, { kind: 'equip', guildId: guild.id, heroId: hero.id, stackId: blades }, deps);
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
 
@@ -138,7 +137,7 @@ describe('equip', () => {
     const { document, guild, hero, blades } = scene();
     (document.world.heroes[hero.id] as Hero).injury = { typeKey: 'broken-arm', healsOnTurn: 30 };
 
-    expect(equip(document, { guildId: guild.id, heroId: hero.id, stackId: blades }, deps).ok).toBe(true);
+    expect(applyAction(document, { kind: 'equip', guildId: guild.id, heroId: hero.id, stackId: blades }, deps).ok).toBe(true);
   });
 
   test('applyAction and applyGuildAction run the same rule', () => {
@@ -268,7 +267,7 @@ describe('equip', () => {
       const { request, with_ = deps } = arrange(arranged);
       const before = serialise(arranged.document);
 
-      const result = equip(arranged.document, request, with_);
+      const result = applyAction(arranged.document, { kind: 'equip', ...request }, with_);
 
       expect(result).toEqual({ ok: false, rejection: expect.objectContaining({ action: 'equip', ...rejection }) });
       expect(serialise(arranged.document)).toBe(before);
@@ -278,14 +277,14 @@ describe('equip', () => {
       const { document, guild, hero, blades } = scene();
       const quest = document.world.quests[document.world.board[0] as QuestId] as Quest;
       quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
-      const sent = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds: [hero.id] }, deps);
+      const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: [hero.id] }, deps);
       if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
 
-      expect(equip(sent.document, { guildId: guild.id, heroId: hero.id, stackId: blades }, deps)).toEqual({
+      expect(applyAction(sent.document, { kind: 'equip', guildId: guild.id, heroId: hero.id, stackId: blades }, deps)).toEqual({
         ok: false,
         rejection: { action: 'equip', reason: 'hero-unavailable', heroId: hero.id, because: 'in-party' },
       });
-      expect(unequip(sent.document, { guildId: guild.id, heroId: hero.id, slot: 'weapon' }, deps)).toEqual({
+      expect(applyAction(sent.document, { kind: 'unequip', guildId: guild.id, heroId: hero.id, slot: 'weapon' }, deps)).toEqual({
         ok: false,
         rejection: { action: 'unequip', reason: 'hero-unavailable', heroId: hero.id, because: 'in-party' },
       });
@@ -302,11 +301,11 @@ describe('equip', () => {
     withValid(document, withRival);
     const before = serialise(document);
 
-    expect(equip(document, { guildId: guild.id, heroId: hero.id, stackId: shirt }, withRival)).toEqual({
+    expect(applyAction(document, { kind: 'equip', guildId: guild.id, heroId: hero.id, stackId: shirt }, withRival)).toEqual({
       ok: false,
       rejection: { action: 'equip', reason: 'not-held-by-guild', itemId: null, stackId: shirt },
     });
-    expect(equip(document, { guildId: guild.id, heroId: hero.id, itemId: mantle }, withRival)).toEqual({
+    expect(applyAction(document, { kind: 'equip', guildId: guild.id, heroId: hero.id, itemId: mantle }, withRival)).toEqual({
       ok: false,
       rejection: { action: 'equip', reason: 'not-held-by-guild', itemId: mantle, stackId: null },
     });
@@ -316,12 +315,12 @@ describe('equip', () => {
   test('throws on a programming error: a Guild not in the world, or neither or both of itemId and stackId', () => {
     const { document, guild, hero, blades, relic } = scene();
 
-    expect(() => equip(document, { guildId: 'guild-999999' as Guild['id'], heroId: hero.id, stackId: blades }, deps)).toThrow(
+    expect(() => applyAction(document, { kind: 'equip', guildId: 'guild-999999' as Guild['id'], heroId: hero.id, stackId: blades }, deps)).toThrow(
       RangeError,
     );
-    expect(() => equip(document, { guildId: guild.id, heroId: hero.id } as EquipRequest, deps)).toThrow(RangeError);
+    expect(() => applyAction(document, { kind: 'equip', ...{ guildId: guild.id, heroId: hero.id } as EquipRequest }, deps)).toThrow(RangeError);
     expect(() =>
-      equip(document, { guildId: guild.id, heroId: hero.id, stackId: blades, itemId: relic } as unknown as EquipRequest, deps),
+      applyAction(document, { kind: 'equip', ...{ guildId: guild.id, heroId: hero.id, stackId: blades, itemId: relic } as unknown as EquipRequest }, deps),
     ).toThrow(RangeError);
   });
 });
@@ -332,7 +331,7 @@ describe('unequip', () => {
     const bare = effectiveStats(hero, document.world, deps.content);
     const geared = equipped(document, { guildId: guild.id, heroId: hero.id, stackId: blades });
 
-    const result = unequip(geared, { guildId: guild.id, heroId: hero.id, slot: 'weapon' }, deps);
+    const result = applyAction(geared, { kind: 'unequip', guildId: guild.id, heroId: hero.id, slot: 'weapon' }, deps);
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
 
@@ -355,7 +354,7 @@ describe('unequip', () => {
     const { document, guild, hero, relic } = scene();
     const geared = equipped(document, { guildId: guild.id, heroId: hero.id, itemId: relic });
 
-    const result = unequip(geared, { guildId: guild.id, heroId: hero.id, slot: 'weapon' }, deps);
+    const result = applyAction(geared, { kind: 'unequip', guildId: guild.id, heroId: hero.id, slot: 'weapon' }, deps);
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
 
     expect(withValid(result.document, deps).world.items[relic]?.holder).toEqual({ kind: 'guild', id: guild.id });
@@ -384,7 +383,7 @@ describe('unequip', () => {
     const heroId = arrange(arranged);
     const before = serialise(arranged.document);
 
-    const result = unequip(arranged.document, { guildId: arranged.guild.id, heroId, slot: 'weapon' }, deps);
+    const result = applyAction(arranged.document, { kind: 'unequip', guildId: arranged.guild.id, heroId, slot: 'weapon' }, deps);
 
     expect(result).toEqual({ ok: false, rejection: expect.objectContaining({ action: 'unequip', ...rejection }) });
     expect(serialise(arranged.document)).toBe(before);

@@ -1,17 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import {
   addStack,
-  createItem,
   defaultConfig,
-  findStack,
   gearSlotKeys,
   holdings,
   itemDefinition,
-  makeId,
-  moveItem,
-  moveStack,
-  removeFromStack,
-  sameHolder,
   validate,
   type Holder,
   type ItemDefinitionKey,
@@ -19,6 +12,8 @@ import {
   type StackId,
   type World,
 } from './index.js';
+import { createItem, findStack, moveItem, moveStack, removeFromStack, sameHolder } from './items.js';
+import { makeId } from './document.js';
 import { cyrb128, int, pick } from './rng.js';
 import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
 

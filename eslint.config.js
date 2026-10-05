@@ -29,15 +29,32 @@ const byNameOnly =
 // browser and may not, except in its tests, which run on Node (M7-S1, DL-64). Two more, content's
 // register of a Trait's uses, `@heroesim/content/uses` (v1.1.4-S12), and its write module,
 // `@heroesim/content/write` (v1.1.6-S4), are the tools' alone (the tools' block below).
-// content/src/imports.test.ts proves each.
+// content/src/imports.test.ts proves each. The engine's test entry, `@heroesim/engine/testing`, has
+// its own rule, `engineTesting`, so that a production import of it reads that rule's words.
 function noSubpath({ node }) {
   return {
-    regex: node ? '^@heroesim/(?!content/node$)[^/]+/' : '^@heroesim/[^/]+/',
+    regex: node ? '^@heroesim/(?!content/node$|engine/testing$)[^/]+/' : '^@heroesim/(?!engine/testing$)[^/]+/',
     message:
       'Import a package by its name only; its entry is all it exports, and ' +
       '`@heroesim/content/node` is for the CLI and the harness, never the browser (approach §5).',
   };
 }
+
+/**
+ * The engine's test entry, `@heroesim/engine/testing` (v1.1.6-S8, DL-186 item 9): rows, ids and
+ * History built by hand and the probe's factory, for tests alone. Production code, every file but a
+ * test, its support files and the page's Playwright specs, may not import it; engine/src/testing.test.ts
+ * holds the packages' sources to it as well.
+ */
+const engineTesting = {
+  regex: '^@heroesim/engine/testing$',
+  message:
+    "`@heroesim/engine/testing` is the engine's entry for tests: production code imports the engine " +
+    'by its name only (DL-186 item 9).',
+};
+
+/** The files of a package that are tests: test files, their support files, the page's Playwright specs. */
+const testFiles = (pkg) => [`${pkg}/**/*.test.{ts,tsx}`, `${pkg}/**/*test-support.{ts,tsx}`, `${pkg}/**/test-setup.ts`];
 
 const nodeBuiltins = `^(node:.*|(${builtinModules.join('|')})(/.*)?)$`;
 
@@ -106,10 +123,11 @@ function contentImports({ node }) {
  * M7-S1, DL-64). Under `web/src/` a relative path leaves the package only after two climbs
  * (`climbs`; DL-65).
  */
-function consumerImports(self, forbidden, { node = self !== 'web', browser = false, climbs = 1 } = {}) {
+function consumerImports(self, forbidden, { node = self !== 'web', browser = false, climbs = 1, tests = false } = {}) {
   return {
     patterns: [
       noSubpath({ node }),
+      ...(tests ? [] : [engineTesting]),
       {
         group: forbidden.map((name) => `@heroesim/${name}`),
         message:
@@ -277,8 +295,16 @@ export default defineConfig(
     rules: restrictImports(consumerImports('harness', ['cli', 'web'])),
   },
   {
+    files: testFiles('harness'),
+    rules: restrictImports(consumerImports('harness', ['cli', 'web'], { tests: true })),
+  },
+  {
     files: ['cli/**/*.ts'],
     rules: restrictImports(consumerImports('cli', ['web'])),
+  },
+  {
+    files: testFiles('cli'),
+    rules: restrictImports(consumerImports('cli', ['web'], { tests: true })),
   },
   // web: its configuration files and Playwright specs run on Node, the page's source in a browser,
   // and its tests on Node again. A later block replaces an earlier block's options.
@@ -291,8 +317,12 @@ export default defineConfig(
     rules: restrictImports(consumerImports('web', ['cli'], { browser: true, climbs: 2 })),
   },
   {
-    files: ['web/src/**/*.test.{ts,tsx}'],
-    rules: restrictImports(consumerImports('web', ['cli'], { node: true, climbs: 2 })),
+    files: ['web/e2e/**/*.ts'],
+    rules: restrictImports(consumerImports('web', ['cli'], { tests: true })),
+  },
+  {
+    files: testFiles('web/src'),
+    rules: restrictImports(consumerImports('web', ['cli'], { node: true, climbs: 2, tests: true })),
   },
 
   // The portrait tool (v1.1.3-S2) and the content editor (v1.1.4-S12): Node packages outside the game,

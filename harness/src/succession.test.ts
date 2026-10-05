@@ -1,5 +1,6 @@
 import { loadContent } from '@heroesim/content/node';
-import { append, compareByCodeUnit, createWorld, defaultConfig, makeId, retirementTurn, type EngineDeps, type Guild } from '@heroesim/engine';
+import { compareByCodeUnit, createWorld, defaultConfig, retirementTurn, type EngineDeps, type Guild } from '@heroesim/engine';
+import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { harnessSetup } from './creation.js';
 import { machine } from './report.js';

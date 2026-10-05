@@ -1,5 +1,16 @@
 import { loadContent } from '@heroesim/content/node';
-import { advance, createProbe, createWorld, defaultConfig, isModuleEvent, probe, type EngineDeps, type HeroId, type Module, type PatronId } from '@heroesim/engine';
+import {
+  advance,
+  createWorld,
+  defaultConfig,
+  isModuleEvent,
+  probe,
+  type EngineDeps,
+  type HeroId,
+  type Module,
+  type PatronId,
+} from '@heroesim/engine';
+import { createProbe } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { countGame, effectEventTypes, moduleCounters } from './counters.js';
 import { harnessSetup } from './creation.js';

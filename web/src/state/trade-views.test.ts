@@ -1,14 +1,13 @@
 import {
   addStack,
   ageOf,
-  createItem,
+  applyAction,
   createWorld,
   dayOf,
   defaultConfig,
   guildmasterOf,
   holdings,
   marketStock,
-  offerTransfer,
   playerGuild,
   sellPrice,
   signingFee,
@@ -17,6 +16,7 @@ import {
   type Guild,
   type WorldDocument,
 } from '@heroesim/engine';
+import { createItem } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { marketView, offersView, poolView } from './trade-views';
@@ -217,7 +217,7 @@ describe('offersView', () => {
     if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
     expect(offersView(document)).toEqual({ guildName: 'The Lantern', offers: [] });
 
-    const offered = offerTransfer(document, { guildId: rival.id, heroId }, deps);
+    const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
     if (!offered.ok) throw new Error(offered.rejection.reason);
     const [offer] = Object.values(offered.document.world.offers);
     if (offer === undefined) throw new Error('no offer');

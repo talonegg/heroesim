@@ -6,8 +6,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   addStack,
-  count,
-  createItem,
   deserialise,
   holdings,
   playerGuild,
@@ -18,6 +16,7 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
+import { count, createItem } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from '../main.js';

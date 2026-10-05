@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { applyAction } from './actions/action.js';
-import { dispatch } from './actions/dispatch.js';
-import { equip, type EquipRequest } from './actions/equip.js';
+import type { EquipRequest } from './actions/equip.js';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
 import type { SlotKey } from './content-types.js';
@@ -56,7 +55,7 @@ function scene(seed: string, with_: EngineDeps = deps): { document: WorldDocumen
 const slotOf = (heroId: HeroId, slot: 'weapon' | 'armour' | 'trinket'): Holder => ({ kind: 'hero', id: heroId, slot });
 
 function equipped(document: WorldDocument, request: EquipRequest, with_: EngineDeps = deps): WorldDocument {
-  const result = equip(document, request, with_);
+  const result = applyAction(document, { kind: 'equip', ...request }, with_);
   if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
   return withValid(result.document, with_);
 }
@@ -222,7 +221,7 @@ describe('gear goes back to the Guild (DL-49)', () => {
     const offered = current.world.quests[current.world.board[0] as QuestId] as Quest;
     offered.requirements = { partySizeMin: 1, partySizeMax: 4 };
     offered.encounterKeys = ['ambush-on-the-road'];
-    const sent = dispatch(current, { guildId: guild.id, questId: offered.id, heroIds: [doomed.id] }, harm);
+    const sent = applyAction(current, { kind: 'dispatch', guildId: guild.id, questId: offered.id, heroIds: [doomed.id] }, harm);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     (sent.document.world.quests[offered.id] as Quest).difficulty = 5000;
     const party = Object.values(sent.document.world.parties)[0] as Party;
@@ -338,7 +337,7 @@ describe('gearChoices: the gear the controllers equip (DL-49)', () => {
     };
     const quest = world.quests[world.board[0] as QuestId] as Quest;
     quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
-    const sent = dispatch(withValid(document, deps), { guildId: guild.id, questId: quest.id, heroIds: [h2.id] }, deps);
+    const sent = applyAction(withValid(document, deps), { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: [h2.id] }, deps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     return { document: withValid(sent.document, deps), guild, heroes, ids };
   }

@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { recruit } from '../actions/recruit.js';
 import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
@@ -13,6 +12,7 @@ import { nightOf } from '../time.js';
 import { plannedStreams, testDeps, withValid } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { poolRefresh } from './pool-refresh.js';
+import { applyAction } from '../actions/action.js';
 
 // M2-S8: the night's pool refresh (DL-27). Documents are held to the validator after every advance
 // a test inspects.
@@ -140,7 +140,7 @@ describe('the refill', () => {
     const guild = playerGuild(start.world);
     const [hero] = unattachedHeroes(start.world);
     if (guild === undefined || hero === undefined) throw new Error('The world is incomplete');
-    const recruited = recruit(start, { guildId: guild.id, heroId: hero.id }, deps);
+    const recruited = applyAction(start, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
     if (!recruited.ok) throw new Error(`Refused: ${recruited.rejection.reason}`);
     expect(unattachedHeroes(recruited.document.world)).toHaveLength(deps.config.unattachedPoolSize - 1);
 

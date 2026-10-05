@@ -72,7 +72,17 @@ import type {
   TraitConsequence,
   TraitKey,
 } from '../content-types.js';
-import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Party, type Quest, type World } from '../document.js';
+import {
+  compareByCodeUnit,
+  requireRow,
+  rowOf,
+  type Guild,
+  type Hero,
+  type HeroId,
+  type Party,
+  type Quest,
+  type World,
+} from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { healDays } from '../injuries.js';
 import { int, next, pick, weightedPick } from '../rng.js';
@@ -269,8 +279,8 @@ interface Working {
 export function resolveQuest(world: World, quest: Quest, party: Party, deps: CheckDeps): Resolution {
   const { config } = deps;
   if (!(quest.difficulty > 0)) throw new RangeError(`${quest.id} has difficulty ${quest.difficulty}; it is above 0`);
-  const heroes = party.heroIds.map((heroId) => row(world.heroes, heroId, 'heroes'));
-  const guild = row<Guild>(world.guilds, party.guildId, 'guilds');
+  const heroes = party.heroIds.map((heroId) => requireRow(world.heroes, heroId, 'heroes'));
+  const guild = requireRow<Guild>(world.guilds, party.guildId, 'guilds');
   const state = streamOf(world, 'quests');
   const sequence = sequenceFor(world, quest, deps);
   const kit = kitOf(world, party, deps.content);
@@ -465,7 +475,7 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
   const { state } = at;
   switch (consequence.kind) {
     case 'injury': {
-      const type = Object.hasOwn(content.injuries, consequence.typeKey) ? content.injuries[consequence.typeKey] : undefined;
+      const type = rowOf(content.injuries, consequence.typeKey);
       if (type === undefined) throw new RangeError(`Content defines no Injury type ${JSON.stringify(consequence.typeKey)}`);
       const factor = healFactor(at.guild, config);
       for (let time = 0; time < consequence.count; time += 1) {
@@ -604,11 +614,4 @@ function partyNow(working: Working, at: Applying, deps: CheckDeps): QueryParty {
 /** `party`'s members by their Hero's id. */
 function byId(party: QueryParty): Map<HeroId, QueryMember> {
   return new Map(party.members.map((member) => [member.hero.id, member]));
-}
-
-/** The row `id` names in `rows`, which must be there. */
-function row<Row>(rows: Readonly<Record<string, Row>>, id: string, table: string): Row {
-  const found = Object.hasOwn(rows, id) ? rows[id] : undefined;
-  if (found === undefined) throw new RangeError(`${id} is not in world.${table}`);
-  return found;
 }

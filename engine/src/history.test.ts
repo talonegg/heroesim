@@ -1,13 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import * as historyModule from './history.js';
 import {
-  append,
-  count,
-  createHistory,
-  emptyDocument,
   entriesBetween,
   entriesFor,
-  makeId,
   type EntityId,
   type Entry,
   type EventType,
@@ -15,6 +10,8 @@ import {
   type Meta,
   type World,
 } from './index.js';
+import { append, count, createHistory } from './history.js';
+import { emptyDocument, makeId } from './document.js';
 import { deepFreeze } from './world.test-support.js';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────────────────────

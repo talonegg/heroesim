@@ -16,7 +16,7 @@
 
 import type { GameConfig } from '../config.js';
 import type { ContentSet, SetQuery, StatKey } from '../content-types.js';
-import type { HeroId } from '../document.js';
+import { rowOf, type HeroId } from '../document.js';
 import { membersOf, type QueryMember, type QueryParty } from './query.js';
 
 /** What harm reads of the configuration. */
@@ -34,7 +34,7 @@ export function meanShare(member: Pick<QueryMember, 'stats'>, statKeys: readonly
   let total = 0;
   let counted = 0;
   for (const statKey of statKeys) {
-    const stat = Object.hasOwn(content.stats, statKey) ? content.stats[statKey] : undefined;
+    const stat = rowOf(content.stats, statKey);
     if (stat === undefined) continue;
     const value = Object.hasOwn(member.stats, statKey) ? (member.stats[statKey] ?? stat.default) : stat.default;
     const range = stat.max - stat.min;

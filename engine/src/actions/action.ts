@@ -1,40 +1,34 @@
 // Every action as a value (M2-S1, pre-M0 review D2): what the harness's policy (M2-S12) and a
-// Rival's controller (M2-S9) choose, and what the web's reducer (M7) dispatches, all applied
-// through the same functions a front end calls one by one. Each action's file defines its action
-// and its rejection; a story adding an action adds both to the unions here and a case to
-// `applyAction` (M2-S4 `dispatch`, M2-S8 `recruit`, M3-S6 `build`, M5-S2 `equip` and `unequip`,
-// M5-S4 `buy` and `sell`, M6-S2 the five Transfer actions).
+// Rival's controller (M2-S9) choose, what the web's reducer (M7) dispatches and what the CLI's
+// commands take, all applied through one dispatch, `applyAction` (v1.1.6-S8, DL-186 item 9). Each
+// action's file defines its action, its rejection and its rule; a story adding an action adds the
+// first two to the unions here and a case to `applyGuildAction` (M2-S4 `dispatch`, M2-S8 `recruit`,
+// M3-S6 `build`, M5-S2 `equip` and `unequip`, M5-S4 `buy` and `sell`, M6-S2 the five Transfer
+// actions).
 
 import type { EngineDeps } from '../config.js';
 import type { World, WorldDocument } from '../document.js';
-import { applyBuild, build, type BuildAction, type BuildRejection } from './build.js';
-import { applyBuy, buy, type BuyAction, type BuyRejection } from './buy.js';
-import { applyDispatch, dispatch, type DispatchAction, type DispatchRejection } from './dispatch.js';
+import { applyBuild, type BuildAction, type BuildRejection } from './build.js';
+import { applyBuy, type BuyAction, type BuyRejection } from './buy.js';
+import { applyDispatch, type DispatchAction, type DispatchRejection } from './dispatch.js';
 import {
   applyEquip,
   applyUnequip,
-  equip,
-  unequip,
   type EquipAction,
   type EquipRejection,
   type UnequipAction,
   type UnequipRejection,
 } from './equip.js';
 import { rebase, type RebaseAction, type RebaseRejection } from './rebase.js';
-import { applyRecruit, recruit, type RecruitAction, type RecruitRejection } from './recruit.js';
-import type { ActionResult, WorldActionResult } from './result.js';
-import { applySell, sell, type SellAction, type SellRejection } from './sell.js';
+import { applyRecruit, type RecruitAction, type RecruitRejection } from './recruit.js';
+import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
+import { applySell, type SellAction, type SellRejection } from './sell.js';
 import {
-  acceptTransfer,
   applyAcceptTransfer,
   applyDeclineTransfer,
   applyOfferTransfer,
   applyTransferIn,
   applyTransferOut,
-  declineTransfer,
-  offerTransfer,
-  transferIn,
-  transferOut,
   type TransferAction,
   type TransferRejection,
 } from './transfer.js';
@@ -90,44 +84,29 @@ export type GuildActionRejection =
   | SellRejection
   | TransferRejection;
 
-/** Applies `action` to `document` through the action's own function. */
-export function applyAction(document: WorldDocument, action: Action, deps: EngineDeps): ActionResult<ActionRejection> {
-  switch (action.kind) {
-    case 'rebase':
-      return rebase(document, deps);
-    case 'dispatch':
-      return dispatch(document, action, deps);
-    case 'recruit':
-      return recruit(document, action, deps);
-    case 'build':
-      return build(document, action, deps);
-    case 'equip':
-      return equip(document, action, deps);
-    case 'unequip':
-      return unequip(document, action, deps);
-    case 'buy':
-      return buy(document, action, deps);
-    case 'sell':
-      return sell(document, action, deps);
-    case 'transferIn':
-      return transferIn(document, action, deps);
-    case 'transferOut':
-      return transferOut(document, action, deps);
-    case 'offerTransfer':
-      return offerTransfer(document, action, deps);
-    case 'acceptTransfer':
-      return acceptTransfer(document, action, deps);
-    case 'declineTransfer':
-      return declineTransfer(document, action, deps);
-  }
+/** The ways `action` can be refused: the rejections whose `action` is its `kind`. */
+export type RejectionOf<A extends Action> = Extract<ActionRejection, Rejection<A['kind']>>;
+
+/**
+ * Applies `action` to `document`: the one way a front end takes an action (v1.1.6-S8, DL-186 item
+ * 9). `rebase` changes the save's rules; every other action is a Guild's, its rule
+ * (`applyGuildAction`) run on a copy of the document's world by `applyToCopy`, so a document that
+ * shares the old world is left as it was (DL-24), and its events appended to the History. A refusal
+ * changes nothing. The result's rejection is narrowed to the action's own.
+ */
+export function applyAction<A extends Action>(document: WorldDocument, action: A, deps: EngineDeps): ActionResult<RejectionOf<A>> {
+  const result =
+    action.kind === 'rebase' ? rebase(document, deps) : applyToCopy(document, (world) => applyGuildAction(world, action, deps));
+  // A rule refuses only with its own action's rejections, which `RejectionOf` names.
+  return result as ActionResult<RejectionOf<A>>;
 }
 
 /**
- * Applies a Guild's `action` to `world` in place through the rule its document-level action runs
- * (`applyDispatch`, `applyRecruit`, `applyBuild`, `applyEquip`, `applyUnequip`, `applyBuy`,
- * `applySell`, and the Transfer rules), returning the events without appending them: how a phase of the Turn pipeline
- * takes an action on the Turn's copy of the world (M2-S9's Rival controllers, DL-30). A refusal
- * changes nothing.
+ * Applies a Guild's `action` to `world` in place through its rule (`applyDispatch`, `applyRecruit`,
+ * `applyBuild`, `applyEquip`, `applyUnequip`, `applyBuy`, `applySell`, and the Transfer rules),
+ * returning the events without appending them: what `applyAction` runs on a copy of a document's
+ * world, and how a phase of the Turn pipeline takes an action on the Turn's copy (M2-S9's Rival
+ * controllers, DL-30). A refusal changes nothing.
  */
 export function applyGuildAction(
   world: World,

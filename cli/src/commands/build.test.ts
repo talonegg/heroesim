@@ -4,7 +4,8 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { count, deserialise, playerGuild, serialise, type Guild, type WorldDocument } from '@heroesim/engine';
+import { deserialise, playerGuild, serialise, type Guild, type WorldDocument } from '@heroesim/engine';
+import { count } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from '../main.js';

@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'vitest';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Encounter, EncounterKind, Synergy } from '../content-types.js';
@@ -24,6 +23,7 @@ import {
 import { queryParty } from './query.js';
 import { resolveQuest } from './resolve.js';
 import { appliesOn, meetsRequirement, synergiesFor, synergiesOn, synergyBonus } from './synergy.js';
+import { applyAction } from '../actions/action.js';
 
 // M4-S3: Synergies (R26, INPUTS 6.4, DL-45), matched on the Party's Classes and Skills and added to
 // the Check on the Encounter kinds each names. The test content carries the core's six, built from
@@ -263,7 +263,7 @@ describe("the Quest's outcome lists the Synergies that applied", () => {
         classKey === undefined && skillKey === undefined && partySizeMin <= 2 && 2 <= partySizeMax,
       );
     if (open === undefined) throw new Error('No open Quest for two on the first Board');
-    const sent = dispatch(withValid(start, gameDeps), { guildId: guild.id, questId: open.id, heroIds }, gameDeps);
+    const sent = applyAction(withValid(start, gameDeps), { kind: 'dispatch', guildId: guild.id, questId: open.id, heroIds }, gameDeps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     const quest = sent.document.world.quests[open.id] as Quest;
     quest.encounterKeys = ['the-long-march', 'a-hostile-reeve'];

@@ -18,7 +18,7 @@
 
 import type { GameConfig } from '../config.js';
 import type { ContentSet, Encounter, EncounterKey, EncounterKind, QuestTagKey, QuestTemplate } from '../content-types.js';
-import type { Quest, World } from '../document.js';
+import { rowOf, type Quest, type World } from '../document.js';
 import { clamp, sortedRows, streamOf, type Stream } from '../generators/draw.js';
 import { pick, weightedPick, type StreamName } from '../rng.js';
 
@@ -128,7 +128,7 @@ export function drawSequence(
  * holds any.
  */
 export function storedSequence(quest: Pick<Quest, 'encounterKeys'>, content: Pick<ContentSet, 'encounters'>): Encounter[] {
-  return quest.encounterKeys.flatMap((key) => (Object.hasOwn(content.encounters, key) ? [content.encounters[key] as Encounter] : []));
+  return quest.encounterKeys.flatMap((key) => rowOf(content.encounters, key) ?? []);
 }
 
 /**
@@ -173,6 +173,6 @@ export function endsWithFinale(
   sequence: readonly Pick<Encounter, 'key'>[],
   content: Pick<ContentSet, 'questTemplates'>,
 ): boolean {
-  const finale = Object.hasOwn(content.questTemplates, templateKey) ? content.questTemplates[templateKey]?.finale : undefined;
+  const finale = rowOf(content.questTemplates, templateKey)?.finale;
   return finale !== undefined && sequence.at(-1)?.key === finale;
 }

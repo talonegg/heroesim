@@ -1,6 +1,4 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { buy } from './actions/buy.js';
-import { dispatch } from './actions/dispatch.js';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
 import { defaultConfig } from './config.js';
@@ -14,6 +12,7 @@ import { phases } from './pipeline.js';
 import { playerGuild } from './selectors.js';
 import { nightOf } from './time.js';
 import { testContent, testDeps, withValid } from './world.test-support.js';
+import { applyAction } from './actions/action.js';
 
 // M5-S4: the Market Engine's prices, what the Market lists, a folding Guild's Items (pre-M0 review
 // D6), and the Rivals, who ignored the Market in M5 (DL-51) and buy gear there from M6-S4 (DL-58).
@@ -105,7 +104,7 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
     const quest = start.world.quests[start.world.board[0] as string as keyof typeof start.world.quests];
     const heroIds = quest === undefined ? null : partyFor(start.world, rival, quest, availableHeroes(start.world, rival), deps);
     if (quest === undefined || heroIds === null) throw new Error('The Rival cannot staff the first Quest');
-    const sent = dispatch(start, { guildId: rival.id, questId: quest.id, heroIds }, deps);
+    const sent = applyAction(start, { kind: 'dispatch', guildId: rival.id, questId: quest.id, heroIds }, deps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     const { document } = sent;
     const { world } = document;
@@ -178,7 +177,7 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
     player.wealth = 1_000;
 
     expect(holdings(morning.world, marketHolder).items.map((item) => item.id)).toEqual(uniques);
-    const result = buy(morning, { guildId: player.id, definitionKey: 'lantern-of-stannary', quantity: 1 }, deps);
+    const result = applyAction(morning, { kind: 'buy', guildId: player.id, definitionKey: 'lantern-of-stannary', quantity: 1 }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);

@@ -25268,6 +25268,121 @@ defaults for the same reason; none can arise but by hand, so no change is propos
 
 ---
 
+## DL-194 — v1.1.6-S8 built: the engine's entry narrowed to what its callers use, the test-only names in `@heroesim/engine/testing`; one action dispatch, `applyAction`; one Roster walk, `activeRosterHeroes`; one row lookup, `rowOf` and `requireRow`
+
+2026-10-05. DL-186 items 9 (B3) and 26 (SF10).
+
+- *Before.* The doctor read no drift (110 reads of a Trait, the content passing its checks, no
+  pending edits).
+- *The classification* (the agent's, as the plan has Opus classify). Every export of the engine's
+  entry at HEAD (`f16cf1a`), 746 (303 values, 443 types), was read with TypeScript's checker and
+  matched against every named import of `@heroesim/engine` in the CLI, content, the harness, the page
+  (its source, tests and Playwright specs) and the two tools, a file being production code unless it
+  is a test, a test's support or setup file, or a Playwright spec. Of the 303 values, 129 were taken
+  by production code, 17 by tests only and 157 by no other package. What became of them:
+  - *Public, 124:* the 118 production code takes (the 129 less the 11 document-level actions the
+    CLI and the harness called, which go); the module seam's error and two tables, `ModuleError`,
+    `hookNames` and `moduleEffectKinds`, kept for a module's author though no package takes them
+    yet; and the three values of `events.ts`, a module of types whose `export *` stays as the plan
+    says (`isMilestone` and `milestoneTypes`, which only tests take, and `milestoneWhen`).
+  - *`@heroesim/engine/testing`, 14:* `append`, `count`, `createHistory`, `createItem`, `findStack`,
+    `makeId`, `marketHolder`, `createProbe`, `partyFor`, `describeHero`, `nightOf`, `chanceBand`,
+    `chanceBandNames` and `potentialHints` (`engine/src/testing.ts`). The 17 less `offerTransfer`,
+    which goes with the other actions, and the two values of `events.ts`.
+  - *Hidden, 153:* every value no other package takes: `takeId`, `moveItem`, `moveStack`,
+    `removeFromStack`, `adjustRegard`, `applyToCopy`, `applyGuildAction` and the twelve `apply*`
+    rules, `emptyDocument`, `generateGuild`, `generateRival`, `generatePatron`, `rivalChoices`,
+    `staffableQuests`, `transferAnswer`, the Regard and Hero Regard mutators and their event helpers,
+    the stop conditions, the Quest Engine's internals (`check`, `evaluate`, `teamwork`, the
+    Synergies', the forms', the consumables' and the Encounters' helpers), the Guildmaster's
+    factors, `checkConfig` and `configRules` (the rules untouched; `playConfig` and `playDeps` stay),
+    `migrate` and `migrations`, the validator's check tables, the id tables, `streamNames` and the
+    like. They stay exported from their modules for the engine's own code and tests.
+  - *Gone, 12:* the document-level actions (`build`, `buy`, `dispatch`, `equip`, `unequip`,
+    `recruit`, `sell`, `transferIn`, `transferOut`, `offerTransfer`, `acceptTransfer`,
+    `declineTransfer`), below.
+  - *Types:* all 443 stay but the five that only the hidden generators' signatures name
+    (`GeneratedGuild`, `GuildOptions`, `RivalOptions`, `GeneratedPatron`, `PatronOptions`), and one is
+    new (`RejectionOf`): no type writes to a world, so the single writer (ADR-0008) loses nothing by
+    them, and each names a shape a caller is handed. `export *` stays for `events.ts`,
+    `content-types.ts` and the modules every value of which stays (`advance.ts`, `create.ts`,
+    `fast-forward.ts`, `preview.ts`); the rest are named lists. The action modules list every Action,
+    Request and Rejection type as before.
+- *`@heroesim/engine/testing`.* A second entry in `engine/package.json`'s `exports`. ESLint bars it
+  from production code by its own rule (`engineTesting`, "…is the engine's entry for tests…") in the
+  harness, the CLI and the page, and allows it in their tests, support and setup files and the
+  page's Playwright specs (the tools' rule bars every subpath of the engine, as before);
+  `boundary.test.ts` proves both ways for each of the three. The page's
+  `*.test-support.ts` files, linted as browser source until now, are linted as tests.
+  `engine/src/testing.test.ts` reads every package's sources: no production file imports
+  `/testing`; the entry exports none of the plan's named mutators, the hidden helpers or the gone
+  actions; every value the entry exports is taken by production code, the module seam's or a module
+  of types'; and `/testing` holds exactly what tests take and the entry does not.
+- *One action dispatch.* `applyAction` is `rebase`, or `applyToCopy` over `applyGuildAction`, and
+  generic: its rejection is narrowed to the action's own (`RejectionOf<A>`, the rejections whose
+  `action` is the action's `kind`), by one cast. The twelve document-level wrappers are gone; each
+  rule's comment now carries the wrapper's (its checks, their order, what it throws on) and says
+  `applyAction` runs it on a copy and a Rival's controller on the Turn's. The CLI's `build`,
+  `dispatch`, `equip`, `unequip`, `buy`, `sell`, `recruit`, `transfer`, `accept` and `decline`
+  commands, the harness's estimate probe and every test call `applyAction` with the action's `kind`.
+  The tests that compared a wrapper with `applyAction` (build, buy, dispatch, recruit, sell) now
+  compare `applyAction` with the rule run in place on a copy of the world: the same world and the
+  same events.
+- *One Roster walk.* `activeRosterHeroes(world)` (`engine/src/phases/roster-walk.ts`): the Guilds
+  that have not folded by id in code-unit order, each Roster in its own order, the dead, the retired
+  and an id the world lacks skipped, each Hero with its Guild; the list is taken before the walk,
+  as `heroState`'s copy of the Roster was, so a Retirement does not cut it short. `ageing`,
+  `heroState`, `levelUps` and `training` walk it. The first three walked exactly this before;
+  `training` walked the Guilds in the order the table holds them, but it draws nothing and emits
+  nothing, so no game can move, and its Coaching factor is now read for each Hero rather than each
+  Guild. The probe module's walk is not a phase's (it sorts by Hero id and does not skip the dead)
+  and is left. `roster-walk.test.ts`, written against the phases as they were and passing before
+  they changed: the walk pinned on a world made awkward for it (the Guilds inserted in reverse, each
+  Roster reversed, a dead and a retired Hero left on Rosters, an id the world lacks, a folded Guild
+  keeping its Roster); and each phase's events in the order a reference walk, the old code's, gives:
+  a `hero.levelled`, a `hero.declined` and a `hero.retired` for each Hero, their draws in that
+  order, and the Day's XP for each Hero walked and no other.
+- *One row lookup.* `rowOf(rows, id)` (an own property or `undefined`) and `requireRow(rows, id,
+  table?)` (throwing "<id> is not in world.<table>", or "<id> is not in the world" with no table) in
+  `document.ts`. They replace the seven private helpers (`own` in `dispatch.ts`, `equip.ts` and
+  `preview.ts`; `rowIn` in `sell.ts` and `effects.ts`; `row` in `quests-conclude.ts` and
+  `resolve.ts`) and `selectorsOver`'s closure in `modules.ts`, each call site's words and its throw
+  or `undefined` kept, and 57 inline `Object.hasOwn(t, k) ? t[k] : undefined` lookups of a world's
+  or content's row (the plan counted 21; every one of the form was taken). Where a guard stood before
+  the lookup (`hero.guildId !== null && …`) it is a conditional, so the lookup still gives
+  `undefined`, not `false`. Lookups of a value map (Stat values, the History's indexes, the
+  migration chain, the Degrees by key) and `validate.ts`' own `rowOf`, which takes any value as an
+  id, are left. `emit.ts`' private `rowOf` is renamed `participantRow`.
+- *Mutations*, each turning its test red, the file restored after each: the walk unsorted, its
+  retired check dropped, its folded check dropped, each Roster walked backward; `rowOf` without the
+  own-property check, `requireRow`'s words; `takeId` and `makeId` exported from the entry, a value
+  added to `/testing` that no test takes; the lint rule for `/testing` taken out; `applyAction` not
+  running the rule. 11 of 11 killed.
+
+*What changed for Traits.* Nothing: no entry of the register, effect, event or use. The doctor read
+no drift after, with 108 reads of a Trait: `traitOf` and `heroTraitOf` each name `content.heroTraits`
+once through `rowOf` where the inline lookup named it twice, in the same declarations, so the
+register stands.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 193 files, 5,082 tests passing; `npm run
+build` and check-bundle passing, the script 814,272 bytes, 3,908 fewer than S7's 818,180;
+`npm run e2e -w web` 103 passing. Line endings as before, none mixed.
+
+*Proof.* The `neutral` run after, alone (`HEROESIM_WORKERS=8`, `m9-v116-s8-neutral`, 532 s,
+`--expect` S7's baseline): the fingerprint
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, the same, the Gate PASS, the
+replay of `seed-0001` identical. Every game as it was. Its reports not committed.
+
+*Calls made, for the owner to see.* (1) Types stay, but the hidden generators' five: option (b)
+hides the mutators and helpers, and a type mutates nothing. (2) The module seam's three values stay
+public with no package taking them, for a module's author. (3) The test-only readers (`nightOf`,
+`chanceBand`, `chanceBandNames`, `potentialHints`, `describeHero`, `partyFor`, `marketHolder`,
+`count`, `findStack`) went to `/testing` by the rule, though none writes; one a front end comes to
+need moves back to the entry. (4) `rowOf` took every inline row lookup of its form, 57, not only the
+21 the plan counted. (5) `training` walks in Guild id order now; it draws and emits nothing.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

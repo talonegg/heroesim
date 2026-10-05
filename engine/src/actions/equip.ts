@@ -1,31 +1,32 @@
 // `equip` and `unequip` (M5-S2, R30, DL-49): a Guild puts gear from its holding into one of its
-// Heroes' slots, or takes it back. Every Guild does so through these rules, the player's front end by
-// `equip` and `unequip` and a Rival's controller by `applyEquip` (ADR-0002, DL-30); `steady` and the
-// harness's policy choose what to equip through `gearChoices` (gear.ts).
+// Heroes' slots, or takes it back. Every Guild does so through these rules, `applyEquip` and
+// `applyUnequip`, the player's front end by `applyAction` and a Rival's controller on the Turn's copy
+// (ADR-0002, DL-30); `steady` and the harness's policy choose what to equip through `gearChoices`
+// (gear.ts).
 //
 // What gear does is read where Stats are read: `effectiveStats` adds the modifiers of what a Hero
 // carries (selectors.ts), and the Check reads it. Nothing here changes a Stat.
 
 import type { EngineDeps } from '../config.js';
 import { gearSlotKeys, type ItemDefinitionKey, type SlotKey } from '../content-types.js';
-import type {
-  Guild,
-  GuildId,
-  Hero,
-  HeroId,
-  Holder,
-  ItemId,
-  Stack,
-  StackId,
-  UniqueItem,
-  World,
-  WorldDocument,
+import {
+  rowOf,
+  type Guild,
+  type GuildId,
+  type Hero,
+  type HeroId,
+  type Holder,
+  type ItemId,
+  type Stack,
+  type StackId,
+  type UniqueItem,
+  type World,
 } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import type { EngineEvent } from '../events.js';
 import { gearParticipants, gearUnavailability, moveToGuild, type GearUnavailability } from '../gear.js';
 import { holdings, itemDefinition, moveItem, moveStack } from '../items.js';
-import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
+import type { Rejection, WorldActionResult } from './result.js';
 
 /** The gear to equip: a unique Item in the Guild's holding, or a stack there, of which one unit is taken. */
 export type GearRef = { itemId: ItemId; stackId?: never } | { stackId: StackId; itemId?: never };
@@ -151,17 +152,8 @@ export type UnequipRejection = UnequipGuildFolded | UnequipHeroNotOnRoster | Une
  * Throws on a programming error: a Guild the world does not hold, or neither or both of `itemId` and
  * `stackId`.
  *
- * The returned document has a new `world`, a copy, so a document that shares the old one is left as
- * it was (DL-24); `meta` and `history` are shared, and the event is appended to the History.
- */
-export function equip(document: WorldDocument, request: EquipRequest, deps: EngineDeps): ActionResult<EquipRejection> {
-  return applyToCopy(document, (world) => applyEquip(world, request, deps));
-}
-
-/**
- * `equip`'s rule on a world it changes in place: the same checks in the same order, the same change
- * and the same `item.equipped`, which it returns rather than appends. `equip` runs it on a copy of a
- * document's world; a Rival controller runs it on the Turn's copy (DL-30). A refusal changes nothing.
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
 export function applyEquip(world: World, request: EquipRequest, deps: EngineDeps): WorldActionResult<EquipRejection> {
   const { guildId, heroId } = request;
@@ -170,12 +162,12 @@ export function applyEquip(world: World, request: EquipRequest, deps: EngineDeps
   if ((itemId === null) === (stackId === null)) {
     throw new RangeError('equip names the gear by itemId or by stackId, and by one of them only');
   }
-  const guild = own(world.guilds, guildId);
+  const guild = rowOf(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`No Guild in the world has the id ${guildId}`);
   if (guild.foldedOnTurn !== null) {
     return { ok: false, rejection: { action: 'equip', reason: 'guild-folded', guildId } };
   }
-  const hero = own(world.heroes, heroId);
+  const hero = rowOf(world.heroes, heroId);
   if (!isGuildHero(hero, guild)) {
     return { ok: false, rejection: { action: 'equip', reason: 'hero-not-on-roster', heroId, guildId } };
   }
@@ -185,7 +177,7 @@ export function applyEquip(world: World, request: EquipRequest, deps: EngineDeps
   }
 
   const row: UniqueItem | Stack | undefined =
-    itemId !== null ? own(world.items, itemId) : own(world.stacks, stackId ?? '');
+    itemId !== null ? rowOf(world.items, itemId) : rowOf(world.stacks, stackId ?? '');
   if (row === undefined || row.holder.kind !== 'guild' || row.holder.id !== guildId) {
     return { ok: false, rejection: { action: 'equip', reason: 'not-held-by-guild', itemId, stackId } };
   }
@@ -231,20 +223,10 @@ export function applyEquip(world: World, request: EquipRequest, deps: EngineDeps
  *
  * Refused, changing nothing, in this order: `guild-folded`; `hero-not-on-roster`; `hero-unavailable`
  * (dead, retired, or away with a Party); `slot-empty`. Throws on a Guild the world does not hold.
- * The document is copied and the event appended as `equip`'s are.
- */
-export function unequip(
-  document: WorldDocument,
-  request: UnequipRequest,
-  deps: EngineDeps,
-): ActionResult<UnequipRejection> {
-  return applyToCopy(document, (world) => applyUnequip(world, request, deps));
-}
-
-/**
- * `unequip`'s rule on a world it changes in place, returning its events rather than appending them;
- * a refusal changes nothing. `deps` is taken for the seam every action shares (DL-30); the rule
- * reads none.
+ *
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30). `deps` is taken
+ * for the seam every action shares; the rule reads none.
  */
 export function applyUnequip(
   world: World,
@@ -252,12 +234,12 @@ export function applyUnequip(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- every action takes deps (epics README §4); this rule reads none
   _deps: EngineDeps,
 ): WorldActionResult<UnequipRejection> {
-  const guild = own(world.guilds, guildId);
+  const guild = rowOf(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`No Guild in the world has the id ${guildId}`);
   if (guild.foldedOnTurn !== null) {
     return { ok: false, rejection: { action: 'unequip', reason: 'guild-folded', guildId } };
   }
-  const hero = own(world.heroes, heroId);
+  const hero = rowOf(world.heroes, heroId);
   if (!isGuildHero(hero, guild)) {
     return { ok: false, rejection: { action: 'unequip', reason: 'hero-not-on-roster', heroId, guildId } };
   }
@@ -287,9 +269,4 @@ export function applyUnequip(
 function isGuildHero(hero: Hero | undefined, guild: Guild): hero is Hero {
   if (hero === undefined || hero.guildId !== guild.id) return false;
   return hero.diedOnTurn !== null || hero.retiredOnTurn !== null || guild.rosterIds.includes(hero.id);
-}
-
-/** The row keyed `id`, looked up without falling through to `Object.prototype`. */
-function own<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
-  return Object.hasOwn(rows, id) ? rows[id] : undefined;
 }

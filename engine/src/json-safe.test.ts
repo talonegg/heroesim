@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { findJsonUnsafe, isJsonSafe, type JsonUnsafeKind } from './index.js';
+import {
+  type JsonUnsafeKind,
+} from './index.js';
+import { findJsonUnsafe, isJsonSafe } from './json-safe.js';
 
 // data-model.md rule 6: no `Map`, `Set`, `Date`, class instances, `undefined`, `NaN` or
 // `Infinity` anywhere in the document, so that `structuredClone` and `JSON.stringify` agree.

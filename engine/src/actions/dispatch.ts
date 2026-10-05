@@ -1,9 +1,9 @@
 // `dispatch` (M2-S4, R23): a Guild sends a Party of its Heroes on a Quest from the Board. A
-// standalone call in any Turn (pre-M0 review D2): the CLI calls it and saves, the harness's policy
-// calls it between advances, and a Rival's controller (M2-S9) produces the same action, applied
-// through `applyDispatch`, the rule `dispatch` runs (DL-30). The Party is away until
-// `returnsOnTurn`, always a night Turn (pre-M0 review C4); the afternoon's `questsAdvance` does
-// nothing with it until M4, and the night's `questsConclude` (M2-S5) resolves it. The choices
+// standalone action in any Turn (pre-M0 review D2): the CLI applies it and saves, the harness's
+// policy applies it between advances, both by `applyAction`, and a Rival's controller (M2-S9)
+// produces the same action, applied through the same rule, `applyDispatch` (DL-30). The Party is
+// away until `returnsOnTurn`, always a night Turn (pre-M0 review C4); the afternoon's `questsAdvance`
+// does nothing with it until M4, and the night's `questsConclude` (M2-S5) resolves it. The choices
 // here are DL-25; M4-S5 names each requirement a Party misses and has the Guildmaster's
 // Negotiation set the reward agreed (DL-43); M5-S3 has the Party carry consumables from the Guild's
 // holding (DL-50).
@@ -11,6 +11,7 @@
 import type { EngineDeps } from '../config.js';
 import type { ClassKey, ItemDefinitionKey, SkillKey } from '../content-types.js';
 import {
+  rowOf,
   takeId,
   type Guild,
   type GuildId,
@@ -20,13 +21,12 @@ import {
   type QuestId,
   type Stack,
   type World,
-  type WorldDocument,
 } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { guildmasterOf, negotiatedReward } from '../guildmaster.js';
 import { findStack, itemDefinition, moveStack } from '../items.js';
 import { returnNightOf } from '../time.js';
-import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
+import type { Rejection, WorldActionResult } from './result.js';
 
 export interface DispatchAction {
   kind: 'dispatch';
@@ -135,32 +135,20 @@ export type DispatchRejection =
  * consumable, in the order given, is a consumable (`not-consumable`), held by the Guild
  * (`not-held-by-guild`) in the quantity asked (`insufficient-quantity`; M5-S3, DL-50).
  *
- * On success, a copy of `world` gains a `parties` row departing this Turn and returning on
+ * On success, `world` gains a `parties` row departing this Turn and returning on
  * `nightOf(dayOf(turn) + durationDays)`, a night Turn whichever Turn of the Day it left in
  * (pre-M0 review C4); the Quest is `taken`, lists the Party and leaves the Board, and its reward
  * becomes the reward agreed, the Guild's Guildmaster's Negotiation applied (`negotiatedReward`,
  * M4-S5, R8), which the Quest Engine pays on a success; each Hero's `partyId` is the Party's; each
  * consumable moves from the Guild's holding to the Party's (M5-S3); and `quest.taken`, carrying the
- * reward agreed and the consumables carried, is appended to the History and returned. The old
- * document's `world` is left as it was; `meta` and `history` are shared, as `advance` shares them.
+ * reward agreed and the consumables carried, is returned.
  *
  * Throws on a programming error, as the validator would refuse the request: a Guild not in the
  * world, a Hero named twice, or a consumable named twice or in a quantity that is not a whole
  * number from 1.
- */
-export function dispatch(
-  document: WorldDocument,
-  request: DispatchRequest,
-  deps: EngineDeps,
-): ActionResult<DispatchRejection> {
-  return applyToCopy(document, (world) => applyDispatch(world, request, deps));
-}
-
-/**
- * `dispatch`'s rule on a world it changes in place: the same checks in the same order, the same
- * changes and the same `quest.taken`, which it returns rather than appends. `dispatch` runs it on
- * a copy of a document's world; a Rival controller runs it on the Turn's copy (M2-S9, DL-30). A
- * refusal changes nothing. Throws on the programming errors `dispatch` throws on.
+ *
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
 export function applyDispatch(
   world: World,
@@ -255,7 +243,7 @@ export function dispatchRefusal(
  */
 function requestedGuild(world: World, request: DispatchRequest): Guild {
   const { guildId, heroIds, consumables = [] } = request;
-  const guild = own(world.guilds, guildId);
+  const guild = rowOf(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`${guildId} is not in world.guilds`);
   checkProposedParty(heroIds, consumables);
   return guild;
@@ -280,14 +268,14 @@ export function checkProposedParty(heroIds: readonly HeroId[], consumables: read
 function refusal(world: World, guild: Guild, request: DispatchRequest, deps: EngineDeps): DispatchRejection | null {
   const { guildId, questId, heroIds, consumables = [] } = request;
   if (guild.foldedOnTurn !== null) return { action: 'dispatch', reason: 'guild-folded', guildId };
-  const quest = own(world.quests, questId);
+  const quest = rowOf(world.quests, questId);
   if (quest === undefined || quest.status !== 'offered' || !world.board.includes(questId)) {
     return { action: 'dispatch', reason: 'quest-not-offered', questId };
   }
 
   const party: Hero[] = [];
   for (const heroId of heroIds) {
-    const hero = own(world.heroes, heroId);
+    const hero = rowOf(world.heroes, heroId);
     const because = hero === undefined ? null : unavailability(hero);
     // A dead or retired Hero has left the Roster and keeps `guildId` (DL-20 item 3): the Guild's
     // own, unavailable, rather than a stranger.
@@ -325,9 +313,4 @@ export function unavailability(hero: Hero): Unavailability | null {
   if (hero.injury !== null) return 'injured';
   if (hero.partyId !== null) return 'in-party';
   return null;
-}
-
-/** The row keyed `id`, looked up without falling through to `Object.prototype`. */
-function own<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
-  return Object.hasOwn(rows, id) ? rows[id] : undefined;
 }

@@ -7,6 +7,7 @@
 import type { EngineDeps } from '../config.js';
 import type { Class, ClassKey, SkillKey } from '../content-types.js';
 import {
+  rowOf,
   takeId,
   type EntityId,
   type Guild,
@@ -186,13 +187,13 @@ function drawSkills(state: Stream, { config }: EngineDeps, heroClass: Class): Re
 }
 
 function classOf({ content }: EngineDeps, key: ClassKey): Class {
-  const found = Object.hasOwn(content.classes, key) ? content.classes[key] : undefined;
+  const found = rowOf(content.classes, key);
   if (found === undefined) throw new RangeError(`No Class in content is keyed ${JSON.stringify(key)}`);
   return found;
 }
 
 function guildOf(world: World, id: GuildId): Guild {
-  const found = Object.hasOwn(world.guilds, id) ? world.guilds[id] : undefined;
+  const found = rowOf(world.guilds, id);
   if (found === undefined) throw new RangeError(`No Guild in the world has the id ${id}`);
   return found;
 }

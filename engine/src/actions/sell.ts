@@ -1,15 +1,25 @@
 // `sell` (M5-S4, R31, DL-51): a Guild sells Items from its holding to the Market, which pays its
 // sell price and lists them: a stack until the next morning's refresh clears the Market's stacks, a
-// unique Item until a Guild buys it. Every Guild sells through this one rule, a front end by `sell`
-// and a controller by `applySell` (ADR-0002, DL-30); in M5 no Disposition does.
+// unique Item until a Guild buys it. Every Guild sells through this one rule, `applySell`, a front
+// end by `applyAction` and a controller on the Turn's copy (ADR-0002, DL-30); in M5 no Disposition
+// does.
 
 import type { EngineDeps } from '../config.js';
 import type { ItemDefinitionKey, SlotKey } from '../content-types.js';
-import type { Guild, GuildId, HeroId, Holder, ItemId, StackId, World, WorldDocument } from '../document.js';
+import {
+  rowOf,
+  type Guild,
+  type GuildId,
+  type HeroId,
+  type Holder,
+  type ItemId,
+  type StackId,
+  type World,
+} from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { moveItem, moveStack } from '../items.js';
 import { marketHolder, sellPrice } from '../market.js';
-import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
+import type { Rejection, WorldActionResult } from './result.js';
 
 /** A Guild sells `quantity` Items of one of its stacks. */
 export interface SellStackAction {
@@ -83,21 +93,12 @@ export type SellRejection =
  * `insufficient-quantity`, in that order. Throws on a programming error: a Guild id the world does
  * not hold, or a quantity that is not a whole number from 1.
  *
- * The returned document has a new `world`, a copy, so a document that shares the old one is left as
- * it was (DL-24); `meta` and `history` are shared, and the event is appended to the History.
- */
-export function sell(document: WorldDocument, request: SellRequest, deps: EngineDeps): ActionResult<SellRejection> {
-  return applyToCopy(document, (world) => applySell(world, request, deps));
-}
-
-/**
- * `sell`'s rule on a world it changes in place: the same checks in the same order, the same changes
- * and the same `item.sold`, which it returns rather than appends (DL-30). A refusal changes nothing.
- * Throws on the programming errors `sell` throws on.
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
 export function applySell(world: World, request: SellRequest, deps: EngineDeps): WorldActionResult<SellRejection> {
   const { guildId } = request;
-  const guild: Guild | undefined = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
+  const guild: Guild | undefined = rowOf(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`No Guild in the world has the id ${guildId}`);
   const quantity = 'stackId' in request ? request.quantity : 1;
   if (!Number.isSafeInteger(quantity) || quantity < 1) {
@@ -110,7 +111,7 @@ export function applySell(world: World, request: SellRequest, deps: EngineDeps):
   const id = 'stackId' in request ? request.stackId : request.itemId;
   // A unique Item is one Item; a stack is its quantity.
   const row: { definitionKey: ItemDefinitionKey; holder: Holder; quantity?: number } | undefined =
-    'stackId' in request ? rowIn(world.stacks, request.stackId) : rowIn(world.items, request.itemId);
+    'stackId' in request ? rowOf(world.stacks, request.stackId) : rowOf(world.items, request.itemId);
   if (row === undefined) return { ok: false, rejection: { action: 'sell', reason: 'not-held-by-guild', id } };
   const refusal = heldRefusal(world, guildId, id, row.holder);
   if (refusal !== null) return { ok: false, rejection: refusal };
@@ -135,11 +136,6 @@ export function applySell(world: World, request: SellRequest, deps: EngineDeps):
   if ('stackId' in request) moveStack(world, request.stackId, quantity, marketHolder);
   else moveItem(world, request.itemId, marketHolder);
   return { ok: true, events: [sold] };
-}
-
-/** The row `rows` holds under `id`, or `undefined`. */
-function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
-  return Object.hasOwn(rows, id) ? rows[id] : undefined;
 }
 
 /**

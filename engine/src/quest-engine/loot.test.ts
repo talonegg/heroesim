@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import { questBands, type EngineDeps, type GameConfig, type QuestBand } from '../config.js';
 import type { ContentSet, LootTable } from '../content-types.js';
@@ -15,6 +14,7 @@ import { playerGuild } from '../selectors.js';
 import { nightOf } from '../time.js';
 import { plannedStreams, testContent, testDeps, testWorld, withEncounters, withValid } from '../world.test-support.js';
 import { drawLoot } from './loot.js';
+import { applyAction } from '../actions/action.js';
 
 // M5-S5: Loot (DL-52). `drawLoot` is tested on its own for the bands, the draws and uniqueness; the
 // night's `questsConclude` for the award, played through `advance` from created worlds whose Party is
@@ -193,7 +193,7 @@ function sent(seed: string, deps: EngineDeps, lootTableKey: string | null, { riv
       classKey === undefined && skillKey === undefined && partySizeMin <= 2 && 2 <= partySizeMax,
     );
   if (open === undefined) throw new Error(`No open Quest on ${seed}'s first Board`);
-  const result = dispatch(start, { guildId: guild.id, questId: open.id, heroIds }, deps);
+  const result = applyAction(start, { kind: 'dispatch', guildId: guild.id, questId: open.id, heroIds }, deps);
   if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
   const quest = result.document.world.quests[open.id] as Quest;
   quest.lootTableKey = lootTableKey;
@@ -304,7 +304,7 @@ describe("questsConclude's Loot", () => {
       .find(({ requirements: r }) => r.classKey === undefined && r.skillKey === undefined && r.partySizeMin <= 2 && 2 <= r.partySizeMax);
     if (open === undefined) throw new Error('No open Quest');
     for (const lootTableKey of ['the-blade', 'blade-or-whetstones']) {
-      const again = dispatch(structuredClone(document), { guildId: first.guildId, questId: open.id, heroIds }, deps);
+      const again = applyAction(structuredClone(document), { kind: 'dispatch', guildId: first.guildId, questId: open.id, heroIds }, deps);
       if (!again.ok) throw new Error(again.rejection.reason);
       const quest = again.document.world.quests[open.id] as Quest;
       quest.lootTableKey = lootTableKey;
@@ -358,7 +358,7 @@ function season(seed: string, regime: Regime, days: number, deps: EngineDeps): {
       const party = partyFor(world, guild, quest, available, deps) ?? [];
       const rest = available.map((hero) => hero.id).filter((id) => !party.includes(id));
       const heroIds = [...party, ...rest].slice(0, quest.requirements.partySizeMax);
-      const result = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds }, deps);
+      const result = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds }, deps);
       if (result.ok) {
         document = result.document;
         difficulty.set(quest.id, quest.difficulty);

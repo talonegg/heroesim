@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { dispatch } from './actions/dispatch.js';
 import { advance } from './advance.js';
 import type { EngineDeps, GameConfig } from './config.js';
 import type { ContentSet } from './content-types.js';
@@ -36,6 +35,7 @@ import {
   withEncounters,
   withValid,
 } from './world.test-support.js';
+import { applyAction } from './actions/action.js';
 
 // M4-S4: Regard between Heroes, its writer on a shared Quest and its nightly decay, and
 // Relationship, computed and never stored (DL-46). The values these tests rely on are pinned here,
@@ -120,7 +120,7 @@ function send(
     events.push(...result.events);
     open = openQuest(current.world, heroIds.length);
   }
-  const sent = dispatch(current, { guildId, questId: open.id, heroIds }, deps);
+  const sent = applyAction(current, { kind: 'dispatch', guildId, questId: open.id, heroIds }, deps);
   if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
   const quest = sent.document.world.quests[open.id] as Quest;
   if (difficulty !== undefined) quest.difficulty = difficulty;

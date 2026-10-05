@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { applyBuild } from '../actions/build.js';
 import { applyBuy } from '../actions/buy.js';
-import { applyDispatch, dispatch, type DispatchAction } from '../actions/dispatch.js';
+import { applyDispatch, type DispatchAction } from '../actions/dispatch.js';
 import { applyRecruit } from '../actions/recruit.js';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
@@ -23,6 +23,7 @@ import { dispositionOf, playerGuild } from '../selectors.js';
 import { plannedStreams, testDeps, withDispositions, withValid } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { rivalControllers } from './rival-controllers.js';
+import { applyAction } from '../actions/action.js';
 
 // M2-S9: the afternoon's Rival controllers (DL-30). Every document a test inspects is held to the
 // validator.
@@ -353,7 +354,7 @@ function firstAccepted(document: WorldDocument, guild: Guild, questId: QuestId, 
   parties.sort((a, b) => a.length - b.length);
   for (const heroIds of parties) {
     const request: Omit<DispatchAction, 'kind'> = { guildId: guild.id, questId, heroIds };
-    const result = dispatch(document, request, deps);
+    const result = applyAction(document, { kind: 'dispatch', ...request }, deps);
     if (result.ok) return withValid(result.document, deps);
   }
   throw new Error(`The player cannot staff ${questId}`);

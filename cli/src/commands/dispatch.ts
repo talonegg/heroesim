@@ -7,8 +7,8 @@
 // put into words here (ADR-0003).
 
 import {
+  applyAction,
   dayOf,
-  dispatch,
   durationDaysOf,
   playerGuild,
   type ConsumableRequest,
@@ -116,7 +116,7 @@ export function dispatchParty(
   const offered = rowIn(document.world.quests, command.quest)?.reward;
   const consumables = command.consumables ?? [];
   const request = { guildId: guild.id, questId: command.quest, heroIds: command.heroes, consumables };
-  const result = dispatch(document, request, deps);
+  const result = applyAction(document, { kind: 'dispatch', ...request }, deps);
   if (!result.ok) return { ok: false, problem: explain(result.rejection, document, deps.content) };
 
   const { world } = result.document;

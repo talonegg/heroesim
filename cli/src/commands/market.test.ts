@@ -7,17 +7,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   addStack,
-  count,
-  createItem,
   deserialise,
-  findStack,
   holdings,
-  marketHolder,
   playerGuild,
   serialise,
   type Guild,
   type WorldDocument,
 } from '@heroesim/engine';
+import { count, createItem, findStack, marketHolder } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from '../main.js';

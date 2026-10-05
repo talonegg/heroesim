@@ -16,7 +16,7 @@ import type {
   StationKey,
   TraitKey,
 } from './content-types.js';
-import type { Hero, Sex, World } from './document.js';
+import { rowOf, type Hero, type Sex, type World } from './document.js';
 import { pickOrNone, sexes, streamOf, type Stream } from './generators/draw.js';
 
 /** The pictures of `role` and `sex` content lists, in its order; none where it lists none. */
@@ -32,7 +32,7 @@ export function portraitSexOf(content: Pick<ContentSet, 'portraits'>, role: Port
 /** A picture's row, what it shows of the person; `undefined` for a key with none, such as a Patron's picture. */
 export function portraitRowOf(content: Pick<ContentSet, 'portraitAppearances'>, key: PortraitKey): PortraitAppearance | undefined {
   const rows = content.portraitAppearances.portraits;
-  return Object.hasOwn(rows, key) ? rows[key] : undefined;
+  return rowOf(rows, key);
 }
 
 /** The roles a Portrait is chosen for: a Patron's picture has no row yet (DL-135 item 10). */
@@ -234,7 +234,7 @@ export function heroPortraitsInUse(world: Pick<World, 'guilds' | 'heroes'>): Set
     if (hero?.portraitKey !== null && hero?.portraitKey !== undefined) inUse.add(hero.portraitKey);
   };
   for (const guild of Object.values(world.guilds)) {
-    for (const heroId of guild.rosterIds) add(Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined);
+    for (const heroId of guild.rosterIds) add(rowOf(world.heroes, heroId));
   }
   for (const hero of Object.values(world.heroes)) if (hero.unattachedSince !== null) add(hero);
   return inUse;
@@ -251,7 +251,7 @@ export function heroPortraitsInUse(world: Pick<World, 'guilds' | 'heroes'>): Set
  * never count as in use.
  */
 export function giveHeroPortrait(world: World, content: Pick<ContentSet, 'portraits' | 'portraitAppearances' | 'descriptions' | 'backgrounds'>, hero: Hero): void {
-  const background = Object.hasOwn(content.backgrounds, hero.backgroundKey) ? content.backgrounds[hero.backgroundKey] : undefined;
+  const background = rowOf(content.backgrounds, hero.backgroundKey);
   const person: PortraitPerson = {
     sex: hero.sex,
     age: hero.ageAtEntry,

@@ -10,9 +10,7 @@ import {
   fastForward,
   holdings,
   isModuleEvent,
-  makeId,
   offeredQuests,
-  partyFor,
   playerGuild,
   probe,
   rebase,
@@ -27,6 +25,7 @@ import {
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
+import { makeId, partyFor } from '@heroesim/engine/testing';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
 import { changed, started as startedFrom, withPartyOut, withRosterReleased } from './game.test-support';

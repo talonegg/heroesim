@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { dispatch, dispatchRefusal } from './actions/dispatch.js';
+import { dispatchRefusal } from './actions/dispatch.js';
 import { advance } from './advance.js';
 import { availableHeroes, partyFor, staffableQuests } from './controllers/rival.js';
 import { createWorld } from './create.js';
@@ -18,6 +18,7 @@ import {
   stopsOfTurn,
 } from './stops.js';
 import { testDeps, withValid } from './world.test-support.js';
+import { applyAction } from './actions/action.js';
 
 // No Rivals: these tests watch the player's Guild and arrange its Board themselves.
 const deps = testDeps({ rivalCount: 0 });
@@ -155,7 +156,7 @@ describe('decision-needed', () => {
       (row) => row.requirements.partySizeMax >= guild.rosterIds.length,
     );
     if (quest === undefined) throw new Error('No Quest takes the whole Roster');
-    const sent = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds: [...guild.rosterIds] }, deps);
+    const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: [...guild.rosterIds] }, deps);
     if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
     const party = Object.values(sent.document.world.parties)[0] as Party;
     let eve = sent.document;
@@ -392,7 +393,7 @@ describe('stopsOfTurn', () => {
       const [quest] = idle && turn % 3 === 0 ? staffableQuests(document.world, guild, deps) : [];
       const heroIds = quest === undefined ? null : partyFor(document.world, guild, quest, availableHeroes(document.world, guild), deps);
       if (quest !== undefined && heroIds !== null) {
-        const sent = dispatch(document, { guildId, questId: quest.id, heroIds }, deps);
+        const sent = applyAction(document, { kind: 'dispatch', guildId, questId: quest.id, heroIds }, deps);
         if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
         document = sent.document;
       }

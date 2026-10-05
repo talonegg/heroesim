@@ -6,7 +6,7 @@
 // into words here (ADR-0003).
 
 import {
-  build,
+  applyAction,
   nextImprovement,
   playerGuild,
   upkeep,
@@ -50,7 +50,7 @@ export function buildImprovement(
   const guild = playerGuild(document.world);
   if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
 
-  const result = build(document, { guildId: guild.id, facility: command.facility }, deps);
+  const result = applyAction(document, { kind: 'build', guildId: guild.id, facility: command.facility }, deps);
   if (!result.ok) return { ok: false, problem: explain(result.rejection, guild.name) };
 
   const { world } = result.document;

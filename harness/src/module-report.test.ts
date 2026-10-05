@@ -1,5 +1,6 @@
 import { loadContent } from '@heroesim/content/node';
-import { createProbe, defaultConfig, type EngineDeps } from '@heroesim/engine';
+import { defaultConfig, type EngineDeps } from '@heroesim/engine';
+import { createProbe } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { coreCounters, counterDeltas, moduleReport, nightsPlayed } from './module-report.js';
 import { fixed, machine } from './report.js';

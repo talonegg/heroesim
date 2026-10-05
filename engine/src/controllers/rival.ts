@@ -18,7 +18,16 @@ import { dispatchRefusal, unavailability, type DispatchAction } from '../actions
 import type { TransferInAction } from '../actions/transfer.js';
 import type { EngineDeps } from '../config.js';
 import { gearSlotKeys, type ContentSet, type Disposition, type SlotKey } from '../content-types.js';
-import { compareByCodeUnit, facilityKeys, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
+import {
+  compareByCodeUnit,
+  facilityKeys,
+  rowOf,
+  type Guild,
+  type Hero,
+  type HeroId,
+  type Quest,
+  type World,
+} from '../document.js';
 import { gearChoices, gearPurchase } from '../gear.js';
 import { streamOf } from '../generators/draw.js';
 import { guildmasterOf } from '../guildmaster.js';
@@ -203,7 +212,7 @@ function otherGuilds(world: Pick<World, 'guilds'>, guild: Pick<Guild, 'id'>): Gu
  */
 function transferable(world: Pick<World, 'heroes' | 'turn'>, guild: Pick<Guild, 'rosterIds'>, config: EngineDeps['config']): Hero[] {
   return guild.rosterIds.flatMap((heroId) => {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    const hero = rowOf(world.heroes, heroId);
     return hero !== undefined && hero.partyId === null && transferLock(hero, world.turn, config) === null ? [hero] : [];
   });
 }
@@ -342,7 +351,7 @@ function debtTransfer(world: World, guild: Guild, dispatched: ReadonlySet<HeroId
 export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'rosterIds'>): Hero[] {
   const heroes: Hero[] = [];
   for (const heroId of guild.rosterIds) {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    const hero = rowOf(world.heroes, heroId);
     if (hero !== undefined && unavailability(hero) === null) heroes.push(hero);
   }
   return heroes;

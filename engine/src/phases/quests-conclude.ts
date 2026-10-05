@@ -23,7 +23,7 @@
 // A Party comes home on a night, so its Heroes are free from that night's end: dispatchable again
 // from the next morning (pre-M0 review C4), or by an action taken on the return night itself.
 
-import { compareByCodeUnit, type Guild, type Party, type Quest, type World } from '../document.js';
+import { compareByCodeUnit, requireRow, type Guild, type Party, type Quest, type World } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { regardOnSharedQuest } from '../hero-regard.js';
 import { inflictInjury } from '../injuries.js';
@@ -40,9 +40,9 @@ export const questsConclude: PhaseRun = (world, ctx) => {
     .filter((party) => party.returnsOnTurn <= ctx.turn)
     .sort((a, b) => compareByCodeUnit(a.id, b.id));
   for (const party of due) {
-    const guild = row(world.guilds, party.guildId);
+    const guild = requireRow(world.guilds, party.guildId);
     if (guild.foldedOnTurn !== null) continue;
-    const quest = row(world.quests, party.questId);
+    const quest = requireRow(world.quests, party.questId);
     const resolution = resolveQuest(world, quest, party, ctx);
     events.push(...conclude(world, ctx, { party, guild, quest, resolution }));
   }
@@ -60,7 +60,7 @@ interface Concluding {
 function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolution }: Concluding): EngineEvent[] {
   const { config, emit, turn } = ctx;
   const { outcome } = resolution;
-  const heroes = party.heroIds.map((heroId) => row(world.heroes, heroId));
+  const heroes = party.heroIds.map((heroId) => requireRow(world.heroes, heroId));
   // Emitted first, while the Quest and the Party are still rows to label: each Encounter in order,
   // naming the Heroes it hurt, then each consumable used, expended from its stack (M5-S3), then the
   // Quest.
@@ -92,14 +92,14 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
   guild.fame += outcome.fameDelta;
 
   for (const { heroId, typeKey, healDays } of outcome.injuries) {
-    const healsOnTurn = inflictInjury(row(world.heroes, heroId), typeKey, healDays, turn);
+    const healsOnTurn = inflictInjury(requireRow(world.heroes, heroId), typeKey, healDays, turn);
     events.push(
       emit({ type: 'hero.injured', participants: [heroId, quest.id], payload: { heroId, questId: quest.id, typeKey, healsOnTurn } }),
     );
   }
 
   for (const heroId of outcome.deaths) {
-    const hero = row(world.heroes, heroId);
+    const hero = requireRow(world.heroes, heroId);
     hero.diedOnTurn = turn;
     hero.partyId = null;
     guild.rosterIds = guild.rosterIds.filter((id) => id !== heroId);
@@ -108,7 +108,7 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
 
   // v1.1.4-S7: the Traits the Heroes earned, a Milestone each; the resolver drew them only for those who may take them.
   for (const { heroId, traitKey, encounterIndex, encounterKey } of resolution.traits) {
-    row(world.heroes, heroId).traits.push(traitKey);
+    requireRow(world.heroes, heroId).traits.push(traitKey);
     events.push(
       emit({
         type: 'hero.trait-gained',
@@ -143,7 +143,7 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
   // Each Death costs every Hero left on the Roster, those away on other Quests included.
   for (let death = 0; death < outcome.deaths.length; death += 1) {
     for (const heroId of guild.rosterIds) {
-      const mate = row(world.heroes, heroId);
+      const mate = requireRow(world.heroes, heroId);
       if (mate.diedOnTurn !== null || mate.retiredOnTurn !== null) continue;
       events.push(changeMorale(mate, config.moraleOnRosterDeath, 'roster-death', config, emit, quest.id));
     }
@@ -166,11 +166,4 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
   delete world.parties[party.id];
   delete world.quests[quest.id];
   return events;
-}
-
-/** The row `id` names in `rows`, which must be there: a Party's Guild, Quest and Heroes always are. */
-function row<Row>(rows: Readonly<Record<string, Row>>, id: string): Row {
-  const found = Object.hasOwn(rows, id) ? rows[id] : undefined;
-  if (found === undefined) throw new RangeError(`${id} is not in the world`);
-  return found;
 }

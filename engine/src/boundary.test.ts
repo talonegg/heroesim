@@ -163,6 +163,41 @@ describe('engine/package.json', () => {
   });
 });
 
+// v1.1.6-S8 (DL-186 item 9): the engine's test entry, for tests alone.
+describe("the engine's test entry, @heroesim/engine/testing", { timeout: 30_000 }, () => {
+  const code = "import { makeId } from '@heroesim/engine/testing';\nexport { makeId };";
+
+  test('is declared beside the entry in engine/package.json', () => {
+    const manifest = JSON.parse(readFileSync(`${root}engine/package.json`, 'utf8')) as { exports: Record<string, string> };
+
+    expect(manifest.exports).toEqual({ '.': './src/index.ts', './testing': './src/testing.ts' });
+  });
+
+  test.each([
+    ['cli', 'ts'],
+    ['harness', 'ts'],
+    ['web', 'ts'],
+    ['web', 'tsx'],
+  ])('%s production code (.%s) may not import it', async (pkg, extension) => {
+    const errors = await lintProbe(pkg, code, extension);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe(restrictedImports);
+    expect(errors[0]?.message).toContain('DL-186 item 9');
+  });
+
+  test.each([
+    ['cli', 'test.ts'],
+    ['harness', 'test.ts'],
+    ['harness', 'test-support.ts'],
+    ['web', 'test.ts'],
+    ['web', 'test.tsx'],
+    ['web', 'test-support.ts'],
+  ])('%s tests (.%s) may import it', async (pkg, extension) => {
+    expect(await lintProbe(pkg, code, extension)).toEqual([]);
+  });
+});
+
 describe('the other packages reach each other by name only', { timeout: 30_000 }, () => {
   test.each([
     ['content', "import type { World } from '@heroesim/engine';\nexport type { World };"],

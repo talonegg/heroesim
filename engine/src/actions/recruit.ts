@@ -1,13 +1,20 @@
 // `recruit` (M2-S8, R27, DL-27): a Guild signs a Hero from the Unattached pool for the signing
-// fee. Every Guild recruits through this one rule, the player's front end by `recruit` and a
-// Rival's controller by `applyRecruit`, the rule `recruit` runs (ADR-0002, DL-30), so every Guild
-// pays the same price by the same rule.
+// fee. Every Guild recruits through this one rule, `applyRecruit`, the player's front end by
+// `applyAction` and a Rival's controller on the Turn's copy (ADR-0002, DL-30), so every Guild pays
+// the same price by the same rule.
 
 import type { EngineDeps } from '../config.js';
-import type { Guild, GuildId, Hero, HeroId, World, WorldDocument } from '../document.js';
+import {
+  rowOf,
+  type Guild,
+  type GuildId,
+  type Hero,
+  type HeroId,
+  type World,
+} from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { signingFee, signingRefusal, type SigningRefusal } from '../selectors.js';
-import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
+import type { Rejection, WorldActionResult } from './result.js';
 
 export interface RecruitAction {
   kind: 'recruit';
@@ -61,34 +68,20 @@ export type RecruitRejection =
  * who will not sign refuses whatever the Guild could pay (DL-38). Throws only on a Guild id the world does not hold: Guild rows are never removed,
  * so no front end or controller can offer one, and it is a programming error.
  *
- * The returned document has a new `world`, a copy, so a document that shares the old one is left
- * as it was (DL-24); `meta` and `history` are shared, and the event is appended to the History.
- */
-export function recruit(
-  document: WorldDocument,
-  request: Pick<RecruitAction, 'guildId' | 'heroId'>,
-  deps: EngineDeps,
-): ActionResult<RecruitRejection> {
-  return applyToCopy(document, (world) => applyRecruit(world, request, deps));
-}
-
-/**
- * `recruit`'s rule on a world it changes in place: the same checks in the same order, the same
- * changes and the same `hero.recruited`, which it returns rather than appends. `recruit` runs it
- * on a copy of a document's world; a Rival controller runs it on the Turn's copy (M2-S9, DL-30).
- * A refusal changes nothing. Throws on the programming error `recruit` throws on.
+ * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
+ * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
  */
 export function applyRecruit(
   world: World,
   { guildId, heroId }: Pick<RecruitAction, 'guildId' | 'heroId'>,
   deps: EngineDeps,
 ): WorldActionResult<RecruitRejection> {
-  const guild: Guild | undefined = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
+  const guild: Guild | undefined = rowOf(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`No Guild in the world has the id ${guildId}`);
   if (guild.foldedOnTurn !== null) {
     return { ok: false, rejection: { action: 'recruit', reason: 'guild-folded', guildId } };
   }
-  const hero: Hero | undefined = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+  const hero: Hero | undefined = rowOf(world.heroes, heroId);
   if (hero === undefined || hero.unattachedSince === null) {
     return { ok: false, rejection: { action: 'recruit', reason: 'hero-not-unattached', heroId } };
   }
@@ -97,7 +90,7 @@ export function applyRecruit(
     return { ok: false, rejection: { action: 'recruit', reason: 'signing-refused', heroId, ...refusal } };
   }
   // The fee this Guild pays: its Guildmaster's Negotiation applied (M4-S5, R8).
-  const buyer = Object.hasOwn(world.guildmasters, guild.guildmasterId) ? world.guildmasters[guild.guildmasterId] : undefined;
+  const buyer = rowOf(world.guildmasters, guild.guildmasterId);
   const fee = signingFee(hero, deps, buyer);
   if (guild.wealth < fee) {
     return { ok: false, rejection: { action: 'recruit', reason: 'insufficient-wealth', fee, wealth: guild.wealth } };

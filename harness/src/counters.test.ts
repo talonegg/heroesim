@@ -1,13 +1,11 @@
 import { loadContent } from '@heroesim/content/node';
 import {
   advance,
-  append,
+  applyAction,
   compareByCodeUnit,
   createWorld,
   defaultConfig,
-  dispatch,
   dispositionOf,
-  makeId,
   milestoneTypes,
   playerGuild,
   serialise,
@@ -25,6 +23,7 @@ import {
   type RegardMap,
   type WorldDocument,
 } from '@heroesim/engine';
+import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { harnessSetup } from './creation.js';
 import {
@@ -64,7 +63,7 @@ function playerDispatches(document: WorldDocument): WorldDocument {
   parties.sort((a, b) => a.length - b.length);
   for (const questId of document.world.board) {
     for (const heroIds of parties) {
-      const result = dispatch(document, { guildId: guild.id, questId, heroIds }, deps);
+      const result = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId, heroIds }, deps);
       if (result.ok) return result.document;
     }
   }

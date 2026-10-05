@@ -14,8 +14,8 @@ import { serialise } from '../serialise.js';
 import { dayOf, nightOf } from '../time.js';
 import { testContent, testDeps, withEncounters, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
-import { build, type BuildRejection } from './build.js';
-import { dispatch } from './dispatch.js';
+import { applyBuild, type BuildRejection } from './build.js';
+import type { ActionResult } from './result.js';
 
 // M3-S6: Hall Improvements (INPUTS 7.3, DL-38). The test content carries the core's nine
 // Improvements, three grades of each facility at 200, 500 and 1,000 Wealth. Every document a test
@@ -55,7 +55,7 @@ describe('build', () => {
       let spent = 0;
       for (const [index, cost] of costs.entries()) {
         const grade = index + 1;
-        const result = build(document, { guildId: guild.id, facility }, deps);
+        const result = applyAction(document, { kind: 'build', guildId: guild.id, facility }, deps);
         if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
         document = withValid(result.document, deps);
         guild = document.world.guilds[guild.id] as Guild;
@@ -78,7 +78,7 @@ describe('build', () => {
       for (const other of facilityKeys) if (other !== facility) expect(guild.hall[other]).toBe(0);
 
       const saved = serialise(document);
-      const beyond = build(document, { guildId: guild.id, facility }, deps);
+      const beyond = applyAction(document, { kind: 'build', guildId: guild.id, facility }, deps);
       expect(beyond).toEqual({ ok: false, rejection: { action: 'build', reason: 'max-grade', facility, grade: 3 } });
       expect(serialise(document)).toBe(saved);
       expect(count(document.history, 'guild.improved')).toBe(3);
@@ -88,7 +88,7 @@ describe('build', () => {
   test('names the Improvement built, and appends a Milestone to the History', () => {
     const { document, guild } = scene();
 
-    const result = build(document, { guildId: guild.id, facility: 'trainingYard' }, deps);
+    const result = applyAction(document, { kind: 'build', guildId: guild.id, facility: 'trainingYard' }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const [event] = result.events;
@@ -102,7 +102,7 @@ describe('build', () => {
     const { document, guild } = scene();
     const before = structuredClone(document.world);
 
-    const result = build(document, { guildId: guild.id, facility: 'infirmary' }, deps);
+    const result = applyAction(document, { kind: 'build', guildId: guild.id, facility: 'infirmary' }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     expect(result.document.world).not.toBe(document.world);
@@ -114,25 +114,26 @@ describe('build', () => {
   test('builds with Wealth exactly equal to the cost, leaving none', () => {
     const { document, guild } = scene('exact', 200);
 
-    const result = build(document, { guildId: guild.id, facility: 'quarters' }, deps);
+    const result = applyAction(document, { kind: 'build', guildId: guild.id, facility: 'quarters' }, deps);
 
     expect(result.ok && result.document.world.guilds[guild.id]?.wealth).toBe(0);
   });
 
-  test('is the same rule for a Rival (ADR-0002), and what applyAction does with a build action', () => {
+  test('is the same rule for a Rival (ADR-0002), the rule applyAction runs on a copy of the world', () => {
     const withRival = testDeps({ rivalCount: 1 });
     const { document } = createWorld('rival-builds', setup, withRival);
     const rival = Object.values(document.world.guilds).find((each) => each.controller.kind === 'rival') as Guild;
     rival.wealth = 1_000;
-    const twin = structuredClone(document);
+    const world = structuredClone(document.world);
 
-    const direct = build(document, { guildId: rival.id, facility: 'infirmary' }, withRival);
-    const applied = applyAction(twin, { kind: 'build', guildId: rival.id, facility: 'infirmary' }, withRival);
+    const applied = applyAction(document, { kind: 'build', guildId: rival.id, facility: 'infirmary' }, withRival);
+    const inPlace = applyBuild(world, { guildId: rival.id, facility: 'infirmary' }, withRival);
 
-    if (!direct.ok) throw new Error(`Refused: ${direct.rejection.reason}`);
-    const { world } = withValid(direct.document, withRival);
-    expect(world.guilds[rival.id]).toMatchObject({ wealth: 800, hall: { infirmary: 1, trainingYard: 0, quarters: 0 } });
-    expect(applied.ok && serialise(applied.document)).toBe(serialise(direct.document));
+    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
+    const valid = withValid(applied.document, withRival);
+    expect(valid.world.guilds[rival.id]).toMatchObject({ wealth: 800, hall: { infirmary: 1, trainingYard: 0, quarters: 0 } });
+    expect(world).toEqual(applied.document.world);
+    expect(inPlace.events).toEqual(applied.events);
   });
 
   test('raises Upkeep by hallMaintenancePerGrade for each grade built (DL-26)', () => {
@@ -140,7 +141,7 @@ describe('build', () => {
     const before = upkeep(guild, document.world, deps.config);
 
     for (const facility of ['infirmary', 'infirmary', 'quarters'] as const) {
-      const result = build(document, { guildId: guild.id, facility }, deps);
+      const result = applyAction(document, { kind: 'build', guildId: guild.id, facility }, deps);
       if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
       document = result.document;
     }
@@ -154,8 +155,8 @@ describe('build refuses, never throwing and changing nothing', () => {
   function refused(document: WorldDocument, guild: Guild, facility: FacilityKey): BuildRejection {
     const saved = serialise(document);
     const entries = document.history.entries.length;
-    let result: ReturnType<typeof build> | undefined;
-    expect(() => (result = build(document, { guildId: guild.id, facility }, deps))).not.toThrow();
+    let result: ActionResult<BuildRejection> | undefined;
+    expect(() => (result = applyAction(document, { kind: 'build', guildId: guild.id, facility }, deps))).not.toThrow();
     expect(serialise(document)).toBe(saved);
     expect(document.history.entries).toHaveLength(entries);
     if (result === undefined || result.ok) throw new Error('Built, where a refusal was expected');
@@ -197,8 +198,8 @@ describe('build throws on a programming error', () => {
     const { document, guild } = scene();
     const saved = serialise(document);
 
-    expect(() => build(document, { guildId: makeId('guilds', 99), facility: 'infirmary' }, deps)).toThrow(RangeError);
-    expect(() => build(document, { guildId: guild.id, facility: 'stables' as FacilityKey }, deps)).toThrow(RangeError);
+    expect(() => applyAction(document, { kind: 'build', guildId: makeId('guilds', 99), facility: 'infirmary' }, deps)).toThrow(RangeError);
+    expect(() => applyAction(document, { kind: 'build', guildId: guild.id, facility: 'stables' as FacilityKey }, deps)).toThrow(RangeError);
     expect(serialise(document)).toBe(saved);
   });
 });
@@ -255,7 +256,7 @@ describe('what a grade built does (M3-S6)', () => {
     // A twin with a History of its own: documents share theirs (ADR-0008), and each is played on.
     const twin = structuredClone(document);
 
-    const built = build(document, { guildId: guild.id, facility: 'quarters' }, pinned);
+    const built = applyAction(document, { kind: 'build', guildId: guild.id, facility: 'quarters' }, pinned);
     if (!built.ok) throw new Error(`Refused: ${built.rejection.reason}`);
 
     expect(moraleBaselineFor(hero, built.document.world, pinned.config, pinned.content)).toBe(65);
@@ -293,7 +294,7 @@ describe('what a grade built does (M3-S6)', () => {
       quest.requirements = { partySizeMin: 1, partySizeMax: 1 };
       const heroIds = partyFor(document.world, guild, quest, availableHeroes(document.world, guild), hurt);
       if (heroIds === null) throw new Error('No Party');
-      const sent = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds }, hurt);
+      const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds }, hurt);
       if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
       const returns = sent.document.world.parties[sent.document.world.quests[quest.id]?.partyIds[0] ?? makeId('parties', 0)]
         ?.returnsOnTurn;
@@ -305,7 +306,7 @@ describe('what a grade built does (M3-S6)', () => {
       return event?.type === 'hero.injured' ? dayOf(event.payload.healsOnTurn) - dayOf(returns) : Number.NaN;
     };
     const { document } = scene('infirmary', 10_000, hurt);
-    const built = build(document, { guildId: (playerGuild(document.world) as Guild).id, facility: 'infirmary' }, hurt);
+    const built = applyAction(document, { kind: 'build', guildId: (playerGuild(document.world) as Guild).id, facility: 'infirmary' }, hurt);
     if (!built.ok) throw new Error(`Refused: ${built.rejection.reason}`);
 
     // The two worlds share a seed and `build` draws nothing, so the same Injury is drawn in each.
@@ -356,7 +357,7 @@ describe('what a grade built does (M3-S6)', () => {
   test('the training yard at grade 1 is on the Guild row the night’s training reads (M3-S2)', () => {
     const { document, guild } = scene('yard');
 
-    const built = build(document, { guildId: guild.id, facility: 'trainingYard' }, deps);
+    const built = applyAction(document, { kind: 'build', guildId: guild.id, facility: 'trainingYard' }, deps);
 
     if (!built.ok) throw new Error(`Refused: ${built.rejection.reason}`);
     expect(withValid(built.document, deps).world.guilds[guild.id]?.hall.trainingYard).toBe(1);

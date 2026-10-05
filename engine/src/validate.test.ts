@@ -1,15 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import {
   advance,
-  append,
   createWorld,
-  makeId,
   parseId,
-  passiveEntryTypes,
-  refusalChecks,
-  takeId,
   validate,
-  warningChecks,
   type ContentSet,
   type Guild,
   type Guildmaster,
@@ -26,6 +20,9 @@ import {
   type WarningCheck,
   type WorldDocument,
 } from './index.js';
+import { append } from './history.js';
+import { makeId, takeId } from './document.js';
+import { passiveEntryTypes, refusalChecks, warningChecks } from './validate.js';
 import { buildDocument, fixtureTurn, heroStatKeys, testContent, testDeps, withValid } from './world.test-support.js';
 
 // M1-S7: the validator of data-model §6. Each refusal test mutates the valid fixture document into

@@ -18,7 +18,7 @@
 // The `heroes` stream is the only one this phase moves.
 
 import type { Stat, StatArea } from '../content-types.js';
-import { compareByCodeUnit, type Hero, type World } from '../document.js';
+import type { Hero, World } from '../document.js';
 import type { EngineEvent, HeroDeclined } from '../events.js';
 import { sortedRows, streamOf } from '../generators/draw.js';
 import { int } from '../rng.js';
@@ -26,22 +26,16 @@ import { baseStat } from '../selectors.js';
 import { ageOf } from '../time.js';
 import { retirementCheckDue } from './hero-state.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
+import { activeRosterHeroes } from './roster-walk.js';
 
 export const ageing: PhaseRun = (world, ctx) => {
   const events: EngineEvent[] = [];
   const areas: ReadonlySet<StatArea> = new Set(ctx.config.declineAreas);
   const declining = sortedRows(ctx.content.stats, (stat) => stat.owner === 'hero' && areas.has(stat.area));
-  const guilds = Object.values(world.guilds)
-    .filter((guild) => guild.foldedOnTurn === null)
-    .sort((a, b) => compareByCodeUnit(a.id, b.id));
-  for (const guild of guilds) {
-    for (const heroId of guild.rosterIds) {
-      const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
-      if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) continue;
-      if (!retirementCheckDue(hero, ctx)) continue;
-      const declined = decline(world, hero, declining, ctx);
-      if (declined !== null) events.push(declined);
-    }
+  for (const { hero } of activeRosterHeroes(world)) {
+    if (!retirementCheckDue(hero, ctx)) continue;
+    const declined = decline(world, hero, declining, ctx);
+    if (declined !== null) events.push(declined);
   }
   return events;
 };

@@ -3,9 +3,9 @@
 // programming error. A rejection is data, never prose: a front end narrates it (ADR-0003).
 //
 // An action that changes `world` has one rule, written against a world it changes in place
-// (`applyDispatch`, `applyRecruit`), and a document-level entry point that runs that rule on a copy
-// through `applyToCopy`. A front end calls the entry point; a Rival controller, inside the Turn
-// pipeline, calls the rule on the Turn's own copy (M2-S9, DL-30). One code path either way.
+// (`applyDispatch`, `applyRecruit`). A front end calls `applyAction`, which runs that rule on a copy
+// through `applyToCopy`; a Rival controller, inside the Turn pipeline, calls the rule on the Turn's
+// own copy (M2-S9, DL-30). One code path either way.
 
 import type { World, WorldDocument } from '../document.js';
 import type { EngineEvent } from '../events.js';

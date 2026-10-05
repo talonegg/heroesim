@@ -3,13 +3,13 @@ import { loadContent } from '@heroesim/content/node';
 import {
   createWorld,
   defaultConfig,
+  describeGuildmaster,
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
-  describeGuildmaster,
-  describeHero,
   sexes,
   type DescriptiveAttribute,
 } from '@heroesim/engine';
+import { describeHero } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 
 // The Guildmaster described over the core (v1.1.2-S5, DL-125 item 6), where both packages meet: the

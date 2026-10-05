@@ -14,19 +14,13 @@
 
 import { coachingMultiplier, guildmasterOf } from '../guildmaster.js';
 import type { PhaseRun } from './phase.js';
+import { activeRosterHeroes } from './roster-walk.js';
 
 export const training: PhaseRun = (world, ctx) => {
-  for (const guild of Object.values(world.guilds)) {
-    if (guild.foldedOnTurn !== null) continue;
+  for (const { guild, hero } of activeRosterHeroes(world)) {
+    if (hero.partyId !== null || hero.injury !== null) continue;
     const coached = coachingMultiplier(guildmasterOf(guild, world), ctx.content, ctx.config);
-    const xp = Math.floor(ctx.config.xpPerTrainingDay * guild.hall.trainingYard * coached);
-    if (xp === 0) continue;
-    for (const heroId of guild.rosterIds) {
-      const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
-      if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) continue;
-      if (hero.partyId !== null || hero.injury !== null) continue;
-      hero.xp += xp;
-    }
+    hero.xp += Math.floor(ctx.config.xpPerTrainingDay * guild.hall.trainingYard * coached);
   }
   return [];
 };

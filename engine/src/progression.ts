@@ -9,7 +9,7 @@
 
 import type { EngineDeps, GameConfig } from './config.js';
 import type { StatKey } from './content-types.js';
-import { compareByCodeUnit, type Hero } from './document.js';
+import { compareByCodeUnit, rowOf, type Hero } from './document.js';
 import type { Stream } from './generators/draw.js';
 import { next } from './rng.js';
 import { baseStat } from './selectors.js';
@@ -76,7 +76,7 @@ export interface Growth {
  */
 export function growOneLevel(hero: Hero, state: Stream, deps: Pick<EngineDeps, 'config' | 'content'>): Growth {
   const { config, content } = deps;
-  const heroClass = Object.hasOwn(content.classes, hero.classKey) ? content.classes[hero.classKey] : undefined;
+  const heroClass = rowOf(content.classes, hero.classKey);
   const weights = Object.entries(heroClass?.growth ?? {})
     .filter(([, weight]) => weight > 0)
     .sort(([a], [b]) => compareByCodeUnit(a, b));
@@ -86,7 +86,7 @@ export function growOneLevel(hero: Hero, state: Stream, deps: Pick<EngineDeps, '
   let pointsLost = 0;
   for (let point = 0; point < config.growthPointsPerLevel; point += 1) {
     const statKey = weighedKey(weights, next(state) * total);
-    const stat = statKey !== undefined && Object.hasOwn(content.stats, statKey) ? content.stats[statKey] : undefined;
+    const stat = statKey !== undefined ? rowOf(content.stats, statKey) : undefined;
     if (stat === undefined || stat.owner !== 'hero') {
       pointsLost += 1;
       continue;

@@ -8,26 +8,21 @@ import {
   addStack,
   advance,
   ageOf,
+  applyAction,
   availableHeroes,
   configVersion,
-  count,
   createWorld,
   dayOf,
   defaultConfig,
   describeQuery,
   deserialise,
-  dispatch,
   effectiveStats,
   estimateQuest,
   fastForward,
-  makeId,
   guildmasterOf,
   isModuleEvent,
   judgedHintBands,
-  nightOf,
-  partyFor,
   potentialHint,
-  potentialHints,
   probe,
   schemaVersion,
   serialise,
@@ -41,6 +36,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
+import { count, makeId, nightOf, partyFor, potentialHints } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from './main.js';
@@ -1105,9 +1101,9 @@ describe('dispatch (M2-S4)', () => {
   test('sends the Party the engine sends, saves it, and prints the Party, the return Day and the Rivals reminder', () => {
     const before = document();
     const { questId, heroIds } = openQuest(before.world);
-    const expected = dispatch(
+    const expected = applyAction(
       before,
-      { guildId: playerId, questId, heroIds },
+      { kind: 'dispatch', guildId: playerId, questId, heroIds },
       { config: { ...defaultConfig, ...before.meta.config }, content },
     );
     if (!expected.ok) throw new Error(`Rejected ${expected.rejection.reason}`);
@@ -1213,9 +1209,9 @@ describe('dispatch (M2-S4)', () => {
         { definitionKey: 'healing-draught', quantity: 2 },
         { definitionKey: 'whetstone', quantity: 1 },
       ];
-      const expected = dispatch(
+      const expected = applyAction(
         before,
-        { guildId: playerId, questId, heroIds, consumables },
+        { kind: 'dispatch', guildId: playerId, questId, heroIds, consumables },
         { config: { ...defaultConfig, ...before.meta.config }, content },
       );
       if (!expected.ok) throw new Error(`Rejected ${expected.rejection.reason}`);

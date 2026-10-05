@@ -7,10 +7,9 @@
 // rejection put into words here (ADR-0003), and the Stats printed are the engine's `effectiveStats`.
 
 import {
+  applyAction,
   effectiveStats,
-  equip,
   playerGuild,
-  unequip,
   type ContentSet,
   type EngineDeps,
   type EngineEvent,
@@ -114,7 +113,7 @@ export function equipGear(
 ): CommandOutcome {
   const guild = playerGuild(document.world);
   if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
-  const result = equip(document, { guildId: guild.id, heroId: command.hero, ...command.gear }, deps);
+  const result = applyAction(document, { kind: 'equip', guildId: guild.id, heroId: command.hero, ...command.gear }, deps);
   if (!result.ok) return { ok: false, problem: explainEquip(result.rejection, guild.name, document.world, deps.content) };
   return {
     ok: true,
@@ -131,7 +130,7 @@ export function unequipGear(
 ): CommandOutcome {
   const guild = playerGuild(document.world);
   if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
-  const result = unequip(document, { guildId: guild.id, heroId: command.hero, slot: command.slot }, deps);
+  const result = applyAction(document, { kind: 'unequip', guildId: guild.id, heroId: command.hero, slot: command.slot }, deps);
   if (!result.ok) return { ok: false, problem: explainUnequip(result.rejection, guild.name, document.world) };
   return {
     ok: true,

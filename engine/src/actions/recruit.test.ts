@@ -6,7 +6,8 @@ import { playerGuild, signingFee, unattachedHeroes } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { testDeps, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
-import { recruit, type RecruitRejection } from './recruit.js';
+import { applyRecruit, type RecruitRejection } from './recruit.js';
+import type { ActionResult } from './result.js';
 
 // M2-S8: recruiting from the Unattached pool (DL-27).
 
@@ -39,7 +40,7 @@ describe('recruit', () => {
     const wealth = guild.wealth;
     const roster = [...guild.rosterIds];
 
-    const result = recruit(document, { guildId: guild.id, heroId: hero.id }, deps);
+    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
@@ -60,7 +61,7 @@ describe('recruit', () => {
     const { document, guild, hero } = scene();
     const fee = signingFee(hero, deps);
 
-    const result = recruit(document, { guildId: guild.id, heroId: hero.id }, deps);
+    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     expect(result.events).toEqual([
@@ -83,7 +84,7 @@ describe('recruit', () => {
     const { document, guild, hero } = scene();
     const before = structuredClone(document.world);
 
-    const result = recruit(document, { guildId: guild.id, heroId: hero.id }, deps);
+    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     expect(result.document.world).not.toBe(document.world);
@@ -96,7 +97,7 @@ describe('recruit', () => {
     const { document, rival, hero } = scene();
     const fee = signingFee(hero, deps);
 
-    const result = recruit(document, { guildId: rival.id, heroId: hero.id }, deps);
+    const result = applyAction(document, { kind: 'recruit', guildId: rival.id, heroId: hero.id }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
@@ -108,19 +109,21 @@ describe('recruit', () => {
     const { document, guild, hero } = scene();
     guild.wealth = signingFee(hero, deps);
 
-    const result = recruit(document, { guildId: guild.id, heroId: hero.id }, deps);
+    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
 
     expect(result.ok && result.document.world.guilds[guild.id]?.wealth).toBe(0);
   });
 
-  test('is what applyAction does with a recruit action', () => {
-    const one = scene('apply');
-    const two = scene('apply');
+  test('is the rule applyAction runs on a copy of the world', () => {
+    const { document, guild, hero } = scene('apply');
+    const world = structuredClone(document.world);
 
-    const direct = recruit(one.document, { guildId: one.guild.id, heroId: one.hero.id }, deps);
-    const applied = applyAction(two.document, { kind: 'recruit', guildId: two.guild.id, heroId: two.hero.id }, deps);
+    const applied = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
+    const inPlace = applyRecruit(world, { guildId: guild.id, heroId: hero.id }, deps);
 
-    expect(applied.ok && serialise(applied.document)).toBe(direct.ok && serialise(direct.document));
+    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
+    expect(world).toEqual(applied.document.world);
+    expect(inPlace.events).toEqual(applied.events);
   });
 });
 
@@ -129,8 +132,8 @@ describe('recruit refuses, never throwing and changing nothing', () => {
   function refused(document: WorldDocument, guild: Guild, heroId: HeroId): RecruitRejection {
     const saved = serialise(document);
     const entries = document.history.entries.length;
-    let result: ReturnType<typeof recruit> | undefined;
-    expect(() => (result = recruit(document, { guildId: guild.id, heroId }, deps))).not.toThrow();
+    let result: ActionResult<RecruitRejection> | undefined;
+    expect(() => (result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId }, deps))).not.toThrow();
     expect(serialise(document)).toBe(saved);
     expect(document.history.entries).toHaveLength(entries);
     if (result === undefined || result.ok) throw new Error('Recruited, where a refusal was expected');
@@ -193,7 +196,7 @@ describe('recruit and Fame (M3-S5, R10 as amended, pre-M0 review B4)', () => {
 
   /** Recruits `hero` for `guild` under `gated`, asserting the document when it succeeds. */
   function sign(document: WorldDocument, guild: Guild, hero: Hero) {
-    const result = recruit(document, { guildId: guild.id, heroId: hero.id }, gated);
+    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, gated);
     if (result.ok) withValid(result.document, gated);
     return result;
   }
@@ -246,7 +249,7 @@ describe('recruit throws on a programming error', () => {
     const { document, hero } = scene();
     const saved = serialise(document);
 
-    expect(() => recruit(document, { guildId: makeId('guilds', 99), heroId: hero.id }, deps)).toThrow(RangeError);
+    expect(() => applyAction(document, { kind: 'recruit', guildId: makeId('guilds', 99), heroId: hero.id }, deps)).toThrow(RangeError);
     expect(serialise(document)).toBe(saved);
   });
 });

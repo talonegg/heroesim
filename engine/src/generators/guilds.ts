@@ -7,6 +7,7 @@ import type { EngineDeps, GameConfig } from '../config.js';
 import type { BackgroundKey, ContentSet, DispositionKey, GuildmasterTrait, PortraitKey, TraitKey } from '../content-types.js';
 import {
   facilityKeys,
+  rowOf,
   takeId,
   type Controller,
   type EntityId,
@@ -305,7 +306,7 @@ function namesInUse(world: World): Set<string> {
   const names = new Set<string>();
   for (const guild of Object.values(world.guilds)) {
     if (guild.foldedOnTurn !== null) continue;
-    const guildmaster = Object.hasOwn(world.guildmasters, guild.guildmasterId) ? world.guildmasters[guild.guildmasterId] : undefined;
+    const guildmaster = rowOf(world.guildmasters, guild.guildmasterId);
     if (guildmaster !== undefined) names.add(guildmaster.name);
   }
   for (const hero of Object.values(world.heroes)) {

@@ -7,11 +7,10 @@
 // (`marketStock`, `sellPrice`), and a refusal is its typed rejection put into words here (ADR-0003).
 
 import {
-  buy,
+  applyAction,
   holdings,
   marketStock,
   playerGuild,
-  sell,
   sellPrice,
   type BuyRejection,
   type ContentSet,
@@ -142,7 +141,7 @@ export function buyItems(command: Extract<Command, { name: 'buy' }>, document: W
   const guild = playerGuild(document.world);
   if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
 
-  const result = buy(document, { guildId: guild.id, definitionKey: command.item, quantity: command.quantity }, deps);
+  const result = applyAction(document, { kind: 'buy', guildId: guild.id, definitionKey: command.item, quantity: command.quantity }, deps);
   if (!result.ok) return { ok: false, problem: explainBuy(result.rejection, guild, deps.content) };
 
   const bought = result.events.find((event): event is ItemBought => event.type === 'item.bought');
@@ -190,7 +189,7 @@ export function sellItems(command: Extract<Command, { name: 'sell' }>, document:
     'stack' in command
       ? { guildId: guild.id, stackId: command.stack, quantity: command.quantity }
       : { guildId: guild.id, itemId: command.item };
-  const result = sell(document, request, deps);
+  const result = applyAction(document, { kind: 'sell', ...request }, deps);
   if (!result.ok) return { ok: false, problem: explainSell(result.rejection, guild, document, deps.content) };
 
   const sold = result.events.find((event): event is ItemSold => event.type === 'item.sold');

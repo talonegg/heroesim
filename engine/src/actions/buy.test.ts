@@ -10,7 +10,6 @@ import { playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { deepFreeze, testContent, testDeps, withValid } from '../world.test-support.js';
 import { applyAction, applyGuildAction } from './action.js';
-import { buy } from './buy.js';
 
 // M5-S4: buying from the Market (R31, DL-51). Each test arranges the Market by hand, so that no
 // test leans on what the refresh drew; prices are the test content's (a Healing draught 30, a Padded
@@ -48,7 +47,7 @@ describe('buy', () => {
   test('deducts buyPrice × quantity and moves that many from the Market’s stack to the Guild’s', () => {
     const { document, guildId } = scene();
 
-    const result = buy(document, { guildId, definitionKey: 'healing-draught', quantity: 3 }, deps);
+    const result = applyAction(document, { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 3 }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
@@ -73,7 +72,7 @@ describe('buy', () => {
     let document = start;
 
     for (const quantity of [1, 1]) {
-      const result = buy(document, { guildId, definitionKey: 'padded-jack', quantity }, deps);
+      const result = applyAction(document, { kind: 'buy', guildId, definitionKey: 'padded-jack', quantity }, deps);
       if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
       document = withValid(result.document, deps);
     }
@@ -89,7 +88,7 @@ describe('buy', () => {
   test('buys a unique Item listed on the Market at its Market price: lootOnlyPrice for one found only as Loot', () => {
     const { document, guildId, blade } = scene();
 
-    const result = buy(document, { guildId, definitionKey: 'barrow-kings-blade', quantity: 1 }, deps);
+    const result = applyAction(document, { kind: 'buy', guildId, definitionKey: 'barrow-kings-blade', quantity: 1 }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
@@ -110,7 +109,7 @@ describe('buy', () => {
     const { document, guildId, blade } = scene(1_000, with_);
     const second = createItem(document.world, 'barrow-kings-blade', marketHolder);
 
-    const result = buy(document, { guildId, definitionKey: 'barrow-kings-blade', quantity: 1 }, with_);
+    const result = applyAction(document, { kind: 'buy', guildId, definitionKey: 'barrow-kings-blade', quantity: 1 }, with_);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, with_);
@@ -122,7 +121,7 @@ describe('buy', () => {
   test('Wealth exactly equal to the cost is enough, leaving none', () => {
     const { document, guildId } = scene(150);
 
-    const result = buy(document, { guildId, definitionKey: 'healing-draught', quantity: 5 }, deps);
+    const result = applyAction(document, { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 5 }, deps);
 
     expect(result.ok && result.document.world.guilds[guildId]?.wealth).toBe(0);
   });
@@ -142,7 +141,7 @@ describe('buy', () => {
     if (folded) (document.world.guilds[guildId] as Guild).foldedOnTurn = 0;
     const before = serialise(document);
 
-    const result = buy(document, { guildId, definitionKey, quantity }, deps);
+    const result = applyAction(document, { kind: 'buy', guildId, definitionKey, quantity }, deps);
 
     expect(result.ok ? 'bought' : result.rejection.reason).toBe(reason);
     expect(serialise(document)).toBe(before);
@@ -157,25 +156,23 @@ describe('buy', () => {
   test('throws on a programming error: a quantity that is not a whole number from 1, a Guild the world lacks', () => {
     const { document, guildId } = scene();
 
-    expect(() => buy(document, { guildId, definitionKey: 'healing-draught', quantity: 0 }, deps)).toThrow(RangeError);
-    expect(() => buy(document, { guildId, definitionKey: 'healing-draught', quantity: 1.5 }, deps)).toThrow(RangeError);
+    expect(() => applyAction(document, { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 0 }, deps)).toThrow(RangeError);
+    expect(() => applyAction(document, { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 1.5 }, deps)).toThrow(RangeError);
     expect(() =>
-      buy(document, { guildId: 'guild-000099' as GuildId, definitionKey: 'healing-draught', quantity: 1 }, deps),
+      applyAction(document, { kind: 'buy', guildId: 'guild-000099' as GuildId, definitionKey: 'healing-draught', quantity: 1 }, deps),
     ).toThrow(RangeError);
   });
 
-  test('is what applyAction does with a buy action, and the rule a controller applies in place (DL-30)', () => {
+  test('is the rule applyAction runs on a copy of the world, and a controller in place (DL-30)', () => {
     const { document, guildId } = scene();
     const action = { kind: 'buy', guildId, definitionKey: 'padded-jack', quantity: 2 } as const;
     const world = structuredClone(document.world);
 
-    const direct = buy(document, action, deps);
     const applied = applyAction(document, action, deps);
     const inPlace = applyGuildAction(world, action, deps);
 
-    if (!direct.ok || !inPlace.ok) throw new Error('Refused');
-    expect(applied.ok && serialise(applied.document)).toBe(serialise(direct.document));
-    expect(world).toEqual(direct.document.world);
-    expect(inPlace.events).toEqual(direct.events);
+    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
+    expect(world).toEqual(applied.document.world);
+    expect(inPlace.events).toEqual(applied.events);
   });
 });

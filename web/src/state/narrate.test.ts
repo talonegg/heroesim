@@ -1,10 +1,10 @@
 import {
   advance,
+  applyAction,
   createWorld,
   dayOf,
   defaultConfig,
   milestoneTypes,
-  offerTransfer,
   playerGuild,
   type CheckRoll,
   type Encounter,
@@ -15,10 +15,10 @@ import {
   type GuildId,
   type HeroId,
   type ItemId,
+  type ModuleEvent,
   type OfferId,
   type PartyId,
   type QuestId,
-  type ModuleEvent,
   type StackId,
   type StopReason,
   type WorldDocument,
@@ -720,7 +720,7 @@ describe('narrateStop', () => {
     if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
     const rich = structuredClone(document);
     (rich.world.guilds[rival.id] as { wealth: number }).wealth = 100_000;
-    const offered = offerTransfer(rich, { guildId: rival.id, heroId }, deps);
+    const offered = applyAction(rich, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
     if (!offered.ok) throw new Error(`offerTransfer refused: ${offered.rejection.reason}`);
     const [offer] = Object.values(offered.document.world.offers);
     if (offer === undefined) throw new Error('no offer');

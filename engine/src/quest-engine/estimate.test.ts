@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { chanceBandNames, defaultConfig, questBands, type EngineDeps, type GameConfig, type QuestBand } from '../config.js';
 import { degrees, type ContentSet, type Degree, type Encounter, type EncounterCheck, type EncounterKind, type HeroTraitEffect, type NumQuery, type PassFormula } from '../content-types.js';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type Party, type Quest, type World } from '../document.js';
@@ -17,6 +16,7 @@ import { capability } from './check.js';
 import { chanceBand, chanceToReach, estimateQuest, questEstimator, type QuestEstimate } from './estimate.js';
 import { queryParty } from './query.js';
 import { questBand, resolveQuest } from './resolve.js';
+import { applyAction } from '../actions/action.js';
 
 // v1.1.4-S5 (DL-156): the chance estimate. Its parts are held to their formulas, and the whole to
 // the resolver: a created world's player Guild, its Roster of one Hero a Class, set out on Quests of
@@ -279,7 +279,7 @@ describe('the estimate', () => {
     const estimate = estimateQuest(world, quest, [hero], deps);
     const asTheySetOut = capability(queryParty([hero], world, deps), { kind: 'travel' }, deps.content.encounters.march?.checks[0] as EncounterCheck, world, deps);
 
-    const sent = dispatch(created, { guildId: guild.id, questId, heroIds: [hero.id] }, deps);
+    const sent = applyAction(created, { kind: 'dispatch', guildId: guild.id, questId, heroIds: [hero.id] }, deps);
     if (!sent.ok) throw new Error(sent.rejection.reason);
     let document = sent.document;
     let met: QuestEncounter['payload'] | undefined;

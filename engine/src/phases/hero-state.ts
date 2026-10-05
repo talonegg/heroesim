@@ -38,7 +38,7 @@
 // The `heroes` stream is the only one this phase moves.
 
 import type { GameConfig } from '../config.js';
-import { compareByCodeUnit, type Hero, type HeroId, type History, type Turn, type World } from '../document.js';
+import { rowOf, type Hero, type HeroId, type History, type Turn, type World } from '../document.js';
 import type { EngineEvent, QuestTaken } from '../events.js';
 import { streamOf } from '../generators/draw.js';
 import { decayHeroRegard } from '../hero-regard.js';
@@ -47,27 +47,20 @@ import { chance } from '../rng.js';
 import { ageOf, dayOf, nightOf, turnsPerDay } from '../time.js';
 import { replacedBy } from '../traits.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
+import { activeRosterHeroes } from './roster-walk.js';
 
 export const heroState: PhaseRun = (world, ctx) => {
   const events: EngineEvent[] = [];
-  const guilds = Object.values(world.guilds)
-    .filter((guild) => guild.foldedOnTurn === null)
-    .sort((a, b) => compareByCodeUnit(a.id, b.id));
-  for (const guild of guilds) {
-    for (const heroId of [...guild.rosterIds]) {
-      const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
-      if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) continue;
-
-      events.push(...heroNight(hero, world, ctx));
-      if (!retirementCheckDue(hero, ctx)) continue;
-      const age = ageOf(hero, ctx.turn, ctx.config);
-      if (!chance(streamOf(world, 'heroes'), retirementChance(hero, age, ctx.config))) continue;
-      hero.retiredOnTurn = ctx.turn;
-      guild.rosterIds = guild.rosterIds.filter((id) => id !== hero.id);
-      events.push(
-        ctx.emit({ type: 'hero.retired', participants: [hero.id], payload: { heroId: hero.id, guildId: guild.id, age } }),
-      );
-    }
+  for (const { guild, hero } of activeRosterHeroes(world)) {
+    events.push(...heroNight(hero, world, ctx));
+    if (!retirementCheckDue(hero, ctx)) continue;
+    const age = ageOf(hero, ctx.turn, ctx.config);
+    if (!chance(streamOf(world, 'heroes'), retirementChance(hero, age, ctx.config))) continue;
+    hero.retiredOnTurn = ctx.turn;
+    guild.rosterIds = guild.rosterIds.filter((id) => id !== hero.id);
+    events.push(
+      ctx.emit({ type: 'hero.retired', participants: [hero.id], payload: { heroId: hero.id, guildId: guild.id, age } }),
+    );
   }
   return events;
 };
@@ -94,7 +87,7 @@ function heal(hero: Hero, ctx: HeroNightContext): EngineEvent[] {
   const { injury } = hero;
   if (injury === null || injury.healsOnTurn > ctx.turn) return [];
   // A type content no longer defines heals on its night and leaves nothing (data-model rule 5).
-  const type = Object.hasOwn(ctx.content.injuries, injury.typeKey) ? ctx.content.injuries[injury.typeKey] : undefined;
+  const type = rowOf(ctx.content.injuries, injury.typeKey);
   const leaves = type?.leavesTrait ?? null;
   const traitKey = leaves !== null && !hero.traits.includes(leaves) ? leaves : null;
   const lost = traitKey === null ? [] : replacedBy(hero.traits, traitKey, ctx.content);

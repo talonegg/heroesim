@@ -9,6 +9,7 @@ import type { EngineDeps, GameConfig } from './config.js';
 import type { ContentSet, DispositionKey, Improvement, Stat } from './content-types.js';
 import {
   compareByCodeUnit,
+  rowOf,
   type FacilityKey,
   type Guild,
   type GuildId,
@@ -193,7 +194,7 @@ export function cheapestUnattached(
 export function offeredQuests(world: Pick<World, 'board' | 'quests'>): Quest[] {
   const offered: Quest[] = [];
   for (const questId of world.board) {
-    const quest = Object.hasOwn(world.quests, questId) ? world.quests[questId] : undefined;
+    const quest = rowOf(world.quests, questId);
     if (quest !== undefined && quest.status === 'offered') offered.push(quest);
   }
   return offered;
@@ -338,7 +339,7 @@ export function upkeepParts(
   content?: Pick<ContentSet, 'guildmasterTraits'>,
 ): UpkeepParts {
   const wages = guild.rosterIds.reduce((total, heroId) => {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    const hero = rowOf(world.heroes, heroId);
     if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) return total;
     return total + config.wagePerLevel * hero.level;
   }, 0);
@@ -391,7 +392,7 @@ export function effectiveStats(
   world: Pick<World, 'guilds' | 'guildmasters' | 'items' | 'stacks'>,
   content: Pick<ContentSet, 'stats' | 'guildmasterTraits' | 'heroTraits' | 'items'>,
 ): StatValues {
-  const guild = hero.guildId !== null && Object.hasOwn(world.guilds, hero.guildId) ? world.guilds[hero.guildId] : undefined;
+  const guild = hero.guildId !== null ? rowOf(world.guilds, hero.guildId) : undefined;
   const bonuses = guild === undefined ? {} : traitStatBonuses(guildmasterOf(guild, world), hero.classKey, content);
   const gear = gearModifiers(hero.id, world, content);
   const marks = traitStatModifiers(hero, content);

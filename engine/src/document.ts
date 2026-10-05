@@ -151,6 +151,27 @@ export function compareByCodeUnit(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+// ── Row lookup ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The row `rows` holds under `id`, read as an own property, so that a key of `Object.prototype`
+ * (`constructor`, `__proto__`) reads as absent in a table built here or parsed from JSON; `undefined`
+ * when the table has none (v1.1.6-S8, DL-186 item 26).
+ */
+export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
+  return Object.hasOwn(rows, id) ? rows[id] : undefined;
+}
+
+/**
+ * The row `rows` holds under `id`, which must be there: a programming error throws a `RangeError`,
+ * "<id> is not in world.<table>" when `table` is given and "<id> is not in the world" when not.
+ */
+export function requireRow<Row>(rows: Readonly<Record<string, Row>>, id: string, table?: string): Row {
+  const found = rowOf(rows, id);
+  if (found === undefined) throw new RangeError(table === undefined ? `${id} is not in the world` : `${id} is not in world.${table}`);
+  return found;
+}
+
 // ── Values shared by rows ────────────────────────────────────────────────────────────────────
 
 /** An absolute Turn index from 0. Day and time of day are derived from it (data-model §3.1). */

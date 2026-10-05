@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { StopReason } from '../stops.js';
 import { configVersion, defaultConfig, type EngineDeps } from '../config.js';
@@ -30,6 +29,7 @@ import { plannedStreams, testContent, testDeps, thriftyRivals, withDispositions,
 import { ageSpanOf, portraitSexOf } from '../portraits.js';
 import { endings } from './endings.js';
 import { phaseContext } from './phase.js';
+import { applyAction } from '../actions/action.js';
 
 // M2-S10: the endings (DL-28). Each ending is arranged on a world `createWorld` made, then played
 // through `advance`; every document a test inspects is held to the validator.
@@ -969,7 +969,7 @@ describe("a fold's one order (DL-54)", () => {
       { definitionKey: 'healing-draught', quantity: 2 },
       { definitionKey: 'whetstone', quantity: 1 },
     ];
-    const sent = dispatch(start, { guildId: rival.id, questId: quest.id, heroIds, consumables }, deps);
+    const sent = applyAction(start, { kind: 'dispatch', guildId: rival.id, questId: quest.id, heroIds, consumables }, deps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     const eve = withValid(sent.document, deps);
     const party = Object.values(eve.world.parties).find((it) => it.guildId === rival.id);

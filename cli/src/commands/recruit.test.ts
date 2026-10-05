@@ -6,7 +6,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   deserialise,
-  makeId,
   guildmasterOf,
   playDeps,
   playerGuild,
@@ -19,6 +18,7 @@ import {
   type Hero,
   type WorldDocument,
 } from '@heroesim/engine';
+import { makeId } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from '../main.js';
