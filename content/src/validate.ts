@@ -847,8 +847,7 @@ export const encounterChecksMax = 4;
  * (`checkQuery`), helped by Skills that exist, and aimed at a target above 0 (`checkTarget`); a pass
  * formula naming every Check once (`checkPass`), which one Check may leave out; and consequences by
  * Degree, each within its kind's bounds, an Injury naming a type content defines. The epic's first
- * box: an unknown Stat, Skill or Injury type is refused. The old form's demands are held as they
- * load (`parseContent`).
+ * box: an unknown Stat, Skill or Injury type is refused.
  */
 function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): void {
   for (const [key, encounter] of Object.entries(set.encounters)) {
@@ -1135,8 +1134,7 @@ function checkExclusions(
  * The Synergies (M4-S3, DL-45): each requires one or more conditions on the Party, each a Query
  * (v1.1.4-S1, DL-148 item 20, `checkQuery`); adds a `flat` above 0, a `factor` above 1 or both, a
  * Synergy being a bonus and a factor in content a multiplier; and names, if any, one or more
- * Encounter kinds, none twice. The old form's Classes and Skills are held as they load
- * (`parseContent`).
+ * Encounter kinds, none twice.
  */
 function checkSynergies(synergies: ContentSet['synergies'], keys: QueryKeys, problems: string[]): void {
   for (const [key, synergy] of Object.entries(synergies)) {
@@ -1757,7 +1755,7 @@ function arity(least: number, most: number): string {
 }
 
 /** Every key must name a row of the table it refers to, and appear once. */
-export function checkReferences(
+function checkReferences(
   where: string,
   keys: readonly string[],
   known: ReadonlySet<string>,
@@ -1794,7 +1792,7 @@ function checkRange(where: string, field: string, min: number, max: number, floo
  * A Quest template's demands: at least one, each a Hero Stat once with a weight above 0, the
  * weights summing to 1 within the tolerance (M2-S3's acceptance).
  */
-export function checkDemands(
+function checkDemands(
   where: string,
   demands: readonly (readonly [string, number])[],
   heroStats: ReadonlySet<string>,

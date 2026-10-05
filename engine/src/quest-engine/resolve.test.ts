@@ -19,7 +19,7 @@ import { makeId, type Guild, type Hero, type Party, type Quest, type World } fro
 import { streamOf } from '../generators/draw.js';
 import { chance, int, next } from '../rng.js';
 import { playerGuild } from '../selectors.js';
-import { encounterCapability as capability, heroStatKeys, oldFormCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
+import { demandsCheck, encounterCapability as capability, heroStatKeys, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { capability as checkCapability } from './check.js';
 import { drawLoot } from './loot.js';
 import { queryParty } from './query.js';
@@ -53,7 +53,7 @@ function encounter(key: string, pass: boolean, failure: Consequence[] = [], succ
     key,
     name: key,
     kind: 'combat',
-    checks: [oldFormCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000)],
+    checks: [demandsCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000)],
     consequences: { success, failure },
   };
 }
@@ -1280,7 +1280,7 @@ describe('earned Traits (v1.1.4-S7)', () => {
     // One Check of summed Strength, 24 against a target of 0.7 × 40 = 28: at 0.86 of it, a Setback (0.75 to 1).
     const setback = (key: string, failure: Consequence[]): Encounter => ({
       ...encounter(key, false),
-      checks: [oldFormCheck(key, key, 'sum', [['strength', 1]], [], 0.7)],
+      checks: [demandsCheck(key, key, 'sum', [['strength', 1]], [], 0.7)],
       consequences: { success: [], failure },
     });
     for (let seed = 0; seed < 10; seed += 1) {

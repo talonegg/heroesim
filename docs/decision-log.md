@@ -25039,6 +25039,52 @@ arcane Encounters, no lore, no Finale); I put them on the shipped content by rem
 the test, rather than keep a copy of the old files. (2) The old form's Class and Skill checks (a
 count of 1 or more, no Skill twice) went with it; the same Queries are `validateContent`'s.
 
+*The verification* (opus, 2026-10-05). Read `66aa536..e844595` against S6's boxes and DL-186 item 8;
+the doctor read no drift before and after (110 reads). Checked and held:
+
+- *The version's line.* `raiseContentVersion` run on a scratch copy of the version-32 file with the
+  same reason writes `content/version.json` byte for byte as the hand edit (CRLF kept).
+- *Only the version moved the fingerprint.* With this verification's changes in place, the 4 × 2
+  quick check alone (`HEROESIM_WORKERS=8`) gives `50f5e3d5…`, S1's, with `version.json` put back to
+  32, and `a8f4025b200ef9d7563b7c0bf9abeb28fc216b50635ae09ba4f659e59954066f` at 33, the replay
+  identical and the Gate passing each time; the file restored and the reports deleted. The quick
+  check's fingerprint at content 33 is `a8f4025b…`.
+- *The S8 rewrite in `refusals.test.ts`.* Every refusal it tested before is still tested, on the
+  shipped content: the Finale-only kind for the lay and the vault, a Finale of any kind, lore named
+  everywhere, no lore Encounter. The old form's own refusals have their new-form counterparts in
+  the Query and Check tables (an unknown or Guildmaster Stat, an unknown Skill or Class, an empty
+  requirement) but one: a Check's Skill listed twice, which had no test; one is added.
+- *The bundle.* The parser is in the built script (its words are), so the bundle test bites: with
+  "in the old form" put back into a refusal of `parse.ts` it fails; restored.
+
+Fixed:
+
+- *A missing `requires`* read "is not a list of conditions on the Party", unlike every other
+  missing field. The parser's rows now have `list(field, expected)`, through the reader's own
+  wording: "synergies.json: sword-and-salve.requires is missing; expected a list of conditions on
+  the Party", and for the old form `… is {"classes":{"warrior":1},"skills":["tactics"]}; expected a
+  list of conditions on the Party`; the two tests changed first and failed. An Encounter without
+  `checks` already reads "is missing; expected a list of objects".
+- *Left over in the parser:* `RowReader.where` (only the old form used it) gone and its `problems`
+  private; `checkDemands` and `checkReferences` no longer exported from `validate.ts`, whose own
+  rules are their only callers now.
+- *Words that still described the old form as read:* the trait-assign skill's "The old form" bullet,
+  whose refusal is gone (removed); ADR-0010 amended (dated) to say the old forms are no longer
+  read; the comments of `validate.ts`' Encounters and Synergies, of `check.ts` and `synergy.ts`, of
+  `check.test.ts` ("as `encounters.json` still does"), and of `readsAsOne` and the card's `one` in
+  the CLI and the page.
+- *The engine's test builders* renamed for what they build, `oldFormCheck` to `demandsCheck` and
+  `oldFormRequires` to `classSkillRequires` (tests only, 27 places), their comments saying the form
+  they copy was content's until DL-192.
+
+Checks: `npm run lint` and `typecheck` clean; `npm test` 190 files, 4,931 tests passing (one added);
+`npm run build` and check-bundle passing (814,867 bytes); `npm run e2e -w web` 103 passing. Line
+endings as before, none mixed.
+
+*For the owner.* No shipped Encounter is now one Check named as its Encounter, so `readsAsOne` (the
+CLI's and the page's) and the card's `one` serve only tests and the old saves no longer kept; they
+are left for the story that next touches those words.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

@@ -33,6 +33,10 @@ names the Query's path. The old forms, an Encounter's weighted demands and a Syn
 Classes and Skills, load into Queries that read exactly as they did, so content written before
 this decision plays the same.
 
+*Amended 2026-10-05.* The old forms are no longer read (v1.1.6-S6, DL-192): every shipped
+Encounter and Synergy was written in Queries by v1.1.4-S10, and an Encounter without `checks`, or a
+Synergy whose `requires` is not a list, is refused.
+
 A Hero's form (v1.1.4-S3, DL-154) scales the Stat values a Hero adds into a Check's score, and
 nothing that chooses, filters or counts. So a wound or low spirits must never raise a score: a Stat
 subtracted would be scaled with the rest, and a hurt Hero would subtract less. Validation carries

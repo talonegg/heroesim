@@ -223,11 +223,12 @@ function demandsOf(demands: string): [string, number][] {
 export type CheckAggregate = 'best' | 'sum';
 
 /**
- * The one Check an Encounter in the old form a test builds (the form content no longer reads, DL-192):
- * keyed and named `key` and `name`, its score the weighted `aggregate` of each demanded Stat over the
- * Party, added up in the order of `demands`, with `skillKeys` its Skills.
+ * A test's Check built from weighted demands, as content's old form of an Encounter loaded into one
+ * until it was retired (v1.1.4-S1 to DL-192): keyed and named `key` and `name`, its score the weighted
+ * `aggregate` of each demanded Stat over the Party, added up in the order of `demands`, with
+ * `skillKeys` its Skills.
  */
-export function oldFormCheck(
+export function demandsCheck(
   key: string,
   name: string,
   aggregate: CheckAggregate,
@@ -240,10 +241,11 @@ export function oldFormCheck(
 }
 
 /**
- * The conditions a Synergy's requirement in the old form a test builds (the form content no longer reads, DL-192):
- * at least `n` of each Class named, then each Skill held at a rating of 1 or more.
+ * A test's Synergy requirement built from counts of Classes and a list of Skills, as content's old form
+ * loaded into conditions until it was retired (v1.1.4-S1 to DL-192): at least `n` of each Class named,
+ * then each Skill held at a rating of 1 or more.
  */
-export function oldFormRequires(requires: { classes?: Record<string, number>; skills?: readonly string[] }): SynergyRequires {
+export function classSkillRequires(requires: { classes?: Record<string, number>; skills?: readonly string[] }): SynergyRequires {
   return [
     ...Object.entries(requires.classes ?? {}).map(([classKey, count]): SynergyRequires[number] => [
       '>=',
@@ -256,8 +258,8 @@ export function oldFormRequires(requires: { classes?: Record<string, number>; sk
 
 /**
  * An Encounter (M4-S1) from its kind, aggregate, demands as `stat:weight` pairs, Skills as a
- * space-separated list (or none), difficulty factor and consequences: in the old form, loaded into
- * its one Check (`oldFormCheck`).
+ * space-separated list (or none), difficulty factor and consequences, its one Check built from the
+ * demands (`demandsCheck`).
  */
 function encounter(
   key: string,
@@ -275,20 +277,20 @@ function encounter(
       key,
       name: title(key),
       kind,
-      checks: [oldFormCheck(key, title(key), aggregate, demandsOf(demands), skills === '' ? [] : skills.split(' '), difficultyFactor)],
+      checks: [demandsCheck(key, title(key), aggregate, demandsOf(demands), skills === '' ? [] : skills.split(' '), difficultyFactor)],
       consequences: { success, failure },
     },
   ];
 }
 
-/** A Synergy (M4-S3) from what it requires in the old form (`oldFormRequires`), its bonus and, when it has them, its kinds. */
+/** A Synergy (M4-S3) from the Classes and Skills it requires (`classSkillRequires`), its bonus and, when it has them, its kinds. */
 function synergy(
   key: string,
-  requires: Parameters<typeof oldFormRequires>[0],
+  requires: Parameters<typeof classSkillRequires>[0],
   bonus: Synergy['bonus'],
   kinds?: EncounterKind[],
 ): [string, Synergy] {
-  return [key, { key, name: title(key), requires: oldFormRequires(requires), bonus, ...(kinds === undefined ? {} : { kinds }) }];
+  return [key, { key, name: title(key), requires: classSkillRequires(requires), bonus, ...(kinds === undefined ? {} : { kinds }) }];
 }
 
 /**

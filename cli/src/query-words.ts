@@ -74,7 +74,7 @@ export function encounterReadings(quest: Pick<Quest, 'encounterKeys'>, content: 
   });
 }
 
-/** Whether `reading` is one Check named as its Encounter is, as an Encounter in the old form loads: its line says what it reads. */
+/** Whether `reading` is one Check named as its Encounter is, as an Encounter in the old form loaded until DL-192: its line says what it reads. */
 export function readsAsOne(reading: EncounterReading): boolean {
   return reading.checks.length === 1 && reading.checks[0]?.name === reading.name;
 }

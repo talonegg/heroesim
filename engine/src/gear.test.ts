@@ -17,7 +17,7 @@ import { capability, check } from './quest-engine/check.js';
 import { queryParty } from './quest-engine/query.js';
 import { effectiveStats, playerGuild } from './selectors.js';
 import { nightOf } from './time.js';
-import { certainHarmContent, deepFreeze, oldFormCheck, testDeps, withValid } from './world.test-support.js';
+import { certainHarmContent, deepFreeze, demandsCheck, testDeps, withValid } from './world.test-support.js';
 
 // M5-S2: gear in effective Stats, in the Check, going back to the Guild, and chosen by the
 // controllers (DL-49). Worlds come from `createWorld`; every document a test makes is held to the
@@ -170,7 +170,7 @@ describe('effectiveStats with gear (DL-49)', () => {
 
 describe('the Check reads gear through effectiveStats (DL-44, DL-49)', () => {
   /** Strength alone, summed over the Party, no Skill: the capability is the Party's effective Strength. */
-  const strength = oldFormCheck('hold-the-line', 'Hold the line', 'sum', [['strength', 1]], [], 1);
+  const strength = demandsCheck('hold-the-line', 'Hold the line', 'sum', [['strength', 1]], [], 1);
   const combat = { kind: 'combat' } as const;
 
   test('a geared Party beats an identical bare one, with no variance', () => {

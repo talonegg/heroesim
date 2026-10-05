@@ -4,7 +4,7 @@ import type { Hero, HeroId, SkillRating, World } from '../document.js';
 import { generateHero } from '../generators/heroes.js';
 import { effectiveStats } from '../selectors.js';
 import { ageOf } from '../time.js';
-import { heroStatKeys, oldFormCheck, oldFormRequires, testDeps, testWorld } from '../world.test-support.js';
+import { classSkillRequires, demandsCheck, heroStatKeys, testDeps, testWorld } from '../world.test-support.js';
 import { evaluate, heroOf, holds, is, membersOf, queryParty, valueOf, type QueryParty } from './query.js';
 
 // v1.1.4-S1: the Query evaluator (ADR-0010, DL-148 items 4 to 6). Five Heroes are generated, then
@@ -318,7 +318,7 @@ describe('a Party-level condition', () => {
   });
 
   test("the old form of a Synergy's requirement reads as before: a count of each Class, and each Skill held at any rating", () => {
-    const met = (requires: Parameters<typeof oldFormRequires>[0]) => oldFormRequires(requires).every((it) => holds(it, party));
+    const met = (requires: Parameters<typeof classSkillRequires>[0]) => classSkillRequires(requires).every((it) => holds(it, party));
 
     expect(met({ classes: { warrior: 2, mage: 1 } })).toBe(true);
     expect(met({ classes: { warrior: 3 } })).toBe(false);
@@ -332,7 +332,7 @@ describe('the old form of an Encounter', () => {
   // demand in order, from 0, `best` being Math.max(0, …) of the members' values and `sum` their sum.
   test.each(['best', 'sum'] as const)('with `%s`, its Check scores exactly as the old capability did', (aggregate) => {
     const demands: [string, number][] = [['strength', 0.3], ['wits', 0.1], ['dexterity', 0.2], ['intelligence', 0.4]];
-    const encounterCheck = oldFormCheck('test', 'Test', aggregate, demands, [], 1);
+    const encounterCheck = demandsCheck('test', 'Test', aggregate, demands, [], 1);
     for (const size of [1, 2, 3, 4, 5]) {
       const some = queryParty(party.members.slice(0, size).map((it) => it.hero), scene().world, deps);
       let old = 0;

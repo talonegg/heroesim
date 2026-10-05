@@ -128,7 +128,7 @@ describe('the Board and the detail (v1.1.4-S6)', () => {
       checks: checks.map((check) => ({ key: check.key, name: check.name, reads: queryWords(describeQuery(check.score), content) })),
     });
     expect(ambush && readsAsOne(ambush)).toBe(false);
-    // One Check of its Encounter's own name, as the old form loads (v1.1.4-S1), reads as one.
+    // One Check of its Encounter's own name, as the old form loaded (v1.1.4-S1 to DL-192), reads as one.
     expect(readsAsOne({ encounterKey: 'one', name: 'One', kind: 'combat', checks: [{ key: 'one', name: 'One', reads: 'x' }] })).toBe(true);
     expect(unknown).toEqual({ encounterKey: 'no-such-encounter', name: 'no-such-encounter', kind: null, checks: [] });
     expect(unknown && readsAsOne(unknown)).toBe(false);

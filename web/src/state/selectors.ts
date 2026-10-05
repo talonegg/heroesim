@@ -248,7 +248,7 @@ export interface QuestCard {
 
 /** One of a Quest's Encounters as its card shows it: `encounterReadings`', and whether its one Check is named as it is. */
 export interface EncounterView extends EncounterReading {
-  /** One Check of the Encounter's own name, as an Encounter in the old form loads: the card says what it reads beside the name. */
+  /** One Check of the Encounter's own name, as an Encounter in the old form loaded until DL-192: the card says what it reads beside the name. */
   one: boolean;
 }
 

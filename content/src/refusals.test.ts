@@ -1233,7 +1233,7 @@ describe('a Synergy (M4-S3)', () => {
     });
 
     const { message } = refusalOf(() => parseContent(missing));
-    expect(message).toMatch(/sword-and-salve\.requires is not a list of conditions on the Party/);
+    expect(message).toMatch(/synergies\.json: sword-and-salve\.requires is missing; expected a list of conditions on the Party/);
     expect(message).toMatch(/sword-and-salve\.bonus is missing/);
     expect(parseContent(everyKind).synergies['sword-and-salve']).not.toHaveProperty('kinds');
   });
@@ -1251,7 +1251,9 @@ describe('a Synergy (M4-S3)', () => {
   test('with its requirement in the old form is refused, as no list of conditions on the Party', () => {
     const files = withJson('synergies.json', (json) => void Object.assign(salve(json), { requires: { classes: { warrior: 1 }, skills: ['tactics'] } }));
 
-    expect(refusalOf(() => parseContent(files)).message).toMatch(/synergies\.json: sword-and-salve\.requires is not a list of conditions on the Party/);
+    expect(refusalOf(() => parseContent(files)).message).toContain(
+      'synergies.json: sword-and-salve.requires is {"classes":{"warrior":1},"skills":["tactics"]}; expected a list of conditions on the Party',
+    );
   });
 
   test('the file is required, and may hold none', () => {
@@ -2002,6 +2004,7 @@ describe('an Encounter in the new form (v1.1.4-S2)', () => {
     ['a Check with a field it lacks', { checks: [checkRow('front', { aggregate: 'sum' })], pass: 'front' }, /encounters\.json: ambush-on-the-road\.checks\.0\.aggregate is not a field of an Encounter's Check/],
     ['a Check with no score', { checks: [checkRow('front', { score: undefined })], pass: 'front' }, path('checks.0.score')],
     ['a Check with a Skill content lacks', { checks: [checkRow('front', { skills: ['axemanship'] })], pass: 'front' }, path('checks.0.skills: "axemanship" is not a Skill')],
+    ['a Check with a Skill listed twice', { checks: [checkRow('front', { skills: ['tactics', 'tactics'] })], pass: 'front' }, path('checks.0.skills: "tactics" is listed twice')],
     ['the old form beside the new', { demands: [['strength', 1]] }, /encounters\.json: ambush-on-the-road\.demands is not a field of an Encounter/],
     ['a raw Check with Skills', { checks: [checkRow('front', { raw: true })], pass: 'front' }, path('checks.0.skills lists 1; a raw Check is its score alone, and lists no Skills')],
     ['a raw that is not true or false', { checks: [checkRow('front', { raw: 'yes', skills: [] })], pass: 'front' }, /ambush-on-the-road\.checks\.0\.raw is "yes"; expected true or false/],

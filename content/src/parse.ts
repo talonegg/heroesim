@@ -714,12 +714,7 @@ function requires(reader: RowReader): QuestTemplateRequires {
  * for each Class and a list of Skills, is no longer read (DL-192).
  */
 function synergyRequires(row: RowReader): SynergyRequires {
-  const requires = row.value('requires');
-  if (!Array.isArray(requires)) {
-    row.problems.push(`${row.where('requires')} is not a list of conditions on the Party`);
-    return [];
-  }
-  return requires as PartyCondition[];
+  return row.list('requires', 'a list of conditions on the Party') as PartyCondition[];
 }
 
 /** A Synergy's bonus (M4-S3): a `flat`, a `factor`, either or both, and nothing else. */
@@ -828,18 +823,13 @@ class RowReader {
     private readonly file: ContentFileName,
     private readonly prefix: readonly string[],
     private readonly raw: Record<string, unknown>,
-    /** Where the problems found are recorded: a caller may record one of its own, with `where`. */
-    readonly problems: string[],
+    /** Where the problems found are recorded. */
+    private readonly problems: string[],
   ) {}
 
   /** `field`'s value as it stands, of any type, then counted as read: for a value checked elsewhere. */
   value(field: string): unknown {
     return this.field(field);
-  }
-
-  /** Where `field` is, as a problem names it: `file: key.field`. */
-  where(field: string): string {
-    return this.path(field);
   }
 
   string(field: string): string {
@@ -938,6 +928,14 @@ class RowReader {
     const value = this.field(field);
     if (Array.isArray(value) && value.every((item) => typeof item === 'number' && Number.isFinite(item))) return [...value];
     this.wrong(field, value, 'a list of numbers');
+    return [];
+  }
+
+  /** A list of anything, `expected` saying what it is a list of, such as a Synergy's conditions; each item is the validator's. */
+  list(field: string, expected: string): unknown[] {
+    const value = this.field(field);
+    if (Array.isArray(value)) return value;
+    this.wrong(field, value, expected);
     return [];
   }
 

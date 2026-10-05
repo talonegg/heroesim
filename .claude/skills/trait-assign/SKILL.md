@@ -54,10 +54,6 @@ entry names (`content/injuries.json`, `encounters.json`, `synergies.json`, `desc
 `portrait-appearances.json`). A `path` is the place of a Set Query inside the Encounter or Synergy
 (`checks.0.score.1`, `consequences.failure.0.among`): read the Encounter to find it.
 
-- **The old form.** An Encounter with no `checks`, or a Synergy whose `requires` is an object of
-  Classes and Skills, is in the old form: it has no Query to filter, and the refusal says "in the old
-  form". Writing it in Queries is content work outside the editor's kinds (v1.1.4-S10 writes the
-  shipped content so): tell the owner, and assign once it is written.
 - **A Biography sentence** keeps `docs/agents/portraits.md`'s rules for a sentence: the pronoun
   slots, a capital first, a full stop last, the glossary's terms capitalised.
 
