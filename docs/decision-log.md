@@ -25922,6 +25922,47 @@ quantity at 1. (4) The page's Namer gives segments, which the page's state keeps
 sentence, and `Names` makes the elements: a Namer that made React elements in the state would take
 React into `state/`.
 
+*The verification* (2026-10-05, a second Opus agent, at `50a052f`). *The CLI's words.* The
+build's game played again on `731f1aa` and after (`new --seed s12-check`, `advance --turns 1080
+--modules probe`, two fast forwards, `show history`; 1,639 lines): the same but the probe's two
+lines. A longer game besides, driven by a script that answers every stop (`dispatch` of the Board's
+best Party after `preview`, `recruit` from the pool, `buy` and `equip` every seventh stop; 1,609
+commands to Turn 657, 66,836 lines): the same but the seven stops' and five events' "Module". And
+the old `narrate` (`cli/src/narrate.ts` at `731f1aa`, copied beside the new for a test since
+deleted) against `narrateLine` over every entry of four harness games of six years and the two CLI
+games, 309,308 entries: equal but for the capitals listed, seven lines in all (six a Module's, one
+declined Offer). *The page's words and names.* The old page `narrate.ts` against `pageNamer`'s
+`narrateSegments`, `narrateText` and `resolvedWords`, deep-equal, over the same games and three
+more (316,974 entries, 38 of the 46 types and the probe's), and over the build's samples with
+their labels and with none, each variation of cause, reason, band, Offer, Loot, Synergies and
+consumable effect, and a module's event of any namespace, none and unlabelled participants (180
+events): every segment the same, each name the same text, id and table, so each name the page made
+a button still is one and opens the same row; `Names` changed only its import. *The table holds the
+union.* A sentence taken out of the map fails `narrate.test.ts` (three cases) and `tsc -b`; a Namer
+mutated (the CLI's `name` slot, the page's Patron not a name) fails each Namer's tests. *The Quest
+review.* `words/src/quest-review.ts` is the old file less its I/O and its imports from the package's
+own modules, line for line; `npm run quest-review` with `--out` and with `--fragment --out` on
+`731f1aa` and after writes byte-identical pages. A `node:fs` import and `process` put in it are
+refused by lint. *The script's 1,160 bytes,* read in unminified builds by module: the narration was
+the page's `narrate.ts` (33,188 bytes) and the tables in `rejections.ts` and `names.ts` (682); it is
+now `words/src/narrate.ts` (18,884), `state/namer.ts` (15,988) and `state/stops.ts` (2,178), 3,180
+more with comments. The growth is the seam: every sentence builds slot objects, the `ids` slots the
+page discards among them, and the page's Namer and its second join run over them. Nothing of the
+review is in the script (`reviewPage`, `passWords`, `consequenceWords` and its words absent), nor
+the CLI's Namer, `sentenceText` or `narratedTypes`, nor a Node built-in. *The calls.* (1) The stops
+staying each front end's fits DL-186 item 1 and the story, which name the narration of events and
+its two `narrate.ts`; the stop is not an event, and five of its nine sentences differ in what each
+front end can offer. Four are the same words in two places (the game over, the Bankruptcy floor, the
+Module, the cap), with no test tying them, and the Module's capital is the drift DL-197 missed; a
+note for the owner, not a fork. (2) The Regard's subject as a `name` keeps the CLI's line as it was,
+which the acceptance asks; the slot's `table` still says it is a Hero. (3) Segments, not elements,
+keep React out of `state/` and the package, and change nothing the page draws. None needs the
+owner's decision. *Left as found:* two inline "the night of Day ${dayOf(…)}" in the CLI
+(`dispatch.ts`'s return, `render.ts`'s Injury), parts of longer sentences, not copies of `nightOf`.
+Nothing to fix. *Checks:* `npm run lint` and `typecheck` clean; `npm test` 203 files, 5,730 tests
+passing; `npm run e2e -w web` 103 passing, check-bundle passing, the script 815,402 bytes; the
+doctor no drift (107 reads). Line endings as each file's before, none mixed.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
