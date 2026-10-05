@@ -25785,6 +25785,47 @@ disk through `@heroesim/content/node`, as the page's tests do; the package's sou
 (4) The Board's chip words, the page's alone, moved with the other words for why a Hero cannot go,
 where S14's `availabilityOf` can read them.
 
+*The verification* (2026-10-05, a second Opus agent, at `3bfc381`). *The package.* No package of
+the game declares another workspace package as a dependency (the CLI, the page, content and the
+harness name none; npm links each by the root's `workspaces`), so `words/package.json` declaring
+none is the convention, not a gap; `words/tsconfig.json` references the engine and content (the
+tests'), the CLI's and the page's reference it, and `tsc -b --force` builds every project in order.
+*A lint hole, closed.* A dynamic `import('node:fs')`, `process`, `Buffer`, `__dirname`,
+`__filename` and `global` in `words/src` all passed lint, the import rules seeing only static
+imports (the page's build would refuse the first; the CLI's would not). ESLint now refuses in the
+words' source an `import()` (`no-restricted-syntax`) and the globals only Node defines (`process`,
+`Buffer`, `__dirname`, `__filename`, `global`, `require`, `module`, `exports`;
+`no-restricted-globals`), its tests excepted: `imports.test.ts` gains six cases, each .ts and
+.tsx, failing before the rules, and its tests' case uses both. *The copies.* Five definitions of
+the package's words were left: the CLI's `setup.ts` `listed` (and `traitName`, a `nameIn`), both
+`narrate.ts`' `signed` and the CLI's narration's `listed`, all the same text; and the quest
+review's `signed`, which writes U+2212 and differs, renamed `minusSigned`. Four inline copies, the
+same words: the CLI's `args.ts` list of the Guildmaster Stats' keys (`listed`) and the page's
+capital in `rejectionSentence`, `narrateSegments` and the Quest report's opening
+(`capitalised`). Each now reads the package. A test in `imports.test.ts` reads every source of the
+CLI and the page, tests aside, and fails on a top-level `function`, `const` or `let` named as a
+value the package exports; it failed on the five, and on a copy put back in `setup.ts` or
+`board.tsx`. Copies outside the two front ends stay, for their owners: the harness's `capital` in
+`sweep.ts` and the portrait tool's in `write-rows.ts`; the content editor's `effectWords` words a
+draft's raw effect by its keys, by design. *The words' tests,* 33 mutants of the five modules: 30
+killed, one equivalent (`shownPercent`'s cap of 95 as 100: below a chance of 1 the twentieths stop at
+19), and two not: two Classes in a filter away from the Party (`or` as `and`, either clause) and
+`readsAsOne` without its name check, gaps in the Query test the CLI's held since v1.1.4. A case and
+an assertion added; both killed. *The CLI's four words,* read in the diff: `narrate.test.ts`' two
+"through a Module" and the Offer's assertion; "No effect" in the words' table; "their Gear" held by
+no CLI test, now by one in `equip.test.ts`, `equip` and `unequip` refusing a Hero dispatched,
+failing with "their gear". Every other CLI and page expectation unchanged but its import; the page's
+tests moved word for word but the one assertion the build named. *Capitals,* at every use of the
+moved tables: each refusal and preview continues a sentence as before; the Board's chip capitalised
+where made; "No effect" alone in `show guildmaster`'s cell and the review, and in brackets after a
+Trait's name in `show hero`, as the build's call (2) says. *S12's seam:* the narration's tables are
+the two `narrate.ts`' alone, now with no word of the package defined in them; the CLI's "'s offer
+for", "The <x> module recorded" and "A module" left for S12 as listed. *Checks:* the doctor read no
+drift (107 reads of a Trait); no play code changed (`engine/src` only `testing.test.ts`), so no
+sweep. `npm run lint` and `typecheck` clean; `npm test` 199 files, 5,593 tests passing (ten more);
+`npm run e2e -w web` 103 passing, check-bundle passing, the script 814,242 bytes, 143 fewer. Line
+endings as each file's before, none mixed.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

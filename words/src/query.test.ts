@@ -48,6 +48,12 @@ const worded: [string, NumQuery, string][] = [
   ['not', ['count', ['where', 'party', ['not', ['hurt']]]], 'the number of Heroes who are not hurt'],
   ['not of and', ['count', ['where', 'party', ['not', ['and', ['hurt'], ['has-skill', 'stealth']]]]], 'the number of Heroes who are not hurt or who lack Stealth'],
   ['not of or, and a Class not at the Party', ['count', ['where', ['where', 'party', ['class', 'mage']], ['not', ['or', ['has-trait', 'lame'], ['class', 'rogue']]]]], 'the number of Mages who lack the Lame Trait and who are not Rogues'],
+  // v1.1.6-S11's verification (DL-197): Classes, two of them, in a clause and its negation.
+  [
+    'two Classes, and not two, in a filter',
+    ['count', ['where', 'party', ['and', ['class', 'mage', 'healer'], ['not', ['class', 'warrior', 'rogue']]]]],
+    'the number of Heroes who are Mages or Healers and who are not Warriors or Rogues',
+  ],
   [
     'an or within an and, bracketed',
     ['count', ['where', 'party', ['and', ['or', ['hurt'], ['has-skill', 'stealth']], ['>', ['level'], 2]]]],
@@ -132,6 +138,7 @@ describe('the Board and the detail (v1.1.4-S6)', () => {
     expect(ambush && readsAsOne(ambush)).toBe(false);
     // One Check of its Encounter's own name, as the old form loaded (v1.1.4-S1 to DL-192), reads as one.
     expect(readsAsOne({ encounterKey: 'one', name: 'One', kind: 'combat', checks: [{ key: 'one', name: 'One', reads: 'x' }] })).toBe(true);
+    expect(readsAsOne({ encounterKey: 'one', name: 'One', kind: 'combat', checks: [{ key: 'lift', name: 'Lift', reads: 'x' }] })).toBe(false);
     expect(unknown).toEqual({ encounterKey: 'no-such-encounter', name: 'no-such-encounter', kind: null, checks: [] });
     expect(unknown && readsAsOne(unknown)).toBe(false);
     expect(readsAsOne({ encounterKey: 'two', name: 'Two', kind: 'combat', checks: [{ key: 'lift', name: 'Lift', reads: 'x' }, { key: 'hold', name: 'Hold', reads: 'y' }] })).toBe(false);

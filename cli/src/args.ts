@@ -25,11 +25,12 @@ import {
   type StackId,
   type StopCondition,
 } from '@heroesim/engine';
+import { listed } from '@heroesim/words';
 import { cliModules, isCliModule } from './modules.js';
 import { currentSave } from './saves.js';
 
 /** The Guildmaster Stats' keys, the rules' own, in words: `negotiation, inspiration, ... and judgement`. */
-const statKeysWords = ((keys: string[]) => `${keys.slice(0, -1).join(', ')} and ${keys.at(-1) ?? ''}`)(Object.values(guildmasterStatKeys));
+const statKeysWords = listed(Object.values(guildmasterStatKeys));
 
 export const usage = `Usage: heroesim <command> [flags]
 

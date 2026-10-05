@@ -157,6 +157,11 @@ function wordsImports({ tests = false } = {}) {
   };
 }
 
+/** A refusal in the words' source: what it may not use, and why. */
+function wordsInABrowser(what) {
+  return `The words run in a browser as well as on Node: ${what} (DL-186 item 1, principle 12).`;
+}
+
 /**
  * harness, cli and web: engine, content and words by name; neither front end imports the other. The web
  * page's source, which runs in a browser, imports no Node built-in (`browser`); its tests, which
@@ -331,13 +336,30 @@ export default defineConfig(
     rules: restrictImports(contentImports({ node: true })),
   },
 
+  // The words' source reaches Node by no other road either: no dynamic `import()`, which the import
+  // rules cannot see, and no global only Node defines (v1.1.6-S11's verification, DL-197). Its tests
+  // run on Node and may.
   {
     files: ['words/**/*.{ts,tsx}'],
-    rules: restrictImports(wordsImports()),
+    rules: {
+      'no-restricted-syntax': ['error', { selector: 'ImportExpression', message: wordsInABrowser('no dynamic `import()`') }],
+      'no-restricted-globals': [
+        'error',
+        ...['process', 'Buffer', '__dirname', '__filename', 'global', 'require', 'module', 'exports'].map((name) => ({
+          name,
+          message: wordsInABrowser(`no \`${name}\`, which only Node defines`),
+        })),
+      ],
+      ...restrictImports(wordsImports()),
+    },
   },
   {
     files: testFiles('words'),
-    rules: restrictImports(wordsImports({ tests: true })),
+    rules: {
+      'no-restricted-syntax': 'off',
+      'no-restricted-globals': 'off',
+      ...restrictImports(wordsImports({ tests: true })),
+    },
   },
 
   {

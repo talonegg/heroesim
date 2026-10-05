@@ -35,7 +35,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { nameIn } from '@heroesim/words';
+import { listed, nameIn, signed } from '@heroesim/words';
 import { facilityIs, facilityNames, renderCountdown, renderTime, rowIn, table } from './render.js';
 
 /** The labels an event carries, by participant: an engine's event's or a module's. */
@@ -50,11 +50,6 @@ function called(event: Labelled, id: EntityId): string {
 function hero(event: Labelled, id: EntityId): string {
   const label = event.labels[id];
   return label === undefined ? id : `${label} (${id})`;
-}
-
-/** `+120`, `-2`, `0`. */
-function signed(n: number): string {
-  return n > 0 ? `+${n}` : String(n);
 }
 
 function night(turn: number): string {
@@ -384,11 +379,6 @@ function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {
       }
     }
   }
-}
-
-/** A list of ids as the CLI prints one: `a`, `a and b`, `a, b and c`. */
-function listed(items: readonly string[]): string {
-  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
 }
 
 /**

@@ -86,7 +86,8 @@ function esc(text: string): string {
 }
 
 const pct = (chance: number): string => `${Math.round(chance * 100)}%`;
-const signed = (n: number): string => (n > 0 ? `+${n}` : `−${Math.abs(n)}`);
+/** `+2`, `−1`: the review's own minus sign, U+2212, where the words' `signed` writes a hyphen. */
+const minusSigned = (n: number): string => (n > 0 ? `+${n}` : `−${Math.abs(n)}`);
 const stats = (content: ContentSet, keys: readonly StatKey[]): string => keys.map((key) => nameIn(content.stats, key)).join(' and ');
 
 /** A Quest template's or an Encounter's tags, a fragment that stands on its own: "Tags Road, Wild", or "No tags". */
@@ -120,11 +121,11 @@ export function consequenceWords(it: Consequence, content: ContentSet, list: Deg
     case 'wealth':
       return `the reward ×${it.factor}`;
     case 'fame':
-      return `Fame ${signed(it.delta)}`;
+      return `Fame ${minusSigned(it.delta)}`;
     case 'regard':
-      return `Regard within the Party ${signed(it.delta)}`;
+      return `Regard within the Party ${minusSigned(it.delta)}`;
     case 'morale':
-      return `Morale ${signed(it.delta)} for each Hero${it.steadiedBy === undefined ? '' : `, less for those of high ${stats(content, it.steadiedBy)}`}`;
+      return `Morale ${minusSigned(it.delta)} for each Hero${it.steadiedBy === undefined ? '' : `, less for those of high ${stats(content, it.steadiedBy)}`}`;
     case 'injury': {
       const who = it.count === 1 ? 'one Hero' : `up to ${it.count} Heroes`;
       const reads = [

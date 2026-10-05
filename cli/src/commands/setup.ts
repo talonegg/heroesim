@@ -14,6 +14,7 @@ import {
   type GuildmasterTrait,
   type SetupRefusal,
 } from '@heroesim/engine';
+import { listed, nameIn } from '@heroesim/words';
 
 /** The flag that sets each descriptive Attribute. */
 const attributeFlags: Readonly<Record<DescriptiveAttribute, string>> = Object.freeze({
@@ -33,16 +34,6 @@ export function guildmasterTraitChoices(content: Pick<ContentSet, 'guildmasterTr
   return guildmasterTraitsOf(content)
     .map((trait) => `${trait.key} (${trait.name}, ${costWords(trait)})`)
     .join(', ');
-}
-
-/** A Guildmaster Trait's name, or its key when content lacks it. */
-function traitName(content: Pick<ContentSet, 'guildmasterTraits'>, key: string): string {
-  return Object.hasOwn(content.guildmasterTraits, key) ? (content.guildmasterTraits[key]?.name ?? key) : key;
-}
-
-/** `a, b and c`: words joined as a list. */
-function listed(words: readonly string[]): string {
-  return words.length <= 1 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1) ?? ''}`;
 }
 
 /** Every Guildmaster Stat by key, in content's order: `inspiration, influence, negotiation, coaching and judgement`. */
@@ -109,7 +100,7 @@ export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSe
       return `A Guildmaster holds at most ${refusal.max} Traits; --traits names ${refusal.count}.`;
     case 'excluded-pair':
       return (
-        `${traitName(content, refusal.traitKey)} and ${traitName(content, refusal.otherKey)} exclude each other: ` +
+        `${nameIn(content.guildmasterTraits, refusal.traitKey)} and ${nameIn(content.guildmasterTraits, refusal.otherKey)} exclude each other: ` +
         'a Guildmaster holds one or the other.'
       );
     case 'over-budget':

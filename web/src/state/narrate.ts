@@ -58,7 +58,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { listed, nameIn } from '@heroesim/words';
+import { capitalised, listed, nameIn, signed } from '@heroesim/words';
 import { facilityIs, facilityNames } from './rejections';
 
 /** What a sentence reads beyond its event: content's names, and a Quest's name by its id. */
@@ -138,11 +138,6 @@ function called(event: Pick<TurnEvent, 'labels'>, id: EntityId): Words {
     return parsed !== null && namedTables.has(parsed.table) ? [{ kind: 'name', text: label, entityId: id, table: parsed.table as NamedTable }] : say`${label}`;
   }
   return say`${parsed === null ? 'someone' : someone[parsed.table]}`;
-}
-
-/** `+120`, `-2`, `0`. */
-function signed(n: number): string {
-  return n > 0 ? `+${n}` : String(n);
 }
 
 function night(turn: number): string {
@@ -453,7 +448,7 @@ export function narrateSegments(event: TurnEvent, narration: Narration): Segment
     : (sentences[event.type] as (event: EngineEvent, narration: Narration) => Words)(event, narration);
   const [first, ...rest] = words;
   if (first === undefined) return [];
-  return [{ ...first, text: first.text.charAt(0).toUpperCase() + first.text.slice(1) }, ...rest];
+  return [{ ...first, text: capitalised(first.text) }, ...rest];
 }
 
 /**

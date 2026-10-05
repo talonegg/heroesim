@@ -21,7 +21,7 @@ import {
   type UnmetRequirement,
   type World,
 } from '@heroesim/engine';
-import { gearUnavailableWords, listed, nameIn, unavailableWords } from '@heroesim/words';
+import { capitalised, gearUnavailableWords, listed, nameIn, unavailableWords } from '@heroesim/words';
 import type { DocumentPlayKind, GameRefusal, PlayRejection } from './reducer';
 
 // ── Kinds ────────────────────────────────────────────────────────────────────────────────────
@@ -350,7 +350,7 @@ export const rejectionKinds = Object.freeze(Object.keys(sentences)) as readonly 
 export function rejectionSentence(rejection: PlayRejection, world: World | null, content: ContentSet): string {
   const words = sentences[rejectionKind(rejection)] as (rejection: PlayRejection, setting: Setting) => string;
   const sentence = words(rejection, { world, content, player: world === null ? undefined : playerGuild(world) });
-  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+  return capitalised(sentence);
 }
 
 /**

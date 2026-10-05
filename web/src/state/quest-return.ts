@@ -36,7 +36,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { listed, nameIn } from '@heroesim/words';
+import { capitalised, listed, nameIn } from '@heroesim/words';
 import { content } from '../content';
 import { bandWords, nightOf } from './names';
 import { crossed, itemsWords, narrateSegments, narrationFor, resolvedWords, textOf, type Narration, type Segment } from './narrate';
@@ -482,7 +482,7 @@ export function returnEntry(document: WorldDocument, key: ReturnKey): ReturnEntr
   const { outcome, outcomes } = read;
   const { lead, band, rest } = resolvedWords(outcome, { content });
   const [first, ...after] = lead;
-  const opening = first === undefined ? [] : [{ ...first, text: first.text.charAt(0).toUpperCase() + first.text.slice(1) }, ...after];
+  const opening = first === undefined ? [] : [{ ...first, text: capitalised(first.text) }, ...after];
   const count = outcomes.length;
   return {
     key,

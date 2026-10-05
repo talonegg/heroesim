@@ -175,6 +175,28 @@ describe('equip and unequip', () => {
     expect(occupied.err).toMatch(/'s weapon slot holds Masterwork blade \(stack-\d{6}\): unequip it first\.$/m);
   });
 
+  // v1.1.6-S11 (DL-197): "their Gear", a glossary term, as the page says it; "their gear" until then.
+  test('refuses to change the Gear of a Hero away on a Quest, and writes nothing', () => {
+    const { hero, guild, blades } = stocked();
+    expect(play(['equip', '--hero', hero.id, '--stack', blades]).code).toBe(exitCodes.ok);
+    const { world } = document();
+    const questId = world.board.find((id) => world.quests[id]?.templateKey === 'guard-the-caravan');
+    if (questId === undefined) throw new Error('The demo Board has changed');
+    expect(play(['dispatch', '--quest', questId, '--heroes', guild.rosterIds.slice(0, 2).join(',')]).code).toBe(exitCodes.ok);
+    const before = saved();
+
+    const away = `${hero.name} (${hero.id}) is away on a Quest, and their Gear is with them.`;
+    for (const argv of [
+      ['equip', '--hero', hero.id, '--stack', blades],
+      ['unequip', '--hero', hero.id, '--slot', 'weapon'],
+    ]) {
+      const run = play(argv);
+      expect(run.code, argv[0]).toBe(exitCodes.refused);
+      expect(run.err, argv[0]).toContain(away);
+    }
+    expect(saved()).toBe(before);
+  });
+
   test('refuses a bad command line as a usage error, and writes nothing', () => {
     const { hero, blades, relic } = stocked();
     const before = saved();
