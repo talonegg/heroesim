@@ -14,8 +14,8 @@
 // `historyFrom`, and the History's checks then read only the entries appended since it last
 // validated, so validating every Turn of a game is not quadratic in its History (DL-34).
 
-import type { EngineDeps, GameConfig } from './config.js';
-import type { ContentSet, ItemDefinition, Trait } from './content-types.js';
+import type { LoadDeps } from './config.js';
+import { gearSlotKeys, type ContentSet, type ItemDefinition, type Trait } from './content-types.js';
 import {
   isId,
   maxIdNumber,
@@ -174,7 +174,7 @@ export interface ValidateOptions {
 
 /** A check, given the first History position it must read (0 for the whole History). */
 type Check = (document: WorldDocument, from: number) => ValidationFailure[];
-type ContentCheck = (document: WorldDocument, content: ContentSet, config: GameConfig) => ValidationWarning[];
+type ContentCheck = (document: WorldDocument, content: ContentSet) => ValidationWarning[];
 
 /** The checks that run once the shape is known to be right, in the order they report. */
 const checksOfAWellShapedDocument: readonly Check[] = [
@@ -232,8 +232,8 @@ const contentChecks: readonly ContentCheck[] = [
  * Takes `deps` rather than a bare `ContentSet` (DL-23), matching every other engine entry point
  * (epics README §4): the modules in `deps.modules` validate their own slices.
  */
-export function validate(document: unknown, deps: EngineDeps, options: ValidateOptions = {}): ValidationResult {
-  const { content, config } = deps;
+export function validate(document: unknown, deps: LoadDeps, options: ValidateOptions = {}): ValidationResult {
+  const { content } = deps;
   const { historyFrom = 0 } = options;
   if (!Number.isSafeInteger(historyFrom) || historyFrom < 0) {
     throw new RangeError(`historyFrom is a whole number from 0, not ${historyFrom}`);
@@ -248,7 +248,7 @@ export function validate(document: unknown, deps: EngineDeps, options: ValidateO
   for (const check of checksOfAWellShapedDocument) failures.push(...check(wellShaped, from));
   failures.push(...sliceFailures(wellShaped.world, deps));
   if (failures.length > 0) return { ok: false, failures };
-  const warnings = contentChecks.flatMap((check) => check(wellShaped, content, config));
+  const warnings = contentChecks.flatMap((check) => check(wellShaped, content));
   return { ok: true, warnings: [...warnings, ...unknownSlices(wellShaped.world, deps)] };
 }
 
@@ -382,6 +382,7 @@ const metaFields: Shape<Meta> = {
   version: 'integer',
   seed: 'string',
   content: 'map',
+  configVersion: 'integer',
   config: 'map',
   createdAt: 'string',
 };
@@ -490,7 +491,6 @@ const questFields: Shape<Quest> = {
   reward: 'number',
   fameEffect: 'number',
   durationTurns: 'integer',
-  demands: 'list',
   skillKeys: 'list',
   encounterKeys: 'list',
   requirements: 'map',
@@ -583,7 +583,7 @@ function documentShape(document: unknown, from: number): ValidationFailure[] {
     return failures.length === before;
   };
 
-  /** The parts of a row a later check walks below its fields: a holder, a Quest's demands. */
+  /** The parts of a row a later check walks below its fields: a holder. */
   const rowParts = (table: TableName, id: string, row: Record<string, unknown>): void => {
     if (table === 'items' || table === 'stacks') {
       const path = ['world', table, id, 'holder'];
@@ -594,12 +594,6 @@ function documentShape(document: unknown, from: number): ValidationFailure[] {
       } else {
         fail([...path, 'kind'], `A holder in ${table} is one of ${kinds.join(', ')}, not ${q(holder.kind)}`);
       }
-    }
-    if (table === 'quests') {
-      (row.demands as unknown[]).forEach((demand, index) => {
-        const path = ['world', table, id, 'demands', index];
-        if (!Array.isArray(demand)) fail(path, `${formatPath(path)} is not a [Stat key, weight] pair`);
-      });
     }
   };
 
@@ -1330,7 +1324,7 @@ function keyWarnings(check: WarningCheck, what: string) {
   return { warnings, known };
 }
 
-/** Hero Stats on Heroes and in Quest demands; Guildmaster Stats on Guildmasters. */
+/** Hero Stats on Heroes; Guildmaster Stats on Guildmasters. */
 function unknownStat({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
   const { warnings, known } = keyWarnings('unknown-stat', 'a Stat of its owner');
   for (const [id, hero] of Object.entries(world.heroes)) {
@@ -1339,9 +1333,6 @@ function unknownStat({ world }: WorldDocument, content: ContentSet): ValidationW
   }
   for (const [id, guildmaster] of Object.entries(world.guildmasters)) {
     for (const key of Object.keys(guildmaster.stats)) known(id, 'stats', content.stats, key, 'guildmaster');
-  }
-  for (const [id, quest] of Object.entries(world.quests)) {
-    for (const [key] of quest.demands) known(id, 'demands', content.stats, key, 'hero');
   }
   return warnings;
 }
@@ -1462,16 +1453,17 @@ function unknownItem({ world }: WorldDocument, content: ContentSet): ValidationW
 }
 
 /**
- * A Hero holds Items only in the gear slots `config.gearSlots` lists (M5-S1, DL-48). The key is the
- * slot. A slot the config no longer lists is a warning, not a refusal, as an unknown content key is
- * (rule 5, DL-20 item 8): the Item is kept, and `equip` never fills such a slot; gear already in
- * it still counts in `effectiveStats` until it is unequipped, which any slot may be (DL-49).
+ * A Hero holds Items only in the gear slots, `gearSlotKeys` (M5-S1, DL-48, DL-193). The key is the
+ * slot. Another is a warning, not a refusal, as an unknown
+ * content key is (rule 5, DL-20 item 8): the Item is kept, and `equip` never fills such a slot; gear
+ * already in it still counts in `effectiveStats` until it is unequipped, which any slot may be (DL-49).
  */
-function unknownSlot({ world }: WorldDocument, _content: ContentSet, config: GameConfig): ValidationWarning[] {
+function unknownSlot({ world }: WorldDocument): ValidationWarning[] {
   const warnings: ValidationWarning[] = [];
+  const slots: readonly string[] = gearSlotKeys;
   for (const [id, { holder }] of heldRows(world)) {
-    if (holder.kind !== 'hero' || config.gearSlots.includes(holder.slot)) continue;
-    const detail = `${id} is held by ${holder.id} in the slot ${q(holder.slot)}, which gearSlots does not list`;
+    if (holder.kind !== 'hero' || slots.includes(holder.slot)) continue;
+    const detail = `${id} is held by ${holder.id} in the slot ${q(holder.slot)}, which is no gear slot`;
     warnings.push({ check: 'unknown-slot', id, key: holder.slot, detail });
   }
   return warnings;

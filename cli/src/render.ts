@@ -28,6 +28,7 @@ import {
   descriptiveAttributeLabels,
   descriptiveAttributes,
   effectiveStats,
+  gearSlotKeys,
   guildmasterOf,
   guildmasterRegardForGuild,
   holdings,
@@ -405,8 +406,8 @@ export function modifierWords(gear: Extract<ItemDefinition, { kind: 'gear' }>, c
 }
 
 /**
- * The gear a Hero carries (M5-S2): a row for each slot `config.gearSlots` lists, the Item in it or
- * `none`, then any Item held in a slot the config does not list, as the engine's `carriedGear` gives.
+ * The gear a Hero carries (M5-S2): a row for each gear slot (`gearSlotKeys`), the Item in it or
+ * `none`, then any Item held in a slot that is no gear slot, as the engine's `carriedGear` gives.
  */
 function gearRows(hero: Hero, document: WorldDocument, deps: EngineDeps): string[][] {
   const carried: (UniqueItem | Stack)[] = carriedGear(document.world, hero.id);
@@ -420,7 +421,7 @@ function gearRows(hero: Hero, document: WorldDocument, deps: EngineDeps): string
       definition?.kind === 'gear' ? modifierWords(definition, deps.content) : '',
     ];
   };
-  const listed: string[] = [...deps.config.gearSlots];
+  const listed: string[] = [...gearSlotKeys];
   return [
     ...listed.flatMap((slot) => {
       const inSlot = carried.filter((row) => slotOf(row) === slot);

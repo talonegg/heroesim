@@ -17,7 +17,7 @@ import type { GuildAction } from '../actions/action.js';
 import { dispatchRefusal, unavailability, type DispatchAction } from '../actions/dispatch.js';
 import type { TransferInAction } from '../actions/transfer.js';
 import type { EngineDeps } from '../config.js';
-import type { ContentSet, Disposition, SlotKey } from '../content-types.js';
+import { gearSlotKeys, type ContentSet, type Disposition, type SlotKey } from '../content-types.js';
 import { compareByCodeUnit, facilityKeys, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
 import { gearChoices, gearPurchase } from '../gear.js';
 import { streamOf } from '../generators/draw.js';
@@ -47,7 +47,7 @@ import {
  *      the training yard, the quarters), whose next grade's cost its Wealth is above `buildThreshold`
  *      times (`hallBuild`: M3-S6 built the infirmary alone, M6-S4 every facility);
  *    - buy one piece of gear at the Market for its Heroes who lack it, armour first, then the other
- *      slots in `config.gearSlots`'s order: the dearest whose price its Wealth is above `gearThreshold`
+ *      slots in `gearSlotKeys`' order: the dearest whose price its Wealth is above `gearThreshold`
  *      times (`gearBuy`, the engine's `gearPurchase`, M6-S4);
  *    - while it would hire (`hiringBudget`: its Wealth above `recruitThreshold` times its Upkeep, or
  *      its Roster below `rivalRosterMin` with `rivalHireReserveUpkeeps` Upkeeps to keep, DL-60) and its
@@ -424,9 +424,10 @@ function hallBuild(guild: Guild, disposition: Disposition, deps: EngineDeps): Gu
 }
 
 /**
- * The slots a Rival buys gear for, in the order it buys: armour first (M6-S4), then the other slots
- * `config.gearSlots` lists, in its order. Armour first because it keeps the Heroes the Guild has alive
- * and on their feet, as the harness's policy buys armour before it recruits (DL-51).
+ * The slots a Rival buys gear for, in the order it buys: armour first (M6-S4), then the other gear
+ * slots, in `gearSlotKeys`' order (DL-193). Armour first
+ * because it keeps the Heroes the Guild has alive and on their feet, as the harness's policy buys
+ * armour before it recruits (DL-51).
  */
 function purchaseOrder(slots: readonly SlotKey[]): SlotKey[] {
   return [...slots.filter((slot) => slot === 'armour'), ...slots.filter((slot) => slot !== 'armour')];
@@ -441,7 +442,7 @@ function purchaseOrder(slots: readonly SlotKey[]): SlotKey[] {
  * means, gives way to the next. Draws nothing.
  */
 function gearBuy(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
-  return gearPurchase(world, guild, purchaseOrder(deps.config.gearSlots), disposition.gearThreshold, deps);
+  return gearPurchase(world, guild, purchaseOrder(gearSlotKeys), disposition.gearThreshold, deps);
 }
 
 /**

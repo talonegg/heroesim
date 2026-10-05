@@ -16,7 +16,6 @@ export {
 export {
   ContentError,
   contentWarnings,
-  demandSumTolerance,
   growthSumTolerance,
   hookMaxLength,
   hooksMax,

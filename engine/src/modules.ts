@@ -221,7 +221,7 @@ export class ModuleError extends Error {
  * RangeError, a programming error, on an empty id, two modules with one id, or a stream named as
  * a core stream or another module's is.
  */
-export function installedModules(deps: EngineDeps): readonly Module[] {
+export function installedModules(deps: Pick<EngineDeps, 'modules'>): readonly Module[] {
   const modules = deps.modules ?? [];
   if (modules.length === 0) return modules;
   const ids = new Set<string>();
@@ -542,7 +542,7 @@ function thrownMessage(error: unknown): string {
  */
 export function migrateSlices(
   document: SavedDocument,
-  deps: EngineDeps,
+  deps: Pick<EngineDeps, 'modules'>,
 ): { ok: true; document: SavedDocument } | { ok: false; failures: ValidationFailure[] } {
   const { world } = document;
   if (!isObject(world) || !isObject(world.modules)) return { ok: true, document };
@@ -566,7 +566,7 @@ export function migrateSlices(
  * `module-slice` failures; a module that throws on its slice refuses it. An installed module with
  * no slice is not asked: the world gains it when next played (`ensureModules`).
  */
-export function sliceFailures(world: World, deps: EngineDeps): ValidationFailure[] {
+export function sliceFailures(world: World, deps: Pick<EngineDeps, 'modules'>): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
   for (const module of installedModules(deps)) {
     const { id } = module;
@@ -585,7 +585,7 @@ export function sliceFailures(world: World, deps: EngineDeps): ValidationFailure
  * never read, as an unknown content key is (data-model rule 5); its module may have been
  * uninstalled.
  */
-export function unknownSlices(world: World, deps: EngineDeps): ValidationWarning[] {
+export function unknownSlices(world: World, deps: Pick<EngineDeps, 'modules'>): ValidationWarning[] {
   const installed = new Set(installedModules(deps).map((module) => module.id));
   return Object.keys(world.modules)
     .filter((id) => !installed.has(id))

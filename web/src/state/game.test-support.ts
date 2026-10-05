@@ -10,6 +10,7 @@ import {
   availableHeroes,
   createItem,
   dayOf,
+  configVersion,
   defaultConfig,
   durationDaysOf,
   estimateQuest,
@@ -483,8 +484,7 @@ export function withWorldNews(state: GameState): GameState {
 /** The game's rules `behind` config versions older than this release's, as a save from an earlier release has. */
 export function withOlderRules(state: GameState, behind = 1): GameState {
   const document = documentOf(state);
-  const config = { ...document.meta.config, configVersion: defaultConfig.configVersion - behind };
-  return { ...state, document: { ...document, meta: { ...document.meta, config } } };
+  return { ...state, document: { ...document, meta: { ...document.meta, configVersion: configVersion - behind } } };
 }
 
 /** A Hero by id and name. */

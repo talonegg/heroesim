@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { defaultConfig, type EngineDeps } from '../config.js';
+import { configVersion, defaultConfig, type EngineDeps } from '../config.js';
 import {
   degrees,
   type Consequence,
@@ -365,9 +365,10 @@ describe("the Quest Engine's config (DL-42)", () => {
     // Transfer lock (DL-69); 11 from M9-S2's Trait budget (DL-102); 12 from M9-F1's Guildmasters' ages (DL-113);
     // 13 from v1.1.4-S2's Degrees (DL-152), which v1.1.4-S3's form factors (DL-154) and v1.1.4-S4's harm
     // ranges (DL-155) join. v1.1.4-S10's balance pass sets the Triumph, the share of Triumphs and the
-    // form factors under 13 (DL-166): 1.25, 0.5, 0.85 to 1.08 and 0.85 before it.
+    // form factors under 13 (DL-166): 1.25, 0.5, 0.85 to 1.08 and 0.85 before it. 14 from v1.1.6-S7,
+    // whose config lost its versions and gear slots, every default as it was (DL-193).
+    expect(configVersion).toBe(14);
     expect(defaultConfig).toMatchObject({
-      configVersion: 13,
       checkVariance: 0.4,
       skillBonusPerRating: 2,
       bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
@@ -615,13 +616,6 @@ describe('several Checks (v1.1.4-S2)', () => {
     expect(marginOf(1.1)?.margin).toBeCloseTo(24 - 1.1 * 22);
   });
 
-  test('throws on a configuration whose Degrees are out of order', () => {
-    const one = several('one', [strength('only', 'success')]);
-    const s = scene('disordered', contentWith(one), ['one']);
-    const deps = { ...s.deps, config: { ...s.deps.config, checkDegrees: { triumph: 0.9, success: 1, setback: 0.75 } } };
-    expect(() => resolveQuest(s.world, s.quest, s.party, deps)).toThrow(/checkDegrees is .*; triumph > success > setback > 0/);
-  });
-
   test('throws on several Checks with no pass formula', () => {
     const loose = several('loose', [strength('a', 'success'), strength('b', 'success')]);
     const s = scene('loose', contentWith(loose), ['loose']);
@@ -762,14 +756,6 @@ describe('form on the Quest (v1.1.4-S3)', () => {
     const { encounters } = resolvedAt('raw-form', 10, [gate]);
 
     expect(encounters[0]?.checks).toEqual([{ key: 'gate', capability: 24, roll: 24, target: 24, margin: 0, degree: 'success' }]);
-  });
-
-  test('throws on a form factor that is not a finite number above 0, naming it', () => {
-    const one = summed('one', 0.55);
-    expect(() => resolvedAt('bad-band', 60, [one], { moraleCheckFactor: { ...defaultConfig.moraleCheckFactor, low: 0 } })).toThrow(
-      /moraleCheckFactor\.low is 0; it is a finite number above 0/,
-    );
-    expect(() => resolvedAt('bad-hurt', 60, [one], { hurtCheckFactor: Number.POSITIVE_INFINITY })).toThrow(/hurtCheckFactor is Infinity/);
   });
 });
 

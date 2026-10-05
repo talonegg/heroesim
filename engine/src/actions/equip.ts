@@ -7,7 +7,7 @@
 // carries (selectors.ts), and the Check reads it. Nothing here changes a Stat.
 
 import type { EngineDeps } from '../config.js';
-import type { ItemDefinitionKey, SlotKey } from '../content-types.js';
+import { gearSlotKeys, type ItemDefinitionKey, type SlotKey } from '../content-types.js';
 import type {
   Guild,
   GuildId,
@@ -45,7 +45,7 @@ export interface UnequipAction {
   kind: 'unequip';
   guildId: GuildId;
   heroId: HeroId;
-  /** The slot to empty: any slot the Hero holds an Item in, listed by `config.gearSlots` or not. */
+  /** The slot to empty: any slot the Hero holds an Item in, a gear slot or not. */
   slot: SlotKey;
 }
 
@@ -87,7 +87,7 @@ export interface NotGear extends Rejection<'equip', 'not-gear'> {
 
 /**
  * The gear does not go in the slot: the slot asked is not the gear's own (`slot` ≠ `gearSlot`), or
- * the gear's own is not a slot Heroes have in this game (`heroSlots`, the config's `gearSlots`).
+ * the gear's own is not a slot Heroes have (`heroSlots`, `gearSlotKeys`, DL-193).
  */
 export interface WrongSlot extends Rejection<'equip', 'wrong-slot'> {
   definitionKey: ItemDefinitionKey;
@@ -147,7 +147,7 @@ export type UnequipRejection = UnequipGuildFolded | UnequipHeroNotOnRoster | Une
  * Refused, changing nothing, in this order (DL-49): `guild-folded`; `hero-not-on-roster`;
  * `hero-unavailable` (dead, retired, or away with a Party; an injured Hero may be equipped);
  * `not-held-by-guild` (no such row, or not in this Guild's holding); `not-gear`; `wrong-slot` (a
- * slot asked that is not the gear's own, or a slot `config.gearSlots` does not list); `slot-occupied`.
+ * slot asked that is not the gear's own, or one that is no gear slot); `slot-occupied`.
  * Throws on a programming error: a Guild the world does not hold, or neither or both of `itemId` and
  * `stackId`.
  *
@@ -195,8 +195,8 @@ export function applyEquip(world: World, request: EquipRequest, deps: EngineDeps
   }
   const gearSlot = definition.slot;
   const slot = request.slot ?? gearSlot;
-  if (slot !== gearSlot || !deps.config.gearSlots.includes(gearSlot)) {
-    const heroSlots = [...deps.config.gearSlots];
+  if (slot !== gearSlot || !gearSlotKeys.includes(gearSlot)) {
+    const heroSlots = [...gearSlotKeys];
     return {
       ok: false,
       rejection: { action: 'equip', reason: 'wrong-slot', definitionKey: row.definitionKey, slot, gearSlot, heroSlots },
@@ -226,8 +226,8 @@ export function applyEquip(world: World, request: EquipRequest, deps: EngineDeps
 /**
  * `guildId` takes what `heroId` holds in `slot` back into its holding, a stack joining the Guild's
  * stack of its definition, and emits `item.unequipped` for it, naming the Hero, the Guild and the
- * Item or the Guild's stack. Any slot the Hero holds an Item in may be emptied, one
- * `config.gearSlots` no longer lists among them (DL-49).
+ * Item or the Guild's stack. Any slot the Hero holds an Item in may be emptied, one that is no gear
+ * slot among them (DL-49).
  *
  * Refused, changing nothing, in this order: `guild-folded`; `hero-not-on-roster`; `hero-unavailable`
  * (dead, retired, or away with a Party); `slot-empty`. Throws on a Guild the world does not hold.

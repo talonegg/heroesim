@@ -54,7 +54,7 @@ function play(argv: string[]): { code: number; out: string; err: string } {
 const current = (): string => join(dir, '.saves', 'current.json');
 
 function document(): WorldDocument {
-  const loaded = deserialise(readFileSync(current(), 'utf8'), { config: defaultConfig, content });
+  const loaded = deserialise(readFileSync(current(), 'utf8'), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }

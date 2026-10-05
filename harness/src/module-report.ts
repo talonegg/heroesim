@@ -5,7 +5,7 @@
 // the games with a module installed are other games from the first effect on, while no core stream
 // moves because a module drew (M8-S1's box 2).
 
-import { dayOf, timeOfDay, type EngineDeps } from '@heroesim/engine';
+import { configVersion, dayOf, schemaVersion, timeOfDay, type EngineDeps } from '@heroesim/engine';
 import { endingReasons } from './counters.js';
 import { harnessSetup } from './creation.js';
 import type { GameRecord } from './play.js';
@@ -166,8 +166,8 @@ export function moduleReport(installed: PlaySweep, without: PlaySweep, { deps, m
     '',
     `Run begun ${localTimestamp(startedAt)} · ${whole(count)} seeds, ${range} · up to ${yearsText} years ` +
       `(${whole(installed.years * config.turnsPerYear)} Turns) each, played twice: with ${named} installed, and with no module · ` +
-      `content \`${content.id}\` version ${content.version} · config version ${config.configVersion}, schema version ` +
-      `${config.schemaVersion} · \`createdAt: "${harnessSetup.createdAt}"\` · the automatic policy, as in the milestones' ` +
+      `content \`${content.id}\` version ${content.version} · config version ${configVersion}, schema version ` +
+      `${schemaVersion} · \`createdAt: "${harnessSetup.createdAt}"\` · the automatic policy, as in the milestones' ` +
       `play runs · validated after every advance: ${installed.validated && without.validated ? 'yes' : 'no'}`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +

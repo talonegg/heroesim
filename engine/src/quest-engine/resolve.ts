@@ -57,7 +57,7 @@
 // phase `questsConclude`'s. Rivals' Parties resolve through it exactly as the player's do
 // (ADR-0002 as amended by pre-M0 review A1).
 
-import { configProblems, type GameConfig, type QuestBand } from '../config.js';
+import type { GameConfig, QuestBand } from '../config.js';
 import type {
   CheckKey,
   Consequence,
@@ -263,14 +263,11 @@ interface Working {
  * and then shorten the Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
  *
  * Changes nothing but the streams. Throws on a programming error: a Hero or Guild not in the world, a
- * configuration whose Degrees or form factors are unsound (`configProblems`), a difficulty that is not above 0, an
- * Encounter with no Check, or with several and no pass formula, or a formula naming a Check it
+ * difficulty that is not above 0, an Encounter with no Check, or with several and no pass formula, or a formula naming a Check it
  * lacks, an Injury type content lacks, or a world without the `quests` stream.
  */
 export function resolveQuest(world: World, quest: Quest, party: Party, deps: CheckDeps): Resolution {
   const { config } = deps;
-  const [problem] = configProblems(config);
-  if (problem !== undefined) throw new RangeError(`The Quest Engine's configuration: ${problem}`);
   if (!(quest.difficulty > 0)) throw new RangeError(`${quest.id} has difficulty ${quest.difficulty}; it is above 0`);
   const heroes = party.heroIds.map((heroId) => row(world.heroes, heroId, 'heroes'));
   const guild = row<Guild>(world.guilds, party.guildId, 'guilds');

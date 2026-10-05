@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
-import { defaultConfig, type EngineDeps, type GameConfig } from '../config.js';
+import { configVersion, defaultConfig, type EngineDeps, type GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from '../document.js';
 import type { EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
@@ -185,8 +185,9 @@ describe('levelUps', () => {
     expect(upkeep(player(after.world), after.world, deps.config) - upkeepBefore).toBe(3 * 70);
   });
 
-  test("the default wage is 20 a Level since Heroes gain Levels (DL-36), kept by M3's run (DL-41), the Quest Engine (DL-42), M3's verification (DL-53) and M6-S1 (DL-56), under configVersion 13 (DL-55, DL-61, DL-62, DL-63, DL-69, DL-102, DL-113, DL-152)", () => {
-    expect(defaultConfig).toMatchObject({ wagePerLevel: 20, configVersion: 13 });
+  test("the default wage is 20 a Level since Heroes gain Levels (DL-36), kept by M3's run (DL-41), the Quest Engine (DL-42), M3's verification (DL-53) and M6-S1 (DL-56), under configVersion 14 (DL-55, DL-61, DL-62, DL-63, DL-69, DL-102, DL-113, DL-152, DL-193)", () => {
+    expect(defaultConfig).toMatchObject({ wagePerLevel: 20 });
+    expect(configVersion).toBe(14);
   });
 
   test('moves the progression stream alone, growthPointsPerLevel draws a Level, and none on a night no one levels', () => {

@@ -219,7 +219,6 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
           fameEffect: row.integer('fameEffect'),
           partySizeMin: row.integer('partySizeMin'),
           partySizeMax: row.integer('partySizeMax'),
-          demands: row.weightedKeys('demands'),
           skillKeys: row.strings('skillKeys'),
           requires: requires(row.child('requires')),
           lootTableKey: row.stringOrNull('lootTableKey'),
@@ -936,16 +935,6 @@ class RowReader {
     const value = this.field(field);
     if (Array.isArray(value)) return value;
     this.wrong(field, value, expected);
-    return [];
-  }
-
-  /** A list of `[key, weight]` pairs, such as a Quest template's demands. */
-  weightedKeys(field: string): [string, number][] {
-    const value = this.field(field);
-    const isPair = (item: unknown): item is [string, number] =>
-      Array.isArray(item) && item.length === 2 && typeof item[0] === 'string' && typeof item[1] === 'number';
-    if (Array.isArray(value) && value.every(isPair)) return value.map(([key, weight]) => [key, weight]);
-    this.wrong(field, value, 'a list of [key, weight] pairs');
     return [];
   }
 

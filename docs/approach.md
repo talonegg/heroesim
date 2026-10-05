@@ -105,7 +105,9 @@ current defaults and records a `world.rules-adopted` Milestone, so tuning reache
 the player says so and the History says when. The harness passes its configuration
 explicitly (owner, 2026-09-25, pre-M0 review D1). Where pre-M0 review D3's record says tuning
 reaches every game, D1 governs: a config field newer than a save follows the current default
-until the save is rebased (amended 2026-09-28, DL-84). Content has no `rebase`: a content
+until the save is rebased (amended 2026-09-28, DL-84). Every front end, the harness and a save's
+load take the play config from one engine seam, `playDeps`, which fills `meta.config` forward with
+the current defaults and checks every setting before any play (amended 2026-10-05, DL-193). Content has no `rebase`: a content
 change reaches a saved game when it is loaded (D3). Decided, to be built: on load a content
 version other than `meta.content`'s is shown, a `world.content-changed` Milestone is appended
 and `meta.content` is updated, so the History says when content changed as it says when rules

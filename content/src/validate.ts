@@ -47,12 +47,6 @@ export class ContentError extends Error {
 export const growthSumTolerance = 0.001;
 
 /**
- * How far a Quest template's, or an Encounter's, demand weights may sum from 1 (M2-S3, M4-S1):
- * written by hand, like growth, and read as proportions, so near 1 is as good as exactly 1.
- */
-export const demandSumTolerance = 0.001;
-
-/**
  * Whether `value` is one of the engine's `list`: the Hall's facilities (`facilityKeys`), the kinds of
  * Encounter (`encounterKinds`) or the gear slots (`gearSlotKeys`), read from the engine (DL-186 item 6).
  */
@@ -146,7 +140,6 @@ export function validateContent(set: ContentSet): ContentSet {
     if (!(template.fameEffect >= 0)) {
       problems.push(`${where}.fameEffect is ${template.fameEffect}; it is a whole number of 0 or more`);
     }
-    checkDemands(`${where}.demands`, template.demands, heroStats, problems);
     checkReferences(`${where}.skillKeys`, template.skillKeys, skills, 'a Skill', problems);
     const { classKey, skillKey } = template.requires;
     if (classKey !== undefined && !classes.has(classKey)) {
@@ -1786,36 +1779,6 @@ function checkGrowth(where: string, growth: Readonly<Record<string, number>>, pr
 function checkRange(where: string, field: string, min: number, max: number, floor: number, problems: string[]): void {
   if (min < floor) problems.push(`${where}.${field}Min is ${min}; it is at least ${floor}`);
   if (min > max) problems.push(`${where}.${field}Min ${min} is greater than ${field}Max ${max}`);
-}
-
-/**
- * A Quest template's demands: at least one, each a Hero Stat once with a weight above 0, the
- * weights summing to 1 within the tolerance (M2-S3's acceptance).
- */
-function checkDemands(
-  where: string,
-  demands: readonly (readonly [string, number])[],
-  heroStats: ReadonlySet<string>,
-  problems: string[],
-): void {
-  if (demands.length === 0) problems.push(`${where} is empty: a Quest assesses at least one Stat`);
-  checkReferences(
-    where,
-    demands.map(([key]) => key),
-    heroStats,
-    'a Hero Stat',
-    problems,
-  );
-  let sum = 0;
-  for (const [key, weight] of demands) {
-    if (Number.isFinite(weight)) sum += weight;
-    if (!(Number.isFinite(weight) && weight > 0)) {
-      problems.push(`${where}: "${key}" has weight ${weight}; a demand's weight is above 0`);
-    }
-  }
-  if (demands.length > 0 && Math.abs(sum - 1) > demandSumTolerance) {
-    problems.push(`${where}: weights sum to ${Number(sum.toFixed(4))}, not 1`);
-  }
 }
 
 /** The values that appear more than once, each once, in order of their second appearance. */

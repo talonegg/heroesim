@@ -9,7 +9,7 @@
 
 import type { BuyAction } from './actions/buy.js';
 import type { EquipAction } from './actions/equip.js';
-import type { EngineDeps, GameConfig } from './config.js';
+import type { EngineDeps } from './config.js';
 import {
   gearSlotKeys,
   type ContentSet,
@@ -84,8 +84,7 @@ export function carriedGear(world: Pick<World, 'items' | 'stacks'>, heroId: Hero
 /**
  * The sum, by Hero Stat, of the modifiers of the gear Hero `heroId` carries in its own slots
  * (`wornGear`): what `effectiveStats` adds to the base (DL-49). A Stat no gear modifies has no entry.
- * Reads no config: gear counts wherever it is rightly placed, and `equip` alone asks which slots
- * `config.gearSlots` lists (DL-49).
+ * Reads no config: gear counts wherever it is rightly placed (DL-49).
  */
 export function gearModifiers(
   heroId: HeroId,
@@ -168,16 +167,15 @@ function worthOf(definition: GearDefinition): number {
 
 /**
  * The gear definition of `definitionKey` when it is gear a controller would put on a Hero: made for a
- * slot `config.gearSlots` lists, its modifiers summing above 0 (DL-49); else `undefined`. What
+ * gear slot (`gearSlotKeys`), its modifiers summing above 0 (DL-49); else `undefined`. What
  * `gearChoices` equips and `gearPurchase` buys, so a controller never buys what it would not wear.
  */
 function wearable(
   definitionKey: ItemDefinitionKey,
-  config: Pick<GameConfig, 'gearSlots'>,
   content: Pick<ContentSet, 'items'>,
 ): GearDefinition | undefined {
   const definition = itemDefinition(content, definitionKey);
-  if (definition?.kind !== 'gear' || !config.gearSlots.includes(definition.slot)) return undefined;
+  if (definition?.kind !== 'gear' || !gearSlotKeys.includes(definition.slot)) return undefined;
   return worthOf(definition) > 0 ? definition : undefined;
 }
 
@@ -185,7 +183,7 @@ function wearable(
  * The `equip` actions that put the gear `guild` holds onto its Heroes whose slot for it is empty
  * (DL-49): the one rule the Rivals' Dispositions and the harness's policy share, so bought gear and
  * Loot are worn.
- * The gear is every piece in the Guild's holding for a slot `config.gearSlots` lists whose
+ * The gear is every piece in the Guild's holding for a gear slot (`gearSlotKeys`) whose
  * modifiers sum above 0, best first (the sum, then id), each unit of a stack a piece; each goes to
  * the first Hero in Roster order whom `equip` would accept (`gearUnavailability`: not dead, retired
  * or away) with that slot empty, until the gear or the Heroes run out. An injured Hero is equipped.
@@ -200,11 +198,11 @@ export function gearChoices(
   deps: Pick<EngineDeps, 'config' | 'content'>,
 ): EquipAction[] {
   if (guild.foldedOnTurn !== null) return [];
-  const { config, content } = deps;
+  const { content } = deps;
   const held = holdings(world, { kind: 'guild', id: guild.id });
   const pieces: Piece[] = [];
   for (const row of [...held.items, ...held.stacks]) {
-    const definition = wearable(row.definitionKey, config, content);
+    const definition = wearable(row.definitionKey, content);
     if (definition === undefined) continue;
     const isStack = 'quantity' in row;
     pieces.push({
@@ -227,11 +225,11 @@ export function gearChoices(
     slots.add(row.holder.slot);
     filled.set(row.holder.id, slots);
   }
-  const free = new Map<SlotKey, HeroId[]>(config.gearSlots.map((slot) => [slot, []]));
+  const free = new Map<SlotKey, HeroId[]>(gearSlotKeys.map((slot) => [slot, []]));
   for (const heroId of guild.rosterIds) {
     const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
     if (hero === undefined || gearUnavailability(hero) !== null) continue;
-    for (const slot of config.gearSlots) if (filled.get(heroId)?.has(slot) !== true) free.get(slot)?.push(heroId);
+    for (const slot of gearSlotKeys) if (filled.get(heroId)?.has(slot) !== true) free.get(slot)?.push(heroId);
   }
 
   const actions: EquipAction[] = [];
@@ -254,8 +252,8 @@ export function gearChoices(
  * `gearChoices` would put on them; the piece is the dearest for the slot the Market has for sale
  * (`marketStock`) that `gearChoices` would put on a Hero, whose price the Guild's Wealth is above
  * `wealthMultiple` times and covers, the lowest key among equal prices. A slot that wants a piece the
- * Market has none of within those means gives way to the next; a slot `config.gearSlots` does not list
- * wants none. `null` for a folded Guild.
+ * Market has none of within those means gives way to the next; a slot that is no gear slot
+ * (`gearSlotKeys`) wants none. `null` for a folded Guild.
  *
  * A Hero away with a Party counts among those who lack one: they are equipped when home, and the piece
  * waits in the holding for them (DL-54), which is why a piece held counts against a Hero who lacks
@@ -270,8 +268,8 @@ export function gearPurchase(
   wealthMultiple: number,
   deps: Pick<EngineDeps, 'config' | 'content'>,
 ): BuyAction | null {
-  const { config, content } = deps;
-  const wanted = slots.filter((slot) => config.gearSlots.includes(slot));
+  const { content } = deps;
+  const wanted = slots.filter((slot) => gearSlotKeys.includes(slot));
   if (guild.foldedOnTurn !== null || wanted.length === 0) return null;
 
   // One pass over every row: whose slots are filled, and the pieces the Guild holds for each slot.
@@ -282,7 +280,7 @@ export function gearPurchase(
     if (holder.kind === 'hero') {
       filled.get(holder.slot)?.add(holder.id);
     } else if (holder.kind === 'guild' && holder.id === guild.id) {
-      const slot = wearable(row.definitionKey, config, content)?.slot;
+      const slot = wearable(row.definitionKey, content)?.slot;
       if (slot !== undefined && spare.has(slot)) spare.set(slot, (spare.get(slot) ?? 0) + units);
     }
   };
@@ -300,7 +298,7 @@ export function gearPurchase(
     stock ??= marketStock(world, deps);
     const [best] = stock
       .filter(({ definition, price }) => {
-        const fits = wearable(definition.key, config, content)?.slot === slot;
+        const fits = wearable(definition.key, content)?.slot === slot;
         return fits && guild.wealth > wealthMultiple * price && guild.wealth >= price;
       })
       .sort((a, b) => b.price - a.price || compareByCodeUnit(a.definition.key, b.definition.key));

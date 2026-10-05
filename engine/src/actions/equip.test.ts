@@ -1,12 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import type { EngineDeps } from '../config.js';
+import type { ContentSet, ItemDefinition, SlotKey } from '../content-types.js';
 import { createWorld } from '../create.js';
 import type { Guild, Hero, HeroId, Holder, ItemId, Quest, QuestId, StackId, WorldDocument } from '../document.js';
 import type { ItemEquipped, ItemUnequipped } from '../events.js';
 import { addStack, createItem, holdings } from '../items.js';
 import { effectiveStats, playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
-import { testDeps, withValid } from '../world.test-support.js';
+import { testContent, testDeps, withValid } from '../world.test-support.js';
 import { applyAction, applyGuildAction } from './action.js';
 import { dispatch } from './dispatch.js';
 import { equip, unequip, type EquipRejection, type EquipRequest, type UnequipRejection } from './equip.js';
@@ -21,7 +22,7 @@ const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test'
  * No Rivals, the three slots pinned (INPUTS 7.1), and an empty Market (M5-S4), so that the only
  * stacks of a definition are the ones a test hands the Guild.
  */
-const deps = testDeps({ rivalCount: 0, gearSlots: ['weapon', 'armour', 'trinket'], marketSize: 0 });
+const deps = testDeps({ rivalCount: 0, marketSize: 0 });
 
 interface Scene {
   document: WorldDocument;
@@ -61,6 +62,12 @@ function equipped(document: WorldDocument, request: EquipRequest, with_: EngineD
   if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
   return withValid(result.document, with_);
 }
+
+/** The test content with the Masterwork blade made for a belt, no gear slot (DL-193). */
+const beltBlades: ContentSet = {
+  ...testContent,
+  items: { ...testContent.items, 'masterwork-blade': { ...testContent.items['masterwork-blade'], slot: 'belt' } as unknown as ItemDefinition },
+};
 
 const heroSlot = (heroId: HeroId, slot: 'weapon' | 'armour' | 'trinket'): Holder => ({ kind: 'hero', id: heroId, slot });
 
@@ -239,12 +246,12 @@ describe('equip', () => {
         { reason: 'wrong-slot', slot: 'armour', gearSlot: 'weapon' },
       ],
       [
-        'wrong-slot: a game whose Heroes have no weapon slot',
+        'wrong-slot: gear made for a slot that is no gear slot',
         ({ guild, hero, blades }) => ({
           request: { guildId: guild.id, heroId: hero.id, stackId: blades },
-          with_: testDeps({ rivalCount: 0, gearSlots: ['armour', 'trinket'] }),
+          with_: testDeps({ rivalCount: 0, marketSize: 0 }, beltBlades),
         }),
-        { reason: 'wrong-slot', slot: 'weapon', gearSlot: 'weapon', heroSlots: ['armour', 'trinket'] },
+        { reason: 'wrong-slot', slot: 'belt' as SlotKey, gearSlot: 'belt' as SlotKey, heroSlots: ['weapon', 'armour', 'trinket'] },
       ],
       [
         'slot-occupied: equip never swaps',
@@ -286,7 +293,7 @@ describe('equip', () => {
   });
 
   test("not-held-by-guild: gear in another Guild's holding, a unique Item or a stack, is not this Guild's to equip", () => {
-    const withRival = testDeps({ rivalCount: 1, gearSlots: ['weapon', 'armour', 'trinket'], marketSize: 0 });
+    const withRival = testDeps({ rivalCount: 1, marketSize: 0 });
     const { document, guild, hero } = scene('equip-rival', withRival);
     const rival = Object.values(document.world.guilds).find((it) => it.controller.kind === 'rival') as Guild;
     const theirs: Holder = { kind: 'guild', id: rival.id };

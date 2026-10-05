@@ -5,8 +5,10 @@
 
 import { createHash } from 'node:crypto';
 import {
+  configVersion,
   createWorld,
   playerGuild,
+  schemaVersion,
   serialise,
   unattachedHeroes,
   validate,
@@ -246,7 +248,7 @@ const listedFailures = 50;
 
 /** The sweep as a Markdown report. */
 export function creationReport(sweep: CreationSweep, { deps, machine, startedAt }: ReportContext): string {
-  const { config, content } = deps;
+  const { content } = deps;
   const count = sweep.seeds.length;
   const range = count === 0 ? 'no seeds' : `\`${sweep.seeds[0]}\` to \`${sweep.seeds[count - 1]}\``;
   const warningTotal = Object.values(sweep.warnings).reduce((sum, n) => sum + n, 0);
@@ -281,8 +283,8 @@ export function creationReport(sweep: CreationSweep, { deps, machine, startedAt 
     '# M1 harness report: world creation',
     '',
     `Run begun ${localTimestamp(startedAt)} · ${whole(count)} seeds, ${range} · content \`${content.id}\` ` +
-      `version ${content.version} · \`defaultConfig\` (config version ${config.configVersion}, schema ` +
-      `version ${config.schemaVersion}) · \`createdAt: "${harnessSetup.createdAt}"\``,
+      `version ${content.version} · \`defaultConfig\` (config version ${configVersion}, schema ` +
+      `version ${schemaVersion}) · \`createdAt: "${harnessSetup.createdAt}"\``,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores)`,
     '',

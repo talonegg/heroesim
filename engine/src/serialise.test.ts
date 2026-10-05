@@ -4,6 +4,7 @@ import {
   deserialise,
   migrate,
   migrations,
+  schemaVersion,
   serialise,
   type EngineDeps,
   type GameConfig,
@@ -28,7 +29,7 @@ const allocatedBytes = (): number | undefined => (getHeapStatistics() as { total
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────────────────────
 
-/** A loading front end's deps: the engine's own config, not one merged from the save (DL-20). */
+/** The deps a test plays its documents under; a load reads only their content and modules. */
 const deps: EngineDeps = { config: defaultConfig, content: testContent };
 
 const built = (): WorldDocument => withValid(buildDocument().document, deps);
@@ -165,14 +166,14 @@ describe('deserialise', () => {
   test('returns an equal document and no warnings', () => {
     const document = built();
     const result = deserialise(serialise(document), deps);
-    expect(result).toEqual({ ok: true, document, warnings: [] });
+    expect(result).toEqual({ ok: true, document, warnings: [], deps: { config: defaultConfig, content: testContent } });
   });
 
   test('a document with meta.version 999 is refused, naming both versions', () => {
     expect(refusal(deserialise(withVersion(built(), 999), deps))).toMatchObject({
       kind: 'unsupported-version',
       documentVersion: 999,
-      schemaVersion: defaultConfig.schemaVersion,
+      schemaVersion,
     });
   });
 
@@ -180,17 +181,37 @@ describe('deserialise', () => {
     expect(refusal(deserialise(withVersion(built(), 0), deps))).toMatchObject({
       kind: 'unsupported-version',
       documentVersion: 0,
-      schemaVersion: defaultConfig.schemaVersion,
+      schemaVersion,
     });
   });
 
-  test('the version compared is the one in deps.config', () => {
-    const later: GameConfig = { ...defaultConfig, schemaVersion: defaultConfig.schemaVersion + 1 };
-    expect(refusal(deserialise(serialise(built()), { ...deps, config: later }))).toMatchObject({
-      kind: 'unsupported-version',
-      documentVersion: defaultConfig.schemaVersion,
-      schemaVersion: later.schemaVersion,
-    });
+  test("the version compared is the engine's own, never one the save's config holds (DL-193)", () => {
+    const document = built();
+    document.meta = { ...document.meta, config: { ...document.meta.config, schemaVersion: 999 } as GameConfig };
+    const result = deserialise(serialise(document), deps);
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.deps.config).not.toHaveProperty('schemaVersion');
+  });
+
+  test('gives the deps to play the save under: its own config filled forward, the content and the modules', () => {
+    const document = built();
+    const saved: Partial<GameConfig> = { ...document.meta.config, boardSize: 3 };
+    delete saved.marketSize;
+    document.meta = { ...document.meta, config: saved as GameConfig };
+    const result = deserialise(serialise(document), { content: testContent });
+    expect(result.ok && result.deps).toEqual({ config: { ...defaultConfig, boardSize: 3 }, content: testContent });
+  });
+
+  test.each([
+    ['checkVariance', 2],
+    ['boardSize', 1.5],
+    ['regardBands', { hostile: -20, cool: -4, neutral: -12, warm: 4, close: 12 }],
+  ])('a save whose %s breaks its rule is refused as unsound-config, naming it (DL-193)', (setting, value) => {
+    const document = built();
+    document.meta = { ...document.meta, config: { ...document.meta.config, [setting]: value } };
+    const reason = refusal(deserialise(serialise(document), deps));
+    expect(reason).toMatchObject({ kind: 'unsound-config', problems: [{ setting }] });
+    expect(reason.message).toMatch(new RegExp(`^The game's config is unsound: ${setting} is `));
   });
 
   test.each([
@@ -225,7 +246,7 @@ describe('deserialise', () => {
   });
 
   test('a structurally broken document is refused, not thrown on', () => {
-    const reason = refusal(deserialise('{"meta":{"version":6},"world":[],"history":null}', deps));
+    const reason = refusal(deserialise('{"meta":{"version":7},"world":[],"history":null}', deps));
     expect(reason.kind).toBe('invalid');
   });
 
@@ -269,9 +290,10 @@ describe('the migration chain', () => {
     (from: number): Migration =>
     (document) => ({ ...document, steps: [...(document.steps as number[]), from] });
 
-  test('holds no step, so a save of a schema before 6 is refused, not migrated (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7)', () => {
+  test('holds no step, so a save of a schema before 7 is refused, not migrated (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7; v1.1.6-S7, DL-193)', () => {
     expect(Object.keys(migrations)).toEqual([]);
-    expect(defaultConfig.schemaVersion).toBe(6);
+    expect(schemaVersion).toBe(7);
+    expect(defaultConfig).not.toHaveProperty('schemaVersion');
   });
 
   test('runs forward one step per version, in order, setting meta.version after each', () => {
@@ -308,9 +330,31 @@ describe('the migration chain', () => {
   });
 });
 
-// ── Older saves: refused (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7) ────────────
+// ── Older saves: refused (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7; DL-193) ────
 
 describe('a save of an older schema', () => {
+  /**
+   * `document` as `v1.1.5` wrote it, schema 6: `meta.version` 6, the two versions and the gear slots
+   * in its config and none in `meta`, and each Quest with its template's `demands` (v1.1.6-S7).
+   */
+  function asVersion6(document: WorldDocument): string {
+    const parsed = JSON.parse(serialise(document)) as SavedDocument & {
+      meta: { config: Record<string, unknown> };
+      world: { quests: Record<string, Record<string, unknown>> };
+    };
+    parsed.meta.version = 6;
+    Object.assign(parsed.meta.config, { schemaVersion: 6, configVersion: 13, gearSlots: ['weapon', 'armour', 'trinket'] });
+    Reflect.deleteProperty(parsed.meta, 'configVersion');
+    for (const quest of Object.values(parsed.world.quests)) quest['demands'] = [['strength', 1]];
+    return JSON.stringify(parsed);
+  }
+
+  test('of schema 6, as v1.1.5 wrote it, is refused as unsupported-version, naming both versions, not as invalid (DL-193)', () => {
+    const text = asVersion6(createWorld('version-6', setup, testDeps()).document);
+
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 6, schemaVersion: 7 });
+  });
+
   /**
    * `document` as `v1.1.2` wrote it, schema 5: `meta.version` 5, and no Hero with a Portrait, an
    * Appearance or a Biography (v1.1.3-S6).
@@ -327,11 +371,11 @@ describe('a save of an older schema', () => {
   test('of schema 5, as v1.1.2 wrote it, is refused as unsupported-version, naming both versions, not as invalid (DL-135 item 7)', () => {
     const text = asVersion5(createWorld('version-5', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 6 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 7 });
   });
 
   test("of schema 5 with a Hero's three fields is refused the same way: the version, not the shape, refuses it", () => {
-    expect(refusal(deserialise(withVersion(built(), 5), deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 6 });
+    expect(refusal(deserialise(withVersion(built(), 5), deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 7 });
   });
 
   /**
@@ -351,14 +395,14 @@ describe('a save of an older schema', () => {
   test('of schema 4, as v1.1.1 wrote it, is refused as unsupported-version, naming both versions, not as invalid', () => {
     const text = asVersion4(createWorld('version-4', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 4, schemaVersion: 6 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 4, schemaVersion: 7 });
   });
 
   test.each([1, 2, 3])('of schema %i is refused the same way: no migration leads from it', (version) => {
     expect(refusal(deserialise(withVersion(built(), version), deps))).toMatchObject({
       kind: 'unsupported-version',
       documentVersion: version,
-      schemaVersion: 6,
+      schemaVersion: 7,
     });
   });
 });

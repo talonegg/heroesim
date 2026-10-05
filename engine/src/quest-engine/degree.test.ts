@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { configProblems, defaultConfig } from '../config.js';
+import { defaultConfig } from '../config.js';
 import { degrees, type Degree, type PassFormula } from '../content-types.js';
 import { degreeOf, passDegree, passOf, succeeded } from './degree.js';
 
@@ -47,28 +47,6 @@ describe('degreeOf', () => {
 
   test('a Success and a Triumph succeed; a Setback and a Failure do not', () => {
     expect(degrees.map(succeeded)).toEqual([false, false, true, true]);
-  });
-});
-
-// v1.1.4-S2's verification (DL-152): the thresholds are ordered, or a Degree means nothing.
-describe("the configuration's Degrees", () => {
-  test('the defaults have no problem', () => {
-    expect(configProblems(defaultConfig)).toEqual([]);
-  });
-
-  test.each<[string, { triumph: number; success: number; setback: number }]>([
-    ['a Triumph at the Success threshold', { triumph: 1, success: 1, setback: 0.75 }],
-    ['a Setback above Success', { triumph: 1.25, success: 1, setback: 1.1 }],
-    ['a Setback at 0', { triumph: 1.25, success: 1, setback: 0 }],
-    ['a threshold not a number', { triumph: Number.NaN, success: 1, setback: 0.75 }],
-  ])('refuses %s, naming checkDegrees', (_, checkDegrees) => {
-    expect(configProblems({ ...defaultConfig, checkDegrees })).toEqual([
-      `checkDegrees is ${JSON.stringify(checkDegrees)}; triumph > success > setback > 0`,
-    ]);
-  });
-
-  test('refuses a strongTriumphShare outside 0 to 1', () => {
-    expect(configProblems({ ...defaultConfig, strongTriumphShare: 1.5 })).toEqual(['strongTriumphShare is 1.5; it is a share from 0 to 1']);
   });
 });
 

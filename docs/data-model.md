@@ -11,7 +11,7 @@ One JSON document, three top-level sections with different lifecycles:
 
 | Section | Lifecycle | Holds |
 | --- | --- | --- |
-| `meta` | Written at creation; changed by the `rebase` action, which rewrites `config`, and by a migration on load, which rewrites `version` (§6; amended 2026-09-28, DL-86, originally "changed only by the `rebase` action") | schema version, seed, content set id and version, the configuration in force, creation timestamp supplied by the caller |
+| `meta` | Written at creation; changed by the `rebase` action, which rewrites `config` and `configVersion`, and by a migration on load, which rewrites `version` (§6; amended 2026-09-28, DL-86, originally "changed only by the `rebase` action") | schema version, seed, content set id and version, the configuration in force and the version of the defaults it was taken from, creation timestamp supplied by the caller |
 | `world` | Copied once per Turn with `structuredClone`, then mutated | every table, the Board, random stream states, id counters, module slices, the current Turn |
 | `history` | Append-only, shared by reference across Turns, never copied | entries and their indexes |
 
@@ -31,23 +31,29 @@ too, and nothing but the engine's append function may touch it (ADR-0008).
 version:        integer          schema version of this document
 seed:           string           master seed the world was created from
 content:        { id, version }  the content set the world was created under
+configVersion:  integer          the version of the defaults `config` was taken from
 config:         GameConfig       every tunable, as it was at creation
 createdAt:      string           supplied by the caller, never read by rules: the clock from
                                  a front end, a fixed value from the harness so two runs of a
                                  seed compare byte for byte
 ```
 
-Rules read `deps.config`, never `meta.config` directly. A front end passes `meta.config` as
-`deps.config`, so a loaded game continues under the rules it was started with; the `rebase`
-action rewrites `meta.config` to the current `defaultConfig` and appends a
-`world.rules-adopted` Milestone carrying the old and new `configVersion`, so tuning reaches a
-game when the player chooses and the History records when. The harness passes its own
-configuration as `deps.config` and never rebases. A front end builds `deps.config` as
-`{ ...defaultConfig, ...meta.config }`: a field the save has keeps its value, a field it
-predates reads as the current default, a field the current `GameConfig` lacks is ignored
-(rule 5). No config migration exists; `rebase` is the only thing that rewrites `meta.config`
-(pre-M0 review D3). `configVersion` is a field of `GameConfig`,
-bumped in the decision log whenever a default changes (owner, 2026-09-25, pre-M0 review D1).
+Rules read `deps.config`, never `meta.config` directly. A front end plays a loaded game under
+`meta.config`, so it continues under the rules it was started with; the `rebase` action rewrites
+`meta.config` to the current `defaultConfig` and `meta.configVersion` to the current
+`configVersion`, and appends a `world.rules-adopted` Milestone carrying the old and new versions,
+so tuning reaches a game when the player chooses and the History records when. The harness plays
+its own configuration and never rebases. The play config comes from one seam, the engine's
+`playDeps(document, content, modules)`, which every front end, the harness and a save's load use:
+`defaultConfig` with `meta.config` over it, so a field the save has keeps its value, a field it
+predates reads as the current default and a field the current `GameConfig` lacks is ignored (rule
+5); then every setting is checked by its rule (`checkConfig`: ranges, every Min at most its Max,
+the bands in their order, the lists content sizes), and a save with a setting no rule allows is
+refused at load, naming it (v1.1.6-S7, DL-186 item 12, DL-193). No config migration exists;
+`rebase` is the only thing that rewrites `meta.config` (pre-M0 review D3). `configVersion` is the
+engine's, beside `defaultConfig`, bumped in the decision log whenever a default changes (owner,
+2026-09-25, pre-M0 review D1); `meta` has held it since schema 7, and the schema's version and the
+gear slots are no settings (DL-193).
 
 Where pre-M0 review D3's record says tuning reaches every game, D1 governs: tuning reaches a
 saved game only through `rebase`, except that a config field newer than the save follows the
@@ -227,7 +233,6 @@ Guildmasters, and their Regard for a Guild is read through its Guildmaster, neve
 id, templateKey, patronId
 difficulty, tags, reward, fameEffect
 durationTurns:  integer                     durationDays × 3, from the template's range
-demands:        [StatKey, weight][]         copied from the template at generation
 skillKeys:      SkillKey[]                  copied from the template at generation
 encounterKeys:  string[]                    drawn at generation (M4); empty before. Weighted by the tags
                                             each shares with the template, and the last the template's
@@ -296,7 +301,7 @@ holder:         { kind: "hero", id, slot } | { kind: "guild", id } | { kind: "pa
 One stack per (definition, holder, slot); the validator refuses duplicates. "What is Brenna
 carrying" is a filter over both tables; cache an index only if the harness shows it slow. Both
 tables share one holder type: the Market holds a folded Guild's unique Items as well as stacks
-(pre-M0 review D6, DL-48). A Hero's `slot` is one of `config.gearSlots`, and a slot holds one
+(pre-M0 review D6, DL-48). A Hero's `slot` is one of the engine's `gearSlotKeys`, and a slot holds one
 Item at most: one unique Item or one stack of 1. `engine/src/items.ts` moves Items between
 holders and keeps these rules. The Market's stacks are replaced each morning from the `market`
 stream; a unique Item it lists stays until a Guild buys it (M5-S4, DL-51).
@@ -406,7 +411,8 @@ exists, the load is refused with the versions named. Modules migrate their own s
 the chain and before the validator, each reading its own version from inside its slice (DL-76).
 Since schema 5 the chain is empty: a save of schema 4 or before is refused, and a front end says it
 was saved by an older Heroesim (DL-125 item 10.2, DL-130). Since schema 6 a save of schema 5, as
-`v1.1.2` wrote it, is refused in the same words (DL-135 item 7, v1.1.3-S6).
+`v1.1.2` wrote it, is refused in the same words (DL-135 item 7, v1.1.3-S6), and since schema 7 a
+save of schema 6, as `v1.1.5` wrote it (DL-193, v1.1.6-S7).
 
 The hand-written validator runs on every load and, in tests, after every `advance`. It never
 runs per Turn in play.
@@ -429,7 +435,7 @@ runs per Turn in play.
 | A Guildmaster's, Hero's or Patron's `sex` that is not `"female"` or `"male"` (a Patron's may be `null`): a shape error, since a front end finds a Portrait's folder by it (v1.1.2-S6, DL-133) | refuse |
 | A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define; a Guildmaster's Trait that is no Guildmaster Trait, or a Hero's that is no Hero Trait | warn |
 | Two Traits a Guildmaster or a Hero holds of which one excludes the other (`excluded-traits`, v1.1.4-S7, DL-150 item 3) | warn |
-| An Item a Hero holds in a slot `gearSlots` does not list, or that is not gear for its slot (DL-48) | warn |
+| An Item a Hero holds in a slot that is no gear slot (`gearSlotKeys`), or that is not gear for its slot (DL-48) | warn |
 | A Guildmaster's `portraitKey` that names no Guildmaster picture in content, or one of the other sex (DL-130); a Hero's that names no Hero picture, or one of the other sex (v1.1.3-S6) | warn |
 | A module slice no installed module owns (DL-76) | warn |
 

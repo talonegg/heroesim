@@ -9,6 +9,7 @@
 import {
   ageOf,
   compareByCodeUnit,
+  gearSlotKeys,
   guildmasterOf,
   holdings,
   itemDefinition,
@@ -145,7 +146,7 @@ export function marketView(document: WorldDocument, only: MarketKind | null = nu
     quantity,
     price,
   }));
-  const kinds = [...deps.config.gearSlots, 'consumable' as const].flatMap((key) => {
+  const kinds = [...gearSlotKeys, 'consumable' as const].flatMap((key) => {
     const count = listed.filter((row) => row.kindKey === key).length;
     return count === 0 ? [] : [{ key, label: capitalised(key), count }];
   });

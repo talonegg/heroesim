@@ -1,7 +1,8 @@
 import { loadContent, loadDrafts } from '@heroesim/content/node';
-import { defaultConfig, type EngineDeps } from '@heroesim/engine';
+import type { EngineDeps } from '@heroesim/engine';
 import { expect, test } from 'vitest';
 import { checkGate, gatePrinted, readGateSpec } from './gate.js';
+import { runConfig } from './play.js';
 import { defaultPolicyConfig } from './policy.js';
 import { machine, print, reportPath, writeReport } from './report.js';
 import { addCommand, jsonPathOf, runReport, writeRunReport } from './run-report.js';
@@ -37,7 +38,9 @@ test.runIf(run !== null)(`${seeds.length} games of ${run?.years ?? 0} years play
   const { milestone, profile, expect: expected, years, workers, validate, replay, drafts, config: configured, policy: policyChanged } = run;
   const startedAt = new Date();
   const drafted = drafts === null ? null : loadDrafts(drafts);
-  const deps: EngineDeps = { config: { ...defaultConfig, ...configured }, content: drafted?.content ?? loadContent() };
+  const content = drafted?.content ?? loadContent();
+  // Every setting checked before any game, a bad one refused by name (v1.1.6-S7, DL-193).
+  const deps: EngineDeps = { config: runConfig(configured, content), content };
   const policy = { ...defaultPolicyConfig, ...policyChanged };
 
   const sweep = await sweepPlayInParallel(seeds, deps, { validate, replay, workers, years, policy, ...(drafts === null ? {} : { drafts }) });

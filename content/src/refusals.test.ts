@@ -999,31 +999,16 @@ describe("a Class's growth", () => {
 });
 
 describe('a Quest template', () => {
-  test('whose demand weights do not sum to 1 is refused, naming the template and the sum', () => {
+  // DL-193: a Quest template carries no `demands` since v1.1.6-S7.
+  test('with demands is refused, as a field a Quest template does not have', () => {
     const files = withJson('quest-templates.json', (json) => {
-      barrow(json).demands[0] = ['strength', 0.5];
+      Object.assign(barrow(json), { demands: [['strength', 1]] });
     });
 
-    expect(refusalOf(() => parseContent(files)).message).toMatch(
-      /questTemplates\.clear-the-barrow\.demands: weights sum to 1\.2, not 1/,
-    );
-  });
-
-  test('with a demand of no weight, or no demand at all, is refused', () => {
-    const zero = withJson('quest-templates.json', (json) => {
-      barrow(json).demands = [['strength', 1], ['courage', 0]];
-    });
-    const none = withJson('quest-templates.json', (json) => {
-      barrow(json).demands = [];
-    });
-
-    expect(refusalOf(() => parseContent(zero)).message).toMatch(/clear-the-barrow\.demands.*"courage"/);
-    expect(refusalOf(() => parseContent(none)).message).toMatch(/clear-the-barrow\.demands is empty/);
+    expect(refusalOf(() => parseContent(files)).message).toMatch(/clear-the-barrow\.demands is not a field of a Quest template/);
   });
 
   test.each<[string, (it: Template) => void, RegExp]>([
-    ['a demand on a Stat that does not exist', (it) => (it.demands[0] = ['strenght', 0.3]), /demands.*"strenght"/],
-    ['a demand on a Guildmaster Stat', (it) => (it.demands[0] = ['negotiation', 0.3]), /demands.*"negotiation"/],
     ['a Skill that does not exist', (it) => void it.skillKeys.push('axemanship'), /skillKeys.*"axemanship"/],
     ['a Sphere that does not exist', (it) => void it.sphereKeys.push('the-sea'), /sphereKeys.*"the-sea"/],
     ['a required Class that does not exist', (it) => (it.requires = { classKey: 'bard' }), /requires\.classKey.*"bard"/],

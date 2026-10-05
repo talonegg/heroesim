@@ -9,6 +9,7 @@ import {
   advance,
   ageOf,
   availableHeroes,
+  configVersion,
   count,
   createWorld,
   dayOf,
@@ -28,6 +29,7 @@ import {
   potentialHint,
   potentialHints,
   probe,
+  schemaVersion,
   serialise,
   upkeep,
   type EntityId,
@@ -84,7 +86,7 @@ const current = (): string => join(dir, '.saves', 'current.json');
 const saved = (path = current()): string => readFileSync(path, 'utf8');
 
 function document(path = current()): WorldDocument {
-  const loaded = deserialise(saved(path), { config: defaultConfig, content });
+  const loaded = deserialise(saved(path), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }
@@ -1286,7 +1288,7 @@ describe('rebase', () => {
     const run = play(['rebase']);
 
     expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain(`already plays under this release's rules, configVersion ${defaultConfig.configVersion}`);
+    expect(run.err).toContain(`already plays under this release's rules, configVersion ${configVersion}`);
     expect(saved()).toBe(original);
   });
 
@@ -1294,7 +1296,7 @@ describe('rebase', () => {
     newDemo();
     // A save from a release whose rules were one version older, with a year of three Turns.
     edit((edited) => {
-      edited.meta.config.configVersion = defaultConfig.configVersion - 1;
+      edited.meta.configVersion = configVersion - 1;
       edited.meta.config.turnsPerYear = 3;
     });
 
@@ -1304,8 +1306,9 @@ describe('rebase', () => {
     const run = play(['rebase']);
 
     expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toContain(`configVersion ${defaultConfig.configVersion - 1} to ${defaultConfig.configVersion}`);
+    expect(run.out).toContain(`configVersion ${configVersion - 1} to ${configVersion}`);
     expect(document().meta.config).toEqual(defaultConfig);
+    expect(document().meta.configVersion).toBe(configVersion);
     expect(adopted()).toBe(1);
     expect(play(['show']).out).toContain('Turn 3 (Day 1, morning, Year 0)');
     expect(play(['show', 'history']).out).toMatch(/^\s*3\s+world\.rules-adopted\s+Yes/m);
@@ -1417,8 +1420,24 @@ describe('save and load', () => {
     // The save is kept until the player replaces it: a new game over it, which then loads.
     expect(newDemo().code).toBe(exitCodes.refused);
     expect(newDemo('--force').code).toBe(exitCodes.ok);
-    expect(JSON.parse(saved())).toMatchObject({ meta: { version: 6 } });
+    expect(JSON.parse(saved())).toMatchObject({ meta: { version: schemaVersion } });
     expect(play(['show']).code).toBe(exitCodes.ok);
+  });
+
+  test('a save whose config breaks a rule is refused at load, naming the setting, and left as it was (v1.1.6-S7, DL-193)', () => {
+    newDemo();
+    edit((edited) => {
+      edited.meta.config.boardSize = -2;
+    });
+    const original = saved();
+
+    for (const argv of [['show'], ['advance'], ['load', current()]]) {
+      const run = play(argv);
+      expect(run.code, argv.join(' ')).toBe(exitCodes.refused);
+      expect(run.err).toBe(`Cannot load ${current()}: The game's config is unsound: boardSize is -2; it is a whole number, at least 0.
+`);
+    }
+    expect(saved()).toBe(original);
   });
 
   test('the newer-schema refusal names both versions', () => {
@@ -1429,7 +1448,7 @@ describe('save and load', () => {
     const run = play(['load', bad]);
 
     expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain(`version 999 and this engine reads version ${defaultConfig.schemaVersion}`);
+    expect(run.err).toContain(`version 999 and this engine reads version ${schemaVersion}`);
   });
 
   test('load refuses a file that is not there, and save --as a save that is not there', () => {

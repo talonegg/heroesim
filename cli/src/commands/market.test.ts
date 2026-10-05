@@ -9,7 +9,6 @@ import {
   addStack,
   count,
   createItem,
-  defaultConfig,
   deserialise,
   findStack,
   holdings,
@@ -52,7 +51,7 @@ const current = (): string => join(dir, '.saves', 'current.json');
 const saved = (): string => readFileSync(current(), 'utf8');
 
 function document(): WorldDocument {
-  const loaded = deserialise(saved(), { config: defaultConfig, content });
+  const loaded = deserialise(saved(), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }

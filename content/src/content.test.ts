@@ -439,11 +439,8 @@ describe('loadContent()', () => {
       }
     });
 
-    test('each weigh demands on Hero Stats summing to 1, and name Skills from skills.json', () => {
+    test('each name Skills from skills.json', () => {
       for (const it of templates) {
-        const sum = it.demands.reduce((total, [, weight]) => total + weight, 0);
-        expect(sum, it.key).toBeCloseTo(1, 6);
-        for (const [statKey] of it.demands) expect(content.stats[statKey]?.owner, it.key).toBe('hero');
         expect(it.skillKeys.length, it.key).toBeGreaterThan(0);
         for (const skillKey of it.skillKeys) expect(content.skills[skillKey], it.key).toBeDefined();
       }
@@ -565,6 +562,14 @@ describe('loadContent()', () => {
 
     // v1.1.6-S6 (DL-192): the old form is no longer read, so every shipped row is in the new one: an
     // Encounter's `checks` a list, a Synergy's `requires` a list (29 of 29 and 9 of 9 when it was retired).
+    // v1.1.6-S7 (DL-193): nor does a Quest template carry `demands`, which no rule read (12 of 12 when
+    // they went).
+    test('carry no demands, as written', () => {
+      const written = JSON.parse(readFileSync(join(contentDir, 'quest-templates.json'), 'utf8')) as Record<string, Record<string, unknown>>;
+      expect(Object.keys(written)).toHaveLength(12);
+      for (const [key, row] of Object.entries(written)) expect(row, key).not.toHaveProperty('demands');
+    });
+
     test('are every one written with a list of Checks, and none in the old form', () => {
       const written = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<string, Record<string, unknown>>;
       expect(Object.keys(written)).toHaveLength(Object.keys(content.encounters).length);

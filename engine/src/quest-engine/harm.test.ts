@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { configProblems, defaultConfig } from '../config.js';
+import { defaultConfig } from '../config.js';
 import type { SetQuery } from '../content-types.js';
 import type { HeroId } from '../document.js';
 import { testContent } from '../world.test-support.js';
@@ -115,21 +115,3 @@ describe('narrowed', () => {
   });
 });
 
-describe("configProblems' harm fields (DL-155)", () => {
-  test('the defaults are sound: exposureRange 2 and guardRange 0.5', () => {
-    expect(config).toMatchObject({ exposureRange: 2, guardRange: 0.5 });
-    expect(configProblems(config)).toEqual([]);
-    expect(configProblems({ ...config, exposureRange: 0, guardRange: 0 })).toEqual([]);
-    expect(configProblems({ ...config, guardRange: 1 })).toEqual([]);
-  });
-
-  test.each([-1, Number.NaN, Number.POSITIVE_INFINITY, undefined])('refuses an exposureRange of %s', (exposureRange) => {
-    expect(configProblems({ ...config, exposureRange: exposureRange as number })).toEqual([
-      `exposureRange is ${exposureRange}; it is a finite number of 0 or more`,
-    ]);
-  });
-
-  test.each([-0.1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, undefined])('refuses a guardRange of %s', (guardRange) => {
-    expect(configProblems({ ...config, guardRange: guardRange as number })).toEqual([`guardRange is ${guardRange}; it is a share from 0 to 1`]);
-  });
-});

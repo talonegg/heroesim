@@ -9,7 +9,7 @@
 // content set mirrors its keys. It is not exported from the package (DL-20). The harness checks
 // the engine against the real content (M1-S10).
 
-import { defaultConfig, type EngineDeps, type GameConfig } from './config.js';
+import { configVersion, defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type {
   AppearancePhrases,
   Class,
@@ -44,6 +44,7 @@ import {
   emptyDocument,
   facilityKeys,
   makeId,
+  schemaVersion,
   type EntityId,
   type Entry,
   type EventType,
@@ -166,8 +167,8 @@ const templateLoot: Readonly<Record<string, string>> = {
 };
 
 /**
- * A Quest template of `sphere` from its ranges as `[min, max]`, its demands as `stat:weight`
- * pairs and its Skills, each a space-separated list. The reward is four Wealth per difficulty
+ * A Quest template of `sphere` from its ranges as `[min, max]` and its Skills, a space-separated
+ * list. The reward is four Wealth per difficulty
  * and the Fame effect 2, as INPUTS 4.2's defaults put them. Its Encounter kinds and counts are
  * `templateEncounters`', and its Loot table `templateLoot`'s.
  */
@@ -177,7 +178,6 @@ function questTemplate(
   [difficultyMin, difficultyMax]: [number, number],
   [durationDaysMin, durationDaysMax]: [number, number],
   [partySizeMin, partySizeMax]: [number, number],
-  demands: string,
   skills: string,
   requires: QuestTemplateRequires = {},
 ): [string, QuestTemplate] {
@@ -197,10 +197,6 @@ function questTemplate(
       fameEffect: 2,
       partySizeMin,
       partySizeMax,
-      demands: demands.split(' ').map((pair) => {
-        const [statKey = '', weight = ''] = pair.split(':');
-        return [statKey, Number(weight)];
-      }),
       skillKeys: skills.split(' '),
       requires,
       lootTableKey: templateLoot[key] ?? null,
@@ -452,32 +448,32 @@ export const testContent: ContentSet = deepFreeze({
       ...patronNames('female', 'Orabel Quint'),
     ],
   },
-  // key, Sphere, difficulty, Days and Party size ranges; then demands, Skills, requirements.
+  // key, Sphere, difficulty, Days and Party size ranges; then Skills, requirements.
   questTemplates: Object.fromEntries([
     questTemplate('clear-the-barrow', 'crown', [30, 70], [3, 6], [2, 4],
-      'strength:0.5 courage:0.5', 'swordcraft benediction'),
+      'swordcraft benediction'),
     questTemplate('hold-the-border-fort', 'crown', [50, 90], [5, 9], [3, 4],
-      'strength:0.5 leadership:0.5', 'tactics shieldwork', { classKey: 'warrior' }),
+      'tactics shieldwork', { classKey: 'warrior' }),
     questTemplate('escort-the-tithe', 'church', [10, 35], [2, 4], [1, 3],
-      'endurance:0.5 perception:0.5', 'tactics field-surgery'),
+      'tactics field-surgery'),
     questTemplate('lay-the-restless-dead', 'church', [40, 80], [3, 6], [2, 4],
-      'spirit:0.4 willpower:0.3 courage:0.3', 'benediction warding', { classKey: 'healer' }),
+      'benediction warding', { classKey: 'healer' }),
     questTemplate('guard-the-caravan', 'merchants', [20, 55], [3, 7], [2, 4],
-      'weaponry:0.5 perception:0.5', 'tactics trapcraft'),
+      'tactics trapcraft'),
     questTemplate('recover-the-strongbox', 'merchants', [25, 60], [2, 5], [1, 3],
-      'dexterity:0.4 wits:0.3 adaptability:0.3', 'lockpicking trapcraft'),
+      'lockpicking trapcraft'),
     questTemplate('the-beast-of-the-fells', 'villages', [35, 75], [3, 7], [2, 4],
-      'strength:0.5 perception:0.5', 'swordcraft stealth'),
+      'swordcraft stealth'),
     questTemplate('the-sickness-at-the-mill', 'villages', [10, 30], [2, 3], [1, 2],
-      'knowledge:0.4 willpower:0.3 charisma:0.3', 'herbalism field-surgery'),
+      'herbalism field-surgery'),
     questTemplate('survey-the-old-workings', 'scholars', [25, 60], [3, 6], [2, 3],
-      'intelligence:0.5 perception:0.5', 'runecraft trapcraft'),
+      'runecraft trapcraft'),
     questTemplate('break-the-sealed-vault', 'scholars', [60, 100], [5, 10], [3, 5],
-      'arcana:0.5 spelllore:0.5', 'warding runecraft', { classKey: 'mage' }),
+      'warding runecraft', { classKey: 'mage' }),
     questTemplate('a-quiet-word', 'underworld', [15, 45], [2, 4], [1, 2],
-      'wits:0.5 diplomacy:0.5', 'stealth lockpicking'),
+      'stealth lockpicking'),
     questTemplate('the-counting-house-job', 'underworld', [45, 85], [3, 6], [2, 4],
-      'dexterity:0.5 wits:0.5', 'lockpicking stealth', { skillKey: 'lockpicking' }),
+      'lockpicking stealth', { skillKey: 'lockpicking' }),
   ]),
   // key, Days to heal, the Trait it leaves (M2-S5): some leave a Hero Trait, some none.
   injuries: Object.fromEntries([
@@ -854,9 +850,10 @@ export const certainHarmContent: ContentSet = withEncounters({
  */
 export function testWorld(seed: string, deps: EngineDeps, names: readonly string[] = streamNames): World {
   const meta: Meta = {
-    version: deps.config.schemaVersion,
+    version: schemaVersion,
     seed,
     content: { id: deps.content.id, version: deps.content.version },
+    configVersion,
     config: { ...deps.config },
     createdAt: 'test',
   };
@@ -868,9 +865,10 @@ export function testWorld(seed: string, deps: EngineDeps, names: readonly string
 // ── Documents ────────────────────────────────────────────────────────────────────────────────
 
 export const testMeta: Meta = {
-  version: defaultConfig.schemaVersion,
+  version: schemaVersion,
   seed: 'amber-fox-4821',
   content: { id: testContent.id, version: testContent.version },
+  configVersion,
   config: { ...defaultConfig },
   createdAt: 'harness',
 };
@@ -1062,7 +1060,6 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     reward: 120,
     fameEffect: 2,
     durationTurns: 9,
-    demands: [['strength', 0.6], ['courage', 0.4]] as [string, number][],
     skillKeys: ['swordcraft'],
     encounterKeys: [],
     requirements: { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'swordcraft' },

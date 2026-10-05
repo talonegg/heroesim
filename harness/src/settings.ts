@@ -14,7 +14,7 @@
 // The harness may read the environment: it is not the engine (ADR-0001 binds the engine only).
 
 import { availableParallelism } from 'node:os';
-import { configProblems, defaultConfig, type GameConfig } from '@heroesim/engine';
+import { defaultConfig, type GameConfig } from '@heroesim/engine';
 import { defaultCalibration } from './calibrate.js';
 import { defaultEstimateRuns, defaultEstimateSamples } from './estimate.js';
 import { defaultModuleSeedCount, harnessModules } from './modules.js';
@@ -238,14 +238,13 @@ function jsonObject(env: Env, name: string, what: string): Record<string, unknow
 /**
  * `HEROESIM_CONFIG` (v1.1.4-S9's verification, DL-162): config values for trials of what a tuning step
  * would set, so that none is changed in engine/src/config.ts to try it. Refuses a key that is not a
- * config key, and a config the Quest Engine would refuse (`configProblems`).
+ * config key; the values are checked against the run's content, every setting by its rule, when the
+ * run starts (`runConfig`, v1.1.6-S7, DL-193).
  */
 function configOf(env: Env): Partial<GameConfig> {
   const changes = jsonObject(env, 'HEROESIM_CONFIG', 'config keys');
   const unknown = Object.keys(changes).filter((key) => !Object.hasOwn(defaultConfig, key));
   if (unknown.length > 0) throw new RangeError(unknown.map((key) => `HEROESIM_CONFIG: "${key}" is not a config key`).join('; '));
-  const problems = configProblems({ ...defaultConfig, ...(changes as Partial<GameConfig>) });
-  if (problems.length > 0) throw new RangeError(problems.map((problem) => `HEROESIM_CONFIG: ${problem}`).join('; '));
   return changes as Partial<GameConfig>;
 }
 

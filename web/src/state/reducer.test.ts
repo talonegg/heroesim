@@ -3,6 +3,7 @@ import {
   advance,
   applyAction,
   availableHeroes,
+  configVersion,
   createWorld,
   defaultConfig,
   deserialise,
@@ -41,6 +42,7 @@ import {
   type NewGame,
   type Play,
 } from './reducer';
+import { rejectionSentence } from './rejections';
 import { stopView } from './selectors';
 
 // The one reducer (M7-S2). The engine's entry points the reducer calls are wrapped in spies that
@@ -272,19 +274,19 @@ describe('a play is taken once', () => {
 });
 
 describe('the rules a game plays under', () => {
-  /** A save made under older rules: `configVersion` 1, a field it predates, a field it changed. */
+  /** A save made under older rules: `meta.configVersion` 1, a field it predates, a field it changed. */
   function olderRules(state: GameState): string {
     return saveText(state, ({ meta }) => {
       const config = meta['config'] as Record<string, unknown>;
-      config['configVersion'] = 1;
+      meta['configVersion'] = 1;
       config['boardSize'] = defaultConfig.boardSize - 1;
       delete config['transferLockDays'];
     });
   }
 
-  test("are the save's own, filled forward with the current defaults: { ...defaultConfig, ...meta.config }", () => {
+  test("are the save's own, filled forward with the current defaults, by the engine's playDeps", () => {
     const loaded = play(started(), { kind: 'load', text: olderRules(started()) });
-    const expected = { ...defaultConfig, configVersion: 1, boardSize: defaultConfig.boardSize - 1 };
+    const expected = { ...defaultConfig, boardSize: defaultConfig.boardSize - 1 };
 
     const advanced = play(loaded, { kind: 'advance' });
     expect(lastDeps(advance)).toEqual({ config: expected, content });
@@ -299,21 +301,32 @@ describe('the rules a game plays under', () => {
     expect(lastDeps(applyAction).content).toBe(content);
   });
 
-  test('a save is read with the engine’s own config, so its schema is the engine’s to judge (DL-20): an older one is refused (v1.1.2-S3, v1.1.3-S6)', () => {
-    // A schema version 5 save, as v1.1.2 wrote it: no Hero's Portrait, Appearance or Biography, and its
-    // config names the schema it was made under. Merging that config before the load would compare
-    // version 5 with version 5, and the save would be read as though it were current.
+  test('a save is read by the engine, so its schema is the engine’s to judge (DL-20): an older one is refused (v1.1.2-S3, v1.1.3-S6, v1.1.6-S7)', () => {
+    // A schema version 6 save, as v1.1.5 wrote it: its config names the schema and the defaults it was
+    // made under, and its Quests their template's demands; the engine judges the version, not the config.
     const text = saveText(started(), ({ meta, world }) => {
-      meta['version'] = 5;
-      (meta['config'] as Record<string, unknown>)['schemaVersion'] = 5;
-      for (const hero of Object.values(world['heroes'] as Record<string, Record<string, unknown>>)) {
-        for (const field of ['portraitKey', 'appearance', 'biography']) delete hero[field];
-      }
+      meta['version'] = 6;
+      Object.assign(meta['config'] as Record<string, unknown>, { schemaVersion: 6, configVersion: 13, gearSlots: ['weapon', 'armour', 'trinket'] });
+      delete meta['configVersion'];
+      for (const quest of Object.values(world['quests'] as Record<string, Record<string, unknown>>)) quest['demands'] = [['strength', 1]];
     });
     const loaded = play(initialGameState, { kind: 'load', text });
 
-    expect(deserialise).toHaveBeenCalledWith(text, { config: defaultConfig, content });
-    expect(loaded.rejection).toMatchObject({ action: 'load', reason: 'unsupported-version', documentVersion: 5, schemaVersion: 6 });
+    expect(deserialise).toHaveBeenCalledWith(text, { content });
+    expect(loaded.rejection).toMatchObject({ action: 'load', reason: 'unsupported-version', documentVersion: 6, schemaVersion: 7 });
+    expect(loaded.document).toBeNull();
+  });
+
+  test('a save whose config breaks a rule is refused at load, naming the setting (DL-193)', () => {
+    const text = saveText(started(), ({ meta }) => {
+      (meta['config'] as Record<string, unknown>)['checkVariance'] = 2;
+    });
+    const loaded = play(initialGameState, { kind: 'load', text });
+
+    expect(loaded.rejection).toMatchObject({ action: 'load', reason: 'unsound-config', problems: [{ setting: 'checkVariance' }] });
+    expect(loaded.rejection !== null && rejectionSentence(loaded.rejection, null, content)).toBe(
+      "Cannot load the save: The game's config is unsound: checkVariance is 2; it is a share from 0 to 1.",
+    );
     expect(loaded.document).toBeNull();
   });
 
@@ -326,7 +339,7 @@ describe('the rules a game plays under', () => {
     expect(rebased.log.map((event) => event.type)).toEqual(['world.rules-adopted']);
 
     const again = play(rebased, { kind: 'rebase' });
-    expect(again.rejection).toEqual({ action: 'rebase', reason: 'already-current', configVersion: defaultConfig.configVersion });
+    expect(again.rejection).toEqual({ action: 'rebase', reason: 'already-current', configVersion });
     expect(again.document).toBe(rebased.document);
   });
 });
@@ -399,7 +412,7 @@ describe('the modules installed (M8-S4): none unless the page is given some', ()
     withProbe(forwarded, { kind: 'rebase' });
     expect(lastDeps(rebase)).toEqual(expected);
     withProbe(initialGameState, { kind: 'load', text: serialise(documentOf(state)) });
-    expect(lastDeps(deserialise)).toEqual(expected);
+    expect(lastDeps(deserialise)).toEqual({ content, modules: [probe] });
   });
 
   test('a probe.fired event is in the log of the Turn the probe fires on, on a seed known to fire one', () => {
@@ -477,7 +490,7 @@ describe('a refusal is stored, never thrown', () => {
     ['not a document', '{"meta":{}}', 'not-a-document'],
     ['a newer schema', '{"meta":{"version":99}}', 'unsupported-version'],
     ['an older schema', '{"meta":{"version":5}}', 'unsupported-version'],
-    ['damaged', '{"meta":{"version":6},"world":{},"history":{}}', 'invalid'],
+    ['damaged', '{"meta":{"version":7},"world":{},"history":{}}', 'invalid'],
   ])('a save that is %s does not load, and the game in hand stays', (_name, text, reason) => {
     const before = started();
     const refused = play(before, { kind: 'load', text });
@@ -493,7 +506,7 @@ describe('a refusal is stored, never thrown', () => {
       action: 'load',
       reason: 'unsupported-version',
       documentVersion: 5,
-      schemaVersion: 6,
+      schemaVersion: 7,
       message: expect.any(String) as string,
     });
     expect(play(started(), { kind: 'load', text, from: 'older' }).rejection).toMatchObject({ reason: 'unsupported-version', from: 'older' });

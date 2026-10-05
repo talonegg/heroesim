@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, expectTypeOf, test } from 'vitest';
 import {
+  configVersion,
   defaultConfig,
+  schemaVersion,
   descriptiveAttributeLabels,
   descriptiveAttributes,
   emptyDocument,
@@ -48,9 +50,10 @@ import { createStreams } from './rng.js';
 // ── Fixtures ─────────────────────────────────────────────────────────────────────────────────
 
 const meta: Meta = {
-  version: defaultConfig.schemaVersion,
+  version: schemaVersion,
   seed: 'amber-fox-4821',
   content: { id: 'core', version: 1 },
+  configVersion,
   config: { ...defaultConfig },
   createdAt: 'harness',
 };
@@ -166,10 +169,6 @@ const quest: Quest = {
   reward: 120,
   fameEffect: 2,
   durationTurns: 12,
-  demands: [
-    ['strength', 0.6],
-    ['courage', 0.4],
-  ],
   skillKeys: ['swordplay'],
   encounterKeys: [],
   requirements: { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'swordplay' },

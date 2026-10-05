@@ -16,7 +16,7 @@
 // Quest with a Finale draws two fewer. An Encounter named as any template's Finale is never drawn into a
 // place, so writing one changes no other Quest's draws.
 
-import { encounterTagWeightProblem, type GameConfig } from '../config.js';
+import type { GameConfig } from '../config.js';
 import type { ContentSet, Encounter, EncounterKey, EncounterKind, QuestTagKey, QuestTemplate } from '../content-types.js';
 import type { Quest, World } from '../document.js';
 import { clamp, sortedRows, streamOf, type Stream } from '../generators/draw.js';
@@ -101,7 +101,6 @@ export function tagWeight(encounter: Pick<Encounter, 'tags'>, tags: readonly Que
  * template's kinds as listed (`pick`), then an Encounter of that kind, each weighted by the tags it
  * shares with the template (`tagWeight`, one `weightedPick`). Two draws a place, from `state`. With
  * a Finale, the last place is the Finale, drawing nothing, and the `count - 1` before it are drawn.
- * Throws, drawing nothing, under an unsound `encounterTagWeight` (`configProblems`).
  */
 export function drawSequence(
   state: Stream,
@@ -109,8 +108,6 @@ export function drawSequence(
   count: number,
   config: Pick<GameConfig, 'encounterTagWeight'>,
 ): EncounterKey[] {
-  const problem = encounterTagWeightProblem(config.encounterTagWeight);
-  if (problem !== undefined) throw new RangeError(`The Encounter draw's configuration: ${problem}`);
   const weights = plan.pools.map((pool) => pool.map((encounter) => tagWeight(encounter, plan.tags, config)));
   // Each kind by its place in the template's list: `pick` over them draws as it drew over the pools.
   const kinds = plan.pools.map((_, index) => index);

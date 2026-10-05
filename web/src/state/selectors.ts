@@ -29,6 +29,7 @@ import {
   durationDaysOf,
   effectiveStats,
   gearModifiers,
+  gearSlotKeys,
   bestParty,
   entriesFor,
   guildmasterOf,
@@ -1239,7 +1240,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
       unique: definition?.unique === true,
     };
   };
-  const listedSlots: readonly SlotKey[] = config.gearSlots;
+  const listedSlots: readonly SlotKey[] = gearSlotKeys;
   const gear = [
     ...listedSlots.flatMap((slot) => {
       const inSlot = carried.filter((each) => each.slot === slot);

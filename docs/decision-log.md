@@ -25087,6 +25087,130 @@ are left for the story that next touches those words.
 
 ---
 
+## DL-193 — v1.1.6-S7 built: one `playDeps` and `checkConfig` over all 118 settings, a rule each; the versions in `meta` and the gear slots the engine's; the Quests' `demands` gone, found unread in play; schema 7, config version 14, content version 34
+
+2026-10-05. DL-186 items 8 (B2's extension) and 12 (C1).
+
+- *Before.* The doctor read no drift (110 reads of a Trait, the content passing its checks, no
+  pending edits). The 4 × 2 quick check at HEAD (`39378b2`), alone with `HEROESIM_WORKERS=8`
+  (`HEROESIM_SEEDS=4 HEROESIM_YEARS=2 … neutral m9-v116-s7-before --expect a8f4025b…`): `a8f4025b…`
+  as S6 left it, the replay identical, the Gate PASS. Its reports were kept outside the repository
+  for `compare`, not committed.
+- *Quest `demands`: unread in play, so removed (the story's stop condition).* By search: the only
+  code that touched a Quest's or a template's `demands` was the Quest Generator, which copied the
+  template's onto the Quest row, and the save's checker, which checked the row's shape (a list of
+  pairs) and warned of a Stat content lacks in it. No rule, controller, selector, estimate, the
+  harness's policy, the CLI or the page read it; their comments name the template's demands only to
+  say no view has shown them since v1.1.4-S6. By test: a probe (not kept) played three seeds for
+  half a year each (540 Turns), under the shipped content, with every template's demands one other
+  Hero Stat, and with none; the three last documents serialised equal once each Quest row's
+  `demands` was taken out, and the altered games' rows carried the altered demands. So nothing in
+  play reads them. Gone: from the 12 shipped templates (and the 12 of `docs/quests/drafts/`, which
+  the calibration loads), `QuestTemplate.demands`, its parser (`RowReader.weightedKeys`) and checks
+  (`checkDemands`, `demandSumTolerance`, exported by content's entry), the Quest row's `demands` and
+  `Demand`, the generator's copy, and the save's checker's shape field, pair walk and unknown-Stat
+  warning. A template that names `demands` is refused as "not a field of a Quest template".
+- *The settings: 121 counted, 118 checked.* `GameConfig` had 121 fields at HEAD (143 leaves,
+  counting each band of the records). Three are no tuning and left it: `schemaVersion`, now
+  `schemaVersion` in `document.ts`, written as `meta.version` as before; `configVersion`, now
+  `configVersion` in `config.ts`, written as a new `meta.configVersion`; and `gearSlots`, for the
+  engine's `gearSlotKeys` (S5). The other 118 each have one rule in `configRules`
+  (`engine/src/config-check.ts`), typed so a setting without one does not compile, and a test holds
+  the table's keys to `defaultConfig`'s. The rules, from the settings' comments and uses: a count, a
+  Day, an age or a sum of Wealth a whole number; each range's bound (for instance `boardSize` from
+  0, `patronCount`, `levelCap`, `upkeepEveryDays` from 1, `questDifficultyMin` from 1, since a
+  difficulty is above 0); a chance or a share from 0 to 1; what `GameConfig` says is negative at
+  most 0 (the Morale and Regard losses); a divisor above 0; `sellRatio` below 1; 13 Min ≤ Max pairs,
+  the Max's rule naming its Min and the Min's value, and Regard's scale around neutral (`regardMin`
+  below 0, `regardMax` above); the bands rising strictly (`moraleBands` within `moraleMin` and
+  `moraleMax`, `regardBands` within Regard's scale, `potentialHintBands` from 0, `chanceBands` above
+  0 and below 1), and each a record of exactly its bands; the form factors and the Degrees in order
+  and `bandBySuccessShare`'s two shares ordered (the rules `configProblems` held, their bounds
+  kept); `xpBandFactor` a factor for each Quest band; `transferRegardBand` one of the Regard bands
+  and `lootOnBands` Quest bands, none twice; and two lists sized by content, `infirmaryHealFactor`
+  one factor for each infirmary grade content has, 0 included (4), and `declineAreas` areas of
+  content's Hero Stats. A problem reads "<setting> is <value>; <what it is to be>": "boardSize is
+  -1; it is a whole number, at least 0". The lazy checks are gone from `resolveQuest`,
+  `questEstimator` (and so `estimateQuest`), the Quest Generator and `drawSequence`, with
+  `configProblems` and `encounterTagWeightProblem`; their tests moved into the table's.
+- *One seam.* `playDeps(document, content, modules)`: `playConfig` lays `meta.config` over
+  `defaultConfig` (a setting the save lacks reads as the default; a field `GameConfig` lacks is left
+  out of the play config, and kept in the save, rule 5), checks every setting, and gives the deps or
+  `{ kind: 'unsound-config', problems, message }`. `deserialise` takes the content and modules
+  (`LoadDeps`: no config, since the schema's version is the engine's), migrates and validates as
+  before, then calls `playDeps`: a save with a bad setting is refused, naming it, and a sound one
+  comes back with the deps to play it under. *The CLI:* `openSave` uses those deps; its `playDeps`
+  merge is gone; a bad save is refused "Cannot load <path>: The game's config is unsound: boardSize
+  is -2; …". *The page:* its `playDeps` is the engine's (it throws on a refusal, which a game in
+  hand cannot have: loaded, made under `defaultConfig`, or rebased to it), its merge gone; `load`
+  passes the content and modules; the refusal reads "Cannot load the save: The game's config is
+  unsound: …". *The harness:* `runConfig` checks `HEROESIM_CONFIG` over the defaults against the
+  run's content, by `playConfig`, before any game of a play run or the calibration (`settings.ts`
+  still refuses a key that is no setting); `playGame` plays every game under `playDeps` over its own
+  document, refusing before the first Turn.
+- *Structure out of the tuning.* `rebase` writes `meta.configVersion` with the config and `newRules`
+  compares it with `configVersion`; the checker's `meta` shape holds it. The gear slots are
+  `gearSlotKeys` everywhere `gearSlots` was read: `equip`, `gearChoices`, `gearPurchase`, the
+  Rivals' purchase order (armour, then weapon, then trinket, as before), the checker's
+  `unknown-slot` warning (a slot that is no gear slot), the CLI's gear rows and the page's gear
+  rows, holdings and Market kinds. The engine still reads a flat config (S18 groups it).
+- *The versions.* `schemaVersion` 6 to 7: a save of 6, as `v1.1.5` wrote it, is refused in the words
+  for an older Heroesim's save (save compatibility not required). `configVersion` 13 to 14, its
+  changelog line saying every default is as it was. The content version 33 to 34 through
+  `content/version.json`, by the write module's `raiseContentVersion` called in a `transaction` (the
+  12 template lines removed as text, so the file's layout stands): "34 from v1.1.6-S7, whose Quest
+  templates no longer carry `demands`, which no rule had read since v1.1.4-S6 and no Quest copies
+  now (DL-193)." The harness's JSON report gains `configVersion` and `schemaVersion`, its format
+  kept at 1 so that `compare` reads the reports before it, whose config holds them.
+- *Docs.* `data-model.md` §1, §2 (`meta.configVersion`, the seam, the check), §3.2 (the Quest row),
+  §3.3 and §6's table (the gear slots), §6 (schema 7); `CONTEXT.md` (Quest template; Stat demand,
+  gone); `approach.md` and `requirements.md` amended; `harness/README.md` (`runConfig`; the
+  `neutral` baseline no longer holding).
+
+*Tests.* `config-check.test.ts` (new): one rule for every setting, 118; the defaults sound; a
+missing setting named; the words; never a throw, any value of any setting named; for each setting
+the values its rule refuses and those it allows at its edges; each of the 13 pairs, its Max refused
+below its Min and allowed at it; the bands within their scales; the content-sized lists against
+content with another top grade and with no physical Hero Stat; `playConfig` and `playDeps`.
+*Mutations:* each of the 118 rules replaced by one that allows anything, each whole-number rule by a
+finite one, each bounded rule by its kind unbounded, and each share by 0 to 2 and by −1 to 1: 284
+mutations, each turning `config-check.test.ts` red, none surviving (the file restored after each).
+`serialise.test.ts`: the deps a load gives, a save refused as `unsound-config` naming each of three
+settings, the schema the engine's whatever the save's config says, a v1.1.5 save (schema 6) refused.
+`rebase.test.ts` on `meta.configVersion`. The CLI: a save with a bad setting refused by `show`,
+`advance` and `load`, and left as it was; `openSave`'s deps. The page: a bad save refused at load,
+its words, and the rejection's sentence pinned; the load's deps. The harness: `runConfig` and a game
+refused before its first Turn. Content: no template written with `demands`; a template naming them
+refused.
+
+*Proof.* The 4 × 2 quick check after, alone (`HEROESIM_WORKERS=8`, `neutral m9-v116-s7-after`): the
+fingerprint `208a23fd2905674aa9ef659eb1c7c4aa392d7a382fde03659adde036f4c424f3`, new (the save's
+shape and the content version changed), the replay identical, the Gate PASS but the expected
+fingerprint. `npm run harness -- compare` of the two: the content 33 to 34, the config's
+`schemaVersion`, `configVersion` and `gearSlots` absent, and of 442 counters 440 the same; the two
+that moved are the save's measures, not play: the last saves 11,416 characters shorter in all
+(73,830,786 to 73,819,370) and 804 bytes gzipped, the Quest rows' `demands` gone. No play counter
+moved. The reports were not committed. The full `gate` is the verifier's.
+
+*What changed for Traits.* Nothing: no entry of the register, effect, event or use. The doctor read
+no drift after (110 reads of a Trait, the doc fresh, the content passing, no pending edits).
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 191 files, 5,054 tests passing; `npm run
+build` and check-bundle passing, the script 818,180 bytes, 3,313 more than S6's 814,867 (the rules
+and their words), within 850 kB; `npm run e2e -w web` 103 passing. Line endings as before, none
+mixed.
+
+*Calls made, for the owner to see.* (1) Each rule's range is the agent's reading of its setting's
+comment and use; where a test plays a value on purpose, the rule allows it (a starting Wealth of
+−1,000, a year of 20 Turns), so `startingWealth` and `rivalStartingWealthMin` are any whole number
+and `turnsPerYear` a whole number from 1. (2) A field `GameConfig` lacks is left out of the play
+config rather than carried in it; the save keeps it. (3) The page's `playDeps` throws on an unsound
+config rather than returning a refusal, since no game in hand can have one. (4) The `neutral`
+baseline `e3adc353…` no longer holds: the first `neutral` run after this story's verification gives
+the next.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

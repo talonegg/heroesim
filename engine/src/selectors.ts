@@ -382,8 +382,8 @@ export function nextUpkeepDay(turn: Turn, config: Pick<GameConfig, 'upkeepEveryD
  *
  * The one statement of a Hero's Stats as a Quest assesses them: the Quest Engine's Check reads it
  * (M4-S2, `quest-engine/check.ts`'s `capability`), and `show hero` shows it beside the base. It keeps
- * the epic's signature `(hero, world, content)` and so reads no config: `equip` alone asks which
- * slots `config.gearSlots` lists (DL-49). Any later modifier belongs here too (DL-42 item 9, DL-43
+ * the epic's signature `(hero, world, content)` and so reads no config: `equip` alone asks whether
+ * a slot is a gear slot (DL-49). Any later modifier belongs here too (DL-42 item 9, DL-43
  * item 8, DL-44). Nothing Guild-side reads it: fees, Upkeep and growth read base Stats.
  */
 export function effectiveStats(

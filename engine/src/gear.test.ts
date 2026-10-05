@@ -4,6 +4,7 @@ import { dispatch } from './actions/dispatch.js';
 import { equip, type EquipRequest } from './actions/equip.js';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
+import type { SlotKey } from './content-types.js';
 import { rivalChoices } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, Hero, HeroId, Holder, Party, Quest, QuestId, World, WorldDocument } from './document.js';
@@ -26,7 +27,7 @@ import { certainHarmContent, deepFreeze, demandsCheck, testDeps, withValid } fro
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /** No Rivals, the Check without variance, and the three slots (INPUTS 7.1). */
-const deps = testDeps({ rivalCount: 0, checkVariance: 0, gearSlots: ['weapon', 'armour', 'trinket'] });
+const deps = testDeps({ rivalCount: 0, checkVariance: 0 });
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -156,7 +157,7 @@ describe('effectiveStats with gear (DL-49)', () => {
   });
 
   test("a Rival's Heroes' gear works on them as the player's works on the player's (ADR-0002)", () => {
-    const withRival = testDeps({ rivalCount: 1, gearSlots: ['weapon', 'armour', 'trinket'] });
+    const withRival = testDeps({ rivalCount: 1 });
     const { document } = createWorld('gear-rival', setup, withRival);
     const rival = Object.values(document.world.guilds).find((guild) => guild.controller.kind === 'rival') as Guild;
     for (const guildmaster of Object.values(document.world.guildmasters)) guildmaster.traits = [];
@@ -203,7 +204,7 @@ describe('the Check reads gear through effectiveStats (DL-44, DL-49)', () => {
 
 describe('gear goes back to the Guild (DL-49)', () => {
   test("a Hero's gear is back with the Guild the night of their Death, and a survivor keeps theirs", () => {
-    const harm = testDeps({ rivalCount: 0, checkVariance: 0, gearSlots: ['weapon', 'armour', 'trinket'] }, certainHarmContent);
+    const harm = testDeps({ rivalCount: 0, checkVariance: 0 }, certainHarmContent);
     const { document, guild, heroes } = scene('gear-death', harm);
     const [doomed, survivor] = heroes as [Hero, Hero];
     const vault: Holder = { kind: 'guild', id: guild.id };
@@ -282,7 +283,7 @@ describe('gear goes back to the Guild (DL-49)', () => {
   });
 
   test("a folding Rival's gear goes back to it before it folds, and its Heroes enter the pool carrying nothing", () => {
-    const withRival = testDeps({ rivalCount: 1, gearSlots: ['weapon', 'armour', 'trinket'], bankruptcyGraceDays: 0 });
+    const withRival = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 });
     stillRivalControllers();
     const { document } = createWorld('gear-fold', setup, withRival);
     const { world } = document;
@@ -384,20 +385,16 @@ describe('gearChoices: the gear the controllers equip (DL-49)', () => {
     expect(current.world.stacks[stack]?.holder.kind).toBe('hero');
   });
 
-  test('chooses nothing for a folded Guild, nor gear for a slot the game does not list', () => {
-    const noTrinkets = testDeps({ rivalCount: 0, gearSlots: ['weapon', 'armour'] });
-    const { document, guild } = scene('gear-none', noTrinkets);
-    addStack(document.world, 'lucky-charm', 1, { kind: 'guild', id: guild.id });
-
-    expect(gearChoices(document.world, guild, noTrinkets)).toEqual([]);
+  test('chooses nothing for a folded Guild', () => {
+    const { document, guild } = scene('gear-none', deps);
     addStack(document.world, 'short-sword', 1, { kind: 'guild', id: guild.id });
-    expect(gearChoices(document.world, guild, noTrinkets)).toHaveLength(1);
+    expect(gearChoices(document.world, guild, deps)).toHaveLength(1);
     guild.foldedOnTurn = 0;
-    expect(gearChoices(document.world, guild, noTrinkets)).toEqual([]);
+    expect(gearChoices(document.world, guild, deps)).toEqual([]);
   });
 
   test("steady equips first, by gearChoices, and the afternoon's controllers apply it to a Rival (ADR-0002)", () => {
-    const withRival = testDeps({ rivalCount: 1, gearSlots: ['weapon', 'armour', 'trinket'] });
+    const withRival = testDeps({ rivalCount: 1 });
     const { document } = createWorld('gear-steady', setup, withRival);
     const rival = Object.values(document.world.guilds).find((guild) => guild.controller.kind === 'rival') as Guild;
     const shirt = addStack(document.world, 'mail-shirt', 1, { kind: 'guild', id: rival.id });
@@ -453,11 +450,10 @@ describe('gearPurchase: which piece of gear a controller buys (M6-S4)', () => {
     expect(keyOf(gearPurchase(world, guild, ['armour'], 1, deps))).toBe('plate-harness');
   });
 
-  test('none for a folded Guild, a slot the game does not list, or a slot whose every Hero has a piece', () => {
-    const noArmour = testDeps({ rivalCount: 0, gearSlots: ['weapon', 'trinket'] });
-    const { world, guild, heroes } = shopping('purchase-none', [['padded-jack', 20]], noArmour);
+  test('none for a folded Guild, a slot that is no gear slot, or a slot whose every Hero has a piece', () => {
+    const { world, guild, heroes } = shopping('purchase-none', [['padded-jack', 20]]);
 
-    expect(gearPurchase(world, guild, ['armour'], 3, noArmour)).toBeNull();
+    expect(gearPurchase(world, guild, ['belt' as SlotKey], 3, deps)).toBeNull();
     expect(keyOf(gearPurchase(world, guild, ['armour'], 3, deps))).toBe('padded-jack');
     // Every Hero wears a piece but one, for whom the Guild holds one: nothing to buy.
     const [, ...rest] = heroes as [Hero, ...Hero[]];

@@ -15,10 +15,12 @@
 
 import {
   compareByCodeUnit,
+  configVersion,
   guildmasterRegardForGuild,
   patronRegardFor,
   regardValue,
   retirementTurn,
+  schemaVersion,
   type EndingReason,
   type EngineDeps,
   type EntityId,
@@ -339,8 +341,8 @@ export function successionReport(games: readonly ProbeGame[], context: Successio
     '',
     `Run begun ${localTimestamp(startedAt)} · ${whole(count)} seeds, ${range} · up to ${fixed(years, 0)} ${years === 1 ? 'year' : 'years'} ` +
       `(${whole(years * config.turnsPerYear)} Turns) each · the first Rival's Guildmaster, in id order, set to ${age} at ` +
-      `founding · content \`${content.id}\` version ${content.version} · config version ${config.configVersion}, schema ` +
-      `version ${config.schemaVersion} · \`createdAt: "${harnessSetup.createdAt}"\`, the player's Guildmaster ` +
+      `founding · content \`${content.id}\` version ${content.version} · config version ${configVersion}, schema ` +
+      `version ${schemaVersion} · \`createdAt: "${harnessSetup.createdAt}"\`, the player's Guildmaster ` +
       `${harnessSetup.guildmasterAge ?? 'drawn'} · the automatic policy · validated after every advance: ${validated ? 'yes' : 'no'}`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +

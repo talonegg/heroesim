@@ -15,6 +15,11 @@
 //
 // The harness may read the clock and the environment: it is not the engine (ADR-0001 binds the
 // engine only).
+//
+// A game plays under the deps a front end would give it, the engine's `playDeps` over its own
+// `meta.config`, checked before its first Turn; and a run's `HEROESIM_CONFIG` is checked by the
+// engine's `playConfig` before any game starts (`runConfig`), so a bad setting is refused by name
+// (v1.1.6-S7, DL-186 item 12, DL-193).
 
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
@@ -24,12 +29,16 @@ import {
   createWorld,
   deserialise,
   isId,
+  playConfig,
+  playDeps,
   playerGuild,
   serialise,
   timeOfDay,
   validate,
   type ActionRejection,
+  type ContentSet,
   type EngineDeps,
+  type GameConfig,
   type GuildAction,
   type GuildId,
   type LoadResult,
@@ -51,6 +60,30 @@ import {
   type GameObservations,
 } from './counters.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
+
+/**
+ * The config a run plays: `defaultConfig` with `HEROESIM_CONFIG`'s values over it (`configured`),
+ * every setting checked against `content` by the engine's `playConfig` (v1.1.6-S7, DL-193).
+ *
+ * @throws RangeError naming each setting refused, as `HEROESIM_CONFIG: <problem>`, before any game
+ */
+export function runConfig(configured: Readonly<Partial<GameConfig>>, content: ContentSet): GameConfig {
+  const played = playConfig(configured, content);
+  if (!played.ok) throw new RangeError(played.refusal.problems.map((problem) => `HEROESIM_CONFIG: ${problem.message}`).join('; '));
+  return played.config;
+}
+
+/**
+ * The deps `document` plays under, as a front end's: the engine's `playDeps` over its own config,
+ * `given`'s content and modules (v1.1.6-S7, DL-193).
+ *
+ * @throws RangeError naming each setting refused: the run's config was not checked by `runConfig`
+ */
+function playedDeps(document: WorldDocument, given: EngineDeps): EngineDeps {
+  const played = playDeps(document, given.content, given.modules);
+  if (!played.ok) throw new RangeError(played.refusal.message);
+  return played.deps;
+}
 
 /** Years a harness game is played for when it does not end first (INPUTS 4.13). */
 export const defaultYears = 20;
@@ -237,7 +270,7 @@ const troubled = (result: ValidationResult): boolean => !result.ok || result.war
  * warning, or at a broken assertion. Never throws on what it finds: a refused action or document,
  * or a broken assertion, is recorded.
  */
-export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = {}): PlayedGame {
+export function playGame(seed: string, given: EngineDeps, options: PlayOptions = {}): PlayedGame {
   const {
     years = defaultYears,
     validate: validating = false,
@@ -249,9 +282,10 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
     now = () => performance.now(),
     bare = false,
   } = options;
-  const lastTurn = years * deps.config.turnsPerYear;
-  let { document } = createWorld(seed, setup, deps);
+  let { document } = createWorld(seed, setup, given);
   prepare?.(document);
+  const deps = playedDeps(document, given);
+  const lastTurn = years * deps.config.turnsPerYear;
   const advanceMs: number[] = [];
   const validateMs: number[] = [];
   const refusals: PolicyRefusal[] = [];

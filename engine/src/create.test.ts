@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { createWorld, guildmasterStatBounds, guildmasterStatCost, portraitFit, setupRefusal, type SetupRefusal, type WorldSetup } from './create.js';
 import type { Disposition } from './content-types.js';
-import { makeId, tableNames, type Guild, type GuildId, type Sex, type WorldDocument } from './document.js';
+import { configVersion } from './config.js';
+import { makeId, schemaVersion, tableNames, type Guild, type GuildId, type Sex, type WorldDocument } from './document.js';
 import { count, entriesFor } from './history.js';
 import { isJsonSafe } from './json-safe.js';
 import { ageIntoPortrait } from './portraits.js';
@@ -55,7 +56,8 @@ describe('createWorld', () => {
     expect(document.meta.config).toEqual(deps.config);
     expect(document.meta.config).not.toBe(deps.config);
     expect(document.meta).toMatchObject({
-      version: deps.config.schemaVersion,
+      version: schemaVersion,
+      configVersion,
       content: { id: deps.content.id, version: deps.content.version },
       createdAt: 'harness',
     });
@@ -710,8 +712,9 @@ describe("the player's Guildmaster's Stats chosen (v1.1.4-S11, DL-149)", () => {
     return guildmaster;
   };
 
-  test('guildmasterStatPoints is 50 by default, under configVersion 13 (DL-149, DL-153)', () => {
-    expect(deps.config).toMatchObject({ guildmasterStatPoints: 50, guildmasterStatMin: 5, guildmasterStatMax: 15, configVersion: 13 });
+  test('guildmasterStatPoints is 50 by default, under configVersion 14 (DL-149, DL-153, DL-193)', () => {
+    expect(deps.config).toMatchObject({ guildmasterStatPoints: 50, guildmasterStatMin: 5, guildmasterStatMax: 15 });
+    expect(configVersion).toBe(14);
   });
 
   test('accepts every Stat within 5 to 15 spending 50 or less, unspent points allowed', () => {

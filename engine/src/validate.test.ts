@@ -566,11 +566,6 @@ describe('document-shape', () => {
     ['an entry without a payload', (d) => drop(d.history.entries[0] ?? {}, 'payload'), '$.history.entries[0].payload'],
     ['an index that is not a list', (d) => set(d.history.byType, 'hero.died', 4), '$.history.byType["hero.died"]'],
     [
-      'a Quest demand that is not a pair',
-      (d) => set(quest(d, ids.takenQuest).demands, '0', 'strength'),
-      `$.world.quests["${ids.takenQuest}"].demands[0]`,
-    ],
-    [
       'a holder of no kind the tables know',
       (d) => set(item(d, ids.item), 'holder', { kind: 'vault' }),
       `${itemPath}.holder.kind`,
@@ -713,7 +708,6 @@ describe('a key the content does not define warns and never refuses', () => {
   });
 
   const gm = ids.playerGuildmaster;
-  const offered = ids.offeredQuest;
   test.each<[string, Mutation, WarningCheck, string, string]>([
     [
       'a Guildmaster Stat on a Hero',
@@ -723,7 +717,6 @@ describe('a key the content does not define warns and never refuses', () => {
       'judgement',
     ],
     ['a Hero Stat on a Guildmaster', (d) => (guildmaster(d, gm).stats.strength = 9), 'unknown-stat', gm, 'strength'],
-    ['a Quest demand', (d) => quest(d, offered).demands.push(['luck', 1]), 'unknown-stat', offered, 'luck'],
     ['a Class', (d) => (hero(d, idleHero).classKey = 'bard'), 'unknown-class', idleHero, 'bard'],
     [
       'a Class a Quest requires',
@@ -868,12 +861,14 @@ describe('a key the content does not define warns and never refuses', () => {
     expect(warnings((d) => (guildmaster(d, gm).portraitKey = null))).toEqual([]);
   });
 
-  test('an Item a Hero holds in a slot the config does not list warns, naming the slot (M5-S1)', () => {
+  test('an Item a Hero holds in a slot that is no gear slot warns, naming the slot (M5-S1, DL-193)', () => {
     const { document } = buildDocument();
-    const result = validate(document, testDeps({ gearSlots: ['weapon', 'armour'] }));
+    Object.assign(document.world.items[ids.item]?.holder ?? {}, { slot: 'belt' });
+    const result = validate(document, testDeps());
 
     expect(result.ok && result.warnings.map(({ check, id, key }) => ({ check, id, key }))).toEqual([
-      { check: 'unknown-slot', id: ids.item, key: 'trinket' },
+      { check: 'unknown-slot', id: ids.item, key: 'belt' },
+      { check: 'misplaced-item', id: ids.item, key: expect.any(String) },
     ]);
   });
 

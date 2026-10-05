@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { configProblems, defaultConfig } from '../config.js';
+import { defaultConfig } from '../config.js';
 import type { ContentSet, Encounter, EncounterKind, QuestTemplate } from '../content-types.js';
 import type { World } from '../document.js';
 import { sortedRows, streamOf } from '../generators/draw.js';
@@ -166,29 +166,6 @@ describe('drawSequence', () => {
     expect(drawn).toEqual(Array.from({ length: 300 }, () => drawnBefore(twin, barrow, testContent, 4)).flat());
   });
 
-  test('throws, drawing nothing, on an encounterTagWeight that is not a finite number of 1 or more', () => {
-    const state = streamOf(testWorld('unsound', testDeps()), 'encounters');
-    const before = structuredClone(state);
-    for (const encounterTagWeight of [0.5, 0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
-      expect(() => drawSequence(state, sequencePlan(barrow, testContent), 3, { encounterTagWeight }), String(encounterTagWeight)).toThrow(
-        /encounterTagWeight is .*; it is a finite number of 1 or more/,
-      );
-    }
-    expect(state).toEqual(before);
-  });
-});
-
-describe('encounterTagWeight (v1.1.4-S8)', () => {
-  test('defaults to 3, and configProblems names one that is not a finite number of 1 or more', () => {
-    expect(defaultConfig.encounterTagWeight).toBe(3);
-    expect(configProblems(defaultConfig)).toEqual([]);
-    expect(configProblems({ ...defaultConfig, encounterTagWeight: 1 })).toEqual([]);
-    for (const encounterTagWeight of [0.99, 0, -3, Number.NaN, Number.POSITIVE_INFINITY]) {
-      expect(configProblems({ ...defaultConfig, encounterTagWeight }), String(encounterTagWeight)).toEqual([
-        `encounterTagWeight is ${encounterTagWeight}; it is a finite number of 1 or more, so that a tag shared never makes an Encounter rarer`,
-      ]);
-    }
-  });
 });
 
 describe('sequencePlan', () => {

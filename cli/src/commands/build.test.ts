@@ -4,7 +4,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { count, defaultConfig, deserialise, playerGuild, serialise, type Guild, type WorldDocument } from '@heroesim/engine';
+import { count, deserialise, playerGuild, serialise, type Guild, type WorldDocument } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from '../main.js';
@@ -38,7 +38,7 @@ const current = (): string => join(dir, '.saves', 'current.json');
 const saved = (): string => readFileSync(current(), 'utf8');
 
 function document(): WorldDocument {
-  const loaded = deserialise(saved(), { config: defaultConfig, content });
+  const loaded = deserialise(saved(), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }

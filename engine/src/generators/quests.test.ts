@@ -49,7 +49,6 @@ describe('generateQuest', () => {
         patronId: patron.id,
         tags: template.tags,
         fameEffect: template.fameEffect,
-        demands: template.demands,
         skillKeys: template.skillKeys,
         requirements: { partySizeMin: template.partySizeMin, partySizeMax: template.partySizeMax, ...template.requires },
         status: 'offered',
@@ -60,8 +59,6 @@ describe('generateQuest', () => {
         ['partySizeMin', 'partySizeMax', ...Object.keys(template.requires)].sort(),
       );
       // Copies, sharing nothing with content, so a row never changes with its template.
-      expect(quest.demands).not.toBe(template.demands);
-      expect(quest.demands[0]).not.toBe(template.demands[0]);
       expect(quest.tags).not.toBe(template.tags);
       expect(quest.skillKeys).not.toBe(template.skillKeys);
     }
@@ -329,11 +326,10 @@ describe('generateQuest', () => {
     expect(noStream).toEqual(withoutStream);
   });
 
-  test('throws, changing nothing, on an unsound encounterTagWeight or a Finale content does not define (v1.1.4-S8)', () => {
+  test('throws, changing nothing, on a Finale content does not define (v1.1.4-S8)', () => {
     const deps = testDeps();
     const { world, patron } = withPatron('finale-refusals', deps);
     const before = structuredClone(world);
-    expect(() => generateQuest(world, patron, testDeps({ encounterTagWeight: 0.5 }))).toThrow(/encounterTagWeight is 0.5/);
     const barrow = testContent.questTemplates['clear-the-barrow'];
     if (barrow === undefined) throw new Error('No clear-the-barrow');
     const lost: EngineDeps = {

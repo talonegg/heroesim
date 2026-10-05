@@ -148,7 +148,6 @@ describe('a bad value is refused by its name', () => {
     [{ HEROESIM_CONFIG: '[1]' }, 'HEROESIM_CONFIG is "[1]"; expected a JSON object of config keys'],
     [{ HEROESIM_CONFIG: '{' }, 'HEROESIM_CONFIG is "{"; expected a JSON object of config keys'],
     [{ HEROESIM_CONFIG: '{"noSuchKey":1}' }, 'HEROESIM_CONFIG: "noSuchKey" is not a config key'],
-    [{ HEROESIM_CONFIG: '{"checkVariance":2}' }, 'HEROESIM_CONFIG: checkVariance is 2; it is a share from 0 to 1'],
     [{ HEROESIM_POLICY: '7' }, 'HEROESIM_POLICY is "7"; expected a JSON object of the automatic policy\'s keys'],
     [{ HEROESIM_POLICY: '{"recruit":1}' }, 'HEROESIM_POLICY: "recruit" is not a policy key'],
     [{ HEROESIM_POLICY: '{"rosterLimit":-1}' }, 'HEROESIM_POLICY: rosterLimit is -1; it is a number from 0'],

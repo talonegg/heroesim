@@ -1,55 +1,25 @@
 // Every tunable is a `GameConfig` field with its default in `defaultConfig` (principle 8): a
 // literal balance number in rules code is a defect. Rules read `deps.config`, never
-// `meta.config` (data-model §2). A front end passes `{ ...defaultConfig, ...meta.config }`, so a
-// loaded game plays under the rules it started with and a field its save predates reads as the
-// current default; the harness passes its own; `rebase` adopts the current defaults (M2-S1).
+// `meta.config` (data-model §2). Every front end, the harness and a save's load take a game's deps
+// from `playDeps` (config-check.ts), which fills `meta.config` forward with the current defaults
+// and checks every setting before any play, so a loaded game plays under the rules it started with
+// and a field its save predates reads as the current default; `rebase` adopts the current defaults
+// (M2-S1). The document's two versions are `meta`'s, not settings: the schema's `schemaVersion`
+// (document.ts) and the defaults' `configVersion`, below (v1.1.6-S7, DL-186 item 12, DL-193).
 //
-// Each story adds the fields it introduces: M1-S1 the document's clock and the two versions;
-// M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
-// Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
-// Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
-// gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57); M9-S2
-// the Trait budget (DL-102); v1.1.4-S2 the Degrees (DL-152). Every
+// Each story adds the fields it introduces: M1-S1 the document's clock; M1-S5 and M1-S6 the
+// starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest Engine and M2-S6 the Hero
+// State Engine (DL-29); M4-S5 Regard, Patron Regard and the Guildmaster's Stat rules (DL-43); M4-S4
+// Regard between Heroes and teamwork (DL-46); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2
+// Transfers (DL-57); M9-S2 the Trait budget (DL-102); v1.1.4-S2 the Degrees (DL-152). The gear slots
+// every Hero has are the engine's `gearSlotKeys`, no setting, since v1.1.6-S7 (DL-193). Every
 // "Min/Max" pair is an inclusive range drawn with `int`. A field holding an object or a list is
 // frozen with `defaultConfig`.
 
-import type { ContentSet, SlotKey, StatArea } from './content-types.js';
+import type { ContentSet, StatArea } from './content-types.js';
 import type { Module } from './modules.js';
 
 export interface GameConfig {
-  /**
-   * The World State schema this engine writes as `meta.version`; a load compares the two and
-   * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27);
-   * 3 from the M6 verification, whose Heroes gained `transferredOnTurn` (DL-60); 4 from M9-S2, whose
-   * Guildmasters gained the descriptive Attributes and `retiredOnTurn` (DL-102); 5 from v1.1.2-S3,
-   * whose Guildmasters gained `portraitKey` and Patrons `sex`, and which refuses every older save
-   * rather than migrating it (DL-125 item 10.2, DL-130); 6 from v1.1.3-S6, whose Heroes gained
-   * `portraitKey`, `appearance` and `biography`, and which refuses every older save likewise (DL-135
-   * item 7).
-   */
-  schemaVersion: number;
-  /**
-   * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
-   * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
-   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 twice over, on two lines at once, from
-   * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 twice over again, from
-   * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
-   * merging those, so that no save made under either 5 reads as current (DL-55); 7 from merging
-   * that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61); 8 from the
-   * M5 close's Loot threshold (DL-62); and, on a parallel branch, 5 from M6-S1, which moved the
-   * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
-   * with that 5, so that no save made under either reads as current (DL-63); 10 from the M6 close's
-   * Transfer lock of a season (DL-69); 11 from M9-S2's Trait budget, `guildmasterTraitBudget`
-   * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114);
-   * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
-   * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
-   * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's
-   * `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), S6's
-   * `playerPartyMargin` (DL-148, DL-157), and S8's `encounterTagWeight` (DL-148, DL-160). S10's
-   * balance pass changes defaults under it too, `checkVariance` 0.2 to 0.4 first (DL-165), then the
-   * Degrees, `strongTriumphShare` and the form factors (DL-166), as no game has been released under 13.
-   */
-  configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
   turnsPerYear: number;
 
@@ -503,15 +473,6 @@ export interface GameConfig {
    */
   transferLockDays: number;
 
-  // ── Items (M5-S1, INPUTS 7.1, DL-48) ──────────────────────────────────────────────────────
-  /**
-   * The gear slots every Hero has, in the order a front end lists them: each one of content's
-   * `gearSlotKeys`, none twice (INPUTS 7.1: weapon, armour, trinket). A Hero holds at most one Item
-   * in each; `equip` fills only these, and an Item held in a slot not listed here is warned about
-   * by the validator (DL-49).
-   */
-  gearSlots: readonly SlotKey[];
-
   // ── Loot (M5-S5, R32, INPUTS 7.4, DL-52) ──────────────────────────────────────────────────
   /**
    * A Quest carries its template's Loot table only when the template's `difficultyMin` is above
@@ -574,9 +535,32 @@ export const regardBandNames = ['hostile', 'cool', 'neutral', 'warm', 'close'] a
 
 export type RegardBand = (typeof regardBandNames)[number];
 
+/**
+ * The defaults' version, written as `meta.configVersion` (v1.1.6-S7, DL-193). Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
+ * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
+ * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 twice over, on two lines at once, from
+ * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 twice over again, from
+ * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
+ * merging those, so that no save made under either 5 reads as current (DL-55); 7 from merging
+ * that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61); 8 from the
+ * M5 close's Loot threshold (DL-62); and, on a parallel branch, 5 from M6-S1, which moved the
+ * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
+ * with that 5, so that no save made under either reads as current (DL-63); 10 from the M6 close's
+ * Transfer lock of a season (DL-69); 11 from M9-S2's Trait budget, `guildmasterTraitBudget`
+ * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114);
+ * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
+ * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
+ * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's
+ * `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), S6's
+ * `playerPartyMargin` (DL-148, DL-157), and S8's `encounterTagWeight` (DL-148, DL-160). S10's
+ * balance pass changes defaults under it too, `checkVariance` 0.2 to 0.4 first (DL-165), then the
+ * Degrees, `strongTriumphShare` and the form factors (DL-166), as no game has been released under 13.
+ * 14 from v1.1.6-S7, whose config lost `schemaVersion`, `configVersion` and `gearSlots`, every other
+ * default as it was (DL-193).
+ */
+export const configVersion = 14;
+
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
-  schemaVersion: 6,
-  configVersion: 13,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -700,8 +684,6 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   transferGeneratorChance: 0.5,
   transferLockDays: 90,
 
-  gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
-
   lootDifficultyThreshold: 35,
   lootOnBands: Object.freeze(['strong' as const]),
 
@@ -724,93 +706,7 @@ export interface EngineDeps {
 }
 
 /**
- * What is wrong with `config`'s Quest Engine fields, each a sentence naming its field; none for a
- * sound one (v1.1.4-S2's verification, DL-152). `checkVariance` is a share from 0 to 1, as a Check's
- * own `variance` is held to, so that a roll never reaches below nothing (v1.1.4-S5's verification,
- * DL-156). A Degree means something only while its thresholds are ordered, `triumph` > `success` >
- * `setback` > 0, and `strongTriumphShare` is a share from 0 to 1. A form factor is a finite number
- * above 0, one for every Morale band, `steady`'s 1 and the rest in the bands' order, so that better spirits never bring less; and `hurtCheckFactor` is at most 1,
- * so that a wound never helps (v1.1.4-S3, DL-154). `exposureRange` is a finite number of 0 or more,
- * so that no weight in the draw of who is hit falls below 1, and `guardRange` a share from 0 to 1, so
- * that a guard never raises a chance nor turns it below 0 (v1.1.4-S4, DL-155). `chanceBands`' starts
- * are finite, strictly increasing and each above 0 and below 1, so that every band holds some chances
- * (v1.1.4-S5, DL-156). `playerPartyMargin` is a share from 0 to 1, as a Disposition's `partyMargin` is
- * (v1.1.4-S6, DL-157). `encounterTagWeight` is a finite number of 1 or more (v1.1.4-S8, DL-160). The
- * Quest Engine refuses to resolve, and to estimate, under a config with a problem (`resolveQuest`,
- * `estimateQuest`), and the Quest Generator to draw a sequence under an unsound `encounterTagWeight`
- * (`drawSequence`).
+ * What reading a save takes (`deserialise`, `validate`): the content and the modules, and no config,
+ * since the game's own is in the save and `playDeps` makes it the play config (v1.1.6-S7, DL-193).
  */
-export function configProblems(
-  config: Pick<
-    GameConfig,
-    | 'checkVariance'
-    | 'checkDegrees'
-    | 'strongTriumphShare'
-    | 'moraleCheckFactor'
-    | 'hurtCheckFactor'
-    | 'exposureRange'
-    | 'guardRange'
-    | 'chanceBands'
-    | 'playerPartyMargin'
-    | 'encounterTagWeight'
-  >,
-): string[] {
-  const problems: string[] = [];
-  const { checkVariance } = config;
-  if (!(checkVariance >= 0 && checkVariance <= 1)) problems.push(`checkVariance is ${checkVariance}; it is a share from 0 to 1`);
-  const { triumph, success, setback } = config.checkDegrees;
-  if (!(triumph > success && success > setback && setback > 0)) {
-    problems.push(`checkDegrees is ${JSON.stringify(config.checkDegrees)}; triumph > success > setback > 0`);
-  }
-  const share = config.strongTriumphShare;
-  if (!(share >= 0 && share <= 1)) problems.push(`strongTriumphShare is ${share}; it is a share from 0 to 1`);
-  const factors: Readonly<Partial<Record<MoraleBand, number>>> = config.moraleCheckFactor ?? {};
-  const unsound = moraleBandNames.filter((band) => !isFactor(Object.hasOwn(factors, band) ? factors[band] : undefined));
-  for (const band of unsound) problems.push(`moraleCheckFactor.${band} is ${factors[band]}; it is a finite number above 0`);
-  if (unsound.length === 0) {
-    const { wretched, low, steady, high, elated } = config.moraleCheckFactor;
-    if (steady !== 1) problems.push(`moraleCheckFactor.steady is ${steady}; it is 1, the band that changes nothing`);
-    else if (!(wretched <= low && low <= steady && steady <= high && high <= elated)) {
-      problems.push(`moraleCheckFactor is ${JSON.stringify(config.moraleCheckFactor)}; wretched ≤ low ≤ steady ≤ high ≤ elated`);
-    }
-  }
-  const hurt = config.hurtCheckFactor;
-  if (!(isFactor(hurt) && hurt <= 1)) problems.push(`hurtCheckFactor is ${hurt}; it is above 0 and at most 1, so that a wound never helps`);
-  const { exposureRange, guardRange } = config;
-  if (!(Number.isFinite(exposureRange) && exposureRange >= 0)) {
-    problems.push(`exposureRange is ${exposureRange}; it is a finite number of 0 or more`);
-  }
-  if (!(Number.isFinite(guardRange) && guardRange >= 0 && guardRange <= 1)) {
-    problems.push(`guardRange is ${guardRange}; it is a share from 0 to 1`);
-  }
-  const starts: Readonly<Partial<Record<ChanceBand, number>>> = config.chanceBands ?? {};
-  let floor = 0;
-  const rising = chanceBandNames.slice(1).every((band) => {
-    const start = Object.hasOwn(starts, band) ? starts[band] : undefined;
-    if (!(typeof start === 'number' && start > floor && start < 1)) return false;
-    floor = start;
-    return true;
-  });
-  if (!rising) {
-    problems.push(`chanceBands is ${JSON.stringify(config.chanceBands)}; unlikely < even < likely < near-certain, each above 0 and below 1`);
-  }
-  const margin = config.playerPartyMargin;
-  if (!(margin >= 0 && margin <= 1)) problems.push(`playerPartyMargin is ${margin}; it is a share from 0 to 1`);
-  const tagProblem = encounterTagWeightProblem(config.encounterTagWeight);
-  if (tagProblem !== undefined) problems.push(tagProblem);
-  return problems;
-}
-
-/**
- * What is wrong with `encounterTagWeight` (v1.1.4-S8, DL-160), a sentence naming it, or `undefined`
- * for a finite number of 1 or more: the one `configProblems` and `drawSequence` both read.
- */
-export function encounterTagWeightProblem(weight: number): string | undefined {
-  if (typeof weight === 'number' && Number.isFinite(weight) && weight >= 1) return undefined;
-  return `encounterTagWeight is ${weight}; it is a finite number of 1 or more, so that a tag shared never makes an Encounter rarer`;
-}
-
-/** Whether `value` is a finite number above 0: a form factor (DL-154). */
-function isFactor(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0;
-}
+export type LoadDeps = Pick<EngineDeps, 'content' | 'modules'>;

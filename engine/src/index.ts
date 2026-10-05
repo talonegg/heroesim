@@ -129,6 +129,7 @@ export {
 } from './actions/transfer.js';
 export * from './advance.js';
 export * from './config.js';
+export * from './config-check.js';
 export * from './content-types.js';
 export {
   availableHeroes,

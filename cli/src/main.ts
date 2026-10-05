@@ -64,7 +64,7 @@ import {
   renderSummary,
   rowIn,
 } from './render.js';
-import { playDeps, readSave, savePath, withModules, writeSave, type ReadSave } from './saves.js';
+import { readSave, savePath, withModules, writeSave, type ReadSave } from './saves.js';
 import { readableSeed } from './seed.js';
 
 /** Everything the CLI takes from outside itself. */
@@ -296,7 +296,7 @@ function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, pat
     `Created a world from seed ${seed} and saved it to ${path}.`,
     ...(unspent === null ? [] : [unspent]),
     '',
-    ...renderSummary(document, playDeps(document, content, modules)),
+    ...renderSummary(document, deps),
   ]);
 }
 
@@ -446,20 +446,20 @@ function fastForwardTurns(
 }
 
 /**
- * `rebase`: the save adopts this release's `defaultConfig`. Not the play deps `open` gives, whose
- * config is the save's own filled forward and carries the save's `configVersion`: under those
- * every save would already be current. Refused, writing nothing, when it is.
+ * `rebase`: the save adopts this release's `defaultConfig` and `configVersion`. Not the play deps
+ * `open` gives, whose config is the save's own filled forward. Refused, writing nothing, when the
+ * save's `meta.configVersion` is this release's already.
  */
 function rebaseRules({ io, content, path }: Context): Exit {
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
-  const was = opened.document.meta.config.configVersion;
+  const was = opened.document.meta.configVersion;
   const result = rebase(opened.document, { config: defaultConfig, content });
   if (!result.ok) {
     return refuse(io, `${path} already plays under this release's rules, configVersion ${was}.`);
   }
   writeSave(path, result.document);
-  return say(io, [`Adopted this release's rules: configVersion ${was} to ${result.document.meta.config.configVersion}.`]);
+  return say(io, [`Adopted this release's rules: configVersion ${was} to ${result.document.meta.configVersion}.`]);
 }
 
 // ── save and load ────────────────────────────────────────────────────────────────────────────

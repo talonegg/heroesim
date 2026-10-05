@@ -28,7 +28,8 @@ Sweeps run one at a time, with nothing else running, since a 20-year game's proc
 The current `neutral` baseline, every play-neutral story's `--expect`, is
 `e3adc35390098c46e05e59ddcc155a93bf11f9a2f869b7075be91190f05e7a5f` (`m9-v116-s6`, v1.1.6-S6, DL-192: the
 content version, 33, is in the saved document). It changes only with a DL entry, as at a story that changes play or the save's shape
-(v1.1.6-S7 and S17).
+(v1.1.6-S7 and S17). v1.1.6-S7 changed the save's shape (DL-193), so it no longer holds: the first
+`neutral` run after S7's verification, alone, gives the next.
 
 ## Settings
 
@@ -37,7 +38,9 @@ refused by its name and an unknown `HEROESIM_*` name refused, so a mistyped sett
 rather than playing something else. INPUTS §9 lists them. A variable set in the shell overrides a
 profile's value: `HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- gate m9-trial` plays the
 Gate's run small. `HEROESIM_CONFIG` plays config values in place of the defaults, and
-`HEROESIM_POLICY` the automatic policy's, each a JSON object of keys, checked before play.
+`HEROESIM_POLICY` the automatic policy's, each a JSON object of keys, checked before play: the config
+by the engine's rule for every setting (`runConfig`, v1.1.6-S7, DL-193), a bad one refused by its name
+before any game starts, and each game played under the engine's `playDeps`, as a front end's is.
 
 `HEROESIM_SEEDS` means a run's own count: the worlds a creation sweep creates, the games a play sweep,
 a module run or the Succession probe plays, the seeds each of the estimate's samples is resolved for,

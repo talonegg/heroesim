@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand, type WorldDocument } from '@heroesim/engine';
+import { defaultConfig, encounterKinds, schemaVersion, type EngineDeps, type RegardBand, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test, vi } from 'vitest';
 import {
   controllerKinds,
@@ -592,9 +592,9 @@ describe('sweepPlay', () => {
     });
 
     test('names the config it changed from the defaults, and nothing when it changed none (v1.1.4-S9 verification)', () => {
-      expect(report).toContain(`schema version ${deps.config.schemaVersion} · \`createdAt`);
+      expect(report).toContain(`schema version ${schemaVersion} · \`createdAt`);
       const changed = playReport(sweep, { ...context, configured: { checkVariance: 0.4, marketSize: 14 } });
-      expect(changed).toContain(`schema version ${deps.config.schemaVersion}, the defaults changed by \`{"checkVariance":0.4,"marketSize":14}\` · \`createdAt`);
+      expect(changed).toContain(`schema version ${schemaVersion}, the defaults changed by \`{"checkVariance":0.4,"marketSize":14}\` · \`createdAt`);
     });
 
     test('states the seeds, the endings, byte equality and the measures against the targets', () => {
@@ -654,7 +654,7 @@ describe('sweepPlay', () => {
     test("names the policy's values it changed from the defaults (v1.1.6-S2), and writes the Gate's lines when checked", () => {
       expect(report).not.toContain("the policy's defaults changed");
       expect(playReport(sweep, { ...context, policyChanged: { rosterLimit: 10 } })).toContain(
-        `schema version ${deps.config.schemaVersion} · the policy's defaults changed by \`{"rosterLimit":10}\` · \`createdAt`,
+        `schema version ${schemaVersion} · the policy's defaults changed by \`{"rosterLimit":10}\` · \`createdAt`,
       );
       expect(report).not.toContain('## The Gate');
       const gate = { pass: true, status: 'drafted' as const, lines: [{ line: 'Policy actions the rules refused', verdict: 'pass' as const, measured: '0', limit: 'at most 0', source: 'DL-34' }] };

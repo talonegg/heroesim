@@ -1,8 +1,10 @@
 import {
+  configVersion,
   createWorld,
   dayOf,
   defaultConfig,
   makeId,
+  schemaVersion,
   playerGuild,
   type Guild,
   type Hero,
@@ -85,7 +87,7 @@ const samples: Samples = {
     action: 'load',
     reason: 'unsupported-version',
     documentVersion: 9,
-    schemaVersion: defaultConfig.schemaVersion,
+    schemaVersion,
     message: 'The save is schema version 9',
   },
   'load invalid': {
@@ -94,8 +96,14 @@ const samples: Samples = {
     failures: [{ check: 'document-shape', id: '$.meta.seed', detail: '$.meta has no seed' }],
     message: 'The save fails the validator (shape): meta.seed',
   },
+  'load unsound-config': {
+    action: 'load',
+    reason: 'unsound-config',
+    problems: [{ setting: 'boardSize', message: 'boardSize is -1; it is a whole number, at least 0' }],
+    message: "The game's config is unsound: boardSize is -1; it is a whole number, at least 0",
+  },
 
-  'rebase already-current': { action: 'rebase', reason: 'already-current', configVersion: defaultConfig.configVersion },
+  'rebase already-current': { action: 'rebase', reason: 'already-current', configVersion },
 
   'dispatch guild-folded': { action: 'dispatch', reason: 'guild-folded', guildId },
   'dispatch quest-not-offered': { action: 'dispatch', reason: 'quest-not-offered', questId: quest.id },
@@ -255,8 +263,9 @@ const exactly: Record<RejectionKind, string> = {
   'load not-a-document': 'Cannot load the save: The save has no whole-number meta.version.',
   'load unsupported-version': 'Cannot load the save: The save is schema version 9.',
   'load invalid': 'Cannot load the save: The save fails the validator (shape): meta.seed.',
+  'load unsound-config': "Cannot load the save: The game's config is unsound: boardSize is -1; it is a whole number, at least 0.",
 
-  'rebase already-current': `This game already plays under this release's rules, configVersion ${defaultConfig.configVersion}.`,
+  'rebase already-current': `This game already plays under this release's rules, configVersion ${configVersion}.`,
 
   'dispatch guild-folded': 'The Lantern has folded and sends no one.',
   'dispatch quest-not-offered': `${questName} is not on the Board: it has been taken or has expired, or was never offered.`,

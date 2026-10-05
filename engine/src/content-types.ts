@@ -49,8 +49,8 @@ export type ItemTagKey = string;
 
 /**
  * The gear slots an Item can be made for (M5-S1, INPUTS 7.1): a closed list, as the Encounter kinds
- * are, so content validation refuses a slot no Hero could have. Which of them a Hero has is
- * `GameConfig.gearSlots` (all three by default). A new slot is an engine change (DL-48).
+ * are, so content validation refuses a slot no Hero could have. Every Hero has all of them, in this
+ * order, the order a front end lists them (DL-193). A new slot is an engine change (DL-48).
  */
 export const gearSlotKeys = ['weapon', 'armour', 'trinket'] as const;
 
@@ -242,12 +242,6 @@ export interface QuestTemplate {
   fameEffect: number;
   partySizeMin: number;
   partySizeMax: number;
-  /**
-   * The Hero Stats the work asks for, each with a weight; the weights sum to 1 (DL-06). From M4-S2
-   * the Check reads its Encounters' Checks instead, and from v1.1.4-S6 no rule reads them and no view
-   * shows them: `partyFor` chooses by the chance estimate (DL-148 items 16 and 17).
-   */
-  demands: [statKey: StatKey, weight: number][];
   /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
   skillKeys: SkillKey[];
   requires: QuestTemplateRequires;

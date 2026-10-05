@@ -1,5 +1,5 @@
 {
-  "version": 33,
+  "version": 34,
   "changelog": [
     "2 from M2-S3, which added the Quest templates.",
     "3 from M2-S9, which added the Dispositions.",
@@ -34,6 +34,7 @@
     "30 from v1.1.4-S10's balance pass again, which tunes every Check's flat term and difficulty factor to a chance of 0.56 at the same aim, about 5% easier again, since the rarer earned Traits left more Guilds bankrupt (DL-166).",
     "31 from the content editor's Finish of 2026-10-03 (4 uses assigned, of wayfinder, battle-tried, silver-tongued, lettered; 4 uses unassigned, of wayfinder, battle-tried, silver-tongued, lettered).",
     "32 from the content editor's Finish of 2026-10-04 (4 uses assigned, of battle-tried, wayfinder, silver-tongued, lettered; 4 uses unassigned, of battle-tried, wayfinder, silver-tongued, lettered).",
-    "33 from v1.1.6-S6, after which the old form of Encounters and Synergies is no longer read: an Encounter's `checks` and a Synergy's `requires` as lists are the only forms (DL-192)."
+    "33 from v1.1.6-S6, after which the old form of Encounters and Synergies is no longer read: an Encounter's `checks` and a Synergy's `requires` as lists are the only forms (DL-192).",
+    "34 from v1.1.6-S7, whose Quest templates no longer carry `demands`, which no rule had read since v1.1.4-S6 and no Quest copies now (DL-193)."
   ]
 }

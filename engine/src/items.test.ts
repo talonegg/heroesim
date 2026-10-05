@@ -4,6 +4,7 @@ import {
   createItem,
   defaultConfig,
   findStack,
+  gearSlotKeys,
   holdings,
   itemDefinition,
   makeId,
@@ -372,8 +373,8 @@ describe('itemDefinition and gearSlots', () => {
     expect(itemDefinition(testContent, 'constructor')).toBeUndefined();
   });
 
-  test('every Hero has the three gear slots of INPUTS 7.1 by default', () => {
-    expect(defaultConfig.gearSlots).toEqual(['weapon', 'armour', 'trinket']);
-    expect(Object.isFrozen(defaultConfig.gearSlots)).toBe(true);
+  test("every Hero has the three gear slots of INPUTS 7.1, the engine's and no setting (DL-193)", () => {
+    expect(gearSlotKeys).toEqual(['weapon', 'armour', 'trinket']);
+    expect(defaultConfig).not.toHaveProperty('gearSlots');
   });
 });

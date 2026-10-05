@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { chanceBandNames, configProblems, defaultConfig, questBands, type EngineDeps, type GameConfig, type QuestBand } from '../config.js';
+import { chanceBandNames, defaultConfig, questBands, type EngineDeps, type GameConfig, type QuestBand } from '../config.js';
 import { degrees, type ContentSet, type Degree, type Encounter, type EncounterCheck, type EncounterKind, type HeroTraitEffect, type NumQuery, type PassFormula } from '../content-types.js';
 import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
@@ -206,40 +206,9 @@ describe('chance bands', () => {
     expect(chanceBandNames).toEqual(['hopeless', 'unlikely', 'even', 'likely', 'near-certain']);
   });
 
-  test("are a configuration field, strictly increasing within 0 and 1, and checkVariance a share from 0 to 1 that the formula holds for", () => {
-    expect(configProblems({ ...defaultConfig, checkVariance: 0 })).toEqual([]);
-    expect(configProblems({ ...defaultConfig, checkVariance: 1 })).toEqual([]);
-    for (const checkVariance of [-0.1, 1.5, Number.NaN]) {
-      expect(configProblems({ ...defaultConfig, checkVariance })).toEqual([`checkVariance is ${checkVariance}; it is a share from 0 to 1`]);
-    }
-
-    const problem = (chanceBands: unknown) => configProblems({ ...defaultConfig, chanceBands: chanceBands as GameConfig['chanceBands'] });
-    expect(problem(defaultConfig.chanceBands)).toEqual([]);
-    expect(problem({ unlikely: 0.01, even: 0.02, likely: 0.98, 'near-certain': 0.99 })).toEqual([]);
-    const words = (bands: unknown) => [`chanceBands is ${JSON.stringify(bands)}; unlikely < even < likely < near-certain, each above 0 and below 1`];
-    for (const bands of [
-      { unlikely: 0, even: 0.35, likely: 0.65, 'near-certain': 0.9 },
-      { unlikely: 0.1, even: 0.35, likely: 0.65, 'near-certain': 1 },
-      { unlikely: 0.35, even: 0.35, likely: 0.65, 'near-certain': 0.9 },
-      { unlikely: 0.1, even: 0.65, likely: 0.35, 'near-certain': 0.9 },
-      { unlikely: 0.1, even: Number.NaN, likely: 0.65, 'near-certain': 0.9 },
-      { unlikely: 0.1, even: 0.35, likely: 0.65 },
-      undefined,
-    ]) {
-      expect(problem(bands)).toEqual(words(bands));
-    }
-    expect(() => estimateQuest({} as World, { difficulty: 10, encounterKeys: [], durationTurns: 3 }, [], testDeps({ chanceBands: { unlikely: 0.5, even: 0.4, likely: 0.65, 'near-certain': 0.9 } }))).toThrow(
-      /chanceBands/,
-    );
-  });
-
   // v1.1.4-S6 (DL-157): the margin of the player's best Party, as a Disposition's `partyMargin` is held.
-  test('playerPartyMargin is 0.05 by default, a share from 0 to 1', () => {
+  test('playerPartyMargin is 0.05 by default', () => {
     expect(defaultConfig.playerPartyMargin).toBe(0.05);
-    for (const playerPartyMargin of [0, 0.5, 1]) expect(configProblems({ ...defaultConfig, playerPartyMargin })).toEqual([]);
-    for (const playerPartyMargin of [-0.05, 1.5, Number.NaN]) {
-      expect(configProblems({ ...defaultConfig, playerPartyMargin })).toEqual([`playerPartyMargin is ${playerPartyMargin}; it is a share from 0 to 1`]);
-    }
   });
 });
 

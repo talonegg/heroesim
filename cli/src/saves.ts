@@ -2,19 +2,16 @@
 // `deps` to play it under. The CLI keeps nothing between invocations: every command reads the
 // save it names and, if it changed the World State, writes it back.
 //
-// Reading is two steps, in this order (DL-20 item 11, DL-21):
-//   1. `deserialise` with the engine's own `defaultConfig`, so the save's `meta.version` is
-//      compared with this code's `schemaVersion` and any migration runs;
-//   2. only then the play config, `{ ...defaultConfig, ...meta.config }` (data-model §2, pre-M0
-//      review D3): the game plays under the rules it was started with, and a field its save
-//      predates reads as the current default.
-// Merging first would carry the save's own `schemaVersion` into the check and skip every
-// migration.
+// Reading is the engine's `deserialise`: the save's `meta.version` compared with the engine's
+// `schemaVersion` and any migration run, the document validated, and then the play deps from the
+// engine's `playDeps` (data-model §2, pre-M0 review D3): the game plays under the rules it was
+// started with, a field its save predates reading as the current default, every setting checked
+// and a save with a bad one refused, naming it (v1.1.6-S7, DL-186 item 12, DL-193). The CLI makes
+// no merge of its own.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import {
-  defaultConfig,
   deserialise,
   serialise,
   type ContentSet,
@@ -44,14 +41,6 @@ export function savePath(name: string, cwd: string, env: Readonly<Record<string,
   return isPath ? resolve(cwd, name) : join(saveDir(cwd, env), `${name}.json`);
 }
 
-/**
- * The deps a loaded game plays under: its own config, filled forward with the current defaults, and
- * the modules the command line installs (`--modules`, M8-S4), none unless given.
- */
-export function playDeps(document: WorldDocument, content: ContentSet, modules: readonly Module[] = []): EngineDeps {
-  return { config: { ...defaultConfig, ...document.meta.config }, content, ...withModules(modules) };
-}
-
 /** `{ modules }` when there are any: with none, the deps are what they were before M8. */
 export function withModules(modules: readonly Module[]): Pick<EngineDeps, 'modules'> {
   return modules.length === 0 ? {} : { modules };
@@ -62,15 +51,17 @@ export type OpenedSave =
   | { ok: false; reason: LoadRefusal };
 
 /**
- * A save's text as a document to play: loaded against the engine's own config, validated against
- * `content` and, for a module's slice, by the module among `modules` that owns it (a slice none owns
- * is warned of and kept), then given its play deps. A refusal carries the engine's typed reason.
+ * A save's text as a document to play: validated against `content` and, for a module's slice, by
+ * the module among `modules` that owns it (a slice none owns is warned of and kept), with the deps
+ * the engine's `playDeps` gives it, the modules the command line installs (`--modules`, M8-S4) among
+ * them, none unless given. A refusal carries the engine's typed reason, an unsound setting's among
+ * them (`unsound-config`, DL-193).
  */
 export function openSave(text: string, content: ContentSet, modules: readonly Module[] = []): OpenedSave {
-  const loaded = deserialise(text, { config: defaultConfig, content, ...withModules(modules) });
+  const loaded = deserialise(text, { content, ...withModules(modules) });
   if (!loaded.ok) return loaded;
-  const { document, warnings } = loaded;
-  return { ok: true, document, warnings, deps: playDeps(document, content, modules) };
+  const { document, warnings, deps } = loaded;
+  return { ok: true, document, warnings, deps };
 }
 
 export type ReadSave = OpenedSave | { ok: false; reason: { kind: 'missing'; message: string } };

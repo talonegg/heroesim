@@ -11,6 +11,7 @@
 import {
   carriedGear,
   compareByCodeUnit,
+  gearSlotKeys,
   holdings,
   itemDefinition,
   playerGuild,
@@ -145,7 +146,7 @@ export function storesView(document: WorldDocument, filter: StoresFilter): Store
     });
   const owned = [...held, ...carried, ...away];
 
-  const kinds = [...deps.config.gearSlots, 'consumable' as const].flatMap((key) => {
+  const kinds = [...gearSlotKeys, 'consumable' as const].flatMap((key) => {
     const count = owned.filter((row) => row.kindKey === key).length;
     return count === 0 ? [] : [{ key, label: capitalised(key), count }];
   });

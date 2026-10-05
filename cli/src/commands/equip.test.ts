@@ -8,7 +8,6 @@ import {
   addStack,
   count,
   createItem,
-  defaultConfig,
   deserialise,
   holdings,
   playerGuild,
@@ -52,7 +51,7 @@ const current = (): string => join(dir, '.saves', 'current.json');
 const saved = (): string => readFileSync(current(), 'utf8');
 
 function document(): WorldDocument {
-  const loaded = deserialise(saved(), { config: defaultConfig, content });
+  const loaded = deserialise(saved(), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }
@@ -75,8 +74,6 @@ interface Stocked {
 function stocked(): Stocked {
   expect(play(['new', '--seed', 'demo', '--guild', 'The Test', '--master', 'Ada']).code).toBe(exitCodes.ok);
   const edited = document();
-  // The slots these tests rely on, pinned in the save's own config (INPUTS 7.1).
-  edited.meta.config.gearSlots = ['weapon', 'armour', 'trinket'];
   const { world } = edited;
   const guild = playerGuild(world) as Guild;
   for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];

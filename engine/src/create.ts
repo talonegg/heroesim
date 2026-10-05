@@ -3,12 +3,13 @@
 // M2-S3 the first Board is drawn last, from the `board` stream, so a new game opens on a full
 // Board rather than waiting for the first morning phase at Turn 3 (DL-25).
 
-import type { EngineDeps, GameConfig } from './config.js';
+import { configVersion, type EngineDeps, type GameConfig } from './config.js';
 import type { BackgroundKey, ContentSet, PortraitKey, StatKey, TraitKey } from './content-types.js';
 import {
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
   emptyDocument,
+  schemaVersion,
   type DescriptiveAttribute,
   type Meta,
   type Sex,
@@ -268,9 +269,10 @@ function founded(
   const portraitSex = portraitKey === undefined ? null : portraitSexOf(content, 'guildmaster', portraitKey);
   const sex = setup.guildmasterSex ?? portraitSex ?? undefined;
   const meta: Meta = {
-    version: config.schemaVersion,
+    version: schemaVersion,
     seed,
     content: { id: content.id, version: content.version },
+    configVersion,
     config: { ...config },
     createdAt: setup.createdAt,
   };

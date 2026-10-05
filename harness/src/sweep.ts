@@ -8,10 +8,12 @@
 import { createHash } from 'node:crypto';
 import {
   compareByCodeUnit,
+  configVersion,
   descriptiveAttributeMaxLength,
   encounterKinds,
   facilityKeys,
   regardBandNames,
+  schemaVersion,
   serialise,
   type EngineDeps,
   type FacilityKey,
@@ -1588,7 +1590,7 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
     `Run begun ${localTimestamp(startedAt)} · ${whole(count)} seeds, ${range} · up to ${yearsText} years ` +
       `(${whole(sweep.years * config.turnsPerYear)} Turns) each · content \`${content.id}\` version ${content.version}` +
       `${drafted.length === 0 ? '' : ` with the drafts of ${drafted.map((name) => `\`${name}\``).join(', ')}`} · ` +
-      `config version ${config.configVersion}, schema version ${config.schemaVersion}` +
+      `config version ${configVersion}, schema version ${schemaVersion}` +
       `${Object.keys(configured).length === 0 ? '' : `, the defaults changed by \`${JSON.stringify(configured)}\``} · ` +
       `${Object.keys(policyChanged).length === 0 ? '' : `the policy's defaults changed by \`${JSON.stringify(policyChanged)}\` · `}` +
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,

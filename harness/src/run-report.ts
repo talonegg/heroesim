@@ -9,7 +9,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { EndingReason, GameConfig } from '@heroesim/engine';
+import { configVersion, schemaVersion, type EndingReason, type GameConfig } from '@heroesim/engine';
 import type { GateResult } from './gate.js';
 import type { PolicyConfig } from './policy.js';
 import { fixed, whole, type Machine } from './report.js';
@@ -56,6 +56,12 @@ export interface RunReport {
   workers: number;
   validated: boolean;
   content: { id: string; version: number; drafted: string[] };
+  /**
+   * The version of the defaults and the schema the run's saves were written under, the engine's
+   * (v1.1.6-S7, DL-193). A report written before then has none, its config holding both.
+   */
+  configVersion?: number;
+  schemaVersion?: number;
   /** The config played, every key. */
   config: GameConfig;
   /** The config values played in place of the defaults (`HEROESIM_CONFIG`). */
@@ -89,6 +95,11 @@ export interface RunReportContext {
   modules?: readonly string[];
 }
 
+/** The run's config version: its own, or, in a report from before v1.1.6-S7, its config's (DL-193). */
+function configVersionOf(run: RunReport): number | undefined {
+  return run.configVersion ?? (run.config as unknown as { configVersion?: number }).configVersion;
+}
+
 /** `sweep` as its JSON report, unchecked against the Gate (`gate` `null`). */
 export function runReport(sweep: PlaySweep, context: RunReportContext): RunReport {
   const { milestone, profile = null, startedAt, settings = [], machine, config, content, drafted = [], configured = {}, policyChanged = {}, modules = [] } = context;
@@ -104,6 +115,8 @@ export function runReport(sweep: PlaySweep, context: RunReportContext): RunRepor
     workers: sweep.workers,
     validated: sweep.validated,
     content: { id: content.id, version: content.version, drafted: [...drafted] },
+    configVersion,
+    schemaVersion,
     config,
     configured,
     policy: { ...sweep.policy },
@@ -199,7 +212,7 @@ const valueOf = (n: number): string => (Number.isInteger(n) ? whole(n) : fixed(n
 export function compareRuns(a: RunReport, b: RunReport): string[] {
   const played = (label: string, run: RunReport): string =>
     `${label}: ${run.milestone}, begun ${run.startedAt} · ${whole(run.seeds.length)} seeds × ${run.years} years · ` +
-    `content ${run.content.id} ${run.content.version} · config version ${run.config.configVersion} · fingerprint ${run.fingerprint}`;
+    `content ${run.content.id} ${run.content.version} · config version ${configVersionOf(run)} · fingerprint ${run.fingerprint}`;
   const lines = [played('a', a), played('b', b), ''];
 
   if (a.fingerprint === b.fingerprint) {

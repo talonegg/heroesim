@@ -52,7 +52,7 @@ function play(argv: string[]): { code: number; out: string; err: string } {
 }
 
 function saved(): WorldDocument {
-  const loaded = deserialise(readFileSync(join(dir, '.saves', 'current.json'), 'utf8'), { config: defaultConfig, content });
+  const loaded = deserialise(readFileSync(join(dir, '.saves', 'current.json'), 'utf8'), { content });
   if (!loaded.ok) throw new Error(loaded.reason.message);
   return loaded.document;
 }

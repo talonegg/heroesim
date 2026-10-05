@@ -229,6 +229,8 @@ const sentences: Sentences = {
   'load unsupported-version': ({ documentVersion, schemaVersion, message }) =>
     documentVersion < schemaVersion ? 'This game was saved by an older Heroesim and cannot be loaded.' : `Cannot load the save: ${message}.`,
   'load invalid': ({ message }) => `Cannot load the save: ${message}.`,
+  // A setting its rule refuses, named in the engine's words (v1.1.6-S7, DL-193).
+  'load unsound-config': ({ message }) => `Cannot load the save: ${message}.`,
 
   // rebase (the CLI's `rebase`).
   'rebase already-current': ({ configVersion }) =>
