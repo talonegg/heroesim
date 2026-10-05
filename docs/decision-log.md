@@ -26307,6 +26307,8 @@ The World State is small: 0.27 MiB of save at year 20, 41 Heroes in play and 55 
 
 *The owner's word to release* (2026-10-06): "commence release". By DL-124: `v1.1.6-dev` pushed, `v1.1-release` fast-forwarded to it and pushed; CI raises the pull request to `main`, the owner merges it, then `npm run e2e:live -w web`.
 
+*Released* (2026-10-06). `v1.1.6-dev` and `v1.1-release` pushed at `df5ba80`; CI's `release-pr` raised pull request #56, "Release v1.1.6 from v1.1-release", its checks passing (`check` on Node 22 and on `.node-version`, `e2e`, `pull-request`); the owner merged it as `7fda66e`; CI's `release` run tagged `v1.1.6`, deployed it and published the GitHub Release; `npm run e2e:live -w web` 4 of 4 passed (`pages` and `worker`, desktop and phone). Dependabot's move to `v1.1.6-dev` (`dc97b68`) now takes effect, `main` holding it.
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

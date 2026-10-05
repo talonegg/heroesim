@@ -412,7 +412,7 @@ the agents recommended that story features be modules and rule extensions core i
   *Built and verified on `v1.1.6-dev` 2026-10-05 to 2026-10-06 (DL-187 to DL-205), no play counter
   moved; the Gate met: the closing full `gate`, run again alone on the owner's answer, meets every
   line, the per-Turn copy's time 0.826 ms (1.350 ms on the first run, the machine's speed and not
-  the code) (DL-205): the release awaits the owner's word.*
+  the code) (DL-205); released as `v1.1.6` on 2026-10-06 (pull request #56, merged as `7fda66e`): the tag, the deploy and the GitHub Release by CI, `e2e:live` 4 of 4 on both addresses.*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.* *Amended 2026-10-03 (DL-168): after `v1.1.5`, or after a `v1.1.6`
