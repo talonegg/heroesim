@@ -22,6 +22,11 @@ portrait-analyse", "apply the analysis run 2026-10-02". Each works on the curren
 
 - **Intake.** Drop the uploads in `media/inbox/guildmaster/` or `media/inbox/hero/`, in `male/`
   and `female/` where you know the sex. The folder is your word for the role and the sex.
+- **Staging**, for an intake of hundreds: put each Hero in a folder per Class within its sex,
+  `media/inbox/hero/female/mage/`, and run `npm run portraits -- stage`. It converts every upload
+  once into `media/inbox/staged/`, listing each one's role, sex, Class, sizes, warnings and near
+  matches in `stage.json`, and changes nothing live; run it again after adding or changing uploads.
+  The skills do not yet read the staged pictures or the Class folders.
 - **Analyse** after an intake, or whenever the corpus or its sentence lists want a look.
 - **Apply** only a run you have read: its report and its `diff`.
 - **A trial** runs on a scratch copy: every tool command takes `--root <dir>`, and the skills pass

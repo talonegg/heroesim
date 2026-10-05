@@ -160,6 +160,44 @@ export function distance(a: Fingerprint, b: Fingerprint): number {
   return least;
 }
 
+/** A fingerprint packed into 32-bit words, for comparing many: `stage`'s uploads, each with each. */
+export interface PackedFingerprint {
+  hash: Uint32Array;
+  trimmed: Uint32Array[];
+}
+
+function packHash(hash: string): Uint32Array {
+  const words = new Uint32Array(Math.ceil(hash.length / 8));
+  for (let index = 0; index < words.length; index += 1) words[index] = Number.parseInt(hash.slice(index * 8, index * 8 + 8).padEnd(8, '0'), 16);
+  return words;
+}
+
+/** A fingerprint packed for `packedDistance`. */
+export function pack(print: Fingerprint): PackedFingerprint {
+  return { hash: packHash(print.hash), trimmed: print.trimmed.map(packHash) };
+}
+
+function bitsSet(word: number): number {
+  let value = word - ((word >>> 1) & 0x55555555);
+  value = (value & 0x33333333) + ((value >>> 2) & 0x33333333);
+  return (Math.imul((value + (value >>> 4)) & 0x0f0f0f0f, 0x01010101) >>> 24) & 0xff;
+}
+
+function packedHashDistance(a: Uint32Array, b: Uint32Array): number {
+  if (a.length !== b.length) throw new Error(`hashes of ${a.length * 32} and ${b.length * 32} bits cannot be compared`);
+  let bits = 0;
+  for (let index = 0; index < a.length; index += 1) bits += bitsSet(((a[index] ?? 0) ^ (b[index] ?? 0)) >>> 0);
+  return bits;
+}
+
+/** `distance`, on packed fingerprints: the same number, many times faster. */
+export function packedDistance(a: PackedFingerprint, b: PackedFingerprint): number {
+  let least = packedHashDistance(a.hash, b.hash);
+  for (const trimmed of a.trimmed) least = Math.min(least, packedHashDistance(trimmed, b.hash));
+  for (const trimmed of b.trimmed) least = Math.min(least, packedHashDistance(a.hash, trimmed));
+  return least;
+}
+
 /** The fingerprint of a picture, given as a `data:` URL, drawn in Chromium. */
 export async function fingerprint(chromium: Chromium, dataUrl: string): Promise<Fingerprint> {
   const drawn = await chromium.drawEach(

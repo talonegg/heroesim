@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { dHash, distance, drawnHeight, drawnWidth, hashBits, hashDistance, type Fingerprint } from './fingerprint.js';
+import { dHash, distance, drawnHeight, drawnWidth, hashBits, hashDistance, pack, packedDistance, type Fingerprint } from './fingerprint.js';
 
 // The fingerprint's arithmetic, on pixels made here (v1.1.3-S2): Chromium's part is proved on the
 // committed pictures (chromium.test.ts) and on the owner's 40 (owner.test.ts).
@@ -57,5 +57,27 @@ describe('hashDistance() and distance()', () => {
     expect(distance(a, b)).toBe(1);
     expect(distance(b, a)).toBe(1);
     expect(distance({ hash: 'ff', trimmed: [] }, { hash: '0f', trimmed: [] })).toBe(4);
+  });
+});
+
+describe('packedDistance()', () => {
+  test("gives distance()'s number, on fingerprints packed into words, for stage's thousand uploads", () => {
+    let seed = 7;
+    const hash = (): string => {
+      let out = '';
+      for (let index = 0; index < 128; index += 1) {
+        seed = (seed * 1103515245 + 12345) >>> 0;
+        out += (seed >>> 28).toString(16);
+      }
+      return out;
+    };
+    const prints: Fingerprint[] = Array.from({ length: 12 }, () => ({ hash: hash(), trimmed: Array.from({ length: 9 }, hash) }));
+    // Near pairs too: a hash with a few bits flipped, and one that is another's trimmed hash.
+    const first = prints[0] ?? { hash: '', trimmed: [] };
+    prints.push({ hash: `${first.hash.slice(0, 126)}${first.hash.slice(126) === 'ff' ? '00' : 'ff'}`, trimmed: [] });
+    prints.push({ hash: first.trimmed[3] ?? '', trimmed: [first.hash] });
+    for (const a of prints) {
+      for (const b of prints) expect(packedDistance(pack(a), pack(b))).toBe(distance(a, b));
+    }
   });
 });

@@ -29,7 +29,8 @@ npm run portraits -- <command> [--root <dir>] [--json]
 | `media/portraits/<role folder>/<sex>/<key>.webp` | A picture: 480 × 640 WebP, at most 120 kB |
 | `media/portraits/<role folder>/<sex>/<key>.thumb.webp` | Its thumbnail: 160 × 213 WebP, at most 12 kB (about 10 kB) |
 | `media/portraits/registry.json` | The register: every key ever issued |
-| `media/inbox/guildmaster/`, `media/inbox/hero/` | Uploads, ignored by git; each may hold `male/` and `female/` |
+| `media/inbox/guildmaster/`, `media/inbox/hero/` | Uploads, ignored by git; each may hold `male/` and `female/`, and a Hero's sex folder a folder per Class: `hero/female/mage/` |
+| `media/inbox/staged/` | `stage`'s pictures, under each upload's own path, and its list, `stage.json`; ignored by git and never shipped |
 | `content/version.json` | The content version and its changelog, raised by an intake and an apply (v1.1.6-S4) |
 | `docs/portraits/intake/<run>.md` | An intake's report |
 | `docs/portraits/analysis/<run>.md`, `<run>/` | An analysis run: its report, and its recommended `portraits.json`, `portrait-appearances.json` and `descriptions.json`. Once a run is applied its folder is removed, the content holding its files and git their history; the report stays (DL-218) |
@@ -81,6 +82,51 @@ Converts each upload for a trial, and changes nothing else.
 - **A refusal.** An upload that does not fit at 0.5 is refused with its size (exit 1).
 - **A WebP source** needs `--out`, since its picture would write over it.
 - **JSON:** `{ "converted": [{ "source", "picture": { "file", "bytes", "quality" }, "thumbnail": { … }, "natural": { "width", "height" } }] }`.
+
+### `stage [<file or folder>...] [--out <dir>]`
+
+Converts the inbox's uploads ahead of their reading, for an intake of hundreds: each is converted,
+measured and fingerprinted once, and its reader looks at the 480 × 640 picture the game would show.
+Nothing live changes: `write-rows` converts each upload again from its original.
+
+- **What it reads.** The uploads named, files or folders however deep, each under
+  `media/inbox/<role>/`; with none named, both role folders. Files in the staging folder are passed
+  over. An upload outside `media/inbox/<role>/` is refused before anything changes (exit 1).
+- **What it writes.** In `media/inbox/staged/`, or `--out`: each upload's picture and thumbnail
+  under its own path in the inbox, `hero/female/mage/a.png` as `hero/female/mage/a.webp` and
+  `a.thumb.webp`, as `convert` writes them; and the list, `stage.json`.
+- **The folders say** the role, the sex (`male/` or `female/`) and, for a Hero, the Class: the
+  folder after the sex, a key of `content/classes.json`. A missing sex or Class, or a folder that
+  is no Class, is a warning.
+- **The shape and size.** An upload not 3 × 4 is cropped, centred, and warned of with how much is
+  lost; one whose part kept is under 480 × 640 is drawn up, and warned of.
+- **It goes on.** An upload that cannot fit at quality 0.5 is `refused`, and one that cannot be
+  drawn, or that would be staged as another's picture (`a.png` beside `a.jpg`), `failed`; each is
+  listed with its problem, and the rest are staged. The command exits 0 when it has run: read
+  `counts`.
+- **A run goes on where the last left off.** An upload whose bytes (their SHA-256) are unchanged and
+  whose staged files are there is not converted again; a refused one is not tried again until it
+  changes; a failed one is. An entry whose upload has left the inbox, taken in by `write-rows` or
+  removed, is dropped with its staged files. The list is written every 25 conversions, so a run
+  stopped loses little. A change to the picture's or thumbnail's size stages everything again.
+- **Near matches.** After each run, every upload listed is compared with the register and with
+  every other upload listed: `similar` names the keys within `similarWithin` bits, and
+  `similarUploads` the uploads, nearest first, for the skill's reader to judge as `fingerprint`'s
+  are.
+- **Progress** goes to stderr: `Staging: 25 of 1000 uploads`.
+
+**`stage.json`:** `{ "sizes", "similarWithin", "uploads": [{ "source", "sha256", "role", "sex",
+"class", "status", "problem", "natural", "picture": { "file", "bytes", "quality" }, "thumbnail",
+"warnings": [{ "code", "message" }], "fingerprint": { "hash", "trimmed" }, "similar": [{ "key",
+"status", "distance" }], "similarUploads": [{ "source", "distance" }] }] }`, by source. A `similar`
+key whose `status` is `retired` has no picture to compare with. `status` is `staged`,
+`refused` or `failed`; `problem` begins with the upload's path. The warnings' codes are `no-sex`,
+`no-class`, `not-a-class`, `cropped` and `drawn-up`.
+
+**JSON:** `{ "ok": true, "out", "manifest", "similarWithin", "counts": { "uploads", "staged",
+"refused", "failed", "converted", "removed" }, "removed": [...], "uploads": [...] }`: every upload
+the list holds, as it holds it, without its fingerprint, and with `converted`, whether this run
+drew it.
 
 ### `fingerprint <file or folder>... [--nearest <n>]`
 
@@ -286,6 +332,9 @@ A run's files may be laid out any way: `apply` takes their value, not their text
 - **`write-rows.test.ts`** also proves of `git diff` after an intake and an apply that each content
   file changes only its own lines; content's `src/write/json-edit.test.ts` writes each content file
   unchanged, and adds a sentence, a Feature, a row and a key.
+- **`stage.test.ts`** stages uploads into a scratch copy, by role, sex and Class, and reads `git
+  status` to prove git sees none of it; goes on past refused and failed uploads; and runs again,
+  converting only what changed and dropping what left the inbox.
 - **`corpus.test.ts`** counts the corpus as shipped and in a scratch copy, with a run's files in
   place of the content's, and diffs a run written through the command line.
 - **`owner.test.ts`** reads the owner's 40, from `HEROESIM_OWNER_PICTURES` or

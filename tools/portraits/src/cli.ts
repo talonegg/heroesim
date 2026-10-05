@@ -16,8 +16,9 @@ import { diffRun, diffText } from './diff.js';
 import { DraftError } from './errors.js';
 import { datePattern } from './records.js';
 import { distance, fingerprint, type Fingerprint } from './fingerprint.js';
-import { readRegistry } from './registry.js';
+import { readRegistry, roles } from './registry.js';
 import { apply, writeRun } from './runs.js';
+import { stage, stageText } from './stage.js';
 import { writeRows } from './write-rows.js';
 
 /** This repository's root, three folders above this file. */
@@ -26,6 +27,9 @@ export const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url
 export const usage = `Usage: npm run portraits -- <command> [--root <dir>] [--json]
 
   convert <source>... [--out <dir>]    Write <name>.webp and <name>.thumb.webp beside each source
+  stage [<file or folder>...]          Convert the inbox's uploads ahead of their reading, into
+        [--out <dir>]                  media/inbox/staged/, listing each one's role, sex, Class,
+                                       sizes and near matches in stage.json; nothing live changes
   fingerprint <file or folder>...      Each picture's hash, and the nearest pictures in the register
               [--nearest <n>]
   check                                The register, media/ and the content agree, within the limits
@@ -178,7 +182,7 @@ async function commandFingerprint(options: Parsed, chromium: Chromium): Promise<
 
 type Result = { code: number; json: unknown; text: string[] };
 
-async function dispatch(options: Parsed): Promise<Result> {
+async function dispatch(options: Parsed, io: Io): Promise<Result> {
   switch (options.command) {
     case 'convert': {
       const json = (await withChromium((chromium) => commandConvert(options, chromium))) as {
@@ -189,6 +193,21 @@ async function dispatch(options: Parsed): Promise<Result> {
           `${each.picture.file}: ${each.picture.bytes} bytes at ${each.picture.quality}; ${each.thumbnail.file}: ${each.thumbnail.bytes} bytes at ${each.thumbnail.quality}`,
       );
       return { code: 0, json, text };
+    }
+    case 'stage': {
+      // The inbox's role folders by default: never the inbox whole, which holds the staging folder.
+      const named =
+        options.args.length > 0
+          ? options.args
+          : Object.values(roles)
+              .map((role) => path.join(options.root, 'media', 'inbox', role.inbox))
+              .filter((folder) => existsSync(folder));
+      const files = named.length > 0 ? picturesNamed(named) : [];
+      const progress = (done: number, total: number): void => {
+        if (done % 25 === 0 || done === total) io.err(`Staging: ${done} of ${total} uploads`);
+      };
+      const json = await withChromium((chromium) => stage(options.root, files, chromium, { ...(options.out === null ? {} : { out: options.out }), progress }));
+      return { code: 0, json: { ok: true, ...json }, text: stageText(json) };
     }
     case 'fingerprint': {
       const json = (await withChromium((chromium) => commandFingerprint(options, chromium))) as {
@@ -258,7 +277,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
   let options: Parsed | null = null;
   try {
     options = parse(argv);
-    const result = await dispatch(options);
+    const result = await dispatch(options, io);
     if (options.json) io.out(JSON.stringify(result.json, null, 2));
     else for (const line of result.text) (result.code === 0 ? io.out : io.err)(line);
     return result.code;
