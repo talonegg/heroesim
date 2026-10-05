@@ -374,5 +374,6 @@ export {
   type ValidationWarning,
   type WarningCheck,
 } from './validate.js';
+export { copyWorld, writeOnce } from './world-copy.js';
 // A stream's state type stays inside the engine: nothing reaches it except through `world.rng`.
 export type { StreamName } from './rng.js';

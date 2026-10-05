@@ -11,6 +11,7 @@ import { phaseContext } from './phases/phase.js';
 import { runTurn } from './pipeline.js';
 import { ensureStreams } from './rng.js';
 import { endedStop, type StopReason } from './stops.js';
+import { copyWorld } from './world-copy.js';
 
 export interface AdvanceResult {
   /** A new document: a new `world`, the same `meta` and `history`. */
@@ -31,7 +32,7 @@ export interface AdvanceResult {
 }
 
 /**
- * Plays the next Turn (data-model §1): copies `world` once with `structuredClone`, gives the copy
+ * Plays the next Turn (data-model §1): copies `world` once (`copyWorld`), gives the copy
  * any core random stream it lacks (`ensureStreams`) and any installed module's stream and slice it
  * lacks (`ensureModules`), advances its Turn by one, runs the pipeline's phases for the new Turn's
  * time of day on the copy under `deps.config`, `deps.content` and `deps.modules`, whose hooks run
@@ -50,7 +51,7 @@ export function advance(document: WorldDocument, deps: EngineDeps): AdvanceResul
   const ended = endedStop(document.world);
   if (ended !== null) return { document, events: [], stoppedBecause: ended };
 
-  const world = structuredClone(document.world);
+  const world = copyWorld(document.world);
   // A save made before a stream existed gains it here, seeded as a new world's (DL-25); one made
   // before a module was installed gains its stream and slice likewise (DL-76).
   ensureStreams(world, document.meta.seed);

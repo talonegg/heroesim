@@ -22,6 +22,7 @@ import {
 import { capitalised } from '@heroesim/words';
 import {
   consumableEffects,
+  copiesTimed,
   controllerKinds,
   countedYear,
   difficultyBandWidth,
@@ -307,6 +308,27 @@ export interface GameTotals {
   heroes: HeroTally;
   /** The saves as each year ended, over the games: index k is after k + 1 years. */
   saves: SaveYear[];
+  /**
+   * The World State as each year ended, over the games: index k is after k + 1 years (v1.1.6-S17,
+   * DL-203). Measures, not play counters: the copy's time differs between two runs of one game.
+   */
+  worlds: WorldYear[];
+}
+
+/** Rows of a table as a year ended, over the games: each game's live and written once. */
+export interface RowsYear {
+  live: number[];
+  writeOnce: number[];
+}
+
+/** The World State of the games that reached a year's end (`observeWorld`): each game's numbers. */
+export interface WorldYear {
+  characters: number[];
+  heroes: RowsYear;
+  guildmasters: RowsYear;
+  guilds: RowsYear;
+  otherRows: number[];
+  copyMs: number[];
 }
 
 /** The saves of the games that reached a year's end. */
@@ -332,13 +354,13 @@ export interface RankingTally {
 
 /**
  * The fold's exceptions to adding (DL-186 item 7), by a field's key wherever it stands. The longest
- * texts are the longest of any game. The saves and the Rivals' year-starts keep each game's numbers,
+ * texts are the longest of any game. The saves, the worlds and the Rivals' year-starts keep each game's numbers,
  * joined into one list a year, for the report's medians and maxima. The rest of the exceptions are in
  * what a game gives the fold (`contributionOf`): `games` counts games, as do the Rosters', the Regard's
  * and the Rankings' own `games`; a place in the Rankings counts one-hot.
  */
 const greatest: ReadonlySet<string> = new Set(['longestAppearance', 'longestBiography']);
-const joined: ReadonlySet<string> = new Set(['saves', 'rivalYearStarts']);
+const joined: ReadonlySet<string> = new Set(['saves', 'worlds', 'rivalYearStarts']);
 
 /** `value` with every number 0 and every list empty: where a total starts that the sweep has none of yet. */
 function zeroOf(value: unknown): unknown {
@@ -430,6 +452,14 @@ function contributionOf(game: GameRecord, turnsPerYear: number, years: number): 
       heroFields: [save.heroFields],
       gzipped: save.gzipped === null ? [] : [save.gzipped],
     })),
+    worlds: observations.worlds.map((world) => ({
+      characters: [world.characters],
+      heroes: { live: [world.heroes.live], writeOnce: [world.heroes.writeOnce] },
+      guildmasters: { live: [world.guildmasters.live], writeOnce: [world.guildmasters.writeOnce] },
+      guilds: { live: [world.guilds.live], writeOnce: [world.guilds.writeOnce] },
+      otherRows: [world.otherRows],
+      copyMs: [world.copyMs],
+    })),
   };
 }
 
@@ -500,6 +530,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     portraits: { player: noPortraits(), rival: noPortraits() },
     heroes: noHeroes(),
     saves: [],
+    worlds: [],
   };
   for (const game of sweep.games) fold(totals, contributionOf(game, turnsPerYear, totals.endedInYear.length), '', false);
   return totals;
@@ -1512,6 +1543,48 @@ function heroesSection(totals: SweepTotals): string[] {
   ];
 }
 
+/** Every copy timed as the years ended, over the games: the per-Turn copy's time (v1.1.6-S17, DL-203). */
+export function copyTimes(worlds: readonly WorldYear[]): number[] {
+  return worlds.flatMap((year) => year.copyMs);
+}
+
+/**
+ * v1.1.6-S17's (DL-186 item 11, DL-203): the World State as each year ended, its length in the save's
+ * characters, its rows in play and written once (dead, retired or gone Heroes, retired Guildmasters,
+ * folded Guilds), the other tables' rows, and the per-Turn copy's time, `copyWorld` timed there.
+ */
+function worldsSection(totals: SweepTotals): string[] {
+  const mean = (values: readonly number[]): string => fixed(summarise(values).mean, 1);
+  return [
+    '## The World State and its copy (v1.1.6-S17)',
+    '',
+    "The World State as each year ended, over the games that reached it: `world`'s length in the save, in characters; " +
+      "its rows in play and written once, which no rule writes again (the engine's `writeOnce`); and the per-Turn copy " +
+      `that \`advance\` and each action make, \`copyWorld(world)\`, timed there, the mean of ${whole(copiesTimed)} copies. ` +
+      'Measures, not play counters: `compare` leaves them out.',
+    '',
+    markdownTable(
+      ['Year', 'Games', 'Mean MiB', 'Heroes in play', 'Heroes written once', 'Guildmasters in office', 'Retired', 'Guilds in play', 'Folded', 'Other rows', 'Copy, mean ms', 'Copy, max ms'],
+      totals.worlds.map((year, index) => [
+        String(index + 1),
+        whole(year.characters.length),
+        mebibytes(summarise(year.characters).mean),
+        mean(year.heroes.live),
+        mean(year.heroes.writeOnce),
+        mean(year.guildmasters.live),
+        mean(year.guildmasters.writeOnce),
+        mean(year.guilds.live),
+        mean(year.guilds.writeOnce),
+        mean(year.otherRows),
+        fixed(summarise(year.copyMs).mean, 3),
+        fixed(summarise(year.copyMs).max, 3),
+      ]),
+      ['right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
+    ),
+    '',
+  ];
+}
+
 /** The sweep as a Markdown report. */
 export function playReport(sweep: PlaySweep, context: PlayReportContext): string {
   const { deps, machine, startedAt, milestone, drafted = [], configured = {}, policyChanged = {}, gate = null } = context;
@@ -1702,6 +1775,7 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
     ...rivalsSection(totals, deps),
     ...portraitsSection(totals),
     ...heroesSection(totals),
+    ...worldsSection(totals),
     '## Measures',
     '',
     markdownTable(
@@ -1709,6 +1783,7 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
       [
         summaryRow('`advance`', sweep.advance, 3),
         ...(sweep.replay === null ? [] : [summaryRow(`\`advance\`, \`${sweep.replay.seed}\` replayed alone`, sweep.replay.advance, 3)]),
+        summaryRow("`copyWorld`, `advance`'s copy, timed as each year ended", summarise(copyTimes(totals.worlds)), 3),
         ...(sweep.validated ? [summaryRow('`validate` after it', sweep.validation, 3)] : []),
       ],
       ['left', 'right', 'right', 'right', 'right', 'right'],

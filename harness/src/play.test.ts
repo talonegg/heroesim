@@ -161,14 +161,20 @@ describe('playGame observes the World State (M3, DL-40)', () => {
   test("the save as each year ends: every year's length as its text's, counted, and the last year's gzipped once the game stops", { timeout: 30_000 }, () => {
     const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 20 } };
     const lengths: number[] = [];
+    const worldLengths: number[] = [];
     const watched = playGame('play-a', shortYears, {
       years: 3,
       afterAdvance: (_before, after) => {
-        if (after.world.turn % 20 === 0) lengths.push(serialise(after).length);
+        if (after.world.turn % 20 !== 0) return;
+        lengths.push(serialise(after).length);
+        worldLengths.push(JSON.stringify(after.world).length);
       },
     });
     expect(watched.observations.saves.map((save) => save.length)).toEqual(lengths);
     expect(watched.observations.saves.map((save) => save.gzipped)).toEqual([null, null, null]);
+    // v1.1.6-S17 (DL-203): the World State beside the save as each year ends.
+    expect(watched.observations.worlds.map((world) => world.characters)).toEqual(worldLengths);
+    expect(watched.observations.worlds.every((world) => world.copyMs >= 0)).toBe(true);
 
     // The save and the loaded save, written again: two texts, and none while the game is played.
     vi.mocked(serialise).mockClear();

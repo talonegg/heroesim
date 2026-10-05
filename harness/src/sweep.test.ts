@@ -16,11 +16,12 @@ import {
   type HeroTally,
   type OfferTally,
   type TransferTally,
+  type WorldSize,
 } from './counters.js';
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { compareReplay, playReport, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { compareReplay, copyTimes, playReport, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (M2-S12, DL-34).
@@ -510,6 +511,41 @@ describe('sweepPlay', () => {
         { lengths: [10, 20], heroFields: [1, 2], gzipped: [] },
         { lengths: [30], heroFields: [3], gzipped: [4] },
       ]);
+    });
+
+    // v1.1.6-S17 (DL-203): the World State as each year ended, joined as the saves are.
+    test("joins the worlds as each year ended: each game's numbers kept, in the games' order, and renders them with the copy's time", () => {
+      const world = (n: number): WorldSize => ({
+        characters: n * 1024 * 1024,
+        heroes: { live: 10 * n, writeOnce: n },
+        guildmasters: { live: 3, writeOnce: n },
+        guilds: { live: 3, writeOnce: 0 },
+        otherRows: 100 * n,
+        copyMs: n / 2,
+      });
+      const worlds = [[world(1), world(2)], [world(3)]];
+      const joined = sweep.games.map((game, index) => ({ ...game, observations: { ...game.observations, worlds: worlds[index] ?? [] } }));
+      const played = { ...sweep, games: joined };
+      const totals = sweepTotals(played, deps.config.turnsPerYear);
+      expect(totals.worlds).toEqual([
+        {
+          characters: [1024 * 1024, 3 * 1024 * 1024],
+          heroes: { live: [10, 30], writeOnce: [1, 3] },
+          guildmasters: { live: [3, 3], writeOnce: [1, 3] },
+          guilds: { live: [3, 3], writeOnce: [0, 0] },
+          otherRows: [100, 300],
+          copyMs: [0.5, 1.5],
+        },
+        { characters: [2 * 1024 * 1024], heroes: { live: [20], writeOnce: [2] }, guildmasters: { live: [3], writeOnce: [2] }, guilds: { live: [3], writeOnce: [0] }, otherRows: [200], copyMs: [1] },
+      ]);
+      expect(copyTimes(totals.worlds)).toEqual([0.5, 1.5, 1]);
+      const report = playReport(played, { deps, machine: machine(), startedAt: new Date(2026, 9, 5, 12), milestone: 'm9-v116-s17' });
+      expect(report).toContain('## The World State and its copy (v1.1.6-S17)');
+      expect(report).toContain('| 1 | 2 | 2.00 | 20.0 | 2.0 | 3.0 | 2.0 | 3.0 | 0.0 | 200.0 | 1.000 | 1.500 |');
+      expect(report).toContain('| 2 | 1 | 2.00 | 20.0 | 2.0 | 3.0 | 2.0 | 3.0 | 0.0 | 200.0 | 1.000 | 1.000 |');
+      expect(report).toMatch(/\| `copyWorld`, `advance`'s copy, timed as each year ended \| 1\.000 \|/);
+      expect(report.indexOf('## Heroes described')).toBeLessThan(report.indexOf('## The World State and its copy'));
+      expect(report.indexOf('## The World State and its copy')).toBeLessThan(report.indexOf('## Measures'));
     });
 
     test('counts games: those of the sweep, those in play as each year began, those with a Regard to count and those that reached year 10', () => {

@@ -3,7 +3,7 @@
 // Turns through the real actions and timing every `advance`. Counters come from the History
 // (`counters.ts`), and what it cannot give from the World State before the policy acts on each
 // Turn (`observe`, M3, DL-40), after each `advance` the Heroes it generated and, as each year ends, the
-// save's size (v1.1.3-S6), and, for each Quest the policy sends a Party on, from the Quest's row
+// save's size (v1.1.3-S6) and the World State's with the per-Turn copy's time (v1.1.6-S17), and, for each Quest the policy sends a Party on, from the Quest's row
 // as it dispatches (its difficulty, M5, DL-62); and, for the Rivals' afternoons, from the world as
 // each `advance` found it: the difficulty of each Quest a Rival took, and whether the seller of each
 // Transfer was in debt (M6, DL-69). Measures from the harness's clock. DL-34 records the method.
@@ -54,6 +54,7 @@ import {
   observe,
   observeHeroes,
   observeSave,
+  observeWorld,
   savedLength,
   takeCensus,
   type GameCounters,
@@ -310,12 +311,14 @@ export function playGame(seed: string, given: EngineDeps, options: PlayOptions =
 
   // Every Hero generated with the world, and the save's length as each year ends (v1.1.3-S6),
   // counted without writing it (v1.1.5-S1): `recordGame` gzips the last year's from the save it
-  // writes once the game stops.
+  // writes once the game stops. With it, the World State's size and the per-Turn copy's time
+  // (v1.1.6-S17, DL-203).
   if (!bare) observeHeroes(observations, document);
   const yearEnded = (): void => {
     const { turn } = document.world;
     if (bare || turn === 0 || turn % deps.config.turnsPerYear !== 0) return;
     observeSave(observations, document.world, savedLength(document));
+    observeWorld(observations, document.world, now);
   };
 
   const created: number[] = [];

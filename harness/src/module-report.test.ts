@@ -15,7 +15,7 @@ const years = 60 / deps.config.turnsPerYear;
 const seeds = seedNames(2);
 
 describe('coreCounters', () => {
-  test("gives every number by its path, a list's entries summed at its path and [], the modules' own left out", () => {
+  test("gives every number by its path, a list's entries summed at its path and [], the modules' own and the worlds' measures left out", () => {
     const totals = {
       games: 2,
       heroesInjured: { player: 3, rival: 4 },
@@ -26,6 +26,8 @@ describe('coreCounters', () => {
       ],
       moduleEvents: { 'probe.fired': 9 },
       moduleEffects: { probe: { 'hero.injured': 9 } },
+      // v1.1.6-S17 (DL-203): the copy's time differs between two runs of one game, so `compare` leaves it out.
+      worlds: [{ characters: [10], heroes: { live: [1], writeOnce: [1] }, copyMs: [1.5] }],
     } as unknown as SweepTotals;
 
     expect([...coreCounters(totals)]).toEqual([

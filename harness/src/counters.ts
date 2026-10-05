@@ -47,11 +47,16 @@
 // Guild's controller, with a picture or the Silhouette; of those with a picture, those whose picture's
 // `apparentAge` holds the age they entered play at, and those one of whose picture's Callings clashes
 // with one of their Traits. No rule reads a Portrait, so none of these moves a play counter.
+//
+// v1.1.6-S17's (DL-186 item 11, DL-203), from the World State as each year ends (`observeWorld`): its
+// size in the save's characters, its rows live and write-once, and the time of the per-Turn copy,
+// `copyWorld`, taken there. Measures, not play counters: `compare` leaves them out.
 
 import {
   baseStat,
   callingClashes,
   compareByCodeUnit,
+  copyWorld,
   dispositionOf,
   encounterKinds,
   facilityKeys,
@@ -66,6 +71,7 @@ import {
   relationshipBandCounts,
   timeOfDay,
   unsignableHeroes,
+  writeOnce,
   yearOf,
   type Controller,
   type EncounterKind,
@@ -1514,6 +1520,8 @@ export interface GameObservations {
   heroEntriesRead: number;
   /** The save as each year ended (`observeSave`, v1.1.3-S6): index k is after k + 1 years. */
   saves: SaveSize[];
+  /** The World State as each year ended (`observeWorld`, v1.1.6-S17): index k is after k + 1 years. */
+  worlds: WorldSize[];
 }
 
 /** Every Hero generated in a game, and their Portraits and texts (v1.1.3-S6; DL-134 item 9, DL-135 item 6). */
@@ -1545,6 +1553,26 @@ export interface SaveSize {
   gzipped: number | null;
 }
 
+/** Rows of a table: those in play, and those out of play for good, written once (the engine's `writeOnce`). */
+export interface RowCount {
+  live: number;
+  writeOnce: number;
+}
+
+/** The World State as a year ended (v1.1.6-S17, DL-203): its size, its rows and the per-Turn copy's time. */
+export interface WorldSize {
+  /** `world`'s length in the save, in characters (`savedLength`). */
+  characters: number;
+  /** The Heroes (dead, retired or gone from the pool written once), the Guildmasters (retired) and the Guilds (folded). */
+  heroes: RowCount;
+  guildmasters: RowCount;
+  guilds: RowCount;
+  /** The rows of every other table: Patrons, Quests, Parties, Items, stacks and Transfer Offers. */
+  otherRows: number;
+  /** The mean milliseconds of `copyWorld(world)`, the copy `advance` makes of it, over `copiesTimed` copies. */
+  copyMs: number;
+}
+
 export const noFameGate = (): FameGate => ({ heroDays: 0, guildDays: 0, guildDaysWithAny: 0 });
 export const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
 
@@ -1558,6 +1586,7 @@ export function emptyObservations(): GameObservations {
     heroes: noHeroes(),
     heroEntriesRead: 0,
     saves: [],
+    worlds: [],
   };
 }
 
@@ -1633,6 +1662,37 @@ export function heroFieldsLength(world: World): number {
  */
 export function observeSave(observations: GameObservations, world: World, length: number, gzipped: number | null = null): void {
   observations.saves.push({ length, heroFields: heroFieldsLength(world), gzipped });
+}
+
+/** How many times `observeWorld` copies the World State to time the copy: their mean is the year's. */
+export const copiesTimed = 3;
+
+/** `rows`, counted live and written once by `isWriteOnce`. */
+function countRows<Row>(rows: Readonly<Record<string, Row>>, isWriteOnce: (row: Row) => boolean): RowCount {
+  const count: RowCount = { live: 0, writeOnce: 0 };
+  for (const row of Object.values(rows)) count[isWriteOnce(row) ? 'writeOnce' : 'live'] += 1;
+  return count;
+}
+
+/**
+ * Adds the World State as a year ends (v1.1.6-S17, DL-203): its characters in the save, its rows live
+ * and written once, and the per-Turn copy's time, the mean of `copiesTimed` copies of it by the
+ * engine's `copyWorld` on the clock `now`. The copies are made and dropped: the copy leaves `world` as
+ * it was, so the game plays on as it would have.
+ */
+export function observeWorld(observations: GameObservations, world: World, now: () => number): void {
+  const started = now();
+  for (let copy = 0; copy < copiesTimed; copy += 1) copyWorld(world);
+  const copyMs = (now() - started) / copiesTimed;
+  const { heroes, guildmasters, guilds, patrons, quests, parties, items, stacks, offers } = world;
+  observations.worlds.push({
+    characters: savedLength(world),
+    heroes: countRows(heroes, writeOnce.heroes),
+    guildmasters: countRows(guildmasters, writeOnce.guildmasters),
+    guilds: countRows(guilds, writeOnce.guilds),
+    otherRows: [patrons, quests, parties, items, stacks, offers].reduce((sum, table) => sum + Object.keys(table).length, 0),
+    copyMs,
+  });
 }
 
 /** A character JSON writes as an escape: a quote, a backslash, a control character or a surrogate, lone or not. */
