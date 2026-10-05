@@ -274,9 +274,9 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 
 ### `has-trait`: has-trait in a Query
 
-- **Reads:** The `["has-trait", key]` predicate: whether the current Hero holds a Hero Trait content defines (v1.1.4-S1), and its account for the Board.
+- **Reads:** The `["has-trait", key]` predicate: whether the current Hero holds a Hero Trait content defines (v1.1.4-S1), its row of the Query operators (v1.1.6-S10), and its account for the Board.
 - **Traits:** Hero.
-- **Where it reads them:** `engine/src/quest-engine/query.ts`: `is`; `engine/src/quest-engine/describe.ts`: `predAccount`.
+- **Where it reads them:** `engine/src/quest-engine/query/operators.ts`: `operators`; `engine/src/quest-engine/describe.ts`: `predAccount`.
 
 ### `biography-and-portrait`: The Biography and the Portrait choice
 
@@ -295,6 +295,6 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 
 - **Reads:** Every Trait and every use of one in content (`validateContent`): a key in one list only, exclusions held both ways, each effect's values, and each key a use names defined in its list. The editor checks each pending edit with them.
 - **Traits:** Guildmaster and Hero; effects `classStatBonus`, `guildMoraleShift`, `upkeepFactor`, `statModifiers`, `encounterBonus`.
-- **Where it reads them:** `content/src/validate.ts`: `validateContent`, `checkPortraitAppearances`, `longestDescriptions`, `checkDescriptions`, `checkEncounters`, `checkConsequence`, `checkTraits`, `operators`, `queryKeys`, `queryArgument`.
+- **Where it reads them:** `content/src/validate.ts`: `validateContent`, `checkPortraitAppearances`, `longestDescriptions`, `checkDescriptions`, `checkEncounters`, `checkConsequence`, `checkTraits`, `queryKeys`; `engine/src/quest-engine/query/problems.ts`: `queryArgument`.
 
 <!-- The register's part ends. -->

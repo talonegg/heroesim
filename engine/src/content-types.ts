@@ -285,8 +285,9 @@ export type EncounterKind = (typeof encounterKinds)[number];
 // array, operator first, of one of five types, each read where its type is expected. A Set is some
 // of the Party's Heroes; a Hero one of them, or none; a Val a number read of the current Hero; a Pred
 // a fact of the current Hero; a Num a number of the Party. A number is a Val or a Num, as `+`, `-` and
-// `*` are, by where they stand. The engine evaluates them (`quest-engine/query.ts`); content
-// validation holds their shape, keys and size, and where Sex may stand.
+// `*` are, by where they stand. The engine evaluates them by a table of their operators, a row
+// each (`quest-engine/query/operators.ts`, v1.1.6-S10); content validation holds their shape, keys
+// and size, and where Sex may stand, by the engine's `queryProblems`, which reads the same rows.
 
 /** Some of the Party's Heroes, in Party order: `"party"` is every member still in the sequence. */
 export type SetQuery =

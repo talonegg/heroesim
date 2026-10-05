@@ -25561,6 +25561,102 @@ Line endings as each file's before, none mixed.
 
 ---
 
+## DL-196 — v1.1.6-S10 built: one Query operator table, a row for each operator of each type with its signature and its evaluation, driving the evaluator; `queryProblems` in the engine, which content's checker calls, its own table and sign analysis gone; every refusal in the same words
+
+2026-10-05. DL-186 item 6 (A6, layer 2).
+
+- *Before.* The doctor read no drift (108 reads of a Trait, the content passing its checks, no
+  pending edits).
+- *Characterisation first.* `content/src/query-refusals.test.ts`: 236 Queries, each put in one place
+  of the shipped content in memory (a Check's score, a raw Check's, a Synergy's requirement, an
+  Injury's, a Death's or an earned Trait's `among`), and `validateContent`'s whole list of problems
+  held word for word, in order, each after its place's path: a leaf or a node of each wrong type
+  (numbers where a Set, a Hero, a Pred or a condition stands, `Infinity` and `NaN`, `"party"`, words,
+  objects, empty lists, `null`), an operator of another type or of none (`constructor`, `__proto__`),
+  Sex outside a filter, every form of the number of arguments, every key and its kinds, `top`'s,
+  `bottom`'s, `has-skill`'s, `ranked`'s and `weighted`'s numbers and lists, a Set filtered by Sex
+  counted by each road and in a requirement, the size, a Check's score turning a Stat against itself
+  by each operator, malformed nodes beside it, and the accepted forms. 215 written first, passing on
+  `validate.ts` as it was; 21 more added after the mutation sweep below (a Skill, Morale or age of a
+  Set filtered by Sex, the sign of each Num and of a Level, a sum of numbers, an argument a key or no
+  argument should be), each run against `8a00f7d`'s `validate.ts` put back and passing there. It
+  passes unchanged after.
+- *The table* (`engine/src/quest-engine/query/operators.ts`). `operators`, a row for each operator of
+  each type, `{ signature, evaluate }`, in the order the types are named (Set, Hero, Val, Pred, Num,
+  condition). A signature is its arguments' kinds in order, the last of which may be `kind?` (left
+  out) or `kind...` (one or more), typed from the kinds. Each row's `evaluate` is typed from
+  content-types.ts' lists: a row missing for one of their operators, or one of the wrong shape, fails
+  to compile. The five comparisons share a row in a Pred and another in a condition, `compare` telling
+  them apart. `evaluate`, `holds`, `membersOf`, `heroOf`, `valueOf` and `is` walk it, looking up each
+  node's row as its own property (`rowOf`), and throw on an operator the type has not, as before;
+  `query.ts` keeps `queryParty` and the Party's types and exports the six. Every value as before: the
+  same reductions in the same order, from the same starts, the same ties.
+- *`queryProblems(query, place, keys, where)`* (`query/problems.ts`, exported from the entry). The
+  plan's `(query, type, keys)` refined to what content needs: `place`, one of `score`, `raw score`,
+  `requirement` and `among`, sets the type (a Num, a Num, a condition, a Set), whether Sex may filter
+  (not in a requirement) and whether the signs are held (in a `score` only); `where` is the path each
+  problem names; `keys` (`QueryKeys`) the Hero Stats, Skills, Classes, Hero Backgrounds and Hero
+  Traits content defines. It returns the problems in content's order (types, keys and Sex, then size,
+  then signs). It reads each node's signature from the table; the sign analysis is beside it, its
+  answers for each operator (`signOfVal`, `signOfNum`, `valBelow`, `numBelow`, `readsHero`) each a
+  switch over every operator of its type with no default, so a new operator fails to compile until its
+  sign is said. `queryNodesMax` and `queryDepthMax` moved with it.
+- *Content's checker.* `validate.ts` calls `queryProblems` at its four places and keeps `queryKeys`;
+  its signature table, type names, node and argument walks, `misplaced`, `arity`, `readsHero` and the
+  sign analysis (`checkInversions`, `signOf`, `constantOf`, `belowOf` and the signs) are gone: 1,793
+  lines to 1,326. The Synergy's `{ ...keys, sexFilters: false }` is the `requirement` place.
+- *The script.* The page imports the table for evaluation and never `queryProblems`; the checks are a
+  module the page does not reach, and the build carries none of their words (searched for in the
+  built script). It is 814,768 bytes, 519 more than S9's 814,249: the rows' signatures.
+- *Tests at the table's interface.* `query/problems.test.ts`: each operator's signature written out
+  apart from the table and held through `queryProblems` (a node of sound arguments accepted, one
+  short and one over refused in the words of its number, each argument of another kind refused at its
+  place in its own words), the table's operators and the order of its types, and the four places.
+  `query/operators.test.ts`: each comparison on a number less than, equal to and greater than another,
+  in a Pred and a condition, one row each, and the throw. `check.test.ts`: the two new files never
+  name the Guildmaster or the Guild's dealings, and the table imports only `rowOf` as a value. The
+  evaluator's own tests (`query.test.ts` and the Check's, Synergy's, harm's and resolution's) pass
+  unchanged, `resolve.test.ts`' fingerprint of 300 seeds among them.
+- *Mutations*, each run with the file restored after, a no-op control surviving each sweep: the
+  table, 85 (each row's signature, a kind, an optional or a rest changed, 37; each row's evaluation,
+  each comparison and the shared helpers, 48), against `query.test.ts` and the two new tests: 84
+  killed; the 85th, `ranked` read without cutting the ranking to its weights, is equivalent (a weight
+  past the list is 0). The checks, 64 (an operator answered wrongly in `readsHero`, each sign,
+  `constantOf`, `valBelow` and `numBelow`, and each of the walk's turns), against the content test
+  and `problems.test.ts`: 61 killed; the three left equivalent (`constantOf` of a product, whose sign
+  is its factors'; `valBelow` of `stat` and of `weighted`, which the walk answers before asking).
+
+*What changed for Traits.* No Trait, effect, event or use. The reads moved with the code: the
+register's `has-trait` entry names `query/operators.ts`' `operators` where it named `query.ts`'
+`is`; `content-checks` no longer names `validate.ts`' `operators` and `queryArgument`, and names
+`query/problems.ts`' `queryArgument`, which holds a `has-trait`'s key to the Hero Traits (the drift
+fix of `docs/agents/traits.md`'s guardrails, step 2, by hand; the doc written again with `traits
+doc`). The doctor read no drift after, with 107 reads of a Trait (one fewer: `has-trait` is written once, as its row's key, where `is`
+and content's table each wrote it).
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 197 files, 5,524 tests passing; `npm run
+build` and check-bundle passing, the script 814,768 bytes, within 1 kB of S9's; `npm run e2e -w web`
+103 passing. Line endings as each file's before, the new files CRLF as their neighbours, none mixed.
+
+*Proof.* The `neutral` run after, alone (`HEROESIM_WORKERS=8`, `m9-v116-s10-neutral`, 531 s,
+`--expect` S7's baseline): the fingerprint
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, the same, the Gate PASS, the
+replay of `seed-0001` identical. Every game as it was. Its reports not committed.
+
+*Calls made, for the owner to see.* (1) `queryProblems` takes the place a Query stands in, not its
+type, and the path: the place says what content's checker said with a type, a `sexFilters` and a
+`raw` together. (2) A signature is a short list of kinds (`['skill', 'rating?']`, `['val...']`), so
+the table costs the script 519 bytes; the checks read it. (3) The sign of each operator is answered
+beside the checks, not in the rows, so the script carries none of it; each answer is a switch the
+compiler holds complete. (4) The refusals' words are now the engine's, as content wrote them: an
+author's, never the player's, so ADR-0003 (events, not prose) is not touched by them. (5) `holds` of
+a condition whose comparison is none of the five now throws, as every other type did; it returned
+`undefined` before. Only a Query built in memory and never checked reaches it. (6) The account of a
+Query (`describe.ts`) still switches on its operators: the story's table drives the evaluator and
+the checks; the account is the front ends' and was left. ADR-0010 carries a dated amendment.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

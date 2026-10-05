@@ -325,6 +325,9 @@ export {
   type Resolution,
 } from './quest-engine/resolve.js';
 export { queryParty, type OnQuest, type QueryContent, type QueryMember, type QueryParty } from './quest-engine/query.js';
+// Content's checker holds every Query to its type, keys, size and Sex rules by the operators' own
+// signatures (v1.1.6-S10, DL-186 item 6); the page checks none.
+export { queryProblems, type QueryKeys, type QueryPlace } from './quest-engine/query/problems.js';
 export {
   affordableImprovement,
   bankruptcyCountdown,

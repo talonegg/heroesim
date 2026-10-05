@@ -257,3 +257,34 @@ describe('query.ts', () => {
     expect(imports.filter((it) => it.typeOnly).map((it) => it.from)).toEqual(['../config.js', '../content-types.js', '../document.js']);
   });
 });
+
+// v1.1.6-S10 (DL-186 item 6): the operators the Queries are evaluated by, and their checks, are held
+// to the same: they read only the Party's own Heroes, as query.ts does.
+describe.each(['query/operators.ts', 'query/problems.ts'])('%s', (file) => {
+  const source = readFileSync(fileURLToPath(new URL(`./${file}`, import.meta.url)), 'utf8');
+
+  test('never mentions the Guildmaster', () => {
+    expect(source.toLowerCase()).not.toContain('guildmaster');
+  });
+
+  test("reads nothing of the Guild's dealings: no Wealth, Fame, Treasury, Upkeep, Patron or Rival", () => {
+    expect(source.toLowerCase()).not.toMatch(/wealth|fame|treasury|upkeep|patron|rival/);
+  });
+});
+
+describe('query/operators.ts', () => {
+  test("imports as a value only the row lookup, and otherwise only types: content's, the document's and the Party's", () => {
+    const source = readFileSync(fileURLToPath(new URL('./query/operators.ts', import.meta.url)), 'utf8');
+    const imports = [...source.matchAll(/^import (type )?\{([^}]*)\} from '([^']+)';\r?$/gm)].map(([, type, names = '', from]) => ({
+      from,
+      names: names.split(',').map((name) => name.trim()).filter((name) => name !== ''),
+      typeOnly: type !== undefined,
+    }));
+
+    expect(imports).toEqual([
+      { from: '../../content-types.js', names: ['HeroQuery', 'NumQuery', 'PartyCondition', 'PredQuery', 'QueryComparison', 'SetQuery', 'ValQuery'], typeOnly: true },
+      { from: '../../document.js', names: ['rowOf', 'type Hero'], typeOnly: false },
+      { from: '../query.js', names: ['QueryContent', 'QueryMember', 'QueryParty'], typeOnly: true },
+    ]);
+  });
+});

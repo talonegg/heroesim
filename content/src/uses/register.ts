@@ -711,9 +711,9 @@ const engineEntries: readonly EngineEntry[] = [
     id: 'has-trait',
     title: 'has-trait in a Query',
     lists: ['hero'],
-    reads: 'The `["has-trait", key]` predicate: whether the current Hero holds a Hero Trait content defines (v1.1.4-S1), and its account for the Board.',
+    reads: 'The `["has-trait", key]` predicate: whether the current Hero holds a Hero Trait content defines (v1.1.4-S1), its row of the Query operators (v1.1.6-S10), and its account for the Board.',
     sources: [
-      { file: 'engine/src/quest-engine/query.ts', names: ['is'] },
+      { file: 'engine/src/quest-engine/query/operators.ts', names: ['operators'] },
       { file: 'engine/src/quest-engine/describe.ts', names: ['predAccount'] },
     ],
   }),
@@ -754,11 +754,11 @@ const engineEntries: readonly EngineEntry[] = [
           'checkEncounters',
           'checkConsequence',
           'checkTraits',
-          'operators',
           'queryKeys',
-          'queryArgument',
         ],
       },
+      // The Queries' keys, a has-trait's among them, checked by the engine for content (v1.1.6-S10, DL-186 item 6).
+      { file: 'engine/src/quest-engine/query/problems.ts', names: ['queryArgument'] },
     ],
   }),
 ];

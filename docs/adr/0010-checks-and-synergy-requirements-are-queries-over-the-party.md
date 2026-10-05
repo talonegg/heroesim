@@ -64,7 +64,18 @@ So a new operator needs its node in the account and its words in both front ends
 A text form, compiled when content is built, is not part of this decision. It is added only if
 writing the arrays proves painful (DL-148 item 4).
 
+*Amended 2026-10-05.* The operators are a table (v1.1.6-S10, DL-196): a row for each operator of
+each type, holding its signature, the arguments it takes, and its evaluation
+(`engine/src/quest-engine/query/operators.ts`), which the evaluator walks; `query.ts` takes the
+Party. The checks of a Query's type, keys, size, Sex and signs that content validation runs at load
+are the engine's too, `queryProblems` (`query/problems.ts`), which reads the same signatures;
+content's checker calls it with where the Query stands (a Check's score, a raw Check's, a Synergy's
+requirement, an `among`) and the keys content defines, and holds no table of its own. The page
+checks no Query, and its script carries none of the checks. So a new operator is a row, with its
+sign beside the checks, its account and its words; a row missing for an operator of content's
+types fails to compile.
+
 *Recorded 2026-10-02* in v1.1.4-S1 (DL-151), from DL-148 items 4 to 6 and 20; the refusal of a
 subtracted Stat added in v1.1.4-S3 (DL-154), of a negative weight or factor on a Stat in
-v1.1.4-S9 (DL-162), harm's `among` in v1.1.4-S4 (DL-155), and the account of a Query in v1.1.4-S5
-(DL-156).
+v1.1.4-S9 (DL-162), harm's `among` in v1.1.4-S4 (DL-155), the account of a Query in v1.1.4-S5
+(DL-156), and the operators' table with `queryProblems` in v1.1.6-S10 (DL-196).
