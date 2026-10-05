@@ -30,8 +30,8 @@ The current `neutral` baseline, every play-neutral story's `--expect`, is
 schema 7, config version 15, content version 36; S14's was `7298b502…` at 35). The 4 × 2 quick check at
 content 36 is `340876aec96189dc267a8ec9aa293e0eb71960467a812f0ecd0060dcefc0d073`. It changes only with a DL entry,
 as at a story that changes play or the save's shape (v1.1.6-S7 and S17) or raises the content version.
-The full `gate`'s, 50 × 20, is `143a44c770f94185d5565da7457c87c32bebc97e78ddfab9ed186f2d83d881b9`
-(`m9-v116-s7`, DL-193).
+The full `gate`'s, 50 × 20, is `ecede9c07ee4ac031f62bec25a0848c73008b9fdefe9416083975f390c06e6fa`
+(`m9-v116-s17`, DL-203: schema 7, config version 15, content version 36; S7's was `143a44c7…` at 34).
 
 ## Settings
 
@@ -67,8 +67,8 @@ stopped by a harness assertion, unfinished or failing its round trip; the replay
 played once more, alone, its last save's length and fingerprint the same as its shard recorded. Its
 bands are set on its run, 50 games of 20 years, and read "not comparable" on a run of another shape:
 the player's Bankruptcies, at most 3 of 50; the save after 20 years, its gzipped mean under
-30 MiB; and the per-Turn copy's mean time, as each year ended, at most 25% over its baseline, which
-reads "not comparable" until a full run sets the baseline (v1.1.6-S17, DL-203). The Traits earned a player's Hero career and the save's uncompressed size are not lines of the
+30 MiB; and the per-Turn copy's mean time, as each year ended, at most 25% over its baseline,
+0.847 ms, measured at v1.1.6-S17's full gate (DL-203). The Traits earned a player's Hero career and the save's uncompressed size are not lines of the
 Gate; the report prints them. The estimate probe reads its two limits from it. A `gate` or `neutral`
 run prints each line's verdict and writes them into both reports; it fails when a line fails.
 

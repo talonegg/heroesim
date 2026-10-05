@@ -134,6 +134,17 @@ describe('a run checked against the Gate, line by line', () => {
     expect(checkGate(shaped, ended).pass).toBe(true);
   });
 
+  // v1.1.6-S17's verification (DL-203): the baseline the full gate measured, 0.847 ms, read from the
+  // shipped spec; a run at it passes, one more than 25% over it fails.
+  test("the shipped spec's copy line holds the full gate's baseline and reads it", () => {
+    expect(spec.lines.copyMs.baselineMeanMs).toBe(0.847);
+    const shipped: GateSpec = { ...spec, run: shaped.run };
+    const copyLine = (copyMs: number[]) => checkGate(shipped, passing((run) => ((run.totals.worlds[0] as { copyMs: number[] }).copyMs = copyMs))).lines.at(-1);
+    expect(copyLine([0.847, 0.847])).toMatchObject({ verdict: 'pass', limit: 'mean at most 1.059 ms (0.847 ms + 25%)' });
+    expect(copyLine([1.05, 1.06])).toMatchObject({ verdict: 'pass' });
+    expect(copyLine([1.06, 1.07])).toMatchObject({ verdict: 'fail' });
+  });
+
   // v1.1.6-S17 (DL-203): the copy's line reads not comparable until its baseline is set, on any run.
   test("the copy's line with no baseline yet reads not comparable, its mean printed", () => {
     const unset: GateSpec = { ...shaped, lines: { ...shaped.lines, copyMs: { ...shaped.lines.copyMs, baselineMeanMs: null } } };
