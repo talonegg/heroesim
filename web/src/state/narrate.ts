@@ -58,7 +58,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { listed } from './names';
+import { listed, nameIn } from '@heroesim/words';
 import { facilityIs, facilityNames } from './rejections';
 
 /** What a sentence reads beyond its event: content's names, and a Quest's name by its id. */
@@ -69,11 +69,6 @@ export interface Narration {
 }
 
 // ── Names ────────────────────────────────────────────────────────────────────────────────────
-
-/** A content row's name; a key the content does not define is shown as it is (data-model rule 5). */
-function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
-  return Object.hasOwn(rows, key) ? (rows[key]?.name ?? key) : key;
-}
 
 /** What an entity with no label is called: `a Hero`, `a Guild`. */
 const someone: Readonly<Record<TableName, string>> = Object.freeze({
@@ -153,9 +148,6 @@ function signed(n: number): string {
 function night(turn: number): string {
   return `the night of Day ${dayOf(turn)}`;
 }
-
-/** A list as a sentence gives one (`names.ts`, since v1.1.4-S11, where the refusals' words read it too). */
-export { listed };
 
 /** `listed` for segments: the names in the list stay names. */
 function listedWords(items: readonly Words[]): Words {

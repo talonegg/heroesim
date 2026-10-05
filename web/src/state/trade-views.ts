@@ -30,43 +30,16 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
+import { capitalised, itemEffectWords, kindOf, nameIn } from '@heroesim/words';
 import { content } from '../content';
-import { capitalised, nameIn, nightOf, rowOf, transferCostWords } from './names';
+import { nightOf, rowOf, transferCostWords } from './names';
 import { playDeps } from './reducer';
 
 // ── The Market ───────────────────────────────────────────────────────────────────────────────
 
-/**
- * An Item's kind as a cell says it: its Gear slot or Consumable, and whether it is a Unique Item,
- * `Weapon Gear, Unique Item`, its first word the Kind filter's chip (DL-125 item 9). The Stores says
- * it too (M9-F3).
- */
-export function kindOf(definition: ItemDefinition): string {
-  const kind = definition.kind === 'gear' ? `${capitalised(definition.slot)} Gear` : 'Consumable';
-  return definition.unique ? `${kind}, Unique Item` : kind;
-}
-
-/** What an Item does, in the CLI's Market's words as a cell begins them: Gear's Stat modifiers, a Consumable's effect. */
-function doesOf(definition: ItemDefinition): string {
-  return capitalised(effectOf(definition));
-}
-
-function effectOf(definition: ItemDefinition): string {
-  if (definition.kind === 'gear') {
-    return Object.entries(definition.statModifiers)
-      .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${delta > 0 ? `+${delta}` : String(delta)}`)
-      .join(', ');
-  }
-  const { effect } = definition;
-  switch (effect.kind) {
-    case 'bonus':
-      return `+${effect.flat} on a ${effect.kinds.join(' or ')} Encounter`;
-    case 'reroll':
-      return `rolls a failed ${effect.kinds.join(' or ')} Encounter again`;
-    case 'heal':
-      return `an Injury on the Quest heals ${effect.days} Days sooner`;
-  }
-}
+// An Item's kind as a cell says it (`kindOf`), `Weapon Gear, Unique Item`, its first word the Kind
+// filter's chip (DL-125 item 9), which the Stores says too (M9-F3); and what it does, as the CLI's
+// Market says it (`itemEffectWords`): `@heroesim/words` (v1.1.6-S11, DL-186 item 1).
 
 /** A kind of Item the Market's table can be filtered by: a gear slot, or `consumable` (M9-S6). */
 export type MarketKind = SlotKey | 'consumable';
@@ -142,7 +115,7 @@ export function marketView(document: WorldDocument, only: MarketKind | null = nu
     name: definition.name,
     kind: kindOf(definition),
     kindKey: kindKeyOf(definition),
-    does: doesOf(definition),
+    does: itemEffectWords(definition, content),
     quantity,
     price,
   }));
@@ -159,7 +132,7 @@ export function marketView(document: WorldDocument, only: MarketKind | null = nu
     const definition = itemDefinition(content, key);
     return definition === undefined
       ? { definitionKey: key, unique: false, kind: '', does: '' }
-      : { definitionKey: key, unique: definition.unique, kind: kindOf(definition), does: doesOf(definition) };
+      : { definitionKey: key, unique: definition.unique, kind: kindOf(definition), does: itemEffectWords(definition, content) };
   };
   const held: HeldForSale[] = [
     ...stacks.map((stack) => ({

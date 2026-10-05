@@ -6,6 +6,7 @@
   "workspaces": [
     "engine",
     "content",
+    "words",
     "harness",
     "cli",
     "web",

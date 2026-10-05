@@ -43,10 +43,11 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
+import { listed } from '@heroesim/words';
 import { content } from '../content';
 import type { PortraitRole } from '../media';
 import { bandWords, rowOf } from './names';
-import { listed, narrateSegments, narrationFor, textOf, type Narration, type Segment } from './narrate';
+import { narrateSegments, narrationFor, textOf, type Narration, type Segment } from './narrate';
 import { partOfAReturn, returnEntry, type ReturnEntry } from './quest-return';
 import { historyPageSize, whenOf } from './selectors';
 

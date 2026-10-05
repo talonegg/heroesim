@@ -15,9 +15,9 @@ import * as testing from './testing.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 
-/** The packages' TypeScript sources outside the engine, as paths from the repository's root. */
+/** The packages' TypeScript sources outside the engine, as paths from the repository's root; the words' from v1.1.6-S11. */
 function sources(): string[] {
-  const dirs = ['cli/src', 'content/src', 'harness/src', 'web/src', 'web/e2e', 'tools/editor/src', 'tools/portraits/src'];
+  const dirs = ['cli/src', 'content/src', 'words/src', 'harness/src', 'web/src', 'web/e2e', 'tools/editor/src', 'tools/portraits/src'];
   return dirs.flatMap((dir) =>
     readdirSync(`${root}${dir}`, { recursive: true, encoding: 'utf8' })
       .filter((file) => /\.tsx?$/.test(file) && !/(^|[\\/])boundary-probe-/.test(file))
@@ -96,6 +96,7 @@ describe("the engine's entry", () => {
   test('reads the packages it is held to', () => {
     expect(production).toContain('cli/src/main.ts');
     expect(production).toContain('web/src/state/reducer.ts');
+    expect(production).toContain('words/src/query.ts');
     expect(tests).toContain('cli/src/main.test.ts');
     expect(tests).toContain('web/src/state/game.test-support.ts');
   });

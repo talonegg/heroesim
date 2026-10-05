@@ -42,8 +42,9 @@ import {
   type Sex,
   type WorldDocument,
 } from '@heroesim/engine';
+import { capitalised, nameIn, traitEffectWords } from '@heroesim/words';
 import { content } from '../content';
-import { capitalised, controllerWords, nameIn, placeWords, rowOf, traitEffectWords } from './names';
+import { controllerWords, placeWords, rowOf } from './names';
 import { playDeps } from './reducer';
 import { endingWords, facilityNames } from './rejections';
 

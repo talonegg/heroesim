@@ -141,6 +141,7 @@ both), TypeScript, Vitest, ESLint.
 ```
 engine/     pure rules, state, generators, engines; zero dependencies; tests beside
 content/    JSON content and a loader with a pure entry (browser) and a Node entry
+words/      the words the front ends and the tools share; runs in a browser (v1.1.6-S11)
 harness/    automatic policy, seed sweeps, counters; runs under Vitest with an env flag
 cli/        terminal front end; local file saves
 web/        browser front end; static build for Cloudflare Pages; browser saves

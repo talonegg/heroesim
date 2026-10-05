@@ -1,7 +1,7 @@
 import { createWorld, defaultConfig, portraitFit, type DescriptiveAttribute, type Sex } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
+import { capitalised } from '@heroesim/words';
 import { content } from '../content';
-import { capitalised } from './names';
 import type { NewGame } from './reducer';
 import {
   givenTexts,

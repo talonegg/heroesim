@@ -1,10 +1,10 @@
-// What a Check reads, and how likely a Party is to pass it, in the page's words (v1.1.4-S5, DL-148
-// items 15 and 16): the engine's typed account of a Query (`describeQuery`) worded, "Strength of the
-// Warrior with the highest Strength", and a chance band's key as the word DL-148 item 15 gives it. The
-// CLI words them the same (cli/src/query-words.ts). Words only; no rule. From v1.1.4-S6 the Board's
-// cards show each Encounter's Checks and what they read (`encounterReadings`), and the Party builder
-// each chance in a word with its percentage floored to 5 in the detail (`shownPercent`), capitalised where they
-// stand alone (`capitalised`, docs/agents/ui-text.md).
+// What a Check reads, and how likely a Party is to pass it, in words (v1.1.4-S5, DL-148 items 15 and
+// 16): the engine's typed account of a Query (`describeQuery`) worded, "Strength of the Warrior with
+// the highest Strength", and a chance band's key as the word DL-148 item 15 gives it. Words only; no
+// rule. From v1.1.4-S6, the CLI's `show board` and the Board's cards give each Encounter's Checks and
+// what they read (`encounterReadings`), and `preview` and the Party builder each chance in a word with
+// its percentage floored to 5 (`shownPercent`), capitalised where they stand alone. The CLI and the
+// page each held a copy, differing by an import, until v1.1.6-S11 (DL-186 item 1).
 
 import {
   describeQuery,
@@ -17,7 +17,7 @@ import {
   type SetAccount,
   type ValAccount,
 } from '@heroesim/engine';
-import { nameIn } from './names';
+import { listed, nameIn } from './names.js';
 
 /** A chance band in words (DL-148 item 15). */
 export const chanceWords: Readonly<Record<ChanceBand, string>> = {
@@ -80,11 +80,6 @@ export function readsAsOne(reading: EncounterReading): boolean {
   return reading.checks.length === 1 && reading.checks[0]?.name === reading.name;
 }
 
-/** `a`, `a and b`, `a, b and c`; or with `or`. */
-function joined(items: readonly string[], word = 'and'): string {
-  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} ${word} ${items.at(-1) ?? ''}`;
-}
-
 const signs = { '+': ' + ', '-': ' − ', '*': ' × ' } as const;
 const comparisons = { '>=': 'at least ', '>': 'above ', '<': 'below ', '<=': 'at most ', '=': '' } as const;
 
@@ -122,9 +117,9 @@ export function queryWords(account: QueryAccount, names: QueryNames): string {
   const clause = (it: PredAccount): [string, string] => {
     switch (it.kind) {
       case 'class':
-        return [`who are ${joined(plurals(it.classKeys), 'or')}`, `who are not ${joined(plurals(it.classKeys), 'or')}`];
+        return [`who are ${listed(plurals(it.classKeys), 'or')}`, `who are not ${listed(plurals(it.classKeys), 'or')}`];
       case 'background': {
-        const which = joined(it.backgroundKeys.map((key) => nameIn(names.backgrounds, key)), 'or');
+        const which = listed(it.backgroundKeys.map((key) => nameIn(names.backgrounds, key)), 'or');
         return [`who are of the ${which} Background`, `who are not of the ${which} Background`];
       }
       case 'sex': {
@@ -170,7 +165,7 @@ export function queryWords(account: QueryAccount, names: QueryNames): string {
       case 'party':
         return undefined;
       case 'where':
-        if (it.of.kind === 'party' && it.filter.kind === 'class') return joined(plurals(it.filter.classKeys));
+        if (it.of.kind === 'party' && it.filter.kind === 'class') return listed(plurals(it.filter.classKeys));
         return `${core(it.of) ?? 'Heroes'} ${clause(it.filter)[0]}`;
       case 'top':
       case 'bottom': {
@@ -200,7 +195,7 @@ export function queryWords(account: QueryAccount, names: QueryNames): string {
         return words === undefined ? 'the size of the Party' : `the number of ${words}`;
       }
       case 'ranked':
-        return `the ${val(it.value)} of ${set(it.of)}, highest first, weighted ${joined(it.weights.map(String))}`;
+        return `the ${val(it.value)} of ${set(it.of)}, highest first, weighted ${listed(it.weights.map(String))}`;
       case 'hero': {
         const { kind, of, by } = it.hero;
         const most = `with the ${kind === 'best' ? 'highest' : 'lowest'} ${val(by)}`;
@@ -208,12 +203,12 @@ export function queryWords(account: QueryAccount, names: QueryNames): string {
           of.kind === 'party'
             ? `the Hero ${most}`
             : of.kind === 'where' && of.of.kind === 'party' && of.filter.kind === 'class'
-              ? `the ${joined(of.filter.classKeys.map((key) => nameIn(names.classes, key)), 'or')} ${most}`
+              ? `the ${listed(of.filter.classKeys.map((key) => nameIn(names.classes, key)), 'or')} ${most}`
               : `the one of ${set(of)} ${most}`;
         return `${val(it.value)} of ${who}`;
       }
       case 'arithmetic': {
-        if (it.operator === 'least' || it.operator === 'greatest') return `the ${it.operator} of ${joined(it.operands.map((operand) => num(operand)))}`;
+        if (it.operator === 'least' || it.operator === 'greatest') return `the ${it.operator} of ${listed(it.operands.map((operand) => num(operand)))}`;
         const words = it.operands.map((operand) => num(operand, it.operator)).join(signs[it.operator]);
         return (within === '*' || within === '-') && it.operator !== '*' ? `(${words})` : words;
       }

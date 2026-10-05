@@ -35,11 +35,10 @@ import {
 } from '@heroesim/engine';
 import { append, createItem, nightOf, partyFor } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
+import { chanceWords, listed, shownPercent } from '@heroesim/words';
 import { content } from '../content';
 import { partiesOutView } from './digest';
 import { played as playedThrough, started } from './game.test-support';
-import { listed } from './names';
-import { chanceWords, shownPercent } from './query-words';
 import { initialGameState, type GameState } from './reducer';
 import {
   bestPartyView,

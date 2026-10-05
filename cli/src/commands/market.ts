@@ -17,42 +17,18 @@ import {
   type EngineDeps,
   type Guild,
   type ItemBought,
-  type ItemDefinition,
   type ItemSold,
   type SellRejection,
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { kindWords, nameIn, renderTime, rowIn, table } from '../render.js';
+import { itemEffectWords, kindOf, nameIn } from '@heroesim/words';
+import { renderTime, rowIn, table } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
 /** `3 × Whetstone`, or the name alone for one. */
 function counted(quantity: number, name: string): string {
   return quantity === 1 ? name : `${quantity} × ${name}`;
-}
-
-/** An Item's kind as a column shows it: its Gear slot or `Consumable`, and whether it is a Unique Item. */
-function kindOf(definition: ItemDefinition): string {
-  const kind = kindWords(definition);
-  return definition.unique ? `${kind}, Unique Item` : kind;
-}
-
-/** What an Item does, in words: gear's Stat modifiers, a consumable's effect. */
-function effectOf(definition: ItemDefinition, content: ContentSet): string {
-  if (definition.kind === 'gear') {
-    return Object.entries(definition.statModifiers)
-      .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${delta > 0 ? `+${delta}` : String(delta)}`)
-      .join(', ');
-  }
-  const { effect } = definition;
-  switch (effect.kind) {
-    case 'bonus':
-      return `+${effect.flat} on a ${effect.kinds.join(' or ')} Encounter`;
-    case 'reroll':
-      return `Rolls a failed ${effect.kinds.join(' or ')} Encounter again`;
-    case 'heal':
-      return `An Injury on the Quest heals ${effect.days} Days sooner`;
-  }
 }
 
 /**
@@ -87,7 +63,7 @@ export function renderMarket(document: WorldDocument, deps: EngineDeps): string[
             definition.key,
             definition.name,
             kindOf(definition),
-            effectOf(definition, content),
+            itemEffectWords(definition, content),
             String(quantity),
             String(price),
           ]),

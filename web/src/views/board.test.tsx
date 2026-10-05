@@ -1,9 +1,9 @@
 import type { GuildId, Hero, HeroId, PartyId, Quest, QuestId, WorldDocument } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
+import { chanceWords, shownPercent } from '@heroesim/words';
 import { App } from '../app';
 import { changed, estimateOf, holding, started } from '../state/game.test-support';
-import { chanceWords, shownPercent } from '../state/query-words';
 import type { GameState } from '../state/reducer';
 import { defaultHeroOrder } from '../state/selectors';
 import { Icon } from './icons';

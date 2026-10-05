@@ -25694,6 +25694,99 @@ mixed.
 
 ---
 
+## DL-197 — v1.1.6-S11 built: `@heroesim/words`, a sixth package that runs in a browser, holding the Query words, the Trait and Item effect words, the seed words, the words for why a Hero cannot go, `nameIn` and `capitalised`; the CLI's and the page's copies gone, and the drift settled to the page's capitals
+
+2026-10-05. DL-186 item 1 (A1, part 1).
+
+- *Before.* The doctor read no drift (107 reads of a Trait, the content passing its checks, no
+  pending edits). It was run because `engine/src/testing.test.ts` changes (below); no play code in
+  `engine/src/` changes.
+- *The package.* `words/` (`@heroesim/words`, its entry `src/index.ts`, no dependency declared), in
+  the root's workspaces and `tsconfig.json`'s references, Vitest's Node projects, and the CLI's and
+  the page's references; npm links it as it links the others, so Vite resolves it by name with no
+  alias (`web/vite.config.ts` has none for any package). ESLint's `wordsImports`: its source takes
+  the engine, types and values, by name and nothing else of ours (not content, its Node entry, a
+  front end, the harness or `@heroesim/engine/testing`), no Node built-in and no React (`react`,
+  `react-dom` and their subpaths), in `.ts` and `.tsx`; its tests run on Node and may take content,
+  its Node entry, the engine's test entry and Node built-ins, to word content's own rows. `words` is
+  in the rules' package list, so a relative path into it is refused from every package; the CLI, the
+  page, the harness and the tools take it by name; the engine and content may not.
+  `words/src/imports.test.ts` proves each way (37 cases, linting probes as text) and that the
+  manifest declares no dependency; with the React rule, the Node rule, the source's package rule or
+  the block's files mutated, 4, 4, 4 and 17 of its cases fail. `engine/src/testing.test.ts` reads
+  `words/src` among the packages' sources, so the engine values the words take count as taken (it
+  failed without, `chanceBand` and `chanceBandNames` read as unused by tests).
+- *Its modules,* each with one test table (`test.each`):
+  - `names.ts`: `nameIn`, `capitalised`, `listed` (with `and`, or `or`) and `signed` (15 cases).
+  - `query.ts`, the CLI's `query-words.ts` moved (`git mv`) and the page's deleted: `chanceWords`,
+    `shownPercent`, `encounterReadings`, `readsAsOne` and `queryWords`, its private `joined` now
+    `listed`. Its test is the CLI's moved, 37 operators worded; the page's was the same less one
+    assertion.
+  - `effects.ts`: `traitEffectWords`, `modifierWords` (Gear's Stat modifiers), `consumableEffectWords`
+    (a Party's preview), `itemEffectWords` (the Market's cell, standing alone), `kindWords` and
+    `kindOf` (with ", Unique Item"). Its table holds the CLI's and the page's Trait cases merged, every
+    Item in content beginning as a cell must, and a key content lacks.
+  - `availability.ts`: `unavailableWords`, `unavailableChipWords` (the Board's chip) and
+    `gearUnavailableWords`, each reason by the table.
+  - `seed.ts`, the CLI's moved and the page's deleted: `readableSeed`, its cases a table.
+- *The copies gone.* CLI: `render.ts`' `nameIn`, `capitalised`, `kindWords`, `modifierWords` and
+  `traitEffectWords`; `query-words.ts`; `seed.ts`; `dispatch.ts`' and `equip.ts`' unavailable words;
+  `market.ts`' `kindOf` and `effectOf`; `preview.ts`' `listWords` and the Consumable's words;
+  `quest-review.ts`' `capitalised` and `listed`; `narrate.ts` takes `nameIn` from the package. Page:
+  `names.ts`' `nameIn`, `listed`, `capitalised`, `signed` and `traitEffectWords`; `query-words.ts`;
+  `seed.ts`; `narrate.ts`' and `rejections.ts`' private `nameIn`, and `narrate.ts`' re-export of
+  `listed`; `rejections.ts`' and `selectors.ts`' unavailable words; `selectors.ts`' Consumable's
+  words, `modifierWords` and Gear's kind; `trade-views.ts`' `kindOf`, `doesOf` and `effectOf`. Every
+  caller imports from `@heroesim/words`; the moved tests (the page's `names.test.ts` and
+  `query-words.test.ts`, the CLI's three Trait cases in `render.test.ts`) are the package's.
+- *Where the copies differed,* every pair read side by side:
+  - `query-words.ts`: the import of `nameIn` and the header only; their tests by one assertion.
+  - `seed.ts`: the header only.
+  - `traitEffectWords`: none as "no effect" (CLI) and "No effect" (page).
+  - Why a Hero's Gear cannot be changed: "their gear" (CLI `equip`) and "their Gear" (page).
+  - The Market's Consumable words: "Rolls…" and "An Injury…" capitalised where made (CLI), lower case
+    and capitalised by `doesOf` (page): the same text.
+  - `modifierWords`, the preview's Consumable words, `kindWords` and `kindOf`, the three copies of
+    why a Hero cannot go, `nameIn`, `capitalised`, `listed` and `signed`: the same.
+  - Not moved, the narration's (S12): its Regard tables' "when an offer of theirs went untaken" and
+    "through a module", twice (CLI), against "an Offer" and "a Module" (page). Their words are settled
+    here in the CLI's `narrate.ts`, as the plan has this story settle them; the tables move with the
+    narration. Left for S12, in sentences the CLI words apart: "'s offer for" (the
+    `transfer-offer-declined` and `-expired` lines), and "The <x> module recorded" and "A module" (a
+    Module's own event), where the page has "Offer" and "Module".
+- *The CLI's words that change,* each to the page's capitals (docs/agents/ui-text.md):
+  1. "no effect" to "No effect": `show guildmaster`'s Traits table and `show hero`'s Traits, for a
+     Trait with no effect (none in content; the review page capitalised it already).
+  2. "is away on a Quest, and their gear is with them" to "…their Gear…": `equip` and `unequip`
+     refusing a Hero away on a Quest.
+  3. "when an offer of theirs went untaken" to "…an Offer…": a Patron's Regard moved by an Offer
+     left to expire.
+  4. "through a module" to "through a Module": a Patron's and a Hero's Regard moved by a Module's
+     effect.
+
+  The CLI's expectations changed: `narrate.test.ts`' two "through a module", now "through a Module";
+  one assertion added there for the Offer. Every other CLI expectation stands as it was.
+  `docs/agents/ui-text.md` lists the four words and points `capitalised()` at the package;
+  `docs/approach.md` §5 lists `words/`.
+
+*What changed for Traits.* Nothing: the doctor read no drift after, 107 reads of a Trait.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 199 files, 5,583 tests passing (S10's
+5,547); the words' own 6 files, 124 tests; `npm run build` and check-bundle passing, the script
+814,385 bytes, 383 fewer than S10's 814,768, each table in it once; `npm run e2e -w web` 103 passing.
+Line endings as each file's before, none mixed; the new files CRLF in the working tree as the others
+are. No sweep: no play code changed.
+
+*Calls made, for the owner to see.* (1) The narration's own tables stay in the two `narrate.ts` for
+S12, which moves the narration; only their drifted words are settled now. (2) "No effect" in the
+CLI's `show hero` stands in brackets after a Trait's name, where the page's stands alone in a cell:
+one word for both, and no Trait in content has no effect. (3) The words' tests read content from
+disk through `@heroesim/content/node`, as the page's tests do; the package's source never does.
+(4) The Board's chip words, the page's alone, moved with the other words for why a Hero cannot go,
+where S14's `availabilityOf` can read them.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

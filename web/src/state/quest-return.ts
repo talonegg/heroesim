@@ -36,9 +36,10 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
+import { listed, nameIn } from '@heroesim/words';
 import { content } from '../content';
-import { bandWords, nameIn, nightOf } from './names';
-import { crossed, itemsWords, listed, narrateSegments, narrationFor, resolvedWords, textOf, type Narration, type Segment } from './narrate';
+import { bandWords, nightOf } from './names';
+import { crossed, itemsWords, narrateSegments, narrationFor, resolvedWords, textOf, type Narration, type Segment } from './narrate';
 import { playDeps } from './reducer';
 import { whenOf } from './selectors';
 

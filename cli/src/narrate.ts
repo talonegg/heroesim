@@ -35,7 +35,8 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { facilityIs, facilityNames, nameIn, renderCountdown, renderTime, rowIn, table } from './render.js';
+import { nameIn } from '@heroesim/words';
+import { facilityIs, facilityNames, renderCountdown, renderTime, rowIn, table } from './render.js';
 
 /** The labels an event carries, by participant: an engine's event's or a module's. */
 type Labelled = Pick<TurnEvent, 'labels'>;
@@ -79,16 +80,16 @@ const endingWords: Readonly<Record<EndingReason, string>> = {
 const patronRegardWords: Readonly<Record<PatronRegardCause, string>> = {
   'quest-success': 'after a Quest of theirs succeeded',
   'quest-failure': 'after a Quest of theirs failed',
-  'offer-expired': 'when an offer of theirs went untaken',
+  'offer-expired': 'when an Offer of theirs went untaken',
   recovery: 'as time passed',
-  module: 'through a module',
+  module: 'through a Module',
 };
 
 /** What moved a Hero's Regard for another Hero, after the band it reached (M4-S4). */
 const heroRegardWords: Readonly<Record<HeroRegardCause, string>> = {
   'shared-quest': 'after a Quest together',
   decay: 'as time passed apart',
-  module: 'through a module',
+  module: 'through a Module',
 };
 
 /** Why gear went back to a Guild (M5-S2), after the Hero it came from. */

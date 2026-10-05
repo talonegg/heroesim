@@ -1,8 +1,10 @@
-// How the views name things (M7-S3): a content row by its name, a row of the world by its id, an
-// ordinal, a night. Words only; no rule. Shared by `selectors.ts`, `world-views.ts` and
-// `trade-views.ts` (DL-73).
+// How the views name things (M7-S3): a row of the world by its id, an ordinal, a night. Words only;
+// no rule. Shared by `selectors.ts`, `world-views.ts` and `trade-views.ts` (DL-73). A content row's
+// name, a list, a signed number, a capital and a Trait's effects are `@heroesim/words`', which the
+// CLI reads too (v1.1.6-S11, DL-186 item 1).
 
-import { dayOf, type ContentSet, type Guild, type QuestBand, type TraitEffect } from '@heroesim/engine';
+import { dayOf, type ContentSet, type Guild, type QuestBand } from '@heroesim/engine';
+import { nameIn } from '@heroesim/words';
 
 /** A Quest band in words, as the History and the Quest report say it: one list for both (M9-F6). */
 export const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'Failure', success: 'Success', strong: 'Strong success' };
@@ -10,20 +12,6 @@ export const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'Failure',
 /** The row of `rows` keyed by `id`, never one `Object.prototype` lends (`constructor`). */
 export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
   return Object.hasOwn(rows, id) ? rows[id] : undefined;
-}
-
-/** A content row's name; a key the content does not define is shown as it is (data-model rule 5). */
-export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
-  return rowOf(rows, key)?.name ?? key;
-}
-
-/** A list as a sentence gives one: `a`, `a and b`, `a, b and c`. */
-export function listed(items: readonly string[]): string {
-  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
-}
-
-export function capitalised(word: string): string {
-  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 /** `the night of Day 7`. */
@@ -58,41 +46,3 @@ export function controllerWords(guild: Pick<Guild, 'controller'>, set: Pick<Cont
  * Hero who stays and holds the Hero in `transferRegardBand` or above loses `transferMoraleCost`.
  */
 export const transferCostWords = 'Their Gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale.';
-
-/** `+2`, `-1`, `0`. */
-export function signed(n: number): string {
-  return n > 0 ? `+${n}` : String(n);
-}
-
-/**
- * A Trait's effects in words (the CLI's `traitEffectWords`), each in the Trait's order and joined by
- * commas (v1.1.4-S7): `+1 Weaponry to Warriors`, `Morale baseline -5`, `Upkeep ×0.9`, a Hero Trait's
- * `-2 Dexterity, -1 Endurance` and `+2 to every Check of combat or travel Encounters`; `No effect` for
- * none. The Guildmaster's page's, the new-game form's (M9-S2) and a Hero's page's (v1.1.4-S7).
- */
-export function traitEffectWords(effects: readonly TraitEffect[], set: Pick<ContentSet, 'stats' | 'classes'>): string {
-  if (effects.length === 0) return 'No effect';
-  return effects.map((effect) => effectWords(effect, set)).join(', ');
-}
-
-/** One effect of a Trait in words, as `traitEffectWords` joins them. */
-function effectWords(effect: TraitEffect, set: Pick<ContentSet, 'stats' | 'classes'>): string {
-  switch (effect.kind) {
-    case 'classStatBonus':
-      return `${signed(effect.delta)} ${nameIn(set.stats, effect.statKey)} to ${nameIn(set.classes, effect.classKey)}s`;
-    case 'guildMoraleShift':
-      return `Morale baseline ${signed(effect.delta)}`;
-    case 'upkeepFactor':
-      return `Upkeep ×${effect.factor}`;
-    case 'statModifiers':
-      return Object.entries(effect.modifiers)
-        .map(([statKey, delta]) => `${signed(delta)} ${nameIn(set.stats, statKey)}`)
-        .join(', ');
-    case 'encounterBonus': {
-      const kinds = effect.kinds ?? [];
-      const tags = effect.tags ?? [];
-      const on = [...(kinds.length === 0 ? [] : [`${kinds.join(' or ')} Encounters`]), ...(tags.length === 0 ? [] : [`Encounters tagged ${tags.join(' or ')}`])];
-      return `${signed(effect.flat)} to every Check of ${on.join(' or ')}`;
-    }
-  }
-}

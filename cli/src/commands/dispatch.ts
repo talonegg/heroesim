@@ -16,12 +16,12 @@ import {
   type DispatchRejection,
   type EngineDeps,
   type Hero,
-  type Unavailability,
   type UnmetRequirement,
   type WorldDocument,
 } from '@heroesim/engine';
+import { nameIn, unavailableWords } from '@heroesim/words';
 import type { Command } from '../args.js';
-import { nameIn, renderTime, rowIn } from '../render.js';
+import { renderTime, rowIn } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
 /** Printed after every dispatch: Rivals act on what the player leaves (pre-M0 review D2, M2-S9). */
@@ -46,14 +46,6 @@ function templateName(content: ContentSet, key: string): string {
 export function consumableWords(consumables: readonly ConsumableRequest[], content: ContentSet): string {
   return consumables.map(({ definitionKey, quantity }) => `${nameIn(content.items, definitionKey)} ×${quantity}`).join(', ');
 }
-
-/** Why a Hero cannot go, in words, after their name. */
-export const unavailableWords: Readonly<Record<Unavailability, string>> = Object.freeze({
-  injured: 'is injured',
-  dead: 'is dead',
-  retired: 'has retired',
-  'in-party': 'is away with a Party',
-});
 
 /** The engine's rejection in words. */
 export function explain(rejection: DispatchRejection, document: WorldDocument, content: ContentSet): string {

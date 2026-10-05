@@ -5,10 +5,11 @@ import globals from 'globals';
 import { builtinModules } from 'node:module';
 import tseslint from 'typescript-eslint';
 
-// Harvested from v1 (feature/poc) and trimmed to v2's five packages (approach §5, M0-S2).
+// Harvested from v1 (feature/poc) and trimmed to v2's five packages (approach §5, M0-S2), and the
+// words the front ends share, a sixth (v1.1.6-S11, DL-186 item 1).
 // engine/src/boundary.test.ts proves each rule below fires; change the two together.
 
-const packages = ['engine', 'content', 'harness', 'cli', 'web'];
+const packages = ['engine', 'content', 'words', 'harness', 'cli', 'web'];
 
 /**
  * A relative import that climbs out of `self` into another package's directory. `climbs` is the
@@ -117,7 +118,47 @@ function contentImports({ node }) {
 }
 
 /**
- * harness, cli and web: engine and content by name; neither front end imports the other. The web
+ * words, `@heroesim/words` (v1.1.6-S11, DL-186 item 1): the words the CLI, the page and the tools
+ * share, which run in a browser. Its source takes the engine's types and values by name and nothing
+ * else of ours, never content, a front end or the harness; no Node built-in; no React, which is the
+ * page's alone. Its tests run on Node and word content's own rows: they may take content, its Node
+ * entry and the engine's test entry, and Node built-ins.
+ */
+function wordsImports({ tests = false } = {}) {
+  return {
+    patterns: [
+      tests
+        ? {
+            regex: '^@heroesim/(?!(engine|engine/testing|content|content/node)$)',
+            message: "The words' tests import the engine and content by name, never a front end or the harness (DL-186 item 1).",
+          }
+        : {
+            regex: '^@heroesim/(?!engine$)',
+            message:
+              'The words import no package but the engine, and that by name: never content, a front end, ' +
+              "the harness or the engine's test entry (DL-186 item 1).",
+          },
+      relativeInto('words', byNameOnly),
+      ...(tests
+        ? []
+        : [
+            {
+              regex: nodeBuiltins,
+              message:
+                'The words run in a browser as well as on Node: they import no Node built-in (DL-186 item 1, ' +
+                'principle 12).',
+            },
+            {
+              regex: '^react(-dom)?(/|$)',
+              message: "The words are text, which the CLI and the tools read too: they import no React, the page's alone (DL-186 item 1).",
+            },
+          ]),
+    ],
+  };
+}
+
+/**
+ * harness, cli and web: engine, content and words by name; neither front end imports the other. The web
  * page's source, which runs in a browser, imports no Node built-in (`browser`); its tests, which
  * run on Node, may take content's Node entry to compare the bundled content with it (`node`;
  * M7-S1, DL-64). Under `web/src/` a relative path leaves the package only after two climbs
@@ -288,6 +329,15 @@ export default defineConfig(
   {
     files: ['content/src/node.ts', 'content/src/write/**/*.ts', 'content/**/*.test.ts'],
     rules: restrictImports(contentImports({ node: true })),
+  },
+
+  {
+    files: ['words/**/*.{ts,tsx}'],
+    rules: restrictImports(wordsImports()),
+  },
+  {
+    files: testFiles('words'),
+    rules: restrictImports(wordsImports({ tests: true })),
   },
 
   {

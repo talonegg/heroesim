@@ -392,6 +392,9 @@ describe('narrate', () => {
     expect(patron).toBe("Lady Maud's Regard for The Kestrel Guild fell from neutral to cool after a Quest of theirs failed.");
     expect(guildmaster).toBe("Osric Vane's Regard for Brenna Ashcombe rose from neutral to warm.");
     for (const line of [patron, guildmaster]) expect(line).not.toMatch(/\d/);
+    // An Offer, a glossary term, in the page's capitals since v1.1.6-S11 (DL-186 item 1).
+    const untaken = { ...samples['patron.regard-changed'], payload: { ...samples['patron.regard-changed'].payload, cause: 'offer-expired' as const } };
+    expect(narrate(untaken, content)).toMatch(/ when an Offer of theirs went untaken\.$/);
   });
 
   test("says a Hero's Regard for another Hero crossed a band, never the number, and what moved it (M4-S4)", () => {
@@ -506,8 +509,8 @@ describe('Transfers (M6-S2)', () => {
     const byModule = <E extends { payload: object }>(sample: E): E => ({ ...sample, payload: { ...sample.payload, cause: 'module', moduleId: 'probe' } });
 
     expect(narrate(samples['guild.wealth-changed'], content)).toBe("The Kestrel Guild's Wealth went from 500 to 750.");
-    expect(narrate(byModule(patron), content)).toMatch(/ through a module\.$/);
-    expect(narrate(byModule(hero), content)).toMatch(/ through a module\.$/);
+    expect(narrate(byModule(patron), content)).toMatch(/ through a Module\.$/);
+    expect(narrate(byModule(hero), content)).toMatch(/ through a Module\.$/);
   });
 });
 

@@ -38,9 +38,9 @@ import {
 } from '@heroesim/engine';
 import { count, makeId, nightOf, partyFor, potentialHints } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
+import { chanceWords, shownPercent, queryWords } from '@heroesim/words';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from './main.js';
-import { chanceWords, shownPercent, queryWords } from './query-words.js';
 import { narrate } from './narrate.js';
 
 const content = loadContent();

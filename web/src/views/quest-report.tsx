@@ -9,7 +9,7 @@
 // `state/quest-return.ts`'s: nothing here computes a rule.
 
 import { useId, useMemo, useState } from 'react';
-import { capitalised, signed } from '../state/names';
+import { capitalised, signed } from '@heroesim/words';
 import type { Segment } from '../state/narrate';
 import { reportSections, type HomeGrief, type QuestReturn, type ReportSection, type ReturnEncounter, type ReturnEntry, type ReturnKey } from '../state/quest-return';
 import { Names } from './history-entries';

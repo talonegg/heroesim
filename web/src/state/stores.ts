@@ -23,11 +23,12 @@ import {
   type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
+import { capitalised, kindOf, listed } from '@heroesim/words';
 import { content } from '../content';
-import { capitalised, rowOf } from './names';
-import { listed, questNamer, textOf, type Segment } from './narrate';
+import { rowOf } from './names';
+import { questNamer, textOf, type Segment } from './narrate';
 import { playDeps } from './reducer';
-import { kindKeyOf, kindOf, type MarketKind } from './trade-views';
+import { kindKeyOf, type MarketKind } from './trade-views';
 
 /** Where an Item is: in the Holding, carried by a Hero on the Roster, or with a Party away. */
 export type StoresWhere = 'held' | 'carried' | 'party';

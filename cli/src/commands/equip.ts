@@ -20,9 +20,10 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
+import { gearUnavailableWords, nameIn } from '@heroesim/words';
 import type { Command } from '../args.js';
 import { narrate } from '../narrate.js';
-import { nameIn, rowIn } from '../render.js';
+import { rowIn } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
 /** A Hero by name and id, or the id alone when the save has no such Hero. */
@@ -37,13 +38,6 @@ function itemCalled(world: World, id: string, content: ContentSet): string {
   return row === undefined ? id : `${nameIn(content.items, row.definitionKey)} (${id})`;
 }
 
-/** Why a Hero's gear cannot be changed, after their name. */
-const unavailableWords = {
-  dead: 'is dead',
-  retired: 'has retired',
-  'in-party': 'is away on a Quest, and their gear is with them',
-} as const;
-
 /** `equip`'s rejection in words. */
 function explainEquip(rejection: EquipRejection, guildName: string, world: World, content: ContentSet): string {
   switch (rejection.reason) {
@@ -52,7 +46,7 @@ function explainEquip(rejection: EquipRejection, guildName: string, world: World
     case 'hero-not-on-roster':
       return `${heroCalled(world, rejection.heroId)} is not on ${guildName}'s Roster (show roster).`;
     case 'hero-unavailable':
-      return `${heroCalled(world, rejection.heroId)} ${unavailableWords[rejection.because]}.`;
+      return `${heroCalled(world, rejection.heroId)} ${gearUnavailableWords[rejection.because]}.`;
     case 'not-held-by-guild': {
       const id = rejection.itemId ?? rejection.stackId ?? '';
       return `${guildName} does not hold ${id}: show roster lists what it holds.`;
@@ -81,7 +75,7 @@ function explainUnequip(rejection: UnequipRejection, guildName: string, world: W
     case 'hero-not-on-roster':
       return `${heroCalled(world, rejection.heroId)} is not on ${guildName}'s Roster (show roster).`;
     case 'hero-unavailable':
-      return `${heroCalled(world, rejection.heroId)} ${unavailableWords[rejection.because]}.`;
+      return `${heroCalled(world, rejection.heroId)} ${gearUnavailableWords[rejection.because]}.`;
     case 'slot-empty':
       return `${heroCalled(world, rejection.heroId)}'s ${rejection.slot} slot is empty.`;
   }

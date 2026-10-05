@@ -2,10 +2,11 @@ import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, describeQuery, type NumQuery } from '@heroesim/engine';
 import { chanceBand, chanceBandNames } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
-import { chanceWords, encounterReadings, shownPercent, queryWords, readsAsOne } from './query-words.js';
+import { chanceWords, encounterReadings, shownPercent, queryWords, readsAsOne } from './query.js';
 
-// v1.1.4-S5 (DL-156): the CLI words every operator of a Query through the engine's account of it
-// (`describeQuery`), and every chance band. The page's words are the same (web/src/state/query-words.test.ts).
+// v1.1.4-S5 (DL-156): every operator of a Query worded through the engine's account of it
+// (`describeQuery`), and every chance band: the CLI's words and the page's, one table since
+// v1.1.6-S11 (DL-186 item 1), where the CLI's and the page's tests were the same.
 
 const content = loadContent();
 

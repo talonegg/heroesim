@@ -57,7 +57,6 @@ import {
   transferFee,
   unavailability,
   yearOf,
-  type ConsumableEffect,
   type ConsumableRequest,
   type ContentSet,
   type DescriptiveAttribute,
@@ -66,7 +65,6 @@ import {
   type TurnEvent,
   type Entry,
   type GameConfig,
-  type GearDefinition,
   type Guild,
   type GuildId,
   type Hero,
@@ -95,11 +93,27 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
+import {
+  capitalised,
+  chanceWords,
+  consumableEffectWords,
+  encounterReadings,
+  kindWords,
+  listed,
+  modifierWords,
+  nameIn,
+  readsAsOne,
+  shownPercent,
+  signed,
+  traitEffectWords,
+  unavailableChipWords,
+  unavailableWords,
+  type EncounterReading,
+} from '@heroesim/words';
 import { content } from '../content';
-import { capitalised, nameIn, nightOf, placeWords, rowOf, signed, traitEffectWords, transferCostWords } from './names';
-import { listed, narrate, narrateStop, narrationFor, questNamer, type Narration } from './narrate';
+import { nightOf, placeWords, rowOf, transferCostWords } from './names';
+import { narrate, narrateStop, narrationFor, questNamer, type Narration } from './narrate';
 import { playDeps, type GameState } from './reducer';
-import { chanceWords, encounterReadings, shownPercent, readsAsOne, type EncounterReading } from './query-words';
 import { endingWords, rejectionSentence } from './rejections';
 
 // ── Names ────────────────────────────────────────────────────────────────────────────────────
@@ -396,22 +410,6 @@ function byClass(a: Hero, b: Hero): number {
 
 // ── Choosing a Party ─────────────────────────────────────────────────────────────────────────
 
-/** Why a Hero cannot go, after their name (the CLI's `dispatch`): the preview's problems. */
-const unavailableWords = {
-  injured: 'is injured',
-  dead: 'is dead',
-  retired: 'has retired',
-  'in-party': 'is away with a Party',
-} as const;
-
-/** The short word of the Board's chip for a Hero who cannot go (v1.1.5-S11, DL-169 item 2), capitalised where it is made. */
-const unavailableChipWords = {
-  injured: 'injured',
-  dead: 'dead',
-  retired: 'retired',
-  'in-party': 'away',
-} as const;
-
 /**
  * A Hero on the Roster as the Party builder shows them for one Quest (M9-S4, DL-99 item 3): whether
  * they can go, and when not why and until when; their Class and Level; the effective values of the
@@ -516,20 +514,8 @@ export function consumableChoices(document: WorldDocument): ConsumableChoice[] {
   return holdings(document.world, { kind: 'guild', id: guild.id }).stacks.flatMap((stack): ConsumableChoice[] => {
     const definition = itemDefinition(content, stack.definitionKey);
     if (definition?.kind !== 'consumable') return [];
-    return [{ definitionKey: stack.definitionKey, name: definition.name, held: stack.quantity, does: effectWords(definition.effect) }];
+    return [{ definitionKey: stack.definitionKey, name: definition.name, held: stack.quantity, does: consumableEffectWords(definition.effect) }];
   });
-}
-
-/** What a consumable does, in words (the CLI's `preview`, M5-S3). */
-function effectWords(effect: ConsumableEffect): string {
-  switch (effect.kind) {
-    case 'bonus':
-      return `+${effect.flat} to a Check on ${listed(effect.kinds)} Encounters, one a Check`;
-    case 'reroll':
-      return `a failed Check on ${listed(effect.kinds)} Encounters rolled again, one a Check`;
-    case 'heal':
-      return `an Injury taken on the Quest heals ${effect.days} Days sooner, one an Injury`;
-  }
 }
 
 /** A Synergy's bonus in words: `+2`, `×1.15`, or both. */
@@ -618,7 +604,7 @@ export function previewView(
         : preview.consumables.map(({ definitionKey, quantity, consumable, held, encounters }) => {
             if (consumable === undefined) return `${nameIn(content.items, definitionKey)} ×${quantity}: not a Consumable.`;
             const where = consumable.effect.kind === 'heal' ? '' : `; ${reach(encounters)}`;
-            return `${consumable.name} ×${quantity}, of ${held} the Guild holds: ${effectWords(consumable.effect)}${where}.`;
+            return `${consumable.name} ×${quantity}, of ${held} the Guild holds: ${consumableEffectWords(consumable.effect)}${where}.`;
           }),
     reward: `Reward agreed on a success: ${preview.agreedReward} Wealth, ${preview.offeredReward} offered.`,
     verdict:
@@ -935,7 +921,7 @@ function itemsOf(hero: Hero, world: World): RosterItem[] {
     const definition = itemDefinition(content, row.definitionKey);
     return {
       name: nameIn(content.items, row.definitionKey),
-      effect: definition?.kind === 'gear' ? modifierWords(definition) : '',
+      effect: definition?.kind === 'gear' ? modifierWords(definition, content) : '',
       definitionKey: row.definitionKey,
       unique: definition?.unique === true,
     };
@@ -1157,13 +1143,6 @@ export type HeroActions =
   | { kind: 'rival'; guildName: string; fee: number }
   | { kind: 'pool'; fee: number; signs: string; willSign: boolean };
 
-/** Gear's Stat modifiers in words, `Weaponry +2, Strength +1` (M5-S2). */
-export function modifierWords(gear: GearDefinition): string {
-  return Object.entries(gear.statModifiers)
-    .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${delta > 0 ? `+${delta}` : String(delta)}`)
-    .join(', ');
-}
-
 /** History entries as lines, keyed by their place in the list. */
 export function linesOf(entries: readonly Entry[], narration: Narration): LogLine[] {
   return entries.map((entry, index) => ({
@@ -1234,7 +1213,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
       slot,
       slotName: capitalised(slot),
       item: nameIn(content.items, row.definitionKey),
-      modifies: definition?.kind === 'gear' ? modifierWords(definition) : '',
+      modifies: definition?.kind === 'gear' ? modifierWords(definition, content) : '',
       worn: true,
       definitionKey: row.definitionKey,
       unique: definition?.unique === true,
@@ -1369,8 +1348,8 @@ function gearChoices(world: World, guild: Guild): GearChoice[] {
       {
         key: id,
         name: definition.name,
-        kind: `${capitalised(definition.slot)} Gear`,
-        modifies: modifierWords(definition),
+        kind: kindWords(definition),
+        modifies: modifierWords(definition, content),
         definitionKey,
         unique: definition.unique,
         gear,

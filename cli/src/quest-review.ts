@@ -31,8 +31,7 @@ import {
   type SetQuery,
   type StatKey,
 } from '@heroesim/engine';
-import { queryWords } from './query-words.js';
-import { modifierWords, nameIn, traitEffectWords } from './render.js';
+import { capitalised, listed, modifierWords, nameIn, queryWords, traitEffectWords } from '@heroesim/words';
 
 /** One cell of the calibration: each Degree's rate at a Level, a Party size and a difficulty. */
 export interface ReviewCell {
@@ -86,19 +85,9 @@ function esc(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** Standalone text begins with a capital (docs/agents/ui-text.md). */
-function capitalised(text: string): string {
-  return text.length === 0 ? text : `${text[0]?.toUpperCase() ?? ''}${text.slice(1)}`;
-}
-
 const pct = (chance: number): string => `${Math.round(chance * 100)}%`;
 const signed = (n: number): string => (n > 0 ? `+${n}` : `−${Math.abs(n)}`);
 const stats = (content: ContentSet, keys: readonly StatKey[]): string => keys.map((key) => nameIn(content.stats, key)).join(' and ');
-
-/** `a`, `a and b`, `a, b and c`. */
-function listed(items: readonly string[], word = 'and'): string {
-  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} ${word} ${items.at(-1) ?? ''}`;
-}
 
 /** A Quest template's or an Encounter's tags, a fragment that stands on its own: "Tags Road, Wild", or "No tags". */
 function tagWords(tags: readonly string[]): string {

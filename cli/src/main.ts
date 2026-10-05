@@ -38,6 +38,7 @@ import {
 } from '@heroesim/engine';
 import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
+import { readableSeed } from '@heroesim/words';
 import { parseArgs, usage, type Command, type View } from './args.js';
 import { buildImprovement } from './commands/build.js';
 import { equipGear, unequipGear } from './commands/equip.js';
@@ -65,7 +66,6 @@ import {
   rowIn,
 } from './render.js';
 import { readSave, savePath, withModules, writeSave, type ReadSave } from './saves.js';
-import { readableSeed } from './seed.js';
 
 /** Everything the CLI takes from outside itself. */
 export interface CliIo {

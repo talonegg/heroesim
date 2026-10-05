@@ -20,6 +20,7 @@ import {
 } from '@heroesim/engine';
 import { append, createHistory } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
+import { listed } from '@heroesim/words';
 import { content } from '../content';
 import { cameHome, changed, played as playedState, started, withPartyOut, withReturn, withTheGone, withWorldNews } from './game.test-support';
 import {
@@ -36,7 +37,6 @@ import {
   type HistoryView,
 } from './history';
 import { pageOfEntry } from './history.test-support';
-import { listed } from './narrate';
 import { historyPageSize } from './selectors';
 
 // The History as the one place to read what happened (M9-S5, DL-105): a page of it grouped by Day

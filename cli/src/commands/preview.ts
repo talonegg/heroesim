@@ -16,7 +16,6 @@ import {
   previewDispatch,
   unmetRequirements,
   type ChanceBand,
-  type ConsumableEffect,
   type DispatchPreview,
   type EngineDeps,
   type FormEffect,
@@ -24,10 +23,9 @@ import {
   type Synergy,
   type WorldDocument,
 } from '@heroesim/engine';
+import { chanceWords, consumableEffectWords, listed, nameIn, shownPercent, unavailableWords } from '@heroesim/words';
 import type { Command } from '../args.js';
-import { chanceWords, shownPercent } from '../query-words.js';
-import { nameIn } from '../render.js';
-import { explain, requirementWords, unavailableWords } from './dispatch.js';
+import { explain, requirementWords } from './dispatch.js';
 
 /** A Hero as the CLI names one: `Brenna Ashcombe (hero-000003)`. */
 function heroName(hero: Hero): string {
@@ -61,14 +59,9 @@ function heroLines({ problems }: DispatchPreview, guildName: string): string[] {
   return lines.length === 0 ? [] : ['Heroes', ...lines];
 }
 
-/** A list in words: `combat`, `combat and travel`, `combat, travel and stealth`. */
-function listWords(words: readonly string[]): string {
-  return words.length <= 1 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words.at(-1) ?? ''}`;
-}
-
 /** A Synergy's bonus in words: `+2`, `×1.15`, or both. */
 function bonusWords({ flat, factor }: Synergy['bonus']): string {
-  return listWords([...(flat === undefined ? [] : [`+${flat}`]), ...(factor === undefined ? [] : [`×${factor}`])]);
+  return listed([...(flat === undefined ? [] : [`+${flat}`]), ...(factor === undefined ? [] : [`×${factor}`])]);
 }
 
 /** How many of the Quest's Encounters something reaches, or that they are drawn on the way (DL-42 item 7). */
@@ -83,7 +76,7 @@ function reachWords(encounters: number | null, { encounterKinds }: DispatchPrevi
 function synergyLines(preview: DispatchPreview): string[] {
   if (preview.synergies.length === 0) return ['Synergies', '  None: this Party meets no Synergy.'];
   const lines = preview.synergies.map(({ synergy, encounters }) => {
-    const where = synergy.kinds === undefined ? 'on every Encounter' : `on ${listWords(synergy.kinds)} Encounters`;
+    const where = synergy.kinds === undefined ? 'on every Encounter' : `on ${listed(synergy.kinds)} Encounters`;
     return `  ${synergy.name}: ${bonusWords(synergy.bonus)} ${where}; ${reachWords(encounters, preview)}.`;
   });
   return ['Synergies', ...lines];
@@ -118,18 +111,6 @@ function chanceLines({ chances, heroes }: DispatchPreview, deps: EngineDeps): st
   ];
 }
 
-/** What a consumable does, in words (M5-S3, DL-50). */
-function effectWords(effect: ConsumableEffect): string {
-  switch (effect.kind) {
-    case 'bonus':
-      return `+${effect.flat} to a Check on ${listWords(effect.kinds)} Encounters, one a Check`;
-    case 'reroll':
-      return `a failed Check on ${listWords(effect.kinds)} Encounters rolled again, one a Check`;
-    case 'heal':
-      return `an Injury taken on the Quest heals ${effect.days} Days sooner, one an Injury`;
-  }
-}
-
 /**
  * What the Party would carry (M5-S3): each consumable named, how many, how many the Guild holds,
  * what it does and, for a bonus or a reroll, on how many of this Quest's Encounters; or, with none
@@ -149,7 +130,7 @@ function consumableLines(preview: DispatchPreview, deps: EngineDeps): string[] {
     if (consumable === undefined) return `  ${nameIn(content.items, definitionKey)} ×${quantity}: not a consumable.`;
     const { effect } = consumable;
     const reach = effect.kind === 'heal' ? '' : `; ${reachWords(encounters, preview)}`;
-    return `  ${consumable.name} ×${quantity}, of ${held} the Guild holds: ${effectWords(effect)}${reach}.`;
+    return `  ${consumable.name} ×${quantity}, of ${held} the Guild holds: ${consumableEffectWords(effect)}${reach}.`;
   });
   return ['Consumables', ...lines];
 }
