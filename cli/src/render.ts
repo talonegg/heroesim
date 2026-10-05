@@ -66,7 +66,18 @@ import {
   type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, chanceWords, encounterReadings, kindWords, modifierWords, nameIn, readsAsOne, shownPercent, traitEffectWords } from '@heroesim/words';
+import {
+  capitalised,
+  chanceWords,
+  encounterReadings,
+  facilityNames,
+  kindWords,
+  modifierWords,
+  nameIn,
+  readsAsOne,
+  shownPercent,
+  traitEffectWords,
+} from '@heroesim/words';
 
 // ── Tables ───────────────────────────────────────────────────────────────────────────────────
 
@@ -116,20 +127,6 @@ function fields(pairs: readonly (readonly [string, string])[]): string[] {
 export function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
   return Object.hasOwn(rows, id) ? rows[id] : undefined;
 }
-
-/** A Hall facility as the CLI names one in a sentence (`CONTEXT.md`, Hall). */
-export const facilityNames: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'infirmary',
-  trainingYard: 'training yard',
-  quarters: 'quarters',
-});
-
-/** The verb a facility's name takes in a sentence: the infirmary is, the quarters are. */
-export const facilityIs: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'is',
-  trainingYard: 'is',
-  quarters: 'are',
-});
 
 function none(list: readonly string[]): string {
   return list.length === 0 ? 'None' : list.join(', ');

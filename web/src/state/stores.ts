@@ -26,7 +26,7 @@ import {
 import { capitalised, kindOf, listed } from '@heroesim/words';
 import { content } from '../content';
 import { rowOf } from './names';
-import { questNamer, textOf, type Segment } from './narrate';
+import { questNamer, textOf, type Segment } from './namer';
 import { playDeps } from './reducer';
 import { kindKeyOf, type MarketKind } from './trade-views';
 
@@ -82,7 +82,7 @@ export interface StoresView {
 }
 
 /** `1 Item`, `6 Items`. */
-function itemsWords(count: number): string {
+function itemCountWords(count: number): string {
   return `${count} ${count === 1 ? 'Item' : 'Items'}`;
 }
 
@@ -166,7 +166,7 @@ export function storesView(document: WorldDocument, filter: StoresFilter): Store
   const summary =
     total === 0
       ? `${guild.name} owns nothing: no Item is held, carried by a Hero or with a Party.`
-      : `${guild.name} owns ${itemsWords(total)}: ${listed(parts.flatMap(([count, words]) => (count === 0 ? [] : [`${count} ${words}`])))}.`;
+      : `${guild.name} owns ${itemCountWords(total)}: ${listed(parts.flatMap(([count, words]) => (count === 0 ? [] : [`${count} ${words}`])))}.`;
 
   return {
     guildName: guild.name,

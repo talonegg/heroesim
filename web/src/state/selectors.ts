@@ -98,10 +98,12 @@ import {
   chanceWords,
   consumableEffectWords,
   encounterReadings,
+  endingWords,
   kindWords,
   listed,
   modifierWords,
   nameIn,
+  nightOf,
   readsAsOne,
   shownPercent,
   signed,
@@ -111,10 +113,11 @@ import {
   type EncounterReading,
 } from '@heroesim/words';
 import { content } from '../content';
-import { nightOf, placeWords, rowOf, transferCostWords } from './names';
-import { narrate, narrateStop, narrationFor, questNamer, type Narration } from './narrate';
+import { narrateText, narrationFor, questNamer, type Narration } from './namer';
+import { placeWords, rowOf, transferCostWords } from './names';
 import { playDeps, type GameState } from './reducer';
-import { endingWords, rejectionSentence } from './rejections';
+import { rejectionSentence } from './rejections';
+import { narrateStop } from './stops';
 
 // ── Names ────────────────────────────────────────────────────────────────────────────────────
 
@@ -1148,7 +1151,7 @@ export function linesOf(entries: readonly Entry[], narration: Narration): LogLin
   return entries.map((entry, index) => ({
     key: `${entry.turn}-${index}`,
     when: whenOf(entry.turn),
-    sentence: narrate(entry as TurnEvent, narration),
+    sentence: narrateText(entry as TurnEvent, narration),
     milestone: entry.milestone,
   }));
 }

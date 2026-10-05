@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { contentChecks, editJson, NotUndone, raiseContentVersion, transaction, Undone } from '@heroesim/content/write';
+import { capitalised } from '@heroesim/words';
 import { dataUrlOf, isPicture, type Chromium } from './chromium.js';
 import { check } from './check.js';
 import { convert } from './convert.js';
@@ -117,8 +118,6 @@ function shown(root: string, file: string): string {
   return path.relative(root, path.resolve(root, file)).replace(/\\/g, '/');
 }
 
-const capital = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1);
-
 /** The intake report: the draft's text, its `{{key:<n>}}` given each picture's key, and a table. */
 export function intakeReport(root: string, run: string, draft: Draft, taken: readonly TakenIn[], version: Intake['contentVersion']): string {
   const text = draft.report.replace(/\{\{key:(\d+)\}\}/g, (whole, index: string) => taken[Number(index)]?.key ?? whole).trim();
@@ -127,9 +126,9 @@ export function intakeReport(root: string, run: string, draft: Draft, taken: rea
   else {
     lines.push('| Upload | Key | Role | Sex | Picture | Thumbnail |', '| --- | --- | --- | --- | --- | --- |');
     for (const each of taken) {
-      const sex = each.folderSex !== null && each.folderSex !== each.sex ? `${capital(each.sex)} (its folder says ${each.folderSex})` : capital(each.sex);
+      const sex = each.folderSex !== null && each.folderSex !== each.sex ? `${capitalised(each.sex)} (its folder says ${each.folderSex})` : capitalised(each.sex);
       lines.push(
-        `| \`${shown(root, each.source)}\` | \`${each.key}\` | ${capital(each.role)} | ${sex} | ` +
+        `| \`${shown(root, each.source)}\` | \`${each.key}\` | ${capitalised(each.role)} | ${sex} | ` +
           `${each.picture.bytes} bytes at ${each.picture.quality} | ${each.thumbnail.bytes} bytes at ${each.thumbnail.quality} |`,
       );
     }

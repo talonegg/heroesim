@@ -25828,6 +25828,102 @@ endings as each file's before, none mixed.
 
 ---
 
+## DL-198 — v1.1.6-S12 built: one narration in `@heroesim/words`, its sentences' names as slots a Namer fills, the CLI's with the ids its commands take and the page's with names that open; the two `narrate.ts` gone, the narration's capitals settled to the page's, and the Quest review's page moved in
+
+2026-10-05. DL-186 item 1 (A1, part 2).
+
+- *Before.* No play code changes: nothing in `engine/src/` or `content/src/validate.ts` is touched,
+  so no sweep. The doctor read no drift after all the same (107 reads of a Trait).
+- *The narration* (`words/src/narrate.ts`). `narrate(event, content)` gives a `Sentence`: its words
+  and a slot for each name in it, neighbouring words one piece. A slot carries the id it was read
+  from and what it names:
+  - `name`: a Guild, a Guildmaster, a Patron, or whoever a Guildmaster's Regard or a module's event
+    concerns, by the label the event carries, with the table its id is of;
+  - `hero`: a Hero the sentence names as a Hero (the CLI adds the id);
+  - `quest`: a Quest, with its template's name where the event gives it;
+  - `party`: a Party, with its Guild where the page says "the Guild's Party", or its Heroes where
+    the page names them instead;
+  - `offer`: the Transfer Offer a Transfer accepted;
+  - `ids`: the ids a command takes after what they name, `(stack-000004)`.
+
+  One map keyed by every event type, as the page's was, so `tsc -b` refuses a type the engine adds
+  until it has a sentence; `narratedTypes`; a module's own event worded for any type. Beside it, the
+  words both front ends held twice: `crossed`, `itemsWords`, `degreeWords`, `endingWords`,
+  `facilityNames` and `facilityIs` (the CLI's `render.ts` and the page's `rejections.ts` each had the
+  last three), `nightOf` (the page's `names.ts` had it), and `resolvedParts`, a Party's outcome cut
+  at its band for the page's return. `sentenceText(sentence, namer)` reads a sentence through a
+  Namer, `type Namer<T> = (slot: Slot) => T`.
+- *The CLI's Namer* (`cli/src/namer.ts`): `cliNamer`, a Hero `Name (hero-000004)`, someone else by
+  label, a Quest `Template (quest-000003)` or its id, a Party and an Offer by id, the ids in brackets,
+  an id where there is no label; `narrateLine(event, content)` for `equip`, `transfer`, `accept`,
+  `decline` and `advance`. Why a fast forward stopped (`narrateStop`) and `renderAdvance` move to
+  `cli/src/advance.ts`.
+- *The page's Namer* (`web/src/state/namer.ts`): `pageNamer(questName)` fills each slot as the page
+  has always named it: a Guild's, Hero's, Guildmaster's or Patron's name as a segment carrying its id
+  and table, which `Names` (`views/history-entries.tsx`) draws as a button that opens whom it names;
+  someone with no label by what they are, `a Hero`; a Quest by its template's name or `questName`; a
+  Party as the Guild's `Party` or by its Heroes; "its Transfer Offer"; no id. `narrateSegments`
+  capitalises the sentence's opening as before; `narrateText` (the old `narrate`), `resolvedWords`,
+  `textOf`, `questNamer` and `narrationFor` keep their places. The adapter that makes elements is the
+  page's, in `web`; the package imports no React. Why time stopped moves to `web/src/state/stops.ts`.
+- *The Quest review* (`words/src/quest-review.ts`, `git mv` with its test): `reviewPage`, `passWords`
+  and `consequenceWords`, where the harness and the tools may read it; it reads nothing from disk.
+  `cli/src/quest-review.ts` is the thin entry that reads the drafts, the calibration and the notes
+  and writes the page, so `npm run quest-review` is unchanged: run on `731f1aa` and after with
+  `--out`, the two pages are the same but the date. The page's script holds none of it.
+- *The harness's and the portrait tool's `capital`* (`harness/src/sweep.ts`,
+  `tools/portraits/src/write-rows.ts`): each `charAt(0).toUpperCase()` and the rest, as `capitalised`
+  is, so each reads the package's now; their `tsconfig.json`s reference `words`.
+- *The CLI's words that change,* each to the page's capitals (`docs/agents/ui-text.md`), the
+  narration's last:
+  1. "declined <Guild>'s offer for" to "…'s Offer for" (`guild.transfer-offer-declined`);
+  2. "<Guild>'s offer for … expired unanswered" (or lapsed) to "…'s Offer for…"
+     (`guild.transfer-offer-expired`);
+  3. "The <x> module recorded" to "The <x> Module recorded", and "A module recorded" to "A Module
+     recorded" (a module's own event);
+  4. "Stopped: the <x> module asked to stop." to "…the <x> Module asked to stop." (the stop, which
+     DL-197 did not list; the page says "Module").
+
+  The CLI's tests changed only there: `namer.test.ts` (the old `narrate.test.ts`) two Offers and four
+  Modules, `advance.test.ts` and `main.test.ts` the stop's Module, `main.test.ts` the module's line,
+  `transfer.test.ts` the declined Offer. Every other CLI expectation stands as it was, and a year of a
+  CLI game (`new --seed s12-check`, `advance --turns 360 --modules probe`, `advance --until
+  decision,offer,staffable --max 400`, `show history`; 1,548 lines) printed the same on `731f1aa` and
+  after, line for line, but the probe's two lines. Every page expectation stands as it was; the
+  page's tests moved with their files and read `narrateText` where they read `narrate`.
+- *The tests.* `words/src/narrate.test.ts`: a sample of each of the 46 event types and its sentence,
+  read through a Namer of the test's own that writes each slot as what it holds
+  (`<hero:hero-000007|Brenna Ashcombe>`), so the table pins the words and the slots apart from either
+  front end; it fails on a type of the engine's union with no sentence, and on any type listed as not
+  narrated (the list is empty); each slot names an id the event names; neighbouring words are one
+  piece; twelve variations, a module's own event, the outcome's cut and the words beside. The CLI's
+  Namer: each slot kind (`cli/src/namer.test.ts`). The page's: each slot kind as segments, every
+  sample's slots filled with no id (`web/src/state/namer.test.ts`), and the elements drawn, each name
+  a button that opens whom it names and no button where no shell gives links
+  (`web/src/views/names.test.tsx`). `words/src/imports.test.ts`' check of the copies reads the new
+  files' names; it found the page's Stores' own `itemsWords` (`1 Item`, `6 Items`), other words under
+  the package's name, renamed `itemCountWords`.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 203 files, 5,730 tests passing (S11's
+5,593); the words' own 8 files, 250 tests; `npm run build` and check-bundle passing, the script
+815,402 bytes, 1,160 more than S11's 814,242 (the slots and the page's Namer; the review page none
+of it); `npm run e2e -w web` 103 passing; `npm run edit -- traits doctor` no drift. Line endings as
+each file's before, CRLF in the working tree, none mixed. No sweep: no play code changed.
+
+*Calls made, for the owner to see.* (1) Why a fast forward stopped stays each front end's
+(`cli/src/advance.ts`, `web/src/state/stops.ts`), as framing: a stop is the fast forward's answer,
+not a History entry, and five of its nine sentences differ by what each front end does with it (the
+CLI lists the ids of the Parties and Quests its commands take and names the command, "(show board)",
+"Answer with accept --offer <id>…"; the page counts the Parties and gives a button). (2) A Hero a
+Guildmaster's Regard is for is a `name` slot, not a `hero`, so the CLI names them by label alone, as
+it did; a Hero in a module's event is a `hero`, with the id, as it was. (3) A unique Item's Loot reads
+`itemsWords` as a common one's does: the same words, since content's check holds a unique Item's
+quantity at 1. (4) The page's Namer gives segments, which the page's state keeps beside each
+sentence, and `Names` makes the elements: a Namer that made React elements in the state would take
+React into `state/`.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

@@ -10,7 +10,7 @@
 
 import { useId, useMemo, useState } from 'react';
 import { capitalised, signed } from '@heroesim/words';
-import type { Segment } from '../state/narrate';
+import type { Segment } from '../state/namer';
 import { reportSections, type HomeGrief, type QuestReturn, type ReportSection, type ReturnEncounter, type ReturnEntry, type ReturnKey } from '../state/quest-return';
 import { Names } from './history-entries';
 import { Icon, type IconName } from './icons';

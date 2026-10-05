@@ -30,9 +30,9 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, itemEffectWords, kindOf, nameIn } from '@heroesim/words';
+import { capitalised, itemEffectWords, kindOf, nameIn, nightOf } from '@heroesim/words';
 import { content } from '../content';
-import { nightOf, rowOf, transferCostWords } from './names';
+import { rowOf, transferCostWords } from './names';
 import { playDeps } from './reducer';
 
 // ── The Market ───────────────────────────────────────────────────────────────────────────────

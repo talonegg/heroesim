@@ -16,8 +16,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { nameIn } from '@heroesim/words';
-import { facilityIs, facilityNames } from '../render.js';
+import { facilityIs, facilityNames, nameIn } from '@heroesim/words';
 import type { CommandOutcome } from './outcome.js';
 
 /** The engine's rejection in words. */

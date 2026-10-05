@@ -41,7 +41,7 @@ import { loadContent } from '@heroesim/content/node';
 import { chanceWords, shownPercent, queryWords } from '@heroesim/words';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from './main.js';
-import { narrate } from './narrate.js';
+import { narrateLine } from './namer.js';
 
 const content = loadContent();
 const clock = new Date('2026-09-26T09:30:00.000Z');
@@ -1499,8 +1499,8 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(saved()).toBe(serialise(expected));
     expect(fired.turn).toBe(11);
-    const line = narrate(fired, content);
-    expect(line).toMatch(/^The probe module recorded probe\.fired for .+ \(hero-\d{6}\), .+\.$/);
+    const line = narrateLine(fired, content);
+    expect(line).toMatch(/^The probe Module recorded probe\.fired for .+ \(hero-\d{6}\), .+\.$/);
     const lines = run.out.split('\n');
     const at = lines.findIndex((text) => text.endsWith(line));
     expect(at).toBeGreaterThan(-1);
@@ -1530,7 +1530,7 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(saved()).toBe(serialise(expected));
     expect(run.out).toContain(`Played ${turn} Turns. Now Turn ${turn} (Day 30, afternoon, Year 0).`);
-    expect(run.out).toContain('Stopped: the probe module asked to stop.');
+    expect(run.out).toContain('Stopped: the probe Module asked to stop.');
   });
 
   test('advance --until with --modules plays the probe too', () => {

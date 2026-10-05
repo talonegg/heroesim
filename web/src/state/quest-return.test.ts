@@ -12,7 +12,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
 import { cameHome, changed, played, started, withPartyOut, withReturn, withWealth, type Written } from './game.test-support';
 import { historyFilter } from './history';
-import { narrate, narrateSegments, narrationFor, textOf } from './narrate';
+import { narrateSegments, narrateText, narrationFor, textOf } from './namer';
 import { partOfAReturn, questReturn, reportSections, returnEntry, returnsIn, type QuestReturn } from './quest-return';
 
 // A Quest's return read from the History (M9-F5, DL-111 items 2 and 3, DL-112 item 8): by its Party
@@ -21,8 +21,8 @@ import { partOfAReturn, questReturn, reportSections, returnEntry, returnsIn, typ
 // outcome the test chooses; the expectations are the words and numbers the test wrote.
 
 // Every narration passes through, counted: the entry reads its Hero lines without the report's (M9-F7).
-vi.mock('./narrate', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./narrate')>();
+vi.mock('./namer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./namer')>();
   return { ...actual, narrateSegments: vi.fn(actual.narrateSegments) };
 });
 
@@ -366,7 +366,7 @@ describe('the return’s entry (M9-F5, DL-111 item 2)', () => {
 
     expect(entry?.key).toEqual(key);
     expect(entry?.bandSaid).toBe('succeeded strongly');
-    expect(`${textOf(entry?.lead ?? [])}${entry?.bandSaid}${textOf(entry?.rest ?? [])}`).toBe(narrate(outcome as never, narrationFor(document, content)));
+    expect(`${textOf(entry?.lead ?? [])}${entry?.bandSaid}${textOf(entry?.rest ?? [])}`).toBe(narrateText(outcome as never, narrationFor(document, content)));
     expect(textOf(entry?.rest ?? [])).toBe(': Wealth +180, Fame +4.');
     expect(entry?.heroesWords).toBe(`${written.party.heroIds.length} Heroes`);
     expect(entry?.heroes.map((hero) => hero.sentence)).toEqual([`${first}: gained 60 XP; reached Level 2.`, ...rest.map((name) => `${name}: gained 60 XP.`)]);

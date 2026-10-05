@@ -159,7 +159,7 @@ describe('the copies gone', () => {
 
   test('reads the words the package exports and the sources of both front ends', () => {
     expect(names).toEqual(expect.arrayContaining(['nameIn', 'capitalised', 'listed', 'signed', 'traitEffectWords', 'readableSeed']));
-    expect(sources).toEqual(expect.arrayContaining(['cli/src/narrate.ts', 'web/src/state/narrate.ts', 'web/src/views/board.tsx']));
+    expect(sources).toEqual(expect.arrayContaining(['cli/src/namer.ts', 'web/src/state/namer.ts', 'web/src/views/board.tsx']));
   });
 
   test('no module of the CLI or the page defines a word of the package at its top level', () => {

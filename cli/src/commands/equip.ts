@@ -22,7 +22,7 @@ import {
 } from '@heroesim/engine';
 import { gearUnavailableWords, nameIn } from '@heroesim/words';
 import type { Command } from '../args.js';
-import { narrate } from '../narrate.js';
+import { narrateLine } from '../namer.js';
 import { rowIn } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
@@ -96,7 +96,7 @@ function statChanges(heroId: HeroId, before: World, after: World, deps: EngineDe
 
 /** The lines a successful command prints: each event in the CLI's words, then the Stats that changed. */
 function said(events: readonly EngineEvent[], heroId: HeroId, before: World, after: World, deps: EngineDeps): string[] {
-  return [...events.map((event) => narrate(event, deps.content)), statChanges(heroId, before, after, deps)];
+  return [...events.map((event) => narrateLine(event, deps.content)), statChanges(heroId, before, after, deps)];
 }
 
 /** Equips a Hero of the player's Guild under the save's own deps, and says what moved and what it changed. */

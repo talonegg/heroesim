@@ -14,14 +14,12 @@ import {
   sexes,
   traitOf,
   type ContentSet,
-  type EndingReason,
-  type FacilityKey,
   type Guild,
   type TransferRefusalReason,
   type UnmetRequirement,
   type World,
 } from '@heroesim/engine';
-import { capitalised, gearUnavailableWords, listed, nameIn, unavailableWords } from '@heroesim/words';
+import { capitalised, endingWords, facilityIs, facilityNames, gearUnavailableWords, listed, nameIn, unavailableWords } from '@heroesim/words';
 import type { DocumentPlayKind, GameRefusal, PlayRejection } from './reducer';
 
 // ── Kinds ────────────────────────────────────────────────────────────────────────────────────
@@ -87,26 +85,6 @@ function heldCalled({ world, content }: Setting, id: string): string {
 function itemCalled({ content }: Setting, definitionKey: string): string {
   return nameIn(content.items, definitionKey);
 }
-
-/** A Hall facility as a sentence names one (`CONTEXT.md`, Hall), and the verb it takes. */
-export const facilityNames: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'infirmary',
-  trainingYard: 'training yard',
-  quarters: 'quarters',
-});
-
-export const facilityIs: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'is',
-  trainingYard: 'is',
-  quarters: 'are',
-});
-
-/** What befell a Guild at its ending, after its name (the CLI's `game.ended`). */
-export const endingWords: Readonly<Record<EndingReason, string>> = Object.freeze({
-  retirement: 'lost its Guildmaster to Retirement',
-  bankruptcy: 'went bankrupt',
-  'roster-wiped': 'had its Roster wiped out',
-});
 
 /** A requirement a Party misses, in words (the CLI's `requirementWords`). */
 function requirementWords(unmet: UnmetRequirement, { content }: Setting): string {

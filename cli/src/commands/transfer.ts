@@ -24,7 +24,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { narrate } from '../narrate.js';
+import { narrateLine } from '../namer.js';
 import { renderTime, rowIn, table } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
@@ -88,7 +88,7 @@ function explain(rejection: Refusal, player: Guild, world: World): string {
 function done(document: WorldDocument, events: readonly EngineEvent[], guildId: Guild['id'], deps: EngineDeps): string[] {
   const guild = rowIn(document.world.guilds, guildId);
   return [
-    ...events.map((event) => narrate(event, deps.content)),
+    ...events.map((event) => narrateLine(event, deps.content)),
     `${guild?.name ?? guildId}: Wealth ${guild?.wealth ?? 0}; ${guild?.rosterIds.length ?? 0} Heroes on the Roster.`,
   ];
 }

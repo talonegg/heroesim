@@ -4,8 +4,9 @@
 // no React (eslint.config.js, `src/imports.test.ts`). Words only; no rule: every reason, band and
 // effect it words is the engine's.
 //
-// The shared tables are here; the narration, behind a Namer seam that fills each name for the CLI or
-// the page, joins them in v1.1.6-S12.
+// The shared tables came in v1.1.6-S11; the narration, behind a Namer seam that fills each name for
+// the CLI or the page, and the Quest review's page, which the harness and the tools may read, in
+// v1.1.6-S12.
 
 export { gearUnavailableWords, unavailableChipWords, unavailableWords } from './availability.js';
 export {
@@ -19,6 +20,28 @@ export {
 } from './effects.js';
 export { capitalised, listed, nameIn, signed } from './names.js';
 export {
+  crossed,
+  degreeWords,
+  endingWords,
+  facilityIs,
+  facilityNames,
+  itemsWords,
+  narrate,
+  narratedTypes,
+  nightOf,
+  resolvedParts,
+  sentenceText,
+  type IdsSlot,
+  type NameSlot,
+  type Namer,
+  type OfferSlot,
+  type Part,
+  type PartySlot,
+  type QuestSlot,
+  type Sentence,
+  type Slot,
+} from './narrate.js';
+export {
   chanceWords,
   encounterReadings,
   queryWords,
@@ -27,4 +50,13 @@ export {
   type EncounterReading,
   type QueryNames,
 } from './query.js';
+export {
+  consequenceWords,
+  passWords,
+  reviewPage,
+  type ReviewCalibration,
+  type ReviewCell,
+  type ReviewInput,
+  type ReviewNotes,
+} from './quest-review.js';
 export { readableSeed, type Random } from './seed.js';

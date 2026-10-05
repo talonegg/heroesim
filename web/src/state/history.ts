@@ -20,7 +20,7 @@
 // DL-120 item 6). Elsewhere a Party's steps still fold under its outcome.
 //
 // Nothing here computes a rule (ADR-0007, principle 12): every line is a History entry as the engine
-// appended it, put in words by `narrate.ts`, and read through the History's own index of entries by
+// appended it, put in words by the narration (`namer.ts`), and read through the History's own index of entries by
 // participant (`byEntity`, as `entriesFor` reads it). What is new is the last play's events, which
 // are the History's entries themselves (`append`, ADR-0008). Grouping, folding and marking are
 // presentation.
@@ -47,7 +47,7 @@ import { listed } from '@heroesim/words';
 import { content } from '../content';
 import type { PortraitRole } from '../media';
 import { bandWords, rowOf } from './names';
-import { narrateSegments, narrationFor, textOf, type Narration, type Segment } from './narrate';
+import { narrateSegments, narrationFor, textOf, type Narration, type Segment } from './namer';
 import { partOfAReturn, returnEntry, type ReturnEntry } from './quest-return';
 import { historyPageSize, whenOf } from './selectors';
 

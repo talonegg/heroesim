@@ -50,7 +50,7 @@ import { previewParty } from './commands/preview.js';
 import { setupRefusalWords, unknownStatWords, unspentStatWords } from './commands/setup.js';
 import type { CommandOutcome } from './commands/outcome.js';
 import { modulesFor } from './modules.js';
-import { narrateStop, renderAdvance } from './narrate.js';
+import { narrateStop, renderAdvance } from './advance.js';
 import {
   renderBoard,
   renderGuildmaster,

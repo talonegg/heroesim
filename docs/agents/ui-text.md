@@ -25,7 +25,7 @@ words are terms; this decides how they, and the words around them, are written.
 | Age, Sex, Male, Female | age, sex | Labels and values (DL-111 item 9, DL-112 item 4) |
 | Unattached pool | Unattached Pool | "Pool" is no term; Unattached Hero is |
 | Debug: Whole History | Debug: whole History | The owner's wording (DL-120) |
-| an Offer, a Module, their Gear | an offer, a module, their gear | Terms, in the CLI as on the page (v1.1.6-S11, DL-197) |
+| an Offer, a Module, their Gear | an offer, a module, their gear | Terms, in the CLI as on the page (v1.1.6-S11, DL-197; the narration's, one for both, v1.1.6-S12, DL-198) |
 | No effect | no effect | A Trait's effects stand alone (v1.1.6-S11, DL-197) |
 
 ## How

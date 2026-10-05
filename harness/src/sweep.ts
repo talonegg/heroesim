@@ -19,6 +19,7 @@ import {
   type FacilityKey,
   type RegardBand,
 } from '@heroesim/engine';
+import { capitalised } from '@heroesim/words';
 import {
   consumableEffects,
   controllerKinds,
@@ -1114,7 +1115,6 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     ),
   ];
   const sideLabel = (side: string): string => (side === playerSide ? "the player's Guild" : `\`${side}\``);
-  const capital = (text: string): string => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
   const perGame = (n: number): string => ratio(n, totals.games);
 
   // Transfers.
@@ -1151,7 +1151,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
       addInto(sold, pair(side, other));
     }
     return [
-      capital(sideLabel(side)),
+      capitalised(sideLabel(side)),
       whole(bought.transfers),
       whole(bought.fees),
       whole(sold.transfers),
@@ -1159,7 +1159,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
       whole(bought.transfers - sold.transfers),
     ];
   });
-  const matrixRows = sides.map((seller) => [capital(sideLabel(seller)), ...sides.map((buyer) => whole(pair(seller, buyer).transfers))]);
+  const matrixRows = sides.map((seller) => [capitalised(sideLabel(seller)), ...sides.map((buyer) => whole(pair(seller, buyer).transfers))]);
 
   // Offers.
   const offerRows = sides.flatMap((maker) =>
@@ -1169,7 +1169,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
       const ended = sum(offerEndCauses.map((cause) => tally.ended[cause]));
       return [
         [
-          `${capital(sideLabel(maker))} to ${sideLabel(asked)}`,
+          `${capitalised(sideLabel(maker))} to ${sideLabel(asked)}`,
           whole(tally.made),
           ratio(tally.fees, tally.made, 0),
           whole(tally.accepted),
@@ -1337,7 +1337,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     markdownTable(['Side', 'Bought', 'Fees paid', 'Sold', 'Fees taken', 'Net Heroes'], sideRows, ['left', 'right', 'right', 'right', 'right', 'right']),
     '',
     markdownTable(
-      ['Sold by, bought by', ...sides.map((side) => capital(sideLabel(side)))],
+      ['Sold by, bought by', ...sides.map((side) => capitalised(sideLabel(side)))],
       matrixRows,
       ['left', ...sides.map(() => 'right' as const)],
     ),

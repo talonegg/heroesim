@@ -224,7 +224,7 @@ describe('Transfer Offers (M6-S2)', () => {
 
     const declined = play(['decline', '--offer', offerId]);
     expect(declined).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(declined.out).toContain(`The Test declined ${rivalName}'s offer for ${name} (${heroId}) (${offerId}).`);
+    expect(declined.out).toContain(`The Test declined ${rivalName}'s Offer for ${name} (${heroId}) (${offerId}).`);
     expect(document().world.offers).toEqual({});
     expect(play(['show', 'offers']).out).toBe("No Transfer Offer stands for The Test's Heroes.\n");
     expect(play(['decline', '--offer', offerId])).toMatchObject({

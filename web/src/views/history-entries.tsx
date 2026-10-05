@@ -8,13 +8,13 @@
 //
 // A name in a line opens whom it names, through the shell's `HistoryLinks`: a Hero's page, a
 // Guild's page, or anyone else's History. The names are marked by the narration, from the event's
-// own ids (`narrateSegments`), never found in the sentence. Where no shell gives links (a Hero's page
+// own ids (`narrateSegments`, `state/namer.ts`), never found in the sentence. Where no shell gives links (a Hero's page
 // drawn alone), a name is words. Every line and word comes from `state/history.ts`.
 
 import type { EntityId, TurnEvent, WorldDocument } from '@heroesim/engine';
 import { createContext, Fragment, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { historyView, type HistoryGroup, type HistoryLine, type HistoryRow, type HistoryView, type HistoryWhose } from '../state/history';
-import type { Segment } from '../state/narrate';
+import type { Segment } from '../state/namer';
 import type { ReturnKey } from '../state/quest-return';
 import { Icon } from './icons';
 import { ReturnEntryParts } from './quest-report';
