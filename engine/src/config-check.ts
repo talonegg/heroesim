@@ -2,12 +2,12 @@
 // in `configRules`, and `checkConfig` reads them all; `playDeps` merges a game's own config with the
 // current defaults and checks it before any play. The CLI, the page, the harness and a save's load
 // go through it, so a setting no rule allows never reaches the rules that read it. Each rule is the
-// setting's range, a Min's Max at least the Min, a list of bands in their order, or a list sized by
-// content; none is checked lazily where it is read (the Quest Engine's and the Encounter draw's
-// checks, DL-152 to DL-160, are rules here).
+// setting's range, a Min's Max at least the Min, a list of bands in their order, or a list that
+// asks nothing of the content (DL-193); none is checked lazily where it is read (the Quest Engine's and
+// the Encounter draw's checks, DL-152 to DL-160, are rules here).
 
 import { chanceBandNames, defaultConfig, moraleBandNames, potentialHints, questBands, regardBandNames, type EngineDeps, type GameConfig } from './config.js';
-import type { ContentSet } from './content-types.js';
+import type { ContentSet, StatArea } from './content-types.js';
 import type { Meta } from './document.js';
 import type { Module } from './modules.js';
 
@@ -25,6 +25,9 @@ type Settings = Readonly<Record<string, unknown>>;
  * "<setting> is <value>; ". It may read the other settings and the content.
  */
 export type ConfigRule = (value: unknown, settings: Settings, content: ContentSet) => string | undefined;
+
+/** Every Stat area, in the order of `StatArea`. */
+const statAreas: readonly StatArea[] = ['physical', 'mental', 'magical', 'social'];
 
 /** A bound: a number, or another setting, read at the check. */
 type Bound = number | keyof GameConfig;
@@ -161,25 +164,22 @@ const successShares: ConfigRule = (value, settings) => {
     : 'it holds successAbove < strongAtLeast, each a share from 0 to 1';
 };
 
-/** The infirmary's top grade in `content`: its grades run from 0, no infirmary, to this. */
-function topInfirmaryGrade(content: ContentSet): number {
-  return Object.values(content.improvements).reduce((top, { facility, grade }) => (facility === 'infirmary' ? Math.max(top, grade) : top), 0);
-}
-
-/** One heal factor for each infirmary grade content has, 0 included, each a finite number above 0 (DL-53). */
-const healFactors: ConfigRule = (value, _settings, content) => {
-  const grades = topInfirmaryGrade(content) + 1;
-  return Array.isArray(value) && value.length === grades && value.every((factor) => isNumber(factor) && factor > 0)
+/**
+ * The infirmary's heal factors: at least one, each a finite number above 0 (DL-53). A grade past the
+ * list reads its last factor (`healFactor`), so a content release with more grades leaves a save's
+ * list sound (DL-193, the owner's answer).
+ */
+const healFactors: ConfigRule = (value) =>
+  Array.isArray(value) && value.length >= 1 && value.every((factor) => isNumber(factor) && factor > 0)
     ? undefined
-    : `it is a list of ${grades} factors, one for each infirmary grade from 0 to ${grades - 1}, each a finite number above 0`;
-};
+    : 'it is a list of at least one factor, one for each infirmary grade from 0, a grade past the list reading the last, each a finite number above 0';
 
-/** The Stat areas a decline draws from (M3-S4): each an area of a Hero Stat content defines, none twice. */
-const declineAreaList: ConfigRule = (value, settings, content) => {
-  const areas = [...new Set(Object.values(content.stats).flatMap((stat) => (stat.owner === 'hero' ? [stat.area] : [])))];
-  const problem = listOf(areas)(value, settings, content);
-  return problem === undefined ? undefined : `${problem}: the areas of content's Hero Stats`;
-};
+/**
+ * The Stat areas a decline draws from (M3-S4): any of the Stat areas, none twice. An area content has
+ * no Hero Stat of draws nothing, as a content key a save names that content lacks is no refusal
+ * (DL-193, the owner's answer); the check has no channel for a warning, so none is made.
+ */
+const declineAreaList: ConfigRule = listOf(statAreas);
 
 /**
  * Every setting's rule (v1.1.6-S7, DL-193), in `GameConfig`'s order. A Min's Max is at least the Min;

@@ -25266,6 +25266,19 @@ factor) and any Stat area, the rules reading as the code does. Recommendation: (
 S16 or S18 next touch content's grades. (2) A save whose config is unsound cannot be rebased to the
 defaults for the same reason; none can arise but by hand, so no change is proposed.
 
+*The owner's answer* (2026-10-05, item 1): "(b) Loosen to match code." `infirmaryHealFactor` now
+needs at least one factor, each a finite number above 0, whatever grades content has; a grade past
+the list reads the last, as `healFactor` does. `declineAreas` is any of the four Stat areas, none
+twice; an area content has no Hero Stat of is allowed (it draws nothing). `checkConfig` has no
+warning channel (rule 5's warning belongs to the document checker), so the rule neither refuses nor
+warns, and none was added. Item 2 stands, no change. Tests first, in `config-check.test.ts`: the
+old refusals (a list of 3 or of 5, an area content lacks) now allowed; an empty list, a zero, a NaN
+or an infinite factor, an unknown area and a repeated area still refused, in the words; content
+with 0, 1, 4 and 6 infirmary grades sound. Mutations: the length bound at 0 or at exactly 4, and
+the area list cut to `physical`: each fails 2 tests, restored. The comment on the check's head
+says so; `data-model.md` and `config.ts` describe neither rule. The doctor read no drift before
+and after; no play changed (the defaults pass both rules), so no sweep.
+
 ---
 
 ## DL-194 — v1.1.6-S8 built: the engine's entry narrowed to what its callers use, the test-only names in `@heroesim/engine/testing`; one action dispatch, `applyAction`; one Roster walk, `activeRosterHeroes`; one row lookup, `rowOf` and `requireRow`

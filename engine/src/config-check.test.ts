@@ -170,7 +170,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   heroRetirementAge: wholeFrom(0),
   heroRetirementChancePerYear: share,
   heroRetirementInjuredMultiplier: finiteFrom(0),
-  infirmaryHealFactor: { refused: [[1, 0.5, 0.3], [1, 0.5, 0.3, 0.2, 0.1], [1, 0.5, 0, 0.25], [1, 0.5, Number.NaN, 0.25], 1], allowed: [[1, 1, 1, 1], [2, 1, 0.5, 0.01]] },
+  infirmaryHealFactor: { refused: [[], [1, 0.5, 0, 0.25], [1, 0.5, Number.NaN, 0.25], [1, Number.POSITIVE_INFINITY], [1, '0.5'], 1], allowed: [[1], [1, 0.5, 0.3], [1, 1, 1, 1], [1, 0.5, 0.3, 0.2, 0.1], [2, 1, 0.5, 0.01]] },
   quartersMoraleBonus: finiteFrom(0),
   potentialHintBands: {
     refused: [{ modest: -1, promising: 6, exceptional: 10 }, { modest: 0, promising: 10, exceptional: 6 }, { modest: 0, promising: 6, exceptional: 6 }],
@@ -178,7 +178,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   },
   declineAge: wholeFrom(0),
   declinePerYear: wholeFrom(0),
-  declineAreas: { refused: [['physical', 'physical'], ['physical', 'spiritual'], 'physical', [1]], allowed: [[], ['physical'], ['mental', 'physical']] },
+  declineAreas: { refused: [['physical', 'physical'], ['physical', 'spiritual'], 'physical', [1]], allowed: [[], ['physical'], ['mental', 'physical'], ['magical', 'social']] },
   guildmasterRetirementAge: wholeFrom(0),
   rivalReplacementDays: wholeFrom(0),
   xpCurveBase: finiteAbove(0),
@@ -302,7 +302,7 @@ describe('the bands, in their order', () => {
   });
 });
 
-describe('the lists content sizes', () => {
+describe('the lists a content release may outgrow', () => {
   /** The test content with the infirmary's grades to `top`. */
   const infirmaryTo = (top: number): ContentSet => ({
     ...content,
@@ -312,23 +312,28 @@ describe('the lists content sizes', () => {
     ]),
   });
 
-  test('a heal factor for each infirmary grade content has, 0 included', () => {
-    expect(broken({}, infirmaryTo(4))).toEqual(['infirmaryHealFactor']);
-    expect(broken({ infirmaryHealFactor: [1, 0.5, 0.4, 0.3, 0.2] }, infirmaryTo(4))).toEqual([]);
-    expect(broken({ infirmaryHealFactor: [1] }, infirmaryTo(0))).toEqual([]);
-    expect(checkConfig({ ...defaultConfig, infirmaryHealFactor: [1] }, content)[0]?.message).toBe(
-      'infirmaryHealFactor is [1]; it is a list of 4 factors, one for each infirmary grade from 0 to 3, each a finite number above 0',
+  test('a heal factor list of at least one is sound whatever grades content has, a grade past it reading the last (DL-193)', () => {
+    for (const top of [0, 1, 4, 6]) {
+      expect(broken({}, infirmaryTo(top)), `top ${top}`).toEqual([]);
+      expect(broken({ infirmaryHealFactor: [1, 0.5] }, infirmaryTo(top)), `top ${top}`).toEqual([]);
+    }
+    expect(broken({ infirmaryHealFactor: [] }, infirmaryTo(4))).toEqual(['infirmaryHealFactor']);
+    expect(checkConfig({ ...defaultConfig, infirmaryHealFactor: [] }, content)[0]?.message).toBe(
+      'infirmaryHealFactor is []; it is a list of at least one factor, one for each infirmary grade from 0, a grade past the list reading the last, each a finite number above 0',
     );
   });
 
-  test("the decline's areas are areas of content's Hero Stats", () => {
+  test("the decline's areas may be any Stat areas, one content has no Hero Stat of included, none twice (DL-193)", () => {
     const noPhysical: ContentSet = {
       ...content,
       stats: Object.fromEntries(Object.entries(content.stats).map(([key, stat]): [string, Stat] => [key, stat.owner === 'hero' && stat.area === 'physical' ? { ...stat, area: 'mental' } : stat])),
     };
-    expect(broken({}, noPhysical)).toEqual(['declineAreas']);
-    const guildmasterArea = Object.values(content.stats).find((stat) => stat.owner === 'guildmaster' && !Object.values(content.stats).some((other) => other.owner === 'hero' && other.area === stat.area));
-    if (guildmasterArea !== undefined) expect(broken({ declineAreas: [guildmasterArea.area] })).toEqual(['declineAreas']);
+    expect(broken({}, noPhysical)).toEqual([]);
+    expect(broken({ declineAreas: ['social', 'magical'] }, noPhysical)).toEqual([]);
+    expect(broken({ declineAreas: ['physical', 'physical'] }, noPhysical)).toEqual(['declineAreas']);
+    expect(checkConfig({ ...defaultConfig, declineAreas: ['spiritual'] }, content)[0]?.message).toBe(
+      'declineAreas is ["spiritual"]; it is a list of physical, mental, magical, social, none twice',
+    );
   });
 });
 
