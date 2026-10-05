@@ -31,9 +31,9 @@ schema 7, config version 16, content version 36; S16's was `64020971…` at conf
 check at content 36 and config version 16 is `948be72d1c156791960e40fd3ba48b58621283527ebf2cc3dcce820b622d5cb4`.
 It changes only with a DL entry, as at a story that changes play or the save's shape (v1.1.6-S7 and S17) or
 raises the content version or the config version, both of which every save records (with `meta.config`).
-The full `gate`'s, 50 × 20, was, at S17 (config version 15),
-`ecede9c07ee4ac031f62bec25a0848c73008b9fdefe9416083975f390c06e6fa` (`m9-v116-s17`, DL-203: schema 7, content
-version 36; S7's was `143a44c7…` at 34); S18's config version 16 moves it at its next run.
+The full `gate`'s, 50 × 20, is `bce997d27793192742247d4a7e4adc1ee80a9460752a8c7847258e0495cf2d77`
+(`m9-v116-s19`, DL-205: schema 7, config version 16, content version 36; S17's was `ecede9c0…` at config
+version 15, and S7's `143a44c7…` at content 34).
 
 ## Settings
 
