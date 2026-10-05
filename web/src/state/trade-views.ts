@@ -8,7 +8,6 @@
 
 import {
   ageOf,
-  compareByCodeUnit,
   gearSlotKeys,
   guildmasterOf,
   holdings,
@@ -20,6 +19,7 @@ import {
   signingFee,
   signingRefusal,
   unattachedHeroes,
+  type Hero,
   type HeroId,
   type ItemDefinition,
   type ItemDefinitionKey,
@@ -34,6 +34,7 @@ import { capitalised, itemEffectWords, kindOf, nameIn, nightOf } from '@heroesim
 import { content } from '../content';
 import { rowOf, transferCostWords } from './names';
 import { playDeps } from './reducer';
+import { defaultHeroOrder } from './selectors';
 
 // ── The Market ───────────────────────────────────────────────────────────────────────────────
 
@@ -176,7 +177,7 @@ export interface PoolRow {
   willSign: boolean | null;
 }
 
-/** How the pool may be ordered for display (M9-S6): as it lists them, by Class A to Z, or by fee, lowest first. */
+/** How the pool may be ordered for display (M9-S6): as it lists them, by Class in the content's order, or by fee, lowest first. */
 export type PoolOrder = 'listed' | 'class' | 'fee';
 
 export interface PoolView {
@@ -187,15 +188,17 @@ export interface PoolView {
 
 /**
  * `show pool`: the Unattached Heroes, each with the fee and whether they would sign, in id order, or
- * by Class A to Z or fee lowest first, ties in id order: an order for display, which changes nothing
- * in the world (M9-S6, the review's B8).
+ * by Class in the content's declared order, ties in the Roster's default order (`defaultHeroOrder`,
+ * v1.1.6-S14, DL-186 item 24), or by fee lowest first, ties in id order: an order for display, which
+ * changes nothing in the world (M9-S6, the review's B8).
  */
 export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): PoolView {
   const { world } = document;
   const deps = playDeps(document);
   const guild = playerGuild(world);
   const buyer = guild === undefined ? undefined : guildmasterOf(guild, world);
-  const rows = unattachedHeroes(world).map((hero) => {
+  const heroes = unattachedHeroes(world);
+  const rows = heroes.map((hero) => {
     const refusal = guild === undefined ? null : signingRefusal(guild, hero, deps.config);
     return {
       heroId: hero.id,
@@ -212,8 +215,12 @@ export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): 
       willSign: guild === undefined ? null : refusal === null,
     };
   });
-  // A stable sort: ties keep the pool's own order.
-  if (order === 'class') rows.sort((a, b) => compareByCodeUnit(a.className, b.className));
+  // A stable sort: a fee's ties keep the pool's own order; a Class's are the Roster's default order, which begins with the Class.
+  if (order === 'class') {
+    const byDefault = defaultHeroOrder(document);
+    const heroOf = new Map(heroes.map((hero) => [hero.id, hero]));
+    rows.sort((a, b) => byDefault(heroOf.get(a.heroId) as Hero, heroOf.get(b.heroId) as Hero));
+  }
   if (order === 'fee') rows.sort((a, b) => a.fee - b.fee);
   const note =
     guild === undefined ? null : `${guild.name} has ${guild.fame} Fame. A Hero who needs more will not sign for it until it has that much.`;

@@ -19,6 +19,7 @@ import {
   availableHeroes,
   bankruptcyCountdown,
   carriedGear,
+  classComparator,
   compareByCodeUnit,
   dayOf,
   defaultConfig,
@@ -51,7 +52,6 @@ import {
   statsRead,
   timeOfDay,
   transferFee,
-  unavailability,
   yearOf,
   type ConsumableRequest,
   type ContentSet,
@@ -68,7 +68,6 @@ import {
   type ItemDefinitionKey,
   type ItemId,
   type MoraleBand,
-  type Party,
   type PotentialHint,
   type QuestEstimate,
   type QuestId,
@@ -106,10 +105,10 @@ import {
   statPartsWords,
   statSourcesMoving,
   traitEffectWords,
-  unavailableChipWords,
   unavailableWords,
   type EncounterReading,
 } from '@heroesim/words';
+import { availabilityOf } from './availability';
 import { content } from '../content';
 import { narrateText, narrationFor, questNamer, type Narration } from './namer';
 import { placeWords, rowOf, transferCostWords } from './names';
@@ -382,7 +381,7 @@ function hardnessWords(difficulty: number, difficulties: readonly number[]): str
 
 /**
  * The default order of the player's Heroes (v1.1.5-S11, DL-169 item 5): Class in the content's
- * order (`content/classes.json`: Warrior, Rogue, Mage, Healer), Level highest first, Age youngest
+ * declared order (`content/class-order.json`: Warrior, Rogue, Mage, Healer), Level highest first, Age youngest
  * first, Name A–Z, then the Hero's id, so that any two Heroes have one order. The Board's Party
  * builder lists by it, and the Roster; it breaks the ties of every other order they sort by. For
  * display only: the engine's `rosterIds` keeps the order the Heroes joined, and the save is unchanged.
@@ -399,14 +398,9 @@ export function defaultHeroOrder(document: WorldDocument): (a: Hero, b: Hero) =>
     compareByCodeUnit(a.id, b.id);
 }
 
-/** Two Heroes by Class in the content's order, a Class the content does not define after the four, by its key. */
+/** Two Heroes by Class in the content's declared order (`classComparator`, v1.1.6-S14, DL-186 item 24). */
 function byClass(a: Hero, b: Hero): number {
-  const classes = Object.keys(content.classes);
-  const place = (hero: Hero): number => {
-    const index = classes.indexOf(hero.classKey);
-    return index === -1 ? classes.length : index;
-  };
-  return place(a) - place(b) || compareByCodeUnit(a.classKey, b.classKey);
+  return classComparator(content)(a.classKey, b.classKey);
 }
 
 // ── Choosing a Party ─────────────────────────────────────────────────────────────────────────
@@ -455,48 +449,26 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
     const hero = rowOf(world.heroes, heroId);
     return hero === undefined ? [] : [hero];
   });
-  const free = new Map(onRoster.map((hero) => [hero.id, freeFrom(hero, world)]));
-  const soonest = (a: Hero, b: Hero): number => {
-    const [x, y] = [free.get(a.id) ?? Infinity, free.get(b.id) ?? Infinity];
-    return x < y ? -1 : x > y ? 1 : 0;
-  };
+  const availability = new Map(onRoster.map((hero) => [hero.id, availabilityOf(hero, world)]));
+  const soonest = (a: Hero, b: Hero): number => compareNumbers(availability.get(a.id)?.freeOnTurn ?? Infinity, availability.get(b.id)?.freeOnTurn ?? Infinity);
   return onRoster
     .sort((a, b) => soonest(a, b) || order(a, b))
     .map((hero): PartyRow => {
       const values = statValues(hero, world);
       const held = heldSkills(hero);
-      const why = unavailability(hero);
+      const { why, until, chip } = availability.get(hero.id) ?? availabilityOf(hero, world);
       return {
         heroId: hero.id,
         name: hero.name,
         className: nameIn(content.classes, hero.classKey),
         level: hero.level,
         why,
-        unavailable: unavailableUntil(hero, world),
-        chip: why === null ? null : capitalised(unavailableChipWords[why]),
+        unavailable: until,
+        chip,
         stats: read.map((key) => ({ name: nameIn(content.stats, key), value: values.get(key)?.effective ?? 0 })),
         skills: named.flatMap((key) => held.filter((skill) => skill.key === key).map(({ name, rating }) => ({ name, rating }))),
       };
     });
-}
-
-/**
- * When a Hero is free to go, for the Party builder's order (DL-169 item 4): `-Infinity` for one who
- * can go now; the Turn the Injury heals or the Party returns, by the engine's `unavailability`; and
- * `null` for one with no Day to read, who sorts last.
- */
-function freeFrom(hero: Hero, world: World): number | null {
-  switch (unavailability(hero)) {
-    case null:
-      return -Infinity;
-    case 'injured':
-      return hero.injury?.healsOnTurn ?? null;
-    case 'in-party':
-      return (hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId))?.returnsOnTurn ?? null;
-    case 'dead':
-    case 'retired':
-      return null;
-  }
 }
 
 export interface ConsumableChoice {
@@ -862,52 +834,6 @@ export function rosterColumnGroups(set: ContentSet = content): RosterColumnGroup
   return [hero, ...areas];
 }
 
-/**
- * Where a Hero is and until when, in words that stand on their own, as a chip (DL-125 item 9): a
- * Hero on no Roster is not at any Hall. The Roster, a Hero's page and the Party builder read it here.
- */
-function whereabouts(hero: Hero, world: World): string {
-  if (hero.diedOnTurn !== null) return `Died on Day ${dayOf(hero.diedOnTurn)}`;
-  if (hero.retiredOnTurn !== null) return `Retired on Day ${dayOf(hero.retiredOnTurn)}`;
-  if (hero.guildId === null) return hero.unattachedSince === null ? 'On no Roster' : 'In the Unattached pool';
-  const party = hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId);
-  if (party !== undefined) return awayWords(party);
-  if (hero.injury !== null) return healingWords(hero.injury);
-  // A Party the world no longer holds: away all the same, as `unavailableUntil` says and the sort reads (v1.1.5-S10).
-  if (hero.partyId !== null) return 'Away with a Party';
-  return 'At the Hall';
-}
-
-/** `Away with a Party, back on the night of Day 5`. */
-function awayWords(party: Pick<Party, 'returnsOnTurn'>): string {
-  return `Away with a Party, back on ${nightOf(party.returnsOnTurn)}`;
-}
-
-/** `Injured, healing on the night of Day 6`. */
-function healingWords(injury: { healsOnTurn: number }): string {
-  return `Injured, healing on ${nightOf(injury.healsOnTurn)}`;
-}
-
-/**
- * Why a Hero cannot go on a Quest and until when, in the Roster's words (M9-S4): the reason is the
- * engine's `unavailability`, what `dispatch` refuses by; `null` when they can go.
- */
-function unavailableUntil(hero: Hero, world: World): string | null {
-  switch (unavailability(hero)) {
-    case null:
-      return null;
-    case 'injured':
-      return hero.injury === null ? 'Injured' : healingWords(hero.injury);
-    case 'in-party': {
-      const party = hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId);
-      return party === undefined ? 'Away with a Party' : awayWords(party);
-    }
-    case 'dead':
-    case 'retired':
-      return whereabouts(hero, world);
-  }
-}
-
 /** Each Trait a Hero holds, by name, with what its effects do in words (v1.1.4-S7, `traitEffectWords`): a Hero's page's and the Roster's. */
 function traitsOf(hero: Hero): { name: string; effect: string }[] {
   return hero.traits.map((key) => ({ name: nameIn(content.heroTraits, key), effect: traitEffectWords(rowOf(content.heroTraits, key)?.effects ?? [], content) }));
@@ -1000,6 +926,7 @@ function buildRosterRows(document: WorldDocument): RosterRows {
     const hero = rowOf(world.heroes, heroId);
     if (hero === undefined) return [];
     const items = itemsOf(hero, world);
+    const availability = availabilityOf(hero, world);
     const row: RosterRow = {
       heroId,
       name: hero.name,
@@ -1010,14 +937,14 @@ function buildRosterRows(document: WorldDocument): RosterRows {
       age: ageOf(hero, world.turn, config),
       morale: hero.morale,
       moraleBand: moraleBand(hero.morale, config),
-      why: unavailability(hero),
-      whereabouts: whereabouts(hero, world),
+      why: availability.why,
+      whereabouts: availability.where,
       traits: traitsOf(hero),
       items,
       carriesUnique: items.some((item) => item.unique),
       stats: rosterStats(hero, world),
     };
-    return [{ hero, row, free: freeFrom(hero, world) ?? Infinity }];
+    return [{ hero, row, free: availability.freeOnTurn ?? Infinity }];
   });
   return { entries, byDefault };
 }
@@ -1204,6 +1131,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
   const reader = player === undefined ? undefined : guildmasterOf(player, world);
   const bands = { potentialHintBands: judgedHintBands(reader, content, config) };
   const onRoster = guild?.rosterIds.includes(hero.id) === true;
+  const available = availabilityOf(hero, world);
 
   // Who the Hero is in one line, and their State as chips (M9-S6, the review's B7): what were eleven
   // label and value rows. A Hero in the pool or gone from it names no Guild; `where` says where they are.
@@ -1297,7 +1225,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
     ),
     line: who,
     morale: { value: hero.morale, band: moraleBand(hero.morale, config) },
-    where: { why: unavailability(hero), words: whereabouts(hero, world) },
+    where: { why: available.why, words: available.where },
     injury: hero.injury === null ? null : nameIn(content.injuries, hero.injury.typeKey),
     xp: hero.xp,
     traits: traitsOf(hero),

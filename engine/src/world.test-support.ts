@@ -402,6 +402,7 @@ export const testContent: ContentSet = deepFreeze({
     heroClass('mage', 'intelligence arcana power spelllore', 'evocation warding runecraft'),
     heroClass('healer', 'knowledge willpower spirit charisma', 'field-surgery herbalism benediction'),
   ]),
+  classOrder: ['warrior', 'rogue', 'mage', 'healer'],
   skills: keyed(
     {},
     ...['swordcraft', 'shieldwork', 'tactics', 'lockpicking', 'stealth', 'trapcraft'],

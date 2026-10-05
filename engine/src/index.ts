@@ -141,6 +141,7 @@ export {
   type TransferRefusalReason,
   type TransferSide,
 } from './controllers/rival.js';
+export { classComparator } from './class-order.js';
 export * from './create.js';
 export {
   biographyTraitSentences,

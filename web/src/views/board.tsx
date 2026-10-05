@@ -24,19 +24,16 @@
 // a chance word for each Encounter and the Quest, each percentage floored to 5 in the detail, "if no one
 // falls" (v1.1.4-S6, DL-148 item 15).
 //
-// Every number and judgement comes from a selector (`boardView`, `partyRows`, `consumableChoices`,
-// `previewView`, `sentView`): nothing here computes a rule.
+// Every number and judgement comes from a selector (`boardView`, `partyBuilder`, `sentView`):
+// nothing here computes a rule.
 
 import type { EncounterKind, HeroId, ItemDefinitionKey, QuestId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { choiceFor, type PartyChoice, type PartyChoices } from '../state/party-choices';
+import { carrying, choiceFor, partyBuilder, toggled, type PartyChoice, type PartyChoices } from '../state/party-choices';
 import type { GameAction, GameState } from '../state/reducer';
 import {
   bestPartyView,
   boardView,
-  consumableChoices,
-  partyRows,
-  previewView,
   sentView,
   type BestPartyView,
   type BoardOrder,
@@ -417,25 +414,7 @@ function Builder({
   onSend: (heroIds: readonly HeroId[], consumables: { definitionKey: ItemDefinitionKey; quantity: number }[]) => void;
 }) {
   const { questId } = card;
-  const rows = useMemo(() => partyRows(document, questId) ?? [], [document, questId]);
-  const stocks = useMemo(() => consumableChoices(document), [document]);
-
-  // Only Heroes who can still go, and no more of a consumable than the Guild holds now.
-  const party = choice.heroIds.filter((heroId) => rows.some((row) => row.heroId === heroId && row.why === null));
-  // The stepper shows the same number the send takes: a choice kept from before a sale shows no more
-  // than is held now (M9-F6).
-  const carried = (definitionKey: ItemDefinitionKey, held: number): number =>
-    Math.min(Math.max(0, Math.floor(choice.carry[definitionKey] ?? 0)), held);
-  const consumables = stocks.flatMap(({ definitionKey, held }) => {
-    const quantity = carried(definitionKey, held);
-    return quantity > 0 ? [{ definitionKey, quantity }] : [];
-  });
-  const preview = previewView(document, questId, party, consumables);
-
-  function toggle(heroId: HeroId, on: boolean): void {
-    const others = choice.heroIds.filter((id) => id !== heroId);
-    onChoice({ ...choice, heroIds: on ? [...others, heroId] : others });
-  }
+  const { rows, stocks, party, consumables, preview } = useMemo(() => partyBuilder(document, questId, choice), [document, questId, choice]);
 
   return (
     <form
@@ -451,7 +430,7 @@ function Builder({
         {rows.length === 0 ? <p>The Roster is empty.</p> : null}
         <ul className="party__rows">
           {rows.map((row) => (
-            <HeroRow key={row.heroId} row={row} chosen={party.includes(row.heroId)} onToggle={(on) => toggle(row.heroId, on)} onOpen={() => onHero(row.heroId)} />
+            <HeroRow key={row.heroId} row={row} chosen={row.chosen} onToggle={(on) => onChoice(toggled(choice, row.heroId, on))} onOpen={() => onHero(row.heroId)} />
           ))}
         </ul>
       </fieldset>
@@ -463,12 +442,10 @@ function Builder({
             <Stepper
               key={stock.definitionKey}
               label={`${stock.name}, ${stock.held} held: ${stock.does}`}
-              value={carried(stock.definitionKey, stock.held)}
+              value={stock.carrying}
               min={0}
               max={stock.held}
-              onChange={(value) =>
-                onChoice({ ...choice, carry: { ...choice.carry, [stock.definitionKey]: Number.isFinite(value) ? value : 0 } })
-              }
+              onChange={(value) => onChoice(carrying(choice, stock.definitionKey, value))}
             />
           ))}
         </fieldset>

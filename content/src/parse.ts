@@ -72,6 +72,7 @@ export const contentSetId = 'core';
 export const contentFiles = [
   'stats.json',
   'classes.json',
+  'class-order.json',
   'skills.json',
   'guildmaster-traits.json',
   'hero-traits.json',
@@ -170,6 +171,7 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
     version: contentVersion(json('version.json'), problems),
     stats,
     classes,
+    classOrder: classOrder(json('class-order.json'), problems),
     skills,
     // The two lists of Traits (v1.1.4-S7, DL-150 item 1); that a key is in one list only is `validateContent`'s rule.
     guildmasterTraits: table<GuildmasterTrait>('guildmaster-traits.json', json('guildmaster-traits.json'), problems, 'a Guildmaster Trait', (row) => ({
@@ -360,6 +362,16 @@ function contentVersion(json: unknown, problems: string[]): number {
   top.strings('changelog');
   top.refuseUnknown('the content version');
   return version;
+}
+
+/** The Classes' order (v1.1.6-S14, DL-186 item 24): a list of Class keys; that each Class is listed once is `validateContent`'s rule. */
+function classOrder(json: unknown, problems: string[]): string[] {
+  if (json === undefined) return [];
+  if (!Array.isArray(json) || !json.every((key) => typeof key === 'string')) {
+    problems.push('class-order.json: must be a list of Class keys');
+    return [];
+  }
+  return json;
 }
 
 function names(json: unknown, problems: string[]): Names {

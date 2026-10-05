@@ -19,6 +19,7 @@ import {
 import { createItem } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
+import { defaultHeroOrder } from './selectors';
 import { marketView, offersView, poolView } from './trade-views';
 
 // The Market, the Unattached pool and the Transfer Offers (M7-S3 part 2, DL-73): each number beside
@@ -164,24 +165,39 @@ describe('poolView', () => {
   });
 });
 
+describe("the Unattached pool by Class (v1.1.6-S14, DL-186 item 24)", () => {
+  test("lists the Warriors, Rogues, Mages and Healers in that order, not A to Z, ties in the Roster's default order", () => {
+    const document = newGame();
+    const heroes = unattachedHeroes(document.world);
+    // Each Class in the pool, at two Levels each, so that the ties are real.
+    heroes.forEach((hero, index) => {
+      hero.classKey = ['healer', 'mage', 'rogue', 'warrior'][index % 4] as string;
+      hero.level = 1 + (Math.floor(index / 4) % 2);
+    });
+
+    const rows = poolView(document, 'class').rows;
+    const order = defaultHeroOrder(document);
+
+    expect(new Set(rows.map((row) => row.className))).toEqual(new Set(['Warrior', 'Rogue', 'Mage', 'Healer']));
+    expect(rows.map((row) => row.heroId)).toEqual([...heroes].sort(order).map((hero) => hero.id));
+    expect([...new Set(rows.map((row) => row.className))]).toEqual(['Warrior', 'Rogue', 'Mage', 'Healer']);
+    for (let index = 1; index < rows.length; index += 1) {
+      const [before, after] = [rows[index - 1], rows[index]];
+      if (before?.className === after?.className) expect(before?.level ?? 0).toBeGreaterThanOrEqual(after?.level ?? 0);
+    }
+  });
+});
+
 describe("the Unattached pool as rows (M9-S6, DL-106; the review's B8)", () => {
-  test('orders the pool by Class, A to Z, or by fee, lowest first, ties as the pool lists them: display only', () => {
+  test("orders the pool by Class in the content's declared order, or by fee, lowest first, ties as the pool lists them: display only", () => {
     const document = newGame();
     const listed = poolView(document).rows;
     const at = (heroId: string): number => listed.findIndex((row) => row.heroId === heroId);
 
-    const byClass = poolView(document, 'class').rows;
     const byFee = poolView(document, 'fee').rows;
 
     expect(listed.length).toBeGreaterThan(3);
     expect(new Set(listed.map((row) => row.className)).size).toBeGreaterThan(1);
-    expect([...byClass].map((row) => row.heroId).sort()).toEqual([...listed].map((row) => row.heroId).sort());
-    for (let index = 1; index < byClass.length; index += 1) {
-      const [before, after] = [byClass[index - 1], byClass[index]];
-      if (before === undefined || after === undefined) throw new Error('no row');
-      expect(before.className <= after.className).toBe(true);
-      if (before.className === after.className) expect(at(before.heroId)).toBeLessThan(at(after.heroId));
-    }
     for (let index = 1; index < byFee.length; index += 1) {
       const [before, after] = [byFee[index - 1], byFee[index]];
       if (before === undefined || after === undefined) throw new Error('no row');

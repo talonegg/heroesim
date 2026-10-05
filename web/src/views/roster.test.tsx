@@ -305,7 +305,9 @@ describe("the Unattached pool as rows (M9-S6, the review's B8)", () => {
     fireEvent.click(within(header('Class')).getByRole('button', { name: 'Order by Class' }));
     expect(header('Class').getAttribute('aria-sort')).toBe('ascending');
     const byClass = rows().map(({ cells }) => cells[0] ?? '');
-    expect(byClass).toEqual([...byClass].sort());
+    // In the content's declared order, Warrior, Rogue, Mage, Healer, not A to Z (v1.1.6-S14, DL-186 item 24).
+    const declared = ['Warrior', 'Rogue', 'Mage', 'Healer'];
+    expect(byClass).toEqual([...byClass].sort((a, b) => declared.indexOf(a) - declared.indexOf(b)));
 
     fireEvent.click(within(header('Fee')).getByRole('button', { name: 'Order by Fee' }));
     expect(header('Fee').getAttribute('aria-sort')).toBe('ascending');

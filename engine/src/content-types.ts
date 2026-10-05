@@ -935,6 +935,8 @@ export interface ContentSet {
   version: number;
   stats: Record<StatKey, Stat>;
   classes: Record<ClassKey, Class>;
+  /** The Classes' order, each Class once (v1.1.6-S14, DL-186 item 24): the order every list shows them in (`classComparator`). */
+  classOrder: readonly ClassKey[];
   skills: Record<SkillKey, Skill>;
   /** The Guildmaster Traits (v1.1.4-S7, DL-150 item 1), keyed apart from the Hero Traits. */
   guildmasterTraits: Record<TraitKey, GuildmasterTrait>;

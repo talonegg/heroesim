@@ -33,6 +33,7 @@ type Rows<Row> = Record<string, Omit<Row, 'key'>>;
 interface Files {
   'stats.json': Rows<Stat>;
   'classes.json': Rows<Class>;
+  'class-order.json': string[];
   'skills.json': Rows<Skill>;
   'guildmaster-traits.json': Rows<GuildmasterTrait>;
   'hero-traits.json': Rows<HeroTrait>;
@@ -168,6 +169,37 @@ const stat = (json: Files['stats.json'], key: string) => json[key] as Omit<Stat,
 describe('the real content', () => {
   test('is accepted', () => {
     expect(() => parseContent(realFiles())).not.toThrow();
+  });
+});
+
+// The Classes' order, declared (v1.1.6-S14, DL-186 item 24): each Class once, in the order every list shows them.
+describe("the Classes' order", () => {
+  test('is the Warrior, Rogue, Mage and Healer, kept when classes.json lists its keys in another order', () => {
+    expect(parseContent(realFiles()).classOrder).toEqual(['warrior', 'rogue', 'mage', 'healer']);
+    const reordered = withText(
+      'classes.json',
+      JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(readFileSync(join(contentDir, 'classes.json'), 'utf8')) as Record<string, unknown>).reverse()), null, 2),
+    );
+    const set = parseContent(reordered);
+
+    expect(Object.keys(set.classes)).toEqual(['healer', 'mage', 'rogue', 'warrior']);
+    expect(set.classOrder).toEqual(['warrior', 'rogue', 'mage', 'healer']);
+  });
+
+  test.each([
+    ['a Class missing', (json: string[]) => void json.pop(), 'classOrder: healer is a Class and is not in the order; list each Class once'],
+    ['a Class twice', (json: string[]) => void json.push('mage'), 'classOrder: mage is listed twice; list each Class once'],
+    ['a key that is no Class', (json: string[]) => void json.push('bard'), 'classOrder: bard is not a Class'],
+  ])('is refused with %s, naming it', (_name, change, problem) => {
+    expect(refusalOf(() => parseContent(withJson('class-order.json', change))).message).toContain(problem);
+  });
+
+  test('is refused without its file, or as anything but a list of keys', () => {
+    const { 'class-order.json': _order, ...files } = realFiles();
+    void _order;
+
+    expect(refusalOf(() => parseContent(files)).message).toContain('class-order.json: missing');
+    expect(refusalOf(() => parseContent(withText('class-order.json', '{"warrior": 1}'))).message).toContain('class-order.json: must be a list of Class keys');
   });
 });
 

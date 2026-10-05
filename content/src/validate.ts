@@ -121,6 +121,17 @@ export function validateContent(set: ContentSet): ContentSet {
     checkGrowth(`${where}.growth`, it.growth, problems);
   }
 
+  // The Classes' order lists each Class once (v1.1.6-S14, DL-186 item 24).
+  const listedClasses = new Set<string>();
+  for (const classKey of set.classOrder) {
+    if (!Object.hasOwn(set.classes, classKey)) problems.push(`classOrder: ${classKey} is not a Class`);
+    else if (listedClasses.has(classKey)) problems.push(`classOrder: ${classKey} is listed twice; list each Class once`);
+    listedClasses.add(classKey);
+  }
+  for (const classKey of Object.keys(set.classes)) {
+    if (!listedClasses.has(classKey)) problems.push(`classOrder: ${classKey} is a Class and is not in the order; list each Class once`);
+  }
+
   const spheres = new Set(Object.keys(set.spheres));
   const classes = new Set(Object.keys(set.classes));
   const served = new Set<string>();
