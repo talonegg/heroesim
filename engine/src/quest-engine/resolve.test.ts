@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
-import { configVersion, defaultConfig, type EngineDeps } from '../config.js';
+import { defaultConfig, type EngineDeps } from '../config.js';
 import {
   degrees,
   type Consequence,
@@ -361,14 +361,7 @@ describe('resolveQuest', () => {
 
 describe("the Quest Engine's config (DL-42)", () => {
   test("defaults to ±40% (INPUTS 6.2's ±20% until DL-165) and Skill rating × 2, all strong and a majority success, and the stub's fields are gone", () => {
-    // configVersion 4 from DL-42; 8 on the main line by the M5 close (DL-62) and 5 on M6's from M6-S1,
-    // which moved two Rival fields to content (DL-56); 9 from their merge (DL-63); 10 from the M6 close's
-    // Transfer lock (DL-69); 11 from M9-S2's Trait budget (DL-102); 12 from M9-F1's Guildmasters' ages (DL-113);
-    // 13 from v1.1.4-S2's Degrees (DL-152), which v1.1.4-S3's form factors (DL-154) and v1.1.4-S4's harm
-    // ranges (DL-155) join. v1.1.4-S10's balance pass sets the Triumph, the share of Triumphs and the
-    // form factors under 13 (DL-166): 1.25, 0.5, 0.85 to 1.08 and 0.85 before it. 14 from v1.1.6-S7,
-    // whose config lost its versions and gear slots, every default as it was (DL-193); 15 from v1.1.6-S16 (DL-202).
-    expect(configVersion).toBe(15);
+    // The Degrees, the share of Triumphs and the form factors as the balance pass set them (DL-166).
     expect(defaultConfig).toMatchObject({
       checkVariance: 0.4,
       skillBonusPerRating: 2,

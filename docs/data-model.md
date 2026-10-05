@@ -56,9 +56,13 @@ predates reads as the current default and a field the current `GameConfig` lacks
 the bands in their order, the lists content sizes), and a save with a setting no rule allows is
 refused at load, naming it (v1.1.6-S7, DL-186 item 12, DL-193). No config migration exists;
 `rebase` is the only thing that rewrites `meta.config` (pre-M0 review D3). `configVersion` is the
-engine's, beside `defaultConfig`, bumped in the decision log whenever a default changes (owner,
-2026-09-25, pre-M0 review D1); `meta` has held it since schema 7, and the schema's version and the
-gear slots are no settings (DL-193).
+engine's, bumped in the decision log whenever a default changes (owner, 2026-09-25, pre-M0 review
+D1); `meta` has held it since schema 7, and the schema's version and the gear slots are no settings
+(DL-193). The defaults' values, the config version and its changelog are data,
+`engine/src/config.json`, the settings in sections, which the engine reads flat as `defaultConfig`;
+a value changes through the content editor's config kind, which checks it, raises the version with
+a line of the changelog and runs the tests (v1.1.6-S18, DL-186 item 15, DL-204;
+`docs/agents/config.md`).
 
 Where pre-M0 review D3's record says tuning reaches every game, D1 governs: tuning reaches a
 saved game only through `rebase`, except that a config field newer than the save follows the

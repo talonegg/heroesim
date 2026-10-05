@@ -79,6 +79,23 @@ const compactContent: Plugin = {
   },
 };
 
+const configFile = path.join(repoRoot, 'engine', 'src', 'config.json');
+
+/**
+ * The defaults' values, `engine/src/config.json`, which the engine imports as JSON, bundled with
+ * their changelog empty (v1.1.6-S18, DL-186 item 15, DL-204), as the content version's is: the
+ * changelog is for the people who read the file, some 2.5 kB the page never shows.
+ */
+const compactConfig: Plugin = {
+  name: 'heroesim:compact-config',
+  enforce: 'pre',
+  async load(id) {
+    if (path.resolve(id.split('?')[0] ?? '') !== configFile) return null;
+    const written = JSON.parse(await readFile(configFile, 'utf8')) as Record<string, unknown>;
+    return JSON.stringify({ ...written, changelog: [] });
+  },
+};
+
 const nodeBuiltins = new Set(builtinModules);
 
 /**
@@ -104,7 +121,7 @@ export default defineConfig({
   // the filesystem included (M7-S1).
   base: './',
   // The content gate validates the content the script carries, which reads it unchecked (DL-152).
-  plugins: [noNodeBuiltins, contentGate(contentDir), compactContent, react(), classicScript],
+  plugins: [noNodeBuiltins, contentGate(contentDir), compactContent, compactConfig, react(), classicScript],
   experimental: {
     // A picture's URL in the script is resolved against the script's address, named once (above),
     // relative to the script, as Vite's own expression resolves it; in the stylesheet and the page,

@@ -120,6 +120,7 @@ export * from './advance.js';
 export {
   configVersion,
   defaultConfig,
+  flattenConfig,
   questBands,
   regardBandNames,
   type ChanceBand,
@@ -131,7 +132,7 @@ export {
   type QuestBand,
   type RegardBand,
 } from './config.js';
-export { playConfig, playDeps, type ConfigProblem, type ConfigRule, type UnsoundConfig } from './config-check.js';
+export { checkConfig, playConfig, playDeps, type ConfigProblem, type ConfigRule, type UnsoundConfig } from './config-check.js';
 export * from './content-types.js';
 export {
   availableHeroes,

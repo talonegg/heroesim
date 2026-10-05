@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance } from '../advance.js';
 import type { StopReason } from '../stops.js';
-import { configVersion, defaultConfig, type EngineDeps } from '../config.js';
+import { defaultConfig, type EngineDeps } from '../config.js';
 import type { ContentSet, PortraitAppearance } from '../content-types.js';
 import { availableHeroes, partyFor } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
@@ -305,13 +305,12 @@ describe("the player's ending ends the game", () => {
 // Turn `retirementTurn` gives, which the endings read. The year is the default's 1,080 Turns: the
 // world is moved to the night before, and the Rivals stilled.
 describe('Retirement at 61, on the Turn retirementTurn gives (M9-F1)', () => {
-  test('the defaults: every Guildmaster starts 21 to 50 and retires at 61, under configVersion 15 (DL-152, DL-193, DL-202)', () => {
+  test('the defaults: every Guildmaster starts 21 to 50 and retires at 61 (DL-113)', () => {
     expect(defaultConfig).toMatchObject({
       guildmasterStartingAgeMin: 21,
       guildmasterStartingAgeMax: 50,
       guildmasterRetirementAge: 61,
     });
-    expect(configVersion).toBe(15);
   });
 
   /** A world whose Guildmaster of the Guild `pick` gives entered aged `age` on `enteredTurn`, moved to the night before their Retirement. */

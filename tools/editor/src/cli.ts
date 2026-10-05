@@ -1,6 +1,7 @@
 // The content editor's command line (v1.1.4-S12, DL-150 item 7), run as `npm run edit -- traits
-// <command>`, the commands under its page and the Trait skills' only way to change a Trait. As the
-// portrait tool's, every command takes `--root <dir>`, the repository to work on (this one by
+// <command>`, the commands under its page and the Trait skills' only way to change a Trait, and as
+// `npm run edit -- config <command>`, the only way to change a tuning value (v1.1.6-S18, DL-204).
+// As the portrait tool's, every command takes `--root <dir>`, the repository to work on (this one by
 // default), and `--json`, which prints one JSON object on stdout for a skill to read. The exit code is
 // 0 for success, 1 for a check that failed or a change refused or undone, and 2 for a command line
 // the editor cannot read. The commands are in this package's README.
@@ -8,6 +9,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { NotUndone, Undone } from '@heroesim/content/write';
+import { ConfigEditor, shownValue, type SectionView } from './config-kind.js';
 import { repositoryRoot } from './content-files.js';
 import { doctor, doctorText } from './doctor.js';
 import { Editor, Refused, type RowView } from './editor.js';
@@ -16,7 +18,7 @@ import type { Use } from './kind.js';
 import { npmTest, type TestRunner } from './tests-run.js';
 import { writeTraitsDoc } from './traits-doc.js';
 
-export const usage = `Usage: npm run edit -- [traits <command>] [--root <dir>] [--json]
+export const usage = `Usage: npm run edit -- [traits <command> | config <command>] [--root <dir>] [--json]
 
   (no command)                    Open the editor's page, served from this repository
   traits list                     Every Trait of both lists, with the pending edits made
@@ -45,6 +47,16 @@ export const usage = `Usage: npm run edit -- [traits <command>] [--root <dir>] [
                                   --force where no "Finish" runs but its journal's process number is
                                   held by another process
   traits doc                      Write docs/agents/traits.md's register part from the register
+
+  config show [<section>]         The tuning values, engine/src/config.json's, by section, with the
+                                  pending edits made
+  config set <setting> <value>    Set a tuning value, pending, checked with the engine's checkConfig;
+                                  <value> read as JSON where it is JSON, else as text
+  config pending                  The pending edits
+  config discard [<setting>]      Drop the pending edits, or one setting's
+  config finish --reason <why>    Write the pending edits, raise the config version with a line of
+                                  its changelog saying why, run npm test; the file is put back if a
+                                  test fails (docs/agents/config.md)
 
 A skill runs them as \`npm run --silent edit -- traits <command> --json\`, so that stdout is the JSON alone.
 
@@ -75,6 +87,8 @@ export interface Parsed {
   fields: Record<string, unknown>;
   /** An assignment's target, or an update's values, from `--target`; its `<field>=<value>` words are read by the command. */
   target: Record<string, unknown>;
+  /** Why `config finish` raises the config version (v1.1.6-S18); `null` where not given. */
+  reason: string | null;
 }
 
 function parseJson(flag: string, text: string): unknown {
@@ -87,7 +101,7 @@ function parseJson(flag: string, text: string): unknown {
 }
 
 export function parse(argv: readonly string[]): Parsed {
-  const parsed: Parsed = { kind: '', command: '', args: [], json: false, force: false, root: repositoryRoot, port: 4180, fields: {}, target: {} };
+  const parsed: Parsed = { kind: '', command: '', args: [], json: false, force: false, root: repositoryRoot, port: 4180, fields: {}, target: {}, reason: null };
   const value = (flag: string, index: number): string => {
     const next = argv[index + 1];
     if (next === undefined || next.startsWith('--')) throw new UsageError(`${flag} wants a value`);
@@ -123,13 +137,15 @@ export function parse(argv: readonly string[]): Parsed {
       const given = parseJson(arg, value(arg, index++));
       if (typeof given !== 'object' || given === null || Array.isArray(given)) throw new UsageError("--target wants a JSON object of the target's fields");
       parsed.target = given as Record<string, unknown>;
-    } else if (arg.startsWith('--')) throw new UsageError(`${arg} is not a flag the editor knows`);
+    } else if (arg === '--reason') parsed.reason = value(arg, index++);
+    else if (arg.startsWith('--')) throw new UsageError(`${arg} is not a flag the editor knows`);
     else if (parsed.kind === '') parsed.kind = arg;
     else if (parsed.command === '') parsed.command = arg;
     else parsed.args.push(arg);
   }
   parsed.fields = { ...row, ...flags };
   if (parsed.force && parsed.command !== 'recover') throw new UsageError('--force is traits recover\'s alone');
+  if (parsed.reason !== null && !(parsed.kind === 'config' && parsed.command === 'finish')) throw new UsageError("--reason is config finish's alone");
   if (!existsSync(parsed.root)) throw new UsageError(`--root ${parsed.root} does not exist`);
   // "Finish" runs `npm test` in the root, which would climb to a package.json above one without its own.
   if (!existsSync(path.join(parsed.root, 'package.json'))) throw new UsageError(`--root ${parsed.root} holds no package.json: it is not a copy of the repository`);
@@ -138,8 +154,17 @@ export function parse(argv: readonly string[]): Parsed {
 
 function arg(options: Parsed, index: number, what: string): string {
   const value = options.args[index];
-  if (value === undefined) throw new UsageError(`traits ${options.command} wants ${what}`);
+  if (value === undefined) throw new UsageError(`${options.kind} ${options.command} wants ${what}`);
   return value;
+}
+
+/** A value given on the command line: JSON where it is JSON (`25`, `0.5`, `{"female":1,"male":2}`), else text (`warm`). */
+function valueOf(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 /**
@@ -178,8 +203,56 @@ function useLines(uses: readonly Use[]): string[] {
 
 type Result = { code: number; json: unknown; text: string[] };
 
+function settingLine(view: SectionView['settings'][number]): string {
+  return `  ${view.setting} ${shownValue(view.value)}${view.pending ? ` (pending; ${shownValue(view.was)} in the file)` : ''}`;
+}
+
+/** The config kind's commands (v1.1.6-S18, DL-186 item 15, DL-204). */
+async function dispatchConfig(options: Parsed, deps: Deps, io: Io, editor: ConfigEditor): Promise<Result> {
+  switch (options.command) {
+    case 'show': {
+      const sections = editor.show(options.args[0]);
+      const pending = editor.edits().length;
+      return { code: 0, json: { sections, pending }, text: sections.flatMap((view) => [`${view.section}:`, ...view.settings.map(settingLine)]) };
+    }
+    case 'set': {
+      const setting = arg(options, 0, 'a setting');
+      const text = options.args.slice(1).join(' ');
+      if (text === '') throw new UsageError(`config set wants a value for ${setting}`);
+      const { unchanged, ...set } = editor.set(setting, valueOf(text));
+      const line = unchanged === true ? `Nothing to change, nothing held: ${setting} is ${shownValue(set.value)}` : `Set, pending: ${setting} ${shownValue(set.was)} to ${shownValue(set.value)}, in ${set.section}`;
+      return { code: 0, json: { ok: true, ...set, pending: editor.edits().length, ...(unchanged === true ? { unchanged } : {}) }, text: [line] };
+    }
+    case 'pending': {
+      const edits = editor.edits();
+      return { code: 0, json: { edits }, text: edits.length === 0 ? ['No pending edits'] : edits.map((edit, index) => `${index + 1}. ${edit.setting} ${shownValue(edit.value)}`) };
+    }
+    case 'discard': {
+      const result = editor.discard(options.args[0]);
+      return { code: 0, json: { ok: true, ...result }, text: [`Discarded ${result.discarded}; ${result.left} pending`] };
+    }
+    case 'finish': {
+      if (options.reason === null) throw new UsageError('config finish wants --reason <why>: the config version\'s changelog says why it was raised, citing its decision-log entry');
+      const finished = await editor.finish(options.reason, deps.runTests, options.json ? () => {} : (line) => io.err(line));
+      const text =
+        finished.configVersion === null
+          ? ['No pending edits: nothing to finish']
+          : [
+              `Finished ${finished.edits} ${finished.edits === 1 ? 'edit' : 'edits'}: ${finished.changed.join(', ')}`,
+              `Config version ${finished.configVersion.from} → ${finished.configVersion.to}`,
+              'The tests passed. Nothing is committed: read `git diff`, and commit it yourself.',
+            ];
+      return { code: 0, json: finished, text };
+    }
+    case '':
+      throw new UsageError('config wants a command: show, set, pending, discard or finish');
+    default:
+      throw new UsageError(`${options.command} is not a command of config: show, set, pending, discard or finish`);
+  }
+}
+
 async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Promise<Result> {
-  if (options.kind !== 'traits') throw new UsageError(options.kind === '' ? 'a kind is wanted: traits' : `${options.kind} is not a kind the editor knows: traits`);
+  if (options.kind !== 'traits') throw new UsageError(options.kind === '' ? 'a kind is wanted: traits or config' : `${options.kind} is not a kind the editor knows: traits or config`);
   switch (options.command) {
     case 'list': {
       const rows = editor.rows();
@@ -322,8 +395,8 @@ export async function run(argv: readonly string[], io: Io, deps: Deps = { runTes
       io.out(usage);
       return 0;
     }
-    const editor = new Editor(options.root);
-    const result = await dispatch(options, deps, io, editor);
+    const editor = options.kind === 'config' ? new ConfigEditor(options.root) : new Editor(options.root);
+    const result = editor instanceof ConfigEditor ? await dispatchConfig(options, deps, io, editor) : await dispatch(options, deps, io, editor);
     // A "Finish" cut off is put back by whatever command came next, which says so.
     if (editor.recovered.length > 0 && options.command !== 'recover') {
       if (typeof result.json === 'object' && result.json !== null) result.json = { ...result.json, recovered: editor.recovered };

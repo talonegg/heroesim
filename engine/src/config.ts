@@ -1,30 +1,31 @@
-// Every tunable is a `GameConfig` field with its default in `defaultConfig` (principle 8): a
-// literal balance number in rules code is a defect. Rules read `deps.config`, never
-// `meta.config` (data-model §2). Every front end, the harness and a save's load take a game's deps
-// from `playDeps` (config-check.ts), which fills `meta.config` forward with the current defaults
-// and checks every setting before any play, so a loaded game plays under the rules it started with
-// and a field its save predates reads as the current default; `rebase` adopts the current defaults
-// (M2-S1). The document's two versions are `meta`'s, not settings: the schema's `schemaVersion`
-// (document.ts) and the defaults' `configVersion`, below (v1.1.6-S7, DL-186 item 12, DL-193).
+// Every tunable is a `GameConfig` field (principle 8): a literal balance number in rules code is a
+// defect. The defaults' values are data, `config.json`, grouped in sections by what they tune,
+// beside the defaults' version and its changelog; the engine reads them flat, as `defaultConfig`,
+// each setting once and in `GameConfig`'s order, frozen all the way down (DL-186 item 15, DL-204).
+// A value changes through the content editor's config kind, `npm run edit -- config`
+// (docs/agents/config.md); a setting is added to the file, with its field here and its rule
+// (config-check.ts), by the story that adds it. Each field below says what the setting is and why,
+// citing the decision that set it; the history of its values is the decision log's
+// (docs/agents/comments.md).
 //
-// Each story adds the fields it introduces: M1-S1 the document's clock; M1-S5 and M1-S6 the
-// starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest Engine and M2-S6 the Hero
-// State Engine (DL-29); M4-S5 Regard, Patron Regard and the Guildmaster's Stat rules (DL-43); M4-S4
-// Regard between Heroes and teamwork (DL-46); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2
-// Transfers (DL-57); M9-S2 the Trait budget (DL-102); v1.1.4-S2 the Degrees (DL-152). The gear slots
-// every Hero has are the engine's `gearSlotKeys`, no setting, since v1.1.6-S7 (DL-193). Every
-// "Min/Max" pair is an inclusive range drawn with `int`. A field holding an object or a list is
-// frozen with `defaultConfig`.
+// Rules read `deps.config`, never `meta.config` (data-model §2). Every front end, the harness and a
+// save's load take a game's deps from `playDeps` (config-check.ts), which fills `meta.config`
+// forward with the current defaults and checks every setting before any play, so a loaded game
+// plays under the rules it started with and a field its save predates reads as the current default;
+// `rebase` adopts the current defaults. The document's two versions are `meta`'s, not settings: the
+// schema's `schemaVersion` (document.ts) and the defaults' `configVersion`, below (DL-193). The
+// gear slots every Hero has are the engine's `gearSlotKeys`, no setting (DL-193). Every "Min/Max"
+// pair is an inclusive range drawn with `int`.
 
+import configFile from './config.json' with { type: 'json' };
 import type { ContentSet, Degree, StatArea } from './content-types.js';
 import type { Sex } from './document.js';
 import type { Module } from './modules.js';
 
 export interface GameConfig {
+  // ── `world`: the year and the starting world (INPUTS 3.2 to 3.4, 3.7, DL-19) ──────────────
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
   turnsPerYear: number;
-
-  // ── The starting world (M1-S6, INPUTS 3.3, 3.4, 3.7) ─────────────────────────────────────
   /** Heroes on the player's starting Roster; four gives one per Class (DL-19). */
   startingRosterSize: number;
   /** The player's starting Wealth. */
@@ -53,16 +54,16 @@ export interface GameConfig {
   rivalStartingWealthMax: number;
   /** Patrons generated with the world, their Spheres dealt evenly. */
   patronCount: number;
-  /** Unattached Heroes generated with the world; the pool is refilled to it from M2-S8. */
+  /** Unattached Heroes generated with the world, and what the pool is refilled to (DL-27). */
   unattachedPoolSize: number;
 
-  // ── A generated Hero (M1-S5, INPUTS 3.5, 3.6, 3.11, 4.8) ─────────────────────────────────
+  // ── `heroes`: a generated Hero (INPUTS 3.5, 3.6, 3.11, 4.8, DL-19) ──────────────────────────
   /** A generated Hero's age, in whole years. */
   heroStartingAgeMin: number;
   heroStartingAgeMax: number;
   /**
    * A new Hero's sex is drawn in proportion to these weights, one draw: each 0 or more, not both 0
-   * (v1.1.6-S16, DL-186 item 16, DL-202). Equal weights draw each as likely as the other.
+   * (DL-186 item 16, DL-202). Equal weights draw each as likely as the other.
    */
   heroSexWeights: Readonly<Record<Sex, number>>;
   /** A Hero Stat's base value before the Class bias (DL-19). */
@@ -79,26 +80,27 @@ export interface GameConfig {
   startingSkillsMax: number;
   /** Each starting Skill is rated from 1 to this. */
   startingSkillRatingMax: number;
-  /** A Hero's Morale at generation, and what nightly drift returns it to (M2-S6). */
+  /** A Hero's Morale at generation, and what nightly drift returns it to (DL-29). */
   moraleBaseline: number;
 
-  // ── A generated Guildmaster (M1-S6, INPUTS 3.13, 4.10) ───────────────────────────────────
+  // ── `guildmasters`: a generated Guildmaster (INPUTS 3.13, 4.10, DL-19) ───────────────────────
   /**
-   * A generated Guildmaster's age, in whole years, and the range the player chooses from at setup:
-   * 21 to 50 from M9-F1 (DL-113 item 4), 30 to 45 before.
+   * A generated Guildmaster's age, in whole years, and the range the player chooses from at setup
+   * (DL-113 item 4).
    */
   guildmasterStartingAgeMin: number;
   guildmasterStartingAgeMax: number;
   /**
    * Each Guildmaster Stat is drawn from this range (DL-19), and a player who chooses the Stats at
-   * setup sets each within it (v1.1.4-S11, DL-149 item 5).
+   * setup sets each within it (DL-149 item 5).
    */
   guildmasterStatMin: number;
   guildmasterStatMax: number;
   /**
-   * The Stat points (v1.1.4-S11, DL-149 item 5): what a player who chooses their Guildmaster's Stats
-   * at setup shares among them, 50 by default, the drawn Stats' mean of 10 each. The Stats chosen may
-   * cost no more in all; points left unspent are lost. A drawn Guildmaster is not held to it.
+   * The Stat points (DL-149 item 5): what a player who chooses their Guildmaster's Stats at setup
+   * shares among them, set at the drawn Stats' mean for each, so that a chosen Guildmaster is no
+   * stronger than a drawn one on the mean. The Stats chosen may cost no more in all; points left
+   * unspent are lost. A drawn Guildmaster is not held to it.
    */
   guildmasterStatPoints: number;
   /**
@@ -110,7 +112,7 @@ export interface GameConfig {
   guildmasterTraitsMin: number;
   guildmasterTraitsMax: number;
   /**
-   * The Trait budget (M9-S2, DL-88 item 4, DL-100 item 3): the most a Guildmaster's Traits may cost
+   * The Trait budget (DL-88 item 4, DL-100 item 3, DL-102): the most a Guildmaster's Traits may cost
    * in all, each Trait's cost being content's (`GuildmasterTrait.cost`), a buff costing and a penalty
    * refunding. A drawn Guildmaster's Traits are one set drawn from every set within it (DL-109
    * item 1); a player's choice at setup is refused over it. At 1, the dearer buffs need a penalty
@@ -118,14 +120,13 @@ export interface GameConfig {
    */
   guildmasterTraitBudget: number;
 
-  // ── The Guild State Engine (M2-S7, INPUTS 4.6, 4.9, pre-M0 review D10.3) ─────────────────
+  // ── `guilds`: the Guild State Engine (INPUTS 4.6, 4.9, pre-M0 review D10.3, DL-26) ─────────
   /** Upkeep falls due every this many Days (DL-26 says which Days precisely). */
   upkeepEveryDays: number;
   /**
-   * Wealth deducted per Level of each living Hero on the Roster, each Upkeep. 70, not INPUTS 4.6's
-   * 5, since the first balance pass: against Quest rewards of 40 to 450 a wage of 5 cost a Guild
-   * nothing (DL-35). 20 since Heroes gain Levels (M3-S1): at 70 a Roster at Level 2 to 4 bankrupted
-   * every harness game within months (DL-36).
+   * Wealth deducted per Level of each living Hero on the Roster, each Upkeep: a wage that weighs
+   * against the Quest rewards, so that a Guild must keep succeeding, and that a Roster gaining Levels
+   * can still bear (DL-35, DL-36).
    */
   wagePerLevel: number;
   /** Wealth deducted per grade of each Hall facility, summed, each Upkeep. */
@@ -136,7 +137,8 @@ export interface GameConfig {
   bankruptcyGraceDays: number;
   /** Fame never falls below this (pre-M0 review D10.3: an explicit floor, not negative Fame). */
   fameFloor: number;
-  // ── Recruitment and the Unattached pool (M2-S8, INPUTS 3.7, 4.7, DL-27) ───────────────────
+
+  // ── `recruitment`: signing and the Unattached pool (INPUTS 3.7, 4.7, DL-27) ──────────────────
   /** A signing fee is this, plus the per-Level part, plus the Stats part (`signingFee`). */
   signingFeeBase: number;
   /** Added to a signing fee for each of the Hero's Levels. */
@@ -146,12 +148,13 @@ export interface GameConfig {
   /** Whole Days an Unattached Hero stays in the pool before leaving it, at night. */
   unattachedStayDays: number;
   /**
-   * Fame's first rule (M3-S5, R10 as amended, pre-M0 review B4, INPUTS 5.6, DL-38): an Unattached
+   * Fame's first rule (R10 as amended, pre-M0 review B4, INPUTS 5.6, DL-38): an Unattached
    * Hero refuses to sign for a Guild whose Fame is below this times the Hero's Level less one, so
    * a Level 1 Hero signs anywhere (`signingRefusal`).
    */
   fameRequiredPerLevel: number;
-  // ── The Board (M2-S3, INPUTS 4.1, 4.3, DL-25) ─────────────────────────────────────────────
+
+  // ── `board`: the Board and its Quests' draw (INPUTS 4.1, 4.3, DL-25) ─────────────────────────
   /** Each morning's refresh draws Quests until the Board holds this many, and never more. */
   boardSize: number;
   /** Days a Quest stays on offer, the Day it is drawn included; it expires the next morning. */
@@ -164,21 +167,18 @@ export interface GameConfig {
   questDifficultyMax: number;
   /**
    * How much likelier an Encounter is drawn, within its kind, for each tag it shares with its Quest's
-   * template (v1.1.4-S8, DL-148 item 22): its weight in the one `weightedPick` is this to the power of
+   * template (DL-148 item 22, DL-160): its weight in the one `weightedPick` is this to the power of
    * the tags shared, so at 3 one shared tag draws it three times as often as one sharing none. A finite
    * number of 1 or more, so that a tag shared never makes an Encounter rarer; at 1 tags change nothing.
    */
   encounterTagWeight: number;
 
-  // ── The Quest Engine (M4-S2, INPUTS 6.2, DL-42) ────────────────────────────────────────────
-  // The stub's fields (M2-S5, DL-29, DL-35) are gone: `stubBands` for `bandBySuccessShare`,
-  // `stubVariance` for `checkVariance`, `stubSkillBonusPerRating` for `skillBonusPerRating`, and
-  // `stubInjuryChance`/`stubDeathChance` for each Encounter's consequences, which are content.
+  // ── `quest`: the Quest Engine (INPUTS 6.2, DL-42) ──────────────────────────────────────────
   /**
    * A Check's roll: the Party's capability times 1 + a draw from −`checkVariance` up to
-   * +`checkVariance`, from the `quests` stream: INPUTS 6.2's ±20% to v1.1.4-S10, then ±40%, so that all
-   * four Degrees can happen to a Party whose capability is near the target (DL-162, DL-165). A Check
-   * keeps its own `variance` only where it truly differs from the rest.
+   * +`checkVariance`, from the `quests` stream, wide enough that all four Degrees can happen to a
+   * Party whose capability is near the target (DL-162, DL-165). A Check keeps its own `variance` only
+   * where it truly differs from the rest.
    */
   checkVariance: number;
   /**
@@ -189,67 +189,65 @@ export interface GameConfig {
   /**
    * A Quest's band from the share of its Encounters at Success or better: `strong` at
    * `strongAtLeast` or more, with `strongTriumphShare` of them Triumphs, `success` above
-   * `successAbove`, else `fail` (M4-S2: all strong, a majority success). An Encounter a Party wiped
+   * `successAbove`, else `fail`: all strong, a majority success (DL-42). An Encounter a Party wiped
    * out never reached counts as not succeeded.
    */
   bandBySuccessShare: Readonly<{ successAbove: number; strongAtLeast: number }>;
   /**
-   * A Check's Degree from its roll ÷ its target (v1.1.4-S2, DL-148 item 8): a Triumph at `triumph`
-   * or more, a Success at `success` or more, a Setback at `setback` or more, else a Failure. The
-   * Triumph's 1.25 became 1.35 in v1.1.4-S10's balance pass, with `strongTriumphShare` 0.5 to 0.6, so
-   * that fewer Quests are strong successes at no cost in bankruptcies (DL-166). The owner accepted
-   * 1.35 as the design's value, superseding DL-148's 1.25 (DL-168 item 9).
+   * A Check's Degree from its roll ÷ its target (DL-148 item 8, DL-152): a Triumph at `triumph` or
+   * more, a Success at `success` or more, a Setback at `setback` or more, else a Failure. The Triumph
+   * is set, with `strongTriumphShare`, so that fewer Quests are strong successes at no cost in
+   * bankruptcies (DL-166); the owner accepted it as the design's value (DL-168 item 9).
    */
   checkDegrees: Readonly<{ triumph: number; success: number; setback: number }>;
   /**
    * The share of a Quest's Encounters that must be Triumphs for a strong success, beside every one
-   * at Success or better (v1.1.4-S2, DL-148 item 8: DL-83 item 17's margin, a share of Triumphs).
-   * The share is of the whole sequence, as `bandBySuccessShare`'s is. The owner accepted 0.6 as the
-   * design's value, superseding "at least half" (DL-168 item 9).
+   * at Success or better (DL-148 item 8: DL-83 item 17's margin, a share of Triumphs). The share is
+   * of the whole sequence, as `bandBySuccessShare`'s is. Set with `checkDegrees` (DL-166); the owner
+   * accepted it as the design's value (DL-168 item 9).
    */
   strongTriumphShare: number;
   /**
-   * A Hero's form on a Quest (v1.1.4-S3, DL-148 items 9 to 11, `CONTEXT.md` Form): the factor on the
-   * Stat values they add into a Check's score, by the band of their Morale on the Quest. S3's first
-   * values (0.85, 0.93, 1, 1.04, 1.08) were narrowed in v1.1.4-S10's balance pass, so that a Guild
-   * failing and losing Morale is not driven down as fast (DL-166). Provisional: the values are to be
-   * revisited in the economy pass (#51, DL-168 item 9), not the design's.
+   * A Hero's form on a Quest (DL-148 items 9 to 11, DL-154, `CONTEXT.md` Form): the factor on the
+   * Stat values they add into a Check's score, by the band of their Morale on the Quest. Narrow, so
+   * that a Guild failing and losing Morale is not driven down fast (DL-166). Provisional: the values
+   * are to be revisited in the economy pass (#51, DL-168 item 9), not the design's.
    */
   moraleCheckFactor: Readonly<Record<MoraleBand, number>>;
   /**
-   * Their form is also multiplied by this once they are hurt on the Quest (DL-148 item 10): 0.85
-   * until v1.1.4-S10's balance pass, then 0.93 (DL-166). Provisional, like `moraleCheckFactor`: to be
-   * revisited in the economy pass (#51, DL-168 item 9).
+   * Their form is also multiplied by this once they are hurt on the Quest (DL-148 item 10, DL-154),
+   * set with the form factors (DL-166). Provisional, like `moraleCheckFactor`: to be revisited in the
+   * economy pass (#51, DL-168 item 9).
    */
   hurtCheckFactor: number;
   /**
    * How much more often harm falls on a Hero weak in the Stats an Injury or a Death is `exposedBy`
-   * (v1.1.4-S4, DL-148 item 14): their weight in the draw of who is hit is 1 + this × (1 − their
+   * (DL-148 item 14, DL-155): their weight in the draw of who is hit is 1 + this × (1 − their
    * mean share of those Stats' content range). At 2, the weakest is hit three times as often as the
    * strongest; 0 weights everyone alike.
    */
   exposureRange: number;
   /**
    * How much a Hero strong in the Stats a harm is `guardedBy`, or a Morale loss `steadiedBy`, shrugs
-   * off (v1.1.4-S4, DL-148 item 14): the chance, or the loss, is times 1 − this × their mean share of
+   * off (DL-148 item 14, DL-155): the chance, or the loss, is times 1 − this × their mean share of
    * those Stats' content range. A share from 0 to 1; at 0.5, the strongest halve it.
    */
   guardRange: number;
   /**
-   * Where each chance band above `hopeless` starts (v1.1.4-S5, DL-148 item 15, `chanceBand`): an
+   * Where each chance band above `hopeless` starts (DL-148 item 15, DL-156, `chanceBand`): an
    * estimated chance below `unlikely` is `hopeless`, and one at a start or above, up to the next, is
    * that band. Strictly increasing, each above 0 and below 1.
    */
   chanceBands: Readonly<Record<Exclude<ChanceBand, 'hopeless'>, number>>;
   /**
-   * The `partyMargin` of a Guild with no Disposition, the player's (v1.1.4-S6, DL-148 item 17): the
+   * The `partyMargin` of a Guild with no Disposition, the player's (DL-148 item 17, DL-157): the
    * Party the engine would send from its free Heroes (`partyFor`), which the Board's card gives as
    * "Your best Party" and the harness's automatic policy sends, keeps adding a Hero only while each
-   * raises the estimated chance of success by more than this (v1.1.5-S6, DL-175). A share from 0 to 1.
+   * raises the estimated chance of success by more than this (DL-175). A share from 0 to 1.
    */
   playerPartyMargin: number;
 
-  // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
+  // ── `heroState`: the Hero State Engine (INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
   moraleMin: number;
   moraleMax: number;
@@ -273,22 +271,22 @@ export interface GameConfig {
   /**
    * An Injury's Days to heal are multiplied by the factor at the Guild's infirmary grade when it is
    * inflicted (index 0 is no infirmary), rounded to the nearest Day and at least 1; a grade past
-   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds; and grade 3,
-   * content's top, a quarter, so that each grade built does something: DL-53).
+   * the list reads its last factor (INPUTS 4.5, DL-193). A factor for each grade content has, so that
+   * each grade built does something (DL-53).
    */
   infirmaryHealFactor: readonly number[];
   /**
    * Added to `moraleBaseline` for each grade of the Guild's quarters: what nightly drift returns a
-   * Roster Hero's Morale to (`moraleBaselineFor`; M3-S6, R33, DL-38).
+   * Roster Hero's Morale to (`moraleBaselineFor`; R33, DL-38).
    */
   quartersMoraleBonus: number;
 
-  // ── Potential hints and ageing (M3-S3, M3-S4, INPUTS 5.4, 5.5, DL-37) ─────────────────────
+  // ── `ageing`: Potential hints and decline (INPUTS 5.4, 5.5, DL-37) ───────────────────────────
   /**
    * Where each Potential hint starts on the gap from a Stat's base to its Potential, in Stat
    * points: a Stat's hint is the highest whose start its gap has reached, and the lowest for a gap
-   * below every start, so the three cover every gap (`potentialHint`). M4-S5's Judgement narrows
-   * them (pre-M0 review D9).
+   * below every start, so the three cover every gap (`potentialHint`). The Guildmaster's Judgement
+   * narrows them (pre-M0 review D9, DL-43).
    */
   potentialHintBands: Readonly<Record<PotentialHint, number>>;
   /**
@@ -302,21 +300,16 @@ export interface GameConfig {
   /** The Stat areas a decline draws from (INPUTS 5.5: the Physical Stats). */
   declineAreas: readonly StatArea[];
 
-  // ── Endings (M2-S10, INPUTS 4.10, pre-M0 review D6, DL-28) ────────────────────────────────
+  // ── `endings`: a Guild's ending (INPUTS 4.10, pre-M0 review D6, DL-28) ──────────────────────
   /**
    * A Guildmaster this old, in whole years, retires, and their Guild reaches its ending, on the night
-   * `retirementTurn` gives: 61 from M9-F1 (DL-113 item 4), 65 before.
+   * `retirementTurn` gives (DL-28, DL-113 item 4).
    */
   guildmasterRetirementAge: number;
   /** Whole Days after a Rival folds until a new Rival is founded in its place, at night. */
   rivalReplacementDays: number;
 
-  // ── Rival controllers (M2-S9, INPUTS 4.12, DL-30) ─────────────────────────────────────────
-  // `recruitWealthMultiple` (DL-30, DL-35) and `buildWealthMultiple` (DL-38) are gone: a Rival's
-  // thresholds are its Disposition's `recruitThreshold` and `buildThreshold`, content (M6-S1,
-  // DL-56). The harness's automatic policy keeps its own multiples (DL-34).
-
-  // ── Progression (M3-S1, M3-S2, INPUTS 5.1–5.3, DL-36) ──────────────────────────────────────
+  // ── `progression`: XP and Levels (INPUTS 5.1–5.3, DL-36) ──────────────────────────────────
   /**
    * The XP curve: going from Level L to L + 1 takes `xpCurveBase × L^xpCurveExponent` XP, rounded
    * to the nearest whole number (INPUTS 5.2: 100 × Level²). `hero.xp` is cumulative, so a Hero
@@ -331,7 +324,7 @@ export interface GameConfig {
   /**
    * Quest XP: the Quest's difficulty × `xpPerDifficultyPoint` × `xpBandFactor` of the band (INPUTS
    * 5.1: 1 a point on a success, half on a failure), split across the Party sent, its Dead counted:
-   * each Hero home alive gains that divided by the Party's size, rounded down (v1.1.5-S13, DL-182).
+   * each Hero home alive gains that divided by the Party's size, rounded down (DL-182, DL-184).
    */
   xpPerDifficultyPoint: number;
   xpBandFactor: Readonly<Record<QuestBand, number>>;
@@ -341,11 +334,11 @@ export interface GameConfig {
    */
   xpPerTrainingDay: number;
 
-  // ── Regard (M4-S5, data-model §3.2 and rule 10, DL-43) ───────────────────────────────────
+  // ── `regard`: Regard's scale, and Regard between Heroes (data-model §3.2, rule 10, DL-43) ─────
   /**
    * Regard's scale: every Regard value, whoever holds it, is held inside `regardMin` to
-   * `regardMax`. Absence reads as 0, which is neutral (data-model §3.2). M4-S4's Regard between
-   * Heroes, and the Relationship read from it, share the scale and the bands (DL-46).
+   * `regardMax`. Absence reads as 0, which is neutral (data-model §3.2). Regard between Heroes, and
+   * the Relationship read from it, share the scale and the bands (DL-46).
    */
   regardMin: number;
   regardMax: number;
@@ -356,7 +349,7 @@ export interface GameConfig {
    */
   regardBands: Readonly<Record<RegardBand, number>>;
 
-  // ── Regard between Heroes and Relationship (M4-S4, R24, INPUTS 6.3, DL-46) ─────────────────
+  // Regard between Heroes and Relationship (R24, INPUTS 6.3, DL-46).
   /**
    * Added to each Hero's Regard for each other Hero of the Party who came home alive with them,
    * once for each resolved Quest, whatever its band; with `regardOnSuccessBonus` on a success and
@@ -380,7 +373,7 @@ export interface GameConfig {
    */
   teamworkRange: number;
 
-  // ── Patron Regard and the Board (M4-S5, R22, pre-M0 review B5, DL-43) ─────────────────────
+  // ── `patrons`: Patron Regard and the Board's draw of Patrons (R22, pre-M0 review B5, DL-43) ──
   /** Added to a Patron's Regard for a Guild when the Guild's Party succeeds at one of their Quests. */
   patronRegardOnSuccess: number;
   /** Added (negative) when the Guild's Party fails one of their Quests. */
@@ -403,13 +396,13 @@ export interface GameConfig {
    */
   boardRegardWeight: number;
 
-  // ── The Guildmaster's Stats (M4-S5, R8, INPUTS 6.5, pre-M0 review B6, D9, DL-43) ─────────
+  // ── `guildmasterStats`: the Guildmaster's Stats (R8, INPUTS 6.5, pre-M0 review B6, D9, DL-43) ─
   // Each Stat's rule reads where its value falls between the Stat's content `min` and `max`:
   // Negotiation from −1 at the bottom to +1 at the top, the others from 0 to 1.
   /**
    * Negotiation: the reward agreed at dispatch is the Quest's reward × (1 + up to this), from −this
-   * at the bottom of the Stat's range to +this at the top; a signing fee (and, from M6-S2, a
-   * Transfer fee) × (1 − the same), inside the fee's selector (INPUTS 6.5: ±10%).
+   * at the bottom of the Stat's range to +this at the top; a signing fee and a Transfer fee × (1 −
+   * the same), inside the fee's selector (INPUTS 6.5: ±10%; DL-57).
    */
   negotiationRange: number;
   /** Inspiration: the Morale baseline of the Guild's Heroes is raised by up to this. */
@@ -424,7 +417,7 @@ export interface GameConfig {
    */
   judgementHintSharpening: number;
 
-  // ── Guildmaster Regard (M4-S5, R9, pre-M0 review B3, DL-43) ───────────────────────────────
+  // ── `guildmasterRegard`: Guildmaster Regard (R9, pre-M0 review B3, DL-43) ─────────────────────
   /** Added to a Guildmaster's Regard for a Patron when their Guild succeeds at one of the Patron's Quests. */
   guildmasterRegardOnPatronSuccess: number;
   /** Added (negative) when their Guild fails one of the Patron's Quests. */
@@ -434,7 +427,7 @@ export interface GameConfig {
   /** Added (negative) for each such Hero after a failure. */
   guildmasterRegardOnHeroFailure: number;
 
-  // ── Transfers (M6-S2, R28, INPUTS 7.6, pre-M0 review D5, DL-57) ────────────────────────────
+  // ── `transfers`: Transfers (R28, INPUTS 7.6, pre-M0 review D5, DL-57) ─────────────────────────
   /**
    * A Transfer fee is the Hero's signing fee before Negotiation (`signingFee`'s list price) times
    * this, times the buying Guildmaster's Negotiation, rounded down once (`transferFee`; INPUTS 7.6:
@@ -451,7 +444,7 @@ export interface GameConfig {
   transferRegardBand: RegardBand;
   /**
    * Added to each of the two Guildmasters' Regard for the other when a Transfer between their Guilds
-   * is made (R9; Guildmaster Regard's third writer, after M4-S5's Patrons and Heroes).
+   * is made (R9, DL-57; Guildmaster Regard's third writer, after the Patrons and the Heroes).
    */
   guildmasterRegardPerTransferDeal: number;
   /**
@@ -460,7 +453,7 @@ export interface GameConfig {
    */
   transferOfferDays: number;
   /**
-   * The Transfer Generator (M6-S3, DL-59) runs on the night of every Day this many apart: the Days
+   * The Transfer Generator (DL-59) runs on the night of every Day this many apart: the Days
    * `d` with `d mod transferGeneratorEveryDays` equal to `transferGeneratorEveryDays − 1`, as
    * `upkeepEveryDays` names its Days (DL-26). Weekly: 7.
    */
@@ -474,17 +467,16 @@ export interface GameConfig {
    * Days after a Hero's Transfer before they may be transferred again (DL-60): a Transfer on Day `d`
    * holds them on their new Roster through Day `d + transferLockDays − 1`, whoever asks, by any
    * Transfer action, so that no Guild sells a Hero back, or on, the afternoon it bought them. 0 locks
-   * no one. 90 since the M6 close (DL-69), for 30: a season, so that no Hero goes back to a Guild
-   * that sold them within one.
+   * no one. A season, so that no Hero goes back to a Guild that sold them within one (DL-69).
    */
   transferLockDays: number;
 
-  // ── Loot (M5-S5, R32, INPUTS 7.4, DL-52) ──────────────────────────────────────────────────
+  // ── `loot`: Loot (R32, INPUTS 7.4, DL-52) ──────────────────────────────────────────────────────
   /**
    * A Quest carries its template's Loot table only when the template's `difficultyMin` is above
    * this: the Quest Generator copies `lootTableKey` onto the Quest then, and `null` otherwise. Content
    * chooses each template's table by its difficulty band; this says from which difficulty a Quest
-   * awards Loot at all. 35 since the M5 close, so that Loot is for hard Quests (DL-62; 25 before).
+   * awards Loot at all: set so that Loot is for hard Quests (DL-62).
    */
   lootDifficultyThreshold: number;
   /** The bands on which a Quest with a Loot table awards one entry of it (INPUTS 7.4: strong only). */
@@ -492,11 +484,11 @@ export interface GameConfig {
   /**
    * A Quest whose template names a Finale awards Loot only when the Finale ended at one of these Degrees;
    * a Quest with no Finale is unaffected, and one whose Party never reached its Finale awards none
-   * (v1.1.4-S8, DL-148 item 23; made a setting v1.1.6-S16, DL-202: the Triumph alone).
+   * (DL-148 item 23, DL-202).
    */
   lootOnFinaleDegrees: readonly Degree[];
 
-  // ── The Market (M5-S4, R31, INPUTS 7.2, DL-51) ────────────────────────────────────────────
+  // ── `market`: the Market (R31, INPUTS 7.2, DL-51) ──────────────────────────────────────────────
   /**
    * How many stacks each morning's refresh puts on the Market, each of a different definition, or
    * every definition the Market stocks when there are fewer (INPUTS 7.2: 10).
@@ -547,168 +539,52 @@ export const regardBandNames = ['hostile', 'cool', 'neutral', 'warm', 'close'] a
 
 export type RegardBand = (typeof regardBandNames)[number];
 
+/** The settings `config.json` holds, by section, as its type gives them. */
+export type ConfigSections = typeof configFile.sections;
+
+/** `config.json`'s sections, frozen all the way down: what the content editor's `config show` lists by section. */
+export const configSections: Readonly<ConfigSections> = frozen(configFile.sections);
+
 /**
- * The defaults' version, written as `meta.configVersion` (v1.1.6-S7, DL-193). Raised, with a
- * decision-log entry, whenever a default in `defaultConfig` changes; `rebase` records the old and
- * the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
- * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 twice over, on two lines at once, from
- * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 twice over again, from
- * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
- * merging those, so that no save made under either 5 reads as current (DL-55); 7 from merging
- * that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61); 8 from the
- * M5 close's Loot threshold (DL-62); and, on a parallel branch, 5 from M6-S1, which moved the
- * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
- * with that 5, so that no save made under either reads as current (DL-63); 10 from the M6 close's
- * Transfer lock of a season (DL-69); 11 from M9-S2's Trait budget, `guildmasterTraitBudget`
- * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114);
- * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
- * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
- * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's
- * `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), S6's
- * `playerPartyMargin` (DL-148, DL-157), and S8's `encounterTagWeight` (DL-148, DL-160). S10's
- * balance pass changes defaults under it too, `checkVariance` 0.2 to 0.4 first (DL-165), then the
- * Degrees, `strongTriumphShare` and the form factors (DL-166), as no game has been released under 13.
- * 14 from v1.1.6-S7, whose config lost `schemaVersion`, `configVersion` and `gearSlots`, every other
- * default as it was (DL-193). 15 from v1.1.6-S16, which adds `heroSexWeights` and `lootOnFinaleDegrees`,
- * at the draw and the rule they had before (DL-202).
+ * The defaults' version, written as `meta.configVersion` (DL-193): `config.json`'s `version`, raised
+ * with a line of its changelog and a decision-log entry whenever a default changes; `rebase` records
+ * the old and the new (data-model §2, pre-M0 review D1). The editor's config kind raises it at
+ * "Finish" (DL-204).
  */
-export const configVersion = 15;
+export const configVersion: number = configFile.version;
 
-export const defaultConfig: Readonly<GameConfig> = Object.freeze({
-  turnsPerYear: 1080,
+/** Why each `configVersion` was raised, a line each, oldest first: `config.json`'s `changelog`. */
+export const configChangelog: readonly string[] = frozen(configFile.changelog);
 
-  startingRosterSize: 4,
-  startingWealth: 500,
-  rivalCount: 4,
-  rivalRosterMin: 4,
-  rivalRosterMax: 8,
-  rivalHireReserveUpkeeps: 3,
-  rivalStartingWealthMin: 300,
-  rivalStartingWealthMax: 700,
-  patronCount: 12,
-  unattachedPoolSize: 8,
+/** `value` frozen, and every object and list in it. */
+function frozen<Value>(value: Value): Value {
+  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
+    for (const each of Object.values(value)) frozen(each);
+    Object.freeze(value);
+  }
+  return value;
+}
 
-  heroStartingAgeMin: 18,
-  heroStartingAgeMax: 36,
-  heroSexWeights: Object.freeze({ female: 1, male: 1 }),
-  statBaseMin: 3,
-  statBaseMax: 10,
-  statBiasMin: 2,
-  statBiasMax: 4,
-  potentialGapMin: 3,
-  potentialGapMax: 12,
-  startingSkillsMin: 1,
-  startingSkillsMax: 2,
-  startingSkillRatingMax: 2,
-  moraleBaseline: 60,
+/**
+ * The settings of `sections` as one flat record, the sections end to end, each in its own order: how
+ * the engine reads `config.json` (DL-186 item 15). A setting in two sections is refused, naming both.
+ */
+export function flattenConfig(sections: Readonly<Record<string, Readonly<Record<string, unknown>>>>): Record<string, unknown> {
+  const flat: Record<string, unknown> = {};
+  const sectionOf = new Map<string, string>();
+  for (const [section, settings] of Object.entries(sections)) {
+    for (const [setting, value] of Object.entries(settings)) {
+      const first = sectionOf.get(setting);
+      if (first !== undefined) throw new Error(`${setting} is in both ${first} and ${section}`);
+      sectionOf.set(setting, section);
+      flat[setting] = value;
+    }
+  }
+  return flat;
+}
 
-  guildmasterStartingAgeMin: 21,
-  guildmasterStartingAgeMax: 50,
-  guildmasterStatMin: 5,
-  guildmasterStatMax: 15,
-  guildmasterStatPoints: 50,
-  guildmasterTraitsMin: 0,
-  guildmasterTraitsMax: 2,
-  guildmasterTraitBudget: 1,
-
-  upkeepEveryDays: 10,
-  wagePerLevel: 20,
-  hallMaintenancePerGrade: 10,
-  bankruptcyFloor: 0,
-  bankruptcyGraceDays: 30,
-  fameFloor: 0,
-  signingFeeBase: 50,
-  signingFeePerLevel: 25,
-  signingFeeStatDivisor: 4,
-  unattachedStayDays: 10,
-  fameRequiredPerLevel: 10,
-  boardSize: 6,
-  questOfferDays: 3,
-  questDifficultyMin: 10,
-  questDifficultyMax: 100,
-  encounterTagWeight: 3,
-
-  checkVariance: 0.4,
-  skillBonusPerRating: 2,
-  bandBySuccessShare: Object.freeze({ successAbove: 0.5, strongAtLeast: 1 }),
-  checkDegrees: Object.freeze({ triumph: 1.35, success: 1, setback: 0.75 }),
-  strongTriumphShare: 0.6,
-  moraleCheckFactor: Object.freeze({ wretched: 0.93, low: 0.97, steady: 1, high: 1.03, elated: 1.06 }),
-  hurtCheckFactor: 0.93,
-  exposureRange: 2,
-  guardRange: 0.5,
-  chanceBands: Object.freeze({ unlikely: 0.1, even: 0.35, likely: 0.65, 'near-certain': 0.9 }),
-  playerPartyMargin: 0.05,
-
-  moraleMin: 0,
-  moraleMax: 100,
-  moraleDrift: 1,
-  moraleBands: Object.freeze({ wretched: 0, low: 20, steady: 40, high: 75, elated: 90 }),
-  moraleOnRosterDeath: -10,
-  moraleOnStrongSuccess: 5,
-  heroRetirementAge: 45,
-  heroRetirementChancePerYear: 0.02,
-  heroRetirementInjuredMultiplier: 2,
-  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3, 1 / 4]),
-  quartersMoraleBonus: 5,
-
-  potentialHintBands: Object.freeze({ modest: 0, promising: 6, exceptional: 10 }),
-  declineAge: 40,
-  declinePerYear: 1,
-  declineAreas: Object.freeze(['physical' as const]),
-
-  guildmasterRetirementAge: 61,
-  rivalReplacementDays: 30,
-
-  xpCurveBase: 100,
-  xpCurveExponent: 2,
-  levelCap: 20,
-  growthPointsPerLevel: 3,
-  xpPerDifficultyPoint: 1,
-  xpBandFactor: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
-  xpPerTrainingDay: 2,
-
-  regardMin: -20,
-  regardMax: 20,
-  regardBands: Object.freeze({ hostile: -20, cool: -12, neutral: -4, warm: 4, close: 12 }),
-  regardPerSharedQuest: 1,
-  regardOnSuccessBonus: 0.5,
-  regardDecayPerYear: 0.25,
-  teamworkRange: 0.1,
-  patronRegardOnSuccess: 1,
-  patronRegardOnFailure: -2,
-  patronRegardOnExpiry: -1,
-  patronRegardRecoveryPerYear: 0.5,
-  boardRegardWeight: 1,
-  negotiationRange: 0.1,
-  inspirationMoraleShift: 10,
-  coachingFactor: 0.5,
-  influenceFactor: 0.5,
-  judgementHintSharpening: 0.25,
-  guildmasterRegardOnPatronSuccess: 1,
-  guildmasterRegardOnPatronFailure: -1,
-  guildmasterRegardOnHeroSuccess: 1,
-  guildmasterRegardOnHeroFailure: -1,
-
-  transferFeeFactor: 2,
-  transferMoraleCost: -15,
-  transferRegardBand: 'warm',
-  guildmasterRegardPerTransferDeal: 2,
-  transferOfferDays: 3,
-  transferGeneratorEveryDays: 7,
-  transferGeneratorChance: 0.5,
-  transferLockDays: 90,
-
-  lootDifficultyThreshold: 35,
-  lootOnBands: Object.freeze(['strong' as const]),
-  lootOnFinaleDegrees: Object.freeze(['triumph' as const]),
-
-  marketSize: 10,
-  marketStackMin: 1,
-  marketStackMax: 5,
-  sellRatio: 0.5,
-  lootOnlyPrice: 600,
-});
+/** Every setting's default: `config.json`'s, flat, in `GameConfig`'s order (config.test.ts holds both). */
+export const defaultConfig: Readonly<GameConfig> = frozen(flattenConfig(configSections)) as unknown as GameConfig;
 
 /** The one object every engine entry point takes (approach §3, pre-M0 review D1). */
 export interface EngineDeps {

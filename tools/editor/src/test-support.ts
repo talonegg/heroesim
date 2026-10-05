@@ -78,7 +78,9 @@ function templateRepository(): string {
   writeFileSync(path.join(dir, 'package.json'), `${JSON.stringify({ name: 'scratch', private: true, scripts: { test: 'node planted-test.mjs' } }, null, 2)}\n`);
   writeFileSync(path.join(dir, 'planted-test.mjs'), plantedTest);
   writeFileSync(path.join(dir, 'test-outcome.txt'), 'pass\n');
-  writeFileSync(path.join(dir, '.gitignore'), '.editor/\ntests-started.txt\nengine/\n');
+  // The defaults' values, which the config kind writes (v1.1.6-S18), committed; the rest of engine/src/ ignored.
+  cpSync(path.join(root, 'engine', 'src', 'config.json'), path.join(dir, 'engine', 'src', 'config.json'));
+  writeFileSync(path.join(dir, '.gitignore'), '.editor/\ntests-started.txt\nengine/src/*\n!engine/src/config.json\n');
   // No template: git's sample hooks are files each copy would copy for nothing.
   git(dir, 'init', '--quiet', '--template=');
   git(dir, 'add', '--all');
@@ -90,7 +92,8 @@ function templateRepository(): string {
 /**
  * A scratch copy of this repository's content (its JSON, `version.json` among it, and the source of
  * its checks, which the drift check reads) and `docs/agents/traits.md`, committed, with a planted `npm test` that
- * passes; removed by the function it returns with. With `engine`, `engine/src/` too, which only the
+ * passes; removed by the function it returns with. Its `engine/src/config.json` is committed, which
+ * the config kind writes (v1.1.6-S18). With `engine`, the rest of `engine/src/` too, which only the
  * drift check reads (the doctor's, `drift.ts`): copied beside the commit and ignored by git, since
  * the editor never writes it, as copying and committing its files for every test took most of the
  * editor's tests' time (DL-164).

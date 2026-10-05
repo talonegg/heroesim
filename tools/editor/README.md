@@ -1,13 +1,16 @@
 # The content editor
 
 `tools/editor` is the owner's content editor (DL-150 items 7 to 12, v1.1.4-S12): a local page and
-the commands under it. Traits are its first kind, and in v1.1.4 its only one; Encounters and the
-rest come when the owner asks. It is never built into the game or deployed. The guardrails, and the
-register of every use of a Trait, are in [`docs/agents/traits.md`](../../docs/agents/traits.md).
+the commands under it. Traits are its first kind; the tuning values, `engine/src/config.json`, its
+second, from v1.1.6-S18 (DL-186 item 15, DL-204), as commands alone; Encounters and the rest come
+when the owner asks. It is never built into the game or deployed. The guardrails, and the register of
+every use of a Trait, are in [`docs/agents/traits.md`](../../docs/agents/traits.md); the tuning
+values' in [`docs/agents/config.md`](../../docs/agents/config.md).
 
 ```sh
 npm run edit                                        # the page, at http://127.0.0.1:4180/
 npm run edit -- traits <command> [--root <dir>] [--json]
+npm run edit -- config <command> [--root <dir>] [--json]
 ```
 
 - **`--root <dir>`** works on another copy of the repository; this one by default. It must hold a
@@ -161,6 +164,42 @@ scratch copy rather than the whole suite inside itself.
 - **A file not put back** (`not-undone`), by a "Finish" whose tests failed, keeps its journal, the
   only copy of the bytes before: the next command, or `traits recover`, tries again.
 
+## The config kind
+
+`config` (v1.1.6-S18, DL-186 item 15, DL-204) changes the tuning values, the defaults of every
+setting of `GameConfig`, which `engine/src/config.json` holds in sections beside the config version
+and its changelog. A setting is changed here, never added or removed: a new setting is an engine
+change, its field, its rule and its value made together ([`docs/agents/config.md`](../../docs/agents/config.md)).
+
+| Command | What it does |
+| --- | --- |
+| `config show [<section>]` | Every section's settings, or one section's, with the pending edits made, each pending one beside its value in the file |
+| `config set <setting> <value>` | Sets a value, pending; the value read as JSON where it is JSON (`25`, `{"female":1,"male":3}`), as text where not (`warm`) |
+| `config pending` | The pending edits |
+| `config discard [<setting>]` | Drops one setting's pending edit, or all |
+| `config finish --reason <why>` | Writes the pending edits, raises the config version with a line of its changelog, runs `npm test` |
+
+```sh
+npm run edit -- config show guilds
+npm run edit -- config set wagePerLevel 25
+npm run edit -- config finish --reason "the economy pass's wages (DL-210)"
+```
+
+- **Each `set` is checked** with the engine's `checkConfig` against the content at the root, every
+  pending edit made, and refused where a rule refuses it, each problem naming its setting
+  (`boardSize is -1; it is a whole number, at least 0`); a Min set above its Max names the Max. It is
+  held in `.editor/config.json`, as the Traits' edits are in `.editor/traits.json`; nothing is
+  written to `config.json` before "Finish". A setting set again replaces its edit, set back to its
+  value in the file is no longer pending, and set to the value it has is not held.
+- **"Finish"** checks the settings again, against the content as it is then; writes `config.json`
+  in its own layout (`editJson`), so `git diff` shows the values changed, the version and the
+  changelog's new line, `<version> from <why>: <setting> <was> to <value>, ….`; and runs `npm test`.
+  A test that fails puts the file back and keeps the edits pending. `--reason` is required, and is
+  `config finish`'s alone: a raise says why, citing its decision-log entry. It never commits, and it
+  takes the Traits' journal and lock, so neither kind writes while the other's tests run.
+- **A test that pins a default**, or rests its numbers on one, fails "Finish" for that setting:
+  change it in the same story, then finish again.
+
 ## The page
 
 `npm run edit` serves `page/` from the repository on 127.0.0.1, at desktop widths, through a small
@@ -171,7 +210,7 @@ hold its text; Remove names every use when it is refused; Discard and Doctor do 
 "Finish" shows the test run's lines and its result, every control waiting while it runs. A call
 refused because a "Finish" runs elsewhere, from a command line or another page, says so, apart from a
 removal refused by its uses and a "Finish" put back (v1.1.4-S14). `assign` and `unassign` are the
-commands' alone (DL-163 item 6): the page has no control for them.
+commands' alone (DL-163 item 6): the page has no control for them, nor for the config kind.
 
 Only its own page may call the API: a request whose Host is not `127.0.0.1:<port>` or
 `localhost:<port>` (a name rebound to this machine) or whose Origin is another page's is refused

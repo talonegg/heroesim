@@ -140,6 +140,17 @@ describe('the production build', { timeout: 120_000 }, () => {
     expect(text).not.toContain(mark);
   });
 
+  // v1.1.6-S18 (DL-186 item 15, DL-204): the defaults' values are data, `engine/src/config.json`,
+  // which the engine imports; its changelog is for the people who read the file, and is bundled empty.
+  test("bundles the defaults' values without their changelog", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    const written = JSON.parse(readFileSync(path.join(webDir, '..', 'engine', 'src', 'config.json'), 'utf8')) as { changelog: string[] };
+    expect(written.changelog.length).toBeGreaterThan(10);
+    for (const entry of written.changelog) expect(text.includes(entry.slice(0, 40)), entry).toBe(false);
+    expect(text).toContain('guildmasterRegardOnPatronSuccess');
+  });
+
   // v1.1.6-S6 (DL-192): the old form of an Encounter and a Synergy is no longer read, so the words
   // its refusals were written in, which v1.1.5's parser and register held, are in no built file.
   test("holds none of the words the old content form's refusals were written in", () => {
