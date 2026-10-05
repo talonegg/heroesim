@@ -26056,6 +26056,42 @@ place and reads its Roster again reads the rows first built (two page tests did,
 document). (4) `gearModifiers`, `traitStatBonuses` and `traitStatModifiers` are hidden from the
 engine's entry by DL-194's rule; a front end that comes to need one reads the breakdown.
 
+*The verification* (2026-10-05, a second Opus agent, at `aaf9c98`). The doctor read no drift before
+and after (107 reads). *`effectiveStats` the same.* The diff read against `07a2514`: the base, the
+three sums and their `Object.hasOwn` reads unchanged, the four terms added left to right in one
+expression and held once, a Hero on no Roster given no bonus, misplaced or unknown gear and unknown
+Traits counting nothing, the keys inserted in content's order and read back by `Object.entries` in
+it. Over played worlds besides the generated ones: the old code, word for word, against the new in
+a test since deleted, after every Turn of four harness games of four years under the automatic
+policy and the core content (`seed-0001` to `seed-0004`, 17,280 Turns), every Hero of the world
+(the player's, the Rivals', the pool, the retired and the Dead): 778,759 Heroes read, 15,575,180
+Stats equal by `Object.is` in the same key order, 2,886,247 moved from the base, 93,273 by a Class
+bonus, 2,124,079 by Gear, 1,053,456 by Traits, 5,547 held; `clamped` whether the sum is the value
+for each. Every caller on the paths that play (the Query's Party, the modules' view, the CLI's `show
+hero` and `equip`) still calls `effectiveStats`; the page alone reads `statBreakdown`, and nothing
+of the page reaches play. A cost noted, not a fork: the breakdown's objects make `effectiveStats`
+about a quarter slower a call (6.9 to 8.7 µs a Hero, timed old against new on a played world); the
+`neutral` run's `advance` did not rise (3.285 ms mean against S10's 6.940, the same games, so the
+machine's and not the code's). *The rows' cache.* Every play the page makes replaces its document:
+`applyAction` copies the world (`applyToCopy`), `advance` and each fast forward's step give a new
+document, `rebase` a new one with the same world and a new `meta`, a load or a new game a new one;
+an ended world's `advance` gives the same document back unchanged. No code of `web/src` outside its
+tests assigns into a document, its world or a row, and the rows read only the document and the
+page's content (no History, no preference), so the History appended in place between a fast
+forward's steps changes nothing they hold. The Hero's page and the Party builder build their own
+reading. *The page's tests.* Re-pointed only: no expectation's text changed in `selectors.test.ts`,
+`digest.test.ts` or `roster.test.tsx`. *Mutations,* besides the build's nine, each red and restored:
+`statValues` giving the base as the value (four tests of the Party builder and a Hero's page), and
+`statPartsWords` saying nothing of a Stat held with no source moving it (its table). *The entry.*
+`statBreakdown` and its types are taken by production (the page, the words), and the three sums
+left the entry, as `testing.test.ts` holds. *The register* mended as `docs/agents/traits.md` says,
+the doc regenerated. *Line endings:* the four new files were checked out LF beside directories of
+CRLF (`engine/src`, `web/src/state`, `words/src`); checked out again, now CRLF in the working tree
+as their neighbours, the index LF, none mixed. Nothing to fix in the code. *Checks:* `npm run lint`
+and `typecheck` clean; `npm test` 206 files, 5,752 tests passing; build and check-bundle passing, the
+script 815,773 bytes; `npm run e2e -w web` 103 passing. No code that reaches play changed, so no
+`neutral` run.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
