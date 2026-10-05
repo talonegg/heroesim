@@ -430,6 +430,7 @@ runs per Turn in play.
 | A Guildmaster whose `guildId` differs from the Guild that names them | refuse |
 | A Guild in play that names a retired Guildmaster (DL-102) | refuse |
 | A folded Guild with a Hero on its Roster or a Party of its own (DL-28) | refuse |
+| A Hero out of play (dead, retired or gone from the pool) on a Roster or in a Party, or with a `partyId`: their row is written once and frozen by the per-Turn copy (v1.1.6-S17, ADR-0011, DL-203) | refuse |
 | `quest.partyIds` and `party.questId` disagree, or more Parties than the build allows | refuse |
 | Two stacks with the same definition, holder and slot | refuse |
 | A stack whose quantity is below 1; a Hero's gear slot holding more than one Item (DL-48) | refuse |

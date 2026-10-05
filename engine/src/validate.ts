@@ -47,6 +47,7 @@ import { findJsonUnsafe, formatPath } from './json-safe.js';
 import { sliceFailures, unknownSlices } from './modules.js';
 import { dispositionOf } from './selectors.js';
 import { excludedPair } from './traits.js';
+import { writeOnce } from './world-copy.js';
 
 // ── Results ──────────────────────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ export const refusalChecks = [
   'guildmaster-guild-mismatch',
   'retired-guildmaster-in-office',
   'folded-guild-in-play',
+  'departed-hero-in-play',
   'quest-party-mismatch',
   'too-many-parties',
   'duplicate-stack',
@@ -189,6 +191,7 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   guildmasterGuildMismatch,
   retiredGuildmasterInOffice,
   foldedGuildInPlay,
+  departedHeroInPlay,
   questPartyMismatch,
   tooManyParties,
   duplicateStack,
@@ -984,6 +987,29 @@ function foldedGuildInPlay({ world }: WorldDocument): ValidationFailure[] {
     }
   }
   return failures;
+}
+
+/**
+ * A Hero out of play, dead, retired or gone from the pool, is on no Roster and in no Party (v1.1.6-S17,
+ * ADR-0011, DL-203): their row is written once, frozen and shared by the per-Turn copy, and the rules
+ * that walk a Roster or a Party write the Heroes they find there, so such a save is refused rather than
+ * played until a write to the frozen row throws.
+ */
+function departedHeroInPlay({ world }: WorldDocument): ValidationFailure[] {
+  const places = new Map<string, string[]>();
+  const add = (heroId: string, place: string): void => {
+    const hero = rowOf(world.heroes, heroId);
+    if (hero === undefined || !writeOnce.heroes(hero)) return;
+    places.set(heroId, [...(places.get(heroId) ?? []), place]);
+  };
+  for (const [guildId, guild] of Object.entries(world.guilds)) for (const heroId of guild.rosterIds) add(heroId, `${guildId}'s Roster`);
+  for (const [partyId, party] of Object.entries(world.parties)) for (const heroId of party.heroIds) add(heroId, partyId);
+  for (const [heroId, hero] of Object.entries(world.heroes)) if (hero.partyId !== null) add(heroId, `partyId ${hero.partyId}`);
+  return [...places].map(([heroId, where]) => ({
+    check: 'departed-hero-in-play',
+    id: heroId,
+    detail: `${heroId} is out of play but is on or in ${where.join(', ')}`,
+  }));
 }
 
 /** `quest.partyIds` and `party.questId` agree (data-model §3.2). */

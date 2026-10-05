@@ -30,6 +30,8 @@ describe('the write-once rows (ADR-0011)', () => {
     for (const seed of ['write-once-a', 'write-once-b', 'write-once-c']) {
       const game = playGame(seed, deps, {
         years: 40,
+        // Validated after every `advance`: no Hero out of play on a Roster or in a Party (`departed-hero-in-play`).
+        validate: true,
         // A Rival deep in debt, so that its Guild folds and its row is written once too.
         prepare: (document) => {
           const rival = Object.values(document.world.guilds).find((guild) => guild.controller.kind === 'rival');
@@ -52,6 +54,7 @@ describe('the write-once rows (ADR-0011)', () => {
         },
       });
       expect(game.refusals).toEqual([]);
+      expect(game.invalid).toBeNull();
       expect(game.document.history.byType['probe.fired']?.length ?? 0).toBeGreaterThan(0);
     }
     expect(shared.heroes).toBeGreaterThan(0);

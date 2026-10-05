@@ -246,6 +246,29 @@ describe('§6: a Hero on two Rosters, or in two Parties, or on a Roster of a Gui
   });
 });
 
+// v1.1.6-S17 (ADR-0011, DL-203): a Hero out of play is written once, frozen and shared by the per-Turn
+// copy; the rules that walk a Roster or a Party write those they find, so a save with one there is
+// refused, not played until a write to the frozen row throws.
+describe('a Hero out of play on a Roster or in a Party (v1.1.6-S17, ADR-0011)', () => {
+  test('a dead Hero back on their Roster is refused, naming the Hero', () => {
+    expect(refusals((d) => guild(d, ids.playerGuild).rosterIds.push(ids.deadHero))).toEqual([
+      failure('departed-hero-in-play', ids.deadHero),
+    ]);
+  });
+
+  test('a retired Hero left on their Roster is refused, naming the Hero', () => {
+    expect(refusals((d) => (hero(d, idleHero).retiredOnTurn = 30))).toEqual([failure('departed-hero-in-play', idleHero)]);
+  });
+
+  test('a dead Hero still in their Party is refused once, naming the Hero', () => {
+    const dead = (d: Doc): void => {
+      hero(d, ids.partyHero).diedOnTurn = 30;
+      guild(d, ids.playerGuild).rosterIds = guild(d, ids.playerGuild).rosterIds.filter((id) => id !== ids.partyHero);
+    };
+    expect(refusals(dead)).toEqual([failure('departed-hero-in-play', ids.partyHero)]);
+  });
+});
+
 describe("§6: a Hero's pool fields disagree with their Guild (DL-27)", () => {
   test.each<[string, Mutation, string]>([
     [
@@ -256,7 +279,6 @@ describe("§6: a Hero's pool fields disagree with their Guild (DL-27)", () => {
       },
       unattachedHero,
     ],
-    ['a Hero on a Roster marked as gone from the pool', (d) => (hero(d, idleHero).leftPoolOnTurn = 30), idleHero],
     ['a pool Hero marked as gone from it too', (d) => (hero(d, unattachedHero).leftPoolOnTurn = 30), unattachedHero],
     ['a pool Hero who has retired', (d) => (hero(d, unattachedHero).retiredOnTurn = 30), unattachedHero],
     [
@@ -266,6 +288,13 @@ describe("§6: a Hero's pool fields disagree with their Guild (DL-27)", () => {
     ],
   ])('%s is refused', (_, mutate, id) => {
     expect(refusals(mutate)).toEqual([failure('unattached-mismatch', id)]);
+  });
+
+  test('a Hero on a Roster marked as gone from the pool is refused, and as out of play on a Roster (v1.1.6-S17)', () => {
+    expect(refusals((d) => (hero(d, idleHero).leftPoolOnTurn = 30))).toEqual([
+      failure('unattached-mismatch', idleHero),
+      failure('departed-hero-in-play', idleHero),
+    ]);
   });
 
   test.each<[string, Mutation]>([
