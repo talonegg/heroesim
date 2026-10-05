@@ -26278,6 +26278,8 @@ The World State is small: 0.27 MiB of save at year 20, 41 Heroes in play and 55 
 
 *Open for the owner.* (1) *The copy-time line.* (a) Run the full gate again on a day the machine copies near S17's speed; (b) set `copyMs.baselineMeanMs` to this gate's 1.350 ms by this entry, the A/B showing the code unchanged; (c) restate the line on a measure the machine's speed does not move, such as the copy's share of `advance`'s time (0.253 at S17, 0.235 here), a change to the spec. Recommendation: (b) for this release, (c) in the backlog. Until the answer, the Gate is not met and the epic's box stays unticked. (2) The release, on the owner's word (DL-124).
 
+*The owner's answer* (2026-10-06, asked by the orchestrator with the three options and the recommendation): "(a) Re-run on a faster day". The spec stands as approved (DL-188, DL-203): `copyMs.baselineMeanMs` stays 0.847 ms, its limit 1.059 ms. The full `gate` is run again, alone, when the machine copies near S17's speed; until a run meets every line, the Gate is not met, the epic's box stays unticked and the release waits.
+
 *Recorded.* The gate's Markdown and JSON and the estimate's Markdown force-added (`m9-v116-s19-2026-10-06`, `m9-estimate-2026-10-06`). The epic's status, `docs/plan.md` §4 and the epics README say built and verified, the Gate awaiting the owner's answer; `harness/README.md` names `bce997d2…` the full gate's fingerprint.
 
 *For the owner: the readings DL-187 to DL-205 left as judgement calls,* none of them a fork, each standing unless the owner says otherwise:
