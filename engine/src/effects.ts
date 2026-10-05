@@ -25,7 +25,6 @@ import {
   type EntityId,
   type GuildId,
   type GuildmasterId,
-  type Hero,
   type HeroId,
   type ModuleId,
   type PatronId,
@@ -41,6 +40,7 @@ import { changeMorale } from './morale.js';
 import { adjustRegard, guildmasterRegard, patronRegardChanged } from './regard.js';
 import type { StreamName } from './rng.js';
 import { healFactor } from './selectors.js';
+import { writeOnce } from './world-copy.js';
 
 // ── The effects ──────────────────────────────────────────────────────────────────────────────
 
@@ -110,8 +110,9 @@ export const moduleEffectKinds = Object.freeze([
 /**
  * Why an effect was refused, having changed nothing: the effect's `kind` and a kebab-case `reason`.
  * A Hero dead, retired or gone from the pool is `hero-gone`; a Hero away in a Party, `hero-away`;
- * one already carrying an Injury, `hero-injured`; a folded Guild, `guild-folded`; a Hero out of play
- * or the Guildmaster of a folded Guild holding Regard, `holder-gone`.
+ * one already carrying an Injury, `hero-injured`; a folded Guild, `guild-folded`; a Hero out of play,
+ * a retired Guildmaster (v1.1.6-S17, DL-203) or the Guildmaster of a folded Guild holding Regard,
+ * `holder-gone`.
  */
 export type EffectRejection =
   | { effect: 'adjustMorale'; reason: 'hero-gone' }
@@ -214,8 +215,9 @@ function applyRegard(world: World, effect: AdjustRegard, ctx: EffectContext): Ef
       if (!['patrons', 'heroes', 'guildmasters'].includes(entity.table)) {
         throw new RangeError(`A Guildmaster holds Regard for Patrons, Heroes and Guildmasters, not ${entityId}`);
       }
+      // A retired Guildmaster is out of play, their row written once and shared (ADR-0011, DL-203).
       const guild = rowOf(world.guilds, guildmaster.guildId);
-      if (guild === undefined || guild.foldedOnTurn !== null) return refused;
+      if (guild === undefined || guild.foldedOnTurn !== null || writeOnce.guildmasters(guildmaster)) return refused;
       return applied(effect, guildmasterRegard(ctx, guildmaster, entityId, delta, 'module', moduleId), ctx);
     }
     case 'heroes': {
@@ -266,10 +268,8 @@ function applied(effect: ModuleEffect, events: EngineEvent[], ctx: Pick<EffectCo
   return { ok: true, effect, events };
 }
 
-/** Whether `hero` is out of play: dead, retired, or gone from the pool unrecruited (DL-27). */
-function outOfPlay(hero: Pick<Hero, 'diedOnTurn' | 'retiredOnTurn' | 'leftPoolOnTurn'>): boolean {
-  return hero.diedOnTurn !== null || hero.retiredOnTurn !== null || hero.leftPoolOnTurn !== null;
-}
+/** Whether `hero` is out of play: dead, retired, or gone from the pool unrecruited (DL-27); their row written once (ADR-0011). */
+const outOfPlay = writeOnce.heroes;
 
 function checkWhole(value: number, kind: ModuleEffectKind, field: string): void {
   if (!Number.isSafeInteger(value)) throw new RangeError(`${kind}'s ${field} is a whole number; got ${value}`);

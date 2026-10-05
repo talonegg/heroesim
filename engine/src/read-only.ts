@@ -26,8 +26,9 @@ export type ReadonlyDeep<T> = T extends string | number | boolean | bigint | sym
  * back the object behind a view (M8 verification, DL-80).
  *
  * A property its object has frozen is read as it is, since a Proxy may not hand back anything
- * else for it; the World State is never frozen (`advance` plays on a fresh copy), and what is
- * frozen in the rules (`defaultConfig`) is frozen all the way down.
+ * else for it. What is frozen is frozen all the way down, so nothing reached that way can be
+ * written either: in the rules, `defaultConfig`; in the World State, the write-once rows the
+ * per-Turn copy shares, frozen by it (ADR-0011, DL-203).
  */
 export function readOnlyView<T extends object>(value: T, what: string): ReadonlyDeep<T> {
   const views = new WeakMap<object, object>();

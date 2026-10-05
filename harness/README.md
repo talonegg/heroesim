@@ -66,8 +66,9 @@ source (`src/gate.ts`). Its invariants hold on any run: no policy action refused
 stopped by a harness assertion, unfinished or failing its round trip; the replay identical: one seed
 played once more, alone, its last save's length and fingerprint the same as its shard recorded. Its
 bands are set on its run, 50 games of 20 years, and read "not comparable" on a run of another shape:
-the player's Bankruptcies, at most 3 of 50, and the save after 20 years, its gzipped mean under
-30 MiB. The Traits earned a player's Hero career and the save's uncompressed size are not lines of the
+the player's Bankruptcies, at most 3 of 50; the save after 20 years, its gzipped mean under
+30 MiB; and the per-Turn copy's mean time, as each year ended, at most 25% over its baseline, which
+reads "not comparable" until a full run sets the baseline (v1.1.6-S17, DL-203). The Traits earned a player's Hero career and the save's uncompressed size are not lines of the
 Gate; the report prints them. The estimate probe reads its two limits from it. A `gate` or `neutral`
 run prints each line's verdict and writes them into both reports; it fails when a line fails.
 

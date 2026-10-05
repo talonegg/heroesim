@@ -228,6 +228,66 @@ describe('the effects API is the only way a module can change a Hero: the frozen
     expect(deps.config.boardSize).toBe(testDeps().config.boardSize);
   });
 
+  // v1.1.6-S17 (ADR-0011, DL-203): a write-once row is frozen and shared by the per-Turn copy. The view
+  // hands back a frozen object's own properties as they are, as a Proxy must, so a module reads such a
+  // row whole; and a write to it, through the view or into what it handed back, still fails the Turn.
+  /** A new world under `deps` whose first pool Hero has left the pool, their row kept: written once. */
+  const withGone = (deps: EngineDeps): { document: WorldDocument; goneId: HeroId } => {
+    const document = created('gone', deps);
+    const gone = Object.values(document.world.heroes).find((row) => row.unattachedSince !== null) as Hero;
+    Object.assign(gone, { unattachedSince: null, leftPoolOnTurn: 0 });
+    return { document, goneId: gone.id };
+  };
+
+  test('a module reads a write-once row, frozen and shared, through the view as it is', () => {
+    let goneId = '' as HeroId;
+    let read = '';
+    let parts: string[] = [];
+    const reader = moduleWith('reader', {
+      onAfternoon: (world) => {
+        const hero = world.heroes[goneId] as NonNullable<ReadonlyWorld['heroes'][HeroId]>;
+        read = JSON.stringify(hero);
+        parts = [
+          ...Object.keys(Object.getOwnPropertyDescriptors(hero)),
+          ...Object.keys(hero.stats),
+          String(hero.traits.length),
+          String(Reflect.getOwnPropertyDescriptor(hero, 'regard')?.value === hero.regard),
+        ];
+        return { events: [] };
+      },
+    });
+    const deps = withModules(reader);
+    const given = withGone(deps);
+    goneId = given.goneId;
+    const row = given.document.world.heroes[goneId] as Hero;
+
+    const { document: next } = advance(given.document, deps);
+
+    expect(Object.isFrozen(row) && Object.isFrozen(row.stats) && Object.isFrozen(row.regard)).toBe(true);
+    expect(next.world.heroes[goneId]).toBe(row);
+    expect(read).toBe(JSON.stringify(row));
+    expect(parts).toEqual([...Object.keys(row), ...Object.keys(row.stats), String(row.traits.length), 'true']);
+  });
+
+  test.each<[string, (hero: NonNullable<ReadonlyWorld['heroes'][HeroId]>) => void]>([
+    ["the row's Morale, through the view", (hero) => ((hero as { morale: number }).morale = 0)],
+    ['a Stat, in the frozen Stats the view handed back', (hero) => ((hero.stats as Record<string, number>).strength = 1)],
+    ['a Trait, pushed onto the frozen list the view handed back', (hero) => (hero.traits as string[]).push('brave')],
+    ['a Regard, in the frozen map the view handed back', (hero) => ((hero.regard as Record<string, unknown>)['hero-999999'] = { value: 1, since: 0, reason: 'writer' })],
+  ])('writing a write-once row, %s, fails the Turn, naming the module', (_what, write) => {
+    let goneId = '' as HeroId;
+    const deps = withModules(moduleWith('writer', { onAfternoon: (world) => (write(world.heroes[goneId] as NonNullable<ReadonlyWorld['heroes'][HeroId]>), { events: [] }) }));
+    const given = withGone(deps);
+    goneId = given.goneId;
+    const before = serialise(given.document);
+
+    const thrown = thrownBy(() => advance(given.document, deps));
+
+    expect(thrown).toMatchObject({ name: 'ModuleError', moduleId: 'writer', during: 'onAfternoon' });
+    expect((thrown as ModuleError).cause).toBeInstanceOf(TypeError);
+    expect(serialise(given.document)).toBe(before);
+  });
+
   // A front end's rules and content are not frozen: the CLI spreads a save's rules over the defaults,
   // and loadContent's content is shared by every game in the process. Neither may be changed through
   // a descriptor (M8 verification, DL-80).

@@ -7,10 +7,13 @@
 // Its lines are of two kinds. The invariants hold on any run: no policy action refused, no game invalid,
 // stopped, unfinished or failing its round trip, and the replay identical: one seed played once more,
 // alone, its last save's length and fingerprint the same as its shard recorded (v1.1.6-S3, DL-189).
-// The bands, the player's Bankruptcies and the save's gzipped mean, are set on the spec's run, 50 games
-// of 20 years: on a run of another shape (the `neutral` profile's 10, a short trial) they read "not
-// comparable", neither passing nor failing. The Traits a career and the save's uncompressed size are
-// the report's to print, not the Gate's to hold (the owner's answers, DL-188).
+// The bands, the player's Bankruptcies, the save's gzipped mean and the per-Turn copy's mean time, are
+// set on the spec's run, 50 games of 20 years: on a run of another shape (the `neutral` profile's 10, a
+// short trial) they read "not comparable", neither passing nor failing. The Traits a career and the
+// save's uncompressed size are the report's to print, not the Gate's to hold (the owner's answers,
+// DL-188). The copy's line (v1.1.6-S17, the owner's answer 3 in DL-203) holds the mean of the copy
+// times the sweep took as each year ended within `growth` of its baseline; until a full run sets that
+// baseline (`null`), it reads "not comparable" on any run.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -45,13 +48,18 @@ export interface GateSpec {
     replay: { identical: true; source: string };
     playerBankruptcies: { max: number; baseline: number; source: string };
     saveGzipped: { meanMiB: number; baselineMeanMiB: number; baselineMaxMiB: number; source: string };
+    /**
+     * The per-Turn copy's mean time over the run (`copyWorld`, timed as each year ended), at most
+     * `baselineMeanMs × (1 + growth)`; `null` until a full run measures the baseline (v1.1.6-S17, DL-203).
+     */
+    copyMs: { growth: number; baselineMeanMs: number | null; source: string };
   };
   /** The estimate probe's two limits, in chance (`estimate.ts`), checked by `npm run harness -- estimate`. */
   estimate: { noOneFalls: { within: number; source: string }; moraleInQuest: { within: number; source: string } };
   notes: string[];
 }
 
-type Shape = 'number' | 'string' | 'true' | readonly string[] | { readonly [key: string]: Shape } | 'strings';
+type Shape = 'number' | 'number or null' | 'string' | 'true' | readonly string[] | { readonly [key: string]: Shape } | 'strings';
 
 const line = (fields: Record<string, Shape>): Record<string, Shape> => ({ ...fields, source: 'string' });
 const atMost = line({ max: 'number' });
@@ -71,6 +79,7 @@ const specShape: { readonly [key: string]: Shape } = {
     replay: line({ identical: 'true' }),
     playerBankruptcies: line({ max: 'number', baseline: 'number' }),
     saveGzipped: line({ meanMiB: 'number', baselineMeanMiB: 'number', baselineMaxMiB: 'number' }),
+    copyMs: line({ growth: 'number', baselineMeanMs: 'number or null' }),
   },
   estimate: { noOneFalls: line({ within: 'number' }), moraleInQuest: line({ within: 'number' }) },
   notes: 'strings',
@@ -79,6 +88,7 @@ const specShape: { readonly [key: string]: Shape } = {
 /** What is wrong with `value` against `shape`, each problem by its path. */
 function shapeProblems(value: unknown, shape: Shape, path: string): string[] {
   if (shape === 'number') return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? [] : [`${path} is a number from 0, not ${JSON.stringify(value)}`];
+  if (shape === 'number or null') return value === null ? [] : shapeProblems(value, 'number', path).map((problem) => problem.replace(' is a number from 0,', ' is a number from 0 or null,'));
   if (shape === 'string') return typeof value === 'string' && value.trim() !== '' ? [] : [`${path} is a text, not ${JSON.stringify(value)}`];
   if (shape === 'true') return value === true ? [] : [`${path} is true, not ${JSON.stringify(value)}`];
   if (shape === 'strings') return Array.isArray(value) && value.every((it) => typeof it === 'string') ? [] : [`${path} is a list of texts`];
@@ -176,7 +186,7 @@ export function checkGate(spec: GateSpec, run: RunReport, expect: string | null 
       add(label, pass, measured, limit, source);
     }
   };
-  const { playerBankruptcies, saveGzipped } = lines;
+  const { playerBankruptcies, saveGzipped, copyMs } = lines;
   band("The player's Bankruptcies", `at most ${whole(playerBankruptcies.max)} of ${whole(spec.run.games)}`, playerBankruptcies.source, () => {
     const bankrupt = totals.endings['bankruptcy'] ?? 0;
     return { pass: bankrupt <= playerBankruptcies.max, measured: `${whole(bankrupt)} of ${whole(games.length)}` };
@@ -187,6 +197,19 @@ export function checkGate(spec: GateSpec, run: RunReport, expect: string | null 
     const meanMiB = mean(gzipped) / mebibyte;
     return { pass: meanMiB < saveGzipped.meanMiB, measured: `mean ${fixed(meanMiB, 2)} MiB, max ${fixed(Math.max(...gzipped) / mebibyte, 2)} MiB, over ${whole(gzipped.length)} games` };
   });
+  // Every copy timed as the years ended (`copyTimes`); a report from before v1.1.6-S17 has none.
+  const copies = (totals.worlds ?? []).flatMap((year) => year.copyMs);
+  const copyMeasured = copies.length === 0 ? 'not measured' : `mean ${fixed(mean(copies), 3)} ms, over ${whole(copies.length)} copies`;
+  const copyLine = "The per-Turn copy's time";
+  if (copyMs.baselineMeanMs === null) {
+    checked.push({ line: copyLine, verdict: 'not comparable', measured: `${copyMeasured}; no baseline yet`, limit: `at most ${fixed(copyMs.growth * 100, 0)}% over the baseline`, source: copyMs.source });
+  } else {
+    const most = copyMs.baselineMeanMs * (1 + copyMs.growth);
+    band(copyLine, `mean at most ${fixed(most, 3)} ms (${fixed(copyMs.baselineMeanMs, 3)} ms + ${fixed(copyMs.growth * 100, 0)}%)`, copyMs.source, () => ({
+      pass: copies.length > 0 && mean(copies) <= most,
+      measured: copyMeasured,
+    }));
+  }
   return { pass: checked.every((it) => it.verdict !== 'fail'), status: spec.status, lines: checked };
 }
 

@@ -3,7 +3,7 @@
 The shape of the World State document, settled 2026-09-25 after three rounds of questioning.
 The TypeScript types in `engine/` are the truth once they exist; this document records the
 sections, the tables, the rules, and what the validator refuses. Vocabulary is
-[`../CONTEXT.md`](../CONTEXT.md). Decisions hard to reverse are ADR-0008 and ADR-0009.
+[`../CONTEXT.md`](../CONTEXT.md). Decisions hard to reverse are ADR-0008 (amended by ADR-0011) and ADR-0009.
 
 ## 1. The document
 
@@ -12,15 +12,20 @@ One JSON document, three top-level sections with different lifecycles:
 | Section | Lifecycle | Holds |
 | --- | --- | --- |
 | `meta` | Written at creation; changed by the `rebase` action, which rewrites `config` and `configVersion`, and by a migration on load, which rewrites `version` (§6; amended 2026-09-28, DL-86, originally "changed only by the `rebase` action") | schema version, seed, content set id and version, the configuration in force and the version of the defaults it was taken from, creation timestamp supplied by the caller |
-| `world` | Copied once per Turn with `structuredClone`, then mutated | every table, the Board, random stream states, id counters, module slices, the current Turn |
+| `world` | Copied once per Turn by `copyWorld`, then mutated; its write-once rows frozen and shared by reference, not copied (ADR-0011; amended 2026-10-05, DL-203, originally "with `structuredClone`") | every table, the Board, random stream states, id counters, module slices, the current Turn |
 | `history` | Append-only, shared by reference across Turns, never copied | entries and their indexes |
 
 Decided, to be built (amended 2026-09-28): a load under content of another version also
 updates `meta.content` (§2, DL-84), and from schema 4 `meta` records the modules a game was
 created with (§3.4, DL-82).
 
-`advance(document, deps)` clones `world`, mutates the clone, appends to `history`, and
-returns a new document that shares `meta` and `history` with the old one. `deps` is
+`advance(document, deps)` copies `world` (`copyWorld`), mutates the copy, appends to `history`, and
+returns a new document that shares `meta` and `history` with the old one. The copy is by hand
+(ADR-0011, DL-203): the rows out of play for good, the dead, retired and gone Heroes, the retired
+Guildmasters and the folded Guilds (`writeOnce`), are frozen all the way down by the first copy made
+of a world that holds them as such, and shared by reference with the copy; every other value is
+copied with each object's keys in their order, so the copy equals `structuredClone`'s and the save
+is unchanged. The texts, being strings, are shared by any copy that is not a clone. `deps` is
 `{ config, content, modules }`, the same object every engine entry point takes (approach §3). The History is the
 one deliberate exception to "state in, new state out": the previous reference sees new entries
 too, and nothing but the engine's append function may touch it (ADR-0008).
@@ -483,8 +488,9 @@ too. A leaner entry shape (DL-81's leaner `quest.encounter` entry) is not taken 
 schema change is made for it (the owner's decision, where the agents recommended lean entries as
 well as gzip). For the cost of a Turn, the lever decided is to profile first and then to keep
 the rows out of play (dead and retired Heroes, old Loot and the like) as a historical set that
-each Turn references and appends to but does not copy, in the spirit of ADR-0008 (DL-84; to be
-built). A browser's `localStorage` holds about
+each Turn references and appends to but does not copy, in the spirit of ADR-0008 (DL-84). Built in
+v1.1.6-S17 (ADR-0011, DL-203) without a section of its own: the write-once rows stay in their tables,
+frozen and shared by reference by the per-Turn copy, so the saved shape is unchanged. A browser's `localStorage` holds about
 5 MiB per origin, so the web front end saves to IndexedDB.
 
 ## 8. Type sketch

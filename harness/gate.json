@@ -47,6 +47,11 @@
       "baselineMeanMiB": 17.95,
       "baselineMaxMiB": 21.08,
       "source": "the owner's answer (DL-188): \"stay under 30mb\", the mean over the run's games, not every save, measured gzipped as the page keeps it (DL-67, DL-186 item 21, data-model §7); no guard on the uncompressed size, which the report prints; v1.1.5's closing sweep: mean 17.95 MiB, max 21.08 MiB gzipped (DL-184's report)"
+    },
+    "copyMs": {
+      "growth": 0.25,
+      "baselineMeanMs": null,
+      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, may grow at most 25% over its baseline without a DL entry; the baseline is measured at v1.1.6-S17's full gate and set here by its verification, the line reading not comparable until then"
     }
   },
   "estimate": {
@@ -62,6 +67,6 @@
   "notes": [
     "Drafted by v1.1.6-S2 from v1.1.5's epic and closing sweep, and approved by the owner on 2026-10-05 with the Traits a career taken out and the save's gzipped mean set under 30 MiB, no guard on its uncompressed size (DL-188). Its lines and baselines change only with a DL entry (DL-186 item 13).",
     "The bands are set on the run above: on a run of another shape they read not comparable. The estimate's two limits are checked by npm run harness -- estimate, not by a gate run.",
-    "S17 adds the per-Turn copy's time threshold when it lands (DL-186 item 11)."
+    "S17 added the per-Turn copy's time line (DL-186 item 11, DL-203), its baseline left to S17's full gate."
   ]
 }

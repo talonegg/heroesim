@@ -1678,7 +1678,8 @@ function countRows<Row>(rows: Readonly<Record<string, Row>>, isWriteOnce: (row: 
  * Adds the World State as a year ends (v1.1.6-S17, DL-203): its characters in the save, its rows live
  * and written once, and the per-Turn copy's time, the mean of `copiesTimed` copies of it by the
  * engine's `copyWorld` on the clock `now`. The copies are made and dropped: the copy leaves `world` as
- * it was, so the game plays on as it would have.
+ * it was, but for freezing its write-once rows, as the next `advance`'s copy would (ADR-0011), so the
+ * game plays on as it would have.
  */
 export function observeWorld(observations: GameObservations, world: World, now: () => number): void {
   const started = now();
