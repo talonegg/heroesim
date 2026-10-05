@@ -224,14 +224,13 @@ export {
 export type { ModuleEmit, ModuleEventDraft } from './emit.js';
 export * from './events.js';
 export * from './fast-forward.js';
-export { carriedGear, gearChoices, gearModifiers, gearPurchase, type GearUnavailability } from './gear.js';
+export { carriedGear, gearChoices, gearPurchase, type GearUnavailability } from './gear.js';
 export {
   guildmasterOf,
   guildmasterStatKeys,
   guildmasterStatsOf,
   guildmasterTraitsOf,
   judgedHintBands,
-  traitStatBonuses,
   type GuildmasterContent,
   type GuildmasterRule,
   type GuildmasterTraits,
@@ -343,6 +342,7 @@ export {
   rankings,
   signingFee,
   signingRefusal,
+  statBreakdown,
   transferFee,
   unattachedHeroes,
   unsignableHeroes,
@@ -354,12 +354,15 @@ export {
   type RankingMeasure,
   type RankingPlace,
   type SigningRefusal,
+  type StatBreakdown,
+  type StatParts,
+  type StatSource,
   type UpkeepParts,
 } from './selectors.js';
 export { deserialise, serialise, type LoadRefusal, type LoadResult, type Migration, type SavedDocument } from './serialise.js';
 export type { ModuleStopReason, PlayedTurn, StopCondition, StopReason, StopReasonKind } from './stops.js';
 export { ageOf, dayOf, durationDaysOf, retirementTurn, retiresOn, timeOfDay, yearOf, type Aged, type TimeOfDay } from './time.js';
-export { traitOf, traitStatModifiers, type BonusTarget, type HeroTraitContent, type TraitContent } from './traits.js';
+export { traitOf, type BonusTarget, type HeroTraitContent, type TraitContent } from './traits.js';
 export { offersTo } from './transfer.js';
 export {
   validate,

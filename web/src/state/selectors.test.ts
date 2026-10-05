@@ -59,8 +59,9 @@ import {
   reverseOrderName,
   rosterColumnGroups,
   rosterSortChoices,
-  rosterView,
+  rosterRows,
   sentView,
+  sortedRoster,
   stopView,
   type RosterOrder,
 } from './selectors';
@@ -573,7 +574,7 @@ describe('the Party builder (M9-S4, DL-104)', () => {
     ]);
     for (const row of rows ?? []) expect(row.why).toBe(unavailability(document.world.heroes[row.heroId] as Hero));
     // The full words as the Roster words them; only the Board's chip is short (DL-169 item 2).
-    const roster = rosterView(document);
+    const roster = sortedRoster(rosterRows(document));
     for (const row of rows?.slice(2) ?? []) expect(row.unavailable).toBe(roster.find((each) => each.heroId === row.heroId)?.whereabouts);
   });
 
@@ -711,14 +712,14 @@ describe('choosing a Party', () => {
   });
 });
 
-describe('rosterView', () => {
+describe('rosterRows and sortedRoster', () => {
   test("lists the player's Roster in the default order with Level, age, Morale and whereabouts (v1.1.5-S12, DL-169 item 5)", () => {
     const document = structuredClone(newGame());
     const [first] = heroes(document);
     if (first === undefined) throw new Error('no Hero');
     first.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
 
-    const rows = rosterView(document);
+    const rows = sortedRoster(rosterRows(document));
 
     // Bram the Healer joined first, and comes last: by Class, as the Board's builder lists (S11).
     expect(rows.map((row) => row.heroId)).toEqual([...heroes(document)].sort(defaultHeroOrder(document)).map((hero) => hero.id));
@@ -745,7 +746,7 @@ describe('rosterView', () => {
     away.morale = 80;
     home.morale = 50;
 
-    const rows = rosterView(document);
+    const rows = sortedRoster(rosterRows(document));
     const [first, second, third] = [injured, away, home].map((hero) => rows.find((row) => row.heroId === hero.id));
 
     expect(first).toMatchObject({ morale: 12, moraleBand: 'wretched', why: 'injured', whereabouts: 'Injured, healing on the night of Day 6' });
@@ -759,13 +760,13 @@ describe('rosterView', () => {
     if (lost === undefined) throw new Error('no Hero');
     lost.partyId = 'party-000777' as PartyId;
 
-    const row = rosterView(document).find((each) => each.heroId === lost.id);
+    const row = sortedRoster(rosterRows(document)).find((each) => each.heroId === lost.id);
     const quest = document.world.board[0] as QuestId;
 
     expect(row).toMatchObject({ why: 'in-party', whereabouts: 'Away with a Party' });
     expect(partyRows(document, quest)?.find((each) => each.heroId === lost.id)?.unavailable).toBe(row?.whereabouts);
     expect(heroPage(document, lost.id)?.where).toEqual({ why: 'in-party', words: 'Away with a Party' });
-    expect(rosterView(document, { key: 'free', direction: 'ascending' }).at(-1)?.heroId).toBe(lost.id);
+    expect(sortedRoster(rosterRows(document), { key: 'free', direction: 'ascending' }).at(-1)?.heroId).toBe(lost.id);
   });
 });
 
@@ -783,9 +784,12 @@ describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.
     return { document, liv, ragnvald, bram };
   }
 
-  /** A Hero's row's Stat by its key. */
+  /**
+   * A Hero's row's Stat by its key. The rows are built once a document (v1.1.6-S13), and these tests
+   * change the world in place between reads, so each read is of a new document, as each play gives the page.
+   */
   function stat(document: WorldDocument, hero: Hero, key: string) {
-    const found = rosterView(document)
+    const found = sortedRoster(rosterRows({ ...document }))
       .find((row) => row.heroId === hero.id)
       ?.stats.find((each) => each.key === key);
     if (found === undefined) throw new Error(`no ${key} for ${hero.name}`);
@@ -798,7 +802,7 @@ describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.
     const stats = Object.values(content.stats).filter((each) => each.owner === 'hero');
     expect(stats).toHaveLength(20);
 
-    for (const row of rosterView(document)) {
+    for (const row of sortedRoster(rosterRows(document))) {
       const hero = document.world.heroes[row.heroId] as Hero;
       const effective = effectiveStats(hero, document.world, content);
       expect(row.stats.map((each) => each.key)).toEqual(stats.map((each) => each.key));
@@ -887,7 +891,7 @@ describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.
     // What the Guild holds is no Hero's.
     addStack(document.world, 'padded-jack', 1, { kind: 'guild', id: player(document).id });
 
-    const rows = rosterView(document);
+    const rows = sortedRoster(rosterRows(document));
     const row = rows.find((each) => each.heroId === liv.id);
 
     expect(row?.traits).toEqual([
@@ -912,7 +916,7 @@ describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.
     // A Unique Item the Guild holds is no Hero's.
     createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: player(document).id });
 
-    const rows = rosterView(document);
+    const rows = sortedRoster(rosterRows(document));
     const row = (hero: Hero) => rows.find((each) => each.heroId === hero.id);
 
     expect(row(liv)?.items.map(({ definitionKey, unique }) => ({ definitionKey, unique }))).toEqual([
@@ -942,7 +946,10 @@ describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
     return { document, bram, liv, cenric, ragnvald };
   }
 
-  const names = (document: WorldDocument, order: RosterOrder): string[] => rosterView(document, order).map((row) => row.name.split(' ')[0] ?? '');
+  // The rows are built once a document (v1.1.6-S13), and these tests change the world in place between
+  // sorts, so each sort is of a new document, as each play gives the page.
+  const names = (document: WorldDocument, order: RosterOrder): string[] =>
+    sortedRoster(rosterRows({ ...document }), order).map((row) => row.name.split(' ')[0] ?? '');
 
   test('offers Default, Name, Class, Level, Age, Morale, When free and each of the 20 Stats, each with its first direction', () => {
     const choices = rosterSortChoices();
@@ -1054,7 +1061,7 @@ describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
   test('changes nothing in the world: the Roster keeps the order the Heroes joined', () => {
     const document = newGame();
     const before = JSON.stringify(document);
-    for (const { key, first } of rosterSortChoices()) rosterView(document, { key, direction: first });
+    for (const { key, first } of rosterSortChoices()) sortedRoster(rosterRows(document), { key, direction: first });
     expect(JSON.stringify(document)).toBe(before);
   });
 });

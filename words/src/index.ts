@@ -6,7 +6,7 @@
 //
 // The shared tables came in v1.1.6-S11; the narration, behind a Namer seam that fills each name for
 // the CLI or the page, and the Quest review's page, which the harness and the tools may read, in
-// v1.1.6-S12.
+// v1.1.6-S12. A Stat's breakdown, the engine's `statBreakdown`, in words in v1.1.6-S13.
 
 export { gearUnavailableWords, unavailableChipWords, unavailableWords } from './availability.js';
 export {
@@ -60,3 +60,4 @@ export {
   type ReviewNotes,
 } from './quest-review.js';
 export { readableSeed, type Random } from './seed.js';
+export { statPartsWords, statSourcesMoving, statSourceWords } from './stats.js';

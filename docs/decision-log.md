@@ -25963,6 +25963,99 @@ Nothing to fix. *Checks:* `npm run lint` and `typecheck` clean; `npm test` 203 f
 passing; `npm run e2e -w web` 103 passing, check-bundle passing, the script 815,402 bytes; the
 doctor no drift (107 reads). Line endings as each file's before, none mixed.
 
+## DL-199 — v1.1.6-S13 built: the engine's `statBreakdown`, each Hero Stat's base, its three sources in the order added, its effective value and whether its range held it, `effectiveStats` its total; the page's Roster and a Hero's page putting it in words; the Roster's rows built once a document and sorted apart
+
+2026-10-05. DL-186 items 3 (A3) and 22 (SF6).
+
+- *Before.* The doctor read no drift (107 reads of a Trait, the content passing its checks, no
+  pending edits).
+- *What `effectiveStats` did* (read at `07a2514`): for each of content's Hero Stats in content's
+  order, its base (`baseStat`, the default for a Stat the row lacks), plus the Guildmaster's Class
+  bonus (`traitStatBonuses` of the Guildmaster of the Hero's Guild, none for a Hero on no Roster),
+  plus the Gear (`gearModifiers`, what the Hero carries in their own slots), plus the Traits
+  (`traitStatModifiers`), added left to right, `base + bonus + worn + marked`, then held once inside
+  the Stat's range, `Math.min(max, Math.max(min, sum))`. Three sources, no other.
+- *The characterisation first* (`engine/src/stat-breakdown.test.ts`). The old `effectiveStats`, word
+  for word, as the test's reference; 30 generated worlds (`createWorld`, two Rivals, a pool of four;
+  a seeded mulberry32), every Hero of every Guild and the pool given random base Stats (a tenth
+  missing, a tenth at -4, 0, 1, 20, 21 or 27), a random Class (now and then one content lacks),
+  random Hero Traits (now and then a key content lacks), random gear in their slots (now and then in
+  a slot not its own, or of a definition content lacks), every Guildmaster random Traits, over a
+  content with Class bonuses on several Classes and Stats and Hero Traits that change Stats: 600
+  Heroes, 3,574 of their Stats moved from the base, every Stat strictly equal and in the same key order. Passing on the old code before the
+  change, and after it.
+- *`statBreakdown(hero, world, content)`* (`engine/src/selectors.ts`), the same signature and reads
+  as `effectiveStats`: for each Hero Stat in content's order a `StatParts`, `{ base, sources,
+  effective, clamped }`, `sources` the three in the order added, `classBonus`, `gear`, `traits`, each
+  with its `change`, every one listed though it adds 0, so the sum is the same four terms in the same
+  order; `clamped` whether the sum lay outside the range. `effectiveStats` is its total: each Stat's
+  `effective`, keyed as before. Exported with `StatBreakdown`, `StatParts` and `StatSource`; the
+  page takes it (DL-194's rule, a production user). `gearModifiers`, `traitStatBonuses` and
+  `traitStatModifiers` leave the entry, the page having been their only user outside the engine; they
+  stay exported from their modules for the engine's own code.
+- *Its tests*: every Hero Stat in content's order and no Guildmaster Stat, a missing base at the
+  default; the Class bonus (two Traits on one Stat, another Class's not counted, none on no Roster);
+  the Gear (two pieces on one Stat, one in a slot not its own counting nothing); the Traits (two
+  effects of one Trait, an `encounterBonus` Trait and a key content lacks moving nothing); the three
+  in order; the clamp at the top and the bottom, and a base beyond the range; the clamp once, at the
+  end (2 - 3 + 3 + 3 is 5, not 7); and `effectiveStats` equal to the breakdown's total, `clamped` to
+  whether the sum is the value, over the 600 generated Heroes (1,065 Stats held).
+- *The words* (`words/src/stats.ts`): `statSourceWords`, each source after "from" ("the
+  Guildmaster's Class bonus", "Gear", "Traits"), `statSourcesMoving` and `statPartsWords`, `Base 10,
+  +2 from Gear, held at 20` or `null`, the page's `rosterStats`' words moved, a test table.
+- *The page.* `rosterStats` reads the breakdown and puts it in those words, no sum of its own; the
+  "held at" is the breakdown's `clamped`, where it summed the sources and compared. `statValues`, the
+  base and value a Hero's page's lift (`signed(effective - base)`) and the Party builder read, is the
+  breakdown's. The page imports no source sum and no `effectiveStats` now.
+- *Rows apart from sorting.* `rosterView(document, order)` becomes `rosterRows(document)`, the
+  Roster's rows with the Hero and when they are free beside each, in the order they joined, and the
+  default order read at the document's Turn, built once for each document and kept in a `WeakMap`
+  keyed by the document: every play replaces the document the page holds (`reducer.ts`, ADR-0008's
+  copy), so a document's rows never change, and one let go is let go with its rows. `sortedRoster(rows,
+  order)` sorts a copy, the same comparators and ties as before. The Roster view memoises the rows
+  on the document and the sort on the rows and the order. `web/src/state/roster-rows.test.tsx`
+  counts builds by the engine's `statBreakdown`, which a build calls once a Hero (the entry wrapped in
+  a spy, as `reducer.test.ts` does): the same rows for the same document and one build, new rows for
+  a played one; every sort either way gives the rows already built, calls nothing and leaves them in
+  the order the Heroes joined; and in the Roster view, a new "Sort by" and its direction reorder the
+  tiles with no call.
+- *The page's tests re-pointed*, their expectations unchanged: `selectors.test.ts` and
+  `digest.test.ts` call `sortedRoster(rosterRows(document), order)`; two helpers that change the
+  world in place between reads (a Stat's words, the sorts) read a new document each time, `{
+  ...document }`, as each play gives the page. The Roster's words the same: every expectation of
+  `selectors.test.ts` and `roster.test.tsx` stands.
+- *The register.* The Traits' reads moved from `effectiveStats` to `statBreakdown`: the doctor read
+  drift until `effective-stats` and `guildmaster-effects` named `statBreakdown`, their words saying
+  `effectiveStats` is its total; `docs/agents/traits.md` regenerated (`traits doc`).
+- *Mutations*, each turning its test red, the file restored after each: the rows not kept (built on
+  every call); the view building the rows again on a sort; the sort in place; a clamp after the Class
+  bonus as well as at the end; `clamped` as "at the top"; the Traits counted under the Gear;
+  `effectiveStats` leaving out the Traits; the words without "held at"; the page dropping a source.
+  9 of 9 killed.
+
+*The CLI.* Unchanged: `show hero` and `equip` read `effectiveStats`, which gives what it gave; the
+story leaves the CLI's reading of the breakdown optional, and its words would change its lines.
+
+*Checks.* `npm run lint` and `typecheck` clean; `npm test` 206 files, 5,752 tests passing (S12's
+5,730); `npm run build` and check-bundle passing, the script 815,773 bytes, 371 more than S12's
+815,402 (the words' module and the rows' map); `npm run e2e -w web` 103 passing. Line endings as
+each file's before, none mixed; the four new files LF.
+
+*Proof.* The `neutral` run after, alone (`HEROESIM_WORKERS=8`, `m9-v116-s13-neutral`, 280 s,
+`--expect` S7's baseline): the fingerprint
+`bfbd370137fb55b4f6d0de6074554be68c595a7a5cf5a1c72d07af10c11bc602`, the same, the Gate PASS, the
+replay of `seed-0001` identical; advance 3.285 ms mean, 23.045 ms p99. Every game as it was. Its
+reports not committed. The doctor read no drift after (107 reads of a Trait).
+
+*Calls made, for the owner to see.* (1) Each Stat's breakdown lists all three sources, a 0 among
+them, so `effectiveStats` adds the same four terms in the same order as before; the words leave out
+a source that adds 0, as the Roster did. (2) The sources are the three sums, not each Item or Trait
+apart, as the story names them; a Hero's page's sources tooltip stays in the backlog (DL-186 item
+31). (3) The rows are kept by the document's identity: a test or a tool that changes a document in
+place and reads its Roster again reads the rows first built (two page tests did, and now read a new
+document). (4) `gearModifiers`, `traitStatBonuses` and `traitStatModifiers` are hidden from the
+engine's entry by DL-194's rule; a front end that comes to need one reads the breakdown.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

@@ -629,13 +629,13 @@ const engineEntries: readonly EngineEntry[] = [
   }),
   engine({
     id: 'effective-stats',
-    title: "A Hero Trait's Stat changes, in effectiveStats",
+    title: "A Hero Trait's Stat changes, in statBreakdown and effectiveStats",
     lists: ['hero'],
     effectKinds: ['statModifiers'],
-    reads: "The sum of the `statModifiers` of the Hero Traits a Hero holds, added to the base beside the Guildmaster's Class bonus and gear, so it shows wherever a Stat shows: every Check, Query, harm share, the estimate and a Hero's page (DL-148 item 24).",
+    reads: "The sum of the `statModifiers` of the Hero Traits a Hero holds, added to the base beside the Guildmaster's Class bonus and gear in `statBreakdown`, whose total is `effectiveStats`, so it shows wherever a Stat shows: every Check, Query, harm share, the estimate, the Roster and a Hero's page (DL-148 item 24, DL-186 item 3).",
     sources: [
       { file: 'engine/src/traits.ts', names: ['traitStatModifiers'] },
-      { file: 'engine/src/selectors.ts', names: ['effectiveStats'] },
+      { file: 'engine/src/selectors.ts', names: ['statBreakdown'] },
     ],
   }),
   engine({
@@ -654,11 +654,11 @@ const engineEntries: readonly EngineEntry[] = [
     title: "The Guildmaster's Trait readers",
     lists: ['guildmaster'],
     effectKinds: ['classStatBonus', 'guildMoraleShift', 'upkeepFactor'],
-    reads: "Each effect of the Guildmaster's Traits: a Class Stat bonus in `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).",
+    reads: "Each effect of the Guildmaster's Traits: a Class Stat bonus in `statBreakdown`, whose total is `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).",
     sources: [
       { file: 'engine/src/guildmaster.ts', names: ['traitEffects', 'traitMoraleShift', 'traitUpkeepFactor', 'traitStatBonuses'] },
       { file: 'engine/src/morale.ts', names: ['moraleBaselineFor'] },
-      { file: 'engine/src/selectors.ts', names: ['upkeepParts', 'effectiveStats'] },
+      { file: 'engine/src/selectors.ts', names: ['upkeepParts', 'statBreakdown'] },
     ],
   }),
   engine({
@@ -767,7 +767,7 @@ const engineEntries: readonly EngineEntry[] = [
  * The engine's Trait helpers: the declarations whose job is to read a Trait. A call or other
  * reference of one is a read of a Trait for the drift test, as the lists and kinds themselves are
  * (the verification of v1.1.4-S12), so a rule that reads a Trait only through a helper is listed too.
- * The rules that call those rules in turn (every caller of `effectiveStats`, say) are not: they read
+ * The rules that call those rules in turn (every caller of `statBreakdown` or `effectiveStats`, say) are not: they read
  * Stats, not Traits.
  */
 export const traitHelpers: readonly SourcePlace[] = [

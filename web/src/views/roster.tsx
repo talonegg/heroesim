@@ -22,7 +22,17 @@
 import type { HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
-import { orderWords, reverseOrderName, rosterColumnGroups, rosterSortChoices, rosterView, type RosterOrder, type RosterRow, type RosterSortKey } from '../state/selectors';
+import {
+  orderWords,
+  reverseOrderName,
+  rosterColumnGroups,
+  rosterRows,
+  rosterSortChoices,
+  sortedRoster,
+  type RosterOrder,
+  type RosterRow,
+  type RosterSortKey,
+} from '../state/selectors';
 import { HeroPage } from './hero-page';
 import { Icon } from './icons';
 import { Offers } from './offers';
@@ -82,7 +92,9 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
   );
   const [columnsOpen, setColumnsOpen] = useState(false);
   const narrow = useNarrow();
-  const rows = useMemo(() => rosterView(document, order), [document, order]);
+  // The rows are built once a document (`rosterRows`), and a new sort only sorts them (v1.1.6-S13, DL-186 item 22).
+  const built = useMemo(() => rosterRows(document), [document]);
+  const rows = useMemo(() => sortedRoster(built, order), [built, order]);
   const [open, setOpen] = useState<HeroId | null>(null);
   const back = useReturn();
   useEffect(() => {

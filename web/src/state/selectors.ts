@@ -2,7 +2,7 @@
 // of words and numbers for a component to lay out. Nothing in `web/` computes a rule (ADR-0007,
 // principle 12), so every number here is a document field or the answer of an engine selector,
 // the same ones the CLI's `render.ts` reads (`rankingPlaces`, `bankruptcyCountdown`, `ageOf`,
-// `baseStat`, `effectiveStats`, `potentialHint`, `judgedHintBands`, `carriedGear`, `regardBand`,
+// `statBreakdown`, `potentialHint`, `judgedHintBands`, `carriedGear`, `regardBand`,
 // `relationship`, `transferFee`, `previewDispatch`, `skillsThatHelp`, `entriesFor`); where a view
 // needed an answer no selector gave, the selector went into the engine (`previewDispatch`,
 // `skillsThatHelp`, `dispatchRefusal`, `rankingPlaces`, `bankruptcyCountdown`), never here. The
@@ -18,7 +18,6 @@ import {
   ageOf,
   availableHeroes,
   bankruptcyCountdown,
-  baseStat,
   carriedGear,
   compareByCodeUnit,
   dayOf,
@@ -27,8 +26,6 @@ import {
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
   durationDaysOf,
-  effectiveStats,
-  gearModifiers,
   gearSlotKeys,
   bestParty,
   entriesFor,
@@ -50,10 +47,9 @@ import {
   signingFee,
   signingRefusal,
   skillsThatHelp,
+  statBreakdown,
   statsRead,
   timeOfDay,
-  traitStatBonuses,
-  traitStatModifiers,
   transferFee,
   unavailability,
   yearOf,
@@ -107,6 +103,8 @@ import {
   readsAsOne,
   shownPercent,
   signed,
+  statPartsWords,
+  statSourcesMoving,
   traitEffectWords,
   unavailableChipWords,
   unavailableWords,
@@ -432,7 +430,7 @@ export interface PartyRow {
   unavailable: string | null;
   /** The Board's chip, short (v1.1.5-S11, DL-169 item 2): `Away` or `Injured`; `null` when the Hero can go. */
   chip: string | null;
-  /** Each Stat the Quest's Checks read (`statsRead`), in the order it meets them, at the value a Check reads (`effectiveStats`). */
+  /** Each Stat the Quest's Checks read (`statsRead`), in the order it meets them, at the value a Check reads (`statBreakdown`'s effective value). */
   stats: { name: string; value: number }[];
   /** The Skill the Quest requires, then those that help (`skillsThatHelp`), that the Hero has. */
   skills: { name: string; rating: number }[];
@@ -681,8 +679,8 @@ type Taken = EngineEventOf<'quest.taken'>;
 
 /**
  * A Hero's Stat as the Roster's Table shows it (v1.1.5-S12, DL-169 item 8): its base, the effective
- * value a Check reads (`effectiveStats`), and each source that changes it, by the engine's own sums
- * (`traitStatBonuses`, `gearModifiers`, `traitStatModifiers`). `change` is the net change, the value
+ * value a Check reads, and each source that changes it, the engine's `statBreakdown` (v1.1.6-S13,
+ * DL-186 item 3) in words. `change` is the net change, the value
  * less the base after the Stat's bounds: `up`, `down`, or `null` at nothing. Never its Potential.
  */
 export interface RosterStat {
@@ -691,7 +689,7 @@ export interface RosterStat {
   base: number;
   value: number;
   change: 'up' | 'down' | null;
-  /** Each source that moves the Stat, in the order `effectiveStats` adds them; none that moves it by nothing. */
+  /** Each source that moves the Stat, in the order `statBreakdown` adds them; none that moves it by nothing. */
   sources: { from: string; change: number }[];
   /** The base and each source in words, `Base 10, +2 from Gear`, and the bound when it holds the value; `null` when nothing moves it. */
   words: string | null;
@@ -932,28 +930,18 @@ function itemsOf(hero: Hero, world: World): RosterItem[] {
 }
 
 /**
- * Each of a Hero's 20 Stats with its base, effective value and sources (DL-169 item 8): the sums are
- * the engine's, which `effectiveStats` adds in this order, the Guildmaster's Class bonus, the Gear
- * and the Hero's Traits, and the value is `effectiveStats`', within the Stat's bounds.
+ * Each of a Hero's 20 Stats with its base, effective value and sources (DL-169 item 8), the engine's
+ * `statBreakdown` in words (v1.1.6-S13, DL-186 item 3): the sources in the order it adds them, the
+ * Guildmaster's Class bonus, the Gear and the Hero's Traits, and the value within the Stat's bounds.
  */
 function rosterStats(hero: Hero, world: World): RosterStat[] {
-  const guild = hero.guildId === null ? undefined : rowOf(world.guilds, hero.guildId);
-  const sums: [from: string, by: Record<StatKey, number>][] = [
-    ["the Guildmaster's Class bonus", guild === undefined ? {} : traitStatBonuses(guildmasterOf(guild, world), hero.classKey, content)],
-    ['Gear', gearModifiers(hero.id, world, content)],
-    ['Traits', traitStatModifiers(hero, content)],
-  ];
-  const values = statValues(hero, world);
-  return heroStats(content).map((stat): RosterStat => {
-    const { base, effective: value } = values.get(stat.key) ?? { base: 0, effective: 0 };
-    const sources = sums.flatMap(([from, by]) => {
-      const change = Object.hasOwn(by, stat.key) ? (by[stat.key] ?? 0) : 0;
-      return change === 0 ? [] : [{ from, change }];
-    });
-    const held = base + sources.reduce((sum, { change }) => sum + change, 0) !== value;
-    const words =
-      sources.length === 0 && !held ? null : [`Base ${base}`, ...sources.map(({ from, change }) => `${signed(change)} from ${from}`), ...(held ? [`held at ${value}`] : [])].join(', ');
-    return { key: stat.key, name: stat.name, base, value, change: value > base ? 'up' : value < base ? 'down' : null, sources, words };
+  const breakdown = statBreakdown(hero, world, content);
+  return heroStats(content).flatMap((stat): RosterStat[] => {
+    const parts = rowOf(breakdown, stat.key);
+    if (parts === undefined) return [];
+    const { base, effective: value } = parts;
+    const sources = statSourcesMoving(parts);
+    return [{ key: stat.key, name: stat.name, base, value, change: value > base ? 'up' : value < base ? 'down' : null, sources, words: statPartsWords(parts) }];
   });
 }
 
@@ -962,18 +950,53 @@ function compareNumbers(a: number, b: number): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/** A row of the Roster with what its sorts read beside it: the Hero, and when they are free. */
+interface RosterEntry {
+  hero: Hero;
+  row: RosterRow;
+  free: number;
+}
+
 /**
- * `show roster`: the player's Roster, sorted by `order` (v1.1.5-S12, DL-169 item 10), the default
- * order when none is given, ties always in the default order (DL-169 item 5), whichever way the sort
- * runs. For display only: `rosterIds` keeps the order the Heroes joined.
+ * The player's Roster as rows, built once for a document (`rosterRows`) and sorted as often as the
+ * player likes (`sortedRoster`) without being built again (v1.1.6-S13, DL-186 item 22). What is in
+ * it is the module's own: a view takes it from one and hands it to the other.
  */
-export function rosterView(document: WorldDocument, order: RosterOrder = defaultRosterOrder): RosterRow[] {
+export interface RosterRows {
+  /** Each Hero on the Roster in the order they joined (`rosterIds`). */
+  readonly entries: readonly RosterEntry[];
+  /** The default order, read at the document's Turn (DL-169 item 5). */
+  readonly byDefault: (a: Hero, b: Hero) => number;
+}
+
+/**
+ * The rows built for each document, by the document itself (v1.1.6-S13, DL-186 item 22). Every play
+ * replaces the document the page holds (`reducer.ts`), so a document's rows never change once built,
+ * and a document no longer held is let go with its rows.
+ */
+const rowsBuilt = new WeakMap<WorldDocument, RosterRows>();
+
+/**
+ * `show roster`: the player's Roster as rows (v1.1.5-S12, DL-169), built once for each document and
+ * then the same rows (v1.1.6-S13, DL-186 item 22), in the order the Heroes joined until
+ * `sortedRoster` sorts them. For display only: `rosterIds` keeps the order the Heroes joined.
+ */
+export function rosterRows(document: WorldDocument): RosterRows {
+  const built = rowsBuilt.get(document);
+  if (built !== undefined) return built;
+  const rows = buildRosterRows(document);
+  rowsBuilt.set(document, rows);
+  return rows;
+}
+
+/** The Roster's rows for `document`, built: what `rosterRows` keeps. */
+function buildRosterRows(document: WorldDocument): RosterRows {
   const { world } = document;
   const guild = playerGuild(world);
-  if (guild === undefined) return [];
+  if (guild === undefined) return { entries: [], byDefault: () => 0 };
   const { config } = playDeps(document);
   const byDefault = defaultHeroOrder(document);
-  const entries = guild.rosterIds.flatMap((heroId) => {
+  const entries = guild.rosterIds.flatMap((heroId): RosterEntry[] => {
     const hero = rowOf(world.heroes, heroId);
     if (hero === undefined) return [];
     const items = itemsOf(hero, world);
@@ -996,9 +1019,18 @@ export function rosterView(document: WorldDocument, order: RosterOrder = default
     };
     return [{ hero, row, free: freeFrom(hero, world) ?? Infinity }];
   });
-  type Sorted = (typeof entries)[number];
-  const statOf = (entry: Sorted): number => entry.row.stats.find((stat) => stat.key === order.key)?.value ?? 0;
-  const primary: (a: Sorted, b: Sorted) => number =
+  return { entries, byDefault };
+}
+
+/**
+ * The Roster's rows sorted by `order` (v1.1.5-S12, DL-169 item 10), the default order when none is
+ * given, ties always in the default order (DL-169 item 5), whichever way the sort runs. The rows are
+ * `rosterRows`' own, sorted and not built again (v1.1.6-S13, DL-186 item 22).
+ */
+export function sortedRoster(rows: RosterRows, order: RosterOrder = defaultRosterOrder): RosterRow[] {
+  const { byDefault } = rows;
+  const statOf = (entry: RosterEntry): number => entry.row.stats.find((stat) => stat.key === order.key)?.value ?? 0;
+  const primary: (a: RosterEntry, b: RosterEntry) => number =
     order.key === 'default' ? (a, b) => byDefault(a.hero, b.hero)
     : order.key === 'name' ? (a, b) => compareByCodeUnit(a.hero.name, b.hero.name)
     : order.key === 'class' ? (a, b) => byClass(a.hero, b.hero)
@@ -1008,7 +1040,7 @@ export function rosterView(document: WorldDocument, order: RosterOrder = default
     : order.key === 'free' ? (a, b) => compareNumbers(a.free, b.free)
     : (a, b) => statOf(a) - statOf(b);
   const sign = order.direction === 'ascending' ? 1 : -1;
-  return entries.sort((a, b) => sign * primary(a, b) || byDefault(a.hero, b.hero)).map((entry) => entry.row);
+  return [...rows.entries].sort((a, b) => sign * primary(a, b) || byDefault(a.hero, b.hero)).map((entry) => entry.row);
 }
 
 // ── A Hero's page ────────────────────────────────────────────────────────────────────────────
@@ -1283,20 +1315,12 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
 }
 
 /**
- * Each of a Hero's Stats as a Check reads it (`effectiveStats`: the Guildmaster's Class bonus, the
- * Hero's gear, M5-S2, and their Hero Traits' Stat changes, v1.1.4-S7, applied) beside its base, keyed by Stat: what a Hero's page and the Party
- * builder show alike.
+ * Each of a Hero's Stats as a Check reads it beside its base, keyed by Stat: the engine's
+ * `statBreakdown` (the Guildmaster's Class bonus, the Hero's gear, M5-S2, and their Hero Traits' Stat
+ * changes, v1.1.4-S7, applied; v1.1.6-S13), what a Hero's page and the Party builder show alike.
  */
 function statValues(hero: Hero, world: World): Map<string, { base: number; effective: number }> {
-  const effective = effectiveStats(hero, world, content);
-  return new Map(
-    Object.values(content.stats)
-      .filter((stat) => stat.owner === 'hero')
-      .map((stat) => {
-        const base = baseStat(hero.stats, stat);
-        return [stat.key, { base, effective: effective[stat.key] ?? base }];
-      }),
-  );
+  return new Map(Object.entries(statBreakdown(hero, world, content)).map(([key, { base, effective }]) => [key, { base, effective }]));
 }
 
 /** The Skills a Hero has, in content's order, then any content does not define, each with its rating. */

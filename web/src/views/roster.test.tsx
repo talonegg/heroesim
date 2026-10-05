@@ -10,7 +10,7 @@ import { help } from './section';
 // The Roster redesigned (M9-S6, DL-106; the review's B7, B8 and E4): compact Hero cards, a Hero's
 // page as a line and chips with the Stats in four blocks, the Unattached pool as rows ordered by its
 // headings, and a confirmation before a Transfer out or an offer accepted lets a Hero go. Every
-// value comes from a selector (`rosterView`, `heroPage`, `poolView`, `offersView`).
+// value comes from a selector (`rosterRows`, `heroPage`, `poolView`, `offersView`).
 
 afterEach(cleanup);
 

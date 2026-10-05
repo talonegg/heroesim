@@ -230,11 +230,11 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 - **Where it reads them:** `engine/src/traits.ts`: `traitOf`, `heroTraitOf`, `heroTraitEffects`, `excludedPair`; `engine/src/guildmaster.ts`: `guildmasterTraitsOf`.
 - **Through:** `engine/src/traits.ts`: `excludeEachOther`.
 
-### `effective-stats`: A Hero Trait's Stat changes, in effectiveStats
+### `effective-stats`: A Hero Trait's Stat changes, in statBreakdown and effectiveStats
 
-- **Reads:** The sum of the `statModifiers` of the Hero Traits a Hero holds, added to the base beside the Guildmaster's Class bonus and gear, so it shows wherever a Stat shows: every Check, Query, harm share, the estimate and a Hero's page (DL-148 item 24).
+- **Reads:** The sum of the `statModifiers` of the Hero Traits a Hero holds, added to the base beside the Guildmaster's Class bonus and gear in `statBreakdown`, whose total is `effectiveStats`, so it shows wherever a Stat shows: every Check, Query, harm share, the estimate, the Roster and a Hero's page (DL-148 item 24, DL-186 item 3).
 - **Traits:** Hero; effects `statModifiers`.
-- **Where it reads them:** `engine/src/traits.ts`: `traitStatModifiers`; `engine/src/selectors.ts`: `effectiveStats`.
+- **Where it reads them:** `engine/src/traits.ts`: `traitStatModifiers`; `engine/src/selectors.ts`: `statBreakdown`.
 
 ### `encounter-bonus`: The Check's Encounter bonus
 
@@ -244,9 +244,9 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 
 ### `guildmaster-effects`: The Guildmaster's Trait readers
 
-- **Reads:** Each effect of the Guildmaster's Traits: a Class Stat bonus in `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).
+- **Reads:** Each effect of the Guildmaster's Traits: a Class Stat bonus in `statBreakdown`, whose total is `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).
 - **Traits:** Guildmaster; effects `classStatBonus`, `guildMoraleShift`, `upkeepFactor`.
-- **Where it reads them:** `engine/src/guildmaster.ts`: `traitEffects`, `traitMoraleShift`, `traitUpkeepFactor`, `traitStatBonuses`; `engine/src/morale.ts`: `moraleBaselineFor`; `engine/src/selectors.ts`: `upkeepParts`, `effectiveStats`.
+- **Where it reads them:** `engine/src/guildmaster.ts`: `traitEffects`, `traitMoraleShift`, `traitUpkeepFactor`, `traitStatBonuses`; `engine/src/morale.ts`: `moraleBaselineFor`; `engine/src/selectors.ts`: `upkeepParts`, `statBreakdown`.
 
 ### `guildmaster-setup`: Setup's Trait budget, and the drawn Guildmaster's Traits
 
