@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance } from '../advance.js';
 import { questBands, type EngineDeps, type GameConfig, type QuestBand } from '../config.js';
-import type { ContentSet, LootTable } from '../content-types.js';
+import type { ContentSet, Degree, LootTable } from '../content-types.js';
 import { availableHeroes, partyFor, staffableQuests } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, Party, Quest, WorldDocument } from '../document.js';
@@ -133,6 +133,22 @@ describe('drawLoot', () => {
     expect(awarded).toEqual(['none', 'triumph']);
     // The band's rule still holds: a Finale's Triumph on a plain success awards nothing.
     expect(drawLoot(testWorld('finale-success-band', deps), { lootTableKey: 'whetstones' }, 'success', deps, 'triumph')).toBeNull();
+  });
+
+  // v1.1.6-S16 (DL-202): the Degrees a Finale may end at for Loot are `lootOnFinaleDegrees`, the Triumph alone by default.
+  test("on a Quest with a Finale, awards when the Finale ended at a Degree in lootOnFinaleDegrees, and always on a Quest with none", () => {
+    const awardedFor = (lootOnFinaleDegrees: readonly Degree[]) =>
+      (['none', 'triumph', 'success', 'setback', 'failure', 'unmet'] as const).filter((finale) => {
+        const deps = lootDeps({ lootOnFinaleDegrees }, content);
+        return drawLoot(testWorld(`finale-degrees-${finale}`, deps), { lootTableKey: 'whetstones' }, 'strong', deps, finale) !== null;
+      });
+
+    expect(awardedFor(['triumph'])).toEqual(['none', 'triumph']);
+    expect(awardedFor(['triumph', 'success'])).toEqual(['none', 'triumph', 'success']);
+    expect(awardedFor(['failure', 'setback'])).toEqual(['none', 'setback', 'failure']);
+    // A Finale the Party never reached is unmet, which is no Degree: it awards nothing under any list.
+    expect(awardedFor(['failure', 'setback', 'success', 'triumph'])).toEqual(['none', 'triumph', 'success', 'setback', 'failure']);
+    expect(awardedFor([])).toEqual(['none']);
   });
 
   test("draws entries in proportion to their weights, each quantity inside its entry's range", () => {

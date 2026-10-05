@@ -74,7 +74,7 @@ export function drawLoot(
 
   // Every weight 0 makes the draw uniform, so it may fall on a unique Item the world already holds.
   if (!config.lootOnBands.includes(band) || weights[drawn.index] === 0) return null;
-  if (finale !== 'none' && finale !== 'triumph') return null;
+  if (finale !== 'none' && !(config.lootOnFinaleDegrees as readonly FinaleOutcome[]).includes(finale)) return null;
   const { definitionKey } = drawn.entry;
   return { lootTableKey, definitionKey, quantity, unique: isUnique(definitionKey) };
 }

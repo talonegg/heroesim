@@ -439,6 +439,30 @@ describe('weightedPick (M4-S5, DL-43)', () => {
     }
   });
 
+  // v1.1.6-S16 (DL-202): a Class, Background, Quest template and Sphere draw by weight, 1 when none is
+  // given, and every game must play as it did. Both sides take the one draw and multiply it by the list's
+  // size (the weights' total) before comparing it to a whole number, so the floating-point rounding of the
+  // product is the same on both and no bucket's edge falls differently; held here for the list sizes a draw
+  // is made over and a few beyond them.
+  test('with every weight 1, for every length from 1 to 64 and some beyond, is pick from the same state, one draw', () => {
+    for (const length of [...Array.from({ length: 64 }, (_, index) => index + 1), 97, 128, 255, 1000]) {
+      const items = Array.from({ length }, (_, index) => index);
+      const ones = items.map(() => 1);
+      const weighted = generation(`weighted-sizes-${length}`);
+      const picked = generation(`weighted-sizes-${length}`);
+      const differing: { draw: number; drawn: number; pick: number }[] = [];
+      for (let i = 0; i < 5000; i += 1) {
+        const afterOne = advancedCopy(picked, 1);
+        const drawn = weightedPick(weighted, items, ones);
+        const pickedItem = pick(picked, items);
+        if (drawn !== pickedItem || weighted.join() !== picked.join() || picked.join() !== afterOne.join()) {
+          differing.push({ draw: i, drawn, pick: pickedItem });
+        }
+      }
+      expect(differing, `length ${length}`).toEqual([]);
+    }
+  });
+
   test('draws in proportion to the weights, never a weight of 0, and uniformly when every weight is 0', () => {
     const state = generation('weighted-rate');
     const counts = { a: 0, b: 0, c: 0 };

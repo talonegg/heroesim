@@ -7,8 +7,9 @@
 // the Encounter draw's checks, DL-152 to DL-160, are rules here).
 
 import { chanceBandNames, defaultConfig, moraleBandNames, potentialHints, questBands, regardBandNames, type EngineDeps, type GameConfig } from './config.js';
-import type { ContentSet, StatArea } from './content-types.js';
+import { degrees, type ContentSet, type StatArea } from './content-types.js';
 import type { Meta } from './document.js';
+import { sexes } from './generators/draw.js';
 import type { Module } from './modules.js';
 
 /** A setting's problem: the setting, and a sentence naming it, its value and what it is to be. */
@@ -136,6 +137,14 @@ function listOf(members: readonly string[]): ConfigRule {
       : `it is a list of ${members.join(', ')}, none twice`;
 }
 
+/** A new Hero's sex weights (v1.1.6-S16, DL-202): one for each sex, each 0 or more, one above 0 for a draw to land on. */
+const sexWeights: ConfigRule = (value, settings) => {
+  const weights = numbersOf(value, sexes, { min: 0 }, settings);
+  return weights?.some((weight) => weight > 0) === true
+    ? undefined
+    : `it holds ${sexes.join(', ')}, each a number of 0 or more, one of them above 0`;
+};
+
 /** The Degrees' thresholds (DL-152): a Degree means something only while they are ordered. */
 const degreeThresholds: ConfigRule = (value, settings) => {
   const [triumph, success, setback] = numbersOf(value, ['triumph', 'success', 'setback'], {}, settings) ?? [];
@@ -203,6 +212,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
 
   heroStartingAgeMin: whole({ min: 0 }),
   heroStartingAgeMax: whole({ min: 'heroStartingAgeMin' }),
+  heroSexWeights: sexWeights,
   statBaseMin: whole({ min: 0 }),
   statBaseMax: whole({ min: 'statBaseMin' }),
   statBiasMin: whole({ min: 0 }),
@@ -325,6 +335,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
 
   lootDifficultyThreshold: finite({ min: 0 }),
   lootOnBands: listOf(questBands),
+  lootOnFinaleDegrees: listOf(degrees),
 
   marketSize: whole({ min: 0 }),
   marketStackMin: whole({ min: 1 }),

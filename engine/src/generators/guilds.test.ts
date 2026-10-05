@@ -267,9 +267,9 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-1
   const costOf = (deps: ReturnType<typeof testDeps>, keys: readonly string[]): number =>
     keys.reduce((sum, key) => sum + (deps.content.guildmasterTraits[key]?.cost ?? Number.NaN), 0);
 
-  test('the budget is guildmasterTraitBudget, 1 by default, under configVersion 14 (DL-102, DL-113, DL-152, DL-193)', () => {
+  test('the budget is guildmasterTraitBudget, 1 by default, under configVersion 15 (DL-102, DL-113, DL-152, DL-193, DL-202)', () => {
     expect(testDeps().config).toMatchObject({ guildmasterTraitBudget: 1, guildmasterTraitsMin: 0, guildmasterTraitsMax: 2 });
-    expect(configVersion).toBe(14);
+    expect(configVersion).toBe(15);
   });
 
   test('every drawn Guildmaster keeps within the budget and holds no excluded pair, and 0, 1 and 2 Traits are all drawn', () => {

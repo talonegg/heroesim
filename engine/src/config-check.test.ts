@@ -14,9 +14,9 @@ const broken = (changes: Readonly<Record<string, unknown>>, against: ContentSet 
   checkConfig({ ...defaultConfig, ...changes }, against).map((problem) => problem.setting);
 
 describe('the rules', () => {
-  test('one for every setting of GameConfig, and none for a setting it lacks: 118 settings', () => {
+  test('one for every setting of GameConfig, and none for a setting it lacks: 120 settings', () => {
     expect(Object.keys(configRules).sort()).toEqual(Object.keys(defaultConfig).sort());
-    expect(Object.keys(configRules)).toHaveLength(118);
+    expect(Object.keys(configRules)).toHaveLength(120);
   });
 
   test('the defaults break none, against the test content', () => {
@@ -72,6 +72,18 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   unattachedPoolSize: wholeFrom(0),
   heroStartingAgeMin: { refused: [-1, 18.5], allowed: [0, 36] },
   heroStartingAgeMax: { refused: [17, 20.5], allowed: [18, 60] },
+  heroSexWeights: {
+    refused: [
+      { female: 0, male: 0 },
+      { female: -1, male: 2 },
+      { female: 1, male: Number.NaN },
+      { female: 1 },
+      { female: 1, male: 1, other: 1 },
+      [1, 1],
+      '1',
+    ],
+    allowed: [{ female: 1, male: 1 }, { female: 0, male: 3 }, { female: 0.25, male: 0 }],
+  },
   statBaseMin: { refused: [-1, 2.5], allowed: [0, 10] },
   statBaseMax: { refused: [2, 10.5], allowed: [3, 12] },
   statBiasMin: { refused: [-1, 1.5], allowed: [0, 4] },
@@ -230,6 +242,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   transferLockDays: wholeFrom(0),
   lootDifficultyThreshold: finiteFrom(0),
   lootOnBands: { refused: [['strong', 'strong'], ['great'], 'strong'], allowed: [[], ['fail', 'success', 'strong']] },
+  lootOnFinaleDegrees: { refused: [['triumph', 'triumph'], ['strong'], ['unmet'], 'triumph'], allowed: [[], ['success', 'triumph'], ['failure', 'setback', 'success', 'triumph']] },
   marketSize: wholeFrom(0),
   marketStackMin: { refused: [0, 1.5], allowed: [1, 5] },
   marketStackMax: { refused: [0, 5.5], allowed: [1, 6] },

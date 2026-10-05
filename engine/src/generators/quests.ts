@@ -10,9 +10,9 @@ import { takeId, type Patron, type Quest, type QuestRequirements, type World } f
 import { eventEmitter } from '../emit.js';
 import type { QuestOffered } from '../events.js';
 import { drawSequence, encounterCount, encounterStream, sequencePlan } from '../quest-engine/encounters.js';
-import { int, pick, type StreamName } from '../rng.js';
+import { int, type StreamName } from '../rng.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
-import { clamp, sortedRows, streamOf, type DrawsFrom } from './draw.js';
+import { clamp, pickByWeight, sortedRows, streamOf, type DrawsFrom } from './draw.js';
 
 /** The stream the Board is drawn from (pre-M0 review D7), unless the caller names another. */
 export const boardStream: StreamName = 'board';
@@ -90,7 +90,7 @@ export function generateQuest(
   // Checked for every template the Patron offers before any draw, so a throw changes nothing.
   const plans = new Map(offered.map((template) => [template.key, sequencePlan(template, content)]));
 
-  const template = givenTemplate ?? pick(state, offered);
+  const template = givenTemplate ?? pickByWeight(state, offered);
   const scale = (value: number): number => clamp(value, config.questDifficultyMin, config.questDifficultyMax);
   const difficulty = int(state, scale(template.difficultyMin), scale(template.difficultyMax));
   const durationDays = int(state, template.durationDaysMin, template.durationDaysMax);

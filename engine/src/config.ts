@@ -16,7 +16,8 @@
 // "Min/Max" pair is an inclusive range drawn with `int`. A field holding an object or a list is
 // frozen with `defaultConfig`.
 
-import type { ContentSet, StatArea } from './content-types.js';
+import type { ContentSet, Degree, StatArea } from './content-types.js';
+import type { Sex } from './document.js';
 import type { Module } from './modules.js';
 
 export interface GameConfig {
@@ -59,6 +60,11 @@ export interface GameConfig {
   /** A generated Hero's age, in whole years. */
   heroStartingAgeMin: number;
   heroStartingAgeMax: number;
+  /**
+   * A new Hero's sex is drawn in proportion to these weights, one draw: each 0 or more, not both 0
+   * (v1.1.6-S16, DL-186 item 16, DL-202). Equal weights draw each as likely as the other.
+   */
+  heroSexWeights: Readonly<Record<Sex, number>>;
   /** A Hero Stat's base value before the Class bias (DL-19). */
   statBaseMin: number;
   statBaseMax: number;
@@ -483,6 +489,12 @@ export interface GameConfig {
   lootDifficultyThreshold: number;
   /** The bands on which a Quest with a Loot table awards one entry of it (INPUTS 7.4: strong only). */
   lootOnBands: readonly QuestBand[];
+  /**
+   * A Quest whose template names a Finale awards Loot only when the Finale ended at one of these Degrees;
+   * a Quest with no Finale is unaffected, and one whose Party never reached its Finale awards none
+   * (v1.1.4-S8, DL-148 item 23; made a setting v1.1.6-S16, DL-202: the Triumph alone).
+   */
+  lootOnFinaleDegrees: readonly Degree[];
 
   // ── The Market (M5-S4, R31, INPUTS 7.2, DL-51) ────────────────────────────────────────────
   /**
@@ -557,9 +569,10 @@ export type RegardBand = (typeof regardBandNames)[number];
  * balance pass changes defaults under it too, `checkVariance` 0.2 to 0.4 first (DL-165), then the
  * Degrees, `strongTriumphShare` and the form factors (DL-166), as no game has been released under 13.
  * 14 from v1.1.6-S7, whose config lost `schemaVersion`, `configVersion` and `gearSlots`, every other
- * default as it was (DL-193).
+ * default as it was (DL-193). 15 from v1.1.6-S16, which adds `heroSexWeights` and `lootOnFinaleDegrees`,
+ * at the draw and the rule they had before (DL-202).
  */
-export const configVersion = 14;
+export const configVersion = 15;
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   turnsPerYear: 1080,
@@ -577,6 +590,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   heroStartingAgeMin: 18,
   heroStartingAgeMax: 36,
+  heroSexWeights: Object.freeze({ female: 1, male: 1 }),
   statBaseMin: 3,
   statBaseMax: 10,
   statBiasMin: 2,
@@ -687,6 +701,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   lootDifficultyThreshold: 35,
   lootOnBands: Object.freeze(['strong' as const]),
+  lootOnFinaleDegrees: Object.freeze(['triumph' as const]),
 
   marketSize: 10,
   marketStackMin: 1,

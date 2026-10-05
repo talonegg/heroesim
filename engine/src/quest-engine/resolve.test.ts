@@ -367,8 +367,8 @@ describe("the Quest Engine's config (DL-42)", () => {
     // 13 from v1.1.4-S2's Degrees (DL-152), which v1.1.4-S3's form factors (DL-154) and v1.1.4-S4's harm
     // ranges (DL-155) join. v1.1.4-S10's balance pass sets the Triumph, the share of Triumphs and the
     // form factors under 13 (DL-166): 1.25, 0.5, 0.85 to 1.08 and 0.85 before it. 14 from v1.1.6-S7,
-    // whose config lost its versions and gear slots, every default as it was (DL-193).
-    expect(configVersion).toBe(14);
+    // whose config lost its versions and gear slots, every default as it was (DL-193); 15 from v1.1.6-S16 (DL-202).
+    expect(configVersion).toBe(15);
     expect(defaultConfig).toMatchObject({
       checkVariance: 0.4,
       skillBonusPerRating: 2,

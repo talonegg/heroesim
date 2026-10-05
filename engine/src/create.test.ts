@@ -712,9 +712,9 @@ describe("the player's Guildmaster's Stats chosen (v1.1.4-S11, DL-149)", () => {
     return guildmaster;
   };
 
-  test('guildmasterStatPoints is 50 by default, under configVersion 14 (DL-149, DL-153, DL-193)', () => {
+  test('guildmasterStatPoints is 50 by default, under configVersion 15 (DL-149, DL-153, DL-193, DL-202)', () => {
     expect(deps.config).toMatchObject({ guildmasterStatPoints: 50, guildmasterStatMin: 5, guildmasterStatMax: 15 });
-    expect(configVersion).toBe(14);
+    expect(configVersion).toBe(15);
   });
 
   test('accepts every Stat within 5 to 15 spending 50 or less, unspent points allowed', () => {

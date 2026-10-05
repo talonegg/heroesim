@@ -34,6 +34,7 @@ import {
   drawCount,
   drawPersonName,
   drawUnusedPersonName,
+  pickByWeight,
   pickInDraws,
   pickUnused,
   sexes,
@@ -133,7 +134,7 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
 
   const name = options.name ?? drawGuildName(state, content.names.guild, Object.values(world.guilds));
   const backgroundKey =
-    options.backgroundKey ?? pick(state, sortedKeys(content.backgrounds, (row) => row.owner === 'guild'));
+    options.backgroundKey ?? pickByWeight(state, sortedRows(content.backgrounds, (row) => row.owner === 'guild')).key;
 
   const guildId = takeId(world, 'guilds');
   const guildmasterId = takeId(world, 'guildmasters');

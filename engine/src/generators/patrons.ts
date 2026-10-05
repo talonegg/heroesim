@@ -6,8 +6,7 @@ import type { EngineDeps } from '../config.js';
 import type { SphereKey } from '../content-types.js';
 import { takeId, type EntityId, type Patron, type Sex, type World } from '../document.js';
 import type { PatronGenerated } from '../events.js';
-import { pick } from '../rng.js';
-import { checkName, pickUnusedBy, sortedKeys, streamOf, type DrawsFrom } from './draw.js';
+import { checkName, pickByWeight, pickUnusedBy, sortedRows, streamOf, type DrawsFrom } from './draw.js';
 
 export interface PatronOptions extends DrawsFrom {
   /** Drawn uniformly from content's Spheres when omitted. */
@@ -54,7 +53,7 @@ export function generatePatron(world: World, deps: EngineDeps, options: PatronOp
     options.name === undefined
       ? pickUnusedBy(state, content.names.patron, (row) => row.name, usedNames, 'Patron')
       : { name: options.name, sex: options.sex ?? null };
-  const sphereKey = options.sphereKey ?? pick(state, sortedKeys(content.spheres));
+  const sphereKey = options.sphereKey ?? pickByWeight(state, sortedRows(content.spheres)).key;
 
   const id = takeId(world, 'patrons');
   const patron: Patron = { id, name, sex, sphereKey, regard: {} };

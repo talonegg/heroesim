@@ -21,13 +21,13 @@ import type { HeroGenerated } from '../events.js';
 import { describeNewHero, heroDescriptionsStream } from '../descriptions.js';
 import { giveHeroPortrait, heroPortraitsStream } from '../portraits.js';
 import { xpForLevel } from '../progression.js';
-import { int, pick, shuffle } from '../rng.js';
+import { int, shuffle, weightedPick } from '../rng.js';
 import {
   clamp,
   drawCount,
   drawPersonName,
+  pickByWeight,
   sexes,
-  sortedKeys,
   sortedRows,
   streamOf,
   type DrawsFrom,
@@ -90,10 +90,11 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
   streamOf(world, heroPortraitsStream);
   streamOf(world, heroDescriptionsStream);
 
-  const sex = pick(state, sexes);
+  // The sex by its weight in `heroSexWeights` (v1.1.6-S16, DL-202), one draw whatever the weights.
+  const sex = weightedPick(state, sexes, sexes.map((one) => config.heroSexWeights[one]));
   const name = drawPersonName(state, content.names, sex);
-  const backgroundKey = pick(state, sortedKeys(content.backgrounds, (row) => row.owner === 'hero'));
-  const heroClass = givenClass ?? classOf(deps, pick(state, sortedKeys(content.classes)));
+  const backgroundKey = pickByWeight(state, sortedRows(content.backgrounds, (row) => row.owner === 'hero')).key;
+  const heroClass = givenClass ?? pickByWeight(state, sortedRows(content.classes));
   const ageAtEntry = int(state, config.heroStartingAgeMin, config.heroStartingAgeMax);
   const { stats, potential } = drawStats(state, deps, heroClass);
   const skills = drawSkills(state, deps, heroClass);

@@ -47,6 +47,7 @@ import type {
   PortraitAppearances,
   PortraitRole,
   Portraits,
+  PurchaseStep,
   QuestTemplate,
   QuestTemplateRequires,
   SetQuery,
@@ -61,7 +62,7 @@ import type {
   SynergyBonus,
   SynergyRequires,
 } from '@heroesim/engine';
-import { encounterKinds as encounterKindList, facilityKeys, gearSlotKeys, sexes } from '@heroesim/engine';
+import { encounterKinds as encounterKindList, facilityKeys, gearSlotKeys, purchaseSteps, sexes } from '@heroesim/engine';
 import { findDuplicateKeys } from './duplicate-keys.js';
 import { ContentError, validateContent } from './validate.js';
 
@@ -95,6 +96,22 @@ export const contentFiles = [
 
 export type ContentFileName = (typeof contentFiles)[number];
 
+/** A row's optional `weight`, as the field to spread into it (v1.1.6-S16, DL-202); that it is above 0 is `validateContent`'s rule. */
+function weightField(row: RowReader): { weight?: number } {
+  const weight = row.optional('weight', (field) => row.number(field));
+  return weight === undefined ? {} : { weight };
+}
+
+/** A row's optional order `field`, a list of `choices` as the field to spread into it; that it holds each once is `validateContent`'s rule. */
+function orderField<Field extends string, Choice extends string>(
+  row: RowReader,
+  field: Field,
+  choices: Record<Choice, true>,
+): { [Key in Field]?: Choice[] } {
+  const order = row.optional(field, (name) => row.oneOfEach(name, choices));
+  return (order === undefined ? {} : { [field]: order }) as { [Key in Field]?: Choice[] };
+}
+
 /** The engine's list of a union's members as the choices of a field (DL-186 item 6: content repeats none). */
 function choicesOf<Choice extends string>(list: readonly Choice[]): Record<Choice, true> {
   return Object.fromEntries(list.map((choice) => [choice, true])) as Record<Choice, true>;
@@ -122,6 +139,7 @@ const consequenceKinds: Record<ConsequenceKind, true> = {
 const regardBetween: Record<'party', true> = { party: true };
 const itemKinds: Record<ItemKind, true> = { gear: true, consumable: true };
 const gearSlots: Record<SlotKey, true> = choicesOf(gearSlotKeys);
+const purchaseStepChoices: Record<PurchaseStep, true> = choicesOf(purchaseSteps);
 const consumableEffectKinds: Record<ConsumableEffectKind, true> = { reroll: true, bonus: true, heal: true };
 const sexChoices: Record<Sex, true> = choicesOf(sexes);
 const portraitRoles: Record<PortraitRole, true> = { guildmaster: true, hero: true, patron: true };
@@ -162,6 +180,7 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
     leadingStats: row.strings('leadingStats'),
     gatedSkills: row.strings('gatedSkills'),
     growth: row.numbers('growth'),
+    ...weightField(row),
   }));
   const skills = table<Skill>('skills.json', json('skills.json'), problems, 'a Skill', (row) => ({
     name: row.string('name'),
@@ -194,11 +213,12 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
         const shape = { name: row.string('name'), owner: row.oneOf('owner', backgroundOwners) };
         // A Hero Background's Station (v1.1.3-S1, DL-135 item 5): which owner has one is `validateContent`'s rule.
         const station = row.optional('station', (field) => row.string(field));
-        return station === undefined ? shape : { ...shape, station };
+        return { ...shape, ...(station === undefined ? {} : { station }), ...weightField(row) };
       },
     ),
     spheres: table<Sphere>('spheres.json', json('spheres.json'), problems, 'a Sphere', (row) => ({
       name: row.string('name'),
+      ...weightField(row),
     })),
     names: names(json('names.json'), problems),
     questTemplates: table<QuestTemplate>(
@@ -228,6 +248,7 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
           encountersMin: row.integer('encountersMin'),
           encountersMax: row.integer('encountersMax'),
           ...(finale === undefined ? {} : { finale }),
+          ...weightField(row),
         };
       },
     ),
@@ -239,6 +260,10 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
       gearThreshold: row.number('gearThreshold'),
       transferAppetite: row.number('transferAppetite'),
       partyMargin: row.number('partyMargin'),
+      // The orders it buys and builds in, each when written; each is a permutation, which `validateContent` holds (v1.1.6-S16).
+      ...orderField(row, 'purchaseOrder', purchaseStepChoices),
+      ...orderField(row, 'gearSlotOrder', gearSlots),
+      ...orderField(row, 'buildOrder', facilities),
     })),
     injuries: table<InjuryType>('injuries.json', json('injuries.json'), problems, 'an Injury type', (row) => ({
       name: row.string('name'),

@@ -24,6 +24,7 @@ import {
   facilityKeys,
   gearSlotKeys,
   heroBiographyTraitSentences,
+  purchaseSteps,
   queryProblems,
 } from '@heroesim/engine';
 
@@ -113,6 +114,15 @@ export function validateContent(set: ContentSet): ContentSet {
       .map(([key]) => key),
   );
   const skills = new Set(Object.keys(set.skills));
+  // A weight, where a row has one, is above 0, so that a draw can land on it and the odds are weights (v1.1.6-S16, DL-202).
+  for (const table of ['classes', 'backgrounds', 'spheres', 'questTemplates'] as const) {
+    for (const [key, row] of Object.entries(set[table])) {
+      const { weight } = row as { weight?: number };
+      if (weight !== undefined && !(Number.isFinite(weight) && weight > 0)) {
+        problems.push(`${table}.${key}.weight is ${weight}; it is a number above 0, or absent for 1`);
+      }
+    }
+  }
   for (const [key, it] of Object.entries(set.classes)) {
     const where = `classes.${key}`;
     checkReferences(`${where}.leadingStats`, it.leadingStats, heroStats, 'a Hero Stat', problems);
@@ -789,6 +799,24 @@ function checkDispositions(dispositions: ContentSet['dispositions'], problems: s
       const value = disposition[field];
       if (!(value >= 0)) problems.push(`${where}.${field} is ${value}; it is a number of 0 or more`);
     }
+    // The orders it buys and builds in, when written, list each of their keys once (v1.1.6-S16, DL-202).
+    checkOrder(`${where}.purchaseOrder`, disposition.purchaseOrder, purchaseSteps, problems);
+    checkOrder(`${where}.gearSlotOrder`, disposition.gearSlotOrder, gearSlotKeys, problems);
+    checkOrder(`${where}.buildOrder`, disposition.buildOrder, facilityKeys, problems);
+  }
+}
+
+/** An order, when written, is a permutation of `keys`: each listed once, and none left out. */
+function checkOrder(where: string, order: readonly string[] | undefined, keys: readonly string[], problems: string[]): void {
+  if (order === undefined) return;
+  const listed = new Set<string>();
+  for (const key of order) {
+    if (!keys.includes(key)) problems.push(`${where}: "${key}" is not one of ${keys.join(', ')}`);
+    else if (listed.has(key)) problems.push(`${where}: "${key}" is listed twice; list each of ${keys.join(', ')} once`);
+    listed.add(key);
+  }
+  for (const key of keys) {
+    if (!listed.has(key)) problems.push(`${where}: "${key}" is not in the order; list each of ${keys.join(', ')} once`);
   }
 }
 

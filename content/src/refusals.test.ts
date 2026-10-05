@@ -2328,3 +2328,87 @@ describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
     );
   });
 });
+
+// Draw weights and the Rivals' orders (v1.1.6-S16, DL-186 item 16, DL-202): a weight above 0 where written,
+// and each order a permutation of its keys, where written; the shipped files write neither.
+describe('a weight', () => {
+  const rowOfEach: [keyof Files, string][] = [
+    ['classes.json', 'warrior'],
+    ['backgrounds.json', 'farm-born'],
+    ['spheres.json', 'crown'],
+    ['quest-templates.json', 'clear-the-barrow'],
+  ];
+
+  test('is on no shipped row, and a row without one reads as having none', () => {
+    const set = parseContent(realFiles());
+    for (const table of [set.classes, set.backgrounds, set.spheres, set.questTemplates]) {
+      for (const row of Object.values(table)) expect(row.weight).toBeUndefined();
+    }
+  });
+
+  test.each(rowOfEach)('is read from a row of %s when it has one, and a positive number is accepted', (file, key) => {
+    const files = withJson(file, (json) => void Object.assign((json as Record<string, object>)[key] as object, { weight: 2.5 }));
+    const set = parseContent(files);
+    const table = { 'classes.json': set.classes, 'backgrounds.json': set.backgrounds, 'spheres.json': set.spheres, 'quest-templates.json': set.questTemplates }[file as string] as Record<string, { weight?: number }>;
+
+    expect(table[key]?.weight).toBe(2.5);
+  });
+
+  test.each([
+    ['classes.json', 'classes', 'warrior'],
+    ['backgrounds.json', 'backgrounds', 'farm-born'],
+    ['spheres.json', 'spheres', 'crown'],
+    ['quest-templates.json', 'questTemplates', 'clear-the-barrow'],
+  ] as const)('of %s that is 0, negative or not a number is refused, naming it', (file, table, key) => {
+    for (const weight of [0, -1]) {
+      const files = withJson(file, (json) => void Object.assign((json as Record<string, object>)[key] as object, { weight }));
+      expect(refusalOf(() => parseContent(files)).message).toContain(`${table}.${key}.weight is ${weight}; it is a number above 0, or absent for 1`);
+    }
+    const text = withJson(file, (json) => void Object.assign((json as Record<string, object>)[key] as object, { weight: 'heavy' }));
+    expect(refusalOf(() => parseContent(text)).message).toContain(`${key}.weight is "heavy"`);
+  });
+});
+
+describe("a Disposition's orders", () => {
+  const steady = (json: Files['dispositions.json']) => json['steady'] as Omit<Disposition, 'key'>;
+  const written = (change: (it: Record<string, unknown>) => void) =>
+    withJson('dispositions.json', (json) => change(steady(json) as unknown as Record<string, unknown>));
+
+  test('are on no shipped Disposition, and any permutation written is read as written', () => {
+    for (const disposition of Object.values(parseContent(realFiles()).dispositions)) {
+      expect([disposition.purchaseOrder, disposition.gearSlotOrder, disposition.buildOrder]).toEqual([undefined, undefined, undefined]);
+    }
+    const set = parseContent(
+      written((it) => {
+        it['purchaseOrder'] = ['debt', 'recruit', 'transfer', 'gear', 'build'];
+        it['gearSlotOrder'] = ['trinket', 'weapon', 'armour'];
+        it['buildOrder'] = ['quarters', 'infirmary', 'trainingYard'];
+      }),
+    );
+
+    expect(set.dispositions['steady']).toMatchObject({
+      purchaseOrder: ['debt', 'recruit', 'transfer', 'gear', 'build'],
+      gearSlotOrder: ['trinket', 'weapon', 'armour'],
+      buildOrder: ['quarters', 'infirmary', 'trainingYard'],
+    });
+  });
+
+  test.each<[string, string, string[], string]>([
+    ['purchaseOrder', 'a step missing', ['build', 'gear', 'transfer', 'recruit'], 'dispositions.steady.purchaseOrder: "debt" is not in the order; list each of build, gear, transfer, recruit, debt once'],
+    ['purchaseOrder', 'a step twice', ['build', 'gear', 'transfer', 'recruit', 'debt', 'gear'], 'dispositions.steady.purchaseOrder: "gear" is listed twice'],
+    ['gearSlotOrder', 'a slot missing', ['armour', 'weapon'], 'dispositions.steady.gearSlotOrder: "trinket" is not in the order; list each of weapon, armour, trinket once'],
+    ['gearSlotOrder', 'a slot twice', ['armour', 'armour', 'weapon', 'trinket'], 'dispositions.steady.gearSlotOrder: "armour" is listed twice'],
+    ['buildOrder', 'a facility missing', ['infirmary', 'quarters'], 'dispositions.steady.buildOrder: "trainingYard" is not in the order'],
+    ['buildOrder', 'a facility twice', ['infirmary', 'infirmary', 'trainingYard', 'quarters'], 'dispositions.steady.buildOrder: "infirmary" is listed twice'],
+  ])('%s with %s is refused, naming it', (field, _what, order, problem) => {
+    expect(refusalOf(() => parseContent(written((it) => void (it[field] = order)))).message).toContain(problem);
+  });
+
+  test.each([
+    ['purchaseOrder', ['build', 'sell', 'gear', 'transfer', 'recruit', 'debt']],
+    ['gearSlotOrder', ['weapon', 'armour', 'ring']],
+    ['buildOrder', ['infirmary', 'trainingYard', 'quarters', 'library']],
+  ])('%s naming a key it has none of is refused by the parser', (field, order) => {
+    expect(refusalOf(() => parseContent(written((it) => void (it[field] = order)))).message).toContain(`steady.${field} is`);
+  });
+});
