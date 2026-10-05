@@ -25529,6 +25529,36 @@ after. (2) `party` is passed as a function, not a Party, so that a consequence w
 fields still reads no Party, as before: the plan's signature, with that one change. (3) The Morale
 share is a third function, `moraleOf`, beside the plan's two.
 
+*The verification* (2026-10-05, a second Opus agent, at `448c06a`). The doctor read no drift before
+and after (108 reads of a Trait, the doc fresh). *Line for line,* `struck` and `earn` at `2493784`
+against `strike` and `chooseEarner`: the same pools (the unhurt from `working.injuries`, read again
+for each count of an Injury; the Death's `working.alive`; a negative Trait's the living in Party
+order filtered by `harm.injured`), the same `among` (`narrowed` for harm, `namedIn` for a Trait), the
+same draws in the same order on the `quests` stream in every branch: the first `next` before any
+pool, then `weightedPick` or `pick`, or one `next` from no one, an empty pool after `among`, a
+Setback, or no one eligible; the Party read after the first draw and only for a field, as before;
+the Injury's Days still `int` after the two; a dead Hero out of `living` before any later
+consequence of the Encounter. `moraleOf` the same arithmetic, `delta × guard` for a steadied loss,
+the rounding still `whole` in `resolve.ts`. *The fingerprint* passes with `2493784`'s `resolve.ts`
+and `harm.ts` put back, so it was taken against the old code. *Mutants,* 20 against the fingerprint
+alone (a no-op control passing): every pool swapped, `among` over the whole Party for each, the
+fallbacks dropped or added, the draw from no one dropped in each of the three branches, the Setback's
+second draw dropped and the Setback read as a Failure, the one-a-Quest rule and its exception,
+`mayEarn`, guard, exposure, the Morale guard dropped or put on a gain, and, in `resolve.ts`, the
+`Candidates` built once before an Injury's counts or its hurt read from `harm.injured`: 19 killed by
+the fingerprint, the twentieth `<` as `<=`, equal in effect on a continuous draw; the 18 of
+`harm.ts` killed by `harm.test.ts` too. So the fingerprint reaches every branch; no case added.
+*The register:* `docs/agents/traits.md`'s guardrails have drift mended by changing
+`content/src/uses/register.ts` by hand (step 2) and writing its doc part with `traits doc` (step 3);
+the rule against hand edits is for Traits and their uses in content, and none changed. The build
+followed it. *The interface:* `resolve.ts` imports only `strike`, `chooseEarner`, `moraleOf` and
+`Candidates`; nothing of `Working`, `Harm` or `Applying` crosses. *Fixed:* `namedIn` was still
+exported with no importer, now `harm.ts`' own; `meanShare`, `exposure`, `guard` and `narrowed`
+stay exported for their tests, as before. No code that plays changed (the script the same
+814,249 bytes), so `neutral` was not run again; the build's stands. *Checks:* `npm run lint` and
+`typecheck` clean; `npm test` 194 files, 5,104 tests passing; the build and check-bundle passing.
+Line endings as each file's before, none mixed.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

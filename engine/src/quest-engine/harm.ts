@@ -109,7 +109,7 @@ export function guard(member: Pick<QueryMember, 'stats'>, statKeys: readonly Sta
  * can fall on. None when it names none of them. An earned Trait's `among` is read so too (v1.1.5's
  * re-close, DL-185), over its own pool, without `narrowed`'s fallback.
  */
-export function namedIn<Hero extends { id: HeroId }>(pool: readonly Hero[], among: SetQuery, party: QueryParty): Hero[] {
+function namedIn<Hero extends { id: HeroId }>(pool: readonly Hero[], among: SetQuery, party: QueryParty): Hero[] {
   const inPool = new Set(pool.map((hero) => hero.id));
   const over: QueryParty = { ...party, members: party.members.filter((member) => inPool.has(member.hero.id)) };
   const named = new Set(membersOf(among, over).map((member) => member.hero.id));
