@@ -3,9 +3,10 @@ import { describe, expect, test } from 'vitest';
 import { leavingTodayView, navCounts, partiesOutView, railView } from './digest';
 import { cameHome as partyHome, changed, played, started, withOffer, withPartyOut, withReturn } from './game.test-support';
 import { initialGameState, type GameState } from './reducer';
-import { boardView, rosterRows, sortedRoster, whenOf } from './selectors';
+import { boardView, rosterRows, sortedRoster } from './selectors';
 import { historyView, leftOutOfYourGuild } from './history';
 import { narrateText, narrationFor } from './namer';
+import { whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 
 // What the shell reads (M9-S3, DL-103): the counts on the navigation, the home view's digest and the
@@ -118,7 +119,7 @@ describe('leavingTodayView', () => {
 
     const [first, second] = board;
     if (first === undefined || second === undefined) throw new Error('expected two Quests on the Board');
-    // The first on offer through tonight, Day 0's night (Turn 2); the second through tomorrow's (Turn 5).
+    // The first on offer through tonight, the first Day's night (Turn 2); the second through tomorrow's (Turn 5).
     const lastDays = changed(state, (document) => {
       const quests = document.world.quests;
       Object.assign(quests[first.questId] ?? {}, { expiresOnTurn: 2 });
@@ -137,23 +138,23 @@ describe('railView', () => {
     const narration = narrationFor(document, content);
     const history = entriesFor(document.history, guild.id)
       .filter((entry) => !leftOutOfYourGuild.has(entry.type))
-      .map((entry) => ({ when: whenOf(entry.turn), sentence: narrateText(entry as never, narration) }));
+      .map((entry) => ({ when: whenOfTurn(entry.turn, document.meta.config), sentence: narrateText(entry as never, narration) }));
     const rail = railView(state, 8);
 
     expect(rail?.guildName).toBe('The Lantern');
     // Whose Banner stands beside "Latest for {Guild}" (DL-125 item 7).
     expect(rail?.guildId).toBe(guild.id);
     expect(rail?.lines.map(({ when, sentence }) => ({ when, sentence }))).toEqual(history.slice(0, 8).map(({ when, sentence }) => ({ when, sentence })));
-    // The last play was one Turn, the night of Day 0: its entries naming the Guild are the new ones.
+    // The last play was one Turn, the night of the first Day: its entries naming the Guild are the new ones.
     expect(rail?.fresh).toBe(navCounts(state).fresh);
-    expect(rail?.lines.filter((line) => line.fresh).every((line) => line.when === 'Day 0, night')).toBe(true);
+    expect(rail?.lines.filter((line) => line.fresh).every((line) => line.when === 'Year 1 Day 1, night')).toBe(true);
   });
 
   test('marks a Party sent new and what came before it not, and nothing new after a load', () => {
     const sent = withPartyOut(started());
     const [first, second] = railView(sent, 5)?.lines ?? [];
 
-    expect(first?.sentence).toMatch(/^The Lantern sent .+ on .+, back on the night of Day \d+\.$/);
+    expect(first?.sentence).toMatch(/^The Lantern sent .+ on .+, back on the night of Year 1 Day \d+\.$/);
     expect(first?.fresh).toBe(true);
     expect(second?.fresh).toBe(false);
     expect(railView(sent, 5)?.fresh).toBe(1);

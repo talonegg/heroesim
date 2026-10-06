@@ -1,5 +1,6 @@
-import { applyAction, createWorld, dayOf, defaultConfig, playerGuild, type OfferId, type PartyId, type QuestId, type StopReason } from '@heroesim/engine';
+import { applyAction, createWorld, defaultConfig, playerGuild, type OfferId, type PartyId, type QuestId, type StopReason } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
+import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { narrationFor } from './namer';
 import { stopText } from './stops';
@@ -35,7 +36,7 @@ describe('stopText', () => {
     ],
     'below-floor': [
       { kind: 'below-floor', guildId: player.id, dueDay: 34 },
-      /^Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Day 34 unless its Wealth recovers by then\.$/,
+      /^Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day 35 unless its Wealth recovers by then\.$/,
     ],
     'quest-staffable': [
       { kind: 'quest-staffable', guildId: player.id, questIds: [quest] },
@@ -87,7 +88,7 @@ describe('stopText', () => {
     expect(offer.toGuildId).toBe(rival.id);
     expect(line).toBe(
       `Stopped: a Transfer Offer: ${rival.name} offers ${offer.fee} Wealth for ${offered.document.world.heroes[heroId]?.name} ` +
-        `until the night of Day ${dayOf(offer.expiresOnTurn)}.`,
+        `until ${nightOfTurn(offer.expiresOnTurn, offered.document.meta.config)}.`,
     );
   });
 });

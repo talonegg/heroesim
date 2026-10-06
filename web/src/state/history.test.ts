@@ -1,7 +1,6 @@
 import {
   advance,
   createWorld,
-  dayOf,
   defaultConfig,
   entriesBetween,
   entriesFor,
@@ -20,7 +19,7 @@ import {
 } from '@heroesim/engine';
 import { append, createHistory } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
-import { listed } from '@heroesim/words';
+import { listed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { cameHome, changed, played as playedState, started, withPartyOut, withReturn, withTheGone, withWorldNews } from './game.test-support';
 import {
@@ -430,7 +429,7 @@ describe('a page grouped by Day and time of day (M9-S5)', () => {
     expect(new Set(turns).size).toBe(turns.length);
     view.groups.forEach((group, index) => {
       const turn = turns[index] as number;
-      expect(group.when).toBe(`Day ${dayOf(turn)}, ${timeOfDay(turn)}`);
+      expect(group.when).toBe(whenOfTurn(turn, document.meta.config));
       expect(group.timeOfDay).toBe(timeOfDay(turn));
       const shown = group.rows.flatMap(linesOf).map((line) => entryOf(document, line));
       const ofTheTurn = entriesBetween(document.history, turn, turn + 1);

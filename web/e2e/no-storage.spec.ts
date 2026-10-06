@@ -16,7 +16,7 @@ async function playsWithoutSaving(page: Page, scope: Page | FrameLocator): Promi
   await form.getByRole('textbox', { name: 'Guild name', exact: true }).fill('The Lantern');
   await form.getByRole('textbox', { name: /Guildmaster/ }).fill('Ada Vell');
   await form.getByRole('button', { name: 'Start the game' }).click();
-  await expect(scope.getByTestId('time')).toHaveText('Day 0, morning, Year 0');
+  await expect(scope.getByTestId('time')).toHaveText('Year 1 Day 1, morning');
   const game = await thisGame(scope);
   await expect(game.getByTestId('saves-unavailable')).toHaveText(unavailable);
   await expect(game.getByRole('button', { name: 'Save in this browser' })).toHaveCount(0);
@@ -24,7 +24,7 @@ async function playsWithoutSaving(page: Page, scope: Page | FrameLocator): Promi
   await closeGameMenu(scope);
   const time = scope.getByTestId('time');
   await scope.getByRole('button', { name: 'Advance a Turn' }).click();
-  await expect(time).toHaveText('Day 0, afternoon, Year 0');
+  await expect(time).toHaveText('Year 1 Day 1, afternoon');
   await expect(scope.locator('main')).toHaveAttribute('aria-busy', 'false');
   await expectNoHorizontalOverflow(page, 'saves unavailable');
 }

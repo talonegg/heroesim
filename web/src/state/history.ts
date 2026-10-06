@@ -43,13 +43,13 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
-import { listed } from '@heroesim/words';
+import { listed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import type { PortraitRole } from '../media';
 import { bandWords, rowOf } from './names';
 import { narrateSegments, narrationFor, textOf, type Narration, type Segment } from './namer';
 import { partOfAReturn, returnEntry, type ReturnEntry } from './quest-return';
-import { historyPageSize, whenOf } from './selectors';
+import { historyPageSize } from './selectors';
 
 /**
  * Whose History: `null` for the player's Guild's, where it opens (DL-99 item 2); `world` for the
@@ -118,7 +118,7 @@ export type HistoryRow =
 /** The entries of one Turn on the page. */
 export interface HistoryGroup {
   key: string;
-  /** `Day 5, night`. */
+  /** `Year 1 Day 6, night`. */
   when: string;
   timeOfDay: TimeOfDay;
   /** In the order they happened. */
@@ -622,7 +622,7 @@ function groupsOf(positions: readonly number[], reading: Reading): HistoryGroup[
   let current: number[] = [];
   const close = (): void => {
     if (current.length === 0) return;
-    groups.push({ key: String(turn), when: whenOf(turn), timeOfDay: timeOfDay(turn), rows: rowsOf([...current].reverse(), reading) });
+    groups.push({ key: String(turn), when: whenOfTurn(turn, reading.narration.calendar), timeOfDay: timeOfDay(turn), rows: rowsOf([...current].reverse(), reading) });
   };
   for (const position of positions) {
     const entry = reading.entries[position];

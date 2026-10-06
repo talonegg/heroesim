@@ -60,25 +60,25 @@ describe('saved in this browser', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
     await idle();
-    expect(screen.getByTestId('time').textContent).toBe('Day 0, afternoon, Year 0');
+    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 1, afternoon');
 
     fireEvent.click(within(section('This game')).getByRole('button', { name: 'Load journey' }));
-    await waitFor(() => expect(screen.getByTestId('time').textContent).toBe('Day 0, morning, Year 0'));
+    await waitFor(() => expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 1, morning'));
     await idle();
     expect(screen.getByRole('heading', { level: 1, name: 'The Lantern' })).toBeDefined();
   });
 
-  test('names a save by its seed and Day when no name is given', async () => {
+  test('names a save by its seed and date when no name is given (DL-210)', async () => {
     const { store, saves } = keptInMemory();
     render(<App initial={started()} saves={saves} />);
     const game = section('This game');
     await within(game).findByText('No game is saved in this browser yet.');
 
-    expect((within(game).getByLabelText('Save as') as HTMLInputElement).placeholder).toBe('heroesim-app-test-day-0');
+    expect((within(game).getByLabelText('Save as') as HTMLInputElement).placeholder).toBe('heroesim-app-test-year-1-day-1');
     fireEvent.click(within(game).getByRole('button', { name: 'Save in this browser' }));
 
-    await within(game).findByRole('article', { name: 'heroesim-app-test-day-0' });
-    expect([...store.records.keys()]).toEqual(['heroesim-app-test-day-0']);
+    await within(game).findByRole('article', { name: 'heroesim-app-test-year-1-day-1' });
+    expect([...store.records.keys()]).toEqual(['heroesim-app-test-year-1-day-1']);
   });
 
   test('before any game, as after the page is reloaded, loads a game saved earlier', async () => {
@@ -92,7 +92,7 @@ describe('saved in this browser', () => {
 
     await waitFor(() => expect(seedShown()).toBe('saved-earlier'));
     await idle();
-    expect(screen.getByTestId('time').textContent).toBe('Day 2, afternoon, Year 0');
+    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 3, afternoon');
   });
 
   test('exports a save kept here as the file the CLI reads: its text uncompressed, byte for byte', async () => {
@@ -213,7 +213,7 @@ describe('where the browser keeps no saves', () => {
     expect(within(game).getByRole('button', { name: 'Export this game' })).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
     await idle();
-    expect(screen.getByTestId('time').textContent).toBe('Day 0, afternoon, Year 0');
+    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 1, afternoon');
   });
 
   test('where it shows only when the database is opened, says so then', async () => {

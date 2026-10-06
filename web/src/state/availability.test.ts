@@ -55,14 +55,14 @@ describe('whether a Hero can be injured and in a Party at once', () => {
     hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
     withParty(document.world, hero, 14);
 
-    expect(availabilityOf(hero, document.world)).toMatchObject({ why: 'injured', until: 'Injured, healing on the night of Day 6', freeOnTurn: 20 });
+    expect(availabilityOf(hero, document.world, document.meta.config)).toMatchObject({ why: 'injured', until: 'Injured, healing on the night of Year 1 Day 7', freeOnTurn: 20 });
   });
 });
 
 describe('availabilityOf', () => {
   test('a Hero at the Hall can go: free now, nothing to say but where they are', () => {
     const document = newGame();
-    expect(availabilityOf(firstHero(document), document.world)).toEqual({
+    expect(availabilityOf(firstHero(document), document.world, document.meta.config)).toEqual({
       why: null,
       freeOnTurn: -Infinity,
       where: 'At the Hall',
@@ -75,11 +75,11 @@ describe('availabilityOf', () => {
     const document = newGame();
     const hero = firstHero(document);
     hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
-    expect(availabilityOf(hero, document.world)).toEqual({
+    expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({
       why: 'injured',
       freeOnTurn: 20,
-      where: 'Injured, healing on the night of Day 6',
-      until: 'Injured, healing on the night of Day 6',
+      where: 'Injured, healing on the night of Year 1 Day 7',
+      until: 'Injured, healing on the night of Year 1 Day 7',
       chip: 'Injured',
     });
   });
@@ -88,11 +88,11 @@ describe('availabilityOf', () => {
     const document = newGame();
     const hero = firstHero(document);
     withParty(document.world, hero, 14);
-    expect(availabilityOf(hero, document.world)).toEqual({
+    expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({
       why: 'in-party',
       freeOnTurn: 14,
-      where: 'Away with a Party, back on the night of Day 4',
-      until: 'Away with a Party, back on the night of Day 4',
+      where: 'Away with a Party, back on the night of Year 1 Day 5',
+      until: 'Away with a Party, back on the night of Year 1 Day 5',
       chip: 'Away',
     });
   });
@@ -101,7 +101,7 @@ describe('availabilityOf', () => {
     const document = newGame();
     const hero = firstHero(document);
     hero.partyId = 'party-000777' as PartyId;
-    expect(availabilityOf(hero, document.world)).toEqual({
+    expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({
       why: 'in-party',
       freeOnTurn: null,
       where: 'Away with a Party',
@@ -111,15 +111,15 @@ describe('availabilityOf', () => {
   });
 
   test.each([
-    ['dead', { diedOnTurn: 30 }, 'Died on Day 10', 'Dead'],
-    ['retired', { retiredOnTurn: 30 }, 'Retired on Day 10', 'Retired'],
+    ['dead', { diedOnTurn: 30 }, 'Died on Year 1 Day 11', 'Dead'],
+    ['retired', { retiredOnTurn: 30 }, 'Retired on Year 1 Day 11', 'Retired'],
   ] as const)('a %s Hero cannot go and has no Day to be free', (why, change, words, chip) => {
     const document = newGame();
     const hero = Object.assign(firstHero(document), change);
-    expect(availabilityOf(hero, document.world)).toEqual({ why, freeOnTurn: null, where: words, until: words, chip });
+    expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({ why, freeOnTurn: null, where: words, until: words, chip });
     // On no Roster, they say so first, as the Roster's words always did (v1.1.6-S14's verification, DL-200).
     Object.assign(hero, { guildId: null, unattachedSince: 12 });
-    expect(availabilityOf(hero, document.world)).toEqual({ why, freeOnTurn: null, where: words, until: words, chip });
+    expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({ why, freeOnTurn: null, where: words, until: words, chip });
   });
 
   test('a Hero on no Roster is at no Hall, and can go if nothing else stops them', () => {
@@ -127,8 +127,8 @@ describe('availabilityOf', () => {
     const hero = firstHero(document);
     hero.guildId = null;
     hero.unattachedSince = 12;
-    expect(availabilityOf(hero, document.world)).toMatchObject({ why: null, where: 'In the Unattached pool', until: null, chip: null });
+    expect(availabilityOf(hero, document.world, document.meta.config)).toMatchObject({ why: null, where: 'In the Unattached pool', until: null, chip: null });
     hero.unattachedSince = null;
-    expect(availabilityOf(hero, document.world).where).toBe('On no Roster');
+    expect(availabilityOf(hero, document.world, document.meta.config).where).toBe('On no Roster');
   });
 });

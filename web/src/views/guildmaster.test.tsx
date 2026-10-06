@@ -39,13 +39,13 @@ describe('the Guildmaster view (M9-F2)', () => {
       played(initialGameState, { kind: 'newGame', seed: 'app-test', guildName: 'The Lantern', guildmasterName: 'Ada Vell', guildmasterAge: 30, createdAt: '2026-09-30T09:00:00.000Z' }),
     );
 
-    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 Years.');
+    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Year 32 Day 1: in 31 Years.');
   });
 
   test('says why no Retirement came once the game has ended by another ending (M9-F7, DL-120 item 9)', () => {
     render_(changed(started(), (document) => void (document.world.ended = { turn: 0, reason: 'bankruptcy' })));
 
-    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Never retired: the game ended in Bankruptcy on Day 0.');
+    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Never retired: the game ended in Bankruptcy on Year 1 Day 1.');
     expect(within(section('Guildmaster')).queryByText(/Retires at/)).toBeNull();
   });
 
@@ -54,12 +54,12 @@ describe('the Guildmaster view (M9-F2)', () => {
       changed(started(), (document, player) => {
         const guildmaster = document.world.guildmasters[player.guildmasterId];
         if (guildmaster !== undefined) guildmaster.ageAtEntry = 60;
-        // Day 1: a year to the Day before is past.
+        // The second Day: a year to the Day before is past.
         document.world.turn = 3;
       }),
     );
 
-    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Day 360, Year 1: in 359 Days.');
+    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Year 2 Day 1: in 359 Days.');
   });
 
   test('gives the Traits with what each does, the descriptive Attributes written and none left empty, and Regard as chips with the neutral folded', () => {

@@ -3,7 +3,6 @@ import {
   ageOf,
   baseStat,
   createWorld,
-  dayOf,
   defaultConfig,
   facilityKeys,
   guildmasterOf,
@@ -165,7 +164,7 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
 
     expect(table.rows.map((row) => row.guildId)).not.toContain(folded.id);
     expect(table.rows).toHaveLength(4);
-    expect(table.folded).toEqual([expect.objectContaining({ guildId: folded.id, name: folded.name, place: null, folded: `Folded on Day ${dayOf(7)}` })]);
+    expect(table.folded).toEqual([expect.objectContaining({ guildId: folded.id, name: folded.name, place: null, folded: 'Folded on Year 1 Day 3' })]);
   });
 });
 
@@ -309,61 +308,62 @@ describe('guildmasterView', () => {
     }
 
     test('gives when it will come, in the calendar’s words, and the years left', () => {
-      // At 30 on Turn 0, 61 in 31 years of 1,080 Turns: the night of Day 11160, in Year 31.
-      expect(guildmasterView(aged(30))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 Years.');
-      // Two Years on, in Year 2, the Day holds and 29 years are left.
-      expect(guildmasterView(aged(30, 2 * 1080 + 5))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 29 Years.');
+      // At 30 on Turn 0, 61 in 31 years of 1,080 Turns: the engine's Day 11160, its Year 31, the
+      // first Day of the 32nd Year as a player reads it (DL-120 item 5, DL-210).
+      expect(guildmasterView(aged(30))?.retirement).toBe('Retires at 61 on the night of Year 32 Day 1: in 31 Years.');
+      // Two Years on, in the third Year, the Day holds and 29 years are left.
+      expect(guildmasterView(aged(30, 2 * 1080 + 5))?.retirement).toBe('Retires at 61 on the night of Year 32 Day 1: in 29 Years.');
       // At 50: 11 years.
-      expect(guildmasterView(aged(50))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 11 Years.');
+      expect(guildmasterView(aged(50))?.retirement).toBe('Retires at 61 on the night of Year 12 Day 1: in 11 Years.');
     });
 
     test('says "in 1 year" a year or more away, and the Days left once it is less than a year away (M9-F7, DL-120 item 2)', () => {
-      // A year to the Day before: the night of Day 3600, 360 Days, is a year away.
-      expect(guildmasterView(aged(50, 10 * 1080))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 Year.');
+      // A year to the Day before: the engine's Day 3600, 360 Days, is a year away.
+      expect(guildmasterView(aged(50, 10 * 1080))?.retirement).toBe('Retires at 61 on the night of Year 12 Day 1: in 1 Year.');
       // A Day later it is less than a year away, though still the Year before.
-      expect(guildmasterView(aged(50, 10 * 1080 + 3))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 359 Days.');
-      expect(guildmasterView(aged(50, 3959 * 3))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 Day.');
-      expect(guildmasterView(aged(50, 3960 * 3))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: tonight.');
+      expect(guildmasterView(aged(50, 10 * 1080 + 3))?.retirement).toBe('Retires at 61 on the night of Year 12 Day 1: in 359 Days.');
+      expect(guildmasterView(aged(50, 3959 * 3))?.retirement).toBe('Retires at 61 on the night of Year 12 Day 1: in 1 Day.');
+      expect(guildmasterView(aged(50, 3960 * 3))?.retirement).toBe('Retires at 61 on the night of Year 12 Day 1: tonight.');
     });
 
     test('says it came, once the night has been played and the game has ended with it', () => {
       const document = aged(50, 3960 * 3 + 2);
       document.world.ended = { turn: 3960 * 3 + 2, reason: 'retirement' };
-      expect(guildmasterView(document)?.retirement).toBe('Retired at 61 on the night of Day 3960, Year 11.');
+      expect(guildmasterView(document)?.retirement).toBe('Retired at 61 on the night of Year 12 Day 1.');
     });
 
     test('says why none came once the game has ended otherwise, or the Guild has folded (M9-F7, DL-120 item 9)', () => {
       const bankrupt = aged(30, 900);
       bankrupt.world.ended = { turn: 900, reason: 'bankruptcy' };
-      expect(guildmasterView(bankrupt)?.retirement).toBe('Never retired: the game ended in Bankruptcy on Day 300.');
+      expect(guildmasterView(bankrupt)?.retirement).toBe('Never retired: the game ended in Bankruptcy on Year 1 Day 301.');
 
       const wiped = aged(30, 902);
       wiped.world.ended = { turn: 902, reason: 'roster-wiped' };
-      expect(guildmasterView(wiped)?.retirement).toBe('Never retired: the game ended with the Roster wiped out on Day 300.');
+      expect(guildmasterView(wiped)?.retirement).toBe('Never retired: the game ended with the Roster wiped out on Year 1 Day 301.');
 
       const folded = newGame();
       const other = rival(folded);
       other.foldedOnTurn = 3 * 45 + 2;
-      expect(guildmasterView(folded, other.id)?.retirement).toBe('Never retired: the Guild folded on Day 45.');
+      expect(guildmasterView(folded, other.id)?.retirement).toBe('Never retired: the Guild folded on Year 1 Day 46.');
       // A fold before the game's end is why, whatever ended the game after.
       folded.world.ended = { turn: 900, reason: 'bankruptcy' };
-      expect(guildmasterView(folded, other.id)?.retirement).toBe('Never retired: the Guild folded on Day 45.');
+      expect(guildmasterView(folded, other.id)?.retirement).toBe('Never retired: the Guild folded on Year 1 Day 46.');
     });
 
     test("says why a Rival's Guildmaster never retired when the player's game ended first, naming the player's Guild (M9-F7)", () => {
       const document = aged(30, 900);
       document.world.ended = { turn: 900, reason: 'bankruptcy' };
-      expect(guildmasterView(document, rival(document).id)?.retirement).toBe('Never retired: the game ended on Day 300, when The Lantern went bankrupt.');
+      expect(guildmasterView(document, rival(document).id)?.retirement).toBe('Never retired: the game ended on Year 1 Day 301, when The Lantern went bankrupt.');
       document.world.ended = { turn: 900, reason: 'retirement' };
       expect(guildmasterView(document, rival(document).id)?.retirement).toBe(
-        'Never retired: the game ended on Day 300, when The Lantern lost its Guildmaster to Retirement.',
+        'Never retired: the game ended on Year 1 Day 301, when The Lantern lost its Guildmaster to Retirement.',
       );
     });
 
     test('says the coming night for one past the night retirementTurn gave but still in office, as a save adopting younger rules has (M9-F6, code review)', () => {
       // At 45 on Turn 0, the night of their 61st was Turn 17,282. On Turn 18,500 they are 62 and
-      // still in office: the endings retire them on the next night, Turn 18,503, Day 6167.
-      expect(guildmasterView(aged(45, 18_500))?.retirement).toBe('Retires at 62 on the night of Day 6167, Year 17: in 1 Day.');
+      // still in office: the endings retire them on the next night, Turn 18,503, Year 18 Day 48.
+      expect(guildmasterView(aged(45, 18_500))?.retirement).toBe('Retires at 62 on the night of Year 18 Day 48: in 1 Day.');
     });
 
     test('gives the age they will be, for one already past the Retirement age when they entered, as a save adopting the rules has (code review)', () => {
@@ -373,12 +373,12 @@ describe('guildmasterView', () => {
       if (guildmaster === undefined) throw new Error('no Guildmaster');
       guildmaster.ageAtEntry = 63;
       // They retire on the first night from their entry, at the age they are.
-      expect(guildmasterView(document)?.retirement).toBe('Retires at 63 on the night of Day 0, Year 0: tonight.');
+      expect(guildmasterView(document)?.retirement).toBe('Retires at 63 on the night of Year 1 Day 1: tonight.');
     });
 
     test("gives a Rival's Guildmaster's too, on its Guild's page", () => {
       const document = newGame();
-      expect(guildmasterView(document, rival(document).id)?.retirement).toMatch(/^Retires at 61 on the night of Day \d+, Year \d+: in \d+ Years\.$/);
+      expect(guildmasterView(document, rival(document).id)?.retirement).toMatch(/^Retires at 61 on the night of Year \d+ Day \d+: in \d+ Years\.$/);
     });
   });
 

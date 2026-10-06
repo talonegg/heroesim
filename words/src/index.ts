@@ -41,7 +41,6 @@ export {
   narrate,
   narrateStop,
   narratedTypes,
-  nightOf,
   resolvedParts,
   sentenceText,
   type CommandSlot,

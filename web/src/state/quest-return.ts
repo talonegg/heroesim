@@ -36,12 +36,11 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, crossed, itemsWords, listed, nameIn, nightOf } from '@heroesim/words';
+import { capitalised, crossed, itemsWords, listed, nameIn, nightOfTurn, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { narrateSegments, narrationFor, resolvedWords, textOf, type Narration, type Segment } from './namer';
 import { bandWords } from './names';
 import { playDeps } from './reducer';
-import { whenOf } from './selectors';
 
 /** What a return is read by: its Party and its Quest (DL-112 item 8). */
 export interface ReturnKey {
@@ -95,8 +94,10 @@ export interface QuestReturn {
   guildId: GuildId;
   /** The night it came home. */
   turn: number;
-  /** `Day 10, night`. */
+  /** `Year 1 Day 11, night`. */
   when: string;
+  /** `the night of Year 1 Day 11`: that night, as the report says it (DL-210). */
+  night: string;
   /** The Quest's name, its template's. */
   quest: string;
   /** Who offered it; `null` when the History does not say. */
@@ -287,7 +288,7 @@ function readOutcomes(document: WorldDocument, key: ReturnKey): ReturnRead | nul
     const last = moved.at(-1);
     const mood = first === undefined || last === undefined ? null : { before: first.payload.before, after: last.payload.after, band: last.payload.bandAfter };
     const hurt = injured.find((entry) => entry.payload.heroId === heroId);
-    const injury = hurt === undefined ? null : { name: nameIn(content.injuries, hurt.payload.typeKey), heals: nightOf(hurt.payload.healsOnTurn) };
+    const injury = hurt === undefined ? null : { name: nameIn(content.injuries, hurt.payload.typeKey), heals: nightOfTurn(hurt.payload.healsOnTurn, document.meta.config) };
     const gained = earned.find((entry) => entry.payload.heroId === heroId);
     const trait = gained === undefined ? null : nameIn(content.heroTraits, gained.payload.traitKey);
     const gear = died ? returned.filter((entry) => entry.payload.heroId === heroId).map((entry) => nameIn(content.items, entry.payload.definitionKey)) : [];
@@ -339,7 +340,8 @@ function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null
     key,
     guildId: payload.guildId,
     turn: outcome.turn,
-    when: whenOf(outcome.turn),
+    when: whenOfTurn(outcome.turn, document.meta.config),
+    night: nightOfTurn(outcome.turn, document.meta.config),
     quest: nameIn(content.questTemplates, payload.templateKey),
     patron: patronId === undefined || patronName === undefined ? null : { patronId, name: patronName },
     band: payload.band,
@@ -439,9 +441,9 @@ export type ReportSection =
 
 /** The report's sections in DL-112 item 8's order; a section with nothing to say is left out. */
 export function reportSections(report: QuestReturn): ReportSection[] {
-  const { quest, patron, band, bandWords, heroes, turn, encounters, used, reward, loot, outcomes, patronRegard, home } = report;
+  const { quest, patron, band, bandWords, heroes, night, encounters, used, reward, loot, outcomes, patronRegard, home } = report;
   return [
-    { kind: 'quest', quest, patron: patron?.name ?? null, band, bandWords, heroes: listed(heroes.map((hero) => hero.name)), when: nightOf(turn) },
+    { kind: 'quest', quest, patron: patron?.name ?? null, band, bandWords, heroes: listed(heroes.map((hero) => hero.name)), when: night },
     ...(encounters.length === 0 && used.length === 0 ? [] : [{ kind: 'encounters' as const, encounters, used }]),
     { kind: 'rewards', ...reward, loot },
     { kind: 'heroes', outcomes, home },
@@ -460,7 +462,7 @@ export function reportSections(report: QuestReturn): ReportSection[] {
 export interface ReturnEntry {
   key: ReturnKey;
   quest: string;
-  /** `Day 10, night`. */
+  /** `Year 1 Day 11, night`. */
   when: string;
   band: QuestBand;
   /** The words before the band, `The Lantern's Party came home from Clear the barrow and `. */
@@ -487,7 +489,7 @@ export function returnEntry(document: WorldDocument, key: ReturnKey): ReturnEntr
   return {
     key,
     quest: nameIn(content.questTemplates, outcome.payload.templateKey),
-    when: whenOf(outcome.turn),
+    when: whenOfTurn(outcome.turn, document.meta.config),
     band: outcome.payload.band,
     lead: opening,
     bandSaid: band,

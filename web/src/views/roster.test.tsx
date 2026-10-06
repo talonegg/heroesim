@@ -69,10 +69,10 @@ describe("the Roster's Hero cards (M9-S6)", () => {
       expect(card.textContent).toMatch(/(Warrior|Rogue|Mage|Healer) · Level \d+ · Age \d+/);
       expect(chip(card, /^Morale \d+, (wretched|low|steady|high|elated)$/).querySelector('svg')).not.toBeNull();
     }
-    const injured = all.find((card) => card.textContent?.includes('Injured, healing on the night of Day 6') === true) as HTMLElement;
-    expect(chip(injured, 'Injured, healing on the night of Day 6').className).toBe('chip chip--warn');
+    const injured = all.find((card) => card.textContent?.includes('Injured, healing on the night of Year 1 Day 7') === true) as HTMLElement;
+    expect(chip(injured, 'Injured, healing on the night of Year 1 Day 7').className).toBe('chip chip--warn');
     expect(chip(injured, 'Morale 12, wretched').className).toBe('chip chip--bad');
-    const away = all.filter((card) => /Away with a Party, back on the night of Day \d+/.test(card.textContent ?? ''));
+    const away = all.filter((card) => /Away with a Party, back on the night of Year \d+ Day \d+/.test(card.textContent ?? ''));
     expect(away.length).toBeGreaterThan(0);
     for (const card of away) expect(chip(card, /^Away with a Party/).querySelector('svg')).not.toBeNull();
     expect(all.some((card) => within(card).queryByText('At the Hall') !== null)).toBe(true);
@@ -552,9 +552,9 @@ describe("the Roster's Table (v1.1.5-S12, DL-169 items 7 to 9)", () => {
     expect(cellOf(first ?? '', 'level').textContent).toMatch(/^\d+$/);
     expect(cellOf(first ?? '', 'age').textContent).toMatch(/^\d+$/);
     expect(cellOf(first ?? '', 'morale').textContent).toMatch(/^\d+, (wretched|low|steady|high|elated)$/);
-    // Where the Hero is, in its full words with the Day.
+    // Where the Hero is, in its full words with the date.
     const where = tableNames().map((name) => cellOf(name, 'where').textContent);
-    expect(where.some((words) => /^Away with a Party, back on the night of Day \d+$/.test(words ?? ''))).toBe(true);
+    expect(where.some((words) => /^Away with a Party, back on the night of Year \d+ Day \d+$/.test(words ?? ''))).toBe(true);
     expect(where).toContain('At the Hall');
     // The Table scrolls in its own box.
     expect(rosterTable().parentElement?.className).toContain('table-wrap');

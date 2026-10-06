@@ -912,7 +912,7 @@ describe('advance', () => {
     expect(cleared.out).not.toContain('has been below the Bankruptcy floor');
     // That night's check is heard (M9-S1): the event says so, and the countdown is gone.
     expect(cleared.out).toContain(
-      "The Test's Wealth, 1000, is back to the Bankruptcy floor of 0 or more, after falling below it on Day 0: no Bankruptcy is due.",
+      "The Test's Wealth, 1000, is back to the Bankruptcy floor of 0 or more, after falling below it on Year 1 Day 1: no Bankruptcy is due.",
     );
     expect(play(['show']).out).not.toContain('Bankruptcy floor');
   });
@@ -1028,12 +1028,12 @@ describe('advance --until: fast forward (M2-S11)', () => {
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out.split('\n').slice(0, 3)).toEqual([
       'Played 2 Turns. Now Turn 2 (Day 0, night, Year 0).',
-      'Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on the night of Day 10 unless its Wealth recovers by then.',
+      'Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day 11 unless its Wealth recovers by then.',
       'The Test has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day 10 unless Wealth is back to 0 or ' +
         'more on a night by then, after any Upkeep due.',
     ]);
     expect(run.out).toContain(
-      "The Test's Wealth, -1, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Day 10 unless it is back to 0 or more on a night by then.",
+      "The Test's Wealth, -1, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Year 1 Day 11 unless it is back to 0 or more on a night by then.",
     );
   });
 
@@ -1499,7 +1499,7 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(saved()).toBe(serialise(expected));
     expect(fired.turn).toBe(11);
-    const line = narrateLine(fired, content);
+    const line = narrateLine(fired, content, expected.meta.config);
     expect(line).toMatch(/^The probe Module recorded probe\.fired for .+ \(hero-\d{6}\), .+\.$/);
     const lines = run.out.split('\n');
     const at = lines.findIndex((text) => text.endsWith(line));

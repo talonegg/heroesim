@@ -18,7 +18,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { listed, nightOf } from '@heroesim/words';
+import { listed, nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { historyEntries, historyFilter } from './history';
 import { returnEntry, type ReturnEntry } from './quest-return';
@@ -72,7 +72,7 @@ export interface PartyOutRow {
   names: string[];
   /** `Finn, Vigdis and Arne`. */
   heroes: string;
-  /** `the night of Day 5`: when it comes home, as the Roster says it. */
+  /** `the night of Year 1 Day 6`: when it comes home, as the Roster says it. */
   returns: string;
 }
 
@@ -86,7 +86,7 @@ export function partiesOutView(document: WorldDocument): PartyOutRow[] {
     .filter((party) => party.guildId === guild.id)
     .map((party) => {
       const names = party.heroIds.map((heroId) => rowOf(world.heroes, heroId)?.name ?? 'a Hero');
-      return { partyId: party.id, quest: questName(party.questId), names, heroes: listed(names), returns: nightOf(party.returnsOnTurn) };
+      return { partyId: party.id, quest: questName(party.questId), names, heroes: listed(names), returns: nightOfTurn(party.returnsOnTurn, document.meta.config) };
     });
 }
 

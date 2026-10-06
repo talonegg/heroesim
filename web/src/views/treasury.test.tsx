@@ -53,7 +53,7 @@ describe('the Treasury (M9-F3)', () => {
 
     expect(within(part).getByTestId('treasury-wealth').textContent).toMatch(/^Wealth\s*\d+$/);
     expect(within(part).getByText(/^Upkeep of The Lantern: \d+ Wealth every 10 Days$/)).toBeDefined();
-    expect(within(part).getByTestId('upkeep-next').textContent).toMatch(/^Next paid on the night of Day 9: \d+ Wealth\.$/);
+    expect(within(part).getByTestId('upkeep-next').textContent).toMatch(/^Next paid on the night of Year 1 Day 10: \d+ Wealth\.$/);
     expect(within(part).getAllByRole('term').map((term) => term.textContent)).toEqual(expect.arrayContaining(['Wages', 'Hall maintenance']));
     expect(within(part).getByTestId('floor').textContent).toBe('The Bankruptcy floor is 0 Wealth.');
     expect(within(part).queryByText(/below the Bankruptcy floor since/)).toBeNull();
@@ -62,19 +62,19 @@ describe('the Treasury (M9-F3)', () => {
   test('gives the countdown while the Guild is below the floor', () => {
     render(<App initial={withWealth(started(), -50, 0)} />);
 
-    expect(within(treasury()).getByText(/^The Lantern has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day \d+/)).toBeDefined();
+    expect(within(treasury()).getByText(/^The Lantern has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year \d+ Day \d+/)).toBeDefined();
   });
 
-  test('gives the ledger newest first: the Day, what happened, the category and the amount, with the totals of what is shown', () => {
+  test('gives the ledger newest first: the date, what happened, the category and the amount, with the totals of what is shown', () => {
     render(<App initial={traded()} />);
 
-    expect(within(ledger()).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Day', 'What happened', 'Category', 'Amount']);
+    expect(within(ledger()).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Date', 'What happened', 'Category', 'Amount']);
     const shown = rows();
     expect(shown.map((row) => row[2])).toEqual(['Upkeep', 'Heroes', 'Market', 'Opening balance']);
     // It opens with the Wealth the Guild was founded with (M9-F7, DL-120 item 4).
-    expect(shown[3]).toEqual(['Day 0, morning', 'Founded with 500 Wealth', 'Opening balance', '500']);
+    expect(shown[3]).toEqual(['Year 1 Day 1, morning', 'Founded with 500 Wealth', 'Opening balance', '500']);
     expect(within(treasury()).getByText('Page 1 of 1, 3 changes in all since the founding, newest first.')).toBeDefined();
-    expect(shown[0]?.[0]).toBe('Day 9, night');
+    expect(shown[0]?.[0]).toBe('Year 1 Day 10, night');
     expect(shown[0]?.[1]).toMatch(/^The Lantern paid \d+ Upkeep, leaving \d+ Wealth\.$/);
     expect(shown[0]?.[3]).toMatch(/^-\d+$/);
     expect(shown[2]?.[1]).toMatch(/^The Lantern sold Whetstone at the Market for \d+ Wealth\.$/);
@@ -135,7 +135,7 @@ describe('the Treasury (M9-F3)', () => {
     render(<App initial={started()} />);
 
     expect(within(treasury()).getByText('No change to the Wealth of The Lantern yet.')).toBeDefined();
-    expect(rows()).toEqual([['Day 0, morning', 'Founded with 500 Wealth', 'Opening balance', '500']]);
+    expect(rows()).toEqual([['Year 1 Day 1, morning', 'Founded with 500 Wealth', 'Opening balance', '500']]);
     // Nothing to filter or total yet.
     expect(within(treasury()).queryByRole('group', { name: 'Show income or expense' })).toBeNull();
     expect(within(treasury()).queryByTestId('totals')).toBeNull();

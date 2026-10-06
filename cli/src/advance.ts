@@ -12,10 +12,11 @@ import { renderCountdown, renderTime, table } from './render.js';
 /**
  * Why a fast forward stopped, in one line: the narration's sentence (`narrateStop` in
  * `@heroesim/words`, v1.1.7-S3, DL-209) filled by the CLI's Namer, with the ids and the commands its
- * names and slots give. `document` is where it stopped; `maxTurns` the cap it played under.
+ * names and slots give. `document` is where it stopped, its dates by the game's calendar
+ * (`meta.config`, DL-210); `maxTurns` the cap it played under.
  */
 export function stopLine(stop: StopReason, document: WorldDocument, maxTurns: number): string {
-  return sentenceText(narrateStop(stop, document.world, maxTurns), cliNamer);
+  return sentenceText(narrateStop(stop, document.world, maxTurns, document.meta.config), cliNamer);
 }
 
 // ── Advancing ────────────────────────────────────────────────────────────────────────────────
@@ -47,7 +48,7 @@ export function renderAdvance(
           '',
           ...table(
             [{ heading: 'Turn', align: 'right' }, { heading: 'What happened' }],
-            events.map((event) => [String(event.turn), narrateLine(event, deps.content)]),
+            events.map((event) => [String(event.turn), narrateLine(event, deps.content, deps.config)]),
           ),
         ]),
   ];

@@ -88,7 +88,7 @@ function explain(rejection: Refusal, player: Guild, world: World): string {
 function done(document: WorldDocument, events: readonly EngineEvent[], guildId: Guild['id'], deps: EngineDeps): string[] {
   const guild = rowIn(document.world.guilds, guildId);
   return [
-    ...events.map((event) => narrateLine(event, deps.content)),
+    ...events.map((event) => narrateLine(event, deps.content, deps.config)),
     `${guild?.name ?? guildId}: Wealth ${guild?.wealth ?? 0}; ${guild?.rosterIds.length ?? 0} Heroes on the Roster.`,
   ];
 }

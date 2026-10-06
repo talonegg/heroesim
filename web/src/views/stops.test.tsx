@@ -102,7 +102,7 @@ describe('the Bankruptcy stop in the home view (M9-S7, #32)', () => {
     const stop = screen.getByTestId('stop');
     expect(stop.classList.contains('stop--warning')).toBe(true);
     const due = screen.getByTestId('countdown').textContent ?? '';
-    expect(due).toMatch(/^Bankruptcy on the night of Day \d+$/);
+    expect(due).toMatch(/^Bankruptcy on the night of Year \d+ Day \d+$/);
     expect(within(stop).getByText(/^Stopped: The Lantern fell below the Bankruptcy floor: .+\.$/).textContent).toContain(due);
     expect(stop.textContent).toContain('Sell what the Guild holds at the Market, or send a Party on a Quest');
     // The countdown's own banner would say the same Day again: the card stands in its place.
@@ -130,7 +130,7 @@ describe('the Bankruptcy stop in the home view (M9-S7, #32)', () => {
     await idle();
     const home = openView('Guild');
     expect(screen.queryByTestId('stop')).toBeNull();
-    expect(within(home).getByText(/^The Lantern has been below the Bankruptcy floor since Day \d+: Bankruptcy on the night of Day \d+ /)).toBeDefined();
+    expect(within(home).getByText(/^The Lantern has been below the Bankruptcy floor since Year \d+ Day \d+: Bankruptcy on the night of Year \d+ Day \d+ /)).toBeDefined();
   });
 });
 
@@ -160,7 +160,7 @@ describe("the pool's stop and the end, through a fast forward (M9-S8, the epic's
     expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
     expect(within(screen.getByTestId('stop')).getByText('Stopped: the game is over.')).toBeDefined();
     const home = screen.getByRole('region', { name: 'Guild' });
-    expect(within(home).getByText(/^The game ended on Day 0: The Lantern had its Roster wiped out\.$/)).toBeDefined();
+    expect(within(home).getByText(/^The game ended on Year 1 Day 1: The Lantern had its Roster wiped out\.$/)).toBeDefined();
     expect(within(screen.getByRole('banner')).getByText('The game has ended')).toBeDefined();
     for (const name of ['Advance a Turn', 'Fast forward', 'More ways to Fast forward']) {
       expect((within(time()).getByRole('button', { name }) as HTMLButtonElement).disabled, name).toBe(true);

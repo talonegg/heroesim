@@ -1,7 +1,8 @@
 // The status bar (M9-S3, DL-103; the review's A2): it stays in view on every view. It holds the
-// player's Guild, its Wealth and Fame, the Day and time of day with a sun or a moon, its place in the
-// Rankings and, while the Guild is below the Bankruptcy floor, the countdown as a warning pill, each
-// read from `headerView` (the engine's `rankingPlaces`, `dayOf`, `timeOfDay`, `bankruptcyCountdown`).
+// player's Guild, its Wealth and Fame, the date and time of day with a sun or a moon, the Year shown at
+// every width (DL-206 item 32, DL-210), its place in the Rankings and, while the Guild is below the
+// Bankruptcy floor, the countdown as a warning pill, each read from `headerView` (the engine's
+// `rankingPlaces`, `timeOfDay`, `bankruptcyCountdown`, and the calendar of `@heroesim/words`).
 // It also holds time: Advance a Turn, Fast forward and the other ways to fast forward, and while a
 // fast forward is between its steps, how far it has come and its Stop (v1.0.1-S5, DL-96). The game
 // menu opens from it, and a refusal is docked under it.
@@ -87,10 +88,7 @@ export function StatusBar({
           <span className="stat stat--plain">
             <Icon name={glyphs[view.timeOfDay]} />
             <span className="stat__label">When</span>{' '}
-            <span data-testid="time">
-              {view.when}
-              <span className="wide-only">, {view.year}</span>
-            </span>
+            <span data-testid="time">{view.time}</span>
           </span>
           <span className="stat stat--plain">
             <Icon name="rankings" />

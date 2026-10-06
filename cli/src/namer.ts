@@ -5,7 +5,7 @@
 // no label, the id stands in its place.
 
 import type { ContentSet, TurnEvent } from '@heroesim/engine';
-import { listed, narrate, sentenceText, type CommandSlot, type Namer } from '@heroesim/words';
+import { listed, narrate, sentenceText, type Calendar, type CommandSlot, type Namer } from '@heroesim/words';
 
 /** What a stop points the player to, in the commands the CLI takes (v1.1.7-S3, DL-209); the page has a button. */
 const commands: Readonly<Record<CommandSlot['command'], string>> = {
@@ -37,7 +37,7 @@ export const cliNamer: Namer<string> = (slot) => {
   }
 };
 
-/** One line for `event`, in the CLI's words. */
-export function narrateLine(event: TurnEvent, content: ContentSet): string {
-  return sentenceText(narrate(event, content), cliNamer);
+/** One line for `event`, in the CLI's words, its dates by the game's `calendar` (DL-210). */
+export function narrateLine(event: TurnEvent, content: ContentSet, calendar: Calendar): string {
+  return sentenceText(narrate(event, content, calendar), cliNamer);
 }

@@ -17,7 +17,7 @@ function rail(): HTMLElement {
 /** The rail's lines, each its sentence: a return's is its own line's, without the Heroes' lines under it (M9-F5). */
 function railSentences(): string[] {
   return Array.from(rail().querySelectorAll<HTMLElement>('.lines--rail > li')).map((item) =>
-    (item.querySelector('.entry__text')?.textContent ?? (item.textContent ?? '').replace(/^Day \d+, (morning|afternoon|night)(New)? /, '')),
+    (item.querySelector('.entry__text')?.textContent ?? (item.textContent ?? '').replace(/^Year \d+ Day \d+, (morning|afternoon|night)(New)? /, '')),
   );
 }
 
@@ -71,7 +71,7 @@ describe('a Party’s return in the rail (M9-F5, DL-111 item 2)', () => {
     fireEvent.click(heroes);
     expect(lines.hidden).toBe(false);
     expect(within(lines).getAllByRole('listitem')).toHaveLength(written.party.heroIds.length);
-    expect(within(lines).getAllByRole('listitem')[0]?.textContent).toMatch(/^.+: gained 40 XP; injured: Bruised ribs, healing on the night of Day \d+\.$/);
+    expect(within(lines).getAllByRole('listitem')[0]?.textContent).toMatch(/^.+: gained 40 XP; injured: Bruised ribs, healing on the night of Year \d+ Day \d+\.$/);
     expect(within(lines).getAllByRole('listitem')[1]?.textContent).toMatch(/^.+: gained 40 XP; reached Level 2\.$/);
     expect(within(entry).getByRole('button', { name: /^Open the report: / })).toBeDefined();
     // The Loot is the next entry, then the Injury, standing out as an entry of its own (DL-120 item 6); no Encounter.

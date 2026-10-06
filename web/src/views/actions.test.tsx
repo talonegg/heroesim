@@ -348,7 +348,7 @@ describe('Transfer Offers', () => {
   test('accepts an offer, once asked and confirmed: the Hero goes to the Guild that made it, for its fee', async () => {
     render_(withOffer(started()));
     const offers = section('Transfer Offers');
-    const sentence = within(offers).getByText(/ offers \d+ Wealth for .+, until the night of Day \d+\.$/).textContent ?? '';
+    const sentence = within(offers).getByText(/ offers \d+ Wealth for .+, until the night of Year \d+ Day \d+\.$/).textContent ?? '';
     const [, guildName = '', fee = '', name = ''] = /^(.+) offers (\d+) Wealth for (.+), until/.exec(sentence) ?? [];
     // Accept asks first, stating the fee and what letting the Hero go costs (M9-S6, the review's E4).
     fireEvent.click(within(offers).getByRole('button', { name: `Accept ${guildName}'s Offer for ${name}…` }));

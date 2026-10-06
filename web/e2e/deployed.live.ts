@@ -17,7 +17,7 @@ test('the deployed page creates a game, saves it, and loads it after a reload', 
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'deployed' });
   const advance = page.getByRole('button', { name: 'Advance a Turn' });
   for (let turn = 0; turn < 3; turn += 1) await playTurns(page, advance);
-  await expect(page.getByTestId('time')).toHaveText('Day 1, morning, Year 0');
+  await expect(page.getByTestId('time')).toHaveText('Year 1 Day 2, morning');
   const turn = (await page.getByTestId('time').textContent()) ?? '';
 
   const game = await thisGame(page);

@@ -276,7 +276,7 @@ describe('Transfer Offers (M6-S2)', () => {
 
     const [offer] = Object.values(document().world.offers);
     if (offer === undefined) throw new Error('No offer was made');
-    expect(stop).toMatch(new RegExp(`^Stopped: a Transfer Offer: .+ offers ${offer.fee} Wealth for .+ \\(${offer.heroId}\\) until the night of Day \\d+ \\(${offer.id}\\)\\. Answer with accept --offer <id> or decline --offer <id> \\(show offers\\)\\.$`));
+    expect(stop).toMatch(new RegExp(`^Stopped: a Transfer Offer: .+ offers ${offer.fee} Wealth for .+ \\(${offer.heroId}\\) until the night of Year 1 Day \\d+ \\(${offer.id}\\)\\. Answer with accept --offer <id> or decline --offer <id> \\(show offers\\)\\.$`));
     expect(play(['show', 'offers']).out).toContain(offer.id);
   });
 });

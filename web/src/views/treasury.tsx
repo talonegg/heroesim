@@ -92,7 +92,7 @@ export function Treasury({ document }: { document: WorldDocument }) {
                 <table className="table ledger-table" aria-label={`The ledger of ${view.guildName}`}>
                   <thead>
                     <tr>
-                      <th scope="col">Day</th>
+                      <th scope="col">Date</th>
                       <th scope="col">What happened</th>
                       <th scope="col">Category</th>
                       <th scope="col" className="number">

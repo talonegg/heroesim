@@ -16,6 +16,7 @@ const terms = { offerId, fromGuildId: guildId, toGuildId: rivalId, heroId, fee: 
 
 describe('stopLine', () => {
   const document = {
+    meta: { config: { turnsPerYear: 1080 } },
     world: {
       guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },
       heroes: { [heroId]: { name: 'Brenna Ashcombe' } },
@@ -36,17 +37,17 @@ describe('stopLine', () => {
     ],
     [
       { kind: 'transfer-offer', guildId, offerIds: [offerId] },
-      'Stopped: a Transfer Offer: The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of Day 7 ' +
+      'Stopped: a Transfer Offer: The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of Year 1 Day 8 ' +
         '(offer-000001). Answer with accept --offer <id> or decline --offer <id> (show offers).',
     ],
     [
       { kind: 'transfer-offer', guildId, offerIds: ['offer-000002' as OfferId, offerId] },
       'Stopped: a Transfer Offer: offer-000002 and The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of ' +
-        'Day 7 (offer-000001). Answer with accept --offer <id> or decline --offer <id> (show offers).',
+        'Year 1 Day 8 (offer-000001). Answer with accept --offer <id> or decline --offer <id> (show offers).',
     ],
     [
       { kind: 'below-floor', guildId, dueDay: 34 },
-      'Stopped: The Kestrel Guild fell below the Bankruptcy floor: Bankruptcy on the night of Day 34 unless its Wealth recovers by then.',
+      'Stopped: The Kestrel Guild fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day 35 unless its Wealth recovers by then.',
     ],
     [
       { kind: 'quest-staffable', guildId, questIds: [questId, 'quest-000008' as QuestId] },

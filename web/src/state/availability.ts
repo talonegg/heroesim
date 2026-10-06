@@ -3,8 +3,8 @@
 // now (`freeFrom`, `whereabouts`, `unavailableUntil`). Not the engine's: the reason is the engine's
 // `unavailability`, what `dispatch` refuses by, and the rest is how the page says it.
 
-import { dayOf, unavailability, type Hero, type Unavailability, type World } from '@heroesim/engine';
-import { capitalised, nightOf, unavailableChipWords } from '@heroesim/words';
+import { unavailability, type Hero, type Unavailability, type World } from '@heroesim/engine';
+import { capitalised, dateOfTurn, nightOfTurn, unavailableChipWords, type Calendar } from '@heroesim/words';
 import { rowOf } from './names';
 
 export interface Availability {
@@ -17,7 +17,10 @@ export interface Availability {
    * who sorts last.
    */
   freeOnTurn: number | null;
-  /** Where the Hero is, in words that stand on their own: `At the Hall`, `Injured, healing on the night of Day 6`, `Died on Day 9`. */
+  /**
+   * Where the Hero is, in words that stand on their own: `At the Hall`, `Injured, healing on the night
+   * of Year 1 Day 7`, `Died on Year 3 Day 12`, each date by the game's calendar (DL-210).
+   */
   where: string;
   /** Why they cannot go and until when, the same words; `null` when they can. */
   until: string | null;
@@ -26,11 +29,12 @@ export interface Availability {
 }
 
 /**
- * `hero`'s availability in `world`. The Party is looked up once, and a Party the world no longer
- * holds reads one way everywhere: away all the same, with no Day to be free (v1.1.5-S10). The
- * engine reads an Injury before a Party; no world holds both (the test of `availability.test.ts`).
+ * `hero`'s availability in `world`, its dates by the game's `calendar` (DL-210). The Party is looked
+ * up once, and a Party the world no longer holds reads one way everywhere: away all the same, with no
+ * Day to be free (v1.1.5-S10). The engine reads an Injury before a Party; no world holds both (the
+ * test of `availability.test.ts`).
  */
-export function availabilityOf(hero: Hero, world: World): Availability {
+export function availabilityOf(hero: Hero, world: World, calendar: Calendar): Availability {
   const why = unavailability(hero);
   const party = hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId);
   const wording = (): string | null => {
@@ -38,13 +42,13 @@ export function availabilityOf(hero: Hero, world: World): Availability {
       case null:
         return null;
       case 'dead':
-        return `Died on Day ${dayOf(hero.diedOnTurn ?? 0)}`;
+        return `Died on ${dateOfTurn(hero.diedOnTurn ?? 0, calendar)}`;
       case 'retired':
-        return `Retired on Day ${dayOf(hero.retiredOnTurn ?? 0)}`;
+        return `Retired on ${dateOfTurn(hero.retiredOnTurn ?? 0, calendar)}`;
       case 'injured':
-        return `Injured, healing on ${nightOf(hero.injury?.healsOnTurn ?? 0)}`;
+        return `Injured, healing on ${nightOfTurn(hero.injury?.healsOnTurn ?? 0, calendar)}`;
       case 'in-party':
-        return party === undefined ? 'Away with a Party' : `Away with a Party, back on ${nightOf(party.returnsOnTurn)}`;
+        return party === undefined ? 'Away with a Party' : `Away with a Party, back on ${nightOfTurn(party.returnsOnTurn, calendar)}`;
     }
   };
   const until = wording();

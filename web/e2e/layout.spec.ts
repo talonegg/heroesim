@@ -999,3 +999,47 @@ function glowContrast(element: Element): number {
   if (outline === undefined) return 0;
   return Math.min(ratio(outline, ground(element)), ratio(outline, ground(element.parentElement)));
 }
+
+/**
+ * The status bar's date as it stands at this width: its words, whether they keep to one line, and
+ * whether the bar's facts or the page run wider than they are. Runs in the page.
+ */
+function dateShown(): { text: string; lines: number; inView: boolean; factsOverflow: number } {
+  const time = document.querySelector('[data-testid="time"]');
+  const facts = document.querySelector('.status__facts');
+  if (time === null || facts === null) throw new Error('no status bar');
+  const box = time.getBoundingClientRect();
+  return {
+    text: time.textContent ?? '',
+    // An inline element drawn on one line has one box; one that wraps has a box for each line.
+    lines: time.getClientRects().length,
+    inView: box.left >= 0 && box.right <= document.documentElement.clientWidth,
+    factsOverflow: facts.scrollWidth - facts.clientWidth,
+  };
+}
+
+// v1.1.7-S4 (DL-206 item 32, DL-210): the date in the status bar with its Year at every width, a
+// phone's 360px among them, the time of day after it: the first date of a game and the longest a
+// player reads in twenty Years, `Year 12 Day 360, afternoon`, each on one line, in view, with no
+// sideways scroll.
+test('the status bar gives the date with its Year and time of day at every width, on one line, nothing overflowing (DL-210)', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-the-date' });
+  const first = await page.evaluate(dateShown);
+  expect(first).toEqual({ text: 'Year 1 Day 1, morning', lines: 1, inView: true, factsOverflow: 0 });
+  await expectNoHorizontalOverflow(page, 'the first date of a game');
+
+  // The game exported and loaded back at the afternoon of the last Day of its twelfth Year.
+  const [download] = await Promise.all([page.waitForEvent('download'), (await thisGame(page)).getByRole('button', { name: 'Export this game' }).click()]);
+  const file = testInfo.outputPath('a-long-date.json');
+  await download.saveAs(file);
+  const save = JSON.parse(readFileSync(file, 'utf8')) as { world: { turn: number } };
+  save.world.turn = 11 * 1080 + 359 * 3 + 1;
+  writeFileSync(file, JSON.stringify(save));
+  await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(file);
+  await expect(page.getByRole('dialog', { name: 'Game' })).toHaveCount(0);
+  await expect(page.getByTestId('time')).toHaveText('Year 12 Day 360, afternoon');
+  const longest = await page.evaluate(dateShown);
+  expect(longest).toEqual({ text: 'Year 12 Day 360, afternoon', lines: 1, inView: true, factsOverflow: 0 });
+  await expectNoHorizontalOverflow(page, 'the longest date of twenty Years');
+});

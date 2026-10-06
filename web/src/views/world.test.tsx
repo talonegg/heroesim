@@ -77,13 +77,14 @@ describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => 
     return played(withWealth(rules, -1), { kind: 'advance', turns: 2 });
   }
 
+  /** The countdown from the engine's Day, counted from 0; the words count from 1 (DL-210). */
   const countdown = (dueDay: number) =>
-    `The Lantern has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day ${dueDay} ` +
+    `The Lantern has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day ${dueDay + 1} ` +
     'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
 
   /** The countdown as the status bar's pill says it, and in full in the home view (M9-S3, DL-103). */
   function shown(dueDay: number): void {
-    expect(within(screen.getByRole('banner')).getByTestId('countdown').textContent).toBe(`Bankruptcy on the night of Day ${dueDay}`);
+    expect(within(screen.getByRole('banner')).getByTestId('countdown').textContent).toBe(`Bankruptcy on the night of Year 1 Day ${dueDay + 1}`);
     expect(within(screen.getByRole('region', { name: 'Guild' })).getByText(countdown(dueDay))).toBeDefined();
   }
 
@@ -93,7 +94,7 @@ describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => 
     cleanup();
 
     render_(belowTheFloor());
-    expect(screen.getByTestId('time').textContent).toBe('Day 0, night, Year 0');
+    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 1, night');
     shown(30);
     cleanup();
 
@@ -112,7 +113,7 @@ describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => 
     cleanup();
 
     render_(played(risen, { kind: 'advance', turns: 3 }));
-    expect(screen.getByTestId('time').textContent).toBe('Day 1, night, Year 0');
+    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 2, night');
     expect(screen.queryByTestId('countdown')).toBeNull();
   });
 });
@@ -197,7 +198,7 @@ describe('new rules', () => {
 });
 
 describe('the game as a file', () => {
-  test('exports the game as the save the CLI writes, byte for byte, named by its seed and Day', async () => {
+  test('exports the game as the save the CLI writes, byte for byte, named by its seed and date (DL-210)', async () => {
     const state = started();
     // jsdom has no object URLs: stand in for the browser's, and keep what the page hands it.
     const blobs: Blob[] = [];
@@ -213,7 +214,7 @@ describe('the game as a file', () => {
 
       fireEvent.click(within(section('This game')).getByRole('button', { name: 'Export this game' }));
 
-      expect(saved).toEqual([{ download: 'heroesim-app-test-day-0.json', href: 'blob:save' }]);
+      expect(saved).toEqual([{ download: 'heroesim-app-test-year-1-day-1.json', href: 'blob:save' }]);
       expect(blobs).toHaveLength(1);
       expect(await blobs[0]?.text()).toBe(saveText(state.document as NonNullable<GameState['document']>));
       expect(document.querySelector('a[download]')).toBeNull();
@@ -229,7 +230,7 @@ describe('the game as a file', () => {
 
     fireEvent.change(input, { target: { files: [new File([saveText(later.document as NonNullable<GameState['document']>)], 'save.json')] } });
     await waitFor(() => expect(seedShown()).toBe('loaded-game'));
-    expect(screen.getByTestId('time').textContent).toBe('Day 1, afternoon, Year 0');
+    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 2, afternoon');
 
     fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), { target: { files: [new File(['{"not":'], 'broken.json')] } });
     await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/^Cannot load the save: /));

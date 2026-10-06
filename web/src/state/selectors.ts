@@ -52,7 +52,6 @@ import {
   statsRead,
   timeOfDay,
   transferFee,
-  yearOf,
   type ConsumableRequest,
   type ContentSet,
   type DescriptiveAttribute,
@@ -91,6 +90,8 @@ import {
 import {
   capitalised,
   chanceWords,
+  dateOfDay,
+  dateOfTurn,
   consumableEffectWords,
   encounterReadings,
   endingWords,
@@ -98,7 +99,8 @@ import {
   listed,
   modifierWords,
   nameIn,
-  nightOf,
+  nightOfDay,
+  nightOfTurn,
   readsAsOne,
   shownPercent,
   signed,
@@ -106,6 +108,7 @@ import {
   statSourcesMoving,
   traitEffectWords,
   unavailableWords,
+  whenOfTurn,
   type EncounterReading,
 } from '@heroesim/words';
 import { availabilityOf } from './availability';
@@ -115,13 +118,6 @@ import { placeWords, rowOf, transferCostWords } from './names';
 import { playDeps, type GameState } from './reducer';
 import { rejectionSentence } from './rejections';
 import { stopText } from './stops';
-
-// ── Names ────────────────────────────────────────────────────────────────────────────────────
-
-/** `Day 3, afternoon`: when a Turn fell, as the log shows it. */
-export function whenOf(turn: number): string {
-  return `Day ${dayOf(turn)}, ${timeOfDay(turn)}`;
-}
 
 // ── The header ───────────────────────────────────────────────────────────────────────────────
 
@@ -133,13 +129,10 @@ export interface HeaderView {
   guildmasterName: string | null;
   wealth: number;
   fame: number;
-  /** `Day 3, afternoon, Year 0`: the Turn and where it falls, as the CLI's `renderTime` says it. */
+  /** `Year 1 Day 2, afternoon`: the date and the time of day, the Year shown at every width (DL-206 item 32, DL-210). */
   time: string;
   /** The time of day alone, for the status bar's sun or moon (M9-S3, DL-103). */
   timeOfDay: TimeOfDay;
-  /** `time` in two parts, `Day 3, afternoon` and `Year 0`: a phone's status bar shows the first. */
-  when: string;
-  year: string;
   /**
    * `3rd of 5 by Fame`, `Joint 1st of 5 by Fame` for a place Guilds share (`rankingPlaces`,
    * DL-95), or that the Guild has folded and is not ranked.
@@ -156,7 +149,7 @@ export interface HeaderView {
   /** The Bankruptcy countdown while the Guild is below the floor (`countdownView`); `null` otherwise. */
   countdown: string | null;
   /**
-   * The same countdown in a few words for the status bar's pill, `Bankruptcy on the night of Day 30`
+   * The same countdown in a few words for the status bar's pill, `Bankruptcy on the night of Year 1 Day 31`
    * (M9-S3, DL-103); `null` exactly while `countdown` is.
    */
   due: string | null;
@@ -173,8 +166,6 @@ export function headerView(document: WorldDocument): HeaderView | null {
   const byFame = rankingPlaces(world, 'fame');
   const place = byFame.find((ranking) => ranking.guildId === guild.id);
   const { ended } = world;
-  const when = `Day ${dayOf(world.turn)}, ${timeOfDay(world.turn)}`;
-  const year = `Year ${yearOf(world.turn, config)}`;
   const standing = place === undefined ? 'Not ranked: the Guild has folded' : `${capitalised(placeWords(place))} of ${byFame.length}`;
   const measure = place === undefined ? '' : 'by Fame';
   return {
@@ -183,17 +174,15 @@ export function headerView(document: WorldDocument): HeaderView | null {
     guildmasterName: guildmasterOf(guild, world)?.name ?? null,
     wealth: guild.wealth,
     fame: guild.fame,
-    time: `${when}, ${year}`,
+    time: whenOfTurn(world.turn, config),
     timeOfDay: timeOfDay(world.turn),
-    when,
-    year,
     seed: document.meta.seed,
     rankings: measure === '' ? standing : `${standing} ${measure}`,
     place: standing,
     measure,
     countdown: countdownView(document),
     due: dueView(document),
-    ended: ended === null ? null : `The game ended on Day ${dayOf(ended.turn)}: ${guild.name} ${endingWords[ended.reason]}.`,
+    ended: ended === null ? null : `The game ended on ${dateOfTurn(ended.turn, config)}: ${guild.name} ${endingWords[ended.reason]}.`,
   };
 }
 
@@ -213,17 +202,18 @@ export function countdownView(document: WorldDocument): string | null {
   const countdown = bankruptcyCountdown(guild, config);
   if (countdown === null) return null;
   return (
-    `${guild.name} has been below the Bankruptcy floor since Day ${countdown.sinceDay}: Bankruptcy on the night of ` +
-    `Day ${countdown.dueDay} unless Wealth is back to ${config.bankruptcyFloor} or more on a night by then, after any Upkeep due.`
+    `${guild.name} has been below the Bankruptcy floor since ${dateOfDay(countdown.sinceDay, config)}: Bankruptcy on ` +
+    `${nightOfDay(countdown.dueDay, config)} unless Wealth is back to ${config.bankruptcyFloor} or more on a night by then, after any Upkeep due.`
   );
 }
 
-/** The countdown's Day, `Bankruptcy on the night of Day 30`: when `countdownView` gives a sentence, and only then. */
+/** The countdown's Day, `Bankruptcy on the night of Year 1 Day 31`: when `countdownView` gives a sentence, and only then. */
 function dueView(document: WorldDocument): string | null {
   const guild = playerGuild(document.world);
   if (guild === undefined || document.world.ended !== null) return null;
-  const countdown = bankruptcyCountdown(guild, playDeps(document).config);
-  return countdown === null ? null : `Bankruptcy on the night of Day ${countdown.dueDay}`;
+  const { config } = playDeps(document);
+  const countdown = bankruptcyCountdown(guild, config);
+  return countdown === null ? null : `Bankruptcy on ${nightOfDay(countdown.dueDay, config)}`;
 }
 
 // ── The Board ────────────────────────────────────────────────────────────────────────────────
@@ -240,8 +230,10 @@ export interface QuestCard {
   party: string;
   /** The Class and the Skill it requires beyond its Party size, `a Mage`, `a Hero with Lockpicking`: none, often. */
   needs: string[];
-  /** The last Day it stays on offer. */
+  /** The last Day it stays on offer, as the engine counts it, which the Board sorts by. */
   lastDay: number;
+  /** That Day as the Board's chip says it, `Until Year 1 Day 6` (DL-210). */
+  until: string;
   /** Whether that Day is the Day in hand: the next morning's refresh takes it off, if no Guild has (M9-S4). */
   leavesToday: boolean;
   /** The Skills its Encounters' Checks read (`skillsThatHelp`, DL-70), by name. */
@@ -332,6 +324,7 @@ function questCards(document: WorldDocument): QuestCard[] {
         ...(skillKey === undefined ? [] : [`a Hero with ${nameIn(content.skills, skillKey)}`]),
       ],
       lastDay: dayOf(quest.expiresOnTurn),
+      until: `Until ${dateOfTurn(quest.expiresOnTurn, document.meta.config)}`,
       leavesToday: dayOf(quest.expiresOnTurn) === today,
       skills: skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)),
       encounters: encounterReadings(quest, content).map((reading) => ({ ...reading, one: readsAsOne(reading) })),
@@ -420,7 +413,7 @@ export interface PartyRow {
   level: number;
   /** The engine's `unavailability`: why the Hero cannot go now, or `null` when they can. */
   why: Unavailability | null;
-  /** The same with until when, as the Roster words it: `Injured, healing on the night of Day 6`. The chip's tooltip and its screen reader's words. */
+  /** The same with until when, as the Roster words it: `Injured, healing on the night of Year 1 Day 7`. The chip's tooltip and its screen reader's words. */
   unavailable: string | null;
   /** The Board's chip, short (v1.1.5-S11, DL-169 item 2): `Away` or `Injured`; `null` when the Hero can go. */
   chip: string | null;
@@ -449,14 +442,14 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
     const hero = rowOf(world.heroes, heroId);
     return hero === undefined ? [] : [hero];
   });
-  const availability = new Map(onRoster.map((hero) => [hero.id, availabilityOf(hero, world)]));
+  const availability = new Map(onRoster.map((hero) => [hero.id, availabilityOf(hero, world, document.meta.config)]));
   const soonest = (a: Hero, b: Hero): number => compareNumbers(availability.get(a.id)?.freeOnTurn ?? Infinity, availability.get(b.id)?.freeOnTurn ?? Infinity);
   return onRoster
     .sort((a, b) => soonest(a, b) || order(a, b))
     .map((hero): PartyRow => {
       const values = statValues(hero, world);
       const held = heldSkills(hero);
-      const { why, until, chip } = availability.get(hero.id) ?? availabilityOf(hero, world);
+      const { why, until, chip } = availability.get(hero.id) ?? availabilityOf(hero, world, document.meta.config);
       return {
         heroId: hero.id,
         name: hero.name,
@@ -583,7 +576,7 @@ export function previewView(
     verdict:
       preview.refusal === null
         ? { sends: true, words: 'Dispatch would send this Party.' }
-        : { sends: false, words: `Dispatch would refuse it: ${rejectionSentence(preview.refusal, world, content)}` },
+        : { sends: false, words: `Dispatch would refuse it: ${rejectionSentence(preview.refusal, document, content)}` },
   };
 }
 
@@ -620,7 +613,7 @@ export interface SentView {
   quest: string;
   /** Who went, by name, in the Party's order: `Finn, Vigdis and Arne`. */
   heroes: string;
-  /** `the night of Day 5`: when the Party comes home, as the home view's Parties out says it. */
+  /** `the night of Year 1 Day 6`: when the Party comes home, as the home view's Parties out says it. */
   returns: string;
 }
 
@@ -641,7 +634,7 @@ export function sentView(state: Pick<GameState, 'document' | 'log'>): SentView |
     questId: payload.questId,
     quest: questNamer(document, content)(payload.questId),
     heroes: listed(payload.heroIds.map((heroId) => labels[heroId] ?? rowOf(document.world.heroes, heroId)?.name ?? 'a Hero')),
-    returns: nightOf(payload.returnsOnTurn),
+    returns: nightOfTurn(payload.returnsOnTurn, document.meta.config),
   };
 }
 
@@ -930,7 +923,7 @@ function buildRosterRows(document: WorldDocument): RosterRows {
     const hero = rowOf(world.heroes, heroId);
     if (hero === undefined) return [];
     const items = itemsOf(hero, world);
-    const availability = availabilityOf(hero, world);
+    const availability = availabilityOf(hero, world, document.meta.config);
     const row: RosterRow = {
       heroId,
       name: hero.name,
@@ -1004,7 +997,7 @@ export interface StatArea {
 export interface LogLine {
   /** Unique within its list. */
   key: string;
-  /** `Day 3, afternoon`. */
+  /** `Year 1 Day 2, afternoon`. */
   when: string;
   sentence: string;
   milestone: boolean;
@@ -1113,7 +1106,7 @@ export type HeroActions =
 export function linesOf(entries: readonly Entry[], narration: Narration): LogLine[] {
   return entries.map((entry, index) => ({
     key: `${entry.turn}-${index}`,
-    when: whenOf(entry.turn),
+    when: whenOfTurn(entry.turn, narration.calendar),
     sentence: narrateText(entry as TurnEvent, narration),
     milestone: entry.milestone,
   }));
@@ -1135,7 +1128,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
   const reader = player === undefined ? undefined : guildmasterOf(player, world);
   const bands = { potentialHintBands: judgedHintBands(reader, content, config) };
   const onRoster = guild?.rosterIds.includes(hero.id) === true;
-  const available = availabilityOf(hero, world);
+  const available = availabilityOf(hero, world, document.meta.config);
 
   // Who the Hero is in one line, and their State as chips (M9-S6, the review's B7): what were eleven
   // label and value rows. A Hero in the pool or gone from it names no Guild; `where` says where they are.
@@ -1362,7 +1355,7 @@ export function stopView(state: GameState): StopView | null {
 }
 
 export interface ProgressView {
-  /** `Played 90 Turns so far. Now Day 30, morning, Year 0.`: the Turns played and the Day reached. */
+  /** `Played 90 Turns so far. Now Year 1 Day 31, morning.`: the Turns played and the date reached. */
   sentence: string;
   /** The Bankruptcy countdown while the player's Guild is below the floor (`countdownView`); `null` otherwise. */
   countdown: string | null;
@@ -1381,7 +1374,7 @@ export function progressView(state: GameState): ProgressView | null {
   const { turn } = document.world;
   const { config } = playDeps(document);
   return {
-    sentence: `Played ${forwarding.turnsPlayed} Turns so far. Now Day ${dayOf(turn)}, ${timeOfDay(turn)}, Year ${yearOf(turn, config)}.`,
+    sentence: `Played ${forwarding.turnsPlayed} Turns so far. Now ${whenOfTurn(turn, config)}.`,
     countdown: countdownView(document),
   };
 }

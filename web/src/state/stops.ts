@@ -8,10 +8,10 @@ import { narrateStop, sentenceText } from '@heroesim/words';
 import { pageNamer, textOf, type Narration } from './namer';
 
 /**
- * Why an advance or a fast forward stopped, in one sentence. `document` is where it stopped;
- * `maxTurns` the cap it played under.
+ * Why an advance or a fast forward stopped, in one sentence. `document` is where it stopped, its
+ * dates by the game's calendar (DL-210); `maxTurns` the cap it played under.
  */
 export function stopText(stop: StopReason, document: WorldDocument, maxTurns: number, narration: Narration): string {
   const namer = pageNamer(narration.questName);
-  return sentenceText(narrateStop(stop, document.world, maxTurns), (slot) => textOf(namer(slot)));
+  return sentenceText(narrateStop(stop, document.world, maxTurns, narration.calendar), (slot) => textOf(namer(slot)));
 }

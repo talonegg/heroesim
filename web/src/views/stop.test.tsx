@@ -61,7 +61,7 @@ describe('a decision needed', () => {
 });
 
 describe('the Bankruptcy stop (M9-S7, #32)', () => {
-  const sentence = 'Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Day 34 unless its Wealth recovers by then.';
+  const sentence = 'Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day 35 unless its Wealth recovers by then.';
 
   test('is a warning card with the Day Bankruptcy falls on, and says in words what can be done about it', () => {
     card({ kind: 'below-floor', sentence });

@@ -9,17 +9,18 @@
 // `rulesNotice` is the engine's `newRules`, the game's `meta.configVersion` against this release's
 // (DL-193): while a game's rules are behind, the page offers `rebase` (pre-M0 review D1).
 
-import { dayOf, newRules, serialise, type WorldDocument } from '@heroesim/engine';
+import { newRules, serialise, type WorldDocument } from '@heroesim/engine';
+import { fileDateOfTurn } from '@heroesim/words';
 
 /** The game as the CLI writes a save: canonical JSON, byte for byte. */
 export function saveText(document: WorldDocument): string {
   return serialise(document);
 }
 
-/** `heroesim-amber-fox-4821-day-12.json`: the seed and the Day, in characters any file system takes. */
+/** `heroesim-amber-fox-4821-year-3-day-12.json`: the seed and the date (DL-210), in characters any file system takes. */
 export function saveFileName(document: WorldDocument): string {
   const seed = document.meta.seed.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'game';
-  return `heroesim-${seed}-day-${dayOf(document.world.turn)}.json`;
+  return `heroesim-${seed}-${fileDateOfTurn(document.world.turn, document.meta.config)}.json`;
 }
 
 /** The game's rules and this release's, while the game's are behind; `null` when they are not. */

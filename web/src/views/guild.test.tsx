@@ -126,7 +126,7 @@ describe("the Guild's parts (M9-F2)", () => {
 
     expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
     const home = within(guild()).getByRole('tabpanel', { name: 'Home' });
-    expect(within(home).getByText(/has been below the Bankruptcy floor since Day 0/)).toBeDefined();
+    expect(within(home).getByText(/has been below the Bankruptcy floor since Year 1 Day 1:/)).toBeDefined();
     expect(document.activeElement).toBe(within(guild()).getByRole('heading', { level: 2, name: 'Guild' }));
   });
 
@@ -134,7 +134,7 @@ describe("the Guild's parts (M9-F2)", () => {
     render(<App initial={withWealth(started(), -100, 0)} />);
     const home = within(guild()).getByRole('tabpanel', { name: 'Home' });
 
-    expect(within(home).getByText(/has been below the Bankruptcy floor since Day 0/)).toBeDefined();
+    expect(within(home).getByText(/has been below the Bankruptcy floor since Year 1 Day 1:/)).toBeDefined();
     expect(within(home).queryByText(/^Nothing is waiting on you\./)).toBeNull();
     expect(within(home).getByText(/^Your Guild is below the Bankruptcy floor: see the steps above\. Choose a Party on the Board/)).toBeDefined();
     // The way to the Board stays: a Quest's reward is a way back above the floor.

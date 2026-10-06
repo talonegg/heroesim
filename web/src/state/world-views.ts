@@ -42,7 +42,7 @@ import {
   type Sex,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, endingWords, facilityNames, nameIn, traitEffectWords } from '@heroesim/words';
+import { capitalised, dateOfTurn, endingWords, facilityNames, nameIn, nightOfTurn, traitEffectWords, type Calendar } from '@heroesim/words';
 import { content } from '../content';
 import { controllerWords, placeWords, rowOf } from './names';
 import { playDeps } from './reducer';
@@ -85,7 +85,7 @@ export interface GuildRow {
   heroes: number;
   /** Its Upkeep, the engine's `upkeep`. */
   upkeep: number;
-  /** `Folded on Day 12`, or `null` for a Guild in play (DL-28, DL-33). */
+  /** `Folded on Year 1 Day 13`, or `null` for a Guild in play (DL-28, DL-33, DL-210). */
   folded: string | null;
 }
 
@@ -94,7 +94,7 @@ export interface GuildsTable {
   measure: RankingMeasure;
   /** The Guilds in play, in the order asked for. */
   rows: GuildRow[];
-  /** The Guilds that have folded, in the world's order, each with its Day. */
+  /** The Guilds that have folded, in the world's order, each with its date. */
   folded: GuildRow[];
 }
 
@@ -130,7 +130,7 @@ export function guildsTable(document: WorldDocument, sort: GuildSort): GuildsTab
     wealth: guild.wealth,
     heroes: guild.rosterIds.length,
     upkeep: upkeep(guild, world, config, content),
-    folded: foldedWords(guild),
+    folded: foldedWords(guild, config),
   });
   // The Rankings' order by the measure; by another column, a stable sort keeps it for ties.
   const rows = rankingPlaces(world, sort === 'wealth' ? 'wealth' : 'fame').flatMap((ranking) => {
@@ -149,9 +149,9 @@ function picturedOf(guildmaster: { sex: Sex; portraitKey: string | null } | unde
   return guildmaster === undefined ? null : { sex: guildmaster.sex, portraitKey: guildmaster.portraitKey };
 }
 
-/** `Folded on Day 12`, as a cell or a Guild's line says it; `null` for a Guild in play. */
-function foldedWords(guild: Pick<Guild, 'foldedOnTurn'>): string | null {
-  return guild.foldedOnTurn === null ? null : `Folded on Day ${dayOf(guild.foldedOnTurn)}`;
+/** `Folded on Year 1 Day 13`, as a cell or a Guild's line says it, by the game's calendar; `null` for a Guild in play. */
+function foldedWords(guild: Pick<Guild, 'foldedOnTurn'>, calendar: Calendar): string | null {
+  return guild.foldedOnTurn === null ? null : `Folded on ${dateOfTurn(guild.foldedOnTurn, calendar)}`;
 }
 
 // ── A Hall ───────────────────────────────────────────────────────────────────────────────────
@@ -259,10 +259,11 @@ export interface GuildmasterView {
   attributes: [label: string, value: string][];
   /**
    * When they retire, from the engine's `retiresOn` (M9-F3, DL-113 item 5; M9-F6): `Retires at 61 on
-   * the night of Day 11160, Year 31: in 31 years.`, the years left counted as the calendar's Years, or
-   * `in 359 Days.` once it is less than a year away (M9-F7); once that night has been played, `Retired
-   * at 61 on the night of Day 11160, Year 31.`; or why none came, the game over or the Guild folded
-   * first: `Never retired: the game ended in Bankruptcy on Day 300.` (M9-F7, DL-120 item 9).
+   * the night of Year 32 Day 1: in 31 Years.` (DL-120 item 5, DL-210), the years left counted as the
+   * calendar's Years, or `in 359 Days.` once it is less than a year away (M9-F7); once that night has
+   * been played, `Retired at 61 on the night of Year 32 Day 1.`; or why none came, the game over or
+   * the Guild folded first: `Never retired: the game ended in Bankruptcy on Year 1 Day 301.` (M9-F7,
+   * DL-120 item 9).
    */
   retirement: string;
   stats: { name: string; value: number; bearsOn: string }[];
@@ -339,14 +340,15 @@ function retirementWords(
   world: Pick<WorldDocument['world'], 'turn' | 'ended' | 'guilds'>,
   config: Pick<GameConfig, 'turnsPerYear' | 'guildmasterRetirementAge'>,
 ): string {
-  const when = (night: number): string => `at ${ageOf(guildmaster, night, config)} on the night of Day ${dayOf(night)}, Year ${yearOf(night, config)}`;
+  // The night as the calendar says it, `the night of Year 32 Day 1` (DL-120 item 5, DL-210).
+  const when = (night: number): string => `at ${ageOf(guildmaster, night, config)} on ${nightOfTurn(night, config)}`;
   // A Rival's retired Guildmaster keeps the night; the player's retires as their game ends.
   if (guildmaster.retiredOnTurn !== null) return `Retired ${when(guildmaster.retiredOnTurn)}.`;
   const { ended } = world;
   const mine = guild.controller.kind === 'player';
   if (ended !== null && ended.reason === 'retirement' && mine) return `Retired ${when(ended.turn)}.`;
-  if (guild.foldedOnTurn !== null) return `Never retired: the Guild folded on Day ${dayOf(guild.foldedOnTurn)}.`;
-  if (ended !== null) return `Never retired: ${neverWords(ended, mine, world)}.`;
+  if (guild.foldedOnTurn !== null) return `Never retired: the Guild folded on ${dateOfTurn(guild.foldedOnTurn, config)}.`;
+  if (ended !== null) return `Never retired: ${neverWords(ended, mine, world, config)}.`;
   const night = retiresOn(guildmaster, world.turn, config);
   return `Retires ${when(night)}: ${timeLeft(night, world.turn, config)}.`;
 }
@@ -365,15 +367,20 @@ function timeLeft(night: number, turn: number, config: Pick<GameConfig, 'turnsPe
  * Why a Guildmaster never retired, the game having ended first (DL-120 item 9): for the player's
  * Guildmaster, the ending; for a Rival's, the ending and the player's Guild it befell.
  */
-function neverWords(ended: NonNullable<WorldDocument['world']['ended']>, mine: boolean, world: Pick<WorldDocument['world'], 'guilds'>): string {
-  const day = dayOf(ended.turn);
+function neverWords(
+  ended: NonNullable<WorldDocument['world']['ended']>,
+  mine: boolean,
+  world: Pick<WorldDocument['world'], 'guilds'>,
+  calendar: Calendar,
+): string {
+  const date = dateOfTurn(ended.turn, calendar);
   if (mine) {
     return ended.reason === 'bankruptcy'
-      ? `the game ended in Bankruptcy on Day ${day}`
-      : `the game ended with the Roster wiped out on Day ${day}`;
+      ? `the game ended in Bankruptcy on ${date}`
+      : `the game ended with the Roster wiped out on ${date}`;
   }
   const player = Object.values(world.guilds).find((each) => each.controller.kind === 'player');
-  return player === undefined ? `the game ended on Day ${day}` : `the game ended on Day ${day}, when ${player.name} ${endingWords[ended.reason]}`;
+  return player === undefined ? `the game ended on ${date}` : `the game ended on ${date}, when ${player.name} ${endingWords[ended.reason]}`;
 }
 
 // ── The Patrons ──────────────────────────────────────────────────────────────────────────────
@@ -475,7 +482,7 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
     background: nameIn(content.backgrounds, guild.backgroundKey),
     fame: guild.fame,
     wealth: guild.wealth,
-    folded: foldedWords(guild),
+    folded: foldedWords(guild, deps.config),
     roster: guild.rosterIds.flatMap((heroId) => {
       const hero = rowOf(world.heroes, heroId);
       if (hero === undefined) return [];

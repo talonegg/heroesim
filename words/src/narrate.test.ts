@@ -16,7 +16,8 @@ import {
   type World,
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { crossed, itemsWords, narrate, narratedTypes, narrateStop, nightOf, resolvedParts, sentenceText, type Namer, type Sentence, type Slot } from './narrate.js';
+import type { Calendar } from './calendar.js';
+import { crossed, itemsWords, narrate, narratedTypes, narrateStop, resolvedParts, sentenceText, type Namer, type Sentence, type Slot } from './narrate.js';
 
 // v1.1.6-S12 (DL-186 item 1): the narration, one sentence for each event type, its names as slots.
 // Each sentence is read here through a Namer of the test's own, which writes each slot as what it
@@ -25,6 +26,9 @@ import { crossed, itemsWords, narrate, narratedTypes, narrateStop, nightOf, reso
 // the CLI's and the page's.
 
 const content = loadContent();
+
+/** The game's calendar, a Year of 360 Days: its dates read `Year 1 Day 8` (DL-210). */
+const calendar: Calendar = { turnsPerYear: 1080 };
 
 const guildId = 'guild-000002' as GuildId;
 const heroId = 'hero-000007' as HeroId;
@@ -251,17 +255,17 @@ const sentences: { [Type in EngineEventType]: string } = {
   'patron.generated': `${maud} of the ${named(content.spheres, 'crown')} became a Patron.`,
   'world.rules-adopted': 'The rules moved from configVersion 1 to 2.',
   'guild.upkeep-paid': `${kestrel} paid 40 Upkeep, leaving 460 Wealth.`,
-  'guild.below-floor': `${kestrel}'s Wealth, -35, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Day 34 unless it is back to 0 or more on a night by then.`,
-  'guild.floor-recovered': `${kestrel}'s Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it on Day 1: no Bankruptcy is due.`,
+  'guild.below-floor': `${kestrel}'s Wealth, -35, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Year 1 Day 35 unless it is back to 0 or more on a night by then.`,
+  'guild.floor-recovered': `${kestrel}'s Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it on Year 1 Day 2: no Bankruptcy is due.`,
   'hero.recruited': `${kestrel} signed ${brenna} for 110 Wealth.`,
   'hero.left-pool': `${brenna} left the Unattached pool.`,
   'quest.offered': `${maud} offered ${barrow}.`,
   'quest.expired': `${maud}'s ${barrow} expired untaken.`,
-  'quest.taken': `${kestrel} sent <party:${partyId} with ${brenna}, ${aldred}> on <quest:${questId}>, back on the night of Day 7, carrying ${named(content.items, 'whetstone')} ×2.`,
+  'quest.taken': `${kestrel} sent <party:${partyId} with ${brenna}, ${aldred}> on <quest:${questId}>, back on the night of Year 1 Day 8, carrying ${named(content.items, 'whetstone')} ×2.`,
   'quest.encounter': `<party:${partyId} of ${kestrel}> failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Failure: ${brenna} was injured and ${aldred} was killed.`,
   'quest.resolved': `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${named(content.questTemplates, 'guard-the-caravan')}> and succeeded strongly: Wealth +150, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}.`,
   'quest.loot': `${kestrel} found Loot on <quest:${questId}>: ${named(content.items, 'barrow-kings-blade')}<ids:item-000006>.`,
-  'hero.injured': `${brenna} was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Day 13.`,
+  'hero.injured': `${brenna} was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Year 1 Day 14.`,
   'hero.died': `${brenna} died on <quest:${questId}>.`,
   'hero.xp-gained': `${brenna} gained 30 XP.`,
   'hero.morale-changed': `${brenna}'s Morale went from 45 to 35, low.`,
@@ -287,7 +291,7 @@ const sentences: { [Type in EngineEventType]: string } = {
   'item.bought': `${kestrel} bought 3 × ${named(content.items, 'whetstone')}<ids:> at the Market for 75 Wealth.`,
   'item.sold': `${kestrel}'s ${named(content.items, 'barrow-kings-blade')}<ids:item-000002> went to the Market for 300 Wealth as the Guild folded.`,
   'hero.transferred': `${wardens} took ${brenna} from ${kestrel} for 420 Wealth, accepting <offer:${offerId}>.`,
-  'guild.transfer-offered': `${wardens} offered ${kestrel} 420 Wealth for ${brenna}<ids:${offerId}>, until the night of Day 7.`,
+  'guild.transfer-offered': `${wardens} offered ${kestrel} 420 Wealth for ${brenna}<ids:${offerId}>, until the night of Year 1 Day 8.`,
   'guild.transfer-offer-declined': `${kestrel} declined ${wardens}'s Offer for ${brenna}<ids:${offerId}>.`,
   'guild.transfer-offer-expired': `${wardens}'s Offer for ${brenna}<ids:${offerId}> lapsed: the Hero left that Roster.`,
   'guild.wealth-changed': `${kestrel}'s Wealth went from 500 to 750.`,
@@ -308,11 +312,11 @@ describe('every event type in the engine\'s union has a sentence', () => {
   });
 
   test.each(union)('%s: its words, and each name as a slot', (type) => {
-    expect(sentenceText(narrate(samples[type], content), shown)).toBe(sentences[type]);
+    expect(sentenceText(narrate(samples[type], content, calendar), shown)).toBe(sentences[type]);
   });
 
   test.each(union)('%s: neighbouring words are one piece, and every slot names what the event names', (type) => {
-    const sentence = narrate(samples[type], content);
+    const sentence = narrate(samples[type], content, calendar);
 
     sentence.forEach((part, index) => {
       if (part.kind === 'text') expect(sentence[index + 1]?.kind).not.toBe('text');
@@ -331,11 +335,11 @@ describe('the variations of a sentence', () => {
     const sample = samples[type] as EngineEventOf<Type>;
     return { ...sample, payload: { ...sample.payload, ...change } } as EngineEventOf<Type>;
   }
-  const said = (event: EngineEventOf<EngineEventType>): string => sentenceText(narrate(event, content), shown);
+  const said = (event: EngineEventOf<EngineEventType>): string => sentenceText(narrate(event, content, calendar), shown);
 
   test.each([
     ['a Hero made on a Roster', varied('hero.generated', { guildId }), new RegExp(`joined ${kestrel}\\.$`)],
-    ['a Party that came through, carrying nothing', varied('quest.taken', { consumables: [] }), /, back on the night of Day 7\.$/],
+    ['a Party that came through, carrying nothing', varied('quest.taken', { consumables: [] }), /, back on the night of Year 1 Day 8\.$/],
     ['an Encounter come through, a Triumph decided by a Check its content does not name', varied('quest.encounter', { outcome: 'success', injured: [], died: [], degree: 'triumph', decidedBy: 'no-such-check', checks: [] }), / came through .+ \(Encounter 2\), a Triumph, decided by no-such-check\.$/],
     ['an Encounter form decided', varied('quest.encounter', { formDecided: 'lowered', degree: 'setback', decidedBy: 'x', checks: [{ key: 'x', capability: 1, roll: 1, target: 2, margin: -1, degree: 'setback', formDecided: 'lowered' }] }), /\. Low spirits told against them\.$/],
     ['a common Item found, by its stack', varied('quest.loot', { definitionKey: 'healing-draught', quantity: 3, itemId: null, stackId: 'stack-000008' as StackId }), /: 3 × .+<ids:stack-000008>\.$/],
@@ -354,10 +358,10 @@ describe('the variations of a sentence', () => {
     const moduleEvent = (type: string, participants: string[]): ModuleEvent =>
       ({ type, turn: 9, participants, labels: Object.fromEntries(participants.flatMap((id) => (labels[id] === undefined ? [] : [[id, labels[id]]]))), milestone: false, payload: {} }) as unknown as ModuleEvent;
 
-    expect(sentenceText(narrate(moduleEvent('probe.fired', [heroId, patronId, guildId]), content), shown)).toBe(`The probe Module recorded probe.fired for ${brenna}, ${maud} and ${kestrel}.`);
-    expect(sentenceText(narrate(moduleEvent('weather.storm-broke', []), content), shown)).toBe('The weather Module recorded weather.storm-broke.');
-    expect(sentenceText(narrate(moduleEvent('mystery', ['hero-000099', 'not-an-id']), content), shown)).toBe('A Module recorded mystery for <hero:hero-000099> and <name:not-an-id>.');
-    const parts = narrate(moduleEvent('mystery', ['not-an-id']), content);
+    expect(sentenceText(narrate(moduleEvent('probe.fired', [heroId, patronId, guildId]), content, calendar), shown)).toBe(`The probe Module recorded probe.fired for ${brenna}, ${maud} and ${kestrel}.`);
+    expect(sentenceText(narrate(moduleEvent('weather.storm-broke', []), content, calendar), shown)).toBe('The weather Module recorded weather.storm-broke.');
+    expect(sentenceText(narrate(moduleEvent('mystery', ['hero-000099', 'not-an-id']), content, calendar), shown)).toBe('A Module recorded mystery for <hero:hero-000099> and <name:not-an-id>.');
+    const parts = narrate(moduleEvent('mystery', ['not-an-id']), content, calendar);
     expect(parts.find((part) => part.kind === 'name')).toMatchObject({ table: null, id: 'not-an-id', label: undefined });
   });
 });
@@ -365,7 +369,7 @@ describe('the variations of a sentence', () => {
 describe("a Party's outcome cut at its band", () => {
   test('reads as its sentence, the band apart', () => {
     const { lead, band, rest } = resolvedParts(samples['quest.resolved'], content);
-    const whole: Sentence = narrate(samples['quest.resolved'], content);
+    const whole: Sentence = narrate(samples['quest.resolved'], content, calendar);
 
     expect(`${sentenceText(lead, shown)}${band}${sentenceText(rest, shown)}`).toBe(sentenceText(whole, shown));
     expect(band).toBe('succeeded strongly');
@@ -381,20 +385,19 @@ describe('the words beside the sentences', () => {
     expect(crossed(before, after)).toBe(words);
   });
 
-  test('Items by name and count, a night by its Day', () => {
+  test('Items by name and count', () => {
     expect(itemsWords(content, 'whetstone', 1)).toBe(named(content.items, 'whetstone'));
     expect(itemsWords(content, 'whetstone', 3)).toBe(`3 × ${named(content.items, 'whetstone')}`);
     expect(itemsWords(content, 'no-such-item', 2)).toBe('2 × no-such-item');
-    expect(nightOf(23)).toBe('the night of Day 7');
   });
 });
 
 describe("a Guildmaster's Regard names whom it is for by what they are (v1.1.7-S3, DL-209, DL-206 item 13)", () => {
   const regard = samples['guildmaster.regard-changed'];
-  const forwhom = (entityId: string): string => sentenceText(narrate({ ...regard, labels: { ...regard.labels, [entityId]: labels[entityId] as string }, payload: { ...regard.payload, entityId: entityId as never } }, content), shown);
+  const forwhom = (entityId: string): string => sentenceText(narrate({ ...regard, labels: { ...regard.labels, [entityId]: labels[entityId] as string }, payload: { ...regard.payload, entityId: entityId as never } }, content, calendar), shown);
 
   test('a Hero is a Hero slot, so the CLI adds the id and the page links', () => {
-    expect(narrate(regard, content)).toContainEqual({ kind: 'hero', table: 'heroes', id: heroId, label: 'Brenna Ashcombe' });
+    expect(narrate(regard, content, calendar)).toContainEqual({ kind: 'hero', table: 'heroes', id: heroId, label: 'Brenna Ashcombe' });
   });
 
   test('a Patron and another Guildmaster are name slots', () => {
@@ -423,7 +426,7 @@ describe('why a fast forward stopped, nine sentences (v1.1.7-S3, DL-209, DL-206 
     ],
     [
       { kind: 'below-floor', guildId, dueDay: 34 },
-      `Stopped: ${kest} fell below the Bankruptcy floor: Bankruptcy on the night of Day 34 unless its Wealth recovers by then.`,
+      `Stopped: ${kest} fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day 35 unless its Wealth recovers by then.`,
     ],
     [
       { kind: 'decision-needed', guildId, questIds: quests },
@@ -435,21 +438,34 @@ describe('why a fast forward stopped, nine sentences (v1.1.7-S3, DL-209, DL-206 
     ],
     [
       { kind: 'transfer-offer', guildId, offerIds: [offerId] },
-      `Stopped: a Transfer Offer: <name:${rivalId}|The Iron Wardens> offers 420 Wealth for ${brenna} until the night of Day 7<ids:${offerId}>.<command:answer-offer>`,
+      `Stopped: a Transfer Offer: <name:${rivalId}|The Iron Wardens> offers 420 Wealth for ${brenna} until the night of Year 1 Day 8<ids:${offerId}>.<command:answer-offer>`,
     ],
     [
       { kind: 'transfer-offer', guildId, offerIds: ['offer-000002' as OfferId, offerId] },
-      `Stopped: a Transfer Offer: <offer:offer-000002 withdrawn> and <name:${rivalId}|The Iron Wardens> offers 420 Wealth for ${brenna} until the night of Day 7<ids:${offerId}>.<command:answer-offer>`,
+      `Stopped: a Transfer Offer: <offer:offer-000002 withdrawn> and <name:${rivalId}|The Iron Wardens> offers 420 Wealth for ${brenna} until the night of Year 1 Day 8<ids:${offerId}>.<command:answer-offer>`,
     ],
     [{ kind: 'module', moduleId: 'probe' }, 'Stopped: the probe Module asked to stop.'],
     [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],
     [{ kind: 'pool-refreshed', heroIds: [heroId, 'hero-000008' as HeroId] }, `Stopped: new in the Unattached pool: ${brenna} and <hero:hero-000008><command:show-pool>.`],
   ])('puts %j in words', (stop, line) => {
-    expect(sentenceText(narrateStop(stop, world, 1080), shown)).toBe(line);
+    expect(sentenceText(narrateStop(stop, world, 1080, calendar), shown)).toBe(line);
   });
 
   test('a Guild whose row is gone is a name slot with no label', () => {
-    const slot = narrateStop({ kind: 'below-floor', guildId: 'guild-000009' as GuildId, dueDay: 3 }, world, 1080).find((part) => part.kind === 'name');
+    const slot = narrateStop({ kind: 'below-floor', guildId: 'guild-000009' as GuildId, dueDay: 3 }, world, 1080, calendar).find((part) => part.kind === 'name');
     expect(slot).toEqual({ kind: 'name', table: 'guilds', id: 'guild-000009', label: undefined });
+  });
+});
+
+describe("a date in a sentence reads the game's own calendar (DL-210, DL-206 items 30 to 33)", () => {
+  const week: Calendar = { turnsPerYear: 21 };
+  const nowhere = { guilds: {}, heroes: {}, offers: {} } as unknown as Pick<World, 'guilds' | 'heroes' | 'offers'>;
+
+  test("an event's night, from a Turn, in a Year of 7 Days", () => {
+    expect(sentenceText(narrate(samples['hero.injured'], content, week), shown)).toMatch(/, healing on the night of Year 2 Day 7\.$/);
+  });
+
+  test("a stop's night, from a Day as the engine counts it, in a Year of 7 Days", () => {
+    expect(sentenceText(narrateStop({ kind: 'below-floor', guildId, dueDay: 34 }, nowhere, 1080, week), shown)).toContain('Bankruptcy on the night of Year 5 Day 7 unless');
   });
 });

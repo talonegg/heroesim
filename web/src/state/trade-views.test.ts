@@ -3,7 +3,6 @@ import {
   ageOf,
   applyAction,
   createWorld,
-  dayOf,
   defaultConfig,
   guildmasterOf,
   holdings,
@@ -18,6 +17,7 @@ import {
 } from '@heroesim/engine';
 import { createItem } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
+import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { defaultHeroOrder } from './selectors';
 import { marketView, offersView, poolView } from './trade-views';
@@ -242,7 +242,7 @@ describe('offersView', () => {
     expect(offersView(offered.document)?.offers).toEqual([
       {
         offerId: offer.id,
-        sentence: `${rival.name} offers ${offer.fee} Wealth for ${heroName}, until the night of Day ${dayOf(offer.expiresOnTurn)}.`,
+        sentence: `${rival.name} offers ${offer.fee} Wealth for ${heroName}, until ${nightOfTurn(offer.expiresOnTurn, offered.document.meta.config)}.`,
         guildName: rival.name,
         heroName,
         fee: offer.fee,

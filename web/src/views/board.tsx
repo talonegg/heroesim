@@ -296,7 +296,7 @@ function Quest({
                 Leaves today
               </Chip>
             ) : (
-              <Chip>Until Day {card.lastDay}</Chip>
+              <Chip>{card.until}</Chip>
             )}
           </li>
         </ul>

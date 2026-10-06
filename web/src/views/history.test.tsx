@@ -43,10 +43,10 @@ function whose(): HTMLElement {
   return within(section('History')).getByRole('group', { name: 'Whose History' });
 }
 
-/** A `Day 5, night` as the Turn it names, to put groups in order. */
+/** A `Year 1 Day 6, night` as the Turn it names in a Year of 1,080 Turns, to put groups in order (DL-210). */
 function turnOf(when: string): number {
-  const [, day = '0', time = ''] = /^Day (\d+), (morning|afternoon|night)$/.exec(when) ?? [];
-  return Number(day) * 3 + ['morning', 'afternoon', 'night'].indexOf(time);
+  const [, year = '1', day = '1', time = ''] = /^Year (\d+) Day (\d+), (morning|afternoon|night)$/.exec(when) ?? [];
+  return (Number(year) - 1) * 1080 + (Number(day) - 1) * 3 + ['morning', 'afternoon', 'night'].indexOf(time);
 }
 
 /** A game with a Party of the player's home, and the fast forward that brought it home the last play. */
@@ -218,7 +218,7 @@ describe('folds, and the marks on each line (M9-S5)', () => {
 describe('names that open whom they name (M9-S5)', () => {
   test("a Hero's name opens their page in the History, and back goes to the History it came from", () => {
     render_(withPartyOut(started()));
-    const sent = inHistory(/^The Lantern sent .+ on .+, back on the night of Day \d+\.$/);
+    const sent = inHistory(/^The Lantern sent .+ on .+, back on the night of Year \d+ Day \d+\.$/);
     const [, hero] = within(sent).getAllByRole('button');
     const name = hero?.textContent ?? '';
 
@@ -332,7 +332,7 @@ describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 
     expect(heroes.getAttribute('aria-expanded')).toBe('true');
     expect(within(lines).getAllByRole('listitem')).toHaveLength(written.party.heroIds.length);
     const [first] = within(lines).getAllByRole('listitem');
-    expect(first?.textContent).toMatch(/^.+: gained 12 XP; injured: Bruised ribs, healing on the night of Day \d+\.$/);
+    expect(first?.textContent).toMatch(/^.+: gained 12 XP; injured: Bruised ribs, healing on the night of Year \d+ Day \d+\.$/);
     // A Hero's name opens their page, as every name in the History does.
     const name = within(first as HTMLElement).getByRole('button');
     fireEvent.click(name);
@@ -422,7 +422,7 @@ describe('anyone the History names, found by name (DL-74)', () => {
 
     const page = within(history()).getByRole('article');
     expect(within(page).getByRole('heading', { level: 3, name: dead.name })).toBeDefined();
-    expect(within(page).getByText(/^Died on Day \d+$/)).toBeDefined();
+    expect(within(page).getByText(/^Died on Year \d+ Day \d+$/)).toBeDefined();
     // This Hero is dead by the test's own hand, with no Milestone recorded: none is drawn (M9-S3, the review's A5).
     expect(within(page).queryByRole('heading', { name: 'Milestones' })).toBeNull();
     expect(within(page).getByRole('heading', { level: 4, name: 'History, newest first' })).toBeDefined();
@@ -494,7 +494,7 @@ describe("the History's scopes (M9-F4, DL-111 item 4, DL-112 item 7)", { timeout
     }
 
     expect(title()).toBe('The World History');
-    expect(within(history()).getAllByRole('heading', { level: 4 }).every((heading) => /^Day \d+, (morning|afternoon|night)$/.test(heading.textContent ?? ''))).toBe(true);
+    expect(within(history()).getAllByRole('heading', { level: 4 }).every((heading) => /^Year \d+ Day \d+, (morning|afternoon|night)$/.test(heading.textContent ?? ''))).toBe(true);
     // A fold, a Succession, a Rival's Quest taken and resolved, a Patron's band, a Guild founded, the world made.
     for (const pattern of [/ and folded\.$/, / retired at \d+ as Guildmaster of .+ succeeded them\.$/, / sent .+ on .+, back on /, / Party came home from /, /'s Regard for /, /The world was made from seed history-world\./, / was founded\./]) {
       expect(sentences.some((sentence) => pattern.test(sentence)), String(pattern)).toBe(true);

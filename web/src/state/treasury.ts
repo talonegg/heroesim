@@ -23,11 +23,11 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { signed } from '@heroesim/words';
+import { nightOfDay, signed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { narrateSegments, narrationFor, textOf, type Segment } from './namer';
 import { playDeps } from './reducer';
-import { countdownView, historyPageSize, whenOf } from './selectors';
+import { countdownView, historyPageSize } from './selectors';
 
 // ── What an entry did to a Guild's Wealth ────────────────────────────────────────────────────
 
@@ -138,7 +138,7 @@ export function wealthChangeOf(entry: Entry | TurnEvent, guildId: GuildId): Weal
 export interface LedgerRow {
   /** Its place in the History: unique, and the same on every page. */
   key: string;
-  /** `Day 19, night`. */
+  /** `Year 1 Day 20, night`. */
   when: string;
   /** What happened, in the History's words, each name opening whom it names; `Founded with 500 Wealth` for the opening row. */
   segments: Segment[];
@@ -179,7 +179,7 @@ function ledgerRow({ position, entry, category, amount }: LedgerChange, narratio
   const segments = narrateSegments(entry as TurnEvent, narration);
   return {
     key: `ledger-${position}`,
-    when: whenOf(entry.turn),
+    when: whenOfTurn(entry.turn, narration.calendar),
     segments,
     sentence: textOf(segments),
     category,
@@ -203,7 +203,7 @@ function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null 
   const sentence = `Founded with ${wealth} Wealth`;
   return {
     key: `ledger-${position}`,
-    when: whenOf(founded.turn),
+    when: whenOfTurn(founded.turn, document.meta.config),
     segments: [{ kind: 'text', text: sentence }],
     sentence,
     category: null,
@@ -250,7 +250,7 @@ export interface TreasuryView {
     sentence: string;
     /** What the next payment takes (`upkeepParts`' total), at the Roster and Hall of now. */
     total: number;
-    /** `the night of Day 19` (`nextUpkeepDay`); `null` once the game has ended or the Guild folded. */
+    /** `the night of Year 1 Day 20` (`nextUpkeepDay`); `null` once the game has ended or the Guild folded. */
     next: string | null;
     /** Wages and the Hall's maintenance, and the Guildmaster's Traits' factor when one bears on it. */
     parts: { label: string; value: string }[];
@@ -320,7 +320,7 @@ export function treasuryView(document: WorldDocument, filter: TreasuryFilter, pa
     upkeep: {
       sentence: `Upkeep of ${guild.name}: ${parts.total} Wealth every ${config.upkeepEveryDays} Days`,
       total: parts.total,
-      next: playing ? `the night of Day ${nextUpkeepDay(world.turn, config)}` : null,
+      next: playing ? nightOfDay(nextUpkeepDay(world.turn, config), config) : null,
       parts: [
         { label: 'Wages', value: String(parts.wages) },
         { label: 'Hall maintenance', value: String(parts.hallMaintenance) },

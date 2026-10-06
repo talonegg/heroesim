@@ -126,17 +126,17 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   // A Day: three Turns, morning, afternoon and night.
   const advance = page.getByRole('button', { name: 'Advance a Turn' });
   for (let turn = 0; turn < 3; turn += 1) await playTurns(page, advance);
-  await expect(page.getByTestId('time')).toHaveText('Day 1, morning, Year 0');
+  await expect(page.getByTestId('time')).toHaveText('Year 1 Day 2, morning');
 
   const quest = await dispatchAParty(page);
-  const sent = historyText(await history(page), new RegExp(`^The Lantern sent .+ on ${escaped(quest)}, back on the night of Day \\d+\\.$`));
+  const sent = historyText(await history(page), new RegExp(`^The Lantern sent .+ on ${escaped(quest)}, back on the night of Year \\d+ Day \\d+\\.$`));
   await expect(sent).toHaveCount(1);
   await expect(lineOf(sent)).toHaveClass(/\bis-new\b/);
-  await expect(groupOf(sent)).toHaveText('Day 1, morning');
+  await expect(groupOf(sent)).toHaveText('Year 1 Day 2, morning');
   // The home view names the Party out, and the night it returns: the Guild opens at the part last
   // open, the Hall, and its Home is a tab away (M9-F2).
   const home = await guildPart(page, 'Home');
-  await expect(home.getByRole('listitem').filter({ hasText: new RegExp(`^${escaped(quest)} · .+ · back on the night of Day \\d+$`) })).toHaveCount(1);
+  await expect(home.getByRole('listitem').filter({ hasText: new RegExp(`^${escaped(quest)} · .+ · back on the night of Year \\d+ Day \\d+$`) })).toHaveCount(1);
 
   // Recruit a Hero from the Unattached pool (the Gate's "recruited", DL-74).
   const recruited = await recruitAHero(page);
@@ -149,11 +149,11 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expectNoHorizontalOverflow(page, "the Guild's Stores");
   const treasury = await guildPart(page, 'Treasury');
   await expect(treasury.getByText(/^Upkeep of The Lantern: \d+ Wealth every 10 Days$/)).toBeVisible();
-  await expect(treasury.getByTestId('upkeep-next')).toHaveText(/^Next paid on the night of Day \d+: \d+ Wealth\.$/);
+  await expect(treasury.getByTestId('upkeep-next')).toHaveText(/^Next paid on the night of Year \d+ Day \d+: \d+ Wealth\.$/);
   const ledger = treasury.getByRole('table', { name: 'The ledger of The Lantern' });
-  await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for \\d+ Wealth\\.Heroes-\\d+$`) })).toHaveCount(1);
+  await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Year \\d+ Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for \\d+ Wealth\\.Heroes-\\d+$`) })).toHaveCount(1);
   // It opens with the Wealth the Guild was founded with, last on its only page (M9-F7, DL-120 item 4).
-  await expect(ledger.getByRole('row').last()).toHaveText(/^Day 0, morningFounded with \d+ WealthOpening balance\d+$/);
+  await expect(ledger.getByRole('row').last()).toHaveText(/^Year 1 Day 1, morningFounded with \d+ WealthOpening balance\d+$/);
   await treasury.getByRole('group', { name: 'Show income or expense' }).getByRole('button', { name: 'Expense' }).click();
   await expect(treasury.getByTestId('totals')).toHaveText(/^Income 0 · Expense -\d+ · Net -\d+$/);
   await expectNoHorizontalOverflow(page, "the Guild's Treasury");

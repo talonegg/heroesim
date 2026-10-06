@@ -1316,7 +1316,7 @@ p.setup-preview {
   padding-inline: 0.5rem;
 }
 
-/* On a phone the bar keeps to the point: the Year and "by Fame" are read, not shown. */
+/* On a phone the bar keeps to the point: "by Fame" is read, not shown; the Year is shown at every width (DL-210). */
 @media (max-width: 599px) {
   .wide-only {
     position: absolute;

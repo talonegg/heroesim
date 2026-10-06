@@ -46,7 +46,7 @@ describe('the game menu’s debug view (M9-F4)', () => {
   test("a Hero's page opened from it goes back to it by its name: \"Back to Debug: Whole History\" (M9-F7, DL-120 item 1)", () => {
     render(<App initial={withPartyOut(started())} />);
     openDebugHistory();
-    const sent = inHistory(/^The Lantern sent .+ on .+, back on the night of Day \d+\.$/);
+    const sent = inHistory(/^The Lantern sent .+ on .+, back on the night of Year \d+ Day \d+\.$/);
     const [, hero] = within(sent).getAllByRole('button');
 
     fireEvent.click(hero as HTMLElement);

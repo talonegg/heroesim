@@ -421,7 +421,7 @@ describe('the modules installed (M8-S4): none unless the page is given some', ()
   });
 
   test('a probe.fired event is in the log of the Turn the probe fires on, on a seed known to fire one', () => {
-    // Seed `modules`: the probe's stream first draws below 0.02 on the eleventh Turn, the night of Day 3.
+    // Seed `modules`: the probe's stream first draws below 0.02 on the eleventh Turn, the night of Year 1 Day 4.
     let state = withProbe(initialGameState, { ...newGame, seed: 'modules' });
     for (let turn = 1; turn <= 10; turn += 1) {
       state = withProbe(state, { kind: 'advance' });
@@ -734,9 +734,9 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
 // Vitest's 5 s default in full runs beside other work (M9-S3, DL-103). The timeout bounds a hang,
 // not the speed, as DL-74 item 1 bounded a slow test.
 describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (v1.0.1-S5, DL-96)', { timeout: 30_000 }, () => {
-  /** A Party of the player's out on the longest Quest it can staff, back on the night of Day 10, the 32nd Turn: partway through the second step. */
+  /** A Party of the player's out on the longest Quest it can staff, back on the night of Year 1 Day 11, the 32nd Turn: partway through the second step. */
   const partyOut = (): GameState => withPartyOut(startedFrom('reducer-test'));
-  /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Day 30, the 91st Turn, in the fourth step. */
+  /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Year 1 Day 31, the 91st Turn, in the fourth step. */
   const probeGame = (): GameState => {
     const made = gameReducer(gameReducer(initialGameState, { ...newGame, seed: 'reducer-test' }, [probe]), { kind: 'settle' }, [probe]);
     return withRosterReleased(made);
@@ -865,7 +865,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     expect(serialise(documentOf(last))).toBe(serialise(one.document));
     expect(stopView(last)).toEqual({
       kind: 'below-floor',
-      sentence: `Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Day ${due} unless its Wealth recovers by then.`,
+      sentence: `Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day ${due + 1} unless its Wealth recovers by then.`,
     });
   });
 });

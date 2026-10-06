@@ -65,11 +65,14 @@ async function progressSeen(page: Page): Promise<string[]> {
   return page.evaluate(() => (window as unknown as { progressSeen: string[] }).progressSeen);
 }
 
-/** The Turns played and the Day reached, as the progress says them. */
+/**
+ * The Turns played and the Day reached, as the progress says them: the Day counted from 0 across
+ * Years of 360 Days, as the engine counts it, from the date a player reads (DL-210).
+ */
 function readProgress(text: string): { turns: number; day: number } {
-  const match = /^Played (\d+) Turns? so far\. Now Day (\d+), \w+, Year \d+\.$/.exec(text);
+  const match = /^Played (\d+) Turns? so far\. Now Year (\d+) Day (\d+), \w+\.$/.exec(text);
   if (match === null) throw new Error(`not a progress: ${text}`);
-  return { turns: Number(match[1]), day: Number(match[2]) };
+  return { turns: Number(match[1]), day: (Number(match[2]) - 1) * 360 + Number(match[3]) - 1 };
 }
 
 test('a year of fast forward shows its progress Day by Day, and a Stop ends it within a step', async ({ page }, testInfo) => {
@@ -78,7 +81,7 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-fast-forward' });
   const save = await aYearWithNoStop(page, testInfo);
   await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(save);
-  await expect(page.getByTestId('time')).toHaveText('Day 0, morning, Year 0');
+  await expect(page.getByTestId('time')).toHaveText('Year 1 Day 1, morning');
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   // No Hero on the Roster: the list of them is not shown at all.
   const roster = await openView(page, 'Roster');
@@ -95,7 +98,7 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   await expect(stop.locator('p')).toHaveText(`Stopped: played the most Turns allowed, ${yearTurns}.`, { timeout: 60_000 });
   testInfo.annotations.push({ type: 'a year of fast forward', description: `${Date.now() - started} ms` });
   await expect(page.getByTestId('progress')).toHaveCount(0);
-  await expect(page.getByTestId('time')).toHaveText('Day 360, morning, Year 1');
+  await expect(page.getByTestId('time')).toHaveText('Year 2 Day 1, morning');
   const seen = (await progressSeen(page)).map(readProgress);
   const days = new Set(seen.map((progress) => progress.day));
   expect(days.size, `the progress seen: ${JSON.stringify(seen)}`).toBeGreaterThanOrEqual(2);
@@ -133,7 +136,7 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   expect(stoppedAfter).toBeLessThan(yearTurns);
   // The game as that step left it: a year and the Turns played since.
   const turn = yearTurns + stoppedAfter;
-  await expect(page.getByTestId('time')).toHaveText(`Day ${turn / 3}, morning, Year 1`);
+  await expect(page.getByTestId('time')).toHaveText(`Year 2 Day ${turn / 3 - 360 + 1}, morning`);
   await expect(page.getByTestId('progress')).toHaveCount(0);
   await expect(stop.getByRole('button', { name: 'Fast forward again' })).toBeEnabled();
   await expect(time.getByRole('button', { name: 'Advance a Turn' })).toBeEnabled();
@@ -181,9 +184,9 @@ test("falling below the Bankruptcy floor stops a fast forward unasked; the home 
   // The first night's check finds it below the floor: the fast forward stops that night, unasked,
   // before the morning's Quests could ask for a decision.
   await playTurns(page, time.getByRole('button', { name: 'Fast forward', exact: true }));
-  await expect(page.getByTestId('time')).toHaveText('Day 0, night, Year 0');
+  await expect(page.getByTestId('time')).toHaveText('Year 1 Day 1, night');
   const due = (await page.getByTestId('countdown').textContent()) ?? '';
-  expect(due).toMatch(/^Bankruptcy on the night of Day \d+$/);
+  expect(due).toMatch(/^Bankruptcy on the night of Year \d+ Day \d+$/);
   const home = page.getByRole('region', { name: 'Guild', exact: true });
   await expect(home).toBeVisible();
   const stop = page.getByTestId('stop');

@@ -5,10 +5,11 @@
 // Hero, Guild, Quest or Item is named without its id, since the player never types one here, and
 // the pointers to a CLI command (`show roster`) are left out.
 //
-// It reads the engine's values (`dayOf`, `playerGuild`), which only `state/` may import (M7-S2).
+// It reads the engine's values (`defaultConfig`, `playerGuild`), which only `state/` may import (M7-S2).
+// A date is the calendar's, `Year 1 Day 11` (DL-210), by the game's own length of a Year.
 
 import {
-  dayOf,
+  defaultConfig,
   descriptiveAttributeLabels,
   playerGuild,
   sexes,
@@ -18,8 +19,20 @@ import {
   type TransferRefusalReason,
   type UnmetRequirement,
   type World,
+  type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, endingWords, facilityIs, facilityNames, gearUnavailableWords, listed, nameIn, unavailableWords } from '@heroesim/words';
+import {
+  capitalised,
+  dateOfTurn,
+  endingWords,
+  facilityIs,
+  facilityNames,
+  gearUnavailableWords,
+  listed,
+  nameIn,
+  unavailableWords,
+  type Calendar,
+} from '@heroesim/words';
 import type { DocumentPlayKind, GameRefusal, PlayRejection } from './reducer';
 
 // ── Kinds ────────────────────────────────────────────────────────────────────────────────────
@@ -49,6 +62,11 @@ export function rejectionKind(rejection: PlayRejection): RejectionKind {
 /** What a sentence reads beyond its rejection: the world it was refused in, when there is one. */
 interface Setting {
   world: World | null;
+  /**
+   * The game's calendar, for a date (DL-210); with no game in hand, this release's, though no refusal
+   * made with no game names a date.
+   */
+  calendar: Calendar;
   content: ContentSet;
   /** The player's Guild: whose play it was. */
   player: Guild | undefined;
@@ -122,6 +140,12 @@ function refusedWords(
   return `${guildCalled(setting, guildId)} will not ${way} ${heroCalled(setting, heroId)}: ${refusalWords(because, guild)}.`;
 }
 
+/** A Hero a Transfer cannot move yet (DL-69): the date they were transferred, and the first date they may be again. */
+function lockedWords(heroId: string, transferredOnTurn: number, untilTurn: number, setting: Setting): string {
+  const { calendar } = setting;
+  return `${heroCalled(setting, heroId)} was transferred on ${dateOfTurn(transferredOnTurn, calendar)} and cannot be transferred again before ${dateOfTurn(untilTurn, calendar)}.`;
+}
+
 /** What the CLI adds after a refusal made once the game has ended: no Turn, or no action. */
 function afterTheEnd(action: DocumentPlayKind): string {
   return action === 'advance' || action === 'fastForward' ? 'No Turn follows.' : 'Nothing more can be done in it.';
@@ -137,9 +161,9 @@ const sentences: Sentences = {
   // A play on a game, whichever it is.
   'no-game': () => 'No game is in hand: start a new game or load a save.',
   'no-player-guild': () => "The save has no player's Guild.",
-  // The CLI's words, with the Day for its Turn: the page names Days, as its header does for the same ending.
+  // The CLI's words, with the date for its Turn: the page names dates, as its header does for the same ending.
   'game-ended': ({ action, ending }, setting) =>
-    `The game ended on Day ${dayOf(ending.turn)}: ${playerCalled(setting)} ${endingWords[ending.reason]}. ${afterTheEnd(action)}`,
+    `The game ended on ${dateOfTurn(ending.turn, setting.calendar)}: ${playerCalled(setting)} ${endingWords[ending.reason]}. ${afterTheEnd(action)}`,
 
   // newGame and load (the CLI's `new` and `load`).
   'newGame guild-name-blank': () => 'The Guild needs a name.',
@@ -273,7 +297,7 @@ const sentences: Sentences = {
   'transferIn hero-in-party': ({ heroId }, setting) =>
     `${heroCalled(setting, heroId)} is away with a Party; a Hero is transferred only from the Hall.`,
   'transferIn recently-transferred': ({ heroId, transferredOnTurn, untilTurn }, setting) =>
-    `${heroCalled(setting, heroId)} was transferred on Day ${dayOf(transferredOnTurn)} and cannot be transferred again before Day ${dayOf(untilTurn)}.`,
+    lockedWords(heroId, transferredOnTurn, untilTurn, setting),
   'transferIn transfer-refused': (rejection, setting) => refusedWords(rejection, setting),
   'transferIn insufficient-wealth': ({ guildId, fee, wealth }, setting) =>
     `The fee is ${fee} Wealth; ${guildCalled(setting, guildId)} has ${wealth}.`,
@@ -285,7 +309,7 @@ const sentences: Sentences = {
   'transferOut hero-in-party': ({ heroId }, setting) =>
     `${heroCalled(setting, heroId)} is away with a Party; a Hero is transferred only from the Hall.`,
   'transferOut recently-transferred': ({ heroId, transferredOnTurn, untilTurn }, setting) =>
-    `${heroCalled(setting, heroId)} was transferred on Day ${dayOf(transferredOnTurn)} and cannot be transferred again before Day ${dayOf(untilTurn)}.`,
+    lockedWords(heroId, transferredOnTurn, untilTurn, setting),
   'transferOut transfer-refused': (rejection, setting) => refusedWords(rejection, setting),
   'transferOut insufficient-wealth': ({ guildId, fee, wealth }, setting) =>
     `The fee is ${fee} Wealth; ${guildCalled(setting, guildId)} has ${wealth}.`,
@@ -296,7 +320,7 @@ const sentences: Sentences = {
   'offerTransfer hero-in-party': ({ heroId }, setting) =>
     `${heroCalled(setting, heroId)} is away with a Party; a Hero is transferred only from the Hall.`,
   'offerTransfer recently-transferred': ({ heroId, transferredOnTurn, untilTurn }, setting) =>
-    `${heroCalled(setting, heroId)} was transferred on Day ${dayOf(transferredOnTurn)} and cannot be transferred again before Day ${dayOf(untilTurn)}.`,
+    lockedWords(heroId, transferredOnTurn, untilTurn, setting),
   'offerTransfer no-offer-needed': ({ guildId }, setting) =>
     `${guildCalled(setting, guildId)} answers a Transfer at once, so no Offer is needed: ask to take the Hero in.`,
   'offerTransfer offer-pending': ({ offerId }, setting) => {
@@ -321,13 +345,16 @@ const sentences: Sentences = {
 export const rejectionKinds = Object.freeze(Object.keys(sentences)) as readonly RejectionKind[];
 
 /**
- * `rejection` as a sentence, naming what `world` holds: the world the play was refused in, the
- * state's `document.world`, or `null` when there is no game. A name the world does not hold reads
- * `that Hero`, `that Guild`, and so on, capitalised when it opens the sentence.
+ * `rejection` as a sentence, naming what `document` holds: the game the play was refused in, the
+ * state's `document`, or `null` when there is none. A name the world does not hold reads `that
+ * Hero`, `that Guild`, and so on, capitalised when it opens the sentence; a date is by the game's
+ * calendar (DL-210).
  */
-export function rejectionSentence(rejection: PlayRejection, world: World | null, content: ContentSet): string {
+export function rejectionSentence(rejection: PlayRejection, document: Pick<WorldDocument, 'world' | 'meta'> | null, content: ContentSet): string {
   const words = sentences[rejectionKind(rejection)] as (rejection: PlayRejection, setting: Setting) => string;
-  const sentence = words(rejection, { world, content, player: world === null ? undefined : playerGuild(world) });
+  const world = document?.world ?? null;
+  const calendar = document?.meta.config ?? defaultConfig;
+  const sentence = words(rejection, { world, calendar, content, player: world === null ? undefined : playerGuild(world) });
   return capitalised(sentence);
 }
 

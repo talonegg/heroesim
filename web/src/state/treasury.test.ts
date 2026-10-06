@@ -20,10 +20,11 @@ import {
 } from '@heroesim/engine';
 import { createProbe, makeId, partyFor } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
+import { nightOfDay, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { changed, played, started, withWealth } from './game.test-support';
 import { initialGameState, playDeps, type GameState } from './reducer';
-import { countdownView, whenOf } from './selectors';
+import { countdownView } from './selectors';
 import { ledgerOf, treasuryView, wealthChangeOf, type TreasuryFilter } from './treasury';
 
 // The Treasury (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): the ledger is every change to a Guild's
@@ -193,7 +194,7 @@ describe('the ledger misses nothing (M9-F3)', () => {
         const opening = rows.at(-1);
         const founding = Object.hasOwn(start.world.guilds, guild.id) ? start.world.guilds[guild.id]?.wealth : undefined;
         // Its oldest row is the Wealth it was founded with, as the Guild's row had it at the start.
-        expect(opening, guild.name).toMatchObject({ category: null, categoryWords: 'Opening balance', when: whenOf(guild.foundedTurn) });
+        expect(opening, guild.name).toMatchObject({ category: null, categoryWords: 'Opening balance', when: whenOfTurn(guild.foundedTurn, now.meta.config) });
         expect(opening?.sentence).toBe(`Founded with ${opening?.amount} Wealth`);
         if (founding !== undefined) expect(opening?.amount, guild.name).toBe(founding);
         const sum = rows.reduce((total, row) => total + row.amount, 0);
@@ -246,8 +247,8 @@ describe('treasuryView: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', ()
     expect(view?.wealth).toBe(guild.wealth);
     expect(view?.upkeep.total).toBe(parts.total);
     expect(view?.upkeep.sentence).toBe(`Upkeep of The Lantern: ${parts.total} Wealth every ${config.upkeepEveryDays} Days`);
-    expect(view?.upkeep.next).toBe(`the night of Day ${nextUpkeepDay(document.world.turn, config)}`);
-    expect(view?.upkeep.next).toBe('the night of Day 9');
+    expect(view?.upkeep.next).toBe(nightOfDay(nextUpkeepDay(document.world.turn, config), config));
+    expect(view?.upkeep.next).toBe('the night of Year 1 Day 10');
     expect(view?.upkeep.parts).toEqual([
       { label: 'Wages', value: String(parts.wages) },
       { label: 'Hall maintenance', value: String(parts.hallMaintenance) },
@@ -287,7 +288,7 @@ describe('treasuryView: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', ()
 
     const below = withWealth(state, floor - 50, 0);
     expect(treasuryView(documentOf(below), both, 0)?.countdown).toBe(countdownView(documentOf(below)));
-    expect(treasuryView(documentOf(below), both, 0)?.countdown).toMatch(/below the Bankruptcy floor since Day 0/);
+    expect(treasuryView(documentOf(below), both, 0)?.countdown).toMatch(/below the Bankruptcy floor since Year 1 Day 1:/);
   });
 
   test('gives no next payment once the game has ended', () => {
@@ -346,15 +347,15 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
       [null, founding],
     ]);
     const [paid, , , bought, opening] = view?.ledger.rows ?? [];
-    expect(opening).toMatchObject({ when: 'Day 0, morning', sentence: `Founded with ${founding} Wealth`, categoryWords: 'Opening balance', amountWords: String(founding) });
+    expect(opening).toMatchObject({ when: 'Year 1 Day 1, morning', sentence: `Founded with ${founding} Wealth`, categoryWords: 'Opening balance', amountWords: String(founding) });
     expect(founding).toBe(defaultConfig.startingWealth);
     expect(view?.ledger).toMatchObject({ shown: 4, opens: true });
     expect(paid?.categoryWords).toBe('Upkeep');
-    expect(paid?.when).toBe('Day 9, night');
+    expect(paid?.when).toBe('Year 1 Day 10, night');
     expect(paid?.amountWords).toBe(`-${upkeep}`);
     expect(bought?.sentence).toMatch(/^The Lantern bought 2 × .* at the Market for \d+ Wealth\.$/);
     expect(bought?.segments[0]).toMatchObject({ kind: 'name', text: 'The Lantern', table: 'guilds' });
-    expect(bought?.when).toBe('Day 0, morning');
+    expect(bought?.when).toBe('Year 1 Day 1, morning');
 
     const expense = -(upkeep + fee + cost);
     expect(view?.ledger.totals).toEqual({

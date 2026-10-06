@@ -1,7 +1,6 @@
 import {
   configVersion,
   createWorld,
-  dayOf,
   defaultConfig,
   playerGuild,
   schemaVersion,
@@ -226,7 +225,7 @@ const stackName = named(content.items, stack.definitionKey);
 const whetstone = named(content.items, 'whetstone');
 const sword = named(content.items, 'arming-sword');
 const inParty = `${hero.name} is away with a Party; a Hero is transferred only from the Hall.`;
-const locked = `${hero.name} was transferred on Day ${dayOf(30)} and cannot be transferred again before Day ${dayOf(300)}.`;
+const locked = `${hero.name} was transferred on Year 1 Day 11 and cannot be transferred again before Year 1 Day 101.`;
 const guildBackgrounds = Object.values(content.backgrounds)
   .filter((row) => row.owner === 'guild')
   .map((row) => row.name)
@@ -241,7 +240,7 @@ const guildBackgrounds = Object.values(content.backgrounds)
 const exactly: Record<RejectionKind, string> = {
   'no-game': 'No game is in hand: start a new game or load a save.',
   'no-player-guild': "The save has no player's Guild.",
-  'game-ended': `The game ended on Day ${dayOf(ending.turn)}: The Lantern went bankrupt. Nothing more can be done in it.`,
+  'game-ended': 'The game ended on Year 1 Day 181: The Lantern went bankrupt. Nothing more can be done in it.',
 
   'newGame guild-name-blank': 'The Guild needs a name.',
   'newGame guildmaster-name-blank': 'The Guildmaster needs a name.',
@@ -358,7 +357,7 @@ describe('the words for every refusal', () => {
   });
 
   test.each(kinds)('%s renders as a sentence in the world it was refused in', (kind) => {
-    expectASentence(rejectionSentence(samples[kind], world, content));
+    expectASentence(rejectionSentence(samples[kind], document, content));
   });
 
   test.each(kinds)('%s renders as a sentence with no world to name from', (kind) => {
@@ -366,11 +365,11 @@ describe('the words for every refusal', () => {
   });
 
   test.each(kinds)('%s says exactly what the CLI says, less its ids and pointers', (kind) => {
-    expect(rejectionSentence(samples[kind], world, content)).toBe(exactly[kind]);
+    expect(rejectionSentence(samples[kind], document, content)).toBe(exactly[kind]);
   });
 
   test.each(kinds)('%s shows no id, with a world or without one: a name the world does not hold is "that Hero" or the like', (kind) => {
-    expect(rejectionSentence(samples[kind], world, content)).not.toMatch(anId);
+    expect(rejectionSentence(samples[kind], document, content)).not.toMatch(anId);
     expect(rejectionSentence(samples[kind], null, content)).not.toMatch(anId);
   });
 });
@@ -388,7 +387,7 @@ describe('with no world to name from', () => {
 
 describe('what the words name', () => {
   test('a Hero and a Guild by their names, not their ids', () => {
-    const sentence = rejectionSentence(samples['dispatch hero-not-on-roster'], world, content);
+    const sentence = rejectionSentence(samples['dispatch hero-not-on-roster'], document, content);
 
     expect(sentence).toContain(rivalHero.name);
     expect(sentence).toContain(player.name);
@@ -416,26 +415,26 @@ describe('what the words name', () => {
   test('a Quest by its template, and Items by their content names', () => {
     const template = content.questTemplates[quest.templateKey];
 
-    expect(rejectionSentence(samples['dispatch quest-not-offered'], world, content)).toContain(template?.name);
-    expect(rejectionSentence(samples['buy not-in-market'], world, content)).toContain(content.items['runed-circlet']?.name);
+    expect(rejectionSentence(samples['dispatch quest-not-offered'], document, content)).toContain(template?.name);
+    expect(rejectionSentence(samples['buy not-in-market'], document, content)).toContain(content.items['runed-circlet']?.name);
   });
 
   test('a Transfer refused by the side the other Guild was asked to take', () => {
-    const partWith = rejectionSentence(samples['transferIn transfer-refused'], world, content);
-    const take = rejectionSentence(samples['transferOut transfer-refused'], world, content);
+    const partWith = rejectionSentence(samples['transferIn transfer-refused'], document, content);
+    const take = rejectionSentence(samples['transferOut transfer-refused'], document, content);
 
     expect(partWith).toContain(`${rival.name} will not part with ${rivalHero.name}`);
     expect(take).toContain(`${rival.name} will not take ${hero.name}`);
   });
 
   test('an ending refuses a Turn and an action in the words the CLI adds to each', () => {
-    const turn = rejectionSentence({ action: 'advance', reason: 'game-ended', ending }, world, content);
-    const action = rejectionSentence({ action: 'recruit', reason: 'game-ended', ending }, world, content);
+    const turn = rejectionSentence({ action: 'advance', reason: 'game-ended', ending }, document, content);
+    const action = rejectionSentence({ action: 'recruit', reason: 'game-ended', ending }, document, content);
 
     expect(turn).toMatch(/No Turn follows\.$/);
     expect(action).toMatch(/Nothing more can be done in it\.$/);
     expect(action).toContain(`${player.name} went bankrupt`);
-    // The page names Days, never Turn numbers: the Day the header gives for the same ending.
-    expect(action).toMatch(new RegExp(`^The game ended on Day ${dayOf(ending.turn)}: `));
+    // The page names dates, never Turn numbers: the date the header gives for the same ending (DL-210).
+    expect(action).toMatch(/^The game ended on Year 1 Day 181: /);
   });
 });

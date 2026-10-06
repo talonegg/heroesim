@@ -30,7 +30,7 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, itemEffectWords, kindOf, nameIn, nightOf } from '@heroesim/words';
+import { capitalised, itemEffectWords, kindOf, nameIn, nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { rowOf, transferCostWords } from './names';
 import { playDeps } from './reducer';
@@ -232,7 +232,7 @@ export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): 
 export interface OfferRow {
   /** What `acceptTransfer` and `declineTransfer` take. */
   offerId: OfferId;
-  /** `The Ashford Guild offers 180 Wealth for Bran Tull, until the night of Day 12.` */
+  /** `The Ashford Guild offers 180 Wealth for Bran Tull, until the night of Year 1 Day 13.` */
   sentence: string;
   /** The Guild that makes the offer. */
   guildName: string;
@@ -260,7 +260,7 @@ export function offersView(document: WorldDocument): { guildName: string; offers
       const hero = rowOf(world.heroes, offer.heroId)?.name ?? 'a Hero';
       return {
         offerId: offer.id,
-        sentence: `${bidder} offers ${offer.fee} Wealth for ${hero}, until ${nightOf(offer.expiresOnTurn)}.`,
+        sentence: `${bidder} offers ${offer.fee} Wealth for ${hero}, until ${nightOfTurn(offer.expiresOnTurn, document.meta.config)}.`,
         guildName: bidder,
         heroName: hero,
         fee: offer.fee,
