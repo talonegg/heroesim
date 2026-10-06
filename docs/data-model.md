@@ -509,8 +509,8 @@ The History will dominate save size. The levers, in order: lean entries (ids and
 never entity copies), rule 10 (drift is not an event), and compression on write with Node's
 built-in `zlib` or the browser's `CompressionStream`. Archiving or dropping old entries is not
 a lever: R36 forbids it. Not writing the pool's comings and goings of a Hero never hired is
-another, taken 2026-10-06 (DL-206 item 20, DL-211): about 11,400 entries of a 20-year game's
-276,933, nothing dropped. Compression is taken everywhere (amended 2026-09-28, DL-84): the
+another, taken 2026-10-06 (DL-206 item 20, DL-211): a 20-year game's History 265,423 entries for
+276,933 in the mean, its save gzipped 17.51 MiB for 17.95, nothing dropped. Compression is taken everywhere (amended 2026-09-28, DL-84): the
 browser's saves are gzipped already (DL-67), and the CLI's and the harness's are to be gzipped
 too. A leaner entry shape (DL-81's leaner `quest.encounter` entry) is not taken now, and no
 schema change is made for it (the owner's decision, where the agents recommended lean entries as
