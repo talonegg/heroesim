@@ -880,6 +880,10 @@ describe("each Rival's routine, one line a Guild, and the marks on every line (M
     const shown = new Set<object>(inYourGuild(document, guild.id));
     expect(historyView(document, log, null, 0).fresh).toBe(log.filter((event) => shown.has(event)).length);
     expect(historyView(document, [], null, 0).fresh).toBe(0);
+    // A play the History records whole, as an action's is, the newest entries each of them: all new.
+    const held = new Set<object>(document.history.entries);
+    const whole = log.filter((event) => held.has(event));
+    expect(historyView(document, whole, 'all', 0).fresh).toBe(whole.length);
     // The newest are new, and they lead the first page.
     const [first] = historyView(document, log, 'all', 0).groups;
     expect(first?.rows.flatMap(linesOf).every((line) => line.fresh)).toBe(true);

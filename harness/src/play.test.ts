@@ -90,6 +90,14 @@ describe('playGame', () => {
     expect(players.length).toBeGreaterThan(0);
   });
 
+  test("counts every Hero generated, at the creation and in play, the pool's that the History does not record among them (DL-211)", () => {
+    // Every Hero's id is taken from the world's counter, which starts at 1.
+    const generated = game.document.world.counters.heroes - 1;
+    const recorded = game.document.history.byType['hero.generated']?.length ?? 0;
+    expect(recorded).toBeLessThan(generated - deps.config.unattachedPoolSize);
+    expect(game.observations.heroes.generated).toBe(generated);
+  });
+
   test('validates after every advance and the whole document at the end, and the validator accepts it', () => {
     expect(game.invalid).toBeNull();
     expect(game.validateMs).toHaveLength(60);

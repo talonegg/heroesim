@@ -991,8 +991,9 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
       const events = emitted.get(seed) as TurnEvent[];
       return createHash('sha256').update(JSON.stringify(events.map(unnamed))).digest('hex');
     });
-    // SHA-256 of each seed's History, recorded at 86c7afa (v1.1-dev before M9-F1), where the
-    // stripping above took nothing out. M9-F7 added the founding Wealth to the stripping, not new
+    // SHA-256 of each seed's events, which were its History until the History left out the pool's
+    // comings and goings of a Hero never hired (DL-211; the test after this holds the History to
+    // them), recorded at 86c7afa (v1.1-dev before M9-F1), where the stripping above took nothing out. M9-F7 added the founding Wealth to the stripping, not new
     // values: with it set aside, the History is unchanged (DL-121). v1.1.4-S2 added an Encounter's
     // Degree, deciding Check and Checks, and, under the band's rule before it, nothing else (DL-152).
     // v1.1.4-S6's Rivals choose their Parties by the chance estimate (DL-157), which changes who goes:
