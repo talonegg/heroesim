@@ -194,6 +194,24 @@ describe('transfer (M6-S2)', () => {
     expect(back.err).toContain(`${heroOf(before.world, heroId).name} (${heroId}) was transferred on Year 1 Day 1 and cannot be transferred again before Year 1 Day 31.`);
     expect(readFileSync(current(), 'utf8')).toBe(saved);
   });
+
+  test("the lock's dates are the save's own calendar's, not this release's (DL-210)", () => {
+    const before = newWorld((world) => {
+      thePlayer(world).wealth = 10_000;
+    });
+    // A Year of two Days: the engine's Day 30, the lock's end, falls on the first Day of the sixteenth Year.
+    const pinned = document();
+    pinned.meta.config.transferLockDays = 30;
+    pinned.meta.config.turnsPerYear = 6;
+    writeFileSync(current(), serialise(pinned));
+    const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
+    expect(play(['transfer', '--hero', heroId, '--in']).code).toBe(exitCodes.ok);
+
+    const back = play(['transfer', '--hero', heroId, '--to', reckless]);
+
+    expect(back.code).toBe(exitCodes.refused);
+    expect(back.err).toContain(`(${heroId}) was transferred on Year 1 Day 1 and cannot be transferred again before Year 16 Day 1.`);
+  });
 });
 
 describe('Transfer Offers (M6-S2)', () => {

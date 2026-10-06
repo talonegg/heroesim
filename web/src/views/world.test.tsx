@@ -66,7 +66,7 @@ describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => 
     expect(screen.getByTestId('rankings').textContent).toBe('Joint 1st of 5 by Fame');
   });
 
-  /** The Lantern below the floor from the start, played through the night of Day 0, under `grace` Days. */
+  /** The Lantern below the floor from the start, played through the night of the engine's Day 0, Year 1 Day 1, under `grace` Days. */
   function belowTheFloor(grace?: number): GameState {
     const rules =
       grace === undefined

@@ -1298,6 +1298,100 @@ describe('dispatch (M2-S4)', () => {
   });
 });
 
+describe("every date under the save's own calendar, not this release's (DL-210)", () => {
+  // A Year of two Days, so that a date past the second Day is in another Year than this release's
+  // 1,080-Turn year would give: each line read by the default calendar instead fails.
+  const turnsPerYear = 6;
+  const dateIn = (turn: number): string => `Year ${Math.floor(turn / turnsPerYear) + 1} Day ${Math.floor((turn % turnsPerYear) / 3) + 1}`;
+
+  beforeEach(() => {
+    newDemo();
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, turnsPerYear };
+    });
+  });
+
+  test('show: a fold, a death, an Injury and the Board', () => {
+    const rivalId = makeId('guilds', 2);
+    const heroId = makeId('heroes', 1);
+    const pooled = (Object.values(document().world.heroes).find((hero) => hero.unattachedSince !== null) as Hero).id;
+    edit((edited) => {
+      const rival = edited.world.guilds[rivalId] as Guild;
+      for (const id of rival.rosterIds) Object.assign(edited.world.heroes[id] as Hero, { guildId: null, unattachedSince: 0 });
+      rival.rosterIds = [];
+      rival.foldedOnTurn = 13;
+      Object.assign(edited.world.heroes[pooled] as Hero, { unattachedSince: null, diedOnTurn: 13 });
+      (edited.world.heroes[heroId] as Hero).injury = { typeKey: 'sprained-ankle', healsOnTurn: nightOf(3) };
+    });
+
+    expect(rowOf(play(['show', 'guilds']).out, rivalId)).toMatch(/\s{2}on Year 3 Day 1$/);
+    expect(play(['show', 'hero', pooled]).out).toMatch(/^Died\s+Year 3 Day 1 \(Turn 13\)$/m);
+    expect(play(['show', 'hero', heroId]).out).toMatch(/healing on the night of Year 2 Day 2 \(Turn 11\)$/m);
+    const board = play(['show', 'board']);
+    for (const questId of document().world.board) {
+      const { expiresOnTurn } = document().world.quests[questId] as Quest;
+      expect(expiresOnTurn).toBeGreaterThanOrEqual(turnsPerYear);
+      expect(rowOf(board.out, questId)).toMatch(new RegExp(`\\s${dateIn(expiresOnTurn)}$`));
+    }
+  });
+
+  test('advance: the stop, the countdown, the events with their dates and the History', () => {
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 10 };
+      (edited.world.guilds[playerId] as Guild).wealth = -1;
+    });
+    // The engine's Day 10, the night the Bankruptcy falls on: Turn 32, in the sixth Year of two Days.
+    const due = 'the night of Year 6 Day 1';
+
+    const stopped = play(['advance', '--until', 'pool-refreshed']);
+
+    expect(stopped.out.split('\n').slice(0, 3)).toEqual([
+      'Played 2 Turns. Now Turn 2 (Year 1 Day 1, night).',
+      `Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on ${due} unless its Wealth recovers by then.`,
+      `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on ${due} unless Wealth is back to 0 or ` +
+        'more on a night by then, after any Upkeep due.',
+    ]);
+    expect(stopped.out).toContain(`fell below the Bankruptcy floor of 0: Bankruptcy on ${due} unless it is back to 0 or more on a night by then.`);
+
+    const played = play(['advance', '--turns', '5']);
+
+    expect(played.out).toContain('Played 5 Turns. Now Turn 7 (Year 2 Day 1, afternoon).');
+    expect(played.out).toMatch(/^\s*6 {2}Year 2 Day 1, morning\s+\S/m);
+    expect(play(['show', 'history']).out).toMatch(/^\s*6 {2}Year 2 Day 1, morning\s+\S/m);
+  });
+
+  test('the game ended: in advance, and in the refusal after it', () => {
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 3 };
+      (edited.world.guilds[playerId] as Guild).wealth = -1_000_000;
+    });
+
+    // Played Turn by Turn, as --turns plays, past every stop: the game ends within them.
+    const ended = play(['advance', '--turns', '20']);
+
+    // Three Days' grace from the engine's Day 0: the night of its Day 3, Turn 11, the second Day of the second Year.
+    expect(ended.out).toContain('The game ended on Year 2 Day 2 (Turn 11): bankruptcy.');
+    expect(play(['advance']).err).toContain('The game ended on Year 2 Day 2 (Turn 11): bankruptcy.');
+  });
+
+  test("dispatch: the Party's return", () => {
+    const { world } = document();
+    const roster = world.guilds[playerId]?.rosterIds ?? [];
+    const questId = world.board.find((id) => {
+      const { requirements } = world.quests[id] as Quest;
+      return requirements.classKey === undefined && requirements.skillKey === undefined;
+    }) as QuestId;
+    const heroIds = roster.slice(0, (world.quests[questId] as Quest).requirements.partySizeMin);
+
+    const run = play(['dispatch', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    const party = Object.values(document().world.parties)[0];
+    if (party === undefined) throw new Error(`No Party: ${run.err}`);
+    expect(party.returnsOnTurn).toBeGreaterThanOrEqual(turnsPerYear);
+    expect(run.out).toContain(`it returns on the night of ${dateIn(party.returnsOnTurn)} (Turn ${party.returnsOnTurn}).`);
+  });
+});
+
 describe('rebase', () => {
   const adopted = (): number => count(document().history, 'world.rules-adopted');
 
