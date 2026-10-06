@@ -25,7 +25,7 @@ import { GuildmasterDetails } from './guildmaster';
 import { HallDetails } from './hall';
 import { HeroPage } from './hero-page';
 import { useHistoryLinks } from './history-entries';
-import { Icon } from './icons';
+import { HeroName, Icon } from './icons';
 import { GuildBanner, PortraitThumb } from './pictures';
 import { preferences, useRemembered } from './remembered';
 import { Part } from './section';
@@ -312,7 +312,9 @@ function GuildPage({
                           setHero(row.heroId);
                         }}
                       >
-                        {row.name}
+                        <HeroName icon={row.classIcon} className={row.className}>
+                          {row.name}
+                        </HeroName>
                       </button>
                     </span>
                   </th>

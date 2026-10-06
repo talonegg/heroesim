@@ -15,6 +15,7 @@ import type { HeroId } from '@heroesim/engine';
 import { Fragment, type ReactNode } from 'react';
 import type { RosterColumn, RosterColumnGroup, RosterOrder, RosterRow, RosterSortKey, SortDirection } from '../state/selectors';
 import { PortraitThumb } from './pictures';
+import { HeroName } from './icons';
 import { Chip, moraleTones, SortHeader, VisuallyHidden } from './ui';
 
 /** The id of a Hero's name, which opens their page and takes the keyboard back when it closes: the tiles' and the Table's. */
@@ -169,7 +170,9 @@ export function RosterTable({
                 <span className="named">
                   <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />
                   <button type="button" id={nameId(row.heroId)} className="link" onClick={() => onOpen(row.heroId)}>
-                    {row.name}
+                    <HeroName icon={row.classIcon} className={row.className}>
+                      {row.name}
+                    </HeroName>
                   </button>
                 </span>
               </th>

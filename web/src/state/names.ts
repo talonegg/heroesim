@@ -3,7 +3,7 @@
 // name, a list, a signed number, a capital and a Trait's effects are `@heroesim/words`', which the
 // CLI reads too (v1.1.6-S11, DL-186 item 1), and so is a night (v1.1.6-S12).
 
-import type { ContentSet, Guild, QuestBand } from '@heroesim/engine';
+import { classIcons, isClassIcon, type ClassIcon, type ClassKey, type ContentSet, type Guild, type QuestBand } from '@heroesim/engine';
 import { nameIn } from '@heroesim/words';
 
 /** A Quest band in words, as the History and the Quest report say it: one list for both (M9-F6). */
@@ -12,6 +12,20 @@ export const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'Failure',
 /** The row of `rows` keyed by `id`, never one `Object.prototype` lends (`constructor`). */
 export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
   return Object.hasOwn(rows, id) ? rows[id] : undefined;
+}
+
+/** The names a Class's icon may take: the engine's, handed on from here since only `state/` takes the engine's values (`imports.test.ts`), for the page's tests of its drawings. */
+export { classIcons };
+
+/**
+ * A Class's key and its icon, the two a row carries so that its Hero's name can be shown with the
+ * Class's mark (v1.1.7-S6, DL-206 items 22 and 23, DL-212): the icon's name when the Class names one
+ * the page draws, `null` for the plain mark. A name outside the set never reaches here: `validateContent`
+ * refuses it.
+ */
+export function classMarkOf(set: Pick<ContentSet, 'classes'>, classKey: ClassKey): { classKey: ClassKey; classIcon: ClassIcon | null } {
+  const icon = rowOf(set.classes, classKey)?.icon;
+  return { classKey, classIcon: icon !== undefined && isClassIcon(icon) ? icon : null };
 }
 
 /** `1st`, `2nd`, `3rd`, `11th`, `22nd`. */

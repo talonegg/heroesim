@@ -52,6 +52,8 @@ import {
   statsRead,
   timeOfDay,
   transferFee,
+  type ClassIcon,
+  type ClassKey,
   type ConsumableRequest,
   type ContentSet,
   type DescriptiveAttribute,
@@ -114,7 +116,7 @@ import {
 import { availabilityOf } from './availability';
 import { content } from '../content';
 import { narrateText, narrationFor, questNamer, type Narration } from './namer';
-import { placeWords, rowOf, transferCostWords } from './names';
+import { classMarkOf, placeWords, rowOf, transferCostWords } from './names';
 import { calendarFor, playDeps, type GameState } from './reducer';
 import { rejectionSentence } from './rejections';
 import { stopText } from './stops';
@@ -411,6 +413,9 @@ export interface PartyRow {
   heroId: HeroId;
   name: string;
   className: string;
+  /** Their Class's key and icon, for the mark before their name (v1.1.7-S6, DL-206 item 23, DL-212). */
+  classKey: ClassKey;
+  classIcon: ClassIcon | null;
   level: number;
   /** The engine's `unavailability`: why the Hero cannot go now, or `null` when they can. */
   why: Unavailability | null;
@@ -456,6 +461,7 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
         heroId: hero.id,
         name: hero.name,
         className: nameIn(content.classes, hero.classKey),
+        ...classMarkOf(content, hero.classKey),
         level: hero.level,
         why,
         unavailable: until,
@@ -680,6 +686,9 @@ export interface RosterRow {
   sex: Sex;
   portraitKey: string | null;
   className: string;
+  /** Their Class's key and icon, for the mark before their name (v1.1.7-S6, DL-206 item 23, DL-212). */
+  classKey: ClassKey;
+  classIcon: ClassIcon | null;
   level: number;
   age: number;
   morale: number;
@@ -932,6 +941,7 @@ function buildRosterRows(document: WorldDocument): RosterRows {
       sex: hero.sex,
       portraitKey: hero.portraitKey,
       className: nameIn(content.classes, hero.classKey),
+      ...classMarkOf(content, hero.classKey),
       level: hero.level,
       age: ageOf(hero, world.turn, config),
       morale: hero.morale,
@@ -1025,6 +1035,10 @@ export interface HeroPageView {
    * Background, and `of The Lantern` while their Guild is known.
    */
   line: string[];
+  /** Their Class's name, key and icon, for the mark before the name in the page's heading (v1.1.7-S6, DL-206 item 23, DL-212). */
+  className: string;
+  classKey: ClassKey;
+  classIcon: ClassIcon | null;
   morale: { value: number; band: MoraleBand };
   /** Where the Hero is, in the Roster's words, and the engine's `unavailability`: why they cannot go now. */
   where: { why: Unavailability | null; words: string };
@@ -1223,6 +1237,8 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
       hero[attribute] === '' ? [] : [[descriptiveAttributeLabels[attribute], hero[attribute]]],
     ),
     line: who,
+    className: nameIn(content.classes, hero.classKey),
+    ...classMarkOf(content, hero.classKey),
     morale: { value: hero.morale, band: moraleBand(hero.morale, config) },
     where: { why: available.why, words: available.where },
     injury: hero.injury === null ? null : nameIn(content.injuries, hero.injury.typeKey),

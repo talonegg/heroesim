@@ -1,5 +1,5 @@
 {
-  "version": 36,
+  "version": 37,
   "changelog": [
     "2 from M2-S3, which added the Quest templates.",
     "3 from M2-S9, which added the Dispositions.",
@@ -37,6 +37,7 @@
     "33 from v1.1.6-S6, after which the old form of Encounters and Synergies is no longer read: an Encounter's `checks` and a Synergy's `requires` as lists are the only forms (DL-192).",
     "34 from v1.1.6-S7, whose Quest templates no longer carry `demands`, which no rule had read since v1.1.4-S6 and no Quest copies now (DL-193).",
     "35 from v1.1.6-S14, which declares the Classes' order in `class-order.json`, Warrior, Rogue, Mage and Healer, each Class once, for every list that shows them (DL-200).",
-    "36 from v1.1.6-S16, which adds the optional `weight` of a Class, Background, Quest template and Sphere and the optional `purchaseOrder`, `gearSlotOrder` and `buildOrder` of a Disposition, none yet written, every game as it was (DL-202)."
+    "36 from v1.1.6-S16, which adds the optional `weight` of a Class, Background, Quest template and Sphere and the optional `purchaseOrder`, `gearSlotOrder` and `buildOrder` of a Disposition, none yet written, every game as it was (DL-202).",
+    "37 from v1.1.7-S6, which gives each Class its `icon`, the name of the drawing shown before a Hero's name (DL-206 items 22 to 24, DL-212)."
   ]
 }

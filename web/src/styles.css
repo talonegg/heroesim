@@ -3892,6 +3892,31 @@ tr.mine td {
   overflow-wrap: break-word;
 }
 
+/*
+ * A Hero's name with their Class's mark before it (v1.1.7-S6, DL-212): one element wherever a Hero is
+ * listed with their Class. The mark takes the text's colour (it sets none), so it holds the contrast
+ * the text does in both schemes. It is inline with the name, inside the name's button where the name
+ * is one, so that the name wraps beside it word by word: in a Table's sticky first column on a phone
+ * the column is then no wider than the longest word, under half of its box, behind which a
+ * scrolled-to heading would otherwise land (DL-212).
+ */
+.hero-name {
+  min-width: 0;
+}
+
+.class-mark {
+  display: inline-block;
+  margin-inline-end: 0.4em;
+  line-height: 1;
+  vertical-align: -0.3em;
+  cursor: help;
+}
+
+.class-mark > .icon {
+  display: block;
+  vertical-align: baseline;
+}
+
 /* A person's Portrait beside who they are: their name, their line and what follows it. */
 .person {
   display: grid;

@@ -24,7 +24,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GameAction } from '../state/reducer';
 import { heroPage, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
 import { EntityHistory } from './history-entries';
-import { Icon, type IconName } from './icons';
+import { HeroName, Icon, type IconName } from './icons';
 import { ItemPicture, Portrait } from './pictures';
 import { Terms } from './section';
 import { Chip, Confirm, Folded, moraleTones, regardTones, VisuallyHidden, type Tone } from './ui';
@@ -98,11 +98,15 @@ export function HeroPage({
           {/* The keyboard may be put on the name when the page opens (the Party builder's drill-down, M9-S4). */}
           {level === 3 ? (
             <h3 id="hero-name" tabIndex={-1}>
-              {view.name}
+              <HeroName icon={view.classIcon} className={view.className}>
+                {view.name}
+              </HeroName>
             </h3>
           ) : (
             <h4 id="hero-name" tabIndex={-1}>
-              {view.name}
+              <HeroName icon={view.classIcon} className={view.className}>
+                {view.name}
+              </HeroName>
             </h4>
           )}
           <p className="hero-page__line">{view.line.join(' · ')}</p>

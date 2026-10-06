@@ -26,11 +26,11 @@ Sweeps run one at a time, with nothing else running, since a 20-year game's proc
 1.3 GB (DL-184).
 
 The current `neutral` baseline, every play-neutral story's `--expect`, is
-`c942201aaad52423105a4a2a92cbe61512bd7f57b234abc273f2c83e8e201208` (`m9-v117-s5-neutral`, v1.1.7-S5, DL-211:
-schema 7, config version 17, content version 36, the pool's comings and goings of a Hero never hired no
-longer in the History; S2's was `1303d9fe…`, DL-208).
-The 4 × 2 quick check at content 36 and config version 17 is
-`ea14ffe35aa89561df091a17292c479ff115bc4f64e8fa5e984e8d9e465514a6` (S2's `3f19eb5f…`).
+`29c09fb4ea34f50addee9f8bd12ed8de40db1a3bd01655d5338795e97914d662` (`m9-v117-s6-neutral`, v1.1.7-S6, DL-212:
+schema 7, config version 17, content version 37, each Class's `icon` named; S5's was `c942201a…`, DL-211).
+The 4 × 2 quick check at content 37 and config version 17 is
+`38d1c0d4a48765086d39026c84e559d8e84008fb12205309a33db8aabeb5112a` (S5's, at content 36, was
+`ea14ffe35aa89561df091a17292c479ff115bc4f64e8fa5e984e8d9e465514a6`, which the version and `classes.json` put back give).
 It changes only with a DL entry, as at a story that changes play or the save's shape (v1.1.6-S7 and S17) or
 raises the content version or the config version, both of which every save records (with `meta.config`).
 The full `gate`'s, 50 × 20, is `43b429cf58d3f0f0d39000170d3a093283e15947ccc2eea12deea05407a5b0ce`

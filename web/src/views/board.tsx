@@ -42,7 +42,7 @@ import {
   type SentView,
 } from '../state/selectors';
 import { HeroPage } from './hero-page';
-import { Icon, type IconName } from './icons';
+import { HeroName, Icon, type IconName } from './icons';
 import { View } from './section';
 import { Banner, Chip, Stepper, VisuallyHidden } from './ui';
 
@@ -535,7 +535,9 @@ function HeroRow({ row, chosen, onToggle, onOpen }: { row: PartyRow; chosen: boo
       <label className="party-row__pick">
         <input type="checkbox" checked={chosen} disabled={away} onChange={(event) => onToggle(event.target.checked)} />
         <span className="party-row__who">
-          <span className="party-row__name">{row.name}</span>{' '}
+          <HeroName icon={row.classIcon} className={row.className}>
+            <span className="party-row__name">{row.name}</span>
+          </HeroName>{' '}
           <span className="party-row__class">
             {row.className}, Level {row.level}
           </span>

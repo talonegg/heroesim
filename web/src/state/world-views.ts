@@ -41,10 +41,12 @@ import {
   type RegardBand,
   type Sex,
   type WorldDocument,
+  type ClassIcon,
+  type ClassKey,
 } from '@heroesim/engine';
 import { capitalised, dateOfTurn, endingWords, facilityNames, nameIn, nightOfTurn, traitEffectWords, type Calendar } from '@heroesim/words';
 import { content } from '../content';
-import { controllerWords, placeWords, rowOf } from './names';
+import { classMarkOf, controllerWords, placeWords, rowOf } from './names';
 import { playDeps } from './reducer';
 
 /** The Guild named, or the player's when none is. */
@@ -439,6 +441,9 @@ export interface OtherRosterRow {
   sex: Sex;
   portraitKey: string | null;
   className: string;
+  /** Their Class's key and icon, for the mark before their name (v1.1.7-S6, DL-206 item 23, DL-212). */
+  classKey: ClassKey;
+  classIcon: ClassIcon | null;
   level: number;
   age: number;
   morale: number;
@@ -493,6 +498,8 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
           sex: hero.sex,
           portraitKey: hero.portraitKey,
           className: nameIn(content.classes, hero.classKey),
+          ...classMarkOf(content, hero.classKey),
+      ...classMarkOf(content, hero.classKey),
           level: hero.level,
           age: ageOf(hero, world.turn, deps.config),
           morale: hero.morale,

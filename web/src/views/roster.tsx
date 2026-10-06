@@ -34,7 +34,7 @@ import {
   type RosterSortKey,
 } from '../state/selectors';
 import { HeroPage } from './hero-page';
-import { Icon } from './icons';
+import { HeroName, Icon } from './icons';
 import { Offers } from './offers';
 import { ItemPicture, PortraitThumb } from './pictures';
 import { Pool } from './pool';
@@ -235,7 +235,9 @@ function HeroCard({ row, onOpen }: { row: RosterRow; onOpen: () => void }) {
       <span className="named">
         <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />
         <button type="button" id={nameId(row.heroId)} className="link" onClick={onOpen}>
-          {row.name}
+          <HeroName icon={row.classIcon} className={row.className}>
+            {row.name}
+          </HeroName>
         </button>
       </span>
       <p className="hero-card__line">

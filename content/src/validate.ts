@@ -19,12 +19,14 @@ import type {
 } from '@heroesim/engine';
 import {
   biographyTraitSentences,
+  classIcons,
   degrees,
   descriptiveAttributeMaxLength,
   encounterKinds,
   facilityKeys,
   gearSlotKeys,
   heroBiographyTraitSentences,
+  isClassIcon,
   purchaseSteps,
   queryProblems,
 } from '@heroesim/engine';
@@ -126,6 +128,10 @@ export function validateContent(set: ContentSet): ContentSet {
   }
   for (const [key, it] of Object.entries(set.classes)) {
     const where = `classes.${key}`;
+    // An icon is one the page draws (v1.1.7-S6, DL-206 item 22, DL-212); a Class with none shows the plain mark.
+    if (it.icon !== undefined && !isClassIcon(it.icon)) {
+      problems.push(`${where}.icon is ${JSON.stringify(it.icon)}; it is one of ${classIcons.join(', ')}, or absent for the plain mark`);
+    }
     checkReferences(`${where}.leadingStats`, it.leadingStats, heroStats, 'a Hero Stat', problems);
     checkReferences(`${where}.gatedSkills`, it.gatedSkills, skills, 'a Skill', problems);
     checkReferences(`${where}.growth`, Object.keys(it.growth), heroStats, 'a Hero Stat', problems);

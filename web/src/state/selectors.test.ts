@@ -519,6 +519,8 @@ describe('the Party builder (M9-S4, DL-104)', () => {
       heroId: bram.id,
       name: 'Bram Netherby',
       className: 'Healer',
+      classKey: 'healer',
+      classIcon: 'palm',
       level: 1,
       why: null,
       unavailable: null,

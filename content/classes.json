@@ -1,6 +1,7 @@
 {
   "warrior": {
     "name": "Warrior",
+    "icon": "sword-and-shield",
     "leadingStats": ["strength", "weaponry", "constitution", "courage"],
     "gatedSkills": ["swordcraft", "shieldwork", "tactics"],
     "growth": {
@@ -12,6 +13,7 @@
   },
   "rogue": {
     "name": "Rogue",
+    "icon": "crossed-daggers",
     "leadingStats": ["dexterity", "perception", "wits", "adaptability"],
     "gatedSkills": ["lockpicking", "stealth", "trapcraft"],
     "growth": {
@@ -23,6 +25,7 @@
   },
   "mage": {
     "name": "Mage",
+    "icon": "tome",
     "leadingStats": ["intelligence", "arcana", "power", "spelllore"],
     "gatedSkills": ["evocation", "warding", "runecraft"],
     "growth": {
@@ -34,6 +37,7 @@
   },
   "healer": {
     "name": "Healer",
+    "icon": "palm",
     "leadingStats": ["knowledge", "willpower", "spirit", "charisma"],
     "gatedSkills": ["field-surgery", "herbalism", "benediction"],
     "growth": {
