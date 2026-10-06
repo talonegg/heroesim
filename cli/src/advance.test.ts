@@ -1,6 +1,6 @@
 import type { GuildId, HeroId, OfferId, PartyId, QuestId, StopReason, WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { narrateStop } from './advance.js';
+import { stopLine } from './advance.js';
 
 // Why a fast forward stopped, in the CLI's words (M2-S11; M6-S2, M9-S1): the ids its commands take
 // and the command that answers. The CLI's own framing, beside the narration (v1.1.6-S12, DL-186 item
@@ -14,7 +14,7 @@ const rivalId = 'guild-000003' as GuildId;
 const offerId = 'offer-000001' as OfferId;
 const terms = { offerId, fromGuildId: guildId, toGuildId: rivalId, heroId, fee: 420 };
 
-describe('narrateStop', () => {
+describe('stopLine', () => {
   const document = {
     world: {
       guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },
@@ -51,6 +51,6 @@ describe('narrateStop', () => {
     [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],
     [{ kind: 'pool-refreshed', heroIds: [heroId] }, 'Stopped: new in the Unattached pool: Brenna Ashcombe (hero-000007) (show pool).'],
   ])('puts %j in words', (stop, line) => {
-    expect(narrateStop(stop, document, 1080)).toBe(line);
+    expect(stopLine(stop, document, 1080)).toBe(line);
   });
 });

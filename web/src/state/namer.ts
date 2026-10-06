@@ -99,8 +99,14 @@ export function pageNamer(questName: Narration['questName']): Namer<Segment[]> {
         if (slot.heroes !== undefined) return listedSegments(slot.heroes.map(name));
         return slot.guild === undefined ? [words('Party')] : [...name(slot.guild), words("'s Party")];
       case 'offer':
-        return [words('its Transfer Offer')];
+        return [words(slot.withdrawn === true ? 'an Offer since withdrawn' : 'its Transfer Offer')];
+      case 'parties':
+        // A stop's Parties (v1.1.7-S3, DL-209): counted, never listed by id.
+        if (slot.form === 'ids') return [];
+        return [words(slot.ids.length === 1 ? 'Party' : `${slot.ids.length} Parties`)];
       case 'ids':
+      case 'command':
+        // The ids and the commands a CLI takes: the page has a button (`nextFor`, `views/stop.tsx`).
         return [];
     }
   };

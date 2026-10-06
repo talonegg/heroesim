@@ -394,8 +394,9 @@ describe('narrateLine', () => {
     const guildmaster = narrateLine(samples['guildmaster.regard-changed'], content);
 
     expect(patron).toBe("Lady Maud's Regard for The Kestrel Guild fell from neutral to cool after a Quest of theirs failed.");
-    expect(guildmaster).toBe("Osric Vane's Regard for Brenna Ashcombe rose from neutral to warm.");
-    for (const line of [patron, guildmaster]) expect(line).not.toMatch(/\d/);
+    // A Hero a Guildmaster's Regard is for is named as a Hero, with the id a command takes (v1.1.7-S3, DL-209).
+    expect(guildmaster).toBe("Osric Vane's Regard for Brenna Ashcombe (hero-000007) rose from neutral to warm.");
+    expect(patron).not.toMatch(/\d/);
     // An Offer, a glossary term, in the page's capitals since v1.1.6-S11 (DL-186 item 1).
     const untaken = { ...samples['patron.regard-changed'], payload: { ...samples['patron.regard-changed'].payload, cause: 'offer-expired' as const } };
     expect(narrateLine(untaken, content)).toMatch(/ when an Offer of theirs went untaken\.$/);

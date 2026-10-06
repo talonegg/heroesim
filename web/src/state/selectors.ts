@@ -114,7 +114,7 @@ import { narrateText, narrationFor, questNamer, type Narration } from './namer';
 import { placeWords, rowOf, transferCostWords } from './names';
 import { playDeps, type GameState } from './reducer';
 import { rejectionSentence } from './rejections';
-import { narrateStop } from './stops';
+import { stopText } from './stops';
 
 // ── Names ────────────────────────────────────────────────────────────────────────────────────
 
@@ -1351,7 +1351,7 @@ export function stopView(state: GameState): StopView | null {
   if (stopped !== null) return { kind: 'player', sentence: `Stopped: you asked to stop, after ${stopped.turnsPlayed} Turns.`, until: stopped.until };
   if (stoppedBecause === null) return null;
   const maxTurns = playDeps(document).config.turnsPerYear;
-  const sentence = narrateStop(stoppedBecause, document, maxTurns, narrationFor(document, content));
+  const sentence = stopText(stoppedBecause, document, maxTurns, narrationFor(document, content));
   if (stoppedBecause.kind !== 'decision-needed' && stoppedBecause.kind !== 'quest-staffable') return { kind: stoppedBecause.kind, sentence };
   const board = boardView(document);
   const quests = stoppedBecause.questIds.flatMap((questId): StopQuest[] => {

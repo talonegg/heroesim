@@ -2,7 +2,7 @@ import { applyAction, createWorld, dayOf, defaultConfig, playerGuild, type Offer
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { narrationFor } from './namer';
-import { narrateStop } from './stops';
+import { stopText } from './stops';
 
 // Why time stopped, in the page's words (M7-S3): the CLI's adapted, no id and no command, a sentence
 // each (v1.1.6-S12 moved it beside the page's Namer, its words the same).
@@ -20,7 +20,7 @@ function expectASentence(line: string): void {
   expect(line).not.toMatch(anId);
 }
 
-describe('narrateStop', () => {
+describe('stopText', () => {
   const { document } = createWorld('narrate-stop', { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: 'test' }, { config: defaultConfig, content });
   const player = playerGuild(document.world);
   if (player === undefined) throw new Error('no player');
@@ -48,7 +48,7 @@ describe('narrateStop', () => {
   };
 
   test.each(Object.values(stops))('puts %j in words', (stop, words) => {
-    const line = narrateStop(stop, document, 1080, narrationFor(document, content));
+    const line = stopText(stop, document, 1080, narrationFor(document, content));
 
     expect(line).toMatch(words);
     expectASentence(line);
@@ -66,7 +66,7 @@ describe('narrateStop', () => {
     const [offer] = Object.values(offered.document.world.offers);
     if (offer === undefined) throw new Error('no offer');
 
-    const line = narrateStop({ kind: 'transfer-offer', guildId: player.id, offerIds: [offer.id] }, offered.document, 1080, narrationFor(offered.document, content));
+    const line = stopText({ kind: 'transfer-offer', guildId: player.id, offerIds: [offer.id] }, offered.document, 1080, narrationFor(offered.document, content));
 
     expect(offer.toGuildId).toBe(rival.id);
     expect(line).toBe(

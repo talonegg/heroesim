@@ -50,7 +50,7 @@ import { previewParty } from './commands/preview.js';
 import { setupRefusalWords, unknownStatWords, unspentStatWords } from './commands/setup.js';
 import type { CommandOutcome } from './commands/outcome.js';
 import { modulesFor } from './modules.js';
-import { narrateStop, renderAdvance } from './advance.js';
+import { stopLine, renderAdvance } from './advance.js';
 import {
   renderBoard,
   renderGuildmaster,
@@ -415,7 +415,7 @@ function advanceTurns(turns: number, { io, content, path, modules }: Context): E
   }
   writeSave(path, document);
   // An ending has its own line in what is printed; a module's stop is said as fast forward says it.
-  const said = stop?.kind === 'module' ? narrateStop(stop, document, turns) : undefined;
+  const said = stop?.kind === 'module' ? stopLine(stop, document, turns) : undefined;
   return say(io, renderAdvance(played, events, document, deps, said));
 }
 
@@ -441,7 +441,7 @@ function fastForwardTurns(
   const result = fastForward(document, { guildId: guild.id, until: command.until, maxTurns }, deps);
   writeSave(path, result.document);
   const played = result.document.world.turn - document.world.turn;
-  const stop = narrateStop(result.stoppedBecause, result.document, maxTurns);
+  const stop = stopLine(result.stoppedBecause, result.document, maxTurns);
   return say(io, renderAdvance(played, result.events, result.document, deps, stop));
 }
 

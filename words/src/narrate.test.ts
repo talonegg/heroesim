@@ -12,9 +12,11 @@ import {
   type PartyId,
   type QuestId,
   type StackId,
+  type StopReason,
+  type World,
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { crossed, itemsWords, narrate, narratedTypes, nightOf, resolvedParts, sentenceText, type Namer, type Sentence, type Slot } from './narrate.js';
+import { crossed, itemsWords, narrate, narratedTypes, narrateStop, nightOf, resolvedParts, sentenceText, type Namer, type Sentence, type Slot } from './narrate.js';
 
 // v1.1.6-S12 (DL-186 item 1): the narration, one sentence for each event type, its names as slots.
 // Each sentence is read here through a Namer of the test's own, which writes each slot as what it
@@ -215,9 +217,13 @@ const shown: Namer<string> = (slot: Slot): string => {
       return `<party:${slot.id}${by}>`;
     }
     case 'offer':
-      return `<offer:${slot.id}>`;
+      return `<offer:${slot.id}${slot.withdrawn === true ? ' withdrawn' : ''}>`;
     case 'ids':
       return `<ids:${slot.ids.join(', ')}>`;
+    case 'parties':
+      return `<parties:${slot.form}:${slot.ids.join(', ')}>`;
+    case 'command':
+      return `<command:${slot.command}>`;
   }
 };
 
@@ -271,8 +277,8 @@ const sentences: { [Type in EngineEventType]: string } = {
   'guild.improved': `${kestrel} built ${named(content.improvements, 'quarters-2')} for 500 Wealth: its quarters are now grade 2.`,
   'hero.levelled': `${brenna} reached Level 3: ${named(content.stats, 'courage')} +2, ${named(content.stats, 'strength')} +1.`,
   'patron.regard-changed': `${maud}'s Regard for ${kestrel} fell from neutral to cool when an Offer of theirs went untaken.`,
-  // Whoever a Guildmaster's Regard is for is named by label alone, a Hero too.
-  'guildmaster.regard-changed': `${osric}'s Regard for <name:${heroId}|Brenna Ashcombe> rose from neutral to warm.`,
+  // A Hero a Guildmaster's Regard is for is a Hero slot (v1.1.7-S3, DL-209); a Patron or a Guildmaster a name.
+  'guildmaster.regard-changed': `${osric}'s Regard for ${brenna} rose from neutral to warm.`,
   'hero.regard-changed': `${brenna}'s Regard for ${aldred} rose from warm to close through a Module.`,
   'item.expended': `${kestrel}'s <party:${partyId}> used one ${named(content.items, 'healing-draught')} on ${brenna}: their Injury heals 1 Day sooner.`,
   'item.equipped': `${kestrel} put ${named(content.items, 'arming-sword')}<ids:${stackId}> in ${brenna}'s weapon slot.`,
@@ -380,5 +386,70 @@ describe('the words beside the sentences', () => {
     expect(itemsWords(content, 'whetstone', 3)).toBe(`3 × ${named(content.items, 'whetstone')}`);
     expect(itemsWords(content, 'no-such-item', 2)).toBe('2 × no-such-item');
     expect(nightOf(23)).toBe('the night of Day 7');
+  });
+});
+
+describe("a Guildmaster's Regard names whom it is for by what they are (v1.1.7-S3, DL-209, DL-206 item 13)", () => {
+  const regard = samples['guildmaster.regard-changed'];
+  const forwhom = (entityId: string): string => sentenceText(narrate({ ...regard, labels: { ...regard.labels, [entityId]: labels[entityId] as string }, payload: { ...regard.payload, entityId: entityId as never } }, content), shown);
+
+  test('a Hero is a Hero slot, so the CLI adds the id and the page links', () => {
+    expect(narrate(regard, content)).toContainEqual({ kind: 'hero', table: 'heroes', id: heroId, label: 'Brenna Ashcombe' });
+  });
+
+  test('a Patron and another Guildmaster are name slots', () => {
+    expect(forwhom(patronId)).toBe(`${osric}'s Regard for ${maud} rose from neutral to warm.`);
+    expect(forwhom(successorId)).toBe(`${osric}'s Regard for <name:${successorId}|Wenna Tolley> rose from neutral to warm.`);
+  });
+});
+
+describe('why a fast forward stopped, nine sentences (v1.1.7-S3, DL-209, DL-206 item 2)', () => {
+  const offer = { id: offerId, kind: 'transfer', ...terms, offeredOnTurn: 16, expiresOnTurn: 23 };
+  const world = {
+    guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },
+    heroes: { [heroId]: { name: 'Brenna Ashcombe' } },
+    offers: { [offerId]: offer },
+  } as unknown as Pick<World, 'guilds' | 'heroes' | 'offers'>;
+  const kest = `<name:${guildId}|The Kestrel Guild>`;
+  const quests = [questId, 'quest-000008' as QuestId, 'quest-000009' as QuestId];
+  const questSlots = `<quest:${questId}>, <quest:quest-000008> and <quest:quest-000009>`;
+
+  test.each<[StopReason, string]>([
+    [{ kind: 'ended' }, 'Stopped: the game is over.'],
+    [{ kind: 'party-returned', guildId, partyIds: [partyId] }, `Stopped: ${kest}'s <parties:noun:${partyId}> came home<parties:ids:${partyId}>.`],
+    [
+      { kind: 'party-returned', guildId, partyIds: [partyId, 'party-000009' as PartyId] },
+      `Stopped: ${kest}'s <parties:noun:${partyId}, party-000009> came home<parties:ids:${partyId}, party-000009>.`,
+    ],
+    [
+      { kind: 'below-floor', guildId, dueDay: 34 },
+      `Stopped: ${kest} fell below the Bankruptcy floor: Bankruptcy on the night of Day 34 unless its Wealth recovers by then.`,
+    ],
+    [
+      { kind: 'decision-needed', guildId, questIds: quests },
+      `Stopped: a decision is needed: ${kest} has no Party out, and could send one on ${questSlots}<command:show-board>.`,
+    ],
+    [
+      { kind: 'quest-staffable', guildId, questIds: [questId, 'quest-000008' as QuestId] },
+      `Stopped: a Quest to staff: ${kest}'s Heroes at home could go on <quest:${questId}> and <quest:quest-000008><command:show-board>.`,
+    ],
+    [
+      { kind: 'transfer-offer', guildId, offerIds: [offerId] },
+      `Stopped: a Transfer Offer: <name:${rivalId}|The Iron Wardens> offers 420 Wealth for ${brenna} until the night of Day 7<ids:${offerId}>.<command:answer-offer>`,
+    ],
+    [
+      { kind: 'transfer-offer', guildId, offerIds: ['offer-000002' as OfferId, offerId] },
+      `Stopped: a Transfer Offer: <offer:offer-000002 withdrawn> and <name:${rivalId}|The Iron Wardens> offers 420 Wealth for ${brenna} until the night of Day 7<ids:${offerId}>.<command:answer-offer>`,
+    ],
+    [{ kind: 'module', moduleId: 'probe' }, 'Stopped: the probe Module asked to stop.'],
+    [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],
+    [{ kind: 'pool-refreshed', heroIds: [heroId, 'hero-000008' as HeroId] }, `Stopped: new in the Unattached pool: ${brenna} and <hero:hero-000008><command:show-pool>.`],
+  ])('puts %j in words', (stop, line) => {
+    expect(sentenceText(narrateStop(stop, world, 1080), shown)).toBe(line);
+  });
+
+  test('a Guild whose row is gone is a name slot with no label', () => {
+    const slot = narrateStop({ kind: 'below-floor', guildId: 'guild-000009' as GuildId, dueDay: 3 }, world, 1080).find((part) => part.kind === 'name');
+    expect(slot).toEqual({ kind: 'name', table: 'guilds', id: 'guild-000009', label: undefined });
   });
 });

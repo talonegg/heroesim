@@ -41,9 +41,11 @@ import {
   type QuestBand,
   type QuestId,
   type RegardBand,
+  type StopReason,
   type TableName,
   type TransferOfferEndCause,
   type TurnEvent,
+  type World,
 } from '@heroesim/engine';
 import { listed, nameIn, signed } from './names.js';
 
@@ -80,10 +82,35 @@ export interface PartySlot {
   heroes?: readonly NameSlot[];
 }
 
-/** The Transfer Offer a Transfer accepted: the CLI's id, the page's "its Transfer Offer". */
+/**
+ * A Transfer Offer: the one a Transfer accepted, the CLI's id and the page's "its Transfer Offer"; or,
+ * `withdrawn`, one a stop names that the world no longer holds, the CLI's id and the page's "an Offer
+ * since withdrawn" (v1.1.7-S3, DL-209).
+ */
 export interface OfferSlot {
   kind: 'offer';
   id: OfferId;
+  withdrawn?: true;
+}
+
+/**
+ * The Parties a stop names (v1.1.7-S3, DL-209): `noun`, the words `Party` or `Parties` (the page
+ * counts them, `3 Parties`), or `ids`, the Parties listed after what they did by the id a command
+ * takes (`: party-000004`), which the page leaves out.
+ */
+export interface PartiesSlot {
+  kind: 'parties';
+  ids: readonly PartyId[];
+  form: 'noun' | 'ids';
+}
+
+/**
+ * What a stop points the player to do next (v1.1.7-S3, DL-209): the CLI's command, which the page
+ * leaves out for its button (`nextFor` in `views/stop.tsx`).
+ */
+export interface CommandSlot {
+  kind: 'command';
+  command: 'show-board' | 'show-pool' | 'answer-offer';
 }
 
 /** The ids a command takes, after what they name, `(stack-000004)`: the CLI's alone. */
@@ -93,7 +120,7 @@ export interface IdsSlot {
 }
 
 /** A slot for a name in a sentence, which a front end's Namer fills. */
-export type Slot = NameSlot | QuestSlot | PartySlot | OfferSlot | IdsSlot;
+export type Slot = NameSlot | QuestSlot | PartySlot | OfferSlot | IdsSlot | PartiesSlot | CommandSlot;
 
 /** A piece of a sentence: its words, or a slot. */
 export type Part = { kind: 'text'; text: string } | Slot;
@@ -384,9 +411,11 @@ const sentences: Sentences = {
     return say`${called(event, patronId)}'s Regard for ${called(event, guildId)} ${crossed(bandBefore, bandAfter)} ${patronRegardWords[cause]}.`;
   },
   'guildmaster.regard-changed': (event) => {
-    // Whoever the Regard is for, a Hero or another Guild's Guildmaster, by label alone.
+    // Whoever the Regard is for: a Hero as a Hero (the CLI adds the id, the page links), a Patron or
+    // another Guild's Guildmaster by label alone (v1.1.7-S3, DL-209, DL-206 item 13).
     const { guildmasterId, entityId, bandBefore, bandAfter } = event.payload;
-    return say`${called(event, guildmasterId)}'s Regard for ${called(event, entityId)} ${crossed(bandBefore, bandAfter)}.`;
+    const subject = isId('heroes', entityId) ? hero(event, entityId) : called(event, entityId);
+    return say`${called(event, guildmasterId)}'s Regard for ${subject} ${crossed(bandBefore, bandAfter)}.`;
   },
   'hero.regard-changed': (event) => {
     const { heroId, entityId, cause, bandBefore, bandAfter } = event.payload;
@@ -491,4 +520,58 @@ function moduleSentence(event: ModuleEvent): Sentence {
   const who = dot > 0 ? `The ${event.type.slice(0, dot)} Module` : 'A Module';
   const named = event.participants.map((id) => [isId('heroes', id) ? hero(event, id) : called(event, id)]);
   return say`${who} recorded ${event.type}${named.length === 0 ? '' : say` for ${listedSentences(named)}`}.`;
+}
+
+// ── Why it stopped ───────────────────────────────────────────────────────────────────────────
+
+/** A Guild or a Hero by the name the world holds, or none where its row is gone. */
+function held(kind: NameSlot['kind'], id: EntityId, rows: Readonly<Record<string, { name: string } | undefined>>): NameSlot {
+  const row = Object.hasOwn(rows, id) ? rows[id] : undefined;
+  return { kind, table: parseId(id)?.table ?? null, id, label: row?.name };
+}
+
+/**
+ * Why an advance or a fast forward stopped (M2-S11, M7-S3; one narration for both front ends from
+ * v1.1.7-S3, DL-209, reversing DL-198 call 1, DL-206 item 2): its nine sentences, the names as slots a
+ * front end's Namer fills, a Guild, a Hero, a Quest, the Parties counted or listed, an Offer's line,
+ * and what to do next (`command`), which the CLI says as a command and the page as a button. `world`
+ * is where it stopped, for the names its rows hold; `maxTurns` the cap it played under.
+ */
+export function narrateStop(stop: StopReason, world: Pick<World, 'guilds' | 'heroes' | 'offers'>, maxTurns: number): Sentence {
+  const guild = (id: EntityId): NameSlot => held('name', id, world.guilds);
+  const heroSlot = (id: EntityId): NameSlot => held('hero', id, world.heroes);
+  const quests = (questIds: readonly QuestId[]): Sentence => listedSentences(questIds.map((id) => [quest(id)]));
+  const next = (command: CommandSlot['command']): CommandSlot => ({ kind: 'command', command });
+  switch (stop.kind) {
+    case 'ended':
+      return say`Stopped: the game is over.`;
+    case 'party-returned': {
+      const noun: PartiesSlot = { kind: 'parties', ids: stop.partyIds, form: 'noun' };
+      return say`Stopped: ${guild(stop.guildId)}'s ${noun} came home${{ kind: 'parties', ids: stop.partyIds, form: 'ids' }}.`;
+    }
+    case 'below-floor':
+      // M9-S1: the countdown's line follows with the floor and the rest.
+      return say`Stopped: ${guild(stop.guildId)} fell below the Bankruptcy floor: Bankruptcy on the night of Day ${stop.dueDay} unless its Wealth recovers by then.`;
+    case 'decision-needed':
+      return say`Stopped: a decision is needed: ${guild(stop.guildId)} has no Party out, and could send one on ${quests(stop.questIds)}${next('show-board')}.`;
+    case 'quest-staffable':
+      // M9-S1: `--until staffable`, whether or not a Party is out.
+      return say`Stopped: a Quest to staff: ${guild(stop.guildId)}'s Heroes at home could go on ${quests(stop.questIds)}${next('show-board')}.`;
+    case 'transfer-offer': {
+      // M6-S2: each Offer that arrived, who made it, for whom and until when.
+      const offers = stop.offerIds.map((offerId): Sentence => {
+        const offer = Object.hasOwn(world.offers, offerId) ? world.offers[offerId] : undefined;
+        if (offer === undefined) return [{ kind: 'offer', id: offerId, withdrawn: true }];
+        return say`${guild(offer.toGuildId)} offers ${offer.fee} Wealth for ${heroSlot(offer.heroId)} until ${nightOf(offer.expiresOnTurn)}${ids(offerId)}`;
+      });
+      return say`Stopped: a Transfer Offer: ${listedSentences(offers)}.${next('answer-offer')}`;
+    }
+    case 'module':
+      // M8-S2: an installed module's hook asked for the stop.
+      return say`Stopped: the ${stop.moduleId} Module asked to stop.`;
+    case 'max-turns':
+      return say`Stopped: played the most Turns allowed, ${maxTurns}.`;
+    case 'pool-refreshed':
+      return say`Stopped: new in the Unattached pool: ${listedSentences(stop.heroIds.map((id): Sentence => [heroSlot(id)]))}${next('show-pool')}.`;
+  }
 }
