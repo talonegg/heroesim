@@ -60,6 +60,12 @@ function played(turns: number, seed = 'history-view'): { document: WorldDocument
   return { document, log };
 }
 
+/** How many of `log`'s events the History holds, as it holds them: all but those it does not record (DL-211). */
+function appendedOf(document: WorldDocument, log: readonly TurnEvent[]): number {
+  const held = new Set<object>(document.history.entries);
+  return log.filter((event) => held.has(event)).length;
+}
+
 function playerOf(document: WorldDocument): Guild {
   const guild = playerGuild(document.world);
   if (guild === undefined) throw new Error('no player');
@@ -388,7 +394,7 @@ describe('the whole History, the debug view (M9-F4, DL-112 item 7)', () => {
 
   test('shows every entry, unfolded, each line with its event type', () => {
     const views = expectExactPages(document, 'all', document.history.entries);
-    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'Debug: Whole History', name: null, entityId: null, scope: 'whole', fresh: log.length });
+    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'Debug: Whole History', name: null, entityId: null, scope: 'whole', fresh: appendedOf(document, log) });
     expect(log.length).toBeGreaterThan(0);
     const rows = views.flatMap((view) => view.groups.flatMap((group) => group.rows));
     expect(rows.every((row) => row.kind === 'entry' && row.steps.length === 0)).toBe(true);
@@ -868,8 +874,9 @@ describe("each Rival's routine, one line a Guild, and the marks on every line (M
     expect(lines.some((line) => line.side === 'mine')).toBe(true);
   });
 
-  test('counts the entries the last play appended, in the History shown', () => {
-    expect(historyView(document, log, 'all', 0).fresh).toBe(log.length);
+  test("counts the entries the last play appended, in the History shown: not the pool's comings and goings it does not record (DL-211)", () => {
+    expect(historyView(document, log, 'all', 0).fresh).toBe(appendedOf(document, log));
+    expect(appendedOf(document, log)).toBeLessThan(log.length);
     const shown = new Set<object>(inYourGuild(document, guild.id));
     expect(historyView(document, log, null, 0).fresh).toBe(log.filter((event) => shown.has(event)).length);
     expect(historyView(document, [], null, 0).fresh).toBe(0);

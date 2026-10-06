@@ -509,6 +509,12 @@ export function withTheGone(state: GameState): { state: GameState; dead: Named; 
     deadHero.diedOnTurn = world.turn;
     retiredHero.retiredOnTurn = world.turn;
     player.rosterIds = player.rosterIds.filter((id) => id !== deadHero.id && id !== retiredHero.id);
+    // Gone from the world as a save made before DL-211 holds a pool Hero who left: named by their
+    // arrival and leaving alone, which the engine now records for no Hero never hired.
+    const { id, name, classKey } = poolHero;
+    const labels = { [id]: name };
+    append(document.history, { turn: world.turn, type: 'hero.generated', participants: [id], labels, milestone: false, payload: { heroId: id, guildId: null, classKey } });
+    append(document.history, { turn: world.turn, type: 'hero.left-pool', participants: [id], labels, milestone: false, payload: { heroId: id } });
     delete world.heroes[poolHero.id];
     dead = { id: deadHero.id, name: deadHero.name };
     retired = { id: retiredHero.id, name: retiredHero.name };

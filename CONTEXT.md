@@ -519,7 +519,10 @@ _Avoid_: Message, Log line; "Event" alone for a Random or Inciting Event
 **History**:
 The record inside the World State of every event, kept per Guild and per Hero with a list of
 Milestones; never bounded, and no entry is dropped (R36). Every discrete change is an entry;
-nightly drift, and the changes DL-84 names, are recorded only when they cross a band. The page
+nightly drift, and the changes DL-84 names, are recorded only when they cross a band. A Hero
+generated into the Unattached pool enters the History once hired: their arrival, and their leaving
+the pool if never hired, are events and not entries, and a hired Hero's History begins at their
+signing (DL-211). The page
 shows a Guild's History with some entries left out, none dropped: the player's Guild's without
 its Heroes' XP and Morale, Regard moving, Upkeep, purchases and sales, and a Rival's without Upkeep,
 purchases and sales (DL-111, DL-117). In the player's Guild's, a Party's return is one entry, its

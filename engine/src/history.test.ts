@@ -212,6 +212,7 @@ describe('only append writes', () => {
       'createHistory',
       'entriesBetween',
       'entriesFor',
+      'names',
     ]);
   });
 

@@ -23,7 +23,7 @@ import { dealtDisposition, generateGuild, generateRival, type GeneratedGuild } f
 import { generateHero } from './generators/heroes.js';
 import { generatePatron } from './generators/patrons.js';
 import { guildmasterStatsOf } from './guildmaster.js';
-import { append } from './history.js';
+import { record } from './record.js';
 import { ensureModules } from './modules.js';
 import { boardRefresh } from './phases/board-refresh.js';
 import { marketRefresh } from './phases/market-refresh.js';
@@ -397,7 +397,8 @@ export interface CreatedWorld {
  * by weight, evenly while every weight is 1 (DL-208), and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the
  * morning's Board refresh, drawing `boardSize` Quests from `board` (DL-25), and its Market
  * refresh, drawing `marketSize` stacks from `market` (DL-51). Appends
- * `world.created` and every generator's events to the new History and returns them. Last, each
+ * `world.created` and every generator's events to the new History, but the pool's arrivals, which it
+ * does not record (`record`, DL-211), and returns them all. Last, each
  * module in `deps.modules`, none by default, gets its stream and its slice (`ensureModules`).
  *
  * Throws on a programming error: a setup `setupRefusal` refuses, naming its reason, a sex that is
@@ -448,6 +449,6 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
     payload: { seed },
   };
   const events: EngineEvent[] = [created, ...generated];
-  for (const event of events) append(document.history, event);
+  record(document.history, events);
   return { document, events };
 }

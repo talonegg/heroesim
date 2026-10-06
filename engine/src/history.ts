@@ -1,6 +1,7 @@
 // The History (ADR-0008, data-model §4): append-only, shared by reference between the documents
 // of successive Turns, never copied. `append` is its only writer and this module exports no
-// other mutator; the readers never write, and return new arrays of the stored entries.
+// other mutator; the readers never write, and return new arrays of the stored entries. Which of a
+// play's events it is given is record.ts's (DL-211).
 //
 // `append` maintains three indexes, each a list of ascending positions in `entries`, so that a
 // Hero's page, a counter or a Turn range never scans the whole log:
@@ -89,6 +90,15 @@ export function entriesBetween(history: History, fromTurn: Turn, toTurn: Turn): 
   // The end is never before the start: an entry at or after `fromTurn` is past a lower `toTurn` too.
   const end = firstAtOrAfter(history.entries, toTurn, start);
   return history.entries.slice(start, end);
+}
+
+/**
+ * Whether an entry of the History names `entityId` among its participants: what decides whether
+ * a Hero's leaving the Unattached pool is recorded and their row kept (record.ts, data-model rule 8,
+ * DL-211).
+ */
+export function names(history: Readonly<History>, entityId: EntityId): boolean {
+  return positionsOf(history.byEntity, entityId) !== undefined;
 }
 
 /** How many entries of `type` the History holds: 0 for a type never appended. */

@@ -9,7 +9,7 @@
 
 import type { World, WorldDocument } from '../document.js';
 import type { EngineEvent } from '../events.js';
-import { append } from '../history.js';
+import { record } from '../record.js';
 import { copyWorld } from '../world-copy.js';
 
 /**
@@ -36,7 +36,7 @@ export type WorldActionResult<Refusal extends Rejection = Rejection> =
 
 /**
  * Runs `rule` on a copy of `document.world` (`copyWorld`; documents share `world`, so an action copies it
- * first, as `advance` does: DL-24) and, when it succeeds, appends its events to the History and
+ * first, as `advance` does: DL-24) and, when it succeeds, appends the events the History records to it (`record`, DL-211) and
  * returns a document with the copy and the same `meta` and `history`. A refusal is returned as it
  * is, and the copy dropped; the document is left as it was.
  */
@@ -48,6 +48,6 @@ export function applyToCopy<Refusal extends Rejection>(
   const world = copyWorld(document.world);
   const result = rule(world);
   if (!result.ok) return result;
-  for (const event of result.events) append(history, event);
+  record(history, result.events);
   return { ok: true, document: { meta, world, history }, events: result.events };
 }

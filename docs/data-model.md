@@ -414,6 +414,11 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
    play and out of the pool (DL-27).
    The validator knows the list of passive entry types and refuses a removal that a
    non-passive entry contradicts.
+   *Amended 2026-10-06 (DL-206 items 20 and 21, DL-211):* a Hero generated into the pool, and
+   their `hero.left-pool`, are emitted but recorded only when an entry names them (rule 10), so
+   a Hero never hired has no entry, and their row is removed as they leave when no entry names
+   them. A hired Hero's History begins at their signing. A save made before holds the two
+   passive entries of every pool Hero; the validator still accepts a row they alone name removed.
 9. **Hidden information is stored plainly.** Potential is a field the front end does not show.
 10. **Discrete changes are events; nightly drift is not.** A Quest outcome, an Injury, a Level,
     a Transfer, a purchase: each appends an entry. Morale drifting toward its baseline,
@@ -423,7 +428,10 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
     exceptions and also append an entry only on a band crossing: a Regard change made by the
     core's own rules (DL-43 item 2) and the Morale cost a Transfer lays on the Heroes who stay
     (DL-57 item 4). A module's `adjustRegard` always appends an entry (decided, to be built).
-    (Amended 2026-09-28, DL-84.)
+    (Amended 2026-09-28, DL-84.) The Unattached pool's comings and goings of a Hero no entry
+    names, their arrival and their leaving unhired, are events and not entries: emitted, for the
+    Turn's log, the pool's stop and the harness, and never appended, so none is dropped
+    (`record`, amended 2026-10-06, DL-206 items 20 and 21, DL-211).
 
 ## 6. Versioning and the validator
 
@@ -500,7 +508,9 @@ for a Turn alone and a year of fast forward depend on the day they were taken.
 The History will dominate save size. The levers, in order: lean entries (ids and labels,
 never entity copies), rule 10 (drift is not an event), and compression on write with Node's
 built-in `zlib` or the browser's `CompressionStream`. Archiving or dropping old entries is not
-a lever: R36 forbids it. Compression is taken everywhere (amended 2026-09-28, DL-84): the
+a lever: R36 forbids it. Not writing the pool's comings and goings of a Hero never hired is
+another, taken 2026-10-06 (DL-206 item 20, DL-211): about 11,400 entries of a 20-year game's
+276,933, nothing dropped. Compression is taken everywhere (amended 2026-09-28, DL-84): the
 browser's saves are gzipped already (DL-67), and the CLI's and the harness's are to be gzipped
 too. A leaner entry shape (DL-81's leaner `quest.encounter` entry) is not taken now, and no
 schema change is made for it (the owner's decision, where the agents recommended lean entries as

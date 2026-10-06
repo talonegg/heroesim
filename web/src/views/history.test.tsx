@@ -204,10 +204,12 @@ describe('folds, and the marks on each line (M9-S5)', () => {
     render_(played(started(), { kind: 'advance', turns: 6 }));
     openDebugHistory();
     fireEvent.click(within(section('History')).getByRole('button', { name: 'Oldest' }));
-    const founded = inHistory('The Lantern was founded.');
     const oldest = historyLines(section('History'));
     fireEvent.click(within(section('History')).getByRole('button', { name: 'Newer' }));
     const lines = [...oldest, ...historyLines(section('History'))];
+    // The oldest page is what is left of the pages counted from the newest: the founding is on it or the next.
+    const founded = lines.find((line) => line.textContent?.includes('The Lantern was founded.')) as HTMLElement;
+    expect(founded).toBeDefined();
 
     for (const side of ['mine', 'rival', 'world']) expect(lines.some((line) => line.classList.contains(`entry--${side}`))).toBe(true);
     expect(founded.classList.contains('is-milestone')).toBe(true);

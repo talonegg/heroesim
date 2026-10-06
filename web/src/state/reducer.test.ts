@@ -105,13 +105,15 @@ function lastDeps(spy: unknown): EngineDeps {
 }
 
 describe('a new game', () => {
-  test('starts under the current defaults; its log is the History it starts with', () => {
+  test("starts under the current defaults; its log is the History it starts with, and the pool's arrivals it does not record (DL-211)", () => {
     const state = started();
     const document = documentOf(state);
 
     expect(document.meta.config).toEqual(defaultConfig);
     expect(document.meta.seed).toBe('reducer-test');
-    expect(state.log).toEqual(document.history.entries);
+    const arrivals = state.log.filter((event) => event.type === 'hero.generated' && event.payload.guildId === null);
+    expect(arrivals).toHaveLength(defaultConfig.unattachedPoolSize);
+    expect(state.log.filter((event) => !arrivals.includes(event))).toEqual(document.history.entries);
     expect(state.log[0]?.type).toBe('world.created');
     expect(state).toMatchObject({ rejection: null, busy: false, pending: null, stoppedBecause: null, warnings: [] });
   });
@@ -660,11 +662,17 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
       expect(between.document).toBe(before.document);
       expect(between.log).toBe(before.log);
     }
-    // The step that ends it stores the game it left, and every step's events, in order, as the log.
+    // The step that ends it stores the game it left, and every step's events, in order, as the log:
+    // the History's new entries, and the pool's comings and goings it does not record (DL-211).
     const last = lastOf(states);
     expect(last).toMatchObject({ busy: false, pending: null, forwarding: null, stoppedBecause: { kind: 'max-turns' } });
     expect(documentOf(last).world.turn).toBe(turn + year);
-    expect(last.log).toEqual(documentOf(last).history.entries.slice(entries));
+    const added = documentOf(last).history.entries.slice(entries);
+    const held = new Set<object>(added);
+    expect(last.log.filter((event) => held.has(event))).toEqual(added);
+    const notRecorded = last.log.filter((event) => !held.has(event));
+    expect(notRecorded.length).toBeGreaterThan(0);
+    expect(new Set(notRecorded.map((event) => event.type))).toEqual(new Set(['hero.generated', 'hero.left-pool']));
   });
 
   test('a cap not a multiple of 30 ends with a step of what is left of it', () => {

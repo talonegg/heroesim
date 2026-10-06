@@ -898,7 +898,7 @@ export interface FixtureIds {
   unattachedHero: HeroId | null;
   /** Died on a Quest: off the Roster, `guildId` kept. */
   deadHero: HeroId;
-  /** Left the pool unrecruited: no row, only passive History entries. */
+  /** Left the pool unrecruited: no row, only passive History entries, as a save made before DL-211 holds them. */
   departedHero: HeroId;
   patron: PatronId;
   /** Taken by `party`. */

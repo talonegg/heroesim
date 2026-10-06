@@ -37,7 +37,8 @@
 // (`guild.below-floor`) and was back to it or more (`guild.floor-recovered`).
 //
 // v1.1.3-S6's (DL-134 item 9, DL-135 item 6), from the World State as each Hero is generated, which the
-// play loop reads after each `advance` from the new `hero.generated` entries (`observeHeroes`): every
+// play loop reads from the `hero.generated` events of the world's creation and of each `advance`, not
+// the History, which records a pool Hero only once hired (DL-211) (`observeHeroes`): every
 // Hero generated, with a picture or the Silhouette, those whose picture another Hero on a Roster or in
 // the pool already held (a repeat), and the longest Appearance and Biography written; and the save's
 // length as each year ends, with the part of it the Heroes' three new fields take (`observeSave`).
@@ -1516,8 +1517,6 @@ export interface GameObservations {
   rankings: (PlayerRanking | null)[];
   /** Every Hero generated, and their Portraits and texts (v1.1.3-S6): `observeHeroes`. */
   heroes: HeroTally;
-  /** How many `hero.generated` entries `observeHeroes` has read. */
-  heroEntriesRead: number;
   /** The save as each year ended (`observeSave`, v1.1.3-S6): index k is after k + 1 years. */
   saves: SaveSize[];
   /** The World State as each year ended (`observeWorld`, v1.1.6-S17): index k is after k + 1 years. */
@@ -1584,15 +1583,14 @@ export function emptyObservations(): GameObservations {
     rivals: [],
     rankings: [],
     heroes: noHeroes(),
-    heroEntriesRead: 0,
     saves: [],
     worlds: [],
   };
 }
 
 /**
- * Reads each `hero.generated` entry of `document`'s History not yet read (v1.1.3-S6), with the Hero's
- * row as the World State holds it just after the Turn that generated them: whether they have a picture
+ * Reads each `hero.generated` among `events`, a batch: the world's creation's or one `advance`'s
+ * (v1.1.3-S6, DL-211), with the Hero's row as `world` holds it just after the Turn that generated them: whether they have a picture
  * or the Silhouette, whether another Hero on a Roster or in the pool held the same picture as they were
  * given it (a repeat), and their texts' lengths. A pool Hero leaves before the refill of the same night,
  * so no Hero is gone the Turn they are generated; one whose row is gone is not counted. Called once the
@@ -1602,14 +1600,11 @@ export function emptyObservations(): GameObservations {
  * who are added in the order they were generated: so the first holder of a picture is no repeat, and
  * each later one is (v1.1.3-S8). A holder who died or left within the same batch is not seen.
  */
-export function observeHeroes(observations: GameObservations, document: WorldDocument): void {
-  const { world, history } = document;
-  const positions = history.byType['hero.generated'] ?? [];
+export function observeHeroes(observations: GameObservations, world: World, events: readonly Entry[]): void {
   const tally = observations.heroes;
-  const batch = positions.slice(observations.heroEntriesRead).map((position) => {
-    const payload = history.entries[position]?.payload;
-    return typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'heroId') : undefined;
-  });
+  const batch = events
+    .filter((event) => event.type === 'hero.generated')
+    .map(({ payload }) => (typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'heroId') : undefined));
   let heldBy: Map<string, number> | null = null;
   for (const heroId of batch) {
     const hero = typeof heroId === 'string' && Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId as HeroId] : undefined;
@@ -1630,7 +1625,6 @@ export function observeHeroes(observations: GameObservations, document: WorldDoc
     if (holders > 0) tally.repeats += 1;
     heldBy.set(hero.portraitKey, holders + 1);
   }
-  observations.heroEntriesRead = positions.length;
 }
 
 /** How many Heroes on a Roster or in the pool hold each picture, those in `leaving` aside. */

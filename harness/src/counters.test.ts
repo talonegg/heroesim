@@ -13,8 +13,10 @@ import {
   type EngineDeps,
   type EngineEventType,
   type EntityId,
+  type Entry,
   type FacilityKey,
   type Guild,
+  type GuildId,
   type Guildmaster,
   type GuildmasterId,
   type Hero,
@@ -1312,40 +1314,44 @@ describe("v1.1.3-S5's Portrait counters, from the World State (DL-134 item 9)", 
 });
 
 describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 item 6)", () => {
-  test('reads each hero.generated entry once: a picture or the Silhouette, a repeat, the longest texts, and none gone', () => {
-    const { document, player, rivals } = fixture('counters-heroes');
+  test("reads each hero.generated of a batch of events, the pool's not in the History among them: a picture or the Silhouette, a repeat, the longest texts, and none gone", () => {
+    const { document, events } = createWorld('counters-heroes', harnessSetup, shortYears);
+    const { world } = document;
+    const guilds = Object.values(world.guilds).sort((a, b) => compareByCodeUnit(a.id, b.id));
+    const player = guilds.find((guild) => guild.controller.kind === 'player');
+    const rivals = guilds.filter((guild) => guild.controller.kind === 'rival');
+    if (player === undefined || rivals[0] === undefined || rivals[1] === undefined) throw new Error('Not a player and two Rivals');
     const observations = emptyObservations();
-    observeHeroes(observations, document);
-    const generated = document.history.byType['hero.generated']?.length ?? 0;
+    observeHeroes(observations, world, events);
+    // Every Hero made with the world, the pool's too, which the History does not record (DL-211).
+    const generated = Object.keys(world.heroes).length;
+    expect(document.history.byType['hero.generated']?.length).toBeLessThan(generated);
     // The core has no Hero picture: every Hero the Silhouette, each with both texts.
     expect(observations.heroes).toMatchObject({ generated, pictured: 0, silhouettes: generated, repeats: 0, blank: 0 });
-    const heroes = Object.values(document.world.heroes);
+    const heroes = Object.values(world.heroes);
     expect(observations.heroes.longestAppearance).toBe(Math.max(...heroes.map((hero) => [...hero.appearance].length)));
     expect(observations.heroes.longestBiography).toBe(Math.max(...heroes.map((hero) => [...hero.biography].length)));
-    expect(observations.heroEntriesRead).toBe(generated);
 
-    // Read again, nothing new is counted.
-    observeHeroes(observations, document);
+    // A batch with no hero.generated counts nothing.
+    observeHeroes(observations, world, events.filter((event) => event.type !== 'hero.generated'));
     expect(observations.heroes.generated).toBe(generated);
 
     // Three Heroes generated later, by hand: two holding one picture, the second a repeat, and one whose row is gone.
-    const [first, second] = [player, rivals[0]].map((guild) => document.world.heroes[firstHero(guild)] as Hero);
+    const [first, second] = [player, rivals[0]].map((guild) => world.heroes[firstHero(guild)] as Hero);
     if (first === undefined || second === undefined) throw new Error('No Heroes');
     Object.assign(first, { portraitKey: 'hero-female-01' });
     Object.assign(second, { portraitKey: 'hero-female-01', biography: '' });
-    for (const hero of [first, second]) add(document, 5, 'hero.generated', [hero.id], { heroId: hero.id, guildId: hero.guildId, classKey: hero.classKey });
-    add(document, 5, 'hero.generated', [makeId('heroes', 999)], { heroId: makeId('heroes', 999), guildId: null, classKey: 'warrior' });
-    observeHeroes(observations, document);
+    const made = (heroId: HeroId, guildId: GuildId | null, turn: number): Entry =>
+      ({ turn, type: 'hero.generated', participants: [heroId], labels: {}, milestone: false, payload: { heroId, guildId, classKey: 'warrior' } });
+    observeHeroes(observations, world, [made(first.id, first.guildId, 5), made(second.id, second.guildId, 5), made(makeId('heroes', 999), null, 5)]);
 
     // The first was given a picture no one held; the second, read after it, one the first held.
     expect(observations.heroes).toMatchObject({ generated: generated + 2, pictured: 2, silhouettes: generated, repeats: 1, blank: 1 });
-    expect(observations.heroEntriesRead).toBe(generated + 3);
 
     // A Hero generated in a later batch, given a picture the two already hold, is a repeat too.
-    const third = document.world.heroes[firstHero(rivals[1])] as Hero;
+    const third = world.heroes[firstHero(rivals[1])] as Hero;
     Object.assign(third, { portraitKey: 'hero-female-01' });
-    add(document, 6, 'hero.generated', [third.id], { heroId: third.id, guildId: third.guildId, classKey: third.classKey });
-    observeHeroes(observations, document);
+    observeHeroes(observations, world, [made(third.id, third.guildId, 6)]);
     expect(observations.heroes).toMatchObject({ generated: generated + 3, pictured: 3, repeats: 2 });
   });
 

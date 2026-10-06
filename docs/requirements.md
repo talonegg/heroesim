@@ -239,6 +239,10 @@ Every system in the game must serve at least one of these:
   discrete changes are named exceptions and also emit only on a band crossing: a change of
   Regard made by the core's own rules, and the Morale cost of a Transfer to the Heroes who stay.
   A module's change of Regard always emits (amended 2026-09-28, DL-84; decided, to be built).
+  The Unattached pool's comings and goings of a Hero never hired are not History: a Hero
+  generated into the pool, and their leaving it unhired, are emitted but not recorded, and a
+  hired Hero's History begins at their signing. Nothing is dropped from the History; these are
+  never written (amended 2026-10-06, DL-206 items 20 and 21, DL-211).
 
 ### 3.10 Front ends
 

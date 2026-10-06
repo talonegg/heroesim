@@ -138,9 +138,10 @@ export type ValidationResult =
   | { ok: false; failures: ValidationFailure[] };
 
 /**
- * The History entries that may outlive the Hero they name (data-model rule 8): every pool Hero
- * has these two, and their labels narrate without the row. A Hero named by any other entry keeps
- * their row for good.
+ * The History entries that may outlive the Hero they name (data-model rule 8): a save made before
+ * DL-211 recorded every pool Hero's arrival and leaving, and their labels narrate without the row.
+ * A Hero named by any other entry keeps their row for good. The engine records neither for a Hero
+ * no entry names (record.ts), so a pool Hero it removes is named by none.
  */
 export const passiveEntryTypes = ['hero.generated', 'hero.left-pool'] as const satisfies readonly EventType[];
 
@@ -165,8 +166,8 @@ export interface ValidateOptions {
    * What a check from here on does not see: damage to an older entry or to an index list no new
    * entry names, which only something other than `append` could do; a counter lowered below an id
    * only older entries name; and a Hero's row removed while only older entries name them, which
-   * no rule does without first emitting an entry naming the Hero (the pool refresh's
-   * `hero.left-pool`). A validation from 0, such as every load's, sees all of these.
+   * no rule does: the pool refresh removes only a Hero no entry names (DL-211). A validation from
+   * 0, such as every load's, sees all of these.
    *
    * `validate` throws a RangeError when it is not a whole number from 0, or is past the end of the
    * History: a programming error, since the History never shrinks.
@@ -1304,14 +1305,15 @@ function historyTurnOrder({ world, history }: WorldDocument, from: number): Vali
 }
 
 /**
- * Rule 8: a Hero's row is removed only when nothing but the passive entries names them. Quests,
- * Parties, offers and stacks are removed while the History keeps their ids; that is not refused.
+ * Rule 8: a Hero's row is removed only when nothing but the passive entries, which an older save
+ * holds, names them. Quests, Parties, offers and stacks are removed while the History keeps their
+ * ids; that is not refused.
  */
 function removedHeroInHistory({ world, history }: WorldDocument, from: number): ValidationFailure[] {
   const passive = new Set<string>(passiveEntryTypes);
   const failures: ValidationFailure[] = [];
-  // From `from` on, the Heroes the new entries name: a rule removes a Hero's row only after an
-  // entry naming them (the pool refresh's `hero.left-pool`), so a row removed since is among them.
+  // From `from` on, the Heroes the new entries name: a rule removes only the row of a Hero no entry
+  // names (DL-211), so a row removed since that an entry names is among them.
   const heroIds: Iterable<string> =
     from === 0
       ? Object.keys(history.byEntity)
