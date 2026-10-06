@@ -7,13 +7,14 @@
 // Its lines are of two kinds. The invariants hold on any run: no policy action refused, no game invalid,
 // stopped, unfinished or failing its round trip, and the replay identical: one seed played once more,
 // alone, its last save's length and fingerprint the same as its shard recorded (v1.1.6-S3, DL-189).
-// The bands, the player's Bankruptcies, the save's gzipped mean and the per-Turn copy's mean time, are
+// The bands, the player's Bankruptcies, the save's gzipped mean and the per-Turn copy's share of a Turn, are
 // set on the spec's run, 50 games of 20 years: on a run of another shape (the `neutral` profile's 10, a
 // short trial) they read "not comparable", neither passing nor failing. The Traits a career and the
 // save's uncompressed size are the report's to print, not the Gate's to hold (the owner's answers,
-// DL-188). The copy's line (v1.1.6-S17, the owner's answer 3 in DL-203) holds the mean of the copy
-// times the sweep took as each year ended within `growth` of its baseline; until a full run sets that
-// baseline (`null`), it reads "not comparable" on any run.
+// DL-188). The copy's line (v1.1.6-S17, the owner's answer 3 in DL-203; restated as a share by the
+// owner's answer in DL-206 item 17) holds the mean of the copy times the sweep took as each year ended
+// over the mean of `advance`, within `growth` of its baseline share; a run with no copy times or no
+// `advance` times reads "not comparable".
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -50,10 +51,11 @@ export interface GateSpec {
     playerBankruptcies: { max: number; baseline: number; source: string };
     saveGzipped: { meanMiB: number; baselineMeanMiB: number; baselineMaxMiB: number; source: string };
     /**
-     * The per-Turn copy's mean time over the run (`copyWorld`, timed as each year ended), at most
-     * `baselineMeanMs × (1 + growth)`; `null` until a full run measures the baseline (v1.1.6-S17, DL-203).
+     * The per-Turn copy's share of a Turn: the mean time of `copyWorld` (timed as each year ended) over
+     * the mean time of `advance`, at most `baselineShare × (1 + growth)`. A share, not milliseconds, so
+     * the machine's speed cancels (v1.1.6-S17, DL-203; restated by DL-206 item 17).
      */
-    copyMs: { growth: number; baselineMeanMs: number | null; source: string };
+    copyShare: { growth: number; baselineShare: number; source: string };
   };
   /** The estimate probe's two limits, in chance (`estimate.ts`), checked by `npm run harness -- estimate`. */
   estimate: { noOneFalls: { within: number; source: string }; moraleInQuest: { within: number; source: string } };
@@ -80,7 +82,7 @@ const specShape: { readonly [key: string]: Shape } = {
     replay: line({ identical: 'true' }),
     playerBankruptcies: line({ max: 'number', baseline: 'number' }),
     saveGzipped: line({ meanMiB: 'number', baselineMeanMiB: 'number', baselineMaxMiB: 'number' }),
-    copyMs: line({ growth: 'number', baselineMeanMs: 'number or null' }),
+    copyShare: line({ growth: 'number', baselineShare: 'number' }),
   },
   estimate: { noOneFalls: line({ within: 'number' }), moraleInQuest: line({ within: 'number' }) },
   notes: 'strings',
@@ -192,7 +194,7 @@ export function checkGate(spec: GateSpec, run: RunReport, expect: string | null 
       add(label, pass, measured, limit, source);
     }
   };
-  const { playerBankruptcies, saveGzipped, copyMs } = lines;
+  const { playerBankruptcies, saveGzipped, copyShare } = lines;
   band("The player's Bankruptcies", `at most ${whole(playerBankruptcies.max)} of ${whole(spec.run.games)}`, playerBankruptcies.source, () => {
     const bankrupt = totals.endings['bankruptcy'] ?? 0;
     return { pass: bankrupt <= playerBankruptcies.max, measured: `${whole(bankrupt)} of ${whole(games.length)}` };
@@ -203,17 +205,19 @@ export function checkGate(spec: GateSpec, run: RunReport, expect: string | null 
     const meanMiB = mean(gzipped) / mebibyte;
     return { pass: meanMiB < saveGzipped.meanMiB, measured: `mean ${fixed(meanMiB, 2)} MiB, max ${fixed(Math.max(...gzipped) / mebibyte, 2)} MiB, over ${whole(gzipped.length)} games` };
   });
-  // A report from before v1.1.6-S17 has no copy times.
+  // A report from before v1.1.6-S17 has no copy times; a run with none, or with no `advance` timed, has no share to read.
   const copies = copyTimes(totals.worlds ?? []);
-  const copyMeasured = copies.length === 0 ? 'not measured' : `mean ${fixed(mean(copies), 3)} ms, over ${whole(copies.length)} copies`;
-  const copyLine = "The per-Turn copy's time";
-  if (copyMs.baselineMeanMs === null) {
-    checked.push({ line: copyLine, verdict: 'not comparable', measured: `${copyMeasured}; no baseline yet`, limit: `at most ${fixed(copyMs.growth * 100, 0)}% over the baseline`, source: copyMs.source });
+  const advanceMean = run.timings.advance.count > 0 ? run.timings.advance.mean : Number.NaN;
+  const copyLine = "The per-Turn copy's share of a Turn";
+  const most = copyShare.baselineShare * (1 + copyShare.growth);
+  const copyLimit = `share at most ${fixed(most, 3)} (${fixed(copyShare.baselineShare, 3)} + ${fixed(copyShare.growth * 100, 0)}%)`;
+  if (copies.length === 0 || !Number.isFinite(advanceMean) || advanceMean <= 0) {
+    checked.push({ line: copyLine, verdict: 'not comparable', measured: 'copy or advance times not measured', limit: copyLimit, source: copyShare.source });
   } else {
-    const most = copyMs.baselineMeanMs * (1 + copyMs.growth);
-    band(copyLine, `mean at most ${fixed(most, 3)} ms (${fixed(copyMs.baselineMeanMs, 3)} ms + ${fixed(copyMs.growth * 100, 0)}%)`, copyMs.source, () => ({
-      pass: copies.length > 0 && mean(copies) <= most,
-      measured: copyMeasured,
+    const share = mean(copies) / advanceMean;
+    band(copyLine, copyLimit, copyShare.source, () => ({
+      pass: share <= most,
+      measured: `share ${fixed(share, 3)}: copy mean ${fixed(mean(copies), 3)} ms over ${whole(copies.length)} copies, advance mean ${fixed(advanceMean, 3)} ms`,
     }));
   }
   return { pass: checked.every((it) => it.verdict !== 'fail'), status: spec.status, lines: checked };

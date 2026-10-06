@@ -48,10 +48,10 @@
       "baselineMaxMiB": 21.08,
       "source": "the owner's answer (DL-188): \"stay under 30mb\", the mean over the run's games, not every save, measured gzipped as the page keeps it (DL-67, DL-186 item 21, data-model §7); no guard on the uncompressed size, which the report prints; v1.1.5's closing sweep: mean 17.95 MiB, max 21.08 MiB gzipped (DL-184's report)"
     },
-    "copyMs": {
+    "copyShare": {
       "growth": 0.25,
-      "baselineMeanMs": 0.847,
-      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, may grow at most 25% over its baseline without a DL entry; the baseline measured at v1.1.6-S17's full gate by its verification (DL-203; harness/reports/m9-v116-s17-2026-10-05, 50 games of 20 years, 8 processes): mean 0.847 ms over 1,000 copies, 0.474 ms as the first year ended and 0.916 ms as the twentieth"
+      "baselineShare": 0.253,
+      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", restated by the owner as the copy's share of a Turn (DL-206 item 17, DL-205's finding that the copy's milliseconds follow the machine's load): the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, over the mean time of advance, may grow at most 25% over its baseline share without a DL entry; the baseline measured at v1.1.6-S17's full gate (DL-203; harness/reports/m9-v116-s17-2026-10-05, 50 games of 20 years, 8 processes): copy mean 0.847 ms over 1,000 copies, advance mean 3.346 ms, share 0.253, at most 0.316"
     }
   },
   "estimate": {
@@ -67,6 +67,6 @@
   "notes": [
     "Drafted by v1.1.6-S2 from v1.1.5's epic and closing sweep, and approved by the owner on 2026-10-05 with the Traits a career taken out and the save's gzipped mean set under 30 MiB, no guard on its uncompressed size (DL-188). Its lines and baselines change only with a DL entry (DL-186 item 13).",
     "The bands are set on the run above: on a run of another shape they read not comparable. The estimate's two limits are checked by npm run harness -- estimate, not by a gate run.",
-    "S17 added the per-Turn copy's time line (DL-186 item 11, DL-203), its baseline set from S17's full gate by its verification."
+    "S17 added the per-Turn copy's time line (DL-186 item 11, DL-203), its baseline set from S17's full gate by its verification; v1.1.7-S1 made it the copy's share of a Turn (DL-206 item 17, DL-207)."
   ]
 }
