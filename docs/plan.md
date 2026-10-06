@@ -393,6 +393,12 @@ the agents recommended that story features be modules and rule extensions core i
 - **A Hero's page showing a Stat's sources, in the backlog:** the Roster's tooltip ("Base 12, +2 from
   Gear…") on a Hero's page too, once `v1.1.6`'s `statBreakdown` exists. *Added 2026-10-05 (DL-186
   item 31): A3's option (b), not chosen for `v1.1.6`.*
+- **The weighted draws updated, in the backlog:** a deal at creation (a Guild's starting Roster, the
+  Patrons' Spheres) is even only while every weight is 1 and is drawn place by place otherwise, so
+  weights all equal but not 1, or one nudged from 1, lose "every Class once before any twice" though
+  the proportions barely change; a deal that keeps to the weights' proportions (rounds by weight, or a
+  weighted shuffle) to be weighed. *Added 2026-10-06 (DL-210's review), the owner's words: "b, put
+  update weighting random draws on the backlog".*
 - **Then, inside the v1.1 line: `v1.1.6`, deeper modules, less duplication, and tuning as checked data**, on `v1.1.6-dev`
   ([epic](./planning/epics/v1.1.6-release.md), DL-186). The owner's answers to an architecture review
   after `v1.1.5`, every candidate and small fix in scope, no new gameplay, 19 stories:
