@@ -116,14 +116,14 @@ describe("the Roster's rows, built once for a document (v1.1.6-S13)", () => {
     const roster = section('Roster');
     const builds = breakdowns.mock.calls.length;
     const sorted = sorts.mock.calls.length;
-    const classes = within(roster).getByRole('group', { name: 'Show of Class' });
+    const classes = within(roster).getByRole('group', { name: 'Class' });
     const shown = (): number => within(rosterList()).queryAllByRole('listitem').length;
     const before = shown();
 
     const [, first] = within(classes).getAllByRole('button');
     fireEvent.click(first as HTMLElement);
     expect(shown()).toBeLessThanOrEqual(before);
-    fireEvent.click(within(within(roster).getByRole('group', { name: 'Show by availability' })).getAllByRole('button')[1] as HTMLElement);
+    fireEvent.click(within(within(roster).getByRole('group', { name: 'Where' })).getAllByRole('button')[1] as HTMLElement);
     fireEvent.click(within(classes).getByRole('button', { name: 'All' }));
 
     expect(breakdowns.mock.calls.length).toBe(builds);

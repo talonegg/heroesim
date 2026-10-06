@@ -568,11 +568,28 @@ export function Tabs<Key extends string>({
  * it would show with the other filters as they are (`faceted`); an option at 0 is greyed and still a
  * toggle, so that a player can let go of one they chose. Nothing when there is one option or none to
  * choose between. `useFacets` gives each filter's props.
+ *
+ * `labelShown` draws the group's name before its chips, in small capitals, and names the group by it
+ * (`aria-labelledby`), so that a sighted reader and a screen reader meet one name; without it the name
+ * is for assistive technology alone. The Roster shows its two groups' names, which otherwise each open
+ * with All and read as one filter on a phone (DL-213).
  */
-export function FilterChips({ label, options, chosen, onChoose }: FacetView & { onChoose: (chosen: string[]) => void }) {
+export function FilterChips({
+  label,
+  labelShown = false,
+  options,
+  chosen,
+  onChoose,
+}: FacetView & { labelShown?: boolean; onChoose: (chosen: string[]) => void }) {
+  const labelId = useId();
   if (options.length < 2) return null;
   return (
-    <div className="filters" role="group" aria-label={label}>
+    <div className="filters" role="group" {...(labelShown ? { 'aria-labelledby': labelId } : { 'aria-label': label })}>
+      {labelShown ? (
+        <span className="filters__label" id={labelId}>
+          {label}
+        </span>
+      ) : null}
       <button type="button" className="filter" aria-pressed={chosen.length === 0} onClick={() => onChoose([])}>
         All
       </button>

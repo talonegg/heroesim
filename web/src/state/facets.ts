@@ -12,7 +12,7 @@ export interface FacetOption {
 
 /** A filter over rows: the words that name it, its options in their order, and the option a row is of. */
 export interface Facet<Row> {
-  /** The group's name, `Show of kind`. */
+  /** The group's name, `Show of kind`; a view may show it before the chips (`FilterChips`' `labelShown`). */
   label: string;
   options: readonly FacetOption[];
   /** The key of the option `row` is of; `null` for none, a row only All shows. */

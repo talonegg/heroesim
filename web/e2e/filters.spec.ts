@@ -34,12 +34,29 @@ test("the Roster's filters: by availability and by Class, by the keyboard, in ti
   const roster = await openView(page, 'Roster');
   const tiles = roster.getByRole('list', { name: 'Heroes on the Roster' }).getByRole('listitem');
   const total = await tiles.count();
-  const availability = roster.getByRole('group', { name: 'Show by availability' });
-  const classes = roster.getByRole('group', { name: 'Show of Class' });
+  const availability = roster.getByRole('group', { name: 'Where', exact: true });
+  const classes = roster.getByRole('group', { name: 'Class', exact: true });
   await expect(availability.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(classes.getByRole('button').first()).toHaveText('All');
   const classNames = await optionsOf(classes);
   expect(classNames.length).toBeGreaterThan(1);
+  // Each group's name shown and naming it, before its chips on the line of its first, All, at every
+  // width, and nothing pushed sideways (the owner's answer, DL-213).
+  for (const [group, name] of [
+    [classes, 'Class'],
+    [availability, 'Where'],
+  ] as const) {
+    const label = page.locator(`[id="${(await group.getAttribute('aria-labelledby')) ?? ''}"]`);
+    await expect(label).toHaveText(name);
+    await expect(label).toBeVisible();
+    const [shown, all] = await Promise.all([label.boundingBox(), group.getByRole('button', { name: 'All', exact: true }).boundingBox()]);
+    if (shown === null || all === null) throw new Error(`the ${name} group's label or All is not drawn`);
+    const middle = shown.y + shown.height / 2;
+    expect(middle, `${name}: the label on All's line`).toBeGreaterThan(all.y);
+    expect(middle, `${name}: the label on All's line`).toBeLessThan(all.y + all.height);
+    expect(shown.x + shown.width, `${name}: the label before All`).toBeLessThanOrEqual(all.x);
+  }
+  await expectNoHorizontalOverflow(page, "the Roster's filters with their names");
   /** The "Showing" line while `shown` of the Roster's Heroes are, none while all are. */
   const showingSays = async (shown: number): Promise<void> => {
     if (shown === total) await expect(roster.getByTestId('roster-shown')).toHaveCount(0);

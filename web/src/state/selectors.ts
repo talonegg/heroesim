@@ -953,13 +953,14 @@ function buildRosterRows(document: WorldDocument): RosterRows {
  * The Roster's filters (DL-206 items 25 to 29, DL-213): by Class, in the order content declares
  * (`class-order.json`), and by availability, At the Hall, Injured and Away, in the words the Board's
  * chip and a Hero's whereabouts use (`@heroesim/words`, DL-206 item 12). A Hero shows when they match
- * both. The view filters the rows `rosterRows` keeps, once sorted, and builds none again (DL-199).
+ * both. Each group's name, Class and Where, is shown before its chips (the owner's answer, DL-213).
+ * The view filters the rows `rosterRows` keeps, once sorted, and builds none again (DL-199).
  */
 export function rosterFacets(set: Pick<ContentSet, 'classes' | 'classOrder'> = content): Facets<RosterRow, 'class' | 'availability'> {
   return {
-    class: { label: 'Show of Class', options: set.classOrder.map((key) => ({ key, label: nameIn(set.classes, key) })), of: (row) => row.classKey },
+    class: { label: 'Class', options: set.classOrder.map((key) => ({ key, label: nameIn(set.classes, key) })), of: (row) => row.classKey },
     availability: {
-      label: 'Show by availability',
+      label: 'Where',
       options: [
         { key: 'hall', label: capitalised(atHallWords) },
         { key: 'injured', label: capitalised(unavailableChipWords.injured) },

@@ -20,9 +20,10 @@
 // Unique Items (v1.1.5-S14, DL-182 item 4): on a tile, a Unique Item's picture before its name in its
 // chip, and the tile of a Hero who carries one a thin gold glow; in the Table, their row the glow.
 //
-// Filters (DL-206 items 25 to 29, DL-213): by Class and by availability, several choices each, not
-// kept; the tiles, the Table and the phone's tabs show the same Heroes, the rows kept for the document
-// sorted and then filtered (`rosterFacets`). Tiles or Table is a choice of one of its own (`OneChoice`).
+// Filters (DL-206 items 25 to 29, DL-213): by Class and by availability, several choices each, each
+// group's name (Class, Where) shown before its chips, not kept; the tiles, the Table and the phone's
+// tabs show the same Heroes, the rows kept for the document sorted and then filtered
+// (`rosterFacets`). Tiles or Table is a choice of one of its own (`OneChoice`).
 
 import type { HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
@@ -189,8 +190,8 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
           </div>
           {shownAs === 'table' && !narrow && columnsOpen ? <ColumnsPanel id="roster-columns" groups={groups} hidden={hidden} onHidden={hide} /> : null}
           <div className="roster__filters">
-            <FilterChips {...filters.class} />
-            <FilterChips {...filters.availability} />
+            <FilterChips {...filters.class} labelShown />
+            <FilterChips {...filters.availability} labelShown />
           </div>
           {/* Said as a filter changes it (DL-206 item 28). */}
           <div role="status" className="roster__shown">

@@ -1061,8 +1061,8 @@ describe("the Roster's filters (v1.1.7-S7, DL-206 items 25 to 29)", () => {
     return { state, heroes };
   }
 
-  const classes = (): HTMLElement => within(section('Roster')).getByRole('group', { name: 'Show of Class' });
-  const availability = (): HTMLElement => within(section('Roster')).getByRole('group', { name: 'Show by availability' });
+  const classes = (): HTMLElement => within(section('Roster')).getByRole('group', { name: 'Class' });
+  const availability = (): HTMLElement => within(section('Roster')).getByRole('group', { name: 'Where' });
   const words = (group: HTMLElement): string[] => within(group).getAllByRole('button').map((button) => button.textContent ?? '');
   const press = (group: HTMLElement, name: string): void => {
     fireEvent.click(within(group).getByRole('button', { name: name === 'All' ? 'All' : new RegExp(`^${name} \\d+$`) }));
@@ -1082,6 +1082,21 @@ describe("the Roster's filters (v1.1.7-S7, DL-206 items 25 to 29)", () => {
     // Nothing hidden: no "Showing" line; the Roster's count as before.
     expect(showing()).toBeNull();
     expect(within(section('Roster')).getByText('4 Heroes on the Roster.')).toBeDefined();
+  });
+
+  test('each group shows its name, Class and Where, before its chips, and is named by it (DL-213)', () => {
+    const { state } = filtering();
+    render_(state);
+    for (const [group, name] of [
+      [classes(), 'Class'],
+      [availability(), 'Where'],
+    ] as const) {
+      const label = group.firstElementChild as HTMLElement;
+      expect(label.textContent).toBe(name);
+      expect(label.closest('button')).toBeNull();
+      expect(group.getAttribute('aria-labelledby')).toBe(label.id);
+      expect(words(group)[0]).toBe('All');
+    }
   });
 
   test('a Hero shown when they match both; several choices of a filter show either; each count against the other filter; "Showing" says how many', () => {

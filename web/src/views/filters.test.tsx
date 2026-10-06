@@ -180,6 +180,40 @@ describe('FilterChips, the one filter element', () => {
     const { container } = render(<FilterChips label="Show of one" options={[{ key: 'one', label: 'One', count: 3 }]} chosen={[]} onChoose={() => undefined} />);
     expect(container.innerHTML).toBe('');
   });
+
+  const two = [
+    { key: 'red', label: 'Red', count: 2 },
+    { key: 'blue', label: 'Blue', count: 1 },
+  ];
+
+  test('its name shown: a label before its chips, no chip, and the group named by it', () => {
+    render(<FilterChips label="Colour" labelShown options={two} chosen={[]} onChoose={() => undefined} />);
+    const named = screen.getByRole('group', { name: 'Colour' });
+    const label = within(named).getByText('Colour');
+    expect(named.firstElementChild).toBe(label);
+    expect(label.closest('button')).toBeNull();
+    expect(label.id).not.toBe('');
+    expect(named.getAttribute('aria-labelledby')).toBe(label.id);
+    expect(named.hasAttribute('aria-label')).toBe(false);
+    expect(words(named)).toEqual(['All', 'Red 2', 'Blue 1']);
+  });
+
+  test('its name not shown: for assistive technology alone, All first', () => {
+    render(<FilterChips label="Show of colour" options={two} chosen={[]} onChoose={() => undefined} />);
+    const named = screen.getByRole('group', { name: 'Show of colour' });
+    expect(within(named).queryByText('Show of colour')).toBeNull();
+    expect(named.firstElementChild?.textContent).toBe('All');
+  });
+
+  test('two groups with their names shown are each named by their own', () => {
+    render(
+      <>
+        <FilterChips label="Colour" labelShown options={two} chosen={[]} onChoose={() => undefined} />
+        <FilterChips label="Size" labelShown options={two} chosen={[]} onChoose={() => undefined} />
+      </>,
+    );
+    expect(screen.getByRole('group', { name: 'Colour' })).not.toBe(screen.getByRole('group', { name: 'Size' }));
+  });
 });
 
 /** A filter of the colours `rows` has, as the Stores and the Market offer only the kinds there are. */

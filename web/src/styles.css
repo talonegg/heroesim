@@ -3283,6 +3283,18 @@ th.number .sort {
   font-size: 0.875rem;
 }
 
+/* A group's name shown before its chips (`FilterChips`' `labelShown`, DL-213): in small capitals, as a
+   caption is, on the chips' first line, the chips wrapping after it. */
+.filters__label {
+  align-self: center;
+  margin-inline-end: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
 .filter__count {
   font-weight: 500;
 }

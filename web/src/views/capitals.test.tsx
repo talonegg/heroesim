@@ -221,16 +221,16 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     expect(rosterList().querySelector('.carries-unique [data-testid="item-picture"]')).not.toBeNull();
     expect(within(rosterList()).getByText('The Lantern of Stannary')).toBeDefined();
     // The Roster filtered (v1.1.7-S7, DL-213): its chips and the "Showing" line, then no Hero matching.
-    const availability = within(section('Roster')).getByRole('group', { name: 'Show by availability' });
+    const availability = within(section('Roster')).getByRole('group', { name: 'Where' });
     fireEvent.click(within(availability).getByRole('button', { name: /^Injured \d+$/ }));
     expect(within(section('Roster')).getByTestId('roster-shown').textContent).toMatch(/^Showing \d+ of \d+ Heroes\.$/);
     reader.read('The Roster filtered');
-    const [none] = within(within(section('Roster')).getByRole('group', { name: 'Show of Class' })).getAllByRole('button').filter((chip) => chip.classList.contains('is-empty'));
+    const [none] = within(within(section('Roster')).getByRole('group', { name: 'Class' })).getAllByRole('button').filter((chip) => chip.classList.contains('is-empty'));
     fireEvent.click(none as HTMLElement);
     expect(within(section('Roster')).getByTestId('roster-shown').textContent).toBe('No Hero on the Roster matches the filters.');
     reader.read('The Roster filtered to no one');
     fireEvent.click(within(availability).getByRole('button', { name: 'All' }));
-    fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Show of Class' })).getByRole('button', { name: 'All' }));
+    fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Class' })).getByRole('button', { name: 'All' }));
     // The Offer asked about.
     fireEvent.click(within(section('Transfer Offers')).getByRole('button', { name: /^Accept .*…$/ }));
     reader.read('The Offer');
