@@ -26309,6 +26309,123 @@ The World State is small: 0.27 MiB of save at year 20, 41 Heroes in play and 55 
 
 *Released* (2026-10-06). `v1.1.6-dev` and `v1.1-release` pushed at `df5ba80`; CI's `release-pr` raised pull request #56, "Release v1.1.6 from v1.1-release", its checks passing (`check` on Node 22 and on `.node-version`, `e2e`, `pull-request`); the owner merged it as `7fda66e`; CI's `release` run tagged `v1.1.6`, deployed it and published the GitHub Release; `npm run e2e:live -w web` 4 of 4 passed (`pages` and `worker`, desktop and phone). Dependabot's move to `v1.1.6-dev` (`dc97b68`) now takes effect, `main` holding it.
 
+## DL-206 — v1.1.7 planned: the owner's answers to v1.1.6's open items and to four features; weighted deals and a Guildmaster's sex weight, one "why it stopped", the Gate's copy line as a share of a Turn, a calendar of "Year Y Day D", no History entry for a Hero never hired, Class icons, and one filter element with the Roster's filters
+
+**Status:** Accepted · **Date:** 2026-10-06 · **Decided by:** the owner, walking v1.1.6's open items
+through one at a time and grilled on four features one question at a time, then approving the plan
+("proceed"), as the orchestrator relayed them. The stories, their acceptance and the sessions are the
+agent's, in `docs/planning/epics/v1.1.7-release.md`.
+
+**Context.** After `v1.1.6`'s release (DL-205, pull request #56), the owner asked: "walk me through
+each of the open items from 1.1.6 one by one with pros and cons in the short and long term, to be
+implemented in 1.1.7", naming three: a new Guild's starting Roster and the Patrons' Spheres ignoring
+the new weights and a Guildmaster's sex unweighted (DL-202); the four "why it stopped" sentences the
+CLI and the page share not tied together; and every other judgement call DL-205 lists from DL-187 to
+DL-205, DL-201's among them out of date. And: "I also want the following features in 1.1.7. /grill-me
+on any details you need to build a plan": "remove heroes who left the pool never been hired off
+history and saves"; "create a small icon signalling the hero's class in front of the hero's name in
+the roster (both tile and take)"; "have the roster filterable by hero class and availability"; "make
+sure the date is in the format "Year YY Day #", where # is an integer between 1 and 360, on day 361,
+YY is incremented by 1 and the day counter resets to 1." For each item the agent gave what it is,
+with the facts checked by three read-only agents and by hand, its pros and cons in the short and long
+term, the options and a recommendation; the owner answered with a letter. What was found, at
+`3aff023`:
+- A never-hired pool Hero's row is already deleted as they leave (`pool-refresh.ts:26-31`, DL-27);
+  what stays is their two History entries, `hero.generated` and `hero.left-pool`: about 5,700 Heroes
+  a game of 20 years, about 98% of the pool's, some 11,400 entries of 276,933 (about 4%), by estimate
+  about 2 MiB of the 137 MiB save. The History is append-only (R36, ADR-0008).
+- Days, Years and Turns count from 0 and the Day never resets (DL-24 item 1): "Day 3, afternoon, Year
+  0"; the Year is hidden on a phone's header (DL-103). A Year is 1,080 Turns, 360 Days.
+- No Class has an icon; the page's icons are inline SVG beside a word, never the only cue (DL-103).
+  The Roster has no filter; `FilterChips` takes one choice and the Market has a hand-written copy.
+- The Gate's copy line failed v1.1.6's first closing run on the machine's speed (DL-205).
+
+**Decision.** The owner's letter, and what it puts in scope.
+
+1. **DL-202's weights at creation: (c).** A Guild's starting Roster and the Patrons' Spheres are dealt
+   by weight when any weight is not 1, `dealEvenly` as now when every weight is 1 (every shipped row),
+   so play does not change; a new setting, `guildmasterSexWeights`, for a Guildmaster's sex, apart
+   from `heroSexWeights`. The agent recommended (b): skip a 0 in the deals, keep them even otherwise,
+   and one `sexWeights` for both (S2).
+2. **The "why it stopped" sentences: (c).** One `narrateStop` in `@heroesim/words`, its names slots
+   each front end's Namer fills; the CLI adds its ids and commands, the page its button; built before
+   the calendar. This reverses DL-198's call 1 (S3).
+3. **DL-187: (a).** The fold refuses a counter it cannot total; the starting totals stay written out.
+4. **DL-188: (a).** The bands checked on a 50 × 20 run only; the JSON for play sweeps only; an unknown
+   `HEROESIM_*` refused; `HEROESIM_POLICY` read by the play sweep only.
+5. **DL-190: (a).** `version.json` read as content, bundled with its changelog emptied; `update` only
+   for a use holding a value.
+6. **DL-191: (a).** The sexes the engine's list.
+7. **DL-192: (a).** The S8 tests on the shipped content; the old form's Class and Skill checks gone.
+8. **DL-193: (b).** Calls 2 to 4 stand; `turnsPerYear`'s rule a multiple of 3, so a Day never
+   straddles two Years, and the other wide ranges reviewed, a test's odd value taken through a
+   test-only path; with the calendar (S4).
+9. **DL-194: (a).** The five calls stand.
+10. **DL-195: (a).** The three calls stand; the Injury's Days stay `resolve.ts`'.
+11. **DL-196: (a).** The three calls stand; `describe.ts` keeps its switch.
+12. **DL-197: (a).** "No effect" one word; the Board's chip words with the other availability words,
+    which the Roster's filter reads.
+13. **DL-198: call 1 by item 2; call 2 (b).** A Guildmaster's Regard for a Hero names the Hero by a
+    `hero` slot (a link, the id), for a Guildmaster by a `name` slot (S3).
+14. **DL-199: (a).** The breakdown lists its 0 sources; the rows kept by the document's identity; a Hero's
+    page's sources tooltip stays in the backlog (DL-186 item 31).
+15. **DL-200: (a).** The calls stand; the icons and filters are the page's, the CLI's Roster unchanged.
+16. **DL-201: (a).** DL-205's line on DL-201 corrected by a dated note: S15's verification undid call
+    (1), every preference kept as the page opens (S1).
+17. **DL-203: (b).** The Gate's copy line restated as the copy's share of a Turn (the copy's mean over
+    `advance`'s), at most its baseline + 25%: 0.253 at S17's full gate, at most 0.316; calls 1 and 3
+    stand. A change to the spec of DL-188 and DL-203 by this entry (S1).
+18. **DL-204: (a),** the owner's words: "a. will review test that do fail when they occur - then, the
+    failed tests can be assessed, including test design". A test a config change fails is listed for
+    the owner with its kind and an assessment of its design, not rewritten unasked. The agent had
+    offered, on the owner's "explain #2 more", (b′): tests set their own values and only deliberate
+    pins fail a "Finish", for the economy pass.
+19. **DL-205: (a).** The three calls stand; the ten cited reports gone stay gone.
+20. **A never-hired Hero and the History: (b).** Their pool events are emitted but not recorded: the
+    Turn's log, the pool's stop and the harness see them, the History does not. The History stays
+    append-only; R36, ADR-0008 and the data model amended (S5). Older saves keep their entries: no
+    migration (the saves policy), the save's shape unchanged.
+21. **Where a hired Hero's History begins: (a).** At their signing; their arrival in the pool is not
+    recorded.
+22. **Where a Class's icon comes from: (b),** the owner's words: "b. have the icons be : sword and
+    shield for warrior, dagger dripping with prison for rogue, open tome for mage and an ankh for
+    Healer". An `icon` on a Class in content, one of a fixed set the page draws, refused by content's
+    check when not in the set, a plain mark when absent. "Prison" read as poison, the agent saying so
+    and the owner not correcting it. The drawings are shown to the owner before S6 builds the rest.
+23. **Where the icon shows: (b).** Wherever a Hero is listed with their Class: the Roster's tiles and
+    table, the Unattached pool, the Board's Party builder, a Hero's page's heading, a Rival's Roster;
+    one name element. Not in the History's sentences.
+24. **The icon and the Class's name: (a).** Beside it, the name kept where it is; the icon hidden from
+    assistive technology, its tooltip the Class's name.
+25. **The availability filter's choices: (a).** At the Hall, Injured, Away, and All.
+26. **One choice or several: (b),** the owner's words: "b, also assess if existing filterchip filter
+    function should be updated so as to keep 1 function for page filters on all pages".
+27. **One filter element for the page: (a).** Several choices to a filter, "All" when none, every
+    option reading as "All", in the Roster, the Stores, the Treasury and the Market (its copy gone);
+    Tiles or Table its own one-choice switch, being no filter.
+28. **Filters remembered: (a).** No, as every filter now; "Showing N of M Heroes" when a filter hides
+    anyone, a sentence when none match.
+29. **The counts: (a).** Each option's count is what it would show with the other filters as they
+    are; an option at 0 greyed; on every page.
+30. **The Year's first number: (c).** The Year from 1 on the page, in the CLI and in the harness's
+    year columns; the engine's arithmetic from 0. DL-24 item 1 and the glossary amended.
+31. **"YY": (b).** No padding: "Year 1 Day 1", "Year 12 Day 360".
+32. **The time of day: (a).** "Year 2 Day 45, afternoon"; "the night of Year 2 Day 45"; the Year at
+    every width (DL-103's wide-only Year undone), the word for the time of day dropped on the
+    narrowest screen only if it cannot fit.
+33. **Where: (a).** Every date a player reads: the page, the CLI with its Turn kept beside the date
+    where it shows one ("Turn 3 (Year 1 Day 1, morning)"), the save's file name; the harness keeps
+    its Turn numbers.
+34. **The plan: approved,** the owner's word "proceed" on the scope as the agent summed it up: eight
+    stories (S1 to S8) in the order above, the branch `v1.1.7-dev`.
+
+**Consequences.**
+- `docs/planning/epics/v1.1.7-release.md`, eight stories; the stories' records from DL-207.
+- Play does not change; S2, S5 and S6 move the fingerprints and prove the same games.
+- DL-198, DL-201 (through DL-205's list), DL-24 item 1, DL-103, R36 and ADR-0008 gain dated notes as
+  their stories land.
+- `plan.md` §4 names v1.1.7 next; the History's size note in the backlog gains S5's share.
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

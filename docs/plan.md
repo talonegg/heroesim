@@ -387,11 +387,13 @@ the agents recommended that story features be modules and rule extensions core i
   11,700 entries a year at about 475 characters each; shorter entries, or compressed saves, to be
   weighed. `v1.1.6`'s growth guard (S2) watches it meanwhile. *Added 2026-10-05 (DL-186 item 31), the
   owner's yes. Amended 2026-10-05 (DL-188): no growth guard, by the owner's answer; the Gate holds the
-  gzipped mean under 30 MiB and the harness's report prints the uncompressed size.*
+  gzipped mean under 30 MiB and the harness's report prints the uncompressed size.* *Amended 2026-10-06
+  (DL-206 items 20, 21): `v1.1.7`-S5 stops recording a never-hired Hero's pool entries, about 4% of
+  the History's entries; the rest of this note stands.*
 - **A Hero's page showing a Stat's sources, in the backlog:** the Roster's tooltip ("Base 12, +2 from
   Gear…") on a Hero's page too, once `v1.1.6`'s `statBreakdown` exists. *Added 2026-10-05 (DL-186
   item 31): A3's option (b), not chosen for `v1.1.6`.*
-- **Next: `v1.1.6`, deeper modules, less duplication, and tuning as checked data**, on `v1.1.6-dev`
+- **Then, inside the v1.1 line: `v1.1.6`, deeper modules, less duplication, and tuning as checked data**, on `v1.1.6-dev`
   ([epic](./planning/epics/v1.1.6-release.md), DL-186). The owner's answers to an architecture review
   after `v1.1.5`, every candidate and small fix in scope, no new gameplay, 19 stories:
   - the harness's tooling: a sweep's totals by one fold; one parser of the run's settings with
@@ -413,6 +415,19 @@ the agents recommended that story features be modules and rule extensions core i
   moved; the Gate met: the closing full `gate`, run again alone on the owner's answer, meets every
   line, the per-Turn copy's time 0.826 ms (1.350 ms on the first run, the machine's speed and not
   the code) (DL-205); released as `v1.1.6` on 2026-10-06 (pull request #56, merged as `7fda66e`): the tag, the deploy and the GitHub Release by CI, `e2e:live` 4 of 4 on both addresses.*
+- **Next: `v1.1.7`, v1.1.6's open items, a calendar, Class icons, Roster filters and a History of
+  those hired**, on `v1.1.7-dev` ([epic](./planning/epics/v1.1.7-release.md), DL-206). The owner's
+  answers to v1.1.6's open items and to four features, no play changed, eight stories:
+  - the Gate's copy line as the copy's share of a Turn; weighted deals at creation and a
+    Guildmaster's sex weight; one "why it stopped" for the CLI and the page;
+  - every date a player reads as "Year 2 Day 45, afternoon", the Year from 1 and the Day from 1 to
+    360; a Year a whole number of Days;
+  - no History entry for a Hero who passes through the Unattached pool and is never hired;
+  - a Class icon before a Hero's name wherever a Hero is listed with their Class, chosen in content;
+  - one filter element of several choices for every filter on the page, and the Roster filtered by
+    Class and by At the Hall, Injured and Away.
+
+  *Added 2026-10-06 (DL-206). What follows `v1.1.6` had been left to the owner (DL-205).*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.* *Amended 2026-10-03 (DL-168): after `v1.1.5`, or after a `v1.1.6`
