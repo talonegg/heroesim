@@ -33,9 +33,10 @@ The 4 × 2 quick check at content 37 and config version 17 is
 `ea14ffe35aa89561df091a17292c479ff115bc4f64e8fa5e984e8d9e465514a6`, which the version and `classes.json` put back give).
 It changes only with a DL entry, as at a story that changes play or the save's shape (v1.1.6-S7 and S17) or
 raises the content version or the config version, both of which every save records (with `meta.config`).
-The full `gate`'s, 50 × 20, is `43b429cf58d3f0f0d39000170d3a093283e15947ccc2eea12deea05407a5b0ce`
-(`m9-v117-s5`, DL-211: schema 7, config version 17, content version 36; v1.1.6-S19's was `bce997d2…` at
-config version 16, DL-205).
+The full `gate`'s, 50 × 20, is `5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b`
+(`m9-v117-s8`, v1.1.7's close, DL-214: schema 7, config version 17, content version 37; S5's was `43b429cf…`
+at content version 36, DL-211, the same games by `compare`; v1.1.6-S19's `bce997d2…` at config version 16,
+DL-205, the Gate's baseline in `gate.json`).
 
 ## Settings
 

@@ -389,7 +389,10 @@ the agents recommended that story features be modules and rule extensions core i
   owner's yes. Amended 2026-10-05 (DL-188): no growth guard, by the owner's answer; the Gate holds the
   gzipped mean under 30 MiB and the harness's report prints the uncompressed size.* *Amended 2026-10-06
   (DL-206 items 20, 21): `v1.1.7`-S5 stops recording a never-hired Hero's pool entries, about 4% of
-  the History's entries; the rest of this note stands.*
+  the History's entries; the rest of this note stands.* *Amended 2026-10-07 (DL-206's consequences,
+  DL-214): S5's full gate measured it: the History after 20 years 276,933 entries a game on the mean at
+  `v1.1.6`'s close, 265,423 at S5 (4.2% fewer), the save 143.3 million characters to 141.0 (1.6%),
+  gzipped 17.95 MiB to 17.51 (DL-211); `v1.1.7`'s closing gate the same.*
 - **A Hero's page showing a Stat's sources, in the backlog:** the Roster's tooltip ("Base 12, +2 from
   Gear…") on a Hero's page too, once `v1.1.6`'s `statBreakdown` exists. *Added 2026-10-05 (DL-186
   item 31): A3's option (b), not chosen for `v1.1.6`.*
@@ -434,6 +437,10 @@ the agents recommended that story features be modules and rule extensions core i
     Class and by At the Hall, Injured and Away.
 
   *Added 2026-10-06 (DL-206). What follows `v1.1.6` had been left to the owner (DL-205).*
+  *Built and verified on `v1.1.7-dev` 2026-10-06 to 2026-10-07 (DL-207 to DL-214), no play counter
+  moved; the close review's findings fixed; the Gate met: the closing full `gate`, alone, meets every
+  line of `harness/gate.json`, its baseline now `v1.1.6`'s close, the copy's share of a Turn 0.2342
+  (DL-214). Closed, awaiting the owner's word to release (DL-124).*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.* *Amended 2026-10-03 (DL-168): after `v1.1.5`, or after a `v1.1.6`
@@ -441,6 +448,8 @@ the agents recommended that story features be modules and rule extensions core i
   having named the economy pass first.* *Amended 2026-10-04 (DL-182): there is no `v1.1.6` economy
   pass; when Random Events comes is the owner's to decide.* *Amended 2026-10-05 (DL-186): `v1.1.6` is the
   architecture work, with no gameplay; when Random Events comes is still the owner's to decide.*
+  *Amended 2026-10-07 (DL-214): next after `v1.1.7`, as this list orders it; when it starts is the
+  owner's.*
 - **After Random Events, in an order chosen at its close:**
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Scouting and hidden information.

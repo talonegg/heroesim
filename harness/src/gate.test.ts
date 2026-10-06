@@ -40,11 +40,17 @@ const verdicts = (run: RunReport, expect_: string | null = null): Record<string,
 describe("the Gate's spec", () => {
   // The owner's answers (DL-188): the fixed lines as drafted; no band on the Traits a career; the
   // Bankruptcies at most 3 of 50; the save's gzipped mean under 30 MiB, no guard on its uncompressed size.
-  test("the spec as shipped is whole and approved by the owner, its baseline v1.1.5's closing sweep", () => {
+  test("the spec as shipped is whole and approved by the owner, its baseline v1.1.6's closing full gate (DL-205, DL-214)", () => {
     expect(gateSpecProblems(spec)).toEqual([]);
     expect(spec.status).toBe('approved');
     expect(spec.run).toMatchObject({ games: 50, years: 20 });
-    expect(spec.baseline.fingerprint).toBe('e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369');
+    expect(spec.baseline).toMatchObject({
+      release: 'v1.1.6',
+      report: 'harness/reports/m9-v116-s19-rerun1-2026-10-06.md',
+      fingerprint: 'bce997d27793192742247d4a7e4adc1ee80a9460752a8c7847258e0495cf2d77',
+    });
+    expect(spec.lines.saveGzipped).toMatchObject({ baselineMeanMiB: 17.95, baselineMaxMiB: 21.08 });
+    expect(spec.lines.playerBankruptcies.baseline).toBe(0);
     expect(Object.keys(spec.lines)).toEqual(['refusals', 'invalid', 'stopped', 'unfinished', 'roundTrips', 'replay', 'playerBankruptcies', 'saveGzipped', 'copyShare']);
     // The owner's answers (DL-203 answer 3, DL-206 item 17): the copy's share of a Turn at most 25%
     // over its baseline, 0.847 ms over 3.346 ms at S17's full gate.
