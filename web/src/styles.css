@@ -3898,10 +3898,13 @@ tr.mine td {
  * the text does in both schemes. It is inline with the name, inside the name's button where the name
  * is one, so that the name wraps beside it word by word: in a Table's sticky first column on a phone
  * the column is then no wider than the longest word, under half of its box, behind which a
- * scrolled-to heading would otherwise land (DL-212).
+ * scrolled-to heading would otherwise land (DL-212). It wraps as the name's own element does, not as
+ * every span may (`anywhere`), so that no word of a name is broken where it would fit on a line of its
+ * own and the column keeps the width of the name's longest word (DL-212).
  */
 .hero-name {
   min-width: 0;
+  overflow-wrap: inherit;
 }
 
 .class-mark {

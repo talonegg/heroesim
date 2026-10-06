@@ -499,7 +499,6 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
           portraitKey: hero.portraitKey,
           className: nameIn(content.classes, hero.classKey),
           ...classMarkOf(content, hero.classKey),
-      ...classMarkOf(content, hero.classKey),
           level: hero.level,
           age: ageOf(hero, world.turn, deps.config),
           morale: hero.morale,

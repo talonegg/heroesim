@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
+import { content } from '../content';
 import { started } from '../state/game.test-support';
 import { classIcons } from '../state/names';
+import { ClassMark } from './icons';
 import { rosterList, section } from './page.test-support';
 
 // The Class icon before a Hero's name (v1.1.7-S6, DL-206 items 22 to 24, DL-212): one name element,
@@ -15,12 +18,27 @@ afterEach(cleanup);
 
 const classNames = ['Warrior', 'Rogue', 'Mage', 'Healer'];
 
+/** A drawing's strokes and turns, in order: what tells one drawing from another. */
+function strokesOf(scope: Element): (string | null)[] {
+  return [...scope.querySelectorAll('path, g')].map((element) => element.getAttribute('d') ?? element.getAttribute('transform'));
+}
+
+/** The strokes of the drawing the content gives the Class named `name`: its icon's, or the plain mark's. */
+function drawingOf(name: string): (string | null)[] {
+  const found = Object.values(content.classes).find((it) => it.name === name);
+  if (found === undefined) throw new Error(`no Class named ${name}`);
+  const icon = found.icon === undefined ? null : (classIcons as readonly string[]).includes(found.icon) ? (found.icon as (typeof classIcons)[number]) : null;
+  const box = document.createElement('div');
+  box.innerHTML = renderToStaticMarkup(<ClassMark icon={icon} className={name} />);
+  return strokesOf(box);
+}
+
 /** The marks inside `scope`. */
 function marks(scope: HTMLElement): HTMLElement[] {
   return [...scope.querySelectorAll<HTMLElement>('.class-mark')];
 }
 
-/** The Classes the marks in `scope` name, in order, each mark hidden from assistive technology and drawing something. */
+/** The Classes the marks in `scope` name, in order, each mark hidden from assistive technology and drawing its Class's icon. */
 function classesShown(scope: HTMLElement): string[] {
   const shown = marks(scope);
   expect(shown.length).toBeGreaterThan(0);
@@ -30,6 +48,7 @@ function classesShown(scope: HTMLElement): string[] {
     expect(mark.querySelectorAll('path').length).toBeGreaterThan(0);
     const title = mark.getAttribute('title') ?? '';
     expect(classNames).toContain(title);
+    expect(strokesOf(mark), `the mark of a ${title}`).toEqual(drawingOf(title));
     return title;
   });
 }
@@ -143,6 +162,8 @@ describe('the mark in light and dark', () => {
   });
 
   test('the four shipped Classes name four different drawings of the set', () => {
-    expect(new Set(classIcons).size).toBe(4);
+    const shipped = Object.values(content.classes);
+    expect(shipped.map((it) => it.icon).filter((icon) => icon !== undefined && (classIcons as readonly string[]).includes(icon))).toHaveLength(4);
+    expect(new Set(shipped.map((it) => drawingOf(it.name).join())).size).toBe(4);
   });
 });

@@ -451,7 +451,9 @@ test("the Guildmaster's header and a Hero's page's: the Portrait, 3 × 4, beside
     expect(box.height, `${what}: the Portrait's height`).toBeCloseTo((wide * 4) / 3, 0);
     expect(box.x + box.width, `${what}: the Portrait before the name`).toBeLessThanOrEqual(name.x);
     expect(Math.abs(name.y - box.y), `${what}: the name level with the Portrait's top`).toBeLessThanOrEqual(12);
-    // The Silhouette, which the script holds, is drawn.
+    // The Silhouette, which the script holds, is drawn, or the picture over it once it has loaded,
+    // when the Silhouette goes: one picture, read once the two have settled (DL-134 item 9).
+    await expect(portrait.locator('img')).toHaveCount(1);
     expect(await portrait.locator('img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     await expectNoHorizontalOverflow(page, what);
     await expectTargets(page, what);
@@ -553,6 +555,76 @@ test("the Roster's cards, the pool's rows and the Guilds' table: each name with 
     if (nameHeading === null || feeHeading === null) throw new Error(`a Rival's Roster, ${scheme}: no headings drawn`);
     expect(feeHeading.x, `a Rival's Roster, ${scheme}: the Transfer fee's heading clear of the name cell`).toBeGreaterThanOrEqual(nameHeading.x + nameHeading.width - 1);
     await page.screenshot({ path: test.info().outputPath(`rival-roster-${scheme}.png`), fullPage: true });
+    await guilds.getByRole('button', { name: 'Back to the Guilds' }).click();
+  }
+});
+
+// A Hero's name with their Class's mark before it (DL-206 items 23 and 24, DL-212), in the five places
+// a Hero is listed with their Class, at every width: the mark the text's size, before the name and
+// clear of it, and no word of the name broken inside it, as no name was before the mark.
+test("a Hero's name with their Class's mark: the mark before the name, the text's size, and no word of the name broken (v1.1.7-S6)", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
+
+  /** Each name in `scope`: its mark drawn before its first word and as high as a line, and each word on one line. */
+  const namesWhole = async (scope: Locator, what: string): Promise<void> => {
+    const names = scope.locator('.hero-name');
+    await expect(names.first()).toBeVisible();
+    for (const name of await names.all()) {
+      const read = await name.evaluate((element) => {
+        const mark = element.querySelector('.class-mark')?.getBoundingClientRect();
+        const words: { word: string; lines: number; x: number; top: number }[] = [];
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+          for (const found of (node.textContent ?? '').matchAll(/\S+/g)) {
+            const range = document.createRange();
+            range.setStart(node, found.index);
+            range.setEnd(node, found.index + found[0].length);
+            const rects = [...range.getClientRects()].filter((rect) => rect.width > 0);
+            words.push({ word: found[0], lines: new Set(rects.map((rect) => Math.round(rect.top))).size, x: rects[0]?.x ?? 0, top: rects[0]?.top ?? 0 });
+          }
+        }
+        return { mark: mark === undefined ? null : { x: mark.x, right: mark.right, bottom: mark.bottom, height: mark.height }, words };
+      });
+      const label = `${what}: ${read.words.map((it) => it.word).join(' ')}`;
+      if (read.mark === null) throw new Error(`${label}: no mark`);
+      expect(read.mark.height, `${label}: the mark the text's size`).toBeGreaterThanOrEqual(16);
+      expect(read.mark.height, `${label}: the mark the text's size`).toBeLessThanOrEqual(28);
+      const [first] = read.words;
+      if (first === undefined) throw new Error(`${label}: no name`);
+      // Before the first word: on its line and to its left, or on a line above it.
+      expect(read.mark.right <= first.x + 1 || read.mark.bottom <= first.top + 1, `${label}: the mark before the name`).toBe(true);
+      for (const word of read.words) expect(word.lines, `${label}: "${word.word}" whole on one line`).toBe(1);
+    }
+  };
+
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    const list = await rosterList(page);
+    await namesWhole(list, `the Roster's tiles, ${scheme}`);
+    const roster = page.getByRole('region', { name: 'Roster', exact: true });
+    const show = roster.getByRole('group', { name: 'Show the Roster as' });
+    await show.getByRole('button', { name: 'Table' }).click();
+    await namesWhole(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table, ${scheme}`);
+    await show.getByRole('button', { name: 'Tiles' }).click();
+    await namesWhole(await part(page, 'Unattached pool'), `the pool, ${scheme}`);
+
+    await (await rosterList(page)).locator('button.link').first().click();
+    await namesWhole(roster.getByRole('article').getByRole('heading', { level: 3 }), `a Hero's page, ${scheme}`);
+    await roster.getByRole('button', { name: 'Back to the Roster' }).click();
+
+    const board = await openView(page, 'Board');
+    const quest = board.getByRole('article').first();
+    const choose = quest.getByRole('button', { name: 'Choose a Party' });
+    if ((await choose.count()) > 0) await choose.click();
+    await namesWhole(quest.getByRole('form'), `the Party builder, ${scheme}`);
+
+    const guilds = await part(page, 'Guilds');
+    await rivalRows(guilds).first().locator('button.link').click();
+    await namesWhole(guilds.getByRole('article').getByRole('table', { name: /^The Roster of / }), `a Rival's Roster, ${scheme}`);
     await guilds.getByRole('button', { name: 'Back to the Guilds' }).click();
   }
 });
