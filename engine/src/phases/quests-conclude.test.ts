@@ -1013,14 +1013,26 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     ]);
   });
 
-  test('the History is those events less the pool comings and goings of a Hero no entry named before them (DL-211)', () => {
+  test('the History is those events less the pool comings and goings of a Hero no entry named: before an arrival, and before a leaving or anywhere in its Turn (DL-211, DL-214)', () => {
+    const passageOf = (event: TurnEvent): string | null => {
+      if (event.type === 'hero.generated' && event.payload.guildId === null) return event.payload.heroId;
+      return event.type === 'hero.left-pool' ? event.payload.heroId : null;
+    };
     for (const seed of seeds) {
+      const events = emitted.get(seed) as TurnEvent[];
+      // Each Turn's events are one batch of `record`'s: the world's creation, then each advance.
+      const namedInTurn = new Map<number, Set<string>>();
+      for (const event of events) {
+        if (passageOf(event) !== null) continue;
+        const ofTurn = namedInTurn.get(event.turn) ?? new Set<string>();
+        for (const id of event.participants) ofTurn.add(id);
+        namedInTurn.set(event.turn, ofTurn);
+      }
       const named = new Set<string>();
-      const expected = (emitted.get(seed) as TurnEvent[]).filter((event) => {
-        let passage: string | null = null;
-        if (event.type === 'hero.generated' && event.payload.guildId === null) passage = event.payload.heroId;
-        if (event.type === 'hero.left-pool') passage = event.payload.heroId;
-        if (passage !== null && !named.has(passage)) return false;
+      const expected = events.filter((event) => {
+        const passage = passageOf(event);
+        const leavingNamed = event.type === 'hero.left-pool' && passage !== null && namedInTurn.get(event.turn)?.has(passage) === true;
+        if (passage !== null && !named.has(passage) && !leavingNamed) return false;
         for (const id of event.participants) named.add(id);
         return true;
       });

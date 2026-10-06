@@ -824,6 +824,26 @@ describe('the repository holds no deploy credential', () => {
     expect(credentialLines('clean.md', 'CLOUDFLARE_API_TOKEN\n')).toEqual([]);
   });
 
+  test("no pattern's name and value on two lines are a credential, and a kind found on two lines is named on each (DL-214)", () => {
+    const planted = [
+      'account_id =',
+      `"${accountId}"`,
+      'oauth_token:',
+      `"${token}"`,
+      'Authorization: Bearer',
+      `  ${token}`,
+      `{"refresh_token":"${token}"}`,
+      `Bearer ${token}`,
+      `Bearer ${token}`,
+    ].join('\n');
+
+    expect(credentialLines('planted.yml', planted).sort()).toEqual([
+      'planted.yml:7: an OAuth token given a value',
+      'planted.yml:8: a bearer token',
+      'planted.yml:9: a bearer token',
+    ]);
+  });
+
   test('no file holds a Cloudflare token or account id', () => {
     const found: string[] = [];
     for (const file of repositoryFiles()) {
