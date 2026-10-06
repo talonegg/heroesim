@@ -160,7 +160,7 @@ describe('sweepPlay', () => {
   });
 
   test("totals M3's counters: every Guild's Days in play, the Fame gate each morning, the new worlds' Rosters", () => {
-    // Two games of 20 Days: five Guilds each, no year begun after the first, no game at year 10.
+    // Two games of 20 Days: five Guilds each, no year begun after the first, no game after 10 years.
     const guildYears = (kind: 'player' | 'rival'): number => totals.guildYears[kind].reduce((a, b) => a + b, 0);
     expect(guildYears('player')).toBeCloseTo(2 * years);
     expect(totals.fameGate.player.guildDays).toBe(2 * 20);
@@ -361,7 +361,7 @@ describe('sweepPlay', () => {
     expect(report).toContain('| The longest Biography written, in characters (at most 1,000) | 300 |');
     expect(report).toContain('| 1 | 2 | 1.50 | 2.00 | 0.25 | 0.25 | 16.7% |');
     expect(report).toContain('| 2 | 2 | 3.50 | 4.00 | 0.50 | 0.50 | 14.3% |');
-    expect(report).toContain('The largest save at year 2: 4,194,304 characters, 4.00 MiB; gzipped, as the page keeps it in IndexedDB (DL-67): mean 0.38 MiB, max 0.50 MiB.');
+    expect(report).toContain('The largest save as year 2 ended: 4,194,304 characters, 4.00 MiB; gzipped, as the page keeps it in IndexedDB (DL-67): mean 0.38 MiB, max 0.50 MiB.');
     // After the Portraits and before the Measures, so the play counters' lines stand as they were.
     expect(report.indexOf('## Portraits')).toBeLessThan(report.indexOf('## Heroes described'));
     expect(report.indexOf('## Heroes described')).toBeLessThan(report.indexOf('## Measures'));
@@ -549,7 +549,7 @@ describe('sweepPlay', () => {
       expect(report.indexOf('## The World State and its copy')).toBeLessThan(report.indexOf('## Measures'));
     });
 
-    test('counts games: those of the sweep, those in play as each year began, those with a Regard to count and those that reached year 10', () => {
+    test('counts games: those of the sweep, those in play as each year began, those with a Regard to count and those that played 10 years', () => {
       const regard = { relationships: noBands(), guildmasterForPatrons: noBands(), guildmasterForHeroes: { ...noBands(), friendly: 2 } };
       const counted = sweep.games.map((game, index) => ({
         ...game,
@@ -640,11 +640,30 @@ describe('sweepPlay', () => {
       expect(report).toContain('| Rival Guildmasters succeeded | 0, 0.00 a game |');
       expect(report).toContain("A Rival Guildmaster's Retirement is met by Succession (`guildmaster.succeeded`, M9-S2), not a fold: 0 in all.");
       expect(report).toContain('ran the full 0.06 years 2');
-      expect(report).toContain('Games ending in each year (year 0 is the first): 0: 0.');
+      expect(report).toContain('Games ending in each year (year 1 is the first): 1: 0.');
       expect(report).toContain('| Games the validator refused | 0 |');
       expect(report).toContain('`seed-0001`: identical');
       expect(report).toContain('| Advance one Turn | under 5 ms |');
       expect(report).toContain(`Node ${process.version}`);
+    });
+
+    test('numbers each year from 1, and a year-start by the years played before it, 0 the new world (DL-206 item 30, DL-210)', () => {
+      const rowAfter = (heading: string): string => {
+        const lines = report.split('\n');
+        return lines[lines.indexOf(heading) + 4] ?? '';
+      };
+      // The fixture's games play part of one year: its rows are year 1's, and the new world's year-start.
+      expect(rowAfter('In each year (year 1 is the first):')).toMatch(/^\| 1 \| /);
+      expect(rowAfter('By the year resolved in (year 1 is the first):')).toMatch(/^\| 1 \| /);
+      const rosters =
+        'The Guilds in play and their Rosters as each year begins, before the policy acts, by the years played before it ' +
+        '(0 is the new world, as year 1 begins), over the games in play then; a Hero is at Potential when any Stat has ' +
+        'reached its Potential, where growth stops:';
+      expect(rowAfter(rosters)).toMatch(/^\| 0 \| 2 \| /);
+      expect(report).toContain('Improvement grades reached in the first 10 years (M3-S6, DL-38 item 15)');
+      // No year ended in the fixture's games: no "year 0" for the largest save.
+      expect(report).toContain('No year ended in any game: no save to measure.');
+      expect(report).not.toMatch(/year 0/i);
     });
 
     // v1.1.6-S2 (DL-186 items 17 and 21): the years label reads the run's years, a run of other than 20
@@ -707,7 +726,7 @@ describe('sweepPlay', () => {
       expect(report).toContain('| Signings refused by Fame | Hero-Days refused |');
       expect(report).toContain('`signing-refused` rejections returned to the automatic policy: 0.');
       expect(report).toContain('No game was in play after 10 years.');
-      expect(report).toContain('over the 0 games that reached it');
+      expect(report).toContain('over the 0 games that played them');
       expect(report).toContain('| The Rivals: trainingYard | 0 | — | 0 | 0 | 0 | 0 |');
     });
 
@@ -761,7 +780,11 @@ describe('sweepPlay', () => {
       // The generation range read from the config, not written in.
       const { rivalRosterMin, rivalRosterMax, rivalStartingWealthMin, rivalStartingWealthMax } = deps.config;
       expect(report).toContain(`| below ${rivalRosterMin} | above ${rivalRosterMax} | Wealth, mean | median | below ${rivalStartingWealthMin} | above ${rivalStartingWealthMax} |`);
-      expect(report).toContain('| Year | Games | Mean place | Place 1 |');
+      // A year-start's row by the years played before it, 0 the new world (DL-206 item 30, DL-210).
+      expect(report).toContain('| After years | Games | Mean place | Place 1 |');
+      expect(report).toContain('The Rivals in play as each year began, before the policy acts, by the years played before it (0 is the new world, as year 1 begins):');
+      expect(report).toContain('| After years | Rival year-starts | Roster, mean |');
+      expect(report).toContain('| Disposition | After years | Rival year-starts | Roster, mean |');
       expect(report).toContain('| Market purchases | Purchases | a Guild-year | Items | Cost | Mean cost |');
       for (const key of Object.keys(content.dispositions)) {
         expect(report).toContain(`| The Rivals, \`${key}\`: infirmary | 0 | — |`);
@@ -982,7 +1005,10 @@ describe('sweepPlay', () => {
 
       const text = playReport(reached, context);
       expect(text).toContain('3 of 36 Patron-years (8.3%).');
-      expect(text).toContain('| 1 | 12 | 1 (8.3%) |');
+      // Each year played in full by its number, from 1 (DL-206 item 30, DL-210).
+      expect(text).toContain('| Year | Patron-years | Silent |');
+      expect(text).toContain('| 1 | 24 | 2 (8.3%) |');
+      expect(text).toContain('| 2 | 12 | 1 (8.3%) |');
       expect(text).toContain('over the 1 games in play then');
       expect(text).toContain("| Relationships within the player's Roster | 3 | 0 (0.0%) | 0 (0.0%) | 3 (100.0%) | 0 (0.0%) | 0 (0.0%) |");
       expect(text).toContain("| The player's Guildmaster for Heroes | 2 | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 0 (0.0%) | 2 (100.0%) |");

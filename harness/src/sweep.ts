@@ -285,11 +285,11 @@ export interface GameTotals {
   endings: Record<string, number>;
   /** Years each game lasted: to its ending, or its full length. */
   yearsSurvived: Summary;
-  /** Games whose ending fell in each year, 0 first, up to the sweep's length. */
+  /** Games whose ending fell in each year, the first at index 0, up to the sweep's length. */
   endedInYear: number[];
   refusals: number;
   invalidGames: number;
-  /** The games that reached year `countedYear`: those that gave `improvementGrades`. */
+  /** The games that played `countedYear` years: those that gave `improvementGrades`. */
   gamesAtCountedYear: number;
   fameGate: Record<ControllerKind, FameGate>;
   /** `signing-refused` among the policy's refused actions: it asks only Heroes who would sign. */
@@ -298,7 +298,7 @@ export interface GameTotals {
   rosters: ({ games: number } & Record<ControllerKind, RosterCensus>)[];
   /** The player's Guild's Regard after `countedYear` years, summed over the games in play then, and how many were. */
   regardAtCountedYear: { games: number } & RegardSnapshot;
-  /** For each year, 0 the new world, each Disposition's Rivals in play as it began, over the games in play then. */
+  /** For each year-start, index k after k years, 0 the new world, each Disposition's Rivals in play then, over the games in play then. */
   rivalYearStarts: Record<string, RivalYearStarts>[];
   /** For each year, the player's Guild's places in the Rankings as it began, over the games in play then. */
   rankings: RankingTally[];
@@ -589,14 +589,15 @@ function topGrade(deps: EngineDeps): number {
 /**
  * M3's counters (the epic's §2, DL-40): Levels and declines per Guild-year, the Rosters as each year
  * begins, growth against decline, Retirements by age, signings refused by Fame, and the
- * Improvement grades reached by year 10.
+ * Improvement grades reached in the first 10 years. The report numbers a year from 1 and a year-start
+ * by the years played before it, 0 the new world (DL-206 item 30, DL-210).
  */
 function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
   const perGuildYear = (kind: ControllerKind, series: ByYear): string =>
     `${whole(sum(series[kind]))} (${ratio(sum(series[kind]), sum(totals.guildYears[kind]))})`;
   const years = Math.max(0, ...controllerKinds.map((kind) => totals.guildYears[kind].length));
   const byYearRows = Array.from({ length: years }, (_, year) => [
-    whole(year),
+    whole(year + 1),
     ...controllerKinds.flatMap((kind) => {
       const guildYears = totals.guildYears[kind][year] ?? 0;
       return [
@@ -701,7 +702,7 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
       ['left', 'right', 'right'],
     ),
     '',
-    'In each year (year 0 is the first):',
+    'In each year (year 1 is the first):',
     '',
     markdownTable(
       [
@@ -717,8 +718,8 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
       ['right', 'right', 'right', 'right', 'right', 'right', 'right'],
     ),
     '',
-    'The Guilds in play and their Rosters as each year begins, before the policy acts (0 is the new world), over ' +
-      'the games in play then; a Hero is at Potential when any Stat has reached its Potential, where growth stops:',
+    'The Guilds in play and their Rosters as each year begins, before the policy acts, by the years played before it ' +
+      '(0 is the new world, as year 1 begins), over the games in play then; a Hero is at Potential when any Stat has reached its Potential, where growth stops:',
     '',
     markdownTable(
       [
@@ -772,9 +773,9 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
       "choice is dropped inside the afternoon's phase (DL-30), out of the harness's sight; `steady` asks only Heroes " +
       'who would sign (DL-38 item 5).',
     '',
-    `Improvement grades reached by year ${countedYear} (M3-S6, DL-38 item 15), over the ${whole(totals.gamesAtCountedYear)} ` +
-      'games that reached it: the Guilds founded before it, replacement Rivals included, by the highest grade each ' +
-      "facility reached before it; the Rivals' rows again by Disposition (M6, DL-69):",
+    `Improvement grades reached in the first ${countedYear} years (M3-S6, DL-38 item 15), over the ${whole(totals.gamesAtCountedYear)} ` +
+      'games that played them: the Guilds founded in them, replacement Rivals included, by the highest grade each ' +
+      "facility reached in them; the Rivals' rows again by Disposition (M6, DL-69):",
     '',
     markdownTable(
       ['Controller: facility', 'Guilds', 'Mean grade', ...grades.map((grade) => `Grade ${grade}`)],
@@ -895,7 +896,7 @@ function questEngineSection(totals: SweepTotals, deps: EngineDeps): string[] {
   const patronYears = sum(totals.patronYears);
   const silent = sum(totals.silentPatronYears);
   const silentRows = totals.patronYears.map((n, year) => [
-    whole(year),
+    whole(year + 1),
     whole(n),
     `${whole(totals.silentPatronYears[year] ?? 0)} (${percent(totals.silentPatronYears[year] ?? 0, n)})`,
   ]);
@@ -1013,7 +1014,7 @@ function itemsSection(totals: SweepTotals, deps: EngineDeps): string[] {
   const bandRows = totals.playerQuestsByDifficulty.flatMap((tally, band) =>
     tally.quests === 0 ? [] : [[`${band * difficultyBandWidth} to ${band * difficultyBandWidth + difficultyBandWidth - 1}`, ...difficultyCells(tally)]],
   );
-  const yearRows = totals.playerQuestsByYear.map((tally, year) => [whole(year), ...difficultyCells(tally)]);
+  const yearRows = totals.playerQuestsByYear.map((tally, year) => [whole(year + 1), ...difficultyCells(tally)]);
   const allDifficulty = noDifficulty();
   for (const tally of totals.playerQuestsByDifficulty) addInto(allDifficulty, tally);
   const difficultyHeader = ['Quests resolved', 'Mean difficulty', 'Strong', 'Loot awards', 'Loot a Quest', 'Unique'];
@@ -1028,7 +1029,7 @@ function itemsSection(totals: SweepTotals, deps: EngineDeps): string[] {
           '',
           markdownTable(['Difficulty', ...difficultyHeader], bandRows, ['left', ...difficultyHeader.map(() => 'right' as const)]),
           '',
-          'By the year resolved in (year 0 is the first):',
+          'By the year resolved in (year 1 is the first):',
           '',
           markdownTable(['Year', ...difficultyHeader], yearRows, ['right', ...difficultyHeader.map(() => 'right' as const)]),
         ];
@@ -1286,7 +1287,7 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
       ],
     ];
   };
-  const rankingHeader = ['Year', 'Games', 'Mean place', ...placeNumbers.map((place) => `Place ${place}`)];
+  const rankingHeader = ['After years', 'Games', 'Mean place', ...placeNumbers.map((place) => `Place ${place}`)];
   const rankingAlign = rankingHeader.map(() => 'right' as const);
 
   // Market purchases by buyer.
@@ -1387,21 +1388,23 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
           ),
         ]),
     '',
-    `The Rivals in play as each year began, before the policy acts (0 is the new world): each Roster's size against ` +
+    'The Rivals in play as each year began, before the policy acts, by the years played before it (0 is the new world, as year 1 begins): ' +
+      `each Roster's size against ` +
       `the range a Rival is generated with (\`rivalRosterMin\` ${whole(config.rivalRosterMin)} to \`rivalRosterMax\` ` +
       `${whole(config.rivalRosterMax)}), and its Wealth against its starting range (\`rivalStartingWealthMin\` ` +
       `${whole(config.rivalStartingWealthMin)} to \`rivalStartingWealthMax\` ${whole(config.rivalStartingWealthMax)}); ` +
       'a median is the middle year-start, the lower of two:',
     '',
-    markdownTable(['Year', ...rangeHeader], allYearRows, ['right', ...rangeAlign]),
+    markdownTable(['After years', ...rangeHeader], allYearRows, ['right', ...rangeAlign]),
     '',
     'By Disposition, over every year-start, then year by year:',
     '',
     markdownTable(['Disposition', ...rangeHeader], overallRows, ['left', ...rangeAlign]),
     '',
-    markdownTable(['Disposition', 'Year', ...rangeHeader], dispositionYearRows, ['left', 'right', ...rangeAlign]),
+    markdownTable(['Disposition', 'After years', ...rangeHeader], dispositionYearRows, ['left', 'right', ...rangeAlign]),
     '',
-    "The player's Guild's place in the Rankings (the engine's `rankings`, every Guild in play) as each year began, by Fame:",
+    "The player's Guild's place in the Rankings (the engine's `rankings`, every Guild in play) as each year began, by the years " +
+      'played before it (0 is the new world), by Fame:',
     '',
     markdownTable(rankingHeader, rankingRows('fame'), rankingAlign),
     '',
@@ -1537,8 +1540,10 @@ function heroesSection(totals: SweepTotals): string[] {
       ['right', 'right', 'right', 'right', 'right', 'right', 'right'],
     ),
     '',
-    `The largest save at year ${saves.length}: ${Number.isNaN(largest) ? 'none' : `${whole(largest)} characters, ${mebibytes(largest)} MiB`}; ` +
-      `gzipped, as the page keeps it in IndexedDB (DL-67): mean ${mebibytes(gzipped.mean)} MiB, max ${mebibytes(gzipped.max)} MiB.`,
+    saves.length === 0
+      ? 'No year ended in any game: no save to measure.'
+      : `The largest save as year ${saves.length} ended: ${Number.isNaN(largest) ? 'none' : `${whole(largest)} characters, ${mebibytes(largest)} MiB`}; ` +
+        `gzipped, as the page keeps it in IndexedDB (DL-67): mean ${mebibytes(gzipped.mean)} MiB, max ${mebibytes(gzipped.max)} MiB.`,
     '',
   ];
 }
@@ -1762,7 +1767,7 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
       ['left', 'right', 'right', 'right', 'right'],
     ),
     '',
-    `Games ending in each year (year 0 is the first): ${totals.endedInYear.map((n, year) => `${year}: ${n}`).join(', ')}.`,
+    `Games ending in each year (year 1 is the first): ${totals.endedInYear.map((n, year) => `${year + 1}: ${n}`).join(', ')}.`,
     '',
     ...progressionSection(totals, deps),
     ...questEngineSection(totals, deps),

@@ -284,7 +284,7 @@ describe("M3's counters, from the History", () => {
     });
   });
 
-  test('Improvement grades by year 10: the highest each Guild founded before it reached before it, by controller', () => {
+  test('Improvement grades in the first 10 years: the highest each Guild founded in them reached in them, by controller', () => {
     const { document, player, rivals } = fixture('counters-improved');
     const [a, b] = rivals;
     /** A replacement Rival founded on `turn`, a copy of Rival B's row under a new id. */
@@ -300,7 +300,7 @@ describe("M3's counters, from the History", () => {
     const c = found(90, 200);
     improved(document, 250, c, 'quarters', 1);
     improved(document, 299, player, 'trainingYard', 1);
-    // Year 10 begins on Turn 300: what is built on it, and a Rival founded after it, are not counted.
+    // Year 11 begins on Turn 300, after 10 years: what is built on it, and a Rival founded after it, are not counted.
     improved(document, 300, player, 'quarters', 1);
     const d = found(91, 310);
     improved(document, 320, d, 'infirmary', 1);
@@ -324,7 +324,7 @@ describe("M3's counters, from the History", () => {
     });
   });
 
-  test('no Improvement grades for a game that stopped before year 10', () => {
+  test('no Improvement grades for a game that stopped before 10 years', () => {
     const { document } = fixture('counters-short');
     document.world.turn = 299;
     expect(countGame(document, shortYears).improvementGrades).toBeNull();
@@ -545,7 +545,7 @@ describe("M4's counters, from the History", () => {
     const offer = (turn: number, patronId: string): void => {
       add(document, turn, 'quest.offered', [questId, patronId as EntityId], { questId, patronId, templateKey: 'escort-the-tithe' });
     };
-    // The new world's Board already names some Patrons in year 0.
+    // The new world's Board already names some Patrons in year 1.
     const offeredAtCreation = new Set(
       (document.history.byType['quest.offered'] ?? []).map(
         (position) => (document.history.entries[position]?.payload as { patronId: string }).patronId,
@@ -556,12 +556,12 @@ describe("M4's counters, from the History", () => {
     if (quiet === undefined || a === undefined || b === undefined) throw new Error('Every Patron offered at creation');
     offer(29, quiet);
     offer(30, a);
-    // A Patron generated during year 1 is counted from year 2, the first year it was there as it began.
+    // A Patron generated during year 2 is counted from year 3, the first year it was there as it began.
     const late = makeId('patrons', 99);
     add(document, 40, 'patron.generated', [late], { patronId: late, sphereKey: 'merchants' });
     offer(59, b);
     offer(59, a);
-    // Year 3 is not played in full, so its offers and silences count nowhere.
+    // Year 4 is not played in full, so its offers and silences count nowhere.
     offer(90, late);
     document.world.turn = 95;
 
@@ -587,7 +587,7 @@ describe("M4's counters, from the History", () => {
   });
 });
 
-describe("M4's counters, from the World State as year 10 begins", () => {
+describe("M4's counters, from the World State after 10 years", () => {
   // The Regard scale and bands pinned: DL-43's, which a balance pass may move.
   const regardDeps: EngineDeps = {
     ...shortYears,
@@ -636,7 +636,7 @@ describe("M4's counters, from the World State as year 10 begins", () => {
     });
   });
 
-  test("the census takes it as year 10 begins, and at no other year's start", () => {
+  test("the census takes it after 10 years, and at no other year's start", () => {
     const { document, heroes } = regardFixture('counters-regard-census');
     const { world } = document;
     const observations = emptyObservations();
@@ -652,7 +652,7 @@ describe("M4's counters, from the World State as year 10 begins", () => {
     expect(observations.regardAtCountedYear).toEqual(regardSnapshot(world, regardDeps.config));
     expect(observations.regardAtCountedYear?.relationships.close).toBe(1);
 
-    // Year 11's census leaves it as year 10 found it.
+    // The census as year 12 begins leaves it as it was after 10 years.
     for (const hero of heroes) hero.regard = {};
     world.turn = 330;
     takeCensus(observations, world, regardDeps);
@@ -918,11 +918,11 @@ describe("M5's counters, from the History", () => {
         stackId: unique ? null : makeId('stacks', turn),
       });
     };
-    // Year 0 (a year of 30 Turns): an easy Quest, and a hard one that won Loot.
+    // Year 1 (a year of 30 Turns): an easy Quest, and a hard one that won Loot.
     resolved(5, player, quest(1), 'success');
     resolved(8, player, quest(2), 'strong');
     loot(8, player, quest(2), false);
-    // Year 1: a hard Quest winning a unique Item, a harder one failed, and a Quest the loop did not record.
+    // Year 2: a hard Quest winning a unique Item, a harder one failed, and a Quest the loop did not record.
     resolved(35, player, quest(3), 'strong');
     loot(35, player, quest(3), true);
     resolved(38, player, quest(4), 'fail');

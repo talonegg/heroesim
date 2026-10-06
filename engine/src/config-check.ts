@@ -270,7 +270,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   hallMaintenancePerGrade: whole({ min: 0 }),
   bankruptcyFloor: whole(),
   bankruptcyGraceDays: whole({ min: 0 }),
-  fameFloor: whole(),
+  fameFloor: whole({ min: 0 }),
   signingFeeBase: whole({ min: 0 }),
   signingFeePerLevel: whole({ min: 0 }),
   signingFeeStatDivisor: finite({ above: 0 }),

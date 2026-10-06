@@ -151,7 +151,7 @@ describe('playGame observes the World State (M3, DL-40)', () => {
     expect(game.observations.regardAtCountedYear).toBeNull();
   });
 
-  test("the player's Guild's Regard as year 10 begins, from the world as the last Turn left it (M4, DL-55)", () => {
+  test("the player's Guild's Regard after 10 years, from the world as the last Turn left it (M4, DL-55)", () => {
     const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 12 } };
     const game = playGame('play-a', shortYears, { years: 10 });
     expect(game.document.world.turn).toBe(120);

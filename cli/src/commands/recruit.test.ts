@@ -249,7 +249,8 @@ describe('the views', () => {
     const run = play(['show', 'hero', hero.id]);
 
     expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toMatch(/Left the pool\s+Turn 0/);
+    // The date, the Turn beside it (DL-206 item 33, DL-210).
+    expect(run.out).toMatch(/Left the pool\s+Year 1 Day 1 \(Turn 0\)/);
     expect(run.out).not.toContain('Unattached');
   });
 });

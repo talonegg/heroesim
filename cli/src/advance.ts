@@ -5,9 +5,9 @@
 // page puts a button (`web/src/state/stops.ts`).
 
 import type { EngineDeps, StopReason, TurnEvent, WorldDocument } from '@heroesim/engine';
-import { narrateStop, sentenceText } from '@heroesim/words';
+import { narrateStop, sentenceText, whenOfTurn } from '@heroesim/words';
 import { cliNamer, narrateLine } from './namer.js';
-import { renderCountdown, renderTime, table } from './render.js';
+import { renderCountdown, renderDate, renderTime, table } from './render.js';
 
 /**
  * Why a fast forward stopped, in one line: the narration's sentence (`narrateStop` in
@@ -24,8 +24,8 @@ export function stopLine(stop: StopReason, document: WorldDocument, maxTurns: nu
 /**
  * `advance`: how many Turns were played, where time stands now, why a fast forward stopped when it
  * was one (`stop`), the Bankruptcy countdown while the player's Guild is below the floor
- * (`renderCountdown`, DL-95), whether the game has ended, and each event of the Turns played,
- * oldest first, one line each in the CLI's words.
+ * (`renderCountdown`, DL-95), whether the game has ended and when, and each event of the Turns
+ * played, oldest first, one line each with its Turn and date (DL-206 item 33, DL-210) in the CLI's words.
  */
 export function renderAdvance(
   played: number,
@@ -39,7 +39,7 @@ export function renderAdvance(
     `Played ${played} ${played === 1 ? 'Turn' : 'Turns'}. Now ${renderTime(turn, deps.config)}.`,
     ...(stop === undefined ? [] : [stop]),
     ...renderCountdown(document, deps),
-    ...(ended === null ? [] : [`The game ended on Turn ${ended.turn}: ${ended.reason}.`]),
+    ...(ended === null ? [] : [`The game ended on ${renderDate(ended.turn, deps.config)}: ${ended.reason}.`]),
     '',
     ...(events.length === 0
       ? ['No events.']
@@ -47,8 +47,8 @@ export function renderAdvance(
           `Events: ${events.length}, oldest first`,
           '',
           ...table(
-            [{ heading: 'Turn', align: 'right' }, { heading: 'What happened' }],
-            events.map((event) => [String(event.turn), narrateLine(event, deps.content, deps.config)]),
+            [{ heading: 'Turn', align: 'right' }, { heading: 'Date' }, { heading: 'What happened' }],
+            events.map((event) => [String(event.turn), whenOfTurn(event.turn, deps.config), narrateLine(event, deps.content, deps.config)]),
           ),
         ]),
   ];

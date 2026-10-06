@@ -144,7 +144,7 @@ export interface GameConfig {
   bankruptcyFloor: number;
   /** Days a Guild may stay below `bankruptcyFloor` before the Bankruptcy ending (read by M2-S10). */
   bankruptcyGraceDays: number;
-  /** Fame never falls below this (pre-M0 review D10.3: an explicit floor, not negative Fame). */
+  /** Fame never falls below this, at least 0 (pre-M0 review D10.3: an explicit floor, not negative Fame; DL-210). */
   fameFloor: number;
 
   // ── `recruitment`: signing and the Unattached pool (INPUTS 3.7, 4.7, DL-27) ──────────────────

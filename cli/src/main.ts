@@ -53,6 +53,7 @@ import { modulesFor } from './modules.js';
 import { stopLine, renderAdvance } from './advance.js';
 import {
   renderBoard,
+  renderDate,
   renderGuildmaster,
   renderGuilds,
   renderHall,
@@ -362,7 +363,7 @@ function show(view: View, { io, content, path }: Context): Exit {
     case 'history': {
       if (view.entityId === undefined) {
         const entries = entriesBetween(history, 0, Infinity);
-        return say(io, renderHistory(`History: ${entryCount(entries.length)}, oldest first`, entries));
+        return say(io, renderHistory(`History: ${entryCount(entries.length)}, oldest first`, entries, deps.config));
       }
       if (parseId(view.entityId) === null) {
         return refuse(io, `"${view.entityId}" is not an id such as hero-000001 or guild-000001.`, exitCodes.usage);
@@ -370,7 +371,7 @@ function show(view: View, { io, content, path }: Context): Exit {
       const entries = entriesFor(history, view.entityId as EntityId);
       const label = entries[0]?.labels[view.entityId as EntityId];
       const who = label === undefined ? view.entityId : `${label} (${view.entityId})`;
-      return say(io, renderHistory(`History of ${who}: ${entryCount(entries.length)}, newest first`, entries));
+      return say(io, renderHistory(`History of ${who}: ${entryCount(entries.length)}, newest first`, entries, deps.config));
     }
   }
 }
@@ -383,7 +384,7 @@ function show(view: View, { io, content, path }: Context): Exit {
  */
 export function over(io: CliIo, document: WorldDocument, what = 'No Turn follows.'): Exit | undefined {
   const { ended } = document.world;
-  return ended === null ? undefined : refuse(io, `The game ended on Turn ${ended.turn}: ${ended.reason}. ${what}`);
+  return ended === null ? undefined : refuse(io, `The game ended on ${renderDate(ended.turn, document.meta.config)}: ${ended.reason}. ${what}`);
 }
 
 /** What `over` says of an action refused after the end (M3 verification, DL-53). */

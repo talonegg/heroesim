@@ -96,7 +96,7 @@ describe("a Rival's Disposition by its content name in show guilds and show rank
 });
 
 describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
-  /** The Test below the floor from the start, played through the night of Day 0 under `config`. */
+  /** The Test below the floor from the start, played through the night of the first Day under `config`. */
   function belowTheFloor(config: Partial<typeof defaultConfig> = {}): WorldDocument {
     let document = structuredClone(newGame('render-countdown'));
     document.meta.config = { ...document.meta.config, ...config };
@@ -106,7 +106,7 @@ describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
   }
 
   const line = (dueDay: number) =>
-    `The Test has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day ${dueDay} ` +
+    `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day ${dueDay + 1} ` +
     'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
 
   test("show's summary prints it under the Turn while the player's Guild is below the floor, from the save's grace", () => {
@@ -115,7 +115,7 @@ describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
 
     const summary = renderSummary(below, playDeps(below));
 
-    expect(summary[0]).toMatch(/^Seed render-countdown, Turn 2 \(Day 0, night, Year 0\)/);
+    expect(summary[0]).toMatch(/^Seed render-countdown, Turn 2 \(Year 1 Day 1, night\)/);
     expect(summary[1]).toBe(line(defaultConfig.bankruptcyGraceDays));
     expect(summary[2]).toBe('');
     // A save playing under a grace of 10 Days, read under its own rules as `open` reads it.

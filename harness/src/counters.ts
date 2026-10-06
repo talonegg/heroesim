@@ -4,14 +4,14 @@
 // which shows how contested the Board is (DL-30); M2-S12 adds the rest (DL-34).
 //
 // M3's counters (the epic's §2, DL-40) add Levels and declines per Guild-year, Retirements by age,
-// growth against decline, and the Improvement grades reached by year 10, from the History as
+// growth against decline, and the Improvement grades reached in the first 10 years, from the History as
 // before; and two the History cannot give, read from the World State while the game is played
 // (`observe`): how many pool Heroes refuse each Guild for its Fame each morning, and the Rosters'
 // Levels and Heroes at Potential as each year begins.
 //
 // M4's counters (the epic's §2, DL-55) add, from the History, the Encounters' outcomes by kind, the
 // Synergies each Quest applied, Injuries by type and the Patrons silent in a year; and, from the
-// World State as year 10 begins, the Relationships within the player's Roster and its
+// World State after 10 years, the Relationships within the player's Roster and its
 // Guildmaster's Regard, by band, which the History records only as band crossings.
 //
 // M5's counters (the epic's §2, DL-62) add, from the History, the Wealth each kind of Guild spent by
@@ -198,10 +198,10 @@ export function questingHeroes(document: WorldDocument): ByController {
   return counts;
 }
 
-/** The year M3's counters read at: "after 10 years" and "by year 10" (the epic's §2, DL-40). */
+/** The years M3's counters read after: "after 10 years", and the grades reached in them (the epic's §2, DL-40). */
 export const countedYear = 10;
 
-/** A number for each year of the game, year 0 (the first) first, for each kind of controller. */
+/** A number for each year of the game, the first at index 0, for each kind of controller. */
 export type ByYear = Record<ControllerKind, number[]>;
 
 /**
@@ -276,9 +276,9 @@ export interface GameCounters {
   retirementAges: Record<ControllerKind, Record<string, number>>;
   growthAgainstDecline: Record<ControllerKind, GrowthAgainstDecline>;
   /**
-   * The Guilds founded before year `countedYear` (`guild.founded`, replacement Rivals included), by
-   * controller, counted by the highest grade each facility reached before it (`guild.improved`);
-   * `null` for a game that stopped before year `countedYear` (DL-38 item 15).
+   * The Guilds founded in the first `countedYear` years (`guild.founded`, replacement Rivals included), by
+   * controller, counted by the highest grade each facility reached in them (`guild.improved`);
+   * `null` for a game that stopped before `countedYear` years (DL-38 item 15).
    */
   improvementGrades: Record<ControllerKind, GradeCounts> | null;
   // M4's (DL-55).
@@ -288,7 +288,7 @@ export interface GameCounters {
   synergies: Record<ControllerKind, SynergyTally>;
   /** `hero.injured`, by the controller of the Hero's Guild then, then by the Injury type's key. */
   injuriesByType: Record<ControllerKind, Record<string, number>>;
-  /** For each year played in full, 0 first, the Patrons in the world as it began. */
+  /** For each year played in full, the first at index 0, the Patrons in the world as it began. */
   patronYears: number[];
   /** Of those, the Patrons that offered no Quest in the year (no `quest.offered` naming them). */
   silentPatronYears: number[];
@@ -816,9 +816,9 @@ function noGradesByDisposition(content: EngineDeps['content']): Record<string, G
 }
 
 /**
- * The Guilds founded before year `countedYear`, by controller and, for the Rivals, by Disposition too
- * (M6, DL-69), counted by the highest grade each facility reached before it; `null` when the game
- * stopped before it (DL-38 item 15).
+ * The Guilds founded in the first `countedYear` years, by controller and, for the Rivals, by Disposition too
+ * (M6, DL-69), counted by the highest grade each facility reached in them; `null` when the game
+ * stopped before their end (DL-38 item 15).
  */
 function improvementGrades(
   document: WorldDocument,
@@ -1475,7 +1475,7 @@ export interface RosterCensus {
 }
 
 /**
- * The player's Guild's Regard as year `countedYear` begins (M4, DL-55), by band, every band listed:
+ * The player's Guild's Regard after `countedYear` years (M4, DL-55), by band, every band listed:
  * what the History, which records a Regard only when it crosses a band, cannot give.
  */
 export interface RegardSnapshot {

@@ -191,7 +191,7 @@ describe('transfer (M6-S2)', () => {
     const back = play(['transfer', '--hero', heroId, '--to', reckless]);
 
     expect(back.code).toBe(exitCodes.refused);
-    expect(back.err).toContain(`${heroOf(before.world, heroId).name} (${heroId}) was transferred on Day 0 and cannot be transferred again before Day 30.`);
+    expect(back.err).toContain(`${heroOf(before.world, heroId).name} (${heroId}) was transferred on Year 1 Day 1 and cannot be transferred again before Year 1 Day 31.`);
     expect(readFileSync(current(), 'utf8')).toBe(saved);
   });
 });
@@ -220,7 +220,7 @@ describe('Transfer Offers (M6-S2)', () => {
     const shown = play(['show', 'offers']);
     expect(shown.code).toBe(exitCodes.ok);
     expect(shown.out).toContain("Transfer Offers for The Test's Heroes: 1. Answer with accept --offer <id> or decline --offer <id>.");
-    expect(shown.out).toMatch(new RegExp(`${offerId}\\s+${rivalName}\\s+${name} \\(${heroId}\\)\\s+${fee}\\s+Turn 8 \\(Day 2, night`));
+    expect(shown.out).toMatch(new RegExp(`${offerId}\\s+${rivalName}\\s+${name} \\(${heroId}\\)\\s+${fee}\\s+Turn 8 \\(Year 1 Day 3, night\\)`));
 
     const declined = play(['decline', '--offer', offerId]);
     expect(declined).toMatchObject({ code: exitCodes.ok, err: '' });

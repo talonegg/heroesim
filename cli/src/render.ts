@@ -24,7 +24,6 @@ import {
   bestParty,
   baseStat,
   carriedGear,
-  dayOf,
   descriptiveAttributeLabels,
   descriptiveAttributes,
   effectiveStats,
@@ -48,10 +47,8 @@ import {
   durationDaysOf,
   potentialHint,
   relationship,
-  timeOfDay,
   unattachedHeroes,
   upkeep,
-  yearOf,
   type ContentSet,
   type EngineDeps,
   type Entry,
@@ -69,14 +66,20 @@ import {
 import {
   capitalised,
   chanceWords,
+  dateOfDay,
+  dateOfTurn,
   encounterReadings,
   facilityNames,
   kindWords,
   modifierWords,
   nameIn,
+  nightOfDay,
+  nightOfTurn,
   readsAsOne,
   shownPercent,
   traitEffectWords,
+  whenOfTurn,
+  type Calendar,
 } from '@heroesim/words';
 
 // ── Tables ───────────────────────────────────────────────────────────────────────────────────
@@ -135,11 +138,20 @@ function none(list: readonly string[]): string {
 // ── Time ─────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The Turn and where it falls: `Turn 3 (Day 1, morning, Year 0)`. Day and Year count from 0, as
- * the Turn does, and come from the engine's selectors under the rules the save plays under.
+ * The Turn and its date with the time of day, `Turn 3 (Year 1 Day 2, morning)`: the CLI keeps its
+ * Turn beside the date a player reads (DL-206 item 33, DL-210), the date from the calendar of
+ * `@heroesim/words` under the rules the save plays under.
  */
-export function renderTime(turn: number, config: EngineDeps['config']): string {
-  return `Turn ${turn} (Day ${dayOf(turn)}, ${timeOfDay(turn)}, Year ${yearOf(turn, config)})`;
+export function renderTime(turn: number, config: Calendar): string {
+  return `Turn ${turn} (${whenOfTurn(turn, config)})`;
+}
+
+/**
+ * The date of a Turn with the Turn beside it, `Year 3 Day 13 (Turn 2198)`: when a thing happened,
+ * as a Hero's death (DL-206 item 33, DL-210). The Turn is printed as every number the CLI prints.
+ */
+export function renderDate(turn: number, config: Calendar): string {
+  return `${dateOfTurn(turn, config)} (Turn ${turn})`;
 }
 
 // ── Guilds and the summary ───────────────────────────────────────────────────────────────────
@@ -153,8 +165,8 @@ function controllerOf(guild: Guild, content: EngineDeps['content']): string {
 }
 
 /**
- * The Guilds as a table. When any has folded, a last column marks each folded one with the Day it
- * folded (DL-28, DL-33): its row stays, out of play, with an empty Roster.
+ * The Guilds as a table. When any has folded, a last column marks each folded one with the date it
+ * folded (DL-28, DL-33, DL-210): its row stays, out of play, with an empty Roster.
  */
 function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: EngineDeps): string[] {
   const { world } = document;
@@ -186,7 +198,7 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       String(guild.wealth),
       String(guild.fame),
       String(upkeep(guild, world, config, content)),
-      ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on Day ${dayOf(guild.foldedOnTurn)}`] : []),
+      ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on ${dateOfTurn(guild.foldedOnTurn, config)}`] : []),
     ]),
   );
 }
@@ -213,8 +225,8 @@ export function renderCountdown(document: WorldDocument, deps: EngineDeps): stri
   const countdown = bankruptcyCountdown(guild, deps.config);
   if (countdown === null) return [];
   return [
-    `${guild.name} has been below the Bankruptcy floor since Day ${countdown.sinceDay}: Bankruptcy on the night of ` +
-      `Day ${countdown.dueDay} unless Wealth is back to ${deps.config.bankruptcyFloor} or more on a night by then, after any Upkeep due.`,
+    `${guild.name} has been below the Bankruptcy floor since ${dateOfDay(countdown.sinceDay, deps.config)}: Bankruptcy on ` +
+      `${nightOfDay(countdown.dueDay, deps.config)} unless Wealth is back to ${deps.config.bankruptcyFloor} or more on a night by then, after any Upkeep due.`,
   ];
 }
 
@@ -255,7 +267,7 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
   ];
 }
 
-/** `show guilds`: every Guild, a folded one marked with the Day it folded. */
+/** `show guilds`: every Guild, a folded one marked with the date it folded. */
 export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[] {
   return ['Guilds', '', ...guildTable(Object.values(document.world.guilds), document, deps)];
 }
@@ -471,7 +483,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
       'Injury',
       hero.injury === null
         ? 'none'
-        : `${nameIn(content.injuries, hero.injury.typeKey)}, healing on the night of Day ${dayOf(hero.injury.healsOnTurn)} ` +
+        : `${nameIn(content.injuries, hero.injury.typeKey)}, healing on ${nightOfTurn(hero.injury.healsOnTurn, config)} ` +
           `(Turn ${hero.injury.healsOnTurn})`,
     ],
     // Each Trait with what it does (v1.1.4-S7): `Lame (-2 Dexterity, -1 Endurance)`.
@@ -484,9 +496,9 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     attributes.push(['Transfer fee', String(transferFee(hero, reader, deps))]);
   }
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
-  if (hero.diedOnTurn !== null) attributes.push(['Died', `Turn ${hero.diedOnTurn}`]);
-  if (hero.retiredOnTurn !== null) attributes.push(['Retired', `Turn ${hero.retiredOnTurn}`]);
-  if (hero.leftPoolOnTurn !== null) attributes.push(['Left the pool', `Turn ${hero.leftPoolOnTurn}`]);
+  if (hero.diedOnTurn !== null) attributes.push(['Died', renderDate(hero.diedOnTurn, config)]);
+  if (hero.retiredOnTurn !== null) attributes.push(['Retired', renderDate(hero.retiredOnTurn, config)]);
+  if (hero.leftPoolOnTurn !== null) attributes.push(['Left the pool', renderDate(hero.leftPoolOnTurn, config)]);
 
   let lastArea = '';
   const effective = effectiveStats(hero, world, content);
@@ -734,7 +746,7 @@ function requiredOf(quest: Quest, content: ContentSet): string {
 
 /**
  * `show board`: the Quests on offer in the Board's order, each with its template's name, its
- * Patron, its terms and the last Day it stays on offer; then the Skills that help in its Encounters'
+ * Patron, its terms and the last date it stays on offer; then the Skills that help in its Encounters'
  * Checks and the kinds of those Encounters (M4-S1, M4 verification); then each Quest's Encounters
  * with each Check's name and what it reads, and the player's best Party with its chance (v1.1.4-S6,
  * DL-148 items 15 to 17), where M2-S3's demands stood, which no view shows now.
@@ -771,7 +783,7 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
         String(quest.fameEffect),
         `${quest.requirements.partySizeMin} to ${quest.requirements.partySizeMax}`,
         requiredOf(quest, content),
-        `Day ${dayOf(quest.expiresOnTurn)}`,
+        dateOfTurn(quest.expiresOnTurn, deps.config),
       ]),
     ),
     '',
@@ -835,17 +847,19 @@ function encounterKindsOf(quest: Pick<Quest, 'encounterKeys'>, content: ContentS
 
 /**
  * `show history [entityId]`: entries as the engine's History readers return them, under a
- * heading that says which and in what order. Each names its participants by the labels it was
- * written with, so a Hero since removed still reads.
+ * heading that says which and in what order, each with its Turn and its date (DL-206 item 33,
+ * DL-210). Each names its participants by the labels it was written with, so a Hero since removed
+ * still reads.
  */
-export function renderHistory(heading: string, entries: readonly Entry[]): string[] {
+export function renderHistory(heading: string, entries: readonly Entry[], config: Calendar): string[] {
   return [
     heading,
     '',
     ...table(
-      [{ heading: 'Turn', align: 'right' }, { heading: 'Event' }, { heading: 'Milestone' }, { heading: 'Who' }],
+      [{ heading: 'Turn', align: 'right' }, { heading: 'Date' }, { heading: 'Event' }, { heading: 'Milestone' }, { heading: 'Who' }],
       entries.map((entry) => [
         String(entry.turn),
+        whenOfTurn(entry.turn, config),
         entry.type,
         entry.milestone ? 'Yes' : '',
         entry.participants.map((id) => entry.labels[id] ?? id).join(', '),

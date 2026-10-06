@@ -56,6 +56,13 @@ describe('the rules', () => {
     ]);
   });
 
+  test('Fame has a floor of at least 0, never negative Fame (pre-M0 review D10.3; the owner, 2026-10-06, DL-210)', () => {
+    expect(checkConfig({ ...defaultConfig, fameFloor: -1 })).toEqual([
+      { setting: 'fameFloor', message: 'fameFloor is -1; it is a whole number, at least 0' },
+    ]);
+    expect(broken({ fameFloor: 0 })).toEqual([]);
+  });
+
   test('never throws, whatever a save holds', () => {
     for (const value of [null, 'x', {}, true, Number.NaN, undefined]) {
       for (const setting of Object.keys(defaultConfig)) {
@@ -145,7 +152,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   hallMaintenancePerGrade: wholeFrom(0),
   bankruptcyFloor: anyWhole,
   bankruptcyGraceDays: wholeFrom(0),
-  fameFloor: anyWhole,
+  fameFloor: wholeFrom(0),
   signingFeeBase: wholeFrom(0),
   signingFeePerLevel: wholeFrom(0),
   signingFeeStatDivisor: finiteAbove(0),
