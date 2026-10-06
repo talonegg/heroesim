@@ -175,6 +175,11 @@ describe('a run checked against the Gate, line by line', () => {
     const unmeasured = checkGate(shaped, passing((run) => (run.timings.advance = { ...run.timings.advance, count: 0, mean: Number.NaN })));
     expect(unmeasured.lines.at(-1)).toMatchObject({ verdict: 'not comparable' });
     expect(unmeasured.pass).toBe(true);
+    // A mean of 0 has no share to divide into, and a report read back from JSON holds an unmeasured
+    // mean as null (DL-207's verification).
+    const advanceMean = (mean: unknown) => checkGate(shaped, passing((run) => (run.timings.advance = { ...run.timings.advance, mean: mean as number }))).lines.at(-1);
+    expect(advanceMean(0)).toMatchObject({ verdict: 'not comparable', measured: 'copy or advance times not measured' });
+    expect(advanceMean(null)).toMatchObject({ verdict: 'not comparable', measured: 'copy or advance times not measured' });
   });
 
   test('a band at its edge passes: the Bankruptcies at the most, the gzipped mean just under 30 MiB', () => {
