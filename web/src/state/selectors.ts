@@ -88,6 +88,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import {
+  atHallWords,
   capitalised,
   chanceWords,
   dateOfDay,
@@ -107,6 +108,7 @@ import {
   statPartsWords,
   statSourcesMoving,
   traitEffectWords,
+  unavailableChipWords,
   unavailableWords,
   whenOfTurn,
   type EncounterReading,
@@ -114,6 +116,7 @@ import {
 import { availabilityOf } from './availability';
 import { content } from '../content';
 import { narrateText, narrationFor, questNamer, type Narration } from './namer';
+import type { Facets } from './facets';
 import { classMarkOf, type ClassMarked, placeWords, rowOf, transferCostWords } from './names';
 import { calendarFor, playDeps, type GameState } from './reducer';
 import { rejectionSentence } from './rejections';
@@ -944,6 +947,28 @@ function buildRosterRows(document: WorldDocument): RosterRows {
     return [{ hero, row, free: availability.freeOnTurn ?? Infinity }];
   });
   return { entries, byDefault };
+}
+
+/**
+ * The Roster's filters (DL-206 items 25 to 29, DL-213): by Class, in the order content declares
+ * (`class-order.json`), and by availability, At the Hall, Injured and Away, in the words the Board's
+ * chip and a Hero's whereabouts use (`@heroesim/words`, DL-206 item 12). A Hero shows when they match
+ * both. The view filters the rows `rosterRows` keeps, once sorted, and builds none again (DL-199).
+ */
+export function rosterFacets(set: Pick<ContentSet, 'classes' | 'classOrder'> = content): Facets<RosterRow, 'class' | 'availability'> {
+  return {
+    class: { label: 'Show of Class', options: set.classOrder.map((key) => ({ key, label: nameIn(set.classes, key) })), of: (row) => row.classKey },
+    availability: {
+      label: 'Show by availability',
+      options: [
+        { key: 'hall', label: capitalised(atHallWords) },
+        { key: 'injured', label: capitalised(unavailableChipWords.injured) },
+        { key: 'in-party', label: capitalised(unavailableChipWords['in-party']) },
+      ],
+      // No Hero on a Roster is dead or retired: such a row would be of no choice, shown by All alone.
+      of: (row) => (row.why === null ? 'hall' : row.why === 'injured' || row.why === 'in-party' ? row.why : null),
+    },
+  };
 }
 
 /**

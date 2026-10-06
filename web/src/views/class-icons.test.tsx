@@ -80,7 +80,7 @@ describe('the five places a Hero is listed with their Class', () => {
 
   test("the Roster's table", () => {
     render(<App initial={started()} />);
-    fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Show the Roster as' })).getByRole('button', { name: 'Table' }));
+    fireEvent.click(within(within(section('Roster')).getByRole('radiogroup', { name: 'Show the Roster as' })).getByRole('radio', { name: 'Table' }));
     const table = within(section('Roster')).getByRole('table', { name: 'Heroes on the Roster' });
     for (const row of within(table).getAllByTestId('roster-row')) {
       const Class = first(classesShown(within(row).getByRole('rowheader')));

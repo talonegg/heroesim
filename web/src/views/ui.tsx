@@ -9,8 +9,9 @@
 // Guild's parts.
 
 import type { MoraleBand, RegardBand } from '@heroesim/engine';
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { narrowQuery } from '../breakpoints';
+import { faceted, toggled, type FacetChoices, type Facets, type FacetView } from '../state/facets';
 import type { SortDirection } from '../state/selectors';
 import { Icon, type IconName } from './icons';
 
@@ -547,40 +548,98 @@ export function Tabs<Key extends string>({
 }
 
 /**
- * A filter's chips, display only (M9-F3, as the Market's Buy has them): All, then each option with
- * its count, the one shown pressed; nothing when there is one option or none to choose between.
+ * The page's one filter element (v1.1.7-S7, DL-206 items 26 to 29, DL-213): a filter of several
+ * choices as chips, display only. "All" is pressed when no option is, and pressing it clears them; an
+ * option toggles, and every option pressed reads as All (`toggled`). Beside each option its count, what
+ * it would show with the other filters as they are (`faceted`); an option at 0 is greyed and still a
+ * toggle, so that a player can let go of one they chose. Nothing when there is one option or none to
+ * choose between. `useFacets` gives each filter's props.
  */
-export function FilterChips<Key extends string>({
-  label,
-  options,
-  shown,
-  onShow,
-  all = 'All',
-}: {
-  label: string;
-  options: readonly { key: Key; label: string; count?: number }[];
-  shown: Key | null;
-  onShow: (key: Key | null) => void;
-  /** The first chip's words, which shows every option; `null` for none, when an option is always shown. */
-  all?: string | null;
-}) {
+export function FilterChips({ label, options, chosen, onChoose }: FacetView & { onChoose: (chosen: string[]) => void }) {
   if (options.length < 2) return null;
   return (
     <div className="filters" role="group" aria-label={label}>
-      {all === null ? null : (
-        <button type="button" className="filter" aria-pressed={shown === null} onClick={() => onShow(null)}>
-          {all}
-        </button>
-      )}
+      <button type="button" className="filter" aria-pressed={chosen.length === 0} onClick={() => onChoose([])}>
+        All
+      </button>
       {options.map((option) => (
-        <button key={option.key} type="button" className="filter" aria-pressed={shown === option.key} onClick={() => onShow(option.key)}>
+        <button
+          key={option.key}
+          type="button"
+          className={option.count === 0 ? 'filter is-empty' : 'filter'}
+          aria-pressed={chosen.includes(option.key)}
+          onClick={() => onChoose(toggled(options, chosen, option.key))}
+        >
+          {option.label} <span className="filter__count">{option.count}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Each filter's props for `FilterChips`, by its name. */
+export type FilterChipsProps<Name extends string> = Record<Name, FacetView & { onChoose: (chosen: string[]) => void }>;
+
+/**
+ * The rows `facets` show and each filter's chips, its choices this view's own state: not remembered,
+ * as no filter is (DL-206 item 28). `rows` and `facets` should keep their identity while unchanged
+ * (`useMemo`), so that the rows are filtered only when they or a choice change.
+ */
+export function useFacets<Row, Name extends string>(rows: readonly Row[], facets: Facets<Row, Name>): { rows: Row[]; filters: FilterChipsProps<Name>; filtered: boolean } {
+  const [choices, setChoices] = useState<FacetChoices<Name>>(() => ({}) as FacetChoices<Name>);
+  const shown = useMemo(() => faceted(rows, facets, choices), [rows, facets, choices]);
+  const filters = Object.fromEntries(
+    (Object.keys(shown.facets) as Name[]).map((name) => [name, { ...shown.facets[name], onChoose: (chosen: string[]) => setChoices((was) => ({ ...was, [name]: chosen })) }]),
+  ) as FilterChipsProps<Name>;
+  return { rows: shown.rows, filters, filtered: shown.filtered };
+}
+
+/**
+ * A choice of one in the filters' look (v1.1.7-S7, DL-206 item 27, DL-213): "Show the Roster as"
+ * Tiles or Table, which is no filter. A radio group, so that it is announced as a choice of one, in
+ * the ARIA radio group pattern: only the choice made is in the Tab order, and the arrow keys, Home and
+ * End move between the choices, each chosen as it takes the keyboard.
+ */
+export function OneChoice<Key extends string>({
+  label,
+  options,
+  chosen,
+  onChoose,
+}: {
+  label: string;
+  options: readonly { key: Key; label: string }[];
+  chosen: Key;
+  onChoose: (key: Key) => void;
+}) {
+  const group = useRef<HTMLDivElement>(null);
+  const move = (event: ReactKeyboardEvent<HTMLButtonElement>, at: number): void => {
+    const last = options.length - 1;
+    const to =
+      event.key === 'ArrowRight' || event.key === 'ArrowDown' ? (at === last ? 0 : at + 1)
+      : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? (at === 0 ? last : at - 1)
+      : event.key === 'Home' ? 0
+      : event.key === 'End' ? last
+      : null;
+    const next = to === null ? undefined : options[to];
+    if (to === null || next === undefined) return;
+    event.preventDefault();
+    onChoose(next.key);
+    group.current?.querySelectorAll<HTMLElement>('[role="radio"]')[to]?.focus();
+  };
+  return (
+    <div className="filters" role="radiogroup" aria-label={label} ref={group}>
+      {options.map((option, at) => (
+        <button
+          key={option.key}
+          type="button"
+          role="radio"
+          className="filter"
+          aria-checked={option.key === chosen}
+          tabIndex={option.key === chosen ? 0 : -1}
+          onClick={() => onChoose(option.key)}
+          onKeyDown={(event) => move(event, at)}
+        >
           {option.label}
-          {option.count === undefined ? null : (
-            <>
-              {' '}
-              <span className="filter__count">{option.count}</span>
-            </>
-          )}
         </button>
       ))}
     </div>

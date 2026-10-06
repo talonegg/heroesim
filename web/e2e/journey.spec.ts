@@ -154,7 +154,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Year \\d+ Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for \\d+ Wealth\\.Heroes-\\d+$`) })).toHaveCount(1);
   // It opens with the Wealth the Guild was founded with, last on its only page (M9-F7, DL-120 item 4).
   await expect(ledger.getByRole('row').last()).toHaveText(/^Year 1 Day 1, morningFounded with \d+ WealthOpening balance\d+$/);
-  await treasury.getByRole('group', { name: 'Show income or expense' }).getByRole('button', { name: 'Expense' }).click();
+  await treasury.getByRole('group', { name: 'Show income or expense' }).getByRole('button', { name: /^Expense \d+$/ }).click();
   await expect(treasury.getByTestId('totals')).toHaveText(/^Income 0 · Expense -\d+ · Net -\d+$/);
   await expectNoHorizontalOverflow(page, "the Guild's Treasury");
 

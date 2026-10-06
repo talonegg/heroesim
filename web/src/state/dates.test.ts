@@ -20,7 +20,7 @@ import { guildmasterView, guildsTable } from './world-views';
 // a view that reads this release's calendar, or the engine's Day from 0, fails here.
 
 const turnsPerYear = 6;
-const every: TreasuryFilter = { flow: 'both', category: null };
+const every: TreasuryFilter = {};
 /** The date of `turn` as a player reads it, counted here apart from the calendar the page uses. */
 const dateIn = (turn: number): string => `Year ${Math.floor(turn / turnsPerYear) + 1} Day ${Math.floor((turn % turnsPerYear) / 3) + 1}`;
 const nightIn = (turn: number): string => `the night of ${dateIn(turn)}`;

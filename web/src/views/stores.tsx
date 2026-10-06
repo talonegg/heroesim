@@ -1,49 +1,50 @@
 // The Guild's Stores (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): everything the Guild owns, wherever
-// it is, in one table: Item, Kind, where it is, Quantity, and what a held Item sells for. Chips show one
-// kind and one place at a time, display only, as the Market's Buy does. A Hero's name opens their page,
+// it is, in one table: Item, Kind, where it is, Quantity, and what a held Item sells for. Its filters, by
+// kind and by where, take several choices each, display only (DL-206 item 27, DL-213). A Hero's name opens their page,
 // through the shell's links, as a name in the History does. Read only for now (DL-113 item 2): Sell is
 // the Market's, a way away, and gear moves on a Hero's page. Every word and number is `storesView`'s.
 // A Unique Item shows its picture before its name (v1.1.2-S2, DL-125 item 8).
 
 import type { WorldDocument } from '@heroesim/engine';
-import { useMemo, useState } from 'react';
-import { storesRowsShown, storesView, type StoresWhere } from '../state/stores';
-import type { MarketKind } from '../state/trade-views';
+import { useMemo } from 'react';
+import type { Facets } from '../state/facets';
+import { storesView, type StoresRow } from '../state/stores';
 import { Names } from './history-entries';
 import { Icon } from './icons';
 import { ItemPicture } from './pictures';
 import type { SectionId } from './section';
-import { FilterChips, StickyTableBox } from './ui';
+import { FilterChips, StickyTableBox, useFacets } from './ui';
+
+const noRows: readonly StoresRow[] = [];
+
+/** No filters, for a save with no player's Guild. */
+const none: Facets<StoresRow, 'kind' | 'where'> = {
+  kind: { label: 'Show of kind', options: [], of: () => null },
+  where: { label: 'Show where', options: [], of: () => null },
+};
 
 /** The Guild's Stores part. */
 export function Stores({ document, onGo }: { document: WorldDocument; onGo: (target: SectionId) => void }) {
-  const [kind, setKind] = useState<MarketKind | null>(null);
-  const [where, setWhere] = useState<StoresWhere | null>(null);
-  const everything = useMemo(() => storesView(document, { kind: null, where: null }), [document]);
-  // A kind or place the Guild no longer has shows everything again.
-  const shownKind = kind !== null && everything?.kinds.some((each) => each.key === kind) === true ? kind : null;
-  const shownWhere = where !== null && everything?.wheres.some((each) => each.key === where) === true ? where : null;
-  const rows = useMemo(
-    () => (everything === null ? [] : storesRowsShown(everything.rows, { kind: shownKind, where: shownWhere })),
-    [everything, shownKind, shownWhere],
-  );
+  const everything = useMemo(() => storesView(document), [document]);
+  // A kind or place the Guild no longer has is let go (`chosenOf`).
+  const { rows, filters } = useFacets(everything?.rows ?? noRows, everything?.facets ?? none);
   if (everything === null) return <p>The save has no player’s Guild.</p>;
   const view = everything;
   const owns = everything.rows.length > 0;
   // Only what the Guild holds is the Market's to buy (code review).
-  const holds = everything.wheres.some((each) => each.key === 'held');
+  const holds = everything.rows.some((row) => row.where === 'held');
 
   return (
     <div className="stores">
       <p>{view.summary}</p>
       {owns ? (
         <>
-          <FilterChips label="Show of kind" options={view.kinds} shown={shownKind} onShow={setKind} />
-          <FilterChips label="Show where" options={view.wheres} shown={shownWhere} onShow={setWhere} />
+          <FilterChips {...filters.kind} />
+          <FilterChips {...filters.where} />
         </>
       ) : null}
       {!owns ? null : rows.length === 0 ? (
-        <p className="subtle">Nothing {view.guildName} owns is of that kind and there.</p>
+        <p className="subtle">Nothing {view.guildName} owns matches the filters.</p>
       ) : (
         <StickyTableBox>
           <table className="table table--first-sticky trade-table" aria-label={`Everything ${view.guildName} owns`}>

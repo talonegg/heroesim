@@ -25,6 +25,7 @@ import {
 } from '@heroesim/engine';
 import { nightOfDay, signed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
+import { faceted, type FacetChoices, type Facets, type FacetView } from './facets';
 import { narrateSegments, narrationFor, textOf, type Segment } from './namer';
 import { calendarFor, playDeps } from './reducer';
 import { countdownView, historyPageSize } from './selectors';
@@ -222,14 +223,19 @@ export function ledgerOf(document: WorldDocument, guildId: GuildId): LedgerRow[]
 
 // ── The Treasury part ────────────────────────────────────────────────────────────────────────
 
-/** Which way the ledger's rows move the Wealth: both ways, into the Guild, or out of it. */
-export type LedgerFlow = 'both' | 'income' | 'expense';
+/** Which way a change moves the Wealth: into the Guild, or out of it. */
+export type LedgerFlow = 'income' | 'expense';
 
-/** What the ledger shows: which way, and one category or all of them. */
-export interface TreasuryFilter {
-  flow: LedgerFlow;
-  category: LedgerCategory | null;
-}
+/**
+ * The ledger's two filters, several choices each (DL-206 items 26 to 29, DL-213): by which way, and by
+ * category; a filter left out, or with nothing chosen, shows every change.
+ */
+export type TreasuryFilter = FacetChoices<'flow' | 'category'>;
+
+const flowLabels: readonly { key: LedgerFlow; label: string }[] = [
+  { key: 'income', label: 'Income' },
+  { key: 'expense', label: 'Expense' },
+];
 
 /** The sums of what the ledger shows: income positive, expense negative, and the two together. */
 export interface LedgerTotals {
@@ -270,15 +276,20 @@ export interface TreasuryView {
     /** Whether the opening row is shown: with every change, no filter chosen, when the History names the founding Wealth (M9-F7). */
     opens: boolean;
     totals: LedgerTotals;
-    /** Each category the Guild's ledger holds, in the Treasury's order, with its rows' count, whatever is shown: the filter's chips. */
-    categories: { key: LedgerCategory; label: string; count: number }[];
+    /**
+     * The filters' chips: income and expense, and each category the Guild's ledger holds in the
+     * Treasury's order, each with its count against the other filter (`faceted`).
+     */
+    filters: Record<'flow' | 'category', FacetView>;
   };
 }
 
-/** Whether `row` is one `filter` shows. */
-function shows(row: WealthChange, filter: TreasuryFilter): boolean {
-  if (filter.category !== null && row.category !== filter.category) return false;
-  return filter.flow === 'both' || (filter.flow === 'income' ? row.amount > 0 : row.amount < 0);
+/** The ledger's filters, of the categories `held`. A change is never of nothing (`wealthChangeOf`). */
+function ledgerFacets(held: readonly LedgerCategory[]): Facets<WealthChange, 'flow' | 'category'> {
+  return {
+    flow: { label: 'Show income or expense', options: flowLabels, of: (row) => (row.amount > 0 ? 'income' : 'expense') },
+    category: { label: 'Show of category', options: held.map((key) => ({ key, label: categoryWords[key] })), of: (row) => row.category },
+  };
 }
 
 function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
@@ -304,9 +315,10 @@ export function treasuryView(document: WorldDocument, filter: TreasuryFilter, pa
 
   // Filtered, counted and totalled before words: only the page shown is narrated (M9-F6, code review).
   const all = changesOf(document, guild.id);
-  const shown = all.filter((row) => shows(row, filter));
+  const filtered = faceted(all, ledgerFacets(ledgerCategories.filter((key) => all.some((row) => row.category === key))), filter);
+  const shown = filtered.rows;
   // The opening row is a balance, neither income nor expense: it ends the ledger shown whole (M9-F7).
-  const opening = filter.flow === 'both' && filter.category === null ? openingOf(document, guild.id) : null;
+  const opening = filtered.filtered ? null : openingOf(document, guild.id);
   const rows = shown.length + (opening === null ? 0 : 1);
   const pages = Math.max(1, Math.ceil(rows / historyPageSize));
   const narration = narrationFor(document, content);
@@ -337,10 +349,7 @@ export function treasuryView(document: WorldDocument, filter: TreasuryFilter, pa
       shown: shown.length,
       opens: opening !== null,
       totals: totalsOf(shown),
-      categories: ledgerCategories.flatMap((key) => {
-        const count = all.filter((row) => row.category === key).length;
-        return count === 0 ? [] : [{ key, label: categoryWords[key], count }];
-      }),
+      filters: filtered.facets,
     },
   };
 }

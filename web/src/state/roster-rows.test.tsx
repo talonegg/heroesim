@@ -95,7 +95,7 @@ describe("the Roster's rows, built once for a document (v1.1.6-S13)", () => {
   test('the Roster view: a render for another reason, the Columns opened and closed, sorts nothing again', () => {
     render(<App initial={started()} />);
     const roster = section('Roster');
-    fireEvent.click(within(roster).getByRole('button', { name: 'Table' }));
+    fireEvent.click(within(roster).getByRole('radio', { name: 'Table' }));
     const sorted = sorts.mock.calls.length;
     expect(sorted).toBeGreaterThan(0);
 
@@ -108,5 +108,25 @@ describe("the Roster's rows, built once for a document (v1.1.6-S13)", () => {
 
     fireEvent.click(within(roster).getByTestId('roster-direction'));
     expect(sorts.mock.calls.length).toBe(sorted + 1);
+  });
+
+  // v1.1.7-S7 (DL-206 item 25, DL-213): the filters read the rows kept and sorted, after both.
+  test('the Roster view: a filter, set or cleared, builds no row again and sorts nothing again', () => {
+    render(<App initial={started()} />);
+    const roster = section('Roster');
+    const builds = breakdowns.mock.calls.length;
+    const sorted = sorts.mock.calls.length;
+    const classes = within(roster).getByRole('group', { name: 'Show of Class' });
+    const shown = (): number => within(rosterList()).queryAllByRole('listitem').length;
+    const before = shown();
+
+    const [, first] = within(classes).getAllByRole('button');
+    fireEvent.click(first as HTMLElement);
+    expect(shown()).toBeLessThanOrEqual(before);
+    fireEvent.click(within(within(roster).getByRole('group', { name: 'Show by availability' })).getAllByRole('button')[1] as HTMLElement);
+    fireEvent.click(within(classes).getByRole('button', { name: 'All' }));
+
+    expect(breakdowns.mock.calls.length).toBe(builds);
+    expect(sorts.mock.calls.length).toBe(sorted);
   });
 });

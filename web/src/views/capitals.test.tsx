@@ -185,7 +185,7 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     fireEvent.click(screen.getByRole('button', { name: 'Back to the pool' }));
     // The Roster's Table, its Columns panel open, and the "Sort by" dropdown and its direction (v1.1.5-S12).
     const roster = section('Roster');
-    fireEvent.click(within(within(roster).getByRole('group', { name: 'Show the Roster as' })).getByRole('button', { name: 'Table' }));
+    fireEvent.click(within(within(roster).getByRole('radiogroup', { name: 'Show the Roster as' })).getByRole('radio', { name: 'Table' }));
     fireEvent.click(within(roster).getByRole('button', { name: 'Columns' }));
     expect(within(roster).getByRole('table', { name: 'Heroes on the Roster' })).toBeDefined();
     expect(within(roster).getByRole('group', { name: 'Columns' })).toBeDefined();
@@ -213,13 +213,24 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
       else Object.defineProperty(globalThis, 'matchMedia', wide);
     }
     openView('Board');
-    fireEvent.click(within(within(openView('Roster')).getByRole('group', { name: 'Show the Roster as' })).getByRole('button', { name: 'Tiles' }));
+    fireEvent.click(within(within(openView('Roster')).getByRole('radiogroup', { name: 'Show the Roster as' })).getByRole('radio', { name: 'Tiles' }));
     // The tiles' Traits and Items among what was read.
     expect(within(rosterList()).getAllByTitle('Trait').length).toBeGreaterThan(0);
     expect(within(rosterList()).getByText('Arming sword')).toBeDefined();
     // And a Unique Item's picture on a glowing tile (v1.1.5-S14).
     expect(rosterList().querySelector('.carries-unique [data-testid="item-picture"]')).not.toBeNull();
     expect(within(rosterList()).getByText('The Lantern of Stannary')).toBeDefined();
+    // The Roster filtered (v1.1.7-S7, DL-213): its chips and the "Showing" line, then no Hero matching.
+    const availability = within(section('Roster')).getByRole('group', { name: 'Show by availability' });
+    fireEvent.click(within(availability).getByRole('button', { name: /^Injured \d+$/ }));
+    expect(within(section('Roster')).getByTestId('roster-shown').textContent).toMatch(/^Showing \d+ of \d+ Heroes\.$/);
+    reader.read('The Roster filtered');
+    const [none] = within(within(section('Roster')).getByRole('group', { name: 'Show of Class' })).getAllByRole('button').filter((chip) => chip.classList.contains('is-empty'));
+    fireEvent.click(none as HTMLElement);
+    expect(within(section('Roster')).getByTestId('roster-shown').textContent).toBe('No Hero on the Roster matches the filters.');
+    reader.read('The Roster filtered to no one');
+    fireEvent.click(within(availability).getByRole('button', { name: 'All' }));
+    fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Show of Class' })).getByRole('button', { name: 'All' }));
     // The Offer asked about.
     fireEvent.click(within(section('Transfer Offers')).getByRole('button', { name: /^Accept .*…$/ }));
     reader.read('The Offer');

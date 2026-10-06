@@ -232,7 +232,7 @@ function mine(state: GameState): GuildId {
   return guild.id;
 }
 
-const both: TreasuryFilter = { flow: 'both', category: null };
+const both: TreasuryFilter = {};
 
 describe('treasuryView: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', () => {
   test("gives the Guild's Wealth, and Upkeep's next payment with its Day and its parts, as the engine reckons them", () => {
@@ -368,32 +368,65 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
     });
   });
 
-  test('filters by income, by expense, and by category, and totals only what is shown', () => {
+  test('filters by income, by expense, and by categories, several of each, and totals only what is shown', () => {
     const document = documentOf(traded());
-    const income = treasuryView(document, { flow: 'income', category: null }, 0)?.ledger;
+    const income = treasuryView(document, { flow: ['income'] }, 0)?.ledger;
     // The opening row is no income: a filter leaves it out, and the totals are the changes' alone.
     expect(income?.rows.map((row) => row.category)).toEqual(['market']);
     expect(income?.opens).toBe(false);
     expect(income?.totals.expense).toBe(0);
     expect(income?.totals.net).toBe(income?.totals.income);
 
-    const expense = treasuryView(document, { flow: 'expense', category: null }, 0)?.ledger;
+    const expense = treasuryView(document, { flow: ['expense'] }, 0)?.ledger;
     expect(expense?.rows.map((row) => row.category)).toEqual(['upkeep', 'heroes', 'market']);
     expect(expense?.totals.income).toBe(0);
 
-    const market = treasuryView(document, { flow: 'both', category: 'market' }, 0)?.ledger;
+    const market = treasuryView(document, { category: ['market'] }, 0)?.ledger;
     expect(market?.rows.map((row) => row.category)).toEqual(['market', 'market']);
     expect(market?.shown).toBe(2);
-    expect(treasuryView(document, { flow: 'expense', category: 'market' }, 0)?.ledger.rows).toHaveLength(1);
-    expect(treasuryView(document, { flow: 'income', category: 'hall' }, 0)?.ledger.rows).toEqual([]);
+    expect(market?.opens).toBe(false);
+    expect(treasuryView(document, { flow: ['expense'], category: ['market'] }, 0)?.ledger.rows).toHaveLength(1);
+    expect(treasuryView(document, { flow: ['income'], category: ['upkeep'] }, 0)?.ledger.rows).toEqual([]);
+    // A category the ledger holds no change of is no choice, and is let go.
+    expect(treasuryView(document, { flow: ['income'], category: ['hall'] }, 0)?.ledger.rows.map((row) => row.category)).toEqual(['market']);
+    // Several categories: the rows of either.
+    expect(treasuryView(document, { category: ['upkeep', 'heroes'] }, 0)?.ledger.rows.map((row) => row.category)).toEqual(['upkeep', 'heroes']);
+    // Both ways chosen reads as All: every change, and the opening row.
+    const whole = treasuryView(document, { flow: ['income', 'expense'] }, 0)?.ledger;
+    expect(whole).toMatchObject({ shown: 4, opens: true });
+    expect(whole?.filters.flow.chosen).toEqual([]);
   });
 
-  test("names each category the Guild's ledger holds, in the Treasury's order, with its count, whatever is shown", () => {
-    const categories = treasuryView(documentOf(traded()), { flow: 'income', category: 'market' }, 0)?.ledger.categories;
-    expect(categories).toEqual([
-      { key: 'upkeep', label: 'Upkeep', count: 1 },
-      { key: 'market', label: 'Market', count: 2 },
-      { key: 'heroes', label: 'Heroes', count: 1 },
+  test("names each category the Guild's ledger holds, in the Treasury's order, and income and expense, each with its count against the other filter (DL-206 item 29)", () => {
+    const document = documentOf(traded());
+    const { filters } = treasuryView(document, both, 0)?.ledger ?? {};
+    expect(filters?.category).toEqual({
+      label: 'Show of category',
+      chosen: [],
+      options: [
+        { key: 'upkeep', label: 'Upkeep', count: 1 },
+        { key: 'market', label: 'Market', count: 2 },
+        { key: 'heroes', label: 'Heroes', count: 1 },
+      ],
+    });
+    expect(filters?.flow).toEqual({
+      label: 'Show income or expense',
+      chosen: [],
+      options: [
+        { key: 'income', label: 'Income', count: 1 },
+        { key: 'expense', label: 'Expense', count: 3 },
+      ],
+    });
+    // Income chosen: each category counts its income; the flows count among every category still.
+    const income = treasuryView(document, { flow: ['income'], category: ['market'] }, 0)?.ledger.filters;
+    expect(income?.category.options.map((option) => [option.key, option.count])).toEqual([
+      ['upkeep', 0],
+      ['market', 1],
+      ['heroes', 0],
+    ]);
+    expect(income?.flow.options.map((option) => [option.key, option.count])).toEqual([
+      ['income', 1],
+      ['expense', 1],
     ]);
   });
 
@@ -421,7 +454,8 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
     expect(view?.page).toBe(0);
     expect(view?.pages).toBe(1);
     expect(view?.shown).toBe(0);
-    expect(view?.categories).toEqual([]);
+    expect(view?.filters.category.options).toEqual([]);
+    expect(view?.filters.flow.options.map((option) => option.count)).toEqual([0, 0]);
     expect(view?.totals).toMatchObject({ income: 0, expense: 0, net: 0 });
   });
 

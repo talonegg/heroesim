@@ -628,12 +628,12 @@ test("a Hero's name with their Class's mark: the mark before the name, the text'
     const list = await rosterList(page);
     await namesWhole(list, `the Roster's tiles, ${scheme}`);
     const roster = page.getByRole('region', { name: 'Roster', exact: true });
-    const show = roster.getByRole('group', { name: 'Show the Roster as' });
-    await show.getByRole('button', { name: 'Table' }).click();
+    const show = roster.getByRole('radiogroup', { name: 'Show the Roster as' });
+    await show.getByRole('radio', { name: 'Table' }).click();
     await namesWhole(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table, ${scheme}`);
     await inViewClear(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table's headings and buttons, ${scheme}`);
     await noNeedlessScroll(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table, ${scheme}`);
-    await show.getByRole('button', { name: 'Tiles' }).click();
+    await show.getByRole('radio', { name: 'Tiles' }).click();
     const pool = await part(page, 'Unattached pool');
     await namesWhole(pool, `the pool, ${scheme}`);
     // A first name longer than the share the name column may take, which no name the content gives is:
@@ -953,7 +953,7 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
       await page.setViewportSize({ width, height });
       const at = `${scheme}, ${width}px`;
       const roster = await openView(page, 'Roster');
-      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Table' }).click();
+      await roster.getByRole('radiogroup', { name: 'Show the Roster as' }).getByRole('radio', { name: 'Table' }).click();
       const table = roster.getByRole('table', { name: 'Heroes on the Roster' });
       await expect(table).toBeVisible();
       await expectNoHorizontalOverflow(page, `the Roster's Table, ${at}`);
@@ -1025,7 +1025,7 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
       await roster.getByRole('combobox', { name: 'Sort by' }).selectOption('default');
 
       // The tiles, each Hero's Traits and Items with them.
-      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Tiles' }).click();
+      await roster.getByRole('radiogroup', { name: 'Show the Roster as' }).getByRole('radio', { name: 'Tiles' }).click();
       await expect(roster.getByRole('list', { name: 'Heroes on the Roster' })).toBeVisible();
       await expectNoHorizontalOverflow(page, `the Roster's tiles, ${at}`);
       await expectTargets(page, `the Roster's tiles, ${at}`);
@@ -1061,7 +1061,7 @@ test("the Roster's Unique Items: the picture on a tile and the gold glow on its 
       await page.setViewportSize({ width, height });
       const at = `${scheme}, ${width}px`;
       const roster = await openView(page, 'Roster');
-      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Tiles' }).click();
+      await roster.getByRole('radiogroup', { name: 'Show the Roster as' }).getByRole('radio', { name: 'Tiles' }).click();
 
       // The tiles: one glows, the Lantern's picture before its name in its chip; the others neither.
       const lit = roster.locator('li.hero-card.carries-unique');
@@ -1083,7 +1083,7 @@ test("the Roster's Unique Items: the picture on a tile and the gold glow on its 
       await shotAround(page, lit, testInfo.outputPath(`roster-unique-tile-${scheme}-${width}.png`));
 
       // The Table: the row glows, with no picture, its Items cell naming the Lantern.
-      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Table' }).click();
+      await roster.getByRole('radiogroup', { name: 'Show the Roster as' }).getByRole('radio', { name: 'Table' }).click();
       const table = roster.getByRole('table', { name: 'Heroes on the Roster' });
       const row = table.locator('tr.carries-unique');
       await expect(row).toHaveCount(1);
@@ -1117,7 +1117,7 @@ test("the Roster's Unique Items: the picture on a tile and the gold glow on its 
       }
       await page.screenshot({ path: testInfo.outputPath(`roster-unique-table-${scheme}-${width}.png`), fullPage: true });
       if (phone) await roster.getByRole('tablist', { name: 'Columns of the Table' }).getByRole('tab', { name: 'Hero' }).click();
-      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Tiles' }).click();
+      await roster.getByRole('radiogroup', { name: 'Show the Roster as' }).getByRole('radio', { name: 'Tiles' }).click();
     }
     backgrounds.push(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
   }

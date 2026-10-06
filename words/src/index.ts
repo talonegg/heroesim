@@ -10,7 +10,7 @@
 // (DL-199); and a date as a player reads it, `Year 2 Day 45`, the Year and the Day counted from 1
 // (DL-210).
 
-export { gearUnavailableWords, unavailableChipWords, unavailableWords } from './availability.js';
+export { atHallWords, gearUnavailableWords, unavailableChipWords, unavailableWords } from './availability.js';
 export {
   calendarOf,
   dateOfDay,

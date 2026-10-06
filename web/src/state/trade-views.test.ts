@@ -19,6 +19,7 @@ import { createItem } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
+import { faceted } from './facets';
 import { defaultHeroOrder } from './selectors';
 import { marketView, offersView, poolView } from './trade-views';
 
@@ -81,19 +82,24 @@ describe("the Market as tables (M9-S6, DL-106; the review's B3)", () => {
     expect(view.kinds.length).toBeGreaterThan(1);
   });
 
-  test('lists only the kind chosen, for display; the counts stay those of everything for sale', () => {
-    const document = newGame();
-    const all = marketView(document);
+  test('filters by kind, one or several, for display; each kind its count of everything for sale (DL-206 items 26 to 29)', () => {
+    const view = marketView(newGame());
+    const kindOf = view.facets.kind;
+    expect(kindOf.label).toBe('Show for sale');
+    expect(kindOf.options.map(({ key, label }) => ({ key, label }))).toEqual(view.kinds.map(({ key, label }) => ({ key, label })));
 
-    for (const kind of all.kinds) {
-      const shown = marketView(document, kind.key);
-      expect(shown.forSale).toHaveLength(kind.count);
-      expect(shown.forSale.every((row) => row.kindKey === kind.key)).toBe(true);
-      expect(shown.forSale.every((row) => (kind.key === 'consumable' ? /^Consumable$/ : new RegExp(`^${kind.label} Gear$`)).test(row.kind))).toBe(true);
-      expect(shown.kinds).toEqual(all.kinds);
-      expect(shown.totalForSale).toBe(all.totalForSale);
+    for (const kind of view.kinds) {
+      const shown = faceted(view.forSale, view.facets, { kind: [kind.key] });
+      expect(shown.rows).toHaveLength(kind.count);
+      expect(shown.rows.every((row) => row.kindKey === kind.key)).toBe(true);
+      expect(shown.rows.every((row) => (kind.key === 'consumable' ? /^Consumable$/ : new RegExp(`^${kind.label} Gear$`)).test(row.kind))).toBe(true);
+      // The one filter: its counts are everything for sale's, whatever is chosen.
+      expect(shown.facets.kind.options.map((option) => option.count)).toEqual(view.kinds.map((each) => each.count));
     }
-    expect(marketView(document, null).forSale).toEqual(all.forSale);
+    const [first, second] = view.kinds;
+    if (first === undefined || second === undefined) throw new Error('two kinds wanted');
+    expect(faceted(view.forSale, view.facets, { kind: [first.key, second.key] }).rows).toHaveLength(first.count + second.count);
+    expect(faceted(view.forSale, view.facets, {}).rows).toEqual(view.forSale);
   });
 
   test("gives what the Guild holds its kind and what it does, in the Market's words, beside what each sells for", () => {

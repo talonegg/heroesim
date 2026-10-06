@@ -18,6 +18,10 @@
 //
 // Unique Items (v1.1.5-S14, DL-182 item 4): on a tile, a Unique Item's picture before its name in its
 // chip, and the tile of a Hero who carries one a thin gold glow; in the Table, their row the glow.
+//
+// Filters (DL-206 items 25 to 29, DL-213): by Class and by availability, several choices each, not
+// kept; the tiles, the Table and the phone's tabs show the same Heroes, the rows kept for the document
+// sorted and then filtered (`rosterFacets`). Tiles or Table is a choice of one of its own (`OneChoice`).
 
 import type { HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
@@ -26,6 +30,7 @@ import {
   orderWords,
   reverseOrderName,
   rosterColumnGroups,
+  rosterFacets,
   rosterRows,
   rosterSortChoices,
   sortedRoster,
@@ -41,7 +46,7 @@ import { Pool } from './pool';
 import { preferences, useRemembered } from './remembered';
 import { ColumnsPanel, nameId, RosterTable } from './roster-table';
 import { View } from './section';
-import { Chip, FilterChips, moraleTones, Tabs, useNarrow, useReturn } from './ui';
+import { Chip, FilterChips, moraleTones, OneChoice, Tabs, useFacets, useNarrow, useReturn } from './ui';
 
 /** How the Roster shows its Heroes. */
 type ShownAs = 'tiles' | 'table';
@@ -76,7 +81,10 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
   const narrow = useNarrow();
   // The rows are built once a document (`rosterRows`), and a new sort only sorts them (v1.1.6-S13, DL-186 item 22).
   const built = useMemo(() => rosterRows(document), [document]);
-  const rows = useMemo(() => sortedRoster(built, order), [built, order]);
+  const sorted = useMemo(() => sortedRoster(built, order), [built, order]);
+  const facets = useMemo(() => rosterFacets(), []);
+  // Filtered after the sort, so that a filter builds and sorts nothing again (DL-199).
+  const { rows, filters } = useFacets(sorted, facets);
   const [open, setOpen] = useState<HeroId | null>(null);
   const back = useReturn();
   useEffect(() => {
@@ -128,20 +136,11 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
 
   return (
     <View id="roster">
-      <p className="view__lead">{rows.length === 0 ? 'The Roster is empty.' : `${rows.length} ${rows.length === 1 ? 'Hero' : 'Heroes'} on the Roster.`}</p>
-      {rows.length === 0 ? null : (
+      <p className="view__lead">{sorted.length === 0 ? 'The Roster is empty.' : `${sorted.length} ${sorted.length === 1 ? 'Hero' : 'Heroes'} on the Roster.`}</p>
+      {sorted.length === 0 ? null : (
         <>
           <div className="roster__bar">
-            <FilterChips
-              label="Show the Roster as"
-              options={shownAsChoices}
-              shown={shownAs}
-              all={null}
-              onShow={(key) => {
-                if (key === null) return;
-                setShownAs(key);
-              }}
-            />
+            <OneChoice label="Show the Roster as" options={shownAsChoices} chosen={shownAs} onChoose={setShownAs} />
             <div className="roster__sort">
               <label className="field field--inline">
                 <span>Sort by</span>
@@ -187,7 +186,21 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
             </div>
           </div>
           {shownAs === 'table' && !narrow && columnsOpen ? <ColumnsPanel id="roster-columns" groups={groups} hidden={hidden} onHidden={hide} /> : null}
-          {shownAs === 'tiles' ? (
+          <div className="roster__filters">
+            <FilterChips {...filters.class} />
+            <FilterChips {...filters.availability} />
+          </div>
+          {/* Said as a filter changes it (DL-206 item 28). */}
+          <div role="status" className="roster__shown">
+            {rows.length === sorted.length ? null : (
+              <p className="subtle" data-testid="roster-shown">
+                {rows.length === 0
+                  ? 'No Hero on the Roster matches the filters.'
+                  : `Showing ${rows.length} of ${sorted.length} ${sorted.length === 1 ? 'Hero' : 'Heroes'}.`}
+              </p>
+            )}
+          </div>
+          {rows.length === 0 ? null : shownAs === 'tiles' ? (
             <ul className="cards hero-cards" aria-label="Heroes on the Roster">
               {rows.map((row) => (
                 <li key={row.heroId} className={row.carriesUnique ? 'card hero-card carries-unique' : 'card hero-card'}>

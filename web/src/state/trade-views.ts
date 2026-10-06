@@ -32,6 +32,7 @@ import {
 } from '@heroesim/engine';
 import { capitalised, itemEffectWords, kindOf, nameIn, nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
+import type { Facets } from './facets';
 import { classMarkOf, type ClassMarked, rowOf, transferCostWords } from './names';
 import { calendarFor, playDeps } from './reducer';
 import { defaultHeroOrder } from './selectors';
@@ -85,13 +86,15 @@ export interface HeldForSale {
 }
 
 export interface MarketView {
-  /** What the Market has for sale, of the kind asked for, or all of it. */
+  /** Everything the Market has for sale. */
   forSale: ListingRow[];
   /**
    * Each kind the Market has for sale, the gear slots in their order then consumables, with how many
    * of its listings there are, whatever is asked for: the filter's chips (M9-S6, the review's B3).
    */
   kinds: { key: MarketKind; label: string; count: number }[];
+  /** The Buy's filter, by kind, several choices (DL-206 items 26 to 29, DL-213). */
+  facets: Facets<ListingRow, 'kind'>;
   /** Items for sale counted one by one, a stack by its quantity. */
   totalForSale: number;
   /** The player's Guild, its Wealth and what it holds itself; `null` and empty without one. */
@@ -101,12 +104,12 @@ export interface MarketView {
 }
 
 /**
- * `show market`: what the Market has for sale, with each price, of the kind asked for or all of it
- * (display only, M9-S6); then what the player's Guild holds itself, stacks then unique Items as the
+ * `show market`: what the Market has for sale, with each price, and its filter by kind (display only,
+ * M9-S6, DL-213); then what the player's Guild holds itself, stacks then unique Items as the
  * CLI lists them, each with its kind, what it does and what it sells for. An Item a Hero carries or
  * a Party took is not the Guild's to sell here, and is not listed.
  */
-export function marketView(document: WorldDocument, only: MarketKind | null = null): MarketView {
+export function marketView(document: WorldDocument): MarketView {
   const { world } = document;
   const deps = playDeps(document);
   const stock = marketStock(world, deps);
@@ -124,9 +127,10 @@ export function marketView(document: WorldDocument, only: MarketKind | null = nu
     const count = listed.filter((row) => row.kindKey === key).length;
     return count === 0 ? [] : [{ key, label: capitalised(key), count }];
   });
-  const forSale = only === null ? listed : listed.filter((row) => row.kindKey === only);
+  const forSale = listed;
+  const facets: Facets<ListingRow, 'kind'> = { kind: { label: 'Show for sale', options: kinds, of: (row) => row.kindKey } };
   const totalForSale = stock.reduce((sum, { quantity }) => sum + quantity, 0);
-  if (guild === undefined) return { forSale, kinds, totalForSale, guildName: null, wealth: null, held: [] };
+  if (guild === undefined) return { forSale, kinds, facets, totalForSale, guildName: null, wealth: null, held: [] };
 
   const { items, stacks } = holdings(world, { kind: 'guild', id: guild.id });
   const described = (key: ItemDefinitionKey): { definitionKey: ItemDefinitionKey; unique: boolean; kind: string; does: string } => {
@@ -153,7 +157,7 @@ export function marketView(document: WorldDocument, only: MarketKind | null = nu
       sale: { itemId: item.id },
     })),
   ];
-  return { forSale, kinds, totalForSale, guildName: guild.name, wealth: guild.wealth, held };
+  return { forSale, kinds, facets, totalForSale, guildName: guild.name, wealth: guild.wealth, held };
 }
 
 // ── The Unattached pool ──────────────────────────────────────────────────────────────────────

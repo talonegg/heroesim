@@ -119,21 +119,23 @@ export const help: Readonly<Record<SectionId, string>> = {
     'Relationships and their History; from it, put Gear the Guild holds on them, take it off, or transfer them to ' +
     'another Guild, which asks first. Show them as Tiles, with their Traits and Items, or as a Table of their Stats ' +
     'as Quests check them, raised by Gear, Traits or your Guildmaster in green with ▲ and lowered in red with ▼; ' +
-    'choose its columns under Columns, or by tab on a phone. Sort from "Sort by" or by a column’s heading, any but ' +
+    'choose its columns under Columns, or by tab on a phone. Show only the Heroes of some Classes, or those at the ' +
+    'Hall, injured or away, with the chips, one choice or several, each counting the Heroes it would show. ' +
+    'Sort from "Sort by" or by a column’s heading, any but ' +
     'Traits and Items; this browser keeps your choices.',
   hall:
     'Your Guild’s premises: each facility’s grade, what it does, and Build, which raises it one grade for the cost ' +
     'on the button. Each grade does more than the one below it, and each adds to the Upkeep, which the Treasury gives.',
   stores:
     'Everything your Guild owns, wherever it is: what it holds, the Gear each Hero on the Roster carries, at home or ' +
-    'away, and what its Parties took. Show one kind, or one place, at a time with the chips above the table; a ' +
-    'Hero’s name opens their page. What it holds sells at the Market for the price given; sell it there, and put ' +
+    'away, and what its Parties took. Show some kinds, or some places, with the chips above the table, one choice ' +
+    'or several, each counting what it would show; a Hero’s name opens their page. What it holds sells at the Market for the price given; sell it there, and put ' +
     'Gear on a Hero or take it off from their page.',
   treasury:
     'Your Guild’s accounts: its Wealth; its Upkeep, with the night of its next payment and what it is made of; the ' +
     'Bankruptcy floor, and the countdown while the Wealth is below it; and the ledger, every change to the Wealth ' +
-    'read from the History, newest first, a page at a time. Show income or expense, and one category, with the ' +
-    'chips; the totals are of what is shown. A name opens whom it names.',
+    'read from the History, newest first, a page at a time. Show income or expense, and some categories, with the ' +
+    'chips, one choice or several, each counting what it would show; the totals are of what is shown. A name opens whom it names.',
   rankings: 'Where every Guild stands, and the Patrons who offer the Quests.',
   history:
     'What happened, newest first, a page at a time, by Day and time of day: your Guild’s, the world’s or a ' +
@@ -164,8 +166,8 @@ export const help: Readonly<Record<SectionId, string>> = {
     'with what it does, and their Regard for others is shown as a band, the neutral ones folded under their count.',
   market: 'The Market, where your Guild buys Items for its Heroes and Parties and sells what it holds: Buy, then Sell.',
   buy:
-    'Buy Items the Market has for sale at its price each, the number chosen; show one kind at a time with the chips ' +
-    'above the table. The Market’s stock is drawn afresh each morning.',
+    'Buy Items the Market has for sale at its price each, the number chosen; show some kinds with the chips above ' +
+    'the table, one choice or several. The Market’s stock is drawn afresh each morning.',
   sell:
     'The Items your Guild holds and has not put on a Hero: Gear to put on one from their page, Consumables a Party ' +
     'can carry, and anything the Market will buy. Sell sells the number chosen for what the Market pays for each, ' +

@@ -400,7 +400,7 @@ function stocked(): { state: GameState; warrior: string; mage: string } {
 
 /** The switch between Tiles and the Table. */
 function showAs(view: 'Tiles' | 'Table'): void {
-  fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Show the Roster as' })).getByRole('button', { name: view }));
+  fireEvent.click(within(within(section('Roster')).getByRole('radiogroup', { name: 'Show the Roster as' })).getByRole('radio', { name: view }));
 }
 
 /** The Roster's Table. */
@@ -485,9 +485,10 @@ function asPhone(): () => void {
 describe('the Roster as Tiles or a Table (v1.1.5-S12, DL-169 item 6)', () => {
   test('opens in Tiles the first time, switches to the Table and back, and keeps the last choice in this browser', () => {
     render_(started());
-    const group = within(section('Roster')).getByRole('group', { name: 'Show the Roster as' });
-    expect(within(group).getByRole('button', { name: 'Tiles' }).getAttribute('aria-pressed')).toBe('true');
-    expect(within(group).getByRole('button', { name: 'Table' }).getAttribute('aria-pressed')).toBe('false');
+    // A choice of one, announced so (DL-206 item 27, DL-213).
+    const group = within(section('Roster')).getByRole('radiogroup', { name: 'Show the Roster as' });
+    expect(within(group).getByRole('radio', { name: 'Tiles' }).getAttribute('aria-checked')).toBe('true');
+    expect(within(group).getByRole('radio', { name: 'Table' }).getAttribute('aria-checked')).toBe('false');
     expect(cards()).toHaveLength(4);
     expect(within(section('Roster')).queryByRole('table', { name: 'Heroes on the Roster' })).toBeNull();
 
@@ -1025,6 +1026,166 @@ describe("the Roster's Table, a Stat whose net change is nothing (v1.1.5-S12, DL
   });
 });
 
+describe("the Roster's filters (v1.1.7-S7, DL-206 items 25 to 29)", () => {
+  /** Where a Hero is, as the filter names it. */
+  type At = 'At the Hall' | 'Injured' | 'Away';
+  interface Filtered {
+    name: string;
+    className: string;
+    at: At;
+  }
+
+  /**
+   * The Lantern with a Party out, its Heroes' Classes set Warrior, Rogue, Warrior, Mage in the order
+   * they joined (no Healer), and the first at home injured; with each Hero's name, Class and where.
+   */
+  function filtering(): { state: GameState; heroes: Filtered[] } {
+    const heroes: Filtered[] = [];
+    const classes = ['warrior', 'rogue', 'warrior', 'mage'] as const;
+    const names: Readonly<Record<(typeof classes)[number], string>> = { warrior: 'Warrior', rogue: 'Rogue', mage: 'Mage' };
+    const state = changed(withPartyOut(started()), (document, player) => {
+      let injured = false;
+      player.rosterIds.forEach((id, at) => {
+        const hero = document.world.heroes[id];
+        const classKey = classes[at % classes.length] ?? 'warrior';
+        if (hero === undefined) return;
+        hero.classKey = classKey;
+        if (!injured && hero.partyId === null) {
+          hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
+          injured = true;
+        }
+        heroes.push({ name: hero.name, className: names[classKey], at: hero.partyId !== null ? 'Away' : hero.injury !== null ? 'Injured' : 'At the Hall' });
+      });
+      if (!injured) throw new Error('no Hero at home to injure');
+    });
+    return { state, heroes };
+  }
+
+  const classes = (): HTMLElement => within(section('Roster')).getByRole('group', { name: 'Show of Class' });
+  const availability = (): HTMLElement => within(section('Roster')).getByRole('group', { name: 'Show by availability' });
+  const words = (group: HTMLElement): string[] => within(group).getAllByRole('button').map((button) => button.textContent ?? '');
+  const press = (group: HTMLElement, name: string): void => {
+    fireEvent.click(within(group).getByRole('button', { name: name === 'All' ? 'All' : new RegExp(`^${name} \\d+$`) }));
+  };
+  const showing = (): string | null => within(section('Roster')).queryByTestId('roster-shown')?.textContent ?? null;
+  const count = (list: readonly Filtered[], keep: (hero: Filtered) => boolean): number => list.filter(keep).length;
+
+  test('by Class, in the order content declares, and by At the Hall, Injured and Away, each with its count; a choice with none greyed', () => {
+    const { state, heroes } = filtering();
+    render_(state);
+    expect(words(classes())).toEqual(['All', 'Warrior 2', 'Rogue 1', 'Mage 1', 'Healer 0']);
+    expect(within(classes()).getByRole('button', { name: 'Healer 0' }).classList.contains('is-empty')).toBe(true);
+    const at = (where: At): number => count(heroes, (hero) => hero.at === where);
+    expect(at('Injured')).toBe(1);
+    expect(at('Away')).toBeGreaterThan(0);
+    expect(words(availability())).toEqual(['All', `At the Hall ${at('At the Hall')}`, 'Injured 1', `Away ${at('Away')}`]);
+    // Nothing hidden: no "Showing" line; the Roster's count as before.
+    expect(showing()).toBeNull();
+    expect(within(section('Roster')).getByText('4 Heroes on the Roster.')).toBeDefined();
+  });
+
+  test('a Hero shown when they match both; several choices of a filter show either; each count against the other filter; "Showing" says how many', () => {
+    const { state, heroes } = filtering();
+    render_(state);
+    press(classes(), 'Warrior');
+    const warriors = heroes.filter((hero) => hero.className === 'Warrior');
+    expect(tileNames().sort()).toEqual(warriors.map((hero) => hero.name).sort());
+    expect(showing()).toBe('Showing 2 of 4 Heroes.');
+    // The places count among the Warriors; the Classes still among everyone.
+    expect(words(availability())).toEqual([
+      'All',
+      `At the Hall ${count(warriors, (hero) => hero.at === 'At the Hall')}`,
+      `Injured ${count(warriors, (hero) => hero.at === 'Injured')}`,
+      `Away ${count(warriors, (hero) => hero.at === 'Away')}`,
+    ]);
+    expect(words(classes())).toEqual(['All', 'Warrior 2', 'Rogue 1', 'Mage 1', 'Healer 0']);
+
+    press(classes(), 'Mage');
+    const either = heroes.filter((hero) => hero.className === 'Warrior' || hero.className === 'Mage');
+    expect(tileNames().sort()).toEqual(either.map((hero) => hero.name).sort());
+    expect(showing()).toBe('Showing 3 of 4 Heroes.');
+
+    press(availability(), 'Injured');
+    const injured = either.filter((hero) => hero.at === 'Injured');
+    expect(tileNames()).toEqual(injured.map((hero) => hero.name));
+    expect(showing()).toBe(`Showing ${injured.length} of 4 Heroes.`);
+
+    // All clears a filter.
+    press(classes(), 'All');
+    press(availability(), 'All');
+    expect(tileNames()).toHaveLength(4);
+    expect(showing()).toBeNull();
+  });
+
+  test('the Table shows the same Heroes, in the sort in force, and keeps the filters across the switch', () => {
+    const { state, heroes } = filtering();
+    render_(state);
+    press(availability(), 'At the Hall');
+    press(availability(), 'Away');
+    const shown = heroes.filter((hero) => hero.at !== 'Injured').map((hero) => hero.name);
+    fireEvent.change(sortBy(), { target: { value: 'name' } });
+    expect(tileNames()).toEqual([...shown].sort());
+
+    showAs('Table');
+    expect(tableNames()).toEqual([...shown].sort());
+    expect(showing()).toBe('Showing 3 of 4 Heroes.');
+    fireEvent.click(direction());
+    expect(tableNames()).toEqual([...shown].sort().reverse());
+  });
+
+  test("on a phone, each of the Table's tabs shows the same Heroes", () => {
+    const restore = asPhone();
+    try {
+      const { state, heroes } = filtering();
+      render_(state);
+      showAs('Table');
+      press(classes(), 'Warrior');
+      const warriors = heroes.filter((hero) => hero.className === 'Warrior').map((hero) => hero.name);
+      const tabs = within(section('Roster')).getByRole('tablist', { name: 'Columns of the Table' });
+      for (const tab of within(tabs).getAllByRole('tab')) {
+        fireEvent.click(tab);
+        expect(tableNames().sort(), tab.textContent ?? '').toEqual([...warriors].sort());
+      }
+      expect(showing()).toBe('Showing 2 of 4 Heroes.');
+    } finally {
+      restore();
+    }
+  });
+
+  test('says so when no Hero matches, in tiles and Table, the filters still there to change', () => {
+    const { state } = filtering();
+    render_(state);
+    press(classes(), 'Healer');
+    expect(within(section('Roster')).queryByRole('list', { name: 'Heroes on the Roster' })).toBeNull();
+    expect(showing()).toBe('No Hero on the Roster matches the filters.');
+    showAs('Table');
+    expect(within(section('Roster')).queryByRole('table', { name: 'Heroes on the Roster' })).toBeNull();
+    expect(showing()).toBe('No Hero on the Roster matches the filters.');
+
+    press(classes(), 'Healer');
+    expect(tableNames()).toHaveLength(4);
+  });
+
+  test('"Showing" counts one Hero shown as well as several', () => {
+    const { state, heroes } = filtering();
+    render_(state);
+    press(classes(), 'Rogue');
+    expect(tileNames()).toEqual(heroes.filter((hero) => hero.className === 'Rogue').map((hero) => hero.name));
+    expect(showing()).toBe('Showing 1 of 4 Heroes.');
+  });
+
+  test('are not kept: the Roster opened again shows everyone', () => {
+    const { state } = filtering();
+    render_(state);
+    press(classes(), 'Warrior');
+    expect(tileNames()).toHaveLength(2);
+    cleanup();
+    render_(state);
+    expect(tileNames()).toHaveLength(4);
+    expect(within(classes()).getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true');
+  });
+});
+
 describe("the Roster's choices kept stale or corrupt in this browser (v1.1.5-S12, DL-169 item 11)", () => {
   test('open as by default: an unknown view, sort, direction or tab is forgotten, and an unknown column is left out', () => {
     localStorage.setItem('heroesim.rosterView', 'grid');
@@ -1033,8 +1194,8 @@ describe("the Roster's choices kept stale or corrupt in this browser (v1.1.5-S12
     localStorage.setItem('heroesim.rosterTab', 'skills');
     render_(started());
 
-    const group = within(section('Roster')).getByRole('group', { name: 'Show the Roster as' });
-    expect(within(group).getByRole('button', { name: 'Tiles' }).getAttribute('aria-pressed')).toBe('true');
+    const group = within(section('Roster')).getByRole('radiogroup', { name: 'Show the Roster as' });
+    expect(within(group).getByRole('radio', { name: 'Tiles' }).getAttribute('aria-checked')).toBe('true');
     expect(cards()).toHaveLength(4);
     expect(sortBy().value).toBe('default');
     expect(direction().textContent).toBe('Default order');

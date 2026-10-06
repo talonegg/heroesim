@@ -351,8 +351,9 @@ button:disabled,
   text-decoration-thickness: 2px;
 }
 
-/* A toggle that is on: the Rankings' measure. */
-button[aria-pressed='true'] {
+/* A toggle that is on: the Rankings' measure; and a choice of one made, a filter's look (DL-213). */
+button[aria-pressed='true'],
+button[role='radio'][aria-checked='true'] {
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
@@ -360,7 +361,8 @@ button[aria-pressed='true'] {
 
 /* Under the pointer it stays on, a shade deeper, as a primary button does: the hover's soft face with
    the pressed one's light words could not be read (M9-F6). */
-button[aria-pressed='true']:hover:not(:disabled) {
+button[aria-pressed='true']:hover:not(:disabled),
+button[role='radio'][aria-checked='true']:hover:not(:disabled) {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
   color: var(--on-accent);
@@ -2739,6 +2741,22 @@ ul.chips {
   margin: 0;
 }
 
+/* The Roster's filters, by Class and by availability, side by side where they fit (DL-213); the line
+   that says how many they show below them. */
+.roster__filters {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1.5rem;
+}
+
+.roster__filters .filters {
+  margin: 0 0 0.5rem;
+}
+
+.roster__shown p {
+  margin: 0 0 0.75rem;
+}
+
 .roster__sort {
   display: flex;
   flex-wrap: wrap;
@@ -3251,7 +3269,7 @@ th.number .sort {
   grid-area: next;
 }
 
-/* The Market's chips, which show one kind at a time. */
+/* The page's filter chips, several choices to a filter, and a choice of one in their look (DL-213). */
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -3266,6 +3284,14 @@ th.number .sort {
 }
 
 .filter__count {
+  font-weight: 500;
+}
+
+/* An option that would show nothing with the other filters as they are: greyed, its edge dashed, and
+   still a toggle (DL-206 item 29, DL-213); pressed, it keeps the pressed look. Its words keep 4.5:1. */
+.filter.is-empty:not([aria-pressed='true']) {
+  color: var(--ink-soft);
+  border-style: dashed;
   font-weight: 500;
 }
 

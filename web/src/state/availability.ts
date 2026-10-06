@@ -4,7 +4,7 @@
 // `unavailability`, what `dispatch` refuses by, and the rest is how the page says it.
 
 import { unavailability, type Hero, type Unavailability, type World } from '@heroesim/engine';
-import { capitalised, dateOfTurn, nightOfTurn, unavailableChipWords, type Calendar } from '@heroesim/words';
+import { atHallWords, capitalised, dateOfTurn, nightOfTurn, unavailableChipWords, type Calendar } from '@heroesim/words';
 import { rowOf } from './names';
 
 export interface Availability {
@@ -56,7 +56,7 @@ export function availabilityOf(hero: Hero, world: World, calendar: Calendar): Av
     why,
     freeOnTurn: why === null ? -Infinity : why === 'injured' ? (hero.injury?.healsOnTurn ?? null) : why === 'in-party' ? (party?.returnsOnTurn ?? null) : null,
     // A Hero on no Roster is at no Hall; one who is dead or retired says so first.
-    where: why === 'dead' || why === 'retired' || hero.guildId !== null ? (until ?? 'At the Hall') : hero.unattachedSince === null ? 'On no Roster' : 'In the Unattached pool',
+    where: why === 'dead' || why === 'retired' || hero.guildId !== null ? (until ?? capitalised(atHallWords)) : hero.unattachedSince === null ? 'On no Roster' : 'In the Unattached pool',
     until,
     chip: why === null ? null : capitalised(unavailableChipWords[why]),
   };

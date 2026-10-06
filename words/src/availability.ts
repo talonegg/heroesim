@@ -14,6 +14,13 @@ export const unavailableWords: Readonly<Record<Unavailability, string>> = Object
   'in-party': 'is away with a Party',
 });
 
+/**
+ * Where a Hero who can go is, beside the Board's chip words for one who cannot: a Hero's whereabouts,
+ * and the first choice of the Roster's filter by availability (DL-206 items 12 and 25, DL-213),
+ * capitalised where it is made.
+ */
+export const atHallWords = 'at the Hall';
+
 /** The short word of the Board's chip for a Hero who cannot go (v1.1.5-S11, DL-169 item 2), capitalised where it is made. */
 export const unavailableChipWords: Readonly<Record<Unavailability, string>> = Object.freeze({
   injured: 'injured',
