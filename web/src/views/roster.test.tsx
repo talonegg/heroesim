@@ -1166,6 +1166,20 @@ describe("the Roster's filters (v1.1.7-S7, DL-206 items 25 to 29)", () => {
     expect(tableNames()).toHaveLength(4);
   });
 
+  test('the lead keeps the whole Roster\'s count under a filter, and "Showing" is said as it changes, in a live region', () => {
+    const { state } = filtering();
+    render_(state);
+    press(classes(), 'Warrior');
+    expect(within(section('Roster')).getByText('4 Heroes on the Roster.')).toBeDefined();
+    const line = within(section('Roster')).getByTestId('roster-shown');
+    expect(line.closest('[role="status"]')).not.toBeNull();
+    press(classes(), 'Healer');
+    press(classes(), 'Warrior');
+    expect(showing()).toBe('No Hero on the Roster matches the filters.');
+    expect(within(section('Roster')).getByText('4 Heroes on the Roster.')).toBeDefined();
+    expect(within(section('Roster')).getByTestId('roster-shown').closest('[role="status"]')).not.toBeNull();
+  });
+
   test('"Showing" counts one Hero shown as well as several', () => {
     const { state, heroes } = filtering();
     render_(state);

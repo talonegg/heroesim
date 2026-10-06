@@ -583,15 +583,27 @@ export type FilterChipsProps<Name extends string> = Record<Name, FacetView & { o
 /**
  * The rows `facets` show and each filter's chips, its choices this view's own state: not remembered,
  * as no filter is (DL-206 item 28). `rows` and `facets` should keep their identity while unchanged
- * (`useMemo`), so that the rows are filtered only when they or a choice change.
+ * (`useMemo`), so that the rows are filtered only when they or a choice change. A choice no longer
+ * offered is let go for good, so that it does not come back chosen with its option, every choice
+ * left then reading as All as it did (DL-213).
  */
-export function useFacets<Row, Name extends string>(rows: readonly Row[], facets: Facets<Row, Name>): { rows: Row[]; filters: FilterChipsProps<Name>; filtered: boolean } {
+export function useFacets<Row, Name extends string>(rows: readonly Row[], facets: Facets<Row, Name>): { rows: Row[]; filters: FilterChipsProps<Name> } {
   const [choices, setChoices] = useState<FacetChoices<Name>>(() => ({}) as FacetChoices<Name>);
   const shown = useMemo(() => faceted(rows, facets, choices), [rows, facets, choices]);
+  const names = Object.keys(shown.facets) as Name[];
+  const kept = (name: Name): readonly string[] => choices[name] ?? [];
+  // The choices as the chips show them, set during the render that finds them changed (React's way to
+  // adjust state to what it is given); the next render finds them the same. What the chips show is
+  // some of what is kept (`chosenOf`), so fewer is changed.
+  if (names.some((name) => kept(name).length !== shown.facets[name].chosen.length)) {
+    const settled: Partial<Record<Name, readonly string[]>> = {};
+    for (const name of names) settled[name] = shown.facets[name].chosen;
+    setChoices(settled);
+  }
   const filters = Object.fromEntries(
-    (Object.keys(shown.facets) as Name[]).map((name) => [name, { ...shown.facets[name], onChoose: (chosen: string[]) => setChoices((was) => ({ ...was, [name]: chosen })) }]),
+    names.map((name) => [name, { ...shown.facets[name], onChoose: (chosen: string[]) => setChoices((was) => ({ ...was, [name]: chosen })) }]),
   ) as FilterChipsProps<Name>;
-  return { rows: shown.rows, filters, filtered: shown.filtered };
+  return { rows: shown.rows, filters };
 }
 
 /**

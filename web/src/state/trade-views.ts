@@ -90,7 +90,8 @@ export interface MarketView {
   forSale: ListingRow[];
   /**
    * Each kind the Market has for sale, the gear slots in their order then consumables, with how many
-   * of its listings there are, whatever is asked for: the filter's chips (M9-S6, the review's B3).
+   * of its listings there are: the Buy's lead counts them, and they are its filter's options (M9-S6,
+   * the review's B3; DL-213).
    */
   kinds: { key: MarketKind; label: string; count: number }[];
   /** The Buy's filter, by kind, several choices (DL-206 items 26 to 29, DL-213). */

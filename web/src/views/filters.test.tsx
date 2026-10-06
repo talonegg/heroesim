@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { afterEach, describe, expect, test } from 'vitest';
 import type { Facets } from '../state/facets';
 import { FilterChips, OneChoice, useFacets } from './ui';
@@ -143,6 +143,9 @@ describe('FilterChips, the one filter element', () => {
 
   test('an option at 0 is greyed, and still a toggle a player can press, and press again to let go', () => {
     render(<Things />);
+    // An option that would show one is not greyed.
+    expect(chip(colours(), 'Green').textContent).toBe('Green 1');
+    expect(chip(colours(), 'Green').classList.contains('is-empty')).toBe(false);
     fireEvent.click(chip(sizes(), 'Small'));
     const green = chip(colours(), 'Green');
     expect(green.textContent).toBe('Green 0');
@@ -176,6 +179,68 @@ describe('FilterChips, the one filter element', () => {
   test('draws nothing for a filter of one option or none', () => {
     const { container } = render(<FilterChips label="Show of one" options={[{ key: 'one', label: 'One', count: 3 }]} chosen={[]} onChoose={() => undefined} />);
     expect(container.innerHTML).toBe('');
+  });
+});
+
+/** A filter of the colours `rows` has, as the Stores and the Market offer only the kinds there are. */
+function Present({ rows }: { rows: readonly Thing[] }) {
+  const present = useMemo<Facets<Thing, 'colour'>>(
+    () => ({ colour: { ...facets.colour, options: facets.colour.options.filter((option) => rows.some((row) => row.colour === option.key)) } }),
+    [rows],
+  );
+  const { rows: shownRows, filters } = useFacets(rows, present);
+  return (
+    <>
+      <FilterChips {...filters.colour} />
+      <ul aria-label="Things">
+        {shownRows.map((thing) => (
+          <li key={thing.name}>{thing.name}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+describe('a choice no longer offered (DL-213)', () => {
+  const withoutGreen = things.filter((thing) => thing.colour !== 'green');
+
+  test('is let go for good: its option offered again, it does not come back chosen', () => {
+    const { rerender } = render(<Present rows={things} />);
+    fireEvent.click(chip(colours(), 'Green'));
+    expect(shown()).toEqual(['Elm']);
+
+    rerender(<Present rows={withoutGreen} />);
+    expect(pressed(colours())).toEqual(['All']);
+    expect(shown()).toEqual(['Ash', 'Birch', 'Cedar', 'Damson']);
+
+    rerender(<Present rows={things} />);
+    expect(pressed(colours())).toEqual(['All']);
+    expect(shown()).toEqual(['Ash', 'Birch', 'Cedar', 'Damson', 'Elm']);
+  });
+
+  test('the others chosen, reading as All once it goes, stay All when it comes back', () => {
+    const { rerender } = render(<Present rows={things} />);
+    fireEvent.click(chip(colours(), 'Red'));
+    fireEvent.click(chip(colours(), 'Blue'));
+    expect(shown()).toEqual(['Ash', 'Birch', 'Cedar', 'Damson']);
+
+    rerender(<Present rows={withoutGreen} />);
+    expect(pressed(colours())).toEqual(['All']);
+
+    rerender(<Present rows={things} />);
+    expect(pressed(colours())).toEqual(['All']);
+    expect(shown()).toHaveLength(5);
+  });
+
+  test('one let go, the rest kept', () => {
+    const { rerender } = render(<Present rows={things} />);
+    fireEvent.click(chip(colours(), 'Blue'));
+    fireEvent.click(chip(colours(), 'Green'));
+    rerender(<Present rows={withoutGreen} />);
+    expect(pressed(colours())).toEqual(['Blue 2']);
+    rerender(<Present rows={things} />);
+    expect(pressed(colours())).toEqual(['Blue 2']);
+    expect(shown()).toEqual(['Cedar', 'Damson']);
   });
 });
 
@@ -229,7 +294,8 @@ describe('OneChoice, a switch of one choice in the same look', () => {
     const [tiles] = radios();
     tiles?.focus();
 
-    fireEvent.keyDown(tiles as HTMLElement, { key: 'ArrowRight' });
+    // A key that moves the choice is the switch's, not the page's to scroll by: `keyDown` is false.
+    expect(fireEvent.keyDown(tiles as HTMLElement, { key: 'ArrowRight' })).toBe(false);
     expect(checked()).toEqual(['Table']);
     expect(document.activeElement?.textContent).toBe('Table');
     expect(radios().map((radio) => radio.tabIndex)).toEqual([-1, 0, -1]);
@@ -249,7 +315,7 @@ describe('OneChoice, a switch of one choice in the same look', () => {
     expect(checked()).toEqual(['List']);
     expect(document.activeElement?.textContent).toBe('List');
     // Any other key leaves it be.
-    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'a' });
+    expect(fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'a' })).toBe(true);
     expect(checked()).toEqual(['List']);
   });
 });

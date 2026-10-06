@@ -137,6 +137,12 @@ describe('the Treasury (M9-F3)', () => {
     expect(rows()[0]).not.toEqual(first);
     fireEvent.click(within(treasury()).getByRole('button', { name: 'Newest' }));
     expect(rows()[0]).toEqual(first);
+
+    // A filter's choice shows the ledger it leaves from its first page (DL-213).
+    fireEvent.click(within(treasury()).getByRole('button', { name: 'Older' }));
+    expect(within(treasury()).getByText(/^Page 2 of \d+/)).toBeDefined();
+    fireEvent.click(within(within(treasury()).getByRole('group', { name: 'Show income or expense' })).getByRole('button', { name: /^Expense/ }));
+    expect(within(treasury()).getByText(/^Page 1 of \d+, \d+ changes in all, newest first\.$/)).toBeDefined();
   });
 
   test("a name opens whom it names: a Guild's page in the Rankings", () => {
