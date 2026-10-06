@@ -312,9 +312,7 @@ function GuildPage({
                           setHero(row.heroId);
                         }}
                       >
-                        <HeroName icon={row.classIcon} className={row.className}>
-                          {row.name}
-                        </HeroName>
+                        <HeroName icon={row.classIcon} className={row.className} name={row.name} />
                       </button>
                     </span>
                   </th>

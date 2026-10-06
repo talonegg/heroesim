@@ -259,12 +259,20 @@ export function ClassMark({ icon, className }: { icon: ClassIcon | null; classNa
 /**
  * One Hero's name with their Class's mark before it (DL-206 item 23, DL-212): the one element every
  * place that lists a Hero with their Class uses, so that the mark and the name stand in one place.
+ * The mark and the name's first word are one unit that never parts, so the mark is never alone on a
+ * line; the later words follow and wrap as words do (the owner's (b), DL-212). `nameClass` styles the
+ * name where its place has a style of its own, as the Party builder's does.
  */
-export function HeroName({ icon, className, children }: { icon: ClassIcon | null; className: string; children: ReactNode }) {
+export function HeroName({ icon, className, name, nameClass }: { icon: ClassIcon | null; className: string; name: string; nameClass?: string }) {
+  const space = name.search(/\s/);
+  const [firstWord, rest] = space < 0 ? [name, ''] : [name.slice(0, space), name.slice(space)];
   return (
-    <span className="hero-name">
-      <ClassMark icon={icon} className={className} />
-      {children}
+    <span className={nameClass === undefined ? 'hero-name' : `hero-name ${nameClass}`}>
+      <span className="hero-name__lead">
+        <ClassMark icon={icon} className={className} />
+        <span className="hero-name__first">{firstWord}</span>
+      </span>
+      {rest}
     </span>
   );
 }

@@ -301,6 +301,7 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     // The pool's rows, by fee and as listed.
     const pool = await part(page, 'Unattached pool');
     await check("the pool's rows");
+    await inViewClear(pool.getByRole('table'), `the pool's headings and buttons at ${width}px`);
     await pool.getByRole('button', { name: 'Order by Fee' }).click();
     await check('the pool by fee');
     await pool.getByRole('button', { name: 'Order by Fee' }).click();
@@ -319,12 +320,14 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     await market.getByTestId('listing').first().getByRole('button', { name: /^Buy / }).click();
     await expect(page.getByRole('region', { name: 'Sell', exact: true }).getByRole('table')).toBeVisible();
     await check("the Market's Sell");
+    await inViewClear(page.getByRole('region', { name: 'Sell', exact: true }).getByRole('table'), `the Market's Sell's headings and buttons at ${width}px`);
 
     // The Guild's Stores, holding what was just bought, and its Treasury, the purchase in the
     // ledger: each table in its own box (M9-F3).
     const stores = await guildPart(page, 'Stores');
     await expect(stores.getByRole('table')).toBeVisible();
     await check("the Guild's Stores");
+    await inViewClear(stores.getByRole('table'), `the Guild's Stores' headings and buttons at ${width}px`);
     // Its five columns fit a tablet's width and more, where the Market's wider table scrolls (M9-F6,
     // from the close's screenshots, where "Sells for" was cut at 820px).
     if (width >= 820) expect(await stores.locator('.table-wrap').evaluate((box) => box.scrollWidth - box.clientWidth)).toBeLessThanOrEqual(0);
@@ -355,6 +358,7 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     const fold = patrons.getByRole('button', { name: /^\d+ neutral$/ });
     if ((await fold.count()) > 0) await fold.click();
     await check("the Patrons' table, the neutral unfolded");
+    await inViewClear(patrons.getByRole('table'), `the Patrons' headings and buttons at ${width}px`);
     if ((await fold.count()) > 0) await fold.click();
   }
 });
@@ -561,22 +565,23 @@ test("the Roster's cards, the pool's rows and the Guilds' table: each name with 
 
 // A Hero's name with their Class's mark before it (DL-206 items 23 and 24, DL-212), in the five places
 // a Hero is listed with their Class, at every width: the mark the text's size, before the name and
-// clear of it, and no word of the name broken inside it, as no name was before the mark.
-test("a Hero's name with their Class's mark: the mark before the name, the text's size, and no word of the name broken (v1.1.7-S6)", async ({
+// clear of it, on the line of the name's first word and never alone on a line (the owner's (b),
+// DL-212), and no word of the name broken inside it, as no name was before the mark.
+test("a Hero's name with their Class's mark: the mark before the name, the text's size, on the first word's line, and no word of the name broken (v1.1.7-S6)", async ({
   page,
 }) => {
   test.setTimeout(120_000);
   await page.goto('/');
   await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
 
-  /** Each name in `scope`: its mark drawn before its first word and as high as a line, and each word on one line. */
+  /** Each name in `scope`: its mark drawn before its first word, on its line, and as high as a line, and each word on one line. */
   const namesWhole = async (scope: Locator, what: string): Promise<void> => {
     const names = scope.locator('.hero-name');
     await expect(names.first()).toBeVisible();
     for (const name of await names.all()) {
       const read = await name.evaluate((element) => {
         const mark = element.querySelector('.class-mark')?.getBoundingClientRect();
-        const words: { word: string; lines: number; x: number; top: number }[] = [];
+        const words: { word: string; lines: number; x: number; top: number; bottom: number }[] = [];
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
         for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
           for (const found of (node.textContent ?? '').matchAll(/\S+/g)) {
@@ -584,10 +589,16 @@ test("a Hero's name with their Class's mark: the mark before the name, the text'
             range.setStart(node, found.index);
             range.setEnd(node, found.index + found[0].length);
             const rects = [...range.getClientRects()].filter((rect) => rect.width > 0);
-            words.push({ word: found[0], lines: new Set(rects.map((rect) => Math.round(rect.top))).size, x: rects[0]?.x ?? 0, top: rects[0]?.top ?? 0 });
+            words.push({
+              word: found[0],
+              lines: new Set(rects.map((rect) => Math.round(rect.top))).size,
+              x: rects[0]?.x ?? 0,
+              top: rects[0]?.top ?? 0,
+              bottom: rects[0]?.bottom ?? 0,
+            });
           }
         }
-        return { mark: mark === undefined ? null : { x: mark.x, right: mark.right, bottom: mark.bottom, height: mark.height }, words };
+        return { mark: mark === undefined ? null : { x: mark.x, right: mark.right, top: mark.top, bottom: mark.bottom, height: mark.height }, words };
       });
       const label = `${what}: ${read.words.map((it) => it.word).join(' ')}`;
       if (read.mark === null) throw new Error(`${label}: no mark`);
@@ -595,8 +606,11 @@ test("a Hero's name with their Class's mark: the mark before the name, the text'
       expect(read.mark.height, `${label}: the mark the text's size`).toBeLessThanOrEqual(28);
       const [first] = read.words;
       if (first === undefined) throw new Error(`${label}: no name`);
-      // Before the first word: on its line and to its left, or on a line above it.
-      expect(read.mark.right <= first.x + 1 || read.mark.bottom <= first.top + 1, `${label}: the mark before the name`).toBe(true);
+      // Before the first word, to its left, and on its line: the mark and the first word never part,
+      // so the mark is never alone on a line (the owner's (b), DL-212).
+      expect(read.mark.right, `${label}: the mark before the name`).toBeLessThanOrEqual(first.x + 1);
+      const markMiddle = (read.mark.top + read.mark.bottom) / 2;
+      expect(markMiddle > first.top && markMiddle < first.bottom, `${label}: the mark on the first word's line, not alone above it`).toBe(true);
       for (const word of read.words) expect(word.lines, `${label}: "${word.word}" whole on one line`).toBe(1);
     }
   };
@@ -609,8 +623,37 @@ test("a Hero's name with their Class's mark: the mark before the name, the text'
     const show = roster.getByRole('group', { name: 'Show the Roster as' });
     await show.getByRole('button', { name: 'Table' }).click();
     await namesWhole(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table, ${scheme}`);
+    await inViewClear(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table's headings and buttons, ${scheme}`);
     await show.getByRole('button', { name: 'Tiles' }).click();
-    await namesWhole(await part(page, 'Unattached pool'), `the pool, ${scheme}`);
+    const pool = await part(page, 'Unattached pool');
+    await namesWhole(pool, `the pool, ${scheme}`);
+    // A first name longer than the share the name column may take, which no name the content gives is:
+    // the column holds to its share, the word breaks there with the mark on its first line, and nothing
+    // spills from the name's button (DL-212). The name is put back as it was.
+    const capped = await pool.getByRole('table').evaluate((element) => {
+      const first = element.querySelector<HTMLElement>('tbody .hero-name__first');
+      const box = element.closest('.table-wrap');
+      const heading = element.querySelector('thead th');
+      const mark = first?.parentElement?.querySelector('.class-mark');
+      const button = first?.closest('button');
+      if (first == null || box == null || heading == null || mark == null || button == null) return null;
+      const was = first.textContent;
+      first.textContent = 'W'.repeat(60);
+      const line = first.getClientRects()[0];
+      const drawn = mark.getBoundingClientRect();
+      const middle = (drawn.top + drawn.bottom) / 2;
+      const read = {
+        share: heading.getBoundingClientRect().width / box.clientWidth,
+        markOnFirstLine: line !== undefined && middle > line.top && middle < line.bottom,
+        spills: button.scrollWidth - button.clientWidth,
+      };
+      first.textContent = was;
+      return read;
+    });
+    if (capped === null) throw new Error(`the pool, ${scheme}: no name to lengthen`);
+    expect(capped.share, `the pool, ${scheme}: a long first name, the name column's share of its box`).toBeLessThanOrEqual(0.6);
+    expect(capped.markOnFirstLine, `the pool, ${scheme}: a long first name, the mark on its first line`).toBe(true);
+    expect(capped.spills, `the pool, ${scheme}: a long first name, nothing spilling from its button`).toBeLessThanOrEqual(0);
 
     await (await rosterList(page)).locator('button.link').first().click();
     await namesWhole(roster.getByRole('article').getByRole('heading', { level: 3 }), `a Hero's page, ${scheme}`);
@@ -625,9 +668,40 @@ test("a Hero's name with their Class's mark: the mark before the name, the text'
     const guilds = await part(page, 'Guilds');
     await rivalRows(guilds).first().locator('button.link').click();
     await namesWhole(guilds.getByRole('article').getByRole('table', { name: /^The Roster of / }), `a Rival's Roster, ${scheme}`);
+    await inViewClear(guilds.getByRole('article').getByRole('table', { name: /^The Roster of / }), `a Rival's Roster's headings and buttons, ${scheme}`);
     await guilds.getByRole('button', { name: 'Back to the Guilds' }).click();
   }
 });
+
+/**
+ * Each heading (its button where it has one) and each button in the cells of a Table whose first
+ * column stays in view, scrolled into the Table's box at its start, its middle and its end, as the
+ * keyboard's focus, a pointer's click and a search may bring it, is the element at its own middle: the
+ * sticky first column never covers it, however wide the Hero's mark and first name make that column
+ * (DL-212). The Table's box is put back as it was.
+ */
+async function inViewClear(table: Locator, what: string): Promise<void> {
+  await expect(table).toBeVisible();
+  const { covered, tried } = await table.evaluate((element) => {
+    const box = element.closest('.table-wrap');
+    const was = box?.scrollLeft ?? 0;
+    const headings = [...element.querySelectorAll<HTMLElement>('thead th:not(:first-child)')].map((th) => th.querySelector<HTMLElement>('button') ?? th);
+    const targets = [...headings, ...element.querySelectorAll<HTMLElement>('tbody td button')];
+    const under: string[] = [];
+    for (const inline of ['start', 'center', 'end'] as const) {
+      for (const target of targets) {
+        target.scrollIntoView({ block: 'center', inline, behavior: 'instant' });
+        const at = target.getBoundingClientRect();
+        const found = document.elementFromPoint(at.x + at.width / 2, at.y + at.height / 2);
+        if (found === null || !target.contains(found)) under.push(`"${target.textContent ?? ''}" at the ${inline}, under ${found?.closest('th, td, aside, header, nav')?.textContent?.slice(0, 40) ?? 'nothing'}`);
+      }
+    }
+    if (box !== null) box.scrollLeft = was;
+    return { covered: under, tried: targets.length };
+  });
+  expect(tried, `${what}: things to bring into view`).toBeGreaterThan(1);
+  expect(covered, `${what}: nothing under the sticky column`).toEqual([]);
+}
 
 /** The rows of the Guilds' table that are not the player's Guild (M9-S6). */
 function rivalRows(guilds: Locator): Locator {

@@ -170,9 +170,7 @@ export function RosterTable({
                 <span className="named">
                   <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />
                   <button type="button" id={nameId(row.heroId)} className="link" onClick={() => onOpen(row.heroId)}>
-                    <HeroName icon={row.classIcon} className={row.className}>
-                      {row.name}
-                    </HeroName>
+                    <HeroName icon={row.classIcon} className={row.className} name={row.name} />
                   </button>
                 </span>
               </th>

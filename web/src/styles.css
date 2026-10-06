@@ -3144,6 +3144,24 @@ th.number .sort {
   min-width: 9rem;
 }
 
+/*
+ * The box keeps 60% of its width clear at its start when it brings a heading or a cell into view (the
+ * keyboard's focus, a click, a search), and a column of names in view holds at most that share, so the
+ * column never covers what is brought in, at the box's start, middle or end. A Hero's mark and first
+ * name, which never part, widen a name column past half a phone's box (DL-212); every name the content
+ * gives fits the share with room to spare, and a word longer than it would break there rather than
+ * widen the column. The other 40% of a phone's box holds the widest heading. The other Tables' first
+ * columns, an Item's or a Patron's name, stay well within the share.
+ */
+.table-wrap:has(> .table--first-sticky) {
+  container-type: inline-size;
+  scroll-padding-inline-start: 60%;
+}
+
+.table--first-sticky tbody th[scope='row'] > .named {
+  max-width: calc(60cqi - 1.25rem);
+}
+
 /* A pool Hero who will not sign for the Guild now: set back, the reason in words. */
 .pool-table tr.is-set-back th,
 .pool-table tr.is-set-back td {
@@ -3895,16 +3913,32 @@ tr.mine td {
 /*
  * A Hero's name with their Class's mark before it (v1.1.7-S6, DL-212): one element wherever a Hero is
  * listed with their Class. The mark takes the text's colour (it sets none), so it holds the contrast
- * the text does in both schemes. It is inline with the name, inside the name's button where the name
- * is one, so that the name wraps beside it word by word: in a Table's sticky first column on a phone
- * the column is then no wider than the longest word, under half of its box, behind which a
- * scrolled-to heading would otherwise land (DL-212). It wraps as the name's own element does, not as
- * every span may (`anywhere`), so that no word of a name is broken where it would fit on a line of its
- * own and the column keeps the width of the name's longest word (DL-212).
+ * the text does in both schemes. It is inside the name's button where the name is one. The mark and
+ * the name's first word are one unit that never parts, so the mark is never alone on a line; the
+ * later words wrap after it as words do (the owner's (b), DL-212). A narrow name column is then as wide
+ * as the mark and the longest first name, or the longest later word. The name wraps as its own element
+ * does, not as every span may (`anywhere`), so that no word of a name is broken where it would fit on a
+ * line of its own and the column keeps the width of its words (DL-212). The first word breaks only
+ * where the unit is wider than all its line can hold: a Table's sticky column is held to a share of its
+ * box (`.table--first-sticky`).
  */
-.hero-name {
+.hero-name,
+.hero-name__lead,
+.hero-name__first {
   min-width: 0;
   overflow-wrap: inherit;
+}
+
+/*
+ * No line breaks between the mark and the first word; inside the word, as the name allows. A plain
+ * inline, not an inline block, so that the name's underline as a link runs under the first word too.
+ */
+.hero-name__lead {
+  white-space: nowrap;
+}
+
+.hero-name__first {
+  white-space: normal;
 }
 
 .class-mark {

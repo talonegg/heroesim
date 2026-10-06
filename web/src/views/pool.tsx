@@ -107,9 +107,7 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
                           setOpen(row.heroId);
                         }}
                       >
-                        <HeroName icon={row.classIcon} className={row.className}>
-                          {row.name}
-                        </HeroName>
+                        <HeroName icon={row.classIcon} className={row.className} name={row.name} />
                       </button>
                     </span>
                   </th>

@@ -67,11 +67,13 @@ describe('the five places a Hero is listed with their Class', () => {
     for (const card of cards) {
       const Class = first(classesShown(card));
       expect(card.textContent).toContain(`${Class} · Level`);
-      // Before the name, in one element with it, inside the name's button.
+      // Before the name, in one element with it, inside the name's button; the mark and the name's
+      // first word one unit, which never parts (the owner's (b), DL-212).
       const mark = first(marks(card));
       const name = within(card).getByRole('button');
       expect(mark.closest('button')).toBe(name);
-      expect(name.querySelector('.hero-name')?.firstElementChild).toBe(mark);
+      expect(name.querySelector('.hero-name')?.firstElementChild?.firstElementChild).toBe(mark);
+      expect(mark.parentElement?.textContent).toBe(name.textContent?.split(' ')[0]);
       expect(name.textContent).toBe(name.textContent?.trim());
     }
   });

@@ -98,15 +98,11 @@ export function HeroPage({
           {/* The keyboard may be put on the name when the page opens (the Party builder's drill-down, M9-S4). */}
           {level === 3 ? (
             <h3 id="hero-name" tabIndex={-1}>
-              <HeroName icon={view.classIcon} className={view.className}>
-                {view.name}
-              </HeroName>
+              <HeroName icon={view.classIcon} className={view.className} name={view.name} />
             </h3>
           ) : (
             <h4 id="hero-name" tabIndex={-1}>
-              <HeroName icon={view.classIcon} className={view.className}>
-                {view.name}
-              </HeroName>
+              <HeroName icon={view.classIcon} className={view.className} name={view.name} />
             </h4>
           )}
           <p className="hero-page__line">{view.line.join(' · ')}</p>
