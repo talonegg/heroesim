@@ -34,7 +34,8 @@ export function Market({ document, busy, play }: { document: WorldDocument; busy
 /** What the Market has for sale, with Buy. */
 function Buy({ document, busy, play }: { document: WorldDocument; busy: boolean; play: Play }) {
   const view = useMemo(() => marketView(document), [document]);
-  const kinds = `${view.kinds.reduce((sum, kind) => sum + kind.count, 0)} ${view.kinds.length === 1 ? 'kind' : 'kinds'}`;
+  // The lead counts the listings, a kind of Item each, and says "kind" or "kinds" by that number (DL-213).
+  const kinds = `${view.forSale.length} ${view.forSale.length === 1 ? 'kind' : 'kinds'}`;
   // A kind no longer for sale is let go (`chosenOf`).
   const { rows: forSale, filters } = useFacets(view.forSale, view.facets);
   return (

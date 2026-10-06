@@ -1,9 +1,11 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
+import type { WorldDocument } from '@heroesim/engine';
 import { App } from '../app';
 import { holding, played, started, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { section } from './page.test-support';
+import { Treasury } from './treasury';
 
 // The Guild's Treasury (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): the Wealth, Upkeep's next
 // payment with its Day and parts, the Bankruptcy floor and the countdown while below it, and the
@@ -162,5 +164,63 @@ describe('the Treasury (M9-F3)', () => {
     // Nothing to filter or total yet.
     expect(within(treasury()).queryByRole('group', { name: 'Show income or expense' })).toBeNull();
     expect(within(treasury()).queryByTestId('totals')).toBeNull();
+  });
+});
+
+describe("the Treasury's filters, one state with the page's other filters (DL-213)", () => {
+  /** The game's document. */
+  const documentOf = (state: GameState): WorldDocument => {
+    if (state.document === null) throw new Error('no game');
+    return state.document;
+  };
+  const group = (name: string): HTMLElement | null => screen.queryByRole('group', { name });
+  const button = (scope: HTMLElement | null, name: RegExp | string): HTMLElement => within(scope as HTMLElement).getByRole('button', { name });
+  /** The ledger's rows' categories. */
+  const categoriesShown = (): string[] =>
+    within(screen.getByRole('table', { name: 'The ledger of The Lantern' }))
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => row.querySelectorAll('td')[2]?.textContent ?? '');
+
+  test('a category no longer in the ledger is let go for good: offered again, it does not come back chosen', () => {
+    const marketed = documentOf(traded());
+    // Upkeep alone: no change of the Market.
+    const unmarketed = documentOf(played(started(), { kind: 'advance', turns: 30 }));
+    const { rerender } = render(<Treasury document={marketed} />);
+    fireEvent.click(button(group('Show of category'), /^Market \d+$/));
+    expect(categoriesShown()).toEqual(['Market']);
+
+    rerender(<Treasury document={unmarketed} />);
+    expect(categoriesShown().every((category) => category === 'Upkeep' || category === 'Opening balance')).toBe(true);
+    expect(categoriesShown()).toContain('Opening balance');
+
+    rerender(<Treasury document={marketed} />);
+    expect(button(group('Show of category'), /^Market \d+$/).getAttribute('aria-pressed')).toBe('false');
+    expect(button(group('Show of category'), 'All').getAttribute('aria-pressed')).toBe('true');
+    expect(categoriesShown()).toEqual(['Upkeep', 'Heroes', 'Market', 'Opening balance']);
+  });
+
+  // 660 Turns played for more than a page of Upkeep: a few seconds alone (DL-164).
+  test('a chip pressed, or a page turned, reads the History no more: the ledger is read once a document', { timeout: 30_000 }, () => {
+    const document = documentOf(played(withWealth(started(), 100_000), { kind: 'advance', turns: 660 }));
+    let reads = 0;
+    // Every walk of the History for a Guild's changes begins at its index by participant.
+    const history = new Proxy(document.history, {
+      get(target, key, receiver) {
+        if (key === 'byEntity') reads += 1;
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
+    render(<Treasury document={{ ...document, history }} />);
+    expect(screen.getByRole('button', { name: 'Older' })).toBeDefined();
+    const read = reads;
+    expect(read).toBeGreaterThan(0);
+
+    fireEvent.click(button(group('Show income or expense'), /^Expense \d+$/));
+    fireEvent.click(screen.getByRole('button', { name: 'Older' }));
+    fireEvent.click(button(group('Show income or expense'), 'All'));
+    fireEvent.click(screen.getByRole('button', { name: 'Older' }));
+    expect(screen.getByText(/^Page 2 of \d+/)).toBeDefined();
+    expect(reads).toBe(read);
   });
 });

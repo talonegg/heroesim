@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import type { ItemDefinitionKey } from '@heroesim/engine';
-import { holding, holdingUnique, started } from '../state/game.test-support';
+import { holding, holdingUnique, selling, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { section } from './page.test-support';
 
@@ -69,6 +69,16 @@ describe("the Market view's Buy and Sell, as tables (M9-S6, the review's B3; M9-
     for (const chip of within(filters).getAllByRole('button').slice(1)) fireEvent.click(chip);
     expect(within(filters).getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true');
     expect(kinds()).toEqual(all);
+  });
+
+  test('the lead says "kind" or "kinds" by the number of kinds of Item it counts, one kind of gear as well as several (DL-213)', () => {
+    // Two kinds of Item, both Weapons: one filter option, two kinds.
+    const { unmount } = render(<App initial={selling(started(), { 'short-sword': 2, 'arming-sword': 1 })} />);
+    expect(within(section('Buy')).getByText('3 Items for sale, of 2 kinds.')).toBeDefined();
+    unmount();
+
+    render_(selling(started(), { 'short-sword': 2 }));
+    expect(within(section('Buy')).getByText('2 Items for sale, of 1 kind.')).toBeDefined();
   });
 
   test("the Market's chips are the page's one filter element: no copy of its own (DL-206 item 27)", () => {

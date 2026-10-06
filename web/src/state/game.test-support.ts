@@ -13,6 +13,7 @@ import {
   defaultConfig,
   durationDaysOf,
   estimateQuest,
+  holdings,
   isId,
   isMilestone,
   offeredQuests,
@@ -109,6 +110,14 @@ export function withTraitNews(state: GameState): GameState {
 /** The player's Guild holding `quantity` of `definitionKey` besides what it held. */
 export function holding(state: GameState, definitionKey: ItemDefinitionKey, quantity: number): GameState {
   return changed(state, (document, player) => addStack(document.world, definitionKey, quantity, { kind: 'guild', id: player.id }));
+}
+
+/** The Market selling `stock` alone, each Item by its quantity, in place of what it had for sale. */
+export function selling(state: GameState, stock: Readonly<Record<string, number>>): GameState {
+  return changed(state, (document) => {
+    for (const stack of holdings(document.world, { kind: 'market' }).stacks) delete document.world.stacks[stack.id];
+    for (const [key, quantity] of Object.entries(stock)) addStack(document.world, key as ItemDefinitionKey, quantity, { kind: 'market' });
+  });
 }
 
 /**

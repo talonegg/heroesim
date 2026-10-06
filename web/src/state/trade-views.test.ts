@@ -73,30 +73,35 @@ describe('marketView', () => {
 });
 
 describe("the Market as tables (M9-S6, DL-106; the review's B3)", () => {
-  test('names each kind for sale, the gear slots in their order then consumables, with how many kinds of Item each has', () => {
+  test('names each kind for sale, the gear slots in their order then consumables, counting its kinds of Item', () => {
     const view = marketView(newGame());
+    const kinds = faceted(view.forSale, view.facets, {}).facets.kind.options;
 
-    expect(view.kinds.map((kind) => kind.key)).toEqual(['weapon', 'armour', 'trinket', 'consumable'].filter((key) => view.kinds.some((kind) => kind.key === key)));
-    expect(view.kinds.map((kind) => kind.label)).toEqual(view.kinds.map((kind) => ({ weapon: 'Weapon', armour: 'Armour', trinket: 'Trinket', consumable: 'Consumable' })[kind.key]));
-    expect(view.kinds.reduce((sum, kind) => sum + kind.count, 0)).toBe(view.forSale.length);
-    expect(view.kinds.length).toBeGreaterThan(1);
+    expect(kinds.map((kind) => kind.key)).toEqual(['weapon', 'armour', 'trinket', 'consumable'].filter((key) => kinds.some((kind) => kind.key === key)));
+    expect(kinds.map((kind) => kind.label)).toEqual(kinds.map((kind) => ({ weapon: 'Weapon', armour: 'Armour', trinket: 'Trinket', consumable: 'Consumable' })[kind.key]));
+    expect(kinds.reduce((sum, kind) => sum + kind.count, 0)).toBe(view.forSale.length);
+    expect(kinds.every((kind) => kind.count > 0)).toBe(true);
+    expect(kinds.length).toBeGreaterThan(1);
+    // A listing to each kind of Item.
+    expect(new Set(view.forSale.map((row) => row.definitionKey)).size).toBe(view.forSale.length);
   });
 
   test('filters by kind, one or several, for display; each kind its count of everything for sale (DL-206 items 26 to 29)', () => {
     const view = marketView(newGame());
     const kindOf = view.facets.kind;
     expect(kindOf.label).toBe('Show for sale');
-    expect(kindOf.options.map(({ key, label }) => ({ key, label }))).toEqual(view.kinds.map(({ key, label }) => ({ key, label })));
+    const kinds = faceted(view.forSale, view.facets, {}).facets.kind.options;
+    expect(kindOf.options).toEqual(kinds.map(({ key, label }) => ({ key, label })));
 
-    for (const kind of view.kinds) {
+    for (const kind of kinds) {
       const shown = faceted(view.forSale, view.facets, { kind: [kind.key] });
       expect(shown.rows).toHaveLength(kind.count);
       expect(shown.rows.every((row) => row.kindKey === kind.key)).toBe(true);
       expect(shown.rows.every((row) => (kind.key === 'consumable' ? /^Consumable$/ : new RegExp(`^${kind.label} Gear$`)).test(row.kind))).toBe(true);
       // The one filter: its counts are everything for sale's, whatever is chosen.
-      expect(shown.facets.kind.options.map((option) => option.count)).toEqual(view.kinds.map((each) => each.count));
+      expect(shown.facets.kind.options.map((option) => option.count)).toEqual(kinds.map((each) => each.count));
     }
-    const [first, second] = view.kinds;
+    const [first, second] = kinds;
     if (first === undefined || second === undefined) throw new Error('two kinds wanted');
     expect(faceted(view.forSale, view.facets, { kind: [first.key, second.key] }).rows).toHaveLength(first.count + second.count);
     expect(faceted(view.forSale, view.facets, {}).rows).toEqual(view.forSale);

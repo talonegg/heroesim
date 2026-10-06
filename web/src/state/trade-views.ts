@@ -86,15 +86,13 @@ export interface HeldForSale {
 }
 
 export interface MarketView {
-  /** Everything the Market has for sale. */
+  /** Everything the Market has for sale, a listing to each kind of Item. */
   forSale: ListingRow[];
   /**
-   * Each kind the Market has for sale, the gear slots in their order then consumables, with how many
-   * of its listings there are: the Buy's lead counts them, and they are its filter's options (M9-S6,
-   * the review's B3; DL-213).
+   * The Buy's filter, by kind, several choices: each kind the Market has for sale, the gear slots in
+   * their order then consumables, each option counted by `faceted` (M9-S6, the review's B3; DL-206
+   * items 26 to 29, DL-213).
    */
-  kinds: { key: MarketKind; label: string; count: number }[];
-  /** The Buy's filter, by kind, several choices (DL-206 items 26 to 29, DL-213). */
   facets: Facets<ListingRow, 'kind'>;
   /** Items for sale counted one by one, a stack by its quantity. */
   totalForSale: number;
@@ -115,7 +113,7 @@ export function marketView(document: WorldDocument): MarketView {
   const deps = playDeps(document);
   const stock = marketStock(world, deps);
   const guild = playerGuild(world);
-  const listed = stock.map(({ definition, quantity, price }) => ({
+  const forSale = stock.map(({ definition, quantity, price }) => ({
     definitionKey: definition.key,
     name: definition.name,
     kind: kindOf(definition),
@@ -124,14 +122,12 @@ export function marketView(document: WorldDocument): MarketView {
     quantity,
     price,
   }));
-  const kinds = [...gearSlotKeys, 'consumable' as const].flatMap((key) => {
-    const count = listed.filter((row) => row.kindKey === key).length;
-    return count === 0 ? [] : [{ key, label: capitalised(key), count }];
-  });
-  const forSale = listed;
-  const facets: Facets<ListingRow, 'kind'> = { kind: { label: 'Show for sale', options: kinds, of: (row) => row.kindKey } };
+  const kinds = [...gearSlotKeys, 'consumable' as const].filter((key) => forSale.some((row) => row.kindKey === key));
+  const facets: Facets<ListingRow, 'kind'> = {
+    kind: { label: 'Show for sale', options: kinds.map((key) => ({ key, label: capitalised(key) })), of: (row) => row.kindKey },
+  };
   const totalForSale = stock.reduce((sum, { quantity }) => sum + quantity, 0);
-  if (guild === undefined) return { forSale, kinds, facets, totalForSale, guildName: null, wealth: null, held: [] };
+  if (guild === undefined) return { forSale, facets, totalForSale, guildName: null, wealth: null, held: [] };
 
   const { items, stacks } = holdings(world, { kind: 'guild', id: guild.id });
   const described = (key: ItemDefinitionKey): { definitionKey: ItemDefinitionKey; unique: boolean; kind: string; does: string } => {
@@ -158,7 +154,7 @@ export function marketView(document: WorldDocument): MarketView {
       sale: { itemId: item.id },
     })),
   ];
-  return { forSale, kinds, facets, totalForSale, guildName: guild.name, wealth: guild.wealth, held };
+  return { forSale, facets, totalForSale, guildName: guild.name, wealth: guild.wealth, held };
 }
 
 // ── The Unattached pool ──────────────────────────────────────────────────────────────────────

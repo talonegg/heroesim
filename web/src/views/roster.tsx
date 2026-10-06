@@ -6,7 +6,8 @@
 // A view of the shell (M9-S3, DL-103), with the Transfer Offers, only while one stands, and the
 // Unattached pool as its parts. Each Hero is a compact card (M9-S6, DL-106): their name, Class, Level
 // and age, a Morale chip, and where they are, injured or away shown by an icon and its words. Their
-// page opens with the keyboard on their name, and closing it returns the keyboard to their card.
+// page opens with the keyboard on their name, and closing it returns the keyboard to their card, or
+// to the Roster's heading when a filter now hides them or they left (DL-213).
 // Their thumbnail stands beside their name (v1.1.3-S7, DL-135 item 9), the small Silhouette while
 // they have no picture.
 //
@@ -45,7 +46,7 @@ import { ItemPicture, PortraitThumb } from './pictures';
 import { Pool } from './pool';
 import { preferences, useRemembered } from './remembered';
 import { ColumnsPanel, nameId, RosterTable } from './roster-table';
-import { View } from './section';
+import { headingOf, View } from './section';
 import { Chip, FilterChips, moraleTones, OneChoice, Tabs, useFacets, useNarrow, useReturn } from './ui';
 
 /** How the Roster shows its Heroes. */
@@ -86,7 +87,8 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
   // Filtered after the sort, so that a filter builds and sorts nothing again (DL-199).
   const { rows, filters } = useFacets(sorted, facets);
   const [open, setOpen] = useState<HeroId | null>(null);
-  const back = useReturn();
+  // A Hero a filter now hides, or who left, returns the keyboard to the Roster's heading (DL-213).
+  const back = useReturn(headingOf('roster'));
   useEffect(() => {
     if (open !== null) globalThis.document.getElementById('hero-name')?.focus();
   }, [open]);

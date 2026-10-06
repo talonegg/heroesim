@@ -244,6 +244,34 @@ describe('a choice no longer offered (DL-213)', () => {
   });
 });
 
+/** `Present`, with a button that chooses `keys` as a caller of `onChoose` may, offered or not. */
+function Choosing({ rows, keys }: { rows: readonly Thing[]; keys: string[] }) {
+  const present = useMemo<Facets<Thing, 'colour'>>(
+    () => ({ colour: { ...facets.colour, options: facets.colour.options.filter((option) => rows.some((row) => row.colour === option.key)) } }),
+    [rows],
+  );
+  const { filters } = useFacets(rows, present);
+  return (
+    <>
+      <FilterChips {...filters.colour} />
+      <button type="button" onClick={() => filters.colour.onChoose(keys)}>
+        Choose
+      </button>
+    </>
+  );
+}
+
+describe('a choice of an option not offered (DL-213)', () => {
+  test('is not kept: offered later, it does not show chosen', () => {
+    const withoutGreen = things.filter((thing) => thing.colour !== 'green');
+    const { rerender } = render(<Choosing rows={withoutGreen} keys={['blue', 'green']} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Choose' }));
+    expect(pressed(colours())).toEqual(['Blue 2']);
+    rerender(<Choosing rows={things} keys={['blue', 'green']} />);
+    expect(pressed(colours())).toEqual(['Blue 2']);
+  });
+});
+
 /** The switch over three views, and the view chosen. */
 function Views() {
   const [view, setView] = useState<'tiles' | 'table' | 'list'>('tiles');
@@ -317,5 +345,21 @@ describe('OneChoice, a switch of one choice in the same look', () => {
     // Any other key leaves it be.
     expect(fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'a' })).toBe(true);
     expect(checked()).toEqual(['List']);
+  });
+
+  test("leaves a key held with Alt, Control or Meta to the browser: Alt and the left arrow is Back (DL-213)", () => {
+    render(<Views />);
+    const [tiles] = radios();
+    tiles?.focus();
+    for (const held of [{ altKey: true }, { ctrlKey: true }, { metaKey: true }]) {
+      for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']) {
+        expect(fireEvent.keyDown(tiles as HTMLElement, { key, ...held }), `${key} ${JSON.stringify(held)}`).toBe(true);
+        expect(checked()).toEqual(['Tiles']);
+        expect(document.activeElement).toBe(tiles);
+      }
+    }
+    // Shift is no browser's: the arrow still moves the choice.
+    expect(fireEvent.keyDown(tiles as HTMLElement, { key: 'ArrowRight', shiftKey: true })).toBe(false);
+    expect(checked()).toEqual(['Table']);
   });
 });

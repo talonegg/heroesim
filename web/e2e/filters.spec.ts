@@ -5,7 +5,9 @@ import { dispatchAParty, expectNoHorizontalOverflow, expectTargets, guildPart, o
 // phone's width, a tablet's and a desktop's: the Roster filtered by availability and by Class, by the
 // keyboard, the tiles and the Table showing the same Heroes and "Showing" saying how many, each chip's
 // count what it would show with the other filter as it is; Tiles or Table a choice of one; and the
-// Stores filtered by kind, several kinds at once.
+// Stores filtered by kind, several kinds at once. What each expects is read from the page (each chip's
+// count, the kinds the Stores offer), not from the seed's Roster or stock, so that it holds as the
+// content changes (DL-213).
 
 /** A chip of `group` by its name, its count after it. */
 function chip(group: Locator, name: string): Locator {
@@ -15,6 +17,12 @@ function chip(group: Locator, name: string): Locator {
 /** The count a chip shows. */
 async function countOf(button: Locator): Promise<number> {
   return Number(/(\d+)$/.exec((await button.textContent()) ?? '')?.[1]);
+}
+
+/** The options of `group`, All left out: each chip's name, without its count. */
+async function optionsOf(group: Locator): Promise<string[]> {
+  const words = await group.getByRole('button').allTextContents();
+  return words.slice(1).map((each) => each.replace(/ \d+$/, ''));
 }
 
 test("the Roster's filters: by availability and by Class, by the keyboard, in tiles and the Table, with the Showing line", async ({ page }) => {
@@ -29,19 +37,25 @@ test("the Roster's filters: by availability and by Class, by the keyboard, in ti
   const availability = roster.getByRole('group', { name: 'Show by availability' });
   const classes = roster.getByRole('group', { name: 'Show of Class' });
   await expect(availability.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(classes.getByRole('button')).toHaveText([/^All$/, /^Warrior \d+$/, /^Rogue \d+$/, /^Mage \d+$/, /^Healer \d+$/]);
+  await expect(classes.getByRole('button').first()).toHaveText('All');
+  const classNames = await optionsOf(classes);
+  expect(classNames.length).toBeGreaterThan(1);
+  /** The "Showing" line while `shown` of the Roster's Heroes are, none while all are. */
+  const showingSays = async (shown: number): Promise<void> => {
+    if (shown === total) await expect(roster.getByTestId('roster-shown')).toHaveCount(0);
+    else await expect(roster.getByTestId('roster-shown')).toHaveText(`Showing ${shown} of ${total} Heroes.`);
+  };
 
   // Away, pressed from the keyboard.
   const away = chip(availability, 'Away');
   const sent = await countOf(away);
   expect(sent).toBeGreaterThan(0);
-  expect(sent).toBeLessThan(total);
   await away.focus();
   await page.keyboard.press('Space');
   await expect(away).toHaveAttribute('aria-pressed', 'true');
   await expect(away).toBeFocused();
   await expect(tiles).toHaveCount(sent);
-  await expect(roster.getByTestId('roster-shown')).toHaveText(`Showing ${sent} of ${total} Heroes.`);
+  await showingSays(sent);
   for (const tile of await tiles.all()) await expect(tile).toContainText(/Away with a Party/);
   await expectNoHorizontalOverflow(page, "the Roster's tiles filtered");
   await expectTargets(page, "the Roster's tiles filtered");
@@ -54,17 +68,31 @@ test("the Roster's filters: by availability and by Class, by the keyboard, in ti
   await expect(show.getByRole('radio', { name: 'Table' })).toBeFocused();
   const table = roster.getByRole('table', { name: 'Heroes on the Roster' });
   await expect(table.getByRole('rowheader')).toHaveCount(sent);
-  await expect(roster.getByTestId('roster-shown')).toHaveText(`Showing ${sent} of ${total} Heroes.`);
+  await showingSays(sent);
   await expectNoHorizontalOverflow(page, "the Roster's Table filtered");
 
-  // A Class with none of those away: greyed; pressed, no Hero matches, and the sentence says so.
-  // Fewer away than on the Roster, so some Class of the four has none of them.
-  const empty = classes.locator('button.is-empty').first();
-  await expect(empty).toHaveText(/^\w+ 0$/);
-  await empty.click();
-  await expect(empty).toHaveAttribute('aria-pressed', 'true');
-  await expect(table).toHaveCount(0);
-  await expect(roster.getByTestId('roster-shown')).toHaveText('No Hero on the Roster matches the filters.');
+  // Each Class counts those of it away, so the counts make up everyone away; a Class with none of
+  // them is greyed, the rest not.
+  const counts = await Promise.all(classNames.map((name) => countOf(chip(classes, name))));
+  expect(counts.reduce((sum, count) => sum + count, 0)).toBe(sent);
+  for (const [at, name] of classNames.entries()) {
+    if (counts[at] === 0) await expect(chip(classes, name)).toHaveClass(/\bis-empty\b/);
+    else await expect(chip(classes, name)).not.toHaveClass(/\bis-empty\b/);
+  }
+  // A Class with none of them, where there is one: pressed, no Hero matches, and the sentence says so.
+  const none = classNames.find((_, at) => counts[at] === 0);
+  if (none !== undefined) {
+    await chip(classes, none).click();
+    await expect(chip(classes, none)).toHaveAttribute('aria-pressed', 'true');
+    await expect(table).toHaveCount(0);
+    await expect(roster.getByTestId('roster-shown')).toHaveText('No Hero on the Roster matches the filters.');
+    await classes.getByRole('button', { name: 'All', exact: true }).click();
+  }
+  // A Class with some of them: those alone.
+  const some = classNames.findIndex((_, at) => (counts[at] ?? 0) > 0);
+  await chip(classes, classNames[some] ?? '').click();
+  await expect(table.getByRole('rowheader')).toHaveCount(counts[some] ?? 0);
+  await showingSays(counts[some] ?? 0);
   await classes.getByRole('button', { name: 'All', exact: true }).click();
 
   // Every place pressed reads as All: everyone, and no Showing line.
@@ -80,10 +108,11 @@ test('the Stores filtered by kind, several at once, and every kind pressed readi
   await page.goto('/');
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-filters' });
 
-  // Three kinds bought, each found through the Market's filter.
+  // One of each kind the Market sells bought, each found through the Market's filter, so that the
+  // Stores hold several kinds.
   const buy = await part(page, 'Buy');
   const forSale = buy.getByRole('group', { name: 'Show for sale' });
-  for (const kind of ['Weapon', 'Armour', 'Consumable']) {
+  for (const kind of await optionsOf(forSale)) {
     await chip(forSale, kind).click();
     await buy.getByTestId('listing').first().getByRole('button', { name: /^Buy / }).click();
     await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
@@ -93,32 +122,47 @@ test('the Stores filtered by kind, several at once, and every kind pressed readi
   const stores = await guildPart(page, 'Stores');
   const kinds = stores.getByRole('group', { name: 'Show of kind' });
   const kindCells = stores.getByRole('table').getByRole('row').locator('td:nth-of-type(1)');
-  const weapons = await countOf(chip(kinds, 'Weapon'));
-  const consumables = await countOf(chip(kinds, 'Consumable'));
+  const owned = await stores.getByTestId('owned').count();
+  // The kinds the Stores offer, read from the page, each with its count.
+  const kindNames = await optionsOf(kinds);
+  expect(kindNames.length).toBeGreaterThan(1);
+  const counts = await Promise.all(kindNames.map((name) => countOf(chip(kinds, name))));
+  expect(counts.reduce((sum, count) => sum + count, 0)).toBe(owned);
+  const [first = '', second = ''] = kindNames;
+  const [firstCount = 0, secondCount = 0] = counts;
+  /** A kind's cells' words: `Weapon Gear`, `Consumable`. */
+  const kindWords = (name: string): RegExp => new RegExp(`^${name}( Gear)?\\b`);
 
-  const weapon = chip(kinds, 'Weapon');
-  await weapon.focus();
+  const firstChip = chip(kinds, first);
+  await firstChip.focus();
   await page.keyboard.press('Enter');
-  await expect(weapon).toHaveAttribute('aria-pressed', 'true');
-  await expect(kindCells).toHaveCount(weapons);
-  for (const cell of await kindCells.all()) await expect(cell).toHaveText(/^Weapon Gear/);
+  await expect(firstChip).toHaveAttribute('aria-pressed', 'true');
+  await expect(kindCells).toHaveCount(firstCount);
+  for (const cell of await kindCells.all()) await expect(cell).toHaveText(kindWords(first));
   // One filter's own choice leaves its counts as they were.
-  await expect(chip(kinds, 'Consumable')).toHaveText(`Consumable ${consumables}`);
+  await expect(chip(kinds, second)).toHaveText(`${second} ${secondCount}`);
 
-  await chip(kinds, 'Consumable').click();
-  await expect(kindCells).toHaveCount(weapons + consumables);
-  await expect(kinds.getByRole('button', { pressed: true })).toHaveText([/^Weapon \d+$/, /^Consumable \d+$/]);
+  // A second kind: either, unless it is the last, when every kind pressed reads as All.
+  const all = kinds.getByRole('button', { name: 'All', exact: true });
+  await chip(kinds, second).click();
+  if (kindNames.length > 2) {
+    await expect(kindCells).toHaveCount(firstCount + secondCount);
+    await expect(kinds.getByRole('button', { pressed: true })).toHaveText([new RegExp(`^${first} \\d+$`), new RegExp(`^${second} \\d+$`)]);
+  }
   await expectNoHorizontalOverflow(page, 'the Stores filtered');
   await expectTargets(page, 'the Stores filtered');
 
-  // The third kind as well: every kind pressed reads as All.
-  await chip(kinds, 'Armour').click();
-  await expect(kinds.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  // The rest as well: All stays let go until every kind is pressed, which reads as All.
+  for (const name of kindNames.slice(2)) {
+    await expect(all).toHaveAttribute('aria-pressed', 'false');
+    await chip(kinds, name).click();
+  }
+  await expect(all).toHaveAttribute('aria-pressed', 'true');
   await expect(kinds.getByRole('button', { pressed: true })).toHaveCount(1);
-  await expect(kindCells).toHaveCount(await stores.getByTestId('owned').count());
+  await expect(kindCells).toHaveCount(owned);
 
-  await chip(kinds, 'Consumable').click();
-  await expect(kindCells).toHaveCount(consumables);
-  await kinds.getByRole('button', { name: 'All', exact: true }).click();
-  await expect(kinds.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await chip(kinds, second).click();
+  await expect(kindCells).toHaveCount(secondCount);
+  await all.click();
+  await expect(all).toHaveAttribute('aria-pressed', 'true');
 });

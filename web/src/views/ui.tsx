@@ -11,7 +11,7 @@
 import type { MoraleBand, RegardBand } from '@heroesim/engine';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { narrowQuery } from '../breakpoints';
-import { faceted, toggled, type FacetChoices, type Facets, type FacetView } from '../state/facets';
+import { chosenOf, faceted, toggled, type FacetChoices, type Facets, type FacetView } from '../state/facets';
 import type { SortDirection } from '../state/selectors';
 import { Icon, type IconName } from './icons';
 
@@ -402,16 +402,18 @@ export function Confirm({
 /**
  * Where the keyboard goes when a page opened in place closes (M9-S6): back to what opened it, as the
  * Party builder's rows do (M9-S4). `opened(id)` notes it; `closed()` returns to it once it is drawn.
+ * When it is drawn no more (a filter hides the Hero who opened it, or they left), to the element
+ * `fallback` names, as the Roster's heading, rather than to nothing (DL-213).
  */
-export function useReturn(): { opened: (id: string) => void; closed: () => void } {
+export function useReturn(fallback?: string): { opened: (id: string) => void; closed: () => void } {
   const opener = useRef<string | null>(null);
   const [back, setBack] = useState<{ id: string } | null>(null);
   useEffect(() => {
     if (back === null) return;
-    const target = globalThis.document.getElementById(back.id);
+    const target = globalThis.document.getElementById(back.id) ?? (fallback === undefined ? null : globalThis.document.getElementById(fallback));
     target?.scrollIntoView?.({ block: 'center' });
     target?.focus({ preventScroll: true });
-  }, [back]);
+  }, [back, fallback]);
   return {
     opened: (id) => {
       opener.current = id;
@@ -467,6 +469,26 @@ export function StickyTableBox({ className, children }: { className?: string; ch
   );
 }
 
+/**
+ * The arrow keys of a group the keyboard roves in, one member in the Tab order (the ARIA tabs and
+ * radio group patterns, DL-213): the member of `members` a key pressed on the one at `at` moves to,
+ * the right arrow the next and the left the one before, round from either end, Home the first and End
+ * the last; the down and up arrows as the right and left where `axes` is `both`, as a radio group
+ * takes them, and the page's where it is `across`, as tabs in a row leave them. The key is then the
+ * group's, kept from scrolling the page. A key held with Alt, Control or Meta is left to the browser
+ * (Alt and the left arrow is Back), as is any other: `undefined`.
+ */
+function rovedTo<Member>(event: ReactKeyboardEvent, at: number, members: readonly Member[], axes: 'across' | 'both'): Member | undefined {
+  if (event.altKey || event.ctrlKey || event.metaKey) return undefined;
+  const last = members.length - 1;
+  const forward = event.key === 'ArrowRight' || (axes === 'both' && event.key === 'ArrowDown');
+  const back = event.key === 'ArrowLeft' || (axes === 'both' && event.key === 'ArrowUp');
+  const to = forward ? (at === last ? 0 : at + 1) : back ? (at === 0 ? last : at - 1) : event.key === 'Home' ? 0 : event.key === 'End' ? last : null;
+  const member = to === null ? undefined : members[to];
+  if (member !== undefined) event.preventDefault();
+  return member;
+}
+
 /** A tab: its key, which names its panel, and its words. */
 export interface TabItem<Key extends string> {
   key: Key;
@@ -500,16 +522,8 @@ export function Tabs<Key extends string>({
 }) {
   const list = useRef<HTMLDivElement>(null);
   const move = (event: ReactKeyboardEvent<HTMLButtonElement>, at: number): void => {
-    const last = tabs.length - 1;
-    const to =
-      event.key === 'ArrowRight' ? (at === last ? 0 : at + 1)
-      : event.key === 'ArrowLeft' ? (at === 0 ? last : at - 1)
-      : event.key === 'Home' ? 0
-      : event.key === 'End' ? last
-      : null;
-    const next = to === null ? undefined : tabs[to];
+    const next = rovedTo(event, at, tabs, 'across');
     if (next === undefined) return;
-    event.preventDefault();
     onOpen(next.key);
     list.current?.querySelector<HTMLElement>(`#${idOf(next.key)}-tab`)?.focus();
   };
@@ -580,30 +594,43 @@ export function FilterChips({ label, options, chosen, onChoose }: FacetView & { 
 /** Each filter's props for `FilterChips`, by its name. */
 export type FilterChipsProps<Name extends string> = Record<Name, FacetView & { onChoose: (chosen: string[]) => void }>;
 
+/** `choices` with each filter's keys as `facets` offer them (`chosenOf`): `choices` itself when they all are. */
+function settledChoices<Row, Name extends string>(choices: FacetChoices<Name>, facets: Facets<Row, Name>): FacetChoices<Name> {
+  const names = Object.keys(facets) as Name[];
+  const settled = Object.fromEntries(names.map((name) => [name, chosenOf(facets[name].options, choices[name])])) as Record<Name, string[]>;
+  const same = names.every((name) => {
+    const was = choices[name] ?? [];
+    return was.length === settled[name].length && was.every((key, at) => key === settled[name][at]);
+  });
+  return same ? choices : settled;
+}
+
 /**
  * The rows `facets` show and each filter's chips, its choices this view's own state: not remembered,
  * as no filter is (DL-206 item 28). `rows` and `facets` should keep their identity while unchanged
- * (`useMemo`), so that the rows are filtered only when they or a choice change. A choice no longer
- * offered is let go for good, so that it does not come back chosen with its option, every choice
- * left then reading as All as it did (DL-213).
+ * (`useMemo`), so that the rows are filtered only when they or a choice change.
+ *
+ * What the chips show is read from the choices each render (`faceted`, through `chosenOf`), so a key
+ * no longer offered never shows chosen; and the choices kept are only ever what the chips showed: a
+ * choice is kept as `chosenOf` gives it, and when `facets` change the choices are settled to their
+ * options before the page is painted (a layout effect, whose update React runs at once), so a choice
+ * let go is let go for good and does not come back chosen with its option (DL-213).
  */
-export function useFacets<Row, Name extends string>(rows: readonly Row[], facets: Facets<Row, Name>): { rows: Row[]; filters: FilterChipsProps<Name> } {
+export function useFacets<Row, Name extends string>(
+  rows: readonly Row[],
+  facets: Facets<Row, Name>,
+): { rows: Row[]; filters: FilterChipsProps<Name>; filtered: boolean } {
   const [choices, setChoices] = useState<FacetChoices<Name>>(() => ({}) as FacetChoices<Name>);
   const shown = useMemo(() => faceted(rows, facets, choices), [rows, facets, choices]);
+  useLayoutEffect(() => setChoices((was) => settledChoices(was, facets)), [facets]);
   const names = Object.keys(shown.facets) as Name[];
-  const kept = (name: Name): readonly string[] => choices[name] ?? [];
-  // The choices as the chips show them, set during the render that finds them changed (React's way to
-  // adjust state to what it is given); the next render finds them the same. What the chips show is
-  // some of what is kept (`chosenOf`), so fewer is changed.
-  if (names.some((name) => kept(name).length !== shown.facets[name].chosen.length)) {
-    const settled: Partial<Record<Name, readonly string[]>> = {};
-    for (const name of names) settled[name] = shown.facets[name].chosen;
-    setChoices(settled);
-  }
   const filters = Object.fromEntries(
-    names.map((name) => [name, { ...shown.facets[name], onChoose: (chosen: string[]) => setChoices((was) => ({ ...was, [name]: chosen })) }]),
+    names.map((name) => [
+      name,
+      { ...shown.facets[name], onChoose: (chosen: string[]) => setChoices((was) => ({ ...was, [name]: chosenOf(facets[name].options, chosen) })) },
+    ]),
   ) as FilterChipsProps<Name>;
-  return { rows: shown.rows, filters };
+  return { rows: shown.rows, filters, filtered: shown.filtered };
 }
 
 /**
@@ -625,18 +652,10 @@ export function OneChoice<Key extends string>({
 }) {
   const group = useRef<HTMLDivElement>(null);
   const move = (event: ReactKeyboardEvent<HTMLButtonElement>, at: number): void => {
-    const last = options.length - 1;
-    const to =
-      event.key === 'ArrowRight' || event.key === 'ArrowDown' ? (at === last ? 0 : at + 1)
-      : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? (at === 0 ? last : at - 1)
-      : event.key === 'Home' ? 0
-      : event.key === 'End' ? last
-      : null;
-    const next = to === null ? undefined : options[to];
-    if (to === null || next === undefined) return;
-    event.preventDefault();
+    const next = rovedTo(event, at, options, 'both');
+    if (next === undefined) return;
     onChoose(next.key);
-    group.current?.querySelectorAll<HTMLElement>('[role="radio"]')[to]?.focus();
+    group.current?.querySelectorAll<HTMLElement>('[role="radio"]')[options.indexOf(next)]?.focus();
   };
   return (
     <div className="filters" role="radiogroup" aria-label={label} ref={group}>

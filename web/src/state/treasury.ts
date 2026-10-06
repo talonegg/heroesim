@@ -26,7 +26,7 @@ import {
 import { nightOfDay, signed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { faceted, type FacetChoices, type Facets, type FacetView } from './facets';
-import { narrateSegments, narrationFor, textOf, type Segment } from './namer';
+import { narrateSegments, narrationFor, textOf, type Narration, type Segment } from './namer';
 import { calendarFor, playDeps } from './reducer';
 import { countdownView, historyPageSize } from './selectors';
 
@@ -155,7 +155,7 @@ export interface LedgerRow {
 }
 
 /** A change to a Guild's Wealth where the History holds it, before it is put in words. */
-interface LedgerChange extends WealthChange {
+export interface LedgerChange extends WealthChange {
   position: number;
   entry: Entry;
 }
@@ -176,7 +176,7 @@ function changesOf(document: WorldDocument, guildId: GuildId): LedgerChange[] {
 }
 
 /** A change as the ledger shows it, in the History's words. */
-function ledgerRow({ position, entry, category, amount }: LedgerChange, narration: ReturnType<typeof narrationFor>): LedgerRow {
+function ledgerRow({ position, entry, category, amount }: LedgerChange, narration: Narration): LedgerRow {
   const segments = narrateSegments(entry as TurnEvent, narration);
   return {
     key: `ledger-${position}`,
@@ -248,7 +248,36 @@ export interface LedgerTotals {
   netWords: string;
 }
 
-export interface TreasuryView {
+/** The ledger shown: a page of it and what the filters let through. */
+export interface LedgerPage {
+  /** The page's rows, newest first; the opening row last, on the last page, when it is shown. */
+  rows: LedgerRow[];
+  /** Which page, from 0, of how many; a ledger with nothing to show has one, empty. */
+  page: number;
+  pages: number;
+  /** How many changes the filter lets through, on every page: the opening row is none. */
+  shown: number;
+  /** Whether the opening row is shown: with every change, no filter chosen, when the History names the founding Wealth (M9-F7). */
+  opens: boolean;
+  totals: LedgerTotals;
+}
+
+/**
+ * The ledger as read once a document, before a filter or a page: every change to the Guild's Wealth
+ * the History holds, newest first and not yet in words, its filters, its opening row and the words it
+ * is narrated in. A filter's choice or a page turned filters these again and puts the page in words,
+ * and walks the History no more (DL-213).
+ */
+export interface LedgerSource {
+  changes: readonly LedgerChange[];
+  /** Income and expense, and each category the ledger holds in the Treasury's order. */
+  facets: Facets<LedgerChange, 'flow' | 'category'>;
+  opening: LedgerRow | null;
+  narration: Narration;
+}
+
+/** The Treasury as it stands for a document, its ledger read and not yet filtered or paged. */
+export interface TreasuryAccounts {
   guildName: string;
   wealth: number;
   upkeep: {
@@ -265,17 +294,11 @@ export interface TreasuryView {
   floor: number;
   /** The Bankruptcy countdown while the Guild is below the floor (`countdownView`); `null` otherwise. */
   countdown: string | null;
-  ledger: {
-    /** The page's rows, newest first; the opening row last, on the last page, when it is shown. */
-    rows: LedgerRow[];
-    /** Which page, from 0, of how many; a ledger with nothing to show has one, empty. */
-    page: number;
-    pages: number;
-    /** How many changes the filter lets through, on every page: the opening row is none. */
-    shown: number;
-    /** Whether the opening row is shown: with every change, no filter chosen, when the History names the founding Wealth (M9-F7). */
-    opens: boolean;
-    totals: LedgerTotals;
+  ledger: LedgerSource;
+}
+
+export interface TreasuryView extends Omit<TreasuryAccounts, 'ledger'> {
+  ledger: LedgerPage & {
     /**
      * The filters' chips: income and expense, and each category the Guild's ledger holds in the
      * Treasury's order, each with its count against the other filter (`faceted`).
@@ -285,7 +308,7 @@ export interface TreasuryView {
 }
 
 /** The ledger's filters, of the categories `held`. A change is never of nothing (`wealthChangeOf`). */
-function ledgerFacets(held: readonly LedgerCategory[]): Facets<WealthChange, 'flow' | 'category'> {
+function ledgerFacets(held: readonly LedgerCategory[]): Facets<LedgerChange, 'flow' | 'category'> {
   return {
     flow: { label: 'Show income or expense', options: flowLabels, of: (row) => (row.amount > 0 ? 'income' : 'expense') },
     category: { label: 'Show of category', options: held.map((key) => ({ key, label: categoryWords[key] })), of: (row) => row.category },
@@ -300,11 +323,11 @@ function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
 }
 
 /**
- * The player's Guild's Treasury: its Wealth, Upkeep and the Bankruptcy floor, and the ledger's rows
- * `filter` shows, a page (from 0) of `historyPageSize` at a time, newest first, with their totals;
- * `null` in a save with no player's Guild. A page past the last reads as the last.
+ * The player's Guild's Treasury for `document`: its Wealth, Upkeep and the Bankruptcy floor, and its
+ * ledger read from the History, to be filtered (`faceted`) and paged (`ledgerPage`); `null` in a save
+ * with no player's Guild. The Treasury part reads it once a document (DL-213).
  */
-export function treasuryView(document: WorldDocument, filter: TreasuryFilter, page: number): TreasuryView | null {
+export function treasuryAccounts(document: WorldDocument): TreasuryAccounts | null {
   const { world } = document;
   const guild = playerGuild(world);
   if (guild === undefined) return null;
@@ -312,19 +335,7 @@ export function treasuryView(document: WorldDocument, filter: TreasuryFilter, pa
 
   const parts = upkeepParts(guild, world, config, content);
   const playing = world.ended === null && guild.foldedOnTurn === null;
-
-  // Filtered, counted and totalled before words: only the page shown is narrated (M9-F6, code review).
-  const all = changesOf(document, guild.id);
-  const filtered = faceted(all, ledgerFacets(ledgerCategories.filter((key) => all.some((row) => row.category === key))), filter);
-  const shown = filtered.rows;
-  // The opening row is a balance, neither income nor expense: it ends the ledger shown whole (M9-F7).
-  const opening = filtered.filtered ? null : openingOf(document, guild.id);
-  const rows = shown.length + (opening === null ? 0 : 1);
-  const pages = Math.max(1, Math.ceil(rows / historyPageSize));
-  const narration = narrationFor(document, content);
-  const at = Math.min(Math.max(0, Math.floor(page)), pages - 1);
-  const onPage = shown.slice(at * historyPageSize, (at + 1) * historyPageSize).map((change) => ledgerRow(change, narration));
-  if (opening !== null && at === pages - 1) onPage.push(opening);
+  const changes = changesOf(document, guild.id);
 
   return {
     guildName: guild.name,
@@ -343,13 +354,39 @@ export function treasuryView(document: WorldDocument, filter: TreasuryFilter, pa
     floor: config.bankruptcyFloor,
     countdown: countdownView(document),
     ledger: {
-      rows: onPage,
-      page: at,
-      pages,
-      shown: shown.length,
-      opens: opening !== null,
-      totals: totalsOf(shown),
-      filters: filtered.facets,
+      changes,
+      facets: ledgerFacets(ledgerCategories.filter((key) => changes.some((row) => row.category === key))),
+      opening: openingOf(document, guild.id),
+      narration: narrationFor(document, content),
     },
   };
+}
+
+/**
+ * The page (from 0) of `historyPageSize` of the changes `shown` lets through of `ledger`, newest
+ * first, with their totals. The opening row is a balance, neither income nor expense: it ends the
+ * ledger shown whole, while no filter has a choice (M9-F7). A page past the last reads as the last.
+ * Counted and totalled before words: only the page shown is narrated (M9-F6, code review).
+ */
+export function ledgerPage(ledger: LedgerSource, shown: { rows: readonly LedgerChange[]; filtered: boolean }, page: number): LedgerPage {
+  const opening = shown.filtered ? null : ledger.opening;
+  const rows = shown.rows.length + (opening === null ? 0 : 1);
+  const pages = Math.max(1, Math.ceil(rows / historyPageSize));
+  const at = Math.min(Math.max(0, Math.floor(page)), pages - 1);
+  const onPage = shown.rows.slice(at * historyPageSize, (at + 1) * historyPageSize).map((change) => ledgerRow(change, ledger.narration));
+  if (opening !== null && at === pages - 1) onPage.push(opening);
+  return { rows: onPage, page: at, pages, shown: shown.rows.length, opens: opening !== null, totals: totalsOf(shown.rows) };
+}
+
+/**
+ * The player's Guild's Treasury with the ledger's rows `filter` shows, a page (from 0) of
+ * `historyPageSize` at a time, newest first, with their totals; `null` in a save with no player's
+ * Guild: `treasuryAccounts`, `faceted` and `ledgerPage` in one.
+ */
+export function treasuryView(document: WorldDocument, filter: TreasuryFilter, page: number): TreasuryView | null {
+  const accounts = treasuryAccounts(document);
+  if (accounts === null) return null;
+  const { ledger, ...rest } = accounts;
+  const shown = faceted(ledger.changes, ledger.facets, filter);
+  return { ...rest, ledger: { ...ledgerPage(ledger, shown, page), filters: shown.facets } };
 }

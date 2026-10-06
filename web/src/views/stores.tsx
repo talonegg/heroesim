@@ -7,32 +7,26 @@
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
-import type { Facets } from '../state/facets';
-import { storesView, type StoresRow } from '../state/stores';
+import { storesView, type StoresView } from '../state/stores';
 import { Names } from './history-entries';
 import { Icon } from './icons';
 import { ItemPicture } from './pictures';
 import type { SectionId } from './section';
 import { FilterChips, StickyTableBox, useFacets } from './ui';
 
-const noRows: readonly StoresRow[] = [];
-
-/** No filters, for a save with no player's Guild. */
-const none: Facets<StoresRow, 'kind' | 'where'> = {
-  kind: { label: 'Show of kind', options: [], of: () => null },
-  where: { label: 'Show where', options: [], of: () => null },
-};
-
 /** The Guild's Stores part. */
 export function Stores({ document, onGo }: { document: WorldDocument; onGo: (target: SectionId) => void }) {
-  const everything = useMemo(() => storesView(document), [document]);
+  const view = useMemo(() => storesView(document), [document]);
+  return view === null ? <p>The save has no player’s Guild.</p> : <Owned view={view} onGo={onGo} />;
+}
+
+/** Everything the Guild owns, filtered: the filters' choices this part's own (`useFacets`). */
+function Owned({ view, onGo }: { view: StoresView; onGo: (target: SectionId) => void }) {
   // A kind or place the Guild no longer has is let go (`chosenOf`).
-  const { rows, filters } = useFacets(everything?.rows ?? noRows, everything?.facets ?? none);
-  if (everything === null) return <p>The save has no player’s Guild.</p>;
-  const view = everything;
-  const owns = everything.rows.length > 0;
+  const { rows, filters } = useFacets(view.rows, view.facets);
+  const owns = view.rows.length > 0;
   // Only what the Guild holds is the Market's to buy (code review).
-  const holds = everything.rows.some((row) => row.where === 'held');
+  const holds = view.rows.some((row) => row.where === 'held');
 
   return (
     <div className="stores">

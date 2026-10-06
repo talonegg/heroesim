@@ -4,30 +4,45 @@
 // Wealth read from the History, newest first, a page at a time, with the totals of what is shown, opening
 // with the Wealth the Guild was founded with (M9-F7, DL-120 item 4). Its filters, income or expense and
 // category, take several choices each, display only (DL-206 item 27, DL-213). A name in a row opens whom it names, through
-// the shell's links, as in the History. Every word and number is `treasuryView`'s.
+// the shell's links, as in the History. Every word and number is `treasuryAccounts`' and `ledgerPage`'s.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
-import { treasuryView, type TreasuryFilter } from '../state/treasury';
+import { ledgerPage, treasuryAccounts, type TreasuryAccounts } from '../state/treasury';
 import { Names } from './history-entries';
 import { Icon } from './icons';
 import { Terms } from './section';
-import { Banner, FilterChips } from './ui';
+import { Banner, FilterChips, useFacets, type FilterChipsProps } from './ui';
 
-/** The Guild's Treasury part. */
+/** A filter's chips, as `useFacets` gives them. */
+type Chips = FilterChipsProps<'flow'>['flow'];
+
+/** The Guild's Treasury part: its accounts read once a document (DL-213). */
 export function Treasury({ document }: { document: WorldDocument }) {
-  const [filter, setFilter] = useState<TreasuryFilter>({});
+  const view = useMemo(() => treasuryAccounts(document), [document]);
+  return view === null ? <p>The save has no player’s Guild.</p> : <Accounts view={view} />;
+}
+
+/**
+ * The Guild's accounts and its ledger, filtered and paged. The filters' choices are this part's own
+ * (`useFacets`), as the page's other filters' are, so a category no longer in the ledger is let go
+ * for good; a chip pressed or a page turned filters the changes read for the document and puts only
+ * the page shown in words (DL-213).
+ */
+function Accounts({ view }: { view: TreasuryAccounts }) {
+  const { rows, filters, filtered } = useFacets(view.ledger.changes, view.ledger.facets);
   const [page, setPage] = useState(0);
-  const view = useMemo(() => treasuryView(document, filter, page), [document, filter, page]);
-  if (view === null) return <p>The save has no player’s Guild.</p>;
-  const { upkeep, ledger } = view;
-  // Whether the ledger holds any change: each is of a category.
-  const changed = ledger.filters.category.options.length > 0;
-  /** A filter's choice made: the ledger from its first page. */
-  const choose = (name: keyof TreasuryFilter) => (chosen: string[]) => {
-    setFilter((was) => ({ ...was, [name]: chosen }));
-    setPage(0);
-  };
+  const ledger = useMemo(() => ledgerPage(view.ledger, { rows, filtered }, page), [view.ledger, rows, filtered, page]);
+  const { upkeep } = view;
+  const changed = view.ledger.changes.length > 0;
+  /** A filter's chips, a choice made showing the ledger from its first page. */
+  const fromFirstPage = (filter: Chips): Chips => ({
+    ...filter,
+    onChoose: (next) => {
+      filter.onChoose(next);
+      setPage(0);
+    },
+  });
 
   return (
     <div className="treasury">
@@ -62,8 +77,8 @@ export function Treasury({ document }: { document: WorldDocument }) {
         <>
           {!changed ? null : (
             <>
-              <FilterChips {...ledger.filters.flow} onChoose={choose('flow')} />
-              <FilterChips {...ledger.filters.category} onChoose={choose('category')} />
+              <FilterChips {...fromFirstPage(filters.flow)} />
+              <FilterChips {...fromFirstPage(filters.category)} />
               <p className="treasury__totals" data-testid="totals">
                 Income {ledger.totals.incomeWords} · Expense {ledger.totals.expenseWords} · Net {ledger.totals.netWords}
               </p>

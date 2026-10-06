@@ -1188,6 +1188,43 @@ describe("the Roster's filters (v1.1.7-S7, DL-206 items 25 to 29)", () => {
     expect(showing()).toBe('Showing 1 of 4 Heroes.');
   });
 
+  test("closing the page of a Hero a filter now hides returns the keyboard to the Roster's heading, not the page's end (DL-213)", async () => {
+    const { state: hurt, heroes } = filtering();
+    const injured = heroes.find((hero) => hero.at === 'Injured');
+    if (injured === undefined) throw new Error('no one injured');
+    // Their Injury heals at the next night the world reaches.
+    const state = changed(hurt, (document) => {
+      const hero = Object.values(document.world.heroes).find((each) => each.name === injured.name);
+      if (hero?.injury === null || hero?.injury === undefined) throw new Error('no Injury');
+      hero.injury.healsOnTurn = document.world.turn;
+    });
+    render_(state);
+    press(availability(), 'Injured');
+    fireEvent.click(within(rosterList()).getByRole('button', { name: injured.name }));
+    for (let turn = 0; turn < 3; turn += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
+      await idle();
+    }
+    fireEvent.click(within(section('Roster')).getByRole('button', { name: 'Back to the Roster' }));
+
+    expect(showing()).toBe('No Hero on the Roster matches the filters.');
+    expect(document.activeElement).toBe(within(section('Roster')).getByRole('heading', { level: 2, name: 'Roster' }));
+  });
+
+  test("closing the page of a Hero who left the Roster while it was open returns the keyboard to the Roster's heading (DL-213)", async () => {
+    const rich = withRichRivals(started());
+    render_(rich);
+    const { name, page } = openFirstHero(rich);
+    fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name}…` }));
+    const ask = within(page()).getByRole('group', { name: `Transfer ${name}?` });
+    fireEvent.click(within(ask).getAllByRole('button', { name: new RegExp(`^Transfer ${name} to `) })[0] as HTMLElement);
+    await idle();
+    fireEvent.click(within(page()).getByRole('button', { name: 'Back to the Roster' }));
+
+    expect(within(rosterList()).queryByRole('button', { name })).toBeNull();
+    expect(document.activeElement).toBe(within(section('Roster')).getByRole('heading', { level: 2, name: 'Roster' }));
+  });
+
   test('are not kept: the Roster opened again shows everyone', () => {
     const { state } = filtering();
     render_(state);
