@@ -30,8 +30,7 @@ test('the set holds the icons the epic names', () => {
 });
 
 // The Class icons (v1.1.7-S6, DL-206 item 22, DL-212): the names content may give a Class, the
-// drawings the page holds, and a plain mark for a Class with none; the owner approved each drawing
-// (2026-10-06).
+// drawings the page holds, and a plain mark for a Class with none.
 describe('the Class icons', () => {
   test('every name content may give a Class is drawn, and no drawing is without a name', () => {
     expect([...classDrawingNames].sort()).toEqual([...classIcons].sort());

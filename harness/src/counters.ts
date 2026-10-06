@@ -1517,6 +1517,8 @@ export interface GameObservations {
   rankings: (PlayerRanking | null)[];
   /** Every Hero generated, and their Portraits and texts (v1.1.3-S6): `observeHeroes`. */
   heroes: HeroTally;
+  /** The last Turn whose `hero.generated` events `observeHeroes` has read, `null` before any: a batch is read once. */
+  heroTurnsRead: number | null;
   /** The save as each year ended (`observeSave`, v1.1.3-S6): index k is after k + 1 years. */
   saves: SaveSize[];
   /** The World State as each year ended (`observeWorld`, v1.1.6-S17): index k is after k + 1 years. */
@@ -1583,6 +1585,7 @@ export function emptyObservations(): GameObservations {
     rivals: [],
     rankings: [],
     heroes: noHeroes(),
+    heroTurnsRead: null,
     saves: [],
     worlds: [],
   };
@@ -1599,11 +1602,16 @@ export function emptyObservations(): GameObservations {
  * The holders are read once a batch, as the World State stands after it, less the batch's own Heroes,
  * who are added in the order they were generated: so the first holder of a picture is no repeat, and
  * each later one is (v1.1.3-S8). A holder who died or left within the same batch is not seen.
+ *
+ * Each batch is of one Turn, later than the last: an event of a Turn already read (`heroTurnsRead`)
+ * is not counted again.
  */
 export function observeHeroes(observations: GameObservations, world: World, events: readonly Entry[]): void {
   const tally = observations.heroes;
-  const batch = events
-    .filter((event) => event.type === 'hero.generated')
+  const read = observations.heroTurnsRead;
+  const fresh = events.filter((event) => event.type === 'hero.generated' && (read === null || event.turn > read));
+  for (const { turn } of fresh) observations.heroTurnsRead = Math.max(observations.heroTurnsRead ?? turn, turn);
+  const batch = fresh
     .map(({ payload }) => (typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'heroId') : undefined));
   let heldBy: Map<string, number> | null = null;
   for (const heroId of batch) {

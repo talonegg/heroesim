@@ -3145,19 +3145,26 @@ th.number .sort {
 }
 
 /*
- * The box keeps 60% of its width clear at its start when it brings a heading or a cell into view (the
- * keyboard's focus, a click, a search), and a column of names in view holds at most that share, so the
- * column never covers what is brought in, at the box's start, middle or end. A Hero's mark and first
- * name, which never part, widen a name column past half a phone's box (DL-212); every name the content
- * gives fits the share with room to spare, and a word longer than it would break there rather than
- * widen the column. The other 40% of a phone's box holds the widest heading. The other Tables' first
- * columns, an Item's or a Patron's name, stay well within the share.
+ * The box keeps clear at its start, when it brings a heading or a cell into view (the keyboard's
+ * focus, a click, a search), the width of the column that stays in view (`--sticky-inline`, measured
+ * by `StickyTableBox`), so the column never covers what is brought in, at the box's start, middle or
+ * end, and nothing already in view clear of it moves (DL-212). That column, whatever its names (a
+ * Hero's, an Item's, a Patron's), holds at most 60% of its box: a Hero's mark and first name, which
+ * never part, widen a name column past half a phone's box; every name the content gives fits the share
+ * with room to spare, and a word longer than it would break there rather than widen the column. The
+ * other 40% of a phone's box holds the widest heading.
  */
 .table-wrap:has(> .table--first-sticky) {
   container-type: inline-size;
-  scroll-padding-inline-start: 60%;
+  scroll-padding-inline-start: var(--sticky-inline, 0px);
 }
 
+.table--first-sticky tbody th[scope='row'] {
+  max-width: calc(60cqi - 0.5rem);
+  overflow-wrap: break-word;
+}
+
+/* A name with its Portrait is a row of its own inside the cell: held to the share too, so its button shrinks to it. */
 .table--first-sticky tbody th[scope='row'] > .named {
   max-width: calc(60cqi - 1.25rem);
 }
@@ -3922,10 +3929,14 @@ tr.mine td {
  * where the unit is wider than all its line can hold: a Table's sticky column is held to a share of its
  * box (`.table--first-sticky`).
  */
+/* A flex item of its button, which may shrink it to its column. */
+.hero-name {
+  min-width: 0;
+}
+
 .hero-name,
 .hero-name__lead,
 .hero-name__first {
-  min-width: 0;
   overflow-wrap: inherit;
 }
 
@@ -3946,12 +3957,10 @@ tr.mine td {
   margin-inline-end: 0.4em;
   line-height: 1;
   vertical-align: -0.3em;
-  cursor: help;
 }
 
 .class-mark > .icon {
   display: block;
-  vertical-align: baseline;
 }
 
 /* A person's Portrait beside who they are: their name, their line and what follows it. */

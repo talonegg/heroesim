@@ -37,7 +37,8 @@ export interface AdvanceResult {
  * any core random stream it lacks (`ensureStreams`) and any installed module's stream and slice it
  * lacks (`ensureModules`), advances its Turn by one, runs the pipeline's phases for the new Turn's
  * time of day on the copy under `deps.config`, `deps.content` and `deps.modules`, whose hooks run
- * at their three positions, appends the events the History records to it (`record`, DL-211), and
+ * at their three positions, appends the events the History records to it (`record`, DL-211),
+ * removes the row of each Hero who left the pool whom no entry names (data-model rule 8), and
  * returns a document with the new `world` that shares `meta` and `history` with the old one. The
  * old document's `world` is left as it was, its write-once rows frozen and shared with the new one
  * (ADR-0011); its `history` sees the new entries too (ADR-0008).
@@ -61,7 +62,8 @@ export function advance(document: WorldDocument, deps: EngineDeps): AdvanceResul
   world.turn += 1;
   const ctx = phaseContext(world, deps, document.history);
   const events = runTurn(world, ctx);
-  record(document.history, events);
+  // A Hero who left the pool tonight and whom no entry names goes from the table (data-model rule 8).
+  for (const heroId of record(document.history, events)) delete world.heroes[heroId];
 
   return {
     document: { meta: document.meta, world, history: document.history },

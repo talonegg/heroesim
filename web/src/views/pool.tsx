@@ -19,7 +19,7 @@ import { PortraitThumb } from './pictures';
 import { preferences, useRemembered } from './remembered';
 import { Part } from './section';
 import { HeroName } from './icons';
-import { SortHeader, useReturn, VisuallyHidden } from './ui';
+import { SortHeader, StickyTableBox, useReturn, VisuallyHidden } from './ui';
 
 /** The id of a row's name, which opens the Hero's page and takes the keyboard back when it closes. */
 function rowId(heroId: HeroId): string {
@@ -72,7 +72,7 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
         {view.note === null ? null : <span className="subtle"> {view.note}</span>}
       </p>
       {view.rows.length === 0 ? null : (
-        <div className="table-wrap">
+        <StickyTableBox>
           <table className="table table--first-sticky pool-table" aria-label="Heroes in the Unattached pool">
             <thead>
               <tr>
@@ -136,7 +136,7 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
               ))}
             </tbody>
           </table>
-        </div>
+        </StickyTableBox>
       )}
     </Part>
   );

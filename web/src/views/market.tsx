@@ -17,7 +17,7 @@ import type { GameAction } from '../state/reducer';
 import { marketView, type HeldForSale, type ListingRow, type MarketKind, type MarketView } from '../state/trade-views';
 import { ItemPicture } from './pictures';
 import { Part, View } from './section';
-import { Stepper, VisuallyHidden } from './ui';
+import { Stepper, StickyTableBox, VisuallyHidden } from './ui';
 
 type Play = (action: GameAction) => void;
 
@@ -58,7 +58,7 @@ function Buy({ document, busy, play }: { document: WorldDocument; busy: boolean;
         </div>
       )}
       {view.forSale.length === 0 ? null : (
-        <div className="table-wrap">
+        <StickyTableBox>
           <table className="table table--first-sticky trade-table" aria-label="For sale at the Market">
             <thead>
               <tr>
@@ -83,7 +83,7 @@ function Buy({ document, busy, play }: { document: WorldDocument; busy: boolean;
               ))}
             </tbody>
           </table>
-        </div>
+        </StickyTableBox>
       )}
     </Part>
   );
@@ -144,7 +144,7 @@ function Sell({ document, busy, play }: { document: WorldDocument; busy: boolean
 /** What the Guild holds, with what the Market pays for each, how many to sell and Sell: the Market's Sell. */
 function Holdings({ view, busy, play }: { view: MarketView; busy: boolean; play: Play }) {
   return (
-    <div className="table-wrap">
+    <StickyTableBox>
       <table className="table table--first-sticky trade-table" aria-label={`What ${view.guildName ?? 'the Guild'} holds`}>
         <thead>
           <tr>
@@ -169,7 +169,7 @@ function Holdings({ view, busy, play }: { view: MarketView; busy: boolean; play:
           ))}
         </tbody>
       </table>
-    </div>
+    </StickyTableBox>
   );
 }
 

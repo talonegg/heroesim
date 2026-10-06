@@ -18,14 +18,21 @@ export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row
 export { classIcons };
 
 /**
- * A Class's key and its icon, the two a row carries so that its Hero's name can be shown with the
- * Class's mark (v1.1.7-S6, DL-206 items 22 and 23, DL-212): the icon's name when the Class names one
- * the page draws, `null` for the plain mark. A name outside the set never reaches here: `validateContent`
+ * A Hero's Class as a row carries it, so that their name can be shown with the Class's mark (v1.1.7-S6,
+ * DL-206 items 22 and 23, DL-212): its name, its key, and its icon's name when the Class names one the
+ * page draws, `null` for the plain mark. A name outside the set never reaches here: `validateContent`
  * refuses it.
  */
-export function classMarkOf(set: Pick<ContentSet, 'classes'>, classKey: ClassKey): { classKey: ClassKey; classIcon: ClassIcon | null } {
+export interface ClassMarked {
+  className: string;
+  classKey: ClassKey;
+  classIcon: ClassIcon | null;
+}
+
+/** A Class's `ClassMarked`, from `set`'s Classes. */
+export function classMarkOf(set: Pick<ContentSet, 'classes'>, classKey: ClassKey): ClassMarked {
   const icon = rowOf(set.classes, classKey)?.icon;
-  return { classKey, classIcon: icon !== undefined && isClassIcon(icon) ? icon : null };
+  return { className: nameIn(set.classes, classKey), classKey, classIcon: icon !== undefined && isClassIcon(icon) ? icon : null };
 }
 
 /** `1st`, `2nd`, `3rd`, `11th`, `22nd`. */

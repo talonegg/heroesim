@@ -178,8 +178,8 @@ const paths = {
 
 /**
  * The Class icons (v1.1.7-S6, DL-206 item 22, DL-212), one drawing for each of the engine's
- * `classIcons`, in the same style as the rest; the owner approved the set on 2026-10-06 after five
- * rounds of drawings. A test ties each name to a drawing and each drawing to a name.
+ * `classIcons`, in the same style as the rest, as the owner approved them. A test ties each name to a
+ * drawing and each drawing to a name.
  */
 const classDrawings = {
   'sword-and-shield': (

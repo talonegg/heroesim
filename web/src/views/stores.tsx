@@ -13,7 +13,7 @@ import { Names } from './history-entries';
 import { Icon } from './icons';
 import { ItemPicture } from './pictures';
 import type { SectionId } from './section';
-import { FilterChips } from './ui';
+import { FilterChips, StickyTableBox } from './ui';
 
 /** The Guild's Stores part. */
 export function Stores({ document, onGo }: { document: WorldDocument; onGo: (target: SectionId) => void }) {
@@ -45,7 +45,7 @@ export function Stores({ document, onGo }: { document: WorldDocument; onGo: (tar
       {!owns ? null : rows.length === 0 ? (
         <p className="subtle">Nothing {view.guildName} owns is of that kind and there.</p>
       ) : (
-        <div className="table-wrap">
+        <StickyTableBox>
           <table className="table table--first-sticky trade-table" aria-label={`Everything ${view.guildName} owns`}>
             <thead>
               <tr>
@@ -77,7 +77,7 @@ export function Stores({ document, onGo }: { document: WorldDocument; onGo: (tar
               ))}
             </tbody>
           </table>
-        </div>
+        </StickyTableBox>
       )}
       {holds ? (
         <div className="actions">

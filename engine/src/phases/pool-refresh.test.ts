@@ -151,6 +151,53 @@ describe('departures', () => {
     expect(Object.hasOwn(document.history.byEntity, unnamed.id)).toBe(false);
   });
 
+  test('a pool Hero an earlier phase of the same Turn names keeps their row as they leave, and the save validates', () => {
+    const deps = quietDeps({ unattachedStayDays: 1 });
+    const start = created('earlier', deps);
+    const [named, unnamed] = unattachedHeroes(start.world);
+    if (named === undefined || unnamed === undefined) throw new Error('The pool is too small');
+    // A night phase before the pool refresh, emitting an entry that names the Hero on the night
+    // they leave: their leaving is then recorded, and the row must stay with it (data-model rule 8).
+    const before = phases.find((phase) => phase.name === 'patronState');
+    if (before === undefined) throw new Error('No patronState phase');
+    const run = before.run;
+    vi.spyOn(before, 'run').mockImplementation((world, ctx) => {
+      const events = run(world, ctx);
+      if (ctx.turn !== nightOf(1)) return events;
+      const noticed = { turn: ctx.turn, type: 'hero.noticed', participants: [named.id], labels: { [named.id]: named.name }, milestone: false, payload: {} };
+      return [...events, noticed as unknown as EngineEvent];
+    });
+
+    const { document } = playTo(start, nightOf(1), deps);
+
+    expect(entriesFor(document.history, named.id).map((entry) => entry.type)).toEqual(['hero.left-pool', 'hero.noticed']);
+    expect(document.world.heroes[named.id]?.leftPoolOnTurn).toBe(nightOf(1));
+    expect(document.world.heroes).not.toHaveProperty(unnamed.id);
+  });
+
+  test('a pool Hero a module names after they leave, the same night, keeps their row, and the save validates', () => {
+    const herald: Module = {
+      id: 'herald',
+      streamName: 'herald',
+      createSlice: () => ({}),
+      validateSlice: () => [],
+      onNight: (world, _slice, ctx) => {
+        // The first of the pool the world was made with, gone from it tonight.
+        const first = Object.values(world.heroes).find((row) => row.leftPoolOnTurn !== null);
+        return { events: first === undefined ? [] : [ctx.emit({ type: 'herald.cried', participants: [first.id], payload: {} })] };
+      },
+    };
+    const deps: EngineDeps = { ...quietDeps({ unattachedStayDays: 1 }), modules: [herald] };
+    const start = created('after', deps);
+    const [named] = unattachedHeroes(start.world);
+    if (named === undefined) throw new Error('The pool is empty');
+
+    const { document } = playTo(start, nightOf(1), deps);
+
+    expect(entriesFor(document.history, named.id).map((entry) => entry.type)).toEqual(['herald.cried']);
+    expect(document.world.heroes[named.id]?.leftPoolOnTurn).toBe(nightOf(1));
+  });
+
   test("an older save holding pool Heroes' entries loads and plays: those its History names keep their rows as they leave", () => {
     const deps = quietDeps({ unattachedStayDays: 1 });
     const creation = createWorld('older', setup, deps);

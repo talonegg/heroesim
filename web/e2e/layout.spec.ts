@@ -302,6 +302,7 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     const pool = await part(page, 'Unattached pool');
     await check("the pool's rows");
     await inViewClear(pool.getByRole('table'), `the pool's headings and buttons at ${width}px`);
+    await noNeedlessScroll(pool.getByRole('table'), `the pool at ${width}px`);
     await pool.getByRole('button', { name: 'Order by Fee' }).click();
     await check('the pool by fee');
     await pool.getByRole('button', { name: 'Order by Fee' }).click();
@@ -320,7 +321,10 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     await market.getByTestId('listing').first().getByRole('button', { name: /^Buy / }).click();
     await expect(page.getByRole('region', { name: 'Sell', exact: true }).getByRole('table')).toBeVisible();
     await check("the Market's Sell");
-    await inViewClear(page.getByRole('region', { name: 'Sell', exact: true }).getByRole('table'), `the Market's Sell's headings and buttons at ${width}px`);
+    const sell = page.getByRole('region', { name: 'Sell', exact: true }).getByRole('table');
+    await inViewClear(sell, `the Market's Sell's headings and buttons at ${width}px`);
+    await noNeedlessScroll(sell, `the Market's Sell at ${width}px`);
+    await longFirstName(sell, `the Market's Sell at ${width}px`);
 
     // The Guild's Stores, holding what was just bought, and its Treasury, the purchase in the
     // ledger: each table in its own box (M9-F3).
@@ -328,6 +332,8 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     await expect(stores.getByRole('table')).toBeVisible();
     await check("the Guild's Stores");
     await inViewClear(stores.getByRole('table'), `the Guild's Stores' headings and buttons at ${width}px`);
+    await noNeedlessScroll(stores.getByRole('table'), `the Guild's Stores at ${width}px`);
+    await longFirstName(stores.getByRole('table'), `the Guild's Stores at ${width}px`);
     // Its five columns fit a tablet's width and more, where the Market's wider table scrolls (M9-F6,
     // from the close's screenshots, where "Sells for" was cut at 820px).
     if (width >= 820) expect(await stores.locator('.table-wrap').evaluate((box) => box.scrollWidth - box.clientWidth)).toBeLessThanOrEqual(0);
@@ -359,6 +365,8 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     if ((await fold.count()) > 0) await fold.click();
     await check("the Patrons' table, the neutral unfolded");
     await inViewClear(patrons.getByRole('table'), `the Patrons' headings and buttons at ${width}px`);
+    await noNeedlessScroll(patrons.getByRole('table'), `the Patrons at ${width}px`);
+    await longFirstName(patrons.getByRole('table'), `the Patrons at ${width}px`);
     if ((await fold.count()) > 0) await fold.click();
   }
 });
@@ -566,7 +574,7 @@ test("the Roster's cards, the pool's rows and the Guilds' table: each name with 
 // A Hero's name with their Class's mark before it (DL-206 items 23 and 24, DL-212), in the five places
 // a Hero is listed with their Class, at every width: the mark the text's size, before the name and
 // clear of it, on the line of the name's first word and never alone on a line (the owner's (b),
-// DL-212), and no word of the name broken inside it, as no name was before the mark.
+// DL-212), and no word of the name broken inside it.
 test("a Hero's name with their Class's mark: the mark before the name, the text's size, on the first word's line, and no word of the name broken (v1.1.7-S6)", async ({
   page,
 }) => {
@@ -624,6 +632,7 @@ test("a Hero's name with their Class's mark: the mark before the name, the text'
     await show.getByRole('button', { name: 'Table' }).click();
     await namesWhole(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table, ${scheme}`);
     await inViewClear(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table's headings and buttons, ${scheme}`);
+    await noNeedlessScroll(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table, ${scheme}`);
     await show.getByRole('button', { name: 'Tiles' }).click();
     const pool = await part(page, 'Unattached pool');
     await namesWhole(pool, `the pool, ${scheme}`);
@@ -682,6 +691,7 @@ test("a Hero's name with their Class's mark: the mark before the name, the text'
  */
 async function inViewClear(table: Locator, what: string): Promise<void> {
   await expect(table).toBeVisible();
+  await drawn(table);
   const { covered, tried } = await table.evaluate((element) => {
     const box = element.closest('.table-wrap');
     const was = box?.scrollLeft ?? 0;
@@ -701,6 +711,91 @@ async function inViewClear(table: Locator, what: string): Promise<void> {
   });
   expect(tried, `${what}: things to bring into view`).toBeGreaterThan(1);
   expect(covered, `${what}: nothing under the sticky column`).toEqual([]);
+}
+
+/**
+ * Each heading (its button where it has one, else the heading made focusable for the check) and each
+ * button in the cells of a Table whose first column stays in view, fully in its box and clear of that
+ * column, takes the focus without the box scrolling: the box keeps clear at its start only the sticky
+ * column's width, never more (DL-212). Tried with the box scrolled to its start, its middle and its
+ * end; the box and the headings are put back as they were.
+ */
+async function noNeedlessScroll(table: Locator, what: string): Promise<void> {
+  await expect(table).toBeVisible();
+  await drawn(table);
+  const { moved, tried } = await table.evaluate((element) => {
+    const box = element.closest('.table-wrap');
+    const column = element.querySelector('thead th:first-child');
+    if (box === null || column === null) return { moved: ['no box or no first column'], tried: 0 };
+    const was = box.scrollLeft;
+    const headings = [...element.querySelectorAll<HTMLElement>('thead th:not(:first-child)')].map((th) => th.querySelector<HTMLElement>('button') ?? th);
+    const made = headings.filter((target) => target.tagName === 'TH');
+    for (const th of made) th.tabIndex = -1;
+    const targets = [...headings, ...element.querySelectorAll<HTMLElement>('tbody td button')];
+    const shifts: string[] = [];
+    let count = 0;
+    const end = box.scrollWidth - box.clientWidth;
+    for (const at of [0, Math.round(end / 2), end]) {
+      for (const target of targets) {
+        box.scrollLeft = at;
+        const from = box.scrollLeft;
+        const shown = box.getBoundingClientRect();
+        const clear = column.getBoundingClientRect().right;
+        const rect = target.getBoundingClientRect();
+        if (rect.left < clear || rect.right > shown.right || rect.width === 0) continue;
+        count += 1;
+        target.focus();
+        if (box.scrollLeft !== from) shifts.push(`"${target.textContent ?? ''}" from ${from} to ${box.scrollLeft}`);
+        target.blur();
+      }
+    }
+    for (const th of made) th.removeAttribute('tabindex');
+    box.scrollLeft = was;
+    return { moved: shifts, tried: count };
+  });
+  expect(tried, `${what}: buttons in view and clear of the sticky column`).toBeGreaterThan(0);
+  expect(moved, `${what}: no scroll for a button already in view`).toEqual([]);
+}
+
+/**
+ * The first name of a Table whose first column stays in view, made longer than the share of its box
+ * that column may take, which no name the content gives is (an Item's, a Patron's): the column holds
+ * to its share, and nothing in the Table is brought into view under it (DL-212). Put back as it was.
+ */
+async function longFirstName(table: Locator, what: string): Promise<void> {
+  await expect(table).toBeVisible();
+  const share = await table.evaluate((element) => {
+    const cell = element.querySelector('tbody th[scope="row"]');
+    const box = element.closest('.table-wrap');
+    const column = element.querySelector('thead th:first-child');
+    if (cell === null || box === null || column === null) return null;
+    const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => ((node.nodeValue ?? '').trim() === '' ? NodeFilter.FILTER_SKIP : NodeFilter.FILTER_ACCEPT),
+    });
+    const text = walker.nextNode();
+    if (text === null) return null;
+    Reflect.set(window, '__longFirstName', { text, was: text.nodeValue });
+    text.nodeValue = `${'W'.repeat(60)} ${'Lantern '.repeat(12)}`;
+    return column.getBoundingClientRect().width / box.clientWidth;
+  });
+  if (share === null) throw new Error(`${what}: no name to lengthen`);
+  try {
+    expect(share, `${what}: a long first name, the first column's share of its box`).toBeLessThanOrEqual(0.6);
+    await inViewClear(table, `${what}, a long first name`);
+  } finally {
+    await table.evaluate(() => {
+      const held = Reflect.get(window, '__longFirstName') as { text: Node; was: string } | undefined;
+      if (held !== undefined) held.text.nodeValue = held.was;
+    });
+  }
+}
+
+/**
+ * Waits for the page to be drawn twice: a Table's box measures its sticky column (`StickyTableBox`)
+ * before a frame is drawn, and a test, unlike a player, may act within one frame of a change.
+ */
+async function drawn(scope: Locator): Promise<void> {
+  await scope.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
 }
 
 /** The rows of the Guilds' table that are not the player's Guild (M9-S6). */

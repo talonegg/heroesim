@@ -29,7 +29,7 @@ import { HeroName, Icon } from './icons';
 import { GuildBanner, PortraitThumb } from './pictures';
 import { preferences, useRemembered } from './remembered';
 import { Part } from './section';
-import { Chip, Disclosure, SortHeader, useReturn, VisuallyHidden } from './ui';
+import { Chip, Disclosure, SortHeader, StickyTableBox, useReturn, VisuallyHidden } from './ui';
 
 type Play = (action: GameAction) => void;
 
@@ -271,7 +271,7 @@ function GuildPage({
       {view.roster.length === 0 ? (
         <p>The Roster is empty.</p>
       ) : (
-        <div className="table-wrap">
+        <StickyTableBox>
           <table className="table table--first-sticky" aria-label={`The Roster of ${view.name}`}>
             <thead>
               <tr>
@@ -337,7 +337,7 @@ function GuildPage({
               ))}
             </tbody>
           </table>
-        </div>
+        </StickyTableBox>
       )}
 
       <Disclosure summary="Hall">

@@ -13,7 +13,7 @@ import { patronsView, type PatronRow } from '../state/world-views';
 import { useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
 import { Part } from './section';
-import { Chip, regardTones } from './ui';
+import { Chip, regardTones, StickyTableBox } from './ui';
 
 export function Patrons({ document, guildName }: { document: WorldDocument; guildName: string }) {
   const rows = useMemo(() => patronsView(document), [document]);
@@ -25,7 +25,7 @@ export function Patrons({ document, guildName }: { document: WorldDocument; guil
       {rows.length === 0 ? (
         <p>No Patron yet.</p>
       ) : (
-        <div className="table-wrap">
+        <StickyTableBox>
           <table className="table table--first-sticky patrons-table" aria-label="The Patrons">
             <thead>
               <tr>
@@ -71,7 +71,7 @@ export function Patrons({ document, guildName }: { document: WorldDocument; guil
               </>
             )}
           </table>
-        </div>
+        </StickyTableBox>
       )}
     </Part>
   );

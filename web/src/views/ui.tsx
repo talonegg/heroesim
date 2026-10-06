@@ -9,7 +9,7 @@
 // Guild's parts.
 
 import type { MoraleBand, RegardBand } from '@heroesim/engine';
-import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { narrowQuery } from '../breakpoints';
 import type { SortDirection } from '../state/selectors';
 import { Icon, type IconName } from './icons';
@@ -437,6 +437,33 @@ export function useNarrow(): boolean {
     return () => query.removeEventListener('change', changed);
   }, []);
   return narrow;
+}
+
+/**
+ * The box a Table whose first column stays in view scrolls in (`table--first-sticky`). It keeps clear
+ * at its start, when it brings a heading or a cell into view, the width of that column and no more,
+ * so nothing brought in lands under the column and nothing already in view clear of it moves (DL-212):
+ * the column's width, as a length the stylesheet reads (`--sticky-inline`). Where nothing measures
+ * (jsdom), none.
+ */
+export function StickyTableBox({ className, children }: { className?: string; children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = box.current;
+    const column = element?.querySelector('thead th:first-child');
+    if (element == null || column == null || typeof ResizeObserver === 'undefined') return undefined;
+    // At once, before the box is first drawn, and again whenever the column's width changes.
+    const measure = (): void => element.style.setProperty('--sticky-inline', `${Math.ceil(column.getBoundingClientRect().width)}px`);
+    measure();
+    const measured = new ResizeObserver(measure);
+    measured.observe(column);
+    return () => measured.disconnect();
+  }, []);
+  return (
+    <div ref={box} className={className === undefined ? 'table-wrap' : `table-wrap ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 /** A tab: its key, which names its panel, and its words. */

@@ -29,12 +29,10 @@ import {
   type SlotKey,
   type StackId,
   type WorldDocument,
-  type ClassIcon,
-  type ClassKey,
 } from '@heroesim/engine';
 import { capitalised, itemEffectWords, kindOf, nameIn, nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { classMarkOf, rowOf, transferCostWords } from './names';
+import { classMarkOf, type ClassMarked, rowOf, transferCostWords } from './names';
 import { calendarFor, playDeps } from './reducer';
 import { defaultHeroOrder } from './selectors';
 
@@ -160,16 +158,12 @@ export function marketView(document: WorldDocument, only: MarketKind | null = nu
 
 // ── The Unattached pool ──────────────────────────────────────────────────────────────────────
 
-export interface PoolRow {
+export interface PoolRow extends ClassMarked {
   heroId: HeroId;
   name: string;
   /** Their sex and Portrait's key, for the thumbnail beside their name (v1.1.3-S7, DL-135 item 9). */
   sex: Sex;
   portraitKey: string | null;
-  className: string;
-  /** Their Class's key and icon, for the mark before their name (v1.1.7-S6, DL-206 item 23, DL-212). */
-  classKey: ClassKey;
-  classIcon: ClassIcon | null;
   level: number;
   age: number;
   morale: number;
@@ -210,7 +204,6 @@ export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): 
       name: hero.name,
       sex: hero.sex,
       portraitKey: hero.portraitKey,
-      className: nameIn(content.classes, hero.classKey),
       ...classMarkOf(content, hero.classKey),
       level: hero.level,
       age: ageOf(hero, world.turn, deps.config),

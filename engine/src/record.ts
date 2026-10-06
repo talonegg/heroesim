@@ -6,20 +6,27 @@
 // or any other entry, a module's among them. Nothing is removed from the History; these are never
 // written (ADR-0008 as amended, data-model rules 8 and 10).
 //
-// The pool refresh reads the same `names` when a Hero leaves: their row goes exactly when their
-// `hero.left-pool` is not recorded (data-model rule 8).
+// A Hero who left the pool keeps their row exactly when an entry names them once the whole batch is
+// in: `record` says which do not, and `advance` removes those rows (data-model rule 8, DL-211), so
+// the row and the History are decided by the one reading and never disagree.
 
-import type { EntityId, Entry, History } from './document.js';
+import type { EntityId, Entry, HeroId, History } from './document.js';
 import type { HeroGenerated, HeroLeftPool } from './events.js';
 import { append, names } from './history.js';
 
 /**
  * Appends to `history`, in order, each of `events` it records (`recorded`), each read against the
  * History as the ones before it have left it: an event earlier in the same batch that names a pool
- * Hero records their leaving.
+ * Hero records their leaving. Returns the Heroes of the batch's `hero.left-pool` events whom no
+ * entry names once the batch is in: theirs are the rows to remove (data-model rule 8).
  */
-export function record(history: History, events: readonly Entry[]): void {
-  for (const event of events) if (recorded(history, event)) append(history, event);
+export function record(history: History, events: readonly Entry[]): HeroId[] {
+  const left: HeroId[] = [];
+  for (const event of events) {
+    if (recorded(history, event)) append(history, event);
+    if (event.type === 'hero.left-pool') left.push((event as HeroLeftPool).payload.heroId);
+  }
+  return left.filter((heroId) => !names(history, heroId));
 }
 
 /**

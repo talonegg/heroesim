@@ -70,6 +70,16 @@ describe('record', () => {
 
     expect(entriesFor(history, hero(1)).map((it) => it.type)).toEqual(['hero.left-pool', 'herald.cried']);
   });
+
+  test('returns the Heroes who left the pool whom no entry names once the batch is in: theirs are the rows to remove', () => {
+    const history = createHistory();
+    const before = entry('herald.cried', [hero(1)], {});
+    const after = entry('herald.cried', [hero(2)], {});
+    const gone = record(history, [before, leftPool(hero(1)), leftPool(hero(2)), leftPool(hero(3)), after]);
+
+    expect(gone).toEqual([hero(3)]);
+    expect(names(history, hero(2))).toBe(true);
+  });
 });
 
 describe('names', () => {

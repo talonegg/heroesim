@@ -1332,6 +1332,10 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
     expect(observations.heroes.longestAppearance).toBe(Math.max(...heroes.map((hero) => [...hero.appearance].length)));
     expect(observations.heroes.longestBiography).toBe(Math.max(...heroes.map((hero) => [...hero.biography].length)));
 
+    // Read again, nothing new is counted.
+    observeHeroes(observations, world, events);
+    expect(observations.heroes.generated).toBe(generated);
+
     // A batch with no hero.generated counts nothing.
     observeHeroes(observations, world, events.filter((event) => event.type !== 'hero.generated'));
     expect(observations.heroes.generated).toBe(generated);
