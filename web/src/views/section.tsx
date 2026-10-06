@@ -121,8 +121,8 @@ export const help: Readonly<Record<SectionId, string>> = {
     'as Quests check them, raised by Gear, Traits or your Guildmaster in green with ▲ and lowered in red with ▼; ' +
     'choose its columns under Columns, or by tab on a phone. Show only the Heroes of some Classes, or those at the ' +
     'Hall, injured or away, with the chips, one choice or several, each counting the Heroes it would show. ' +
-    'Sort from "Sort by" or by a column’s heading, any but ' +
-    'Traits and Items; this browser keeps your choices.',
+    'Sort from "Sort by" or by a column’s heading, any but Traits and Items. This browser keeps Tiles or Table, ' +
+    'the order, the Table’s columns and a phone’s tab; the chips start at All each time.',
   hall:
     'Your Guild’s premises: each facility’s grade, what it does, and Build, which raises it one grade for the cost ' +
     'on the button. Each grade does more than the one below it, and each adds to the Upkeep, which the Treasury gives.',
@@ -138,7 +138,7 @@ export const help: Readonly<Record<SectionId, string>> = {
     'chips, one choice or several, each counting what it would show; the totals are of what is shown. A name opens whom it names.',
   rankings: 'Where every Guild stands, and the Patrons who offer the Quests.',
   history:
-    'What happened, newest first, a page at a time, by Day and time of day: your Guild’s, the world’s or a ' +
+    'What happened, newest first, a page at a time, by date and time of day: your Guild’s, the world’s or a ' +
     'Rival’s, one choice away. Your Guild’s leaves out your Heroes’ XP and Morale, Regard, the Upkeep and the ' +
     'Market’s purchases and sales, and a Rival’s its Upkeep, purchases and sales; a Hero’s own History keeps ' +
     'everything. The world’s is what changed the world: Guilds founded, succeeded and folded, every Guild’s Quests ' +

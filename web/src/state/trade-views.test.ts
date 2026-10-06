@@ -16,12 +16,19 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { createItem } from '@heroesim/engine/testing';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { faceted } from './facets';
 import { defaultHeroOrder } from './selectors';
+import { calendarFor } from './reducer';
 import { marketView, offersView, poolView } from './trade-views';
+
+// The calendar, counted: it merges and checks the whole config, so a view reads it once (DL-214).
+vi.mock('./reducer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./reducer')>();
+  return { ...actual, calendarFor: vi.fn(actual.calendarFor) };
+});
 
 // The Market, the Unattached pool and the Transfer Offers (M7-S3 part 2, DL-73): each number beside
 // the engine selector it comes from.
@@ -263,5 +270,22 @@ describe('offersView', () => {
           'left behind who held them in high Regard lose Morale.',
       },
     ]);
+  });
+
+  test('reads the calendar once, however many Offers stand (DL-214)', () => {
+    let document = newGame();
+    const guild = player(document);
+    const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id);
+    if (rival === undefined) throw new Error('no Rival');
+    for (const heroId of guild.rosterIds.slice(0, 2)) {
+      const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
+      if (!offered.ok) throw new Error(offered.rejection.reason);
+      document = offered.document;
+    }
+    const calendars = vi.mocked(calendarFor);
+
+    calendars.mockClear();
+    expect(offersView(document)?.offers).toHaveLength(2);
+    expect(calendars).toHaveBeenCalledTimes(1);
   });
 });

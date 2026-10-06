@@ -11,7 +11,6 @@
 import {
   carriedGear,
   compareByCodeUnit,
-  gearSlotKeys,
   holdings,
   itemDefinition,
   playerGuild,
@@ -23,9 +22,9 @@ import {
   type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, kindOf, listed } from '@heroesim/words';
+import { kindOf, listed } from '@heroesim/words';
 import { content } from '../content';
-import type { Facets } from './facets';
+import { kindFacet, type Facets } from './facets';
 import { rowOf } from './names';
 import { questNamer, textOf, type Segment } from './namer';
 import { playDeps } from './reducer';
@@ -137,7 +136,6 @@ export function storesView(document: WorldDocument): StoresView | null {
     });
   const owned = [...held, ...carried, ...away];
 
-  const kinds = [...gearSlotKeys, 'consumable' as const].flatMap((key) => (owned.some((row) => row.kindKey === key) ? [{ key, label: capitalised(key) }] : []));
   const wheres = whereOrder.flatMap((key) => (owned.some((row) => row.where === key) ? [{ key, label: whereLabels[key] }] : []));
 
   const counted = (rows: readonly StoresRow[]) => rows.reduce((sum, row) => sum + row.quantity, 0);
@@ -156,7 +154,7 @@ export function storesView(document: WorldDocument): StoresView | null {
     guildName: guild.name,
     rows: owned,
     facets: {
-      kind: { label: 'Show of kind', options: kinds, of: (row) => row.kindKey },
+      kind: kindFacet(owned, 'Show of kind'),
       where: { label: 'Show where', options: wheres, of: (row) => row.where },
     },
     summary,

@@ -25,7 +25,7 @@ import {
 } from '@heroesim/engine';
 import { nightOfDay, signed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { faceted, type FacetChoices, type Facets, type FacetView } from './facets';
+import type { Facets } from './facets';
 import { narrateSegments, narrationFor, textOf, type Narration, type Segment } from './namer';
 import { calendarFor, playDeps } from './reducer';
 import { countdownView, historyPageSize } from './selectors';
@@ -226,12 +226,6 @@ export function ledgerOf(document: WorldDocument, guildId: GuildId): LedgerRow[]
 /** Which way a change moves the Wealth: into the Guild, or out of it. */
 export type LedgerFlow = 'income' | 'expense';
 
-/**
- * The ledger's two filters, several choices each (DL-206 items 26 to 29, DL-213): by which way, and by
- * category; a filter left out, or with nothing chosen, shows every change.
- */
-export type TreasuryFilter = FacetChoices<'flow' | 'category'>;
-
 const flowLabels: readonly { key: LedgerFlow; label: string }[] = [
   { key: 'income', label: 'Income' },
   { key: 'expense', label: 'Expense' },
@@ -295,16 +289,6 @@ export interface TreasuryAccounts {
   /** The Bankruptcy countdown while the Guild is below the floor (`countdownView`); `null` otherwise. */
   countdown: string | null;
   ledger: LedgerSource;
-}
-
-export interface TreasuryView extends Omit<TreasuryAccounts, 'ledger'> {
-  ledger: LedgerPage & {
-    /**
-     * The filters' chips: income and expense, and each category the Guild's ledger holds in the
-     * Treasury's order, each with its count against the other filter (`faceted`).
-     */
-    filters: Record<'flow' | 'category', FacetView>;
-  };
 }
 
 /** The ledger's filters, of the categories `held`. A change is never of nothing (`wealthChangeOf`). */
@@ -376,17 +360,4 @@ export function ledgerPage(ledger: LedgerSource, shown: { rows: readonly LedgerC
   const onPage = shown.rows.slice(at * historyPageSize, (at + 1) * historyPageSize).map((change) => ledgerRow(change, ledger.narration));
   if (opening !== null && at === pages - 1) onPage.push(opening);
   return { rows: onPage, page: at, pages, shown: shown.rows.length, opens: opening !== null, totals: totalsOf(shown.rows) };
-}
-
-/**
- * The player's Guild's Treasury with the ledger's rows `filter` shows, a page (from 0) of
- * `historyPageSize` at a time, newest first, with their totals; `null` in a save with no player's
- * Guild: `treasuryAccounts`, `faceted` and `ledgerPage` in one.
- */
-export function treasuryView(document: WorldDocument, filter: TreasuryFilter, page: number): TreasuryView | null {
-  const accounts = treasuryAccounts(document);
-  if (accounts === null) return null;
-  const { ledger, ...rest } = accounts;
-  const shown = faceted(ledger.changes, ledger.facets, filter);
-  return { ...rest, ledger: { ...ledgerPage(ledger, shown, page), filters: shown.facets } };
 }

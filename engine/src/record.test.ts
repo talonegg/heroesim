@@ -71,6 +71,25 @@ describe('record', () => {
     expect(entriesFor(history, hero(1)).map((it) => it.type)).toEqual(['hero.left-pool', 'herald.cried']);
   });
 
+  test('decides a leaving over the whole batch: an event later in the batch naming the Hero records it, in its place', () => {
+    const history = createHistory();
+    const cried = entry('herald.cried', [hero(1)], { heroId: hero(1) });
+    const gone = record(history, [leftPool(hero(1)), leftPool(hero(2)), cried]);
+
+    expect(entriesFor(history, hero(1)).map((it) => it.type)).toEqual(['herald.cried', 'hero.left-pool']);
+    expect(history.entries.map((it) => it.type)).toEqual(['hero.left-pool', 'herald.cried']);
+    expect(gone).toEqual([hero(2)]);
+    expect(names(history, hero(2))).toBe(false);
+  });
+
+  test('records no arrival in the pool for a Hero an event later in the batch names', () => {
+    const history = createHistory();
+    const cried = entry('herald.cried', [hero(1)], { heroId: hero(1) });
+    record(history, [generated(hero(1)), cried]);
+
+    expect(entriesFor(history, hero(1)).map((it) => it.type)).toEqual(['herald.cried']);
+  });
+
   test('returns the Heroes who left the pool whom no entry names once the batch is in: theirs are the rows to remove', () => {
     const history = createHistory();
     const before = entry('herald.cried', [hero(1)], {});

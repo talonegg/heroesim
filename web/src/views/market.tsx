@@ -34,8 +34,9 @@ export function Market({ document, busy, play }: { document: WorldDocument; busy
 /** What the Market has for sale, with Buy. */
 function Buy({ document, busy, play }: { document: WorldDocument; busy: boolean; play: Play }) {
   const view = useMemo(() => marketView(document), [document]);
-  // The lead counts the listings, a kind of Item each, and says "kind" or "kinds" by that number (DL-213).
-  const kinds = `${view.forSale.length} ${view.forSale.length === 1 ? 'kind' : 'kinds'}`;
+  // The lead counts the Items for sale and the listings, one Item each, as how many differ: "kind" is
+  // the filter's word, for a kind of gear (DL-214).
+  const differ = view.totalForSale === 1 ? '' : view.forSale.length === 1 ? ', all alike' : `, ${view.forSale.length} different`;
   // A kind no longer for sale is let go (`chosenOf`).
   const { rows: forSale, filters } = useFacets(view.forSale, view.facets);
   return (
@@ -43,7 +44,7 @@ function Buy({ document, busy, play }: { document: WorldDocument; busy: boolean;
       <p>
         {view.totalForSale === 0
           ? 'The Market has nothing for sale.'
-          : `${view.totalForSale} ${view.totalForSale === 1 ? 'Item' : 'Items'} for sale, of ${kinds}.`}
+          : `${view.totalForSale} ${view.totalForSale === 1 ? 'Item' : 'Items'} for sale${differ}.`}
       </p>
       <FilterChips {...filters.kind} />
       {forSale.length === 0 ? null : (

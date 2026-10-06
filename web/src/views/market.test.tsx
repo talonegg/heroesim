@@ -52,7 +52,7 @@ describe("the Market view's Buy and Sell, as tables (M9-S6, the review's B3; M9-
     expect(kinds().length).toBe(weapons);
     for (const kind of kinds()) expect(kind).toMatch(/^Weapon Gear/);
     // The count of what is for sale stays the whole Market's.
-    expect(within(section('Market')).getByText(/^\d+ Items for sale, of \d+ kinds\.$/)).toBeDefined();
+    expect(within(section('Market')).getByText(/^\d+ Items for sale, \d+ different\.$/)).toBeDefined();
 
     // A second kind: either shown (DL-206 items 26 and 27).
     const consumable = within(filters).getByRole('button', { name: /^Consumable \d+$/ });
@@ -71,14 +71,18 @@ describe("the Market view's Buy and Sell, as tables (M9-S6, the review's B3; M9-
     expect(kinds()).toEqual(all);
   });
 
-  test('the lead says "kind" or "kinds" by the number of kinds of Item it counts, one kind of gear as well as several (DL-213)', () => {
-    // Two kinds of Item, both Weapons: one filter option, two kinds.
+  test("the lead counts the Items for sale and how many differ, never saying 'kind', the filter's word for a kind of gear (DL-213, DL-214)", () => {
+    // Two different Items, both Weapons: one filter option, two Items.
     const { unmount } = render(<App initial={selling(started(), { 'short-sword': 2, 'arming-sword': 1 })} />);
-    expect(within(section('Buy')).getByText('3 Items for sale, of 2 kinds.')).toBeDefined();
+    expect(within(section('Buy')).getByText('3 Items for sale, 2 different.')).toBeDefined();
     unmount();
 
-    render_(selling(started(), { 'short-sword': 2 }));
-    expect(within(section('Buy')).getByText('2 Items for sale, of 1 kind.')).toBeDefined();
+    const again = render(<App initial={selling(started(), { 'short-sword': 2 })} />);
+    expect(within(section('Buy')).getByText('2 Items for sale, all alike.')).toBeDefined();
+    again.unmount();
+
+    render_(selling(started(), { 'short-sword': 1 }));
+    expect(within(section('Buy')).getByText('1 Item for sale.')).toBeDefined();
   });
 
   test("the Market's chips are the page's one filter element: no copy of its own (DL-206 item 27)", () => {

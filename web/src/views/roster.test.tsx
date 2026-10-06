@@ -849,7 +849,12 @@ describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
       .map((heading) => heading.textContent);
     expect(unsorted).toEqual(['Traits', 'Items']);
     expect(help.roster).not.toMatch(/any column/);
-    expect(help.roster).toContain('Sort from "Sort by" or by a column’s heading, any but Traits and Items; this browser keeps your choices.');
+    expect(help.roster).toContain('Sort from "Sort by" or by a column’s heading, any but Traits and Items.');
+  });
+
+  test('says in its help which choices this browser keeps, and that the filters are not among them (DL-206 item 28, DL-214)', () => {
+    expect(help.roster).toContain('This browser keeps Tiles or Table, the order, the Table’s columns and a phone’s tab; the chips start at All each time.');
+    expect(help.roster).not.toContain('keeps your choices');
   });
 
   test('sorts both views from the dropdown, the direction from its button; the headings in step, one pressed again reversing; ties in the default order', () => {

@@ -16,7 +16,6 @@ import {
   traitOf,
   type ContentSet,
   type Guild,
-  type TransferRefusalReason,
   type UnmetRequirement,
   type World,
   type WorldDocument,
@@ -30,6 +29,8 @@ import {
   gearUnavailableWords,
   listed,
   nameIn,
+  transferLockedWords,
+  transferRefusalWords,
   unavailableWords,
   type Calendar,
 } from '@heroesim/words';
@@ -116,20 +117,6 @@ function requirementWords(unmet: UnmetRequirement, { content }: Setting): string
   }
 }
 
-/** Why a Guild will not deal now, after "will not part with …" or "will not take …" (the CLI's `transfer`). */
-function refusalWords(because: TransferRefusalReason, guild: Guild | undefined): string {
-  switch (because) {
-    case 'roster-size':
-      return `its Roster of ${guild?.rosterIds.length ?? 0} is too small for its appetite for Transfers`;
-    case 'wealth':
-      return 'it is not rich enough to hire now';
-    case 'unknown-disposition':
-      return 'its Disposition is not one this content knows';
-    case 'answers-offers':
-      return 'it answers only Transfer Offers';
-  }
-}
-
 /** A Guild that will not deal now: it will not part with a Hero asked of it, or take one sent to it. */
 function refusedWords(
   { guildId, heroId, side, because }: Extract<PlayRejection, { reason: 'transfer-refused' }>,
@@ -137,13 +124,12 @@ function refusedWords(
 ): string {
   const way = side === 'out' ? 'part with' : 'take';
   const guild = rowOf(setting.world?.guilds, guildId);
-  return `${guildCalled(setting, guildId)} will not ${way} ${heroCalled(setting, heroId)}: ${refusalWords(because, guild)}.`;
+  return `${guildCalled(setting, guildId)} will not ${way} ${heroCalled(setting, heroId)}: ${transferRefusalWords(because, guild)}.`;
 }
 
 /** A Hero a Transfer cannot move yet (DL-69): the date they were transferred, and the first date they may be again. */
 function lockedWords(heroId: string, transferredOnTurn: number, untilTurn: number, setting: Setting): string {
-  const { calendar } = setting;
-  return `${heroCalled(setting, heroId)} was transferred on ${dateOfTurn(transferredOnTurn, calendar)} and cannot be transferred again before ${dateOfTurn(untilTurn, calendar)}.`;
+  return transferLockedWords(heroCalled(setting, heroId), transferredOnTurn, untilTurn, setting.calendar);
 }
 
 /** What the CLI adds after a refusal made once the game has ended: no Turn, or no action. */

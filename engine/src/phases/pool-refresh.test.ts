@@ -175,7 +175,7 @@ describe('departures', () => {
     expect(document.world.heroes).not.toHaveProperty(unnamed.id);
   });
 
-  test('a pool Hero a module names after they leave, the same night, keeps their row, and the save validates', () => {
+  test('a pool Hero a module names after they leave, the same night, keeps their row and has their leaving recorded, and the save validates', () => {
     const herald: Module = {
       id: 'herald',
       streamName: 'herald',
@@ -194,7 +194,8 @@ describe('departures', () => {
 
     const { document } = playTo(start, nightOf(1), deps);
 
-    expect(entriesFor(document.history, named.id).map((entry) => entry.type)).toEqual(['herald.cried']);
+    // Their leaving is recorded, decided over the whole night's events: the row and the History agree (rule 8).
+    expect(entriesFor(document.history, named.id).map((entry) => entry.type)).toEqual(['herald.cried', 'hero.left-pool']);
     expect(document.world.heroes[named.id]?.leftPoolOnTurn).toBe(nightOf(1));
   });
 

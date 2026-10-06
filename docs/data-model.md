@@ -406,19 +406,26 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
 7. **Canonical serialisation**: sorted keys, so the same state always produces the same bytes
    and the harness can check determinism by byte equality.
 8. **Row lifecycle**: a Quest is removed when it expires or resolves; an Unattached Hero is
-   removed when they leave the pool unrecruited unless a History entry *other than* their own
-   `hero.generated` and `hero.left-pool` names them — those two entries every pool Hero has,
-   and their labels narrate without the row; dead and retired Heroes stay, with their State.
-   A Hero leaves the pool `unattachedStayDays` after the Day they entered it
-   (`unattachedSince`); one whose row an entry keeps stays with `leftPoolOnTurn` set, out of
-   play and out of the pool (DL-27).
-   The validator knows the list of passive entry types and refuses a removal that a
-   non-passive entry contradicts.
+   removed when they leave the pool unrecruited unless a History entry names them once the
+   Turn's events are in. A Hero never hired is named by none, since their arrival in the pool
+   and their leaving it are emitted and not recorded (rule 10), so their row goes as they leave;
+   a Hero an entry names, before their leaving or after it in the same Turn, keeps their row,
+   and their `hero.left-pool` is recorded. The one reading over the Turn's events decides both,
+   so the row and the History never disagree (`record`, DL-211, DL-214). Dead and retired Heroes
+   stay, with their State. A Hero leaves the pool `unattachedStayDays` after the Day they
+   entered it (`unattachedSince`); one whose row an entry keeps stays with `leftPoolOnTurn` set,
+   out of play and out of the pool (DL-27). A save made before DL-211 holds a `hero.generated`
+   and a `hero.left-pool` for every pool Hero, whose labels narrate without the row: the
+   validator knows these two passive entry types and refuses a removal that a non-passive entry
+   contradicts.
    *Amended 2026-10-06 (DL-206 items 20 and 21, DL-211):* a Hero generated into the pool, and
    their `hero.left-pool`, are emitted but recorded only when an entry names them (rule 10), so
    a Hero never hired has no entry, and their row is removed as they leave when no entry names
    them. A hired Hero's History begins at their signing. A save made before holds the two
    passive entries of every pool Hero; the validator still accepts a row they alone name removed.
+   *Amended 2026-10-07 (DL-214):* a Hero's leaving is decided over the whole Turn, so an entry
+   naming them later in it (a Module's `onNight`, after the pool refresh) records their leaving
+   too, and until the Turn ends their row stands out of play, as the dead's do.
 9. **Hidden information is stored plainly.** Potential is a field the front end does not show.
 10. **Discrete changes are events; nightly drift is not.** A Quest outcome, an Injury, a Level,
     a Transfer, a purchase: each appends an entry. Morale drifting toward its baseline,

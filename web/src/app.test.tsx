@@ -753,7 +753,7 @@ describe('the Roster with Hero pages', () => {
     for (const outlook of outlooks) expect(['Modest', 'Promising', 'Exceptional']).toContain(outlook);
     expect(within(page).getByRole('heading', { name: 'History, newest first' })).toBeDefined();
     expect(within(page).getByText(/^Page 1 of \d+, \d+ (entry|entries) in all, newest first\./)).toBeDefined();
-    // Grouped by Day and time of day, as the History is (M9-S5); a first page has no newer one.
+    // Grouped by date and time of day, as the History is (M9-S5); a first page has no newer one.
     expect(within(page).getAllByRole('heading', { level: 5 }).length).toBeGreaterThan(0);
     expect((within(page).queryByRole('button', { name: 'Newer' }) as HTMLButtonElement | null)?.disabled ?? true).toBe(true);
 

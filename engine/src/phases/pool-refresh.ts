@@ -5,7 +5,8 @@
 // A Hero who leaves is marked gone (`leftPoolOnTurn`) here, and keeps their row only when an entry
 // of the History names them once the Turn's events are in (data-model rule 8, pre-M0 review A9):
 // `advance` removes the row as `record` decides, the same reading that records their
-// `hero.left-pool`, so an entry made earlier or later in the Turn counts (DL-211). A Hero never
+// `hero.left-pool`, so an entry made earlier or later in the Turn counts (DL-211, DL-214). Until
+// then the row stands out of play, so a module's `onNight` sees it as it sees the dead's. A Hero never
 // hired is named by none, their arrival and leaving being emitted and not recorded, so the pool
 // never grows the table or the History by the Heroes nobody signed.
 

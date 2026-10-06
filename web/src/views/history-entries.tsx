@@ -1,4 +1,4 @@
-// A page of the History as the page draws it (M9-S5, DL-105): groups by Day and time of day, newest
+// A page of the History as the page draws it (M9-S5, DL-105): groups by date and time of day, newest
 // first, each in the order it happened; a Party's Encounters folded under its outcome, and each
 // Rival's routine under one line for its Guild, each fold opened by a button; every line marked
 // whose it is, new when the last play appended it, and on an outcome how the Quest went, with an

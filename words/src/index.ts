@@ -7,8 +7,8 @@
 // It holds the shared tables (DL-197); the narration, behind a Namer seam that fills each name for the
 // CLI or the page, why time stopped among it (DL-198, DL-209); the Quest review's page, which the
 // harness and the tools may read (DL-198); a Stat's breakdown, the engine's `statBreakdown`, in words
-// (DL-199); and a date as a player reads it, `Year 2 Day 45`, the Year and the Day counted from 1
-// (DL-210).
+// (DL-199); a date as a player reads it, `Year 2 Day 45`, the Year and the Day counted from 1
+// (DL-210); and a Transfer's refusals (DL-214).
 
 export { atHallWords, gearUnavailableWords, unavailableChipWords, unavailableWords } from './availability.js';
 export {
@@ -75,4 +75,5 @@ export {
   type ReviewNotes,
 } from './quest-review.js';
 export { readableSeed, type Random } from './seed.js';
+export { transferLockedWords, transferRefusalWords } from './transfers.js';
 export { statPartsWords, statSourcesMoving, statSourceWords } from './stats.js';

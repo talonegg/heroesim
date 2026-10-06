@@ -38,7 +38,7 @@ import {
 import { pageOfEntry } from './history.test-support';
 import { historyPageSize } from './selectors';
 
-// The History as the one place to read what happened (M9-S5, DL-105): a page of it grouped by Day
+// The History as the one place to read what happened (M9-S5, DL-105): a page of it grouped by date
 // and time of day, newest first, each group in the order it happened; a Party's Encounters folded
 // under its outcome, each Rival's routine under one line a Guild; every line marked whose it is,
 // whether the last play appended it and, for an outcome, how it went. Every expectation is read from
@@ -372,7 +372,7 @@ describe('the World History (M9-F4, DL-112 item 7, DL-113 item 1)', () => {
     for (const type of shown) expect(worldTypes).toContain(type);
   });
 
-  test('is grouped by Day and time of day with no folds, and pages exactly', () => {
+  test('is grouped by date and time of day with no folds, and pages exactly', () => {
     const views = expectExactPages(document, 'world', world);
     for (const view of views) {
       for (const group of view.groups) {
@@ -423,10 +423,10 @@ describe('the whole History, the debug view (M9-F4, DL-112 item 7)', () => {
   });
 });
 
-describe('a page grouped by Day and time of day (M9-S5)', () => {
+describe('a page grouped by date and time of day (M9-S5)', () => {
   const { document, log } = played(40);
 
-  test('groups newest first, each headed by its Day and time of day, and each holding the entries of its Turn as they happened', () => {
+  test('groups newest first, each headed by its date and time of day, and each holding the entries of its Turn as they happened', () => {
     const view = historyView(document, log, 'all', 0);
     const turns = view.groups.map((group) => entryOf(document, linesOf(group.rows[0] as HistoryRow)[0] as HistoryLine).turn);
 

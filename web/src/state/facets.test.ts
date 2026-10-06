@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { chosenOf, faceted, toggled, type Facets } from './facets';
+import { chosenOf, faceted, kindFacet, toggled, type Facets } from './facets';
 
 // One filter of several choices (v1.1.7-S7, DL-206 items 26 to 29, DL-213): a row shown when it
 // matches every filter, a filter with nothing chosen (All) matching every row; each option's count
@@ -120,5 +120,21 @@ describe('toggled and chosenOf: pressing an option, and what is chosen', () => {
     expect(chosenOf(options, ['green', 'red', 'blue'])).toEqual([]);
     // One option alone: chosen, it is every option.
     expect(chosenOf([{ key: 'red', label: 'Red' }], ['red'])).toEqual([]);
+  });
+});
+
+describe("kindFacet: the filter by kind of Item, the Stores' and the Market's one (DL-213, DL-214)", () => {
+  test("offers each kind the rows hold, the gear slots in the engine's order then Consumable, a row of no kind shown by All alone", () => {
+    const rows = [{ kindKey: 'consumable' as const }, { kindKey: 'trinket' as const }, { kindKey: null }, { kindKey: 'weapon' as const }, { kindKey: 'weapon' as const }];
+    const facet = kindFacet(rows, 'Show of kind');
+
+    expect(facet.label).toBe('Show of kind');
+    expect(facet.options).toEqual([
+      { key: 'weapon', label: 'Weapon' },
+      { key: 'trinket', label: 'Trinket' },
+      { key: 'consumable', label: 'Consumable' },
+    ]);
+    expect(rows.map(facet.of)).toEqual(['consumable', 'trinket', null, 'weapon', 'weapon']);
+    expect(kindFacet([], 'Show for sale').options).toEqual([]);
   });
 });

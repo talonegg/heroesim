@@ -6,13 +6,14 @@ import { played, started, withPartyOut, withReturn, withRosterReleased, withTheG
 import { historyView } from '../state/history';
 import { gameReducer, type GameState } from '../state/reducer';
 import { History } from './history';
+import { help } from './section';
 import { HistoryLinksContext } from './history-entries';
 import { historyLines, inHistory, navButton, openDebugHistory, openView, section, sentenceOf } from './page.test-support';
 
 // The History as the one place to read what happened (M9-S5, DL-105), driven through the page: it
 // opens on the player's Guild, the last play's entries its newest and marked new; the World History
 // and a Rival's are one choice away, a choice that holds, and the whole History is the game menu's
-// debug view (M9-F4); groups by Day and time of day; a Party's
+// debug view (M9-F4); groups by date and time of day; a Party's
 // Encounters and a Rival's routine folded, each opened by a button; the marks, each with a word or an
 // icon; names that open whom they name; and each entity's page opening its History.
 
@@ -55,7 +56,7 @@ function cameHome(): GameState {
 }
 
 describe('one view, opened on the player’s Guild (M9-S5)', () => {
-  test("opens on the player's Guild, grouped by Day and time of day, newest first, what the last play added marked new", () => {
+  test("opens on the player's Guild, grouped by date and time of day, newest first, what the last play added marked new", () => {
     render_(cameHome());
     const history = section('History');
 
@@ -69,8 +70,11 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
       .map((heading) => heading.textContent ?? '');
     expect(groups.length).toBeGreaterThan(1);
     expect(groups.map(turnOf)).toEqual(groups.map(turnOf).sort((a, b) => b - a));
-    // Each group is a list named by its Day and time of day.
+    // Each group is a list named by its date and time of day, as the help says (DL-210, DL-214).
     expect(within(history).getByRole('list', { name: groups[0] ?? '' })).toBeDefined();
+    expect(groups[0]).toMatch(/^Year \d+ Day \d+, (morning|afternoon|night)$/);
+    expect(help.history).toContain('a page at a time, by date and time of day:');
+    expect(help.history).not.toMatch(/by Day/);
     // Every line is the player's Guild's, and what the last play appended is marked, in a word.
     const lines = historyLines(history);
     expect(lines.every((line) => line.classList.contains('entry--mine'))).toBe(true);
@@ -481,7 +485,7 @@ describe("the History's scopes (M9-F4, DL-111 item 4, DL-112 item 7)", { timeout
     expect(within(history()).queryByText(/new since your last action/)).toBeNull();
   });
 
-  test('the world: every Guild’s news, grouped by Day and time of day, with no folds', () => {
+  test('the world: every Guild’s news, grouped by date and time of day, with no folds', () => {
     render_(played(withWorldNews(started('history-world')), { kind: 'advance', turns: 120 }));
     fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
     const history = (): HTMLElement => section('History');

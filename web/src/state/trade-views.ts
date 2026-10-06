@@ -8,7 +8,6 @@
 
 import {
   ageOf,
-  gearSlotKeys,
   guildmasterOf,
   holdings,
   itemDefinition,
@@ -30,9 +29,9 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, itemEffectWords, kindOf, nameIn, nightOfTurn } from '@heroesim/words';
+import { itemEffectWords, kindOf, nameIn, nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import type { Facets } from './facets';
+import { kindFacet, type Facets } from './facets';
 import { classMarkOf, type ClassMarked, rowOf, transferCostWords } from './names';
 import { calendarFor, playDeps } from './reducer';
 import { defaultHeroOrder } from './selectors';
@@ -122,10 +121,7 @@ export function marketView(document: WorldDocument): MarketView {
     quantity,
     price,
   }));
-  const kinds = [...gearSlotKeys, 'consumable' as const].filter((key) => forSale.some((row) => row.kindKey === key));
-  const facets: Facets<ListingRow, 'kind'> = {
-    kind: { label: 'Show for sale', options: kinds.map((key) => ({ key, label: capitalised(key) })), of: (row) => row.kindKey },
-  };
+  const facets: Facets<ListingRow, 'kind'> = { kind: kindFacet(forSale, 'Show for sale') };
   const totalForSale = stock.reduce((sum, { quantity }) => sum + quantity, 0);
   if (guild === undefined) return { forSale, facets, totalForSale, guildName: null, wealth: null, held: [] };
 
@@ -253,6 +249,7 @@ export function offersView(document: WorldDocument): { guildName: string; offers
   const { world } = document;
   const guild = playerGuild(world);
   if (guild === undefined) return null;
+  const calendar = calendarFor(document);
   return {
     guildName: guild.name,
     offers: offersTo(world, guild.id).map((offer) => {
@@ -260,7 +257,7 @@ export function offersView(document: WorldDocument): { guildName: string; offers
       const hero = rowOf(world.heroes, offer.heroId)?.name ?? 'a Hero';
       return {
         offerId: offer.id,
-        sentence: `${bidder} offers ${offer.fee} Wealth for ${hero}, until ${nightOfTurn(offer.expiresOnTurn, calendarFor(document))}.`,
+        sentence: `${bidder} offers ${offer.fee} Wealth for ${hero}, until ${nightOfTurn(offer.expiresOnTurn, calendar)}.`,
         guildName: bidder,
         heroName: hero,
         fee: offer.fee,

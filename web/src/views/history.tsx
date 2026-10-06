@@ -13,7 +13,7 @@
 // names, and the World History takes the world's news. The whole History is not a choice: the game
 // menu opens it as a debug view, every entry unfolded with its event type, and a choice leaves it.
 //
-// A page is `HistoryPage`'s (`history-entries.tsx`): groups by Day and time of day, folds, marks and
+// A page is `HistoryPage`'s (`history-entries.tsx`): groups by date and time of day, folds, marks and
 // names that open whom they name. Every line and word comes from `state/history.ts`.
 //
 // A Guild's History has its Banner beside its title, and a Guildmaster's their Portrait (v1.1.2-S2,

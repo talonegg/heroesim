@@ -18,12 +18,11 @@ import {
   type Guild,
   type TransferInRejection,
   type TransferOutRejection,
-  type TransferRefusalReason,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { dateOfTurn, type Calendar } from '@heroesim/words';
+import { transferLockedWords, transferRefusalWords, type Calendar } from '@heroesim/words';
 import { narrateLine } from '../namer.js';
 import { renderTime, rowIn, table } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
@@ -37,20 +36,6 @@ function heroCalled(world: World, heroId: string): string {
 /** A Guild by name, or its id when the save has no such Guild. */
 function guildCalled(world: World, guildId: string): string {
   return rowIn(world.guilds, guildId)?.name ?? guildId;
-}
-
-/** Why a Guild will not deal now, after "will not part with …" or "will not take …". */
-function refusalWords(because: TransferRefusalReason, guild: Guild | undefined): string {
-  switch (because) {
-    case 'roster-size':
-      return `its Roster of ${guild?.rosterIds.length ?? 0} is too small for its appetite for Transfers`;
-    case 'wealth':
-      return 'it is not rich enough to hire now';
-    case 'unknown-disposition':
-      return 'its Disposition is not one this content knows';
-    case 'answers-offers':
-      return 'it answers only Transfer Offers';
-  }
 }
 
 type Refusal = TransferInRejection | TransferOutRejection | AcceptTransferRejection | DeclineTransferRejection;
@@ -71,11 +56,11 @@ function explain(rejection: Refusal, player: Guild, world: World, calendar: Cale
     case 'hero-in-party':
       return `${heroCalled(world, rejection.heroId)} is away with ${rejection.partyId}; a Hero is transferred only from the Hall.`;
     case 'recently-transferred':
-      return `${heroCalled(world, rejection.heroId)} was transferred on ${dateOfTurn(rejection.transferredOnTurn, calendar)} and cannot be transferred again before ${dateOfTurn(rejection.untilTurn, calendar)}.`;
+      return transferLockedWords(heroCalled(world, rejection.heroId), rejection.transferredOnTurn, rejection.untilTurn, calendar);
     case 'transfer-refused': {
       const other = rowIn(world.guilds, rejection.guildId);
       const way = rejection.side === 'out' ? 'part with' : 'take';
-      return `${guildCalled(world, rejection.guildId)} will not ${way} ${heroCalled(world, rejection.heroId)}: ${refusalWords(rejection.because, other)}.`;
+      return `${guildCalled(world, rejection.guildId)} will not ${way} ${heroCalled(world, rejection.heroId)}: ${transferRefusalWords(rejection.because, other)}.`;
     }
     case 'insufficient-wealth':
       return `The fee is ${rejection.fee} Wealth; ${guildCalled(world, rejection.guildId)} has ${rejection.wealth}.`;

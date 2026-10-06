@@ -4,6 +4,10 @@
 // Each option's count is what it would show with the other filters as they are (item 29). The Roster,
 // the Stores, the Treasury and the Market filter through it; `FilterChips` draws one filter.
 
+import { gearSlotKeys } from '@heroesim/engine';
+import { capitalised } from '@heroesim/words';
+import type { MarketKind } from './trade-views';
+
 /** A choice of a filter: its key, and its words on its chip. */
 export interface FacetOption {
   key: string;
@@ -91,4 +95,14 @@ export function faceted<Row, Name extends string>(rows: readonly Row[], facets: 
     ]),
   ) as Record<Name, FacetView>;
   return { rows: shown, facets: views, filtered: filters.some((filter) => filter.chosen.length > 0) };
+}
+
+/**
+ * The filter by kind of Item, named `label`, the Stores' and the Market's (DL-213, DL-214): an option
+ * for each kind `rows` hold, the gear slots in the engine's order and then Consumable; a row of no
+ * kind, an Item the content does not define, is shown by All alone.
+ */
+export function kindFacet<Row extends { kindKey: MarketKind | null }>(rows: readonly Row[], label: string): Facet<Row> {
+  const kinds = [...gearSlotKeys, 'consumable' as const].filter((key) => rows.some((row) => row.kindKey === key));
+  return { label, options: kinds.map((key) => ({ key, label: capitalised(key) })), of: (row) => row.kindKey };
 }

@@ -11,7 +11,7 @@ import { playDeps, type GameState } from './reducer';
 import { rejectionSentence } from './rejections';
 import { boardView, countdownView, headerView, heroPage, linesOf, partyRows, rosterRows, sentView } from './selectors';
 import { offersView } from './trade-views';
-import { treasuryView, type TreasuryFilter } from './treasury';
+import { ledgerPage, treasuryAccounts } from './treasury';
 import { guildmasterView, guildsTable } from './world-views';
 
 // Every date the page shows is by the game's own calendar, its `meta.config.turnsPerYear`, never
@@ -20,12 +20,17 @@ import { guildmasterView, guildsTable } from './world-views';
 // a view that reads this release's calendar, or the engine's Day from 0, fails here.
 
 const turnsPerYear = 6;
-const every: TreasuryFilter = {};
 /** The date of `turn` as a player reads it, counted here apart from the calendar the page uses. */
 const dateIn = (turn: number): string => `Year ${Math.floor(turn / turnsPerYear) + 1} Day ${Math.floor((turn % turnsPerYear) / 3) + 1}`;
 const nightIn = (turn: number): string => `the night of ${dateIn(turn)}`;
 const times = ['morning', 'afternoon', 'night'] as const;
 const whenIn = (turn: number): string => `${dateIn(turn)}, ${times[turn % 3]}`;
+
+/** The Treasury's Upkeep and its ledger's first page, no filter chosen, as its page reads them (DL-214). */
+function treasuryOf(document: WorldDocument) {
+  const accounts = treasuryAccounts(document);
+  return accounts === null ? null : { next: accounts.upkeep.next, rows: ledgerPage(accounts.ledger, { rows: accounts.ledger.changes, filtered: false }, 0).rows };
+}
 
 /** A new game whose Year is two Days. */
 function shortYear(seed = 'dates'): GameState {
@@ -129,9 +134,9 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
     expect(report?.night).toBe(nightIn(night));
     expect(JSON.stringify(report)).toContain(nightIn(23));
 
-    const treasury = treasuryView(document, every, 0);
-    expect(treasury?.upkeep.next).toBe(nightIn(nextUpkeepDay(night, playDeps(document).config) * 3));
-    expect(treasury?.ledger.rows.some((row) => row.when === whenIn(night))).toBe(true);
+    const treasury = treasuryOf(document);
+    expect(treasury?.next).toBe(nightIn(nextUpkeepDay(night, playDeps(document).config) * 3));
+    expect(treasury?.rows.some((row) => row.when === whenIn(night))).toBe(true);
 
     // The opening row of a Guild founded later, as a replacement Rival is: its `guild.founded` moved to Turn 13.
     const later = changed(written.state, (each, guild) => {
@@ -139,7 +144,7 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
       if (founded === undefined) throw new Error('no founding');
       founded.turn = 13;
     });
-    expect(treasuryView(documentOf(later), every, 0)?.ledger.rows.at(-1)).toMatchObject({ categoryWords: 'Opening balance', when: whenIn(13) });
+    expect(treasuryOf(documentOf(later))?.rows.at(-1)).toMatchObject({ categoryWords: 'Opening balance', when: whenIn(13) });
   });
 
   test('an Offer, a fold, a Retirement and a refusal', () => {
@@ -225,8 +230,8 @@ describe('every date the page shows reads the config the game plays under, fille
         ...linesOf(document.history.entries, narrationFor(document, content)).map((line) => `${line.when}: ${line.sentence}`),
         saveFileName(document),
         JSON.stringify(questReturn(document, { partyId: written.party.partyId, questId: written.party.questId })),
-        ...(treasuryView(document, every, 0)?.ledger.rows.map((row) => row.when) ?? []),
-        treasuryView(document, every, 0)?.upkeep.next ?? '',
+        ...(treasuryOf(document)?.rows.map((row) => row.when) ?? []),
+        treasuryOf(document)?.next ?? '',
         ...(offersView(documentOf(game.offered))?.offers.map((offer) => offer.sentence) ?? []),
         ...guildsTable(over, 'fame').folded.map((guild) => guild.folded ?? ''),
         guildmasterView(document)?.retirement ?? '',

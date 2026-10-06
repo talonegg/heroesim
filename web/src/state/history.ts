@@ -1,5 +1,5 @@
 // The History as the one place to read what happened (M9-S5, DL-105; DL-99 item 2): whose it is,
-// and a page of it grouped by Day and time of day, newest first, each group in the order it
+// and a page of it grouped by date and time of day, newest first, each group in the order it
 // happened. In a group, a Party's steps on its Quest fold under its outcome, and each Rival's
 // routine under one line for the Guild, save in a Hero's own History, where every line is the
 // Hero's (DL-109 item 2, Q14); every line says whose it is, whether the last play appended it, and
@@ -459,7 +459,7 @@ export function historyTitle(document: WorldDocument, whose: HistoryWhose): stri
 
 /**
  * A page of the History of `whose` (from 0): `historyPageSize` entries counted from the newest of
- * what its scope shows, a Party's steps kept with its outcome where they fold, grouped by Day and
+ * what its scope shows, a Party's steps kept with its outcome where they fold, grouped by date and
  * time of day, newest first, each group in the order it happened. Each page starts where the one
  * before ends (`pageStarts`), so none is empty and `pages` is exact. A page past the last reads as
  * the last; an entity the History does not name, as the player's Guild's. `log` is the last play's
