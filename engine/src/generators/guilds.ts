@@ -25,12 +25,12 @@ import { describeBlanks } from '../descriptions.js';
 import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../events.js';
 import { guildmasterTraitsOf } from '../guildmaster.js';
 import { ageIntoPortrait, choosePortrait, guildmasterPortraitsInUse, portraitRowOf } from '../portraits.js';
-import { int, pick } from '../rng.js';
+import { int, weightedPick } from '../rng.js';
 import { excludeEachOther } from '../traits.js';
 import {
   checkName,
   clamp,
-  dealEvenly,
+  dealByWeight,
   drawCount,
   drawPersonName,
   drawUnusedPersonName,
@@ -55,7 +55,7 @@ const foundingFame = 0;
 export interface GuildOptions extends DrawsFrom {
   /** The one thing a player's Guild and a Rival's differ in (ADR-0002). */
   controller: Controller;
-  /** Heroes generated onto the Roster, their Classes dealt evenly (DL-19 item 7). */
+  /** Heroes generated onto the Roster, their Classes dealt by weight, evenly while every weight is 1 (DL-19 item 7, DL-208). */
   rosterSize: number;
   wealth: number;
   /** Drawn from content's Guild names when omitted: one no Guild has had, while any is left (DL-28). */
@@ -191,7 +191,9 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
   ];
 
   const stream = options.stream === undefined ? {} : { stream: options.stream };
-  for (const classKey of dealEvenly(state, sortedKeys(content.classes), rosterSize)) {
+  // The Classes dealt by their weights: evenly, every Class once before any twice, while every
+  // weight is 1 (`dealByWeight`, DL-206 item 1, DL-208).
+  for (const { key: classKey } of dealByWeight(state, sortedRows(content.classes), rosterSize)) {
     events.push(...generateHero(world, deps, { classKey, guildId, ...stream }).events);
   }
   return { guild, guildmaster, events };
@@ -395,7 +397,8 @@ interface GuildmasterSetup {
  */
 function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: GuildmasterSetup): Guildmaster {
   const { chosen } = setup;
-  const drawnSex = pick(state, sexes);
+  // The sex by its weight in `guildmasterSexWeights` (DL-206 item 1, DL-208), one draw whatever the weights.
+  const drawnSex = weightedPick(state, sexes, sexes.map((one) => config.guildmasterSexWeights[one]));
   const sex = chosen.sex ?? drawnSex;
   const name =
     setup.name ??

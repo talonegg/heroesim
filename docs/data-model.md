@@ -106,6 +106,15 @@ random numbers registers a stream of its own. A subsystem is a component: a new 
 component uses that component's stream, and the Transfer Generator's draw from `rivals` is an
 accepted exception (amended 2026-09-28, DL-84; ADR-0009 as amended 2026-09-28).
 
+The deals at creation read the content's weights (DL-206 item 1, DL-208): a Guild's starting Roster
+is dealt its Classes, and the Patrons created with the world their Spheres, by `dealByWeight`. While
+every row's `weight` is 1, as every shipped row's is, the deal is even, every Class or Sphere once
+before any twice (DL-19 item 7), with the draws it made before the weights. With any weight not 1,
+each place is drawn in proportion to the weights, one draw each, so the even deal's "once before any
+twice" holds only while every weight is 1. A Guildmaster's sex is drawn by `guildmasterSexWeights`,
+a Hero's by `heroSexWeights` (DL-202, DL-208); a sex the player chooses at setup replaces the one
+drawn.
+
 Ids are strings with a table prefix and a counter zero-padded to six digits in every table:
 `hero-000042`, `guild-000002`, `quest-001337`, so that string order is numeric order for the
 life of any plausible game (a 20-year game uses about 43,000 Quest ids); the validator refuses

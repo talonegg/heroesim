@@ -1,5 +1,5 @@
 {
-  "version": 16,
+  "version": 17,
   "changelog": [
     "2 from M2-S12's first balance pass (DL-35).",
     "3 from M3's wage for Levels (DL-36).",
@@ -16,7 +16,8 @@
     "13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints` (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), S6's `playerPartyMargin` (DL-148, DL-157), and S8's `encounterTagWeight` (DL-148, DL-160). S10's balance pass changes defaults under it too, `checkVariance` 0.2 to 0.4 first (DL-165), then the Degrees, `strongTriumphShare` and the form factors (DL-166), as no game has been released under 13.",
     "14 from v1.1.6-S7, whose config lost `schemaVersion`, `configVersion` and `gearSlots`, every other default as it was (DL-193).",
     "15 from v1.1.6-S16, which adds `heroSexWeights` and `lootOnFinaleDegrees`, at the draw and the rule they had before (DL-202).",
-    "16 from v1.1.6-S18, which moves the defaults' values into this file, `engine/src/config.json`, in sections, every value as it was (DL-204)."
+    "16 from v1.1.6-S18, which moves the defaults' values into this file, `engine/src/config.json`, in sections, every value as it was (DL-204).",
+    "17 from v1.1.7-S2, which adds `guildmasterSexWeights`, at 1 and 1 the draw it had before (DL-206, DL-208)."
   ],
   "sections": {
     "world": {
@@ -50,6 +51,7 @@
     "guildmasters": {
       "guildmasterStartingAgeMin": 21,
       "guildmasterStartingAgeMax": 50,
+      "guildmasterSexWeights": { "female": 1, "male": 1 },
       "guildmasterStatMin": 5,
       "guildmasterStatMax": 15,
       "guildmasterStatPoints": 50,

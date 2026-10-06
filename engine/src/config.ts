@@ -52,7 +52,7 @@ export interface GameConfig {
   /** Each Rival's starting Wealth is drawn from this range. */
   rivalStartingWealthMin: number;
   rivalStartingWealthMax: number;
-  /** Patrons generated with the world, their Spheres dealt evenly. */
+  /** Patrons generated with the world, their Spheres dealt by weight, evenly while every weight is 1 (DL-208). */
   patronCount: number;
   /** Unattached Heroes generated with the world, and what the pool is refilled to (DL-27). */
   unattachedPoolSize: number;
@@ -90,6 +90,12 @@ export interface GameConfig {
    */
   guildmasterStartingAgeMin: number;
   guildmasterStartingAgeMax: number;
+  /**
+   * A generated Guildmaster's sex is drawn in proportion to these weights, one draw: each 0 or more,
+   * not both 0. Apart from `heroSexWeights`, so that a world's Guildmasters and Heroes may differ
+   * (DL-206 item 1, DL-208). A sex the player chooses at setup replaces the one drawn (M9-S2).
+   */
+  guildmasterSexWeights: Readonly<Record<Sex, number>>;
   /**
    * Each Guildmaster Stat is drawn from this range (DL-19), and a player who chooses the Stats at
    * setup sets each within it (DL-149 item 5).

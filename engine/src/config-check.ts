@@ -157,7 +157,10 @@ function listOf(members: readonly string[]): ConfigRule {
       : `it is a list of ${members.join(', ')}, none twice`;
 }
 
-/** A new Hero's sex weights (v1.1.6-S16, DL-202): one for each sex, each 0 or more, one above 0 for a draw to land on. */
+/**
+ * A new Hero's or Guildmaster's sex weights (DL-202, DL-208): one for each sex, each 0 or more, one
+ * above 0 for a draw to land on.
+ */
 const sexWeights: ConfigRule = (value, settings) => {
   const weights = numbersOf(value, sexes, { min: 0 }, settings);
   return weights?.some((weight) => weight > 0) === true
@@ -248,6 +251,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
 
   guildmasterStartingAgeMin: whole({ min: 0 }),
   guildmasterStartingAgeMax: drawnMax('guildmasterStartingAgeMin'),
+  guildmasterSexWeights: sexWeights,
   guildmasterStatMin: whole({ min: 0 }),
   guildmasterStatMax: drawnMax('guildmasterStatMin'),
   guildmasterStatPoints: whole({ min: 0 }),

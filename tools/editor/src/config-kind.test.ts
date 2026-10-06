@@ -42,7 +42,7 @@ describe('show', () => {
     expect(code).toBe(0);
     const file = readConfig(dir);
     expect(shown.sections.map((view) => view.section)).toEqual(Object.keys(file.sections));
-    expect(shown.sections.flatMap((view) => view.settings)).toHaveLength(120);
+    expect(shown.sections.flatMap((view) => view.settings)).toHaveLength(Object.values(file.sections).flatMap((section) => Object.keys(section)).length);
     expect(shown.sections.find((view) => view.section === 'guilds')?.settings).toContainEqual({ setting: 'wagePerLevel', value: 20, pending: false });
     expect(shown.pending).toBe(0);
 
