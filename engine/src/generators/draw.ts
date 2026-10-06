@@ -75,7 +75,8 @@ export function dealEvenly<T>(state: Stream, items: readonly T[], count: number)
  * has a `weight`, the deal is `dealEvenly`'s, the same draws in the same order, so every Class once
  * before any twice (DL-19 item 7) and a game as it was before the deals read the weights. With any
  * other weight, each place is drawn by `pickByWeight`, one draw each, so a row weighted 0 is never
- * dealt and the even deal's "once before any twice" no longer holds.
+ * dealt while another is above 0 (with every weight 0 the draw is `weightedPick`'s uniform one;
+ * content refuses a weight of 0, DL-202) and the even deal's "once before any twice" no longer holds.
  */
 export function dealByWeight<Row extends { weight?: number }>(state: Stream, rows: readonly Row[], count: number): Row[] {
   if (rows.every((row) => weightOf(row) === 1)) return dealEvenly(state, rows, count);

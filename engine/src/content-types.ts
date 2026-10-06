@@ -104,8 +104,9 @@ export interface Class {
    */
   growth: Record<StatKey, number>;
   /**
-   * Its weight in the draw of a new Hero's Class, a number above 0; 1 when absent
-   * (v1.1.6-S16, DL-186 item 16, DL-202). Rows all at 1 are drawn as equally likely.
+   * Its weight in the draw of a new Hero's Class and in the deal of a Guild's starting Roster, a
+   * number above 0; 1 when absent (DL-186 item 16, DL-202, DL-208). Rows all at 1 are drawn as
+   * equally likely, and dealt evenly.
    */
   weight?: number;
 }
@@ -231,8 +232,9 @@ export interface Sphere {
   key: SphereKey;
   name: string;
   /**
-   * Its weight in the draw of a new Patron's Sphere, a number above 0; 1 when absent
-   * (v1.1.6-S16, DL-186 item 16, DL-202). Rows all at 1 are drawn as equally likely.
+   * Its weight in the draw of a new Patron's Sphere and in the deal of the Patrons' Spheres at
+   * creation, a number above 0; 1 when absent (DL-186 item 16, DL-202, DL-208). Rows all at 1 are
+   * drawn as equally likely, and dealt evenly.
    */
   weight?: number;
 }
