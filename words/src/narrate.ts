@@ -531,8 +531,8 @@ function held(kind: NameSlot['kind'], id: EntityId, rows: Readonly<Record<string
 }
 
 /**
- * Why an advance or a fast forward stopped (M2-S11, M7-S3; one narration for both front ends from
- * v1.1.7-S3, DL-209, reversing DL-198 call 1, DL-206 item 2): its nine sentences, the names as slots a
+ * Why an advance or a fast forward stopped (M2-S11, M7-S3), one narration for both front ends
+ * (DL-206 item 2, DL-209): its nine sentences, the names as slots a
  * front end's Namer fills, a Guild, a Hero, a Quest, the Parties counted or listed, an Offer's line,
  * and what to do next (`command`), which the CLI says as a command and the page as a button. `world`
  * is where it stopped, for the names its rows hold; `maxTurns` the cap it played under.

@@ -4,8 +4,8 @@ import { content } from '../content';
 import { narrationFor } from './namer';
 import { stopText } from './stops';
 
-// Why time stopped, in the page's words (M7-S3): the CLI's adapted, no id and no command, a sentence
-// each (v1.1.6-S12 moved it beside the page's Namer, its words the same).
+// Why time stopped, in the page's words (M7-S3): the narration's sentence (`narrateStop` in
+// `@heroesim/words`, DL-209) through the page's Namer, no id and no command, a sentence each.
 
 const partyId = 'party-000004' as PartyId;
 const offerId = 'offer-000001' as OfferId;
@@ -52,6 +52,22 @@ describe('stopText', () => {
 
     expect(line).toMatch(words);
     expectASentence(line);
+  });
+
+  test('counts the Parties, names each Quest and Hero, and gives no command, the button standing for it (DL-209)', () => {
+    const narration = narrationFor(document, content);
+    const said = (stop: StopReason): string => stopText(stop, document, 1080, narration);
+    const parties = ['party-000004', 'party-000005', 'party-000006'] as PartyId[];
+
+    expect(said({ kind: 'party-returned', guildId: player.id, partyIds: parties })).toBe("Stopped: The Lantern's 3 Parties came home.");
+    expect(said({ kind: 'decision-needed', guildId: player.id, questIds: [quest] })).toBe(
+      `Stopped: a decision is needed: The Lantern has no Party out, and could send one on ${narration.questName(quest)}.`,
+    );
+    expect(said({ kind: 'quest-staffable', guildId: player.id, questIds: [quest] })).toBe(
+      `Stopped: a Quest to staff: The Lantern's Heroes at home could go on ${narration.questName(quest)}.`,
+    );
+    if (poolHero === undefined) throw new Error('no Hero in the pool');
+    expect(said({ kind: 'pool-refreshed', heroIds: [poolHero.id] })).toBe(`Stopped: new in the Unattached pool: ${poolHero.name}.`);
   });
 
   test('names a Transfer Offer standing by the Guild that makes it, its fee, the Hero and its last night (DL-74)', () => {

@@ -2,9 +2,9 @@ import type { GuildId, HeroId, OfferId, PartyId, QuestId, StopReason, WorldDocum
 import { describe, expect, test } from 'vitest';
 import { stopLine } from './advance.js';
 
-// Why a fast forward stopped, in the CLI's words (M2-S11; M6-S2, M9-S1): the ids its commands take
-// and the command that answers. The CLI's own framing, beside the narration (v1.1.6-S12, DL-186 item
-// 1): every line as it was, but the Module's capital settled to the page's.
+// Why a fast forward stopped, in the CLI's words (M2-S11; M6-S2, M9-S1): the narration's sentence
+// (`narrateStop` in `@heroesim/words`, DL-209) with the ids the CLI's commands take and the command
+// that answers.
 
 const guildId = 'guild-000002' as GuildId;
 const heroId = 'hero-000007' as HeroId;
@@ -38,6 +38,11 @@ describe('stopLine', () => {
       { kind: 'transfer-offer', guildId, offerIds: [offerId] },
       'Stopped: a Transfer Offer: The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of Day 7 ' +
         '(offer-000001). Answer with accept --offer <id> or decline --offer <id> (show offers).',
+    ],
+    [
+      { kind: 'transfer-offer', guildId, offerIds: ['offer-000002' as OfferId, offerId] },
+      'Stopped: a Transfer Offer: offer-000002 and The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of ' +
+        'Day 7 (offer-000001). Answer with accept --offer <id> or decline --offer <id> (show offers).',
     ],
     [
       { kind: 'below-floor', guildId, dueDay: 34 },
