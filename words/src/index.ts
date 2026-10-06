@@ -6,9 +6,21 @@
 //
 // The shared tables came in v1.1.6-S11; the narration, behind a Namer seam that fills each name for
 // the CLI or the page, and the Quest review's page, which the harness and the tools may read, in
-// v1.1.6-S12. A Stat's breakdown, the engine's `statBreakdown`, in words in v1.1.6-S13.
+// v1.1.6-S12. A Stat's breakdown, the engine's `statBreakdown`, in words in v1.1.6-S13. A date as a
+// player reads it, `Year 2 Day 45`, the Year and the Day counted from 1 (DL-210).
 
 export { gearUnavailableWords, unavailableChipWords, unavailableWords } from './availability.js';
+export {
+  calendarOf,
+  dateOfDay,
+  dateOfTurn,
+  fileDateOfTurn,
+  nightOfDay,
+  nightOfTurn,
+  whenOfTurn,
+  type Calendar,
+  type CalendarDate,
+} from './calendar.js';
 export {
   consumableEffectWords,
   itemEffectWords,

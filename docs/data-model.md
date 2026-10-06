@@ -89,7 +89,11 @@ ended:     { turn, reason } | null     set once, when the player-controlled Guil
 
 Day and time of day are derived: `day = floor(turn / 3)`, `timeOfDay = turn % 3` (morning,
 afternoon, night). Years use `config.turnsPerYear`, whose default is 1,080 (360 Days), a
-configuration default and not a decision.
+configuration default and not a decision. Day, Year and Turn count from 0 here and in every rule.
+(Amended 2026-10-06, DL-206 items 8 and 30 to 33, DL-210:) `turnsPerYear` is a multiple of 3,
+whole Days, so that no Day straddles two Years; a player reads a date as "Year Y Day D", the Year
+`yearOf + 1` and the Day of the Year `(turn mod turnsPerYear) div 3 + 1`, Turn 0 being Year 1 Day 1,
+morning (`@heroesim/words`' calendar). Only the words count from 1; the save holds the Turn.
 
 Streams are named per drawing subsystem so that adding a subsystem never shifts another's
 draws: `generation`, `board`, `quests`, `encounters`, `pool`, `heroes` (the Hero State

@@ -10,6 +10,7 @@ import { chanceBandNames, defaultConfig, moraleBandNames, potentialHints, questB
 import { degrees, type ContentSet, type StatArea } from './content-types.js';
 import { highestSkillRating, lowestSkillRating, type Meta } from './document.js';
 import { sexes } from './generators/draw.js';
+import { turnsPerDay } from './time.js';
 import type { Module } from './modules.js';
 
 /** A setting's problem: the setting, and a sentence naming it, its value and what it is to be. */
@@ -39,6 +40,8 @@ interface NumberSpec {
   above?: Bound;
   max?: Bound;
   below?: Bound;
+  /** A whole number of these: `turnsPerYear` whole Days (DL-210). */
+  multipleOf?: number;
   /** In place of the words the bounds make. */
   words?: string;
 }
@@ -67,7 +70,8 @@ function allows(spec: NumberSpec, value: unknown, settings: Settings): boolean {
     (min === undefined || value >= min) &&
     (above === undefined || value > above) &&
     (max === undefined || value <= max) &&
-    (below === undefined || value < below)
+    (below === undefined || value < below) &&
+    (spec.multipleOf === undefined || value % spec.multipleOf === 0)
   );
 }
 
@@ -78,6 +82,7 @@ function numberWords(spec: NumberSpec, settings: Settings): string {
     ...(spec.above === undefined ? [] : [`above ${boundWords(spec.above, settings)}`]),
     ...(spec.max === undefined ? [] : [`at most ${boundWords(spec.max, settings)}`]),
     ...(spec.below === undefined ? [] : [`below ${boundWords(spec.below, settings)}`]),
+    ...(spec.multipleOf === undefined ? [] : [`a multiple of ${spec.multipleOf}`]),
   ];
   return `it is a ${spec.whole === true ? 'whole' : 'finite'} number${clauses.length === 0 ? '' : `, ${clauses.join(' and ')}`}`;
 }
@@ -220,16 +225,17 @@ const declineAreaList: ConfigRule = listOf(statAreas);
  * what `GameConfig` says is negative is at most 0; a divisor is above 0.
  */
 export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule } = Object.freeze({
-  turnsPerYear: whole({ min: 1 }),
+  // Whole Days, so that a Day never straddles two Years and a date is its Day's (DL-206 item 8, DL-210).
+  turnsPerYear: whole({ min: turnsPerDay, multipleOf: turnsPerDay }),
 
   startingRosterSize: whole({ min: 0 }),
-  // Wealth may be below 0, a Guild in debt.
-  startingWealth: whole(),
+  // A Guild starts with no debt; a test of one in debt sets its Wealth after creation (DL-206 item 8, DL-210).
+  startingWealth: whole({ min: 0 }),
   rivalCount: whole({ min: 0 }),
   rivalRosterMin: whole({ min: 0 }),
   rivalRosterMax: drawnMax('rivalRosterMin'),
   rivalHireReserveUpkeeps: finite({ min: 0 }),
-  rivalStartingWealthMin: whole(),
+  rivalStartingWealthMin: whole({ min: 0 }),
   rivalStartingWealthMax: drawnMax('rivalStartingWealthMin'),
   patronCount: whole({ min: 1 }),
   unattachedPoolSize: whole({ min: 0 }),

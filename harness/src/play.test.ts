@@ -97,8 +97,15 @@ describe('playGame', () => {
   });
 
   test('stops on the Turn the game ends', () => {
-    const doomed: EngineDeps = { ...deps, config: { ...deps.config, startingWealth: -1000, bankruptcyGraceDays: 1 } };
-    const ended = playGame('play-b', doomed, { years, validate: true });
+    // In debt from the start, with a Day's grace: a starting Wealth is no debt (DL-210), so the Guild's is set once it is made.
+    const doomed: EngineDeps = { ...deps, config: { ...deps.config, bankruptcyGraceDays: 1 } };
+    const ended = playGame('play-b', doomed, {
+      years,
+      validate: true,
+      prepare: (document) => {
+        (playerGuild(document.world) as Guild).wealth = -1000;
+      },
+    });
     expect(ended.document.world.ended).toEqual({ turn: ended.document.world.turn, reason: 'bankruptcy' });
     expect(ended.turnsPlayed).toBe(ended.document.world.turn);
     expect(ended.turnsPlayed).toBeLessThan(60);
@@ -159,13 +166,13 @@ describe('playGame observes the World State (M3, DL-40)', () => {
   // and most of its memory. Each year's is counted; the last year's is gzipped from the save
   // `recordGame` writes once the game stops, the same document.
   test("the save as each year ends: every year's length as its text's, counted, and the last year's gzipped once the game stops", { timeout: 30_000 }, () => {
-    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 20 } };
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 21 } };
     const lengths: number[] = [];
     const worldLengths: number[] = [];
     const watched = playGame('play-a', shortYears, {
       years: 3,
       afterAdvance: (_before, after) => {
-        if (after.world.turn % 20 !== 0) return;
+        if (after.world.turn % shortYears.config.turnsPerYear !== 0) return;
         lengths.push(serialise(after).length);
         worldLengths.push(JSON.stringify(after.world).length);
       },

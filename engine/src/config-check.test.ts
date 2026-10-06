@@ -38,7 +38,22 @@ describe('the rules', () => {
     expect(broken({ startingWealth: 2 ** 53 - 1 })).toEqual([]);
     expect(broken({ startingWealth: 2 ** 53 })).toEqual(['startingWealth']);
     expect(broken({ heroStartingAgeMax: 1e17 })).toContain('heroStartingAgeMax');
-    expect(broken({ rivalStartingWealthMin: -(2 ** 53) })).toContain('rivalStartingWealthMin');
+    expect(broken({ bankruptcyFloor: -(2 ** 53 - 1) })).toEqual([]);
+    expect(broken({ bankruptcyFloor: -(2 ** 53) })).toEqual(['bankruptcyFloor']);
+  });
+
+  test('a Year is whole Days, three Turns each, so that no Day straddles two Years (DL-206 item 8, DL-210)', () => {
+    expect(checkConfig({ ...defaultConfig, turnsPerYear: 20 })).toEqual([
+      { setting: 'turnsPerYear', message: 'turnsPerYear is 20; it is a whole number, at least 3 and a multiple of 3' },
+    ]);
+    expect(broken({ turnsPerYear: 3 })).toEqual([]);
+  });
+
+  test('a starting Wealth is no debt (DL-206 item 8, DL-210)', () => {
+    expect(checkConfig({ ...defaultConfig, startingWealth: -1000, rivalStartingWealthMin: -1 })).toEqual([
+      { setting: 'startingWealth', message: 'startingWealth is -1000; it is a whole number, at least 0' },
+      { setting: 'rivalStartingWealthMin', message: 'rivalStartingWealthMin is -1; it is a whole number, at least 0' },
+    ]);
   });
 
   test('never throws, whatever a save holds', () => {
@@ -64,14 +79,16 @@ const anyWhole: Case = { refused: [0.5, Number.NaN, '3'], allowed: [-7, 0, 7] };
 const anyFinite: Case = { refused: [Number.NaN, Number.POSITIVE_INFINITY, '1'], allowed: [-1.5, 0, 2.5] };
 
 const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
-  turnsPerYear: { refused: [0, 1080.5, Number.POSITIVE_INFINITY], allowed: [1, 20, 1080] },
+  // Whole Days, so that a Day never straddles two Years (DL-206 item 8, DL-210).
+  turnsPerYear: { refused: [0, 1, 2, 4, 20, 1081, -3, 1080.5, Number.POSITIVE_INFINITY], allowed: [3, 6, 21, 1080] },
   startingRosterSize: wholeFrom(0),
-  startingWealth: anyWhole,
+  // A Guild starts with no debt (DL-206 item 8, DL-210).
+  startingWealth: wholeFrom(0),
   rivalCount: wholeFrom(0),
   rivalRosterMin: { refused: [-1, 0.5], allowed: [0, 4] },
   rivalRosterMax: { refused: [3, 4.5], allowed: [4, 9] },
   rivalHireReserveUpkeeps: finiteFrom(0),
-  rivalStartingWealthMin: { refused: [1.5, Number.NaN], allowed: [-100, 0, 700] },
+  rivalStartingWealthMin: { refused: [-1, 1.5, Number.NaN], allowed: [0, 700] },
   rivalStartingWealthMax: { refused: [299, 300.5], allowed: [300, 701] },
   patronCount: wholeFrom(1),
   unattachedPoolSize: wholeFrom(0),
@@ -326,11 +343,11 @@ describe('a Min and its Max', () => {
     expect(() => int(cyrb128('span'), from, from + 2 ** 32)).toThrow(RangeError);
   });
 
-  test("a Min far below its Max is named on the Max, with the most a draw spans", () => {
-    expect(checkConfig({ ...defaultConfig, rivalStartingWealthMin: -5_000_000_000 })).toEqual([
+  test("a Max far above its Min is named, with the most a draw spans", () => {
+    expect(checkConfig({ ...defaultConfig, rivalStartingWealthMax: 5_000_000_000 })).toEqual([
       {
         setting: 'rivalStartingWealthMax',
-        message: 'rivalStartingWealthMax is 700; it is a whole number from rivalStartingWealthMin (-5000000000) to 4294967295 above it, the most a draw spans',
+        message: 'rivalStartingWealthMax is 5000000000; it is a whole number from rivalStartingWealthMin (300) to 4294967295 above it, the most a draw spans',
       },
     ]);
   });

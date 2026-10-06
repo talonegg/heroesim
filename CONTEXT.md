@@ -542,7 +542,9 @@ a Death, a Transfer, a Trait gained or lost, a Campaign beat. No entry is droppe
 _Avoid_: Highlight, Achievement, Key event
 
 **Day**:
-Three Turns: morning, afternoon and night.
+Three Turns: morning, afternoon and night. A player reads the Day of the Year, from Day 1 to Day 360,
+with its Year: "Year 2 Day 45", "Year 2 Day 45, afternoon", "the night of Year 2 Day 45"; the engine
+counts Days from 0 and never resets them (amended 2026-10-06, DL-206 items 30 to 33, DL-210).
 _Avoid_: Tick, Round
 
 **Turn**:
@@ -553,8 +555,9 @@ drift, ageing, Upkeep and the ending checks fall, as Random Events will once tha
 _Avoid_: Step, Phase, Tick
 
 **Year**:
-360 Days, 1,080 Turns (`turnsPerYear`), by which ages and the calendar are counted: the game
-begins in Year 0 (DL-125 names it).
+360 Days, 1,080 Turns (`turnsPerYear`, whole Days), by which ages and the calendar are counted: the
+game begins in Year 1, Day 1, as players read it; the engine counts Years from 0 (DL-125 names it;
+amended 2026-10-06, DL-206 items 8 and 30, DL-210, originally "begins in Year 0").
 _Avoid_: Season, Annum
 
 **Action**:

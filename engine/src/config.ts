@@ -24,7 +24,10 @@ import type { Module } from './modules.js';
 
 export interface GameConfig {
   // ── `world`: the year and the starting world (INPUTS 3.2 to 3.4, 3.7, DL-19) ──────────────
-  /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
+  /**
+   * Turns in a year (data-model §3.1, INPUTS 3.2): whole Days of three Turns, so that no Day
+   * straddles two Years and a date reads its Day's Year (DL-206 item 8, DL-210).
+   */
   turnsPerYear: number;
   /** Heroes on the player's starting Roster; four gives one per Class (DL-19). */
   startingRosterSize: number;

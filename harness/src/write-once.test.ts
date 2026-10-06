@@ -12,7 +12,7 @@ import { playGame } from './play.js';
 // a Rival in debt, so a Guild folds.
 
 const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig, turnsPerYear: 20 }, content, modules: [createProbe({ probeFireBelow: 0.5 })] };
+const deps: EngineDeps = { config: { ...defaultConfig, turnsPerYear: 21 }, content, modules: [createProbe({ probeFireBelow: 0.5 })] };
 const tables = ['heroes', 'guildmasters', 'guilds'] as const;
 
 /** The write-once rows of `world`, each with its table and id. */
