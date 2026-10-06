@@ -42,7 +42,7 @@ import {
   type SentView,
 } from '../state/selectors';
 import { HeroPage } from './hero-page';
-import { Icon, type IconName } from './icons';
+import { HeroName, Icon, type IconName } from './icons';
 import { View } from './section';
 import { Banner, Chip, Stepper, VisuallyHidden } from './ui';
 
@@ -296,7 +296,7 @@ function Quest({
                 Leaves today
               </Chip>
             ) : (
-              <Chip>Until Day {card.lastDay}</Chip>
+              <Chip>{card.until}</Chip>
             )}
           </li>
         </ul>
@@ -535,7 +535,7 @@ function HeroRow({ row, chosen, onToggle, onOpen }: { row: PartyRow; chosen: boo
       <label className="party-row__pick">
         <input type="checkbox" checked={chosen} disabled={away} onChange={(event) => onToggle(event.target.checked)} />
         <span className="party-row__who">
-          <span className="party-row__name">{row.name}</span>{' '}
+          <HeroName icon={row.classIcon} className={row.className} name={row.name} nameClass="party-row__name" />{' '}
           <span className="party-row__class">
             {row.className}, Level {row.level}
           </span>

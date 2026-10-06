@@ -856,10 +856,19 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     withEncounters({ failure: [{ kind: 'death', chance: 0.15 }, { kind: 'morale', delta: -2 }] }),
   );
   const seeds = ['named-a', 'named-b', 'named-c'] as const;
+  /** Every event each game emitted, those its History does not record among them (DL-211). */
+  const emitted = new Map<string, TurnEvent[]>();
   const played = new Map(
     seeds.map((seed) => {
-      let document = createWorld(seed, setup, deps).document;
-      while (document.world.turn < nightOf(120)) document = advance(document, deps).document;
+      const created = createWorld(seed, setup, deps);
+      let { document } = created;
+      const events: TurnEvent[] = [...created.events];
+      while (document.world.turn < nightOf(120)) {
+        const result = advance(document, deps);
+        document = result.document;
+        events.push(...result.events);
+      }
+      emitted.set(seed, events);
       return [seed, withValid(document, deps)] as const;
     }),
   );
@@ -977,13 +986,13 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     expect(loaded.ok && loaded.warnings).toEqual([]);
   });
 
-  test("nothing else moves: the same seed gives the History of 86c7afa, entry for entry, but for the new fields and participants (M9-F1's questId, M9-F7's founding Wealth) and the Rivals' Parties (v1.1.4-S6)", () => {
+  test("nothing else moves: the same seed's events give the History of 86c7afa, entry for entry, but for the new fields and participants (M9-F1's questId, M9-F7's founding Wealth) and the Rivals' Parties (v1.1.4-S6)", () => {
     const fingerprints = seeds.map((seed) => {
-      const { history } = played.get(seed) as WorldDocument;
-      return createHash('sha256').update(JSON.stringify(history.entries.map(unnamed))).digest('hex');
+      const events = emitted.get(seed) as TurnEvent[];
+      return createHash('sha256').update(JSON.stringify(events.map(unnamed))).digest('hex');
     });
-    // SHA-256 of each seed's History, recorded at 86c7afa (v1.1-dev before M9-F1), where the
-    // stripping above took nothing out. M9-F7 added the founding Wealth to the stripping, not new
+    // SHA-256 of each seed's events, which the History holds but for the pool's comings and goings of
+    // a Hero never hired (DL-211; the test after this holds the History to them), recorded at 86c7afa (v1.1-dev before M9-F1), where the stripping above took nothing out. M9-F7 added the founding Wealth to the stripping, not new
     // values: with it set aside, the History is unchanged (DL-121). v1.1.4-S2 added an Encounter's
     // Degree, deciding Check and Checks, and, under the band's rule before it, nothing else (DL-152).
     // v1.1.4-S6's Rivals choose their Parties by the chance estimate (DL-157), which changes who goes:
@@ -1002,6 +1011,35 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
       '83073fb4443fdb744f1bcf491b49960a7db4b70c93cfe3baba41e86e426dd11d',
       '20a8de88e861bf65c27897fdedaace1f0b21073a52625bf6e76cb7a6f582a251',
     ]);
+  });
+
+  test('the History is those events less the pool comings and goings of a Hero no entry named: before an arrival, and before a leaving or anywhere in its Turn (DL-211, DL-214)', () => {
+    const passageOf = (event: TurnEvent): string | null => {
+      if (event.type === 'hero.generated' && event.payload.guildId === null) return event.payload.heroId;
+      return event.type === 'hero.left-pool' ? event.payload.heroId : null;
+    };
+    for (const seed of seeds) {
+      const events = emitted.get(seed) as TurnEvent[];
+      // Each Turn's events are one batch of `record`'s: the world's creation, then each advance.
+      const namedInTurn = new Map<number, Set<string>>();
+      for (const event of events) {
+        if (passageOf(event) !== null) continue;
+        const ofTurn = namedInTurn.get(event.turn) ?? new Set<string>();
+        for (const id of event.participants) ofTurn.add(id);
+        namedInTurn.set(event.turn, ofTurn);
+      }
+      const named = new Set<string>();
+      const expected = events.filter((event) => {
+        const passage = passageOf(event);
+        const leavingNamed = event.type === 'hero.left-pool' && passage !== null && namedInTurn.get(event.turn)?.has(passage) === true;
+        if (passage !== null && !named.has(passage) && !leavingNamed) return false;
+        for (const id of event.participants) named.add(id);
+        return true;
+      });
+      const { history } = played.get(seed) as WorldDocument;
+      expect(history.entries, seed).toEqual(expected);
+      expect(expected.length, seed).toBeLessThan((emitted.get(seed) as TurnEvent[]).length);
+    }
   });
 
   test('what v1.1.4-S2 added to each Encounter of the games says what its one Check said: decided by it, its Degree its outcome (DL-152)', () => {

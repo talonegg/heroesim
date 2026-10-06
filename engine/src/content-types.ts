@@ -89,6 +89,21 @@ export interface Stat {
   owner: StatOwner;
 }
 
+/**
+ * The names of the Class icons the page draws (v1.1.7-S6, DL-206 item 22, DL-212): the one set a
+ * Class's `icon` is held to by `validateContent`, and a test ties each to a drawing in the page's
+ * `icons.tsx` and each drawing to a name. A Class with no `icon` shows the page's plain mark.
+ */
+export const classIcons = ['sword-and-shield', 'crossed-daggers', 'tome', 'palm'] as const;
+
+/** The name of a Class icon: one of `classIcons`. */
+export type ClassIcon = (typeof classIcons)[number];
+
+/** Whether `name` is one of `classIcons`. */
+export function isClassIcon(name: string): name is ClassIcon {
+  return (classIcons as readonly string[]).includes(name);
+}
+
 /** A Hero's Class (R13; `classes.json`). */
 export interface Class {
   key: ClassKey;
@@ -104,10 +119,17 @@ export interface Class {
    */
   growth: Record<StatKey, number>;
   /**
-   * Its weight in the draw of a new Hero's Class, a number above 0; 1 when absent
-   * (v1.1.6-S16, DL-186 item 16, DL-202). Rows all at 1 are drawn as equally likely.
+   * Its weight in the draw of a new Hero's Class and in the deal of a Guild's starting Roster, a
+   * number above 0; 1 when absent (DL-186 item 16, DL-202, DL-208). Rows all at 1 are drawn as
+   * equally likely, and dealt evenly.
    */
   weight?: number;
+  /**
+   * The name of the icon shown before a Hero's name where their Class is shown with it: one of
+   * `classIcons`, or absent for the plain mark (v1.1.7-S6, DL-206 item 22, DL-212). Read as text;
+   * that it is in the set is `validateContent`'s rule, which names the Class.
+   */
+  icon?: string;
 }
 
 /** A Skill, rated 1 to 5 on a Hero (R15; `skills.json`). */
@@ -231,8 +253,9 @@ export interface Sphere {
   key: SphereKey;
   name: string;
   /**
-   * Its weight in the draw of a new Patron's Sphere, a number above 0; 1 when absent
-   * (v1.1.6-S16, DL-186 item 16, DL-202). Rows all at 1 are drawn as equally likely.
+   * Its weight in the draw of a new Patron's Sphere and in the deal of the Patrons' Spheres at
+   * creation, a number above 0; 1 when absent (DL-186 item 16, DL-202, DL-208). Rows all at 1 are
+   * drawn as equally likely, and dealt evenly.
    */
   weight?: number;
 }

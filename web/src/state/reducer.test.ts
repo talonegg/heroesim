@@ -105,13 +105,15 @@ function lastDeps(spy: unknown): EngineDeps {
 }
 
 describe('a new game', () => {
-  test('starts under the current defaults; its log is the History it starts with', () => {
+  test("starts under the current defaults; its log is the History it starts with, and the pool's arrivals it does not record (DL-211)", () => {
     const state = started();
     const document = documentOf(state);
 
     expect(document.meta.config).toEqual(defaultConfig);
     expect(document.meta.seed).toBe('reducer-test');
-    expect(state.log).toEqual(document.history.entries);
+    const arrivals = state.log.filter((event) => event.type === 'hero.generated' && event.payload.guildId === null);
+    expect(arrivals).toHaveLength(defaultConfig.unattachedPoolSize);
+    expect(state.log.filter((event) => !arrivals.includes(event))).toEqual(document.history.entries);
     expect(state.log[0]?.type).toBe('world.created');
     expect(state).toMatchObject({ rejection: null, busy: false, pending: null, stoppedBecause: null, warnings: [] });
   });
@@ -421,7 +423,7 @@ describe('the modules installed (M8-S4): none unless the page is given some', ()
   });
 
   test('a probe.fired event is in the log of the Turn the probe fires on, on a seed known to fire one', () => {
-    // Seed `modules`: the probe's stream first draws below 0.02 on the eleventh Turn, the night of Day 3.
+    // Seed `modules`: the probe's stream first draws below 0.02 on the eleventh Turn, the night of Year 1 Day 4.
     let state = withProbe(initialGameState, { ...newGame, seed: 'modules' });
     for (let turn = 1; turn <= 10; turn += 1) {
       state = withProbe(state, { kind: 'advance' });
@@ -660,11 +662,17 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
       expect(between.document).toBe(before.document);
       expect(between.log).toBe(before.log);
     }
-    // The step that ends it stores the game it left, and every step's events, in order, as the log.
+    // The step that ends it stores the game it left, and every step's events, in order, as the log:
+    // the History's new entries, and the pool's comings and goings it does not record (DL-211).
     const last = lastOf(states);
     expect(last).toMatchObject({ busy: false, pending: null, forwarding: null, stoppedBecause: { kind: 'max-turns' } });
     expect(documentOf(last).world.turn).toBe(turn + year);
-    expect(last.log).toEqual(documentOf(last).history.entries.slice(entries));
+    const added = documentOf(last).history.entries.slice(entries);
+    const held = new Set<object>(added);
+    expect(last.log.filter((event) => held.has(event))).toEqual(added);
+    const notRecorded = last.log.filter((event) => !held.has(event));
+    expect(notRecorded.length).toBeGreaterThan(0);
+    expect(new Set(notRecorded.map((event) => event.type))).toEqual(new Set(['hero.generated', 'hero.left-pool']));
   });
 
   test('a cap not a multiple of 30 ends with a step of what is left of it', () => {
@@ -734,9 +742,9 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
 // Vitest's 5 s default in full runs beside other work (M9-S3, DL-103). The timeout bounds a hang,
 // not the speed, as DL-74 item 1 bounded a slow test.
 describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (v1.0.1-S5, DL-96)', { timeout: 30_000 }, () => {
-  /** A Party of the player's out on the longest Quest it can staff, back on the night of Day 10, the 32nd Turn: partway through the second step. */
+  /** A Party of the player's out on the longest Quest it can staff, back on the night of Year 1 Day 11, the 32nd Turn: partway through the second step. */
   const partyOut = (): GameState => withPartyOut(startedFrom('reducer-test'));
-  /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Day 30, the 91st Turn, in the fourth step. */
+  /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Year 1 Day 31, the 91st Turn, in the fourth step. */
   const probeGame = (): GameState => {
     const made = gameReducer(gameReducer(initialGameState, { ...newGame, seed: 'reducer-test' }, [probe]), { kind: 'settle' }, [probe]);
     return withRosterReleased(made);
@@ -865,7 +873,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     expect(serialise(documentOf(last))).toBe(serialise(one.document));
     expect(stopView(last)).toEqual({
       kind: 'below-floor',
-      sentence: `Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Day ${due} unless its Wealth recovers by then.`,
+      sentence: `Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day ${due + 1} unless its Wealth recovers by then.`,
     });
   });
 });

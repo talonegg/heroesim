@@ -20,11 +20,13 @@ import {
 } from '@heroesim/engine';
 import { createProbe, makeId, partyFor } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
+import { nightOfDay, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { changed, played, started, withWealth } from './game.test-support';
 import { initialGameState, playDeps, type GameState } from './reducer';
-import { countdownView, whenOf } from './selectors';
-import { ledgerOf, treasuryView, wealthChangeOf, type TreasuryFilter } from './treasury';
+import { countdownView } from './selectors';
+import { faceted, type FacetChoices } from './facets';
+import { ledgerOf, ledgerPage, treasuryAccounts, wealthChangeOf } from './treasury';
 
 // The Treasury (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): the ledger is every change to a Guild's
 // Wealth read from the History by six categories. Its heart is that it misses nothing: from its opening
@@ -193,7 +195,7 @@ describe('the ledger misses nothing (M9-F3)', () => {
         const opening = rows.at(-1);
         const founding = Object.hasOwn(start.world.guilds, guild.id) ? start.world.guilds[guild.id]?.wealth : undefined;
         // Its oldest row is the Wealth it was founded with, as the Guild's row had it at the start.
-        expect(opening, guild.name).toMatchObject({ category: null, categoryWords: 'Opening balance', when: whenOf(guild.foundedTurn) });
+        expect(opening, guild.name).toMatchObject({ category: null, categoryWords: 'Opening balance', when: whenOfTurn(guild.foundedTurn, now.meta.config) });
         expect(opening?.sentence).toBe(`Founded with ${opening?.amount} Wealth`);
         if (founding !== undefined) expect(opening?.amount, guild.name).toBe(founding);
         const sum = rows.reduce((total, row) => total + row.amount, 0);
@@ -231,9 +233,22 @@ function mine(state: GameState): GuildId {
   return guild.id;
 }
 
-const both: TreasuryFilter = { flow: 'both', category: null };
+const both: FacetChoices<'flow' | 'category'> = {};
 
-describe('treasuryView: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', () => {
+/**
+ * The Treasury as its page composes it (`Accounts`, DL-213, DL-214): the accounts read once
+ * (`treasuryAccounts`), filtered by `faceted` as `useFacets` filters them, and a page put in words
+ * by `ledgerPage`, beside the filters' chips; `null` with no player's Guild.
+ */
+function treasuryPage(document: WorldDocument, filter: FacetChoices<'flow' | 'category'>, page: number) {
+  const accounts = treasuryAccounts(document);
+  if (accounts === null) return null;
+  const { ledger, ...rest } = accounts;
+  const shown = faceted(ledger.changes, ledger.facets, filter);
+  return { ...rest, ledger: { ...ledgerPage(ledger, shown, page), filters: shown.facets } };
+}
+
+describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', () => {
   test("gives the Guild's Wealth, and Upkeep's next payment with its Day and its parts, as the engine reckons them", () => {
     const state = played(started('treasury-upkeep'), { kind: 'advance', turns: 7 });
     const document = documentOf(state);
@@ -241,13 +256,13 @@ describe('treasuryView: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', ()
     if (guild === undefined) throw new Error('no Guild');
     const { config } = playDeps(document);
     const parts = upkeepParts(guild, document.world, config, content);
-    const view = treasuryView(document, both, 0);
+    const view = treasuryPage(document, both, 0);
 
     expect(view?.wealth).toBe(guild.wealth);
     expect(view?.upkeep.total).toBe(parts.total);
     expect(view?.upkeep.sentence).toBe(`Upkeep of The Lantern: ${parts.total} Wealth every ${config.upkeepEveryDays} Days`);
-    expect(view?.upkeep.next).toBe(`the night of Day ${nextUpkeepDay(document.world.turn, config)}`);
-    expect(view?.upkeep.next).toBe('the night of Day 9');
+    expect(view?.upkeep.next).toBe(nightOfDay(nextUpkeepDay(document.world.turn, config), config));
+    expect(view?.upkeep.next).toBe('the night of Year 1 Day 10');
     expect(view?.upkeep.parts).toEqual([
       { label: 'Wages', value: String(parts.wages) },
       { label: 'Hall maintenance', value: String(parts.hallMaintenance) },
@@ -264,7 +279,7 @@ describe('treasuryView: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', ()
       guildmasterTraitKeys: ['thrifty', 'miser'],
       createdAt: '2026-09-30T09:00:00.000Z',
     });
-    expect(treasuryView(documentOf(state), both, 0)?.upkeep.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.9' });
+    expect(treasuryPage(documentOf(state), both, 0)?.upkeep.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.9' });
   });
 
   test("gives a factor of two Traits as a figure a player reads, not the float's digits (M9-F6, code review)", () => {
@@ -275,37 +290,37 @@ describe('treasuryView: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', ()
       if (guildmaster === undefined) throw new Error('no Guildmaster');
       guildmaster.traits = ['spendthrift', 'thrifty'];
     });
-    expect(treasuryView(documentOf(state), both, 0)?.upkeep.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.99' });
+    expect(treasuryPage(documentOf(state), both, 0)?.upkeep.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.99' });
   });
 
   test('gives the Bankruptcy floor, and the countdown only while the Guild is below it', () => {
     const state = started('treasury-floor');
     const floor = playDeps(documentOf(state)).config.bankruptcyFloor;
-    const above = treasuryView(documentOf(state), both, 0);
+    const above = treasuryPage(documentOf(state), both, 0);
     expect(above?.floor).toBe(floor);
     expect(above?.countdown).toBeNull();
 
     const below = withWealth(state, floor - 50, 0);
-    expect(treasuryView(documentOf(below), both, 0)?.countdown).toBe(countdownView(documentOf(below)));
-    expect(treasuryView(documentOf(below), both, 0)?.countdown).toMatch(/below the Bankruptcy floor since Day 0/);
+    expect(treasuryPage(documentOf(below), both, 0)?.countdown).toBe(countdownView(documentOf(below)));
+    expect(treasuryPage(documentOf(below), both, 0)?.countdown).toMatch(/below the Bankruptcy floor since Year 1 Day 1:/);
   });
 
   test('gives no next payment once the game has ended', () => {
     const state = changed(started('treasury-ended'), (document) => {
       document.world.ended = { turn: document.world.turn, reason: 'bankruptcy' };
     });
-    expect(treasuryView(documentOf(state), both, 0)?.upkeep.next).toBeNull();
+    expect(treasuryPage(documentOf(state), both, 0)?.upkeep.next).toBeNull();
   });
 
   test("is null in a save with no player's Guild", () => {
     const state = changed(started('treasury-none'), (_, player) => {
       player.controller = { kind: 'rival', disposition: 'steady' };
     });
-    expect(treasuryView(documentOf(state), both, 0)).toBeNull();
+    expect(treasuryPage(documentOf(state), both, 0)).toBeNull();
   });
 });
 
-describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
+describe("The Treasury: the ledger's filters, totals and pages (M9-F3)", () => {
   /** A game in which The Lantern bought and sold at the Market, signed a Hero and paid Upkeep. */
   function traded(): GameState {
     let state = withWealth(started('treasury-ledger'), 5_000);
@@ -330,7 +345,7 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
 
   test('shows every row, newest first, with its Day, its words, its category and its amount, and totals them', () => {
     const state = traded();
-    const view = treasuryView(documentOf(state), both, 0);
+    const view = treasuryPage(documentOf(state), both, 0);
     const { cost } = payloadOf<{ cost: number }>(state, 'item.bought');
     const { proceeds } = payloadOf<{ proceeds: number }>(state, 'item.sold');
     const { fee } = payloadOf<{ fee: number }>(state, 'hero.recruited');
@@ -346,15 +361,15 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
       [null, founding],
     ]);
     const [paid, , , bought, opening] = view?.ledger.rows ?? [];
-    expect(opening).toMatchObject({ when: 'Day 0, morning', sentence: `Founded with ${founding} Wealth`, categoryWords: 'Opening balance', amountWords: String(founding) });
+    expect(opening).toMatchObject({ when: 'Year 1 Day 1, morning', sentence: `Founded with ${founding} Wealth`, categoryWords: 'Opening balance', amountWords: String(founding) });
     expect(founding).toBe(defaultConfig.startingWealth);
     expect(view?.ledger).toMatchObject({ shown: 4, opens: true });
     expect(paid?.categoryWords).toBe('Upkeep');
-    expect(paid?.when).toBe('Day 9, night');
+    expect(paid?.when).toBe('Year 1 Day 10, night');
     expect(paid?.amountWords).toBe(`-${upkeep}`);
     expect(bought?.sentence).toMatch(/^The Lantern bought 2 × .* at the Market for \d+ Wealth\.$/);
     expect(bought?.segments[0]).toMatchObject({ kind: 'name', text: 'The Lantern', table: 'guilds' });
-    expect(bought?.when).toBe('Day 0, morning');
+    expect(bought?.when).toBe('Year 1 Day 1, morning');
 
     const expense = -(upkeep + fee + cost);
     expect(view?.ledger.totals).toEqual({
@@ -367,32 +382,65 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
     });
   });
 
-  test('filters by income, by expense, and by category, and totals only what is shown', () => {
+  test('filters by income, by expense, and by categories, several of each, and totals only what is shown', () => {
     const document = documentOf(traded());
-    const income = treasuryView(document, { flow: 'income', category: null }, 0)?.ledger;
+    const income = treasuryPage(document, { flow: ['income'] }, 0)?.ledger;
     // The opening row is no income: a filter leaves it out, and the totals are the changes' alone.
     expect(income?.rows.map((row) => row.category)).toEqual(['market']);
     expect(income?.opens).toBe(false);
     expect(income?.totals.expense).toBe(0);
     expect(income?.totals.net).toBe(income?.totals.income);
 
-    const expense = treasuryView(document, { flow: 'expense', category: null }, 0)?.ledger;
+    const expense = treasuryPage(document, { flow: ['expense'] }, 0)?.ledger;
     expect(expense?.rows.map((row) => row.category)).toEqual(['upkeep', 'heroes', 'market']);
     expect(expense?.totals.income).toBe(0);
 
-    const market = treasuryView(document, { flow: 'both', category: 'market' }, 0)?.ledger;
+    const market = treasuryPage(document, { category: ['market'] }, 0)?.ledger;
     expect(market?.rows.map((row) => row.category)).toEqual(['market', 'market']);
     expect(market?.shown).toBe(2);
-    expect(treasuryView(document, { flow: 'expense', category: 'market' }, 0)?.ledger.rows).toHaveLength(1);
-    expect(treasuryView(document, { flow: 'income', category: 'hall' }, 0)?.ledger.rows).toEqual([]);
+    expect(market?.opens).toBe(false);
+    expect(treasuryPage(document, { flow: ['expense'], category: ['market'] }, 0)?.ledger.rows).toHaveLength(1);
+    expect(treasuryPage(document, { flow: ['income'], category: ['upkeep'] }, 0)?.ledger.rows).toEqual([]);
+    // A category the ledger holds no change of is no choice, and is let go.
+    expect(treasuryPage(document, { flow: ['income'], category: ['hall'] }, 0)?.ledger.rows.map((row) => row.category)).toEqual(['market']);
+    // Several categories: the rows of either.
+    expect(treasuryPage(document, { category: ['upkeep', 'heroes'] }, 0)?.ledger.rows.map((row) => row.category)).toEqual(['upkeep', 'heroes']);
+    // Both ways chosen reads as All: every change, and the opening row.
+    const whole = treasuryPage(document, { flow: ['income', 'expense'] }, 0)?.ledger;
+    expect(whole).toMatchObject({ shown: 4, opens: true });
+    expect(whole?.filters.flow.chosen).toEqual([]);
   });
 
-  test("names each category the Guild's ledger holds, in the Treasury's order, with its count, whatever is shown", () => {
-    const categories = treasuryView(documentOf(traded()), { flow: 'income', category: 'market' }, 0)?.ledger.categories;
-    expect(categories).toEqual([
-      { key: 'upkeep', label: 'Upkeep', count: 1 },
-      { key: 'market', label: 'Market', count: 2 },
-      { key: 'heroes', label: 'Heroes', count: 1 },
+  test("names each category the Guild's ledger holds, in the Treasury's order, and income and expense, each with its count against the other filter (DL-206 item 29)", () => {
+    const document = documentOf(traded());
+    const { filters } = treasuryPage(document, both, 0)?.ledger ?? {};
+    expect(filters?.category).toEqual({
+      label: 'Show of category',
+      chosen: [],
+      options: [
+        { key: 'upkeep', label: 'Upkeep', count: 1 },
+        { key: 'market', label: 'Market', count: 2 },
+        { key: 'heroes', label: 'Heroes', count: 1 },
+      ],
+    });
+    expect(filters?.flow).toEqual({
+      label: 'Show income or expense',
+      chosen: [],
+      options: [
+        { key: 'income', label: 'Income', count: 1 },
+        { key: 'expense', label: 'Expense', count: 3 },
+      ],
+    });
+    // Income chosen: each category counts its income; the flows count among every category still.
+    const income = treasuryPage(document, { flow: ['income'], category: ['market'] }, 0)?.ledger.filters;
+    expect(income?.category.options.map((option) => [option.key, option.count])).toEqual([
+      ['upkeep', 0],
+      ['market', 1],
+      ['heroes', 0],
+    ]);
+    expect(income?.flow.options.map((option) => [option.key, option.count])).toEqual([
+      ['income', 1],
+      ['expense', 1],
     ]);
   });
 
@@ -402,25 +450,26 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
     const document = documentOf(state);
     const all = ledgerOf(document, mine(state));
     expect(all.length).toBeGreaterThan(20);
-    const first = treasuryView(document, both, 0)?.ledger;
+    const first = treasuryPage(document, both, 0)?.ledger;
     expect(first?.rows.map((row) => row.key)).toEqual(all.slice(0, 20).map((row) => row.key));
     expect(first?.page).toBe(0);
     expect(first?.pages).toBe(Math.ceil(all.length / 20));
     // The changes, less the opening row, which ends the last page.
     expect(first?.shown).toBe(all.length - 1);
-    const last = treasuryView(document, both, 99)?.ledger;
+    const last = treasuryPage(document, both, 99)?.ledger;
     expect(last?.page).toBe((first?.pages ?? 0) - 1);
     expect(last?.rows.map((row) => row.key)).toEqual(all.slice(20 * (last?.page ?? 0)).map((row) => row.key));
     expect(last?.rows.at(-1)?.category).toBeNull();
   });
 
   test("a new game's ledger holds its opening row alone, on one page, and totals of nothing (M9-F7)", () => {
-    const view = treasuryView(documentOf(started('treasury-empty')), both, 0)?.ledger;
+    const view = treasuryPage(documentOf(started('treasury-empty')), both, 0)?.ledger;
     expect(view?.rows.map((row) => row.sentence)).toEqual([`Founded with ${defaultConfig.startingWealth} Wealth`]);
     expect(view?.page).toBe(0);
     expect(view?.pages).toBe(1);
     expect(view?.shown).toBe(0);
-    expect(view?.categories).toEqual([]);
+    expect(view?.filters.category.options).toEqual([]);
+    expect(view?.filters.flow.options.map((option) => option.count)).toEqual([0, 0]);
     expect(view?.totals).toMatchObject({ income: 0, expense: 0, net: 0 });
   });
 
@@ -430,7 +479,7 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
         if (entry.type === 'guild.founded') delete (entry.payload as { wealth?: number }).wealth;
       }
     });
-    const view = treasuryView(documentOf(state), both, 0)?.ledger;
+    const view = treasuryPage(documentOf(state), both, 0)?.ledger;
     expect(view?.rows).toEqual([]);
     expect(view?.opens).toBe(false);
     expect(view?.pages).toBe(1);

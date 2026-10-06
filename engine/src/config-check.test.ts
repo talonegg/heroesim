@@ -13,9 +13,8 @@ const content = testContent;
 const broken = (changes: Readonly<Record<string, unknown>>): string[] => checkConfig({ ...defaultConfig, ...changes }).map((problem) => problem.setting);
 
 describe('the rules', () => {
-  test('one for every setting of GameConfig, and none for a setting it lacks: 120 settings', () => {
+  test('one for every setting of GameConfig, and none for a setting it lacks', () => {
     expect(Object.keys(configRules).sort()).toEqual(Object.keys(defaultConfig).sort());
-    expect(Object.keys(configRules)).toHaveLength(120);
   });
 
   test('the defaults break none', () => {
@@ -39,7 +38,29 @@ describe('the rules', () => {
     expect(broken({ startingWealth: 2 ** 53 - 1 })).toEqual([]);
     expect(broken({ startingWealth: 2 ** 53 })).toEqual(['startingWealth']);
     expect(broken({ heroStartingAgeMax: 1e17 })).toContain('heroStartingAgeMax');
-    expect(broken({ rivalStartingWealthMin: -(2 ** 53) })).toContain('rivalStartingWealthMin');
+    expect(broken({ bankruptcyFloor: -(2 ** 53 - 1) })).toEqual([]);
+    expect(broken({ bankruptcyFloor: -(2 ** 53) })).toEqual(['bankruptcyFloor']);
+  });
+
+  test('a Year is whole Days, three Turns each, so that no Day straddles two Years (DL-206 item 8, DL-210)', () => {
+    expect(checkConfig({ ...defaultConfig, turnsPerYear: 20 })).toEqual([
+      { setting: 'turnsPerYear', message: 'turnsPerYear is 20; it is a whole number, at least 3 and a multiple of 3' },
+    ]);
+    expect(broken({ turnsPerYear: 3 })).toEqual([]);
+  });
+
+  test('a starting Wealth is no debt (DL-206 item 8, DL-210)', () => {
+    expect(checkConfig({ ...defaultConfig, startingWealth: -1000, rivalStartingWealthMin: -1 })).toEqual([
+      { setting: 'startingWealth', message: 'startingWealth is -1000; it is a whole number, at least 0' },
+      { setting: 'rivalStartingWealthMin', message: 'rivalStartingWealthMin is -1; it is a whole number, at least 0' },
+    ]);
+  });
+
+  test('Fame has a floor of at least 0, never negative Fame (pre-M0 review D10.3; the owner, 2026-10-06, DL-210)', () => {
+    expect(checkConfig({ ...defaultConfig, fameFloor: -1 })).toEqual([
+      { setting: 'fameFloor', message: 'fameFloor is -1; it is a whole number, at least 0' },
+    ]);
+    expect(broken({ fameFloor: 0 })).toEqual([]);
   });
 
   test('never throws, whatever a save holds', () => {
@@ -65,14 +86,16 @@ const anyWhole: Case = { refused: [0.5, Number.NaN, '3'], allowed: [-7, 0, 7] };
 const anyFinite: Case = { refused: [Number.NaN, Number.POSITIVE_INFINITY, '1'], allowed: [-1.5, 0, 2.5] };
 
 const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
-  turnsPerYear: { refused: [0, 1080.5, Number.POSITIVE_INFINITY], allowed: [1, 20, 1080] },
+  // Whole Days, so that a Day never straddles two Years (DL-206 item 8, DL-210).
+  turnsPerYear: { refused: [0, 1, 2, 4, 20, 1081, -3, 1080.5, Number.POSITIVE_INFINITY], allowed: [3, 6, 21, 1080] },
   startingRosterSize: wholeFrom(0),
-  startingWealth: anyWhole,
+  // A Guild starts with no debt (DL-206 item 8, DL-210).
+  startingWealth: wholeFrom(0),
   rivalCount: wholeFrom(0),
   rivalRosterMin: { refused: [-1, 0.5], allowed: [0, 4] },
   rivalRosterMax: { refused: [3, 4.5], allowed: [4, 9] },
   rivalHireReserveUpkeeps: finiteFrom(0),
-  rivalStartingWealthMin: { refused: [1.5, Number.NaN], allowed: [-100, 0, 700] },
+  rivalStartingWealthMin: { refused: [-1, 1.5, Number.NaN], allowed: [0, 700] },
   rivalStartingWealthMax: { refused: [299, 300.5], allowed: [300, 701] },
   patronCount: wholeFrom(1),
   unattachedPoolSize: wholeFrom(0),
@@ -103,6 +126,21 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   moraleBaseline: { refused: [-0.5, 100.5, Number.NaN], allowed: [0, 60.5, 100] },
   guildmasterStartingAgeMin: { refused: [-1, 21.5], allowed: [0, 50] },
   guildmasterStartingAgeMax: { refused: [20, 50.5], allowed: [21, 60] },
+  // A Guildmaster's own sex weights (DL-206 item 1, DL-208), held as a Hero's are.
+  guildmasterSexWeights: {
+    refused: [
+      { female: 0, male: 0 },
+      { female: -1, male: 2 },
+      { female: 1, male: Number.NaN },
+      { female: 1, male: Number.POSITIVE_INFINITY },
+      { male: 1 },
+      { female: 1, male: 1, other: 1 },
+      [1, 1],
+      '1',
+      null,
+    ],
+    allowed: [{ female: 1, male: 1 }, { female: 3, male: 0 }, { female: 0, male: 0.5 }],
+  },
   guildmasterStatMin: { refused: [-1, 5.5], allowed: [0, 15] },
   guildmasterStatMax: { refused: [4, 15.5], allowed: [5, 20] },
   guildmasterStatPoints: wholeFrom(0),
@@ -114,7 +152,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   hallMaintenancePerGrade: wholeFrom(0),
   bankruptcyFloor: anyWhole,
   bankruptcyGraceDays: wholeFrom(0),
-  fameFloor: anyWhole,
+  fameFloor: wholeFrom(0),
   signingFeeBase: wholeFrom(0),
   signingFeePerLevel: wholeFrom(0),
   signingFeeStatDivisor: finiteAbove(0),
@@ -312,11 +350,11 @@ describe('a Min and its Max', () => {
     expect(() => int(cyrb128('span'), from, from + 2 ** 32)).toThrow(RangeError);
   });
 
-  test("a Min far below its Max is named on the Max, with the most a draw spans", () => {
-    expect(checkConfig({ ...defaultConfig, rivalStartingWealthMin: -5_000_000_000 })).toEqual([
+  test("a Max far above its Min is named, with the most a draw spans", () => {
+    expect(checkConfig({ ...defaultConfig, rivalStartingWealthMax: 5_000_000_000 })).toEqual([
       {
         setting: 'rivalStartingWealthMax',
-        message: 'rivalStartingWealthMax is 700; it is a whole number from rivalStartingWealthMin (-5000000000) to 4294967295 above it, the most a draw spans',
+        message: 'rivalStartingWealthMax is 5000000000; it is a whole number from rivalStartingWealthMin (300) to 4294967295 above it, the most a draw spans',
       },
     ]);
   });

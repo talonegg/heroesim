@@ -351,8 +351,9 @@ button:disabled,
   text-decoration-thickness: 2px;
 }
 
-/* A toggle that is on: the Rankings' measure. */
-button[aria-pressed='true'] {
+/* A toggle that is on: the Rankings' measure; and a choice of one made, a filter's look (DL-213). */
+button[aria-pressed='true'],
+button[role='radio'][aria-checked='true'] {
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
@@ -360,7 +361,8 @@ button[aria-pressed='true'] {
 
 /* Under the pointer it stays on, a shade deeper, as a primary button does: the hover's soft face with
    the pressed one's light words could not be read (M9-F6). */
-button[aria-pressed='true']:hover:not(:disabled) {
+button[aria-pressed='true']:hover:not(:disabled),
+button[role='radio'][aria-checked='true']:hover:not(:disabled) {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
   color: var(--on-accent);
@@ -1316,7 +1318,7 @@ p.setup-preview {
   padding-inline: 0.5rem;
 }
 
-/* On a phone the bar keeps to the point: the Year and "by Fame" are read, not shown. */
+/* On a phone the bar keeps to the point: "by Fame" is read, not shown; the Year is shown at every width (DL-210). */
 @media (max-width: 599px) {
   .wide-only {
     position: absolute;
@@ -2739,6 +2741,22 @@ ul.chips {
   margin: 0;
 }
 
+/* The Roster's filters, by Class and by availability, side by side where they fit (DL-213); the line
+   that says how many they show below them. */
+.roster__filters {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1.5rem;
+}
+
+.roster__filters .filters {
+  margin: 0 0 0.5rem;
+}
+
+.roster__shown p {
+  margin: 0 0 0.75rem;
+}
+
 .roster__sort {
   display: flex;
   flex-wrap: wrap;
@@ -3144,6 +3162,31 @@ th.number .sort {
   min-width: 9rem;
 }
 
+/*
+ * The box keeps clear at its start, when it brings a heading or a cell into view (the keyboard's
+ * focus, a click, a search), the width of the column that stays in view (`--sticky-inline`, measured
+ * by `StickyTableBox`), so the column never covers what is brought in, at the box's start, middle or
+ * end, and nothing already in view clear of it moves (DL-212). That column, whatever its names (a
+ * Hero's, an Item's, a Patron's), holds at most 60% of its box: a Hero's mark and first name, which
+ * never part, widen a name column past half a phone's box; every name the content gives fits the share
+ * with room to spare, and a word longer than it would break there rather than widen the column. The
+ * other 40% of a phone's box holds the widest heading.
+ */
+.table-wrap:has(> .table--first-sticky) {
+  container-type: inline-size;
+  scroll-padding-inline-start: var(--sticky-inline, 0px);
+}
+
+.table--first-sticky tbody th[scope='row'] {
+  max-width: calc(60cqi - 0.5rem);
+  overflow-wrap: break-word;
+}
+
+/* A name with its Portrait is a row of its own inside the cell: held to the share too, so its button shrinks to it. */
+.table--first-sticky tbody th[scope='row'] > .named {
+  max-width: calc(60cqi - 1.25rem);
+}
+
 /* A pool Hero who will not sign for the Guild now: set back, the reason in words. */
 .pool-table tr.is-set-back th,
 .pool-table tr.is-set-back td {
@@ -3226,7 +3269,7 @@ th.number .sort {
   grid-area: next;
 }
 
-/* The Market's chips, which show one kind at a time. */
+/* The page's filter chips, several choices to a filter, and a choice of one in their look (DL-213). */
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -3240,7 +3283,27 @@ th.number .sort {
   font-size: 0.875rem;
 }
 
+/* A group's name shown before its chips (`FilterChips`' `labelShown`, DL-213): in small capitals, as a
+   caption is, on the chips' first line, the chips wrapping after it. */
+.filters__label {
+  align-self: center;
+  margin-inline-end: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
 .filter__count {
+  font-weight: 500;
+}
+
+/* An option that would show nothing with the other filters as they are: greyed, its edge dashed, and
+   still a toggle (DL-206 item 29, DL-213); pressed, it keeps the pressed look. Its words keep 4.5:1. */
+.filter.is-empty:not([aria-pressed='true']) {
+  color: var(--ink-soft);
+  border-style: dashed;
   font-weight: 500;
 }
 
@@ -3890,6 +3953,52 @@ tr.mine td {
   min-width: 0;
   text-align: start;
   overflow-wrap: break-word;
+}
+
+/*
+ * A Hero's name with their Class's mark before it (v1.1.7-S6, DL-212): one element wherever a Hero is
+ * listed with their Class. The mark takes the text's colour (it sets none), so it holds the contrast
+ * the text does in both schemes. It is inside the name's button where the name is one. The mark and
+ * the name's first word are one unit that never parts, so the mark is never alone on a line; the
+ * later words wrap after it as words do (the owner's (b), DL-212). A narrow name column is then as wide
+ * as the mark and the longest first name, or the longest later word. The name wraps as its own element
+ * does, not as every span may (`anywhere`), so that no word of a name is broken where it would fit on a
+ * line of its own and the column keeps the width of its words (DL-212). The first word breaks only
+ * where the unit is wider than all its line can hold: a Table's sticky column is held to a share of its
+ * box (`.table--first-sticky`).
+ */
+/* A flex item of its button, which may shrink it to its column. */
+.hero-name {
+  min-width: 0;
+}
+
+.hero-name,
+.hero-name__lead,
+.hero-name__first {
+  overflow-wrap: inherit;
+}
+
+/*
+ * No line breaks between the mark and the first word; inside the word, as the name allows. A plain
+ * inline, not an inline block, so that the name's underline as a link runs under the first word too.
+ */
+.hero-name__lead {
+  white-space: nowrap;
+}
+
+.hero-name__first {
+  white-space: normal;
+}
+
+.class-mark {
+  display: inline-block;
+  margin-inline-end: 0.4em;
+  line-height: 1;
+  vertical-align: -0.3em;
+}
+
+.class-mark > .icon {
+  display: block;
 }
 
 /* A person's Portrait beside who they are: their name, their line and what follows it. */

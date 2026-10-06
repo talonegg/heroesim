@@ -73,7 +73,7 @@ export type GuildmasterSucceeded = Entry<
 
 /**
  * A Hero was generated, onto a Roster or into the Unattached pool (`guildId: null`). Names the
- * Hero and, on a Roster, the Guild.
+ * Hero and, on a Roster, the Guild. Into the pool it is emitted and not recorded (DL-211).
  */
 export type HeroGenerated = Entry<
   'hero.generated',
@@ -132,8 +132,8 @@ export type HeroRecruited = Entry<'hero.recruited', { heroId: HeroId; guildId: G
 
 /**
  * An Unattached Hero left the pool unrecruited, `unattachedStayDays` after entering it. Names the
- * Hero, whose row is then removed unless an entry other than this and `hero.generated` names them
- * (data-model rule 8).
+ * Hero, whose row is then removed unless an entry names them (data-model rule 8); recorded only
+ * then (DL-211).
  */
 export type HeroLeftPool = Entry<'hero.left-pool', { heroId: HeroId }>;
 // ── The Board (M2-S3, DL-25) ─────────────────────────────────────────────────────────────────

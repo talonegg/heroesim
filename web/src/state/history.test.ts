@@ -1,7 +1,6 @@
 import {
   advance,
   createWorld,
-  dayOf,
   defaultConfig,
   entriesBetween,
   entriesFor,
@@ -20,7 +19,7 @@ import {
 } from '@heroesim/engine';
 import { append, createHistory } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
-import { listed } from '@heroesim/words';
+import { listed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { cameHome, changed, played as playedState, started, withPartyOut, withReturn, withTheGone, withWorldNews } from './game.test-support';
 import {
@@ -39,7 +38,7 @@ import {
 import { pageOfEntry } from './history.test-support';
 import { historyPageSize } from './selectors';
 
-// The History as the one place to read what happened (M9-S5, DL-105): a page of it grouped by Day
+// The History as the one place to read what happened (M9-S5, DL-105): a page of it grouped by date
 // and time of day, newest first, each group in the order it happened; a Party's Encounters folded
 // under its outcome, each Rival's routine under one line a Guild; every line marked whose it is,
 // whether the last play appended it and, for an outcome, how it went. Every expectation is read from
@@ -59,6 +58,12 @@ function played(turns: number, seed = 'history-view'): { document: WorldDocument
     log = result.events;
   }
   return { document, log };
+}
+
+/** How many of `log`'s events the History holds, as it holds them: all but those it does not record (DL-211). */
+function appendedOf(document: WorldDocument, log: readonly TurnEvent[]): number {
+  const held = new Set<object>(document.history.entries);
+  return log.filter((event) => held.has(event)).length;
 }
 
 function playerOf(document: WorldDocument): Guild {
@@ -367,7 +372,7 @@ describe('the World History (M9-F4, DL-112 item 7, DL-113 item 1)', () => {
     for (const type of shown) expect(worldTypes).toContain(type);
   });
 
-  test('is grouped by Day and time of day with no folds, and pages exactly', () => {
+  test('is grouped by date and time of day with no folds, and pages exactly', () => {
     const views = expectExactPages(document, 'world', world);
     for (const view of views) {
       for (const group of view.groups) {
@@ -389,7 +394,7 @@ describe('the whole History, the debug view (M9-F4, DL-112 item 7)', () => {
 
   test('shows every entry, unfolded, each line with its event type', () => {
     const views = expectExactPages(document, 'all', document.history.entries);
-    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'Debug: Whole History', name: null, entityId: null, scope: 'whole', fresh: log.length });
+    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'Debug: Whole History', name: null, entityId: null, scope: 'whole', fresh: appendedOf(document, log) });
     expect(log.length).toBeGreaterThan(0);
     const rows = views.flatMap((view) => view.groups.flatMap((group) => group.rows));
     expect(rows.every((row) => row.kind === 'entry' && row.steps.length === 0)).toBe(true);
@@ -418,10 +423,10 @@ describe('the whole History, the debug view (M9-F4, DL-112 item 7)', () => {
   });
 });
 
-describe('a page grouped by Day and time of day (M9-S5)', () => {
+describe('a page grouped by date and time of day (M9-S5)', () => {
   const { document, log } = played(40);
 
-  test('groups newest first, each headed by its Day and time of day, and each holding the entries of its Turn as they happened', () => {
+  test('groups newest first, each headed by its date and time of day, and each holding the entries of its Turn as they happened', () => {
     const view = historyView(document, log, 'all', 0);
     const turns = view.groups.map((group) => entryOf(document, linesOf(group.rows[0] as HistoryRow)[0] as HistoryLine).turn);
 
@@ -430,7 +435,7 @@ describe('a page grouped by Day and time of day (M9-S5)', () => {
     expect(new Set(turns).size).toBe(turns.length);
     view.groups.forEach((group, index) => {
       const turn = turns[index] as number;
-      expect(group.when).toBe(`Day ${dayOf(turn)}, ${timeOfDay(turn)}`);
+      expect(group.when).toBe(whenOfTurn(turn, document.meta.config));
       expect(group.timeOfDay).toBe(timeOfDay(turn));
       const shown = group.rows.flatMap(linesOf).map((line) => entryOf(document, line));
       const ofTheTurn = entriesBetween(document.history, turn, turn + 1);
@@ -869,11 +874,16 @@ describe("each Rival's routine, one line a Guild, and the marks on every line (M
     expect(lines.some((line) => line.side === 'mine')).toBe(true);
   });
 
-  test('counts the entries the last play appended, in the History shown', () => {
-    expect(historyView(document, log, 'all', 0).fresh).toBe(log.length);
+  test("counts the entries the last play appended, in the History shown: not the pool's comings and goings it does not record (DL-211)", () => {
+    expect(historyView(document, log, 'all', 0).fresh).toBe(appendedOf(document, log));
+    expect(appendedOf(document, log)).toBeLessThan(log.length);
     const shown = new Set<object>(inYourGuild(document, guild.id));
     expect(historyView(document, log, null, 0).fresh).toBe(log.filter((event) => shown.has(event)).length);
     expect(historyView(document, [], null, 0).fresh).toBe(0);
+    // A play the History records whole, as an action's is, the newest entries each of them: all new.
+    const held = new Set<object>(document.history.entries);
+    const whole = log.filter((event) => held.has(event));
+    expect(historyView(document, whole, 'all', 0).fresh).toBe(whole.length);
     // The newest are new, and they lead the first page.
     const [first] = historyView(document, log, 'all', 0).groups;
     expect(first?.rows.flatMap(linesOf).every((line) => line.fresh)).toBe(true);

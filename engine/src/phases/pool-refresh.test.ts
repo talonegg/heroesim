@@ -5,6 +5,8 @@ import { createWorld } from '../create.js';
 import type { Entry, HeroId, WorldDocument } from '../document.js';
 import type { EngineEvent, TurnEvent } from '../events.js';
 import { append, count, entriesFor } from '../history.js';
+import type { Module } from '../modules.js';
+import { deserialise, serialise } from '../serialise.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { playerGuild, unattachedHeroes } from '../selectors.js';
@@ -81,21 +83,147 @@ describe('departures', () => {
     expect(new Set(ofType(events, 'hero.left-pool').map((event) => event.turn))).toEqual(new Set([nightOf(10)]));
   });
 
-  test('a Hero with only hero.generated and hero.left-pool entries is gone, and both entries read with their labels', () => {
+  test('a pool Hero who leaves unhired is gone, with no entry and no byEntity key; their arrival and leaving are still events (DL-211)', () => {
     const deps = quietDeps({ unattachedStayDays: 1 });
-    const start = created('passive', deps);
+    const creation = createWorld('passive', setup, deps);
+    const start = creation.document;
     const [hero] = unattachedHeroes(start.world);
     if (hero === undefined) throw new Error('The pool is empty');
 
-    const { document } = playTo(start, nightOf(1), deps);
+    const { document, events } = playTo(start, nightOf(1), deps);
 
     expect(document.world.heroes).not.toHaveProperty(hero.id);
-    const entries = entriesFor(document.history, hero.id);
-    expect(entries.map((entry) => entry.type)).toEqual(['hero.left-pool', 'hero.generated']);
-    for (const entry of entries) {
-      expect(entry.participants).toEqual([hero.id]);
-      expect(entry.labels).toEqual({ [hero.id]: hero.name });
+    expect(entriesFor(document.history, hero.id)).toEqual([]);
+    expect(Object.hasOwn(document.history.byEntity, hero.id)).toBe(false);
+    expect(count(document.history, 'hero.left-pool')).toBe(0);
+    // Emitted all the same, for the Turn's log, the pool's stop and the harness, with their labels.
+    const arrival = ofType(creation.events, 'hero.generated').find((event) => event.payload.heroId === hero.id);
+    const leaving = ofType(events, 'hero.left-pool').find((event) => event.payload.heroId === hero.id);
+    for (const event of [arrival, leaving]) {
+      expect(event?.participants).toEqual([hero.id]);
+      expect(event?.labels).toEqual({ [hero.id]: hero.name });
     }
+    // Their replacements' arrivals too, none recorded.
+    const replacements = ofType(events, 'hero.generated');
+    expect(replacements.length).toBeGreaterThan(0);
+    for (const event of replacements) expect(Object.hasOwn(document.history.byEntity, event.payload.heroId)).toBe(false);
+  });
+
+  test("a hired pool Hero's History begins at their signing (DL-206 item 21)", () => {
+    const deps = quietDeps({ unattachedStayDays: 1 });
+    const start = created('hired', deps);
+    const guild = playerGuild(start.world);
+    const [hero] = unattachedHeroes(start.world);
+    if (guild === undefined || hero === undefined) throw new Error('The world is incomplete');
+
+    const recruited = applyAction(start, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
+    if (!recruited.ok) throw new Error(`Refused: ${recruited.rejection.reason}`);
+    const { document } = playTo(recruited.document, nightOf(1), deps);
+
+    const entries = entriesFor(document.history, hero.id).reverse();
+    expect(entries[0]?.type).toBe('hero.recruited');
+    expect(entries.map((entry) => entry.type)).not.toContain('hero.generated');
+    expect(document.world.heroes[hero.id]?.guildId).toBe(guild.id);
+  });
+
+  test("a pool Hero a module's event names has their leaving recorded, and keeps their row", () => {
+    const herald: Module = {
+      id: 'herald',
+      streamName: 'herald',
+      createSlice: () => ({}),
+      validateSlice: () => [],
+      onMorning: (_world, _slice, ctx) => {
+        // The first of the pool the world was made with, in id order.
+        const [first] = ctx.select.unattachedHeroes().filter((row) => row.unattachedSince === 0);
+        return { events: first === undefined ? [] : [ctx.emit({ type: 'herald.cried', participants: [first.id], payload: {} })] };
+      },
+    };
+    const deps: EngineDeps = { ...quietDeps({ unattachedStayDays: 1 }), modules: [herald] };
+    const start = created('cried', deps);
+    const [named, unnamed] = unattachedHeroes(start.world);
+    if (named === undefined || unnamed === undefined) throw new Error('The pool is too small');
+
+    const { document } = playTo(start, nightOf(1), deps);
+
+    expect(entriesFor(document.history, named.id).map((entry) => entry.type)).toEqual(['hero.left-pool', 'herald.cried']);
+    expect(document.world.heroes[named.id]?.leftPoolOnTurn).toBe(nightOf(1));
+    expect(document.world.heroes).not.toHaveProperty(unnamed.id);
+    expect(Object.hasOwn(document.history.byEntity, unnamed.id)).toBe(false);
+  });
+
+  test('a pool Hero an earlier phase of the same Turn names keeps their row as they leave, and the save validates', () => {
+    const deps = quietDeps({ unattachedStayDays: 1 });
+    const start = created('earlier', deps);
+    const [named, unnamed] = unattachedHeroes(start.world);
+    if (named === undefined || unnamed === undefined) throw new Error('The pool is too small');
+    // A night phase before the pool refresh, emitting an entry that names the Hero on the night
+    // they leave: their leaving is then recorded, and the row must stay with it (data-model rule 8).
+    const before = phases.find((phase) => phase.name === 'patronState');
+    if (before === undefined) throw new Error('No patronState phase');
+    const run = before.run;
+    vi.spyOn(before, 'run').mockImplementation((world, ctx) => {
+      const events = run(world, ctx);
+      if (ctx.turn !== nightOf(1)) return events;
+      const noticed = { turn: ctx.turn, type: 'hero.noticed', participants: [named.id], labels: { [named.id]: named.name }, milestone: false, payload: {} };
+      return [...events, noticed as unknown as EngineEvent];
+    });
+
+    const { document } = playTo(start, nightOf(1), deps);
+
+    expect(entriesFor(document.history, named.id).map((entry) => entry.type)).toEqual(['hero.left-pool', 'hero.noticed']);
+    expect(document.world.heroes[named.id]?.leftPoolOnTurn).toBe(nightOf(1));
+    expect(document.world.heroes).not.toHaveProperty(unnamed.id);
+  });
+
+  test('a pool Hero a module names after they leave, the same night, keeps their row and has their leaving recorded, and the save validates', () => {
+    const herald: Module = {
+      id: 'herald',
+      streamName: 'herald',
+      createSlice: () => ({}),
+      validateSlice: () => [],
+      onNight: (world, _slice, ctx) => {
+        // The first of the pool the world was made with, gone from it tonight.
+        const first = Object.values(world.heroes).find((row) => row.leftPoolOnTurn !== null);
+        return { events: first === undefined ? [] : [ctx.emit({ type: 'herald.cried', participants: [first.id], payload: {} })] };
+      },
+    };
+    const deps: EngineDeps = { ...quietDeps({ unattachedStayDays: 1 }), modules: [herald] };
+    const start = created('after', deps);
+    const [named] = unattachedHeroes(start.world);
+    if (named === undefined) throw new Error('The pool is empty');
+
+    const { document } = playTo(start, nightOf(1), deps);
+
+    // Their leaving is recorded, decided over the whole night's events: the row and the History agree (rule 8).
+    expect(entriesFor(document.history, named.id).map((entry) => entry.type)).toEqual(['herald.cried', 'hero.left-pool']);
+    expect(document.world.heroes[named.id]?.leftPoolOnTurn).toBe(nightOf(1));
+  });
+
+  test("an older save holding pool Heroes' entries loads and plays: those its History names keep their rows as they leave", () => {
+    const deps = quietDeps({ unattachedStayDays: 1 });
+    const creation = createWorld('older', setup, deps);
+    const older = creation.document;
+    // The History as a save made before DL-211 holds it: every pool Hero's hero.generated, and one
+    // who has left already with their hero.left-pool and no row (data-model rule 8 as it was).
+    const arrivals = ofType(creation.events, 'hero.generated').filter((event) => event.payload.guildId === null);
+    for (const event of arrivals) append(older.history, event);
+    const [gone, ...staying] = arrivals.map((event) => event.payload.heroId);
+    if (gone === undefined || staying.length === 0) throw new Error('The pool is too small');
+    const departure: Entry = { turn: 0, type: 'hero.left-pool', participants: [gone], labels: {}, milestone: false, payload: { heroId: gone } };
+    append(older.history, departure);
+    delete older.world.heroes[gone];
+
+    const loaded = deserialise(serialise(older), deps);
+    if (!loaded.ok) throw new Error(`Refused: ${JSON.stringify(loaded)}`);
+    const { document } = playTo(loaded.document, nightOf(1), deps);
+
+    expect(entriesFor(document.history, gone).map((entry) => entry.type)).toEqual(['hero.left-pool', 'hero.generated']);
+    for (const heroId of staying) {
+      expect(document.world.heroes[heroId]?.leftPoolOnTurn).toBe(nightOf(1));
+      expect(entriesFor(document.history, heroId).map((entry) => entry.type)).toEqual(['hero.left-pool', 'hero.generated']);
+    }
+    // The Heroes who came after, never hired, are not recorded.
+    for (const hero of unattachedHeroes(document.world)) expect(Object.hasOwn(document.history.byEntity, hero.id)).toBe(false);
   });
 
   test('a Hero any other entry names leaves the pool but keeps their row, once, and is out of play', () => {
@@ -186,8 +314,11 @@ describe('over twenty years with no recruitment', { timeout: 60_000 }, () => {
     const turns = years * deps.config.turnsPerYear;
 
     let most = 0;
+    let departures = 0;
     for (let turn = 0; turn < turns; turn += 1) {
-      document = advance(document, deps).document;
+      const result = advance(document, deps);
+      document = result.document;
+      departures += ofType(result.events, 'hero.left-pool').length;
       let guildless = 0;
       for (const hero of Object.values(document.world.heroes)) if (hero.guildId === null) guildless += 1;
       most = Math.max(most, guildless);
@@ -197,9 +328,10 @@ describe('over twenty years with no recruitment', { timeout: 60_000 }, () => {
     expect(document.world.turn).toBe(turns);
     expect(most).toBe(deps.config.unattachedPoolSize);
     expect(Object.keys(document.world.heroes)).toHaveLength(onRosters + deps.config.unattachedPoolSize);
-    // Every departure removed its row: about one a night, and each replaced.
-    const departures = count(document.history, 'hero.left-pool');
+    // Every departure removed its row: about one a night, and each replaced. None of the pool's
+    // comings and goings is recorded: no one was hired (DL-211).
     expect(departures).toBeGreaterThan((turns / 3) * 0.7);
-    expect(count(document.history, 'hero.generated')).toBe(onRosters + deps.config.unattachedPoolSize + departures);
+    expect(count(document.history, 'hero.left-pool')).toBe(0);
+    expect(count(document.history, 'hero.generated')).toBe(onRosters);
   });
 });

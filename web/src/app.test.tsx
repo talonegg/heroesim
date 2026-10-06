@@ -91,7 +91,7 @@ describe('before a game', () => {
 
     const bar = screen.getByRole('banner');
     expect(within(bar).getByRole('heading', { level: 1, name: 'The Lantern' })).toBeDefined();
-    expect(within(bar).getByTestId('time').textContent).toBe('Day 0, morning, Year 0');
+    expect(within(bar).getByTestId('time').textContent).toBe('Year 1 Day 1, morning');
     // Every Guild starts at Fame 0, so all five share the first place (DL-95).
     expect(within(bar).getByTestId('rankings').textContent).toBe('Joint 1st of 5 by Fame');
     expect(screen.queryByTestId('countdown')).toBeNull();
@@ -293,7 +293,7 @@ describe('the home view (M9-S3, DL-103)', () => {
     const home = screen.getByRole('region', { name: 'Guild' });
     const out = within(home).getByRole('heading', { level: 3, name: 'Parties out' }).parentElement as HTMLElement;
     expect(within(out).getAllByRole('listitem')).toHaveLength(1);
-    expect(within(out).getByRole('listitem').textContent).toMatch(/^.+ · .+ · back on the night of Day \d+$/);
+    expect(within(out).getByRole('listitem').textContent).toMatch(/^.+ · .+ · back on the night of Year \d+ Day \d+$/);
   });
 
   test("shows the report of the Party that came home, in the Came home cards' place: its band, Wealth, Fame, XP and Injuries, as its History says", async () => {
@@ -329,7 +329,7 @@ describe('the home view (M9-S3, DL-103)', () => {
     const fame = /^Fame ([+-]?\d+)$/.exec(within(report).getByText(/^Fame /).textContent ?? '')?.[1];
     expect(within(report).getByText(/^XP \+\d+ each$/)).toBeDefined();
     // This seed's Party comes home with an Injury: named, with the night it heals.
-    expect(within(report).getByText(/^Injured: .+, healing on the night of Day \d+$/)).toBeDefined();
+    expect(within(report).getByText(/^Injured: .+, healing on the night of Year \d+ Day \d+$/)).toBeDefined();
     // The same outcome, as the History narrates it, new, on the player's Guild (M9-S5).
     const line = inHistory(new RegExp(`^The Lantern's Party came home from ${quest} and \\w+.*: Wealth ${wealth?.replace('+', '\\+')}, Fame ${fame?.replace('+', '\\+')}\\.`));
     expect(line.classList.contains('is-new')).toBe(true);
@@ -342,7 +342,7 @@ describe('the home view (M9-S3, DL-103)', () => {
 
     render(<App initial={withOffer(started())} />);
     const home = screen.getByRole('region', { name: 'Guild' });
-    expect(within(home).getByText(/ offers \d+ Wealth for .+, until the night of Day \d+\.$/)).toBeDefined();
+    expect(within(home).getByText(/ offers \d+ Wealth for .+, until the night of Year \d+ Day \d+\.$/)).toBeDefined();
     fireEvent.click(within(home).getByRole('button', { name: 'Answer on the Roster' }));
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'Transfer Offers' }));
   });
@@ -442,7 +442,7 @@ describe('a game in hand', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
     await idle();
 
-    expect(screen.getByTestId('time').textContent).toBe('Day 0, afternoon, Year 0');
+    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 1, afternoon');
     // What the Turn added is the History's newest, under its Day and time of day, each line marked new (M9-S5).
     const history = wholeHistory();
     const before = started().document?.history.entries.length ?? 0;
@@ -450,7 +450,7 @@ describe('a game in hand', () => {
     expect(fresh).toBe(entries - before);
     expect(fresh).toBeGreaterThan(0);
     const [newest] = within(history).getAllByRole('heading', { level: 4 });
-    expect(newest?.textContent).toBe('Day 0, afternoon');
+    expect(newest?.textContent).toBe('Year 1 Day 1, afternoon');
     const lines = historyLines(newest?.parentElement as HTMLElement);
     expect(lines.length).toBeGreaterThan(0);
     for (const line of lines) expect(line.classList.contains('is-new')).toBe(true);
@@ -482,7 +482,7 @@ describe('a game in hand', () => {
 
     const rail = screen.getByRole('complementary', { name: 'Latest for The Lantern' });
     const [newest, next] = within(rail).getAllByRole('listitem');
-    expect(newest?.textContent).toMatch(/^Day 0, morningNew The Lantern sent .+ on .+, back on the night of Day \d+\.$/);
+    expect(newest?.textContent).toMatch(/^Year 1 Day 1, morningNew The Lantern sent .+ on .+, back on the night of Year \d+ Day \d+\.$/);
     expect(newest?.classList.contains('is-new')).toBe(true);
     expect(next?.classList.contains('is-new')).toBe(false);
     expect(within(rail).getByText('1 new')).toBeDefined();
@@ -499,7 +499,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
 
   test('between steps the status bar shows the Turns played, the Day reached and the countdown below the floor; plays wait, and the game in hand stands', async () => {
     // A Party out on a Quest of ten Days, home on the 32nd Turn, in the second step; Wealth below
-    // the floor since Day 0, before the fast forward, so its countdown stands and no new crossing
+    // the floor since its first Day, before the fast forward, so its countdown stands and no new crossing
     // stops it (M9-S1, DL-101).
     render(<App initial={withWealth(withPartyOut(startedFrom('reducer-test')), -100, 0)} />);
 
@@ -507,10 +507,10 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
 
     await waitFor(() => {
       const progress = within(screen.getByRole('banner')).getByTestId('progress');
-      expect(within(progress).getByText('Played 30 Turns so far. Now Day 10, morning, Year 0.')).toBeDefined();
+      expect(within(progress).getByText('Played 30 Turns so far. Now Year 1 Day 11, morning.')).toBeDefined();
       expect(
         within(progress).getByText(
-          'The Lantern has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day 30 unless Wealth is back ' +
+          'The Lantern has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day 31 unless Wealth is back ' +
             'to 0 or more on a night by then, after any Upkeep due.',
         ),
       ).toBeDefined();
@@ -520,13 +520,13 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
       }
       expect(within(progress).getByRole('button', { name: 'Stop the Fast forward' })).toBeDefined();
       // The game in hand, and so the status bar, stand until the fast forward ends (DL-96).
-      expect(screen.getByTestId('time').textContent).toBe('Day 0, morning, Year 0');
+      expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 1, morning');
     });
     await idle();
 
     expect(screen.queryByTestId('progress')).toBeNull();
     expect(within(screen.getByTestId('stop')).getByText("Stopped: The Lantern's Party came home.")).toBeDefined();
-    expect(screen.getByTestId('time').textContent).toBe('Day 10, night, Year 0');
+    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 11, night');
     // The History marks both steps' entries new: all it gained in the fast forward (M9-S5).
     const { entries, fresh } = summary(wholeHistory());
     expect(fresh).toBe(entries - (withPartyOut(startedFrom('reducer-test')).document?.history.entries.length ?? 0));
@@ -546,7 +546,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     expect(first).toBeGreaterThan(0);
     expect(first).toBeLessThan(1080);
     expect(screen.queryByTestId('progress')).toBeNull();
-    expect(screen.getByTestId('time').textContent).toBe(`Day ${first / 3}, morning, Year 0`);
+    expect(screen.getByTestId('time').textContent).toBe(`Year 1 Day ${first / 3 + 1}, morning`);
     // The History marks new all the steps played until the Stop (M9-S5).
     const { entries, fresh } = summary(wholeHistory());
     expect(fresh).toBe(entries - (withRosterReleased(startedFrom()).document?.history.entries.length ?? 0));
@@ -559,7 +559,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     await idle();
 
     const second = stoppedAfter();
-    expect(screen.getByTestId('time').textContent).toBe(`Day ${(first + second) / 3}, morning, Year 0`);
+    expect(screen.getByTestId('time').textContent).toBe(`Year 1 Day ${(first + second) / 3 + 1}, morning`);
   }, 30_000);
 
   test('"Export this game" waits between steps, when the game in hand\'s History runs ahead of its World; stopped, it exports a save that loads (v1.0.1-S6, DL-97)', async () => {
@@ -722,8 +722,8 @@ describe('the Board with dispatch', () => {
     expect(sent?.dataset.testid).toBe('sent');
     expect(others.filter((card) => card.dataset.testid !== 'sent')).toHaveLength(before - 1);
     // The play's line is the History's newest, marked new (M9-S5, DL-105).
-    expect(inHistory(new RegExp(`^The Lantern sent .+ on ${questName}, back on the night of Day \\d+`)).classList.contains('is-new')).toBe(true);
-    expect(within(rosterList()).getAllByText(/^Away with a Party, back on the night of Day \d+$/).length).toBeGreaterThan(0);
+    expect(inHistory(new RegExp(`^The Lantern sent .+ on ${questName}, back on the night of Year \\d+ Day \\d+`)).classList.contains('is-new')).toBe(true);
+    expect(within(rosterList()).getAllByText(/^Away with a Party, back on the night of Year \d+ Day \d+$/).length).toBeGreaterThan(0);
     const out = within(openView('Guild')).getByRole('heading', { level: 3, name: 'Parties out' }).parentElement as HTMLElement;
     expect(within(out).getByText(questName)).toBeDefined();
   });
@@ -753,7 +753,7 @@ describe('the Roster with Hero pages', () => {
     for (const outlook of outlooks) expect(['Modest', 'Promising', 'Exceptional']).toContain(outlook);
     expect(within(page).getByRole('heading', { name: 'History, newest first' })).toBeDefined();
     expect(within(page).getByText(/^Page 1 of \d+, \d+ (entry|entries) in all, newest first\./)).toBeDefined();
-    // Grouped by Day and time of day, as the History is (M9-S5); a first page has no newer one.
+    // Grouped by date and time of day, as the History is (M9-S5); a first page has no newer one.
     expect(within(page).getAllByRole('heading', { level: 5 }).length).toBeGreaterThan(0);
     expect((within(page).queryByRole('button', { name: 'Newer' }) as HTMLButtonElement | null)?.disabled ?? true).toBe(true);
 
@@ -773,7 +773,7 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
     render(<App />);
     fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Lantern' } });
     fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: 'Ada Vell' } });
-    // Seed `modules`: the probe's stream first draws below 0.02 on the eleventh Turn, the night of Day 3.
+    // Seed `modules`: the probe's stream first draws below 0.02 on the eleventh Turn, the night of Year 1 Day 4.
     fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'modules' } });
     fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
     await idle();
@@ -781,7 +781,7 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
       fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
       await idle();
     }
-    expect(screen.getByTestId('time').textContent).toBe('Day 3, night, Year 0');
+    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 4, night');
   }
 
   test('with it, the page says the probe is installed, and its probe.fired event is in the log on a seed known to fire one', async () => {
@@ -793,7 +793,7 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
     wholeHistory();
     const fired = inHistory(/^The probe Module recorded probe\.fired for .+\.$/);
     expect(fired.classList.contains('is-new')).toBe(true);
-    expect(fired.closest('.history-group')?.querySelector('h4')?.textContent).toBe('Day 3, night');
+    expect(fired.closest('.history-group')?.querySelector('h4')?.textContent).toBe('Year 1 Day 4, night');
     // Its effects' events follow it, in the page's words for the core's own.
     expect(inHistory(/'s Wealth went from \d+ to \d+\.$/).classList.contains('is-new')).toBe(true);
   }, 30_000);

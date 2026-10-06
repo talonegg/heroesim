@@ -180,10 +180,15 @@ describe('createWorld', () => {
     withValid(document, deps);
     const { history } = document;
     const guildCount = 1 + deps.config.rivalCount;
-    const heroCount = Object.keys(document.world.heroes).length;
+    const heroCount = Object.keys(document.world.heroes).length - deps.config.unattachedPoolSize;
 
-    expect(history.entries).toHaveLength(events.length);
-    events.forEach((event, position) => expect(history.entries[position]).toBe(event));
+    // Every event returned; each recorded but the pool's arrivals, not History until hired (DL-211).
+    const arrivals = events.filter((event) => event.type === 'hero.generated' && event.payload.guildId === null);
+    expect(arrivals).toHaveLength(deps.config.unattachedPoolSize);
+    const recorded = events.filter((event) => !arrivals.includes(event));
+    expect(history.entries).toHaveLength(recorded.length);
+    recorded.forEach((event, position) => expect(history.entries[position]).toBe(event));
+    for (const { participants } of arrivals) expect(Object.hasOwn(history.byEntity, participants[0] ?? '')).toBe(false);
     expect(events[0]).toEqual({
       turn: 0,
       type: 'world.created',

@@ -282,7 +282,8 @@ export function playGame(seed: string, given: EngineDeps, options: PlayOptions =
     now = () => performance.now(),
     bare = false,
   } = options;
-  let { document } = createWorld(seed, setup, given);
+  const creation = createWorld(seed, setup, given);
+  let { document } = creation;
   prepare?.(document);
   const deps = playedDeps(document, given);
   const lastTurn = years * deps.config.turnsPerYear;
@@ -312,7 +313,7 @@ export function playGame(seed: string, given: EngineDeps, options: PlayOptions =
   // counted without writing it (v1.1.5-S1): `recordGame` gzips the last year's from the save it
   // writes once the game stops. With it, the World State's size and the per-Turn copy's time
   // (v1.1.6-S17, DL-203).
-  if (!bare) observeHeroes(observations, document);
+  if (!bare) observeHeroes(observations, document.world, creation.events);
   const yearEnded = (): void => {
     const { turn } = document.world;
     if (bare || turn === 0 || turn % deps.config.turnsPerYear !== 0) return;
@@ -338,11 +339,12 @@ export function playGame(seed: string, given: EngineDeps, options: PlayOptions =
       const unadvanced = document;
       const mark = markHistory(document);
       const started = now();
-      document = advance(document, deps).document;
+      const advanced = advance(document, deps);
       advanceMs.push(now() - started);
+      document = advanced.document;
       if (!bare) {
         readAdvance(unadvanced, mark, document, rivalQuestDifficulty, sellerInDebt);
-        observeHeroes(observations, document);
+        observeHeroes(observations, document.world, advanced.events);
       }
       yearEnded();
       afterAdvance?.(unadvanced, document);

@@ -11,8 +11,11 @@ import { samplePath, sampleSeeds, writeSample } from './sample.js';
 // directory.
 
 const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
-/** Every game ends within its first Days: below the floor from the start, with a Day's grace. */
-const doomed: EngineDeps = { ...deps, config: { ...deps.config, startingWealth: -1000, bankruptcyGraceDays: 1 } };
+/**
+ * Every game ends within its first Days: below the floor from the start, with a Day's grace. The floor
+ * stands above the starting Wealth, which is no debt (DL-210), as far as a start at -1,000 stood below 0.
+ */
+const doomed: EngineDeps = { ...deps, config: { ...deps.config, bankruptcyFloor: deps.config.startingWealth + 1000, bankruptcyGraceDays: 1 } };
 const years = 30 / deps.config.turnsPerYear;
 let dir: string | null = null;
 

@@ -13,8 +13,10 @@ import {
   type EngineDeps,
   type EngineEventType,
   type EntityId,
+  type Entry,
   type FacilityKey,
   type Guild,
+  type GuildId,
   type Guildmaster,
   type GuildmasterId,
   type Hero,
@@ -284,7 +286,7 @@ describe("M3's counters, from the History", () => {
     });
   });
 
-  test('Improvement grades by year 10: the highest each Guild founded before it reached before it, by controller', () => {
+  test('Improvement grades in the first 10 years: the highest each Guild founded in them reached in them, by controller', () => {
     const { document, player, rivals } = fixture('counters-improved');
     const [a, b] = rivals;
     /** A replacement Rival founded on `turn`, a copy of Rival B's row under a new id. */
@@ -300,7 +302,7 @@ describe("M3's counters, from the History", () => {
     const c = found(90, 200);
     improved(document, 250, c, 'quarters', 1);
     improved(document, 299, player, 'trainingYard', 1);
-    // Year 10 begins on Turn 300: what is built on it, and a Rival founded after it, are not counted.
+    // Year 11 begins on Turn 300, after 10 years: what is built on it, and a Rival founded after it, are not counted.
     improved(document, 300, player, 'quarters', 1);
     const d = found(91, 310);
     improved(document, 320, d, 'infirmary', 1);
@@ -324,7 +326,7 @@ describe("M3's counters, from the History", () => {
     });
   });
 
-  test('no Improvement grades for a game that stopped before year 10', () => {
+  test('no Improvement grades for a game that stopped before 10 years', () => {
     const { document } = fixture('counters-short');
     document.world.turn = 299;
     expect(countGame(document, shortYears).improvementGrades).toBeNull();
@@ -545,7 +547,7 @@ describe("M4's counters, from the History", () => {
     const offer = (turn: number, patronId: string): void => {
       add(document, turn, 'quest.offered', [questId, patronId as EntityId], { questId, patronId, templateKey: 'escort-the-tithe' });
     };
-    // The new world's Board already names some Patrons in year 0.
+    // The new world's Board already names some Patrons in year 1.
     const offeredAtCreation = new Set(
       (document.history.byType['quest.offered'] ?? []).map(
         (position) => (document.history.entries[position]?.payload as { patronId: string }).patronId,
@@ -556,12 +558,12 @@ describe("M4's counters, from the History", () => {
     if (quiet === undefined || a === undefined || b === undefined) throw new Error('Every Patron offered at creation');
     offer(29, quiet);
     offer(30, a);
-    // A Patron generated during year 1 is counted from year 2, the first year it was there as it began.
+    // A Patron generated during year 2 is counted from year 3, the first year it was there as it began.
     const late = makeId('patrons', 99);
     add(document, 40, 'patron.generated', [late], { patronId: late, sphereKey: 'merchants' });
     offer(59, b);
     offer(59, a);
-    // Year 3 is not played in full, so its offers and silences count nowhere.
+    // Year 4 is not played in full, so its offers and silences count nowhere.
     offer(90, late);
     document.world.turn = 95;
 
@@ -587,7 +589,7 @@ describe("M4's counters, from the History", () => {
   });
 });
 
-describe("M4's counters, from the World State as year 10 begins", () => {
+describe("M4's counters, from the World State after 10 years", () => {
   // The Regard scale and bands pinned: DL-43's, which a balance pass may move.
   const regardDeps: EngineDeps = {
     ...shortYears,
@@ -636,7 +638,7 @@ describe("M4's counters, from the World State as year 10 begins", () => {
     });
   });
 
-  test("the census takes it as year 10 begins, and at no other year's start", () => {
+  test("the census takes it after 10 years, and at no other year's start", () => {
     const { document, heroes } = regardFixture('counters-regard-census');
     const { world } = document;
     const observations = emptyObservations();
@@ -652,7 +654,7 @@ describe("M4's counters, from the World State as year 10 begins", () => {
     expect(observations.regardAtCountedYear).toEqual(regardSnapshot(world, regardDeps.config));
     expect(observations.regardAtCountedYear?.relationships.close).toBe(1);
 
-    // Year 11's census leaves it as year 10 found it.
+    // The census as year 12 begins leaves it as it was after 10 years.
     for (const hero of heroes) hero.regard = {};
     world.turn = 330;
     takeCensus(observations, world, regardDeps);
@@ -918,11 +920,11 @@ describe("M5's counters, from the History", () => {
         stackId: unique ? null : makeId('stacks', turn),
       });
     };
-    // Year 0 (a year of 30 Turns): an easy Quest, and a hard one that won Loot.
+    // Year 1 (a year of 30 Turns): an easy Quest, and a hard one that won Loot.
     resolved(5, player, quest(1), 'success');
     resolved(8, player, quest(2), 'strong');
     loot(8, player, quest(2), false);
-    // Year 1: a hard Quest winning a unique Item, a harder one failed, and a Quest the loop did not record.
+    // Year 2: a hard Quest winning a unique Item, a harder one failed, and a Quest the loop did not record.
     resolved(35, player, quest(3), 'strong');
     loot(35, player, quest(3), true);
     resolved(38, player, quest(4), 'fail');
@@ -1312,40 +1314,48 @@ describe("v1.1.3-S5's Portrait counters, from the World State (DL-134 item 9)", 
 });
 
 describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 item 6)", () => {
-  test('reads each hero.generated entry once: a picture or the Silhouette, a repeat, the longest texts, and none gone', () => {
-    const { document, player, rivals } = fixture('counters-heroes');
+  test("reads each hero.generated of a batch of events, the pool's not in the History among them: a picture or the Silhouette, a repeat, the longest texts, and none gone", () => {
+    const { document, events } = createWorld('counters-heroes', harnessSetup, shortYears);
+    const { world } = document;
+    const guilds = Object.values(world.guilds).sort((a, b) => compareByCodeUnit(a.id, b.id));
+    const player = guilds.find((guild) => guild.controller.kind === 'player');
+    const rivals = guilds.filter((guild) => guild.controller.kind === 'rival');
+    if (player === undefined || rivals[0] === undefined || rivals[1] === undefined) throw new Error('Not a player and two Rivals');
     const observations = emptyObservations();
-    observeHeroes(observations, document);
-    const generated = document.history.byType['hero.generated']?.length ?? 0;
+    observeHeroes(observations, world, events);
+    // Every Hero made with the world, the pool's too, which the History does not record (DL-211).
+    const generated = Object.keys(world.heroes).length;
+    expect(document.history.byType['hero.generated']?.length).toBeLessThan(generated);
     // The core has no Hero picture: every Hero the Silhouette, each with both texts.
     expect(observations.heroes).toMatchObject({ generated, pictured: 0, silhouettes: generated, repeats: 0, blank: 0 });
-    const heroes = Object.values(document.world.heroes);
+    const heroes = Object.values(world.heroes);
     expect(observations.heroes.longestAppearance).toBe(Math.max(...heroes.map((hero) => [...hero.appearance].length)));
     expect(observations.heroes.longestBiography).toBe(Math.max(...heroes.map((hero) => [...hero.biography].length)));
-    expect(observations.heroEntriesRead).toBe(generated);
 
     // Read again, nothing new is counted.
-    observeHeroes(observations, document);
+    observeHeroes(observations, world, events);
+    expect(observations.heroes.generated).toBe(generated);
+
+    // A batch with no hero.generated counts nothing.
+    observeHeroes(observations, world, events.filter((event) => event.type !== 'hero.generated'));
     expect(observations.heroes.generated).toBe(generated);
 
     // Three Heroes generated later, by hand: two holding one picture, the second a repeat, and one whose row is gone.
-    const [first, second] = [player, rivals[0]].map((guild) => document.world.heroes[firstHero(guild)] as Hero);
+    const [first, second] = [player, rivals[0]].map((guild) => world.heroes[firstHero(guild)] as Hero);
     if (first === undefined || second === undefined) throw new Error('No Heroes');
     Object.assign(first, { portraitKey: 'hero-female-01' });
     Object.assign(second, { portraitKey: 'hero-female-01', biography: '' });
-    for (const hero of [first, second]) add(document, 5, 'hero.generated', [hero.id], { heroId: hero.id, guildId: hero.guildId, classKey: hero.classKey });
-    add(document, 5, 'hero.generated', [makeId('heroes', 999)], { heroId: makeId('heroes', 999), guildId: null, classKey: 'warrior' });
-    observeHeroes(observations, document);
+    const made = (heroId: HeroId, guildId: GuildId | null, turn: number): Entry =>
+      ({ turn, type: 'hero.generated', participants: [heroId], labels: {}, milestone: false, payload: { heroId, guildId, classKey: 'warrior' } });
+    observeHeroes(observations, world, [made(first.id, first.guildId, 5), made(second.id, second.guildId, 5), made(makeId('heroes', 999), null, 5)]);
 
     // The first was given a picture no one held; the second, read after it, one the first held.
     expect(observations.heroes).toMatchObject({ generated: generated + 2, pictured: 2, silhouettes: generated, repeats: 1, blank: 1 });
-    expect(observations.heroEntriesRead).toBe(generated + 3);
 
     // A Hero generated in a later batch, given a picture the two already hold, is a repeat too.
-    const third = document.world.heroes[firstHero(rivals[1])] as Hero;
+    const third = world.heroes[firstHero(rivals[1])] as Hero;
     Object.assign(third, { portraitKey: 'hero-female-01' });
-    add(document, 6, 'hero.generated', [third.id], { heroId: third.id, guildId: third.guildId, classKey: third.classKey });
-    observeHeroes(observations, document);
+    observeHeroes(observations, world, [made(third.id, third.guildId, 6)]);
     expect(observations.heroes).toMatchObject({ generated: generated + 3, pictured: 3, repeats: 2 });
   });
 

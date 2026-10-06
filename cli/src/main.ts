@@ -50,9 +50,10 @@ import { previewParty } from './commands/preview.js';
 import { setupRefusalWords, unknownStatWords, unspentStatWords } from './commands/setup.js';
 import type { CommandOutcome } from './commands/outcome.js';
 import { modulesFor } from './modules.js';
-import { narrateStop, renderAdvance } from './advance.js';
+import { stopLine, renderAdvance } from './advance.js';
 import {
   renderBoard,
+  renderDate,
   renderGuildmaster,
   renderGuilds,
   renderHall,
@@ -229,7 +230,7 @@ function act(
 ): Exit {
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
-  const ended = over(io, opened.document, noActionAfterTheEnd);
+  const ended = over(io, opened.document, opened.deps, noActionAfterTheEnd);
   if (ended !== undefined) return ended;
   const outcome = change(opened.document, opened.deps);
   if (!outcome.ok) return refuse(io, outcome.problem);
@@ -362,7 +363,7 @@ function show(view: View, { io, content, path }: Context): Exit {
     case 'history': {
       if (view.entityId === undefined) {
         const entries = entriesBetween(history, 0, Infinity);
-        return say(io, renderHistory(`History: ${entryCount(entries.length)}, oldest first`, entries));
+        return say(io, renderHistory(`History: ${entryCount(entries.length)}, oldest first`, entries, deps.config));
       }
       if (parseId(view.entityId) === null) {
         return refuse(io, `"${view.entityId}" is not an id such as hero-000001 or guild-000001.`, exitCodes.usage);
@@ -370,7 +371,7 @@ function show(view: View, { io, content, path }: Context): Exit {
       const entries = entriesFor(history, view.entityId as EntityId);
       const label = entries[0]?.labels[view.entityId as EntityId];
       const who = label === undefined ? view.entityId : `${label} (${view.entityId})`;
-      return say(io, renderHistory(`History of ${who}: ${entryCount(entries.length)}, newest first`, entries));
+      return say(io, renderHistory(`History of ${who}: ${entryCount(entries.length)}, newest first`, entries, deps.config));
     }
   }
 }
@@ -379,11 +380,12 @@ function show(view: View, { io, content, path }: Context): Exit {
 
 /**
  * The refusal of a Turn, or of an action, after the game's end, or `undefined` while it goes on:
- * once the player's game has ended the world stops as it stands (DL-28), and nothing is written.
+ * once the player's game has ended the world stops as it stands (DL-28), and nothing is written. Its
+ * date is by `deps.config`, the config the save plays under (`playDeps`, DL-210).
  */
-export function over(io: CliIo, document: WorldDocument, what = 'No Turn follows.'): Exit | undefined {
+export function over(io: CliIo, document: WorldDocument, deps: EngineDeps, what = 'No Turn follows.'): Exit | undefined {
   const { ended } = document.world;
-  return ended === null ? undefined : refuse(io, `The game ended on Turn ${ended.turn}: ${ended.reason}. ${what}`);
+  return ended === null ? undefined : refuse(io, `The game ended on ${renderDate(ended.turn, deps.config)}: ${ended.reason}. ${what}`);
 }
 
 /** What `over` says of an action refused after the end (M3 verification, DL-53). */
@@ -400,7 +402,7 @@ function advanceTurns(turns: number, { io, content, path, modules }: Context): E
   if (opened === undefined) return exitCodes.refused;
   const { deps } = opened;
   let { document } = opened;
-  const refused = over(io, document);
+  const refused = over(io, document, deps);
   if (refused !== undefined) return refused;
 
   const events: TurnEvent[] = [];
@@ -415,7 +417,7 @@ function advanceTurns(turns: number, { io, content, path, modules }: Context): E
   }
   writeSave(path, document);
   // An ending has its own line in what is printed; a module's stop is said as fast forward says it.
-  const said = stop?.kind === 'module' ? narrateStop(stop, document, turns) : undefined;
+  const said = stop?.kind === 'module' ? stopLine(stop, document, turns, deps.config) : undefined;
   return say(io, renderAdvance(played, events, document, deps, said));
 }
 
@@ -432,7 +434,7 @@ function fastForwardTurns(
   const opened = open(io, path, content, modules);
   if (opened === undefined) return exitCodes.refused;
   const { document, deps } = opened;
-  const refused = over(io, document);
+  const refused = over(io, document, deps);
   if (refused !== undefined) return refused;
   const guild = playerGuild(document.world);
   if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);
@@ -441,7 +443,7 @@ function fastForwardTurns(
   const result = fastForward(document, { guildId: guild.id, until: command.until, maxTurns }, deps);
   writeSave(path, result.document);
   const played = result.document.world.turn - document.world.turn;
-  const stop = narrateStop(result.stoppedBecause, result.document, maxTurns);
+  const stop = stopLine(result.stoppedBecause, result.document, maxTurns, deps.config);
   return say(io, renderAdvance(played, result.events, result.document, deps, stop));
 }
 

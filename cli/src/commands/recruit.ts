@@ -23,7 +23,7 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
   const { document, deps } = opened;
-  const ended = over(io, document, noActionAfterTheEnd);
+  const ended = over(io, document, deps, noActionAfterTheEnd);
   if (ended !== undefined) return ended;
   const guild = playerGuild(document.world);
   if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);

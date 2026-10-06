@@ -24,7 +24,10 @@ import type { Module } from './modules.js';
 
 export interface GameConfig {
   // ── `world`: the year and the starting world (INPUTS 3.2 to 3.4, 3.7, DL-19) ──────────────
-  /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
+  /**
+   * Turns in a year (data-model §3.1, INPUTS 3.2): whole Days of three Turns, so that no Day
+   * straddles two Years and a date reads its Day's Year (DL-206 item 8, DL-210).
+   */
   turnsPerYear: number;
   /** Heroes on the player's starting Roster; four gives one per Class (DL-19). */
   startingRosterSize: number;
@@ -52,7 +55,7 @@ export interface GameConfig {
   /** Each Rival's starting Wealth is drawn from this range. */
   rivalStartingWealthMin: number;
   rivalStartingWealthMax: number;
-  /** Patrons generated with the world, their Spheres dealt evenly. */
+  /** Patrons generated with the world, their Spheres dealt by weight, evenly while every weight is 1 (DL-208). */
   patronCount: number;
   /** Unattached Heroes generated with the world, and what the pool is refilled to (DL-27). */
   unattachedPoolSize: number;
@@ -90,6 +93,12 @@ export interface GameConfig {
    */
   guildmasterStartingAgeMin: number;
   guildmasterStartingAgeMax: number;
+  /**
+   * A generated Guildmaster's sex is drawn in proportion to these weights, one draw: each 0 or more,
+   * not both 0. Apart from `heroSexWeights`, so that a world's Guildmasters and Heroes may differ
+   * (DL-206 item 1, DL-208). A sex the player chooses at setup replaces the one drawn (M9-S2).
+   */
+  guildmasterSexWeights: Readonly<Record<Sex, number>>;
   /**
    * Each Guildmaster Stat is drawn from this range (DL-19), and a player who chooses the Stats at
    * setup sets each within it (DL-149 item 5).
@@ -135,7 +144,7 @@ export interface GameConfig {
   bankruptcyFloor: number;
   /** Days a Guild may stay below `bankruptcyFloor` before the Bankruptcy ending (read by M2-S10). */
   bankruptcyGraceDays: number;
-  /** Fame never falls below this (pre-M0 review D10.3: an explicit floor, not negative Fame). */
+  /** Fame never falls below this, at least 0 (pre-M0 review D10.3: an explicit floor, not negative Fame; DL-210). */
   fameFloor: number;
 
   // ── `recruitment`: signing and the Unattached pool (INPUTS 3.7, 4.7, DL-27) ──────────────────

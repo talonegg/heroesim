@@ -13,6 +13,7 @@ import {
   defaultConfig,
   durationDaysOf,
   estimateQuest,
+  holdings,
   isId,
   isMilestone,
   offeredQuests,
@@ -109,6 +110,14 @@ export function withTraitNews(state: GameState): GameState {
 /** The player's Guild holding `quantity` of `definitionKey` besides what it held. */
 export function holding(state: GameState, definitionKey: ItemDefinitionKey, quantity: number): GameState {
   return changed(state, (document, player) => addStack(document.world, definitionKey, quantity, { kind: 'guild', id: player.id }));
+}
+
+/** The Market selling `stock` alone, each Item by its quantity, in place of what it had for sale. */
+export function selling(state: GameState, stock: Readonly<Record<string, number>>): GameState {
+  return changed(state, (document) => {
+    for (const stack of holdings(document.world, { kind: 'market' }).stacks) delete document.world.stacks[stack.id];
+    for (const [key, quantity] of Object.entries(stock)) addStack(document.world, key as ItemDefinitionKey, quantity, { kind: 'market' });
+  });
 }
 
 /**
@@ -509,6 +518,12 @@ export function withTheGone(state: GameState): { state: GameState; dead: Named; 
     deadHero.diedOnTurn = world.turn;
     retiredHero.retiredOnTurn = world.turn;
     player.rosterIds = player.rosterIds.filter((id) => id !== deadHero.id && id !== retiredHero.id);
+    // Gone from the world as a save made before DL-211 holds a pool Hero who left: named by their
+    // arrival and leaving alone, which the engine records for no Hero never hired (DL-211).
+    const { id, name, classKey } = poolHero;
+    const labels = { [id]: name };
+    append(document.history, { turn: world.turn, type: 'hero.generated', participants: [id], labels, milestone: false, payload: { heroId: id, guildId: null, classKey } });
+    append(document.history, { turn: world.turn, type: 'hero.left-pool', participants: [id], labels, milestone: false, payload: { heroId: id } });
     delete world.heroes[poolHero.id];
     dead = { id: deadHero.id, name: deadHero.name };
     retired = { id: retiredHero.id, name: retiredHero.name };

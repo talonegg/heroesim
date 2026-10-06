@@ -1,5 +1,4 @@
 import {
-  dayOf,
   entriesFor,
   playerGuild,
   unattachedHeroes,
@@ -9,11 +8,13 @@ import {
 } from '@heroesim/engine';
 import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
+import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { cameHome, changed, played, started, withPartyOut, withReturn, withWealth, type Written } from './game.test-support';
 import { historyFilter } from './history';
 import { narrateSegments, narrateText, narrationFor, textOf } from './namer';
 import { partOfAReturn, questReturn, reportSections, returnEntry, returnsIn, type QuestReturn } from './quest-return';
+import { calendarFor } from './reducer';
 
 // A Quest's return read from the History (M9-F5, DL-111 items 2 and 3, DL-112 item 8): by its Party
 // and Quest, from the entries that name the Quest (M9-F1, DL-114), and a Level and a dead Hero's gear
@@ -24,6 +25,11 @@ import { partOfAReturn, questReturn, reportSections, returnEntry, returnsIn, typ
 vi.mock('./namer', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./namer')>();
   return { ...actual, narrateSegments: vi.fn(actual.narrateSegments) };
+});
+// The calendar too, counted: it merges and checks the whole config, so a return reads it once (DL-214).
+vi.mock('./reducer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./reducer')>();
+  return { ...actual, calendarFor: vi.fn(actual.calendarFor) };
 });
 
 const base = withPartyOut(started('quest-return'));
@@ -63,7 +69,7 @@ describe('questReturn (M9-F5)', () => {
     expect(report.band).toBe('strong');
     expect(report.bandWords).toBe('Strong success');
     expect(report.heroes.map((hero) => hero.heroId)).toEqual(party.heroIds);
-    expect(report.when).toMatch(/^Day \d+, night$/);
+    expect(report.when).toMatch(/^Year \d+ Day \d+, night$/);
     expect(report.reward).toEqual({ wealth: 180, fame: 4, xp: 60 });
 
     const [first, ...rest] = report.outcomes;
@@ -130,8 +136,8 @@ describe('questReturn (M9-F5)', () => {
     const [one, two] = report.outcomes;
     expect(one?.words).toEqual(['gained 10 XP', 'Morale went from 50 to 44, steady']);
     expect(one?.injury).toBeNull();
-    expect(two?.injury).toEqual({ name: 'Broken arm', heals: `the night of Day ${dayOf(heals)}` });
-    expect(two?.words).toEqual(['gained 10 XP', 'Morale went from 52 to 46, steady', `injured: Broken arm, healing on the night of Day ${dayOf(heals)}`]);
+    expect(two?.injury).toEqual({ name: 'Broken arm', heals: nightOfTurn(heals, documentOf(written).meta.config) });
+    expect(two?.words).toEqual(['gained 10 XP', 'Morale went from 52 to 46, steady', `injured: Broken arm, healing on ${nightOfTurn(heals, documentOf(written).meta.config)}`]);
     expect(first).not.toBe('');
   });
 
@@ -393,6 +399,24 @@ describe('the entry reads its Hero lines without building the whole report (M9-F
     const entry = returnEntry(documentOf(written), key);
     expect(narrated.mock.calls).toHaveLength(0);
     expect(entry?.heroes.map((hero) => hero.sentence)).toEqual(report?.outcomes.map((outcome) => `${outcome.name}: ${outcome.words.join('; ')}.`));
+  });
+
+  test('reads the calendar once, however many Heroes were injured (DL-214)', () => {
+    const written = withReturn(base, {
+      band: 'fail',
+      encounters: [{ outcome: 'failure', injured: [0, 1] }],
+      injuries: [
+        { hero: 0, typeKey: 'broken-arm', healsOnTurn: 9999 },
+        { hero: 1, typeKey: 'deep-cut', healsOnTurn: 9999 },
+      ],
+    });
+    const key = { partyId: written.party.partyId, questId: written.party.questId };
+    const calendars = vi.mocked(calendarFor);
+
+    calendars.mockClear();
+    const entry = returnEntry(documentOf(written), key);
+    expect(entry?.heroes.filter((hero) => hero.sentence.includes('healing on'))).toHaveLength(2);
+    expect(calendars).toHaveBeenCalledTimes(1);
   });
 });
 

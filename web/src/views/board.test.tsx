@@ -138,7 +138,7 @@ describe('a Quest card', () => {
     expect(within(terms).getByText('Fame ±2').closest('.chip')?.getAttribute('title')).toBe('Won on a success, lost on a failure');
     // The others leave on a later Day, which they name.
     const [, second] = within(section('Board')).getAllByRole('article');
-    expect(within(second as HTMLElement).getByText(/^Until Day \d+$/)).toBeDefined();
+    expect(within(second as HTMLElement).getByText(/^Until Year \d+ Day \d+$/)).toBeDefined();
     // Folded: none of its details.
     expect(within(card).queryByRole('heading', { name: 'Encounters' })).toBeNull();
   });
@@ -320,8 +320,8 @@ describe('the Party builder', () => {
     // its screen reader's words (v1.1.5-S11, DL-169 item 2); the box cannot be ticked; and the row is last.
     expect(chipOf(first as HTMLElement)).toEqual({
       shown: 'Injured',
-      title: 'Injured, healing on the night of Day 6',
-      spoken: 'Injured, healing on the night of Day 6',
+      title: 'Injured, healing on the night of Year 1 Day 7',
+      spoken: 'Injured, healing on the night of Year 1 Day 7',
     });
     expect((within(first as HTMLElement).getByRole('checkbox') as HTMLInputElement).disabled).toBe(true);
     expect(rows(form).at(-1)).toBe(first);
@@ -363,8 +363,8 @@ describe('the Party builder', () => {
     const away = rowNamed(form, name);
     expect(chipOf(away)).toEqual({
       shown: 'Away',
-      title: 'Away with a Party, back on the night of Day 5',
-      spoken: 'Away with a Party, back on the night of Day 5',
+      title: 'Away with a Party, back on the night of Year 1 Day 6',
+      spoken: 'Away with a Party, back on the night of Year 1 Day 6',
     });
     expect(within(away).getByText('Away').closest('.chip')?.querySelector('svg')).not.toBeNull();
     // The look is as it was (DL-169 item 3): faded, the box disabled, and "Open" still opens the Hero's page.
@@ -466,7 +466,7 @@ describe('the Party builder', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Send the Party' }));
     await idle();
 
-    const sent = inHistory(/^The Lantern sent .+ on .+, back on the night of Day \d+, carrying Healing draught ×2\.$/);
+    const sent = inHistory(/^The Lantern sent .+ on .+, back on the night of Year \d+ Day \d+, carrying Healing draught ×2\.$/);
     expect(sent.classList.contains('is-new')).toBe(true);
     expect(sent.textContent).toContain(` on ${questName}, `);
     // Kind, Effect, Held, Sells for: two of the three went with the Party.
@@ -579,7 +579,7 @@ describe('the Party builder', () => {
     const sent = first as HTMLElement;
     expect(within(sent).getByRole('heading', { level: 3 }).textContent).toBe(questName);
     expect(within(sent).getByText('Party out')).toBeDefined();
-    const [words] = /^Sent: .+\. Back on the night of Day \d+\.$/.exec(within(sent).getByText(/^Sent: /).textContent ?? '') ?? [];
+    const [words] = /^Sent: .+\. Back on the night of Year \d+ Day \d+\.$/.exec(within(sent).getByText(/^Sent: /).textContent ?? '') ?? [];
     expect(words).toBeDefined();
     const whoWent = [...who].sort();
     expect(whoWent.every((name) => words?.includes(name))).toBe(true);

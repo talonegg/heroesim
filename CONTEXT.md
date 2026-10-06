@@ -519,7 +519,10 @@ _Avoid_: Message, Log line; "Event" alone for a Random or Inciting Event
 **History**:
 The record inside the World State of every event, kept per Guild and per Hero with a list of
 Milestones; never bounded, and no entry is dropped (R36). Every discrete change is an entry;
-nightly drift, and the changes DL-84 names, are recorded only when they cross a band. The page
+nightly drift, and the changes DL-84 names, are recorded only when they cross a band. A Hero
+generated into the Unattached pool enters the History once hired: their arrival, and their leaving
+the pool if never hired, are events and not entries, and a hired Hero's History begins at their
+signing (DL-211). The page
 shows a Guild's History with some entries left out, none dropped: the player's Guild's without
 its Heroes' XP and Morale, Regard moving, Upkeep, purchases and sales, and a Rival's without Upkeep,
 purchases and sales (DL-111, DL-117). In the player's Guild's, a Party's return is one entry, its
@@ -542,7 +545,9 @@ a Death, a Transfer, a Trait gained or lost, a Campaign beat. No entry is droppe
 _Avoid_: Highlight, Achievement, Key event
 
 **Day**:
-Three Turns: morning, afternoon and night.
+Three Turns: morning, afternoon and night. A player reads the Day of the Year, from Day 1 to Day 360,
+with its Year: "Year 2 Day 45", "Year 2 Day 45, afternoon", "the night of Year 2 Day 45"; the engine
+counts Days from 0 and never resets them (amended 2026-10-06, DL-206 items 30 to 33, DL-210).
 _Avoid_: Tick, Round
 
 **Turn**:
@@ -553,8 +558,9 @@ drift, ageing, Upkeep and the ending checks fall, as Random Events will once tha
 _Avoid_: Step, Phase, Tick
 
 **Year**:
-360 Days, 1,080 Turns (`turnsPerYear`), by which ages and the calendar are counted: the game
-begins in Year 0 (DL-125 names it).
+360 Days, 1,080 Turns (`turnsPerYear`, whole Days), by which ages and the calendar are counted: the
+game begins in Year 1, Day 1, as players read it; the engine counts Years from 0 (DL-125 names it;
+amended 2026-10-06, DL-206 items 8 and 30, DL-210, originally "begins in Year 0").
 _Avoid_: Season, Annum
 
 **Action**:

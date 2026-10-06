@@ -3,6 +3,7 @@
 // request nothing (principle 12, the bundle gate). Each is decoration beside a word or a name that
 // says the same, so it is hidden from assistive technology: colour or a glyph is never the only cue.
 
+import type { ClassIcon } from '@heroesim/engine';
 import type { ReactNode } from 'react';
 
 /** The strokes of each icon. */
@@ -175,16 +176,59 @@ const paths = {
   down: <path d="M12 5v14M6 13l6 6 6-6" />,
 } satisfies Record<string, ReactNode>;
 
-export type IconName = keyof typeof paths;
+/**
+ * The Class icons (v1.1.7-S6, DL-206 item 22, DL-212), one drawing for each of the engine's
+ * `classIcons`, in the same style as the rest, as the owner approved them. A test ties each name to a
+ * drawing and each drawing to a name.
+ */
+const classDrawings = {
+  'sword-and-shield': (
+    <>
+      <path d="M5.25 15V5L6.5 2.75 7.75 5V15" />
+      <path d="M3.5 15h6M6.5 15v4.5" />
+      <path d="M12 7l4.75-2 4.75 2v4.5c0 3.8-2.2 6.3-4.75 7.5-2.55-1.2-4.75-3.7-4.75-7.5z" />
+    </>
+  ),
+  // Two daggers crossed a little above their guards, points down: the drawing is one dagger twice, turned,
+  // then flipped.
+  'crossed-daggers': (
+    <g transform="translate(0 24) scale(1 -1)">
+      <g transform="translate(0 1.6) rotate(45 12 10.5)">
+        <path d="M11 13V3.2L12 1.2 13 3.2V13" />
+        <path d="M10 13h4M12 13v5" />
+      </g>
+      <g transform="translate(0 1.6) rotate(-45 12 10.5)">
+        <path d="M11 13V3.2L12 1.2 13 3.2V13" />
+        <path d="M10 13h4M12 13v5" />
+      </g>
+    </g>
+  ),
+  // An open tome, its pages' thickness shown beneath, and a spark above.
+  tome: (
+    <>
+      <path d="M3 8.5c3-1.4 6-1.2 9 .8 3-2 6-2.2 9-.8V17c-3-1.2-6-1-9 .8-3-1.8-6-2-9-.8z" />
+      <path d="M12 9.3v8.5" />
+      <path d="M3 17v2.5c3-1.2 6-1 9 .8 3-1.8 6-2 9-.8V17" />
+      <path d="M12 2c.3 1.3.8 1.8 2 2-1.2.3-1.7.8-2 2-.3-1.2-.8-1.7-2-2 1.2-.2 1.7-.7 2-2z" />
+    </>
+  ),
+  // An open palm, fingers up, without a crease.
+  palm: (
+    <path d="M8.6 22C8.3 20.3 7.6 19 6.6 17.6L4.3 13.2A1.25 1.25 0 0 1 6.4 11.9L9.4 14.2L9 5.6A1.2 1.2 0 0 1 11.4 5.3L11.7 11.8L11.6 4.3A1.2 1.2 0 0 1 14 4.3L14 11.8L14.3 5.4A1.2 1.2 0 0 1 16.7 5.6L16.4 12.2L16.9 8.4A1.15 1.15 0 0 1 19.2 8.8L18.5 14.4C18.3 17.5 17 19.6 15.6 22" />
+  ),
+} satisfies Record<ClassIcon, ReactNode>;
 
-/** Every icon's name: the test draws each one. */
-export const iconNames = Object.freeze(Object.keys(paths)) as readonly IconName[];
+/** The mark of a Class that names no icon: a plain diamond. */
+const plainMark = <path d="M12 4l8 8-8 8-8-8z" />;
 
-/** One icon, sized to the text around it unless a class says otherwise; always decoration. */
-export function Icon({ name, className }: { name: IconName; className?: string }) {
+/** Every Class icon drawn: the test sets them beside `classIcons`. */
+export const classDrawingNames = Object.freeze(Object.keys(classDrawings)) as readonly string[];
+
+/** The one `<svg>` every icon is drawn in: a 24-unit grid, a 1.75 stroke, round ends, the text's own colour; always decoration. */
+function Drawing({ className, children }: { className: string; children: ReactNode }) {
   return (
     <svg
-      className={className === undefined ? 'icon' : `icon ${className}`}
+      className={className}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -194,7 +238,51 @@ export function Icon({ name, className }: { name: IconName; className?: string }
       aria-hidden="true"
       focusable="false"
     >
-      {paths[name]}
+      {children}
     </svg>
   );
+}
+
+/**
+ * A Class's mark: its icon, or the plain mark for a Class with none, hidden from assistive technology
+ * (the Class's name stays in words where it was) with a tooltip that names the Class (DL-206 item 24,
+ * DL-212). It takes the text's colour, so it holds the contrast the text does (DL-103).
+ */
+export function ClassMark({ icon, className }: { icon: ClassIcon | null; className: string }) {
+  return (
+    <span className="class-mark" aria-hidden="true" title={className}>
+      <Drawing className="icon">{icon === null ? plainMark : classDrawings[icon]}</Drawing>
+    </span>
+  );
+}
+
+/**
+ * One Hero's name with their Class's mark before it (DL-206 item 23, DL-212): the one element every
+ * place that lists a Hero with their Class uses, so that the mark and the name stand in one place.
+ * The mark and the name's first word are one unit that never parts, so the mark is never alone on a
+ * line; the later words follow and wrap as words do (the owner's (b), DL-212). `nameClass` styles the
+ * name where its place has a style of its own, as the Party builder's does.
+ */
+export function HeroName({ icon, className, name, nameClass }: { icon: ClassIcon | null; className: string; name: string; nameClass?: string }) {
+  const space = name.search(/\s/);
+  const [firstWord, rest] = space < 0 ? [name, ''] : [name.slice(0, space), name.slice(space)];
+  return (
+    <span className={nameClass === undefined ? 'hero-name' : `hero-name ${nameClass}`}>
+      <span className="hero-name__lead">
+        <ClassMark icon={icon} className={className} />
+        <span className="hero-name__first">{firstWord}</span>
+      </span>
+      {rest}
+    </span>
+  );
+}
+
+export type IconName = keyof typeof paths;
+
+/** Every icon's name: the test draws each one. */
+export const iconNames = Object.freeze(Object.keys(paths)) as readonly IconName[];
+
+/** One icon, sized to the text around it unless a class says otherwise; always decoration. */
+export function Icon({ name, className }: { name: IconName; className?: string }) {
+  return <Drawing className={className === undefined ? 'icon' : `icon ${className}`}>{paths[name]}</Drawing>;
 }

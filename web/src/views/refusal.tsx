@@ -16,7 +16,7 @@ export function Refusal({ state, play }: { state: GameState; play: (action: Game
   return (
     <div className="refusal" role="alert">
       <Icon name="alert" className="refusal__icon" />
-      <p>{rejectionSentence(rejection, document?.world ?? null, content)}</p>
+      <p>{rejectionSentence(rejection, document, content)}</p>
       <button type="button" className="button--quiet" onClick={() => play({ kind: 'dismiss' })}>
         Dismiss
       </button>

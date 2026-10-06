@@ -165,7 +165,7 @@ describe('build', () => {
         expect(built).toMatchObject({ code: exitCodes.ok, err: '' });
         expect(built.out).toContain("The Test's training yard is now grade 1.");
       }
-      // Fifteen Turns from the morning of Day 0: the nights of Days 0 to 4. Nobody is sent anywhere.
+      // Fifteen Turns from the morning of Year 1 Day 1: the nights of its first five Days. Nobody is sent anywhere.
       expect(play(['advance', '--turns', '15']).code).toBe(exitCodes.ok);
       const { world } = document();
       const guild = player();

@@ -4,14 +4,14 @@
 // which shows how contested the Board is (DL-30); M2-S12 adds the rest (DL-34).
 //
 // M3's counters (the epic's §2, DL-40) add Levels and declines per Guild-year, Retirements by age,
-// growth against decline, and the Improvement grades reached by year 10, from the History as
+// growth against decline, and the Improvement grades reached in the first 10 years, from the History as
 // before; and two the History cannot give, read from the World State while the game is played
 // (`observe`): how many pool Heroes refuse each Guild for its Fame each morning, and the Rosters'
 // Levels and Heroes at Potential as each year begins.
 //
 // M4's counters (the epic's §2, DL-55) add, from the History, the Encounters' outcomes by kind, the
 // Synergies each Quest applied, Injuries by type and the Patrons silent in a year; and, from the
-// World State as year 10 begins, the Relationships within the player's Roster and its
+// World State after 10 years, the Relationships within the player's Roster and its
 // Guildmaster's Regard, by band, which the History records only as band crossings.
 //
 // M5's counters (the epic's §2, DL-62) add, from the History, the Wealth each kind of Guild spent by
@@ -37,7 +37,8 @@
 // (`guild.below-floor`) and was back to it or more (`guild.floor-recovered`).
 //
 // v1.1.3-S6's (DL-134 item 9, DL-135 item 6), from the World State as each Hero is generated, which the
-// play loop reads after each `advance` from the new `hero.generated` entries (`observeHeroes`): every
+// play loop reads from the `hero.generated` events of the world's creation and of each `advance`, not
+// the History, which records a pool Hero only once hired (DL-211) (`observeHeroes`): every
 // Hero generated, with a picture or the Silhouette, those whose picture another Hero on a Roster or in
 // the pool already held (a repeat), and the longest Appearance and Biography written; and the save's
 // length as each year ends, with the part of it the Heroes' three new fields take (`observeSave`).
@@ -198,10 +199,10 @@ export function questingHeroes(document: WorldDocument): ByController {
   return counts;
 }
 
-/** The year M3's counters read at: "after 10 years" and "by year 10" (the epic's §2, DL-40). */
+/** The years M3's counters read after: "after 10 years", and the grades reached in them (the epic's §2, DL-40). */
 export const countedYear = 10;
 
-/** A number for each year of the game, year 0 (the first) first, for each kind of controller. */
+/** A number for each year of the game, the first at index 0, for each kind of controller. */
 export type ByYear = Record<ControllerKind, number[]>;
 
 /**
@@ -276,9 +277,9 @@ export interface GameCounters {
   retirementAges: Record<ControllerKind, Record<string, number>>;
   growthAgainstDecline: Record<ControllerKind, GrowthAgainstDecline>;
   /**
-   * The Guilds founded before year `countedYear` (`guild.founded`, replacement Rivals included), by
-   * controller, counted by the highest grade each facility reached before it (`guild.improved`);
-   * `null` for a game that stopped before year `countedYear` (DL-38 item 15).
+   * The Guilds founded in the first `countedYear` years (`guild.founded`, replacement Rivals included), by
+   * controller, counted by the highest grade each facility reached in them (`guild.improved`);
+   * `null` for a game that stopped before `countedYear` years (DL-38 item 15).
    */
   improvementGrades: Record<ControllerKind, GradeCounts> | null;
   // M4's (DL-55).
@@ -288,7 +289,7 @@ export interface GameCounters {
   synergies: Record<ControllerKind, SynergyTally>;
   /** `hero.injured`, by the controller of the Hero's Guild then, then by the Injury type's key. */
   injuriesByType: Record<ControllerKind, Record<string, number>>;
-  /** For each year played in full, 0 first, the Patrons in the world as it began. */
+  /** For each year played in full, the first at index 0, the Patrons in the world as it began. */
   patronYears: number[];
   /** Of those, the Patrons that offered no Quest in the year (no `quest.offered` naming them). */
   silentPatronYears: number[];
@@ -816,9 +817,9 @@ function noGradesByDisposition(content: EngineDeps['content']): Record<string, G
 }
 
 /**
- * The Guilds founded before year `countedYear`, by controller and, for the Rivals, by Disposition too
- * (M6, DL-69), counted by the highest grade each facility reached before it; `null` when the game
- * stopped before it (DL-38 item 15).
+ * The Guilds founded in the first `countedYear` years, by controller and, for the Rivals, by Disposition too
+ * (M6, DL-69), counted by the highest grade each facility reached in them; `null` when the game
+ * stopped before their end (DL-38 item 15).
  */
 function improvementGrades(
   document: WorldDocument,
@@ -1475,7 +1476,7 @@ export interface RosterCensus {
 }
 
 /**
- * The player's Guild's Regard as year `countedYear` begins (M4, DL-55), by band, every band listed:
+ * The player's Guild's Regard after `countedYear` years (M4, DL-55), by band, every band listed:
  * what the History, which records a Regard only when it crosses a band, cannot give.
  */
 export interface RegardSnapshot {
@@ -1516,8 +1517,8 @@ export interface GameObservations {
   rankings: (PlayerRanking | null)[];
   /** Every Hero generated, and their Portraits and texts (v1.1.3-S6): `observeHeroes`. */
   heroes: HeroTally;
-  /** How many `hero.generated` entries `observeHeroes` has read. */
-  heroEntriesRead: number;
+  /** The last Turn whose `hero.generated` events `observeHeroes` has read, `null` before any: a batch is read once. */
+  heroTurnsRead: number | null;
   /** The save as each year ended (`observeSave`, v1.1.3-S6): index k is after k + 1 years. */
   saves: SaveSize[];
   /** The World State as each year ended (`observeWorld`, v1.1.6-S17): index k is after k + 1 years. */
@@ -1584,15 +1585,15 @@ export function emptyObservations(): GameObservations {
     rivals: [],
     rankings: [],
     heroes: noHeroes(),
-    heroEntriesRead: 0,
+    heroTurnsRead: null,
     saves: [],
     worlds: [],
   };
 }
 
 /**
- * Reads each `hero.generated` entry of `document`'s History not yet read (v1.1.3-S6), with the Hero's
- * row as the World State holds it just after the Turn that generated them: whether they have a picture
+ * Reads each `hero.generated` among `events`, a batch: the world's creation's or one `advance`'s
+ * (v1.1.3-S6, DL-211), with the Hero's row as `world` holds it just after the Turn that generated them: whether they have a picture
  * or the Silhouette, whether another Hero on a Roster or in the pool held the same picture as they were
  * given it (a repeat), and their texts' lengths. A pool Hero leaves before the refill of the same night,
  * so no Hero is gone the Turn they are generated; one whose row is gone is not counted. Called once the
@@ -1601,15 +1602,17 @@ export function emptyObservations(): GameObservations {
  * The holders are read once a batch, as the World State stands after it, less the batch's own Heroes,
  * who are added in the order they were generated: so the first holder of a picture is no repeat, and
  * each later one is (v1.1.3-S8). A holder who died or left within the same batch is not seen.
+ *
+ * Each batch is of one Turn, later than the last: an event of a Turn already read (`heroTurnsRead`)
+ * is not counted again.
  */
-export function observeHeroes(observations: GameObservations, document: WorldDocument): void {
-  const { world, history } = document;
-  const positions = history.byType['hero.generated'] ?? [];
+export function observeHeroes(observations: GameObservations, world: World, events: readonly Entry[]): void {
   const tally = observations.heroes;
-  const batch = positions.slice(observations.heroEntriesRead).map((position) => {
-    const payload = history.entries[position]?.payload;
-    return typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'heroId') : undefined;
-  });
+  const read = observations.heroTurnsRead;
+  const fresh = events.filter((event) => event.type === 'hero.generated' && (read === null || event.turn > read));
+  for (const { turn } of fresh) observations.heroTurnsRead = Math.max(observations.heroTurnsRead ?? turn, turn);
+  const batch = fresh
+    .map(({ payload }) => (typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'heroId') : undefined));
   let heldBy: Map<string, number> | null = null;
   for (const heroId of batch) {
     const hero = typeof heroId === 'string' && Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId as HeroId] : undefined;
@@ -1630,7 +1633,6 @@ export function observeHeroes(observations: GameObservations, document: WorldDoc
     if (holders > 0) tally.repeats += 1;
     heldBy.set(hero.portraitKey, holders + 1);
   }
-  observations.heroEntriesRead = positions.length;
 }
 
 /** How many Heroes on a Roster or in the pool hold each picture, those in `leaving` aside. */

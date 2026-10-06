@@ -16,7 +16,7 @@ const heroId = 'hero-000007' as HeroId;
 const otherHeroId = 'hero-000009' as HeroId;
 const questId = 'quest-000003' as QuestId;
 const labels: Record<string, string> = { [guildId]: 'The Kestrel Guild', [heroId]: 'Brenna Ashcombe', [otherHeroId]: 'Aldred Barrowby' };
-const narration: Narration = { content, questName: () => 'Clear the barrow' };
+const narration: Narration = { content, questName: () => 'Clear the barrow', calendar: { turnsPerYear: 1080 } };
 
 const taken = {
   type: 'quest.taken',
@@ -43,7 +43,7 @@ describe("the page's Namer, drawn", () => {
       </HistoryLinksContext.Provider>,
     );
 
-    expect(container.textContent).toBe('The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on Clear the barrow, back on the night of Day 7.');
+    expect(container.textContent).toBe('The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on Clear the barrow, back on the night of Year 1 Day 8.');
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['The Kestrel Guild', 'Brenna Ashcombe', 'Aldred Barrowby']);
     fireEvent.click(screen.getByRole('button', { name: 'Aldred Barrowby' }));
     expect(shell.onName).toHaveBeenCalledWith({ kind: 'name', text: 'Aldred Barrowby', entityId: otherHeroId, table: 'heroes' });
@@ -58,6 +58,6 @@ describe("the page's Namer, drawn", () => {
     );
 
     expect(screen.queryAllByRole('button')).toEqual([]);
-    expect(container.textContent).toBe('The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on Clear the barrow, back on the night of Day 7.');
+    expect(container.textContent).toBe('The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on Clear the barrow, back on the night of Year 1 Day 8.');
   });
 });

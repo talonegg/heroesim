@@ -11,7 +11,6 @@
 import {
   carriedGear,
   compareByCodeUnit,
-  gearSlotKeys,
   holdings,
   itemDefinition,
   playerGuild,
@@ -23,8 +22,9 @@ import {
   type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, kindOf, listed } from '@heroesim/words';
+import { kindOf, listed } from '@heroesim/words';
 import { content } from '../content';
+import { kindFacet, type Facets } from './facets';
 import { rowOf } from './names';
 import { questNamer, textOf, type Segment } from './namer';
 import { playDeps } from './reducer';
@@ -36,12 +36,6 @@ export type StoresWhere = 'held' | 'carried' | 'party';
 const whereOrder: readonly StoresWhere[] = ['held', 'carried', 'party'];
 
 const whereLabels: Readonly<Record<StoresWhere, string>> = Object.freeze({ held: 'Held', carried: 'Carried', party: 'With a Party' });
-
-/** What the Stores shows: one kind or all, and one place or all. */
-export interface StoresFilter {
-  kind: MarketKind | null;
-  where: StoresWhere | null;
-}
 
 export interface StoresRow {
   /** The row's unique Item or stack: unique within the Stores. */
@@ -71,12 +65,13 @@ export interface StoresRow {
 
 export interface StoresView {
   guildName: string;
-  /** The rows the filter shows: the Holding's, then each Hero's on the Roster in its order, then each Party's. */
+  /** Every row: the Holding's, then each Hero's on the Roster in its order, then each Party's. */
   rows: StoresRow[];
-  /** Each kind the Guild owns, the gear slots in their order then consumables, with how many rows: the filter's chips. */
-  kinds: { key: MarketKind; label: string; count: number }[];
-  /** Each place the Guild has Items, with how many rows. */
-  wheres: { key: StoresWhere; label: string; count: number }[];
+  /**
+   * The Stores' two filters, several choices each (DL-206 items 26 to 29, DL-213): by kind, each the
+   * Guild owns, the gear slots in their order then consumables; and by where, each place it has Items.
+   */
+  facets: Facets<StoresRow, 'kind' | 'where'>;
   /** `The Lantern owns 6 Items: 3 held, 2 carried by its Heroes and 1 with its Parties.`, or that it owns nothing. */
   summary: string;
 }
@@ -87,18 +82,12 @@ function itemCountWords(count: number): string {
 }
 
 /**
- * The rows of `rows` that `filter` shows: of its kind and in its place, or all. The Stores part reads
- * every row once and shows these, rather than reading the Guild's Items again for each filter (M9-F6).
- */
-export function storesRowsShown(rows: readonly StoresRow[], filter: StoresFilter): StoresRow[] {
-  return rows.filter((row) => (filter.kind === null || row.kindKey === filter.kind) && (filter.where === null || row.where === filter.where));
-}
-
-/**
  * `show roster`'s gear and the Market's Sell together, for the player's Guild (M9-F3): every Item it
- * owns, where it is, of the kind and place asked for or all; `null` in a save with no player's Guild.
+ * owns, where it is, with its filters; `null` in a save with no player's Guild. The Stores part reads
+ * every row once a document and filters these (`faceted`), rather than reading the Guild's Items
+ * again for each filter (M9-F6).
  */
-export function storesView(document: WorldDocument, filter: StoresFilter): StoresView | null {
+export function storesView(document: WorldDocument): StoresView | null {
   const { world } = document;
   const guild = playerGuild(world);
   if (guild === undefined) return null;
@@ -147,14 +136,7 @@ export function storesView(document: WorldDocument, filter: StoresFilter): Store
     });
   const owned = [...held, ...carried, ...away];
 
-  const kinds = [...gearSlotKeys, 'consumable' as const].flatMap((key) => {
-    const count = owned.filter((row) => row.kindKey === key).length;
-    return count === 0 ? [] : [{ key, label: capitalised(key), count }];
-  });
-  const wheres = whereOrder.flatMap((key) => {
-    const count = owned.filter((row) => row.where === key).length;
-    return count === 0 ? [] : [{ key, label: whereLabels[key], count }];
-  });
+  const wheres = whereOrder.flatMap((key) => (owned.some((row) => row.where === key) ? [{ key, label: whereLabels[key] }] : []));
 
   const counted = (rows: readonly StoresRow[]) => rows.reduce((sum, row) => sum + row.quantity, 0);
   const total = counted(owned);
@@ -170,9 +152,11 @@ export function storesView(document: WorldDocument, filter: StoresFilter): Store
 
   return {
     guildName: guild.name,
-    rows: storesRowsShown(owned, filter),
-    kinds,
-    wheres,
+    rows: owned,
+    facets: {
+      kind: kindFacet(owned, 'Show of kind'),
+      where: { label: 'Show where', options: wheres, of: (row) => row.where },
+    },
     summary,
   };
 }

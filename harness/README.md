@@ -26,14 +26,17 @@ Sweeps run one at a time, with nothing else running, since a 20-year game's proc
 1.3 GB (DL-184).
 
 The current `neutral` baseline, every play-neutral story's `--expect`, is
-`6282414caa9681445c3ba849400506ce10510713ce9eff8173c2372e46e4ed10` (`m9-v116-s18-neutral`, v1.1.6-S18, DL-204:
-schema 7, config version 16, content version 36; S16's was `64020971…` at config version 15). The 4 × 2 quick
-check at content 36 and config version 16 is `948be72d1c156791960e40fd3ba48b58621283527ebf2cc3dcce820b622d5cb4`.
+`29c09fb4ea34f50addee9f8bd12ed8de40db1a3bd01655d5338795e97914d662` (`m9-v117-s6-neutral`, v1.1.7-S6, DL-212:
+schema 7, config version 17, content version 37, each Class's `icon` named; S5's was `c942201a…`, DL-211).
+The 4 × 2 quick check at content 37 and config version 17 is
+`38d1c0d4a48765086d39026c84e559d8e84008fb12205309a33db8aabeb5112a` (S5's, at content 36, was
+`ea14ffe35aa89561df091a17292c479ff115bc4f64e8fa5e984e8d9e465514a6`, which the version and `classes.json` put back give).
 It changes only with a DL entry, as at a story that changes play or the save's shape (v1.1.6-S7 and S17) or
 raises the content version or the config version, both of which every save records (with `meta.config`).
-The full `gate`'s, 50 × 20, is `bce997d27793192742247d4a7e4adc1ee80a9460752a8c7847258e0495cf2d77`
-(`m9-v116-s19`, DL-205: schema 7, config version 16, content version 36; S17's was `ecede9c0…` at config
-version 15, and S7's `143a44c7…` at content 34).
+The full `gate`'s, 50 × 20, is `5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b`
+(`m9-v117-s8`, v1.1.7's close, DL-214: schema 7, config version 17, content version 37; S5's was `43b429cf…`
+at content version 36, DL-211, the same games by `compare`; v1.1.6-S19's `bce997d2…` at config version 16,
+DL-205, the Gate's baseline in `gate.json`).
 
 ## Settings
 
@@ -69,8 +72,12 @@ stopped by a harness assertion, unfinished or failing its round trip; the replay
 played once more, alone, its last save's length and fingerprint the same as its shard recorded. Its
 bands are set on its run, 50 games of 20 years, and read "not comparable" on a run of another shape:
 the player's Bankruptcies, at most 3 of 50; the save after 20 years, its gzipped mean under
-30 MiB; and the per-Turn copy's mean time, as each year ended, at most 25% over its baseline,
-0.847 ms, measured at v1.1.6-S17's full gate (DL-203). The Traits earned a player's Hero career and the save's uncompressed size are not lines of the
+30 MiB; and the per-Turn copy's share of a Turn, the mean time of the copy (`copyWorld`, timed as
+each year ended) over the mean time of `advance`, at most 25% over its baseline share, 0.253 (0.847 ms
+over 3.346 ms, measured at v1.1.6-S17's full gate, DL-203), so at most 0.31625 (DL-206 item 17, DL-207),
+printed as it is applied, and the share printed to as many places as show it above the limit when it
+fails; a run with no copy times or no `advance` times reads "not comparable", naming the times missing
+and printing those measured. The report prints both times and the share. The Traits earned a player's Hero career and the save's uncompressed size are not lines of the
 Gate; the report prints them. The estimate probe reads its two limits from it. A `gate` or `neutral`
 run prints each line's verdict and writes them into both reports; it fails when a line fails.
 

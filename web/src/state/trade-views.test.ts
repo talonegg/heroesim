@@ -3,7 +3,6 @@ import {
   ageOf,
   applyAction,
   createWorld,
-  dayOf,
   defaultConfig,
   guildmasterOf,
   holdings,
@@ -17,10 +16,19 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { createItem } from '@heroesim/engine/testing';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
+import { faceted } from './facets';
 import { defaultHeroOrder } from './selectors';
+import { calendarFor } from './reducer';
 import { marketView, offersView, poolView } from './trade-views';
+
+// The calendar, counted: it merges and checks the whole config, so a view reads it once (DL-214).
+vi.mock('./reducer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./reducer')>();
+  return { ...actual, calendarFor: vi.fn(actual.calendarFor) };
+});
 
 // The Market, the Unattached pool and the Transfer Offers (M7-S3 part 2, DL-73): each number beside
 // the engine selector it comes from.
@@ -72,28 +80,38 @@ describe('marketView', () => {
 });
 
 describe("the Market as tables (M9-S6, DL-106; the review's B3)", () => {
-  test('names each kind for sale, the gear slots in their order then consumables, with how many kinds of Item each has', () => {
+  test('names each kind for sale, the gear slots in their order then consumables, counting its kinds of Item', () => {
     const view = marketView(newGame());
+    const kinds = faceted(view.forSale, view.facets, {}).facets.kind.options;
 
-    expect(view.kinds.map((kind) => kind.key)).toEqual(['weapon', 'armour', 'trinket', 'consumable'].filter((key) => view.kinds.some((kind) => kind.key === key)));
-    expect(view.kinds.map((kind) => kind.label)).toEqual(view.kinds.map((kind) => ({ weapon: 'Weapon', armour: 'Armour', trinket: 'Trinket', consumable: 'Consumable' })[kind.key]));
-    expect(view.kinds.reduce((sum, kind) => sum + kind.count, 0)).toBe(view.forSale.length);
-    expect(view.kinds.length).toBeGreaterThan(1);
+    expect(kinds.map((kind) => kind.key)).toEqual(['weapon', 'armour', 'trinket', 'consumable'].filter((key) => kinds.some((kind) => kind.key === key)));
+    expect(kinds.map((kind) => kind.label)).toEqual(kinds.map((kind) => ({ weapon: 'Weapon', armour: 'Armour', trinket: 'Trinket', consumable: 'Consumable' })[kind.key]));
+    expect(kinds.reduce((sum, kind) => sum + kind.count, 0)).toBe(view.forSale.length);
+    expect(kinds.every((kind) => kind.count > 0)).toBe(true);
+    expect(kinds.length).toBeGreaterThan(1);
+    // A listing to each kind of Item.
+    expect(new Set(view.forSale.map((row) => row.definitionKey)).size).toBe(view.forSale.length);
   });
 
-  test('lists only the kind chosen, for display; the counts stay those of everything for sale', () => {
-    const document = newGame();
-    const all = marketView(document);
+  test('filters by kind, one or several, for display; each kind its count of everything for sale (DL-206 items 26 to 29)', () => {
+    const view = marketView(newGame());
+    const kindOf = view.facets.kind;
+    expect(kindOf.label).toBe('Show for sale');
+    const kinds = faceted(view.forSale, view.facets, {}).facets.kind.options;
+    expect(kindOf.options).toEqual(kinds.map(({ key, label }) => ({ key, label })));
 
-    for (const kind of all.kinds) {
-      const shown = marketView(document, kind.key);
-      expect(shown.forSale).toHaveLength(kind.count);
-      expect(shown.forSale.every((row) => row.kindKey === kind.key)).toBe(true);
-      expect(shown.forSale.every((row) => (kind.key === 'consumable' ? /^Consumable$/ : new RegExp(`^${kind.label} Gear$`)).test(row.kind))).toBe(true);
-      expect(shown.kinds).toEqual(all.kinds);
-      expect(shown.totalForSale).toBe(all.totalForSale);
+    for (const kind of kinds) {
+      const shown = faceted(view.forSale, view.facets, { kind: [kind.key] });
+      expect(shown.rows).toHaveLength(kind.count);
+      expect(shown.rows.every((row) => row.kindKey === kind.key)).toBe(true);
+      expect(shown.rows.every((row) => (kind.key === 'consumable' ? /^Consumable$/ : new RegExp(`^${kind.label} Gear$`)).test(row.kind))).toBe(true);
+      // The one filter: its counts are everything for sale's, whatever is chosen.
+      expect(shown.facets.kind.options.map((option) => option.count)).toEqual(kinds.map((each) => each.count));
     }
-    expect(marketView(document, null).forSale).toEqual(all.forSale);
+    const [first, second] = kinds;
+    if (first === undefined || second === undefined) throw new Error('two kinds wanted');
+    expect(faceted(view.forSale, view.facets, { kind: [first.key, second.key] }).rows).toHaveLength(first.count + second.count);
+    expect(faceted(view.forSale, view.facets, {}).rows).toEqual(view.forSale);
   });
 
   test("gives what the Guild holds its kind and what it does, in the Market's words, beside what each sells for", () => {
@@ -242,7 +260,7 @@ describe('offersView', () => {
     expect(offersView(offered.document)?.offers).toEqual([
       {
         offerId: offer.id,
-        sentence: `${rival.name} offers ${offer.fee} Wealth for ${heroName}, until the night of Day ${dayOf(offer.expiresOnTurn)}.`,
+        sentence: `${rival.name} offers ${offer.fee} Wealth for ${heroName}, until ${nightOfTurn(offer.expiresOnTurn, offered.document.meta.config)}.`,
         guildName: rival.name,
         heroName,
         fee: offer.fee,
@@ -252,5 +270,22 @@ describe('offersView', () => {
           'left behind who held them in high Regard lose Morale.',
       },
     ]);
+  });
+
+  test('reads the calendar once, however many Offers stand (DL-214)', () => {
+    let document = newGame();
+    const guild = player(document);
+    const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id);
+    if (rival === undefined) throw new Error('no Rival');
+    for (const heroId of guild.rosterIds.slice(0, 2)) {
+      const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
+      if (!offered.ok) throw new Error(offered.rejection.reason);
+      document = offered.document;
+    }
+    const calendars = vi.mocked(calendarFor);
+
+    calendars.mockClear();
+    expect(offersView(document)?.offers).toHaveLength(2);
+    expect(calendars).toHaveBeenCalledTimes(1);
   });
 });

@@ -26,7 +26,6 @@ describe('config.json', () => {
 
   test("the flat config is one to one with the settings' rules, in GameConfig's order", () => {
     expect(Object.keys(defaultConfig)).toEqual(Object.keys(configRules));
-    expect(Object.keys(defaultConfig)).toHaveLength(120);
   });
 
   test("each setting's value is the file's", () => {

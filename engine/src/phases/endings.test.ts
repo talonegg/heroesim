@@ -509,8 +509,13 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     expect(new Set(paid)).toEqual(new Set(rankings(beyond.document.world, 'fame').map((ranking) => ranking.guildId)));
     expect(ofType(beyond.events, 'guild.founded')).toEqual([]);
     // A released Hero leaves the pool like any other, and hero.left-guild keeps their row (DL-27).
+    // Hired once, dealt onto the Rival's Roster, their History holds it all, their leaving too (DL-211).
     for (const heroId of roster) {
       expect(beyond.document.world.heroes[heroId]).toMatchObject({ unattachedSince: null, leftPoolOnTurn: nightOf(12) });
+      const types = entriesFor(beyond.document.history, heroId).map((entry) => entry.type);
+      expect(types[0]).toBe('hero.left-pool');
+      expect(types.at(-1)).toBe('hero.generated');
+      expect(types).toContain('hero.left-guild');
     }
   });
 

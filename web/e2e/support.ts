@@ -169,7 +169,7 @@ export function lineOf(text: Locator): Locator {
   return text.locator('xpath=ancestor::li[1]');
 }
 
-/** The Day and time of day a line is grouped under. */
+/** The date and time of day a line is grouped under. */
 export function groupOf(text: Locator): Locator {
   return text.locator('xpath=ancestor::div[contains(concat(" ", @class, " "), " history-group ")][1]/*[1]');
 }
@@ -243,7 +243,7 @@ export async function startGame(page: Page, { guild, master, seed }: { guild: st
   await form.getByRole('textbox', { name: 'Seed', exact: true }).fill(seed);
   await form.getByRole('button', { name: 'Start the game' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(guild);
-  await expect(page.getByTestId('time')).toHaveText('Day 0, morning, Year 0');
+  await expect(page.getByTestId('time')).toHaveText('Year 1 Day 1, morning');
 }
 
 /** Plays Turns with `button`, and waits until they are played: the time has moved and the page is idle. */
@@ -307,7 +307,7 @@ export async function dispatchAParty(page: Page): Promise<string> {
       const sent = board.getByTestId('sent');
       await expect(sent.getByRole('heading', { level: 3 })).toHaveText(name);
       await expect(sent.getByRole('heading', { level: 3 })).toBeFocused();
-      await expect(sent).toContainText(new RegExp(`Sent: ${chosen.map(escaped).join('.*')}\\. Back on the night of Day \\d+\\.`));
+      await expect(sent).toContainText(new RegExp(`Sent: ${chosen.map(escaped).join('.*')}\\. Back on the night of Year \\d+ Day \\d+\\.`));
       return name;
     }
     await quest.getByRole('button', { name: 'Close' }).click();

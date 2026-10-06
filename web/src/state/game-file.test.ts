@@ -1,4 +1,4 @@
-import { configVersion, createWorld, dayOf, defaultConfig, deserialise, serialise, type WorldDocument } from '@heroesim/engine';
+import { configVersion, createWorld, defaultConfig, deserialise, serialise, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { rulesNotice, saveFileName, saveText } from './game-file';
@@ -25,11 +25,13 @@ describe('saveText', () => {
 });
 
 describe('saveFileName', () => {
-  test('names the seed and the Day, in characters any file system takes', () => {
+  test('names the seed and the date, in characters any file system takes (DL-210)', () => {
     const document = structuredClone(newGame('amber fox/4821'));
     document.world.turn = 31;
+    expect(saveFileName(document)).toBe('heroesim-amber-fox-4821-year-1-day-11.json');
 
-    expect(saveFileName(document)).toBe(`heroesim-amber-fox-4821-day-${dayOf(31)}.json`);
+    document.world.turn = 2 * 1080 + 33;
+    expect(saveFileName(document)).toBe('heroesim-amber-fox-4821-year-3-day-12.json');
   });
 });
 

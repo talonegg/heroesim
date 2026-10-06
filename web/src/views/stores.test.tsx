@@ -50,25 +50,52 @@ describe('the Stores (M9-F3)', () => {
     expect(shown[2]?.[4]).toBe('—');
   });
 
-  test('filters by kind and by where, and shows everything again from All', () => {
+  test('filters by kinds and by places, several of each, each option counting against the other filter, and shows everything again from All (DL-206 items 26 to 29)', () => {
     render(<App initial={stocked()} />);
     const kinds = within(stores()).getByRole('group', { name: 'Show of kind' });
     const wheres = within(stores()).getByRole('group', { name: 'Show where' });
+    const words = (group: HTMLElement): string[] => within(group).getAllByRole('button').map((button) => button.textContent ?? '');
+    const pressed = (group: HTMLElement): string[] =>
+      within(group)
+        .getAllByRole('button')
+        .filter((button) => button.getAttribute('aria-pressed') === 'true')
+        .map((button) => button.textContent ?? '');
+    expect(words(kinds)).toEqual(['All', 'Armour 1', 'Trinket 1', 'Consumable 1']);
+    expect(words(wheres)).toEqual(['All', 'Held 2', 'Carried 1']);
 
     fireEvent.click(within(kinds).getByRole('button', { name: /^Consumable/ }));
     expect(rows().map((row) => row[0])).toEqual(['Whetstone']);
-    expect(within(kinds).getByRole('button', { name: /^Consumable/ }).getAttribute('aria-pressed')).toBe('true');
+    expect(pressed(kinds)).toEqual(['Consumable 1']);
+    // The places count what they would show of a consumable.
+    expect(words(wheres)).toEqual(['All', 'Held 1', 'Carried 0']);
+
+    // A second kind: either shown.
+    fireEvent.click(within(kinds).getByRole('button', { name: /^Armour/ }));
+    expect(rows().map((row) => row[0])).toEqual(['Whetstone', 'Padded jack']);
+    expect(pressed(kinds)).toEqual(['Armour 1', 'Consumable 1']);
 
     fireEvent.click(within(kinds).getByRole('button', { name: 'All' }));
+    expect(pressed(kinds)).toEqual(['All']);
     fireEvent.click(within(wheres).getByRole('button', { name: /^Carried/ }));
     expect(rows().map((row) => row[0])).toEqual(['Padded jack']);
+    // A kind with nothing carried is greyed, and still pressed by a player who wants it.
+    const consumable = within(kinds).getByRole('button', { name: /^Consumable/ });
+    expect(consumable.textContent).toBe('Consumable 0');
+    expect(consumable.classList.contains('is-empty')).toBe(true);
 
-    fireEvent.click(within(kinds).getByRole('button', { name: /^Consumable/ }));
+    fireEvent.click(consumable);
     expect(within(stores()).queryByRole('table')).toBeNull();
-    expect(within(stores()).getByText('Nothing The Lantern owns is of that kind and there.')).toBeDefined();
+    expect(within(stores()).getByText('Nothing The Lantern owns matches the filters.')).toBeDefined();
 
     fireEvent.click(within(wheres).getByRole('button', { name: 'All' }));
     expect(rows().map((row) => row[0])).toEqual(['Whetstone']);
+
+    // Every place pressed reads as All.
+    fireEvent.click(within(kinds).getByRole('button', { name: 'All' }));
+    fireEvent.click(within(wheres).getByRole('button', { name: /^Held/ }));
+    fireEvent.click(within(wheres).getByRole('button', { name: /^Carried/ }));
+    expect(pressed(wheres)).toEqual(['All']);
+    expect(rows()).toHaveLength(3);
   });
 
   test("a Hero's name opens their page", () => {

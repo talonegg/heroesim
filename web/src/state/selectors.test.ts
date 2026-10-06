@@ -20,7 +20,6 @@ import {
   signingFee,
   signingRefusal,
   skillsThatHelp,
-  timeOfDay,
   transferFee,
   unattachedHeroes,
   unavailability,
@@ -35,7 +34,7 @@ import {
 } from '@heroesim/engine';
 import { append, createItem, nightOf, partyFor } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
-import { chanceWords, listed, shownPercent } from '@heroesim/words';
+import { chanceWords, dateOfTurn, listed, shownPercent, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { partiesOutView } from './digest';
 import { played as playedThrough, started } from './game.test-support';
@@ -93,7 +92,7 @@ function heroes(document: WorldDocument): Hero[] {
 }
 
 describe('headerView', () => {
-  test("names the player's Guild, its Wealth and Fame, the Day and time of day, and its place in the Rankings", () => {
+  test("names the player's Guild, its Wealth and Fame, the date and time of day, and its place in the Rankings", () => {
     const document = played(4);
     const guild = player(document);
     // No Quest has come home yet: every Guild is still at Fame 0, so all five share 1st.
@@ -107,12 +106,11 @@ describe('headerView', () => {
       guildmasterName: 'Ada Vell',
       wealth: guild.wealth,
       fame: guild.fame,
-      time: `Day ${dayOf(4)}, ${timeOfDay(4)}, Year 0`,
-      // The status bar's glyph: Turn 4 is an afternoon; and the time and the place in two parts,
-      // the second of each left unshown on a phone (M9-S3, DL-103).
+      // The date and the time of day, the Year shown at every width (DL-206 item 32, DL-210): Turn 4
+      // is the afternoon of the second Day of the first Year.
+      time: 'Year 1 Day 2, afternoon',
+      // The status bar's glyph; and the place in two parts, the second left unshown on a phone (M9-S3, DL-103).
       timeOfDay: 'afternoon',
-      when: `Day ${dayOf(4)}, ${timeOfDay(4)}`,
-      year: 'Year 0',
       rankings: 'Joint 1st of 5 by Fame',
       place: 'Joint 1st of 5',
       measure: 'by Fame',
@@ -148,7 +146,17 @@ describe('headerView', () => {
     const document = structuredClone(newGame());
     document.world.ended = { turn: 30, reason: 'bankruptcy' };
 
-    expect(headerView(document)?.ended).toBe('The game ended on Day 10: The Lantern went bankrupt.');
+    expect(headerView(document)?.ended).toBe('The game ended on Year 1 Day 11: The Lantern went bankrupt.');
+  });
+
+  test("gives the date under the game's own turnsPerYear, the Year from 1 (DL-210)", () => {
+    const document = structuredClone(newGame());
+    document.world.turn = 1_084;
+    expect(headerView(document)?.time).toBe('Year 2 Day 2, afternoon');
+
+    document.meta.config = { ...document.meta.config, turnsPerYear: 21 };
+    document.world.turn = 25;
+    expect(headerView(document)?.time).toBe('Year 2 Day 2, afternoon');
   });
 
   test('counts the Guilds in play, a folded one not among them (v1.0.1-S6, DL-97)', () => {
@@ -169,7 +177,7 @@ describe('headerView', () => {
 });
 
 describe('the Bankruptcy countdown: countdownView, in the header (v1.0.1-S4, DL-95)', () => {
-  /** A new game whose player's Guild starts below the floor, played through the night of Day 0. */
+  /** A new game whose player's Guild starts below the floor, played through the night of its first Day. */
   function belowTheFloor(config: Partial<typeof defaultConfig> = {}): WorldDocument {
     const start = structuredClone(newGame('countdown'));
     start.meta.config = { ...start.meta.config, ...config };
@@ -180,8 +188,9 @@ describe('the Bankruptcy countdown: countdownView, in the header (v1.0.1-S4, DL-
     return document;
   }
 
+  /** The countdown from the engine's Days, counted from 0; the words count from 1 (DL-210). */
   const sentence = (sinceDay: number, dueDay: number, floor = 0) =>
-    `The Lantern has been below the Bankruptcy floor since Day ${sinceDay}: Bankruptcy on the night of Day ${dueDay} ` +
+    `The Lantern has been below the Bankruptcy floor since Year 1 Day ${sinceDay + 1}: Bankruptcy on the night of Year 1 Day ${dueDay + 1} ` +
     `unless Wealth is back to ${floor} or more on a night by then, after any Upkeep due.`;
 
   test("is none while the player's Guild's belowFloorSince is null", () => {
@@ -202,8 +211,8 @@ describe('the Bankruptcy countdown: countdownView, in the header (v1.0.1-S4, DL-
     expect(countdownView(document)).toBe(sentence(0, defaultConfig.bankruptcyGraceDays));
     expect(headerView(document)?.countdown).toBe(sentence(0, defaultConfig.bankruptcyGraceDays));
     // The status bar's pill says when, in a few words (M9-S3, DL-103).
-    expect(headerView(document)?.due).toBe(`Bankruptcy on the night of Day ${defaultConfig.bankruptcyGraceDays}`);
-    expect(headerView(belowTheFloor({ bankruptcyGraceDays: 10 }))?.due).toBe('Bankruptcy on the night of Day 10');
+    expect(headerView(document)?.due).toBe(`Bankruptcy on the night of Year 1 Day ${defaultConfig.bankruptcyGraceDays + 1}`);
+    expect(headerView(belowTheFloor({ bankruptcyGraceDays: 10 }))?.due).toBe('Bankruptcy on the night of Year 1 Day 11');
     // The game's own rules, not this release's defaults: a save playing under a grace of 10 Days.
     expect(countdownView(belowTheFloor({ bankruptcyGraceDays: 10 }))).toBe(sentence(0, 10));
     expect(countdownView(belowTheFloor({ bankruptcyGraceDays: 10, bankruptcyFloor: 50 }))).toBe(sentence(0, 10, 50));
@@ -240,6 +249,8 @@ describe('boardView', () => {
         reward: quest.reward,
         fame: quest.fameEffect,
         lastDay: dayOf(quest.expiresOnTurn),
+        // The Board's chip, `Until Year 1 Day 6` (DL-210); `lastDay` stays the Day it sorts by.
+        until: `Until ${dateOfTurn(quest.expiresOnTurn, document.meta.config)}`,
         party: `${quest.requirements.partySizeMin} to ${quest.requirements.partySizeMax} Heroes`,
       });
       expect(card.skills).toEqual(skillsThatHelp(quest, content).map((key) => content.skills[key]?.name));
@@ -385,7 +396,7 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
       if (first === undefined || second === undefined) throw new Error('expected two Quests');
       first.requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
       second.requirements = { partySizeMin: 1, partySizeMax: 2 };
-      // Day 0, the Day in hand: its night is Turn 2.
+      // The engine's Day 0, the Day in hand: its night is Turn 2.
       second.expiresOnTurn = 2;
       first.expiresOnTurn = 8;
     });
@@ -508,6 +519,8 @@ describe('the Party builder (M9-S4, DL-104)', () => {
       heroId: bram.id,
       name: 'Bram Netherby',
       className: 'Healer',
+      classKey: 'healer',
+      classIcon: 'palm',
       level: 1,
       why: null,
       unavailable: null,
@@ -565,12 +578,12 @@ describe('the Party builder (M9-S4, DL-104)', () => {
 
     const rows = partyRows(document, quest.id);
 
-    // Those who can go first; then Ragnvald, back on Day 5, before Cenric, healed on Day 6 (v1.1.5-S11, DL-169 item 4).
+    // Those who can go first; then Ragnvald, back on Year 1 Day 6, before Cenric, healed on Year 1 Day 7 (v1.1.5-S11, DL-169 item 4).
     expect(rows?.map(({ name, why, unavailable, chip }) => ({ name, why, unavailable, chip }))).toEqual([
       { name: 'Liv Coldharbour', why: null, unavailable: null, chip: null },
       { name: 'Bram Netherby', why: null, unavailable: null, chip: null },
-      { name: 'Ragnvald Brackenridge', why: 'in-party', unavailable: 'Away with a Party, back on the night of Day 5', chip: 'Away' },
-      { name: 'Cenric Yarrow', why: 'injured', unavailable: 'Injured, healing on the night of Day 6', chip: 'Injured' },
+      { name: 'Ragnvald Brackenridge', why: 'in-party', unavailable: 'Away with a Party, back on the night of Year 1 Day 6', chip: 'Away' },
+      { name: 'Cenric Yarrow', why: 'injured', unavailable: 'Injured, healing on the night of Year 1 Day 7', chip: 'Injured' },
     ]);
     for (const row of rows ?? []) expect(row.why).toBe(unavailability(document.world.heroes[row.heroId] as Hero));
     // The full words as the Roster words them; only the Board's chip is short (DL-169 item 2).
@@ -627,7 +640,7 @@ describe('the Party builder (M9-S4, DL-104)', () => {
     expect(partyRows(document, quest.id)?.map(({ name, chip, unavailable }) => ({ name, chip, unavailable }))).toEqual([
       { name: 'Ragnvald Brackenridge', chip: null, unavailable: null },
       { name: 'Bram Netherby', chip: null, unavailable: null },
-      { name: 'Cenric Yarrow', chip: 'Away', unavailable: 'Away with a Party, back on the night of Day 9' },
+      { name: 'Cenric Yarrow', chip: 'Away', unavailable: 'Away with a Party, back on the night of Year 1 Day 10' },
       { name: 'Liv Coldharbour', chip: 'Away', unavailable: 'Away with a Party' },
     ]);
   });
@@ -724,7 +737,7 @@ describe('rosterRows and sortedRoster', () => {
     // Bram the Healer joined first, and comes last: by Class, as the Board's builder lists (S11).
     expect(rows.map((row) => row.heroId)).toEqual([...heroes(document)].sort(defaultHeroOrder(document)).map((hero) => hero.id));
     expect(rows.map((row) => row.className)).toEqual(['Warrior', 'Rogue', 'Mage', 'Healer']);
-    expect(rows.find((row) => row.heroId === first.id)?.whereabouts).toBe('Injured, healing on the night of Day 6');
+    expect(rows.find((row) => row.heroId === first.id)?.whereabouts).toBe('Injured, healing on the night of Year 1 Day 7');
     expect(rows[0]?.whereabouts).toBe('At the Hall');
   });
 
@@ -749,8 +762,8 @@ describe('rosterRows and sortedRoster', () => {
     const rows = sortedRoster(rosterRows(document));
     const [first, second, third] = [injured, away, home].map((hero) => rows.find((row) => row.heroId === hero.id));
 
-    expect(first).toMatchObject({ morale: 12, moraleBand: 'wretched', why: 'injured', whereabouts: 'Injured, healing on the night of Day 6' });
-    expect(second).toMatchObject({ morale: 80, moraleBand: 'high', why: 'in-party', whereabouts: 'Away with a Party, back on the night of Day 4' });
+    expect(first).toMatchObject({ morale: 12, moraleBand: 'wretched', why: 'injured', whereabouts: 'Injured, healing on the night of Year 1 Day 7' });
+    expect(second).toMatchObject({ morale: 80, moraleBand: 'high', why: 'in-party', whereabouts: 'Away with a Party, back on the night of Year 1 Day 5' });
     expect(third).toMatchObject({ morale: 50, moraleBand: 'steady', why: null, whereabouts: 'At the Hall' });
   });
 
@@ -1125,7 +1138,7 @@ describe('heroPage', () => {
 
     expect(page?.milestones.every((line) => line.milestone)).toBe(true);
     expect(page?.milestones).toHaveLength(all.filter((entry) => entry.milestone).length);
-    expect(page?.milestones[0]?.when).toBe(`Day ${dayOf(all.find((entry) => entry.milestone)?.turn ?? 0)}, ${timeOfDay(all.find((entry) => entry.milestone)?.turn ?? 0)}`);
+    expect(page?.milestones[0]?.when).toBe(whenOfTurn(all.find((entry) => entry.milestone)?.turn ?? 0, document.meta.config));
     expect(page).not.toHaveProperty('history');
   });
 
@@ -1195,7 +1208,7 @@ describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
 
     expect(page).toMatchObject({
       morale: { value: 30, band: 'low' },
-      where: { why: 'injured', words: 'Injured, healing on the night of Day 6' },
+      where: { why: 'injured', words: 'Injured, healing on the night of Year 1 Day 7' },
       injury: content.injuries['deep-cut']?.name,
       xp: 45,
       // v1.1.4-S7: each Trait with what it does, in `traitEffectWords`.
@@ -1258,7 +1271,7 @@ describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
     if (hero === undefined) throw new Error('no Hero');
     hero.diedOnTurn = 9;
 
-    expect(heroPage(document, hero.id)?.where).toEqual({ why: 'dead', words: 'Died on Day 3' });
+    expect(heroPage(document, hero.id)?.where).toEqual({ why: 'dead', words: 'Died on Year 1 Day 4' });
   });
 });
 
@@ -1413,7 +1426,7 @@ describe('after a send (M9-S4, DL-104)', () => {
       heroes: `${first.name} and ${second.name}`,
       returns: out?.returns,
     });
-    expect(out?.returns).toMatch(/^the night of Day \d+$/);
+    expect(out?.returns).toMatch(/^the night of Year \d+ Day \d+$/);
   });
 
   test('is none after a play that sent no Party of the player’s, a Rival’s among them, and before a game', () => {
@@ -1475,14 +1488,14 @@ describe('the progress of a fast forward between its steps (v1.0.1-S5, DL-96)', 
   });
 
   test('gives the Turns played and the Day reached from the game the last step left, not the game in hand', () => {
-    expect(progressView(between(newGame()))).toEqual({ sentence: 'Played 90 Turns so far. Now Day 30, morning, Year 0.', countdown: null });
+    expect(progressView(between(newGame()))).toEqual({ sentence: 'Played 90 Turns so far. Now Year 1 Day 31, morning.', countdown: null });
   });
 
   test("gives the Year under the game's own turnsPerYear (v1.0.1-S6, DL-97)", () => {
     const document = structuredClone(newGame());
     document.meta.config = { ...document.meta.config, turnsPerYear: 30 };
 
-    expect(progressView(between(document))?.sentence).toBe('Played 90 Turns so far. Now Day 30, morning, Year 3.');
+    expect(progressView(between(document))?.sentence).toBe('Played 90 Turns so far. Now Year 4 Day 1, morning.');
   });
 
   test("gives the countdown while the player's Guild is below the floor in that game, under the game's own grace", () => {
@@ -1493,9 +1506,9 @@ describe('the progress of a fast forward between its steps (v1.0.1-S5, DL-96)', 
 
     expect(state.forwarding === null ? null : countdownView(state.forwarding.document)).not.toBeNull();
     expect(progressView(state)).toEqual({
-      sentence: 'Played 90 Turns so far. Now Day 30, morning, Year 0.',
+      sentence: 'Played 90 Turns so far. Now Year 1 Day 31, morning.',
       countdown:
-        'The Lantern has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day 60 unless Wealth is back ' +
+        'The Lantern has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day 61 unless Wealth is back ' +
         'to 0 or more on a night by then, after any Upkeep due.',
     });
     // The game in hand, before the first night's check, has none.

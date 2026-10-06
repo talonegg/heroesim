@@ -9,7 +9,6 @@
 
 import {
   applyAction,
-  dayOf,
   offersTo,
   playerGuild,
   type AcceptTransferRejection,
@@ -19,11 +18,11 @@ import {
   type Guild,
   type TransferInRejection,
   type TransferOutRejection,
-  type TransferRefusalReason,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
+import { transferLockedWords, transferRefusalWords, type Calendar } from '@heroesim/words';
 import { narrateLine } from '../namer.js';
 import { renderTime, rowIn, table } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
@@ -39,24 +38,10 @@ function guildCalled(world: World, guildId: string): string {
   return rowIn(world.guilds, guildId)?.name ?? guildId;
 }
 
-/** Why a Guild will not deal now, after "will not part with …" or "will not take …". */
-function refusalWords(because: TransferRefusalReason, guild: Guild | undefined): string {
-  switch (because) {
-    case 'roster-size':
-      return `its Roster of ${guild?.rosterIds.length ?? 0} is too small for its appetite for Transfers`;
-    case 'wealth':
-      return 'it is not rich enough to hire now';
-    case 'unknown-disposition':
-      return 'its Disposition is not one this content knows';
-    case 'answers-offers':
-      return 'it answers only Transfer Offers';
-  }
-}
-
 type Refusal = TransferInRejection | TransferOutRejection | AcceptTransferRejection | DeclineTransferRejection;
 
-/** A Transfer action's rejection in words. */
-function explain(rejection: Refusal, player: Guild, world: World): string {
+/** A Transfer action's rejection in words, its dates by the save's calendar. */
+function explain(rejection: Refusal, player: Guild, world: World, calendar: Calendar): string {
   switch (rejection.reason) {
     case 'guild-folded':
       return `${guildCalled(world, rejection.guildId)} has folded and deals no more.`;
@@ -71,11 +56,11 @@ function explain(rejection: Refusal, player: Guild, world: World): string {
     case 'hero-in-party':
       return `${heroCalled(world, rejection.heroId)} is away with ${rejection.partyId}; a Hero is transferred only from the Hall.`;
     case 'recently-transferred':
-      return `${heroCalled(world, rejection.heroId)} was transferred on Day ${dayOf(rejection.transferredOnTurn)} and cannot be transferred again before Day ${dayOf(rejection.untilTurn)}.`;
+      return transferLockedWords(heroCalled(world, rejection.heroId), rejection.transferredOnTurn, rejection.untilTurn, calendar);
     case 'transfer-refused': {
       const other = rowIn(world.guilds, rejection.guildId);
       const way = rejection.side === 'out' ? 'part with' : 'take';
-      return `${guildCalled(world, rejection.guildId)} will not ${way} ${heroCalled(world, rejection.heroId)}: ${refusalWords(rejection.because, other)}.`;
+      return `${guildCalled(world, rejection.guildId)} will not ${way} ${heroCalled(world, rejection.heroId)}: ${transferRefusalWords(rejection.because, other)}.`;
     }
     case 'insufficient-wealth':
       return `The fee is ${rejection.fee} Wealth; ${guildCalled(world, rejection.guildId)} has ${rejection.wealth}.`;
@@ -88,7 +73,7 @@ function explain(rejection: Refusal, player: Guild, world: World): string {
 function done(document: WorldDocument, events: readonly EngineEvent[], guildId: Guild['id'], deps: EngineDeps): string[] {
   const guild = rowIn(document.world.guilds, guildId);
   return [
-    ...events.map((event) => narrateLine(event, deps.content)),
+    ...events.map((event) => narrateLine(event, deps.content, deps.config)),
     `${guild?.name ?? guildId}: Wealth ${guild?.wealth ?? 0}; ${guild?.rosterIds.length ?? 0} Heroes on the Roster.`,
   ];
 }
@@ -109,11 +94,11 @@ export function transferHero(
   if ('to' in command) {
     if (rowIn(world.guilds, command.to) === undefined) return { ok: false, problem: `The save has no Guild ${command.to} (show guilds).` };
     const result = applyAction(document, { kind: 'transferOut', guildId: player.id, heroId: command.hero, toGuildId: command.to }, deps);
-    if (!result.ok) return { ok: false, problem: explain(result.rejection, player, world) };
+    if (!result.ok) return { ok: false, problem: explain(result.rejection, player, world, deps.config) };
     return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
   }
   const result = applyAction(document, { kind: 'transferIn', guildId: player.id, heroId: command.hero }, deps);
-  if (!result.ok) return { ok: false, problem: explain(result.rejection, player, world) };
+  if (!result.ok) return { ok: false, problem: explain(result.rejection, player, world, deps.config) };
   return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
 }
 
@@ -128,7 +113,7 @@ export function answerOffer(
   if (player === undefined) return { ok: false, problem: "The save has no player's Guild." };
   const kind = command.name === 'accept' ? 'acceptTransfer' : 'declineTransfer';
   const result = applyAction(document, { kind, guildId: player.id, offerId: command.offer }, deps);
-  if (!result.ok) return { ok: false, problem: explain(result.rejection, player, world) };
+  if (!result.ok) return { ok: false, problem: explain(result.rejection, player, world, deps.config) };
   return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
 }
 

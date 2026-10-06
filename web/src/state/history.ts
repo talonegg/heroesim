@@ -1,5 +1,5 @@
 // The History as the one place to read what happened (M9-S5, DL-105; DL-99 item 2): whose it is,
-// and a page of it grouped by Day and time of day, newest first, each group in the order it
+// and a page of it grouped by date and time of day, newest first, each group in the order it
 // happened. In a group, a Party's steps on its Quest fold under its outcome, and each Rival's
 // routine under one line for the Guild, save in a Hero's own History, where every line is the
 // Hero's (DL-109 item 2, Q14); every line says whose it is, whether the last play appended it, and
@@ -43,13 +43,13 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
-import { listed } from '@heroesim/words';
+import { listed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import type { PortraitRole } from '../media';
 import { bandWords, rowOf } from './names';
 import { narrateSegments, narrationFor, textOf, type Narration, type Segment } from './namer';
 import { partOfAReturn, returnEntry, type ReturnEntry } from './quest-return';
-import { historyPageSize, whenOf } from './selectors';
+import { historyPageSize } from './selectors';
 
 /**
  * Whose History: `null` for the player's Guild's, where it opens (DL-99 item 2); `world` for the
@@ -118,7 +118,7 @@ export type HistoryRow =
 /** The entries of one Turn on the page. */
 export interface HistoryGroup {
   key: string;
-  /** `Day 5, night`. */
+  /** `Year 1 Day 6, night`. */
   when: string;
   timeOfDay: TimeOfDay;
   /** In the order they happened. */
@@ -459,11 +459,12 @@ export function historyTitle(document: WorldDocument, whose: HistoryWhose): stri
 
 /**
  * A page of the History of `whose` (from 0): `historyPageSize` entries counted from the newest of
- * what its scope shows, a Party's steps kept with its outcome where they fold, grouped by Day and
+ * what its scope shows, a Party's steps kept with its outcome where they fold, grouped by date and
  * time of day, newest first, each group in the order it happened. Each page starts where the one
  * before ends (`pageStarts`), so none is empty and `pages` is exact. A page past the last reads as
  * the last; an entity the History does not name, as the player's Guild's. `log` is the last play's
- * events, which the engine appended to the History as they are: those the scope shows are new.
+ * events, which the engine appended to the History as they are but the pool's comings and goings of
+ * a Hero never hired (DL-211): those the History holds and the scope shows are new.
  */
 export function historyView(document: WorldDocument, log: readonly TurnEvent[], whose: HistoryWhose, page: number): HistoryView {
   const { world, history } = document;
@@ -477,6 +478,7 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
   const positions = pagePositions(scope, history.entries, starts[shown] ?? 0);
   const hero = entityId !== null && rowOf(world.heroes, entityId) !== undefined ? (entityId as HeroId) : null;
   const shows = historyFilter(document, target);
+  const fresh = recordedOf(history, log);
   const reading: Reading = {
     document,
     returns: scope.kind === 'mine',
@@ -484,7 +486,7 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
     narration: narrationFor(document, content),
     world,
     player: player?.id ?? null,
-    fresh: new Set<object>(log),
+    fresh,
     foldsSteps: scope.foldsSteps,
     foldsRoutine: scope.foldsRoutine,
   };
@@ -500,7 +502,7 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
     page: shown,
     pages,
     entries: scope.count,
-    fresh: log.filter((event) => (entityId === null || event.participants.includes(entityId)) && shows(event)).length,
+    fresh: log.filter((event) => fresh.has(event) && (entityId === null || event.participants.includes(entityId)) && shows(event)).length,
     groups: groupsOf(positions, reading),
   };
 }
@@ -598,6 +600,17 @@ function pagePositions(scope: Scope, entries: readonly Entry[], start: number): 
   return positions;
 }
 
+/**
+ * The events of `log`, the last play's, that `history` holds: the same objects, among its newest
+ * entries, since the engine appends each event it records as it is and leaves out the pool's
+ * comings and goings of a Hero never hired (ADR-0008, DL-211).
+ */
+function recordedOf(history: WorldDocument['history'], log: readonly TurnEvent[]): ReadonlySet<object> {
+  if (log.length === 0) return new Set();
+  const held = new Set<object>(history.entries.slice(-log.length));
+  return new Set<object>(log.filter((event) => held.has(event)));
+}
+
 /** What reading a page needs: the History, its words, the world, the player's Guild, what is new, and whether a Rival's routine folds. */
 interface Reading {
   document: WorldDocument;
@@ -607,7 +620,7 @@ interface Reading {
   narration: Narration;
   world: World;
   player: GuildId | null;
-  /** The last play's events, which are the History's entries themselves. */
+  /** The last play's events the History holds, which are its entries themselves (`recordedOf`). */
   fresh: ReadonlySet<object>;
   /** A Party's steps fold under its outcome: not in the World History or the whole History (M9-F4). */
   foldsSteps: boolean;
@@ -622,7 +635,7 @@ function groupsOf(positions: readonly number[], reading: Reading): HistoryGroup[
   let current: number[] = [];
   const close = (): void => {
     if (current.length === 0) return;
-    groups.push({ key: String(turn), when: whenOf(turn), timeOfDay: timeOfDay(turn), rows: rowsOf([...current].reverse(), reading) });
+    groups.push({ key: String(turn), when: whenOfTurn(turn, reading.narration.calendar), timeOfDay: timeOfDay(turn), rows: rowsOf([...current].reverse(), reading) });
   };
   for (const position of positions) {
     const entry = reading.entries[position];

@@ -157,7 +157,7 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
     const all = rows();
     expect(all).toHaveLength(5);
     const last = all.at(-1);
-    expect(last?.cells[0]).toBe('Folded on Day 2');
+    expect(last?.cells[0]).toBe('Folded on Year 1 Day 3');
     expect(last?.row.className).toBe('is-folded');
     expect(all.slice(0, 4).every(({ cells: [place] }) => place === 'Joint 1st')).toBe(true);
   });

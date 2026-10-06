@@ -8,7 +8,6 @@
 
 import {
   applyAction,
-  dayOf,
   durationDaysOf,
   playerGuild,
   type ConsumableRequest,
@@ -19,9 +18,9 @@ import {
   type UnmetRequirement,
   type WorldDocument,
 } from '@heroesim/engine';
-import { nameIn, unavailableWords } from '@heroesim/words';
+import { nameIn, nightOfTurn, unavailableWords } from '@heroesim/words';
 import type { Command } from '../args.js';
-import { renderTime, rowIn } from '../render.js';
+import { rowIn } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
 /** Printed after every dispatch: Rivals act on what the player leaves (pre-M0 review D2, M2-S9). */
@@ -125,8 +124,8 @@ export function dispatchParty(
       `Party: ${party.heroIds.map((heroId) => heroName(result.document, heroId)).join(', ')}.`,
       ...(consumables.length === 0 ? [] : [`Carrying: ${consumableWords(consumables, deps.content)}.`]),
       `Reward agreed: ${quest.reward} Wealth on a success, ${offered} offered.`,
-      `${days === 1 ? 'One Day' : `${days} Days`} away: it returns on the night of Day ${dayOf(party.returnsOnTurn)}, ` +
-        `${renderTime(party.returnsOnTurn, deps.config)}.`,
+      `${days === 1 ? 'One Day' : `${days} Days`} away: it returns on ${nightOfTurn(party.returnsOnTurn, deps.config)} ` +
+        `(Turn ${party.returnsOnTurn}).`,
       rivalsReminder,
     ],
   };

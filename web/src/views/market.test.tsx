@@ -1,14 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import type { ItemDefinitionKey } from '@heroesim/engine';
-import { holding, holdingUnique, started } from '../state/game.test-support';
+import { holding, holdingUnique, selling, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { section } from './page.test-support';
 
 // The Market view (M9-F2, DL-111 item 6, DL-112 item 5): Buy and Sell, the Market and what the Guild
 // holds that the Hall view held (M9-S6, DL-106; the review's B3), a view of their own. What is for
-// sale as a table shown one kind at a time; what the Guild holds as a table with Sell.
+// sale as a table shown by kind, one or several; what the Guild holds as a table with Sell.
 
 afterEach(cleanup);
 
@@ -27,7 +29,7 @@ describe("the Market view's Buy and Sell, as tables (M9-S6, the review's B3; M9-
     expect(within(market).getByRole('heading', { level: 3, name: 'Sell' })).toBeDefined();
   });
 
-  test('Buy lists what is for sale as Item, Kind, Effect, Price, Stock, how many and Buy, one kind at a time from its chips', () => {
+  test('Buy lists what is for sale as Item, Kind, Effect, Price, Stock, how many and Buy, one kind or several from its chips', () => {
     render_(started());
     const market = section('Buy');
     const table = within(market).getByRole('table', { name: 'For sale at the Market' });
@@ -45,13 +47,48 @@ describe("the Market view's Buy and Sell, as tables (M9-S6, the review's B3; M9-
     fireEvent.click(weapon);
 
     expect(weapon.getAttribute('aria-pressed')).toBe('true');
-    expect(kinds().length).toBe(Number(/(\d+)$/.exec(weapon.textContent ?? '')?.[1]));
+    expect(within(filters).getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('false');
+    const weapons = Number(/(\d+)$/.exec(weapon.textContent ?? '')?.[1]);
+    expect(kinds().length).toBe(weapons);
     for (const kind of kinds()) expect(kind).toMatch(/^Weapon Gear/);
     // The count of what is for sale stays the whole Market's.
-    expect(within(section('Market')).getByText(/^\d+ Items for sale, of \d+ kinds\.$/)).toBeDefined();
+    expect(within(section('Market')).getByText(/^\d+ Items for sale, \d+ different\.$/)).toBeDefined();
+
+    // A second kind: either shown (DL-206 items 26 and 27).
+    const consumable = within(filters).getByRole('button', { name: /^Consumable \d+$/ });
+    fireEvent.click(consumable);
+    expect(kinds().length).toBe(weapons + Number(/(\d+)$/.exec(consumable.textContent ?? '')?.[1]));
+    for (const kind of kinds()) expect(kind).toMatch(/^(Weapon Gear|Consumable)/);
+    // Pressed again, let go.
+    fireEvent.click(consumable);
+    expect(kinds().length).toBe(weapons);
 
     fireEvent.click(within(filters).getByRole('button', { name: 'All' }));
     expect(kinds()).toEqual(all);
+    // Every kind pressed reads as All.
+    for (const chip of within(filters).getAllByRole('button').slice(1)) fireEvent.click(chip);
+    expect(within(filters).getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true');
+    expect(kinds()).toEqual(all);
+  });
+
+  test("the lead counts the Items for sale and how many differ, never saying 'kind', the filter's word for a kind of gear (DL-213, DL-214)", () => {
+    // Two different Items, both Weapons: one filter option, two Items.
+    const { unmount } = render(<App initial={selling(started(), { 'short-sword': 2, 'arming-sword': 1 })} />);
+    expect(within(section('Buy')).getByText('3 Items for sale, 2 different.')).toBeDefined();
+    unmount();
+
+    const again = render(<App initial={selling(started(), { 'short-sword': 2 })} />);
+    expect(within(section('Buy')).getByText('2 Items for sale, all alike.')).toBeDefined();
+    again.unmount();
+
+    render_(selling(started(), { 'short-sword': 1 }));
+    expect(within(section('Buy')).getByText('1 Item for sale.')).toBeDefined();
+  });
+
+  test("the Market's chips are the page's one filter element: no copy of its own (DL-206 item 27)", () => {
+    const source = readFileSync(join(__dirname, 'market.tsx'), 'utf8');
+    expect(source).toContain('<FilterChips');
+    expect(source).not.toMatch(/aria-pressed|className="filters"/);
   });
 
   test('Sell says so while the Guild holds nothing, and is one table with Sell when it holds something', () => {

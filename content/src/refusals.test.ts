@@ -20,6 +20,7 @@ import type {
   Stat,
   Synergy,
 } from '@heroesim/engine';
+import { classIcons } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { ContentError, contentFiles, contentWarnings, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
@@ -2366,6 +2367,33 @@ describe('a weight', () => {
     }
     const text = withJson(file, (json) => void Object.assign((json as Record<string, object>)[key] as object, { weight: 'heavy' }));
     expect(refusalOf(() => parseContent(text)).message).toContain(`${key}.weight is "heavy"`);
+  });
+});
+
+describe("a Class's icon", () => {
+  // v1.1.7-S6 (DL-212): one of `classIcons`, or absent for the plain mark; the check names the Class.
+  test('is named by each shipped Class, each a different one of the set, and a Class without one reads as having none', () => {
+    const set = parseContent(realFiles());
+    expect(Object.values(set.classes).map((it) => it.icon)).toEqual(['sword-and-shield', 'crossed-daggers', 'tome', 'palm']);
+    const files = withJson('classes.json', (json) => void delete (json['rogue'] as { icon?: string }).icon);
+    expect(parseContent(files).classes['rogue']?.icon).toBeUndefined();
+  });
+
+  test.each(classIcons)('%s is accepted on a Class', (icon) => {
+    const files = withJson('classes.json', (json) => void Object.assign(json['mage'] as object, { icon }));
+    expect(parseContent(files).classes['mage']?.icon).toBe(icon);
+  });
+
+  test('a name not in the set is refused, naming the Class and the set', () => {
+    const files = withJson('classes.json', (json) => void Object.assign(json['rogue'] as object, { icon: 'x' }));
+    expect(refusalOf(() => parseContent(files)).message).toContain(
+      `classes.rogue.icon is "x"; it is one of ${classIcons.join(', ')}, or absent for the plain mark`,
+    );
+  });
+
+  test('that is not a text is refused, naming the Class', () => {
+    const files = withJson('classes.json', (json) => void Object.assign(json['rogue'] as object, { icon: 3 }));
+    expect(refusalOf(() => parseContent(files)).message).toContain('rogue.icon is 3; expected a string');
   });
 });
 

@@ -9,8 +9,9 @@
 // Guild's parts.
 
 import type { MoraleBand, RegardBand } from '@heroesim/engine';
-import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { narrowQuery } from '../breakpoints';
+import { chosenOf, faceted, toggled, type FacetChoices, type Facets, type FacetView } from '../state/facets';
 import type { SortDirection } from '../state/selectors';
 import { Icon, type IconName } from './icons';
 
@@ -401,16 +402,18 @@ export function Confirm({
 /**
  * Where the keyboard goes when a page opened in place closes (M9-S6): back to what opened it, as the
  * Party builder's rows do (M9-S4). `opened(id)` notes it; `closed()` returns to it once it is drawn.
+ * When it is drawn no more (a filter hides the Hero who opened it, or they left), to the element
+ * `fallback` names, as the Roster's heading, rather than to nothing (DL-213).
  */
-export function useReturn(): { opened: (id: string) => void; closed: () => void } {
+export function useReturn(fallback?: string): { opened: (id: string) => void; closed: () => void } {
   const opener = useRef<string | null>(null);
   const [back, setBack] = useState<{ id: string } | null>(null);
   useEffect(() => {
     if (back === null) return;
-    const target = globalThis.document.getElementById(back.id);
+    const target = globalThis.document.getElementById(back.id) ?? (fallback === undefined ? null : globalThis.document.getElementById(fallback));
     target?.scrollIntoView?.({ block: 'center' });
     target?.focus({ preventScroll: true });
-  }, [back]);
+  }, [back, fallback]);
   return {
     opened: (id) => {
       opener.current = id;
@@ -437,6 +440,53 @@ export function useNarrow(): boolean {
     return () => query.removeEventListener('change', changed);
   }, []);
   return narrow;
+}
+
+/**
+ * The box a Table whose first column stays in view scrolls in (`table--first-sticky`). It keeps clear
+ * at its start, when it brings a heading or a cell into view, the width of that column and no more,
+ * so nothing brought in lands under the column and nothing already in view clear of it moves (DL-212):
+ * the column's width, as a length the stylesheet reads (`--sticky-inline`). Where nothing measures
+ * (jsdom), none.
+ */
+export function StickyTableBox({ className, children }: { className?: string; children: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = box.current;
+    const column = element?.querySelector('thead th:first-child');
+    if (element == null || column == null || typeof ResizeObserver === 'undefined') return undefined;
+    // At once, before the box is first drawn, and again whenever the column's width changes.
+    const measure = (): void => element.style.setProperty('--sticky-inline', `${Math.ceil(column.getBoundingClientRect().width)}px`);
+    measure();
+    const measured = new ResizeObserver(measure);
+    measured.observe(column);
+    return () => measured.disconnect();
+  }, []);
+  return (
+    <div ref={box} className={className === undefined ? 'table-wrap' : `table-wrap ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The arrow keys of a group the keyboard roves in, one member in the Tab order (the ARIA tabs and
+ * radio group patterns, DL-213): the member of `members` a key pressed on the one at `at` moves to,
+ * the right arrow the next and the left the one before, round from either end, Home the first and End
+ * the last; the down and up arrows as the right and left where `axes` is `both`, as a radio group
+ * takes them, and the page's where it is `across`, as tabs in a row leave them. The key is then the
+ * group's, kept from scrolling the page. A key held with Alt, Control or Meta is left to the browser
+ * (Alt and the left arrow is Back), as is any other: `undefined`.
+ */
+function rovedTo<Member>(event: ReactKeyboardEvent, at: number, members: readonly Member[], axes: 'across' | 'both'): Member | undefined {
+  if (event.altKey || event.ctrlKey || event.metaKey) return undefined;
+  const last = members.length - 1;
+  const forward = event.key === 'ArrowRight' || (axes === 'both' && event.key === 'ArrowDown');
+  const back = event.key === 'ArrowLeft' || (axes === 'both' && event.key === 'ArrowUp');
+  const to = forward ? (at === last ? 0 : at + 1) : back ? (at === 0 ? last : at - 1) : event.key === 'Home' ? 0 : event.key === 'End' ? last : null;
+  const member = to === null ? undefined : members[to];
+  if (member !== undefined) event.preventDefault();
+  return member;
 }
 
 /** A tab: its key, which names its panel, and its words. */
@@ -472,16 +522,8 @@ export function Tabs<Key extends string>({
 }) {
   const list = useRef<HTMLDivElement>(null);
   const move = (event: ReactKeyboardEvent<HTMLButtonElement>, at: number): void => {
-    const last = tabs.length - 1;
-    const to =
-      event.key === 'ArrowRight' ? (at === last ? 0 : at + 1)
-      : event.key === 'ArrowLeft' ? (at === 0 ? last : at - 1)
-      : event.key === 'Home' ? 0
-      : event.key === 'End' ? last
-      : null;
-    const next = to === null ? undefined : tabs[to];
+    const next = rovedTo(event, at, tabs, 'across');
     if (next === undefined) return;
-    event.preventDefault();
     onOpen(next.key);
     list.current?.querySelector<HTMLElement>(`#${idOf(next.key)}-tab`)?.focus();
   };
@@ -520,40 +562,132 @@ export function Tabs<Key extends string>({
 }
 
 /**
- * A filter's chips, display only (M9-F3, as the Market's Buy has them): All, then each option with
- * its count, the one shown pressed; nothing when there is one option or none to choose between.
+ * The page's one filter element (v1.1.7-S7, DL-206 items 26 to 29, DL-213): a filter of several
+ * choices as chips, display only. "All" is pressed when no option is, and pressing it clears them; an
+ * option toggles, and every option pressed reads as All (`toggled`). Beside each option its count, what
+ * it would show with the other filters as they are (`faceted`); an option at 0 is greyed and still a
+ * toggle, so that a player can let go of one they chose. Nothing when there is one option or none to
+ * choose between. `useFacets` gives each filter's props.
+ *
+ * `labelShown` draws the group's name before its chips, in small capitals, and names the group by it
+ * (`aria-labelledby`), so that a sighted reader and a screen reader meet one name; without it the name
+ * is for assistive technology alone. The Roster shows its two groups' names, which otherwise each open
+ * with All and read as one filter on a phone (DL-213).
  */
-export function FilterChips<Key extends string>({
+export function FilterChips({
   label,
+  labelShown = false,
   options,
-  shown,
-  onShow,
-  all = 'All',
-}: {
-  label: string;
-  options: readonly { key: Key; label: string; count?: number }[];
-  shown: Key | null;
-  onShow: (key: Key | null) => void;
-  /** The first chip's words, which shows every option; `null` for none, when an option is always shown. */
-  all?: string | null;
-}) {
+  chosen,
+  onChoose,
+}: FacetView & { labelShown?: boolean; onChoose: (chosen: string[]) => void }) {
+  const labelId = useId();
   if (options.length < 2) return null;
   return (
-    <div className="filters" role="group" aria-label={label}>
-      {all === null ? null : (
-        <button type="button" className="filter" aria-pressed={shown === null} onClick={() => onShow(null)}>
-          {all}
-        </button>
-      )}
+    <div className="filters" role="group" {...(labelShown ? { 'aria-labelledby': labelId } : { 'aria-label': label })}>
+      {labelShown ? (
+        <span className="filters__label" id={labelId}>
+          {label}
+        </span>
+      ) : null}
+      <button type="button" className="filter" aria-pressed={chosen.length === 0} onClick={() => onChoose([])}>
+        All
+      </button>
       {options.map((option) => (
-        <button key={option.key} type="button" className="filter" aria-pressed={shown === option.key} onClick={() => onShow(option.key)}>
+        <button
+          key={option.key}
+          type="button"
+          className={option.count === 0 ? 'filter is-empty' : 'filter'}
+          aria-pressed={chosen.includes(option.key)}
+          onClick={() => onChoose(toggled(options, chosen, option.key))}
+        >
+          {option.label} <span className="filter__count">{option.count}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Each filter's props for `FilterChips`, by its name. */
+export type FilterChipsProps<Name extends string> = Record<Name, FacetView & { onChoose: (chosen: string[]) => void }>;
+
+/** `choices` with each filter's keys as `facets` offer them (`chosenOf`): `choices` itself when they all are. */
+function settledChoices<Row, Name extends string>(choices: FacetChoices<Name>, facets: Facets<Row, Name>): FacetChoices<Name> {
+  const names = Object.keys(facets) as Name[];
+  const settled = Object.fromEntries(names.map((name) => [name, chosenOf(facets[name].options, choices[name])])) as Record<Name, string[]>;
+  const same = names.every((name) => {
+    const was = choices[name] ?? [];
+    return was.length === settled[name].length && was.every((key, at) => key === settled[name][at]);
+  });
+  return same ? choices : settled;
+}
+
+/**
+ * The rows `facets` show and each filter's chips, its choices this view's own state: not remembered,
+ * as no filter is (DL-206 item 28). `rows` and `facets` should keep their identity while unchanged
+ * (`useMemo`), so that the rows are filtered only when they or a choice change.
+ *
+ * What the chips show is read from the choices each render (`faceted`, through `chosenOf`), so a key
+ * no longer offered never shows chosen; and the choices kept are only ever what the chips showed: a
+ * choice is kept as `chosenOf` gives it, and when `facets` change the choices are settled to their
+ * options before the page is painted (a layout effect, whose update React runs at once), so a choice
+ * let go is let go for good and does not come back chosen with its option (DL-213).
+ */
+export function useFacets<Row, Name extends string>(
+  rows: readonly Row[],
+  facets: Facets<Row, Name>,
+): { rows: Row[]; filters: FilterChipsProps<Name>; filtered: boolean } {
+  const [choices, setChoices] = useState<FacetChoices<Name>>(() => ({}) as FacetChoices<Name>);
+  const shown = useMemo(() => faceted(rows, facets, choices), [rows, facets, choices]);
+  useLayoutEffect(() => setChoices((was) => settledChoices(was, facets)), [facets]);
+  const names = Object.keys(shown.facets) as Name[];
+  const filters = Object.fromEntries(
+    names.map((name) => [
+      name,
+      { ...shown.facets[name], onChoose: (chosen: string[]) => setChoices((was) => ({ ...was, [name]: chosenOf(facets[name].options, chosen) })) },
+    ]),
+  ) as FilterChipsProps<Name>;
+  return { rows: shown.rows, filters, filtered: shown.filtered };
+}
+
+/**
+ * A choice of one in the filters' look (v1.1.7-S7, DL-206 item 27, DL-213): "Show the Roster as"
+ * Tiles or Table, which is no filter. A radio group, so that it is announced as a choice of one, in
+ * the ARIA radio group pattern: only the choice made is in the Tab order, and the arrow keys, Home and
+ * End move between the choices, each chosen as it takes the keyboard.
+ */
+export function OneChoice<Key extends string>({
+  label,
+  options,
+  chosen,
+  onChoose,
+}: {
+  label: string;
+  options: readonly { key: Key; label: string }[];
+  chosen: Key;
+  onChoose: (key: Key) => void;
+}) {
+  const group = useRef<HTMLDivElement>(null);
+  const move = (event: ReactKeyboardEvent<HTMLButtonElement>, at: number): void => {
+    const next = rovedTo(event, at, options, 'both');
+    if (next === undefined) return;
+    onChoose(next.key);
+    group.current?.querySelectorAll<HTMLElement>('[role="radio"]')[options.indexOf(next)]?.focus();
+  };
+  return (
+    <div className="filters" role="radiogroup" aria-label={label} ref={group}>
+      {options.map((option, at) => (
+        <button
+          key={option.key}
+          type="button"
+          role="radio"
+          className="filter"
+          aria-checked={option.key === chosen}
+          tabIndex={option.key === chosen ? 0 : -1}
+          onClick={() => onChoose(option.key)}
+          onKeyDown={(event) => move(event, at)}
+        >
           {option.label}
-          {option.count === undefined ? null : (
-            <>
-              {' '}
-              <span className="filter__count">{option.count}</span>
-            </>
-          )}
         </button>
       ))}
     </div>

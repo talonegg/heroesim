@@ -89,7 +89,11 @@ ended:     { turn, reason } | null     set once, when the player-controlled Guil
 
 Day and time of day are derived: `day = floor(turn / 3)`, `timeOfDay = turn % 3` (morning,
 afternoon, night). Years use `config.turnsPerYear`, whose default is 1,080 (360 Days), a
-configuration default and not a decision.
+configuration default and not a decision. Day, Year and Turn count from 0 here and in every rule.
+(Amended 2026-10-06, DL-206 items 8 and 30 to 33, DL-210:) `turnsPerYear` is a multiple of 3,
+whole Days, so that no Day straddles two Years; a player reads a date as "Year Y Day D", the Year
+`yearOf + 1` and the Day of the Year `(turn mod turnsPerYear) div 3 + 1`, Turn 0 being Year 1 Day 1,
+morning (`@heroesim/words`' calendar). Only the words count from 1; the save holds the Turn.
 
 Streams are named per drawing subsystem so that adding a subsystem never shifts another's
 draws: `generation`, `board`, `quests`, `encounters`, `pool`, `heroes` (the Hero State
@@ -105,6 +109,15 @@ name. A new subsystem gets a new stream and never shares an old one. A module th
 random numbers registers a stream of its own. A subsystem is a component: a new draw inside a
 component uses that component's stream, and the Transfer Generator's draw from `rivals` is an
 accepted exception (amended 2026-09-28, DL-84; ADR-0009 as amended 2026-09-28).
+
+The deals at creation read the content's weights (DL-206 item 1, DL-208): a Guild's starting Roster
+is dealt its Classes, and the Patrons created with the world their Spheres, by `dealByWeight`. While
+every row's `weight` is 1, as every shipped row's is, the deal is even, every Class or Sphere once
+before any twice (DL-19 item 7), with the draws it made before the weights. With any weight not 1,
+each place is drawn in proportion to the weights, one draw each, so the even deal's "once before any
+twice" holds only while every weight is 1. A Guildmaster's sex is drawn by `guildmasterSexWeights`,
+a Hero's by `heroSexWeights` (DL-202, DL-208); a sex the player chooses at setup replaces the one
+drawn.
 
 Ids are strings with a table prefix and a counter zero-padded to six digits in every table:
 `hero-000042`, `guild-000002`, `quest-001337`, so that string order is numeric order for the
@@ -393,14 +406,26 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
 7. **Canonical serialisation**: sorted keys, so the same state always produces the same bytes
    and the harness can check determinism by byte equality.
 8. **Row lifecycle**: a Quest is removed when it expires or resolves; an Unattached Hero is
-   removed when they leave the pool unrecruited unless a History entry *other than* their own
-   `hero.generated` and `hero.left-pool` names them — those two entries every pool Hero has,
-   and their labels narrate without the row; dead and retired Heroes stay, with their State.
-   A Hero leaves the pool `unattachedStayDays` after the Day they entered it
-   (`unattachedSince`); one whose row an entry keeps stays with `leftPoolOnTurn` set, out of
-   play and out of the pool (DL-27).
-   The validator knows the list of passive entry types and refuses a removal that a
-   non-passive entry contradicts.
+   removed when they leave the pool unrecruited unless a History entry names them once the
+   Turn's events are in. A Hero never hired is named by none, since their arrival in the pool
+   and their leaving it are emitted and not recorded (rule 10), so their row goes as they leave;
+   a Hero an entry names, before their leaving or after it in the same Turn, keeps their row,
+   and their `hero.left-pool` is recorded. The one reading over the Turn's events decides both,
+   so the row and the History never disagree (`record`, DL-211, DL-214). Dead and retired Heroes
+   stay, with their State. A Hero leaves the pool `unattachedStayDays` after the Day they
+   entered it (`unattachedSince`); one whose row an entry keeps stays with `leftPoolOnTurn` set,
+   out of play and out of the pool (DL-27). A save made before DL-211 holds a `hero.generated`
+   and a `hero.left-pool` for every pool Hero, whose labels narrate without the row: the
+   validator knows these two passive entry types and refuses a removal that a non-passive entry
+   contradicts.
+   *Amended 2026-10-06 (DL-206 items 20 and 21, DL-211):* a Hero generated into the pool, and
+   their `hero.left-pool`, are emitted but recorded only when an entry names them (rule 10), so
+   a Hero never hired has no entry, and their row is removed as they leave when no entry names
+   them. A hired Hero's History begins at their signing. A save made before holds the two
+   passive entries of every pool Hero; the validator still accepts a row they alone name removed.
+   *Amended 2026-10-07 (DL-214):* a Hero's leaving is decided over the whole Turn, so an entry
+   naming them later in it (a Module's `onNight`, after the pool refresh) records their leaving
+   too, and until the Turn ends their row stands out of play, as the dead's do.
 9. **Hidden information is stored plainly.** Potential is a field the front end does not show.
 10. **Discrete changes are events; nightly drift is not.** A Quest outcome, an Injury, a Level,
     a Transfer, a purchase: each appends an entry. Morale drifting toward its baseline,
@@ -410,7 +435,10 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
     exceptions and also append an entry only on a band crossing: a Regard change made by the
     core's own rules (DL-43 item 2) and the Morale cost a Transfer lays on the Heroes who stay
     (DL-57 item 4). A module's `adjustRegard` always appends an entry (decided, to be built).
-    (Amended 2026-09-28, DL-84.)
+    (Amended 2026-09-28, DL-84.) The Unattached pool's comings and goings of a Hero no entry
+    names, their arrival and their leaving unhired, are events and not entries: emitted, for the
+    Turn's log, the pool's stop and the harness, and never appended, so none is dropped
+    (`record`, amended 2026-10-06, DL-206 items 20 and 21, DL-211).
 
 ## 6. Versioning and the validator
 
@@ -487,7 +515,9 @@ for a Turn alone and a year of fast forward depend on the day they were taken.
 The History will dominate save size. The levers, in order: lean entries (ids and labels,
 never entity copies), rule 10 (drift is not an event), and compression on write with Node's
 built-in `zlib` or the browser's `CompressionStream`. Archiving or dropping old entries is not
-a lever: R36 forbids it. Compression is taken everywhere (amended 2026-09-28, DL-84): the
+a lever: R36 forbids it. Not writing the pool's comings and goings of a Hero never hired is
+another, taken 2026-10-06 (DL-206 item 20, DL-211): a 20-year game's History 265,423 entries for
+276,933 in the mean, its save gzipped 17.51 MiB for 17.95, nothing dropped. Compression is taken everywhere (amended 2026-09-28, DL-84): the
 browser's saves are gzipped already (DL-67), and the CLI's and the harness's are to be gzipped
 too. A leaner entry shape (DL-81's leaner `quest.encounter` entry) is not taken now, and no
 schema change is made for it (the owner's decision, where the agents recommended lean entries as

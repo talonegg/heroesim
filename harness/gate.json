@@ -2,10 +2,10 @@
   "status": "approved",
   "decided": "DL-188",
   "baseline": {
-    "release": "v1.1.5",
-    "report": "harness/reports/m9-v115-s13-2026-10-04.md",
-    "fingerprint": "e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369",
-    "source": "v1.1.5's closing sweep, S13's (DL-184), standing as the closing sweep at the re-close (DL-185): 50 games of 20 years in 8 processes, the replay kept"
+    "release": "v1.1.6",
+    "report": "harness/reports/m9-v116-s19-rerun1-2026-10-06.md",
+    "fingerprint": "bce997d27793192742247d4a7e4adc1ee80a9460752a8c7847258e0495cf2d77",
+    "source": "v1.1.6's closing full gate, run again alone on the owner's answer (DL-205), meeting every line: 50 games of 20 years in 8 processes, the replay kept; moved from v1.1.5's closing sweep (m9-v115-s13, e7ae1710…, DL-184) by v1.1.7-S8 (DL-214)"
   },
   "run": {
     "games": 50,
@@ -15,58 +15,59 @@
   "lines": {
     "refusals": {
       "max": 0,
-      "source": "M2-S12 (DL-34): the policy chooses only what the rules accept, so a refusal is a bug; 0 at v1.1.5's close (DL-184)"
+      "source": "M2-S12 (DL-34): the policy chooses only what the rules accept, so a refusal is a bug; 0 at v1.1.6's close (DL-205)"
     },
     "invalid": {
       "max": 0,
-      "source": "M2-S12 (DL-34): a game the validator refuses; 0 at every close; read only when validated after every advance, which a Gate run is not (v1.1.5's was not)"
+      "source": "M2-S12 (DL-34): a game the validator refuses; 0 at every close; read only when validated after every advance, which a Gate run is not (v1.1.6's was not, DL-205)"
     },
     "stopped": {
       "max": 0,
-      "source": "M6-S3's harness assertion (DL-59, DL-69): no hero.transferred names the player's Guild; 0 at v1.1.5's close (DL-184)"
+      "source": "M6-S3's harness assertion (DL-59, DL-69): no hero.transferred names the player's Guild; 0 at v1.1.6's close (DL-205)"
     },
     "unfinished": {
       "max": 0,
-      "source": "M2-S12 (DL-34): every game ends or plays to its last Turn; 50 of 50 at v1.1.5's close (DL-184)"
+      "source": "M2-S12 (DL-34): every game ends or plays to its last Turn; 50 of 50 at v1.1.6's close (DL-205)"
     },
     "roundTrips": {
       "max": 0,
-      "source": "M2-S12 (DL-34): every last save loads and serialises back identically; 50 of 50 at v1.1.5's close (DL-184)"
+      "source": "M2-S12 (DL-34): every last save loads and serialises back identically; 50 of 50 at v1.1.6's close (DL-205)"
     },
     "replay": {
       "identical": true,
-      "source": "M2-S12 (DL-34), since v1.1.6-S3 (DL-189) one seed played once more, alone, its last save's length and fingerprint compared with those its shard recorded: two processes; seed-0001 identical at v1.1.5's close, 144,371,849 characters (DL-184), played twice in one process then (DL-181)"
+      "source": "M2-S12 (DL-34), since v1.1.6-S3 (DL-189) one seed played once more, alone, its last save's length and fingerprint compared with those its shard recorded: two processes; seed-0001 identical at v1.1.6's close, 144,370,431 characters (DL-205); at v1.1.5's, 144,371,849, played twice in one process then (DL-181, DL-184)"
     },
     "playerBankruptcies": {
       "max": 3,
       "baseline": 0,
-      "source": "the owner's answer (DL-188): at most 3 of 50, the baseline and fifty seeds' ±3 (DL-166), as proposed; v1.1.5's closing sweep: 0 of 50 (DL-184); DL-168 item 16's 3 to 7 decided what followed v1.1.5 and is not this line"
+      "source": "the owner's answer (DL-188): at most 3 of 50, the baseline and fifty seeds' ±3 (DL-166), as proposed; v1.1.6's closing full gate: 0 of 50 (DL-205), as v1.1.5's closing sweep (DL-184); DL-168 item 16's 3 to 7 decided what followed v1.1.5 and is not this line"
     },
     "saveGzipped": {
       "meanMiB": 30,
       "baselineMeanMiB": 17.95,
       "baselineMaxMiB": 21.08,
-      "source": "the owner's answer (DL-188): \"stay under 30mb\", the mean over the run's games, not every save, measured gzipped as the page keeps it (DL-67, DL-186 item 21, data-model §7); no guard on the uncompressed size, which the report prints; v1.1.5's closing sweep: mean 17.95 MiB, max 21.08 MiB gzipped (DL-184's report)"
+      "source": "the owner's answer (DL-188): \"stay under 30mb\", the mean over the run's games, not every save, measured gzipped as the page keeps it (DL-67, DL-186 item 21, data-model §7); no guard on the uncompressed size, which the report prints; v1.1.6's closing full gate: mean 17.95 MiB, max 21.08 MiB gzipped (DL-205), as v1.1.5's closing sweep (DL-184)"
     },
-    "copyMs": {
+    "copyShare": {
       "growth": 0.25,
-      "baselineMeanMs": 0.847,
-      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, may grow at most 25% over its baseline without a DL entry; the baseline measured at v1.1.6-S17's full gate by its verification (DL-203; harness/reports/m9-v116-s17-2026-10-05, 50 games of 20 years, 8 processes): mean 0.847 ms over 1,000 copies, 0.474 ms as the first year ended and 0.916 ms as the twentieth"
+      "baselineShare": 0.253,
+      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", restated by the owner as the copy's share of a Turn (DL-206 item 17, DL-205's finding that the copy's milliseconds follow the machine's load): the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, over the mean time of advance, may grow at most 25% over its baseline share without a DL entry; the baseline measured at v1.1.6-S17's full gate (DL-203; harness/reports/m9-v116-s17-2026-10-05, 50 games of 20 years, 8 processes): copy mean 0.847 ms over 1,000 copies, advance mean 3.346 ms, share 0.253, at most 0.31625"
     }
   },
   "estimate": {
     "noOneFalls": {
       "within": 0.02,
-      "source": "v1.1.4-S5 (DL-156): every chance within 2 points of the resolver's rate with no one falling; held at v1.1.5's re-close, the widest 1.18 points (DL-185)"
+      "source": "v1.1.4-S5 (DL-156): every chance within 2 points of the resolver's rate with no one falling; held at v1.1.6's close, the widest 1.18 points (DL-205, harness/reports/m9-estimate-2026-10-06), as at v1.1.5's re-close (DL-185)"
     },
     "moraleInQuest": {
       "within": 0.03,
-      "source": "v1.1.5-S7 (DL-173, the owner's answer): the Quest's bands and success within 3 points with Morale's consequences in; held at v1.1.5's re-close, the widest 1.61 points (DL-185)"
+      "source": "v1.1.5-S7 (DL-173, the owner's answer): the Quest's bands and success within 3 points with Morale's consequences in; held at v1.1.6's close, the widest 1.61 points (DL-205, harness/reports/m9-estimate-2026-10-06), as at v1.1.5's re-close (DL-185)"
     }
   },
   "notes": [
     "Drafted by v1.1.6-S2 from v1.1.5's epic and closing sweep, and approved by the owner on 2026-10-05 with the Traits a career taken out and the save's gzipped mean set under 30 MiB, no guard on its uncompressed size (DL-188). Its lines and baselines change only with a DL entry (DL-186 item 13).",
     "The bands are set on the run above: on a run of another shape they read not comparable. The estimate's two limits are checked by npm run harness -- estimate, not by a gate run.",
-    "S17 added the per-Turn copy's time line (DL-186 item 11, DL-203), its baseline set from S17's full gate by its verification."
+    "S17 added the per-Turn copy's time line (DL-186 item 11, DL-203), its baseline set from S17's full gate by its verification; v1.1.7-S1 made it the copy's share of a Turn (DL-206 item 17, DL-207).",
+    "v1.1.7-S8 moved the baseline from v1.1.5's closing sweep to v1.1.6's closing full gate, and the sources whose numbers were v1.1.5's with it; no limit changed, each baseline's value the same at both closes, and the copy line as S1 set it (DL-214)."
   ]
 }

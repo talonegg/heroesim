@@ -18,12 +18,12 @@ import {
 } from './document.js';
 import type { GuildmasterDescription } from './descriptions.js';
 import type { EngineEvent, WorldCreated } from './events.js';
-import { dealEvenly, sexes, sortedKeys, streamOf } from './generators/draw.js';
+import { dealByWeight, sexes, sortedRows, streamOf } from './generators/draw.js';
 import { dealtDisposition, generateGuild, generateRival, type GeneratedGuild } from './generators/guilds.js';
 import { generateHero } from './generators/heroes.js';
 import { generatePatron } from './generators/patrons.js';
 import { guildmasterStatsOf } from './guildmaster.js';
-import { append } from './history.js';
+import { record } from './record.js';
 import { ensureModules } from './modules.js';
 import { boardRefresh } from './phases/board-refresh.js';
 import { marketRefresh } from './phases/market-refresh.js';
@@ -394,10 +394,11 @@ export interface CreatedWorld {
  * Portrait, chosen, or chosen to fit them on `gm-portraits`, a stream of its own (v1.1.2-S3, v1.1.3-S5),
  * and their descriptive Attributes left blank written from `descriptions`, another (v1.1.2-S5), as
  * every Rival's are; then `rivalCount` Rival Guilds, each Guildmaster's Portrait chosen likewise, `patronCount` Patrons with their Spheres dealt
- * evenly, and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the
+ * by weight, evenly while every weight is 1 (DL-208), and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the
  * morning's Board refresh, drawing `boardSize` Quests from `board` (DL-25), and its Market
  * refresh, drawing `marketSize` stacks from `market` (DL-51). Appends
- * `world.created` and every generator's events to the new History and returns them. Last, each
+ * `world.created` and every generator's events to the new History, but the pool's arrivals, which it
+ * does not record (`record`, DL-211), and returns them all. Last, each
  * module in `deps.modules`, none by default, gets its stream and its slice (`ensureModules`).
  *
  * Throws on a programming error: a setup `setupRefusal` refuses, naming its reason, a sex that is
@@ -420,7 +421,9 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
     generated.push(...generateRival(world, deps, { controller }).events);
   }
 
-  for (const sphereKey of dealEvenly(generation, sortedKeys(content.spheres), config.patronCount)) {
+  // The Spheres dealt by their weights: evenly, every Sphere once before any twice, while every weight
+  // is 1 (`dealByWeight`, DL-206 item 1, DL-208).
+  for (const { key: sphereKey } of dealByWeight(generation, sortedRows(content.spheres), config.patronCount)) {
     generated.push(...generatePatron(world, deps, { sphereKey }).events);
   }
 
@@ -446,6 +449,6 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
     payload: { seed },
   };
   const events: EngineEvent[] = [created, ...generated];
-  for (const event of events) append(document.history, event);
+  record(document.history, events);
   return { document, events };
 }

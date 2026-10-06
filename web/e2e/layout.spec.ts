@@ -301,6 +301,8 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     // The pool's rows, by fee and as listed.
     const pool = await part(page, 'Unattached pool');
     await check("the pool's rows");
+    await inViewClear(pool.getByRole('table'), `the pool's headings and buttons at ${width}px`);
+    await noNeedlessScroll(pool.getByRole('table'), `the pool at ${width}px`);
     await pool.getByRole('button', { name: 'Order by Fee' }).click();
     await check('the pool by fee');
     await pool.getByRole('button', { name: 'Order by Fee' }).click();
@@ -319,12 +321,19 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     await market.getByTestId('listing').first().getByRole('button', { name: /^Buy / }).click();
     await expect(page.getByRole('region', { name: 'Sell', exact: true }).getByRole('table')).toBeVisible();
     await check("the Market's Sell");
+    const sell = page.getByRole('region', { name: 'Sell', exact: true }).getByRole('table');
+    await inViewClear(sell, `the Market's Sell's headings and buttons at ${width}px`);
+    await noNeedlessScroll(sell, `the Market's Sell at ${width}px`);
+    await longFirstName(sell, `the Market's Sell at ${width}px`);
 
     // The Guild's Stores, holding what was just bought, and its Treasury, the purchase in the
     // ledger: each table in its own box (M9-F3).
     const stores = await guildPart(page, 'Stores');
     await expect(stores.getByRole('table')).toBeVisible();
     await check("the Guild's Stores");
+    await inViewClear(stores.getByRole('table'), `the Guild's Stores' headings and buttons at ${width}px`);
+    await noNeedlessScroll(stores.getByRole('table'), `the Guild's Stores at ${width}px`);
+    await longFirstName(stores.getByRole('table'), `the Guild's Stores at ${width}px`);
     // Its five columns fit a tablet's width and more, where the Market's wider table scrolls (M9-F6,
     // from the close's screenshots, where "Sells for" was cut at 820px).
     if (width >= 820) expect(await stores.locator('.table-wrap').evaluate((box) => box.scrollWidth - box.clientWidth)).toBeLessThanOrEqual(0);
@@ -355,6 +364,9 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     const fold = patrons.getByRole('button', { name: /^\d+ neutral$/ });
     if ((await fold.count()) > 0) await fold.click();
     await check("the Patrons' table, the neutral unfolded");
+    await inViewClear(patrons.getByRole('table'), `the Patrons' headings and buttons at ${width}px`);
+    await noNeedlessScroll(patrons.getByRole('table'), `the Patrons at ${width}px`);
+    await longFirstName(patrons.getByRole('table'), `the Patrons at ${width}px`);
     if ((await fold.count()) > 0) await fold.click();
   }
 });
@@ -451,7 +463,9 @@ test("the Guildmaster's header and a Hero's page's: the Portrait, 3 × 4, beside
     expect(box.height, `${what}: the Portrait's height`).toBeCloseTo((wide * 4) / 3, 0);
     expect(box.x + box.width, `${what}: the Portrait before the name`).toBeLessThanOrEqual(name.x);
     expect(Math.abs(name.y - box.y), `${what}: the name level with the Portrait's top`).toBeLessThanOrEqual(12);
-    // The Silhouette, which the script holds, is drawn.
+    // The Silhouette, which the script holds, is drawn, or the picture over it once it has loaded,
+    // when the Silhouette goes: one picture, read once the two have settled (DL-134 item 9).
+    await expect(portrait.locator('img')).toHaveCount(1);
     expect(await portrait.locator('img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     await expectNoHorizontalOverflow(page, what);
     await expectTargets(page, what);
@@ -556,6 +570,233 @@ test("the Roster's cards, the pool's rows and the Guilds' table: each name with 
     await guilds.getByRole('button', { name: 'Back to the Guilds' }).click();
   }
 });
+
+// A Hero's name with their Class's mark before it (DL-206 items 23 and 24, DL-212), in the five places
+// a Hero is listed with their Class, at every width: the mark the text's size, before the name and
+// clear of it, on the line of the name's first word and never alone on a line (the owner's (b),
+// DL-212), and no word of the name broken inside it.
+test("a Hero's name with their Class's mark: the mark before the name, the text's size, on the first word's line, and no word of the name broken (v1.1.7-S6)", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
+
+  /** Each name in `scope`: its mark drawn before its first word, on its line, and as high as a line, and each word on one line. */
+  const namesWhole = async (scope: Locator, what: string): Promise<void> => {
+    const names = scope.locator('.hero-name');
+    await expect(names.first()).toBeVisible();
+    for (const name of await names.all()) {
+      const read = await name.evaluate((element) => {
+        const mark = element.querySelector('.class-mark')?.getBoundingClientRect();
+        const words: { word: string; lines: number; x: number; top: number; bottom: number }[] = [];
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+          for (const found of (node.textContent ?? '').matchAll(/\S+/g)) {
+            const range = document.createRange();
+            range.setStart(node, found.index);
+            range.setEnd(node, found.index + found[0].length);
+            const rects = [...range.getClientRects()].filter((rect) => rect.width > 0);
+            words.push({
+              word: found[0],
+              lines: new Set(rects.map((rect) => Math.round(rect.top))).size,
+              x: rects[0]?.x ?? 0,
+              top: rects[0]?.top ?? 0,
+              bottom: rects[0]?.bottom ?? 0,
+            });
+          }
+        }
+        return { mark: mark === undefined ? null : { x: mark.x, right: mark.right, top: mark.top, bottom: mark.bottom, height: mark.height }, words };
+      });
+      const label = `${what}: ${read.words.map((it) => it.word).join(' ')}`;
+      if (read.mark === null) throw new Error(`${label}: no mark`);
+      expect(read.mark.height, `${label}: the mark the text's size`).toBeGreaterThanOrEqual(16);
+      expect(read.mark.height, `${label}: the mark the text's size`).toBeLessThanOrEqual(28);
+      const [first] = read.words;
+      if (first === undefined) throw new Error(`${label}: no name`);
+      // Before the first word, to its left, and on its line: the mark and the first word never part,
+      // so the mark is never alone on a line (the owner's (b), DL-212).
+      expect(read.mark.right, `${label}: the mark before the name`).toBeLessThanOrEqual(first.x + 1);
+      const markMiddle = (read.mark.top + read.mark.bottom) / 2;
+      expect(markMiddle > first.top && markMiddle < first.bottom, `${label}: the mark on the first word's line, not alone above it`).toBe(true);
+      for (const word of read.words) expect(word.lines, `${label}: "${word.word}" whole on one line`).toBe(1);
+    }
+  };
+
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    const list = await rosterList(page);
+    await namesWhole(list, `the Roster's tiles, ${scheme}`);
+    const roster = page.getByRole('region', { name: 'Roster', exact: true });
+    const show = roster.getByRole('radiogroup', { name: 'Show the Roster as' });
+    await show.getByRole('radio', { name: 'Table' }).click();
+    await namesWhole(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table, ${scheme}`);
+    await inViewClear(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table's headings and buttons, ${scheme}`);
+    await noNeedlessScroll(roster.getByRole('table', { name: 'Heroes on the Roster' }), `the Roster's Table, ${scheme}`);
+    await show.getByRole('radio', { name: 'Tiles' }).click();
+    const pool = await part(page, 'Unattached pool');
+    await namesWhole(pool, `the pool, ${scheme}`);
+    // A first name longer than the share the name column may take, which no name the content gives is:
+    // the column holds to its share, the word breaks there with the mark on its first line, and nothing
+    // spills from the name's button (DL-212). The name is put back as it was.
+    const capped = await pool.getByRole('table').evaluate((element) => {
+      const first = element.querySelector<HTMLElement>('tbody .hero-name__first');
+      const box = element.closest('.table-wrap');
+      const heading = element.querySelector('thead th');
+      const mark = first?.parentElement?.querySelector('.class-mark');
+      const button = first?.closest('button');
+      if (first == null || box == null || heading == null || mark == null || button == null) return null;
+      const was = first.textContent;
+      first.textContent = 'W'.repeat(60);
+      const line = first.getClientRects()[0];
+      const drawn = mark.getBoundingClientRect();
+      const middle = (drawn.top + drawn.bottom) / 2;
+      const read = {
+        share: heading.getBoundingClientRect().width / box.clientWidth,
+        markOnFirstLine: line !== undefined && middle > line.top && middle < line.bottom,
+        spills: button.scrollWidth - button.clientWidth,
+      };
+      first.textContent = was;
+      return read;
+    });
+    if (capped === null) throw new Error(`the pool, ${scheme}: no name to lengthen`);
+    expect(capped.share, `the pool, ${scheme}: a long first name, the name column's share of its box`).toBeLessThanOrEqual(0.6);
+    expect(capped.markOnFirstLine, `the pool, ${scheme}: a long first name, the mark on its first line`).toBe(true);
+    expect(capped.spills, `the pool, ${scheme}: a long first name, nothing spilling from its button`).toBeLessThanOrEqual(0);
+
+    await (await rosterList(page)).locator('button.link').first().click();
+    await namesWhole(roster.getByRole('article').getByRole('heading', { level: 3 }), `a Hero's page, ${scheme}`);
+    await roster.getByRole('button', { name: 'Back to the Roster' }).click();
+
+    const board = await openView(page, 'Board');
+    const quest = board.getByRole('article').first();
+    const choose = quest.getByRole('button', { name: 'Choose a Party' });
+    if ((await choose.count()) > 0) await choose.click();
+    await namesWhole(quest.getByRole('form'), `the Party builder, ${scheme}`);
+
+    const guilds = await part(page, 'Guilds');
+    await rivalRows(guilds).first().locator('button.link').click();
+    await namesWhole(guilds.getByRole('article').getByRole('table', { name: /^The Roster of / }), `a Rival's Roster, ${scheme}`);
+    await inViewClear(guilds.getByRole('article').getByRole('table', { name: /^The Roster of / }), `a Rival's Roster's headings and buttons, ${scheme}`);
+    await guilds.getByRole('button', { name: 'Back to the Guilds' }).click();
+  }
+});
+
+/**
+ * Each heading (its button where it has one) and each button in the cells of a Table whose first
+ * column stays in view, scrolled into the Table's box at its start, its middle and its end, as the
+ * keyboard's focus, a pointer's click and a search may bring it, is the element at its own middle: the
+ * sticky first column never covers it, however wide the Hero's mark and first name make that column
+ * (DL-212). The Table's box is put back as it was.
+ */
+async function inViewClear(table: Locator, what: string): Promise<void> {
+  await expect(table).toBeVisible();
+  await drawn(table);
+  const { covered, tried } = await table.evaluate((element) => {
+    const box = element.closest('.table-wrap');
+    const was = box?.scrollLeft ?? 0;
+    const headings = [...element.querySelectorAll<HTMLElement>('thead th:not(:first-child)')].map((th) => th.querySelector<HTMLElement>('button') ?? th);
+    const targets = [...headings, ...element.querySelectorAll<HTMLElement>('tbody td button')];
+    const under: string[] = [];
+    for (const inline of ['start', 'center', 'end'] as const) {
+      for (const target of targets) {
+        target.scrollIntoView({ block: 'center', inline, behavior: 'instant' });
+        const at = target.getBoundingClientRect();
+        const found = document.elementFromPoint(at.x + at.width / 2, at.y + at.height / 2);
+        if (found === null || !target.contains(found)) under.push(`"${target.textContent ?? ''}" at the ${inline}, under ${found?.closest('th, td, aside, header, nav')?.textContent?.slice(0, 40) ?? 'nothing'}`);
+      }
+    }
+    if (box !== null) box.scrollLeft = was;
+    return { covered: under, tried: targets.length };
+  });
+  expect(tried, `${what}: things to bring into view`).toBeGreaterThan(1);
+  expect(covered, `${what}: nothing under the sticky column`).toEqual([]);
+}
+
+/**
+ * Each heading (its button where it has one, else the heading made focusable for the check) and each
+ * button in the cells of a Table whose first column stays in view, fully in its box and clear of that
+ * column, takes the focus without the box scrolling: the box keeps clear at its start only the sticky
+ * column's width, never more (DL-212). Tried with the box scrolled to its start, its middle and its
+ * end; the box and the headings are put back as they were.
+ */
+async function noNeedlessScroll(table: Locator, what: string): Promise<void> {
+  await expect(table).toBeVisible();
+  await drawn(table);
+  const { moved, tried } = await table.evaluate((element) => {
+    const box = element.closest('.table-wrap');
+    const column = element.querySelector('thead th:first-child');
+    if (box === null || column === null) return { moved: ['no box or no first column'], tried: 0 };
+    const was = box.scrollLeft;
+    const headings = [...element.querySelectorAll<HTMLElement>('thead th:not(:first-child)')].map((th) => th.querySelector<HTMLElement>('button') ?? th);
+    const made = headings.filter((target) => target.tagName === 'TH');
+    for (const th of made) th.tabIndex = -1;
+    const targets = [...headings, ...element.querySelectorAll<HTMLElement>('tbody td button')];
+    const shifts: string[] = [];
+    let count = 0;
+    const end = box.scrollWidth - box.clientWidth;
+    for (const at of [0, Math.round(end / 2), end]) {
+      for (const target of targets) {
+        box.scrollLeft = at;
+        const from = box.scrollLeft;
+        const shown = box.getBoundingClientRect();
+        const clear = column.getBoundingClientRect().right;
+        const rect = target.getBoundingClientRect();
+        if (rect.left < clear || rect.right > shown.right || rect.width === 0) continue;
+        count += 1;
+        target.focus();
+        if (box.scrollLeft !== from) shifts.push(`"${target.textContent ?? ''}" from ${from} to ${box.scrollLeft}`);
+        target.blur();
+      }
+    }
+    for (const th of made) th.removeAttribute('tabindex');
+    box.scrollLeft = was;
+    return { moved: shifts, tried: count };
+  });
+  expect(tried, `${what}: buttons in view and clear of the sticky column`).toBeGreaterThan(0);
+  expect(moved, `${what}: no scroll for a button already in view`).toEqual([]);
+}
+
+/**
+ * The first name of a Table whose first column stays in view, made longer than the share of its box
+ * that column may take, which no name the content gives is (an Item's, a Patron's): the column holds
+ * to its share, and nothing in the Table is brought into view under it (DL-212). Put back as it was.
+ */
+async function longFirstName(table: Locator, what: string): Promise<void> {
+  await expect(table).toBeVisible();
+  const share = await table.evaluate((element) => {
+    const cell = element.querySelector('tbody th[scope="row"]');
+    const box = element.closest('.table-wrap');
+    const column = element.querySelector('thead th:first-child');
+    if (cell === null || box === null || column === null) return null;
+    const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => ((node.nodeValue ?? '').trim() === '' ? NodeFilter.FILTER_SKIP : NodeFilter.FILTER_ACCEPT),
+    });
+    const text = walker.nextNode();
+    if (text === null) return null;
+    Reflect.set(window, '__longFirstName', { text, was: text.nodeValue });
+    text.nodeValue = `${'W'.repeat(60)} ${'Lantern '.repeat(12)}`;
+    return column.getBoundingClientRect().width / box.clientWidth;
+  });
+  if (share === null) throw new Error(`${what}: no name to lengthen`);
+  try {
+    expect(share, `${what}: a long first name, the first column's share of its box`).toBeLessThanOrEqual(0.6);
+    await inViewClear(table, `${what}, a long first name`);
+  } finally {
+    await table.evaluate(() => {
+      const held = Reflect.get(window, '__longFirstName') as { text: Node; was: string } | undefined;
+      if (held !== undefined) held.text.nodeValue = held.was;
+    });
+  }
+}
+
+/**
+ * Waits for the page to be drawn twice: a Table's box measures its sticky column (`StickyTableBox`)
+ * before a frame is drawn, and a test, unlike a player, may act within one frame of a change.
+ */
+async function drawn(scope: Locator): Promise<void> {
+  await scope.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+}
 
 /** The rows of the Guilds' table that are not the player's Guild (M9-S6). */
 function rivalRows(guilds: Locator): Locator {
@@ -712,7 +953,7 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
       await page.setViewportSize({ width, height });
       const at = `${scheme}, ${width}px`;
       const roster = await openView(page, 'Roster');
-      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Table' }).click();
+      await roster.getByRole('radiogroup', { name: 'Show the Roster as' }).getByRole('radio', { name: 'Table' }).click();
       const table = roster.getByRole('table', { name: 'Heroes on the Roster' });
       await expect(table).toBeVisible();
       await expectNoHorizontalOverflow(page, `the Roster's Table, ${at}`);
@@ -784,7 +1025,7 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
       await roster.getByRole('combobox', { name: 'Sort by' }).selectOption('default');
 
       // The tiles, each Hero's Traits and Items with them.
-      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Tiles' }).click();
+      await roster.getByRole('radiogroup', { name: 'Show the Roster as' }).getByRole('radio', { name: 'Tiles' }).click();
       await expect(roster.getByRole('list', { name: 'Heroes on the Roster' })).toBeVisible();
       await expectNoHorizontalOverflow(page, `the Roster's tiles, ${at}`);
       await expectTargets(page, `the Roster's tiles, ${at}`);
@@ -820,7 +1061,7 @@ test("the Roster's Unique Items: the picture on a tile and the gold glow on its 
       await page.setViewportSize({ width, height });
       const at = `${scheme}, ${width}px`;
       const roster = await openView(page, 'Roster');
-      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Tiles' }).click();
+      await roster.getByRole('radiogroup', { name: 'Show the Roster as' }).getByRole('radio', { name: 'Tiles' }).click();
 
       // The tiles: one glows, the Lantern's picture before its name in its chip; the others neither.
       const lit = roster.locator('li.hero-card.carries-unique');
@@ -842,7 +1083,7 @@ test("the Roster's Unique Items: the picture on a tile and the gold glow on its 
       await shotAround(page, lit, testInfo.outputPath(`roster-unique-tile-${scheme}-${width}.png`));
 
       // The Table: the row glows, with no picture, its Items cell naming the Lantern.
-      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Table' }).click();
+      await roster.getByRole('radiogroup', { name: 'Show the Roster as' }).getByRole('radio', { name: 'Table' }).click();
       const table = roster.getByRole('table', { name: 'Heroes on the Roster' });
       const row = table.locator('tr.carries-unique');
       await expect(row).toHaveCount(1);
@@ -876,7 +1117,7 @@ test("the Roster's Unique Items: the picture on a tile and the gold glow on its 
       }
       await page.screenshot({ path: testInfo.outputPath(`roster-unique-table-${scheme}-${width}.png`), fullPage: true });
       if (phone) await roster.getByRole('tablist', { name: 'Columns of the Table' }).getByRole('tab', { name: 'Hero' }).click();
-      await roster.getByRole('group', { name: 'Show the Roster as' }).getByRole('button', { name: 'Tiles' }).click();
+      await roster.getByRole('radiogroup', { name: 'Show the Roster as' }).getByRole('radio', { name: 'Tiles' }).click();
     }
     backgrounds.push(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
   }
@@ -999,3 +1240,47 @@ function glowContrast(element: Element): number {
   if (outline === undefined) return 0;
   return Math.min(ratio(outline, ground(element)), ratio(outline, ground(element.parentElement)));
 }
+
+/**
+ * The status bar's date as it stands at this width: its words, whether they keep to one line, and
+ * whether the bar's facts or the page run wider than they are. Runs in the page.
+ */
+function dateShown(): { text: string; lines: number; inView: boolean; factsOverflow: number } {
+  const time = document.querySelector('[data-testid="time"]');
+  const facts = document.querySelector('.status__facts');
+  if (time === null || facts === null) throw new Error('no status bar');
+  const box = time.getBoundingClientRect();
+  return {
+    text: time.textContent ?? '',
+    // An inline element drawn on one line has one box; one that wraps has a box for each line.
+    lines: time.getClientRects().length,
+    inView: box.left >= 0 && box.right <= document.documentElement.clientWidth,
+    factsOverflow: facts.scrollWidth - facts.clientWidth,
+  };
+}
+
+// v1.1.7-S4 (DL-206 item 32, DL-210): the date in the status bar with its Year at every width, a
+// phone's 360px among them, the time of day after it: the first date of a game and the longest a
+// player reads in twenty Years, `Year 12 Day 360, afternoon`, each on one line, in view, with no
+// sideways scroll.
+test('the status bar gives the date with its Year and time of day at every width, on one line, nothing overflowing (DL-210)', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-the-date' });
+  const first = await page.evaluate(dateShown);
+  expect(first).toEqual({ text: 'Year 1 Day 1, morning', lines: 1, inView: true, factsOverflow: 0 });
+  await expectNoHorizontalOverflow(page, 'the first date of a game');
+
+  // The game exported and loaded back at the afternoon of the last Day of its twelfth Year.
+  const [download] = await Promise.all([page.waitForEvent('download'), (await thisGame(page)).getByRole('button', { name: 'Export this game' }).click()]);
+  const file = testInfo.outputPath('a-long-date.json');
+  await download.saveAs(file);
+  const save = JSON.parse(readFileSync(file, 'utf8')) as { world: { turn: number } };
+  save.world.turn = 11 * 1080 + 359 * 3 + 1;
+  writeFileSync(file, JSON.stringify(save));
+  await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(file);
+  await expect(page.getByRole('dialog', { name: 'Game' })).toHaveCount(0);
+  await expect(page.getByTestId('time')).toHaveText('Year 12 Day 360, afternoon');
+  const longest = await page.evaluate(dateShown);
+  expect(longest).toEqual({ text: 'Year 12 Day 360, afternoon', lines: 1, inView: true, factsOverflow: 0 });
+  await expectNoHorizontalOverflow(page, 'the longest date of twenty Years');
+});

@@ -61,7 +61,7 @@ const labels: Record<string, string> = {
 const barrow = content.questTemplates['clear-the-barrow']?.name ?? 'clear-the-barrow';
 
 /** Quests by the name of the one template the samples use. */
-const narration: Narration = { content, questName: (id) => (id === questId ? barrow : 'a Quest') };
+const narration: Narration = { content, questName: (id) => (id === questId ? barrow : 'a Quest'), calendar: { turnsPerYear: 1080 } };
 
 /** An event of `type` as the engine would make it, labelled from `labels`. */
 function event<Type extends EngineEventType>(type: Type, participants: string[], payload: EngineEventOf<Type>['payload']): EngineEventOf<Type> {
@@ -331,18 +331,18 @@ const exactly: { [Type in EngineEventType]: string } = {
   'world.rules-adopted': 'The rules moved from configVersion 1 to 2.',
   'guild.upkeep-paid': 'The Kestrel Guild paid 40 Upkeep, leaving 460 Wealth.',
   'guild.below-floor':
-    "The Kestrel Guild's Wealth, -35, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Day 34 unless it is back to 0 or more on a night by then.",
+    "The Kestrel Guild's Wealth, -35, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Year 1 Day 35 unless it is back to 0 or more on a night by then.",
   'guild.floor-recovered':
-    "The Kestrel Guild's Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it on Day 1: no Bankruptcy is due.",
+    "The Kestrel Guild's Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it on Year 1 Day 2: no Bankruptcy is due.",
   'hero.recruited': 'The Kestrel Guild signed Brenna Ashcombe for 110 Wealth.',
   'hero.left-pool': 'Brenna Ashcombe left the Unattached pool.',
   'quest.offered': `Lady Maud offered ${barrow}.`,
   'quest.expired': `Lady Maud's ${barrow} expired untaken.`,
-  'quest.taken': `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Day 7, carrying ${named(content.items, 'whetstone')} ×2.`,
+  'quest.taken': `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Year 1 Day 8, carrying ${named(content.items, 'whetstone')} ×2.`,
   'quest.encounter': `The Kestrel Guild's Party failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Failure: Brenna Ashcombe was injured.`,
   'quest.resolved': `The Kestrel Guild's Party came home from ${named(content.questTemplates, 'guard-the-caravan')} and failed: Wealth 0, Fame -2.`,
   'quest.loot': `The Kestrel Guild found Loot on ${barrow}: ${named(content.items, 'barrow-kings-blade')}.`,
-  'hero.injured': `Brenna Ashcombe was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Day 13.`,
+  'hero.injured': `Brenna Ashcombe was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Year 1 Day 14.`,
   'hero.died': `Brenna Ashcombe died on ${barrow}.`,
   'hero.xp-gained': 'Brenna Ashcombe gained 30 XP.',
   'hero.morale-changed': "Brenna Ashcombe's Morale went from 45 to 35, low.",
@@ -367,7 +367,7 @@ const exactly: { [Type in EngineEventType]: string } = {
   'item.bought': `The Kestrel Guild bought 3 × ${named(content.items, 'whetstone')} at the Market for 75 Wealth.`,
   'item.sold': `The Kestrel Guild's ${named(content.items, 'barrow-kings-blade')} went to the Market for 300 Wealth as the Guild folded.`,
   'hero.transferred': 'The Iron Wardens took Brenna Ashcombe from The Kestrel Guild for 420 Wealth, accepting its Transfer Offer.',
-  'guild.transfer-offered': 'The Iron Wardens offered The Kestrel Guild 420 Wealth for Brenna Ashcombe, until the night of Day 7.',
+  'guild.transfer-offered': 'The Iron Wardens offered The Kestrel Guild 420 Wealth for Brenna Ashcombe, until the night of Year 1 Day 8.',
   'guild.transfer-offer-declined': "The Kestrel Guild declined The Iron Wardens's Offer for Brenna Ashcombe.",
   'guild.transfer-offer-expired': "The Iron Wardens's Offer for Brenna Ashcombe expired unanswered.",
   'guild.wealth-changed': "The Kestrel Guild's Wealth went from 500 to 750.",
@@ -534,7 +534,7 @@ describe("the CLI's words, adapted for the page", () => {
     expect(narrateText(samples['hero.declined'], narration)).toBe('Brenna Ashcombe, at 41, lost 1 Endurance to age.');
     expect(narrateText(samples['hero.died'], narration)).toBe(`Brenna Ashcombe died on ${barrow}.`);
     expect(narrateText(samples['quest.taken'], narration)).toBe(
-      `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Day 7, carrying Whetstone ×2.`,
+      `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Year 1 Day 8, carrying Whetstone ×2.`,
     );
     // An entry written before v1.1.4-S2 reads as its outcome, a Failure or a Success.
     expect(narrateText(samples['quest.encounter'], narration)).toBe(
@@ -709,7 +709,7 @@ describe("the page's Namer (v1.1.6-S12)", () => {
 
   test("fills every slot of the narration's sentences, leaving no id and nothing unfilled", () => {
     for (const type of union) {
-      const sentence = sentenceOf(samples[type], content);
+      const sentence = sentenceOf(samples[type], content, narration.calendar);
       const segments = narrateSegments(samples[type], narration);
 
       // Every name the event's participants give is a slot, never words the sentence wrote.

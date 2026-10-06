@@ -1,10 +1,10 @@
 import type { GuildId, HeroId, OfferId, PartyId, QuestId, StopReason, WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { narrateStop } from './advance.js';
+import { stopLine } from './advance.js';
 
-// Why a fast forward stopped, in the CLI's words (M2-S11; M6-S2, M9-S1): the ids its commands take
-// and the command that answers. The CLI's own framing, beside the narration (v1.1.6-S12, DL-186 item
-// 1): every line as it was, but the Module's capital settled to the page's.
+// Why a fast forward stopped, in the CLI's words (M2-S11; M6-S2, M9-S1): the narration's sentence
+// (`narrateStop` in `@heroesim/words`, DL-209) with the ids the CLI's commands take and the command
+// that answers.
 
 const guildId = 'guild-000002' as GuildId;
 const heroId = 'hero-000007' as HeroId;
@@ -14,7 +14,7 @@ const rivalId = 'guild-000003' as GuildId;
 const offerId = 'offer-000001' as OfferId;
 const terms = { offerId, fromGuildId: guildId, toGuildId: rivalId, heroId, fee: 420 };
 
-describe('narrateStop', () => {
+describe('stopLine', () => {
   const document = {
     world: {
       guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },
@@ -36,12 +36,17 @@ describe('narrateStop', () => {
     ],
     [
       { kind: 'transfer-offer', guildId, offerIds: [offerId] },
-      'Stopped: a Transfer Offer: The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of Day 7 ' +
+      'Stopped: a Transfer Offer: The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of Year 1 Day 8 ' +
         '(offer-000001). Answer with accept --offer <id> or decline --offer <id> (show offers).',
     ],
     [
+      { kind: 'transfer-offer', guildId, offerIds: ['offer-000002' as OfferId, offerId] },
+      'Stopped: a Transfer Offer: offer-000002 and The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of ' +
+        'Year 1 Day 8 (offer-000001). Answer with accept --offer <id> or decline --offer <id> (show offers).',
+    ],
+    [
       { kind: 'below-floor', guildId, dueDay: 34 },
-      'Stopped: The Kestrel Guild fell below the Bankruptcy floor: Bankruptcy on the night of Day 34 unless its Wealth recovers by then.',
+      'Stopped: The Kestrel Guild fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day 35 unless its Wealth recovers by then.',
     ],
     [
       { kind: 'quest-staffable', guildId, questIds: [questId, 'quest-000008' as QuestId] },
@@ -51,6 +56,6 @@ describe('narrateStop', () => {
     [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],
     [{ kind: 'pool-refreshed', heroIds: [heroId] }, 'Stopped: new in the Unattached pool: Brenna Ashcombe (hero-000007) (show pool).'],
   ])('puts %j in words', (stop, line) => {
-    expect(narrateStop(stop, document, 1080)).toBe(line);
+    expect(stopLine(stop, document, 1080, { turnsPerYear: 1080 })).toBe(line);
   });
 });

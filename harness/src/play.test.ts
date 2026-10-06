@@ -90,6 +90,14 @@ describe('playGame', () => {
     expect(players.length).toBeGreaterThan(0);
   });
 
+  test("counts every Hero generated, at the creation and in play, the pool's that the History does not record among them (DL-211)", () => {
+    // Every Hero's id is taken from the world's counter, which starts at 1.
+    const generated = game.document.world.counters.heroes - 1;
+    const recorded = game.document.history.byType['hero.generated']?.length ?? 0;
+    expect(recorded).toBeLessThan(generated - deps.config.unattachedPoolSize);
+    expect(game.observations.heroes.generated).toBe(generated);
+  });
+
   test('validates after every advance and the whole document at the end, and the validator accepts it', () => {
     expect(game.invalid).toBeNull();
     expect(game.validateMs).toHaveLength(60);
@@ -97,8 +105,15 @@ describe('playGame', () => {
   });
 
   test('stops on the Turn the game ends', () => {
-    const doomed: EngineDeps = { ...deps, config: { ...deps.config, startingWealth: -1000, bankruptcyGraceDays: 1 } };
-    const ended = playGame('play-b', doomed, { years, validate: true });
+    // In debt from the start, with a Day's grace: a starting Wealth is no debt (DL-210), so the Guild's is set once it is made.
+    const doomed: EngineDeps = { ...deps, config: { ...deps.config, bankruptcyGraceDays: 1 } };
+    const ended = playGame('play-b', doomed, {
+      years,
+      validate: true,
+      prepare: (document) => {
+        (playerGuild(document.world) as Guild).wealth = -1000;
+      },
+    });
     expect(ended.document.world.ended).toEqual({ turn: ended.document.world.turn, reason: 'bankruptcy' });
     expect(ended.turnsPlayed).toBe(ended.document.world.turn);
     expect(ended.turnsPlayed).toBeLessThan(60);
@@ -144,7 +159,7 @@ describe('playGame observes the World State (M3, DL-40)', () => {
     expect(game.observations.regardAtCountedYear).toBeNull();
   });
 
-  test("the player's Guild's Regard as year 10 begins, from the world as the last Turn left it (M4, DL-55)", () => {
+  test("the player's Guild's Regard after 10 years, from the world as the last Turn left it (M4, DL-55)", () => {
     const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 12 } };
     const game = playGame('play-a', shortYears, { years: 10 });
     expect(game.document.world.turn).toBe(120);
@@ -159,13 +174,13 @@ describe('playGame observes the World State (M3, DL-40)', () => {
   // and most of its memory. Each year's is counted; the last year's is gzipped from the save
   // `recordGame` writes once the game stops, the same document.
   test("the save as each year ends: every year's length as its text's, counted, and the last year's gzipped once the game stops", { timeout: 30_000 }, () => {
-    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 20 } };
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 21 } };
     const lengths: number[] = [];
     const worldLengths: number[] = [];
     const watched = playGame('play-a', shortYears, {
       years: 3,
       afterAdvance: (_before, after) => {
-        if (after.world.turn % 20 !== 0) return;
+        if (after.world.turn % shortYears.config.turnsPerYear !== 0) return;
         lengths.push(serialise(after).length);
         worldLengths.push(JSON.stringify(after.world).length);
       },

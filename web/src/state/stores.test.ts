@@ -14,7 +14,8 @@ import { createItem, partyFor } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { changed, holding, played, started } from './game.test-support';
 import { playDeps, type GameState } from './reducer';
-import { storesView, type StoresFilter, type StoresRow } from './stores';
+import { faceted } from './facets';
+import { storesView, type StoresRow } from './stores';
 
 // The Stores (M9-F3, DL-111 item 5, DL-112 item 6, DL-113 item 2, DL-116): everything the Guild owns,
 // wherever it is, read from the engine's `holdings` and `carriedGear`; read only.
@@ -29,8 +30,6 @@ function playerOf(document: WorldDocument): Guild {
   if (guild === undefined) throw new Error("no player's Guild");
   return guild;
 }
-
-const all: StoresFilter = { kind: null, where: null };
 
 /**
  * The Lantern with three whetstones, one of which goes with a Party it sends, so the stack is held in
@@ -79,7 +78,7 @@ describe('storesView (M9-F3)', () => {
     const { state } = stocked();
     const document = documentOf(state);
     const guild = playerOf(document);
-    const view = storesView(document, all);
+    const view = storesView(document);
     if (view === null) throw new Error('no view');
 
     expect(held(view.rows.filter((row) => row.where === 'held'))).toEqual(engineHas(document, { kind: 'guild', id: guild.id }));
@@ -105,7 +104,7 @@ describe('storesView (M9-F3)', () => {
   });
 
   test('a stack held in two places is a row in each: two whetstones held, one with the Party', () => {
-    const view = storesView(documentOf(stocked().state), all);
+    const view = storesView(documentOf(stocked().state));
     const whetstones = view?.rows.filter((row) => row.definitionKey === 'whetstone');
     expect(whetstones?.map((row) => [row.where, row.quantity])).toEqual([
       ['held', 2],
@@ -118,7 +117,7 @@ describe('storesView (M9-F3)', () => {
   test('an Item on a Hero away names the Hero, away on the Quest, and a unique Item is a row of one', () => {
     const { state, away, home } = stocked();
     const document = documentOf(state);
-    const view = storesView(document, all);
+    const view = storesView(document);
     const jack = view?.rows.find((row) => row.definitionKey === 'padded-jack');
     const awayName = document.world.heroes[away]?.name ?? '';
     expect(jack).toMatchObject({ where: 'carried', heroId: away, quantity: 1, sellsFor: null, kind: 'Armour Gear' });
@@ -136,39 +135,64 @@ describe('storesView (M9-F3)', () => {
   test('gives what a held Item sells for, as the Market prices it, and nothing for one carried or away', () => {
     const document = documentOf(stocked().state);
     const deps = playDeps(document);
-    for (const row of storesView(document, all)?.rows ?? []) {
+    for (const row of storesView(document)?.rows ?? []) {
       expect(row.sellsFor).toBe(row.where === 'held' ? sellPrice(row.definitionKey, deps) : null);
     }
   });
 
-  test('filters by kind and by where, and names each kind and each place the Guild has Items, with how many rows', () => {
-    const document = documentOf(stocked().state);
-    const view = storesView(document, { kind: 'consumable', where: null });
-    expect(view?.rows.every((row) => row.kindKey === 'consumable')).toBe(true);
-    expect(storesView(document, { kind: null, where: 'carried' })?.rows.map((row) => row.definitionKey).sort()).toEqual(['barrow-kings-blade', 'padded-jack']);
-    expect(storesView(document, { kind: 'consumable', where: 'party' })?.rows.map((row) => row.definitionKey)).toEqual(['whetstone']);
-    expect(storesView(document, { kind: 'trinket', where: 'party' })?.rows).toEqual([]);
+  test('filters by kinds and by places, several of each, and counts each option against the other filter (DL-206 items 26 to 29)', () => {
+    const view = storesView(documentOf(stocked().state));
+    if (view === null) throw new Error('no view');
+    const shown = (choices: Parameters<typeof faceted<StoresRow, 'kind' | 'where'>>[2]) => faceted(view.rows, view.facets, choices);
+    const keys = (rows: readonly StoresRow[]) => rows.map((row) => row.definitionKey).sort();
 
-    expect(view?.kinds).toEqual([
-      { key: 'weapon', label: 'Weapon', count: 1 },
-      { key: 'armour', label: 'Armour', count: 1 },
-      { key: 'trinket', label: 'Trinket', count: 1 },
-      { key: 'consumable', label: 'Consumable', count: 2 },
+    expect(shown({ kind: ['consumable'] }).rows.every((row) => row.kindKey === 'consumable')).toBe(true);
+    expect(keys(shown({ where: ['carried'] }).rows)).toEqual(['barrow-kings-blade', 'padded-jack']);
+    expect(keys(shown({ kind: ['consumable'], where: ['party'] }).rows)).toEqual(['whetstone']);
+    expect(shown({ kind: ['trinket'], where: ['party'] }).rows).toEqual([]);
+    // Several of a filter: the rows of either.
+    expect(keys(shown({ kind: ['weapon', 'armour'] }).rows)).toEqual(['barrow-kings-blade', 'padded-jack']);
+    expect(keys(shown({ kind: ['trinket'], where: ['held', 'party'] }).rows)).toEqual(['lantern-of-stannary']);
+
+    // Each kind and place the Guild has Items, with how many rows, while nothing is chosen.
+    const whole = shown({});
+    expect(whole.facets.kind).toEqual({
+      label: 'Show of kind',
+      chosen: [],
+      options: [
+        { key: 'weapon', label: 'Weapon', count: 1 },
+        { key: 'armour', label: 'Armour', count: 1 },
+        { key: 'trinket', label: 'Trinket', count: 1 },
+        { key: 'consumable', label: 'Consumable', count: 2 },
+      ],
+    });
+    expect(whole.facets.where).toEqual({
+      label: 'Show where',
+      chosen: [],
+      options: [
+        { key: 'held', label: 'Held', count: 2 },
+        { key: 'carried', label: 'Carried', count: 2 },
+        { key: 'party', label: 'With a Party', count: 1 },
+      ],
+    });
+    // With a place chosen, each kind counts what it would show there; the places, among every kind.
+    const carried = shown({ where: ['carried'] });
+    expect(carried.facets.kind.options.map((option) => [option.key, option.count])).toEqual([
+      ['weapon', 1],
+      ['armour', 1],
+      ['trinket', 0],
+      ['consumable', 0],
     ]);
-    expect(view?.wheres).toEqual([
-      { key: 'held', label: 'Held', count: 2 },
-      { key: 'carried', label: 'Carried', count: 2 },
-      { key: 'party', label: 'With a Party', count: 1 },
-    ]);
+    expect(carried.facets.where.options.map((option) => option.count)).toEqual([2, 2, 1]);
   });
 
   test('says in a sentence how much the Guild owns, and when it owns nothing', () => {
-    expect(storesView(documentOf(stocked().state), all)?.summary).toBe('The Lantern owns 6 Items: 3 held, 2 carried by its Heroes and 1 with its Parties.');
+    expect(storesView(documentOf(stocked().state))?.summary).toBe('The Lantern owns 6 Items: 3 held, 2 carried by its Heroes and 1 with its Parties.');
     const bare = changed(started('stores-bare'), (document) => {
       document.world.items = {};
       document.world.stacks = {};
     });
-    const view = storesView(documentOf(bare), all);
+    const view = storesView(documentOf(bare));
     expect(view?.rows).toEqual([]);
     expect(view?.summary).toBe('The Lantern owns nothing: no Item is held, carried by a Hero or with a Party.');
   });
@@ -177,6 +201,6 @@ describe('storesView (M9-F3)', () => {
     const none = changed(started('stores-none'), (_, player) => {
       player.controller = { kind: 'rival', disposition: 'steady' };
     });
-    expect(storesView(documentOf(none), all)).toBeNull();
+    expect(storesView(documentOf(none))).toBeNull();
   });
 });

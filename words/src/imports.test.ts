@@ -168,4 +168,10 @@ describe('the copies gone', () => {
 
     expect(copies).toEqual([]);
   });
+
+  test("neither front end writes a Transfer's refusals itself: a Guild's reasons and a Hero transferred too lately are the package's (DL-214)", () => {
+    const written = sources.filter((file) => /cannot be transferred again|too small for its appetite|rich enough to hire now/.test(readFileSync(`${root}${file}`, 'utf8')));
+
+    expect(written).toEqual([]);
+  });
 });

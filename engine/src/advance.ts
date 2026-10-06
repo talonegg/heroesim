@@ -5,7 +5,7 @@
 import type { EngineDeps } from './config.js';
 import type { WorldDocument } from './document.js';
 import type { TurnEvent } from './events.js';
-import { append } from './history.js';
+import { record } from './record.js';
 import { ensureModules } from './modules.js';
 import { phaseContext } from './phases/phase.js';
 import { runTurn } from './pipeline.js';
@@ -17,8 +17,9 @@ export interface AdvanceResult {
   /** A new document: a new `world`, the same `meta` and `history`. */
   document: WorldDocument;
   /**
-   * The Turn's events in the order they happened, each also appended to the History: the engine's,
-   * and with a module installed the modules' own (M8-S2, DL-77).
+   * The Turn's events in the order they happened: the engine's, and with a module installed the
+   * modules' own (M8-S2, DL-77). Each is appended to the History but the pool's comings and goings
+   * of a Hero no entry names (`record`, DL-211).
    */
   events: TurnEvent[];
   /**
@@ -36,7 +37,8 @@ export interface AdvanceResult {
  * any core random stream it lacks (`ensureStreams`) and any installed module's stream and slice it
  * lacks (`ensureModules`), advances its Turn by one, runs the pipeline's phases for the new Turn's
  * time of day on the copy under `deps.config`, `deps.content` and `deps.modules`, whose hooks run
- * at their three positions, appends every event to the History through `append`, and
+ * at their three positions, appends the events the History records to it (`record`, DL-211),
+ * removes the row of each Hero who left the pool whom no entry names (data-model rule 8), and
  * returns a document with the new `world` that shares `meta` and `history` with the old one. The
  * old document's `world` is left as it was, its write-once rows frozen and shared with the new one
  * (ADR-0011); its `history` sees the new entries too (ADR-0008).
@@ -60,7 +62,8 @@ export function advance(document: WorldDocument, deps: EngineDeps): AdvanceResul
   world.turn += 1;
   const ctx = phaseContext(world, deps, document.history);
   const events = runTurn(world, ctx);
-  for (const event of events) append(document.history, event);
+  // A Hero who left the pool tonight and whom no entry names goes from the table (data-model rule 8).
+  for (const heroId of record(document.history, events)) delete world.heroes[heroId];
 
   return {
     document: { meta: document.meta, world, history: document.history },

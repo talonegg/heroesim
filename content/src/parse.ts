@@ -96,6 +96,12 @@ export const contentFiles = [
 
 export type ContentFileName = (typeof contentFiles)[number];
 
+/** A Class's optional `icon`, as the field to spread into it (v1.1.7-S6, DL-212); that it is in the set is `validateContent`'s rule. */
+function iconField(row: RowReader): { icon?: string } {
+  const icon = row.optional('icon', (field) => row.string(field));
+  return icon === undefined ? {} : { icon };
+}
+
 /** A row's optional `weight`, as the field to spread into it (v1.1.6-S16, DL-202); that it is above 0 is `validateContent`'s rule. */
 function weightField(row: RowReader): { weight?: number } {
   const weight = row.optional('weight', (field) => row.number(field));
@@ -181,6 +187,7 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
     gatedSkills: row.strings('gatedSkills'),
     growth: row.numbers('growth'),
     ...weightField(row),
+    ...iconField(row),
   }));
   const skills = table<Skill>('skills.json', json('skills.json'), problems, 'a Skill', (row) => ({
     name: row.string('name'),

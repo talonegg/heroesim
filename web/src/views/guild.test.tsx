@@ -85,6 +85,23 @@ describe("the Guild's parts (M9-F2)", () => {
     expect(within(guild()).getByRole('tabpanel', { name: 'Stores' })).toBeDefined();
   });
 
+  test('leave a key held with Alt, Control or Meta to the browser: Alt and the left arrow is Back (DL-213)', () => {
+    render(<App initial={started()} />);
+    const [home] = tabs();
+    if (home === undefined) throw new Error('four tabs wanted');
+    home.focus();
+    for (const held of [{ altKey: true }, { ctrlKey: true }, { metaKey: true }]) {
+      for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End']) {
+        expect(fireEvent.keyDown(home, { key, ...held }), `${key} ${JSON.stringify(held)}`).toBe(true);
+        expect(home.getAttribute('aria-selected')).toBe('true');
+        expect(document.activeElement).toBe(home);
+      }
+    }
+    // The tabs run across: the up and down arrows are the page's, as before.
+    expect(fireEvent.keyDown(home, { key: 'ArrowDown' })).toBe(true);
+    expect(home.getAttribute('aria-selected')).toBe('true');
+  });
+
   test('the part open is remembered in this browser, and the Guild opens at it again', async () => {
     const { unmount } = render(<App initial={started()} />);
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Hall' }));
@@ -126,7 +143,7 @@ describe("the Guild's parts (M9-F2)", () => {
 
     expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
     const home = within(guild()).getByRole('tabpanel', { name: 'Home' });
-    expect(within(home).getByText(/has been below the Bankruptcy floor since Day 0/)).toBeDefined();
+    expect(within(home).getByText(/has been below the Bankruptcy floor since Year 1 Day 1:/)).toBeDefined();
     expect(document.activeElement).toBe(within(guild()).getByRole('heading', { level: 2, name: 'Guild' }));
   });
 
@@ -134,7 +151,7 @@ describe("the Guild's parts (M9-F2)", () => {
     render(<App initial={withWealth(started(), -100, 0)} />);
     const home = within(guild()).getByRole('tabpanel', { name: 'Home' });
 
-    expect(within(home).getByText(/has been below the Bankruptcy floor since Day 0/)).toBeDefined();
+    expect(within(home).getByText(/has been below the Bankruptcy floor since Year 1 Day 1:/)).toBeDefined();
     expect(within(home).queryByText(/^Nothing is waiting on you\./)).toBeNull();
     expect(within(home).getByText(/^Your Guild is below the Bankruptcy floor: see the steps above\. Choose a Party on the Board/)).toBeDefined();
     // The way to the Board stays: a Quest's reward is a way back above the floor.

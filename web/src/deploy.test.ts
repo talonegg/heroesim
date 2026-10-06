@@ -726,19 +726,36 @@ describe('the dry run', () => {
 
 // What a Cloudflare credential looks like written down: an account id (32 hex digits) or a token
 // given a value, in JSON, TOML, YAML or an environment line. The names alone, a placeholder and a
-// `${{ secrets.… }}` reference are not credentials, and the documents name them.
+// `${{ secrets.… }}` reference are not credentials, and the documents name them. The space a pattern
+// allows is a line's (`[^\S\n]`), so that one is matched against a whole file and never spans lines.
 const credentialPatterns: readonly [kind: string, pattern: RegExp][] = [
-  ['an account id', /account[_-]?id["']?\s*[:=]\s*["']?[0-9a-f]{32}(?![0-9a-f])/i],
+  ['an account id', /account[_-]?id["']?[^\S\n]*[:=][^\S\n]*["']?[0-9a-f]{32}(?![0-9a-f])/i],
   [
     'a Cloudflare token or account id given a value',
-    /\b(?:CLOUDFLARE|CF)_(?:API_TOKEN|API_KEY|ACCOUNT_ID)["']?\s*[:=]\s*["']?(?![$<{])[\w-]{8,}/,
+    /\b(?:CLOUDFLARE|CF)_(?:API_TOKEN|API_KEY|ACCOUNT_ID)["']?[^\S\n]*[:=][^\S\n]*["']?(?![$<{])[\w-]{8,}/,
   ],
-  ['an OAuth token given a value', /\b(?:oauth_token|refresh_token)["']?\s*[:=]\s*["'][^"'\s]{16,}/],
-  ['a bearer token', /\bBearer\s+[\w.~+/-]{20,}/],
+  ['an OAuth token given a value', /\b(?:oauth_token|refresh_token)["']?[^\S\n]*[:=][^\S\n]*["'][^"'\s]{16,}/],
+  ['a bearer token', /\bBearer[^\S\n]+[\w.~+/-]{20,}/],
 ];
 
 function credentialsIn(text: string): string[] {
   return credentialPatterns.filter(([, pattern]) => pattern.test(text)).map(([kind]) => kind);
+}
+
+/**
+ * Each credential `text` holds, as `file:line: kind`: each pattern tried once against the whole
+ * text, and the line counted only on a hit, since splitting every file into lines was the scan's
+ * cost (DL-214).
+ */
+function credentialLines(file: string, text: string): string[] {
+  const found: string[] = [];
+  for (const [kind, pattern] of credentialPatterns) {
+    if (!pattern.test(text)) continue;
+    for (const match of text.matchAll(new RegExp(pattern.source, `${pattern.flags}g`))) {
+      found.push(`${file}:${text.slice(0, match.index).split('\n').length}: ${kind}`);
+    }
+  }
+  return found;
 }
 
 describe('the repository holds no deploy credential', () => {
@@ -787,6 +804,46 @@ describe('the repository holds no deploy credential', () => {
     expect(credentialsIn(text)).toEqual([]);
   });
 
+  test("a file's scan names each credential planted in it by its line, and none written across two lines (DL-214)", () => {
+    const planted = [
+      '# The deploy',
+      'CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}',
+      `export CLOUDFLARE_API_TOKEN=${token}`,
+      '',
+      `{"account_id":"${accountId}"}`,
+      'CLOUDFLARE_API_TOKEN:',
+      `  ${token}`,
+      `Authorization: Bearer ${token}`,
+    ].join('\r\n');
+
+    expect(credentialLines('planted.env', planted).sort()).toEqual([
+      'planted.env:3: a Cloudflare token or account id given a value',
+      'planted.env:5: an account id',
+      'planted.env:8: a bearer token',
+    ]);
+    expect(credentialLines('clean.md', 'CLOUDFLARE_API_TOKEN\n')).toEqual([]);
+  });
+
+  test("no pattern's name and value on two lines are a credential, and a kind found on two lines is named on each (DL-214)", () => {
+    const planted = [
+      'account_id =',
+      `"${accountId}"`,
+      'oauth_token:',
+      `"${token}"`,
+      'Authorization: Bearer',
+      `  ${token}`,
+      `{"refresh_token":"${token}"}`,
+      `Bearer ${token}`,
+      `Bearer ${token}`,
+    ].join('\n');
+
+    expect(credentialLines('planted.yml', planted).sort()).toEqual([
+      'planted.yml:7: an OAuth token given a value',
+      'planted.yml:8: a bearer token',
+      'planted.yml:9: a bearer token',
+    ]);
+  });
+
   test('no file holds a Cloudflare token or account id', () => {
     const found: string[] = [];
     for (const file of repositoryFiles()) {
@@ -797,12 +854,7 @@ describe('the repository holds no deploy credential', () => {
         continue; // tracked but deleted in the working tree
       }
       if (bytes.includes(0)) continue; // binary: an image
-      bytes
-        .toString('utf8')
-        .split(/\r?\n/)
-        .forEach((line, index) => {
-          for (const kind of credentialsIn(line)) found.push(`${file}:${index + 1}: ${kind}`);
-        });
+      found.push(...credentialLines(file, bytes.toString('utf8')));
     }
 
     expect(found).toEqual([]);

@@ -15,7 +15,8 @@ import type { HeroId } from '@heroesim/engine';
 import { Fragment, type ReactNode } from 'react';
 import type { RosterColumn, RosterColumnGroup, RosterOrder, RosterRow, RosterSortKey, SortDirection } from '../state/selectors';
 import { PortraitThumb } from './pictures';
-import { Chip, moraleTones, SortHeader, VisuallyHidden } from './ui';
+import { HeroName } from './icons';
+import { Chip, moraleTones, SortHeader, StickyTableBox, VisuallyHidden } from './ui';
 
 /** The id of a Hero's name, which opens their page and takes the keyboard back when it closes: the tiles' and the Table's. */
 export function nameId(heroId: HeroId): string {
@@ -146,7 +147,7 @@ export function RosterTable({
     />
   );
   return (
-    <div className="table-wrap roster-table-wrap">
+    <StickyTableBox className="roster-table-wrap">
       <table className="table table--first-sticky roster-table" aria-label="Heroes on the Roster">
         <thead>
           <tr>
@@ -169,7 +170,7 @@ export function RosterTable({
                 <span className="named">
                   <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />
                   <button type="button" id={nameId(row.heroId)} className="link" onClick={() => onOpen(row.heroId)}>
-                    {row.name}
+                    <HeroName icon={row.classIcon} className={row.className} name={row.name} />
                   </button>
                 </span>
               </th>
@@ -180,7 +181,7 @@ export function RosterTable({
           ))}
         </tbody>
       </table>
-    </div>
+    </StickyTableBox>
   );
 }
 

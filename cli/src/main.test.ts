@@ -362,7 +362,7 @@ describe('show', () => {
     }
   });
 
-  test('guilds marks a folded Guild with the Day it folded, and show lists only the Guilds in play (DL-28, DL-33)', () => {
+  test('guilds marks a folded Guild with the date it folded, and show lists only the Guilds in play (DL-28, DL-33, DL-210)', () => {
     const rivalId = makeId('guilds', 2);
     // Folded as M2-S10's fold leaves a Guild: its Heroes released to the pool, its Roster empty.
     edit((edited) => {
@@ -378,8 +378,8 @@ describe('show', () => {
     const summary = play(['show']);
 
     expect(guilds.code).toBe(exitCodes.ok);
-    expect(rowOf(guilds.out, rivalId)).toMatch(/\s{2}on Day 0$/);
-    expect(rowOf(guilds.out, playerId)).not.toContain('on Day');
+    expect(rowOf(guilds.out, rivalId)).toMatch(/\s{2}on Year 1 Day 1$/);
+    expect(rowOf(guilds.out, playerId)).not.toContain('on Year');
     expect(guilds.out.split('\n')[2]).toMatch(/\s{2}Folded$/);
     expect(summary.out.split('\n').some((line) => line.startsWith(rivalId))).toBe(false);
     expect(rowOf(summary.out, playerId)).toContain('The Test');
@@ -452,7 +452,7 @@ describe('show', () => {
     const run = play(['show', 'board']);
 
     expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toContain(`Board: ${defaultConfig.boardSize} Quests on offer, Turn 0 (Day 0, morning, Year 0)`);
+    expect(run.out).toContain(`Board: ${defaultConfig.boardSize} Quests on offer, Turn 0 (Year 1 Day 1, morning)`);
     const lines = run.out.split('\n');
     const positions = world.board.map((id) => lines.findIndex((line) => line.startsWith(id)));
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
@@ -463,7 +463,8 @@ describe('show', () => {
       expect(row).toContain(content.questTemplates[quest.templateKey]?.name);
       expect(row).toContain(world.patrons[quest.patronId]?.name);
       expect(row).toMatch(new RegExp(`\\s${quest.difficulty}\\s+${quest.durationTurns / 3}\\s+${quest.reward}\\s`));
-      expect(row).toMatch(/Day 2$/);
+      // The last Day on offer: the engine's Day 2, the third.
+      expect(row).toMatch(/\sYear 1 Day 3$/);
     }
   });
 
@@ -690,13 +691,30 @@ describe('show', () => {
     expect(run.code).toBe(exitCodes.ok);
     const name = content.injuries['sprained-ankle']?.name ?? '';
     expect(name).not.toBe('');
-    expect(run.out).toMatch(new RegExp(`^Injury\\s+${name}, healing on the night of Day 13 \\(Turn ${nightOf(13)}\\)$`, 'm'));
+    // The engine's Day 13 is the fourteenth: the date, with the Turn beside it (DL-210).
+    expect(run.out).toMatch(new RegExp(`^Injury\\s+${name}, healing on the night of Year 1 Day 14 \\(Turn ${nightOf(13)}\\)$`, 'm'));
     expect(run.out).not.toContain('sprained-ankle');
 
     edit((edited) => {
       (edited.world.heroes[id] as Hero).injury = { typeKey: 'frostbite-of-the-soul', healsOnTurn: nightOf(13) };
     });
-    expect(play(['show', 'hero', id]).out).toMatch(/^Injury\s+frostbite-of-the-soul, healing on the night of Day 13/m);
+    expect(play(['show', 'hero', id]).out).toMatch(/^Injury\s+frostbite-of-the-soul, healing on the night of Year 1 Day 14/m);
+  });
+
+  test('hero gives the date a Hero died, retired or left the pool, the Turn beside it (DL-206 item 33, DL-210)', () => {
+    // A Hero of the pool, out of play: the three Turns are only read here, never played.
+    const id = (Object.values(document().world.heroes).find((hero) => hero.unattachedSince !== null) as Hero).id;
+    // The engine's Turn 2,198 falls on the night of Year 3 Day 13; Turn 1,079 on the night of the last Day of Year 1.
+    edit((edited) => {
+      Object.assign(edited.world.heroes[id] as Hero, { unattachedSince: null, diedOnTurn: 2_198, retiredOnTurn: 1_079, leftPoolOnTurn: 0 });
+    });
+
+    const run = play(['show', 'hero', id]);
+
+    expect(run.code, run.err).toBe(exitCodes.ok);
+    expect(run.out).toMatch(/^Died\s+Year 3 Day 13 \(Turn 2198\)$/m);
+    expect(run.out).toMatch(/^Retired\s+Year 1 Day 360 \(Turn 1079\)$/m);
+    expect(run.out).toMatch(/^Left the pool\s+Year 1 Day 1 \(Turn 0\)$/m);
   });
 
   test('hero shows a content key the content does not define as it is, with a warning (rule 5)', () => {
@@ -777,7 +795,9 @@ describe('show', () => {
     expect(all.code).toBe(exitCodes.ok);
     expect(all.out).toContain(`History: ${history.entries.length} entries, oldest first`);
     const lines = all.out.split('\n');
-    expect(lines.filter((line) => /^\s*0\s+\S+\.\S+/.test(line))).toHaveLength(history.entries.length);
+    // Each entry's Turn, then its date (DL-206 item 33, DL-210).
+    expect(all.out).toMatch(/^Turn\s+Date\s+Event\s+Milestone\s+Who$/m);
+    expect(lines.filter((line) => /^\s*0 {2}Year 1 Day 1, morning\s+\S+\.\S+/.test(line))).toHaveLength(history.entries.length);
     expect(lines.findIndex((line) => line.includes('world.created'))).toBeLessThan(
       lines.findIndex((line) => line.includes('guild.founded')),
     );
@@ -830,17 +850,17 @@ describe('advance', () => {
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(saved()).toBe(serialise(expected));
-    expect(run.out).toContain('Played 1 Turn. Now Turn 1 (Day 0, afternoon, Year 0).');
-    expect(play(['show']).out).toContain('Seed demo, Turn 1 (Day 0, afternoon, Year 0)');
+    expect(run.out).toContain('Played 1 Turn. Now Turn 1 (Year 1 Day 1, afternoon).');
+    expect(play(['show']).out).toContain('Seed demo, Turn 1 (Year 1 Day 1, afternoon)');
   });
 
-  test('--turns plays that many Turns: three from a new world is the morning of Day 1', () => {
+  test('--turns plays that many Turns: three from a new world is the morning of Year 1 Day 2', () => {
     const run = play(['advance', '--turns', '3']);
 
     expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toContain('Played 3 Turns. Now Turn 3 (Day 1, morning, Year 0).');
+    expect(run.out).toContain('Played 3 Turns. Now Turn 3 (Year 1 Day 2, morning).');
     expect(document().world.turn).toBe(3);
-    expect(play(['show']).out).toContain('Seed demo, Turn 3 (Day 1, morning, Year 0)');
+    expect(play(['show']).out).toContain('Seed demo, Turn 3 (Year 1 Day 2, morning)');
   });
 
   test('refuses a game that has ended, writing nothing', () => {
@@ -852,7 +872,7 @@ describe('advance', () => {
     const run = play(['advance', '--turns', '2']);
 
     expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain('The game ended on Turn 0: bankruptcy');
+    expect(run.err).toContain('The game ended on Year 1 Day 1 (Turn 0): bankruptcy');
     expect(saved()).toBe(original);
   });
 
@@ -881,7 +901,7 @@ describe('advance', () => {
 
   test("prints the Bankruptcy countdown after the Turns while the player's Guild is below the floor, under the save's grace (DL-95)", () => {
     const countdown = (dueDay: number) =>
-      `The Test has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day ${dueDay} ` +
+      `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day ${dueDay + 1} ` +
       'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
     edit((edited) => {
       edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 10 };
@@ -891,28 +911,28 @@ describe('advance', () => {
     const morning = play(['advance']);
     expect(morning.out).not.toContain('Bankruptcy floor');
 
-    // The night of Day 0 finds it below the floor: the line follows the Turns played.
+    // The night of the first Day finds it below the floor: the line follows the Turns played.
     const night = play(['advance']);
     expect(night.code).toBe(exitCodes.ok);
-    expect(night.out.split('\n').slice(0, 2)).toEqual(['Played 1 Turn. Now Turn 2 (Day 0, night, Year 0).', countdown(10)]);
+    expect(night.out.split('\n').slice(0, 2)).toEqual(['Played 1 Turn. Now Turn 2 (Year 1 Day 1, night).', countdown(10)]);
     expect(play(['show']).out.split('\n')[1]).toBe(countdown(10));
 
-    // Wealth back above the floor during Day 1: the countdown stands until that night's check.
+    // Wealth back above the floor during the second Day: the countdown stands until that night's check.
     edit((edited) => {
       (edited.world.guilds[playerId] as Guild).wealth = 1_000;
     });
     // A fast forward, which stops for a decision the next morning, prints it after why it stopped.
     const risen = play(['advance', '--until', 'ended']).out.split('\n');
-    expect(risen[0]).toBe('Played 1 Turn. Now Turn 3 (Day 1, morning, Year 0).');
+    expect(risen[0]).toBe('Played 1 Turn. Now Turn 3 (Year 1 Day 2, morning).');
     expect(risen[1]).toMatch(/^Stopped: a decision is needed: /);
     expect(risen[2]).toBe(countdown(10));
     expect(play(['advance']).out.split('\n')[1]).toBe(countdown(10));
     const cleared = play(['advance']);
-    expect(cleared.out).toContain('Now Turn 5 (Day 1, night, Year 0).');
+    expect(cleared.out).toContain('Now Turn 5 (Year 1 Day 2, night).');
     expect(cleared.out).not.toContain('has been below the Bankruptcy floor');
     // That night's check is heard (M9-S1): the event says so, and the countdown is gone.
     expect(cleared.out).toContain(
-      "The Test's Wealth, 1000, is back to the Bankruptcy floor of 0 or more, after falling below it on Day 0: no Bankruptcy is due.",
+      "The Test's Wealth, 1000, is back to the Bankruptcy floor of 0 or more, after falling below it on Year 1 Day 1: no Bankruptcy is due.",
     );
     expect(play(['show']).out).not.toContain('Bankruptcy floor');
   });
@@ -959,10 +979,13 @@ describe('advance --until: fast forward (M2-S11)', () => {
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(saved()).toBe(serialise(expected.document));
     expect(document().world.turn).toBe(returnsOnTurn);
-    expect(run.out).toContain(`Played ${returnsOnTurn} Turns. Now Turn ${returnsOnTurn} (Day ${dayOf(returnsOnTurn)}, night, Year 0).`);
+    expect(run.out).toContain(`Played ${returnsOnTurn} Turns. Now Turn ${returnsOnTurn} (Year 1 Day ${dayOf(returnsOnTurn) + 1}, night).`);
     expect(run.out).toContain(`Stopped: The Test's Party came home: ${partyId}.`);
     expect(run.out).toContain(`Events: ${expected.events.length}, oldest first`);
     expect(run.out).toContain(`The Test's ${partyId} came home from Guard the caravan (quest-`);
+    // Each event's Turn, then its date (DL-206 item 33, DL-210).
+    expect(run.out).toMatch(/^Turn\s+Date\s+What happened$/m);
+    expect(run.out).toMatch(new RegExp(`^\\s*${returnsOnTurn} {2}Year 1 Day ${dayOf(returnsOnTurn) + 1}, night\\s+The Test's ${partyId} came home`, 'm'));
     // The pool refreshed on the way, and did not stop it: pool-refreshed is opt-in.
     expect(run.out).toContain('joined the Unattached pool.');
   });
@@ -992,7 +1015,7 @@ describe('advance --until: fast forward (M2-S11)', () => {
     const run = play(['advance', '--until', 'decision']);
 
     expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toContain('Now Turn 3 (Day 1, morning, Year 0).');
+    expect(run.out).toContain('Now Turn 3 (Year 1 Day 2, morning).');
     expect(run.out).toMatch(/Stopped: a decision is needed: The Test has no Party out, and could send one on quest-\d{6}.* \(show board\)\./);
   });
 
@@ -1027,13 +1050,13 @@ describe('advance --until: fast forward (M2-S11)', () => {
 
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out.split('\n').slice(0, 3)).toEqual([
-      'Played 2 Turns. Now Turn 2 (Day 0, night, Year 0).',
-      'Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on the night of Day 10 unless its Wealth recovers by then.',
-      'The Test has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day 10 unless Wealth is back to 0 or ' +
+      'Played 2 Turns. Now Turn 2 (Year 1 Day 1, night).',
+      'Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day 11 unless its Wealth recovers by then.',
+      'The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day 11 unless Wealth is back to 0 or ' +
         'more on a night by then, after any Upkeep due.',
     ]);
     expect(run.out).toContain(
-      "The Test's Wealth, -1, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Day 10 unless it is back to 0 or more on a night by then.",
+      "The Test's Wealth, -1, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Year 1 Day 11 unless it is back to 0 or more on a night by then.",
     );
   });
 
@@ -1063,7 +1086,7 @@ describe('advance --until: fast forward (M2-S11)', () => {
     const year = play(['advance', '--until', 'ended']);
 
     expect(year.code, year.err).toBe(exitCodes.ok);
-    expect(year.out).toContain('Played 30 Turns. Now Turn 30 (Day 10, morning, Year 1).');
+    expect(year.out).toContain('Played 30 Turns. Now Turn 30 (Year 2 Day 1, morning).');
     expect(year.out).toContain('Stopped: played the most Turns allowed, 30.');
   });
 
@@ -1076,7 +1099,7 @@ describe('advance --until: fast forward (M2-S11)', () => {
     const run = play(['advance', '--until', 'party-returns', '--max', '5']);
 
     expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain('The game ended on Turn 0: retirement');
+    expect(run.err).toContain('The game ended on Year 1 Day 1 (Turn 0): retirement');
     expect(saved()).toBe(original);
   });
 });
@@ -1116,7 +1139,8 @@ describe('dispatch (M2-S4)', () => {
     expect(saved()).toBe(serialise(expected.document));
     expect(run.out).toContain(`Dispatched ${party.id} from The Test on ${questId}`);
     for (const heroId of heroIds) expect(run.out).toContain(`${before.world.heroes[heroId]?.name} (${heroId})`);
-    expect(run.out).toContain(`returns on the night of Day ${dayOf(party.returnsOnTurn)}, Turn ${party.returnsOnTurn} `);
+    // The night as a date, the Turn beside it (DL-206 item 33, DL-210).
+    expect(run.out).toContain(`it returns on the night of Year 1 Day ${dayOf(party.returnsOnTurn) + 1} (Turn ${party.returnsOnTurn}).`);
     expect(run.out).toContain('Rivals take Quests from the Board each afternoon');
     expect(play(['show', 'board']).out).not.toContain(questId);
   });
@@ -1139,7 +1163,7 @@ describe('dispatch (M2-S4)', () => {
     for (const argv of actions) {
       const run = play(argv);
       expect(run.code, argv[0]).toBe(exitCodes.refused);
-      expect(run.err).toContain('The game ended on Turn 0: retirement. Nothing more can be done in it.');
+      expect(run.err).toContain('The game ended on Year 1 Day 1 (Turn 0): retirement. Nothing more can be done in it.');
       expect(saved()).toBe(original);
     }
 
@@ -1274,6 +1298,117 @@ describe('dispatch (M2-S4)', () => {
   });
 });
 
+describe("every date under the save's own calendar, not this release's (DL-210)", () => {
+  // A Year of two Days, so that a date past the second Day is in another Year than this release's
+  // 1,080-Turn year would give: each line read by the default calendar instead fails.
+  const turnsPerYear = 6;
+  const dateIn = (turn: number): string => `Year ${Math.floor(turn / turnsPerYear) + 1} Day ${Math.floor((turn % turnsPerYear) / 3) + 1}`;
+
+  beforeEach(() => {
+    newDemo();
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, turnsPerYear };
+    });
+  });
+
+  test('show: a fold, a death, an Injury and the Board', () => {
+    const rivalId = makeId('guilds', 2);
+    const heroId = makeId('heroes', 1);
+    const pooled = (Object.values(document().world.heroes).find((hero) => hero.unattachedSince !== null) as Hero).id;
+    edit((edited) => {
+      const rival = edited.world.guilds[rivalId] as Guild;
+      for (const id of rival.rosterIds) Object.assign(edited.world.heroes[id] as Hero, { guildId: null, unattachedSince: 0 });
+      rival.rosterIds = [];
+      rival.foldedOnTurn = 13;
+      Object.assign(edited.world.heroes[pooled] as Hero, { unattachedSince: null, diedOnTurn: 13 });
+      (edited.world.heroes[heroId] as Hero).injury = { typeKey: 'sprained-ankle', healsOnTurn: nightOf(3) };
+    });
+
+    expect(rowOf(play(['show', 'guilds']).out, rivalId)).toMatch(/\s{2}on Year 3 Day 1$/);
+    expect(play(['show', 'hero', pooled]).out).toMatch(/^Died\s+Year 3 Day 1 \(Turn 13\)$/m);
+    expect(play(['show', 'hero', heroId]).out).toMatch(/healing on the night of Year 2 Day 2 \(Turn 11\)$/m);
+    const board = play(['show', 'board']);
+    for (const questId of document().world.board) {
+      const { expiresOnTurn } = document().world.quests[questId] as Quest;
+      expect(expiresOnTurn).toBeGreaterThanOrEqual(turnsPerYear);
+      expect(rowOf(board.out, questId)).toMatch(new RegExp(`\\s${dateIn(expiresOnTurn)}$`));
+    }
+  });
+
+  test('advance: the stop, the countdown, the events with their dates and the History', () => {
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 10 };
+      (edited.world.guilds[playerId] as Guild).wealth = -1;
+    });
+    // The engine's Day 10, the night the Bankruptcy falls on: Turn 32, in the sixth Year of two Days.
+    const due = 'the night of Year 6 Day 1';
+
+    const stopped = play(['advance', '--until', 'pool-refreshed']);
+
+    expect(stopped.out.split('\n').slice(0, 3)).toEqual([
+      'Played 2 Turns. Now Turn 2 (Year 1 Day 1, night).',
+      `Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on ${due} unless its Wealth recovers by then.`,
+      `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on ${due} unless Wealth is back to 0 or ` +
+        'more on a night by then, after any Upkeep due.',
+    ]);
+    expect(stopped.out).toContain(`fell below the Bankruptcy floor of 0: Bankruptcy on ${due} unless it is back to 0 or more on a night by then.`);
+
+    const played = play(['advance', '--turns', '5']);
+
+    expect(played.out).toContain('Played 5 Turns. Now Turn 7 (Year 2 Day 1, afternoon).');
+    expect(played.out).toMatch(/^\s*6 {2}Year 2 Day 1, morning\s+\S/m);
+    expect(play(['show', 'history']).out).toMatch(/^\s*6 {2}Year 2 Day 1, morning\s+\S/m);
+  });
+
+  test('the game ended: in advance, and in the refusal after it', () => {
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 3 };
+      (edited.world.guilds[playerId] as Guild).wealth = -1_000_000;
+    });
+
+    // Played Turn by Turn, as --turns plays, past every stop: the game ends within them.
+    const ended = play(['advance', '--turns', '20']);
+
+    // Three Days' grace from the engine's Day 0: the night of its Day 3, Turn 11, the second Day of the second Year.
+    expect(ended.out).toContain('The game ended on Year 2 Day 2 (Turn 11): bankruptcy.');
+    expect(play(['advance']).err).toContain('The game ended on Year 2 Day 2 (Turn 11): bankruptcy.');
+  });
+
+  // The calendar is the one the save plays under, its `meta.config` checked and filled forward
+  // (`playDeps`, DL-186 item 12), never the raw `meta.config` (the review, DL-210): a save that lacks
+  // the setting reads this release's Year in every line, as its rules do.
+  test("a save that lacks turnsPerYear: this release's Year, filled forward, in the stop and the refusal", () => {
+    edit((edited) => {
+      const config: Record<string, unknown> = { ...edited.meta.config, bankruptcyGraceDays: 3 };
+      delete config['turnsPerYear'];
+      edited.meta.config = config as unknown as WorldDocument['meta']['config'];
+      (edited.world.guilds[playerId] as Guild).wealth = -1_000_000;
+    });
+
+    expect(play(['advance', '--until', 'pool-refreshed']).out).toContain('Bankruptcy on the night of Year 1 Day 4 unless its Wealth recovers by then.');
+    expect(document().meta.config).not.toHaveProperty('turnsPerYear');
+    expect(play(['advance', '--turns', '20']).out).toContain('The game ended on Year 1 Day 4 (Turn 11): bankruptcy.');
+    expect(play(['advance']).err).toContain('The game ended on Year 1 Day 4 (Turn 11): bankruptcy.');
+  });
+
+  test("dispatch: the Party's return", () => {
+    const { world } = document();
+    const roster = world.guilds[playerId]?.rosterIds ?? [];
+    const questId = world.board.find((id) => {
+      const { requirements } = world.quests[id] as Quest;
+      return requirements.classKey === undefined && requirements.skillKey === undefined;
+    }) as QuestId;
+    const heroIds = roster.slice(0, (world.quests[questId] as Quest).requirements.partySizeMin);
+
+    const run = play(['dispatch', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    const party = Object.values(document().world.parties)[0];
+    if (party === undefined) throw new Error(`No Party: ${run.err}`);
+    expect(party.returnsOnTurn).toBeGreaterThanOrEqual(turnsPerYear);
+    expect(run.out).toContain(`it returns on the night of ${dateIn(party.returnsOnTurn)} (Turn ${party.returnsOnTurn}).`);
+  });
+});
+
 describe('rebase', () => {
   const adopted = (): number => count(document().history, 'world.rules-adopted');
 
@@ -1296,7 +1431,7 @@ describe('rebase', () => {
       edited.meta.config.turnsPerYear = 3;
     });
 
-    expect(play(['advance', '--turns', '3']).out).toContain('Now Turn 3 (Day 1, morning, Year 1).');
+    expect(play(['advance', '--turns', '3']).out).toContain('Now Turn 3 (Year 2 Day 1, morning).');
     expect(document().meta.config.turnsPerYear).toBe(3);
 
     const run = play(['rebase']);
@@ -1306,8 +1441,8 @@ describe('rebase', () => {
     expect(document().meta.config).toEqual(defaultConfig);
     expect(document().meta.configVersion).toBe(configVersion);
     expect(adopted()).toBe(1);
-    expect(play(['show']).out).toContain('Turn 3 (Day 1, morning, Year 0)');
-    expect(play(['show', 'history']).out).toMatch(/^\s*3\s+world\.rules-adopted\s+Yes/m);
+    expect(play(['show']).out).toContain('Turn 3 (Year 1 Day 2, morning)');
+    expect(play(['show', 'history']).out).toMatch(/^\s*3 {2}Year 1 Day 2, morning\s+world\.rules-adopted\s+Yes/m);
 
     expect(play(['rebase']).code).toBe(exitCodes.refused);
     expect(adopted()).toBe(1);
@@ -1457,7 +1592,7 @@ describe('save and load', () => {
 });
 
 describe('--modules: the test-only probe on new, advance and load (M8-S4)', () => {
-  /** A seed on which the probe fires on the eleventh Turn, the night of Day 3: its stream's first draw below 0.02. */
+  /** A seed on which the probe fires on the eleventh Turn, the night of Year 1 Day 4: its stream's first draw below 0.02. */
   const firingSeed = 'modules';
   const withProbe = { config: defaultConfig, content, modules: [probe] };
 
@@ -1499,7 +1634,7 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(saved()).toBe(serialise(expected));
     expect(fired.turn).toBe(11);
-    const line = narrateLine(fired, content);
+    const line = narrateLine(fired, content, expected.meta.config);
     expect(line).toMatch(/^The probe Module recorded probe\.fired for .+ \(hero-\d{6}\), .+\.$/);
     const lines = run.out.split('\n');
     const at = lines.findIndex((text) => text.endsWith(line));
@@ -1513,7 +1648,7 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
 
   test('advance --turns stops early when the probe asks to stop, and says so (DL-77 item 6)', () => {
     newWithProbe();
-    // The engine's own Turns with the probe installed, to its first stop: the afternoon of Day 30.
+    // The engine's own Turns with the probe installed, to its first stop: the afternoon of Year 1 Day 31.
     let expected = document();
     let stoppedBecause = null;
     while (stoppedBecause === null) {
@@ -1529,7 +1664,7 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
     expect([turn, dayOf(turn)]).toEqual([91, 30]);
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(saved()).toBe(serialise(expected));
-    expect(run.out).toContain(`Played ${turn} Turns. Now Turn ${turn} (Day 30, afternoon, Year 0).`);
+    expect(run.out).toContain(`Played ${turn} Turns. Now Turn ${turn} (Year 1 Day 31, afternoon).`);
     expect(run.out).toContain('Stopped: the probe Module asked to stop.');
   });
 

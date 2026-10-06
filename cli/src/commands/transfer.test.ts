@@ -191,8 +191,26 @@ describe('transfer (M6-S2)', () => {
     const back = play(['transfer', '--hero', heroId, '--to', reckless]);
 
     expect(back.code).toBe(exitCodes.refused);
-    expect(back.err).toContain(`${heroOf(before.world, heroId).name} (${heroId}) was transferred on Day 0 and cannot be transferred again before Day 30.`);
+    expect(back.err).toContain(`${heroOf(before.world, heroId).name} (${heroId}) was transferred on Year 1 Day 1 and cannot be transferred again before Year 1 Day 31.`);
     expect(readFileSync(current(), 'utf8')).toBe(saved);
+  });
+
+  test("the lock's dates are the save's own calendar's, not this release's (DL-210)", () => {
+    const before = newWorld((world) => {
+      thePlayer(world).wealth = 10_000;
+    });
+    // A Year of two Days: the engine's Day 30, the lock's end, falls on the first Day of the sixteenth Year.
+    const pinned = document();
+    pinned.meta.config.transferLockDays = 30;
+    pinned.meta.config.turnsPerYear = 6;
+    writeFileSync(current(), serialise(pinned));
+    const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
+    expect(play(['transfer', '--hero', heroId, '--in']).code).toBe(exitCodes.ok);
+
+    const back = play(['transfer', '--hero', heroId, '--to', reckless]);
+
+    expect(back.code).toBe(exitCodes.refused);
+    expect(back.err).toContain(`(${heroId}) was transferred on Year 1 Day 1 and cannot be transferred again before Year 16 Day 1.`);
   });
 });
 
@@ -220,7 +238,7 @@ describe('Transfer Offers (M6-S2)', () => {
     const shown = play(['show', 'offers']);
     expect(shown.code).toBe(exitCodes.ok);
     expect(shown.out).toContain("Transfer Offers for The Test's Heroes: 1. Answer with accept --offer <id> or decline --offer <id>.");
-    expect(shown.out).toMatch(new RegExp(`${offerId}\\s+${rivalName}\\s+${name} \\(${heroId}\\)\\s+${fee}\\s+Turn 8 \\(Day 2, night`));
+    expect(shown.out).toMatch(new RegExp(`${offerId}\\s+${rivalName}\\s+${name} \\(${heroId}\\)\\s+${fee}\\s+Turn 8 \\(Year 1 Day 3, night\\)`));
 
     const declined = play(['decline', '--offer', offerId]);
     expect(declined).toMatchObject({ code: exitCodes.ok, err: '' });
@@ -276,7 +294,7 @@ describe('Transfer Offers (M6-S2)', () => {
 
     const [offer] = Object.values(document().world.offers);
     if (offer === undefined) throw new Error('No offer was made');
-    expect(stop).toMatch(new RegExp(`^Stopped: a Transfer Offer: .+ offers ${offer.fee} Wealth for .+ \\(${offer.heroId}\\) until the night of Day \\d+ \\(${offer.id}\\)\\. Answer with accept --offer <id> or decline --offer <id> \\(show offers\\)\\.$`));
+    expect(stop).toMatch(new RegExp(`^Stopped: a Transfer Offer: .+ offers ${offer.fee} Wealth for .+ \\(${offer.heroId}\\) until the night of Year 1 Day \\d+ \\(${offer.id}\\)\\. Answer with accept --offer <id> or decline --offer <id> \\(show offers\\)\\.$`));
     expect(play(['show', 'offers']).out).toContain(offer.id);
   });
 });

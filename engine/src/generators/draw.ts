@@ -63,11 +63,31 @@ export function pickByWeight<Row extends { weight?: number }>(state: Stream, row
  * shuffle, and the last round is cut short (DL-19 item 7). One shuffle per round begun.
  */
 export function dealEvenly<T>(state: Stream, items: readonly T[], count: number): T[] {
-  if (!Number.isSafeInteger(count) || count < 0) throw new RangeError(`Cannot deal ${count} items`);
-  if (count > 0 && items.length === 0) throw new RangeError(`Cannot deal ${count} items from none`);
+  checkDeal(items, count);
   const dealt: T[] = [];
   while (dealt.length < count) dealt.push(...shuffle(state, items).slice(0, count - dealt.length));
   return dealt;
+}
+
+/**
+ * `count` of `rows`, dealt by their weights (DL-206 item 1, DL-208): a Guild's starting Roster's
+ * Classes and the Patrons' Spheres at creation. With every weight 1, which is every row's when none
+ * has a `weight`, the deal is `dealEvenly`'s, the same draws in the same order, so every Class once
+ * before any twice (DL-19 item 7) and a world the same as an even deal makes it (DL-208). With any
+ * other weight, each place is drawn by `pickByWeight`, one draw each, so a row weighted 0 is never
+ * dealt while another is above 0 (with every weight 0 the draw is `weightedPick`'s uniform one;
+ * content refuses a weight of 0, DL-202) and the even deal's "once before any twice" does not hold.
+ */
+export function dealByWeight<Row extends { weight?: number }>(state: Stream, rows: readonly Row[], count: number): Row[] {
+  if (rows.every((row) => weightOf(row) === 1)) return dealEvenly(state, rows, count);
+  checkDeal(rows, count);
+  return Array.from({ length: count }, () => pickByWeight(state, rows));
+}
+
+/** Throws unless `count` items can be dealt from `items`: a whole number from 0, and some to deal from. */
+function checkDeal(items: readonly unknown[], count: number): void {
+  if (!Number.isSafeInteger(count) || count < 0) throw new RangeError(`Cannot deal ${count} items`);
+  if (count > 0 && items.length === 0) throw new RangeError(`Cannot deal ${count} items from none`);
 }
 
 /**
