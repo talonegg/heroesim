@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
+import { turnsPerDay } from '@heroesim/engine';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { closeGameMenu, dispatchAParty, expectNoHorizontalOverflow, openGameMenu, openView, part, playTurns, startGame, statusBar, thisGame } from './support';
 
@@ -15,10 +16,8 @@ import { closeGameMenu, dispatchAParty, expectNoHorizontalOverflow, openGameMenu
 
 /** The Turns in a step of fast forward: `fastForwardStepTurns` (`web/src/state/reducer.ts`). */
 const stepTurns = 30;
-/** A year of Turns: the default config's `turnsPerYear`, the cap a fast forward plays under. */
-const yearTurns = 1080;
-
 interface SaveFile {
+  meta: { config: { turnsPerYear: number } };
   world: {
     turn: number;
     guilds: Record<string, { controller: { kind: string }; rosterIds: string[]; wealth: number }>;
@@ -26,8 +25,12 @@ interface SaveFile {
   };
 }
 
-/** Exports the game in hand and writes it back with the player's Roster released and Wealth to spare: a year of Turns with no stop. */
-async function aYearWithNoStop(page: Page, testInfo: TestInfo): Promise<string> {
+/**
+ * Exports the game in hand and writes it back with the player's Roster released and Wealth to spare:
+ * a year of Turns with no stop. Gives the file and the game's `turnsPerYear`, the cap a fast forward
+ * plays under and the length of its Year.
+ */
+async function aYearWithNoStop(page: Page, testInfo: TestInfo): Promise<{ path: string; turnsPerYear: number }> {
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     (await thisGame(page)).getByRole('button', { name: 'Export this game' }).click(),
@@ -46,7 +49,7 @@ async function aYearWithNoStop(page: Page, testInfo: TestInfo): Promise<string> 
   player.wealth = 1_000_000;
   const made = testInfo.outputPath('a-year.json');
   writeFileSync(made, JSON.stringify(save));
-  return made;
+  return { path: made, turnsPerYear: save.meta.config.turnsPerYear };
 }
 
 /** Records, in the page, each text the progress shows, from now on, in order. */
@@ -67,19 +70,24 @@ async function progressSeen(page: Page): Promise<string[]> {
 
 /**
  * The Turns played and the Day reached, as the progress says them: the Day counted from 0 across
- * Years of 360 Days, as the engine counts it, from the date a player reads (DL-210).
+ * Years of `turnsPerYear` Turns, as the engine counts it, from the date a player reads (DL-210).
  */
-function readProgress(text: string): { turns: number; day: number } {
+function readProgress(text: string, turnsPerYear: number): { turns: number; day: number } {
   const match = /^Played (\d+) Turns? so far\. Now Year (\d+) Day (\d+), \w+\.$/.exec(text);
   if (match === null) throw new Error(`not a progress: ${text}`);
-  return { turns: Number(match[1]), day: (Number(match[2]) - 1) * 360 + Number(match[3]) - 1 };
+  return { turns: Number(match[1]), day: (Number(match[2]) - 1) * (turnsPerYear / turnsPerDay) + Number(match[3]) - 1 };
+}
+
+/** `Year 2 Day 45`: the date of `turn` in Years of `turnsPerYear` Turns, counted here apart from the page's. */
+function dateIn(turn: number, turnsPerYear: number): string {
+  return `Year ${Math.floor(turn / turnsPerYear) + 1} Day ${Math.floor((turn % turnsPerYear) / turnsPerDay) + 1}`;
 }
 
 test('a year of fast forward shows its progress Day by Day, and a Stop ends it within a step', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   await page.goto('/');
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-fast-forward' });
-  const save = await aYearWithNoStop(page, testInfo);
+  const { path: save, turnsPerYear: yearTurns } = await aYearWithNoStop(page, testInfo);
   await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(save);
   await expect(page.getByTestId('time')).toHaveText('Year 1 Day 1, morning');
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
@@ -98,15 +106,15 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   await expect(stop.locator('p')).toHaveText(`Stopped: played the most Turns allowed, ${yearTurns}.`, { timeout: 60_000 });
   testInfo.annotations.push({ type: 'a year of fast forward', description: `${Date.now() - started} ms` });
   await expect(page.getByTestId('progress')).toHaveCount(0);
-  await expect(page.getByTestId('time')).toHaveText('Year 2 Day 1, morning');
-  const seen = (await progressSeen(page)).map(readProgress);
+  await expect(page.getByTestId('time')).toHaveText(`${dateIn(yearTurns, yearTurns)}, morning`);
+  const seen = (await progressSeen(page)).map((text) => readProgress(text, yearTurns));
   const days = new Set(seen.map((progress) => progress.day));
   expect(days.size, `the progress seen: ${JSON.stringify(seen)}`).toBeGreaterThanOrEqual(2);
   // Each is a whole number of steps, a step's Days on from the Day the year began.
   for (const progress of seen) {
     expect(progress.turns % stepTurns).toBe(0);
     expect(progress.turns).toBeLessThan(yearTurns);
-    expect(progress.day).toBe(progress.turns / 3);
+    expect(progress.day).toBe(progress.turns / turnsPerDay);
   }
 
   // Again, stopped midway: the Turns it played are those the progress showed as Stop was taken, or one step more.
@@ -126,7 +134,7 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
     return { text, stopShown, exportDisabled };
   });
   expect(shown).toMatchObject({ stopShown: false, exportDisabled: true });
-  const before = readProgress(shown.text);
+  const before = readProgress(shown.text, yearTurns);
   await expect(stop.locator('p')).toHaveText(/^Stopped: you asked to stop, after \d+ Turns\.$/);
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   const sentence = (await stop.locator('p').textContent()) ?? '';
@@ -136,7 +144,7 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   expect(stoppedAfter).toBeLessThan(yearTurns);
   // The game as that step left it: a year and the Turns played since.
   const turn = yearTurns + stoppedAfter;
-  await expect(page.getByTestId('time')).toHaveText(`Year 2 Day ${turn / 3 - 360 + 1}, morning`);
+  await expect(page.getByTestId('time')).toHaveText(`${dateIn(turn, yearTurns)}, morning`);
   await expect(page.getByTestId('progress')).toHaveCount(0);
   await expect(stop.getByRole('button', { name: 'Fast forward again' })).toBeEnabled();
   await expect(time.getByRole('button', { name: 'Advance a Turn' })).toBeEnabled();

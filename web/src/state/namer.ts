@@ -19,13 +19,14 @@
 
 import { entriesFor, type ContentSet, type EngineEventOf, type QuestId, type TableName, type TurnEvent, type WorldDocument } from '@heroesim/engine';
 import { capitalised, nameIn, narrate, resolvedParts, type Calendar, type NameSlot, type Namer, type Sentence } from '@heroesim/words';
+import { calendarFor } from './reducer';
 
 /** What a sentence reads beyond its event: content's names, a Quest's name by its id, and the game's calendar. */
 export interface Narration {
   content: ContentSet;
   /** A Quest's name: its template's, while the world or its History knows it. */
   questName: (questId: QuestId) => string;
-  /** The game's calendar, `meta.config`, for a sentence's dates, `the night of Year 1 Day 8` (DL-210). */
+  /** The game's calendar, `calendarFor`'s, for a sentence's dates, `the night of Year 1 Day 8` (DL-210). */
   calendar: Calendar;
 }
 
@@ -171,5 +172,5 @@ export function questNamer(document: WorldDocument, content: ContentSet): (quest
 
 /** The narration for `document`: its content's names, its Quests' names and its calendar. */
 export function narrationFor(document: WorldDocument, content: ContentSet): Narration {
-  return { content, questName: questNamer(document, content), calendar: document.meta.config };
+  return { content, questName: questNamer(document, content), calendar: calendarFor(document) };
 }

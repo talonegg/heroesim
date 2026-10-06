@@ -1,13 +1,14 @@
-// @heroesim/words: the words the CLI, the page and the tools share (v1.1.6-S11, DL-186 item 1), so
-// that the copies that drifted ("an offer" and "an Offer") are one. It runs in a browser as well as on
+// @heroesim/words: the words the CLI, the page and the tools share (DL-186 item 1, DL-197), so that
+// one thing reads one way in both ("an Offer", never "an offer"). It runs in a browser as well as on
 // Node: it imports the engine's types and values by name and nothing else of ours, no Node built-in and
 // no React (eslint.config.js, `src/imports.test.ts`). Words only; no rule: every reason, band and
 // effect it words is the engine's.
 //
-// The shared tables came in v1.1.6-S11; the narration, behind a Namer seam that fills each name for
-// the CLI or the page, and the Quest review's page, which the harness and the tools may read, in
-// v1.1.6-S12. A Stat's breakdown, the engine's `statBreakdown`, in words in v1.1.6-S13. A date as a
-// player reads it, `Year 2 Day 45`, the Year and the Day counted from 1 (DL-210).
+// It holds the shared tables (DL-197); the narration, behind a Namer seam that fills each name for the
+// CLI or the page, why time stopped among it (DL-198, DL-209); the Quest review's page, which the
+// harness and the tools may read (DL-198); a Stat's breakdown, the engine's `statBreakdown`, in words
+// (DL-199); and a date as a player reads it, `Year 2 Day 45`, the Year and the Day counted from 1
+// (DL-210).
 
 export { gearUnavailableWords, unavailableChipWords, unavailableWords } from './availability.js';
 export {

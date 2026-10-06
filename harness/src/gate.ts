@@ -11,10 +11,10 @@
 // set on the spec's run, 50 games of 20 years: on a run of another shape (the `neutral` profile's 10, a
 // short trial) they read "not comparable", neither passing nor failing. The Traits a career and the
 // save's uncompressed size are the report's to print, not the Gate's to hold (the owner's answers,
-// DL-188). The copy's line (v1.1.6-S17, the owner's answer 3 in DL-203; restated as a share by the
-// owner's answer in DL-206 item 17) holds the mean of the copy times the sweep took as each year ended
-// over the mean of `advance`, within `growth` of its baseline share; a run with no copy times or no
-// `advance` times reads "not comparable".
+// DL-188). The copy's line holds the mean of the copy times the sweep took as each year ended over the
+// mean of `advance`, within `growth` of its baseline share, a share so that the machine's speed cancels
+// (the owner's answers, DL-203 answer 3 and DL-206 item 17); a run with no copy times or no `advance`
+// times reads "not comparable".
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -53,7 +53,7 @@ export interface GateSpec {
     /**
      * The per-Turn copy's share of a Turn: the mean time of `copyWorld` (timed as each year ended) over
      * the mean time of `advance`, at most `baselineShare × (1 + growth)`. A share, not milliseconds, so
-     * the machine's speed cancels (v1.1.6-S17, DL-203; restated by DL-206 item 17).
+     * the machine's speed cancels (DL-203, DL-206 item 17).
      */
     copyShare: { growth: number; baselineShare: number; source: string };
   };
@@ -152,6 +152,32 @@ const mebibyte = 1024 * 1024;
 const yearsOf = (n: number): string => `${n} ${n === 1 ? 'year' : 'years'}`;
 const mean = (values: readonly number[]): number => (values.length === 0 ? Number.NaN : values.reduce((sum, n) => sum + n, 0) / values.length);
 
+/** A number as `fixed` printed it, read back. */
+const shownAs = (text: string): number => Number(text.replaceAll(',', ''));
+
+/** The copy's limit to the fewest places, from 3, that print it as it is applied: `0.31625`, not `0.316` (DL-207). */
+function limitText(most: number): string {
+  for (let digits = 3; digits <= 12; digits += 1) {
+    const text = fixed(most, digits);
+    if (Math.abs(shownAs(text) - most) <= 1e-12) return text;
+  }
+  return String(most);
+}
+
+/**
+ * A share to the fewest places, from 4, at which it reads as it was judged against the limit printed,
+ * `limit`: a failing share above it, a passing one at or under it, so that no failing share prints as
+ * its limit (DL-207).
+ */
+function shareText(share: number, most: number, limit: string): string {
+  const pass = share <= most;
+  for (let digits = 4; digits <= 12; digits += 1) {
+    const text = fixed(share, digits);
+    if ((shownAs(text) <= shownAs(limit)) === pass) return text;
+  }
+  return String(share);
+}
+
 /** Every copy timed as the years ended, over the games: the per-Turn copy's time (v1.1.6-S17, DL-203). */
 export function copyTimes(worlds: readonly WorldYear[]): number[] {
   return worlds.flatMap((year) => year.copyMs);
@@ -205,19 +231,34 @@ export function checkGate(spec: GateSpec, run: RunReport, expect: string | null 
     const meanMiB = mean(gzipped) / mebibyte;
     return { pass: meanMiB < saveGzipped.meanMiB, measured: `mean ${fixed(meanMiB, 2)} MiB, max ${fixed(Math.max(...gzipped) / mebibyte, 2)} MiB, over ${whole(gzipped.length)} games` };
   });
-  // A report from before v1.1.6-S17 has no copy times; a run with none, or with no `advance` timed, has no share to read.
+  // A run with no copy times, or no `advance` mean above 0, has no share to read: the line names the half
+  // missing and prints the half measured (DL-207).
   const copies = copyTimes(totals.worlds ?? []);
-  const advanceMean = run.timings.advance.count > 0 ? run.timings.advance.mean : Number.NaN;
+  const copyMean = mean(copies);
+  const copied = copies.length === 0 ? null : `copy mean ${fixed(copyMean, 3)} ms over ${whole(copies.length)} copies`;
+  const advance = run.timings.advance;
+  const advanced = advance.count > 0 && Number.isFinite(advance.mean) ? `advance mean ${fixed(advance.mean, 3)} ms` : null;
   const copyLine = "The per-Turn copy's share of a Turn";
   const most = copyShare.baselineShare * (1 + copyShare.growth);
-  const copyLimit = `share at most ${fixed(most, 3)} (${fixed(copyShare.baselineShare, 3)} + ${fixed(copyShare.growth * 100, 0)}%)`;
-  if (copies.length === 0 || !Number.isFinite(advanceMean) || advanceMean <= 0) {
-    checked.push({ line: copyLine, verdict: 'not comparable', measured: 'copy or advance times not measured', limit: copyLimit, source: copyShare.source });
+  const mostText = limitText(most);
+  const copyLimit = `share at most ${mostText} (${fixed(copyShare.baselineShare, 3)} + ${fixed(copyShare.growth * 100, 0)}%)`;
+  const unread =
+    copied === null
+      ? advanced === null
+        ? 'copy and advance times not measured'
+        : `copy times not measured; ${advanced}`
+      : advanced === null
+        ? `advance times not measured; ${copied}`
+        : advance.mean <= 0
+          ? `${advanced}, no share to read; ${copied}`
+          : null;
+  if (unread !== null) {
+    checked.push({ line: copyLine, verdict: 'not comparable', measured: unread, limit: copyLimit, source: copyShare.source });
   } else {
-    const share = mean(copies) / advanceMean;
+    const share = copyMean / advance.mean;
     band(copyLine, copyLimit, copyShare.source, () => ({
       pass: share <= most,
-      measured: `share ${fixed(share, 3)}: copy mean ${fixed(mean(copies), 3)} ms over ${whole(copies.length)} copies, advance mean ${fixed(advanceMean, 3)} ms`,
+      measured: `share ${shareText(share, most, mostText)}: ${copied}, ${advanced}`,
     }));
   }
   return { pass: checked.every((it) => it.verdict !== 'fail'), status: spec.status, lines: checked };

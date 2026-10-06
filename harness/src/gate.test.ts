@@ -46,8 +46,8 @@ describe("the Gate's spec", () => {
     expect(spec.run).toMatchObject({ games: 50, years: 20 });
     expect(spec.baseline.fingerprint).toBe('e7ae171001c2c885586893b760678089a7400672568c0f53fa83713e6369f369');
     expect(Object.keys(spec.lines)).toEqual(['refusals', 'invalid', 'stopped', 'unfinished', 'roundTrips', 'replay', 'playerBankruptcies', 'saveGzipped', 'copyShare']);
-    // The owner's answer 3 (DL-203), restated as a share of a Turn (DL-206 item 17): the copy's share
-    // at most 25% over its baseline, 0.847 ms over 3.346 ms at S17's full gate.
+    // The owner's answers (DL-203 answer 3, DL-206 item 17): the copy's share of a Turn at most 25%
+    // over its baseline, 0.847 ms over 3.346 ms at S17's full gate.
     expect(spec.lines.copyShare).toMatchObject({ growth: 0.25, baselineShare: 0.253 });
     expect(spec.lines.playerBankruptcies.max).toBe(3);
     expect(spec.lines.saveGzipped.meanMiB).toBe(30);
@@ -101,7 +101,7 @@ describe('a run checked against the Gate, line by line', () => {
       ["The per-Turn copy's share of a Turn", 'pass'],
     ]);
     expect(result.lines.at(-1)).toMatchObject({
-      measured: 'share 0.238: copy mean 0.950 ms over 2 copies, advance mean 4.000 ms',
+      measured: 'share 0.2375: copy mean 0.950 ms over 2 copies, advance mean 4.000 ms',
       limit: 'share at most 0.250 (0.200 + 25%)',
     });
     // The mean is held, not every save: one of the two above 30 MiB passes (DL-188).
@@ -140,17 +140,42 @@ describe('a run checked against the Gate, line by line', () => {
   });
 
   // v1.1.7-S1 (DL-206 item 17): the copy's share of a Turn, the baseline S17's full gate measured,
-  // 0.847 ms over 3.346 ms, 0.253, read from the shipped spec; a run at its limit, 0.316, passes, one
+  // 0.847 ms over 3.346 ms, 0.253, read from the shipped spec; a run at its limit, 0.31625, passes, one
   // over it fails.
   test("the shipped spec's copy line holds the full gate's baseline share and reads it", () => {
     expect(spec.lines.copyShare.baselineShare).toBe(0.253);
     expect(0.847 / 3.346).toBeCloseTo(0.253, 3);
     const shipped: GateSpec = { ...spec, run: shaped.run };
     const copyLine = (copyMs: number[]) => checkGate(shipped, passing((run) => ((run.totals.worlds[0] as { copyMs: number[] }).copyMs = copyMs))).lines.at(-1);
-    // `advance`'s mean is 4 ms: the limit, 0.31625, is a copy of 1.265 ms.
-    expect(copyLine([1.265, 1.265])).toMatchObject({ verdict: 'pass', limit: 'share at most 0.316 (0.253 + 25%)' });
+    // `advance`'s mean is 4 ms: the limit, 0.31625, is a copy of 1.265 ms, printed as it is applied.
+    expect(copyLine([1.265, 1.265])).toMatchObject({ verdict: 'pass', limit: 'share at most 0.31625 (0.253 + 25%)' });
+    expect(copyLine([1.265, 1.265])?.measured).toMatch(/^share 0\.31625: /);
     expect(copyLine([1.2, 1.3])).toMatchObject({ verdict: 'pass' });
     expect(copyLine([1.27, 1.27])).toMatchObject({ verdict: 'fail' });
+  });
+
+  // The review of v1.1.7 S1–S4 (DL-207, DL-210): a failing share never prints as the limit it failed.
+  test('a failing share prints above its limit, a passing one at or under it, to as many places as that takes', () => {
+    const shipped: GateSpec = { ...spec, run: shaped.run };
+    const copyLine = (copyMs: number) => checkGate(shipped, passing((run) => ((run.totals.worlds[0] as { copyMs: number[] }).copyMs = [copyMs, copyMs]))).lines.at(-1);
+    const shown = (text: string | undefined, pattern: RegExp): number => Number(pattern.exec(text ?? '')?.[1]);
+    const read = (copyMs: number) => {
+      const line = copyLine(copyMs);
+      return { verdict: line?.verdict, share: shown(line?.measured, /^share ([\d.]+):/), limit: shown(line?.limit, /^share at most ([\d.]+) /) };
+    };
+    // A share of 0.3163 (a copy of 1.2652 ms over 4 ms): over 0.31625, so it fails, and prints so.
+    expect(copyLine(1.2652)).toMatchObject({ verdict: 'fail', limit: 'share at most 0.31625 (0.253 + 25%)' });
+    expect(copyLine(1.2652)?.measured).toMatch(/^share 0\.3163: /);
+    for (const copyMs of [1.2652, 1.26501, 1.265004, 1.2650004, 1.4]) {
+      const { verdict, share, limit } = read(copyMs);
+      expect(verdict).toBe('fail');
+      expect(share).toBeGreaterThan(limit);
+    }
+    for (const copyMs of [1.265, 1.26499, 1.264996, 1.2649996, 1]) {
+      const { verdict, share, limit } = read(copyMs);
+      expect(verdict).toBe('pass');
+      expect(share).toBeLessThanOrEqual(limit);
+    }
   });
 
   test('a run exactly at the limit passes, one over it fails, a machine twice as slow in both is the same share', () => {
@@ -171,15 +196,28 @@ describe('a run checked against the Gate, line by line', () => {
   test("the copy's line with no copy times, or no advance times, reads not comparable", () => {
     const none = checkGate(shaped, passing((run) => (run.totals.worlds = [])));
     expect(none.pass).toBe(true);
-    expect(none.lines.at(-1)).toMatchObject({ line: "The per-Turn copy's share of a Turn", verdict: 'not comparable', measured: 'copy or advance times not measured' });
+    // The line names the half missing and prints the half measured (the review, DL-207).
+    expect(none.lines.at(-1)).toMatchObject({
+      line: "The per-Turn copy's share of a Turn",
+      verdict: 'not comparable',
+      measured: 'copy times not measured; advance mean 4.000 ms',
+    });
     const unmeasured = checkGate(shaped, passing((run) => (run.timings.advance = { ...run.timings.advance, count: 0, mean: Number.NaN })));
-    expect(unmeasured.lines.at(-1)).toMatchObject({ verdict: 'not comparable' });
+    expect(unmeasured.lines.at(-1)).toMatchObject({ verdict: 'not comparable', measured: 'advance times not measured; copy mean 0.950 ms over 2 copies' });
     expect(unmeasured.pass).toBe(true);
+    const neither = checkGate(
+      shaped,
+      passing((run) => {
+        run.totals.worlds = [];
+        run.timings.advance = { ...run.timings.advance, count: 0, mean: Number.NaN };
+      }),
+    );
+    expect(neither.lines.at(-1)).toMatchObject({ verdict: 'not comparable', measured: 'copy and advance times not measured' });
     // A mean of 0 has no share to divide into, and a report read back from JSON holds an unmeasured
     // mean as null (DL-207's verification).
     const advanceMean = (mean: unknown) => checkGate(shaped, passing((run) => (run.timings.advance = { ...run.timings.advance, mean: mean as number }))).lines.at(-1);
-    expect(advanceMean(0)).toMatchObject({ verdict: 'not comparable', measured: 'copy or advance times not measured' });
-    expect(advanceMean(null)).toMatchObject({ verdict: 'not comparable', measured: 'copy or advance times not measured' });
+    expect(advanceMean(0)).toMatchObject({ verdict: 'not comparable', measured: 'advance mean 0.000 ms, no share to read; copy mean 0.950 ms over 2 copies' });
+    expect(advanceMean(null)).toMatchObject({ verdict: 'not comparable', measured: 'advance times not measured; copy mean 0.950 ms over 2 copies' });
   });
 
   test('a band at its edge passes: the Bankruptcies at the most, the gzipped mean just under 30 MiB', () => {

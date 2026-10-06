@@ -33,7 +33,7 @@ import {
 import { capitalised, itemEffectWords, kindOf, nameIn, nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { rowOf, transferCostWords } from './names';
-import { playDeps } from './reducer';
+import { calendarFor, playDeps } from './reducer';
 import { defaultHeroOrder } from './selectors';
 
 // ── The Market ───────────────────────────────────────────────────────────────────────────────
@@ -260,7 +260,7 @@ export function offersView(document: WorldDocument): { guildName: string; offers
       const hero = rowOf(world.heroes, offer.heroId)?.name ?? 'a Hero';
       return {
         offerId: offer.id,
-        sentence: `${bidder} offers ${offer.fee} Wealth for ${hero}, until ${nightOfTurn(offer.expiresOnTurn, document.meta.config)}.`,
+        sentence: `${bidder} offers ${offer.fee} Wealth for ${hero}, until ${nightOfTurn(offer.expiresOnTurn, calendarFor(document))}.`,
         guildName: bidder,
         heroName: hero,
         fee: offer.fee,

@@ -73,10 +73,10 @@ export function dealEvenly<T>(state: Stream, items: readonly T[], count: number)
  * `count` of `rows`, dealt by their weights (DL-206 item 1, DL-208): a Guild's starting Roster's
  * Classes and the Patrons' Spheres at creation. With every weight 1, which is every row's when none
  * has a `weight`, the deal is `dealEvenly`'s, the same draws in the same order, so every Class once
- * before any twice (DL-19 item 7) and a game as it was before the deals read the weights. With any
+ * before any twice (DL-19 item 7) and a world the same as an even deal makes it (DL-208). With any
  * other weight, each place is drawn by `pickByWeight`, one draw each, so a row weighted 0 is never
  * dealt while another is above 0 (with every weight 0 the draw is `weightedPick`'s uniform one;
- * content refuses a weight of 0, DL-202) and the even deal's "once before any twice" no longer holds.
+ * content refuses a weight of 0, DL-202) and the even deal's "once before any twice" does not hold.
  */
 export function dealByWeight<Row extends { weight?: number }>(state: Stream, rows: readonly Row[], count: number): Row[] {
   if (rows.every((row) => weightOf(row) === 1)) return dealEvenly(state, rows, count);

@@ -1374,6 +1374,23 @@ describe("every date under the save's own calendar, not this release's (DL-210)"
     expect(play(['advance']).err).toContain('The game ended on Year 2 Day 2 (Turn 11): bankruptcy.');
   });
 
+  // The calendar is the one the save plays under, its `meta.config` checked and filled forward
+  // (`playDeps`, DL-186 item 12), never the raw `meta.config` (the review, DL-210): a save that lacks
+  // the setting reads this release's Year in every line, as its rules do.
+  test("a save that lacks turnsPerYear: this release's Year, filled forward, in the stop and the refusal", () => {
+    edit((edited) => {
+      const config: Record<string, unknown> = { ...edited.meta.config, bankruptcyGraceDays: 3 };
+      delete config['turnsPerYear'];
+      edited.meta.config = config as unknown as WorldDocument['meta']['config'];
+      (edited.world.guilds[playerId] as Guild).wealth = -1_000_000;
+    });
+
+    expect(play(['advance', '--until', 'pool-refreshed']).out).toContain('Bankruptcy on the night of Year 1 Day 4 unless its Wealth recovers by then.');
+    expect(document().meta.config).not.toHaveProperty('turnsPerYear');
+    expect(play(['advance', '--turns', '20']).out).toContain('The game ended on Year 1 Day 4 (Turn 11): bankruptcy.');
+    expect(play(['advance']).err).toContain('The game ended on Year 1 Day 4 (Turn 11): bankruptcy.');
+  });
+
   test("dispatch: the Party's return", () => {
     const { world } = document();
     const roster = world.guilds[playerId]?.rosterIds ?? [];

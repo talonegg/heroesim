@@ -16,7 +16,6 @@ const terms = { offerId, fromGuildId: guildId, toGuildId: rivalId, heroId, fee: 
 
 describe('stopLine', () => {
   const document = {
-    meta: { config: { turnsPerYear: 1080 } },
     world: {
       guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },
       heroes: { [heroId]: { name: 'Brenna Ashcombe' } },
@@ -57,6 +56,6 @@ describe('stopLine', () => {
     [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],
     [{ kind: 'pool-refreshed', heroIds: [heroId] }, 'Stopped: new in the Unattached pool: Brenna Ashcombe (hero-000007) (show pool).'],
   ])('puts %j in words', (stop, line) => {
-    expect(stopLine(stop, document, 1080)).toBe(line);
+    expect(stopLine(stop, document, 1080, { turnsPerYear: 1080 })).toBe(line);
   });
 });

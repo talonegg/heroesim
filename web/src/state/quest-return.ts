@@ -40,7 +40,7 @@ import { capitalised, crossed, itemsWords, listed, nameIn, nightOfTurn, whenOfTu
 import { content } from '../content';
 import { narrateSegments, narrationFor, resolvedWords, textOf, type Narration, type Segment } from './namer';
 import { bandWords } from './names';
-import { playDeps } from './reducer';
+import { calendarFor, playDeps } from './reducer';
 
 /** What a return is read by: its Party and its Quest (DL-112 item 8). */
 export interface ReturnKey {
@@ -288,7 +288,7 @@ function readOutcomes(document: WorldDocument, key: ReturnKey): ReturnRead | nul
     const last = moved.at(-1);
     const mood = first === undefined || last === undefined ? null : { before: first.payload.before, after: last.payload.after, band: last.payload.bandAfter };
     const hurt = injured.find((entry) => entry.payload.heroId === heroId);
-    const injury = hurt === undefined ? null : { name: nameIn(content.injuries, hurt.payload.typeKey), heals: nightOfTurn(hurt.payload.healsOnTurn, document.meta.config) };
+    const injury = hurt === undefined ? null : { name: nameIn(content.injuries, hurt.payload.typeKey), heals: nightOfTurn(hurt.payload.healsOnTurn, calendarFor(document)) };
     const gained = earned.find((entry) => entry.payload.heroId === heroId);
     const trait = gained === undefined ? null : nameIn(content.heroTraits, gained.payload.traitKey);
     const gear = died ? returned.filter((entry) => entry.payload.heroId === heroId).map((entry) => nameIn(content.items, entry.payload.definitionKey)) : [];
@@ -340,8 +340,8 @@ function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null
     key,
     guildId: payload.guildId,
     turn: outcome.turn,
-    when: whenOfTurn(outcome.turn, document.meta.config),
-    night: nightOfTurn(outcome.turn, document.meta.config),
+    when: whenOfTurn(outcome.turn, narration.calendar),
+    night: nightOfTurn(outcome.turn, narration.calendar),
     quest: nameIn(content.questTemplates, payload.templateKey),
     patron: patronId === undefined || patronName === undefined ? null : { patronId, name: patronName },
     band: payload.band,
@@ -489,7 +489,7 @@ export function returnEntry(document: WorldDocument, key: ReturnKey): ReturnEntr
   return {
     key,
     quest: nameIn(content.questTemplates, outcome.payload.templateKey),
-    when: whenOfTurn(outcome.turn, document.meta.config),
+    when: whenOfTurn(outcome.turn, calendarFor(document)),
     band: outcome.payload.band,
     lead: opening,
     bandSaid: band,

@@ -51,7 +51,7 @@
     "copyShare": {
       "growth": 0.25,
       "baselineShare": 0.253,
-      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", restated by the owner as the copy's share of a Turn (DL-206 item 17, DL-205's finding that the copy's milliseconds follow the machine's load): the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, over the mean time of advance, may grow at most 25% over its baseline share without a DL entry; the baseline measured at v1.1.6-S17's full gate (DL-203; harness/reports/m9-v116-s17-2026-10-05, 50 games of 20 years, 8 processes): copy mean 0.847 ms over 1,000 copies, advance mean 3.346 ms, share 0.253, at most 0.316"
+      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", restated by the owner as the copy's share of a Turn (DL-206 item 17, DL-205's finding that the copy's milliseconds follow the machine's load): the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, over the mean time of advance, may grow at most 25% over its baseline share without a DL entry; the baseline measured at v1.1.6-S17's full gate (DL-203; harness/reports/m9-v116-s17-2026-10-05, 50 games of 20 years, 8 processes): copy mean 0.847 ms over 1,000 copies, advance mean 3.346 ms, share 0.253, at most 0.31625"
     }
   },
   "estimate": {

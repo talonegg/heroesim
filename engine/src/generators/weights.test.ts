@@ -189,8 +189,8 @@ describe("a starting Roster and the Patrons' Spheres are dealt as dealEvenly dea
   ])('a Roster of 1 to 12, with %s', (_what, content) => {
     const deps = testDeps({}, content);
     for (let size = 1; size <= 12; size += 1) {
-      // What the Guild Generator did before the deal read the weights: the Guild, then `dealEvenly`
-      // over the Classes from where that left the stream, then a Hero of each Class dealt, in turn.
+      // The even deal by hand: the Guild, then `dealEvenly` over the Classes from where that left the
+      // stream, then a Hero of each Class dealt, in turn (DL-19 item 7, DL-208).
       const before = testWorld(`deal-roster-${size}`, deps);
       const { guild } = generateGuild(before, deps, { ...guildOptions, rosterSize: 0 });
       const classKeys = dealEvenly(streamOf(before), sortedKeys(content.classes), size);
@@ -209,8 +209,8 @@ describe("a starting Roster and the Patrons' Spheres are dealt as dealEvenly dea
     ['every weight 1', weighted(1)],
   ])('the Spheres for 1 to 12 Patrons, with %s', (_what, content) => {
     for (let patrons = 1; patrons <= 12; patrons += 1) {
-      // What creation did before the deal read the weights: the world with no Patron, then `dealEvenly`
-      // over the Spheres from where that left the stream, then a Patron of each Sphere dealt, in turn.
+      // The even deal by hand: the world with no Patron, then `dealEvenly` over the Spheres from where
+      // that left the stream, then a Patron of each Sphere dealt, in turn (DL-208).
       const none = testDeps({ patronCount: 0, unattachedPoolSize: 0 }, content);
       const before = createWorld(`deal-spheres-${patrons}`, setup, none).document.world;
       const sphereKeys = dealEvenly(streamOf(before), sortedKeys(content.spheres), patrons);

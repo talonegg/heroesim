@@ -72,9 +72,10 @@ bands are set on its run, 50 games of 20 years, and read "not comparable" on a r
 the player's Bankruptcies, at most 3 of 50; the save after 20 years, its gzipped mean under
 30 MiB; and the per-Turn copy's share of a Turn, the mean time of the copy (`copyWorld`, timed as
 each year ended) over the mean time of `advance`, at most 25% over its baseline share, 0.253 (0.847 ms
-over 3.346 ms, measured at v1.1.6-S17's full gate, DL-203), so at most 0.316 (DL-206 item 17, DL-207);
-a run with no copy times or no `advance` times reads "not comparable". The report prints both times
-and the share. The Traits earned a player's Hero career and the save's uncompressed size are not lines of the
+over 3.346 ms, measured at v1.1.6-S17's full gate, DL-203), so at most 0.31625 (DL-206 item 17, DL-207),
+printed as it is applied, and the share printed to as many places as show it above the limit when it
+fails; a run with no copy times or no `advance` times reads "not comparable", naming the times missing
+and printing those measured. The report prints both times and the share. The Traits earned a player's Hero career and the save's uncompressed size are not lines of the
 Gate; the report prints them. The estimate probe reads its two limits from it. A `gate` or `neutral`
 run prints each line's verdict and writes them into both reports; it fails when a line fails.
 

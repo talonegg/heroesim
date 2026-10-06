@@ -11,6 +11,7 @@
 
 import { newRules, serialise, type WorldDocument } from '@heroesim/engine';
 import { fileDateOfTurn } from '@heroesim/words';
+import { calendarFor } from './reducer';
 
 /** The game as the CLI writes a save: canonical JSON, byte for byte. */
 export function saveText(document: WorldDocument): string {
@@ -20,7 +21,7 @@ export function saveText(document: WorldDocument): string {
 /** `heroesim-amber-fox-4821-year-3-day-12.json`: the seed and the date (DL-210), in characters any file system takes. */
 export function saveFileName(document: WorldDocument): string {
   const seed = document.meta.seed.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'game';
-  return `heroesim-${seed}-${fileDateOfTurn(document.world.turn, document.meta.config)}.json`;
+  return `heroesim-${seed}-${fileDateOfTurn(document.world.turn, calendarFor(document))}.json`;
 }
 
 /** The game's rules and this release's, while the game's are behind; `null` when they are not. */

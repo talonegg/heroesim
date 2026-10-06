@@ -177,3 +177,67 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
     );
   });
 });
+
+/** `state` with its `meta.config` lacking `turnsPerYear`, as a save from before a setting: its rules fill it forward (`playDeps`). */
+function lacking(state: GameState): GameState {
+  return changed(state, (document) => {
+    const config: Record<string, unknown> = { ...document.meta.config };
+    delete config['turnsPerYear'];
+    document.meta.config = config as unknown as WorldDocument['meta']['config'];
+  });
+}
+
+// The review (DL-210): the page reads its calendar from one place, the config the game plays under,
+// `meta.config` checked and filled forward (`playDeps`), never `meta.config` as it stands. A game whose
+// `meta.config` lacks `turnsPerYear` plays under this release's; every date site reads the same Year.
+describe('every date the page shows reads the config the game plays under, filled forward', () => {
+  test("a game whose meta.config lacks turnsPerYear: every date site as in one that holds it", () => {
+    const written = withReturn(withPartyOut(started('filled')), { band: 'success', wealth: 10, xp: 5, injuries: [{ hero: 0, typeKey: 'sprained-ankle', healsOnTurn: 23 }] });
+    const offered = withOffer(started('filled-offer'));
+    const ended = changed(started('filled-ended'), (each, guild) => {
+      const rival = Object.values(each.world.guilds).find((other) => other.id !== guild.id) as Guild;
+      rival.foldedOnTurn = 13;
+      each.world.turn = 13;
+      each.world.ended = { turn: 13, reason: 'bankruptcy' };
+    });
+    const out = withPartyOut(written.state);
+
+    /** Every date the page shows of the four games, as it shows it. */
+    const datesOf = (game: { out: GameState; offered: GameState; ended: GameState }): string[] => {
+      const document = documentOf(game.out);
+      const player_ = player(document);
+      const party = Object.values(document.world.parties).find((each) => each.guildId === player_.id);
+      if (party === undefined) throw new Error('no Party out');
+      const away = party.heroIds[0] as Hero['id'];
+      const questId = boardView(document)[0]?.questId;
+      if (questId === undefined) throw new Error('no Quest on the Board');
+      const over = documentOf(game.ended);
+      return [
+        headerView(document)?.time ?? '',
+        headerView(over)?.ended ?? '',
+        ...boardView(document).map((card) => card.until),
+        ...partiesOutView(document).map((each) => each.returns),
+        sentView(game.out)?.returns ?? '',
+        partyRows(document, questId)?.find((row) => row.heroId === away)?.unavailable ?? '',
+        heroPage(document, away)?.where.words ?? '',
+        ...rosterRows(document).entries.map((entry) => entry.row.whereabouts),
+        ...historyView(document, game.out.log, 'all', 0).groups.map((group) => group.when),
+        ...linesOf(document.history.entries, narrationFor(document, content)).map((line) => `${line.when}: ${line.sentence}`),
+        saveFileName(document),
+        JSON.stringify(questReturn(document, { partyId: written.party.partyId, questId: written.party.questId })),
+        ...(treasuryView(document, every, 0)?.ledger.rows.map((row) => row.when) ?? []),
+        treasuryView(document, every, 0)?.upkeep.next ?? '',
+        ...(offersView(documentOf(game.offered))?.offers.map((offer) => offer.sentence) ?? []),
+        ...guildsTable(over, 'fame').folded.map((guild) => guild.folded ?? ''),
+        guildmasterView(document)?.retirement ?? '',
+        guildmasterView(over)?.retirement ?? '',
+        rejectionSentence({ action: 'transferOut', reason: 'recently-transferred', heroId: away, transferredOnTurn: 0, untilTurn: 90 }, document, content) ?? '',
+      ];
+    };
+
+    const held = datesOf({ out, offered, ended });
+    expect(held.filter((date) => /Year 1 Day \d+|year-1-day-\d+/.test(date)).length).toBeGreaterThan(30);
+    expect(documentOf(lacking(out)).meta.config).not.toHaveProperty('turnsPerYear');
+    expect(datesOf({ out: lacking(out), offered: lacking(offered), ended: lacking(ended) })).toEqual(held);
+  });
+});

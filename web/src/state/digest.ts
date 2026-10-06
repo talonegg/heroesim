@@ -24,7 +24,7 @@ import { historyEntries, historyFilter } from './history';
 import { returnEntry, type ReturnEntry } from './quest-return';
 import { rowOf } from './names';
 import { narrationFor, questNamer } from './namer';
-import type { GameState } from './reducer';
+import { calendarFor, type GameState } from './reducer';
 import { boardView, linesOf, type LogLine } from './selectors';
 import { offersView } from './trade-views';
 
@@ -82,11 +82,12 @@ export function partiesOutView(document: WorldDocument): PartyOutRow[] {
   const guild = playerGuild(world);
   if (guild === undefined) return [];
   const questName = questNamer(document, content);
+  const calendar = calendarFor(document);
   return Object.values(world.parties)
     .filter((party) => party.guildId === guild.id)
     .map((party) => {
       const names = party.heroIds.map((heroId) => rowOf(world.heroes, heroId)?.name ?? 'a Hero');
-      return { partyId: party.id, quest: questName(party.questId), names, heroes: listed(names), returns: nightOfTurn(party.returnsOnTurn, document.meta.config) };
+      return { partyId: party.id, quest: questName(party.questId), names, heroes: listed(names), returns: nightOfTurn(party.returnsOnTurn, calendar) };
     });
 }
 

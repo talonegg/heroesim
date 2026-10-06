@@ -115,7 +115,7 @@ import { availabilityOf } from './availability';
 import { content } from '../content';
 import { narrateText, narrationFor, questNamer, type Narration } from './namer';
 import { placeWords, rowOf, transferCostWords } from './names';
-import { playDeps, type GameState } from './reducer';
+import { calendarFor, playDeps, type GameState } from './reducer';
 import { rejectionSentence } from './rejections';
 import { stopText } from './stops';
 
@@ -302,6 +302,7 @@ export function boardView(document: WorldDocument, order: BoardOrder = 'posted')
 /** The Quests on offer as cards, in the Board's order. */
 function questCards(document: WorldDocument): QuestCard[] {
   const { world } = document;
+  const calendar = calendarFor(document);
   const today = dayOf(world.turn);
   const quests = world.board.flatMap((questId) => rowOf(world.quests, questId) ?? []);
   const difficulties = quests.map((quest) => quest.difficulty);
@@ -324,7 +325,7 @@ function questCards(document: WorldDocument): QuestCard[] {
         ...(skillKey === undefined ? [] : [`a Hero with ${nameIn(content.skills, skillKey)}`]),
       ],
       lastDay: dayOf(quest.expiresOnTurn),
-      until: `Until ${dateOfTurn(quest.expiresOnTurn, document.meta.config)}`,
+      until: `Until ${dateOfTurn(quest.expiresOnTurn, calendar)}`,
       leavesToday: dayOf(quest.expiresOnTurn) === today,
       skills: skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)),
       encounters: encounterReadings(quest, content).map((reading) => ({ ...reading, one: readsAsOne(reading) })),
@@ -442,14 +443,15 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
     const hero = rowOf(world.heroes, heroId);
     return hero === undefined ? [] : [hero];
   });
-  const availability = new Map(onRoster.map((hero) => [hero.id, availabilityOf(hero, world, document.meta.config)]));
+  const calendar = calendarFor(document);
+  const availability = new Map(onRoster.map((hero) => [hero.id, availabilityOf(hero, world, calendar)]));
   const soonest = (a: Hero, b: Hero): number => compareNumbers(availability.get(a.id)?.freeOnTurn ?? Infinity, availability.get(b.id)?.freeOnTurn ?? Infinity);
   return onRoster
     .sort((a, b) => soonest(a, b) || order(a, b))
     .map((hero): PartyRow => {
       const values = statValues(hero, world);
       const held = heldSkills(hero);
-      const { why, until, chip } = availability.get(hero.id) ?? availabilityOf(hero, world, document.meta.config);
+      const { why, until, chip } = availability.get(hero.id) ?? availabilityOf(hero, world, calendar);
       return {
         heroId: hero.id,
         name: hero.name,
@@ -634,7 +636,7 @@ export function sentView(state: Pick<GameState, 'document' | 'log'>): SentView |
     questId: payload.questId,
     quest: questNamer(document, content)(payload.questId),
     heroes: listed(payload.heroIds.map((heroId) => labels[heroId] ?? rowOf(document.world.heroes, heroId)?.name ?? 'a Hero')),
-    returns: nightOfTurn(payload.returnsOnTurn, document.meta.config),
+    returns: nightOfTurn(payload.returnsOnTurn, calendarFor(document)),
   };
 }
 
@@ -923,7 +925,7 @@ function buildRosterRows(document: WorldDocument): RosterRows {
     const hero = rowOf(world.heroes, heroId);
     if (hero === undefined) return [];
     const items = itemsOf(hero, world);
-    const availability = availabilityOf(hero, world, document.meta.config);
+    const availability = availabilityOf(hero, world, config);
     const row: RosterRow = {
       heroId,
       name: hero.name,
@@ -1128,7 +1130,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
   const reader = player === undefined ? undefined : guildmasterOf(player, world);
   const bands = { potentialHintBands: judgedHintBands(reader, content, config) };
   const onRoster = guild?.rosterIds.includes(hero.id) === true;
-  const available = availabilityOf(hero, world, document.meta.config);
+  const available = availabilityOf(hero, world, config);
 
   // Who the Hero is in one line, and their State as chips (M9-S6, the review's B7): what were eleven
   // label and value rows. A Hero in the pool or gone from it names no Guild; `where` says where they are.

@@ -26,7 +26,7 @@ import {
 import { nightOfDay, signed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { narrateSegments, narrationFor, textOf, type Segment } from './namer';
-import { playDeps } from './reducer';
+import { calendarFor, playDeps } from './reducer';
 import { countdownView, historyPageSize } from './selectors';
 
 // ── What an entry did to a Guild's Wealth ────────────────────────────────────────────────────
@@ -203,7 +203,7 @@ function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null 
   const sentence = `Founded with ${wealth} Wealth`;
   return {
     key: `ledger-${position}`,
-    when: whenOfTurn(founded.turn, document.meta.config),
+    when: whenOfTurn(founded.turn, calendarFor(document)),
     segments: [{ kind: 'text', text: sentence }],
     sentence,
     category: null,

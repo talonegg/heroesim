@@ -367,10 +367,18 @@ type Outcome =
  * selectors, which run no hook, give none. A game in hand was loaded, checked by `deserialise`, or
  * made or rebased under `defaultConfig`, so its config is sound; one that is not is a bug, and throws.
  */
-export function playDeps(document: WorldDocument, modules: readonly Module[] = noModules): EngineDeps {
+export function playDeps(document: Pick<WorldDocument, 'meta'>, modules: readonly Module[] = noModules): EngineDeps {
   const played = enginePlayDeps(document, content, modules);
   if (!played.ok) throw new Error(played.refusal.message);
   return played.deps;
+}
+
+/**
+ * The calendar every date of `document` is read by: the config it plays under, `playDeps`'s, so that
+ * a date on the page counts the Year its rules count, a setting the save lacks filled forward (DL-210).
+ */
+export function calendarFor(document: Pick<WorldDocument, 'meta'>): EngineDeps['config'] {
+  return playDeps(document).config;
 }
 
 /** `{ modules }` when there are any: with none, the deps are what they were before M8. */

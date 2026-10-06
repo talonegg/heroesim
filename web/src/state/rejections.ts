@@ -6,7 +6,7 @@
 // the pointers to a CLI command (`show roster`) are left out.
 //
 // It reads the engine's values (`defaultConfig`, `playerGuild`), which only `state/` may import (M7-S2).
-// A date is the calendar's, `Year 1 Day 11` (DL-210), by the game's own length of a Year.
+// A date is the calendar's, `Year 1 Day 11`, by the length of a Year the game plays under (`calendarFor`, DL-210).
 
 import {
   defaultConfig,
@@ -33,7 +33,7 @@ import {
   unavailableWords,
   type Calendar,
 } from '@heroesim/words';
-import type { DocumentPlayKind, GameRefusal, PlayRejection } from './reducer';
+import { calendarFor, type DocumentPlayKind, type GameRefusal, type PlayRejection } from './reducer';
 
 // ── Kinds ────────────────────────────────────────────────────────────────────────────────────
 
@@ -63,8 +63,8 @@ export function rejectionKind(rejection: PlayRejection): RejectionKind {
 interface Setting {
   world: World | null;
   /**
-   * The game's calendar, for a date (DL-210); with no game in hand, this release's, though no refusal
-   * made with no game names a date.
+   * The game's calendar, `calendarFor`'s, for a date (DL-210); with no game in hand, this
+   * release's, though no refusal made with no game names a date.
    */
   calendar: Calendar;
   content: ContentSet;
@@ -353,7 +353,7 @@ export const rejectionKinds = Object.freeze(Object.keys(sentences)) as readonly 
 export function rejectionSentence(rejection: PlayRejection, document: Pick<WorldDocument, 'world' | 'meta'> | null, content: ContentSet): string {
   const words = sentences[rejectionKind(rejection)] as (rejection: PlayRejection, setting: Setting) => string;
   const world = document?.world ?? null;
-  const calendar = document?.meta.config ?? defaultConfig;
+  const calendar = document === null ? defaultConfig : calendarFor(document);
   const sentence = words(rejection, { world, calendar, content, player: world === null ? undefined : playerGuild(world) });
   return capitalised(sentence);
 }

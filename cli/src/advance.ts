@@ -5,18 +5,18 @@
 // page puts a button (`web/src/state/stops.ts`).
 
 import type { EngineDeps, StopReason, TurnEvent, WorldDocument } from '@heroesim/engine';
-import { narrateStop, sentenceText, whenOfTurn } from '@heroesim/words';
+import { narrateStop, sentenceText, whenOfTurn, type Calendar } from '@heroesim/words';
 import { cliNamer, narrateLine } from './namer.js';
 import { renderCountdown, renderDate, renderTime, table } from './render.js';
 
 /**
  * Why a fast forward stopped, in one line: the narration's sentence (`narrateStop` in
  * `@heroesim/words`, v1.1.7-S3, DL-209) filled by the CLI's Namer, with the ids and the commands its
- * names and slots give. `document` is where it stopped, its dates by the game's calendar
- * (`meta.config`, DL-210); `maxTurns` the cap it played under.
+ * names and slots give. `document` is where it stopped; `maxTurns` the cap it played under;
+ * `calendar` the config the save plays under (`playDeps`'s), for its dates (DL-210).
  */
-export function stopLine(stop: StopReason, document: WorldDocument, maxTurns: number): string {
-  return sentenceText(narrateStop(stop, document.world, maxTurns, document.meta.config), cliNamer);
+export function stopLine(stop: StopReason, document: WorldDocument, maxTurns: number, calendar: Calendar): string {
+  return sentenceText(narrateStop(stop, document.world, maxTurns, calendar), cliNamer);
 }
 
 // ── Advancing ────────────────────────────────────────────────────────────────────────────────
