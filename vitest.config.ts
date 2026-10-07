@@ -59,6 +59,15 @@ export default defineConfig({
           hookTimeout: 60_000,
         },
       },
+      // The decision log's tool (DL-215): the index's freshness and the citations, over this repository.
+      {
+        test: {
+          name: 'decisions',
+          root: './tools/decisions',
+          environment: 'node',
+          include: ['src/**/*.test.ts'],
+        },
+      },
       {
         plugins: [react()],
         test: {

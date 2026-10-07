@@ -5,8 +5,9 @@ chooses who to send, and grows the Heroes and the Guild over years. The engine i
 first; story-rich modules such as Campaigns and Scenarios extend it.
 
 Entries cite what they restate: R and N numbers are in `docs/requirements.md`, ADRs in
-`docs/adr/`, and DL numbers and the pre-M0 review's letters in `docs/decision-log.md`. "To be
-built" marks a decision the build does not carry yet.
+`docs/adr/`, DL numbers through `docs/decisions/index.md`, and the pre-M0 review's letters in
+`docs/decisions/archive/pre-m0-review.md` (DL-215). "To be built" marks a decision the build
+does not carry yet.
 
 ## Language
 

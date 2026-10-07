@@ -182,8 +182,10 @@ repository.
 - [`docs/principles.md`](./docs/principles.md) — the design principles and what goes wrong without each
 - [`docs/approach.md`](./docs/approach.md) — architecture, Turn pipeline, layout, verification
 - [`docs/plan.md`](./docs/plan.md) — the delivery plan: milestones, session-sized increments, what "done" means
-- [`docs/decision-log.md`](./docs/decision-log.md) — decisions taken during the build, appended as they are made
-- [`docs/planning/epics/`](./docs/planning/epics/README.md) — the implementation plan: one epic per milestone, and the inputs required from the owner
+- [`docs/decision-log.md`](./docs/decision-log.md) — decisions taken during the build, appended as they are made; the open release's, earlier ones archived
+- [`docs/decisions/index.md`](./docs/decisions/index.md) — every decision: its date, title, what superseded it and its file
+- [`docs/planning/epics/`](./docs/planning/epics/README.md) — the open release's epic, and the inputs required from the owner
+- [`docs/planning/archive/`](./docs/planning/archive/README.md) — the epics of finished milestones and releases, M0 to v1.1.7
 - [`docs/data-model.md`](./docs/data-model.md) — the World State document: sections, tables, rules, validator
 - [`docs/adr/`](./docs/adr/) — the decisions that are hard to reverse, and why
 - [`docs/images/`](./docs/images/) — the conceptual game-flow diagram this baseline was drawn from
