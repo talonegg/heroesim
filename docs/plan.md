@@ -440,7 +440,7 @@ the agents recommended that story features be modules and rule extensions core i
   *Built and verified on `v1.1.7-dev` 2026-10-06 to 2026-10-07 (DL-207 to DL-214), no play counter
   moved; the close review's findings fixed; the Gate met: the closing full `gate`, alone, meets every
   line of `harness/gate.json`, its baseline now `v1.1.6`'s close, the copy's share of a Turn 0.2342
-  (DL-214). Closed, awaiting the owner's word to release (DL-124).*
+  (DL-214); released as `v1.1.7` on 2026-10-07 (pull request #58, merged as `25f8fa0`): the tag, the deploy and the GitHub Release by CI, its live check re-run after its phone runs first met the earlier deploy, then `e2e:live` 4 of 4 on both addresses.*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.* *Amended 2026-10-03 (DL-168): after `v1.1.5`, or after a `v1.1.6`

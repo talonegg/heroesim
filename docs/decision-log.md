@@ -26675,6 +26675,8 @@ term, the options and a recommendation; the owner answered with a letter. What w
 
 *The owner's word to release* (2026-10-07): "complete release". By DL-124: `v1.1.7-dev` pushed, `v1.1-release` fast-forwarded to it and pushed; CI raises the pull request to `main`, the owner merges it, then `npm run e2e:live -w web`.
 
+*Released* (2026-10-07). `v1.1.7-dev` and `v1.1-release` pushed at `fc5e13e`; CI's `release-pr` raised pull request #58, "Release v1.1.7 from v1.1-release", its checks passing (`check` on Node 22 and on `.node-version`, `e2e`, `pull-request`); the owner merged it as `25f8fa0`; CI's `release` run tagged `v1.1.7` and deployed it, but its live check failed on the two phone projects, which read the earlier deploy's date ("Day 1, morning, Year 0" for "Year 1 Day 2, morning") while the two desktop projects read this one's, so the GitHub Release was published as a pre-release, as `deploy.yml` does when a step after the upload fails. `npm run e2e:live -w web` from the orchestrator's machine then passed 4 of 4 (`pages` and `worker`, desktop and phone), and the failed job re-run passed, the deploy and its live check, the GitHub Release now the full one. Dependabot's move to `v1.1.7-dev` (`3cde102`) now takes effect, `main` holding it.
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
