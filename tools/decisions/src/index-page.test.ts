@@ -47,6 +47,15 @@ describe('the index on disk', () => {
     expect(indexFreshness(dir)).toEqual({ ok: false, problems: [`${indexPath} is stale: run \`npm run decisions -- index\``] });
   });
 
+  test('is current with CRLF endings, as git checks it out on Windows', () => {
+    const dir = scratch(smallLog);
+    writeIndex(dir);
+    const file = path.join(dir, indexPath);
+    writeFileSync(file, readFileSync(file, 'utf8').replace(/\n/g, '\r\n'));
+    expect(indexFreshness(dir)).toEqual({ ok: true, problems: [] });
+    expect(writeIndex(dir)).toEqual({ ok: true, changed: false });
+  });
+
   test("is not written from a log with a problem", () => {
     const dir = scratch({ ...smallLog, 'docs/decisions/archive/superseded/DL-02.md': '## A stray heading\n' });
     expect(writeIndex(dir).ok).toBe(false);

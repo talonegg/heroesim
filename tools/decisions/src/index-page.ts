@@ -80,13 +80,18 @@ export function indexOf(root: string): { ok: true; text: string } | { ok: false;
   return log.problems.length > 0 ? { ok: false, problems: log.problems } : { ok: true, text: renderIndex(log) };
 }
 
+/** The index on disk with LF endings, as the log makes it: git checks it out with CRLF on Windows. */
+function shipped(file: string): string {
+  return readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+}
+
 /** Whether the shipped index is the one the log makes. */
 export function indexFreshness(root: string): { ok: boolean; problems: string[] } {
   const made = indexOf(root);
   if (!made.ok) return { ok: false, problems: made.problems };
   const file = path.join(root, indexPath);
   if (!existsSync(file)) return { ok: false, problems: [`${indexPath} is missing: run \`npm run decisions -- index\``] };
-  return readFileSync(file, 'utf8') === made.text
+  return shipped(file) === made.text
     ? { ok: true, problems: [] }
     : { ok: false, problems: [`${indexPath} is stale: run \`npm run decisions -- index\``] };
 }
@@ -96,7 +101,7 @@ export function writeIndex(root: string): { ok: true; changed: boolean } | { ok:
   const made = indexOf(root);
   if (!made.ok) return made;
   const file = path.join(root, indexPath);
-  const changed = !existsSync(file) || readFileSync(file, 'utf8') !== made.text;
+  const changed = !existsSync(file) || shipped(file) !== made.text;
   if (changed) writeFileSync(file, made.text);
   return { ok: true, changed };
 }
