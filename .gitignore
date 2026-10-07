@@ -29,3 +29,6 @@ media/inbox/**
 
 # Agent worktrees are separate checkouts, never part of this one
 .claude/worktrees/
+
+# Archify diagram drafts and their check receipts; a finished diagram moves to docs/images/
+.archify/
