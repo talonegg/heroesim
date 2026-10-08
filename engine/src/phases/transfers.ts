@@ -8,7 +8,7 @@
 //
 // It iterates only the Guilds whose controller is a Rival's: the player is never the source here,
 // and their Heroes move only through their own `transferOut` or an offer they accept. This is the
-// third of the three accepted exceptions to ADR-0002 (`plan.md` §1, the owner, 2026-09-25), and the
+// third of the three accepted exceptions to ADR-0002 (ADR-0002, exception 3; the owner, 2026-09-25), and the
 // read below is the one `controller-reads.test.ts` allows this file.
 
 import { applyTransferIn } from '../actions/transfer.js';

@@ -92,4 +92,19 @@ describe('readLog', () => {
       'docs/decisions/archive/superseded/DL-02.md: DL-09, which supersedes DL-02, is no entry',
     ]);
   });
+
+  test('finds a heading begun as an entry that is not one, which would else be left out of the index', () => {
+    const log = readLog(
+      scratch({ ...smallLog, 'docs/decision-log.md': `# Decision log\n\n${entry('DL-03', 'Open')}\n## DL-04 - A hyphen for the dash\n\nText.\n` }),
+    );
+    expect(log.problems).toEqual(['docs/decision-log.md:9: "## DL-04 - A hyphen for the dash" is not an entry\'s heading ("## DL-nn — title")']);
+  });
+
+  test('finds a record that spells an entry otherwise than its heading does', () => {
+    const log = readLog(scratch({ ...smallLog, 'docs/decisions/archive/superseded/DL-01.md': '## DL-1 item 2 — superseded by DL-002\n' }));
+    expect(log.problems).toEqual([
+      'docs/decisions/archive/superseded/DL-01.md: DL-1 is written DL-01 by its entry',
+      'docs/decisions/archive/superseded/DL-01.md: DL-002 is written DL-02 by its entry',
+    ]);
+  });
 });

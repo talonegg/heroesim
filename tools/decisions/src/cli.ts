@@ -53,13 +53,16 @@ export function run(argv: readonly string[], io: Io, root: string = repositoryRo
   const lean = leanProblemsInLog(root);
   const stories = storyReport(root);
   const overBaseline = stories.cited > stories.baseline;
+  // A ratchet: lines freed by a rewrite are not left for new citations to fill.
+  const underBaseline = stories.cited < stories.baseline;
   for (const problem of fresh.problems) io.err(problem);
   for (const cited of unknown) io.err(`${cited.file}:${cited.line}: DL-${cited.number} is no entry`);
   for (const link of broken) io.err(`${link.file}:${link.line}: ${link.target} leads to no file`);
   for (const problem of lean) io.err(problem);
   for (const told of stories.history) io.err(`${told.file}:${told.line}: tells history by a story: ${told.text}`);
   if (overBaseline) io.err(`${stories.cited} source lines cite a story, over the baseline of ${stories.baseline} (${baselinePath}): cite the DL entry instead`);
-  if (fresh.ok && unknown.length === 0 && broken.length === 0 && lean.length === 0 && stories.history.length === 0 && !overBaseline) {
+  if (underBaseline) io.err(`${stories.cited} source lines cite a story, under the baseline of ${stories.baseline} (${baselinePath}): lower it to ${stories.cited}`);
+  if (fresh.ok && unknown.length === 0 && broken.length === 0 && lean.length === 0 && stories.history.length === 0 && !overBaseline && !underBaseline) {
     io.out(`The index is current, every cited DL-nn is an entry, every link leads to a file, the open log is lean, and ${stories.cited} source lines cite a story (baseline ${stories.baseline}).`);
     return 0;
   }

@@ -7,7 +7,7 @@ is mechanical first; story-rich modules such as Campaigns and Scenarios come lat
 **Where it stands.** The first build, M0 to M8, was released as `v1.0.0`, and the v1.1 line has
 followed it a patch at a time: the page redesigned, then pictures, richer Quests and the tools.
 Every release is a row of [`docs/plan.md`](docs/plan.md) §2's ledger, and what comes next is its
-§4, Random Events (M10) among it. `main` is production: only a release branch's pull request
+§3, Random Events (M10) among it. `main` is production: only a release branch's pull request
 moves it, and merging one releases. Agents start from [`AGENTS.md`](AGENTS.md).
 
 ## Play
@@ -52,7 +52,7 @@ every environment variable the repository reads is in [`docs/environment.md`](do
 - [`docs/approach.md`](./docs/approach.md) — architecture, Turn pipeline, layout, verification
 - [`docs/data-model.md`](./docs/data-model.md) — the World State document: sections, tables, rules, validator
 - [`docs/adr/`](./docs/adr/) — the decisions that are hard to reverse, and why
-- [`docs/plan.md`](./docs/plan.md) — the delivery plan: milestones, the release ledger, what comes next
+- [`docs/plan.md`](./docs/plan.md) — the delivery plan: how releases follow one another, the release ledger, what comes next
 - [`docs/planning/epics/`](./docs/planning/epics/README.md) — the open release's epic
 - [`docs/planning/archive/`](./docs/planning/archive/README.md) — the epics of finished milestones and releases, and the first build's inputs
 - [`docs/decision-log.md`](./docs/decision-log.md) — the open release's decisions, appended as they are made

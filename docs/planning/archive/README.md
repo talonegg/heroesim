@@ -20,7 +20,7 @@ links are re-pointed to where their files now are.
 | [M7](M7-web.md) | `m7-web`, in `v1.0.0` |  | One box open: the twenty-year save's measure, left to the owner |
 | [M8](M8-modules.md) | `m8-modules` and `v1.0.0` |  | The first build's close |
 | [v1.0.1](v1.0.1-release.md) | `v1.0.1` | DL-86 to DL-98 | DL-86 to DL-91 are the v1.0.0 review |
-| [M9](M9-redesign.md) | `m9-redesign` and `v1.1.0` | DL-99 to DL-123 | Its §3, the CLI's commands in the browser, is Q3 of the v1.1.8 epic |
+| [M9](M9-redesign.md) | `m9-redesign` and `v1.1.0` | DL-99 to DL-123 | Its §3, the CLI's commands in the browser, stays here, out of date since M9-F6 (the v1.1.8 epic, Q3) |
 | [M9, follow-on](M9-feedback.md) | `v1.1.0` | DL-111 to DL-121 | M9-F1 to M9-F7 |
 | [v1.1.2](v1.1.2-release.md) | `v1.1.2` | DL-125 to DL-133, DL-137 |  |
 | [v1.1.3](v1.1.3-release.md) | `v1.1.3` | DL-134 to DL-147 but DL-137 |  |
@@ -28,7 +28,8 @@ links are re-pointed to where their files now are.
 | [v1.1.5](v1.1.5-release.md) | `v1.1.5` | DL-168 to DL-185 |  |
 | [v1.1.6](v1.1.6-release.md) | `v1.1.6` | DL-186 to DL-205 |  |
 | [v1.1.7](v1.1.7-release.md) | `v1.1.7` | DL-206 to DL-214 |  |
-| [Inputs required from the owner](INPUTS-REQUIRED.md) | the first build's inputs | DL-82 to DL-90 | Frozen at `m8-modules`; code cites its rows as `INPUTS n.m`. Its §9 is now [`docs/environment.md`](../../environment.md), its §8 is `plan.md` §4's Random Events item, and row 7.8's addresses are in [`docs/deploy.md`](../../deploy.md) (DL-217) |
+| [Inputs required from the owner](INPUTS-REQUIRED.md) | the first build's inputs | DL-82 to DL-90 | Frozen at `m8-modules`; code cites its rows as `INPUTS n.m`. Its §9 is now [`docs/environment.md`](../../environment.md), its §8 is `plan.md` §3's Random Events item, and row 7.8's addresses are in [`docs/deploy.md`](../../deploy.md) (DL-217) |
+| [The first build's plan](first-build-plan.md) | `v1.0.0` | DL-01 to DL-10 | `plan.md`'s §1, milestones, increments and §5, moved here when the plan was cut to the delivery of releases (DL-220) |
 | [The web UI review](web-ui-review-2026-09-29.md) | built by M9 | DL-99 | Moved from `docs/`; its findings decided in DL-99 |
 
 The rest of this page is the record the live plan no longer carries, word for word as it stood at

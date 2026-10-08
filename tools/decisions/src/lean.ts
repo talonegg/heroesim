@@ -5,7 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { logPath } from './log.js';
+import { begunAsEntry, logPath, notAnEntryHeading } from './log.js';
 
 /** The first entry held to the template. */
 export const leanFrom = 215;
@@ -16,7 +16,7 @@ export const leanBytes = 6 * 1024;
 /** The paragraphs every entry has, in its own words' bold. */
 export const leanSections = ['**Context.**', '**Decision.**', '**Consequences.**', '**Evidence.**'] as const;
 
-const heading = /^## DL-(\d+) — /;
+const heading = /^## DL-(\d+) — \S/;
 const statusLine = /^\*\*Status:\*\* .+ · \*\*Date:\*\* \d{4}-\d{2}-\d{2} · \*\*Decided by:\*\* /;
 
 /** Each entry of `text` from its heading to the next, by number. */
@@ -33,7 +33,11 @@ export function entryBlocks(text: string): { number: number; text: string }[] {
 
 /** What keeps the entries of `text` from `leanFrom` on from the template, each problem naming its entry. */
 export function leanProblems(text: string): string[] {
-  return entryBlocks(text)
+  const malformed = text
+    .split(/\r?\n/)
+    .filter((line) => begunAsEntry.test(line) && !heading.test(line))
+    .map(notAnEntryHeading);
+  return malformed.concat(entryBlocks(text)
     .filter((block) => block.number >= leanFrom)
     .flatMap(({ number, text: entry }) => {
       const problems: string[] = [];
@@ -44,7 +48,7 @@ export function leanProblems(text: string): string[] {
       if (!statusLine.test(status)) problems.push(`DL-${number} has no **Status:** · **Date:** · **Decided by:** line under its heading`);
       for (const section of leanSections) if (!entry.includes(section)) problems.push(`DL-${number} has no ${section} paragraph`);
       return problems;
-    });
+    }));
 }
 
 /** The open log's problems under `root`. */

@@ -2,8 +2,8 @@
 // consumables): what a proposed Party of the player's Heroes would meet on a Quest from the Board,
 // and what it would carry, before it is sent. It changes nothing and writes nothing.
 //
-// The CLI holds no rule: what the Party would meet is the engine's `previewDispatch` (moved there
-// from here by M7-S3, DL-66, so the browser shows the same): each requirement met or missed, each
+// The CLI holds no rule: what the Party would meet is the engine's `previewDispatch` (DL-66,
+// so the browser shows the same): each requirement met or missed, each
 // Hero who cannot go, the Synergies the Party would have and on how many of the Quest's Encounters
 // (M4-S3, DL-45), what it would carry, the reward its `negotiatedReward` for the player's
 // Guildmaster, and the verdict `dispatch`'s own checks. The preview is a list of sections of words.

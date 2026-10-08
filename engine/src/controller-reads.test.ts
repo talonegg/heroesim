@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
 // No engine rule asks whether a Guild is the player's (ADR-0002), except the three the owner
-// accepted on 2026-09-25 (`plan.md` §1): the player's ending ends the game while a Rival's folds it
+// accepted on 2026-09-25 (listed in ADR-0002): the player's ending ends the game while a Rival's folds it
 // (M2-S10); on the Board the player's controller acts before the Rivals', the player's choices
 // being the player's and a Rival's its Disposition's (M2-S9); and the Transfer Generator never
 // takes from the player's Guild (M6). The M2 epic's risk table asks for a test that greps for
@@ -19,12 +19,12 @@ const acceptedReads: Record<string, { reads: number; why: string }> = {
     reads: 2,
     why:
       "`playerGuild`: how a front end and the harness find the player's Guild, and no rule calls it; " +
-      "`dispositionOf`: plan.md §1, the player's controller acts before the Rivals' — where a Guild's " +
+      "`dispositionOf`: ADR-0002's exception 2, the player's controller acts before the Rivals' — where a Guild's " +
       'choices come from, the player or its Disposition, read by the Rival controllers (M2-S9, DL-30)',
   },
   'phases/endings.ts': {
     reads: 1,
-    why: "plan.md §1: the player's ending ends the game, a Rival's folds that Guild (M2-S10)",
+    why: "ADR-0002's exception 1: the player's ending ends the game, a Rival's folds that Guild (M2-S10)",
   },
   'validate.ts': {
     reads: 1,
@@ -35,7 +35,7 @@ const acceptedReads: Record<string, { reads: number; why: string }> = {
   'phases/transfers.ts': {
     reads: 1,
     why:
-      "plan.md §1, the third accepted exception: the Transfer Generator iterates only the Guilds whose " +
+      "ADR-0002's exception 3: the Transfer Generator iterates only the Guilds whose " +
       "controller is a Rival's, so it never takes from the player's Guild (M6-S3, DL-59)",
   },
   'controllers/rival.ts': {
@@ -86,7 +86,7 @@ function engineSources(): string[] {
     .sort();
 }
 
-describe('reads of controller.kind in the engine (plan.md §1)', () => {
+describe('reads of controller.kind in the engine (ADR-0002)', () => {
   test('are exactly the accepted ones', () => {
     const found: Record<string, number> = {};
     for (const path of engineSources()) {

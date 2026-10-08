@@ -230,8 +230,8 @@ site's form can send without asking first.
   declaration the register runs through that is gone. The effect kinds it reads are held to the
   engine's unions: a kind added there and not to the scanner fails to compile, and the test holds
   them to the forms' (v1.1.4-S14).
-- **The freshness test** (`src/freshness.test.ts`) fails when `docs/agents/traits.md`'s register
-  part is not what the register makes now; `traits doc` writes it.
+- **The freshness test** (`src/freshness.test.ts`) fails when `docs/agents/traits-register.md` is
+  not what the register makes now; `traits doc` writes it (DL-219).
 
 ## Tests
 

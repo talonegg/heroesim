@@ -829,7 +829,7 @@ function bestPartyWords(document: WorldDocument, quest: Quest, deps: EngineDeps)
   return `Your best Party: ${chanceWords[estimate.chance]} (${shownPercent(estimate.success)}% if no one falls), ${names}.`;
 }
 
-/** The Skills that help on a Quest, by name: the engine's `skillsThatHelp` (DL-70; moved there by M7-S3, DL-66). */
+/** The Skills that help on a Quest, by name: the engine's `skillsThatHelp` (DL-66, DL-70). */
 function skillsThatHelpWords(quest: Pick<Quest, 'encounterKeys' | 'skillKeys'>, content: ContentSet): string {
   return none(skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)));
 }

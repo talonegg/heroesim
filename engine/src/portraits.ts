@@ -221,7 +221,7 @@ export function portraitNotes(
   return notes;
 }
 
-/** The stream every Hero's Portrait is drawn from (ADR-0009 as amended 2026-10-01; v1.1.3-S6). */
+/** The stream every Hero's Portrait is drawn from (ADR-0009; v1.1.3-S6). */
 export const heroPortraitsStream = 'hero-portraits';
 
 /**

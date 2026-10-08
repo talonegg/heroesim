@@ -13,8 +13,8 @@ inputs the first build needed from the owner, cited in code as `INPUTS n.m`, are
 ([`INPUTS-REQUIRED.md`](../archive/INPUTS-REQUIRED.md)); a later epic asks its own inputs as a
 table of its own.
 
-**Who decided what.** The milestone order, the "done" bars and the ten decisions in
-`plan.md` §5 are the owner's. Everything below that — story boundaries, function names, file
+**Who decided what.** The milestone order, the "done" bars and the ten decisions
+DL-01 to DL-10 are the owner's. Everything below that — story boundaries, function names, file
 layout, event names, the defaults offered for every tunable — is an agent's proposal made on
 2026-09-25 from the design documents and from what the v1 proof of concept on `feature/poc`
 proved to work (v1.0.1's on 2026-09-28, from the open issues and the owner's four answers in
@@ -46,7 +46,7 @@ graph LR
     M3 --> M4["M4 Quest Engine"] --> M5["M5 Items"] --> M6["M6 Rivals"] --> M7["M7 Web"] --> M8["M8 Modules"]
 ```
 
-Strictly linear. `plan.md` §1 gives the reasons for the two orderings that were open: Rivals
+Strictly linear. [The first build's plan](../archive/first-build-plan.md) §1 gives the reasons for the two orderings that were open: Rivals
 act from M2 with one trivial disposition so nothing is ever tuned against an uncontested Board;
 the module contract comes last so the pipeline's phases are settled by use before they become an
 interface (ADR-0005 as amended).

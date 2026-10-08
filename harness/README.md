@@ -64,6 +64,11 @@ policy), its fingerprint, each game's line, its timings and its totals, the data
 Markdown and its JSON force-added (DL-186 item 28). A passing `gate` or `neutral` run prints the line:
 `git add -f harness/reports/<name>.md harness/reports/<name>.json`.
 
+The tree keeps only the reports that a test, `gate.json`, a live document or the open release's DL
+entries cite. The rest leave it at a release's record (DL-223). The 84 committed before 2026-10-08 that
+nothing live cited are read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists
+them, and `git show b6d455c:harness/reports/<name>` prints one.
+
 ## The Gate
 
 `harness/gate.json` declares what a release's closing sweep must meet, line by line, with each line's

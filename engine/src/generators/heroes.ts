@@ -127,7 +127,7 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
     biography: '',
     regard: {},
   };
-  // The Portrait, then the texts, each from a stream of its own (ADR-0009 as amended 2026-10-01), so no
+  // The Portrait, then the texts, each from a stream of its own (ADR-0009, rule 4), so no
   // draw of `options.stream` moves (v1.1.3-S6, DL-135 items 3 and 6). The texts follow the picture.
   giveHeroPortrait(world, content, hero);
   describeNewHero(world, deps, hero);

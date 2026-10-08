@@ -229,6 +229,13 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-217 | 2026-10-08 | `INPUTS-REQUIRED.md` archived once its live parts moved out, and the README an entry page with the … |  | [decision-log](../decision-log.md) |
 | DL-218 | 2026-10-08 | A delivery guide in the repository; generated files and applied runs out of the tree; the … |  | [decision-log](../decision-log.md) |
 | DL-219 | 2026-10-08 | The lean entry held by a test; story ids out of the comments by a rule and a baseline; the Traits' … |  | [decision-log](../decision-log.md) |
+| DL-220 | 2026-10-08 | `plan.md` cut to the delivery of releases; the first build's plan archived |  | [decision-log](../decision-log.md) |
+| DL-221 | 2026-10-08 | The delivery guide accepted; the archives out of a search; ADR-0009 and data-model §7 trimmed | item 2 in part by DL-222; item 3 by DL-222 | [decision-log](../decision-log.md) |
+| DL-222 | 2026-10-08 | ADR-0009 restated from every decision on streams, its old wording archived |  | [decision-log](../decision-log.md) |
+| DL-223 | 2026-10-08 | The owner's answers to Q3 and Q5: M9's table stays archived; the harness's reports pruned to those … |  | [decision-log](../decision-log.md) |
+| DL-224 | 2026-10-08 | The owner's answers to Q6: `origin/HEAD` on `main`, #34 closed, #33 corrected, the agent's memory … |  | [decision-log](../decision-log.md) |
+| DL-225 | 2026-10-09 | v1.1.8-S7 closed: CONTEXT.md's story ids replaced by their entries, and `neutral --expect` passing |  | [decision-log](../decision-log.md) |
+| DL-226 | 2026-10-09 | v1.1.8-S8 closed: the close's review, its fourteen findings fixed, and the Gate met |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

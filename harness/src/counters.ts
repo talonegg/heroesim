@@ -254,7 +254,7 @@ export interface GameCounters {
   partySizes: Record<ControllerKind, Record<string, PartySizeTally>>;
   /**
    * `guild.folded`, by the reason the Rival reached its ending. A Rival's Guildmaster's Retirement
-   * is met by Succession (DL-102), so `retirement` stays 0.
+   * is met by Succession (DL-102), so `retirement` stays 0 in a game played under its rules.
    */
   rivalFolds: Record<EndingReason, number>;
   /** `guildmaster.succeeded`: the Rival Guildmasters whose Retirement was met by Succession (M9-S2, DL-102). */

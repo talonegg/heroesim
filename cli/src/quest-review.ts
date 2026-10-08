@@ -16,14 +16,26 @@ import { reviewPage, type ReviewCalibration, type ReviewNotes } from '@heroesim/
 /** The repository's root, from the content package's directory. */
 const root = join(contentDir, '..');
 
+/**
+ * The calibration's data at `path`, or, when there is none, the run that writes the drafts': named
+ * with `HEROESIM_DRAFTS`, since `calibrate` reads the content alone without it, and written elsewhere,
+ * since in place it also rewrites `calibration.md`, the record DL-218 keeps.
+ */
+export function calibrationAt(path: string): ReviewCalibration {
+  if (!existsSync(path)) {
+    throw new Error(
+      `No ${path}. Write one with \`HEROESIM_DRAFTS=docs/quests/drafts HEROESIM_CALIBRATION_OUT=<folder> npm run harness -- calibrate\` ` +
+        `and copy its calibration.json here: written in place, calibrate also rewrites docs/quests/calibration.md, the record DL-218 keeps. ` +
+        `v1.1.4's is an asset of the v1.1.4 GitHub Release.`,
+    );
+  }
+  return JSON.parse(readFileSync(path, 'utf8')) as ReviewCalibration;
+}
+
 if (import.meta.main) {
   const quests = join(root, 'docs', 'quests');
   const { content } = loadDrafts(join(quests, 'drafts'));
-  const calibrationPath = join(quests, 'calibration.json');
-  if (!existsSync(calibrationPath)) {
-    throw new Error(`No ${calibrationPath}: run \`npm run harness -- calibrate\` first, which writes it.`);
-  }
-  const calibration = JSON.parse(readFileSync(calibrationPath, 'utf8')) as ReviewCalibration;
+  const calibration = calibrationAt(join(quests, 'calibration.json'));
   const notes = JSON.parse(readFileSync(join(quests, 'drafts', 'notes.json'), 'utf8')) as ReviewNotes;
   const now = new Date();
   const made = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;

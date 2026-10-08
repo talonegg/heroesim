@@ -114,7 +114,7 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
  * What makes `guild`'s choices: its Disposition's row; `'own'` for a Guild with no Disposition,
  * whose controller makes its own choices through the actions (the player's, ADR-0002); or `null` for
  * a Disposition content does not define (data-model rule 5). The one place the Rival controllers
- * read where a Guild's choices come from (`dispositionOf`, `plan.md` §1), for their own choices and
+ * read where a Guild's choices come from (`dispositionOf`, ADR-0002's exception 2), for their own choices and
  * for a Guild's answer to a Transfer asked of it (`transferAnswer`), which is a choice too.
  */
 function chooser(guild: Pick<Guild, 'controller'>, content: Pick<ContentSet, 'dispositions'>): Disposition | 'own' | null {

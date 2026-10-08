@@ -36,6 +36,13 @@ describe('the lean entry', () => {
     ]);
   });
 
+  test('finds a heading begun as an entry that is not one, rather than leaving its entry unread', () => {
+    expect(leanProblems(`${lean(215)}\n## DL-216 - A hyphen for the dash\n\n${'x'.repeat(leanBytes)}\n## DL-217 — \n`)).toEqual([
+      '"## DL-216 - A hyphen for the dash" is not an entry\'s heading ("## DL-nn — title")',
+      '"## DL-217 — " is not an entry\'s heading ("## DL-nn — title")',
+    ]);
+  });
+
   test("this repository's open log keeps to it", () => {
     expect(leanProblemsInLog(repositoryRoot)).toEqual([]);
   });

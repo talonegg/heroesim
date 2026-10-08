@@ -859,8 +859,9 @@ function checkImprovements(improvements: ContentSet['improvements'], problems: s
 /**
  * What a Quest template's Encounter sequence is drawn by (M4-S1): at least one kind, none twice,
  * each with an Encounter in content to draw, and a count range from 1 that is not upside down. An
- * Encounter some template names as its Finale is never drawn, so a kind needs one that is no Finale; and a Finale, if the template names one, is an Encounter content defines, of any kind,
- * since it is named rather than drawn (DL-160).
+ * Encounter some template names as its Finale is never drawn, so a kind needs one that is no Finale;
+ * and a Finale, if the template names one, is an Encounter content defines, of any kind, since it is
+ * named rather than drawn (DL-160).
  */
 function checkEncounterDraw(where: string, template: ContentSet['questTemplates'][string], set: ContentSet, problems: string[]): void {
   if (template.encounterKinds.length === 0) problems.push(`${where}.encounterKinds is empty: a Quest is drawn with Encounters`);

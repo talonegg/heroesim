@@ -18,8 +18,11 @@ export interface StoryLine {
 /** A story's id: a milestone's, `M<n>-S<n>`, a follow-on's, `M<n>-F<n>`, or a patch's, `v<x>.<y>.<z>-S<n>`. */
 const storyId = String.raw`(?:(?:v\d+\.\d+\.\d+|M\d+)-S\d+[a-z]?|M\d+-F\d+)`;
 
-/** A story cited for when something began or ended. */
-export const historyPattern = new RegExp(String.raw`\b(?:[Ss]ince|[Ff]rom|[Uu]ntil|[Bb]efore|[Aa]fter) ${storyId}\b`);
+/** A verb that tells a change, which "by" and a story then dates, within one clause: "moved there by". */
+const changeVerb = String.raw`(?:moved|redesigned|filled|completed|replaced|changed|removed|renamed|retired|superseded|added|from)\b[^.;:()]{0,40}?\bby`;
+
+/** A story cited for when something began, ended or changed, in any case and with any space. */
+export const historyPattern = new RegExp(String.raw`\b(?:(?:since|from|until|before|after)|${changeVerb})\s+${storyId}\b`, 'i');
 
 /** Any story cited. */
 export const storyPattern = new RegExp(String.raw`\b${storyId}\b`);
@@ -59,9 +62,11 @@ export function historyLines(files: readonly { file: string; text: string }[]): 
 /** The baseline's file, beside this package's sources. */
 export const baselinePath = 'tools/decisions/story-citations.json';
 
-/** The most lines that may cite a story id. */
+/** How many lines cite a story id: no more, and, once lines are rewritten, lowered to match. */
 export function storyBaseline(root: string): number {
-  return (JSON.parse(readFileSync(path.join(root, baselinePath), 'utf8')) as { lines: number }).lines;
+  const { lines } = JSON.parse(readFileSync(path.join(root, baselinePath), 'utf8')) as { lines?: unknown };
+  if (typeof lines !== 'number' || !Number.isInteger(lines) || lines < 0) throw new Error(`${baselinePath}'s "lines" is no whole number`);
+  return lines;
 }
 
 /** The repository's source files the rule reads. */

@@ -8,7 +8,7 @@ rules brief each release's agents were given in a session's scratchpad (DL-218).
 
 | What | Where |
 | --- | --- |
-| What comes next, and every release so far | `docs/plan.md` §4, and §2's release ledger |
+| How releases follow one another; every release so far; what comes next | `docs/plan.md` §1, §2's release ledger and §3 |
 | The open release's epic, and its register | `docs/planning/epics/` |
 | Closed epics, and the first build's inputs (`INPUTS n.m`) | `docs/planning/archive/` |
 | Decisions (`DL-nn`): the open release's | `docs/decision-log.md`, its header the rules |
@@ -20,7 +20,8 @@ rules brief each release's agents were given in a session's scratchpad (DL-218).
 | The content editor; the portrait tool | `tools/editor/README.md`; `tools/portraits/README.md` |
 
 Read a decision through the index: open its file and search for `## DL-nn `. Never read an archive
-file whole.
+file whole. A search leaves the archives out by default (`docs/.rgignore`, DL-221): to search one,
+name its path, or use `rg -u`.
 
 ## The owner's standing rules
 
@@ -124,7 +125,7 @@ file whole.
    - Take the owner's answers, by rule 11.
    - Write the epic, `docs/planning/epics/v1.1.N-release.md`: the objective, the Gate, §0's story
      table, the stories with their acceptance, and §2 to §4.
-   - Add its row to the epics README's register, and make it §4's "Now" in `plan.md`.
+   - Add its row to the epics README's register, and make it §3's "Now" in `plan.md`.
    - Its DL entry records the answers and the plan.
    - On the owner's word, cut the dev branch from the previous release's record and move
      Dependabot to it.
@@ -149,5 +150,10 @@ file whole.
    - the epic moves to `docs/planning/archive/`, with a row in its index, and leaves the register;
    - the release's DL entries move to
      `docs/decisions/archive/DL-<first>-<last>-<release>.md`, and `npm run decisions -- index`
-     runs;
-   - `plan.md` §4's "Now" moves on.
+     runs. The move keeps their text but re-points two kinds of link: a stub's or a note's link
+     into `superseded/`, which then begins `superseded/`, and a `superseded/` record's header link
+     to its entry's file, which then names the archive file. The link check catches the first,
+     not the second;
+   - the committed harness reports that nothing live cites any more leave the tree, read from git
+     history after (`harness/README.md`, DL-223);
+   - `plan.md` §3's "Now" moves on.

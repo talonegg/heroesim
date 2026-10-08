@@ -13,8 +13,8 @@ export interface Citation {
   line: number;
 }
 
-/** The file kinds read for citations: text, never a picture or a font. */
-const textExtensions = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json', '.jsonc', '.md', '.yml', '.yaml', '.html', '.css', '.txt']);
+/** The file kinds read for citations: text, never a picture or a font, and the ignore files by name. */
+const textExtensions = new Set(['.ts', '.tsx', '.mts', '.js', '.mjs', '.cjs', '.json', '.jsonc', '.md', '.yml', '.yaml', '.html', '.css', '.txt', '.gitignore', '.rgignore']);
 
 const citation = /\bDL-(\d+)\b/g;
 
@@ -32,12 +32,29 @@ export function unknownCitations(files: readonly { file: string; text: string }[
   return files.flatMap(({ file, text }) => citationsIn(text, file)).filter((cited) => !known.has(cited.number));
 }
 
-/** The repository's files of the kinds `extensions` names, as git lists them: tracked, or new and not ignored. */
+/** The repository's files as git lists them: tracked, or new and not ignored, with `/`. */
+function listed(root: string): string[] {
+  const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' });
+  return [...new Set(files.split('\0').filter(Boolean))];
+}
+
+/** Every path in the repository as git lists it, with the folders that hold its files and the root, `.`. */
+export function repositoryPaths(root: string): Set<string> {
+  const paths = new Set<string>(['.']);
+  for (const file of listed(root).filter((file) => existsSync(path.join(root, file)))) {
+    for (let at = file; at !== '.' && !paths.has(at); at = path.posix.dirname(at)) paths.add(at);
+  }
+  return paths;
+}
+
+/**
+ * The repository's files of the kinds `extensions` names, by extension or, for a dotfile such as
+ * `.gitignore`, by name, as git lists them: tracked, or new and not ignored.
+ */
 export function repositoryFiles(root: string, extensions: Iterable<string>): { file: string; text: string }[] {
   const kinds = new Set(extensions);
-  const listed = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' });
-  return [...new Set(listed.split('\0').filter(Boolean))]
-    .filter((file) => kinds.has(path.extname(file)))
+  return listed(root)
+    .filter((file) => kinds.has(path.extname(file)) || kinds.has(path.posix.basename(file)))
     .filter((file) => existsSync(path.join(root, file)) && statSync(path.join(root, file)).isFile())
     .map((file) => ({ file, text: readFileSync(path.join(root, file), 'utf8') }));
 }

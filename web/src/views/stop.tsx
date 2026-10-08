@@ -5,8 +5,8 @@
 //
 // The Bankruptcy stop (M9-S7, #32) is a warning card: the stop's sentence with the Day Bankruptcy
 // falls on, what can be done about it in words that name no number and weigh no choice, and the ways
-// to Wealth: the Market's Sell, where what the Guild holds is sold (M9-S6; DL-109 item 2, Q20; moved
-// from the Hall by M9-F2, DL-112 item 5), and the Board.
+// to Wealth: the Market's Sell, where what the Guild holds is sold (M9-S6; DL-109 item 2, Q20;
+// DL-112 item 5), and the Board.
 //
 // A Party's stop offers nothing more (DL-112 item 8, DL-118): the play that brought it home opened
 // Guild › Home at its Quest report, under the card. A module's stop keeps "Read what happened".

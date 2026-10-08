@@ -70,7 +70,7 @@ _Avoid_: AI, Personality, Strategy
 **Controller**:
 What makes a Guild's choices: the player for the player's Guild, a Disposition for a Rival. It
 is the only difference between Guilds (ADR-0002). No rule asks which controller a Guild has,
-save the accepted exceptions plan §1 lists: the game ends when the player's Guild ends, the
+save the accepted exceptions ADR-0002 lists: the game ends when the player's Guild ends, the
 Transfer Generator never takes from it, its controller acts first on the Board, and Random
 Events befall it alone (DL-82).
 _Avoid_: AI, Brain, Owner
@@ -106,55 +106,57 @@ DL-102). By DL-125 the setup form writes all three from content on request, for 
 chosen or drawn, and any left blank are written when the Guildmaster enters play, for every
 Guildmaster: the player's, a Rival's and a successor's. A Guildmaster's Appearance keeps to what
 their Portrait shows: a mapped picture's narrative is taken as it is, and no Appearance describes
-clothing (DL-126, DL-127). Built in v1.1.2-S5 (DL-132): the Birthplace, Appearance and Biography
+clothing (DL-126, DL-127). The Birthplace, Appearance and Biography
 are written from `content/descriptions.json`, by sex and age band, the Biography with the Guild's
-Background and the Traits, and the setup form's "Write them for me" and "Again" fill the fields.
-Since v1.1.2-S6 (DL-133) a successor's Biography says they came to the chair, not the Background's
+Background and the Traits, and the setup form's "Write them for me" and "Again" fill the fields
+(DL-132). A successor's Biography says they came to the chair, not the Background's
 founding, and the form writes only the fields left blank or still as written, which follow the
-Guildmaster as the setup changes. Since v1.1.3-S5 a Biography follows the Portrait: its origin is
+Guildmaster as the setup changes (DL-133). A Biography follows the Portrait: its origin is
 written by the picture's Station, its career by its Callings and hooks, and its closing by its
-Temper (DL-134 item 6). Since v1.1.3-S6 every Hero's two are written as they are generated, in the
+Temper (DL-134 item 6, DL-141). Every Hero's two are written as they are generated, in the
 pool or on a Roster, and the player never edits them, since the player sets up no Hero: the
 Appearance is their picture's narrative, or drawn from the phrases by sex and age band as a
 Guildmaster's is; the Biography is written from their Background, their Class at their age band,
-their first two Traits and, with a picture, its hooks and Temper (DL-135 item 6).
+their first two Traits and, with a picture, its hooks and Temper (DL-135 item 6, DL-142).
 _Avoid_: Detail, Origin, Backstory, Bio, Description
 
 **Portrait**:
 The picture of a person, three wide by four high, shown on their details and on their History:
 a Guildmaster's, a Hero's and a Patron's. Every Guildmaster and Hero has one where a picture fits:
 it is chosen to fit a person already drawn, by their sex, age and a Hero's Class, and never changes
-them, and one whom no picture fits shows the Silhouette of their sex (DL-134, DL-135). Since
-v1.1.3-S5 every Guildmaster's is chosen to fit them as they enter play, the player's, a Rival's and a
-successor's, and no two living Guildmasters, retired or in office, share a picture (DL-144); the
-player may instead choose one at setup, which is theirs whatever it fits. Since v1.1.3-S6 every Hero's is chosen to fit them as they
-are generated, in the pool or on a Roster: the Class must match, and a picture no Hero on a Roster or
-in the pool has is taken first, one repeating once every one that fits is. A save holds the Portrait by
+them, and one whom no picture fits shows the Silhouette of their sex (DL-134, DL-135). Every
+Guildmaster's is chosen to fit them as they enter play, the player's, a Rival's and a
+successor's, and no two living Guildmasters, retired or in office, share a picture (DL-141,
+DL-144); the player may instead choose one at setup, which is theirs whatever it fits. Every
+Hero's is chosen to fit them as they are generated, in the pool or on a Roster: the Class must
+match, and a picture no Hero on a Roster or in the pool has is taken first, one repeating once
+every one that fits is (DL-142). A save holds the Portrait by
 its picture's key (DL-125, DL-130). Each picture has a row in content that reads it: its apparent
 age, Station, Temper, Callings or a Hero's Classes, Features, narrative and hooks, the Biography's
 sentences written for that picture alone and not a module's Hook (DL-134, DL-135 item 2,
-v1.1.3-S1). Every picture is drawn in graphite on cream paper (DL-126); the first are the owner's
+DL-138). Every picture is drawn in graphite on cream paper (DL-126); the first are the owner's
 two, one of each sex (DL-131). The page's setup form offers the pictures, with the Portrait the
-seed would choose beside them, and the CLI's `new --portrait` chooses one. Since v1.1.3-S7 the form
+seed would choose beside them, and the CLI's `new --portrait` chooses one. The form
 offers them as a grid of one sex's thumbnails at a time, and a person's thumbnail, or their small
 Silhouette, stands beside their name in the Roster, the Unattached pool and the Guilds' table (DL-135
-item 9).
+item 9, DL-145).
 _Avoid_: Avatar, Profile picture, Headshot, Image (alone)
 
 **Silhouette**:
 The stand-in picture shown where no picture exists yet: a head and shoulders of the person's sex
 for a Portrait, a banner's outline for a Guild Banner, a chest's for a Unique Item. A Guildmaster
 shows it where no picture fits them, or every one that does is held by another living Guildmaster,
-retired or in office (DL-125, DL-129, DL-135 item 3; v1.1.3-S5, DL-144). A Hero shows it where no picture of their sex, band and
-Class exists, as every Hero does while content has no Hero picture (DL-135 item 8; v1.1.3-S6).
+retired or in office (DL-125, DL-129, DL-135 item 3, DL-144). A Hero shows it where no picture of
+their sex, band and Class exists, as every Hero does while content has no Hero picture (DL-135
+item 8).
 _Avoid_: Template (a Quest template is another thing), Placeholder, Default image
 
 **Station**:
 The walk of life a person was born to: `common`, `trade` or `gentry`. A picture's row reads one,
 and each Hero Background has one: Fallen gentry is gentry, Town apprentice trade, and the other six
 common. A Guildmaster's Biography begins from their picture's Station, and a Hero's Portrait is
-preferred of their Background's (DL-134 item 4, DL-135 item 5; in content since v1.1.3-S1, read
-from v1.1.3-S5).
+preferred of their Background's (DL-134 item 4, DL-135 item 5; in content and read, DL-138,
+DL-141).
 _Avoid_: Rank, Class (a Hero's Class is another thing), Caste, Birth
 
 **Calling**:
@@ -163,20 +165,20 @@ What a Guildmaster did before the Guild's chair, read from their picture, one or
 Guildmaster Traits and clashes with others, set once for the Calling, so that a Portrait is
 preferred whose Callings clash with none of the Guildmaster's Traits. A Biography's career is
 written by it. A Hero's picture has Classes instead (DL-134 item 4, DL-135 items 1 and 2; in
-content since v1.1.3-S1, read from v1.1.3-S5).
+content and read, DL-138, DL-141).
 _Avoid_: Career, Profession, Job, Class (on a Guildmaster)
 
 **Temper**:
 The manner a picture's face shows, such as stern, composed or wry. The closing sentence of the
 Biography of a Guildmaster or Hero with the picture is written by it (DL-134 item 4, DL-135 item 2;
-in content since v1.1.3-S1, read from v1.1.3-S5).
+in content and read, DL-138, DL-141).
 _Avoid_: Mood, Personality, Disposition (a Rival Guild's is another thing), Trait
 
 **Feature**:
 What a picture shows of the body, such as a beard, a scar or an eyepatch, defined once for every
 picture and never clothing (DL-127). A Feature may be on male pictures only, and may show Hero
 Traits, as a scar shows Scarred, so that a Hero who holds one is given a picture that shows it where
-one fits (DL-134 items 3 and 4, DL-135 item 3; in content since v1.1.3-S1, read from v1.1.3-S6).
+one fits (DL-134 items 3 and 4, DL-135 item 3; in content and read, DL-138, DL-142).
 _Avoid_: Keyword, Tag, Mark, Trait
 
 **Class**:
@@ -210,13 +212,13 @@ _Avoid_: Ability, Talent, Trait (on a Hero), Perk
 A named binary mark: on a Guildmaster, a buff or penalty to the Guild or to a Class; on a Hero,
 a lasting mark such as one left by a healed Injury. Guildmaster Traits and Hero Traits are two
 lists in content, a key in one only, and each Trait carries a list of effects, so that a Trait may
-later trade a buff for a penalty (DL-87 item 6, DL-150 items 1 and 2; v1.1.4-S7). A Guildmaster or
+later trade a buff for a penalty (DL-87 item 6, DL-150 items 1 and 2, DL-159). A Guildmaster or
 a Hero holds none or more of their own list, never two of which one excludes the other, each
 exclusion holding both ways. A Guildmaster Trait has a cost, a buff costing points and a penalty
 refunding them, and one effect or more (DL-87 item 5, DL-88 item 4, DL-100). A Hero Trait has none
 or more: Stat changes, which the Hero's effective Stats carry as gear's, and an Encounter bonus, added
 to every Check of the Encounters it names once for the Party however many hold it (DL-148 items 24
-and 26, DL-150 item 8; v1.1.4-S7). A Trait an Injury leaves replaces any the Hero holds that it
+and 26, DL-150 item 8, DL-159). A Trait an Injury leaves replaces any the Hero holds that it
 conflicts with (DL-150 item 5).
 _Avoid_: Perk, Flaw, Buff, Modifier (as a noun)
 
@@ -226,7 +228,7 @@ and kept only if the Quest ends a strong success; a negative one falls only on a
 the same Encounter at the Degree Failure. It reads the Degree, not "failed" as a reroll does, which
 takes in a Setback: a Hero hurt at a Setback earns none. At most one a Hero a Quest, none held
 already nor one that conflicts with one held, and each a Milestone, as is a Trait lost to an
-Injury's (DL-148 items 25 to 27, DL-150 item 5, DL-168 item 5; v1.1.4-S7, v1.1.5-S8). Which it is,
+Injury's (DL-148 items 25 to 27, DL-150 item 5, DL-168 item 5, DL-159, DL-172). Which it is,
 positive or negative, is where content lists it: in an Encounter's Triumph consequences or its
 Failure ones.
 _Avoid_: Perk, Achievement, Level-up
@@ -242,7 +244,7 @@ The points a player shares among their Guildmaster's five Stats when they choose
 `guildmasterStatPoints` (50, the drawn Stats' mean of 10 each). Each Stat chosen is 5 to 15, the
 range the Stats are drawn from; the Stats may cost no more than the points in all, and points left
 unspent are lost. Every Stat is chosen or none is. A drawn Guildmaster, the player's under "Choose
-for me", a Rival's or a successor's, is not held to them (DL-149 item 5, v1.1.4-S11).
+for me", a Rival's or a successor's, is not held to them (DL-149 item 5, DL-153).
 _Avoid_: Point buy, Pool (alone), Points (alone), Stat budget
 
 **Level**:
@@ -253,7 +255,7 @@ _Avoid_: Rank, Tier, Grade
 **XP**:
 Experience points, earned from Quests and training, that raise a Hero's Level. A Quest's XP is
 split across the Party sent, its Dead counted: each Hero who comes home takes an equal share,
-rounded down, and a Hero who dies takes none, their share lost (v1.1.5-S13, DL-182).
+rounded down, and a Hero who dies takes none, their share lost (DL-182, DL-184).
 _Avoid_: Experience (alone), Points, Growth
 
 **Potential**:
@@ -287,7 +289,7 @@ _Avoid_: Happiness, Mood, Loyalty
 
 **Morale band**:
 One of the named ranges a Hero's Morale falls in. A Hero's Form on a Quest is the first rule to
-read them (v1.1.4-S3, DL-154); Random Events are to read them too (DL-82).
+read them (DL-154); Random Events are to read them too (DL-82).
 _Avoid_: Mood, Tier
 
 **Regard**:
@@ -316,15 +318,15 @@ of its difficulty, duration and Party size, its reward and Fame effect, its tags
 table, its kinds of Encounter and any Finale. A Quest copies what it carries at generation, so a
 changed template never alters a Quest already offered (DL-25). Its tags weight the draw of its
 Encounters: within a kind, an Encounter is drawn `encounterTagWeight` times as often for each tag
-it shares with the template (DL-148 item 22, built in v1.1.4-S8, DL-160); they are kept too for
+it shares with the template (DL-148 item 22, DL-160); they are kept too for
 Random Events' conditions (DL-82).
 _Avoid_: Quest type, Blueprint, Archetype
 
 **Stat demand**:
 A Hero Stat a piece of work asked for, with a weight; a Quest template's or an Encounter's
-weights summed to one (DL-06, DL-42). Gone: from v1.1.4-S6 a Quest's were shown nowhere and read
-by no rule (DL-148 items 16 and 17, DL-157), an Encounter's went with content's old form in
-v1.1.6-S6 (DL-192), and a Quest template's and a Quest's in v1.1.6-S7 (DL-193). What a Check reads
+weights summed to one (DL-06, DL-42). Gone: a Quest's are shown nowhere and read
+by no rule (DL-148 items 16 and 17, DL-157), an Encounter's went with content's old form
+(DL-192), and a Quest template's and a Quest's too (DL-193). What a Check reads
 is its Query (ADR-0010); the Board shows it.
 _Avoid_: Requirement (a Quest's requirements are its Party size and any Class or Skill it needs),
 Weighting
@@ -338,19 +340,19 @@ _Avoid_: Mission Engine, Combat system, Resolver
 One typed step of a Quest, resolved by its Checks with typed consequences. An Encounter has one
 to four Checks, combined by its pass formula (`and`, `or` and `at-least`, every Check named once)
 into its Degree, and its consequences may differ by Degree: a Triumph's are Success's unless it
-has its own, and a Setback's Failure's (DL-148 item 7, built in v1.1.4-S2, DL-152). Each is of one
+has its own, and a Setback's Failure's (DL-148 item 7, DL-152). Each is of one
 kind, `combat`, `travel`, `social`, `arcane`, `stealth` or `lore` (for Intelligence and Knowledge:
-riddles, records and clues, from v1.1.4-S8), and may carry tags, as a Quest template does. The kind
+riddles, records and clues, DL-160), and may carry tags, as a Quest template does. The kind
 is data, written in lower case inside a sentence ("on lore Encounters"); `lore` names a kind of
 Encounter, never a Background.
 _Avoid_: Beat, Scene, Event
 
 **Check**:
 The comparison of a Party's capability against an Encounter's difficulty. Its score is a Query
-over the Party since v1.1.4-S1 (DL-151), an Encounter written the old way loading into one Check
+over the Party (DL-151), an Encounter written the old way loading into one Check
 whose score is the same weighted sum of Stats. An Encounter has one to four Checks, each named for
 the narration and the Board, each rolled every time, and each with its own target, a flat part
-and a part that grows with the Quest's difficulty (DL-148 item 7, built in v1.1.4-S2, DL-152). A
+and a part that grows with the Quest's difficulty (DL-148 item 7, DL-152). A
 raw Check's capability is its score alone, with no Skill, Synergy, teamwork or consumable added: a
 gate, such as a count of the Heroes strong enough against a flat target (DL-152).
 _Avoid_: Roll (for the whole), Test, Save
@@ -360,7 +362,7 @@ A reading of the Party, written in content as a list with its operator first, wh
 evaluates: some of the Party's Heroes (a Set), one of them, a number or a fact of one Hero, or a
 number of the Party, such as the strongest Warrior's Strength or the total Intelligence of the
 Mages and Healers. A Check's score and a Synergy's requirements are Queries (DL-148 items 4 to 6,
-ADR-0010; built in v1.1.4-S1, DL-151). A Query reads only the Party's own Heroes on the Quest,
+ADR-0010, DL-151). A Query reads only the Party's own Heroes on the Quest,
 never the Guildmaster or the Guild's dealings, nor Regard between Heroes. Sex decides who takes
 part in a Check and never a value: it stands only in a filter of a Check's score, never in a
 Synergy's requirement, and a Set filtered by it is never counted, by `count` or by a value that
@@ -372,18 +374,17 @@ How a Check came out, read from its roll against its target: a **Triumph**, a Su
 **Setback** or a Failure. A Triumph is a Success by a wide margin, a Setback a Failure by a narrow
 one. An Encounter takes the Degree its pass formula gives: the worst of an `and`, the best of an
 `or`, the k-th best of an `at-least` k; the Check that set it decided it. A strong success needs
-Triumphs (DL-148 item 8, built in v1.1.4-S2, DL-152).
+Triumphs (DL-148 item 8, DL-152).
 _Avoid_: Tier, Grade, Result (alone)
 
 **Form**:
 How much of themselves a Hero brings to a Check on a Quest: a factor on the Stats they add to a
 score, from their Morale band, and lower once they are hurt on the Quest. The band is read from
 their Morale on the Quest: their Morale as they set out plus the Morale the Quest's Encounters have
-cost or given them so far, their own since a loss may be steadied (v1.1.4-S4). Form never changes
+cost or given them so far, their own since a loss may be steadied (DL-155). Form never changes
 their Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
 Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
-one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12; built in
-v1.1.4-S3, DL-154).
+one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12, DL-154).
 _Avoid_: Condition, Fitness, Mood
 
 **Exposure**:
@@ -392,31 +393,31 @@ the Heroes it falls on, a Set Query (`among`), and the Stats that expose to it (
 those it can fall on, the less of those Stats' range a Hero has, the likelier it is them: the
 weakest three times as likely as the strongest at the first `exposureRange`. `among` is read over
 those it can fall on, so an Injury on the weakest falls on the weakest unhurt Hero, passing over one
-already hurt; a Death's over the living Party (DL-168 item 6; built in v1.1.5-S4, DL-178). When
+already hurt; a Death's over the living Party (DL-168 item 6, DL-178). When
 `among` names no one it can fall on, any of them may be hit, so leaving the front rank at home
-dodges nothing (DL-148 item 14; built in v1.1.4-S4, DL-155).
+dodges nothing (DL-148 item 14, DL-155).
 _Avoid_: Aggro, Threat, Targeting
 
 **Guard**:
 How much of a harm a Hero shrugs off: an Injury's or a Death's chance on them, or a Morale loss,
 less for a Hero with more of the range of the Stats it names (`guardedBy`, `steadiedBy`): half for
 the strongest at the first `guardRange`. Exposure and Guard read a Hero's effective Stats, so armour
-protects (DL-148 item 14; built in v1.1.4-S4, DL-155).
+protects (DL-148 item 14, DL-155).
 _Avoid_: Defence, Armour (for the whole), Resistance, Save
 
 **Finale**:
 A fixed last Encounter a Quest template names, met after the drawn ones: the Quest's count of
 Encounters is unchanged, its last place the Finale. An Encounter named as a Finale is never drawn
 into a place. On such a Quest Loot also needs the Finale to end a Triumph. The four hardest
-templates are to have one (DL-148 items 22 and 23; built in v1.1.4-S8, DL-160, the four written in
-S10).
+templates are to have one (DL-148 items 22 and 23, DL-160, the four written in
+DL-166).
 _Avoid_: Boss, Climax, Final Encounter
 
 **Quest band**:
 How well a Quest went: failure, success or strong success, read from the share of its
 Encounters the Party came through at Success or better (DL-42). A strong success needs every
 Encounter at Success or better and half of them Triumphs: DL-83's margin, made a share of
-Triumphs (DL-148 item 8, v1.1.4-S2, DL-152). By DL-85 it pays a premium (to be built).
+Triumphs (DL-148 item 8, DL-152). By DL-85 it pays a premium (to be built).
 _Avoid_: Result, Grade, Tier
 
 **Chance band**:
@@ -427,17 +428,16 @@ item 10). The estimate reads what each Check reads of a proposed Party as it wil
 Morale, Regard and Injuries moved by each night away, on the Quest's own Encounters, drawn when it
 was posted. It reads the Guild as it is when the Party sets out, and assumes no one falls: no Hero
 hurt or killed on the way, and no Morale moved by an Encounter. So the words come with "if no one
-falls", and the numbers stay in the detail (DL-148 item 15; built in v1.1.4-S5, DL-156; shown from
-v1.1.4-S6).
+falls", and the numbers stay in the detail (DL-148 item 15, DL-156, DL-157).
 _Avoid_: Odds (for the word), Rating, Difficulty
 
 **Best Party**:
 The Party the engine would send on a Quest from a Guild's free Heroes (`partyFor`): first those its
 Class and Skill requirements take, then whoever most raises the estimated chance of success up to
-its least Party size, then each Hero who raises it by more than the Guild's **Party margin** (v1.1.5-S6,
-DL-175), up to its greatest. A Rival sends it, at its Disposition's margin; the Board shows the player's, "Your best
-Party", at the configuration's `playerPartyMargin`, and the harness's policy sends that (DL-148 item
-17, v1.1.4-S6, DL-157).
+its least Party size, then each Hero who raises it by more than the Guild's **Party margin**
+(DL-175), up to its greatest. A Rival sends it, at its Disposition's margin; the Board shows the
+player's, "Your best Party", at the configuration's `playerPartyMargin`, and the harness's policy
+sends that (DL-148 item 17, DL-157).
 _Avoid_: Strongest Party, Optimal Party, Recommended Party
 
 **Board**:
@@ -464,7 +464,7 @@ _Avoid_: Drop table, Treasure table
 **Synergy**:
 An authored bonus that applies when a Party meets its requirements: conditions on the Party
 written as Queries, every one of which must hold, such as at least one Warrior and one Healer
-(DL-148 item 20; built in v1.1.4-S1, DL-151, the old list of Classes and Skills loading into
+(DL-148 item 20, DL-151, the old list of Classes and Skills loading into
 them). Relationship between members scales teamwork separately.
 _Avoid_: Combo, Bonus (alone), Chemistry
 
@@ -659,7 +659,7 @@ _Avoid_: Gold, Money, Funds
 **Treasury**:
 The Guild's accounts: its Wealth, its Upkeep, and every change to its Wealth, read from the
 History by category (Upkeep, Quest rewards, Market, Hall, Heroes and Other); a part of the Guild's
-view (DL-111, built in M9-F3, DL-116).
+view (DL-111, DL-116).
 _Avoid_: Bank, Coffers, Vault
 
 **Upkeep**:
@@ -708,8 +708,7 @@ _Avoid_: Inventory, Stash, Vault
 
 **Stores**:
 Everything the Guild owns, wherever it is: its Holding, the Gear its Heroes carry, and what its
-Parties have taken; a part of the Guild's view, read only for now (DL-111, DL-113 item 2, built in
-M9-F3, DL-116). Not the Market, where Items are bought and sold.
+Parties have taken; a part of the Guild's view, read only for now (DL-111, DL-113 item 2, DL-116). Not the Market, where Items are bought and sold.
 _Avoid_: Inventory, Armoury, Stash
 
 **Common Item**:
@@ -720,9 +719,9 @@ _Avoid_: Stackable, Generic item, Commodity
 **Unique Item**:
 An Item that is an individual, magical, special or belonging to a Campaign, with exactly one
 holder at a time. By DL-125 it shows its picture beside its name, or a chest's Silhouette until it
-has one, in the Stores, the Market's Sell and a Hero's Gear (built in v1.1.2-S2, DL-129). No Unique
-Item has a picture yet, so each shows the Silhouette. Since v1.1.5-S14 (DL-182, DL-183) the Roster's
-Tiles show it too, before its name in its Item's chip, and a Hero who carries one has a thin gold glow
+has one, in the Stores, the Market's Sell and a Hero's Gear (DL-129). No Unique
+Item has a picture yet, so each shows the Silhouette. The Roster's
+Tiles show it too (DL-182, DL-183), before its name in its Item's chip, and a Hero who carries one has a thin gold glow
 around their tile, and around their row in the Roster's Table, which shows no picture.
 _Avoid_: Artefact, Legendary, Named item
 
@@ -751,7 +750,7 @@ _Avoid_: Cooldown, Embargo
 
 **Transfer Generator**:
 The weekly night rule by which Rivals bid for one another's Heroes. It never takes from the
-player's Guild, an accepted exception to ADR-0002 (plan §1, DL-59). Its own bids keep both Rosters
+player's Guild, an accepted exception to ADR-0002 (listed there, DL-59). Its own bids keep both Rosters
 within the range a Rival is generated with: a bound on the Generator alone, not a cap on any Roster,
 kept for now only to constrain testing load and to be removed (DL-185, in the backlog).
 _Avoid_: Transfer window, Trade market
@@ -838,7 +837,7 @@ _Avoid_: AI, Bot, Autoplayer
 **Content editor**:
 The owner's local page and commands for changing the content the game ships, `npm run edit`; never
 part of the deployed game, and never touching a saved game. A kind of content is edited as a list
-of keyed rows through its forms; Traits are the first kind (DL-150 items 7 to 12; v1.1.4-S12). Each
+of keyed rows through its forms; Traits are the first kind (DL-150 items 7 to 12, DL-161). Each
 change is checked with the content's checks and held as a pending edit until "Finish", which writes
 the files, raises the content version by one and runs the tests, putting every file back if one
 fails. It never commits.
@@ -847,6 +846,6 @@ _Avoid_: Mod tool, Admin page, Trait editor (for the whole)
 **Uses register**:
 The one list, in code (`content/src/uses/`), of every place a Trait is used: where its key stands in
 content, and which rules of the engine and checks of the content read Traits. The content editor
-finds a Trait's uses through it; the drift test holds it to the code, and `docs/agents/traits.md`
-is written from it (DL-150 item 14; v1.1.4-S12).
+finds a Trait's uses through it; the drift test holds it to the code, and
+`docs/agents/traits-register.md` is written from it (DL-150 item 14, DL-161, DL-219).
 _Avoid_: Index, Catalogue, Usage map

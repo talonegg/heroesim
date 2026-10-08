@@ -1,0 +1,6 @@
+# The archives, read by path through docs/decisions/index.md, docs/planning/archive/README.md and
+# the ADR that links its old wording, are left out of a search by default (DL-221, DL-222). Search
+# one by naming its path, or with rg -u.
+adr/archive/
+decisions/archive/
+planning/archive/

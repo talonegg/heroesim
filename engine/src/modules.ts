@@ -85,7 +85,7 @@ export interface SliceContext {
  * The core's selectors over the Turn's World State, as it stands at the call (an effect applied a
  * moment ago included), for a hook to read derived values the way the core reads them (M8-S2). A row
  * one returns is read-only, as the world is. Each throws on an id the world does not hold. None
- * says which Guild is the player's: a module is a rule, and no rule asks (ADR-0002, plan.md §1).
+ * says which Guild is the player's: a module is a rule, and no rule asks (ADR-0002 and its listed exceptions).
  */
 export interface ModuleSelectors {
   /** The Unattached pool, in id order (`unattachedHeroes`). */
@@ -107,8 +107,8 @@ export interface ModuleSelectors {
 }
 
 /**
- * What a module is given at a hook, beside the World State, read-only, and its slice (M8-S1,
- * completed by M8-S2).
+ * What a module is given at a hook, beside the World State, read-only, and its slice (DL-76,
+ * DL-77).
  */
 export interface ModuleContext extends SliceContext {
   /** The Turn being played. */

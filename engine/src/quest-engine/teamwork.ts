@@ -1,4 +1,4 @@
-// The teamwork scalar of a Check's capability (M4-S2's seam, DL-42; filled by M4-S4, DL-46): how
+// The teamwork scalar of a Check's capability (a seam of DL-42's, which DL-46 fills): how
 // well a Party works together, from the mean pairwise Relationship of its members (R24, INPUTS 6.3:
 // ×0.9 to ×1.1 across the Relationship range). The Relationship of each pair is read from the two
 // Heroes' Regard for each other (`relationshipBetween`, hero-regard.ts), never stored.

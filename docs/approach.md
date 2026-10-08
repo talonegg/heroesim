@@ -158,9 +158,10 @@ ESLint forbids `engine/` from importing any other package and from using `Math.r
 
 ## 6. Build order
 
-Superseded 2026-09-25 by [`plan.md`](./plan.md): nine milestones of session-sized
-increments, each ending in a harness run and a CLI a human can drive. The plan is the build
-order; this section only points at it.
+Superseded 2026-09-25 by the delivery plan: the first build's nine milestones of session-sized
+increments, each ending in a harness run and a CLI a human can drive, are archived in
+[`planning/archive/first-build-plan.md`](./planning/archive/first-build-plan.md); releases since are
+delivered as [`plan.md`](./plan.md) §1 says. This section only points at them.
 
 ## 7. Verification
 

@@ -226,7 +226,7 @@ describe('generateQuest', () => {
     expect(first?.encounterKeys).not.toBe(second?.encounterKeys);
   });
 
-  // The encounters stream is new in M4 (ADR-0009 as amended, D7), so the Board a seed produces is
+  // The encounters stream is new in M4 (ADR-0009, D7), so the Board a seed produces is
   // the one it produced before M4: pinned from the engine at M3's end (v1.0-dev 8229670) for the
   // test content, no Rivals and no Party sent, over 30 Days of refreshes and expiries. The Board's
   // Regard weighting (M4-S5, DL-43 item 5) is set to 0, DL-25's uniform draw as at M3's end: the
