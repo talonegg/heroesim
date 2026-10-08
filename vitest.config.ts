@@ -29,9 +29,9 @@ export default defineConfig({
           environment: 'node',
           include: ['src/**/*.test.ts'],
           exclude: [...configDefaults.exclude, harnessRuns],
-          // The harness's tests play short games under the automatic policy, which from v1.1.5-S2
-          // (DL-176) estimates every Quest it can staff at each choice; under the whole suite's load
-          // some passed 5 s, so its project gives each 30 s, as `play.test.ts` gave its slowest.
+          // The harness's tests play short games under the automatic policy, which estimates every
+          // Quest it can staff at each choice (DL-176); under the whole suite's load some passed
+          // 5 s, so its project gives each 30 s, as `play.test.ts` gave its slowest.
           ...(name === 'harness' ? { testTimeout: 30_000 } : {}),
         },
       })),
@@ -59,7 +59,7 @@ export default defineConfig({
           hookTimeout: 60_000,
         },
       },
-      // The decision log's tool (DL-215): the index's freshness and the citations, over this repository.
+      // The decision log's tool (DL-215): the index's freshness, the citations and the documents' links (DL-218).
       {
         test: {
           name: 'decisions',

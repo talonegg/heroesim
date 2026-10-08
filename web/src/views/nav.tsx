@@ -3,7 +3,7 @@
 // Quests on offer, Roster a dot when a Transfer Offer waits, and History the entries new since the
 // last action, each said in words as well (`navCounts`).
 //
-// Seven views in one order at every width since M9-F2 (DL-111 items 7 and 8, DL-112 item 5, DL-113
+// Seven views in one order at every width (DL-111 items 7 and 8, DL-112 item 5, DL-113
 // item 1): the Guildmaster at the top, then Guild, Roster, Board, Rankings, Market and History. By
 // width, and by CSS alone: under 600px a bottom bar holds Guild, Roster, Board and Rankings, and
 // "More" holds the Guildmaster, the Market and the History, in the same order, with a dot while the

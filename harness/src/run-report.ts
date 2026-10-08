@@ -95,7 +95,7 @@ export interface RunReportContext {
   modules?: readonly string[];
 }
 
-/** The run's config version: its own, or, in a report from before v1.1.6-S7, its config's (DL-193). */
+/** The run's config version: its own, or, in a report written before DL-193, its config's. */
 function configVersionOf(run: RunReport): number | undefined {
   return run.configVersion ?? (run.config as unknown as { configVersion?: number }).configVersion;
 }

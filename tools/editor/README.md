@@ -3,9 +3,10 @@
 `tools/editor` is the owner's content editor (DL-150 items 7 to 12, v1.1.4-S12): a local page and
 the commands under it. Traits are its first kind; the tuning values, `engine/src/config.json`, its
 second, from v1.1.6-S18 (DL-186 item 15, DL-204), as commands alone; Encounters and the rest come
-when the owner asks. It is never built into the game or deployed. The guardrails, and the register of
-every use of a Trait, are in [`docs/agents/traits.md`](../../docs/agents/traits.md); the tuning
-values' in [`docs/agents/config.md`](../../docs/agents/config.md).
+when the owner asks. It is never built into the game or deployed. This README is the one account of
+how it works. The Traits' rules are in [`docs/agents/traits.md`](../../docs/agents/traits.md), the
+register of every use of a Trait in [`docs/agents/traits-register.md`](../../docs/agents/traits-register.md),
+and the tuning values' rules in [`docs/agents/config.md`](../../docs/agents/config.md).
 
 ```sh
 npm run edit                                        # the page, at http://127.0.0.1:4180/
@@ -61,7 +62,7 @@ checks and names their problems.
 | `traits finish` | Writes the pending edits, raises the content version, runs `npm test` |
 | `traits doctor` | The drift and freshness checks, the content's checks, and whether the pending edits apply |
 | `traits recover [--force]` | Puts back the files of a "Finish" cut off; every command does it first. `--force` takes the journal as cut off whatever its process says (see Finish) |
-| `traits doc` | Writes `docs/agents/traits.md`'s register part from the register |
+| `traits doc` | Writes `docs/agents/traits-register.md` from the register |
 
 `add` and `change` take the fields as flags: `--name <text>`, `--cost <n>` (a Guildmaster Trait's),
 `--excludes a,b` or `--no-excludes`, `--effects <json>`, or all at once as `--row <json>` or
@@ -97,7 +98,7 @@ a `has-trait` in a Check, a harm or a Synergy, the Biography sentences, a Callin
 `clashes`, a Feature's `shows`, and other Traits' `excludes`. `assign` and `unassign` (v1.1.4-S13,
 DL-150 item 13) add and take out such a use through the register's entry for it, which says how, and
 are pending edits like the rest: checked with the content's checks as they are made, written by
-"Finish". [`docs/agents/traits.md`](../../docs/agents/traits.md) gives each entry, what it does and its
+"Finish". [`docs/agents/traits-register.md`](../../docs/agents/traits-register.md) gives each entry, what it does and its
 target's fields, as `traits assign <key> <entry> <field>=…`.
 
 ```sh
@@ -196,8 +197,9 @@ npm run edit -- config finish --reason "the economy pass's wages (DL-210)"
   A test that fails puts the file back and keeps the edits pending. `--reason` is required, and is
   `config finish`'s alone: a raise says why, citing its decision-log entry. It never commits, and it
   takes the Traits' journal and lock, so neither kind writes while the other's tests run.
-- **A test that pins a default**, or rests its numbers on one, fails "Finish" for that setting:
-  change it in the same story, then finish again.
+- **A test that pins a default**, or rests its numbers on one, fails "Finish" for that setting: it is
+  reported to the owner with its kind and an assessment of its design, never changed to pass
+  unasked (`docs/agents/delivery.md`, rule 4).
 
 ## The page
 

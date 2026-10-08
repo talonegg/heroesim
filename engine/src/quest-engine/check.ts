@@ -67,7 +67,7 @@ export interface CheckResult {
  * nothing (data-model rule 5). No members, no capability. A member's effective values are the one
  * selector's, `effectiveStats` (selectors.ts), read once as the Party is taken (`queryParty`), which
  * holds every modifier of a Stat: the Class Stat bonuses of the Hero's Guild's Traits (M4-S5) and,
- * from M5-S2, gear (DL-44); from v1.1.4-S7, the Hero Traits' Stat changes. None is worked out here.
+ * gear (DL-44, DL-49); the Hero Traits' Stat changes (DL-159). None is worked out here.
  * Then, after the teamwork scalar, the Encounter bonus of the members' Hero Traits
  * (`traitEncounterBonus`, v1.1.4-S7, DL-148 item 26), once for the Party however many hold each
  * Trait. A raw Check's capability is its score alone (v1.1.4-S2's verification, DL-152), read

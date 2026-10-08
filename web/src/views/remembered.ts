@@ -67,7 +67,7 @@ export const preferences = {
   ),
 };
 
-/** The view kept before M9-F2 that is now a part of the Guild. */
+/** The view a browser kept before DL-115, the Hall, now a part of the Guild. */
 const hallView = 'hall';
 
 /** What this browser keeps of `which`, if it is among its choices; its fallback when not, or when nothing can be read. */
@@ -82,7 +82,7 @@ export function rememberPreference<Which extends Preference>(which: Which, kept:
   else rememberChoice(which.key, kept as string);
 }
 
-/** The Guild's part this browser last had open, or Home; its Hall when the view kept is the Hall view of before M9-F2. */
+/** The Guild's part this browser last had open, or Home; its Hall when the view kept is the Hall view of before DL-115. */
 export function rememberedGuildPart(): GuildPartId {
   if (rememberedChoice(preferences.view.key, [hallView], null) === hallView) return 'hall';
   return rememberedPreference(preferences.guildPart);
@@ -92,7 +92,7 @@ export function rememberedGuildPart(): GuildPartId {
  * A preference as state: what this browser keeps of `which` as the page opens, and a setter. What is
  * in force is kept, where the browser lets it, once the render that holds it is committed, the one
  * the page opens on too: never while rendering, as Guild › Home is set in the render a play ends in
- * and a render may be run twice or set aside; and a view kept as the Hall of before M9-F2 is put
+ * and a render may be run twice or set aside; and a view kept as the Hall of before DL-115 is put
  * right as the page opens. `read` is for a preference with a reading of its own, as the Guild's part
  * has (`rememberedGuildPart`).
  */

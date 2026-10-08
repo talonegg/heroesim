@@ -1,6 +1,6 @@
 // `buy` (M5-S4, R31, DL-51): a Guild buys Items the Market has for sale, at the Market price. Every
 // Guild buys through this one rule, `applyBuy`, a front end by `applyAction` and a controller on the
-// Turn's copy (ADR-0002, DL-30); from M6-S4 every Disposition buys gear by it (`gearPurchase`, DL-58).
+// Turn's copy (ADR-0002, DL-30); every Disposition buys gear by it (`gearPurchase`, DL-58).
 
 import type { EngineDeps } from '../config.js';
 import type { ItemDefinitionKey } from '../content-types.js';

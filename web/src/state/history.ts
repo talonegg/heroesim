@@ -563,7 +563,7 @@ function besideItsReturn(last: Entry | undefined, next: Entry | undefined): bool
 
 /**
  * The entries that stand beside a return in the player's Guild's History, after it: its Loot, Injuries and Deaths, and
- * from v1.1.4-S7 the Traits its Heroes earned, written next after them.
+ * the Traits its Heroes earned (DL-159), written next after them.
  */
 const besideAReturn: ReadonlySet<string> = new Set(['quest.loot', 'hero.injured', 'hero.died', 'hero.trait-gained']);
 

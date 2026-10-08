@@ -1,11 +1,17 @@
 // `npm run decisions -- <command>` (DL-215): `index` writes the decision index from the log's
-// headings; `check` says whether the index is current and every cited `DL-nn` names an entry.
+// headings; `check` says whether the index is current, every cited `DL-nn` names an entry, every
+// relative link in the repository's Markdown leads to a file (DL-218), the open log's entries keep
+// to the lean template, and the source tells no history by a story and cites stories on no more lines
+// than its baseline (DL-219).
 // Exit codes: 0 done, 1 a check failed, 2 a usage error.
 
 import { fileURLToPath } from 'node:url';
 import { unknownInRepository } from './citations.js';
 import { indexFreshness, writeIndex } from './index-page.js';
+import { leanProblemsInLog } from './lean.js';
+import { brokenLinksInRepository } from './links.js';
 import { indexPath } from './log.js';
+import { baselinePath, storyReport } from './stories.js';
 
 export interface Io {
   out: (text: string) => void;
@@ -19,7 +25,7 @@ const usage = [
   'Usage: npm run decisions -- <command>',
   '',
   '  index   write docs/decisions/index.md from the entries\' headings',
-  '  check   the index current, and every DL-nn cited in the repository an entry',
+  '  check   the index current, every cited DL-nn an entry, no broken link, a lean log, no story history',
 ].join('\n');
 
 export function run(argv: readonly string[], io: Io, root: string = repositoryRoot): number {
@@ -43,10 +49,18 @@ export function run(argv: readonly string[], io: Io, root: string = repositoryRo
   }
   const fresh = indexFreshness(root);
   const unknown = unknownInRepository(root);
+  const broken = brokenLinksInRepository(root);
+  const lean = leanProblemsInLog(root);
+  const stories = storyReport(root);
+  const overBaseline = stories.cited > stories.baseline;
   for (const problem of fresh.problems) io.err(problem);
   for (const cited of unknown) io.err(`${cited.file}:${cited.line}: DL-${cited.number} is no entry`);
-  if (fresh.ok && unknown.length === 0) {
-    io.out('The index is current, and every cited DL-nn is an entry.');
+  for (const link of broken) io.err(`${link.file}:${link.line}: ${link.target} leads to no file`);
+  for (const problem of lean) io.err(problem);
+  for (const told of stories.history) io.err(`${told.file}:${told.line}: tells history by a story: ${told.text}`);
+  if (overBaseline) io.err(`${stories.cited} source lines cite a story, over the baseline of ${stories.baseline} (${baselinePath}): cite the DL entry instead`);
+  if (fresh.ok && unknown.length === 0 && broken.length === 0 && lean.length === 0 && stories.history.length === 0 && !overBaseline) {
+    io.out(`The index is current, every cited DL-nn is an entry, every link leads to a file, the open log is lean, and ${stories.cited} source lines cite a story (baseline ${stories.baseline}).`);
     return 0;
   }
   return 1;

@@ -9,8 +9,8 @@
 // `offersView`): nothing here computes a rule. An older report, opened from its entry in the rail or
 // the History, stands in Home's place until it is closed (M9-F5, DL-111 item 3, Q7).
 //
-// The Guild in parts since M9-F2 (DL-111 item 5, DL-112 item 5): tabs under the view's heading, Home,
-// the digest above; Hall, its premises with Build (`hall.tsx`); and from M9-F3 (DL-116) Stores,
+// The Guild in parts (DL-111 item 5, DL-112 item 5): tabs under the view's heading, Home,
+// the digest above; Hall, its premises with Build (`hall.tsx`); and, by DL-116, Stores,
 // everything it owns (`stores.tsx`), and Treasury, its accounts (`treasury.tsx`).
 // Which part is open is the shell's, which this browser remembers (`remembered.ts`).
 

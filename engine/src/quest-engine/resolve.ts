@@ -143,7 +143,7 @@ export interface EncounterResult {
 /** What a Quest's resolution comes to (DL-29's outcome, its score and ratio now the Encounters'). */
 export interface QuestOutcome {
   band: QuestBand;
-  /** Encounters at Success or better: whose Check succeeded, before v1.1.4-S2. */
+  /** Encounters at Success or better (DL-152). */
   successes: number;
   /** Encounters in the sequence, those a Party wiped out never reached included. */
   encounterCount: number;
@@ -168,7 +168,7 @@ export interface QuestOutcome {
    * the total rounded once to a whole number (v1.1.4-S4's verification). 0 moves them not at all.
    */
   moraleByHero: Record<HeroId, number>;
-  /** Regard between every pair of the Party, summed over the Encounters; applied from M4-S4. */
+  /** Regard between every pair of the Party, summed over the Encounters and applied (DL-46). */
   regardDelta: number;
   /** At most one per Hero, and none on a Hero who died. */
   injuries: QuestInjury[];
@@ -293,9 +293,9 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
   const synergyKeys = new Set<SynergyKey>();
   for (const [index, encounter] of sequence.entries()) {
     if (working.alive.length === 0) break;
-    // v1.1.4-S1: the members as the Queries read them on this Encounter, their effective Stats read
-    // once; from v1.1.4-S3 their Morale on the Quest and their form, from the harm so far; from
-    // v1.1.4-S4 each Hero's own Morale consequences.
+    // The members as the Queries read them on this Encounter (DL-151): their effective Stats read
+    // once, their Morale on the Quest and their form from the harm so far (DL-154), and each Hero's
+    // own Morale consequences (DL-155).
     const party = queryParty(working.alive, world, deps, onQuestOf(working));
     // The Synergies the Check adds, from the same members: recorded for the Quest, not the Encounter.
     for (const synergy of synergiesOn(party, encounter, deps.content)) synergyKeys.add(synergy.key);

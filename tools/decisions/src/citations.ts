@@ -32,13 +32,19 @@ export function unknownCitations(files: readonly { file: string; text: string }[
   return files.flatMap(({ file, text }) => citationsIn(text, file)).filter((cited) => !known.has(cited.number));
 }
 
-/** The repository's text files, as git lists them: tracked, or new and not ignored. */
-export function repositoryTexts(root: string): { file: string; text: string }[] {
+/** The repository's files of the kinds `extensions` names, as git lists them: tracked, or new and not ignored. */
+export function repositoryFiles(root: string, extensions: Iterable<string>): { file: string; text: string }[] {
+  const kinds = new Set(extensions);
   const listed = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' });
   return [...new Set(listed.split('\0').filter(Boolean))]
-    .filter((file) => textExtensions.has(path.extname(file)))
+    .filter((file) => kinds.has(path.extname(file)))
     .filter((file) => existsSync(path.join(root, file)) && statSync(path.join(root, file)).isFile())
     .map((file) => ({ file, text: readFileSync(path.join(root, file), 'utf8') }));
+}
+
+/** The repository's text files, as git lists them. */
+export function repositoryTexts(root: string): { file: string; text: string }[] {
+  return repositoryFiles(root, textExtensions);
 }
 
 /** The citations under `root` that name no entry. */

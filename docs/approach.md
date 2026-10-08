@@ -142,11 +142,15 @@ both), TypeScript, Vitest, ESLint.
 engine/     pure rules, state, generators, engines; zero dependencies; tests beside
 content/    JSON content and a loader with a pure entry (browser) and a Node entry
 words/      the words the front ends and the tools share, the narration and the Quest review's
-            page among them; runs in a browser (v1.1.6-S11, S12)
+            page among them; runs in a browser (DL-186 item 1)
 harness/    automatic policy, seed sweeps, counters; runs under Vitest with an env flag
 cli/        terminal front end; local file saves
-web/        browser front end; static build for Cloudflare Pages; browser saves
-docs/       requirements, principles, approach, adr/, decision log once building starts
+web/        browser front end; one static build served by Cloudflare Workers and Pages; browser
+            saves
+tools/      the owner's tools, outside the game: the portrait tool, the content editor, the
+            decision log's index and checks
+media/      the pictures, Portraits, Banners and Items, each place with its Silhouette
+docs/       requirements, principles, approach, adr/, the plan and its epics, the decisions
 ```
 
 ESLint forbids `engine/` from importing any other package and from using `Math.random`,
@@ -173,5 +177,6 @@ order; this section only points at it.
 - Vocabulary from `CONTEXT.md`, exactly. Change the glossary first.
 - An ADR in `docs/adr/` for decisions that are hard to reverse, surprising later and a real
   trade-off. A decision log for the rest, started with the first increment.
-- Every tunable on a named, defaulted configuration object.
+- Every tunable a setting in `engine/src/config.json`, with its default and its rule, changed
+  through the content editor's config kind (DL-204).
 - Prefer boring and testable. One maintainer, intermittent hours.

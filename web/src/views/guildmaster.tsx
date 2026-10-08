@@ -3,8 +3,8 @@
 // on, their Traits and what each does, and their Regard for every Patron, each Hero on their Roster
 // and each other Guild in play, as bands and never as numbers (pre-M0 review B3).
 //
-// A part of the Hall (M9-S3, DL-103) until M9-F2 made it the Guildmaster view, at the top of the
-// navigation (DL-111 item 7, DL-112 item 5). Their Sex and Age, then the descriptive Attributes written
+// A view of its own, at the top of the navigation (DL-103, DL-111 item 7, DL-112 item 5). Their
+// Sex and Age, then the descriptive Attributes written
 // (M9-S2), each only when set; each Trait with its effect's words; and Regard as chips on one ramp
 // from hostile to close, the neutral ones folded under their count (M9-S6, DL-106; the review's C8).
 // A Guildmaster opens their History (M9-S5, DL-105). When they retire, its Day and the years left,

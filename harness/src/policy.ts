@@ -5,11 +5,11 @@
 //
 // Deterministic: it reads the document and draws no random number, so a seed played twice under
 // it plays the same game (ADR-0001). It sends Parties through the engine's own staffing rule,
-// `partyFor`, the one the Rivals use (DL-30; by the chance estimate from v1.1.4-S6, DL-157), at the
-// player's margin, `playerPartyMargin`: the Party the Board gives as "Your best Party". From v1.1.5-S2
-// (DL-168 item 2) it chooses its Quests by that Party's chance: of the Quests it can staff from the
-// Heroes still free, the likeliest first, ties to the higher reward, then the Quest id, and then again
-// from the Heroes left. It played the highest reward first before.
+// `partyFor`, the one the Rivals use (DL-30; by the chance estimate, DL-157), at the player's
+// margin, `playerPartyMargin`: the Party the Board gives as "Your best Party". It chooses its Quests
+// by that Party's chance (DL-168 item 2, DL-176): of the Quests it can staff from the Heroes still
+// free, the likeliest first, ties to the higher reward, then the Quest id, and then again from the
+// Heroes left.
 
 import {
   affordableImprovement,

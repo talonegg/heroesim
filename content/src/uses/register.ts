@@ -3,7 +3,7 @@
 // editor finds a key's uses through it (`tools/editor`), refuses to remove a Trait still used, and,
 // where an entry says how, adds and removes a use (S13's `assign` and `unassign`). The drift test
 // holds the engine entries to the code: a read of a Trait in `engine/src/` or `content/src/validate.ts`
-// that no entry lists fails it. `docs/agents/traits.md`'s generated part is written from it (`doc.ts`),
+// that no entry lists fails it. `docs/agents/traits-register.md`'s generated part is written from it (`doc.ts`),
 // and the freshness test holds the two equal.
 //
 // A content entry works on the content as JSON (`json.ts`), as the files are written: a use is a key

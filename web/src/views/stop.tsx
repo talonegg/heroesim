@@ -8,7 +8,7 @@
 // to Wealth: the Market's Sell, where what the Guild holds is sold (M9-S6; DL-109 item 2, Q20; moved
 // from the Hall by M9-F2, DL-112 item 5), and the Board.
 //
-// A Party's stop offers nothing more since M9-F5 (DL-112 item 8): the play that brought it home opened
+// A Party's stop offers nothing more (DL-112 item 8, DL-118): the play that brought it home opened
 // Guild › Home at its Quest report, under the card. A module's stop keeps "Read what happened".
 
 import type { QuestId } from '@heroesim/engine';
@@ -26,7 +26,7 @@ type Next = Step | readonly Step[] | null;
 const nextFor: Readonly<Record<StopView['kind'], Next>> = {
   ended: null,
   // M9-S7: where Wealth comes from, what the Guild holds to sell and the Board to send a Party.
-  // Sell is the Market's since M9-F2.
+  // Sell is the Market's (DL-115).
   'below-floor': [
     { label: 'Sell what the Guild holds', target: 'sell' },
     { label: 'Open the Board', target: 'board' },

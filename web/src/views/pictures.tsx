@@ -11,7 +11,7 @@
 //
 // A Portrait's thumbnail (v1.1.2-S4) is a Guildmaster picture as the new-game form offers it: the
 // label of its radio button, which a screen reader names by the picture it is ("Female Portrait 1").
-// Since v1.1.3-S7 it is drawn from the picture's own thumbnail, `<key>.thumb.webp`, as is a person's
+// It is drawn from the picture's own thumbnail, `<key>.thumb.webp` (DL-145), as is a person's
 // thumbnail beside their name in a list (DL-135 item 9); and every picture is read lazily, its size
 // stated (DL-134 item 9).
 
@@ -164,8 +164,8 @@ export function PortraitThumb({ role, sex, portraitKey }: { role: PortraitRole; 
 }
 
 /**
- * A Guildmaster picture as the setup grid offers it (v1.1.2-S4, DL-125 item 3; from its thumbnail since
- * v1.1.3-S7): the thumbnail of `portraitKey` among the Guildmaster pictures of `sex`, over its
+ * A Guildmaster picture as the setup grid offers it (v1.1.2-S4, DL-125 item 3; from its thumbnail,
+ * DL-145): the thumbnail of `portraitKey` among the Guildmaster pictures of `sex`, over its
  * Silhouette, or the Silhouette alone for `null`, and `label`, which a screen reader reads in its place,
  * so a radio button it stands in takes `label` as its name whether the picture loads or fails; shown
  * too when `labelShown`. Not a figure: it stands inside a label.

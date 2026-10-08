@@ -520,7 +520,7 @@ export interface GameConfig {
   lootOnlyPrice: number;
 }
 
-/** A Quest's outcome bands, worst first (INPUTS 4.3; from M4-S2, by its Encounters succeeded). */
+/** A Quest's outcome bands, worst first (INPUTS 4.3; by its Encounters succeeded, DL-42). */
 export const questBands = ['fail', 'success', 'strong'] as const;
 
 export type QuestBand = (typeof questBands)[number];

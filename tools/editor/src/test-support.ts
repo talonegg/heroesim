@@ -74,7 +74,7 @@ function templateRepository(): string {
       return relative === '' || relative.endsWith('.json') || ['src', 'src/validate.ts'].includes(relative);
     },
   });
-  cpSync(path.join(root, 'docs', 'agents', 'traits.md'), path.join(dir, 'docs', 'agents', 'traits.md'));
+  cpSync(path.join(root, 'docs', 'agents', 'traits-register.md'), path.join(dir, 'docs', 'agents', 'traits-register.md'));
   writeFileSync(path.join(dir, 'package.json'), `${JSON.stringify({ name: 'scratch', private: true, scripts: { test: 'node planted-test.mjs' } }, null, 2)}\n`);
   writeFileSync(path.join(dir, 'planted-test.mjs'), plantedTest);
   writeFileSync(path.join(dir, 'test-outcome.txt'), 'pass\n');
@@ -91,7 +91,7 @@ function templateRepository(): string {
 
 /**
  * A scratch copy of this repository's content (its JSON, `version.json` among it, and the source of
- * its checks, which the drift check reads) and `docs/agents/traits.md`, committed, with a planted `npm test` that
+ * its checks, which the drift check reads) and `docs/agents/traits-register.md`, committed, with a planted `npm test` that
  * passes; removed by the function it returns with. Its `engine/src/config.json` is committed, which
  * the config kind writes (v1.1.6-S18). With `engine`, the rest of `engine/src/` too, which only the
  * drift check reads (the doctor's, `drift.ts`): copied beside the commit and ignored by git, since

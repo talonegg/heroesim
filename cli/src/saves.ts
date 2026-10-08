@@ -1,4 +1,4 @@
-// Save files (INPUTS 3.12, §9): where they live, and how one is read into a document and the
+// Save files (INPUTS 3.12; docs/environment.md): where they live, and how one is read into a document and the
 // `deps` to play it under. The CLI keeps nothing between invocations: every command reads the
 // save it names and, if it changed the World State, writes it back.
 //

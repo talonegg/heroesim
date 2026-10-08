@@ -1,5 +1,5 @@
 // The modules a harness run installs (M8-S3, DL-78). `HEROESIM_MODULES` names them by id, comma-
-// separated (INPUTS §9; read by `settings.ts`); unset, a run installs none, as every milestone's run
+// separated (docs/environment.md; read by `settings.ts`); unset, a run installs none, as every milestone's run
 // before M8 did. A module is code, not data, so the harness knows each it may install by id
 // (`harnessModules`), and a child process of a parallel sweep installs its own copy by the ids its
 // job names. The only one is the

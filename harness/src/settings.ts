@@ -142,7 +142,7 @@ export type RunKind = RunSettings['run'];
 
 /**
  * Every variable a harness run reads, and the runs that read it: the list a variable is checked
- * against, and the harness's documentation of them (INPUTS §9).
+ * against, and the harness's documentation of them (docs/environment.md).
  */
 export const variables: Readonly<Record<string, { readBy: readonly (RunKind | 'vitest')[]; means: string }>> = Object.freeze({
   HEROESIM_HARNESS: { readBy: ['vitest'], means: 'set by `npm run harness`: the harness-run Vitest project exists (vitest.config.ts)' },
@@ -166,7 +166,7 @@ export const variables: Readonly<Record<string, { readBy: readonly (RunKind | 'v
   HEROESIM_CALIBRATION_OUT: { readBy: ['calibrate'], means: 'where the calibration is written' },
 });
 
-/** Variables of the same prefix that other packages read, which a harness run leaves alone (INPUTS §9). */
+/** Variables of the same prefix that other packages read, which a harness run leaves alone (docs/environment.md). */
 const elsewhere: readonly string[] = ['HEROESIM_SAVE_DIR', 'HEROESIM_LIVE_URL', 'HEROESIM_DEPLOY_RECORD', 'HEROESIM_OWNER_PICTURES'];
 
 /** `value` trimmed, or `null` when unset or blank. */

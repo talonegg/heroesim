@@ -1,5 +1,5 @@
 // A readable seed for a new game (INPUTS 3.1): `amber-fox-4821`, for the CLI's `new` without `--seed`
-// and the page's new-game form (M7-S3), one copy since v1.1.6-S11 (DL-186 item 1). The engine takes
+// and the page's new-game form (M7-S3), one copy for both (DL-186 item 1, DL-197). The engine takes
 // any string as a seed; this only makes one a person can read back and type. It draws from the
 // `random` it is given, `Math.random` in play, which is allowed outside the engine (N1, ADR-0001).
 

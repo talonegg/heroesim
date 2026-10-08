@@ -514,7 +514,7 @@ function portraitAppearances(json: unknown, problems: string[]): PortraitAppeara
 /**
  * What a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6): the age
  * bands, the pronouns by sex, the Birthplaces, the Appearance's phrases by sex, age band and slot, and
- * the Biography's sentences by part; and since v1.1.3-S1 (DL-134 item 4, DL-135 item 6) the Stations,
+ * the Biography's sentences by part; and, by DL-134 item 4 and DL-135 item 6, the Stations,
  * the Tempers, the Callings with the Traits each suits and clashes with, the Biography's sentences by
  * a picture's Station, Callings and band, and Temper, and a Hero's Biography's sentences. A field
  * missing, unknown or of the wrong type is refused; which keys, bands and texts are allowed, and how

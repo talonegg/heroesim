@@ -6,7 +6,7 @@
 // Nothing here computes a rule (ADR-0007, principle 12). Every amount is an event's payload, as the
 // engine wrote it when the Wealth moved (DL-112's context: every change to a Guild's Wealth has an
 // event that carries the amount); the ledger opens with the Wealth the Guild was founded with, which
-// its `guild.founded` carries from M9-F7 (DL-120 item 4); and Upkeep's figures are the engine's `upkeepParts` and
+// its `guild.founded` carries (DL-120 item 4, DL-121); and Upkeep's figures are the engine's `upkeepParts` and
 // `nextUpkeepDay` (M9-F1, DL-114 item 3). The ledger reads the History's own index of entries by
 // participant, never the History view's scopes or filters (M9-F4's), since every Wealth event names
 // its Guild.
@@ -192,7 +192,7 @@ function ledgerRow({ position, entry, category, amount }: LedgerChange, narratio
 
 /**
  * The ledger's opening row: the Wealth `guildId` was founded with, from its `guild.founded`, the first
- * entry naming it; `null` when that names none, as a founding written before M9-F7 does.
+ * entry naming it; `null` when that names none, as a founding written before DL-121 does.
  */
 function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null {
   const { history } = document;
@@ -275,7 +275,7 @@ export interface TreasuryAccounts {
   guildName: string;
   wealth: number;
   upkeep: {
-    /** `Upkeep of The Lantern: 120 Wealth every 10 Days`, the sentence the Hall gave until M9-F3. */
+    /** `Upkeep of The Lantern: 120 Wealth every 10 Days`: the Upkeep in a sentence (DL-116). */
     sentence: string;
     /** What the next payment takes (`upkeepParts`' total), at the Roster and Hall of now. */
     total: number;

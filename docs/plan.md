@@ -119,7 +119,7 @@ A release's close adds its row here and fills its epic's Status line, and nothin
 The detailed implementation plan of the first build — stories, acceptance, files, config fields,
 events and counters per milestone — is in its epics, now in
 [`planning/archive/`](./planning/archive/README.md); the inputs the owner supplied are in
-[`planning/epics/INPUTS-REQUIRED.md`](./planning/epics/INPUTS-REQUIRED.md). This section is the
+[`planning/archive/INPUTS-REQUIRED.md`](./planning/archive/INPUTS-REQUIRED.md). This section is the
 summary they expand.
 
 Each line is a session or two. A line is a deliverable, not a task: it ends in a passing test
@@ -264,6 +264,13 @@ list came to its order is in [`planning/archive/`](./planning/archive/README.md)
 - **Then: Random Events, M10** (#12; its groundwork #15 and #17), the first real module, on
   `v1.2-dev` (§2), with the issues ordered against it. Random Events never produce Quests (DL-82).
   When it starts is the owner's (DL-214).
+  Its epic opens with a table of the owner's inputs, as the first build's `INPUTS-REQUIRED.md` §8
+  asked: rows an agent drafts, each a question with a default and the owner's answer. Three of them
+  block the build story until the owner answers: the catalogue of events, their rate, and whom they
+  befall. DL-82 already answers some of it. Random Events befall the player's Guild only, and the
+  harness reports their effects on that Guild alone. Morale's band edges are among their inputs.
+  An agent proposes the harness's acceptance bands, and the owner approves them before the run.
+  When their installation lands, the probe module leaves the public page.
 - **After Random Events, in an order chosen at its close:**
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Scouting and hidden information.

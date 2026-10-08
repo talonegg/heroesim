@@ -1,4 +1,4 @@
-// The register of a Trait's uses (v1.1.4-S12, DL-150 item 14), and `docs/agents/traits.md`'s part
+// The register of a Trait's uses (v1.1.4-S12, DL-150 item 14), and `docs/agents/traits-register.md`'s part
 // written from it, as `@heroesim/content/uses`: the content editor (`tools/editor`) and its tests
 // read it, and the game never does, since no front end may import a subpath (eslint.config.js).
 

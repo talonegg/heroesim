@@ -14,7 +14,7 @@ when `HEROESIM_HARNESS` is set, so `npm test` never plays it. `npm run harness` 
 | `npm run harness -- neutral <milestone> --expect <fingerprint>` | A play-neutral story's proof: 10 games of 20 years in 8 processes, about 7 minutes, its fingerprint checked against the one given (DL-186 item 30) |
 | `npm run harness -- succession` | The Succession probe: 50 games of 12 years, the first Rival's Guildmaster at 50 (M9-F1) |
 | `npm run harness -- estimate` | The estimate probe: 200 Parties and Quests, each resolved 20,000 times (v1.1.4-S5) |
-| `npm run harness -- calibrate` | The calibration of the content, or of drafts (v1.1.4-S9) |
+| `npm run harness -- calibrate` | The calibration of the content, or of drafts (v1.1.4-S9): `docs/quests/calibration.md`, kept, and `calibration.json`, generated and ignored, which `npm run quest-review` reads; v1.1.4's is an asset of its GitHub Release (DL-218) |
 | `npm run harness -- compare <a> <b>` | What moved between two play sweeps' JSON reports: the play counters, and apart from them the save's sizes, measures that the save's shape and its config move (DL-205) |
 
 `<milestone>` names the report: `m<n>` or `m<n>-<name>`, as `m9-v116-s3`. Words after a command, or any
@@ -42,7 +42,7 @@ DL-205, the Gate's baseline in `gate.json`).
 
 Every `HEROESIM_*` variable a run reads is parsed in one place, `src/settings.ts`, each bad value
 refused by its name and an unknown `HEROESIM_*` name refused, so a mistyped setting fails the run
-rather than playing something else. INPUTS §9 lists them. A variable set in the shell overrides a
+rather than playing something else. [`docs/environment.md`](../docs/environment.md) lists them. A variable set in the shell overrides a
 profile's value: `HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- gate m9-trial` plays the
 Gate's run small. `HEROESIM_CONFIG` plays config values in place of the defaults, and
 `HEROESIM_POLICY` the automatic policy's, each a JSON object of keys, checked before play: the config

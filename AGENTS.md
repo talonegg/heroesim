@@ -2,6 +2,10 @@
 
 ## Agent skills
 
+### Delivery
+
+Read `docs/agents/delivery.md` before any story or release. It covers where things live, the owner's standing rules (the owner's word before anything leaves this machine; sweeps one at a time; a failing test reported, never rewritten to pass), how a story is built, verified, recorded and committed, and how a release is closed, released and recorded.
+
 ### Issue tracker
 
 Issues are tracked in GitHub Issues on `talonegg/heroesim`, using the `gh` CLI. See `docs/agents/issue-tracker.md`.
@@ -32,7 +36,7 @@ The game's tuning values are data, `engine/src/config.json`, in sections, with t
 
 ### Decisions
 
-Decisions are `DL-nn` entries. `docs/decision-log.md` holds the open release's entries; append a new one at its end. Earlier entries are archived by release in `docs/decisions/archive/`, and the items later entries superseded are in its `superseded/` folder. Find an entry through `docs/decisions/index.md`, and run `npm run decisions -- index` after adding, moving or superseding one. See the log's header (DL-215).
+Decisions are `DL-nn` entries. `docs/decision-log.md` holds the open release's entries; append a new one at its end. Earlier entries are archived by release in `docs/decisions/archive/`, and the items later entries superseded are in its `superseded/` folder. Find an entry through `docs/decisions/index.md`, and run `npm run decisions -- index` after adding, moving or superseding one. See the log's header (DL-215). Code also cites `INPUTS n.m`, a row of the first build's inputs, frozen in `docs/planning/archive/INPUTS-REQUIRED.md`; the release ledger is `docs/plan.md` §2, and every environment variable is in `docs/environment.md`.
 
 ### Comments
 

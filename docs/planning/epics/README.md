@@ -9,9 +9,9 @@ acceptance boxes, the files and functions each story lands, the tests that prove
 configuration fields it introduces and the harness counters it must report. This folder holds the
 open release's epic; the epics of finished milestones and releases, M0 to v1.1.7, are in
 [`../archive/`](../archive/README.md), and each release is a row of `plan.md` §2's ledger. The
-inputs the first build needed from the owner are gathered in
-[`INPUTS-REQUIRED.md`](./INPUTS-REQUIRED.md), ordered by when they were needed, each beside the
-value in force at `m8-modules` and the owner's answer.
+inputs the first build needed from the owner, cited in code as `INPUTS n.m`, are archived there too
+([`INPUTS-REQUIRED.md`](../archive/INPUTS-REQUIRED.md)); a later epic asks its own inputs as a
+table of its own.
 
 **Who decided what.** The milestone order, the "done" bars and the ten decisions in
 `plan.md` §5 are the owner's. Everything below that — story boundaries, function names, file
@@ -56,42 +56,21 @@ Why the middle runs Progression → Quest Engine → Items → Rivals: growth is
 Quest Engine then has Skills and Levels to read; Items and Loot are consumed by the Quest Engine
 so they follow it; Transfers are the last thing the automatic policy needs to be sensible about.
 
-## 3. How to run a milestone
+## 3. How to run a story and a release
 
-1. Open the milestone's GitHub issue with `gh issue create`, title `M<n> <name>`, body the
-   epic's story list as a checklist. Not before the milestone starts.
-2. Work the stories in order unless the epic says a story is independent. Each story ends with
-   its tests green and, where it names one, its CLI command working on a real save.
-3. Record every decision the epic left open, and every default changed, in
-   `docs/decision-log.md` as a `DL-nn` entry, before or alongside the change.
-4. Run the harness at the milestone's end and write the measured counters into the epic under
-   a **Measured** heading, with the seed count and years.
-5. Merge `v1.0-dev` into `v1.0-release`, tag that merge `m<n>-<name>`, close the issue, and
-   set the status and date in the milestone table of `docs/plan.md`.
-
-**After the first build (DL-86).** The first build ends at `m8-modules`, which is also tagged
-`v1.0.0`. Work after it continues on the v1.1 line: stories are built on `v1.1-dev`, a milestone
-completes by merging `v1.1-dev` into `v1.1-release` and tagging that merge, and the milestone tags
-go on from `m9-random-events`. Read step 5 with those branch names. `v1.0-dev` and `v1.0-release`
-are frozen but for v1.0.x hotfix releases, the first of which moves the deploy to Cloudflare
-Workers (DL-88, DL-91). That release is v1.0.1, with three page fixes beside the move, planned in
-[its epic](../archive/v1.0.1-release.md); it begins by fast-forwarding `v1.0-dev` to the commit that
-recorded its plan, and is deployed only from a clean checkout of its tag (added 2026-09-28, DL-92).
-
-*Amended 2026-09-29 (DL-99).* The v1.1 line's milestone is M9, the page redesigned. It carries #30
-and #32 and is tagged `m9-redesign`. Random Events moves to the v1.2 line as M10
-(`m10-random-events`), built on `v1.2-dev`, which is created from `v1.1-release` at `v1.1.0`. Read
-step 5 with `v1.2-dev` and `v1.2-release` for it. M9's epic is
-[M9-redesign.md](../archive/M9-redesign.md), in the register above (DL-100).
+[`docs/agents/delivery.md`](../../agents/delivery.md) (DL-218): the owner's standing rules, a story's
+build, verification, record and commit, and a release's plan, close, release and record. How the first
+build's milestones were run, an issue and a tag each, is kept in [the archive](../archive/README.md).
 
 ## 4. Conventions the epics assume
 
-- Packages are `@heroesim/engine`, `@heroesim/content`, `@heroesim/harness`, `@heroesim/cli`,
-  `@heroesim/web`, in directories of the same short name (approach §5).
-- Every tunable is a field on `GameConfig` with a value in `defaultConfig` (principle 8). Each
-  story lists the fields it adds; the defaults are the agent's and are inputs the owner may
-  change (INPUTS-REQUIRED). The owner ratified those in force at `m8-modules` in DL-90, except
-  those DL-82 to DL-89 change or leave for proposals.
+- Packages are `@heroesim/engine`, `@heroesim/content`, `@heroesim/words`, `@heroesim/harness`,
+  `@heroesim/cli` and `@heroesim/web`, in directories of the same short name, and the tools under
+  `tools/` (approach §5).
+- Every tunable is a setting in `engine/src/config.json`, changed only through the content
+  editor's config kind (principle 8, DL-204; `docs/agents/config.md`). Each story lists the
+  settings it adds; the defaults are the agent's and are inputs the owner may change. The owner
+  ratified the values in force at `m8-modules` in DL-90.
 - Events are typed records `{ type, turn, participants, labels, milestone, payload }` with
   `type` in the form `<entity>.<what-happened>`: `hero.recruited`, `quest.resolved`. Each story
   lists the event types it adds.

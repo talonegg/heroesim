@@ -1,8 +1,7 @@
 // Why a Hero cannot go, in words (v1.1.6-S11, DL-186 item 1): after their name, as a refusal and a
 // Party's preview say it; as the Board's chip says it; and why their Gear cannot be changed. The
-// reasons are the engine's (`unavailability`, `gearUnavailability`); the words only name them. The
-// CLI's `dispatch.ts` and `equip.ts` and the page's `rejections.ts` and `selectors.ts` each held a
-// copy until v1.1.6-S11; the CLI's "their gear" became the page's "their Gear", a glossary term.
+// reasons are the engine's (`unavailability`, `gearUnavailability`); the words only name them, once
+// for the CLI and the page alike (DL-197), "their Gear" a glossary term.
 
 import type { GearUnavailability, Unavailability } from '@heroesim/engine';
 

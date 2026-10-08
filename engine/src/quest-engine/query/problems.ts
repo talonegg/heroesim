@@ -1,5 +1,5 @@
 // What content's checks find wrong with a Query (v1.1.4-S1, DL-148 items 4 to 6, ADR-0010), held by
-// the engine beside its operators since v1.1.6-S10 (DL-186 item 6): content's checker calls
+// the engine beside its operators (DL-186 item 6, DL-196): content's checker calls
 // `queryProblems` and holds no table of its own. A Query is held to its type at every node, by each
 // operator's signature in the table (operators.ts), to the keys content defines, and to a size; Sex
 // is held to filters, so that it decides who takes part and never a value; and a Check's score read

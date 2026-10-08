@@ -67,7 +67,7 @@ function endingOf(guild: Guild, world: World, ctx: PhaseContext): EndingReason |
 
 /**
  * The lowest signing fee `guild` would pay in the Unattached pool (`cheapestUnattached`, its
- * Guildmaster's Negotiation applied from M4-S5), whoever the Hero would sign for. With nobody in
+ * Guildmaster's Negotiation applied, DL-43), whoever the Hero would sign for. With nobody in
  * the pool no Hero can be signed at any price, so it is infinite, and a Guild with an empty Roster
  * is wiped whatever its Wealth.
  *

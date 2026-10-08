@@ -479,15 +479,13 @@ export interface Stack {
 
 /**
  * The World State schema this engine writes as `meta.version`; a load compares the two and
- * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27);
- * 3 from the M6 verification, whose Heroes gained `transferredOnTurn` (DL-60); 4 from M9-S2, whose
- * Guildmasters gained the descriptive Attributes and `retiredOnTurn` (DL-102); 5 from v1.1.2-S3,
- * whose Guildmasters gained `portraitKey` and Patrons `sex`, and which refuses every older save
- * rather than migrating it (DL-125 item 10.2, DL-130); 6 from v1.1.3-S6, whose Heroes gained
- * `portraitKey`, `appearance` and `biography`, and which refuses every older save likewise (DL-135
- * item 7); 7 from v1.1.6-S7, whose `meta` gained `configVersion`, whose config lost
- * `schemaVersion`, `configVersion` and `gearSlots`, and whose Quests lost `demands`, refusing every
- * older save likewise (DL-193).
+ * migrates an older save (M1-S8). Schema 2 gave Heroes the pool's two fields (DL-27); 3, Heroes'
+ * `transferredOnTurn` (DL-60); 4, Guildmasters' descriptive Attributes and `retiredOnTurn`
+ * (DL-102); 5, Guildmasters' `portraitKey` and Patrons' `sex`, refusing every older save rather
+ * than migrating it (DL-125 item 10.2, DL-130); 6, Heroes' `portraitKey`, `appearance` and
+ * `biography`, refusing every older save likewise (DL-135 item 7, DL-142); 7, `meta`'s
+ * `configVersion`, taking `schemaVersion`, `configVersion` and `gearSlots` from the config and
+ * `demands` from Quests, refusing every older save likewise (DL-193).
  */
 export const schemaVersion = 7;
 

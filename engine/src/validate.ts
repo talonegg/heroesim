@@ -1518,7 +1518,7 @@ function misplacedItem({ world }: WorldDocument, content: ContentSet): Validatio
 
 /**
  * A Quest's Loot table (M5-S5, DL-52): a table content defines. A Quest naming one it does not awards
- * no Loot (`drawLoot`). Content without a Loot table, as content before M5-S5 has, defines none.
+ * no Loot (`drawLoot`). Content without a Loot table, as content before version 10 has, defines none.
  */
 function unknownLootTable({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
   const { warnings, known } = keyWarnings('unknown-loot-table', 'a Loot table');
@@ -1532,7 +1532,7 @@ function unknownLootTable({ world }: WorldDocument, content: ContentSet): Valida
 
 /**
  * The sexes of the pictures of `role` content lists under `key` (v1.1.2-S3, v1.1.3-S6): none when it
- * lists no such picture, as content before v1.1.2-S3 lists none at all.
+ * lists no such picture, as content before version 16 lists none at all (DL-130).
  */
 function pictureSexes(content: ContentSet, role: PortraitHolder['role'], key: string): string[] {
   const portraits: unknown = Reflect.get(content, 'portraits');

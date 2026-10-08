@@ -22,7 +22,7 @@ export interface RebaseRejection extends Rejection<'rebase', 'already-current'> 
  * later `configVersion`, or `null` when the game's are not behind them. What a front end's "new rules
  * available" notice reads (M7-S3, DL-73). `rebase` itself refuses only equal versions, so a save
  * from a later release can still be brought to these rules; no front end offers that, since nothing
- * newer is available to it. The version is `meta`'s since v1.1.6-S7 (DL-193), the config's before.
+ * newer is available to it. The version is the game's `meta`'s, not the config's (DL-193).
  */
 export function newRules(meta: Pick<Meta, 'configVersion'>): { from: number; to: number } | null {
   const from = meta.configVersion;

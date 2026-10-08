@@ -1,6 +1,6 @@
 // `new`'s refusals (M9-S2, DL-102): the engine's `setupRefusal` says which rule a setup breaks, as
 // typed data; this says it in the CLI's words, naming the flag to change. The names and the
-// Background keep the words `new` gave them before M9-S2.
+// Background keep `new`'s older words, which DL-102 left as they were.
 
 import {
   guildmasterStatCost,

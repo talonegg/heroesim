@@ -40,7 +40,7 @@ export interface OnQuest {
   /** The Heroes hurt earlier on the Quest; none when absent. */
   hurt?: ReadonlySet<HeroId>;
   /**
-   * The Morale consequences applied so far to each Hero, by id: their own since v1.1.4-S4, a loss
+   * The Morale consequences applied so far to each Hero, by id: their own (DL-155), a loss
    * `steadiedBy` their Stats being less for some (harm.ts). 0 for a Hero absent, and for all when absent.
    */
   moraleByHero?: Readonly<Record<HeroId, number>>;

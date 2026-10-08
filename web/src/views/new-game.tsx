@@ -7,7 +7,7 @@
 // for this form, and it says the game in hand goes unless exported, with a way back to it.
 //
 // The Guildmaster's setup (M9-S7, #30; the CLI's `new` flags, DL-102 item 10) sits behind "Your
-// Guildmaster", closed. Since v1.1.4-S11 (DL-149) it opens on two ways, "Choose for me", chosen at
+// Guildmaster", closed. It opens on two ways (DL-149, DL-153), "Choose for me", chosen at
 // first, and "Choose myself":
 // - "Choose for me" leaves the whole Guildmaster to the seed, the sex, the age, the Portrait, the
 //   Stats and the Traits, their Birthplace, Appearance and Biography written when the game starts. No
@@ -26,8 +26,8 @@
 //
 // The Portrait (DL-125 item 3): a thumbnail of each Guildmaster picture of the sex chosen, each a radio
 // button with its picture as its label, one sex's at a time (v1.1.3-S7; DL-134 item 9, DL-143: both
-// sexes' are more than the 250 kB the grid may read). Since v1.1.4-S11 (DL-149 item 4) it offers no draw
-// from the seed and reads no picture until a sex is chosen; changing the sex clears the picture. The
+// sexes' are more than the 250 kB the grid may read). It offers no draw from the seed and reads no
+// picture until a sex is chosen, and changing the sex clears the picture (DL-149 item 4). The
 // engine's `portraitFit` notes a picture chosen that looks older or younger than the age, or whose
 // Calling clashes with a Trait, beside the choice and never as a refusal.
 //
@@ -39,13 +39,13 @@
 // three fields for the Guildmaster the form makes, and "Again" writes them anew; the fields stay the
 // player's to edit, and what they hold at "Start the game" is what is kept. With the seed blank, the
 // button makes one up first, as the click would, and puts it in the Seed field. A field left blank is
-// written by the engine when the game starts, as every Guildmaster's is. Since v1.1.2-S6 the buttons
-// write only the fields left blank or still as written, keeping the player's words; and a field still
+// written by the engine when the game starts, as every Guildmaster's is. The buttons write only the
+// fields left blank or still as written, keeping the player's words (DL-133); and a field still
 // as written follows the Guildmaster when the sex, the age, the Portrait, the Traits, the Background or
 // the seed changes, so "Start the game" never sends texts for another. The Birthplace typed is the
 // Biography's, so a Biography still as written follows it too. A field the player changed is kept, and
-// the note says when it was written for another Guildmaster (`state/setup.ts`'s `textsView`). Since
-// v1.1.4-S11 they can be written once the sex, the age and the picture are chosen.
+// the note says when it was written for another Guildmaster (`state/setup.ts`'s `textsView`). They
+// can be written once the sex, the age and the picture are chosen (DL-153).
 
 import type { DescriptiveAttribute, PortraitKey, Sex, StatKey, StatValues, TraitKey } from '@heroesim/engine';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';

@@ -3,7 +3,7 @@
 // sells for, sold from a stack by the quantity asked or as a unique Item. The Market Engine prices
 // (`marketStock`, `sellPrice`), and the engine's `buy` and `sell` decide.
 //
-// A part of the Hall (M9-S3, DL-103), and a view of its own since M9-F2 (DL-111 item 6, DL-112
+// A view of its own (DL-103, DL-111 item 6, DL-112
 // item 5), with two parts, Buy and Sell: quantities are steppers, and the Guild's Wealth is the
 // status bar's to say. As tables (M9-S6, DL-106; the review's B3): Buy, what is for sale, with Item,
 // Kind, Effect, Price, Stock, how many and Buy, and the page's filter by kind, one or several, display

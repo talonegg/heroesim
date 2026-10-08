@@ -226,6 +226,9 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-214 | 2026-10-07 | v1.1.7-S8, the close: the close review's findings fixed: a Hero's leaving the pool decided over the … |  | [DL-206-214-v1.1.7](archive/DL-206-214-v1.1.7.md) |
 | DL-215 | 2026-10-08 | The decision log archived by release, superseded items set apart, and an index made from its … |  | [decision-log](../decision-log.md) |
 | DL-216 | 2026-10-08 | The closed epics archived, and `plan.md` §2 the one release ledger |  | [decision-log](../decision-log.md) |
+| DL-217 | 2026-10-08 | `INPUTS-REQUIRED.md` archived once its live parts moved out, and the README an entry page with the … |  | [decision-log](../decision-log.md) |
+| DL-218 | 2026-10-08 | A delivery guide in the repository; generated files and applied runs out of the tree; the … |  | [decision-log](../decision-log.md) |
+| DL-219 | 2026-10-08 | The lean entry held by a test; story ids out of the comments by a rule and a baseline; the Traits' … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

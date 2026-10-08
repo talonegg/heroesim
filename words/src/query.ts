@@ -1,10 +1,10 @@
 // What a Check reads, and how likely a Party is to pass it, in words (v1.1.4-S5, DL-148 items 15 and
 // 16): the engine's typed account of a Query (`describeQuery`) worded, "Strength of the Warrior with
 // the highest Strength", and a chance band's key as the word DL-148 item 15 gives it. Words only; no
-// rule. From v1.1.4-S6, the CLI's `show board` and the Board's cards give each Encounter's Checks and
-// what they read (`encounterReadings`), and `preview` and the Party builder each chance in a word with
-// its percentage floored to 5 (`shownPercent`), capitalised where they stand alone. The CLI and the
-// page each held a copy, differing by an import, until v1.1.6-S11 (DL-186 item 1).
+// rule. The CLI's `show board` and the Board's cards give each Encounter's Checks and what they
+// read (`encounterReadings`), and `preview` and the Party builder each chance in a word with its
+// percentage floored to 5 (`shownPercent`), capitalised where they stand alone (DL-157). One copy
+// serves the CLI and the page (DL-186 item 1, DL-197).
 
 import {
   describeQuery,

@@ -1,7 +1,6 @@
 // A Hero's Stat taken apart, in words (v1.1.6-S13, DL-186 item 3): the engine's `statBreakdown`
 // gives each Stat's base, what each source adds, its effective value and whether its range held it;
-// these words only name them. The page's Roster said them in its own `rosterStats` until v1.1.6-S13,
-// summing the sources itself.
+// these words only name them, so the page's Roster sums no source itself (DL-199).
 
 import type { StatParts, StatSource } from '@heroesim/engine';
 import { signed } from './names.js';

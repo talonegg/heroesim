@@ -801,7 +801,7 @@ type EncounterTally = EncounterCounts[keyof EncounterCounts];
 
 /**
  * v1.1.4-S10's counters: the Quests resolved by the size of the Party sent, their bands and the XP
- * each Hero took (DL-148 item 19, the owner's decision on splitting XP: split since v1.1.5-S13, DL-182),
+ * each Hero took (DL-148 item 19, the owner's decision on splitting XP: split by DL-182),
  * and the Traits earned by key.
  */
 function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {

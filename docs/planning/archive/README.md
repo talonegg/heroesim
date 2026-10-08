@@ -2,7 +2,8 @@
 
 The epics of finished milestones and releases, M0 to v1.1.7, and the web UI review M9 was built
 from. They were moved here from `docs/planning/epics/` (and the review from `docs/`) when v1.1.8
-opened, with their text unchanged (the v1.1.8 epic, S4). Each release, its date, pull request and
+opened, with their text unchanged (the v1.1.8 epic, S4). The first build's inputs followed once
+their live parts had moved out (S5, DL-217). Each release, its date, pull request and
 merge commit are a row of [`plan.md`](../../plan.md) §2's ledger. The decision log's archive
 names these files at their old paths; the file names are unchanged. In the copies below, only
 links are re-pointed to where their files now are.
@@ -27,11 +28,12 @@ links are re-pointed to where their files now are.
 | [v1.1.5](v1.1.5-release.md) | `v1.1.5` | DL-168 to DL-185 |  |
 | [v1.1.6](v1.1.6-release.md) | `v1.1.6` | DL-186 to DL-205 |  |
 | [v1.1.7](v1.1.7-release.md) | `v1.1.7` | DL-206 to DL-214 |  |
+| [Inputs required from the owner](INPUTS-REQUIRED.md) | the first build's inputs | DL-82 to DL-90 | Frozen at `m8-modules`; code cites its rows as `INPUTS n.m`. Its §9 is now [`docs/environment.md`](../../environment.md), its §8 is `plan.md` §4's Random Events item, and row 7.8's addresses are in [`docs/deploy.md`](../../deploy.md) (DL-217) |
 | [The web UI review](web-ui-review-2026-09-29.md) | built by M9 | DL-99 | Moved from `docs/`; its findings decided in DL-99 |
 
 The rest of this page is the record the live plan no longer carries, word for word as it stood at
-v1.1.7's release: the epic register's rows and the first build's clock, from the epics README, and
-`plan.md`'s release narrative, from its §2 and §4.
+v1.1.7's release: the epic register's rows, the first build's clock and "How to run a milestone",
+from the epics README, and `plan.md`'s release narrative, from its §2 and §4.
 
 ## The epic register, as it stood at v1.1.7's release
 
@@ -109,6 +111,34 @@ agents' working time or of compute was kept, so neither is reported.
 against no calendar. The build took 55 hours of wall clock, made by agents in parallel. The two are
 not the same unit, and the table says nothing about how long a story takes a person; the estimate
 stands as the plan's for work a person does.
+
+## The epics README's §3, "How to run a milestone", as it stood at v1.1.7's release
+
+1. Open the milestone's GitHub issue with `gh issue create`, title `M<n> <name>`, body the
+   epic's story list as a checklist. Not before the milestone starts.
+2. Work the stories in order unless the epic says a story is independent. Each story ends with
+   its tests green and, where it names one, its CLI command working on a real save.
+3. Record every decision the epic left open, and every default changed, in
+   `docs/decision-log.md` as a `DL-nn` entry, before or alongside the change.
+4. Run the harness at the milestone's end and write the measured counters into the epic under
+   a **Measured** heading, with the seed count and years.
+5. Merge `v1.0-dev` into `v1.0-release`, tag that merge `m<n>-<name>`, close the issue, and
+   set the status and date in the milestone table of `docs/plan.md`.
+
+**After the first build (DL-86).** The first build ends at `m8-modules`, which is also tagged
+`v1.0.0`. Work after it continues on the v1.1 line: stories are built on `v1.1-dev`, a milestone
+completes by merging `v1.1-dev` into `v1.1-release` and tagging that merge, and the milestone tags
+go on from `m9-random-events`. Read step 5 with those branch names. `v1.0-dev` and `v1.0-release`
+are frozen but for v1.0.x hotfix releases, the first of which moves the deploy to Cloudflare
+Workers (DL-88, DL-91). That release is v1.0.1, with three page fixes beside the move, planned in
+[its epic](./v1.0.1-release.md); it begins by fast-forwarding `v1.0-dev` to the commit that
+recorded its plan, and is deployed only from a clean checkout of its tag (added 2026-09-28, DL-92).
+
+*Amended 2026-09-29 (DL-99).* The v1.1 line's milestone is M9, the page redesigned. It carries #30
+and #32 and is tagged `m9-redesign`. Random Events moves to the v1.2 line as M10
+(`m10-random-events`), built on `v1.2-dev`, which is created from `v1.1-release` at `v1.1.0`. Read
+step 5 with `v1.2-dev` and `v1.2-release` for it. M9's epic is
+[M9-redesign.md](./M9-redesign.md), in the register above (DL-100).
 
 ## `plan.md` §2, as it stood at v1.1.7's release
 

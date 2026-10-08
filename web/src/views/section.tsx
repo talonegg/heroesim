@@ -3,7 +3,7 @@
 // view opens, and a part of a view (the Unattached pool in the Roster, Buy in the Market) is a
 // labelled region inside it with a heading of its own.
 //
-// Seven views since M9-F2 (DL-111 items 5 to 7, DL-112 item 5, DL-115): the Guildmaster, Guild,
+// Seven views (DL-111 items 5 to 7, DL-112 item 5, DL-115): the Guildmaster, Guild,
 // Roster, Board, Rankings, Market and History. The Hall view is gone: the Guildmaster and the Market
 // are views of their own, and the Hall is a part of the Guild. The Guild's parts are tabs under its
 // heading, one open at a time (`guildParts`), each a tab's panel rather than a region with a heading.
@@ -25,7 +25,7 @@ export type PartId = 'offers' | 'pool' | 'guilds' | 'patrons' | 'buy' | 'sell';
 
 /**
  * A part of the Guild, a tab under its heading (M9-F2): Home, the home view's digest; Hall, its
- * premises; and from M9-F3 (DL-116) Stores, everything it owns, and Treasury, its accounts.
+ * premises; Stores, everything it owns; and Treasury, its accounts (DL-116).
  */
 export type GuildPartId = 'home' | 'hall' | 'stores' | 'treasury';
 
