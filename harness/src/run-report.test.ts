@@ -69,11 +69,11 @@ describe("a play sweep's JSON report", () => {
   });
 
   test("sits beside its Markdown report, and both are committed by one line", () => {
-    expect(jsonPathOf('/r/m9-v116-s3-2026-10-05.md')).toBe('/r/m9-v116-s3-2026-10-05.json');
+    expect(jsonPathOf('/r/v1.1.9-s3-2026-10-20.md')).toBe('/r/v1.1.9-s3-2026-10-20.json');
     const markdown = join(scratch, '..', 'x.md');
     expect(addCommand(markdown)).toMatch(/^git add -f \S+x\.md \S+x\.json$/);
-    expect(addCommand(fileURLToPath(new URL('../reports/m9-v116-s3-2026-10-05.md', import.meta.url)))).toBe(
-      'git add -f harness/reports/m9-v116-s3-2026-10-05.md harness/reports/m9-v116-s3-2026-10-05.json',
+    expect(addCommand(fileURLToPath(new URL('../reports/v1.1.9-s3-2026-10-20.md', import.meta.url)))).toBe(
+      'git add -f harness/reports/v1.1.9-s3-2026-10-20.md harness/reports/v1.1.9-s3-2026-10-20.json',
     );
   });
 });

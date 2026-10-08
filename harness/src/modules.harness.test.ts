@@ -14,7 +14,7 @@ import { sweepFingerprint, sweepPlayInParallel, sweepTotals, type PlaySweep } fr
 // 20 years or to their ending under the automatic policy, the core content and `defaultConfig`, once
 // with the modules installed and once with none, shared among child processes; with
 // HEROESIM_VALIDATE=1, validate after every advance; and write what the modules did and the delta on
-// each core counter they moved to harness/reports/m8-<module ids>-<date>.md.
+// each core counter they moved to harness/reports/modules-<module ids>-<date>.md.
 
 const settings = runSettings();
 const run = settings.run === 'modules' ? settings : null;
@@ -34,7 +34,7 @@ test.runIf(run !== null)(
     const installed = await sweepPlayInParallel(seeds, { ...deps, modules: modulesFor(ids) }, { validate, workers });
     const without = await sweepPlayInParallel(seeds, deps, { validate, workers });
     const report = moduleReport(installed, without, { deps, moduleIds: ids, machine: machine(), startedAt });
-    const path = writeReport(reportPath(`m8-${ids.join('-')}`, startedAt), report);
+    const path = writeReport(reportPath(`modules-${ids.join('-')}`, startedAt), report);
 
     // The report is written before anything is asserted, so a failing run leaves it to read.
     const totals = sweepTotals(installed, deps.config.turnsPerYear);

@@ -43,7 +43,7 @@ export interface GameLine {
 /** A play sweep's JSON report. */
 export interface RunReport {
   format: typeof runReportFormat;
-  /** The report's name, as its Markdown's: `m9-v116-s3`. */
+  /** The report's name, as its Markdown's: `v1.1.9-s3`. */
   milestone: string;
   profile: ProfileName | null;
   /** When the run began, as an ISO 8601 instant. */
@@ -162,7 +162,7 @@ export function parseRunReport(text: string, source = 'the report'): RunReport {
   return parsed as RunReport;
 }
 
-/** The JSON report's path beside the Markdown report at `markdown`: `m9-v116-s3-2026-10-05.json`. */
+/** The JSON report's path beside the Markdown report at `markdown`: `v1.1.9-s3-2026-10-20.json`. */
 export function jsonPathOf(markdown: string): string {
   return markdown.replace(/\.md$/, '') + '.json';
 }

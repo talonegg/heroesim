@@ -21,7 +21,7 @@ and the owner's inputs.
 
 | Unit | What it is | Example |
 | --- | --- | --- |
-| A line, `v1.N` | A run of releases with one theme; a new line opens when a release changes what the game is | `v1.1`, the page redesigned and the patches after it; `v1.2`, Random Events |
+| A line, `v1.N` | A run of releases with one theme; a new line opens when a release changes what the game is | `v1.1`, the page redesigned and the patches after it |
 | A release, `v1.N.P` | The increment: one epic, built on its own dev branch, closed, released to `main` and recorded | `v1.1.7`, then `v1.1.8` |
 | A story, `v1.N.P-Sk` | The sub-increment: a session or two, test first, recorded in a DL entry and verified | `v1.1.8-S3` |
 
@@ -37,11 +37,12 @@ line, whose first release is `v1.2.0`, and so on: `v1.2.0`, `v1.2.1`, … then `
 - is recorded once, as a row of §2's ledger and its epic's Status line, after which its epic and its
   DL entries are archived.
 
-**A feature larger than a release** keeps a milestone number and tag across the releases that build
-it, as M9 did for `v1.1.0` (DL-99). Random Events is M10, `m10-random-events`, and opens the `v1.2` line
-(DL-99, which named one `v1.2-dev` branch before DL-124 gave each release its own). Whether a feature
-is a module or a change to the core is decided per feature, in its epic (DL-89). A major version, `v2`,
-is not planned.
+**Tracked by release alone** (DL-228). Delivery is named and tracked by release number,
+`v<major>.<minor>.<patch>`, and by story within it. No milestone number (`M<n>`) or milestone tag is
+given to future work, in an epic, a branch, a tag, a harness report or a DL entry; those of the first
+build and M9 stay in the record. A feature larger than one release is planned as several releases,
+each its own epic. Whether a feature is a module or a change to the core is decided per feature, in
+its epic (DL-89). A major version, `v2`, is not planned.
 
 ## 2. Releases
 
@@ -71,11 +72,13 @@ What comes next, in order. Releases already made are §2's ledger. The record of
 to its order is in [`planning/archive/`](./planning/archive/README.md).
 
 - **Now: `v1.1.8`, the documentation slimmed**, on `v1.1.8-dev`
-  ([epic](./planning/epics/v1.1.8-release.md)): the documentation audit of 2026-10-08. Built
-  through DL-220; its open boxes, the close and the release wait for the owner.
-- **Then: Random Events, M10** (#12; its groundwork #15 and #17), the first real module, opening the
-  `v1.2` line (§1), with the issues ordered against it. Random Events never produce Quests (DL-82).
-  When it starts is the owner's (DL-214).
+  ([epic](./planning/epics/v1.1.8-release.md)): the documentation audit of 2026-10-08. Built and
+  closed (DL-226); its release waits for the owner.
+- **Next: chosen after `v1.1.8` is released.** The owner assesses then which epic comes next, among
+  Random Events and the lists below (DL-228).
+- **Random Events** (#12; its groundwork #15 and #17) will be the first real module, but is not
+  necessarily the next epic: when it starts is the owner's (DL-214, DL-228). Random Events never
+  produce Quests (DL-82).
   Its epic opens with a table of the owner's inputs, as the first build's `INPUTS-REQUIRED.md` §8
   asked: rows an agent drafts, each a question with a default and the owner's answer. Three of them
   block the build story until the owner answers: the catalogue of events, their rate, and whom they
@@ -83,7 +86,7 @@ to its order is in [`planning/archive/`](./planning/archive/README.md).
   harness reports their effects on that Guild alone. Morale's band edges are among their inputs.
   An agent proposes the harness's acceptance bands, and the owner approves them before the run.
   When their installation lands, the probe module leaves the public page.
-- **After Random Events, in an order chosen at its close:**
+- **Other features, in an order chosen as each release closes:**
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Scouting and hidden information.
   - Patron visits. The Outing limit comes with the first of Patron visits and scouting, as

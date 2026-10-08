@@ -71,14 +71,16 @@ name its path, or use `rg -u`.
   Edit tool keeps a file's endings; a script must write them back as it found them.
 - **Comments.** Follow `docs/agents/comments.md`: what and why, citing the deciding DL entry. The
   history goes in the log, never in a comment.
+- **Documents.** Follow `docs/agents/documentation.md`: each fact in its one home, a live page
+  rewritten to what is true now, never appended to, and history archived with its text kept.
 - **Words a player reads.** Follow `docs/agents/ui-text.md`, using the glossary's terms exactly.
 
 ## A story
 
 1. **Read** these before building:
    - AGENTS.md and this page;
-   - the `docs/agents/` pages the story touches: `comments.md` always, and `config.md`,
-     `traits.md`, `ui-text.md` or `portraits.md` as it touches them;
+   - the `docs/agents/` pages the story touches: `comments.md` and `documentation.md` always, and
+     `config.md`, `traits.md`, `ui-text.md` or `portraits.md` as it touches them;
    - the epic's §0, the story, §2 and §4;
    - the decisions the story cites.
 2. **Build** test first. Run single test files and `npm run typecheck` as you go.
@@ -132,7 +134,7 @@ name its path, or use `rg -u`.
 2. **Close.**
    - A review of the release's commits, its findings fixed test first, and every check.
    - Prove play: a full `gate` alone meeting `harness/gate.json` where play could move, and
-     `neutral --expect` where it cannot.
+     `neutral --expect` where it cannot. The baseline moves as `documentation.md` says.
    - Bring the epic up to date.
 3. **Release** (DL-124), on the owner's word:
    - `v1.1-release` is fast-forwarded to the dev branch and pushed;
@@ -146,14 +148,9 @@ name its path, or use `rg -u`.
    - the ledger's row in `plan.md` §2: date, pull request, merge commit, decisions, epic;
    - the epic's Status line.
 
-   Then:
-   - the epic moves to `docs/planning/archive/`, with a row in its index, and leaves the register;
-   - the release's DL entries move to
-     `docs/decisions/archive/DL-<first>-<last>-<release>.md`, and `npm run decisions -- index`
-     runs. The move keeps their text but re-points two kinds of link: a stub's or a note's link
-     into `superseded/`, which then begins `superseded/`, and a `superseded/` record's header link
-     to its entry's file, which then names the archive file. The link check catches the first,
-     not the second;
-   - the committed harness reports that nothing live cites any more leave the tree, read from git
-     history after (`harness/README.md`, DL-223);
-   - `plan.md` §3's "Now" moves on.
+   Then archive, by the steps in `docs/agents/documentation.md`:
+   - the epic, to `docs/planning/archive/`;
+   - the release's DL entries, to `docs/decisions/archive/`;
+   - the committed harness reports that nothing live cites any more.
+
+   And `plan.md` §3's "Now" moves on.

@@ -11,7 +11,7 @@ import { runSettings } from './settings.js';
 // HEROESIM_HARNESS is set (`npm run harness`): create HEROESIM_SEEDS worlds (1,000 by default)
 // from `seed-0001` onward with the core content and `defaultConfig`, validate each, create each
 // again and compare the two serialisations byte for byte, and write the report to
-// harness/reports/m1-<date>.md. The determinism measure is recorded in DL-13. Not run when
+// harness/reports/creation-<date>.md. The determinism measure is recorded in DL-13. Not run when
 // HEROESIM_MODULES names modules: that run is modules.harness.test.ts's (M8-S3, DL-78); nor when
 // HEROESIM_PROBE names a probe (M9-F1, succession.harness.test.ts); nor under a profile, which plays
 // the play sweep alone (v1.1.6-S2).
@@ -25,7 +25,7 @@ test.runIf(creating)(`${seeds.length} worlds are valid, and byte-identical when 
   const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 
   const sweep = sweepCreation(seeds, deps);
-  const path = writeReport(reportPath('m1', startedAt), creationReport(sweep, { deps, machine: machine(), startedAt }));
+  const path = writeReport(reportPath('creation', startedAt), creationReport(sweep, { deps, machine: machine(), startedAt }));
 
   // The report is written before anything is asserted, so a failing run leaves it to read.
   print(

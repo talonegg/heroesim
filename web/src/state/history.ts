@@ -264,7 +264,7 @@ export const leftOutOfARival: ReadonlySet<string> = new Set<EngineEventType>(['g
  * adopted; Guilds founded and folded (a Bankruptcy is a fold's reason), and a Guildmaster
  * succeeded; the game's end; every Guild's Quests, taken and resolved; and a Patron's Regard for a
  * Guild moving into a new band. A Guild below the floor is left out: a Rival's warning comes and
- * goes, and its fold is the news. A module's events wait for M10 to decide, so none is taken.
+ * goes, and its fold is the news. A module's events wait for the first module's epic to decide, so none is taken.
  */
 export const inTheWorldHistory: Readonly<Record<EngineEventType, boolean>> = Object.freeze({
   'world.created': true,
@@ -315,7 +315,7 @@ export const inTheWorldHistory: Readonly<Record<EngineEventType, boolean>> = Obj
   'guild.wealth-changed': false,
 } satisfies Record<EngineEventType, boolean>);
 
-/** An entry of the World History: one of its types; never a module's (M10 decides those). */
+/** An entry of the World History: one of its types; never a module's (the first module's epic decides those). */
 export function isWorldNews(entry: Pick<Entry, 'type'>): boolean {
   return Object.hasOwn(inTheWorldHistory, entry.type) && inTheWorldHistory[entry.type as EngineEventType];
 }

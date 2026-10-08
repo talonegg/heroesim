@@ -38,6 +38,10 @@ The game's tuning values are data, `engine/src/config.json`, in sections, with t
 
 Decisions are `DL-nn` entries. `docs/decision-log.md` holds the open release's entries; append a new one at its end. Earlier entries are archived by release in `docs/decisions/archive/`, and the items later entries superseded are in its `superseded/` folder. Find an entry through `docs/decisions/index.md` (a search leaves the archives out unless given their path, `docs/.rgignore`), and run `npm run decisions -- index` after adding, moving or superseding one. See the log's header (DL-215). Code also cites `INPUTS n.m`, a row of the first build's inputs, frozen in `docs/planning/archive/INPUTS-REQUIRED.md`; the release ledger is `docs/plan.md` §2, and every environment variable is in `docs/environment.md`.
 
+### Documentation
+
+Each fact has one home; a live page says what is true now, rewritten rather than appended to; superseded decisions, closed epics and pages no longer live are archived with their text kept. See `docs/agents/documentation.md`.
+
 ### Comments
 
 A comment says what a thing is and why, citing the deciding DL entry; the history of past values and stories belongs in the decision log. See `docs/agents/comments.md`.

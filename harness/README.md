@@ -9,15 +9,17 @@ when `HEROESIM_HARNESS` is set, so `npm test` never plays it. `npm run harness` 
 
 | Command | What it runs |
 | --- | --- |
-| `npm run harness` | The milestone's runs: 1,000 worlds created, then 200 games of 20 years played (INPUTS 4.13) |
-| `npm run harness -- gate <milestone>` | A release's Gate: 50 games of 20 years in 8 processes, the replay played once, alone, and compared with its shard's record, checked against `harness/gate.json` |
-| `npm run harness -- neutral <milestone> --expect <fingerprint>` | A play-neutral story's proof: 10 games of 20 years in 8 processes, about 7 minutes, its fingerprint checked against the one given (DL-186 item 30) |
+| `npm run harness` | The default runs: 1,000 worlds created, then 200 games of 20 years played (INPUTS 4.13) |
+| `npm run harness -- gate <name>` | A release's Gate: 50 games of 20 years in 8 processes, the replay played once, alone, and compared with its shard's record, checked against `harness/gate.json` |
+| `npm run harness -- neutral <name> --expect <fingerprint>` | A play-neutral story's proof: 10 games of 20 years in 8 processes, about 7 minutes, its fingerprint checked against the one given (DL-186 item 30) |
 | `npm run harness -- succession` | The Succession probe: 50 games of 12 years, the first Rival's Guildmaster at 50 (M9-F1) |
 | `npm run harness -- estimate` | The estimate probe: 200 Parties and Quests, each resolved 20,000 times (v1.1.4-S5) |
 | `npm run harness -- calibrate` | The calibration of the content, or of drafts (v1.1.4-S9): `docs/quests/calibration.md`, kept, and `calibration.json`, generated and ignored, which `npm run quest-review` reads; v1.1.4's is an asset of its GitHub Release (DL-218) |
 | `npm run harness -- compare <a> <b>` | What moved between two play sweeps' JSON reports: the play counters, and apart from them the save's sizes, measures that the save's shape and its config move (DL-205) |
 
-`<milestone>` names the report: `m<n>` or `m<n>-<name>`, as `m9-v116-s3`. Words after a command, or any
+`<name>` names the report: its release, or a word, each with kebab-case words after it if wanted, as
+`v1.1.9-s3-neutral`; a milestone's `m<n>` is refused, since delivery is tracked by release (DL-228). The
+default runs are named `creation` and `play`. Words after a command, or any
 other words, pass through to Vitest: `npm run harness -- play.harness` plays the play sweep alone.
 `compare` takes a report's path or its name in `harness/reports/`, with or without `.json`, or its
 Markdown's path.
@@ -26,24 +28,20 @@ Sweeps run one at a time, with nothing else running, since a 20-year game's proc
 1.3 GB (DL-184).
 
 The current `neutral` baseline, every play-neutral story's `--expect`, is
-`29c09fb4ea34f50addee9f8bd12ed8de40db1a3bd01655d5338795e97914d662` (`m9-v117-s6-neutral`, v1.1.7-S6, DL-212:
-schema 7, config version 17, content version 37, each Class's `icon` named; S5's was `c942201a…`, DL-211).
-The 4 × 2 quick check at content 37 and config version 17 is
-`38d1c0d4a48765086d39026c84e559d8e84008fb12205309a33db8aabeb5112a` (S5's, at content 36, was
-`ea14ffe35aa89561df091a17292c479ff115bc4f64e8fa5e984e8d9e465514a6`, which the version and `classes.json` put back give).
-It changes only with a DL entry, as at a story that changes play or the save's shape (v1.1.6-S7 and S17) or
-raises the content version or the config version, both of which every save records (with `meta.config`).
-The full `gate`'s, 50 × 20, is `5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b`
-(`m9-v117-s8`, v1.1.7's close, DL-214: schema 7, config version 17, content version 37; S5's was `43b429cf…`
-at content version 36, DL-211, the same games by `compare`; v1.1.6-S19's `bce997d2…` at config version 16,
-DL-205, the Gate's baseline in `gate.json`).
+`29c09fb4ea34f50addee9f8bd12ed8de40db1a3bd01655d5338795e97914d662` (`m9-v118-s8-neutral`, v1.1.8's close,
+DL-226: schema 7, config version 17, content version 37, as at v1.1.7-S6, DL-212). The 4 × 2 quick check
+at the same versions is `38d1c0d4a48765086d39026c84e559d8e84008fb12205309a33db8aabeb5112a`. Each changes
+only with a DL entry, as at a story that changes play or the save's shape or raises the content version
+or the config version, both of which every save records (with `meta.config`). The full `gate`'s, 50 × 20,
+is `5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b` (`v1.1.8-gate`, v1.1.8's close, the
+Gate's baseline in `gate.json`, DL-229; the same games as v1.1.7's close, DL-214).
 
 ## Settings
 
 Every `HEROESIM_*` variable a run reads is parsed in one place, `src/settings.ts`, each bad value
 refused by its name and an unknown `HEROESIM_*` name refused, so a mistyped setting fails the run
 rather than playing something else. [`docs/environment.md`](../docs/environment.md) lists them. A variable set in the shell overrides a
-profile's value: `HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- gate m9-trial` plays the
+profile's value: `HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- gate v1.1.9-trial` plays the
 Gate's run small. `HEROESIM_CONFIG` plays config values in place of the defaults, and
 `HEROESIM_POLICY` the automatic policy's, each a JSON object of keys, checked before play: the config
 by the engine's rule for every setting (`runConfig`, v1.1.6-S7, DL-193), a bad one refused by its name
@@ -55,7 +53,7 @@ or the seeds of each of the calibration's spot-check samples.
 
 ## Reports
 
-Each run writes its Markdown report to `harness/reports/<milestone>-<date>.md`. A play sweep writes
+Each run writes its Markdown report to `harness/reports/<name>-<date>.md`. A play sweep writes
 its JSON report beside it (`src/run-report.ts`): what it played (seeds, years, content, config and
 policy), its fingerprint, each game's line, its timings and its totals, the data the Gate and
 `compare` read.
@@ -65,9 +63,12 @@ Markdown and its JSON force-added (DL-186 item 28). A passing `gate` or `neutral
 `git add -f harness/reports/<name>.md harness/reports/<name>.json`.
 
 The tree keeps only the reports that a test, `gate.json`, a live document or the open release's DL
-entries cite. The rest leave it at a release's record (DL-223). The 84 committed before 2026-10-08 that
-nothing live cited are read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists
-them, and `git show b6d455c:harness/reports/<name>` prints one.
+entries cite. The rest leave it at a release's record (DL-223). The baseline is the closing
+`gate` of the latest release that changed play, or one the owner asks for, as v1.1.8's (DL-229); the
+previous one leaves the tree (`docs/agents/documentation.md`). Those v1.1.8's close removed, the
+v1.1.6 baselines among them, are read from git at `efa515b` (DL-229). The 84 committed before 2026-10-08 that nothing live cited are
+read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists them, and
+`git show b6d455c:harness/reports/<name>` prints one.
 
 ## The Gate
 

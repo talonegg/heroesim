@@ -108,7 +108,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-96 | 2026-09-28 | Fast forward in steps: `fastForward` calls of at most 30 Turns (`fastForwardStepTurns`), each … |  | [DL-086-098-v1.0](archive/DL-086-098-v1.0.md) |
 | DL-97 | 2026-09-28 | v1.0.1 verified and closed: "Export this game" held while a fast forward is between its steps, a … |  | [DL-086-098-v1.0](archive/DL-086-098-v1.0.md) |
 | DL-98 | 2026-09-28 | v1.0.1 deployed: the tag's build on the Worker `heroesim` at … |  | [DL-086-098-v1.0](archive/DL-086-098-v1.0.md) |
-| DL-99 | 2026-09-29 | The page redesigned: views in a shell in place of one column, the History as the one place to read … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-99 | 2026-09-29 | The page redesigned: views in a shell in place of one column, the History as the one place to read … | item 10 in part by DL-228 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-100 | 2026-09-29 | M9 planned: the redesign's epic in nine stories, #30's values under the owner's approval given … | item 3 in part by DL-125 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-101 | 2026-09-29 | The Bankruptcy floor heard, and two fast-forward stops: `guild.below-floor` and … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-102 | 2026-09-29 | M9-S2 built: Traits with a cost and exclusions (content 15), a Trait budget of 1 spent by every … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
@@ -225,17 +225,20 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-213 | 2026-10-07 | v1.1.7-S7 built: one filter element for the page, several choices to a filter, "All" when none and … |  | [DL-206-214-v1.1.7](archive/DL-206-214-v1.1.7.md) |
 | DL-214 | 2026-10-07 | v1.1.7-S8, the close: the close review's findings fixed: a Hero's leaving the pool decided over the … |  | [DL-206-214-v1.1.7](archive/DL-206-214-v1.1.7.md) |
 | DL-215 | 2026-10-08 | The decision log archived by release, superseded items set apart, and an index made from its … |  | [decision-log](../decision-log.md) |
-| DL-216 | 2026-10-08 | The closed epics archived, and `plan.md` §2 the one release ledger |  | [decision-log](../decision-log.md) |
+| DL-216 | 2026-10-08 | The closed epics archived, and `plan.md` §2 the one release ledger | item 4 in part by DL-228 | [decision-log](../decision-log.md) |
 | DL-217 | 2026-10-08 | `INPUTS-REQUIRED.md` archived once its live parts moved out, and the README an entry page with the … |  | [decision-log](../decision-log.md) |
 | DL-218 | 2026-10-08 | A delivery guide in the repository; generated files and applied runs out of the tree; the … |  | [decision-log](../decision-log.md) |
 | DL-219 | 2026-10-08 | The lean entry held by a test; story ids out of the comments by a rule and a baseline; the Traits' … |  | [decision-log](../decision-log.md) |
-| DL-220 | 2026-10-08 | `plan.md` cut to the delivery of releases; the first build's plan archived |  | [decision-log](../decision-log.md) |
+| DL-220 | 2026-10-08 | `plan.md` cut to the delivery of releases; the first build's plan archived | item 1 in part by DL-228 | [decision-log](../decision-log.md) |
 | DL-221 | 2026-10-08 | The delivery guide accepted; the archives out of a search; ADR-0009 and data-model §7 trimmed | item 2 in part by DL-222; item 3 by DL-222 | [decision-log](../decision-log.md) |
 | DL-222 | 2026-10-08 | ADR-0009 restated from every decision on streams, its old wording archived |  | [decision-log](../decision-log.md) |
 | DL-223 | 2026-10-08 | The owner's answers to Q3 and Q5: M9's table stays archived; the harness's reports pruned to those … |  | [decision-log](../decision-log.md) |
 | DL-224 | 2026-10-08 | The owner's answers to Q6: `origin/HEAD` on `main`, #34 closed, #33 corrected, the agent's memory … |  | [decision-log](../decision-log.md) |
-| DL-225 | 2026-10-09 | v1.1.8-S7 closed: CONTEXT.md's story ids replaced by their entries, and `neutral --expect` passing |  | [decision-log](../decision-log.md) |
+| DL-225 | 2026-10-09 | v1.1.8-S7 closed: CONTEXT.md's story ids replaced by their entries, and `neutral --expect` passing | item 2 in part by DL-229 | [decision-log](../decision-log.md) |
 | DL-226 | 2026-10-09 | v1.1.8-S8 closed: the close's review, its fourteen findings fixed, and the Gate met |  | [decision-log](../decision-log.md) |
+| DL-227 | 2026-10-09 | How to keep the documents lean, and how to archive, written as one guide |  | [decision-log](../decision-log.md) |
+| DL-228 | 2026-10-09 | Delivery tracked by release alone; Random Events the first module but not necessarily next |  | [decision-log](../decision-log.md) |
+| DL-229 | 2026-10-09 | One 50 × 20 baseline on v1.1.8, and the harness's reports cut to those cited live |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

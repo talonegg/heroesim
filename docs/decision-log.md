@@ -129,6 +129,8 @@ each release, and the epics README 22.5 KB, 11.9 KB of it the register's release
 4. **`plan.md` §4 looks forward only**, in order:
    - now `v1.1.8`;
    - then Random Events, M10 (#12, its groundwork #15 and #17);
+
+   *Superseded in part by DL-228, 2026-10-09: what follows `v1.1.8` is chosen after its release, and Random Events takes no milestone number. The record: [superseded/DL-216.md](./decisions/archive/superseded/DL-216.md).*
    - the list after it, unchanged;
    - the backlog, each item stated as it now stands, with its decisions and its issue where it has
      one.
@@ -309,6 +311,8 @@ ADR-0002 found the accepted exceptions to ADR-0002.
    (`v1.N.P-Sk`, the sub-increment); how one release follows another, `v1.1.N` to `v1.1.N+1` and a
    new line's `v1.2.0`; and a feature larger than a release keeping a milestone number, as M9 did
    and M10 will.
+
+   *Superseded in part by DL-228, 2026-10-09: no milestone numbers; delivery is tracked by release. The record: [superseded/DL-220.md](./decisions/archive/superseded/DL-220.md).*
 2. **Archived:** the old §1, §2's milestone table and its notes, §3's increments and §5, word for word,
    in `docs/planning/archive/first-build-plan.md`, with a row in the archive's index.
 3. **Renumbered:** §2 is the release ledger, now titled Releases, and the old §4 is §3, Next.
@@ -514,6 +518,8 @@ provenance, 48 lines citing a story id, and the `neutral --expect` proof that no
 2. **The play proof.** `HEROESIM_WORKERS=8 npm run harness -- neutral m9-v118-s7-neutral --expect
    29c09fb4…` ran alone and passed. The fingerprint is v1.1.7-S6's (DL-212), the content and config
    versions being unchanged since. The report is kept in the tree, as an open entry cites it.
+   *Superseded in part by DL-229, 2026-10-09: the report left the tree, S8's of the same fingerprint
+   the one kept; the record is in [superseded/DL-225.md](./decisions/archive/superseded/DL-225.md).*
 
 *Judgement calls, for the owner to see:*
 - Where a story has two entries, the "built" one is cited: v1.1.4-S7 as DL-159, not DL-158.
@@ -577,3 +583,121 @@ release waits for the owner's word (DL-124).
   reads no drift (107 reads).
 - `harness/reports/m9-v118-s8-neutral-2026-10-09.md` and its JSON: 10 games of 20 years, alone, 389 s.
 - The earlier timeouts of two twenty-year engine tests (DL-222, DL-225) did not recur on a run alone.
+
+## DL-227 — How to keep the documents lean, and how to archive, written as one guide
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Decided by:** the owner ("create instructions for agents
+on how to update documentation, in both docs and in code comments to avoid future bloat, as well as
+process to archive superceded decisions and docs and closed epics")
+
+**Context.** v1.1.8 cut the documents from about 2.5 MB to 127 KB, but its rules were spread across
+the log's header (superseded items), the delivery guide (a release's record), `comments.md`, the
+harness README (reports) and several entries (DL-215 to DL-226). Nothing told an agent where a fact
+belongs, how to change a live page without growing it, or how to archive a page that is no longer
+live.
+
+**Decision.**
+
+1. **`docs/agents/documentation.md`**, a new guide, holds:
+   - each kind of fact and its one home;
+   - the rules for a live page: rewrite rather than append; cite rather than narrate; link rather
+     than restate; no figures that rot; an epic stays a plan; the budgets;
+   - comments: a pointer to `comments.md` and the ratchet;
+   - the archiving steps for a superseded decision, a release's decisions, a closed epic, a page or
+     section no longer live, generated files and harness reports;
+   - the checks that hold them.
+2. **The routes to it.** AGENTS.md gains a Documentation section. The delivery guide names the page
+   among those a story always reads and in its Files and words. Its release record now points at the
+   page's archiving steps rather than giving them.
+3. **Where rules already have a home** (the log's header, `comments.md`), the guide links to them
+   and does not restate them.
+
+*Judgement calls, for the owner to see:*
+- A new rule: an ADR is restated, and its old wording archived, once three amendment notes stack,
+  as DL-222 did for ADR-0009 at five.
+- A box's note in an epic names its DL entry in a line. This epic's own notes are longer, written
+  before the rule.
+
+*Confirmed by the owner, 2026-10-09 ("confirm dl-227"): the guide and both judgement calls.*
+
+**Consequences.** One page answers "where does this go, and how do I retire it". A story that changes
+a page or a comment reads it first.
+
+**Evidence.**
+- `npm run decisions -- check` passes: the guide's links and citations resolve.
+
+## DL-228 — Delivery tracked by release alone; Random Events the first module but not necessarily next
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Decided by:** the owner ("random events will be the
+first module but will not necessarily be the next epic. this will be assessed after completing and
+releasing v1.1.8 … remove references to M10 milestone for random events, also remove M# in future
+artefact. delivery will be tracked by releases #.#.#")
+
+**Context.** `plan.md` named Random Events as M10, tagged `m10-random-events`, the next epic,
+opening the `v1.2` line (DL-99 item 10, DL-216 item 4, DL-220 item 1). Since `v1.1.1` every
+release has been a patch with its own epic and branch (DL-124), and no milestone has been used since
+M9. The harness still required a milestone's name, `m<n>`, for every report.
+
+**Decision.**
+
+1. **Tracked by release.** Delivery is named by release, `v<major>.<minor>.<patch>`, and by story
+   within it. No future epic, branch, tag, harness report or entry takes a milestone number or tag.
+   The first build's M0 to M8, and M9, stay in the record as they are.
+2. **Random Events** will be the first real module, with no milestone number. Whether it is the next
+   epic is the owner's, assessed after `v1.1.8` is released. `plan.md` §3 says so, its Random Events
+   item keeping the inputs table its epic opens with.
+3. **The harness's report names** take a release, or a word, each with kebab-case words after it,
+   `v1.1.9-s3-neutral`, and refuse `m<n>`. The default runs are `creation` and `play`, and the probes
+   and module runs are named by their kind. Reports named before stay as they are.
+4. **References re-pointed:** `plan.md` §1 and §3, the README, the v1.1.8 epic's objective, two
+   comments in `web/src/state/history.ts`, the harness README. DL-99 item 10, DL-216 item 4 and
+   DL-220 item 1 carry notes, and their records are in `superseded/`.
+
+*Judgement calls, for the owner to see:*
+- The variable `HEROESIM_MILESTONE` keeps its name, since renaming it touches every script and doc
+  that sets it. It now names a report by release. Its rename could come with a later story.
+- `plan.md` §1 keeps the first build's background in milestones, as the owner asked when DL-220 cut
+  it.
+
+*Confirmed by the owner, 2026-10-09 ("keep the existing environment variable"): `HEROESIM_MILESTONE`
+keeps its name.*
+
+**Consequences.** The next epic is open until `v1.1.8` is released. A harness run named the old way
+is refused, with the rule in its message.
+
+**Evidence.**
+- The harness's report and settings tests were red under the new rule first, then green: 318 tests.
+- `npm run decisions -- check`, lint and typecheck pass.
+
+## DL-229 — One 50 × 20 baseline on v1.1.8, and the harness's reports cut to those cited live
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Decided by:** the owner ("Q1 a, Q2 b": a clean full
+gate on v1.1.8 as the one baseline, the copy line's anchor kept; the middle way for the references)
+
+**Context.** `harness/gate.json`'s baseline was v1.1.6's closing gate (`bce997d2…`, config version
+16), though play changed in v1.1.7, and its copy line cited v1.1.6-S17's gate: two 50 × 20 reports
+of 470 KB each. The harness README cited a `neutral` reference and a full gate that were no longer in
+the tree. Tests named three reports only as strings: `m1`, `m9-v116-s3` and the baseline's path.
+
+**Decision.**
+
+1. **One baseline.** A clean full `gate` on v1.1.8, alone, named `v1.1.8-gate`, is `gate.json`'s
+   baseline: release, report, fingerprint `5dbfdaf4…`, the Bankruptcies' 0 and the saves' 17.51 and
+   20.64 MiB. Each line's source names it. The copy line keeps its anchor, S17's 0.253, and records
+   v1.1.8's 0.241. No limit changes. `gate.test.ts` holds the new baseline.
+2. **The rule.** A release that changes play makes its closing gate the baseline, and the previous
+   one's report leaves the tree. A release that changes no play keeps it, and its `neutral` report is
+   the README's reference (`docs/agents/documentation.md`, the delivery guide's close).
+3. **The references (b).** The harness README cites `m9-v118-s8-neutral` and `v1.1.8-gate`. Out of the
+   tree: the v1.1.6 baseline and S17's reports, `m9-v116-s3`, `m1` and `m9-v118-s7-neutral` (S8's
+   has the same fingerprint), about 1.43 MB, read from git at `efa515b`. Kept: the estimate's report,
+   the source of its two fixed limits, and the drafts' two reports, with the drafts. The tests name
+   an example report in the new form. DL-225 item 2 carries a note and a record.
+
+**Consequences.** The tree holds five reports (about 0.75 MB): the baseline, the `neutral` reference,
+the estimate's and the drafts' two. The Gate measures against the game as it now plays.
+
+**Evidence.**
+- `harness/reports/v1.1.8-gate-2026-10-09.md` and its JSON: 50 games of 20 years, 8 processes, alone,
+  1,425 s, `--expect 5dbfdaf4…` passing, every line passing.
+- `gate.test.ts` was red on the new baseline first, then green: the harness's 318 tests.
