@@ -239,6 +239,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-227 | 2026-10-09 | How to keep the documents lean, and how to archive, written as one guide |  | [decision-log](../decision-log.md) |
 | DL-228 | 2026-10-09 | Delivery tracked by release alone; Random Events the first module but not necessarily next |  | [decision-log](../decision-log.md) |
 | DL-229 | 2026-10-09 | One 50 × 20 baseline on v1.1.8, and the harness's reports cut to those cited live |  | [decision-log](../decision-log.md) |
+| DL-230 | 2026-10-09 | The engine's two twenty-year boxes out of `npm test`, into `npm run harness` |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

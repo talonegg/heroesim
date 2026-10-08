@@ -701,3 +701,38 @@ the estimate's and the drafts' two. The Gate measures against the game as it now
 - `harness/reports/v1.1.8-gate-2026-10-09.md` and its JSON: 50 games of 20 years, 8 processes, alone,
   1,425 s, `--expect 5dbfdaf4…` passing, every line passing.
 - `gate.test.ts` was red on the new baseline first, then green: the harness's 318 tests.
+
+## DL-230 — The engine's two twenty-year boxes out of `npm test`, into `npm run harness`
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Decided by:** the owner ("b": move them to the
+harness's long-run tests, which `npm run harness` runs and `npm test` skips)
+
+**Context.** Repeatedly on 2026-10-08 and 09, in full `npm test` runs, `rivals-build-and-buy` and
+`transfer-generator` timed out at their 300 s setup under the suite's load on this machine, though
+both pass alone and CI passed them. Each plays seeds of twenty years in its setup.
+
+**Decision.**
+
+1. **A run-only project, `engine-run`,** reads `engine/src/**/*.harness.test.ts` when
+   `HEROESIM_HARNESS` is set, as `harness-run` reads the harness's. `npm run harness` runs both
+   projects; `npm test` runs neither.
+2. **`rivals-build-and-buy`** becomes `rivals-build-and-buy.harness.test.ts`, whole; its setup's limit
+   is 30 minutes.
+3. **`transfer-generator`** is split. The twenty-year box, now always its hundred seeds, is
+   `transfer-generator.harness.test.ts`. The player's Roster over a hundred seeds' worlds, the phase
+   alone, stays in `npm test`. What both share is `transfer-generator.test-support.ts`; its rule check
+   returns its problems, `ruleProblems`, since the engine's lint keeps `vitest` out of support files.
+4. **When they run.** The delivery guide's close runs them, alone, where play could move:
+   `npm run harness -- rivals-build-and-buy transfer-generator`. The harness README lists the command.
+
+*Judgement calls, for the owner to see:*
+- A bare `npm run harness` now plays the boxes too, about fifty minutes more.
+- `npm test`'s four-seed form of the Transfer Generator's box is gone; the harness run is the box's
+  hundred seeds, as DL-59 set it.
+
+**Consequences.** `npm test` no longer plays twenty-year games, nor times out on them under load. CI no
+longer plays the boxes on each push; a close where play could move does.
+
+**Evidence.**
+- `npm run harness -- rivals-build-and-buy transfer-generator`, alone: 2 files, 6 tests, 3,051 s.
+- `npm test`, alone: 231 files, 6,102 tests, all passing, 110 s.

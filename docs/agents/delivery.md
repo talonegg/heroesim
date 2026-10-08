@@ -134,7 +134,9 @@ name its path, or use `rg -u`.
 2. **Close.**
    - A review of the release's commits, its findings fixed test first, and every check.
    - Prove play: a full `gate` alone meeting `harness/gate.json` where play could move, and
-     `neutral --expect` where it cannot. The baseline moves as `documentation.md` says.
+     `neutral --expect` where it cannot. The baseline moves as `documentation.md` says. Where play
+     could move, run the engine's twenty-year boxes too, alone:
+     `npm run harness -- rivals-build-and-buy transfer-generator` (DL-230).
    - Bring the epic up to date.
 3. **Release** (DL-124), on the owner's word:
    - `v1.1-release` is fast-forwarded to the dev branch and pushed;

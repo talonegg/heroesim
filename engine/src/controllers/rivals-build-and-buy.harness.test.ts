@@ -36,7 +36,9 @@ import { testDeps, withEncounters } from '../world.test-support.js';
 // to nothing. Here every Check asks 0.15, under which the Rivals live off their Quests and fold now
 // and then (about seven a seed), as the core's do. The rules and every other number are the game's;
 // the Dispositions are the test content's rows, M6-S1 to S4's, not the core's as the M6 close retuned
-// them (DL-69 item 8). A seed takes about ten seconds; DL-58 records the sweeps.
+// them (DL-69 item 8). A seed takes about ten seconds; DL-58 records the sweeps. Four seeds of twenty
+// years are a harness run, `npm run harness -- rivals-build-and-buy`, which `npm test` never plays
+// (DL-230).
 
 const years = 20;
 const seeds = ['build-and-buy-1', 'build-and-buy-2', 'build-and-buy-3', 'build-and-buy-4'];
@@ -161,7 +163,7 @@ describe('Rivals build and buy over twenty years (M6-S4)', () => {
   let tallies: Tally[] = [];
   beforeAll(() => {
     tallies = seeds.map(sweep);
-  }, 300_000);
+  }, 1_800_000);
 
   test('Rival Hall grades rise over twenty years under ambitious: from nothing, grade by grade, to the whole Hall', () => {
     for (const tally of tallies) {
