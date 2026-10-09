@@ -253,6 +253,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-241 | 2026-10-10 | v1.1.9-S8 built: readings in `words`, and the player's reading |  | [decision-log](../decision-log.md) |
 | DL-242 | 2026-10-10 | v1.1.9-S9 built: the History reader |  | [decision-log](../decision-log.md) |
 | DL-243 | 2026-10-10 | v1.1.9-S10 built: content kinds, effect kinds by their fields, and content's own entry |  | [decision-log](../decision-log.md) |
+| DL-244 | 2026-10-10 | v1.1.9-S11 built: the editor's edit session |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

@@ -336,8 +336,7 @@ async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Pr
       };
     }
     case 'pending': {
-      // Guarded as every command is (v1.1.4-S14).
-      const edits = editor.pending();
+      const edits = editor.edits();
       return {
         code: 0,
         json: { edits },

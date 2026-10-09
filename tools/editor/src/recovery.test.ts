@@ -1,17 +1,15 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { EventEmitter } from 'node:events';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { NotUndone, readContentVersion } from '@heroesim/content/write';
+import { readContentVersion } from '@heroesim/content/write';
 import { afterEach, describe, expect, test } from 'vitest';
-import { Editor } from './editor.js';
-import { journalPath, journalState, onSignals, writeAtomically } from './finish-journal.js';
+import { journalPath, journalState, writeAtomically } from './finish-journal.js';
 import { json, plantOutcome, root, scratchRepository, status } from './test-support.js';
-import type { TestRunner } from './tests-run.js';
 
-// A "Finish" cut off (the verification of v1.1.4-S12): killed between writing the content and its
-// tests' end, it leaves its journal, and the next command puts every file back from it; Ctrl+C or
-// SIGTERM puts them back at once.
+// A "Finish" cut off, through the commands (DL-161): killed between writing the content and its
+// tests' end, it leaves its journal, and the next command puts every file back from it. The edit
+// session's own tests (`session.test.ts`, DL-244) hold the rest for both its adapters: a file not put
+// back, and Ctrl+C or SIGTERM.
 
 const scratches: (() => void)[] = [];
 afterEach(() => {
@@ -146,58 +144,5 @@ describe('a "Finish" cut off', () => {
     expect(status(dir)).toBe('');
     // With no journal, --force puts back nothing.
     expect((await json(dir, 'traits', 'recover', '--force')).json).toEqual({ ok: true, recovered: [] });
-  });
-
-  test('a "Finish" whose files cannot all be put back keeps its journal, and the next command puts them back (v1.1.4-S14)', async () => {
-    const dir = scratch();
-    await json(dir, 'traits', 'change', 'thrifty', '--cost', '3');
-    const file = path.join(dir, 'content', 'guildmaster-traits.json');
-    // The tests fail, and leave a folder where a file was written: it cannot be put back.
-    const runner: TestRunner = () => {
-      rmSync(file);
-      mkdirSync(file);
-      return Promise.resolve({ ok: false, exitCode: 1, failures: ['× planted'], tail: [] });
-    };
-    const failed = await new Editor(dir).finish(runner).catch((error: unknown) => error);
-    expect(failed).toBeInstanceOf(NotUndone);
-    expect(existsSync(journalPath(dir))).toBe(true);
-    // Its process no longer finishes: the next command takes it as cut off.
-    expect(journalState(dir)).toBe('cut-off');
-
-    rmSync(file, { recursive: true });
-    const pending = await json<{ edits: unknown[]; recovered: string[] }>(dir, 'traits', 'pending');
-    expect(pending.code).toBe(0);
-    expect(pending.json.edits).toHaveLength(1);
-    expect(pending.json.recovered.map((each) => path.relative(dir, each).replace(/\\/g, '/')).sort()).toEqual([
-      'content/guildmaster-traits.json',
-      'content/version.json',
-    ]);
-    expect(status(dir)).toBe('');
-    expect(existsSync(journalPath(dir))).toBe(false);
-  });
-
-  test('Ctrl+C or SIGTERM puts back every file of a running "Finish" before the process ends', async () => {
-    const dir = scratch();
-    await json(dir, 'traits', 'change', 'thrifty', '--cost', '3');
-    let release: (ok: boolean) => void = () => {};
-    const runner: TestRunner = () => new Promise((resolve) => (release = (ok) => resolve({ ok, exitCode: ok ? 0 : 1, failures: ok ? [] : ['× held'], tail: [] })));
-    const finishing = new Editor(dir).finish(runner).catch((error: unknown) => error);
-    await until(() => status(dir) !== '', 'the content to be written');
-    expect(journalState(dir)).toBe('live');
-
-    const proc = Object.assign(new EventEmitter(), { exitCode: null as number | null, exit(code: number) {
-      this.exitCode = code;
-    } });
-    const said: string[] = [];
-    onSignals(proc, (text) => said.push(text));
-    proc.emit('SIGINT');
-
-    expect(proc.exitCode).toBe(130);
-    expect(said).toEqual(['Stopped: "Finish" was cut off, and 2 files are put back as they were.']);
-    expect(status(dir)).toBe('');
-    expect(journalState(dir)).toBe('none');
-    release(false);
-    await finishing;
-    expect(status(dir)).toBe('');
   });
 });

@@ -134,11 +134,16 @@ npm run edit -- traits update lame biography-sentences heroBiography.traits.lame
 
 ## Finish
 
+Both kinds' edits are held, checked and finished by one edit session (`src/session.ts`, DL-244). Its
+seam is an adapter for each kind of file it writes: the content files (`src/content-files.ts`, a
+content kind's rows, with the uses of their keys in other content as its extension) and the config
+file (`configFile`, `src/config-kind.ts`). The steps below are the session's, for either.
+
 1. It writes each changed file into its own layout (`editJson`, of content's write module
    `@heroesim/content/write`, keeping a row on one line where it was), so `git diff` shows only what
    changed.
-2. It raises the content version by one in `content/version.json` (v1.1.6-S4), with a line of its
-   changelog naming the edits.
+2. It raises the version by one, with a line of its changelog saying why: the content version in
+   `content/version.json`, naming the edits, or the config version (see The config kind).
 3. It runs `npm test`, its lines shown as they come (on stderr, or on the page).
 4. If any test fails, every file is put back and the edits stay pending; the failures are reported.
    Otherwise the edits it read are cleared.
@@ -195,8 +200,9 @@ npm run edit -- config finish --reason "the economy pass's wages (DL-210)"
   in its own layout (`editJson`), so `git diff` shows the values changed, the version and the
   changelog's new line, `<version> from <why>: <setting> <was> to <value>, ….`; and runs `npm test`.
   A test that fails puts the file back and keeps the edits pending. `--reason` is required, and is
-  `config finish`'s alone: a raise says why, citing its decision-log entry. It never commits, and it
-  takes the Traits' journal and lock, so neither kind writes while the other's tests run.
+  `config finish`'s alone: a raise says why, citing its decision-log entry. It never commits. It is
+  the edit session's "Finish", as the Traits' is, with its journal and lock, so neither kind writes
+  while the other's tests run.
 - **A test that pins a default**, or rests its numbers on one, fails "Finish" for that setting: it is
   reported to the owner with its kind and an assessment of its design, never changed to pass
   unasked (`docs/agents/delivery.md`, rule 4).
@@ -237,7 +243,9 @@ site's form can send without asking first.
 ## Tests
 
 `npm test` runs them with the rest, after the other projects' tests and on a few workers, since they
-start git and Chromium (DL-234). Each runs on a scratch copy of the repository made a git repository,
+start git and Chromium (DL-234). "Finish", its undoing and a "Finish" cut off are tested once, at the
+edit session, for both its adapters (`src/session.ts`'s tests, DL-244); the commands' tests hold what
+each kind's commands show. Each runs on a scratch copy of the repository made a git repository,
 so that `git status` shows what each command left behind. "Finish" reads the scratch copy's planted
 `npm test` in the test's own process, but in two tests of `cli.test.ts`, which run it through npm
 end to end. The page's passes in Chromium, each of its controls driven (v1.1.4-S14), share one

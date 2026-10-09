@@ -37,8 +37,8 @@ npm run edit -- config finish --reason "<why> (DL-NNN)"
 - **`finish`** checks the settings again, writes `config.json` in its own layout (only the changed
   values, the version and the changelog's new line change), raises `version` by one with the line
   `<version> from <reason>: <setting> <was> to <value>, ….`, and runs `npm test`. If a test fails, the
-  file is put back and the edits stay pending. It never commits. It shares the Traits' "Finish"
-  journal and lock (`tools/editor/README.md`).
+  file is put back and the edits stay pending. It never commits. It is the content editor's edit
+  session's "Finish", as the Traits' is, sharing its journal and lock (`tools/editor/README.md`).
 - **Write the decision first.** A default changed is a balance decision: give it a decision-log
   entry, and cite it in `--reason`.
 - **A test that pins a default** (`level-ups.test.ts` holds `wagePerLevel` at 20, say) fails

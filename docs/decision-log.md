@@ -952,3 +952,69 @@ the old package and the new; 22,921 broken files and 14,081 broken sets built in
 both, every refusal kept, changed only in order across kinds (29 and 11 cases) and by the listed
 refusal of an undescribed effect kind; fixed an Encounter bonus's `kinds` or `tags` null in memory,
 which threw where it was refused, and pinned the editor's forms to the description.
+
+## DL-244 — v1.1.9-S11 built: the editor's edit session
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner (DL-232 QA c, the epic's S11);
+the interface, the seam and the adapters by the agent
+
+**Context.** The architecture review's #6 (the epic's §5.1). The content editor's `Kind` had one
+adapter, the Traits, and its core (`editor.ts`) held the pending edits, the checks, the journal, the
+transaction, the content version's raise, the tests and the putting back. The config kind
+(`config-kind.ts`) held its own copy of each of those steps but the checks.
+
+**Decision.**
+
+1. **One edit session** (`tools/editor/src/session.ts`, `EditSession`). Its interface: `edits()`,
+   `replay(edits, held)`, `checked(edits, held)`, `hold(edits, held)`, `problems()`,
+   `discard(drop?, { check })`, `recover({ force })`, `recovered` and
+   `finish({ runTests, onLine, reason })`. Behind it:
+   - the pending edits in `.editor/<kind>.json`, written whole or not at all, every list of them
+     checked before it is saved;
+   - the journal as the lock: every call refused while a "Finish" runs, and one cut off put back
+     first;
+   - "Finish": the edits checked again, the files written in their own layout in one transaction,
+     the version raised by one with its changelog's line, the tests run, every file put back if one
+     fails (`Undone`), the journal kept where a file is not (`NotUndone`), and the edits it read
+     cleared.
+2. **Its seam,** `SessionAdapter`: `name`, `replay(root, edits, held)`, `problems(root, working)` and
+   `finishing(root, working, edits, reason)`. The last gives each file written (its text, its value
+   after, and whether a row on one line stays on one), what changed, and the versioned file with why.
+   The session raises the version on that file's value, and writes each file once.
+3. **Two adapters.**
+   - *The content files* (`contentFiles(kind, uses)`, `content-files.ts`): a content kind's row
+     edits made on the content's JSON, checked with the content's checks, each changed file written
+     with a row on one line kept on one, and the content version raised. *Trait uses are its
+     extension:* `UseKind` (`useEntries`, `assign`, `unassign`, `update`) is split from `Kind`, and
+     the adapter makes a use's edit through it, refusing one where the kind has none. `Edit` is
+     `RowEdit | UseEdit`.
+   - *The config file* (`configFile`, `config-kind.ts`): a setting's edit made on the file's
+     sections, checked with `checkConfig`, the file written with the config version raised,
+     `<version> from <why>: <setting> <was> to <value>, ….`
+4. **What left:** `config-kind.ts`'s copy of the finish steps, with its guard, its pending file and
+   its journal; `editor.ts`'s own. `Editor` and `ConfigEditor` are each kind's commands over the
+   session: the rows and their forms' edits, and the sections and `set`.
+5. **One raise of a version:** content's write module gains `raisedVersion(value, why, file)`, which
+   `raiseContentVersion` and the session both use.
+
+*Judgement calls, for the owner to see:*
+- The config kind's `discard` checks nothing it leaves (`{ check: false }`), as before; the Traits'
+  checks what it leaves. A check would refuse discarding one of a Min and Max pair.
+- Unchanged: every command's JSON and lines, every refusal's words and the line before the tests.
+  The journal now names only the files a "Finish" writes, so the content version's file is left out
+  where no content file changed.
+- A config "Finish" cut off is reported as "1 files are put back", as before; the words are the
+  commands', left for the owner.
+- `Editor.pending` went: every read is guarded now, so `traits pending` calls `edits`.
+- Tests moved: `recovery.test.ts`'s two tests of `Editor.finish` (a file not put back keeps its
+  journal; Ctrl+C puts the files back) are `session.test.ts`'s, for both adapters, their assertions
+  kept. The commands' tests, `cli.test.ts` and `config-kind.test.ts`, are unchanged.
+- A glossary headword, Edit session.
+
+**Consequences.** Another kind of file the editor writes is an adapter: its replay, its checks and
+what it writes. Source lines citing a story fell from 1,638 to 1,623, and the baseline with them.
+
+**Evidence.** `tools/editor/src/session.test.ts`, red first: seven tests for each adapter ("Finish";
+a failing test undoing it; a "Finish" cut off put back by the next call, then finished; a journal
+whose process number another holds; a file not put back; Ctrl+C; the shared lock).
+`content/src/write/version.test.ts`'s `raisedVersion` (2). The epic's S11 boxes.

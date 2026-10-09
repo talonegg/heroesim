@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { contentDir, loadContent } from '../node.js';
 import { transaction } from './transaction.js';
-import { raiseContentVersion, readContentVersion, versionPath } from './version.js';
+import { raiseContentVersion, raisedVersion, readContentVersion, versionPath } from './version.js';
 
 // The content version as data (v1.1.6-S4, DL-186 item 14): `content/version.json`, which the tools
 // raise by writing JSON, each raise a line of its changelog, and nothing else in the file changed.
@@ -89,5 +89,24 @@ describe('the content version', () => {
     expect(() => readContentVersion(root)).toThrow(`${versionPath(root)}: no whole number at "version"`);
     writeFileSync(versionPath(root), 'not JSON');
     expect(() => readContentVersion(root)).toThrow(versionPath(root));
+  });
+});
+
+// Any versioned file's value, `version` and `changelog` beside whatever else it holds, is raised the
+// same way: the content version's, and the config version's that the content editor's edit session
+// raises (DL-244).
+describe('a versioned value', () => {
+  test('is raised by one with a line of its changelog saying why, its other fields kept in their order', () => {
+    const value = { version: 16, changelog: ['16 from a story.'], sections: { world: { boardSize: 6 } } };
+    const raised = raisedVersion(value, 'a trial: boardSize 6 to 7', 'config.json');
+    expect(raised).toEqual({ from: 16, to: 17, value: { version: 17, changelog: ['16 from a story.', '17 from a trial: boardSize 6 to 7.'], sections: { world: { boardSize: 6 } } } });
+    expect(Object.keys(raised.value)).toEqual(['version', 'changelog', 'sections']);
+    expect(value.version).toBe(16);
+  });
+
+  test('is refused, naming its file, where it holds no version or no changelog', () => {
+    expect(() => raisedVersion({ version: 1.5, changelog: [] }, 'why', 'a.json')).toThrow('a.json: no whole number at "version"');
+    expect(() => raisedVersion({ version: 1 }, 'why', 'a.json')).toThrow('a.json: no list at "changelog"');
+    expect(() => raisedVersion([], 'why', 'a.json')).toThrow('a.json: no whole number at "version"');
   });
 });

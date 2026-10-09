@@ -11,7 +11,7 @@
 import { guildmasterTraitEffects, heroTraitEffects, type EffectField } from '@heroesim/content';
 import { contentEntries, rulesFor, traitFiles, usesOf, UseRefusal, type ContentEntry, type ContentJson, type TraitList, type TraitUse } from '@heroesim/content/uses';
 import { encounterKinds } from '@heroesim/engine/content';
-import type { EffectFieldForm, EffectForm, FieldForm, Kind, ListForm, Row, Rule, Use, UseChange } from './kind.js';
+import type { EffectFieldForm, EffectForm, FieldForm, Kind, ListForm, Row, Rule, Use, UseChange, UseKind } from './kind.js';
 
 const lists: Record<TraitList, { title: string }> = {
   guildmaster: { title: 'Guildmaster Traits' },
@@ -141,7 +141,7 @@ export function effectWords(effect: unknown): string {
   }
 }
 
-export const traitsKind: Kind = {
+export const traitsKind: Kind & UseKind = {
   name: 'traits',
   title: 'Traits',
   lists: (['guildmaster', 'hero'] as const).map((list) => ({ id: list, title: lists[list].title, file: traitFiles[list] })),

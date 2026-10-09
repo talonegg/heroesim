@@ -848,6 +848,14 @@ the files, raises the content version by one and runs the tests, putting every f
 fails. It never commits.
 _Avoid_: Mod tool, Admin page, Trait editor (for the whole)
 
+**Edit session**:
+The content editor's pending edits of one kind, from the first edit to "Finish": each checked with the
+kind's checks as it is made and held between commands, and "Finish", which writes the files, raises a
+version, the content's or the config's, by one, runs the tests and puts every file back if one fails.
+A "Finish" cut off is put back by the next command. The Traits are edited in one, and the tuning
+values in another, the same session over two kinds of file (DL-244).
+_Avoid_: Draft, Transaction (for the whole)
+
 **Content kind**:
 One kind of content, in its module of `content/src/kinds/`: the file it is written in, the shape of
 its rows and how they are read, their defaults, and its rules with their refusals (DL-243). Content is

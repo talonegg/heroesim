@@ -1,4 +1,4 @@
 {
-  "lines": 1638,
+  "lines": 1623,
   "why": "Source lines, tests aside, that still cite a story id (DL-219). Lower it as they are rewritten to cite their DL entry; never raise it."
 }
