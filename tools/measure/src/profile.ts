@@ -24,7 +24,8 @@ export const parts: readonly [string, (frame: Frame) => boolean][] = [
   ["The Rivals' controllers", (frame) => fileOf(frame.url) === 'engine/src/controllers/rival.ts'],
   ['The policy', (frame) => fileOf(frame.url) === 'harness/src/policy.ts'],
   ['copyWorld', (frame) => frame.functionName === 'copyWorld'],
-  ['applyAction', (frame) => frame.functionName === 'applyAction'],
+  // A Guild's list of actions is applied by `applyActions` (DL-238), one action by `applyAction`.
+  ['applyAction', (frame) => frame.functionName === 'applyAction' || frame.functionName === 'applyActions'],
   ["The yearly walk of the document (savedLength)", (frame) => frame.functionName === 'savedLength'],
   ['The validator', (frame) => fileOf(frame.url) === 'engine/src/validate.ts'],
   ['The garbage collector', (frame) => frame.functionName === '(garbage collector)'],

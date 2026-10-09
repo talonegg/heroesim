@@ -1,5 +1,15 @@
 # The write-once rows are frozen and shared by reference outside the per-Turn copy
 
+*Amendment proposed 2026-10-10 (DL-238), awaiting the owner's word:* a Guild's list of actions
+in a Turn is played on one copy of `world`, not on one an action. `applyActions` copies `world` once
+(`copyWorld`) and applies the list's actions to the copy in order, each through its rule. A refused
+action changes nothing, since every rule decides a refusal before it writes, and the done actions'
+events are appended to the History in order. The harness's policy acts so, and the Rival phase
+applies each Rival's list to the Turn's own copy; the page and the CLI take one action at a time
+through `applyAction`, a copy each. The write-once rows are still frozen and shared by reference, a
+row by the first copy made of a world in which it is write-once. The saved shape, the save's bytes
+and the fingerprints are unchanged.
+
 *Amends ADR-0008.* The engine still produces each Turn's state, and each action's, by copying
 `world` once and mutating the copy, but the copy is made by hand (`copyWorld`,
 `engine/src/world-copy.ts`), not by `structuredClone`. The rows that are out of play for good,

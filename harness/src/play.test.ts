@@ -18,7 +18,7 @@ import {
 } from '@heroesim/engine';
 import { append } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
-import { emptyObservations, regardSnapshot } from './counters.js';
+import { emptyObservations, regardSnapshot, savedLength } from './counters.js';
 import { harnessSetup } from './creation.js';
 import { markHistory, measureDocument, playerTransferred, playGame, readAdvance, recordGame, runConfig } from './play.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
@@ -205,6 +205,34 @@ describe('playGame observes the World State (M3, DL-40)', () => {
     expect(short.observations.saves.map((save) => save.gzipped)).toEqual([null, null]);
     expect(short.measures.gzipped).toBeNull();
   });
+});
+
+// DL-238: the History's length counted as it grows, held to the walk of the whole document.
+describe("playGame counts the save's length as the History grows", () => {
+  test.each(['saves-a', 'saves-b', 'saves-c'])(
+    "matched against the walk of the whole document and the save's text, every year of a game (%s)",
+    { timeout: 30_000 },
+    (seed) => {
+      const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 24 } };
+      const walked: number[] = [];
+      const written: number[] = [];
+      const worlds: number[] = [];
+      const game = playGame(seed, shortYears, {
+        years: 4,
+        afterAdvance: (_before, after) => {
+          if (after.world.turn % shortYears.config.turnsPerYear !== 0) return;
+          walked.push(savedLength(after));
+          written.push(serialise(after).length);
+          worlds.push(savedLength(after.world));
+        },
+      });
+
+      expect(walked).toHaveLength(4);
+      expect(game.observations.saves.map((save) => save.length)).toEqual(walked);
+      expect(walked).toEqual(written);
+      expect(game.observations.worlds.map((world) => world.characters)).toEqual(worlds);
+    },
+  );
 });
 
 describe("playGame records each dispatched Quest's difficulty (M5, DL-62)", () => {

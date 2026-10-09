@@ -56,6 +56,7 @@ const hidden = [
   'adjustRegard',
   'applyToCopy',
   'applyGuildAction',
+  'applyGuildActions',
   'applyBuild',
   'applyBuy',
   'applyDispatch',

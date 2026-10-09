@@ -25,7 +25,7 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import {
   advance,
-  applyAction,
+  applyActions,
   createWorld,
   deserialise,
   isId,
@@ -54,6 +54,8 @@ import {
   observeHeroes,
   observeSave,
   observeWorld,
+  historyLengthCounter,
+  savedDocumentLength,
   savedLength,
   takeCensus,
   type GameCounters,
@@ -261,7 +263,8 @@ const troubled = (result: ValidationResult): boolean => !result.ok || result.war
 
 /**
  * Creates `seed`'s world and plays it: before each Turn, the World State observed (`observe`) and
- * then the policy's actions, applied in order through `applyAction`; then `advance`, timed; then, when validating, the validator from the
+ * then the policy's actions, applied in order on one copy through `applyActions` (DL-238); then
+ * `advance`, timed; then, when validating, the validator from the
  * History's length at its last run (`historyFrom`), so that validating every Turn stays linear
  * in the History; and once the game stops, the year's census if it stopped at a year's start
  * without ending, and the validator over the whole document. After each `advance`, what it did that
@@ -312,29 +315,36 @@ export function playGame(seed: string, given: EngineDeps, options: PlayOptions =
   // Every Hero generated with the world, and the save's length as each year ends (v1.1.3-S6),
   // counted without writing it (v1.1.5-S1): `recordGame` gzips the last year's from the save it
   // writes once the game stops. With it, the World State's size and the per-Turn copy's time
-  // (v1.1.6-S17, DL-203).
+  // (v1.1.6-S17, DL-203). The World State is walked once a year, and the History, append-only
+  // (ADR-0008), counted as it grows (DL-238).
   if (!bare) observeHeroes(observations, document.world, creation.events);
+  const historyLength = historyLengthCounter();
   const yearEnded = (): void => {
     const { turn } = document.world;
     if (bare || turn === 0 || turn % deps.config.turnsPerYear !== 0) return;
-    observeSave(observations, document.world, savedLength(document));
-    observeWorld(observations, document.world, now);
+    const world = savedLength(document.world);
+    observeSave(observations, document.world, savedDocumentLength(document, historyLength, world));
+    observeWorld(observations, document.world, now, world);
   };
 
   const created: number[] = [];
   if (!validating || check(0, created)) {
     while (document.world.ended === null && document.world.turn < lastTurn) {
       if (!bare) observe(observations, document.world, deps);
-      for (const action of choose(document, deps, policy)) {
-        const result = applyAction(document, action, deps);
+      const actions = choose(document, deps, policy);
+      // The Quests are read from the document the actions began from, which they leave as it was.
+      const chosen = document;
+      const applied = applyActions(chosen, actions, deps);
+      applied.results.forEach((result, at) => {
+        const action = actions[at] as GuildAction;
         if (!result.ok) {
-          refusals.push({ turn: document.world.turn, action, rejection: result.rejection });
-          continue;
+          refusals.push({ turn: chosen.world.turn, action, rejection: result.rejection });
+          return;
         }
-        const quest = action.kind === 'dispatch' ? document.world.quests[action.questId] : undefined;
+        const quest = action.kind === 'dispatch' ? chosen.world.quests[action.questId] : undefined;
         if (quest !== undefined) playerQuestDifficulty.set(quest.id, quest.difficulty);
-        document = result.document;
-      }
+      });
+      document = applied.document;
 
       const unadvanced = document;
       const mark = markHistory(document);

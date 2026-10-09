@@ -87,6 +87,7 @@ import {
   type GuildId,
   type Hero,
   type HeroId,
+  type History,
   type ItemSaleCause,
   type QuestBand,
   type RankingMeasure,
@@ -1681,15 +1682,15 @@ function countRows<Row>(rows: Readonly<Record<string, Row>>, isWriteOnce: (row: 
  * and written once, and the per-Turn copy's time, the mean of `copiesTimed` copies of it by the
  * engine's `copyWorld` on the clock `now`. The copies are made and dropped: the copy leaves `world` as
  * it was, but for freezing its write-once rows, as the next `advance`'s copy would (ADR-0011), so the
- * game plays on as it would have.
+ * game plays on as it would have. `characters` is `savedLength(world)`, given when already counted.
  */
-export function observeWorld(observations: GameObservations, world: World, now: () => number): void {
+export function observeWorld(observations: GameObservations, world: World, now: () => number, characters = savedLength(world)): void {
   const started = now();
   for (let copy = 0; copy < copiesTimed; copy += 1) copyWorld(world);
   const copyMs = (now() - started) / copiesTimed;
   const { heroes, guildmasters, guilds, patrons, quests, parties, items, stacks, offers } = world;
   observations.worlds.push({
-    characters: savedLength(world),
+    characters,
     heroes: countRows(heroes, writeOnce.heroes),
     guildmasters: countRows(guildmasters, writeOnce.guildmasters),
     guilds: countRows(guilds, writeOnce.guilds),
@@ -1727,6 +1728,91 @@ export function savedLength(value: unknown): number {
   // The braces, a comma between each two members, and each member's colon.
   let length = Math.max(2, keys.length + 1) + keys.length;
   for (const key of keys) length += savedLength(key) + savedLength(object[key]);
+  return length;
+}
+
+/** A list's or an object's length in the save from its members' count and their characters: the brackets or braces, and a comma between each two. */
+const enclosed = (members: number, characters: number): number => Math.max(2, members + 1) + characters;
+
+/** A History index's members' length in the save: its keys counted and each list's positions. */
+interface IndexLength {
+  /** Each key's list: the positions counted, and their characters. */
+  lists: Map<string, { positions: number; characters: number }>;
+  /** Each member's key, colon and list. */
+  characters: number;
+}
+
+/**
+ * A count of a History's length in the save, `savedLength(history)`, kept as the History grows (DL-238):
+ * the History is append-only (ADR-0008), so each call reads only the entries appended since the
+ * last, each once, and of the indexes only the lists of the types and the entities those entries
+ * name, from the positions it last counted. The play loop's yearly save is counted so, rather than
+ * walked whole.
+ *
+ * @throws RangeError when asked of a History other than the one it began with
+ */
+export function historyLengthCounter(): (history: Readonly<History>) => number {
+  let counting: Readonly<History> | null = null;
+  let entries = 0;
+  let entryCharacters = 0;
+  let milestones = 0;
+  let milestoneCharacters = 0;
+  const indexes: Record<'byEntity' | 'byType', IndexLength> = {
+    byEntity: { lists: new Map(), characters: 0 },
+    byType: { lists: new Map(), characters: 0 },
+  };
+  /** Adds to `index` the positions its list for each of `keys` holds beyond those counted. */
+  const grow = (index: IndexLength, lists: Readonly<Record<string, readonly number[]>>, keys: ReadonlySet<string>): void => {
+    for (const key of keys) {
+      const list = lists[key] ?? [];
+      const was = index.lists.get(key);
+      const now = { positions: was?.positions ?? 0, characters: was?.characters ?? 0 };
+      for (; now.positions < list.length; now.positions += 1) now.characters += savedLength(list[now.positions]);
+      // A new member is its key and colon too; a member counted before, its list anew.
+      index.characters += was === undefined ? savedLength(key) + 1 : -enclosed(was.positions, was.characters);
+      index.characters += enclosed(now.positions, now.characters);
+      index.lists.set(key, now);
+    }
+  };
+  return (history) => {
+    counting ??= history;
+    if (counting !== history) throw new RangeError("A count of a History's length follows the one History it began with");
+    const named = new Set<string>();
+    const types = new Set<string>();
+    for (; entries < history.entries.length; entries += 1) {
+      const entry = history.entries[entries] as Entry;
+      entryCharacters += savedLength(entry);
+      for (const id of entry.participants) named.add(id);
+      types.add(entry.type);
+    }
+    grow(indexes.byEntity, history.byEntity, named);
+    grow(indexes.byType, history.byType, types);
+    for (; milestones < history.milestones.length; milestones += 1) milestoneCharacters += savedLength(history.milestones[milestones]);
+
+    const sections: Record<keyof History, number> = {
+      entries: enclosed(entries, entryCharacters),
+      byEntity: enclosed(indexes.byEntity.lists.size, indexes.byEntity.characters),
+      byType: enclosed(indexes.byType.lists.size, indexes.byType.characters),
+      milestones: enclosed(milestones, milestoneCharacters),
+    };
+    const keys = Object.keys(history);
+    let length = enclosed(keys.length, keys.length);
+    for (const key of keys) length += savedLength(key) + (Object.hasOwn(sections, key) ? sections[key as keyof History] : savedLength(history[key as keyof History]));
+    return length;
+  };
+}
+
+/**
+ * `document`'s length in the save, `savedLength(document)`, from its History's as `counted` keeps it
+ * and its World State's, `world`, already counted: what the play loop observes as each year ends.
+ */
+export function savedDocumentLength(document: WorldDocument, counted: (history: Readonly<History>) => number, world: number): number {
+  const keys = Object.keys(document);
+  let length = enclosed(keys.length, keys.length);
+  for (const key of keys) {
+    const value: unknown = document[key as keyof WorldDocument];
+    length += savedLength(key) + (key === 'history' ? counted(document.history) : key === 'world' ? world : savedLength(value));
+  }
   return length;
 }
 

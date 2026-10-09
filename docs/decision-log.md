@@ -491,3 +491,75 @@ policy, CLI board and calibration that 0fb1bbc's code gave, on 128 documents; no
 module across an in-place change; but `rebase` makes a document of the same world under other
 rules, and the page answered it by the old rules, so the page now keeps a module with the rules it
 was opened under; a test holds the formulas' cache to a fold read afresh.
+
+## DL-238 — v1.1.9-S5 built: a Guild's actions on one copy, and the save in one walk
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner (DL-231 Q2, Q14, Q20, DL-232,
+the epic's S5); the interface, the refusals and the counts by the agent; ADR-0011's amendment awaits
+the owner's word
+
+**Context.** The architecture review's #2 (the epic's §5.1). `applyAction` copied the world for each
+action, and the Rival phase applied its lists in a loop of its own. After DL-237, `copyWorld` was
+the largest part of a game (25.1%). A save walked the document twice, once to check it JSON-safe
+(`findJsonUnsafe`) and once to write it, and the play loop walked the whole document as each year
+ended (`savedLength`, 5.4% of a game at the baseline).
+
+**Decision.**
+
+1. **One copy for a Guild's actions.** `applyActions(document, actions, deps)`, in the engine's
+   entry, copies `world` once and applies the actions to the copy in order. It returns the document
+   they left and each action's outcome, done with its events or refused. Under it,
+   `applyGuildActions(world, actions, deps)`, not exported, applies them in place, and both adapters
+   run it: `applyActions` on its copy, the Rival phase on the Turn's. The harness's play loop takes
+   its policy's list through `applyActions`; the page and the CLI keep `applyAction`, a copy an
+   action.
+2. **A refusal changes nothing,** as every rule's contract already said (DL-30): a rule decides a
+   refusal before it writes, so the next action finds the copy as the refused one did. Nothing is
+   undone. The done actions' events are appended to the History an action at a time, in order,
+   after the list: no rule reads the History, so that is appending after each. A list with nothing
+   done gives back the document given, and an empty one copies nothing.
+3. **The save in one walk.** `serialise`'s writer vouches for each value as its replacer meets the
+   list or object holding it: a string, a boolean, null, a finite number but -0, or a plain list or
+   object with no `toJSON`. A document it cannot vouch for (a value unsafe or not plainly safe, a
+   cycle, an array-index or own `__proto__` key) is walked by `findJsonUnsafe`, which names the
+   refusal as before, or finds it safe and has it written as before. The bytes and the refusals are
+   the same, and the page saves through the same `serialise`.
+4. **The save's length counted as it grows.** `historyLengthCounter` (`counters.ts`) keeps the
+   History's length in the save, reading at each call only the entries appended since the last and,
+   of the indexes, the lists of the types and entities those entries name. It follows one History
+   and throws on another. As each year ends, the play loop walks the World State once (it walked it
+   twice, for the save and for `observeWorld`) and adds the History so counted
+   (`savedDocumentLength`).
+5. The profile's `applyAction` part counts `applyActions` too.
+
+*Judgement calls, for the owner to see:*
+- **ADR-0011's amendment, for the owner's word** (Q14). The ADR carries it marked as proposed:
+  "*Amended 2026-10-10 (DL-238):* a Guild's list of actions in a Turn is played on one copy of
+  `world`, not on one an action. `applyActions` copies `world` once (`copyWorld`) and applies the
+  list's actions to the copy in order, each through its rule. A refused action changes nothing,
+  since every rule decides a refusal before it writes, and the done actions' events are appended to
+  the History in order. The harness's policy acts so, and the Rival phase applies each Rival's list
+  to the Turn's own copy; the page and the CLI take one action at a time through `applyAction`, a
+  copy each. The write-once rows are still frozen and shared by reference, a row by the first copy
+  made of a world in which it is write-once. The saved shape, the save's bytes and the fingerprints
+  are unchanged."
+- Validate before mutate, not an undo: a rule that wrote before refusing would now leave its write
+  in the list's copy. Tests hold all twelve rules to it.
+- The counter takes one fact from `append`: an entry's position joins only its type's and its
+  participants' lists.
+- The writer vouches for less than `findJsonUnsafe` accepts (a list with a `toJSON` of its own); such
+  a document takes the old two walks, with the old bytes.
+
+**Consequences.** The neutral run took 237.1 s, from S4's 274.8 s. One game of 20 years in one
+process sampled 57.7 s, from 65.3 s. Of it:
+- `copyWorld`, 24.6% (from 25.1%): 18.2% under `advance`'s copy a Turn, 6.4% under the lists';
+- `applyAction` with `applyActions`, 8.4%;
+- the yearly count of the save (`savedLength`), 1.0% (from 5.4% at the baseline).
+
+A rule must refuse before it writes, now that a list's copy outlives a refused action.
+
+**Evidence.** `engine/src/actions/actions.test.ts`, `harness/src/actions.test.ts` (three played
+games, each Turn's list three ways), `engine/src/serialise-safety.test.ts` and the counter's tests in
+`counters.test.ts` and `play.test.ts`, each red first. `neutral --expect` identical, alone:
+`harness/reports/v1.1.9-s5-neutral-2026-10-10.md`. The epic's S5 boxes but ADR-0011's.
+The profile and the doctor's readings are in the commit message.

@@ -33,6 +33,7 @@ import {
   countGame,
   emptyObservations,
   heroFieldsLength,
+  historyLengthCounter,
   noConsumables,
   noDisposition,
   noGear,
@@ -1406,6 +1407,31 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
     expect(observations.worlds[0]?.characters).toBe(JSON.stringify(world).length);
     // The copies are dropped: the world plays on as it stood.
     expect(serialise(document)).toBe(before);
+  });
+
+  // DL-238: the History is append-only (ADR-0008), so its length in the save is counted as it grows.
+  test("historyLengthCounter counts the History's length in the save as it grows, each entry once", () => {
+    const { document, player, rivals } = fixture('counters-history');
+    const { history } = document;
+    const counted = historyLengthCounter();
+    expect(counted(history)).toBe(savedLength(history));
+
+    const heroId = firstHero(player);
+    const batches: [number, EngineEventType, EntityId[]][][] = [
+      [],
+      // A new type and a new entity, an entity named twice in one entry, and a Milestone.
+      [[1, 'hero.recruited', [heroId, player.id]], [1, 'guild.folded', [rivals[0].id, rivals[0].id]]],
+      [[2, 'hero.recruited', [heroId, rivals[1].id]], [2, 'guild.improved', [player.id]], [3, 'hero.died', [heroId, player.id]]],
+      // Enough of one entity's entries for its list's positions to reach more digits.
+      Array.from({ length: 120 }, (_, at): [number, EngineEventType, EntityId[]] => [4 + at, 'guild.improved', [player.id]]),
+    ];
+    for (const batch of batches) {
+      for (const [turn, type, participants] of batch) add(document, turn, type, participants, { at: turn });
+      expect(counted(history)).toBe(savedLength(history));
+      expect(counted(history)).toBe(JSON.stringify(history).length);
+    }
+    // A count follows the one History it began with.
+    expect(() => counted({ ...history, entries: [...history.entries] })).toThrow(RangeError);
   });
 
   // v1.1.5-S1 (DL-174): the years' saves are measured, not written.

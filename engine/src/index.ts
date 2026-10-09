@@ -8,7 +8,9 @@
 
 export {
   applyAction,
+  applyActions,
   type Action,
+  type ActionListResult,
   type ActionKind,
   type ActionRejection,
   type GuildAction,

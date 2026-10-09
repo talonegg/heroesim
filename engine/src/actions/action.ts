@@ -4,10 +4,13 @@
 // action's file defines its action, its rejection and its rule; a story adding an action adds the
 // first two to the unions here and a case to `applyGuildAction` (M2-S4 `dispatch`, M2-S8 `recruit`,
 // M3-S6 `build`, M5-S2 `equip` and `unequip`, M5-S4 `buy` and `sell`, M6-S2 the five Transfer
-// actions).
+// actions). A Guild's list of actions in a Turn, the harness's policy's and a Rival's, is applied
+// on one copy through `applyActions` and `applyGuildActions` (DL-238).
 
 import type { EngineDeps } from '../config.js';
 import type { World, WorldDocument } from '../document.js';
+import { record } from '../record.js';
+import { copyWorld } from '../world-copy.js';
 import { applyBuild, type BuildAction, type BuildRejection } from './build.js';
 import { applyBuy, type BuyAction, type BuyRejection } from './buy.js';
 import { applyDispatch, type DispatchAction, type DispatchRejection } from './dispatch.js';
@@ -101,12 +104,57 @@ export function applyAction<A extends Action>(document: WorldDocument, action: A
   return result as ActionResult<RejectionOf<A>>;
 }
 
+/** A Guild's list of actions applied at once: the document they left, and each action's outcome in the list's order. */
+export interface ActionListResult {
+  /**
+   * The document given when no action was done; else one with the one copy of its world every
+   * action played on, the same `meta`, and the History, appended to (ADR-0008).
+   */
+  document: WorldDocument;
+  /** Each action's outcome, in the list's order: done, with its events, or refused, having changed nothing. */
+  results: WorldActionResult<GuildActionRejection>[];
+}
+
+/**
+ * Applies a Guild's `actions` to `document` in order, on one copy of its world rather than one an
+ * action (DL-238, ADR-0011 as amended): what the harness's policy chooses for a Turn. Each action
+ * plays on the world the ones before it left, through its rule (`applyGuildActions`); a refused
+ * one changes nothing, so the next finds the copy as it was. The done actions' events are then
+ * appended to the History an action at a time, in order (`record`): no rule reads the History, so
+ * appending them after the list is appending them after each. The result equals the same actions
+ * applied one by one through `applyAction`, refusals included, to the byte.
+ */
+export function applyActions(document: WorldDocument, actions: readonly GuildAction[], deps: EngineDeps): ActionListResult {
+  if (actions.length === 0) return { document, results: [] };
+  const { meta, history } = document;
+  const world = copyWorld(document.world);
+  const results = applyGuildActions(world, actions, deps);
+  if (!results.some((result) => result.ok)) return { document, results };
+  for (const result of results) if (result.ok) record(history, result.events);
+  return { document: { meta, world, history }, results };
+}
+
+/**
+ * Applies a Guild's `actions` to `world` in place, in order, each through its rule
+ * (`applyGuildAction`), and returns each one's outcome without appending its events: the Rival
+ * phase's on the Turn's copy (DL-30), and `applyActions`' on a document's. Every rule decides a
+ * refusal before it writes, so a refused action changes nothing and the next is applied to the
+ * world the one before it left.
+ */
+export function applyGuildActions(
+  world: World,
+  actions: readonly GuildAction[],
+  deps: EngineDeps,
+): WorldActionResult<GuildActionRejection>[] {
+  return actions.map((action) => applyGuildAction(world, action, deps));
+}
+
 /**
  * Applies a Guild's `action` to `world` in place through its rule (`applyDispatch`, `applyRecruit`,
  * `applyBuild`, `applyEquip`, `applyUnequip`, `applyBuy`, `applySell`, and the Transfer rules),
  * returning the events without appending them: what `applyAction` runs on a copy of a document's
- * world, and how a phase of the Turn pipeline takes an action on the Turn's copy (M2-S9's Rival
- * controllers, DL-30). A refusal changes nothing.
+ * world, and what `applyGuildActions` runs for each action of a list (DL-238), on a document's
+ * copy or on the Turn's (the Rival controllers, DL-30). A refusal changes nothing.
  */
 export function applyGuildAction(
   world: World,

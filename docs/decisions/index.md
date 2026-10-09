@@ -247,6 +247,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-235 | 2026-10-09 | v1.1.9-S3 built: CI on Node 26 alone, and a deploy that tests a tree once |  | [decision-log](../decision-log.md) |
 | DL-236 | 2026-10-09 | v1.1.9: three tests that failed under load fixed on the owner's word |  | [decision-log](../decision-log.md) |
 | DL-237 | 2026-10-10 | v1.1.9-S4 built: the Best Party module |  | [decision-log](../decision-log.md) |
+| DL-238 | 2026-10-10 | v1.1.9-S5 built: a Guild's actions on one copy, and the save in one walk |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

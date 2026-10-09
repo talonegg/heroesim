@@ -22,15 +22,23 @@ import { validate, type ValidationFailure, type ValidationWarning } from './vali
  * whatever order their keys were written in.
  *
  * Throws on a document that is not JSON-safe (rule 6), naming the first offending path: a
- * programming error, since the engine only ever makes JSON-safe documents.
+ * programming error, since the engine only ever makes JSON-safe documents. The check is the
+ * writer's own, made as it meets each value, so a save is one walk of the document (DL-238); a
+ * document the writer cannot vouch for is walked again by `findJsonUnsafe`, which names what it
+ * refuses, or finds it safe and has it written as before.
  */
 export function serialise(document: WorldDocument): string {
+  const text = writeOnce(document, true);
+  if (text !== null) return text;
   const unsafe = findJsonUnsafe(document);
   if (unsafe !== null) {
     throw new TypeError(`Only a JSON-safe document serialises: ${unsafe.path} is ${unsafe.kind} (data-model rule 6)`);
   }
-  return writeOnce(document);
+  return writeOnce(document, false) as string;
 }
+
+/** Thrown inside `JSON.stringify` to stop the checked write at the first value it cannot vouch for. */
+const unvouched = new Error('A value the checked write cannot vouch for');
 
 /**
  * `write`'s text in one pass of `JSON.stringify` (v1.1.5-S1, DL-174): the replacer hands it each
@@ -42,11 +50,22 @@ export function serialise(document: WorldDocument): string {
  * `JSON.stringify` writes an object's array-index keys (`"0"`, `"17"`) first, in ascending number,
  * whatever their place, and a copy cannot be given an own `__proto__` key by assignment. A document
  * holding either key anywhere is written by `write` instead, so the bytes are `write`'s always.
+ *
+ * `checked`, the replacer vouches for each value as it meets the list or object holding it
+ * (`vouched`), before `JSON.stringify` reads it, and the result is `null`, with nothing written,
+ * where it cannot: a value that is not JSON-safe, or might not be, or a document `write` must
+ * write, whose own `__proto__` keys a sorted copy would not carry. Every value `findJsonUnsafe`
+ * refuses is one it cannot vouch for (DL-238).
  */
-function writeOnce(document: unknown): string {
+function writeOnce(document: unknown, checked: boolean): string | null {
   let ordered = true;
-  const text = JSON.stringify(document, (_key, value: unknown) => {
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) return value;
+  if (checked && !vouched(document)) return null;
+  const replacer = (_key: string, value: unknown): unknown => {
+    if (typeof value !== 'object' || value === null) return value;
+    if (Array.isArray(value)) {
+      if (checked) for (let index = 0; index < value.length; index += 1) if (!vouched(value[index])) throw unvouched;
+      return value;
+    }
     const object = value as Record<string, unknown>;
     const keys = Object.keys(object);
     let sorted = true;
@@ -54,13 +73,49 @@ function writeOnce(document: unknown): string {
       const key = keys[index] as string;
       if (isArrayIndex(key) || key === '__proto__') ordered = false;
       if (index > 0 && (keys[index - 1] as string) > key) sorted = false;
+      if (checked && !vouched(object[key])) throw unvouched;
     }
     if (sorted) return object;
     const copy: Record<string, unknown> = {};
     for (const key of sortKeys(keys)) copy[key] = object[key];
     return copy;
-  });
-  return ordered ? text : write(document);
+  };
+  let text: string;
+  try {
+    text = JSON.stringify(document, replacer);
+  } catch (error) {
+    // A cycle, which `JSON.stringify` refuses or, through sorted copies, recurses on until the stack
+    // runs out, is for `findJsonUnsafe` to name.
+    if (checked) return null;
+    throw error;
+  }
+  if (ordered) return text;
+  return checked ? null : write(document);
+}
+
+/**
+ * Whether the checked write vouches for `value` being JSON-safe as `JSON.stringify` will read it: a
+ * string, a boolean, null, a finite number but negative zero, or a list or plain object (of
+ * `Object.prototype` or none) with no `toJSON` to read in its place, whose own values are vouched for
+ * as the writer meets it. What it does not vouch for may yet be safe, as a list with a `toJSON` of its
+ * own, which `findJsonUnsafe` then decides.
+ */
+function vouched(value: unknown): boolean {
+  switch (typeof value) {
+    case 'string':
+    case 'boolean':
+      return true;
+    case 'number':
+      return Number.isFinite(value) && !Object.is(value, -0);
+    case 'object': {
+      if (value === null) return true;
+      const prototype: unknown = Object.getPrototypeOf(value);
+      const plain = Array.isArray(value) ? prototype === Array.prototype : prototype === Object.prototype || prototype === null;
+      return plain && (value as { toJSON?: unknown }).toJSON === undefined;
+    }
+    default:
+      return false;
+  }
 }
 
 /**

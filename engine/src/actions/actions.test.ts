@@ -1,0 +1,145 @@
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { Guild, WorldDocument } from '../document.js';
+import { serialise } from '../serialise.js';
+import { buildDocument, testDeps, withValid } from '../world.test-support.js';
+import { copyWorld } from '../world-copy.js';
+import { applyAction, applyActions, applyGuildActions, type GuildAction } from './action.js';
+import type { WorldActionResult } from './result.js';
+
+// A Guild's actions in a Turn applied on one copy of the world (DL-238, ADR-0011 as amended): the
+// list equals its actions applied one by one through `applyAction`, refusals included.
+
+// The engine's copy, watched as it is, to count the copies a list makes.
+vi.mock('../world-copy.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../world-copy.js')>();
+  return { ...actual, copyWorld: vi.fn(actual.copyWorld) };
+});
+
+afterEach(() => {
+  vi.mocked(copyWorld).mockClear();
+});
+
+const deps = testDeps({ rivalCount: 0, sellRatio: 0.5, lootOnlyPrice: 600 });
+
+/** The built document, its player's Guild at `wealth`: 3 Healing draughts in its holding, 12 on the Market. */
+function built(wealth = 100) {
+  const { document, ids } = buildDocument();
+  (document.world.guilds[ids.playerGuild] as Guild).wealth = wealth;
+  return { document: withValid(document, deps), ids };
+}
+
+/** `actions` applied one by one through `applyAction`: the document they leave, and each one's outcome. */
+function oneByOne(document: WorldDocument, actions: readonly GuildAction[]) {
+  const results: WorldActionResult[] = [];
+  let current = document;
+  for (const action of actions) {
+    const result = applyAction(current, action, deps);
+    if (result.ok) current = result.document;
+    results.push(result.ok ? { ok: true, events: result.events } : result);
+  }
+  return { document: current, results };
+}
+
+describe('applyActions', () => {
+  test("applies a Guild's actions in order on one copy, a refused one changing nothing, and appends the done ones' events", () => {
+    const { document, ids } = built();
+    const guildId = ids.playerGuild;
+    const worldBefore = JSON.stringify(document.world);
+    const entries = document.history.entries.length;
+    const actions: GuildAction[] = [
+      { kind: 'sell', guildId, stackId: ids.guildStack, quantity: 2 },
+      // One left: refused, and the next sale still finds it.
+      { kind: 'sell', guildId, stackId: ids.guildStack, quantity: 2 },
+      { kind: 'sell', guildId, stackId: ids.guildStack, quantity: 1 },
+    ];
+
+    const { document: after, results } = applyActions(document, actions, deps);
+
+    expect(vi.mocked(copyWorld)).toHaveBeenCalledTimes(1);
+    expect(results.map((result) => (result.ok ? 'done' : result.rejection.reason))).toEqual(['done', 'insufficient-quantity', 'done']);
+    const { world } = withValid(after, deps);
+    expect(world.guilds[guildId]?.wealth).toBe(100 + 3 * 15);
+    expect(world.stacks[ids.marketStack]?.quantity).toBe(15);
+    const events = results.flatMap((result) => (result.ok ? result.events : []));
+    expect(events.map((event) => event.type)).toEqual(['item.sold', 'item.sold']);
+    expect(after.history.entries.slice(entries)).toEqual(events);
+    // The document given keeps its World State; the History is shared, and appended to (ADR-0008).
+    expect(after.history).toBe(document.history);
+    expect(after.meta).toBe(document.meta);
+    expect(JSON.stringify(document.world)).toBe(worldBefore);
+  });
+
+  test('equals the same actions applied one by one, refusals included, to the byte', () => {
+    const { document, ids } = built(40);
+    const guildId = ids.playerGuild;
+    const actions: GuildAction[] = [
+      { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 1 },
+      { kind: 'sell', guildId, stackId: ids.guildStack, quantity: 3 },
+      { kind: 'sell', guildId, stackId: ids.guildStack, quantity: 1 },
+      { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 50 },
+      { kind: 'build', guildId, facility: 'quarters' },
+      { kind: 'recruit', guildId, heroId: ids.partyHero },
+      { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 2 },
+    ];
+    const apart = structuredClone(document);
+
+    const together = applyActions(document, actions, deps);
+    const one = oneByOne(apart, actions);
+
+    expect(together.results).toEqual(one.results);
+    expect(together.results.filter((result) => !result.ok).length).toBeGreaterThanOrEqual(3);
+    expect(together.results.filter((result) => result.ok).length).toBeGreaterThanOrEqual(2);
+    expect(serialise(together.document)).toBe(serialise(one.document));
+  });
+
+  test('a refused action of every kind leaves the world as it found it: each rule refuses before it writes', () => {
+    const { document, ids } = built(0);
+    const guildId = ids.playerGuild;
+    const world = structuredClone(document.world);
+    const before = JSON.stringify(world);
+    const offerId = ids.offer;
+    const refused: GuildAction[] = [
+      { kind: 'dispatch', guildId, questId: ids.takenQuest, heroIds: [ids.partyHero] },
+      { kind: 'dispatch', guildId, questId: ids.offeredQuest, heroIds: [ids.rivalHero] },
+      { kind: 'dispatch', guildId, questId: ids.offeredQuest, heroIds: [ids.partyHero] },
+      { kind: 'recruit', guildId, heroId: ids.partyHero },
+      { kind: 'recruit', guildId, heroId: ids.unattachedHero as never },
+      { kind: 'build', guildId, facility: 'quarters' },
+      { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 1 },
+      { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 13 },
+      { kind: 'buy', guildId, definitionKey: 'whetstone', quantity: 1 },
+      { kind: 'sell', guildId, stackId: ids.guildStack, quantity: 4 },
+      { kind: 'sell', guildId, stackId: ids.marketStack, quantity: 1 },
+      { kind: 'equip', guildId, heroId: ids.partyHero, stackId: ids.guildStack },
+      { kind: 'equip', guildId, heroId: ids.rivalHero, stackId: ids.guildStack },
+      { kind: 'unequip', guildId, heroId: ids.partyHero, slot: 'armour' },
+      { kind: 'transferIn', guildId, heroId: ids.partyHero },
+      { kind: 'transferIn', guildId, heroId: ids.rivalHero },
+      { kind: 'transferOut', guildId, heroId: ids.partyHero, toGuildId: ids.rivalGuild },
+      { kind: 'offerTransfer', guildId, heroId: ids.rivalHero },
+      { kind: 'acceptTransfer', guildId, offerId },
+      { kind: 'declineTransfer', guildId, offerId },
+    ];
+
+    const results = applyGuildActions(world, refused, deps);
+
+    const reasons = results.map((result) => (result.ok ? `${result.events[0]?.type} done` : `${result.rejection.action} ${result.rejection.reason}`));
+    expect(reasons.filter((reason) => reason.endsWith(' done'))).toEqual([]);
+    // Every rule, each refusal a reason of its own.
+    expect(new Set(reasons).size).toBe(refused.length);
+    expect(JSON.stringify(world)).toBe(before);
+  });
+
+  test('gives back the document it was given when no action is done: none copied for an empty list', () => {
+    const { document, ids } = built(0);
+    const before = serialise(document);
+
+    expect(applyActions(document, [], deps)).toEqual({ document, results: [] });
+    expect(vi.mocked(copyWorld)).not.toHaveBeenCalled();
+
+    const refused = applyActions(document, [{ kind: 'buy', guildId: ids.playerGuild, definitionKey: 'healing-draught', quantity: 1 }], deps);
+    expect(refused.document).toBe(document);
+    expect(refused.results).toEqual([{ ok: false, rejection: expect.objectContaining({ action: 'buy', reason: 'insufficient-wealth' }) }]);
+    expect(serialise(document)).toBe(before);
+  });
+});
