@@ -316,6 +316,20 @@ describe('finish', () => {
     expect(again.json).toMatchObject({ edits: 0, contentVersion: null });
     expect(readContentVersion(dir)).toBe(version + 1);
   });
+
+  // The lines of the process npm runs are passed on as they come, which the page's "Finish" shows and
+  // the in-process runner cannot prove (DL-234).
+  test('without --json, passes on the lines of the tests npm runs', async () => {
+    const dir = scratch();
+    plantOutcome(dir, 'fail');
+    await json(dir, 'traits', 'change', 'thrifty', '--cost', '3');
+    const finished = await command(['traits', 'finish', '--root', dir], { runTests: npmTest });
+
+    expect(finished.code).toBe(1);
+    expect(finished.err).toContain(' RUN  the planted tests');
+    expect(finished.err).toContain(' FAIL  |content| src/planted.test.ts > a planted test fails');
+    expect(status(dir)).toBe('');
+  });
 });
 
 describe('doctor and doc', () => {

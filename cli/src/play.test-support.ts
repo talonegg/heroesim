@@ -1,6 +1,6 @@
 // For the CLI's tests (DL-234): command lines run in this process, as `main` runs them, against a
 // scratch directory made for each test and removed after it, and the save they leave read back. The
-// tests of the commands take `main` from here, so that only this file and main.test.ts import it.
+// tests, main.test.ts's among them, take `main` from here, so that only this file imports it.
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

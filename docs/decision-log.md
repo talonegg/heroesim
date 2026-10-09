@@ -295,3 +295,8 @@ fails at its end unless it repairs the entry first.
 **Evidence.** The epic's S2 boxes. `validate.test.ts`'s `withValid` test plants the fault and finds
 it at the end; a planted test file that passed its own body failed at its end, and was deleted. The
 commit's message holds the runs' times per project and the counts.
+Verified 2026-10-09 at b8d763a: the counts, the groups, the withValid check at a test's end, isolation
+and the owner's pictures held, and "Finish" through npm no longer proved the lines of npm's run
+passed on, now a test of `cli.test.ts`; of five full runs two failed, the words' scan of `web/src`
+reading a probe file of `engine/src/boundary.test.ts` that the longest-first order now runs beside
+it, and `app.test.tsx`'s 5 s limit as at the baseline, both for the owner.
