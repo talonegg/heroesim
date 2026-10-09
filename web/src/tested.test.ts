@@ -51,7 +51,9 @@ function released(name: string, mainMoved: boolean): { dir: string; merge: strin
   return { dir, merge: git(dir, 'rev-parse', 'HEAD'), tip };
 }
 
-const passedOn = (sha: string): CheckRun[] => [{ id: 7, head_sha: sha, event: 'push', status: 'completed', conclusion: 'success' }];
+const passedOn = (sha: string): CheckRun[] => [
+  { id: 7, path: `.github/workflows/${checkWorkflow}`, head_sha: sha, event: 'push', status: 'completed', conclusion: 'success' },
+];
 
 let same: { dir: string; merge: string; tip: string };
 let differs: { dir: string; merge: string; tip: string };
@@ -140,13 +142,30 @@ describe("GitHub's record of check", () => {
     for (const runs of [
       [{ ...passedOn('p')[0]!, conclusion: 'failure' }],
       [{ ...passedOn('p')[0]!, status: 'in_progress', conclusion: null }],
+      // Not completed, whatever its conclusion says.
+      [{ ...passedOn('p')[0]!, status: 'queued' }],
       // A pull request's run tests the pull request merged into its base, not the tip's own tree.
       [{ ...passedOn('p')[0]!, event: 'pull_request' }],
       [{ ...passedOn('q')[0]! }],
+      // Another workflow's run proves nothing of the suite or the specs.
+      [{ ...passedOn('p')[0]!, path: '.github/workflows/deploy.yml' }],
     ]) {
       expect(decided(runs).run, JSON.stringify(runs)).toBe(true);
     }
     expect(decided(null).reason).toContain("GitHub's record of check could not be read");
+  });
+
+  test('trees git cannot read: the tests run, and GitHub is not asked', () => {
+    const asked: string[] = [];
+    const result = decide({
+      event: 'push',
+      commit: 'HEAD',
+      git: (args) => (args.includes('m^{tree}') || args.includes('p^{tree}') ? null : merged(args)),
+      checkRuns: () => (asked.push('gh'), passedOn('p')),
+    });
+
+    expect(result.run).toBe(true);
+    expect(asked).toEqual([]);
   });
 
   test('a deploy run by hand, a redeploy or a rollback, runs the tests and asks nothing', () => {
@@ -163,25 +182,40 @@ describe("GitHub's record of check", () => {
     expect(asked).toEqual([]);
   });
 
-  test('no repository named: the tests run', () => {
+  test('no repository named: the tests run, and GitHub is not asked', () => {
     const output = path.join(same.dir, '.git', 'no-repository');
     writeFileSync(output, '');
-    main({ argv: ['push', same.merge], env: { GITHUB_OUTPUT: output }, cwd: same.dir, log: () => {}, warn: () => {} });
-    expect(readFileSync(output, 'utf8')).toBe('run=true\n');
-  });
-
-  test('an answer that is not JSON: the tests run', () => {
-    const output = path.join(same.dir, '.git', 'not-json');
-    writeFileSync(output, '');
+    const asked: string[] = [];
     main({
       argv: ['push', same.merge],
-      env: { GITHUB_REPOSITORY: 'owner/heroesim', GITHUB_OUTPUT: output },
+      env: { GITHUB_OUTPUT: output },
       cwd: same.dir,
-      spawn: (command, args, options) => (command === 'git' ? spawnSync(command, [...args], { ...options, cwd: same.dir }) : { status: 0, stdout: 'Not Found' }),
+      spawn: (command, args, options) => {
+        if (command === 'git') return spawnSync(command, [...args], { ...options, cwd: same.dir });
+        asked.push(command);
+        return { status: 0, stdout: JSON.stringify({ workflow_runs: passedOn(same.tip) }) };
+      },
       log: () => {},
       warn: () => {},
     });
     expect(readFileSync(output, 'utf8')).toBe('run=true\n');
+    expect(asked).toEqual([]);
+  });
+
+  test('an answer that is not JSON, is empty, or lists no runs: the tests run', () => {
+    for (const answer of ['Not Found', '', '{}', '{"workflow_runs":{}}']) {
+      const output = path.join(same.dir, '.git', 'odd-answer');
+      writeFileSync(output, '');
+      main({
+        argv: ['push', same.merge],
+        env: { GITHUB_REPOSITORY: 'owner/heroesim', GITHUB_OUTPUT: output },
+        cwd: same.dir,
+        spawn: (command, args, options) => (command === 'git' ? spawnSync(command, [...args], { ...options, cwd: same.dir }) : { status: 0, stdout: answer }),
+        log: () => {},
+        warn: () => {},
+      });
+      expect(readFileSync(output, 'utf8'), JSON.stringify(answer)).toBe('run=true\n');
+    }
   });
 });
 

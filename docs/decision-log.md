@@ -364,3 +364,7 @@ whose tree is the tested tip, and one whose `main` moved first. A dry run on thi
 history, read-only: `v1.1.8`, `v1.1.7` and `v1.1.6` would have skipped, the first on run
 37862464900 of `3f11670`; `c844dcd`, a merge with another tree, and `061c7ce`, no merge, would run
 them. The epic's S3 boxes.
+Verified 2026-10-09 at 99d6032: the dry run, the floor, the supersession and the minutes held, and
+22 mutations of the script and the workflows went red once the script also required the run to be
+check.yml's own and tests were added for unread trees, an answer listing no runs, no repository
+asked nothing, and no deploy step conditional but the suite, the specs and the record.

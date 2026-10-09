@@ -8,6 +8,8 @@ export declare const checkWorkflow: string;
 /** What the decision reads of a run GitHub lists for check.yml. */
 export interface CheckRun {
   readonly id: number;
+  /** The workflow's file, `.github/workflows/check.yml`. */
+  readonly path: string;
   readonly head_sha: string;
   readonly event: string;
   readonly status: string;

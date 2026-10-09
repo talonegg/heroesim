@@ -42,7 +42,14 @@ export function decide({ event, commit, git, checkRuns }) {
   if (tree === null || tree !== tested) return { run: true, reason: `${head}: its tree is not ${tip}'s, its second parent: the tests run.` };
   const runs = checkRuns(tip);
   if (runs === null) return { run: true, reason: `${head}: GitHub's record of check could not be read: the tests run.` };
-  const passed = runs.find((run) => run.head_sha === tip && run.event === 'push' && run.status === 'completed' && run.conclusion === 'success');
+  const passed = runs.find(
+    (run) =>
+      run.path === `.github/workflows/${checkWorkflow}` &&
+      run.head_sha === tip &&
+      run.event === 'push' &&
+      run.status === 'completed' &&
+      run.conclusion === 'success',
+  );
   if (passed === undefined) return { run: true, reason: `${head}: check has not passed on ${tip}, its second parent: the tests run.` };
   return {
     run: false,
@@ -58,7 +65,11 @@ function gitWith(spawn, cwd) {
   };
 }
 
-/** The runs of check.yml on a push of `sha` that GitHub lists as passed, read by `gh api`; `null` when unread. */
+/**
+ * The runs of check.yml on a push of `sha` that GitHub lists as passed, read by `gh api`; `null` when
+ * unread. GitHub filters them, and `decide` checks each again, so a first page alone can only miss a
+ * passed run and run the tests, never skip them wrongly.
+ */
 function checkRunsWith(spawn, cwd, repository) {
   return (sha) => {
     if (!repository) return null;

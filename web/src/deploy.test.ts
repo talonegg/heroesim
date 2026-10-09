@@ -953,6 +953,12 @@ describe('the deploy workflow (DL-122, DL-124)', () => {
       expect(steps[stepWith(text)]).toContain(skippable);
     }
     expect(steps.filter((step) => step.includes(skippable))).toHaveLength(2);
+    // No other step is conditional but the record, written always: the lint, the typecheck, the
+    // build and the live check run whatever tested.mjs said.
+    const conditional = steps.filter((step) => /\n {8}if: /.test(`\n${step}`)).map((step) => step.split('\n')[0]);
+    expect(conditional).toEqual(['run: npm test', 'name: The browser specs', 'name: The record']);
+    expect(steps[stepWith('name: The record')]).toContain('if: always()');
+    expect(deployJob).not.toMatch(/\n {4}if: /);
     expect(deployJob).toMatch(/\n {4}permissions:\n {6}contents: read\n {6}actions: read\n/);
   });
 
