@@ -2,9 +2,11 @@
 import {
   addStack,
   advance,
+  applyAction,
   availableHeroes,
   bankruptcyCountdown,
   bestParties,
+  configVersion,
   createWorld,
   dayOf,
   defaultConfig,
@@ -351,6 +353,21 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
     expect(opened.modules).toBe(2);
     // What it names of the next document is what a module opened afresh names of it.
     expect(after).toEqual(bestPartyView(structuredClone(next)));
+  });
+
+  // DL-237: `rebase` makes a new document of the same world under other rules, so a module opened
+  // under the old rules answers no question of it.
+  test('names, for the document rebase makes of the same world under the current rules, the Best Party by those rules', () => {
+    const document = newGame('best-rebased');
+    const older: WorldDocument = { ...document, meta: { ...document.meta, configVersion: configVersion - 1, config: { ...document.meta.config, playerPartyMargin: 1 } } };
+    const before = bestPartyView(older);
+    const rebased = applyAction(older, { kind: 'rebase' }, deps);
+    if (!rebased.ok) throw new Error(rebased.rejection.reason);
+    expect(rebased.document.world).toBe(older.world);
+
+    const after = bestPartyView(rebased.document);
+    expect(after).toEqual(bestPartyView(structuredClone(rebased.document)));
+    expect(after).not.toEqual(before);
   });
 
   test('a Quest whose Encounters are drawn on the way counts none, and its Skills are its own', () => {

@@ -340,19 +340,22 @@ function questCards(document: WorldDocument): QuestCard[] {
 }
 
 /**
- * The Best Party module of each world the page holds, opened for the player's Guild (DL-237): one a
- * document, keyed by its world, which no play changes, since each action and each Turn makes a new
- * document. So every question asked of one document shares what its module weighed, and the module
- * goes when its document does. Never stored in the document (DL-232 item 3).
+ * The Best Party module of each world the page holds, opened for the player's Guild under its
+ * document's rules (DL-237): one a document, keyed by its world, which no play changes, since each
+ * action and each Turn makes a new world. `rebase` alone makes a new document of the same world, under
+ * other rules, so the module is kept with the rules it was opened under and answers only a document
+ * of those. So every question asked of one document shares what its module weighed, and the module
+ * goes when its world does. Never stored in the document (DL-232 item 3).
  */
-const bestPartiesByWorld = new WeakMap<World, BestParties>();
+const bestPartiesByWorld = new WeakMap<World, { config: WorldDocument['meta']['config']; opened: BestParties }>();
 
 /** `document`'s Best Party module for `guild`, the player's, opened at its first question. */
 function bestPartiesOf(document: WorldDocument, guild: Guild): BestParties {
-  const known = bestPartiesByWorld.get(document.world);
-  if (known !== undefined) return known;
-  const opened = bestParties(document.world, guild, playDeps(document));
-  bestPartiesByWorld.set(document.world, opened);
+  const { world, meta } = document;
+  const known = bestPartiesByWorld.get(world);
+  if (known !== undefined && known.config === meta.config) return known.opened;
+  const opened = bestParties(world, guild, playDeps(document));
+  bestPartiesByWorld.set(world, { config: meta.config, opened });
   return opened;
 }
 

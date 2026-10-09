@@ -486,3 +486,8 @@ A caller that changes its world opens a new module.
 page's test of one module a document. `neutral --expect` identical, alone:
 `harness/reports/v1.1.9-s4-neutral-2026-10-10.md`, 274.8 s against the baseline's 413.9 s.
 The epic's S4 boxes. The profiles and the doctor's readings are in the commit message.
+Verified 2026-10-10 at e2aef7d: the five callers give the Best Party, chances, Rival choices,
+policy, CLI board and calibration that 0fb1bbc's code gave, on 128 documents; no caller keeps a
+module across an in-place change; but `rebase` makes a document of the same world under other
+rules, and the page answered it by the old rules, so the page now keeps a module with the rules it
+was opened under; a test holds the formulas' cache to a fold read afresh.
