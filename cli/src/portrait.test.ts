@@ -83,13 +83,13 @@ describe('new --portrait (v1.1.2-S3)', () => {
     const other = newGame('--sex', 'female', '--portrait', 'gm-male-01');
     expect(other.code).toBe(exitCodes.usage);
     expect(other.err).toContain(
-      "--portrait gm-male-01 is a male Guildmaster's Portrait, and --sex is female: choose a Portrait of that sex, or leave out --sex.",
+      "That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female: choose a Portrait of that Sex, or leave out --sex.",
     );
 
     const unknown = newGame('--portrait', 'gm-male-09');
     expect(unknown.code).toBe(exitCodes.usage);
     expect(unknown.err).toContain(
-      'No Guildmaster Portrait is keyed "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male), gm-male-02 (male).',
+      'No Guildmaster Portrait is called "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male), gm-male-02 (male).',
     );
     expect(play(['show']).code).toBe(exitCodes.refused);
   });

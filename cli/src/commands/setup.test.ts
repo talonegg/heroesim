@@ -11,7 +11,7 @@ const content = loadContent();
 describe("new's words for a setup the engine refuses", () => {
   test("a sex that is not one, naming the sexes and the flag, as the other Guildmaster refusals do", () => {
     expect(setupRefusalWords({ reason: 'unknown-sex', sex: 'other' }, content)).toBe(
-      "A Guildmaster's sex is female or male; --sex other is not.",
+      "A Guildmaster's Sex is female or male; --sex other is not.",
     );
   });
 
@@ -23,18 +23,18 @@ describe("new's words for a setup the engine refuses", () => {
 
   test('a Portrait content lacks, naming the pictures by sex, or saying there are none', () => {
     expect(setupRefusalWords({ reason: 'unknown-portrait', portraitKey: 'gm-male-09' }, pictured)).toBe(
-      'No Guildmaster Portrait is keyed "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male), gm-male-02 (male).',
+      'No Guildmaster Portrait is called "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male), gm-male-02 (male).',
     );
     const none = { female: [], male: [] };
     const bare = { ...content, portraits: { guildmaster: none, hero: none, patron: none } };
     expect(setupRefusalWords({ reason: 'unknown-portrait', portraitKey: 'gm-male-09' }, bare)).toBe(
-      'No Guildmaster Portrait is keyed "gm-male-09". There are none yet: leave out --portrait.',
+      'No Guildmaster Portrait is called "gm-male-09". There are none yet: leave out --portrait.',
     );
   });
 
   test('a Portrait of the other sex, naming both flags', () => {
     expect(
       setupRefusalWords({ reason: 'portrait-of-another-sex', portraitKey: 'gm-male-01', sex: 'female', portraitSex: 'male' }, pictured),
-    ).toBe("--portrait gm-male-01 is a male Guildmaster's Portrait, and --sex is female: choose a Portrait of that sex, or leave out --sex.");
+    ).toBe("That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female: choose a Portrait of that Sex, or leave out --sex.");
   });
 });

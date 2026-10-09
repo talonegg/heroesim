@@ -215,7 +215,7 @@ describe('Transfer Offers (M6-S2)', () => {
     expect(play(['show', 'offers']).out).toBe("No Transfer Offer stands for The Test's Heroes.\n");
     expect(play(['decline', '--offer', offerId])).toMatchObject({
       code: exitCodes.refused,
-      err: `No Transfer Offer ${offerId} stands for The Test's Heroes (show offers).\n`,
+      err: `No such Transfer Offer (${offerId}) stands for The Test's Heroes (show offers).\n`,
     });
   });
 

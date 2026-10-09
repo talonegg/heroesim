@@ -568,7 +568,9 @@ _Avoid_: Season, Annum
 A choice made through the engine, accepted with events or refused with a typed reason and
 nothing changed: dispatching a Party, recruiting, a Transfer, a Transfer Offer or its answer,
 buying, selling, equipping and unequipping gear, building an Improvement, and rebase. The player
-acts between Turns, while time stands still; the Rivals act in the afternoon.
+acts between Turns, while time stands still; the Rivals act in the afternoon. A refusal, an
+Action's or a new game's setup's, is said in one sentence for the CLI and the page alike, each
+naming its own way whom it concerns (DL-240).
 _Avoid_: Command (a front end's word), Move, Order
 
 **Outing**:

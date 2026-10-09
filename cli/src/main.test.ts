@@ -111,7 +111,7 @@ describe('new', () => {
     for (const key of ['farm-born', 'no-such-background']) {
       const run = newDemo('--background', key, '--force');
       expect(run.code).toBe(exitCodes.usage);
-      expect(run.err).toContain('old-charter (Old charter)');
+      expect(run.err).toContain('Old charter (old-charter)');
     }
   });
 
@@ -185,24 +185,24 @@ describe('new', () => {
   });
 
   test.each<[string, string[], string]>([
-    ['an age below the range', ['--age', '20'], 'A Guildmaster starts aged 21 to 50, in whole years; --age 20 is not.'],
-    ['an age above the range', ['--age', '51'], 'A Guildmaster starts aged 21 to 50, in whole years; --age 51 is not.'],
-    ['a Trait content lacks', ['--traits', 'brave'], 'No Guildmaster Trait is keyed "brave". Choose from: miser (Miser, refunds 2),'],
-    ['a Hero Trait', ['--traits', 'scarred'], 'No Guildmaster Trait is keyed "scarred".'],
-    ['a Trait twice', ['--traits', 'miser,miser'], '--traits names miser twice.'],
-    ['too many Traits', ['--traits', 'miser,old-soldier,mistrusts-magic'], 'A Guildmaster holds at most 2 Traits; --traits names 3.'],
+    ['an age below the range', ['--age', '20'], 'A Guildmaster starts aged 21 to 50, in whole Years; --age 20 is not.'],
+    ['an age above the range', ['--age', '51'], 'A Guildmaster starts aged 21 to 50, in whole Years; --age 51 is not.'],
+    ['a Trait content lacks', ['--traits', 'brave'], 'No Guildmaster Trait is called "brave". Choose from: miser (Miser, refunds 2),'],
+    ['a Hero Trait', ['--traits', 'scarred'], 'Scarred is not a Guildmaster Trait. Choose from: miser (Miser, refunds 2),'],
+    ['a Trait twice', ['--traits', 'miser,miser'], 'Miser is chosen twice.'],
+    ['too many Traits', ['--traits', 'miser,old-soldier,mistrusts-magic'], 'A Guildmaster holds at most 2 Traits; 3 are chosen.'],
     ['an excluded pair', ['--traits', 'thrifty,spendthrift'], 'Thrifty and Spendthrift exclude each other: a Guildmaster holds one or the other.'],
     [
       'Traits over the budget',
       ['--traits', 'thrifty,old-soldier'],
       'Those Traits cost 3 points and the budget is 1: a buff costs points and a penalty refunds them.',
     ],
-    ['a Birthplace too long', ['--birthplace', 'x'.repeat(61)], '--birthplace is 61 characters once trimmed; it holds at most 60.'],
-    ['a Biography too long', ['--biography', 'x'.repeat(1001)], '--biography is 1001 characters once trimmed; it holds at most 1000.'],
+    ['a Birthplace too long', ['--birthplace', 'x'.repeat(61)], 'The Birthplace is 61 characters long; it holds at most 60.'],
+    ['a Biography too long', ['--biography', 'x'.repeat(1001)], 'The Biography is 1001 characters long; it holds at most 1000.'],
     // v1.1.2-S4: the core lists its pictures, 40 since v1.1.3-S4: gm-female-01 to 20 and gm-male-01 to 20 (`portrait.test.ts` holds the rest).
-    ['a Portrait content lacks', ['--portrait', 'gm-male-99'], 'No Guildmaster Portrait is keyed "gm-male-99". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
-    ['a Portrait not in the form of a key', ['--portrait', 'GM Female 1'], 'No Guildmaster Portrait is keyed "GM Female 1". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
-    ['a Portrait of the other sex', ['--sex', 'female', '--portrait', 'gm-male-01'], "--portrait gm-male-01 is a male Guildmaster's Portrait, and --sex is female"],
+    ['a Portrait content lacks', ['--portrait', 'gm-male-99'], 'No Guildmaster Portrait is called "gm-male-99". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
+    ['a Portrait not in the form of a key', ['--portrait', 'GM Female 1'], 'No Guildmaster Portrait is called "GM Female 1". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
+    ['a Portrait of the other sex', ['--sex', 'female', '--portrait', 'gm-male-01'], "That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female: choose a Portrait of that Sex, or leave out --sex."],
   ])('refuses %s with its own sentence as a bad command line, writing nothing (M9-S2)', (_, flags, sentence) => {
     const run = newDemo(...flags);
 
@@ -236,23 +236,23 @@ describe('new', () => {
   });
 
   test.each<[string, string, string]>([
-    ['a Stat left out', 'inspiration=12,influence=8,negotiation=15', '--stats sets every Guildmaster Stat or none; it leaves out coaching and judgement.'],
+    ['a Stat left out', 'inspiration=12,influence=8,negotiation=15', 'Every Guildmaster Stat is chosen, or none; Coaching and Judgement are not.'],
     [
       'a Stat out of range',
       'inspiration=16,influence=8,negotiation=10,coaching=5,judgement=10',
-      "A Guildmaster's Stat is 5 to 15 when chosen, in whole numbers; --stats inspiration=16 is not.",
+      "A Guildmaster's Inspiration is 5 to 15 when chosen, in whole numbers; --stats inspiration=16 is not.",
     ],
     [
       'Stats over the points',
       'inspiration=15,influence=15,negotiation=10,coaching=5,judgement=10',
-      'Those Stats spend 55 Stat points and a Guildmaster has 50 to share: lower one to raise another.',
+      'Those Stats spend 55 points, and the Stat points are 50: lower one to raise another.',
     ],
     [
       'a Stat content lacks',
       'inspiration=10,influence=10,negotiation=10,coaching=10,judgement=5,charm=5',
-      'No Guildmaster Stat is keyed "charm". Choose from: inspiration, influence, negotiation, coaching and judgement.',
+      'No Guildmaster Stat is called "charm". Choose from: inspiration, influence, negotiation, coaching and judgement.',
     ],
-    ['a Hero Stat', 'strength=10', 'No Guildmaster Stat is keyed "strength".'],
+    ['a Hero Stat', 'strength=10', 'No Guildmaster Stat is called "strength".'],
     ['a Stat named twice', 'inspiration=10,inspiration=12', '--stats names inspiration twice.\n\n'],
     ['a Stat with no number', 'inspiration=high', '--stats needs each Guildmaster Stat as key=number, such as inspiration=12, joined by commas; got "inspiration=high"'],
   ])('refuses %s with its own sentence as a bad command line, writing nothing (v1.1.4-S11)', (_, stats, sentence) => {
@@ -839,7 +839,7 @@ describe('advance', () => {
     const run = play(['advance', '--turns', '2']);
 
     expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain('The game ended on Year 1 Day 1 (Turn 0): bankruptcy');
+    expect(run.err).toContain('The game ended on Year 1 Day 1 (Turn 0): The Test went bankrupt. No Turn follows.');
     expect(saved()).toBe(original);
   });
 
@@ -1066,7 +1066,7 @@ describe('advance --until: fast forward (M2-S11)', () => {
     const run = play(['advance', '--until', 'party-returns', '--max', '5']);
 
     expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain('The game ended on Year 1 Day 1 (Turn 0): retirement');
+    expect(run.err).toContain('The game ended on Year 1 Day 1 (Turn 0): The Test lost its Guildmaster to Retirement. No Turn follows.');
     expect(saved()).toBe(original);
   });
 });
@@ -1130,7 +1130,7 @@ describe('dispatch (M2-S4)', () => {
     for (const argv of actions) {
       const run = play(argv);
       expect(run.code, argv[0]).toBe(exitCodes.refused);
-      expect(run.err).toContain('The game ended on Year 1 Day 1 (Turn 0): retirement. Nothing more can be done in it.');
+      expect(run.err).toContain('The game ended on Year 1 Day 1 (Turn 0): The Test lost its Guildmaster to Retirement. Nothing more can be done in it.');
       expect(saved()).toBe(original);
     }
 
@@ -1151,7 +1151,7 @@ describe('dispatch (M2-S4)', () => {
     const rivalHero = world.guilds[makeId('guilds', 2)]?.rosterIds[0] as HeroId;
 
     const cases: [string[], RegExp][] = [
-      [['--quest', questId, '--heroes', idle.join(',')], new RegExp(`${questId} is not on the Board`)],
+      [['--quest', questId, '--heroes', idle.join(',')], new RegExp(`\\(${questId}\\) is not on the Board`)],
       [['--quest', next.questId, '--heroes', heroIds.join(',')], /is away with a Party and cannot go/],
       [['--quest', next.questId, '--heroes', rivalHero], new RegExp(`\\(${rivalHero}\\) is not on the Roster of The Test`)],
     ];
@@ -1175,7 +1175,7 @@ describe('dispatch (M2-S4)', () => {
 
     expect(run.code).toBe(exitCodes.refused);
     expect(run.err).toContain(
-      `${questId} needs a Party of ${partySizeMin} to ${partySizeMax} Heroes (${roster.length} named).`,
+      `(${questId}) needs a Party of ${partySizeMin} to ${partySizeMax} Heroes (${roster.length} named).`,
     );
     expect(saved()).toBe(original);
   });
@@ -1221,7 +1221,7 @@ describe('dispatch (M2-S4)', () => {
       const cases: [string, string][] = [
         ['lockpicks:1', 'The Test holds no Set of lockpicks to carry.'],
         ['healing-draught:4', 'The Test holds 3 of Healing draught, not the 4 asked.'],
-        ['short-sword:1', 'Short sword is gear, not a consumable: a Party carries consumables only.'],
+        ['short-sword:1', 'Short sword is Gear, not a Consumable: a Party carries Consumables only.'],
         ['barrow-draught:1', 'No Item is called "barrow-draught".'],
       ];
       for (const [value, problem] of cases) {
@@ -1338,7 +1338,7 @@ describe("every date under the save's own calendar, not this release's (DL-210)"
 
     // Three Days' grace from the engine's Day 0: the night of its Day 3, Turn 11, the second Day of the second Year.
     expect(ended.out).toContain('The game ended on Year 2 Day 2 (Turn 11): bankruptcy.');
-    expect(play(['advance']).err).toContain('The game ended on Year 2 Day 2 (Turn 11): bankruptcy.');
+    expect(play(['advance']).err).toContain('The game ended on Year 2 Day 2 (Turn 11): The Test went bankrupt. No Turn follows.');
   });
 
   // The calendar is the one the save plays under, its `meta.config` checked and filled forward
@@ -1355,7 +1355,7 @@ describe("every date under the save's own calendar, not this release's (DL-210)"
     expect(play(['advance', '--until', 'pool-refreshed']).out).toContain('Bankruptcy on the night of Year 1 Day 4 unless its Wealth recovers by then.');
     expect(document().meta.config).not.toHaveProperty('turnsPerYear');
     expect(play(['advance', '--turns', '20']).out).toContain('The game ended on Year 1 Day 4 (Turn 11): bankruptcy.');
-    expect(play(['advance']).err).toContain('The game ended on Year 1 Day 4 (Turn 11): bankruptcy.');
+    expect(play(['advance']).err).toContain('The game ended on Year 1 Day 4 (Turn 11): The Test went bankrupt. No Turn follows.');
   });
 
   test("dispatch: the Party's return", () => {

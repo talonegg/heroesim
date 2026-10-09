@@ -9,8 +9,8 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { content } from '../content';
 import { savesFailureSentence, type Saves, type SavesFailure, type SaveSummary } from '../saves';
 import { saveFileName } from '../state/game-file';
-import type { GameAction, PlayRejection } from '../state/reducer';
-import { refusedSave, rejectionSentence } from '../state/rejections';
+import { refusedSave, type GameAction, type PlayRejection } from '../state/reducer';
+import { rejectionSentence } from '../state/namer';
 import { download } from './download';
 
 /** Lets the browser paint "Saving…" before the save text of a long game is written, which holds the page. */

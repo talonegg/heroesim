@@ -1,10 +1,11 @@
 // `recruit --hero <heroId>` (M2-S8, DL-27): the player's Guild signs an Unattached Hero for the
-// signing fee. The engine's `recruit` decides; this reads the save, names the player's Guild,
-// explains a refusal and writes the save back when the World State changed. It opens the save and
-// says what happened through the commands' shared context, context.ts (DL-234).
+// signing fee. The engine's `recruit` decides; this reads the save, names the player's Guild, says
+// a refusal in the refusals' words (DL-240) and writes the save back when the World State changed.
+// It opens the save and says what happened through the commands' shared context, context.ts (DL-234).
 
-import { applyAction, isId, playerGuild, type HeroRecruited, type RecruitRejection } from '@heroesim/engine';
-import { exitCodes, noActionAfterTheEnd, open, over, refuse, say, type Context, type Exit } from '../context.js';
+import { applyAction, isId, playerGuild, type HeroRecruited } from '@heroesim/engine';
+import { exitCodes, open, over, refuse, say, type Context, type Exit } from '../context.js';
+import { refusalLine } from '../namer.js';
 import { rowIn } from '../render.js';
 import { writeSave } from '../saves.js';
 
@@ -21,7 +22,7 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
   const { document, deps } = opened;
-  const ended = over(io, document, deps, noActionAfterTheEnd);
+  const ended = over(io, document, deps, 'recruit');
   if (ended !== undefined) return ended;
   const guild = playerGuild(document.world);
   if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);
@@ -29,7 +30,7 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
   if (hero === undefined) return refuse(io, `${path} has no Hero ${heroId}.`);
 
   const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId }, deps);
-  if (!result.ok) return refuse(io, refusal(result.rejection, `${hero.name} (${heroId})`, guild.name));
+  if (!result.ok) return refuse(io, refusalLine(result.rejection, { world: document.world, content: deps.content, calendar: deps.config }));
 
   writeSave(path, result.document);
   const signed = result.document.world.guilds[guild.id] ?? guild;
@@ -39,21 +40,4 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
     `Recruited ${hero.name} (${heroId}) for a signing fee of ${recruited?.payload.fee ?? '?'} Wealth.`,
     `${signed.name}'s Roster now holds ${size} ${size === 1 ? 'Hero' : 'Heroes'}; Wealth ${signed.wealth}.`,
   ]);
-}
-
-/** Why the engine refused, in a sentence. */
-function refusal(rejection: RecruitRejection, who: string, guildName: string): string {
-  switch (rejection.reason) {
-    case 'hero-not-unattached':
-      return `${who} is not in the Unattached pool; show pool lists who is.`;
-    case 'signing-refused':
-      return (
-        `${who} will not sign for a Guild with less than ${rejection.fameRequired} Fame; ` +
-        `${guildName} has ${rejection.fame}, ${rejection.shortfall} short.`
-      );
-    case 'insufficient-wealth':
-      return `${who}'s signing fee is ${rejection.fee} Wealth; ${guildName} has ${rejection.wealth}.`;
-    case 'guild-folded':
-      return `${guildName} has folded and signs no one.`;
-  }
 }

@@ -120,7 +120,7 @@ describe('equip and unequip', () => {
 
     const notGear = play(['equip', '--hero', hero.id, '--stack', whetstones]);
     expect(notGear.code).toBe(exitCodes.refused);
-    expect(notGear.err).toContain('Whetstone is not gear, and is carried in no slot.');
+    expect(notGear.err).toContain('Whetstone is not Gear, and is carried in no slot.');
 
     const missing = play(['equip', '--hero', hero.id, '--stack', 'stack-999999']);
     expect(missing.code).toBe(exitCodes.refused);

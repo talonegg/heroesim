@@ -1,27 +1,21 @@
-// `new`'s refusals (M9-S2, DL-102): the engine's `setupRefusal` says which rule a setup breaks, as
-// typed data; this says it in the CLI's words, naming the flag to change. The names and the
-// Background keep `new`'s older words, which DL-102 left as they were.
+// `new`'s refusals (DL-102): the engine's `setupRefusal` says which rule a setup breaks, as typed
+// data; the refusals' table says it (DL-240), the CLI's Namer naming the flag to change, and this
+// adds the keys `new` takes where a key was not one: a Trait's and a Portrait's.
 
 import {
+  defaultConfig,
   guildmasterStatCost,
   guildmasterStatsOf,
   guildmasterTraitsOf,
   portraitsOf,
   sexes,
   type ContentSet,
-  type DescriptiveAttribute,
   type GameConfig,
   type GuildmasterTrait,
   type SetupRefusal,
 } from '@heroesim/engine';
-import { listed, nameIn } from '@heroesim/words';
-
-/** The flag that sets each descriptive Attribute. */
-const attributeFlags: Readonly<Record<DescriptiveAttribute, string>> = Object.freeze({
-  birthplace: '--birthplace',
-  appearance: '--appearance',
-  biography: '--biography',
-});
+import { listed, type NewGameRejection } from '@heroesim/words';
+import { refusalLine } from '../namer.js';
 
 /** A Trait's cost in words: `costs 2`, `refunds 1`, `costs nothing`. */
 function costWords(trait: Pick<GuildmasterTrait, 'cost'>): string {
@@ -48,7 +42,7 @@ function guildmasterStatChoices(content: Pick<ContentSet, 'stats'>): string {
 export function unknownStatWords(stats: Readonly<Record<string, number>>, content: Pick<ContentSet, 'stats'>): string | null {
   const known = new Set(guildmasterStatsOf(content).map((stat) => stat.key));
   const unknown = Object.keys(stats).find((key) => !known.has(key));
-  return unknown === undefined ? null : `No Guildmaster Stat is keyed "${unknown}". Choose from: ${guildmasterStatChoices(content)}.`;
+  return unknown === undefined ? null : `No Guildmaster Stat is called "${unknown}". Choose from: ${guildmasterStatChoices(content)}.`;
 }
 
 /**
@@ -66,57 +60,19 @@ export function unspentStatWords(
   return `${left} Stat ${left === 1 ? 'point' : 'points'} left unspent ${left === 1 ? 'is' : 'are'} lost.`;
 }
 
-/** Why `new` refuses a setup, in one sentence naming what to change. */
-export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSet, 'guildmasterTraits' | 'backgrounds' | 'portraits' | 'stats'>): string {
+/**
+ * Why `new` refuses a setup, in the refusals' words (DL-240), naming what to change, and the keys to
+ * choose from where it was a Trait or a Portrait that is none.
+ */
+export function setupRefusalWords(refusal: SetupRefusal, content: ContentSet): string {
+  const words = refusalLine({ action: 'newGame', ...refusal } as NewGameRejection, { world: null, content, calendar: defaultConfig });
   switch (refusal.reason) {
-    case 'guild-name-blank':
-      return 'The Guild needs a name: --guild <name>.';
-    case 'guildmaster-name-blank':
-      return 'The Guildmaster needs a name: --master <name>.';
-    case 'unknown-background': {
-      const choices = Object.values(content.backgrounds)
-        .filter((row) => row.owner === 'guild')
-        .map((row) => `${row.key} (${row.name})`)
-        .join(', ');
-      return `No Guild Background "${refusal.backgroundKey}". Choose one of: ${choices}.`;
-    }
-    case 'unknown-sex':
-      // `--sex` refuses a sex that is not one first (`args.ts`), in the command line's words.
-      return `A Guildmaster's sex is ${sexes.join(' or ')}; --sex ${refusal.sex} is not.`;
-    case 'age-out-of-range':
-      return `A Guildmaster starts aged ${refusal.min} to ${refusal.max}, in whole years; --age ${refusal.age} is not.`;
-    // The Stats chosen (v1.1.4-S11, DL-149 item 9).
-    case 'stats-incomplete':
-      return `--stats sets every Guildmaster Stat or none; it leaves out ${listed(refusal.missing)}.`;
-    case 'stat-out-of-range':
-      return `A Guildmaster's Stat is ${refusal.min} to ${refusal.max} when chosen, in whole numbers; --stats ${refusal.statKey}=${refusal.value} is not.`;
-    case 'stats-over-points':
-      return `Those Stats spend ${refusal.spent} Stat points and a Guildmaster has ${refusal.points} to share: lower one to raise another.`;
     case 'unknown-trait':
-      return `No Guildmaster Trait is keyed "${refusal.traitKey}". Choose from: ${guildmasterTraitChoices(content)}.`;
-    case 'repeated-trait':
-      return `--traits names ${refusal.traitKey} twice.`;
-    case 'too-many-traits':
-      return `A Guildmaster holds at most ${refusal.max} Traits; --traits names ${refusal.count}.`;
-    case 'excluded-pair':
-      return (
-        `${nameIn(content.guildmasterTraits, refusal.traitKey)} and ${nameIn(content.guildmasterTraits, refusal.otherKey)} exclude each other: ` +
-        'a Guildmaster holds one or the other.'
-      );
-    case 'over-budget':
-      return (
-        `Those Traits cost ${refusal.cost} points and the budget is ${refusal.budget}: ` +
-        'a buff costs points and a penalty refunds them.'
-      );
-    case 'text-too-long':
-      return `${attributeFlags[refusal.attribute]} is ${refusal.length} characters once trimmed; it holds at most ${refusal.max}.`;
+      return `${words} Choose from: ${guildmasterTraitChoices(content)}.`;
     case 'unknown-portrait':
-      return `No Guildmaster Portrait is keyed "${refusal.portraitKey}". ${guildmasterPortraitChoices(content)}`;
-    case 'portrait-of-another-sex':
-      return (
-        `--portrait ${refusal.portraitKey} is a ${refusal.portraitSex} Guildmaster's Portrait, and --sex is ${refusal.sex}: ` +
-        'choose a Portrait of that sex, or leave out --sex.'
-      );
+      return `${words} ${guildmasterPortraitChoices(content)}`;
+    default:
+      return words;
   }
 }
 

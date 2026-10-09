@@ -228,6 +228,9 @@ const shown: Namer<string> = (slot: Slot): string => {
       return `<parties:${slot.form}:${slot.ids.join(', ')}>`;
     case 'command':
       return `<command:${slot.command}>`;
+    case 'date':
+    case 'entry':
+      return `<${slot.kind}:unexpected>`;
   }
 };
 

@@ -249,6 +249,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-237 | 2026-10-10 | v1.1.9-S4 built: the Best Party module |  | [decision-log](../decision-log.md) |
 | DL-238 | 2026-10-10 | v1.1.9-S5 built: a Guild's actions on one copy, and the save in one walk |  | [decision-log](../decision-log.md) |
 | DL-239 | 2026-10-10 | v1.1.9-S6 built: the harness's counters declared once, and play observed |  | [decision-log](../decision-log.md) |
+| DL-240 | 2026-10-10 | v1.1.9-S7 built: refusals behind the Namer |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

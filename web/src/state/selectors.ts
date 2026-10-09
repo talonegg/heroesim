@@ -120,7 +120,7 @@ import { narrateText, narrationFor, questNamer, type Narration } from './namer';
 import type { Facets } from './facets';
 import { classMarkOf, type ClassMarked, placeWords, rowOf, transferCostWords } from './names';
 import { calendarFor, playDeps, type GameState } from './reducer';
-import { rejectionSentence } from './rejections';
+import { rejectionSentence } from './namer';
 import { stopText } from './stops';
 
 // ── The header ───────────────────────────────────────────────────────────────────────────────

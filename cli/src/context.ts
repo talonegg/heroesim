@@ -3,7 +3,7 @@
 // cli/src/commands/ takes these from here, so that no command imports main.ts back.
 
 import type { ContentSet, EngineDeps, Module, WorldDocument } from '@heroesim/engine';
-import { renderDate } from './render.js';
+import { refusalLine } from './namer.js';
 import { readSave, type ReadSave } from './saves.js';
 
 /** Everything the CLI takes from outside itself. */
@@ -88,14 +88,13 @@ export function open(
 }
 
 /**
- * The refusal of a Turn, or of an action, after the game's end, or `undefined` while it goes on:
- * once the player's game has ended the world stops as it stands (DL-28), and nothing is written. Its
- * date is by `deps.config`, the config the save plays under (`playDeps`, DL-210).
+ * The refusal of `action`, a Turn (`advance`) or a command's, after the game's end, or `undefined`
+ * while it goes on: once the player's game has ended the world stops as it stands (DL-28, DL-53), and
+ * nothing is written. In the refusals' words (DL-240), its date by `deps.config`, the config the save
+ * plays under (`playDeps`, DL-210).
  */
-export function over(io: CliIo, document: WorldDocument, deps: EngineDeps, what = 'No Turn follows.'): Exit | undefined {
-  const { ended } = document.world;
-  return ended === null ? undefined : refuse(io, `The game ended on ${renderDate(ended.turn, deps.config)}: ${ended.reason}. ${what}`);
+export function over(io: CliIo, document: WorldDocument, deps: EngineDeps, action: string): Exit | undefined {
+  const { world } = document;
+  if (world.ended === null) return undefined;
+  return refuse(io, refusalLine({ action, reason: 'game-ended', ending: world.ended }, { world, content: deps.content, calendar: deps.config }));
 }
-
-/** What `over` says of an action refused after the end (M3 verification, DL-53). */
-export const noActionAfterTheEnd = 'Nothing more can be done in it.';

@@ -42,7 +42,7 @@ import {
   type NewGame,
   type Play,
 } from './reducer';
-import { rejectionSentence } from './rejections';
+import { rejectionSentence } from './namer';
 import { stopView } from './selectors';
 
 // The one reducer (M7-S2). The engine's entry points the reducer calls are wrapped in spies that

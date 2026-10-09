@@ -23,9 +23,9 @@ import {
   type Synergy,
   type WorldDocument,
 } from '@heroesim/engine';
-import { chanceWords, consumableEffectWords, listed, nameIn, shownPercent, unavailableWords } from '@heroesim/words';
+import { chanceWords, consumableEffectWords, listed, nameIn, requirementWords, shownPercent, unavailableWords } from '@heroesim/words';
 import type { Command } from '../args.js';
-import { explain, requirementWords } from './dispatch.js';
+import { refusalLine } from '../namer.js';
 
 /** A Hero as the CLI names one: `Brenna Ashcombe (hero-000003)`. */
 function heroName(hero: Hero): string {
@@ -175,7 +175,7 @@ export function previewParty(
         ? 'Dispatch would send this Party.'
         : unmet.length > 0 && refusal.reason === 'requirement-unmet'
           ? `Dispatch would refuse it: it needs ${unmet.map((it) => requirementWords(it, deps.content)).join(' and ')}.`
-          : `Dispatch would refuse it: ${explain(refusal, document, deps.content)}`,
+          : `Dispatch would refuse it: ${refusalLine(refusal, { world, content: deps.content, calendar: deps.config })}`,
     ],
   ];
   const lines = sections.filter((section) => section.length > 0).flatMap((section, index) => (index === 0 ? section : ['', ...section]));

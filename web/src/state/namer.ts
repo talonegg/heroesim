@@ -13,13 +13,27 @@
 // marked where the sentence puts its slot, from the event's own ids (principle 5), never found by
 // reading the sentence back; the plain sentence is the segments' words.
 //
-// It lives in `state/`, beside `rejections.ts`, because it reads engine values (`entriesFor`), which
-// only `state/` may import (M7-S2). A Quest carries no label, so its name comes from `questName`,
-// which the caller reads from the world and the History (`questNamer` below).
+// It lives in `state/` because it reads engine values (`entriesFor`), which only `state/` may import.
+// A Quest carries no label, so its name comes from `questName`, which the caller reads from the world
+// and the History (`questNamer` below).
+//
+// It fills a refusal's sentence too (`refusalSentence`, DL-240), naming what the world does not hold
+// as "that Hero", "that Quest", and says the page's own refusals: no game in hand, and a save that
+// does not load.
 
-import { entriesFor, type ContentSet, type EngineEventOf, type QuestId, type TableName, type TurnEvent, type WorldDocument } from '@heroesim/engine';
-import { capitalised, nameIn, narrate, resolvedParts, type Calendar, type NameSlot, type Namer, type Sentence } from '@heroesim/words';
-import { calendarFor } from './reducer';
+import { defaultConfig, entriesFor, type ContentSet, type EngineEventOf, type QuestId, type TableName, type TurnEvent, type WorldDocument } from '@heroesim/engine';
+import {
+  capitalised,
+  nameIn,
+  narrate,
+  refusalSentence,
+  resolvedParts,
+  type Calendar,
+  type NameSlot,
+  type Namer,
+  type Sentence,
+} from '@heroesim/words';
+import { calendarFor, type LoadRejection, type NoGame, type PlayRejection } from './reducer';
 
 /** What a sentence reads beyond its event: content's names, a Quest's name by its id, and the game's calendar. */
 export interface Narration {
@@ -77,9 +91,25 @@ const someone: Readonly<Record<TableName, string>> = Object.freeze({
   stacks: 'an Item',
 });
 
-/** Someone by the label the event carries, marked as a name; or what they are, in words, when it carries none. */
-function person({ table, id, label }: NameSlot): Segment[] {
-  if (label === undefined) return [words(table === null ? 'someone' : someone[table])];
+/** What a refusal calls what the world does not hold: `that Hero`, `that Item` (DL-65 item 6). */
+const that: Readonly<Record<TableName, string>> = Object.freeze({
+  guilds: 'that Guild',
+  guildmasters: 'that Guildmaster',
+  heroes: 'that Hero',
+  patrons: 'that Patron',
+  quests: 'that Quest',
+  parties: 'that Party',
+  offers: 'that Offer',
+  items: 'that Item',
+  stacks: 'that Item',
+});
+
+/**
+ * Someone by the label the event carries, marked as a name; or what they are, in words, when it
+ * carries none, by `unnamed`.
+ */
+function person({ table, id, label }: NameSlot, unnamed: Readonly<Record<TableName, string>>): Segment[] {
+  if (label === undefined) return [words(table === null ? 'someone' : unnamed[table])];
   return table !== null && namedTables.has(table) ? [{ kind: 'name', text: label, entityId: id, table: table as NamedTable }] : [words(label)];
 }
 
@@ -89,13 +119,16 @@ function listedSegments(items: readonly Segment[][]): Segment[] {
   return [...items.slice(0, -1).flatMap((item, index) => (index === 0 ? item : [words(', '), ...item])), words(' and '), ...(items.at(-1) ?? [])];
 }
 
-/** The page's names for what each slot holds, a Quest's by `questName` where the sentence gives no template. */
-export function pageNamer(questName: Narration['questName']): Namer<Segment[]> {
+/**
+ * The page's names for what each slot holds, a Quest's by `questName` where the sentence gives no
+ * template, and someone with no label by `unnamed`, `a Hero` unless a refusal says `that Hero`.
+ */
+export function pageNamer(questName: Narration['questName'], unnamed: Readonly<Record<TableName, string>> = someone): Namer<Segment[]> {
   const name: Namer<Segment[]> = (slot) => {
     switch (slot.kind) {
       case 'hero':
       case 'name':
-        return person(slot);
+        return person(slot, unnamed);
       case 'quest':
         return [words(slot.template ?? questName(slot.id))];
       case 'party':
@@ -109,8 +142,14 @@ export function pageNamer(questName: Narration['questName']): Namer<Segment[]> {
         return [words(slot.ids.length === 1 ? 'Party' : `${slot.ids.length} Parties`)];
       case 'ids':
       case 'command':
-        // The ids and the commands a CLI takes: the page has a button (`nextFor`, `views/stop.tsx`).
+        // The ids, the commands and the flags a CLI takes: the page has a button (`nextFor`,
+        // `views/stop.tsx`) or a form.
         return [];
+      case 'date':
+        return [words(slot.date)];
+      case 'entry':
+        // What the form was given: a number as it is, words quoted (DL-240).
+        return [words(typeof slot.value === 'number' ? String(slot.value) : `"${slot.value}"`)];
     }
   };
   return name;
@@ -173,4 +212,33 @@ export function questNamer(document: WorldDocument, content: ContentSet): (quest
 /** The narration for `document`: its content's names, its Quests' names and its calendar. */
 export function narrationFor(document: WorldDocument, content: ContentSet): Narration {
   return { content, questName: questNamer(document, content), calendar: calendarFor(document) };
+}
+
+// ── Refusals ─────────────────────────────────────────────────────────────────────────────────
+
+/** A refusal's names: "that Hero", "that Quest" where the world holds no such row (DL-65 item 6, DL-240). */
+const refusalNamer = pageNamer(() => 'that Quest', that);
+
+/** The page's own refusals: a play with no game in hand, and a save that does not load. */
+function ownWords(rejection: NoGame | LoadRejection): string {
+  if (rejection.reason === 'no-game') return 'No game is in hand: start a new game or load a save.';
+  // A save of an older schema, in the owner's words (DL-125 item 10.2, DL-135 item 7).
+  if (rejection.reason === 'unsupported-version' && rejection.documentVersion < rejection.schemaVersion) {
+    return 'This game was saved by an older Heroesim and cannot be loaded.';
+  }
+  return `Cannot load the save: ${rejection.message}.`;
+}
+
+/**
+ * `rejection` as a sentence, naming what `document` holds: the game the play was refused in, the
+ * state's `document`, or `null` when there is none. The refusals' table words it (DL-240), and this
+ * Namer names a Hero, a Guild, a Quest or an Item without ids, and what the world does not hold as
+ * `that Hero` or the like, capitalised where it opens the sentence; a date is by the game's
+ * calendar (DL-210).
+ */
+export function rejectionSentence(rejection: PlayRejection, document: Pick<WorldDocument, 'world' | 'meta'> | null, content: ContentSet): string {
+  if (rejection.reason === 'no-game' || rejection.action === 'load') return ownWords(rejection as NoGame | LoadRejection);
+  const calendar = document === null ? defaultConfig : calendarFor(document);
+  const sentence = refusalSentence(rejection as Exclude<PlayRejection, NoGame | LoadRejection>, { world: document?.world ?? null, content, calendar });
+  return capitalised(textOf(segmentsOf(sentence, refusalNamer)));
 }

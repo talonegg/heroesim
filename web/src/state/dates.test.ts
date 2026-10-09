@@ -9,7 +9,7 @@ import { historyView } from './history';
 import { narrationFor } from './namer';
 import { questReturn } from './quest-return';
 import { playDeps, type GameState } from './reducer';
-import { rejectionSentence } from './rejections';
+import { rejectionSentence } from './namer';
 import { boardView, countdownView, headerView, heroPage, linesOf, partyRows, rosterRows, sentView } from './selectors';
 import { offersView } from './trade-views';
 import { ledgerPage, treasuryAccounts } from './treasury';

@@ -11,16 +11,26 @@ import {
 } from '@heroesim/engine';
 import { makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
+import type { Refusal, RefusalKind } from '@heroesim/words';
 import { content } from '../content';
-import type { PlayRejection } from './reducer';
-import { rejectionKind, rejectionKinds, rejectionSentence, type RejectionKind } from './rejections';
+import { rejectionSentence } from './namer';
+import type { LoadRejection, NoGame, PlayRejection } from './reducer';
 
-// Every refusal a play can meet renders as a sentence (M7-S2's second box). The samples table's
-// type is derived from the union: it needs one sample of every kind of `PlayRejection`, the
-// engine's `ActionRejection` and the front end's own, and refuses a kind that is not one, so a kind
-// the engine adds fails `npm run typecheck` here, as it does in the map, until both say it.
+// The page's Namer filling the refusals' sentences (`@heroesim/words`, DL-240), and the page's own
+// refusals. The samples table's type is derived from the union: it needs one sample of every kind of
+// `PlayRejection`, the refusals' table's and the page's own, and refuses a kind that is not one, so a
+// kind the engine adds fails `npm run typecheck` here, as it does in the table, until both say it.
 
-type Samples = { [Refusal in PlayRejection as RejectionKind<Refusal>]: Refusal };
+/** A kind of the page's refusal: the table's, or the page's own. */
+type Kind<R extends PlayRejection> = R extends NoGame
+  ? 'no-game'
+  : R extends LoadRejection
+    ? `load ${R['reason']}`
+    : R extends Refusal
+      ? RefusalKind<R>
+      : never;
+
+type Samples = { [R in PlayRejection as Kind<R>]: R };
 
 const { document } = createWorld(
   'rejection-words',
@@ -53,7 +63,7 @@ const samples: Samples = {
   'newGame guild-name-blank': { action: 'newGame', reason: 'guild-name-blank' },
   'newGame guildmaster-name-blank': { action: 'newGame', reason: 'guildmaster-name-blank' },
   'newGame unknown-background': { action: 'newGame', reason: 'unknown-background', backgroundKey: 'no-such-background' },
-  // The Guildmaster's setup (M9-S2): the engine's setupRefusal, as the page's own.
+  // The Guildmaster's setup: the engine's setupRefusal (DL-102).
   'newGame unknown-sex': { action: 'newGame', reason: 'unknown-sex', sex: 'other' },
   'newGame age-out-of-range': {
     action: 'newGame',
@@ -71,7 +81,6 @@ const samples: Samples = {
   'newGame excluded-pair': { action: 'newGame', reason: 'excluded-pair', traitKey: 'miser', otherKey: 'well-liked' },
   'newGame over-budget': { action: 'newGame', reason: 'over-budget', cost: 2, budget: 1 },
   'newGame text-too-long': { action: 'newGame', reason: 'text-too-long', attribute: 'appearance', length: 281, max: 280 },
-  // The Portrait (v1.1.2-S3).
   'newGame unknown-portrait': { action: 'newGame', reason: 'unknown-portrait', portraitKey: 'gm-male-09' },
   'newGame portrait-of-another-sex': {
     action: 'newGame',
@@ -82,7 +91,7 @@ const samples: Samples = {
   },
   'load malformed-json': { action: 'load', reason: 'malformed-json', message: 'The save is not JSON: Unexpected token' },
   'load not-a-document': { action: 'load', reason: 'not-a-document', message: 'The save has no whole-number meta.version' },
-  // A newer save; an older one has its own sentence (v1.1.2-S3), below.
+  // A newer save; an older one has its own sentence, below.
   'load unsupported-version': {
     action: 'load',
     reason: 'unsupported-version',
@@ -212,7 +221,7 @@ const samples: Samples = {
   'declineTransfer offer-not-found': { action: 'declineTransfer', reason: 'offer-not-found', offerId },
 };
 
-const kinds = Object.keys(samples) as RejectionKind[];
+const kinds = Object.keys(samples) as (keyof Samples)[];
 
 /** Content's name for `key` in `rows`, as the sentence reads it. */
 function named(rows: Readonly<Record<string, { name: string }>>, key: string): string {
@@ -233,12 +242,11 @@ const guildBackgrounds = Object.values(content.backgrounds)
   .join(', ');
 
 /**
- * Every sample's sentence in the world it was refused in, word for word: the CLI's words
- * (`cli/src/commands/*.ts`) less its ids and pointers (DL-65 item 6). Pinned whole, so a sentence
- * with two numbers swapped, the wrong slot or grade, or one word for another, fails (M7
- * verification, DL-74).
+ * Every sample's sentence in the world it was refused in, word for word: the refusals' table less
+ * the CLI's ids and pointers (DL-65 item 6, DL-240). Pinned whole, so a sentence with two numbers
+ * swapped, the wrong slot or grade, or one word for another, fails (DL-74).
  */
-const exactly: Record<RejectionKind, string> = {
+const exactly: Record<keyof Samples, string> = {
   'no-game': 'No game is in hand: start a new game or load a save.',
   'no-player-guild': "The save has no player's Guild.",
   'game-ended': 'The game ended on Year 1 Day 181: The Lantern went bankrupt. Nothing more can be done in it.',
@@ -349,14 +357,6 @@ function expectASentence(sentence: string): void {
 }
 
 describe('the words for every refusal', () => {
-  test('the map has words for exactly the kinds the union holds', () => {
-    expect([...rejectionKinds].sort()).toEqual([...kinds].sort());
-  });
-
-  test.each(kinds)('%s is the kind of its sample', (kind) => {
-    expect(rejectionKind(samples[kind])).toBe(kind);
-  });
-
   test.each(kinds)('%s renders as a sentence in the world it was refused in', (kind) => {
     expectASentence(rejectionSentence(samples[kind], document, content));
   });
@@ -365,7 +365,7 @@ describe('the words for every refusal', () => {
     expectASentence(rejectionSentence(samples[kind], null, content));
   });
 
-  test.each(kinds)('%s says exactly what the CLI says, less its ids and pointers', (kind) => {
+  test.each(kinds)("%s says exactly what the table says, less the CLI's ids and pointers", (kind) => {
     expect(rejectionSentence(samples[kind], document, content)).toBe(exactly[kind]);
   });
 
@@ -377,7 +377,7 @@ describe('the words for every refusal', () => {
 
 describe('with no world to name from', () => {
   test('a Hero, a Guild, a Quest, an Item and the player are what they are, never an id', () => {
-    const words = (kind: RejectionKind): string => rejectionSentence(samples[kind], null, content);
+    const words = (kind: keyof Samples): string => rejectionSentence(samples[kind], null, content);
 
     expect(words('dispatch hero-not-on-roster')).toBe('That Hero is not on the Roster of that Guild.');
     expect(words('dispatch quest-not-offered')).toBe('That Quest is not on the Board: it has been taken or has expired, or was never offered.');
@@ -395,19 +395,19 @@ describe('what the words name', () => {
     expect(sentence).not.toContain(rivalHero.id);
   });
 
-  test('a Trait content lacks by the key chosen (M9-S2)', () => {
+  test('a Trait content lacks by the key chosen', () => {
     expect(rejectionSentence({ action: 'newGame', reason: 'unknown-trait', traitKey: 'brave' }, null, content)).toBe(
       'No Guildmaster Trait is called "brave".',
     );
   });
 
-  test('a save of an older schema, as v1.1.1 wrote it, in the owner\'s words, and none of the engine\'s (v1.1.2-S3, DL-125 item 10.2)', () => {
+  test('a save of an older schema, as v1.1.1 wrote it, in the owner\'s words, and none of the engine\'s (DL-125 item 10.2)', () => {
     const older = { action: 'load', reason: 'unsupported-version', documentVersion: 4, schemaVersion: 5, message: 'The save is schema version 4' } as const;
 
     expect(rejectionSentence(older, null, content)).toBe('This game was saved by an older Heroesim and cannot be loaded.');
   });
 
-  test('a save of schema 5, as v1.1.2 wrote it, in the same words (v1.1.3-S6, DL-135 item 7)', () => {
+  test('a save of schema 5, as v1.1.2 wrote it, in the same words (DL-135 item 7)', () => {
     const older = { action: 'load', reason: 'unsupported-version', documentVersion: 5, schemaVersion: 6, message: 'The save is schema version 5' } as const;
 
     expect(rejectionSentence(older, null, content)).toBe('This game was saved by an older Heroesim and cannot be loaded.');

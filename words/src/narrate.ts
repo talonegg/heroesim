@@ -108,12 +108,26 @@ export interface PartiesSlot {
 }
 
 /**
- * What a stop points the player to do next (v1.1.7-S3, DL-209): the CLI's command, which the page
- * leaves out for its button (`nextFor` in `views/stop.tsx`).
+ * What the CLI points the player to (DL-209, DL-240): a command to run, `(show board)`, or the flag a
+ * refusal of `new` asks for, `: --guild <name>`. The page leaves it out: it has a button or a form
+ * for it (`nextFor` in `views/stop.tsx`).
  */
 export interface CommandSlot {
   kind: 'command';
-  command: 'show-board' | 'show-pool' | 'answer-offer';
+  command:
+    | 'show-board'
+    | 'show-pool'
+    | 'answer-offer'
+    | 'show-roster'
+    | 'show-rosters'
+    | 'show-market'
+    | 'show-offers'
+    | 'roster-holds'
+    | 'market-holds'
+    | 'pool-holds'
+    | 'name-guild'
+    | 'name-guildmaster'
+    | 'portrait-sex';
 }
 
 /** The ids a command takes, after what they name, `(stack-000004)`: the CLI's alone. */
@@ -122,8 +136,30 @@ export interface IdsSlot {
   ids: readonly string[];
 }
 
+/**
+ * A date, `Year 1 Day 181`, which the CLI follows with its Turn, `(Turn 540)`, as it does wherever it
+ * shows the Turn beside a date (docs/agents/ui-text.md; DL-240).
+ */
+export interface DateSlot {
+  kind: 'date';
+  turn: number;
+  date: string;
+}
+
+/**
+ * What the player gave a new game's setup, which a refusal of it quotes (DL-240): the CLI says it as
+ * its flag gave it, `--age 51`, `--stats negotiation=16`; the page as the form's value, `51`, `"other"`.
+ * `key` is the Stat a `stats` value is for.
+ */
+export interface EntrySlot {
+  kind: 'entry';
+  field: 'sex' | 'age' | 'stats';
+  value: string | number;
+  key?: string;
+}
+
 /** A slot for a name in a sentence, which a front end's Namer fills. */
-export type Slot = NameSlot | QuestSlot | PartySlot | OfferSlot | IdsSlot | PartiesSlot | CommandSlot;
+export type Slot = NameSlot | QuestSlot | PartySlot | OfferSlot | IdsSlot | PartiesSlot | CommandSlot | DateSlot | EntrySlot;
 
 /** A piece of a sentence: its words, or a slot. */
 export type Part = { kind: 'text'; text: string } | Slot;
@@ -140,13 +176,14 @@ export function sentenceText(sentence: Sentence, namer: Namer<string>): string {
 }
 
 /** What goes into a sentence: words, a number, a slot or a sentence already made. */
-type Piece = string | number | Slot | Sentence;
+export type Piece = string | number | Slot | Sentence;
 
 /**
  * A sentence from a template, `say\`${called(event, guildId)} was founded.\``: its words as written,
- * and each slot where the template puts it. Neighbouring words join into one piece.
+ * and each slot where the template puts it. Neighbouring words join into one piece. The refusals'
+ * table writes its sentences with it too (`refusals.ts`).
  */
-function say(strings: TemplateStringsArray, ...pieces: readonly Piece[]): Part[] {
+export function say(strings: TemplateStringsArray, ...pieces: readonly Piece[]): Part[] {
   const out: Part[] = [];
   const words = (text: string): void => {
     if (text === '') return;
@@ -197,7 +234,7 @@ function quest(id: QuestId, template?: string): QuestSlot {
   return { kind: 'quest', id, template };
 }
 
-function ids(...each: readonly string[]): IdsSlot {
+export function ids(...each: readonly string[]): IdsSlot {
   return { kind: 'ids', ids: each };
 }
 

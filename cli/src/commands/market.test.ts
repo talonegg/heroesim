@@ -132,7 +132,7 @@ describe('the Market', () => {
     const tooMany = play(['sell', '--stack', draughts, '--quantity', '4']);
 
     expect(tooMany.code).toBe(exitCodes.refused);
-    expect(tooMany.err).toContain(`${draughts} holds 3; 4 cannot be sold from it.`);
+    expect(tooMany.err).toContain(`That stack of Healing draught (${draughts}) holds 3; 4 cannot be sold from it.`);
     expect(play(['sell', '--stack', draughts, '--quantity', 'all']).code).toBe(exitCodes.usage);
     expect(play(['buy']).code).toBe(exitCodes.usage);
     expect(saved()).toBe(before);

@@ -4,7 +4,8 @@
 // succeeds.
 //
 // The CLI holds no rule: the engine's `buy` and `sell` decide, its Market Engine prices
-// (`marketStock`, `sellPrice`), and a refusal is its typed rejection put into words here (ADR-0003).
+// (`marketStock`, `sellPrice`), and a refusal is its typed rejection in the refusals' words (ADR-0003,
+// DL-240).
 
 import {
   applyAction,
@@ -12,17 +13,14 @@ import {
   marketStock,
   playerGuild,
   sellPrice,
-  type BuyRejection,
-  type ContentSet,
   type EngineDeps,
-  type Guild,
   type ItemBought,
   type ItemSold,
-  type SellRejection,
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
 import { itemEffectWords, kindOf, nameIn } from '@heroesim/words';
+import { refusalLine } from '../namer.js';
 import { renderTime, rowIn, table } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
@@ -92,33 +90,17 @@ export function renderMarket(document: WorldDocument, deps: EngineDeps): string[
   ];
 }
 
-/** The engine's refusal of a purchase in words. */
-function explainBuy(rejection: BuyRejection, guild: Guild, content: ContentSet): string {
-  switch (rejection.reason) {
-    case 'guild-folded':
-      return `${guild.name} has folded and buys nothing.`;
-    case 'not-in-market':
-      return `The Market has no ${nameIn(content.items, rejection.definitionKey)} for sale (show market).`;
-    case 'insufficient-quantity':
-      return (
-        `The Market has ${rejection.available} ${nameIn(content.items, rejection.definitionKey)}; ` +
-        `${rejection.quantity} cannot be bought.`
-      );
-    case 'insufficient-wealth':
-      return `That costs ${rejection.cost} Wealth; ${guild.name} has ${rejection.wealth}.`;
-  }
-}
-
 /**
  * `buy --item <key> [--quantity <n>]`: the player's Guild buys from the Market under the save's own
  * deps, and says what it bought, for how much, and the Wealth left.
  */
 export function buyItems(command: Extract<Command, { name: 'buy' }>, document: WorldDocument, deps: EngineDeps): CommandOutcome {
+  const setting = { world: document.world, content: deps.content, calendar: deps.config };
   const guild = playerGuild(document.world);
-  if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
+  if (guild === undefined) return { ok: false, problem: refusalLine({ action: 'buy', reason: 'no-player-guild' }, setting) };
 
   const result = applyAction(document, { kind: 'buy', guildId: guild.id, definitionKey: command.item, quantity: command.quantity }, deps);
-  if (!result.ok) return { ok: false, problem: explainBuy(result.rejection, guild, deps.content) };
+  if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
 
   const bought = result.events.find((event): event is ItemBought => event.type === 'item.bought');
   const after = rowIn(result.document.world.guilds, guild.id);
@@ -135,38 +117,21 @@ export function buyItems(command: Extract<Command, { name: 'buy' }>, document: W
   };
 }
 
-/** The engine's refusal of a sale in words. */
-function explainSell(rejection: SellRejection, guild: Guild, document: WorldDocument, content: ContentSet): string {
-  switch (rejection.reason) {
-    case 'guild-folded':
-      return `${guild.name} has folded and sells nothing.`;
-    case 'not-held-by-guild':
-      return `${guild.name} holds no ${rejection.id} to sell (show market lists what it holds).`;
-    case 'equipped': {
-      const hero = rowIn(document.world.heroes, rejection.heroId)?.name ?? rejection.heroId;
-      return `${hero} (${rejection.heroId}) carries ${rejection.id} as their ${rejection.slot}; unequip it first.`;
-    }
-    case 'unknown-item':
-      return `The Market cannot price ${nameIn(content.items, rejection.definitionKey)}: the content does not define it.`;
-    case 'insufficient-quantity':
-      return `${rejection.stackId} holds ${rejection.available}; ${rejection.quantity} cannot be sold from it.`;
-  }
-}
-
 /**
  * `sell --stack <stackId> [--quantity <n>]` or `sell --item <itemId>`: the player's Guild sells to
  * the Market under the save's own deps, and says what it sold, for how much, and its Wealth after.
  */
 export function sellItems(command: Extract<Command, { name: 'sell' }>, document: WorldDocument, deps: EngineDeps): CommandOutcome {
+  const setting = { world: document.world, content: deps.content, calendar: deps.config };
   const guild = playerGuild(document.world);
-  if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
+  if (guild === undefined) return { ok: false, problem: refusalLine({ action: 'sell', reason: 'no-player-guild' }, setting) };
 
   const request =
     'stack' in command
       ? { guildId: guild.id, stackId: command.stack, quantity: command.quantity }
       : { guildId: guild.id, itemId: command.item };
   const result = applyAction(document, { kind: 'sell', ...request }, deps);
-  if (!result.ok) return { ok: false, problem: explainSell(result.rejection, guild, document, deps.content) };
+  if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
 
   const sold = result.events.find((event): event is ItemSold => event.type === 'item.sold');
   const after = rowIn(result.document.world.guilds, guild.id);

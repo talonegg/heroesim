@@ -8,7 +8,7 @@
 // CLI or the page, why time stopped among it (DL-198, DL-209); the Quest review's page, which the
 // harness and the tools may read (DL-198); a Stat's breakdown, the engine's `statBreakdown`, in words
 // (DL-199); a date as a player reads it, `Year 2 Day 45`, the Year and the Day counted from 1
-// (DL-210); and a Transfer's refusals (DL-214).
+// (DL-210); and every refusal a play can meet, behind the same Namer seam (DL-240).
 
 export { atHallWords, gearUnavailableWords, unavailableChipWords, unavailableWords } from './availability.js';
 export {
@@ -45,6 +45,8 @@ export {
   resolvedParts,
   sentenceText,
   type CommandSlot,
+  type DateSlot,
+  type EntrySlot,
   type IdsSlot,
   type NameSlot,
   type Namer,
@@ -74,6 +76,17 @@ export {
   type ReviewInput,
   type ReviewNotes,
 } from './quest-review.js';
+export {
+  refusalKind,
+  refusalKinds,
+  refusalSentence,
+  requirementWords,
+  type GameEnded,
+  type NewGameRejection,
+  type NoPlayerGuild,
+  type Refusal,
+  type RefusalKind,
+  type RefusalSetting,
+} from './refusals.js';
 export { readableSeed, type Random } from './seed.js';
-export { transferLockedWords, transferRefusalWords } from './transfers.js';
 export { statPartsWords, statSourcesMoving, statSourceWords } from './stats.js';

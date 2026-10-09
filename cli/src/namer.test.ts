@@ -1,5 +1,11 @@
 import {
+  configVersion,
+  createWorld,
+  defaultConfig,
   milestoneTypes,
+  playerGuild,
+  type Guild,
+  type Hero,
   type CheckRoll,
   type Encounter,
   type EncounterCheck,
@@ -17,8 +23,8 @@ import {
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
-import type { Calendar, Slot } from '@heroesim/words';
-import { cliNamer, narrateLine } from './namer.js';
+import type { Calendar, Refusal, Slot } from '@heroesim/words';
+import { cliNamer, narrateLine, refusalLine } from './namer.js';
 
 const content = loadContent();
 
@@ -586,7 +592,129 @@ describe("the CLI's Namer", () => {
     ['an Offer accepted, by id', { kind: 'offer', id: offerId }, 'offer-000001'],
     ['the ids a command takes, after what they name', { kind: 'ids', ids: [itemId, 'item-000003'] }, ' (item-000002, item-000003)'],
     ['no ids, nothing', { kind: 'ids', ids: [] }, ''],
+    ['a date, with its Turn beside it (DL-240)', { kind: 'date', turn: 540, date: 'Year 1 Day 181' }, 'Year 1 Day 181 (Turn 540)'],
+    ["an entry of a new game's setup, by its flag", { kind: 'entry', field: 'sex', value: 'other' }, '--sex other'],
+    ['a number entered, by its flag', { kind: 'entry', field: 'age', value: 51 }, '--age 51'],
+    ["a Stat entered, by its flag's key and value", { kind: 'entry', field: 'stats', value: 16, key: 'negotiation' }, '--stats negotiation=16'],
+    ['a command to run', { kind: 'command', command: 'show-roster' }, ' (show roster)'],
+    ['a flag to give', { kind: 'command', command: 'name-guild' }, ': --guild <name>'],
   ])('names %s', (_name, slot, words) => {
     expect(cliNamer(slot)).toBe(words);
+  });
+});
+
+// The refusals' table (`@heroesim/words`, DL-240) in the CLI's words: a Hero and an Item by name and
+// the id the commands take, and the command or the flag to use. `words/src/refusals.test.ts` holds
+// the table's words and slots for every kind, and the commands' tests that each command refuses
+// with them.
+describe("the CLI's words for a refusal", () => {
+  const { document } = createWorld(
+    'rejection-words',
+    { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' },
+    { config: defaultConfig, content },
+  );
+  const { world } = document;
+  const player = playerGuild(world) as Guild;
+  const rival = Object.values(world.guilds).find((guild) => guild.id !== player.id) as Guild;
+  const hero = world.heroes[player.rosterIds[0] as Hero['id']] as Hero;
+  const rivalHero = world.heroes[rival.rosterIds[0] as Hero['id']] as Hero;
+  const quest = Object.values(world.quests)[0];
+  const stack = Object.values(world.stacks)[0];
+  if (quest === undefined || stack === undefined) throw new Error('the world has no Quest or no stack');
+  const named = (rows: Readonly<Record<string, { name: string }>>, key: string): string => rows[key]?.name ?? key;
+
+  const brenna = `${hero.name} (${hero.id})`;
+  const stranger = `${rivalHero.name} (${rivalHero.id})`;
+  const held = `${named(content.items, stack.definitionKey)} (${stack.id})`;
+  const questName = `${named(content.questTemplates, quest.templateKey)} (${quest.id})`;
+  const whetstone = named(content.items, 'whetstone');
+  const sword = named(content.items, 'arming-sword');
+  const fee = { guildId: player.id, fee: 180, wealth: 40 };
+  const backgrounds = Object.values(content.backgrounds)
+    .filter((row) => row.owner === 'guild')
+    .map((row) => `${row.name} (${row.key})`)
+    .join(', ');
+
+  test.each<[Refusal, string]>([
+    [{ action: 'buy', reason: 'no-player-guild' }, "The save has no player's Guild."],
+    [{ action: 'advance', reason: 'game-ended', ending: { turn: 540, reason: 'bankruptcy' } }, 'The game ended on Year 1 Day 181 (Turn 540): The Lantern went bankrupt. No Turn follows.'],
+    [
+      { action: 'buy', reason: 'game-ended', ending: { turn: 540, reason: 'retirement' } },
+      'The game ended on Year 1 Day 181 (Turn 540): The Lantern lost its Guildmaster to Retirement. Nothing more can be done in it.',
+    ],
+    [{ action: 'newGame', reason: 'guild-name-blank' }, 'The Guild needs a name: --guild <name>.'],
+    [{ action: 'newGame', reason: 'guildmaster-name-blank' }, 'The Guildmaster needs a name: --master <name>.'],
+    [{ action: 'newGame', reason: 'unknown-background', backgroundKey: 'nope' }, `No Guild Background is called "nope". Choose one of: ${backgrounds}.`],
+    [{ action: 'newGame', reason: 'unknown-sex', sex: 'other' }, "A Guildmaster's Sex is female or male; --sex other is not."],
+    [{ action: 'newGame', reason: 'age-out-of-range', age: 51, min: 21, max: 50 }, 'A Guildmaster starts aged 21 to 50, in whole Years; --age 51 is not.'],
+    [{ action: 'newGame', reason: 'stats-incomplete', missing: ['coaching', 'judgement'] }, 'Every Guildmaster Stat is chosen, or none; Coaching and Judgement are not.'],
+    [
+      { action: 'newGame', reason: 'stat-out-of-range', statKey: 'negotiation', value: 16, min: 5, max: 15 },
+      "A Guildmaster's Negotiation is 5 to 15 when chosen, in whole numbers; --stats negotiation=16 is not.",
+    ],
+    [{ action: 'newGame', reason: 'stats-over-points', spent: 55, points: 50 }, 'Those Stats spend 55 points, and the Stat points are 50: lower one to raise another.'],
+    [{ action: 'newGame', reason: 'unknown-trait', traitKey: 'brave' }, 'No Guildmaster Trait is called "brave".'],
+    [{ action: 'newGame', reason: 'repeated-trait', traitKey: 'miser' }, `${named(content.guildmasterTraits, 'miser')} is chosen twice.`],
+    [{ action: 'newGame', reason: 'too-many-traits', count: 3, max: 2 }, 'A Guildmaster holds at most 2 Traits; 3 are chosen.'],
+    [{ action: 'newGame', reason: 'text-too-long', attribute: 'appearance', length: 281, max: 280 }, 'The Appearance is 281 characters long; it holds at most 280.'],
+    [{ action: 'newGame', reason: 'unknown-portrait', portraitKey: 'gm-male-09' }, 'No Guildmaster Portrait is called "gm-male-09".'],
+    [
+      { action: 'newGame', reason: 'portrait-of-another-sex', portraitKey: 'gm-male-01', sex: 'female', portraitSex: 'male' },
+      "That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female: choose a Portrait of that Sex, or leave out --sex.",
+    ],
+    [{ action: 'rebase', reason: 'already-current', configVersion }, `This game already plays under this release's rules, configVersion ${configVersion}.`],
+    [{ action: 'dispatch', reason: 'quest-not-offered', questId: quest.id }, `${questName} is not on the Board: it has been taken or has expired, or was never offered.`],
+    [
+      { action: 'dispatch', reason: 'quest-not-offered', questId: 'quest-999999' as QuestId },
+      'quest-999999 is not on the Board: it has been taken or has expired, or was never offered.',
+    ],
+    [{ action: 'dispatch', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId: player.id }, `${stranger} is not on the Roster of The Lantern.`],
+    [{ action: 'dispatch', reason: 'hero-not-on-roster', heroId: 'hero-999999' as HeroId, guildId: player.id }, 'hero-999999 is not on the Roster of The Lantern.'],
+    [
+      { action: 'dispatch', reason: 'requirement-unmet', questId: quest.id, unmet: [{ requirement: 'class', classKey: 'healer' }] },
+      `${questName} needs a ${named(content.classes, 'healer')} in the Party.`,
+    ],
+    [{ action: 'dispatch', reason: 'not-consumable', definitionKey: 'arming-sword' }, `${sword} is Gear, not a Consumable: a Party carries Consumables only.`],
+    [{ action: 'recruit', reason: 'hero-not-unattached', heroId: hero.id }, `${brenna} is not in the Unattached pool; show pool lists who is.`],
+    [{ action: 'recruit', reason: 'insufficient-wealth', fee: 900, wealth: 500 }, 'The signing fee is 900 Wealth; The Lantern has 500.'],
+    [{ action: 'build', reason: 'max-grade', facility: 'quarters', grade: 3 }, "The Lantern's quarters are at grade 3, the highest there is."],
+    [{ action: 'equip', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId: player.id }, `${stranger} is not on The Lantern's Roster (show roster).`],
+    [{ action: 'equip', reason: 'not-held-by-guild', itemId: null, stackId: stack.id }, `The Lantern does not hold ${held}: show roster lists what it holds.`],
+    [
+      { action: 'equip', reason: 'not-held-by-guild', itemId: null, stackId: 'stack-999999' as StackId },
+      'The Lantern does not hold stack-999999: show roster lists what it holds.',
+    ],
+    [{ action: 'equip', reason: 'not-gear', definitionKey: 'whetstone' }, `${whetstone} is not Gear, and is carried in no slot.`],
+    [
+      { action: 'equip', reason: 'wrong-slot', definitionKey: 'arming-sword', slot: 'weapon', gearSlot: 'weapon', heroSlots: ['armour'] },
+      `${sword} is weapon Gear, and Heroes have no weapon slot in this game.`,
+    ],
+    [{ action: 'equip', reason: 'slot-occupied', heroId: hero.id, slot: 'weapon', occupant: stack.id }, `${brenna}'s weapon slot holds ${held}: unequip it first.`],
+    [{ action: 'unequip', reason: 'slot-empty', heroId: hero.id, slot: 'trinket' }, `${brenna}'s trinket slot is empty.`],
+    [{ action: 'buy', reason: 'not-in-market', definitionKey: 'runed-circlet' }, `The Market has no ${named(content.items, 'runed-circlet')} for sale (show market).`],
+    [{ action: 'sell', reason: 'not-held-by-guild', id: stack.id }, `The Lantern holds no ${held} to sell (show market lists what it holds).`],
+    [{ action: 'sell', reason: 'equipped', id: stack.id, heroId: hero.id, slot: 'weapon' }, `${brenna} carries ${held} as their weapon; unequip it first.`],
+    [{ action: 'sell', reason: 'insufficient-quantity', stackId: stack.id, quantity: 4, available: 2 }, `That stack of ${held} holds 2; 4 cannot be sold from it.`],
+    [{ action: 'transferIn', reason: 'hero-not-on-roster', heroId: hero.id }, `${brenna} is on no other Guild's Roster (show roster <guildId>).`],
+    [{ action: 'transferOut', reason: 'hero-not-on-roster', heroId: rivalHero.id }, `${stranger} is not on The Lantern's Roster (show roster).`],
+    [
+      { action: 'transferOut', reason: 'hero-in-party', heroId: hero.id, partyId: 'party-000001' as PartyId },
+      `${brenna} is away with a Party (party-000001); a Hero is transferred only from the Hall.`,
+    ],
+    [
+      { action: 'transferOut', reason: 'recently-transferred', heroId: hero.id, transferredOnTurn: 30, untilTurn: 300 },
+      `${brenna} was transferred on Year 1 Day 11 and cannot be transferred again before Year 1 Day 101.`,
+    ],
+    [
+      { action: 'transferIn', reason: 'transfer-refused', guildId: rival.id, heroId: rivalHero.id, side: 'out', because: 'wealth' },
+      `${rival.name} will not part with ${stranger}: it is not rich enough to hire now.`,
+    ],
+    [{ action: 'transferIn', reason: 'insufficient-wealth', ...fee }, 'The fee is 180 Wealth; The Lantern has 40.'],
+    [
+      { action: 'acceptTransfer', reason: 'offer-not-found', offerId: 'offer-000001' as OfferId },
+      "No such Transfer Offer (offer-000001) stands for The Lantern's Heroes (show offers).",
+    ],
+  ])('%j', (refusal, words) => {
+    expect(refusalLine(refusal, { world, content, calendar: defaultConfig })).toBe(words);
   });
 });

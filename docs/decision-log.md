@@ -641,3 +641,78 @@ identical; the Succession probe's report and games byte-equal to S5's over 8 see
 had risen 230 MB because zlib's copy of the text was held through the load, so the gzip now starts
 once the load is done (one game 1,735 to 1,509 MB; `neutral` again identical, shards 1,129 to
 1,573 MB, `v1.1.9-s6v-neutral`), and the census's ended world and the probe's observer are now tested.
+
+## DL-240 — v1.1.9-S7 built: refusals behind the Namer
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner (DL-232 QC a, the epic's S7);
+the slots, the settled wording and the module's seams by the agent
+
+**Context.** The architecture review's #5 (the epic's §5.1). A refusal was worded twice: the page's
+`rejections.ts` and the CLI's `explain` functions in each command and `setupRefusalWords`, with
+`requirementWords` in both. The CLI's had drifted from ui-text rule 2 ("gear, not a consumable").
+
+**Decision.**
+
+1. **One table** (`words/src/refusals.ts`): `refusalSentence(refusal, { world, content, calendar })`
+   returns a `Sentence` for every `Refusal`, the engine's `ActionRejection`, a new game's
+   `SetupRefusal` as `NewGameRejection`, and the two any play can meet, `NoPlayerGuild` and
+   `GameEnded`. It is keyed by `RefusalKind`, so `tsc -b` refuses a kind without a sentence.
+   `requirementWords` is the table's, and the preview's. The interface is that one function; the
+   seam is the `Namer`, as the narration's (DL-186 item 1).
+2. **The slots.** A Hero, a Guild, a Quest and a held Item are labelled from the world, or not.
+   `CommandSlot` gains the CLI's pointers and flags (`show-roster`, `roster-holds`, `name-guild`,
+   `portrait-sex` and the like); `DateSlot`, a date the CLI follows with its Turn (ui-text); and
+   `EntrySlot`, a setup's entry, the CLI's `--age 51`, the page's `51`.
+3. **The adapters.** The CLI's `cliNamer` and `refusalLine`, which every command, `over`, `rebase`
+   and `preview` use; `new` adds the keys to choose from after an unknown Trait or Portrait. The
+   page's `pageNamer` with "that Hero" for a refusal (`rejectionSentence` in `state/namer.ts`), which
+   also keeps the page's own refusals: no game in hand, and a save that does not load. The CLI keeps
+   its own: a save or a command line it cannot read.
+4. **Gone:** `rejections.ts`, the `explain` functions, both `requirementWords`, `transfers.ts`
+   (its words now the table's).
+
+**The changed sentences** (QC a). The page's: none of 180 captured. The CLI's: 33 of 88 captured, and `new`'s own Stat:
+- *Rule 2, the glossary's capitals:* "gear, not a consumable … consumables only" → "Gear, not a
+  Consumable … Consumables only"; "is not gear" → "is not Gear"; "is weapon gear" → "is weapon Gear";
+  "A Guildmaster's sex" → "Sex"; "in whole years" → "in whole Years"; "choose a Portrait of that sex" → "Sex".
+- *Rule 4, data in a sentence:* "The game ended on Year 1 Day 1 (Turn 0): bankruptcy." → "…: The Test
+  went bankrupt." (and Retirement's), its Turn kept.
+- *One wording for both front ends* (the page's, which the form shows as it is typed): `--stats sets
+  every Guildmaster Stat or none; it leaves out coaching and judgement.` → "Every Guildmaster Stat is
+  chosen, or none; Coaching and Judgement are not."; "A Guildmaster's Stat is 5 to 15 …" →
+  "A Guildmaster's Inspiration is 5 to 15 …"; "Those Stats spend 55 Stat points and a Guildmaster has
+  50 to share: …" → "Those Stats spend 55 points, and the Stat points are 50: …"; "--traits names
+  miser twice." → "Miser is chosen twice."; "…; --traits names 3." → "…; 3 are chosen.";
+  "--appearance is 281 characters once trimmed; …" → "The Appearance is 281 characters long; …";
+  `No Guildmaster Trait is keyed "x".` → `… is called "x".` (a Hero Trait: "Scarred is not a
+  Guildmaster Trait."), the choices kept; the Portrait's and `new`'s own Stat's "keyed" → "called";
+  `No Guild Background "x". Choose one of: old-charter (Old charter), …` → `No Guild Background is
+  called "x". Choose one of: Old charter (old-charter), …`; "--portrait gm-male-01 is a male
+  Guildmaster's Portrait, and --sex is female: …" → "That Portrait is of a male Guildmaster, and your
+  Guildmaster's Sex is female: …"; "save.json already plays under …" → "This game already plays under …";
+  "Wilda Scarth (hero-000001)'s signing fee is 900 Wealth" → "The signing fee is 900 Wealth".
+- *The CLI's Namer, its names with the id a command takes:* "quest-000001 is not on the Board" and
+  "… needs …" → "A quiet word (quest-000001) …"; "does not hold stack-000001", "holds no stack-000001
+  to sell", "carries stack-000001" → "Whetstone (stack-000001)"; "stack-000001 holds 2" → "That stack
+  of Whetstone (stack-000001) holds 2"; "is away with party-000001" → "is away with a Party
+  (party-000001)"; "No Transfer Offer offer-000001 stands" → "No such Transfer Offer (offer-000001)
+  stands".
+
+*Judgement calls, for the owner to see:*
+- A new game's setup is in the table, since the page's `rejections.ts` held it and the epic leaves
+  the page only its own two; the CLI's flags became slots, and its sentences took the page's.
+- No glossary headword: "refusal" stays a word, so player text does not capitalise it; the Action
+  entry in `CONTEXT.md` says how one is worded.
+- The CLI's tests that pinned a changed sentence now pin the new one, their assertions otherwise
+  kept: `main.test.ts` (25 lines), `setup.test.ts` (4), `portrait.test.ts` (2), `equip`, `market` and
+  `transfer.test.ts` (1 each). `transfers.test.ts` moved into `refusals.test.ts`;
+  `web/src/state/rejections.test.ts` became `refusals.test.ts`, on `rejectionSentence`.
+- `advance`'s own report still says "(Turn 11): bankruptcy." beside the refusal's "The Test went
+  bankrupt": a reading, left to S8.
+
+**Consequences.** A refusal kind is worded once; a front end changes only its Namer. Source lines
+citing a story fell from 1,747 to 1,727, and the baseline with them.
+
+**Evidence.** `words/src/refusals.test.ts` (every kind, its words and slots); the CLI's Namer's
+refusals in `cli/src/namer.test.ts`; the page's in `web/src/state/refusals.test.ts`. Every sentence
+captured before and after over 88 samples. The epic's S7 boxes.

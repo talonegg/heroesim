@@ -48,6 +48,7 @@ import { previewParty } from './commands/preview.js';
 import { setupRefusalWords, unknownStatWords, unspentStatWords } from './commands/setup.js';
 import type { CommandOutcome } from './commands/outcome.js';
 import { modulesFor } from './modules.js';
+import { refusalLine } from './namer.js';
 import { stopLine, renderAdvance } from './advance.js';
 import {
   renderBoard,
@@ -64,7 +65,7 @@ import {
   rowIn,
 } from './render.js';
 import { savePath, withModules, writeSave } from './saves.js';
-import { exitCodes, noActionAfterTheEnd, open, over, refuse, say, type CliIo, type Context, type Exit } from './context.js';
+import { exitCodes, open, over, refuse, say, type CliIo, type Context, type Exit } from './context.js';
 
 export { exitCodes, type CliIo, type Exit } from './context.js';
 
@@ -113,22 +114,22 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
     case 'preview':
       return look(context, (document, deps) => previewParty(command, document, deps));
     case 'dispatch':
-      return act(context, (document, deps) => dispatchParty(command, document, deps));
+      return act(context, command.name, (document, deps) => dispatchParty(command, document, deps));
     case 'build':
-      return act(context, (document, deps) => buildImprovement(command, document, deps));
+      return act(context, command.name, (document, deps) => buildImprovement(command, document, deps));
     case 'equip':
-      return act(context, (document, deps) => equipGear(command, document, deps));
+      return act(context, command.name, (document, deps) => equipGear(command, document, deps));
     case 'unequip':
-      return act(context, (document, deps) => unequipGear(command, document, deps));
+      return act(context, command.name, (document, deps) => unequipGear(command, document, deps));
     case 'buy':
-      return act(context, (document, deps) => buyItems(command, document, deps));
+      return act(context, command.name, (document, deps) => buyItems(command, document, deps));
     case 'sell':
-      return act(context, (document, deps) => sellItems(command, document, deps));
+      return act(context, command.name, (document, deps) => sellItems(command, document, deps));
     case 'transfer':
-      return act(context, (document, deps) => transferHero(command, document, deps));
+      return act(context, command.name, (document, deps) => transferHero(command, document, deps));
     case 'accept':
     case 'decline':
-      return act(context, (document, deps) => answerOffer(command, document, deps));
+      return act(context, command.name, (document, deps) => answerOffer(command, document, deps));
     case 'rebase':
       return rebaseRules(context);
     case 'save':
@@ -141,15 +142,17 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
 /**
  * A command that acts within the current Turn (`cli/src/commands/`): opens the save, applies
  * `change` under the save's own deps, and on success writes the new document and prints its lines;
- * on a refusal prints the problem and writes nothing. A game that has ended is refused.
+ * on a refusal prints the problem and writes nothing. A game that has ended is refused, `action`
+ * its command.
  */
 function act(
   { io, content, path }: Context,
+  action: Command['name'],
   change: (document: WorldDocument, deps: EngineDeps) => CommandOutcome,
 ): Exit {
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
-  const ended = over(io, opened.document, opened.deps, noActionAfterTheEnd);
+  const ended = over(io, opened.document, opened.deps, action);
   if (ended !== undefined) return ended;
   const outcome = change(opened.document, opened.deps);
   if (!outcome.ok) return refuse(io, outcome.problem);
@@ -308,7 +311,7 @@ function advanceTurns(turns: number, { io, content, path, modules }: Context): E
   if (opened === undefined) return exitCodes.refused;
   const { deps } = opened;
   let { document } = opened;
-  const refused = over(io, document, deps);
+  const refused = over(io, document, deps, 'advance');
   if (refused !== undefined) return refused;
 
   const events: TurnEvent[] = [];
@@ -340,7 +343,7 @@ function fastForwardTurns(
   const opened = open(io, path, content, modules);
   if (opened === undefined) return exitCodes.refused;
   const { document, deps } = opened;
-  const refused = over(io, document, deps);
+  const refused = over(io, document, deps, 'advance');
   if (refused !== undefined) return refused;
   const guild = playerGuild(document.world);
   if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);
@@ -364,7 +367,7 @@ function rebaseRules({ io, content, path }: Context): Exit {
   const was = opened.document.meta.configVersion;
   const result = applyAction(opened.document, { kind: 'rebase' }, opened.deps);
   if (!result.ok) {
-    return refuse(io, `${path} already plays under this release's rules, configVersion ${was}.`);
+    return refuse(io, refusalLine(result.rejection, { world: opened.document.world, content, calendar: opened.deps.config }));
   }
   writeSave(path, result.document);
   return say(io, [`Adopted this release's rules: configVersion ${was} to ${result.document.meta.configVersion}.`]);
