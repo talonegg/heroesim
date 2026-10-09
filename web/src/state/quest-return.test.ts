@@ -11,7 +11,7 @@ import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { cameHome, changed, played, started, withPartyOut, withReturn, withWealth, type Written } from './game.test-support';
+import { cameHome, changed, partyOut, played, started, withPartyOut, withReturn, withWealth, type Written } from './game.test-support';
 import { historyFilter } from './history';
 import { partOfAReturn } from './history-reader';
 import { narrateSegments, narrateText, narrationFor, textOf } from './namer';
@@ -20,8 +20,8 @@ import { calendarFor } from './reducer';
 
 // A Quest's return read from the History (DL-111 items 2 and 3, DL-112 item 8): by its Party
 // and Quest, from the entries that name the Quest (DL-114), and a Level and a dead Hero's gear
-// by Hero and night. Each return is written as the Quest Engine writes one (`withReturn`), with the
-// outcome the test chooses; the expectations are the words and numbers the test wrote.
+// by Hero and night. Each return is played by the engine (`withReturn`, DL-245) with the outcome the
+// test chooses; the expectations are the words and numbers the test told and the night's rules give.
 
 // Every narration passes through, counted: the entry reads its Hero lines without the report's.
 vi.mock('./namer', async (importOriginal) => {
@@ -61,6 +61,7 @@ describe('questReturn', () => {
       xp: 60,
       encounters: [{ outcome: 'success' }, { outcome: 'success' }],
       levels: [{ hero: 0, level: 2 }],
+      morale: [{ hero: 0, cause: 'strong-success', before: 60, after: 65, bandAfter: 'steady' }],
     });
     const { party } = written;
     const report = read(written);
@@ -79,7 +80,7 @@ describe('questReturn', () => {
     expect(first?.name).toBe(nameOf(written, party.heroIds[0] as string));
     expect(first?.xp).toBe(60);
     expect(first?.levels).toEqual([2]);
-    expect(first?.words).toEqual(['gained 60 XP', 'reached Level 2']);
+    expect(first?.words).toEqual(['gained 60 XP', 'reached Level 2', 'Morale went from 60 to 65, steady']);
     for (const other of rest) expect(other.levels).toEqual([]);
   });
 
@@ -150,7 +151,7 @@ describe('questReturn', () => {
       xp: 5,
       encounters: [{ encounterKey: 'ambush-on-the-road', outcome: 'failure', died: [0] }],
       deaths: [0],
-      morale: [{ hero: 1, cause: 'roster-death', before: 50, after: 40, bandAfter: 'low' }],
+      morale: [{ hero: 1, cause: 'roster-death', before: 50, after: 40, bandAfter: 'steady' }],
       heroRegard: [{ hero: 1, mate: 2, bandBefore: 'neutral', bandAfter: 'warm' }],
       gear: [
         { hero: 0, definitionKey: 'short-sword', slot: 'weapon' },
@@ -167,7 +168,7 @@ describe('questReturn', () => {
     expect(other?.died).toBe(false);
     expect(other?.gear).toEqual([]);
     expect(other?.regard).toEqual([{ heroId: written.party.heroIds[2], name: mate, bandBefore: 'neutral', bandAfter: 'warm' }]);
-    expect(other?.words).toEqual(['gained 5 XP', 'Morale went from 50 to 40, low', `Regard for ${mate} rose from neutral to warm`]);
+    expect(other?.words).toEqual(['gained 5 XP', 'Morale went from 50 to 40, steady', `Regard for ${mate} rose from neutral to warm`]);
     expect(third?.regard).toEqual([]);
   });
 
@@ -184,8 +185,8 @@ describe('questReturn', () => {
       deaths: [0],
       morale: [
         // A Party mate's grief is in their own line, not at home's.
-        { hero: 1, cause: 'roster-death', before: 50, after: 46, bandAfter: 'steady' },
-        ...home.map((heroId) => ({ hero: heroId, cause: 'roster-death' as const, before: 40, after: 36, bandAfter: 'steady' as const })),
+        { hero: 1, cause: 'roster-death', before: 50, after: 40, bandAfter: 'steady' },
+        ...home.map((heroId) => ({ hero: heroId, cause: 'roster-death' as const, before: 40, after: 30, bandAfter: 'low' as const })),
       ],
     });
     const dead = nameOf(written, written.party.heroIds[0] as string);
@@ -193,11 +194,11 @@ describe('questReturn', () => {
     const heroes = `${home.length} ${home.length === 1 ? 'Hero' : 'Heroes'}`;
 
     expect(report.home).toEqual({
-      sentence: `At home: the Guild mourned ${dead}. Morale fell for ${heroes} (${home.length === 1 ? '−4' : '−4 each'}).`,
+      sentence: `At home: the Guild mourned ${dead}. Morale fell for ${heroes} (${home.length === 1 ? '−10' : '−10 each'}).`,
       heroesWords: `${heroes} at home`,
-      heroes: home.map((heroId) => ({ heroId, name: nameOf(written, heroId), words: 'Morale went from 40 to 36, steady' })),
+      heroes: home.map((heroId) => ({ heroId, name: nameOf(written, heroId), words: 'Morale went from 40 to 30, low' })),
     });
-    expect(report.outcomes[1]?.words).toContain('Morale went from 50 to 46, steady');
+    expect(report.outcomes[1]?.words).toContain('Morale went from 50 to 40, steady');
     // The line follows the Heroes' outcomes, in their section.
     expect(reportSections(report).find((section) => section.kind === 'heroes')).toMatchObject({ home: report.home });
   });
@@ -218,16 +219,16 @@ describe('questReturn', () => {
       encounters: [{ outcome: 'failure', died: [0, 1] }],
       deaths: [0, 1],
       morale: [
-        { hero: one, cause: 'roster-death', before: 40, after: 36, bandAfter: 'steady' },
+        { hero: one, cause: 'roster-death', before: 40, after: 30, bandAfter: 'low' },
         { hero: two, cause: 'roster-death', before: 2, after: 0, bandAfter: 'wretched' },
-        { hero: one, cause: 'roster-death', before: 36, after: 32, bandAfter: 'steady' },
+        { hero: one, cause: 'roster-death', before: 30, after: 20, bandAfter: 'low' },
         { hero: two, cause: 'roster-death', before: 0, after: 0, bandAfter: 'wretched' },
       ],
     });
     const [first, second] = written.party.heroIds.map((heroId) => nameOf(written, heroId));
 
-    expect(read(written).home?.sentence).toBe(`At home: the Guild mourned ${first} and ${second}. Morale fell for 2 Heroes (−2 to −8).`);
-    expect(read(written).home?.heroes.map((hero) => hero.words)).toEqual(['Morale went from 40 to 32, steady', 'Morale went from 2 to 0, wretched']);
+    expect(read(written).home?.sentence).toBe(`At home: the Guild mourned ${first} and ${second}. Morale fell for 2 Heroes (−2 to −20).`);
+    expect(read(written).home?.heroes.map((hero) => hero.words)).toEqual(['Morale went from 40 to 20, low', 'Morale went from 2 to 0, wretched']);
     expect(read(withReturn(base, { band: 'success', wealth: 10, xp: 5 })).home).toBeNull();
   });
 
@@ -253,7 +254,7 @@ describe('questReturn', () => {
       band: 'fail',
       encounters: [{ outcome: 'failure', died: [0] }],
       deaths: [0],
-      morale: [{ hero: away, cause: 'roster-death', before: 40, after: 36, bandAfter: 'steady' }],
+      morale: [{ hero: away, cause: 'roster-death', before: 40, after: 30, bandAfter: 'low' }],
     });
     const dead = nameOf(written, written.party.heroIds[0] as string);
 
@@ -261,18 +262,11 @@ describe('questReturn', () => {
   });
 
   test('a Loot: each Item found, by name and quantity, among the rewards', () => {
-    const written = withReturn(base, {
-      band: 'success',
-      wealth: 120,
-      fame: 2,
-      xp: 40,
-      loot: [
-        { definitionKey: 'whetstone', quantity: 3 },
-        { definitionKey: 'short-sword', quantity: 1 },
-      ],
-    });
+    const written = withReturn(base, { band: 'success', wealth: 120, fame: 2, xp: 40, loot: [{ definitionKey: 'whetstone', quantity: 3 }] });
+    const one = withReturn(base, { band: 'success', wealth: 120, fame: 2, xp: 40, loot: [{ definitionKey: 'short-sword', quantity: 1 }] });
 
-    expect(read(written).loot).toEqual(['3 × Whetstone', 'Short sword']);
+    expect(read(written).loot).toEqual(['3 × Whetstone']);
+    expect(read(one).loot).toEqual(['Short sword']);
     expect(read(withReturn(base, { band: 'success' })).loot).toEqual([]);
   });
 
@@ -365,6 +359,7 @@ describe('the return’s entry (DL-111 item 2)', () => {
       encounters: [{ outcome: 'success' }],
       levels: [{ hero: 0, level: 2 }],
       loot: [{ definitionKey: 'whetstone', quantity: 2 }],
+      morale: partyOut(base).heroIds.map((_, hero) => ({ hero, cause: 'strong-success' as const, before: 60, after: 65, bandAfter: 'steady' as const })),
     });
     const document = documentOf(written);
     const key = { partyId: written.party.partyId, questId: written.party.questId };
@@ -377,7 +372,10 @@ describe('the return’s entry (DL-111 item 2)', () => {
     expect(`${textOf(entry?.lead ?? [])}${entry?.bandSaid}${textOf(entry?.rest ?? [])}`).toBe(narrateText(outcome as never, narrationFor(document, content)));
     expect(textOf(entry?.rest ?? [])).toBe(': Wealth +180, Fame +4.');
     expect(entry?.heroesWords).toBe(`${written.party.heroIds.length} Heroes`);
-    expect(entry?.heroes.map((hero) => hero.sentence)).toEqual([`${first}: gained 60 XP; reached Level 2.`, ...rest.map((name) => `${name}: gained 60 XP.`)]);
+    expect(entry?.heroes.map((hero) => hero.sentence)).toEqual([
+      `${first}: gained 60 XP; reached Level 2; Morale went from 60 to 65, steady.`,
+      ...rest.map((name) => `${name}: gained 60 XP; Morale went from 60 to 65, steady.`),
+    ]);
     expect(entry?.heroes[0]?.segments[0]).toEqual({ kind: 'name', text: first, entityId: written.party.heroIds[0], table: 'heroes' });
   });
 });

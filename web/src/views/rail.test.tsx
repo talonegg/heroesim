@@ -56,6 +56,7 @@ describe('a Party’s return in the rail (DL-111 item 2)', () => {
       injuries: [{ hero: 0, typeKey: 'bruised-ribs', healsOnTurn: 999 }],
       levels: [{ hero: 1, level: 2 }],
       loot: [{ definitionKey: 'whetstone', quantity: 2 }],
+      morale: [0, 1].map((hero) => ({ hero, cause: 'strong-success' as const, before: 60, after: 65, bandAfter: 'steady' as const })),
     });
     render(<App initial={written.state} />);
     const items = within(rail()).getAllByRole('listitem').filter((item) => item.parentElement?.classList.contains('lines--rail'));
@@ -71,8 +72,8 @@ describe('a Party’s return in the rail (DL-111 item 2)', () => {
     fireEvent.click(heroes);
     expect(lines.hidden).toBe(false);
     expect(within(lines).getAllByRole('listitem')).toHaveLength(written.party.heroIds.length);
-    expect(within(lines).getAllByRole('listitem')[0]?.textContent).toMatch(/^.+: gained 40 XP; injured: Bruised ribs, healing on the night of Year \d+ Day \d+\.$/);
-    expect(within(lines).getAllByRole('listitem')[1]?.textContent).toMatch(/^.+: gained 40 XP; reached Level 2\.$/);
+    expect(within(lines).getAllByRole('listitem')[0]?.textContent).toMatch(/^.+: gained 40 XP; Morale went from 60 to 65, steady; injured: Bruised ribs, healing on the night of Year \d+ Day \d+\.$/);
+    expect(within(lines).getAllByRole('listitem')[1]?.textContent).toMatch(/^.+: gained 40 XP; reached Level 2; Morale went from 60 to 65, steady\.$/);
     expect(within(entry).getByRole('button', { name: /^Open the report: / })).toBeDefined();
     // The Loot is the next entry, then the Injury, standing out as an entry of its own (DL-120 item 6); no Encounter.
     expect(items[at + 1]?.textContent).toMatch(/The Lantern found Loot on .+: 2 × Whetstone\.$/);

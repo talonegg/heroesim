@@ -49,15 +49,19 @@ export const questsConclude: PhaseRun = (world, ctx) => {
   return events;
 };
 
-interface Concluding {
+/** A Party's return to apply: the Party, its Guild and its Quest, and the Quest Engine's resolution of it. */
+export interface Concluding {
   party: Party;
   guild: Guild;
   quest: Quest;
   resolution: Resolution;
 }
 
-/** Applies the resolution's outcome to the world and returns its events, in the order they happened. */
-function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolution }: Concluding): EngineEvent[] {
+/**
+ * Applies the resolution's outcome to the world and returns its events, in the order they happened.
+ * The testing entry's `playReturnNight` applies a resolution a test chose through it (DL-245).
+ */
+export function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolution }: Concluding): EngineEvent[] {
   const { config, emit, turn } = ctx;
   const { outcome } = resolution;
   const heroes = party.heroIds.map((heroId) => requireRow(world.heroes, heroId));

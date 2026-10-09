@@ -881,6 +881,7 @@ views from 82184ad's sources equal today's over eleven documents (about 400,000 
 of `returns.ts` lived (the newest outcome, the night's bound, before the outcome, the gear's cause)
 and the line test missed an alias and a read by key, each now red under test; the eight `withReturn`
 tests do tell outcomes the rules never write (Morale bands, −10 grief, +5 on a strong success, one Loot).
+Amended 2026-10-10: the fixture's last bullet built on the owner's word; the tests moved are DL-245's.
 
 ## DL-243 — v1.1.9-S10 built: content kinds, effect kinds by their fields, and content's own entry
 
@@ -1028,3 +1029,55 @@ session, 22 go red at its tests for both adapters, four of them only with the te
 are equivalent under the lock; added three tests for each adapter (a "Finish" cut off at each step;
 a refused edit not held and "Finish" checking again; `discard`'s check), and a second "Finish" and
 `recover --force` to the lock's.
+
+## DL-245 — v1.1.9-S9's fixture: `withReturn` through the engine, on the owner's word
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner ("s9 a", 2026-10-10: the
+engine-driven fixture, and the tests that told impossible returns moved to what the engine writes);
+the check of told Morale and each move by the agent
+
+**Context.** The epic's S9 bullet *the test fixture* was left open by DL-242: `withReturn` copied how
+the engine writes a return, and played through the engine, eight tests told returns the rules never
+give. The owner chose to adopt the engine's fixture and move those tests.
+
+**Decision.**
+
+1. **A return's night played by the engine** (`engine/src/return-night.ts`, `playReturnNight`):
+   `conclude` (exported from `quests-conclude.ts` with `Concluding`) applies a resolution the test
+   chose, then `levelUps` and `gearReturn`, each event recorded as `advance` records a Turn's. It is
+   exported through `@heroesim/engine/testing` only, with `xpForLevel`; production code imports
+   neither (the boundary rule and `testing.test.ts` hold). Play is unchanged.
+2. **`withReturn` gives the engine the resolution** and sets the world so the night's rules give what
+   the test told: each Hero's Morale before it, a told Level's XP, the dead's gear, the consumables in
+   the Party's packs and a Regard just short of the told band. Every entry is the engine's.
+3. **What a test tells must be a return the rules give.** A told Morale change the engine did not
+   write throws; one Loot at most, as the Quest Engine draws one. A strong success's +5
+   (`moraleOnStrongSuccess`) and a Death's −10 to every Hero on the Roster (`moraleOnRosterDeath`)
+   are the rules', told or not.
+4. **The tests moved,** each keeping its assertion, its inputs and expected words moved to what the
+   engine writes:
+   - *a strong success's +5 Morale* (`moraleOnStrongSuccess`): `quest-return.test.ts:56` and `:353`,
+     `quest-report.test.tsx:72` and `rail.test.tsx:49`: each Hero's line gains "Morale went from 60
+     to 65, steady", the 60 told;
+   - *a Death's grief at −10* (`moraleOnRosterDeath`), told at −4: `quest-return.test.ts:175` 40→36
+     → 40→30 low, 50→46 → 50→40, "(−4)" → "(−10)"; `:206` 40→36→32 → 40→30→20 low, "(−2 to −8)" →
+     "(−2 to −20)"; `:235` 40→36 → 40→30 low; `quest-report.test.tsx:37` 40→36 steady → 40→30 low,
+     "(−4)" → "(−10)";
+   - *Morale 40 is Steady* (`moraleBands`): `quest-return.test.ts:147` "50 to 40, low" → "steady";
+   - *one Loot a return*: `quest-return.test.ts:264` told two Loot on one return; now one return
+     finds "3 × Whetstone" and another "Short sword".
+
+*Judgement calls, for the owner to see:*
+- **Nine failed, not eight, and a tenth moved.** `rail.test.tsx:49` is a strong success with no Morale
+  change, the prototype's kind it missed. `quest-return.test.ts:235` passed but told grief at −4; the
+  check of item 3 makes it fail, so it moved with them.
+- **The check of told Morale** (item 3) is the agent's: without it a told change the engine overrode
+  would read as the test's and be silently untrue.
+- `:147` keeps its numbers and says Steady, rather than moving them to stay Low.
+
+**Consequences.** A test tells a return; the engine writes it, so a change to how the night applies a
+return reaches the page's tests. Told Morale must follow the rules in `engine/src/config.json`.
+
+**Evidence.** `engine/src/return-night.test.ts`, red first: the Quest Engine's own resolution played
+gives each of the night's events in order, and a chosen Death, gear and Level are recorded. The ten
+tests above; `neutral --expect` identical, alone (the commit). The epic's S9 bullet *the test fixture*.

@@ -45,13 +45,13 @@ describe('the Quest report', () => {
       band: 'fail',
       encounters: [{ outcome: 'failure', died: [0] }],
       deaths: [0],
-      morale: [{ hero: home, cause: 'roster-death', before: 40, after: 36, bandAfter: 'steady' }],
+      morale: [{ hero: home, cause: 'roster-death', before: 40, after: 30, bandAfter: 'low' }],
     });
     const heroes = within(region).getByRole('heading', { level: 4, name: 'Heroes' }).parentElement as HTMLElement;
     const [dead] = report.outcomes;
     const name = document.world.heroes[home]?.name ?? '';
 
-    const line = within(heroes).getByText(`At home: the Guild mourned ${dead?.name}. Morale fell for 1 Hero (−4).`);
+    const line = within(heroes).getByText(`At home: the Guild mourned ${dead?.name}. Morale fell for 1 Hero (−10).`);
     // After the Heroes' outcomes.
     const outcomes = heroes.querySelector('.report__heroes') as HTMLElement;
     expect(outcomes.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -60,7 +60,7 @@ describe('the Quest report', () => {
     expect(disclosure.open).toBe(false);
     expect(within(disclosure).getByText('1 Hero at home')).toBeDefined();
     fireEvent.click(within(disclosure).getByText('1 Hero at home'));
-    expect(within(disclosure).getByRole('listitem').textContent).toBe(`${name}: Morale went from 40 to 36, steady.`);
+    expect(within(disclosure).getByRole('listitem').textContent).toBe(`${name}: Morale went from 40 to 30, low.`);
   });
 
   test('no line for the Heroes at home when no Hero died', () => {
@@ -78,6 +78,7 @@ describe('the Quest report', () => {
       encounters: [{ encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph' }],
       loot: [{ definitionKey: 'whetstone', quantity: 3 }],
       levels: [{ hero: 0, level: 2 }],
+      morale: [{ hero: 0, cause: 'strong-success', before: 60, after: 65, bandAfter: 'steady' }],
     });
 
     expect(within(region).getByRole('heading', { level: 3 }).textContent).toBe(`Quest report: ${report.quest}`);
@@ -92,7 +93,7 @@ describe('the Quest report', () => {
     expect(within(region).getByText('Loot: 3 × Whetstone')).toBeDefined();
     const [first] = report.outcomes;
     const hero = within(region).getByRole('listitem', { name: first?.name ?? '' });
-    expect(within(hero).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Gained 60 XP', 'Reached Level 2']);
+    expect(within(hero).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Gained 60 XP', 'Reached Level 2', 'Morale went from 60 to 65, steady']);
   });
 
   test("says once, for the Party, of the Encounter whose success form decided, and of no other", () => {

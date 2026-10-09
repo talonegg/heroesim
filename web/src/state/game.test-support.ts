@@ -15,17 +15,14 @@ import {
   durationDaysOf,
   estimateQuest,
   holdings,
-  isId,
   isMilestone,
   offeredQuests,
-  parseId,
   playerGuild,
   type ConsumableRequest,
+  type ConsumableUse,
   type Degree,
   type EncounterOutcome,
-  type EngineEventOf,
-  type EngineEventType,
-  type EntityId,
+  type EncounterResult,
   type FormDecided,
   type Guild,
   type Hero,
@@ -41,11 +38,11 @@ import {
   type QuestId,
   type QuestTemplateKey,
   type RegardBand,
+  type Resolution,
   type SlotKey,
-  type StatKey,
   type WorldDocument,
 } from '@heroesim/engine';
-import { append, createItem, makeId } from '@heroesim/engine/testing';
+import { append, createItem, playReturnNight, xpForLevel } from '@heroesim/engine/testing';
 import { content } from '../content';
 import { gameReducer, initialGameState, playDeps, type GameState, type Play } from './reducer';
 
@@ -230,8 +227,8 @@ export interface ReturningParty {
 }
 
 /**
- * What a Party's return did, as `withReturn` writes it. Each Hero is named by their place in the
- * Party, from 0; what is not told did not happen.
+ * What a Party's return did, for the engine to play (`withReturn`). Each Hero is named by their place
+ * in the Party, from 0; what is not told and the night's rules do not give did not happen.
  */
 export interface ReturnTold {
   /** The Party: the player's one out in the world when not given. */
@@ -256,12 +253,18 @@ export interface ReturnTold {
   }[];
   /** Consumables used, each a bonus to an Encounter's Check, or a heal of a Hero's Injury. */
   used?: readonly ({ definitionKey: ItemDefinitionKey; encounterIndex: number } | { definitionKey: ItemDefinitionKey; heal: number; days: number })[];
+  /** The Loot the return leaves: one at most, as the Quest Engine draws. */
   loot?: readonly { definitionKey: ItemDefinitionKey; quantity: number }[];
   injuries?: readonly { hero: number; typeKey: InjuryTypeKey; healsOnTurn: number }[];
   deaths?: readonly number[];
   /** The Traits the Party's Heroes earned, each from an Encounter of the sequence. */
   traits?: readonly { hero: number; traitKey: string; encounterIndex: number }[];
-  /** Morale the return moved, each change as the Hero State Engine records it; a Hero outside the Party by their id. */
+  /**
+   * Morale the return moves, each change as the Hero State Engine records it; a Hero outside the Party by
+   * their id. The first told of a Hero is their Morale before the return, and the Encounters' changes are
+   * the resolution's; a strong success's and a Death's are the engine's rules', and each told must be one
+   * the engine writes.
+   */
   morale?: readonly { hero: number | HeroId; cause: 'encounters' | 'strong-success' | 'roster-death'; before: number; after: number; bandAfter: MoraleBand }[];
   /** The Patron's Regard for the Guild crossing into a new band on the return. */
   patronRegard?: { bandBefore: RegardBand; bandAfter: RegardBand };
@@ -273,14 +276,14 @@ export interface ReturnTold {
   gear?: readonly { hero: number; definitionKey: ItemDefinitionKey; slot: SlotKey }[];
 }
 
-/** The ids a written return is read by, and the Party it was written for. */
+/** The ids a played return is read by, and the Party it was played for. */
 export interface Written {
   state: GameState;
   party: ReturningParty;
   turn: number;
 }
 
-/** The player's Party out in the world, as `withReturn` writes a return for it. */
+/** The player's Party out in the world, as `withReturn` plays a return for it. */
 export function partyOut(state: GameState): ReturningParty {
   const document = documentOf(state);
   const player = playerOf(document);
@@ -291,157 +294,123 @@ export function partyOut(state: GameState): ReturningParty {
 }
 
 /**
- * `state` with a Party's return written to its History as the Quest Engine writes one
- * (`quests-conclude.ts`), then the night's Levels (`levelUps`) and a dead Hero's gear (`gearReturn`),
- * each entry completed as `emit` completes it: the Turn, the Heroes' Guild appended to the
- * participants, each named row's label, and the Milestone flag. The Party and its Quest then leave
- * the world, the dead leave the Roster, and the world stands at the night of the return. A test's
- * way to a return whose outcome it chooses: the engine's own draws rarely give a Death or a Level.
+ * `state` with a Party's return played by the engine on its night (DL-245): `told` is the Quest
+ * Engine's resolution, which the engine's own draws rarely give when a test needs a Death or a Level,
+ * and the engine applies it as `questsConclude` does, then plays the night's Levels and the dead's gear
+ * back (`playReturnNight`), every entry the engine's. The world is first set so the night's rules
+ * give what `told` says: each Hero's Morale before it, a told Level's XP, the dead's gear carried, the
+ * consumables in the Party's packs and a Regard just short of the told band. The Party and its Quest
+ * then leave the world, the dead leave the Roster, and the world stands at the night of the return.
  */
 export function withReturn(state: GameState, told: ReturnTold): Written {
   const party = told.party ?? partyOut(state);
   const turn = told.turn ?? documentOf(state).world.parties[party.partyId]?.returnsOnTurn;
   if (turn === undefined) throw new Error('no night to come home on');
-  const next = changed(state, (document, player) => {
-    const { world, history } = document;
+  const { partyId, questId, heroIds, patronId, templateKey } = party;
+  const hero = (at: number | HeroId): HeroId => (typeof at === 'number' ? (heroIds[at] as HeroId) : at);
+  const deaths = (told.deaths ?? []).map(hero);
+  const uses: ConsumableUse[] = [];
+  const prepared = changed(state, (document, player) => {
+    const { world } = document;
     const config = { ...defaultConfig, ...document.meta.config };
-    const { partyId, questId, heroIds, patronId, templateKey } = party;
-    const hero = (at: number | HeroId): HeroId => (typeof at === 'number' ? (heroIds[at] as HeroId) : at);
-    const write = <Type extends EngineEventType>(type: Type, participants: readonly EntityId[], payload: EngineEventOf<Type>['payload']): void => {
-      const named = [...new Set(participants)];
-      for (const id of [...named]) {
-        const guildId = isId('heroes', id) ? world.heroes[id]?.guildId : null;
-        if (guildId !== null && guildId !== undefined && !named.includes(guildId)) named.push(guildId);
+    // A Party the test names that the world does not hold: its row and its Quest's, as `takeQuest` leaves them.
+    if (!Object.hasOwn(world.parties, partyId)) {
+      const template = Object.values(world.quests).find((quest) => quest.templateKey === templateKey) ?? Object.values(world.quests)[0];
+      if (template === undefined) throw new Error('no Quest to copy');
+      world.quests[questId] = { ...structuredClone(template), id: questId, patronId, templateKey };
+      world.parties[partyId] = { id: partyId, guildId: player.id, questId, heroIds: [...heroIds], departedOnTurn: world.turn, returnsOnTurn: turn };
+      for (const heroId of heroIds) Object.assign(world.heroes[heroId] as Hero, { partyId });
+    }
+    // Each Hero's Morale as the night finds it: the first change told of them starts from it.
+    for (const { hero: at, before } of [...(told.morale ?? [])].reverse()) Object.assign(world.heroes[hero(at)] as Hero, { morale: before });
+    // A told Level is reached tonight: the Level before it, and the XP that reaches it with the Quest's.
+    for (const { hero: at, level } of told.levels ?? []) {
+      const row = world.heroes[hero(at)] as Hero;
+      const gained = heroIds.includes(row.id) && !deaths.includes(row.id) ? (told.xp ?? 0) : 0;
+      row.level = level - 1;
+      row.xp = Math.max(0, xpForLevel(level, config) - gained);
+    }
+    // The dead carry the told gear, and only it.
+    for (const heroId of deaths) {
+      for (const row of [...Object.values(world.items), ...Object.values(world.stacks)]) {
+        if (row.holder.kind === 'hero' && row.holder.id === heroId) row.holder = { kind: 'guild', id: player.id };
       }
-      const labels: Record<EntityId, string> = {};
-      for (const id of named) {
-        const parsed = parseId(id);
-        const rows = parsed === null ? undefined : (world[parsed.table] as Record<string, { name?: unknown }>);
-        const name = rows !== undefined && Object.hasOwn(rows, id) ? rows[id]?.name : undefined;
-        if (typeof name === 'string') labels[id] = name;
-      }
-      append(history, { turn, type, participants: named, labels, milestone: isMilestone(type, payload), payload });
-    };
-    const guildId = player.id;
-    const deaths = (told.deaths ?? []).map(hero);
-    const survivors = heroIds.filter((id) => !deaths.includes(id));
+    }
+    for (const { hero: at, definitionKey, slot } of told.gear ?? []) {
+      const holder = { kind: 'hero', id: hero(at), slot } as const;
+      if (content.items[definitionKey]?.unique === true) createItem(world, definitionKey, holder);
+      else addStack(world, definitionKey, 1, holder);
+    }
+    // The consumables used, each in the Party's packs.
+    for (const use of told.used ?? []) {
+      const stackId = addStack(world, use.definitionKey, 1, { kind: 'party', id: partyId });
+      uses.push('heal' in use ? { stackId, definitionKey: use.definitionKey, effect: 'heal', heroId: hero(use.heal), days: use.days } : { stackId, definitionKey: use.definitionKey, effect: 'bonus', encounterIndex: use.encounterIndex, flat: 2 });
+    }
+    // A told crossing of Regard: the value just short of the band it moves into, or the floor of the band it leaves.
+    const shortOf = (before: RegardBand, after: RegardBand): number =>
+      config.regardBands[after] > config.regardBands[before] ? config.regardBands[after] - 0.01 : config.regardBands[before];
+    if (told.patronRegard !== undefined) {
+      const patron = world.patrons[patronId];
+      if (patron !== undefined) patron.regard[player.id] = { value: shortOf(told.patronRegard.bandBefore, told.patronRegard.bandAfter), since: 0, reason: 'test' };
+    }
+    for (const { hero: at, mate, bandBefore, bandAfter } of told.heroRegard ?? []) {
+      (world.heroes[hero(at)] as Hero).regard[hero(mate)] = { value: shortOf(bandBefore, bandAfter), since: 0, reason: 'test' };
+    }
+  });
 
-    (told.encounters ?? []).forEach(({ encounterKey = Object.keys(content.encounters)[0] ?? '', outcome, degree, formDecided, injured = [], died = [] }, index) => {
-      const hurt = injured.map(hero);
-      const killed = died.map(hero);
-      const rolled = { roll: 10, target: 10, margin: 0 };
-      // Decided by the Encounter's first Check, as the resolver names it.
-      const decidedBy = content.encounters[encounterKey]?.checks[0]?.key ?? encounterKey;
-      write('quest.encounter', [questId, partyId, guildId, ...hurt, ...killed], {
-        questId,
-        partyId,
-        guildId,
-        index,
-        encounterKey,
-        kind: 'combat',
-        ...rolled,
-        outcome,
-        ...(degree === undefined
-          ? {}
-          : {
-              degree,
-              decidedBy,
-              ...(formDecided === undefined ? {} : { formDecided }),
-              checks: [{ key: decidedBy, capability: 10, ...rolled, degree, ...(formDecided === undefined ? {} : { formDecided }) }],
-            }),
-        injured: hurt,
-        died: killed,
-      });
-    });
-    (told.used ?? []).forEach((use, at) => {
-      const stackId = makeId('stacks', 9000 + at);
-      if ('heal' in use) {
-        write('item.expended', [questId, partyId, guildId, hero(use.heal)], { questId, partyId, guildId, stackId, definitionKey: use.definitionKey, effect: 'heal', heroId: hero(use.heal), days: use.days });
-      } else {
-        write('item.expended', [questId, partyId, guildId], { questId, partyId, guildId, stackId, definitionKey: use.definitionKey, effect: 'bonus', encounterIndex: use.encounterIndex, flat: 2 });
-      }
-    });
-    const encounterCount = told.encounters?.length ?? 0;
-    write('quest.resolved', [questId, partyId, ...heroIds, guildId, patronId], {
-      questId,
-      partyId,
-      guildId,
-      heroIds: [...heroIds],
-      templateKey,
+  const encounterKeyOf = (key: string | undefined): string => key ?? Object.keys(content.encounters)[0] ?? '';
+  const encounters = (told.encounters ?? []).map(({ encounterKey, outcome, degree, formDecided, injured = [], died = [] }, index): EncounterResult => {
+    const key = encounterKeyOf(encounterKey);
+    const rolled = { roll: 10, target: 10, margin: 0 };
+    // Decided by the Encounter's first Check, as the resolver names it; an Encounter told no Degree is
+    // one written before the Degree (DL-152), with none.
+    const decidedBy = content.encounters[key]?.checks[0]?.key ?? key;
+    const degreed = degree === undefined ? {} : { degree, decidedBy, ...(formDecided === undefined ? {} : { formDecided }), checks: [{ key: decidedBy, capability: 10, ...rolled, degree, ...(formDecided === undefined ? {} : { formDecided }) }] };
+    return { index, encounterKey: key, kind: 'combat', ...rolled, outcome, ...degreed, injured: injured.map(hero), died: died.map(hero) } as EncounterResult;
+  });
+  const survivors = heroIds.filter((heroId) => !deaths.includes(heroId));
+  const moraleByHero: Record<HeroId, number> = {};
+  for (const { hero: at, cause, before, after } of told.morale ?? []) {
+    if (cause === 'encounters') moraleByHero[hero(at)] = (moraleByHero[hero(at)] ?? 0) + after - before;
+  }
+  const [loot, ...more] = told.loot ?? [];
+  if (more.length > 0) throw new Error('a Quest draws one Loot');
+  const resolution: Resolution = {
+    outcome: {
       band: told.band,
       successes: (told.encounters ?? []).filter((each) => each.outcome === 'success').length,
-      encounterCount,
+      encounterCount: told.encounters?.length ?? 0,
       wealthDelta: told.wealth ?? 0,
       fameDelta: told.fame ?? 0,
       xpPerHero: told.xp ?? 0,
       moraleDelta: 0,
+      moraleByHero: Object.fromEntries(survivors.filter((heroId) => moraleByHero[heroId] !== undefined).map((heroId) => [heroId, moraleByHero[heroId]])) as Record<HeroId, number>,
       regardDelta: 0,
       injuries: (told.injuries ?? []).map(({ hero: at, typeKey, healsOnTurn }) => ({ heroId: hero(at), typeKey, healDays: dayOf(healsOnTurn) - dayOf(turn) })),
       deaths,
       synergyKeys: [],
-    });
-    (told.loot ?? []).forEach(({ definitionKey, quantity }, at) => {
-      write('quest.loot', [questId, partyId, guildId], { questId, partyId, guildId, lootTableKey: 'lesser-loot', definitionKey, quantity, itemId: null, stackId: makeId('stacks', 9100 + at) });
-    });
-    for (const { hero: at, typeKey, healsOnTurn } of told.injuries ?? []) {
-      write('hero.injured', [hero(at), questId], { heroId: hero(at), questId, typeKey, healsOnTurn });
-    }
-    for (const heroId of deaths) write('hero.died', [heroId, questId], { heroId, questId });
-    for (const { hero: at, traitKey, encounterIndex } of told.traits ?? []) {
-      const encounterKey = told.encounters?.[encounterIndex]?.encounterKey ?? Object.keys(content.encounters)[0] ?? '';
-      write('hero.trait-gained', [hero(at), questId], { heroId: hero(at), traitKey, questId, encounterIndex, encounterKey });
-      world.heroes[hero(at)]?.traits.push(traitKey);
-    }
-    for (const heroId of survivors) write('hero.xp-gained', [heroId, questId], { heroId, questId, amount: told.xp ?? 0 });
-    for (const { hero: at, cause, before, after, bandAfter } of told.morale ?? []) {
-      write('hero.morale-changed', [hero(at), questId], { heroId: hero(at), cause, questId, before, after, bandBefore: 'steady', bandAfter });
-    }
-    if (told.patronRegard !== undefined) {
-      const { bandBefore, bandAfter } = told.patronRegard;
-      const cause = told.band === 'fail' ? 'quest-failure' : 'quest-success';
-      write('patron.regard-changed', [patronId, guildId, questId], {
-        patronId,
-        guildId,
-        cause,
-        questId,
-        before: config.regardBands[bandBefore],
-        after: config.regardBands[bandAfter],
-        bandBefore,
-        bandAfter,
-      });
-    }
-    for (const { hero: at, mate, bandBefore, bandAfter } of told.heroRegard ?? []) {
-      write('hero.regard-changed', [hero(at), hero(mate), questId], {
-        heroId: hero(at),
-        entityId: hero(mate),
-        cause: 'shared-quest',
-        questId,
-        before: config.regardBands[bandBefore],
-        after: config.regardBands[bandAfter],
-        bandBefore,
-        bandAfter,
-      });
-    }
-    for (const { hero: at, level } of told.levels ?? []) {
-      write('hero.levelled', [hero(at)], { heroId: hero(at), guildId, level, statDeltas: {} as Record<StatKey, number>, pointsLost: 0 });
-    }
-    for (const { hero: at, definitionKey, slot } of told.gear ?? []) {
-      write('item.returned', [hero(at), guildId], { heroId: hero(at), guildId, slot, definitionKey, itemId: null, stackId: null, cause: 'died' });
-    }
-
-    // What the night leaves in the world: the dead off the Roster, the rest home, the Party and its Quest gone.
-    for (const heroId of heroIds) {
-      const row = world.heroes[heroId];
-      if (row === undefined) continue;
-      row.partyId = null;
-      if (deaths.includes(heroId)) row.diedOnTurn = turn;
-    }
-    player.rosterIds = player.rosterIds.filter((id) => !deaths.includes(id));
-    delete world.parties[partyId];
-    delete world.quests[questId];
-    world.turn = turn;
-  });
-  return { state: next, party, turn };
+    },
+    encounters,
+    traits: (told.traits ?? []).map(({ hero: at, traitKey, encounterIndex }) => ({ heroId: hero(at), traitKey, encounterIndex, encounterKey: encounterKeyOf(told.encounters?.[encounterIndex]?.encounterKey) })),
+    consumables: uses,
+    loot: loot === undefined ? null : { lootTableKey: 'lesser-loot', definitionKey: loot.definitionKey, quantity: loot.quantity, unique: content.items[loot.definitionKey]?.unique === true },
+  };
+  const document = documentOf(prepared);
+  const night = playReturnNight(document, partyId, resolution, playDeps(document), turn);
+  // Each Morale change told is one the engine wrote, so a test tells only a return the rules give.
+  for (const { hero: at, cause, before, after, bandAfter } of told.morale ?? []) {
+    const wrote = night.events.some(
+      (event) =>
+        event.type === 'hero.morale-changed' &&
+        event.payload.heroId === hero(at) &&
+        event.payload.cause === cause &&
+        event.payload.before === before &&
+        event.payload.after === after &&
+        event.payload.bandAfter === bandAfter,
+    );
+    if (!wrote) throw new Error(`the engine wrote no ${cause} Morale change of ${hero(at)} from ${before} to ${after}, ${bandAfter}`);
+  }
+  return { state: { ...prepared, document: night.document }, party, turn };
 }
 
 /** Every Rival rich enough to hire: whether one takes a Hero is then its Roster's and its Disposition's to say. */
