@@ -42,3 +42,74 @@ the repository is no entry. To read an entry, find its file in the index, then s
 
 ---
 
+## DL-231 — v1.1.9 planned: the tests and the harness faster and leaner, play and the design unchanged
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Decided by:** the owner, answering Q1–Q30 of a
+grilling after four read-only analyses ([the epic](./planning/epics/v1.1.9-release.md) §5, §6)
+
+**Context.** After v1.1.8, the owner asked for a release of non-functional performance, better and
+leaner tests, and a faster suite and harness, without compromising the architecture or the
+engineering design. The analyses found the following:
+- contention drives the local suite's 119–126 s;
+- quest estimation is 48.7% of a harness game;
+- CI bills 22–44 minutes a push;
+- about 400 tests are candidates for removal or shrinking.
+
+**Decision.**
+
+1. **Scope.**
+   - The tests, the harness, CI and the engine's hot paths are in scope (Q1 b). The game's figures
+     are reported only, and its recorded targets are left as they are (Q21 a).
+   - e2e is in scope (Q29 a).
+   - There are no numeric targets: before and after are measured locally, in CI minutes, and for
+     `gate` and `neutral` (Q17 c, Q6 c).
+2. **Play.** Play stays neutral. A story that keeps the save's format shows an identical fingerprint.
+   One that changes the format shows 0 play counters moved in `compare`, with a new baseline (Q2 b).
+3. **The design.** An ADR may be amended where its intent holds, dated, with a DL entry and the
+   owner's word for each amendment (Q14 a).
+   - The engine may hold caches that last one call or one phase of a Turn. They are never stored in
+     the document and never module-global, their key covers every input, and they are proved by the
+     fingerprint. Identical-result algorithms come after, if needed (Q20).
+4. **Pruning.**
+   - Each package is one batch, approved by the owner (Q3 a).
+   - A test is shown redundant by three things together: coverage per test, a named subsuming test,
+     and one planted bug that turns the subsuming test red (Q9 b). No mutation-testing tool is used
+     (Q4 c).
+   - Pins of a default are removed; a test whose numbers merely rest on one stays (Q10 b).
+   - Pins of content data become properties of the content (Q11 a).
+   - `words` owns the narration's sentence tests, with one sentence end to end per front end (Q12 a).
+   - Old-save loading tests go, as rule 5 allows (Q24 a).
+   - Story ids leave test names and comments, which come under the citation ratchet (Q16 a, Q27 a).
+5. **Structure.**
+   - Coverage is added and reported, not enforced (Q5 b).
+   - Speed assertions move to a run apart (Q22 a).
+   - Tests that start processes or browsers go in a project with limited concurrency (Q23 a).
+   - `owner.test.ts` becomes opt-in (Q15 a).
+   - `withValid` passes `historyFrom` (Q26 a).
+   - The dispositions box is split as DL-230 split the Transfer Generator's (Q25 a).
+   - The twenty-year boxes stay at closes only (Q7 c).
+6. **CI.**
+   - The full suite and e2e run on `.node-version`. Node 22 runs `npm ci`, typecheck, the build, and
+     the engine's and `words`' tests (Q18 a), with ADR-0007 amended.
+   - The deploy skips the tests when the merge commit's tree is the tested release tree (Q19 a).
+7. **The harness.** `neutral` runs as many workers as seeds. The `gate` keeps 8 workers and its
+   replay alone (Q13 a).
+8. **The plan** (Q28 a): S1 the tooling and baselines, S2 the suite's structure, S3 CI, S4–S6 the
+   engine's and the harness's speed, S7–S10 pruning by package, S11 the close. The Gate is the four
+   guardrails of Q30 (a): play unchanged; the ADRs hold, every amendment approved; three full runs
+   in a row and every removal approved; coverage per package no lower, or each drop accepted.
+9. **The branch.** `v1.1.9-dev` is cut from `26cd276`, and Dependabot is moved to it, on the owner's
+   word (Q8 b).
+
+*Judgement calls, for the owner to see:*
+- Each pruning batch re-derives its candidates at its own commit, since S2–S6 move code. The
+  research's lists are only a starting point and are not committed.
+- Q10 (b) is read as removing tests that assert a default's value, not tests that merely depend on
+  one.
+
+**Consequences.** `npm test` loses no behavioural check without the owner's approval, and some move
+to runs that only a close plays. CI proves Node 22's floor by a subset of the tests.
+
+**Evidence.** The epic's §5. The analyses ran at `26cd276`: `npm test` twice, each project alone,
+coverage via `npm i --no-save`, one profiled `neutral` game (with one worker, to profile a single
+process), and CI's jobs by `gh`.

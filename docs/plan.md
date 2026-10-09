@@ -72,8 +72,9 @@ A release's close adds its row here and fills its epic's Status line, and nothin
 What comes next, in order. Releases already made are §2's ledger. The record of how this list came
 to its order is in [`planning/archive/`](./planning/archive/README.md).
 
-- **Now: none open.** `v1.1.8` was released on 2026-10-09 (§2). The owner chooses which epic comes
-  next, among Random Events and the lists below (DL-228).
+- **Now: `v1.1.9`, the tests and the harness made faster and leaner**, on `v1.1.9-dev`
+  ([epic](./planning/epics/v1.1.9-release.md)): planned (DL-231), no story started.
+- **Next: chosen after `v1.1.9` is released**, among Random Events and the lists below (DL-228).
 - **Random Events** (#12; its groundwork #15 and #17) will be the first real module, but is not
   necessarily the next epic: when it starts is the owner's (DL-214, DL-228). Random Events never
   produce Quests (DL-82).

@@ -30,6 +30,7 @@ when its release closes; the release itself is recorded in `plan.md` §2's ledge
 
 | ID | Epic | Gate | Sessions | Depends on |
 | --- | --- | --- | --- | --- |
+| [v1.1.9](./v1.1.9-release.md) | The tests and the harness made faster and leaner, the design unchanged | Play unchanged; the ADRs hold, every amendment approved; three full runs in a row and every removal approved; coverage no lower, or each drop accepted | 13–17 | v1.1.8 |
 
 The first build's estimate, 60–78 sessions for M0 to M8, and the wall clock it actually took are in
 [the archive](../archive/README.md).
