@@ -1891,6 +1891,28 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     expect(play(['preview', '--quest', makeId('quests', 999), '--heroes', first]).code).toBe(exitCodes.refused);
   });
 
+  // A refusal is worded once, in the refusals' table (DL-240): preview says it as dispatch does.
+  test("preview refuses a Quest off the Board, and a save with no player's Guild, in dispatch's words", () => {
+    const { world } = document();
+    const [questId] = world.board as QuestId[];
+    const [heroId] = world.guilds[playerId]?.rosterIds ?? [];
+    if (questId === undefined || heroId === undefined) throw new Error('The demo world has changed');
+    edit((edited) => {
+      edited.world.board = edited.world.board.filter((id) => id !== questId);
+    });
+    const argv = ['--quest', questId, '--heroes', heroId];
+
+    const preview = play(['preview', ...argv]);
+
+    expect(preview).toMatchObject({ code: exitCodes.refused, err: play(['dispatch', ...argv]).err });
+    expect(preview.err).toMatch(new RegExp(`\\(${questId}\\) is not on the Board`));
+
+    edit((edited) => {
+      (edited.world.guilds[playerId] as Guild).controller = { kind: 'rival', disposition: 'steady' };
+    });
+    expect(play(['preview', ...argv])).toMatchObject({ code: exitCodes.refused, err: play(['dispatch', ...argv]).err });
+  });
+
   test("dispatch prints the reward agreed, the player's Guildmaster's Negotiation applied", () => {
     const { world } = document();
     const roster = world.guilds[playerId]?.rosterIds ?? [];

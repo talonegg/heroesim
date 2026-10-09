@@ -678,7 +678,7 @@ the slots, the settled wording and the module's seams by the agent
   Consumable … Consumables only"; "is not gear" → "is not Gear"; "is weapon gear" → "is weapon Gear";
   "A Guildmaster's sex" → "Sex"; "in whole years" → "in whole Years"; "choose a Portrait of that sex" → "Sex".
 - *Rule 4, data in a sentence:* "The game ended on Year 1 Day 1 (Turn 0): bankruptcy." → "…: The Test
-  went bankrupt." (and Retirement's), its Turn kept.
+  went bankrupt." (and Retirement's and a wiped Roster's), its Turn kept.
 - *One wording for both front ends* (the page's, which the form shows as it is typed): `--stats sets
   every Guildmaster Stat or none; it leaves out coaching and judgement.` → "Every Guildmaster Stat is
   chosen, or none; Coaching and Judgement are not."; "A Guildmaster's Stat is 5 to 15 …" →
@@ -693,9 +693,9 @@ the slots, the settled wording and the module's seams by the agent
   Guildmaster's Portrait, and --sex is female: …" → "That Portrait is of a male Guildmaster, and your
   Guildmaster's Sex is female: …"; "save.json already plays under …" → "This game already plays under …";
   "Wilda Scarth (hero-000001)'s signing fee is 900 Wealth" → "The signing fee is 900 Wealth".
-- *The CLI's Namer, its names with the id a command takes:* "quest-000001 is not on the Board" and
-  "… needs …" → "A quiet word (quest-000001) …"; "does not hold stack-000001", "holds no stack-000001
-  to sell", "carries stack-000001" → "Whetstone (stack-000001)"; "stack-000001 holds 2" → "That stack
+- *The CLI's Namer, its names with the id a command takes:* "quest-000001 is not on the Board" (also
+  preview's) and "… needs …" → "A quiet word (quest-000001) …"; "does not hold stack-000001", "holds no
+  stack-000001 to sell", "carries stack-000001" → "Whetstone (stack-000001)"; "stack-000001 holds 2" → "That stack
   of Whetstone (stack-000001) holds 2"; "is away with party-000001" → "is away with a Party
   (party-000001)"; "No Transfer Offer offer-000001 stands" → "No such Transfer Offer (offer-000001)
   stands".
@@ -718,3 +718,6 @@ citing a story fell from 1,747 to 1,727, and the baseline with them.
 **Evidence.** `words/src/refusals.test.ts` (every kind, its words and slots); the CLI's Namer's
 refusals in `cli/src/namer.test.ts`; the page's in `web/src/state/refusals.test.ts`. Every sentence
 captured before and after over 88 samples. The epic's S7 boxes.
+Verified 2026-10-10 at d1d9f51: 82 kinds, one deleted failing `tsc -b`; the page's 740 refusals as
+15e5833's, the CLI's 182 lines changed only as listed (a wiped Roster's added); preview's own two
+refusals now the table's.

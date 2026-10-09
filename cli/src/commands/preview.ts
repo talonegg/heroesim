@@ -147,13 +147,15 @@ export function previewParty(
   deps: EngineDeps,
 ): { ok: true; lines: string[] } | { ok: false; problem: string } {
   const { world } = document;
+  const setting = { world, content: deps.content, calendar: deps.config };
   const guild = playerGuild(world);
-  if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
+  // A refusal in the refusals' words, as dispatch says it (DL-240).
+  if (guild === undefined) return { ok: false, problem: refusalLine({ action: 'preview', reason: 'no-player-guild' }, setting) };
   const consumables = command.consumables ?? [];
   const request = { guildId: guild.id, questId: command.quest, heroIds: command.heroes, consumables };
   const preview = previewDispatch(world, request, deps);
   if (preview === null) {
-    return { ok: false, problem: `${command.quest} is not on the Board: it has been taken or has expired, or was never offered.` };
+    return { ok: false, problem: refusalLine({ action: 'dispatch', reason: 'quest-not-offered', questId: command.quest }, setting) };
   }
   const { quest, heroes, refusal } = preview;
   const unmet = unmetRequirements(quest, heroes);
@@ -175,7 +177,7 @@ export function previewParty(
         ? 'Dispatch would send this Party.'
         : unmet.length > 0 && refusal.reason === 'requirement-unmet'
           ? `Dispatch would refuse it: it needs ${unmet.map((it) => requirementWords(it, deps.content)).join(' and ')}.`
-          : `Dispatch would refuse it: ${refusalLine(refusal, { world, content: deps.content, calendar: deps.config })}`,
+          : `Dispatch would refuse it: ${refusalLine(refusal, setting)}`,
     ],
   ];
   const lines = sections.filter((section) => section.length > 0).flatMap((section, index) => (index === 0 ? section : ['', ...section]));
