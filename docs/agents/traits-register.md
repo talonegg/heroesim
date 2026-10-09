@@ -193,6 +193,6 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 
 - **Reads:** Every Trait and every use of one in content (`validateContent`): a key in one list only, exclusions held both ways, each effect's values, and each key a use names defined in its list. The editor checks each pending edit with them.
 - **Traits:** Guildmaster and Hero; effects `classStatBonus`, `guildMoraleShift`, `upkeepFactor`, `statModifiers`, `encounterBonus`.
-- **Where it reads them:** `content/src/validate.ts`: `validateContent`, `checkPortraitAppearances`, `longestDescriptions`, `checkDescriptions`, `checkEncounters`, `checkConsequence`, `checkTraits`, `queryKeys`; `engine/src/quest-engine/query/problems.ts`: `queryArgument`.
+- **Where it reads them:** `content/src/kinds/descriptions.ts`: `longestDescriptions`, `descriptionsRules`; `content/src/kinds/encounters.ts`: `encountersRules`, `checkConsequence`; `content/src/kinds/injuries.ts`: `injuriesRules`; `content/src/kinds/portrait-appearances.ts`: `portraitAppearancesRules`; `content/src/kinds/rules.ts`: `knownOf`; `content/src/kinds/trait-effects.ts`: `guildmasterTraitEffects`, `heroTraitEffects`; `content/src/kinds/traits.ts`: `guildmasterTraitsRules`, `heroTraitsRules`; `engine/src/quest-engine/query/problems.ts`: `queryArgument`.
 
 <!-- The register's part ends. -->

@@ -22,7 +22,7 @@ function scratch(): string {
 }
 
 describe('the drift test', () => {
-  test('finds every read of a Trait in engine/src and content/src/validate.ts listed by the register', () => {
+  test('finds every read of a Trait in engine/src and the content checks listed by the register', () => {
     const report = drift(root);
     expect(report.problems).toEqual([]);
     expect(report.reads).toBeGreaterThan(50);
@@ -37,10 +37,12 @@ describe('the drift test', () => {
   test('reads the engine and the content checks, tests left out', () => {
     const files = scannedFiles(root);
     expect(files).toContain('content/src/validate.ts');
+    // The content kinds hold the checks (DL-243).
+    expect(files).toContain('content/src/kinds/traits.ts');
     expect(files).toContain('engine/src/traits.ts');
     expect(files).toContain('engine/src/quest-engine/resolve.ts');
     expect(files.filter((file) => /\.test\.ts$|test-support/.test(file))).toEqual([]);
-    expect(files.filter((file) => file.startsWith('content/') && file !== 'content/src/validate.ts')).toEqual([]);
+    expect(files.filter((file) => file.startsWith('content/') && file !== 'content/src/validate.ts' && !file.startsWith('content/src/kinds/'))).toEqual([]);
   });
 
   test('fails on a read planted in a new file, naming its file, line and declaration', () => {

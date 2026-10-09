@@ -31,7 +31,8 @@ name its path, or use `rg -u`.
    for one is not a word for the next.
 2. **Traits** change only through `npm run edit` or the trait skills (`docs/agents/traits.md`).
    Run `npm run edit -- traits doctor` before the first change and after the last of every story
-   that touches `engine/src/` or `content/src/validate.ts`, and record both readings.
+   that touches `engine/src/` or the content's checks (`content/src/validate.ts` and the content
+   kinds, `content/src/kinds/`), and record both readings.
 3. **Tuning values** change only through the content editor's config kind
    (`docs/agents/config.md`). A new setting is added by hand as that page says.
 4. **A test a config or tuning change fails** is never rewritten to pass. Report it to the owner:

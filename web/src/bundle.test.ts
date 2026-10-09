@@ -164,6 +164,24 @@ describe('the production build', { timeout: 120_000 }, () => {
     expect(marks.filter((mark) => text.includes(mark))).toEqual([]);
   });
 
+  // DL-243 (DL-152): the page reads content with the kinds' readers and checks none of it, so the
+  // script carries the readers' words and none of the kinds' rules'. Each is first found in its own source.
+  test("carries the content kinds' readers and none of their rules", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    const kinds = path.join(contentDir, 'src', 'kinds');
+    const marks = [
+      ['read.ts', 'is not a field of'],
+      ['rules.ts', 'is not kebab-case'],
+      ['stats.ts', "a Hero Stat's least value is 0 or more"],
+      ['trait-effects.ts', 'effect moves at least one Stat'],
+      ['encounters.ts', 'a raw Check is its score alone'],
+    ] as const;
+    for (const [file, mark] of marks) expect(readFileSync(path.join(kinds, file), 'utf8'), mark).toContain(mark);
+    expect(text).toContain(marks[0][1]);
+    expect(marks.slice(1).filter(([, mark]) => text.includes(mark))).toEqual([]);
+  });
+
   test('builds a script under the 850 kB the gate allows', () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
     expect(statSync(path.join(outDir, 'assets', script)).size).toBeLessThan(scriptLimit);

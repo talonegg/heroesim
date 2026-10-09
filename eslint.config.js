@@ -341,7 +341,7 @@ export default defineConfig(
     rules: restrictImports(contentImports({ node: true })),
   },
   {
-    files: ['content/**/*.test.ts'],
+    files: ['content/**/*.test.ts', 'content/**/*.test-support.ts'],
     rules: restrictImports(contentImports({ node: true, tests: true })),
   },
 

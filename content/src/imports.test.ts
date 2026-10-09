@@ -17,11 +17,11 @@ import { contentDir } from './node.js';
 
 const root = join(contentDir, '..');
 
-/** The TypeScript files of a package's src/, tests included unless `withTests` is false. */
+/** The TypeScript files of a package's src/, tests and their support included unless `withTests` is false. */
 function sources(pkg: string, withTests = true): { file: string; ast: ts.SourceFile }[] {
   const dir = join(root, pkg, 'src');
   return readdirSync(dir, { recursive: true, encoding: 'utf8' })
-    .filter((file) => file.endsWith('.ts') && (withTests || !file.endsWith('.test.ts')))
+    .filter((file) => file.endsWith('.ts') && (withTests || !/\.test(-support)?\.ts$/.test(file)))
     // engine/src/boundary.test.ts writes and deletes probe files in each package's src/ while other tests run.
     .filter((file) => !/(^|[\\/])boundary-probe-/.test(file))
     .map((file) => ({
@@ -78,12 +78,18 @@ describe('the sources these tests read', () => {
 describe("content's types come from the engine's content entry, @heroesim/engine/content", () => {
   const engineTypes = ['ContentSet', 'Stat', 'Class', 'Skill', 'Trait', 'Background', 'Sphere', 'Names'];
 
-  test('the pure and Node entries take the ContentSet type from the engine', () => {
+  // The drivers, the Node entry, the register and each content kind (DL-243); the kinds' vocabularies, `read.ts` and `error.ts`,
+  // and the content version's, a number, take none.
+  test('the entries, the drivers and every kind take their types from the engine', () => {
     const fromEngine = sources('content', false).filter(({ ast }) =>
       importsOf(ast).some((it) => it.from === '@heroesim/engine/content'),
     );
+    const kinds = sources('content', false)
+      .map(({ file }) => file.replace(/\\/g, '/'))
+      .filter((file) => file.startsWith('kinds/') && !['kinds/read.ts', 'kinds/error.ts', 'kinds/version.ts'].includes(file));
 
-    expect(fromEngine.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['node.ts', 'parse.ts', 'uses/register.ts', 'validate.ts']);
+    expect(kinds).toContain('kinds/traits.ts');
+    expect(fromEngine.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['node.ts', 'parse.ts', 'uses/register.ts', 'validate.ts', ...kinds].sort());
   });
 
   // DL-243: content's view of the engine is its content entry; a test may also take the main entry.
@@ -97,12 +103,25 @@ describe("content's types come from the engine's content entry, @heroesim/engine
   });
 
   // DL-186 item 6 (v1.1.6-S5): content may take the engine's values, so it repeats none of them.
-  test("takes the engine's values too: the parser, the checks and the register of a Trait's uses import some", () => {
+  test("takes the engine's values too: the kinds that read or check by its lists, and the register of a Trait's uses import some", () => {
     const withValues = sources('content', false).filter(({ ast }) =>
       importsOf(ast).some((it) => it.from === '@heroesim/engine/content' && !it.typeOnly),
     );
 
-    expect(withValues.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['parse.ts', 'uses/register.ts', 'validate.ts']);
+    expect(withValues.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual([
+      'kinds/classes.ts',
+      'kinds/descriptions.ts',
+      'kinds/dispositions.ts',
+      'kinds/encounters.ts',
+      'kinds/improvements.ts',
+      'kinds/items.ts',
+      'kinds/names.ts',
+      'kinds/portraits.ts',
+      'kinds/quest-templates.ts',
+      'kinds/synergies.ts',
+      'kinds/trait-effects.ts',
+      'uses/register.ts',
+    ]);
   });
 
   test('content declares none of those types itself', () => {

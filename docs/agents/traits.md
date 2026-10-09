@@ -79,7 +79,7 @@ The skills `trait-edit` and `trait-assign` both begin and end with these steps.
 Every epic follows these rules (DL-150 item 14):
 
 - **A story that touches the engine** (`engine/src/`) or the content's checks
-  (`content/src/validate.ts`) runs `npm run edit -- traits doctor` at its close. It fixes any drift
+  (`content/src/validate.ts` and the content kinds, `content/src/kinds/`, DL-243) runs `npm run edit -- traits doctor` at its close. It fixes any drift
   as step 2 says, in the same change.
 - **Its DL entry says what changed for Traits.** That is the register's entries added, changed or
   taken out and why, or a new effect kind, event or use in content. Otherwise it says, in so many

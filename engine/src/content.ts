@@ -3,7 +3,7 @@
 // `queryProblems`, which holds a Query to its operators' own signatures (DL-186 item 6). The content
 // package, the words and the content editor take content's vocabulary here; the main entry,
 // `@heroesim/engine`, keeps what the front ends and the harness play and read with, and names only
-// the content types they take (engine/src/content-entry.test.ts holds both).
+// the content types they take (`testing.test.ts` holds both).
 
 export * from './content-types.js';
 export { biographyTraitSentences, heroBiographyTraitSentences } from './descriptions.js';

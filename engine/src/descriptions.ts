@@ -17,7 +17,7 @@
 //
 // The content validator proves that nothing written here passes `descriptiveAttributeMaxLength`,
 // taking the Appearance and the Biography to be made as they are below
-// (`content/src/validate.ts`'s `longestDescriptions`): a change to how they are joined is a change
+// (`content/src/kinds/descriptions.ts`'s `longestDescriptions`): a change to how they are joined is a change
 // there too.
 
 import type { EngineDeps } from './config.js';

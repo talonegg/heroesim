@@ -6,7 +6,7 @@
 // generators' options and results. `export *` stays for the events' types and for modules whose every
 // value a caller uses; testing.test.ts holds the entry to this. Content's vocabulary is its own entry,
 // `@heroesim/engine/content` (content.ts, DL-243): this one names the content types and lists the
-// front ends and the harness take, and content-entry.test.ts holds it to them.
+// front ends and the harness take, and testing.test.ts holds it to them.
 
 export {
   applyAction,

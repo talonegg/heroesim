@@ -73,7 +73,9 @@ function templateRepository(): string {
     recursive: true,
     filter: (source) => {
       const relative = path.relative(path.join(root, 'content'), source).replace(/\\/g, '/');
-      return relative === '' || relative.endsWith('.json') || ['src', 'src/validate.ts'].includes(relative);
+      // The checks' source the drift check reads: the driver and the content kinds (DL-243), their tests left out.
+      const kind = relative.startsWith('src/kinds/') && !relative.endsWith('.test.ts');
+      return relative === '' || relative.endsWith('.json') || ['src', 'src/validate.ts', 'src/kinds'].includes(relative) || kind;
     },
   });
   cpSync(path.join(root, 'docs', 'agents', 'traits-register.md'), path.join(dir, 'docs', 'agents', 'traits-register.md'));

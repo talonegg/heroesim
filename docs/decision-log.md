@@ -883,18 +883,67 @@ tests do tell outcomes the rules never write (Morale bands, −10 grief, +5 on a
 **Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner (DL-232 QA c, the epic's S10);
 the kinds' interface, the seams and the vocabularies by the agent
 
-**Context.** The architecture review's #3, #11 and #12 (the epic's §5.1). Being built: this entry is
-completed as the story closes.
+**Context.** The architecture review's #3, #11 and #12 (the epic's §5.1). A kind of content's shape,
+reading and rules lay in `content-types`, `parse.ts` (1,054 lines) and `validate.ts` (1,372), which
+changed together in 19 of 39 commits. A Trait's effect kind touched eight modules, and the
+validator's switch over them was not exhaustive. The engine's one entry held all of content's
+vocabulary.
 
 **Decision.**
 
-1. **Content's own entry** (#12). `@heroesim/engine/content` (`engine/src/content.ts`) holds
-   content's types and lists, the bounds content checks against and `queryProblems`. Content imports
-   the engine by it alone, its tests by either entry; the words and the content editor take content's
-   names from it. The main entry names only the content types and lists a front end, the harness or
-   the portrait tool takes, 503 names where it had 583. ESLint bars the CLI, the page and the harness
-   from the content entry; `testing.test.ts` and `boundary.test.ts` hold both.
+1. **A content kind in one module** (`content/src/kinds/`, one a file, the two Trait lists in one).
+   Each holds its file, its fields typed against the engine's row, its defaults, and its rules with
+   their refusals. A field of the engine's type that no kind reads fails to compile.
+   - *Interface:* a reader, `KindReader` (`key`, `file`, `read(json, problems)`), and rules,
+     `KindRules` (`key`, `check(set, problems, known)`).
+   - *Seam:* `kinds/index.ts`'s two lists. `contentKinds` is keyed by the content set's places, so a
+     place no kind reads fails to compile; `contentRules` follows the same order.
+   - *Adapters:* the content's kinds, and a test's (`readKinds`, `validateKinds`).
+   - `parse.ts` and `validate.ts` are thin drivers.
+2. **Two small vocabularies, no library** (ADR-0007). `read.ts` holds the fields (text, numbers,
+   choices, optional, defaults, objects, rows by key, a union by kind, a table, a file of one object)
+   and the row reader, moved unchanged. `rules.ts` holds references, tags, ranges, row keys,
+   weights and the keys content defines.
+3. **The page carries the readers alone.** Each kind's readers and rules are separate exports, so
+   the page's script holds no rule (`bundle.test.ts`). It is 830,033 bytes, 3,517 fewer.
+4. **Effect kinds by their fields** (#11, `kinds/trait-effects.ts`). Each list's kinds are described
+   once, keyed by the engine's union, each field by its type: kind, bounds, choices, optional where
+   the engine's type is, and the editor's label.
+   - The reader, the rules, the editor's forms and the editor's scan derive from it. The scan takes
+     its kinds, and which share a field's name, from every kind's fields.
+   - The rule has no switch over kinds: a kind described is checked, one undescribed fails to
+     compile, and one named in a set built in memory is refused.
+5. **Content's own entry** (#12). `@heroesim/engine/content` holds content's types, its lists, the
+   bounds content checks against and `queryProblems`.
+   - Content imports the engine by it alone, its tests by either entry.
+   - The words and the content editor take content's names from it.
+   - The main entry names only the content types a front end, the harness or the portrait tool
+     takes: 503 names where it had 583.
+   - ESLint bars the CLI, the page and the harness from it. `testing.test.ts` and
+     `boundary.test.ts` hold both entries.
+6. **Tests by kind.** `refusals.test.ts`'s 398 cases moved whole, each with its assertion, to
+   `parse.test.ts`, `validate.test.ts` and a file a kind. Each builds content in memory from files
+   read once (`kinds/content.test-support.ts`): 1.6 s where they took 5.8 s. `kinds.test.ts` adds a
+   field to the Sphere's module alone, and reads and checks it.
 
-**Consequences.** Being built.
+*Judgement calls, for the owner to see:*
+- The rules run kind by kind, in the set's order, so refusals of several kinds may list in another
+  order. None of the 718 planted cases does. A Background's Station is checked by its own kind now.
+- One new refusal: an effect kind no description has, in a set built in memory:
+  `….effects.0.kind is "x"; it is classStatBonus, guildMoraleShift or upkeepFactor`.
+- The description's labels and its "names no Encounter kind and no tag" travel into the page's
+  script, about 200 bytes, as the reader reads by the description.
+- The doctor's places gain `content/src/kinds/`, and the register's content-checks entry names the
+  kinds' rules. AGENTS.md, `delivery.md` and `traits.md` say so.
+- A glossary headword, Content kind, distinct from the content editor's kinds.
 
-**Evidence.** Being built.
+**Consequences.** A new field or rule is written in its kind's module; a new effect kind in the
+engine's union and its description. Nothing changed for Traits' content; the register counts 104
+reads where it counted 107, the same rules in fewer declarations, and the doctor reports no drift.
+Source lines citing a story fell from 1,701 to 1,638, and the baseline with them.
+
+**Evidence.** Commits 0e190e8 (the entry) and the kinds' commit after it. The shipped content as
+`loadContent` reads it is the same before and after, key order and all. The 718 `parseContent` and
+`validateContent` calls the old suite made, 581 of them refused, were replayed: each the same, its
+problems in the same order, so no words change (QC a: none to list). `neutral --expect` identical,
+alone: `harness/reports/v1.1.9-s10-neutral-2026-10-10.md`. The epic's S10 boxes.

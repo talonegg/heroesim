@@ -223,7 +223,8 @@ site's form can send without asking first.
 - **The register** (`content/src/uses/`) lists every place a Trait's key stands in content, and how a
   use is found, added and removed there, and every rule of the engine and check of the content that
   reads a Trait.
-- **The drift test** (`src/drift.test.ts`) reads `engine/src/` and `content/src/validate.ts`, tests
+- **The drift test** (`src/drift.test.ts`) reads `engine/src/`, `content/src/validate.ts` and the
+  content kinds, `content/src/kinds/` (DL-243), tests
   left out, with TypeScript's parser (`src/reads.ts`), a call of one of the register's Trait helpers
   counting as a read, and fails on a read of a Trait in a
   declaration the register does not list, on a listed declaration that reads none, and on a
