@@ -3,21 +3,18 @@
 // Guild's History gathers; its Injuries and Deaths also stand beside that entry (M9-F7, DL-120 item 6). It is read by its Party and its Quest, never from the last play's log, so
 // a report reopens from its entry (Q7).
 //
-// What belongs to a return is what an event says it belongs to (principle 5, DL-112 item 2): every
-// entry naming the Quest, read through the History's own index (`entriesFor`), which
-// holds the Encounters, the consumables used, the outcome, the Loot, the Injuries and Deaths, and
-// the XP, Morale and Regard the return caused (DL-114). Two things name no Quest, and are matched by
-// Hero and night: a Level, since `levelUps` runs straight after the return and a Hero away trains
-// for none, so a Level a Party's Hero gains that night follows the Quest's XP; and a dead Hero's gear
-// going back to the Guild on the night of the Death (`gearReturn`). Nothing is built for a return
-// written before DL-114 (DL-113 item 3): its Morale and Regard name no Quest, and read as none.
+// What belongs to a return is the engine's to say (DL-242), read through the page's History reader
+// (`history-reader.ts`): every entry naming the Quest, which holds the Encounters, the consumables
+// used, the outcome, the Loot, the Injuries and Deaths, and the XP, Morale and Regard the return
+// caused (DL-112 item 2, DL-114); and the two parts that name none, its Heroes' Levels and its dead's
+// gear on its night, which the engine matches by Hero and night (`returnOf`). Nothing is built for a
+// return written before DL-114 (DL-113 item 3): its Morale and Regard name no Quest, and read as none.
 //
 // Nothing here computes a rule (ADR-0007): every figure is an event's payload, and the Patron's band
 // now is the engine's `regardBand` of `patronRegardFor`.
 
 import {
   encounterDegree,
-  entriesFor,
   patronRegardFor,
   regardBand,
   type Degree,
@@ -26,27 +23,23 @@ import {
   type EngineEventOf,
   type GuildId,
   type HeroId,
-  type History,
-  type PartyId,
   type PatronId,
   type QuestBand,
-  type QuestId,
   type RegardBand,
+  type ReturnKey,
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
 import { capitalised, crossed, itemsWords, listed, nameIn, nightOfTurn, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
+import { awayAt, returnEntries } from './history-reader';
 import { narrateSegments, resolvedWords, textOf, type Narration, type Segment } from './namer';
 import { readingOf } from './reading';
 import { bandWords } from './names';
 import { calendarFor } from './reducer';
 
-/** What a return is read by: its Party and its Quest (DL-112 item 8). */
-export interface ReturnKey {
-  partyId: PartyId;
-  questId: QuestId;
-}
+/** What a return is read by: its Party and its Quest (DL-112 item 8), the engine's `ReturnKey`. */
+export type { ReturnKey };
 
 /** A line in the History's words: its segments, each name opening whom it names, and its sentence. */
 export interface ReturnLine {
@@ -153,28 +146,6 @@ export interface PatronStanding {
 
 type Resolved = EngineEventOf<'quest.resolved'>;
 
-/** The `quest.resolved` of `key`'s return, and its place in the History; `null` when the History has none. */
-function outcomeOf(history: History, key: ReturnKey): { entry: Resolved; position: number } | null {
-  const positions = Object.hasOwn(history.byEntity, key.questId) ? (history.byEntity[key.questId] ?? []) : [];
-  for (let at = positions.length - 1; at >= 0; at -= 1) {
-    const position = positions[at] ?? -1;
-    const entry = history.entries[position];
-    if (entry?.type === 'quest.resolved' && (entry as Resolved).payload.partyId === key.partyId) return { entry: entry as Resolved, position };
-  }
-  return null;
-}
-
-/**
- * The entries of the night of the return from its outcome on, in the order they happened: where a
- * Level and a dead Hero's gear are found, by Hero and night.
- */
-function nightFrom(history: History, position: number): Entry[] {
-  const turn = history.entries[position]?.turn;
-  const night: Entry[] = [];
-  for (let at = position + 1; at < history.entries.length && history.entries[at]?.turn === turn; at += 1) night.push(history.entries[at] as Entry);
-  return night;
-}
-
 function lineOf(entry: Entry, narration: Narration): ReturnLine {
   const segments = narrateSegments(entry as TurnEvent, narration);
   return { segments, sentence: textOf(segments) };
@@ -192,48 +163,6 @@ export function returnsIn(state: { document: WorldDocument | null; log: readonly
   return log
     .filter((event): event is Resolved => event.type === 'quest.resolved' && (event as Resolved).payload.guildId === guild.id)
     .map(({ payload }) => ({ partyId: payload.partyId, questId: payload.questId }));
-}
-
-/**
- * Whether `entry` is a part of a Party's return, which the player's Guild's History gathers under
- * the return's one entry (DL-111 item 2, DL-113 item 1): an Encounter or a consumable used; a Level
- * a Hero gains on the night their Party came home (by Hero and night, as `questReturn` reads it);
- * and a dead Hero's gear going back that night. `entry` is one of `history`'s. Its Loot is not a
- * part: it is the next entry. Nor are its Injuries and Deaths, which stand out as entries of their
- * own beside it, and are in its Hero lines too (M9-F7, DL-120 item 6).
- */
-export function partOfAReturn(history: History, entry: Entry): boolean {
-  switch (entry.type) {
-    case 'quest.encounter':
-    case 'item.expended':
-      return true;
-    case 'item.returned':
-      return (entry as EngineEventOf<'item.returned'>).payload.cause === 'died';
-    case 'hero.levelled':
-      return cameHomeThatNight(history, entry as EngineEventOf<'hero.levelled'>);
-    default:
-      return false;
-  }
-}
-
-/** Whether the Hero `levelled` names came home with a Party on its night: an outcome that night names them. */
-function cameHomeThatNight(history: History, levelled: EngineEventOf<'hero.levelled'>): boolean {
-  const { heroId } = levelled.payload;
-  const positions = Object.hasOwn(history.byEntity, heroId) ? (history.byEntity[heroId] ?? []) : [];
-  // The Hero's positions ascend, and so do their Turns: the first of the night is found by halves.
-  let low = 0;
-  let high = positions.length;
-  while (low < high) {
-    const middle = (low + high) >>> 1;
-    if ((history.entries[positions[middle] ?? -1]?.turn ?? Infinity) < levelled.turn) low = middle + 1;
-    else high = middle;
-  }
-  for (let at = low; at < positions.length; at += 1) {
-    const entry = history.entries[positions[at] ?? -1];
-    if (entry === undefined || entry.turn !== levelled.turn) return false;
-    if (entry.type === 'quest.resolved' && (entry as Resolved).payload.heroIds.includes(heroId)) return true;
-  }
-  return false;
 }
 
 /** `key`'s return, read from `document`'s History; `null` when the History holds no such return. */
@@ -262,30 +191,23 @@ interface ReturnRead {
 }
 
 function readOutcomes(document: WorldDocument, key: ReturnKey): ReturnRead | null {
-  const { history } = document;
-  const found = outcomeOf(history, key);
-  if (found === null) return null;
-  const { entry: outcome, position } = found;
+  const read = returnEntries(document.history, key);
+  if (read === null) return null;
+  const { outcome, position, ofQuest } = read;
   const { payload, labels } = outcome;
   const named = (id: string): string => labels[id as keyof typeof labels] ?? 'a Hero';
-  // In the order they happened: `entriesFor` gives the newest first.
-  const ofQuest = entriesFor(history, key.questId).reverse();
-  const night = nightFrom(history, position);
   const ofParty = ofQuest.filter((entry) => (entry.payload as { partyId?: unknown }).partyId === key.partyId);
   const injured = ofQuest.filter((entry): entry is EngineEventOf<'hero.injured'> => entry.type === 'hero.injured');
   const earned = ofQuest.filter((entry): entry is EngineEventOf<'hero.trait-gained'> => entry.type === 'hero.trait-gained');
   const morale = ofQuest.filter((entry): entry is EngineEventOf<'hero.morale-changed'> => entry.type === 'hero.morale-changed');
   const regard = ofQuest.filter((entry): entry is EngineEventOf<'hero.regard-changed'> => entry.type === 'hero.regard-changed');
-  const returned = night.filter((entry): entry is EngineEventOf<'item.returned'> => entry.type === 'item.returned' && (entry as EngineEventOf<'item.returned'>).payload.cause === 'died');
   const guildName = labels[payload.guildId] ?? 'the Guild';
   const calendar = calendarFor(document);
 
   const outcomes = payload.heroIds.map((heroId): HeroOutcome => {
     const died = payload.deaths.includes(heroId);
     const xp = died ? null : payload.xpPerHero;
-    const levels = night
-      .filter((entry): entry is EngineEventOf<'hero.levelled'> => entry.type === 'hero.levelled' && (entry as EngineEventOf<'hero.levelled'>).payload.heroId === heroId)
-      .map((entry) => entry.payload.level);
+    const levels = read.levels.filter((entry) => entry.payload.heroId === heroId).map((entry) => entry.payload.level);
     const moved = morale.filter((entry) => entry.payload.heroId === heroId);
     const [first] = moved;
     const last = moved.at(-1);
@@ -294,7 +216,7 @@ function readOutcomes(document: WorldDocument, key: ReturnKey): ReturnRead | nul
     const injury = hurt === undefined ? null : { name: nameIn(content.injuries, hurt.payload.typeKey), heals: nightOfTurn(hurt.payload.healsOnTurn, calendar) };
     const gained = earned.find((entry) => entry.payload.heroId === heroId);
     const trait = gained === undefined ? null : nameIn(content.heroTraits, gained.payload.traitKey);
-    const gear = died ? returned.filter((entry) => entry.payload.heroId === heroId).map((entry) => nameIn(content.items, entry.payload.definitionKey)) : [];
+    const gear = died ? read.gear.filter((entry) => entry.payload.heroId === heroId).map((entry) => nameIn(content.items, entry.payload.definitionKey)) : [];
     const mates = regard
       .filter((entry) => entry.payload.heroId === heroId)
       .map(({ payload: { entityId, bandBefore, bandAfter } }) => ({ heroId: entityId as HeroId, name: named(entityId), bandBefore, bandAfter }));
@@ -358,22 +280,6 @@ function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null
     patronRegard: patronId === undefined || patronName === undefined ? null : standing(document, ofQuest, { patronId, name: patronName, guildId: payload.guildId, guildName }),
     home: griefAtHome(outcome, position, ofQuest, document),
   };
-}
-
-/**
- * Whether the Hero `heroId` was away with a Party when the History reached `position`: sent on a Quest
- * (`quest.taken`) and not yet home from it (`quest.resolved`), read from their own entries.
- */
-function awayAt(history: History, heroId: HeroId, position: number): boolean {
-  const positions = Object.hasOwn(history.byEntity, heroId) ? (history.byEntity[heroId] ?? []) : [];
-  let out: unknown = null;
-  for (const at of positions) {
-    if (at >= position) break;
-    const entry = history.entries[at];
-    if (entry?.type === 'quest.taken' && (entry as EngineEventOf<'quest.taken'>).payload.heroIds.includes(heroId)) out = (entry as EngineEventOf<'quest.taken'>).payload.partyId;
-    if (entry?.type === 'quest.resolved' && (entry as Resolved).payload.partyId === out) out = null;
-  }
-  return out !== null;
 }
 
 /**

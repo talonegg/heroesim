@@ -256,6 +256,7 @@ export { growOneLevel, type Growth } from './progression.js';
 export { generateQuest, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
 export { relationship, relationshipBandCounts, type HeroRegardContext } from './hero-regard.js';
 export { entriesBetween, entriesFor, type HistoryPage } from './history.js';
+export { nightsReturnOf, returnOf, type ReturnKey, type ReturnRecord } from './returns.js';
 export { addStack, holdings, itemDefinition, type HolderQuery, type Holdings } from './items.js';
 export type { JsonUnsafe, JsonUnsafeKind, JsonValue } from './json-safe.js';
 export { marketStock, sellPrice, type MarketListing } from './market.js';

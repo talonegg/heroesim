@@ -13,8 +13,9 @@ import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { cameHome, changed, played, started, withPartyOut, withReturn, withWealth, type Written } from './game.test-support';
 import { historyFilter } from './history';
+import { partOfAReturn } from './history-reader';
 import { narrateSegments, narrateText, narrationFor, textOf } from './namer';
-import { partOfAReturn, questReturn, reportSections, returnEntry, returnsIn, type QuestReturn } from './quest-return';
+import { questReturn, reportSections, returnEntry, returnsIn, type QuestReturn } from './quest-return';
 import { calendarFor } from './reducer';
 
 // A Quest's return read from the History (M9-F5, DL-111 items 2 and 3, DL-112 item 8): by its Party

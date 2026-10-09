@@ -37,7 +37,7 @@ import {
   type HistoryView,
 } from './history';
 import { pageOfEntry } from './history.test-support';
-import { historyPageSize } from './selectors';
+import { historyPageSize } from './history-reader';
 
 // The History as the one place to read what happened (M9-S5, DL-105): a page of it grouped by date
 // and time of day, newest first, each group in the order it happened; a Party's Encounters folded

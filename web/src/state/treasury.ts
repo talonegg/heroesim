@@ -7,9 +7,9 @@
 // engine wrote it when the Wealth moved (DL-112's context: every change to a Guild's Wealth has an
 // event that carries the amount); the ledger opens with the Wealth the Guild was founded with, which
 // its `guild.founded` carries (DL-120 item 4, DL-121); and Upkeep's figures are the engine's `upkeepParts` and
-// `nextUpkeepDay` (M9-F1, DL-114 item 3). The ledger reads the History's own index of entries by
-// participant, never the History view's scopes or filters (M9-F4's), since every Wealth event names
-// its Guild.
+// `nextUpkeepDay` (M9-F1, DL-114 item 3). The ledger reads a Guild's Wealth through the page's History
+// reader (`wealthChanges`, DL-242), never the History view's scopes or filters (M9-F4's), since every
+// Wealth event names its Guild.
 
 import {
   isEngineEvent,
@@ -25,10 +25,11 @@ import {
 import { nightOfDay, signed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import type { Facets } from './facets';
+import { foundingOf, historyPageSize, wealthChanges } from './history-reader';
 import { narrateSegments, textOf, type Narration, type Segment } from './namer';
 import { readingOf } from './reading';
 
-import { countdownView, historyPageSize } from './selectors';
+import { countdownView } from './selectors';
 
 // ── What an entry did to a Guild's Wealth ────────────────────────────────────────────────────
 
@@ -162,17 +163,7 @@ export interface LedgerChange extends WealthChange {
 
 /** Every change to `guildId`'s Wealth the History holds, newest first, not yet in words. */
 function changesOf(document: WorldDocument, guildId: GuildId): LedgerChange[] {
-  const { history } = document;
-  const positions = Object.hasOwn(history.byEntity, guildId) ? (history.byEntity[guildId] ?? []) : [];
-  const changes: LedgerChange[] = [];
-  for (let index = positions.length - 1; index >= 0; index -= 1) {
-    const position = positions[index] ?? -1;
-    const entry = history.entries[position];
-    if (entry === undefined) continue;
-    const change = wealthChangeOf(entry, guildId);
-    if (change !== null) changes.push({ ...change, position, entry });
-  }
-  return changes;
+  return wealthChanges(document.history, guildId, (entry) => wealthChangeOf(entry, guildId));
 }
 
 /** A change as the ledger shows it, in the History's words. */
@@ -195,10 +186,9 @@ function ledgerRow({ position, entry, category, amount }: LedgerChange, narratio
  * entry naming it; `null` when that names none, as a founding written before DL-121 does.
  */
 function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null {
-  const { history } = document;
-  const positions = Object.hasOwn(history.byEntity, guildId) ? (history.byEntity[guildId] ?? []) : [];
-  const position = positions.find((at) => history.entries[at]?.type === 'guild.founded');
-  const founded = position === undefined ? undefined : (history.entries[position] as EngineEventOf<'guild.founded'>);
+  const found = foundingOf(document.history, guildId);
+  const founded = found?.entry;
+  const position = found?.position;
   const wealth = founded?.payload.guildId === guildId ? founded.payload.wealth : undefined;
   if (founded === undefined || wealth === undefined) return null;
   const sentence = `Founded with ${wealth} Wealth`;

@@ -983,9 +983,6 @@ export function sortedRoster(rows: RosterRows, order: RosterOrder = defaultRoste
 
 // ── A Hero's page ────────────────────────────────────────────────────────────────────────────
 
-/** How many History entries a page of the History shows, a Hero's among them. A front end's choice, not a rule. */
-export const historyPageSize = 20;
-
 export interface StatRow {
   name: string;
   base: number;

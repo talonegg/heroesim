@@ -8,7 +8,7 @@
 
 import { playerGuild, type EntityId, type Entry, type WorldDocument } from '@heroesim/engine';
 import { historyFilter, type HistoryWhose } from './history';
-import { historyPageSize } from './selectors';
+import { historyPageSize } from './history-reader';
 
 /** A Party's steps on a Quest: its Encounters and the consumables it used. */
 function isStep(entry: Entry | undefined): boolean {

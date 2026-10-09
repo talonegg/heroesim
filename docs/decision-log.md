@@ -803,3 +803,71 @@ reading. Source lines citing a story fell from 1,727 to 1,706, and the baseline 
 tests in `cli/src/render.test.ts` and `web/src/state/selectors.test.ts`, and `main.test.ts`'s test of
 the one refusal. The readings' and the page reading's tests were each red against a mutation of the
 code. Every view was captured before and after. The epic's S8 boxes.
+
+## DL-242 — v1.1.9-S9 built: the History reader
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner (DL-232 QA c, the epic's S9);
+the engine's reader over tagged events, the interface and the seams by the agent; `withReturn`
+through the engine awaits the owner's word
+
+**Context.** The architecture review's #9 (the epic's §5.1). `history.ts`, `quest-return.ts` and
+`treasury.ts` read the History's lists themselves, 34 reads; the page size lived in `selectors.ts`;
+and the page guessed which Levels and dead Heroes' gear were a return's by Hero and night
+(`partOfAReturn`, `nightFrom`), which is the engine's order of its night. `withReturn`, the page's test
+fixture, copies how the engine writes a return.
+
+**Decision.**
+
+1. **A return's entries are the engine's to say** (`engine/src/returns.ts`). `returnOf(history, key)`
+   gives a return's outcome and its place, the entries naming its Quest, and the Levels of its Heroes
+   and its dead's gear on its night. `nightsReturnOf(history, entry)` names the return whose night
+   brought a Level or a dead Hero's gear, or none. Why they are the return's is said there, beside the
+   pipeline: `levelUps` runs straight after `questsConclude` and a Hero away trains for none; a Hero
+   dies only on a Quest, and `gearReturn` takes the gear back that night. Readers of the index by
+   participant only; the save, the events and the narration are unchanged.
+2. **The page's History reader** (`web/src/state/history-reader.ts`), the only page module that reads
+   the History's entries or indexes. Its interface:
+   - a Quest's return: `returnEntries` (the engine's `returnOf`), `partOfAReturn`, `awayAt`,
+     `besideAReturn`;
+   - a Guild's Wealth: `wealthChanges(history, guildId, changeOf)`, `foundingOf`;
+   - a scope's page: `scopePositions`, kept until the History grows, `historyPage` with
+     `historyPageSize`, which leaves `selectors.ts`, and the page's edges (a Party's steps stay with
+     its outcome, a return's Loot, Injuries and Deaths with the return);
+   - lookups: `entryAt`, `historyLength`, `newestNaming`, `namedEntities`, `newestEntries`,
+     `appendedOf`.
+
+   The seam is the reader's interface, with four adapters: the History view (`history.ts`, which keeps
+   the scopes, filters, grouping, folds and lines), the Quest report and entry (`quest-return.ts`),
+   the Treasury (`treasury.ts`) and the rail (`digest.ts`, through `historyEntries` and
+   `besideAReturn`, no longer written twice).
+3. **ADR-0008 holds:** every entry the reader gives is the History's own, never a copy; a test reads a
+   frozen History through each function.
+4. **The line is tested:** no page module but the reader reads `entries`, `byEntity`, `byType` or
+   `milestones` of the History, read or taken apart, by the syntax of every file under `web/src`.
+
+*Judgement calls, for the owner to see:*
+- **An engine reader, not events naming their Quest** (the epic left either; DL-232's call). It puts
+  the knowledge in the engine with the least churn: `schemaVersion` stays 7, no event or baseline
+  changes, and `neutral --expect` is identical, so `compare` moves nothing. Tagging would have raised
+  `schemaVersion`, changed every Level and gear event, and recorded a new baseline.
+- `nightsReturnOf` gives a dead Hero's gear to the return they died on that night; the page took every
+  `item.returned` of a Death as a part. Over the captured games the two are the same.
+- **`withReturn` through the engine, for the owner.** A prototype played a return through the engine,
+  `questsConclude`'s applying of a chosen resolution, then `levelUps` and `gearReturn`. Eight tests then
+  fail, because they tell outcomes the engine never writes: a strong success with no Morale change
+  (`quest-return.test.ts` two, `quest-report.test.tsx` one); a Death's grief at −4 where the rule is
+  −10 (`quest-return.test.ts` two, `quest-report.test.tsx` one); a Morale of 40 called low, where 40 is
+  Steady (one); and two Loot on one return, where the engine draws one (one). By the standing rule they
+  are reported, not rewritten, so `withReturn` is as it was until the owner answers.
+- No glossary headword: "the History reader" is the code's term, not the player's.
+- Tests moved: `historyPageSize` and `partOfAReturn` are imported from the reader; no assertion changed.
+
+**Consequences.** A change to how the engine writes a return's night changes `returns.ts`, and the page
+follows. Source lines citing a story fell from 1,706 to 1,701, and the baseline with them.
+
+**Evidence.** `engine/src/returns.test.ts` (Histories built by hand, and a year the engine played with
+every failed Check fatal) and `web/src/state/history-reader.test.ts`, each red first. Every return,
+History page, rail and ledger the page showed over 22 played documents (three seeds, one to seven
+years, and their edge cases), 261,792 views, identical before and after. `neutral --expect` identical,
+alone: `harness/reports/v1.1.9-s9-neutral-2026-10-10.md`; `compare` with S6's verified run: 0 moved,
+505 the same. The epic's S9 boxes.
