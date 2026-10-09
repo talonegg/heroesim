@@ -491,3 +491,16 @@ describe('returnsIn', () => {
     expect(returnsIn({ document: null, log: home.log })).toEqual([]);
   });
 });
+
+describe('withReturn tells only a return the rules give (DL-245 item 3)', () => {
+  test('refuses a Morale change told that the engine does not write, and a second Loot', () => {
+    // A Death's grief is the rules' −10, not −4; a strong success's +5 is not a success's.
+    const grief = { hero: 1, cause: 'roster-death', before: 50, after: 46, bandAfter: 'steady' } as const;
+    expect(() => withReturn(base, { band: 'fail', encounters: [{ outcome: 'failure', died: [0] }], deaths: [0], morale: [grief] })).toThrow('the engine wrote no roster-death Morale change');
+    const cheer = { hero: 0, cause: 'strong-success', before: 60, after: 65, bandAfter: 'steady' } as const;
+    expect(() => withReturn(base, { band: 'success', morale: [cheer] })).toThrow('the engine wrote no strong-success Morale change');
+    expect(() => withReturn(base, { band: 'strong', morale: [cheer] })).not.toThrow();
+    const two = [{ definitionKey: 'whetstone', quantity: 1 }, { definitionKey: 'short-sword', quantity: 1 }] as const;
+    expect(() => withReturn(base, { band: 'success', loot: two })).toThrow('a Quest draws one Loot');
+  });
+});

@@ -1081,3 +1081,7 @@ return reaches the page's tests. Told Morale must follow the rules in `engine/sr
 **Evidence.** `engine/src/return-night.test.ts`, red first: the Quest Engine's own resolution played
 gives each of the night's events in order, and a chosen Death, gear and Level are recorded. The ten
 tests above; `neutral --expect` identical, alone (the commit). The epic's S9 bullet *the test fixture*.
+Verified 2026-10-10 at 8479270: the ten moves keep every assertion, only the rules' values moved; 613
+lone returns of six seeds, and each again with a Death and gear told, rebuilt byte for byte as the
+night's (world, History, events); the Levels-before-gear order and withReturn's two checks were
+unpinned, now tested.

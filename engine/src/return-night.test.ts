@@ -80,6 +80,8 @@ describe('playReturnNight', () => {
     expect(of('hero.levelled')).toMatchObject([{ payload: { heroId: alive, level: hero.level + 1 } }]);
     expect(of('hero.xp-gained').map((event) => event.participants[0])).toEqual([alive]);
     expect(eve.history.entries.slice(from)).toEqual(events);
+    // In the night's order (pipeline.ts): the Quest's outcome, then the Levels, then the dead's gear.
+    expect(events.map((event) => event.type).slice(-2)).toEqual(['hero.levelled', 'item.returned']);
     expect(events.every((event) => event.turn === party.returnsOnTurn)).toBe(true);
     expect(eve.world.heroes[dead]?.diedOnTurn).toBeNull();
     expect(before.world.heroes[alive]).toEqual(eve.world.heroes[alive]);
