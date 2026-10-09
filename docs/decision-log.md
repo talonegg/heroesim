@@ -415,6 +415,9 @@ the controls before the page had enabled them again, after the page said "Finish
 **Evidence.** Each new test was red before its fix and green after: the three scans listed a
 planted probe, and the Chromium test saw `#add-hero` disabled when "Finished" appeared. The commit
 message holds the three full runs' times.
+Verified 2026-10-10 at 0fb1bbc: the four changes are the owner's answers and nothing else; every
+scan of a folder the probes reach skips them or reads names only; each skip removed, and the page's
+old order restored, turned its test red; nothing fixed.
 
 ## DL-237 — v1.1.9-S4 built: the Best Party module
 
