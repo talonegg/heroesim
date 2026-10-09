@@ -368,3 +368,50 @@ Verified 2026-10-09 at 99d6032: the dry run, the floor, the supersession and the
 22 mutations of the script and the workflows went red once the script also required the run to be
 check.yml's own and tests were added for unread trees, an answer listing no runs, no repository
 asked nothing, and no deploy step conditional but the suite, the specs and the record.
+
+## DL-236 — v1.1.9: three tests that failed under load fixed on the owner's word
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Decided by:** the owner (answers a, a, a to the three
+questions, 2026-10-09)
+
+**Context.** DL-234's verification found three tests that fail when the suite runs at full load.
+The words' scan of `web/src` read a probe file that `engine/src/boundary.test.ts` had deleted. The
+page's test of every view's words passed its 5 s limit. The editor page's last Chromium test read
+the controls before the page had enabled them again, after the page said "Finished".
+
+**Decision.**
+
+1. **The scans skip the boundary probes.** `engine/src/boundary.test.ts` writes and deletes
+   `boundary-probe-*` files in the `src/` of the engine, content, the CLI, the harness and the page.
+   Every scan that lists one of those folders and reads what it lists now skips them, as the
+   engine's, content's and the page's scans already did. These are the words' scan of the CLI and
+   the page, the harness's scan for `process.env`, and the decision tool's list of the
+   repository's files, which the citation and story-id checks read. Each has a test that plants a
+   probe and finds it skipped.
+2. **The page's test of every view's words has 30 s,** like its slow neighbours in the file.
+   Splitting it by view is S13's.
+3. **The editor page says how "Finish" ended only once its controls are enabled again.** It reads
+   the rows, enables the controls, then shows the result. The last Chromium test checks the controls
+   and the pending count at the moment the result appears, and waits for both before it asserts.
+4. **The two groups stay** (DL-234). With the editor moved back into the first group, a full run
+   took longer and failed two tests: `recovery.test.ts`'s Finish that is killed, and
+   `app.test.tsx`'s test of every control's name, which took more than its 5 s limit.
+
+*Judgement calls, for the owner to see:*
+- The decision tool's file list is not a test, but `npm test` reads it through the citation and
+  story-id checks, so it skips the probes too. The editor's register already does (`reads.ts`).
+- The other scans cannot meet a probe. Either they list folders the boundary test never writes to
+  (`tools/*/src`, `media/`), or they read only names (`speed-runs.test.ts`), or they already skip a
+  file that has gone (`deploy.test.ts`).
+- The 30 s limit uses the form its neighbours in `app.test.tsx` use, a third argument.
+- `app.test.tsx`'s test of every control's name (0.5 s alone) keeps its 5 s limit. It failed only
+  in the trial of one group, which was not kept; the owner may give it 30 s too.
+- If the rows cannot be read again, the page does not show the result. Before, it showed the result
+  and then failed to read the rows.
+
+**Consequences.** A new scan of a package's `src/` that reads the files it lists must skip
+`boundary-probe-*` files too.
+
+**Evidence.** Each new test was red before its fix and green after: the three scans listed a
+planted probe, and the Chromium test saw `#add-hero` disabled when "Finished" appeared. The commit
+message holds the three full runs' times.

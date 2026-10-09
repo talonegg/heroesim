@@ -383,8 +383,21 @@ describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
     for (const control of ['#add-hero', '#add-guildmaster', '#discard', '#finish', 'tr[data-key=lame] button[data-action=remove]', 'tr[data-key=brave] button[data-action=change]']) {
       expect([control, await tab.locator(control).isDisabled()]).toEqual([control, true]);
     }
+    // What the controls and the pending count were at the moment "Finished" was shown: the page
+    // announces it only once it has re-enabled them (DL-236).
+    await tab.evaluate(() => {
+      const state = document.getElementById('finish-state');
+      const seen = window as unknown as { shownWith?: { addHeroDisabled: boolean; pending: string } };
+      new MutationObserver(() => {
+        if (state?.textContent !== 'Finished: the tests passed.' || seen.shownWith !== undefined) return;
+        seen.shownWith = { addHeroDisabled: (document.getElementById('add-hero') as HTMLButtonElement).disabled, pending: document.getElementById('pending')?.textContent ?? '' };
+      }).observe(state as HTMLElement, { childList: true, characterData: true, subtree: true });
+    });
     release(true);
     await tab.locator('#finish-state', { hasText: 'Finished: the tests passed.' }).waitFor();
+    expect(await tab.evaluate(() => (window as unknown as { shownWith?: unknown }).shownWith)).toEqual({ addHeroDisabled: false, pending: 'No pending edits' });
+    await tab.locator('#add-hero:not([disabled])').waitFor();
+    await tab.locator('#pending', { hasText: 'No pending edits' }).waitFor();
     expect(await tab.locator('#finish-lines').innerText()).toContain('Running…');
     expect(await tab.locator('#add-hero').isDisabled()).toBe(false);
     expect(readContentJson<Record<string, unknown>>(dir, 'hero-traits.json').brave).toEqual({ name: 'Brave', excludes: ['scarred'], effects: [{ kind: 'statModifiers', modifiers: { courage: 2 } }] });

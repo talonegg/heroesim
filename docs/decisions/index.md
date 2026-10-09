@@ -245,6 +245,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-233 | 2026-10-09 | v1.1.9-S1 built: coverage, the measures, the time limits apart, and the baseline |  | [decision-log](../decision-log.md) |
 | DL-234 | 2026-10-09 | v1.1.9-S2 built: the suite's structure |  | [decision-log](../decision-log.md) |
 | DL-235 | 2026-10-09 | v1.1.9-S3 built: CI on Node 26 alone, and a deploy that tests a tree once |  | [decision-log](../decision-log.md) |
+| DL-236 | 2026-10-09 | v1.1.9: three tests that failed under load fixed on the owner's word |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

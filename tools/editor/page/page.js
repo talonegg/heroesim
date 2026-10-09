@@ -360,6 +360,10 @@ async function follow() {
       setTimeout(poll, 400);
       return;
     }
+    // The end is told only once the rows are read again and the controls enabled, so what it
+    // says is what the page then shows (DL-236).
+    busy = false;
+    await load();
     if (state.state === 'passed') {
       const version = state.result.contentVersion;
       $('finish-state').textContent = 'Finished: the tests passed.';
@@ -377,8 +381,6 @@ async function follow() {
       $('finish-state').textContent = line;
       say(message, 'bad', state.problems);
     }
-    busy = false;
-    await load();
   };
   await poll();
 }

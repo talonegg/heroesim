@@ -32,10 +32,13 @@ export function unknownCitations(files: readonly { file: string; text: string }[
   return files.flatMap(({ file, text }) => citationsIn(text, file)).filter((cited) => !known.has(cited.number));
 }
 
-/** The repository's files as git lists them: tracked, or new and not ignored, with `/`. */
+/**
+ * The repository's files as git lists them: tracked, or new and not ignored, with `/`. The probe
+ * files engine/src/boundary.test.ts writes and deletes while other tests run are left out (DL-236).
+ */
 function listed(root: string): string[] {
   const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' });
-  return [...new Set(files.split('\0').filter(Boolean))];
+  return [...new Set(files.split('\0').filter((file) => file !== '' && !/(^|\/)boundary-probe-/.test(file)))];
 }
 
 /** Every path in the repository as git lists it, with the folders that hold its files and the root, `.`. */

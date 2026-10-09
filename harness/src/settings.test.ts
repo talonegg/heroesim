@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
@@ -208,11 +209,27 @@ describe('the command line', () => {
 });
 
 // The parser is the one reader of the environment: no other harness source reads `process.env`.
-test('no harness source but settings.ts reads the environment', () => {
-  const dir = fileURLToPath(new URL('.', import.meta.url));
-  const readers = readdirSync(dir)
+const harnessDir = fileURLToPath(new URL('.', import.meta.url));
+
+/** The harness's sources that read the environment, settings.ts and its test left out. */
+const environmentReaders = (): string[] =>
+  readdirSync(harnessDir)
     .filter((file) => file.endsWith('.ts') && file !== 'settings.ts' && file !== 'settings.test.ts')
-    .filter((file) => readFileSync(`${dir}/${file}`, 'utf8').includes('process.env'));
+    // engine/src/boundary.test.ts writes and deletes probe files here while other tests run (DL-236).
+    .filter((file) => !file.startsWith('boundary-probe-'))
+    .filter((file) => readFileSync(`${harnessDir}/${file}`, 'utf8').includes('process.env'));
+
+test('no harness source but settings.ts reads the environment', () => {
   // main.ts passes the environment on to Vitest, reading none of it.
-  expect(readers).toEqual(['main.ts']);
+  expect(environmentReaders()).toEqual(['main.ts']);
+});
+
+test("the sources read leave out engine/src/boundary.test.ts's probe files, which come and go while other tests run (DL-236)", () => {
+  const file = `boundary-probe-${randomUUID()}.ts`;
+  writeFileSync(`${harnessDir}/${file}`, "export const env = process.env['HOME'];\n");
+  try {
+    expect(environmentReaders()).toEqual(['main.ts']);
+  } finally {
+    rmSync(`${harnessDir}/${file}`, { force: true });
+  }
 });

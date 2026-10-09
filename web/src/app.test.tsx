@@ -650,7 +650,8 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
     for (const part of ['Home', 'Hall', 'Stores', 'Treasury']) {
       expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
     }
-  });
+    // It draws every view and every part of one, beyond 5 s on a loaded machine (DL-236).
+  }, 30_000);
 
   test('the time controls say what time is and how many Turns a step of fast forward plays: the constant the steps play (v1.0.1-S6, DL-97)', () => {
     render(<App initial={started()} />);

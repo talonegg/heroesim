@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ESLint, type Linter } from 'eslint';
 import { beforeAll, describe, expect, test } from 'vitest';
@@ -149,13 +149,35 @@ describe('words/package.json', () => {
 
 // v1.1.6-S11's verification (DL-197): the CLI and the page take the words from here and define none
 // again under its name, as the CLI's `setup.ts` (`listed`) and both narrations (`signed`) still did.
-describe('the copies gone', () => {
-  const sources = ['cli/src', 'web/src'].flatMap((dir) =>
+/** The sources of the CLI and the page, their tests and test support left out, from the repository's root. */
+function frontEndSources(): string[] {
+  return ['cli/src', 'web/src'].flatMap((dir) =>
     readdirSync(`${root}${dir}`, { recursive: true, encoding: 'utf8' })
       .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$|test-support\.tsx?$/.test(file))
+      // engine/src/boundary.test.ts writes and deletes probe files here while other tests run (DL-236).
+      .filter((file) => !/(^|[\\/])boundary-probe-/.test(file))
       .map((file) => `${dir}/${file.replace(/\\/g, '/')}`),
   );
+}
+
+describe('the copies gone', () => {
+  const sources = frontEndSources();
   const names = Object.keys(words);
+
+  test("leaves out engine/src/boundary.test.ts's probe files, which come and go while other tests run (DL-236)", () => {
+    // A probe that defines a word of the package, which the tests below would count as a copy.
+    const file = `boundary-probe-${randomUUID()}.ts`;
+    const planted = `${root}web/src/${file}`;
+    writeFileSync(planted, 'export const listed = 1;\n');
+    try {
+      const files = frontEndSources();
+
+      expect(files).toContain('web/src/state/namer.ts');
+      expect(files).not.toContain(`web/src/${file}`);
+    } finally {
+      rmSync(planted, { force: true });
+    }
+  });
 
   test('reads the words the package exports and the sources of both front ends', () => {
     expect(names).toEqual(expect.arrayContaining(['nameIn', 'capitalised', 'listed', 'signed', 'traitEffectWords', 'readableSeed']));
