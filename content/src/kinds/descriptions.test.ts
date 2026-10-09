@@ -7,7 +7,7 @@ import { shipped, realFiles, parse, withJson, changed, refusalOf, heroRow, pictu
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-describe('the vocabulary a picture is read in (v1.1.3-S1, DL-134 item 4)', () => {
+describe('the vocabulary a picture is read in (DL-134 item 4)', () => {
   test('is refused with a station, temper or calling out of lower case and hyphens, listed twice, or none at all, each named', () => {
     const files = withJson('descriptions.json', (json) => {
       json.stations.push('Trade', 'common');
@@ -57,7 +57,7 @@ describe('the vocabulary a picture is read in (v1.1.3-S1, DL-134 item 4)', () =>
   });
 });
 
-describe("the Biography's sentences from a picture, and a Hero's (v1.1.3-S1, DL-134 items 4 and 6, DL-135 item 6)", () => {
+describe("the Biography's sentences from a picture, and a Hero's (DL-134 items 4 and 6, DL-135 item 6)", () => {
   test('are refused with a key that is no station, calling, age band, temper, Hero Background, Class or Hero Trait, each named', () => {
     const files = withJson('descriptions.json', (json) => {
       json.biography.stationOrigins['noble'] = ['{He} was born noble.'];
@@ -136,7 +136,7 @@ describe("the Biography's sentences from a picture, and a Hero's (v1.1.3-S1, DL-
 
   test("measure a Guildmaster's Biography by their picture, a hook standing in a career's place, and a Hero's by S6's shape", () => {
     const set = structuredClone(shipped);
-    // The owner's two pictures alone, gm-female-01 without the hooks v1.1.3-S4 gave it.
+    // The owner's two pictures alone, gm-female-01 without the hooks the others have.
     const tiny = {
       ...set,
       portraits: { ...set.portraits, guildmaster: { female: ['gm-female-01'], male: ['gm-male-01'] } },
@@ -194,7 +194,7 @@ describe("the Biography's sentences from a picture, and a Hero's (v1.1.3-S1, DL-
   });
 });
 
-describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6)", () => {
+describe("what a Guildmaster's descriptive Attributes are written from (DL-125 item 6)", () => {
   test('are required as a file', () => {
     const files = realFiles();
     delete files['descriptions.json'];
@@ -278,7 +278,7 @@ describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S
     expect(message).toContain('descriptions.pronouns.male.birthplace: a pronoun\'s slot is a word of letters, and not "birthplace"');
   });
 
-  // v1.1.2-S6: a successor's sentences, and a Birthplace closed in its sentence.
+  // A successor's sentences, and a Birthplace closed in its sentence.
   test("are refused with a successor's sentences missing or empty, or a Birthplace left open in a sentence", () => {
     const missing = withJson('descriptions.json', (json) => {
       delete (json.biography as unknown as Record<string, unknown>)['successors'];
@@ -331,7 +331,7 @@ describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S
     const owner = (key: string) => ({ ...(set.portraitAppearances.portraits[key] as PortraitAppearance), hooks: [] });
     const tiny = {
       ...set,
-      // The owner's two pictures alone, without the hooks v1.1.3-S4 gave them.
+      // The owner's two pictures alone, without the hooks the others have.
       portraits: { ...set.portraits, guildmaster: { female: ['gm-female-01'], male: ['gm-male-01'] } },
       portraitAppearances: { ...set.portraitAppearances, portraits: { 'gm-male-01': owner('gm-male-01'), 'gm-female-01': owner('gm-female-01') } },
       descriptions: {
@@ -343,7 +343,7 @@ describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S
           traits: { thrifty: ['Tt.'], miser: ['Mmm.'], spendthrift: ['S.'] },
           closings: { young: ['E.'], middle: ['E.'], older: ['E.'] },
           successors: ['Su.'],
-          // No sentence by a picture's station, calling or temper, so the pictures take the band's (v1.1.3-S1).
+          // No sentence by a picture's station, calling or temper, so the pictures take the band's.
           stationOrigins: {},
           callingCareers: {},
           temperClosings: {},

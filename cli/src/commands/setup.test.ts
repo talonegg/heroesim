@@ -2,7 +2,7 @@ import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
 import { setupRefusalWords } from './setup.js';
 
-// `new`'s refusals in its own words (M9-S2, DL-102). Most are met through `new` itself, in
+// `new`'s refusals in its own words (DL-102). Most are met through `new` itself, in
 // `main.test.ts`; a sex that is not one never reaches the engine from the command line, since
 // `--sex` refuses it first (`args.ts`), so its sentence is held here (the M9 review).
 
@@ -15,7 +15,7 @@ describe("new's words for a setup the engine refuses", () => {
     );
   });
 
-  // v1.1.2-S3: held over content with more pictures than the core's two (v1.1.2-S4), and with none.
+  // Held over content with more pictures than the core's two, and with none.
   const pictured = {
     ...content,
     portraits: { ...content.portraits, guildmaster: { female: ['gm-female-01'], male: ['gm-male-01', 'gm-male-02'] } },

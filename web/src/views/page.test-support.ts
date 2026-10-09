@@ -1,15 +1,15 @@
-// The page's regions as a test reaches them (M9-S3, DL-103). The page is views in a shell, one at a
+// The page's regions as a test reaches them (DL-103). The page is views in a shell, one at a
 // time, so a region is found by opening the view that holds it first, through the navigation, as a
-// player would; a region of the game menu by opening the menu. Since M9-F2 (DL-115) the Guild's
+// player would; a region of the game menu by opening the menu. The Guild's (DL-115)
 // parts are tabs under its heading, and a part is found by opening its tab: its panel, named by the
 // tab. Never imported by the page.
 
 import { fireEvent, screen, within } from '@testing-library/react';
 
-/** Each view's heading. The Guildmaster's button in the navigation is named by the Guildmaster's name (M9-F2). */
+/** Each view's heading. The Guildmaster's button in the navigation is named by the Guildmaster's name. */
 export type ViewName = 'Guildmaster' | 'Guild' | 'Roster' | 'Board' | 'Rankings' | 'Market' | 'History';
 
-/** The Guild's parts, each a tab under its heading (M9-F2; Stores and Treasury from M9-F3). */
+/** The Guild's parts, each a tab under its heading (Stores and Treasury, DL-116). */
 export type GuildPartName = 'Home' | 'Hall' | 'Stores' | 'Treasury';
 
 /** The view each region is in, by its heading; `menu` for the game menu's; a tab of the Guild's for its parts. */
@@ -42,7 +42,7 @@ export function nav(): HTMLElement {
 
 /**
  * The navigation's button for `view`: its name starts with the view's, and goes on with its count.
- * The Guildmaster's is named by the Guildmaster's name, and described as "Guildmaster" (M9-F2).
+ * The Guildmaster's is named by the Guildmaster's name, and described as "Guildmaster".
  */
 export function navButton(view: ViewName): HTMLElement {
   const [button] =
@@ -59,7 +59,7 @@ export function openView(view: ViewName): HTMLElement {
   return screen.getByRole('region', { name: view });
 }
 
-/** Opens the Guild's `part` from its tab, the Guild opened first, and gives the part's panel (M9-F2). */
+/** Opens the Guild's `part` from its tab, the Guild opened first, and gives the part's panel. */
 export function openGuildPart(part: GuildPartName): HTMLElement {
   const guild = screen.queryByRole('region', { name: 'Guild' }) ?? openView('Guild');
   fireEvent.click(within(guild).getByRole('tab', { name: part }));
@@ -74,7 +74,7 @@ export function openMenu(): HTMLElement {
   return screen.getByRole('dialog', { name: 'Game' });
 }
 
-/** The whole History, opened from the game menu's debug view (M9-F4): the History view's region. */
+/** The whole History, opened from the game menu's debug view: the History view's region. */
 export function openDebugHistory(): HTMLElement {
   fireEvent.click(within(openMenu()).getByRole('button', { name: 'Debug: Whole History' }));
   return screen.getByRole('region', { name: 'History' });
@@ -108,7 +108,7 @@ export function section(name: string): HTMLElement {
 }
 
 /**
- * The History's lines in `scope`, folded ones among them (M9-S5): each a list item, its sentence in
+ * The History's lines in `scope`, folded ones among them: each a list item, its sentence in
  * `.entry__text`, where a name is a button of its own, so the sentence is read whole from there.
  */
 export function historyLines(scope: HTMLElement): HTMLElement[] {
@@ -122,7 +122,7 @@ export function sentenceOf(line: HTMLElement): string {
 
 /**
  * The History's line whose sentence matches `pattern`, in the History view, opened as it is (on the
- * player's Guild unless another was chosen): what a play added is read there (M9-S5, DL-105).
+ * player's Guild unless another was chosen): what a play added is read there (DL-105).
  */
 export function inHistory(pattern: RegExp | string): HTMLElement {
   const lines = historyLines(section('History'));

@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { ContentError, validateContent } from './index.js';
 import { loadContent } from './node.js';
 
-// v1.1.6-S10 (DL-196): every refusal content gives for a Query, word for word. Written against the
+// DL-196: every refusal content gives for a Query, word for word. Written against the
 // checker as it stood in `validate.ts` before the engine took it over (`queryProblems`), and passing
 // there, so that the words an author reads are the same after: each type at a node of another, each
 // operator's number of arguments, each key, number and list an argument names, Sex outside a filter,

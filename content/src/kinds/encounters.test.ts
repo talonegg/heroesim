@@ -6,8 +6,8 @@ import { realFiles, parse, withJson, changed, refusalOf, barrow, type Files, typ
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-// M4-S1's first box: an Encounter naming an unknown Stat, Skill or Injury type is refused.
-describe('an Encounter (M4-S1)', () => {
+// An Encounter naming an unknown Stat, Skill or Injury type is refused.
+describe('an Encounter', () => {
   const ambush = (json: Files['encounters.json']) => json['ambush-on-the-road'] as EncounterRow;
 
   test.each<[string, (it: EncounterRow) => void, RegExp]>([
@@ -80,9 +80,9 @@ describe('an Encounter (M4-S1)', () => {
   });
 });
 
-// v1.1.4-S2 (DL-148 items 7 and 8): an Encounter written in the new form, `checks` and `pass`, with
+// DL-148 items 7 and 8: an Encounter written in the new form, `checks` and `pass`, with
 // consequences by Degree. `encounters.json` may hold either form; the old one still loads.
-describe('an Encounter in the new form (v1.1.4-S2)', () => {
+describe('an Encounter in the new form', () => {
   /** A Check as the new form writes it. */
   const checkRow = (key: string, fields: Record<string, unknown> = {}): Record<string, unknown> => ({
     key,
@@ -163,11 +163,11 @@ describe('an Encounter in the new form (v1.1.4-S2)', () => {
   });
 });
 
-// v1.1.4-S3's verification (DL-154): form scales the Stats a Hero adds into a Check's score, so a
+// DL-154: form scales the Stats a Hero adds into a Check's score, so a
 // Stat subtracted would be scaled too, and a wound or low spirits would raise the score. A `-` whose
 // right operand reads a Stat a Hero adds, directly, within a `weighted`, or by a Num of such a Val,
 // is refused in a Check's score. A Synergy's requirement reads the Heroes as they are, and keeps it.
-describe("a Check's score that subtracts a Stat (v1.1.4-S3)", () => {
+describe("a Check's score that subtracts a Stat", () => {
   const scored = (score: unknown) =>
     withJson('encounters.json', (json) => {
       const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
@@ -207,7 +207,7 @@ describe("a Check's score that subtracts a Stat (v1.1.4-S3)", () => {
     expect(parse(files).synergies['sword-and-salve']?.requires).toEqual([condition]);
   });
 
-  // v1.1.4-S9 (DL-162): a negative weight in a `weighted`, or a Stat times a negative constant,
+  // DL-162: a negative weight in a `weighted`, or a Stat times a negative constant,
   // inverts form as a `-` does, so each is refused in a Check's score, naming its path.
   const negative = (rest: string, what: string) =>
     new RegExp(`encounters\\.ambush-on-the-road\\.checks\\.0\\.score${rest.replace(/[.[\]()]/g, (char) => `\\${char}`)}: ${what}`);
@@ -264,10 +264,10 @@ describe("a Check's score that subtracts a Stat (v1.1.4-S3)", () => {
   });
 });
 
-// v1.1.4-S4 (DL-148 item 14, DL-155): harm that reads the Stats. An Injury's and a Death's `among`
+// DL-148 item 14, DL-155: harm that reads the Stats. An Injury's and a Death's `among`
 // is a Set Query, held as a Check's score is, Sex allowed in its filters; their `exposedBy` and
 // `guardedBy`, and a Morale's `steadiedBy`, list Hero Stats. Each refusal names its path.
-describe('harm that reads the Stats (v1.1.4-S4)', () => {
+describe('harm that reads the Stats', () => {
   /** The real files with `ambush-on-the-road`'s failure consequences as given. */
   const failing = (...failure: Record<string, unknown>[]) =>
     withJson('encounters.json', (json) => {
@@ -326,10 +326,10 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
   });
 });
 
-// v1.1.4-S7 (DL-148 item 25, DL-159): an earned Trait, `{ kind: "trait", traitKey, chance, among }`.
+// DL-148 item 25, DL-159: an earned Trait, `{ kind: "trait", traitKey, chance, among }`.
 // Its list says what it is: a positive Trait in an Encounter's `triumph` list, a negative one in its
 // `failure` list after an Injury; it stands in no other. Each refusal names its path.
-describe('an earned Trait (v1.1.4-S7)', () => {
+describe('an earned Trait', () => {
   type Lists = Partial<Record<'success' | 'failure' | 'triumph' | 'setback', Record<string, unknown>[]>>;
   /** The real files with `ambush-on-the-road`'s consequences as given. */
   const consequences = (lists: Lists) =>
@@ -376,7 +376,7 @@ describe('an earned Trait (v1.1.4-S7)', () => {
   });
 });
 
-describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
+describe('tags, a Finale and the lore kind', () => {
   /** The real files with `ambush-on-the-road` changed. */
   const ambushed = (change: (it: EncounterRow) => void) => withJson('encounters.json', (json) => change(json['ambush-on-the-road'] as EncounterRow));
   /** `files` with the barrow's template changed. */

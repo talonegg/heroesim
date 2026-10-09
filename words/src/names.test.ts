@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { capitalised, listed, nameIn, signed } from './names.js';
 
-// v1.1.6-S11 (DL-186 item 1): how the CLI and the page name things, one table.
+// DL-186 item 1: how the CLI and the page name things, one table.
 
 const rows = { warrior: { name: 'Warrior' }, mage: { name: 'Mage' } };
 

@@ -30,7 +30,7 @@ import { phaseContext } from './phase.js';
 import { questsConclude } from './quests-conclude.js';
 import { applyAction } from '../actions/action.js';
 
-// M2-S5: the night's `questsConclude` (DL-29), through M4-S2's Quest Engine (DL-42). Parties are
+// The night's `questsConclude` (DL-29), through the Quest Engine (DL-42). Parties are
 // sent by `dispatch` from created worlds and played to the afternoon before they come home; a test
 // then plays the return night through `advance`, or runs the phase alone on a copy when other night
 // phases would blur what it checks (the Guild State Engine's Upkeep and Fame floor). A test of harm
@@ -43,9 +43,9 @@ afterEach(() => {
 });
 
 /**
- * The test config with no Rivals: from M2-S9 they take Quests and send Parties every afternoon
+ * The test config with no Rivals: they take Quests and send Parties every afternoon
  * (DL-30), and a test whose subject is one Party stills them (DL-30 item 11). The Check's variance
- * and Skill bonus and the bands are pinned (M4-S2), and `content` is the test content unless given.
+ * and Skill bonus and the bands are pinned, and `content` is the test content unless given.
  */
 function soloDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = testContent): EngineDeps {
   return testDeps(
@@ -101,7 +101,7 @@ interface Away {
  * `size` Heroes on the first Quest on the Board that asks for no Class or Skill, at `difficulty`
  * and through `encounterKeys` when given, played to the afternoon before the Party comes home, or
  * daysEarly Days before that. The Guild is given each of `consumables` (definition key and quantity)
- * and the Party carries them (M5-S3).
+ * and the Party carries them.
  */
 function sentAway(
   seed: string,
@@ -188,7 +188,7 @@ describe('questsConclude', () => {
 
   test('moves Wealth, Fame and XP by the outcome, the XP to every Hero who came home', () => {
     const deps = soloDeps();
-    // From 2: since v1.1.5-S13 a Party of two splits the XP, and a Quest of 1 gives each Hero none.
+    // From 2: a Party of two splits the XP (DL-182), and a Quest of 1 gives each Hero none.
     for (const difficulty of [2, 40, 5000]) {
       const { eve, guildId, heroIds } = sentAway(`moves-${difficulty}`, deps, { difficulty });
       const guildBefore = guildOf(eve.world, guildId);
@@ -213,7 +213,7 @@ describe('questsConclude', () => {
     }
   });
 
-  // v1.1.5-S13 (DL-182 item 1): the Quest's XP split across the Party sent, its Dead counted.
+  // DL-182 item 1: the Quest's XP split across the Party sent, its Dead counted.
   for (const rival of [false, true]) {
     test(`gives each Hero who came home the Quest's XP split across the Party sent, the dead Hero nothing: ${rival ? "a Rival's" : "the player's"} Party`, () => {
       const deps = rival ? testDeps({ rivalCount: 1 }, certainHarmContent) : soloDeps({}, certainHarmContent);
@@ -336,7 +336,7 @@ describe('questsConclude', () => {
     ]);
   });
 
-  // M4-S2's third box.
+  // The third acceptance box.
   test('emits one quest.encounter for each Encounter, in sequence order, on the Quest\'s return night, before quest.resolved', () => {
     const deps = soloDeps({}, harmlessContent);
     const keys = ['the-flooded-ford', 'hold-the-line', 'a-hostile-reeve', 'hold-the-line'];
@@ -395,7 +395,7 @@ describe('questsConclude', () => {
     withValid({ ...eve, world }, deps);
   });
 
-  // v1.1.4-S4 (DL-148 item 14, DL-155): a Morale loss `steadiedBy` some Stats is each Hero's own.
+  // DL-148 item 14, DL-155: a Morale loss `steadiedBy` some Stats is each Hero's own.
   test("each Hero home takes their own Morale from the Encounters, a loss steadiedBy their Stats less for the steadier", () => {
     const deps = soloDeps(
       { moraleMin: 0, moraleMax: 100 },
@@ -425,7 +425,7 @@ describe('questsConclude', () => {
     withValid({ ...eve, world }, deps);
   });
 
-  // v1.1.4-S7 (DL-148 items 25 and 27): a Trait earned on the Quest joins the Hero's, a Milestone.
+  // DL-148 items 25 and 27: a Trait earned on the Quest joins the Hero's, a Milestone.
   test('a Trait earned joins the Hero\'s Traits with hero.trait-gained, a Milestone naming the Hero, the Trait, the Quest and the Encounter', () => {
     const deps = soloDeps(
       {},
@@ -507,7 +507,7 @@ describe('questsConclude', () => {
     }
   });
 
-  // M4-S2's fourth box, in the engine: M2's bands still come out of the Quest Engine, for every
+  // The fourth acceptance box, in the engine: M2's bands still come out of the Quest Engine, for every
   // Guild, each Quest's Encounters recorded before it (the harness's own tests play the real content).
   test('over a month of Rivals and the player sending Parties, quest.resolved still gives every band, each after its Encounters', () => {
     const deps = soloDeps({ rivalCount: 2 }, withDispositions({ recruitThreshold: 1000 }));
@@ -569,10 +569,10 @@ describe('questsConclude', () => {
   });
 });
 
-// M4-S5's Regard writers (DL-43 item 4) meet M4-S2's Encounter resolution (DL-42) in this phase
+// The Regard writers (DL-43 item 4) meet the Encounter resolution (DL-42) in this phase
 // (DL-44): each resolved Quest writes the Patron's Regard for the Guild, and the Guildmaster's for the
 // Patron, exactly once, by the band the Encounters gave, for the player's Guild and a Rival's alike.
-// M5-S3 (DL-50): the consumables a Party carried, expended or sent home to the Guild on its return.
+// DL-50: the consumables a Party carried, expended or sent home to the Guild on its return.
 describe('questsConclude and the consumables a Party carried', () => {
   /** Each stack `holder` holds, as its definition and quantity. */
   const heldBy = (world: World, holder: Parameters<typeof holdings>[1]): [string, number][] =>
@@ -580,7 +580,7 @@ describe('questsConclude and the consumables a Party carried', () => {
       .stacks.map(({ definitionKey, quantity }): [string, number] => [definitionKey, quantity])
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 
-  // M5-S3's second and third boxes.
+  // The second and third acceptance boxes.
   test('expends those used, each an item.expended between the Encounters and quest.resolved, and the rest are back with the Guild after', () => {
     const deps = soloDeps({}, certainHarmContent);
     // One failed combat Check: a whetstone adds to it, one Hero dies and one comes home injured, whom
@@ -624,9 +624,9 @@ describe('questsConclude and the consumables a Party carried', () => {
     ]);
   });
 
-  // M5-S3's first box, in the world: the reroll's second roll is consumables.test.ts's.
+  // The first acceptance box, in the world: the reroll's second roll is consumables.test.ts's.
   test('a reroll used on a failed Check is gone after: expended, and no stack of it anywhere', () => {
-    // An empty Market (M5-S4), so that the only grappling line in the world is the one carried.
+    // An empty Market, so that the only grappling line in the world is the one carried.
     const deps = soloDeps({ marketSize: 0 }, harmlessContent);
     const { eve, party, guildId } = sentAway('rerolled', deps, {
       difficulty: 5000,
@@ -654,7 +654,7 @@ describe('questsConclude and the consumables a Party carried', () => {
   });
 });
 
-describe('questsConclude writes Regard once for each resolved Quest (M4-S5, DL-44)', () => {
+describe('questsConclude writes Regard once for each resolved Quest (DL-44)', () => {
   const regardPins: Partial<GameConfig> = {
     patronRegardOnSuccess: 1,
     patronRegardOnFailure: -2,
@@ -747,14 +747,14 @@ describe('questsConclude writes Regard once for each resolved Quest (M4-S5, DL-4
   });
 });
 
-// A Rival's fold (M2-S10, DL-28 item 3) disbands its Parties at the end of the night; questsConclude
+// A Rival's fold (DL-28 item 3) disbands its Parties at the end of the night; questsConclude
 // runs first. So a folded Guild never has a Party for questsConclude to find: one away when its
 // Guild folds is abandoned unresolved, and one home on the night of the fold is resolved first.
 describe("a folded Rival's Party", () => {
   /**
    * A Rival's Party sent away as `sentAway` sends it, played to the afternoon `daysEarly` Days
    * before its return night, the Rival then made bankrupt that night: Wealth far below the floor,
-   * under no grace. (Until M9-S2 its Guildmaster's Retirement folded it; now that is met by
+   * under no grace. (Its Guildmaster's Retirement does not fold it; that is met by
    * Succession, DL-102.)
    */
   function foldingRival(seed: string, daysEarly: number) {
@@ -779,10 +779,10 @@ describe("a folded Rival's Party", () => {
     expect(document.world.quests).not.toHaveProperty(quest.id);
   });
 
-  // M5-S3 (DL-50): a disbanded Party holds nothing after. What it carried goes home to the Guild,
-  // whose stacks the fold then discards (M5-S4, DL-51; the fold's order is DL-54's, endings.test.ts).
+  // DL-50: a disbanded Party holds nothing after. What it carried goes home to the Guild,
+  // whose stacks the fold then discards (DL-51; the fold's order is DL-54's, endings.test.ts).
   test("is disbanded with its consumables sent back to the Guild's holding: no stack is left held by the removed Party", () => {
-    // An empty Market (M5-S4), so that the only whetstones in the world are the ones carried.
+    // An empty Market, so that the only whetstones in the world are the ones carried.
     const deps = testDeps({ rivalCount: 1, marketSize: 0, bankruptcyGraceDays: 0 });
     stillRivalControllers();
     const away = sentAway('fold-carried', deps, { rival: true, daysEarly: 1, consumables: [['whetstone', 2]] });
@@ -821,11 +821,11 @@ describe("a folded Rival's Party", () => {
   });
 });
 
-// M9-F1 (DL-112 item 2, DL-114): what a return causes names its Quest. Four event types carry an
+// DL-112 item 2, DL-114: what a return causes names its Quest. Four event types carry an
 // optional `questId` for their Quest causes, and the Quest is a participant of those and of
 // `hero.xp-gained`, so the Quest's own History holds its whole return. Nothing else moves.
-describe('the Quest named on what its return causes (M9-F1)', () => {
-  /** The types that name the Quest from M9-F1, and the causes for which they do. */
+describe('the Quest named on what its return causes', () => {
+  /** The types that name the Quest (DL-112 item 2), and the causes for which they do. */
   const namedCauses: Record<string, readonly string[] | null> = {
     'hero.xp-gained': null,
     'hero.morale-changed': ['encounters', 'strong-success', 'roster-death'],
@@ -838,10 +838,10 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
    * Seeded games of 120 Days with every Rival sending Parties. The player's Guild is idle and rich,
    * so no Bankruptcy ends a game early, and a failed Encounter may kill and costs Morale, so every
    * cause above comes up. The Guildmasters' ages are those before DL-113, and the band's rule the one
-   * before v1.1.4-S2, with no share of Triumphs asked for a strong success (DL-152), so that the
-   * fingerprints below, recorded at `86c7afa` before M9-F1, still hold: with that rule, an Encounter's
+   * before DL-152, with no share of Triumphs asked for a strong success, so that the
+   * fingerprints below, recorded at `86c7afa` before DL-112, still hold: with that rule, an Encounter's
    * Checks, Degrees and formula, on content in the old form, draw and resolve as one Check did. Every
-   * form factor is 1, as before v1.1.4-S3 (DL-154), so that form is shown to change nothing else.
+   * form factor is 1, as before DL-154, so that form is shown to change nothing else.
    */
   const deps = testDeps(
     {
@@ -874,9 +874,9 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
   );
 
   /**
-   * A History entry as it was before M9-F1: the new `questId` and the Quest's participation taken out;
-   * from M9-F7 (DL-120 item 4, DL-121), a founding's Wealth; from v1.1.4-S2 (DL-152), an
-   * Encounter's Degree, the Check that decided it and its Checks; and from v1.1.4-S4 (DL-155), each
+   * A History entry as it was before DL-112: the new `questId` and the Quest's participation taken out;
+   * a founding's Wealth (DL-120 item 4, DL-121); an
+   * Encounter's Degree, the Check that decided it and its Checks (DL-152); and (DL-155) each
    * Hero's own Morale from the Encounters, which with no `steadiedBy` is every Hero's `moraleDelta`.
    */
   function unnamed(entry: WorldDocument['history']['entries'][number]): object {
@@ -947,7 +947,7 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     const deps = soloDeps();
     const { eve, heroIds, quest } = sentAway('levelled-home', deps, { difficulty: 2 });
     // One XP short of Level 2 on the eve, so only the Quest's XP brings the Level: a Quest of 2, split
-    // between the two Heroes sent, gives each 1 (v1.1.5-S13).
+    // between the two Heroes sent, gives each 1.
     for (const heroId of heroIds) hero(eve.world, heroId).xp = xpForLevel(2, deps.config) - 1;
 
     const { document, events } = playTo(withValid(eve, deps), eve.world.turn + 1, deps);
@@ -967,7 +967,7 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     }
   });
 
-  test("every founding in the games names its Guild's founding Wealth, the player's, the Rivals' and any replacement's (M9-F7)", () => {
+  test("every founding in the games names its Guild's founding Wealth, the player's, the Rivals' and any replacement's", () => {
     for (const seed of seeds) {
       const document = played.get(seed) as WorldDocument;
       const founded = document.history.entries.filter((entry) => entry.type === 'guild.founded');
@@ -976,7 +976,7 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     }
   });
 
-  test('a History written before M9-F1, with none of the three, still validates and loads', () => {
+  test('a History written before the three were recorded (DL-112), with none of them, still validates and loads', () => {
     const document = played.get('named-a') as WorldDocument;
     const history = createHistory();
     for (const entry of document.history.entries) append(history, unnamed(entry) as Entry);
@@ -986,26 +986,23 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     expect(loaded.ok && loaded.warnings).toEqual([]);
   });
 
-  test("nothing else moves: the same seed's events give the History of 86c7afa, entry for entry, but for the new fields and participants (M9-F1's questId, M9-F7's founding Wealth) and the Rivals' Parties (v1.1.4-S6)", () => {
+  test("nothing else moves: the same seed's events give the History of 86c7afa, entry for entry, but for the new fields and participants (the questId, DL-112, and the founding Wealth, DL-120) and the Rivals' Parties", () => {
     const fingerprints = seeds.map((seed) => {
       const events = emitted.get(seed) as TurnEvent[];
       return createHash('sha256').update(JSON.stringify(events.map(unnamed))).digest('hex');
     });
     // SHA-256 of each seed's events, which the History holds but for the pool's comings and goings of
-    // a Hero never hired (DL-211; the test after this holds the History to them), recorded at 86c7afa (v1.1-dev before M9-F1), where the stripping above took nothing out. M9-F7 added the founding Wealth to the stripping, not new
-    // values: with it set aside, the History is unchanged (DL-121). v1.1.4-S2 added an Encounter's
-    // Degree, deciding Check and Checks, and, under the band's rule before it, nothing else (DL-152).
-    // v1.1.4-S6's Rivals choose their Parties by the chance estimate (DL-157), which changes who goes:
-    // these are its fingerprints. With M2-S9's rule by the demands put back in its place, for one run
-    // and not kept, the three were 86c7afa's again: a85e889a…, c5afab2d… and 55432d24…. v1.1.4-S10
-    // writes the content in Checks, its Finales, lore and earned Traits, and rolls each Check within
-    // `checkVariance` 0.4 (DL-165), which changes every Quest; its balance pass then tunes the Checks'
-    // factors, the Triumph, the share of Triumphs, form and the earned Traits' chances (DL-166): these
-    // are its fingerprints. S6's were 00de1d95…, db199b7c… and c5519e67…; before the balance pass,
-    // 6ba3f040…, d1b90581… and a72002b4…, the third's game unchanged by it. v1.1.5-S13 splits a Quest's
-    // XP across the Party sent (DL-182, DL-184), which changes each `hero.xp-gained`'s amount and with it
-    // the Levels, their Stats and the wage: these are its fingerprints. Before it, f1e65b3b…, 096c92a2…
-    // and a72002b4….
+    // a Hero never hired (DL-211; the test after this holds the History to them). The stripping above
+    // sets aside fields that add no new values: with a founding's Wealth set aside the History is
+    // unchanged (DL-121), and an Encounter's Degree, deciding Check and Checks, under the band's rule
+    // before them, change nothing else (DL-152). What moved the fingerprints, each with the values
+    // before it: the Rivals choosing their Parties by the chance estimate (DL-157; 86c7afa's
+    // a85e889a…, c5afab2d… and 55432d24…, which the rule by the demands, put back for one run, gave
+    // again, DL-157 item 8); the content in Checks, each rolled within `checkVariance` 0.4 (DL-165;
+    // DL-157's 00de1d95…, db199b7c… and c5519e67…), and its balance pass (DL-166; 6ba3f040…,
+    // d1b90581… and a72002b4…, the third's game unchanged by it); and a Quest's XP split across the
+    // Party sent (DL-182, DL-184; f1e65b3b…, 096c92a2… and a72002b4…), which changes each
+    // `hero.xp-gained`'s amount and with it the Levels, their Stats and the wage.
     expect(fingerprints).toEqual([
       'ae34d056cde2b428a3063c3e47ac28aa5b5d7e1fc31b2a3c9e39a1bf0fc170a7',
       '83073fb4443fdb744f1bcf491b49960a7db4b70c93cfe3baba41e86e426dd11d',
@@ -1042,7 +1039,7 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     }
   });
 
-  test('what v1.1.4-S2 added to each Encounter of the games says what its one Check said: decided by it, its Degree its outcome (DL-152)', () => {
+  test('what was added to each Encounter of the games says what its one Check said: decided by it, its Degree its outcome (DL-152)', () => {
     const encounters = seeds.flatMap((seed) =>
       (played.get(seed) as WorldDocument).history.entries.filter((entry): entry is EngineEventOf<'quest.encounter'> => entry.type === 'quest.encounter'),
     );

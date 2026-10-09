@@ -26,7 +26,7 @@ describe('a Stat', () => {
     );
   });
 
-  // v1.1.4-S1's verification: the old `best` was Math.max(0, …), and loads as `max`, which agrees
+  // The old `best` was Math.max(0, …), and loads as `max`, which agrees
   // with it only while no effective Stat is below 0.
   test('of a Hero below 0 at its least is refused, naming the Stat; a Guildmaster Stat is not held to it', () => {
     const hero = withJson('stats.json', (json) => {

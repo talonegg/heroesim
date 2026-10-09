@@ -22,10 +22,10 @@ import {
   type ViewName,
 } from './views/page.test-support';
 
-// The page (M7-S3; views in a shell since M9-S3, DL-103): a new game, the status bar, the views
+// The page (views in a shell, DL-103): a new game, the status bar, the views
 // and the navigation between them, the home view's digest, the Board with dispatch, the Roster with
 // Hero pages and the History, driven through the page's own controls. Every play settles after the
-// busy state is painted (M7-S2), so each test waits for the page to be idle again. The file a
+// busy state is painted, so each test waits for the page to be idle again. The file a
 // player saves is kept, not downloaded: "Export this game" hands it to `download`.
 vi.mock('./views/download', () => ({ download: vi.fn() }));
 
@@ -56,7 +56,7 @@ async function idle(): Promise<void> {
   await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
 }
 
-/** The whole History, the game menu's debug view (M9-F4): a module's events are there alone. */
+/** The whole History, the game menu's debug view: a module's events are there alone. */
 function wholeHistory(): HTMLElement {
   return openDebugHistory();
 }
@@ -67,7 +67,7 @@ function summary(history: HTMLElement): { entries: number; fresh: number } {
   return { entries: Number(/, (\d+) entr/.exec(text)?.[1]), fresh: Number(/ (\d+) new since your last action\.$/.exec(text)?.[1] ?? 0) };
 }
 
-// The seven views in the navigation's order (M9-F2, DL-112 item 5).
+// The seven views in the navigation's order (DL-112 item 5).
 const views: readonly ViewName[] = ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'];
 
 describe('before a game', () => {
@@ -117,12 +117,12 @@ describe('before a game', () => {
   });
 });
 
-describe('the shell (M9-S3, DL-103)', () => {
+describe('the shell (DL-103)', () => {
   test('opens on the home view, with the seven views in the navigation in order and the open one marked', () => {
     render(<App initial={started()} />);
 
     const buttons = within(nav()).getAllByRole('button').filter((button) => !/^More(,|$)/.test(button.textContent ?? ''));
-    // The Guildmaster's is labelled with their name (M9-F2).
+    // The Guildmaster's is labelled with their name.
     expect(buttons.map((button) => button.querySelector('.nav__label')?.textContent)).toEqual(
       views.map((view) => (view === 'Guildmaster' ? 'Ada Vell' : view)),
     );
@@ -251,7 +251,7 @@ describe('the shell (M9-S3, DL-103)', () => {
   });
 });
 
-describe('the home view (M9-S3, DL-103)', () => {
+describe('the home view (DL-103)', () => {
   test('after a fast forward, opens with the stop, and each Quest it names opens that Quest’s Party on the Board', async () => {
     const initial = started();
     render(<App initial={initial} />);
@@ -281,7 +281,7 @@ describe('the home view (M9-S3, DL-103)', () => {
     const card = heading.closest('article') as HTMLElement;
     expect(within(card).getByRole('form', { name: `A Party for ${questName}` })).toBeDefined();
     expect(within(card).getByRole('button', { name: 'Close' }).getAttribute('aria-expanded')).toBe('true');
-    // The Party builder (M9-S4, DL-104): a row for each Hero on the Roster, and the card's details unfolded.
+    // The Party builder (DL-104): a row for each Hero on the Roster, and the card's details unfolded.
     const roster = Object.values(initial.document?.world.guilds ?? {}).find((guild) => guild.controller.kind === 'player')?.rosterIds;
     expect(within(card).getAllByTestId('party-row')).toHaveLength(roster?.length ?? -1);
     expect(within(card).getByRole('heading', { level: 4, name: 'Encounters' })).toBeDefined();
@@ -297,11 +297,10 @@ describe('the home view (M9-S3, DL-103)', () => {
   });
 
   test("shows the report of the Party that came home, in the Came home cards' place: its band, Wealth, Fame, XP and Injuries, as its History says", async () => {
-    // A Party out on a Quest made as hard as a Quest is, so that it comes home hurt: from v1.1.4-S6 the
+    // A Party out on a Quest made as hard as a Quest is, so that it comes home hurt: the
     // Party sent is the one most likely to come through (DL-157), and on this seed's own Quest it does.
-    // The seed is report-f since v1.1.4-S8, whose Encounter tags bring report-d's Party home unhurt (DL-160),
-    // and report-l since v1.1.4-S10's balance pass, which brings report-f's to report-k's home unhurt
-    // (DL-166).
+    // The seed is report-l: the Encounter tags bring report-d's Party home unhurt (DL-160), and the
+    // balance pass brings report-f's to report-k's home unhurt (DL-166).
     const hard = changed(withPartyOut(startedFrom('report-l')), (document, player) => {
       for (const party of Object.values(document.world.parties)) {
         if (party.guildId === player.id) (document.world.quests[party.questId] as Quest).difficulty = 100;
@@ -318,7 +317,7 @@ describe('the home view (M9-S3, DL-103)', () => {
     const report = within(home).getByRole('region', { name: /^Quest report: / });
     const quest = /^Quest report: (.+)$/.exec(within(report).getByRole('heading', { level: 3 }).textContent ?? '')?.[1] ?? '';
     expect(within(report).getByText(/^(Success|Strong success|Failure)$/)).toBeDefined();
-    // v1.1.4-S14: each Encounter the engine played names its Degree (v1.1.4-S2).
+    // Each Encounter the engine played names its Degree (DL-152).
     const encounters = within(report).getByRole('heading', { level: 4, name: 'Encounters' }).parentElement as HTMLElement;
     const steps = Array.from(encounters.querySelectorAll('.report__list > li'))
       .map((item) => item.textContent ?? '')
@@ -330,7 +329,7 @@ describe('the home view (M9-S3, DL-103)', () => {
     expect(within(report).getByText(/^XP \+\d+ each$/)).toBeDefined();
     // This seed's Party comes home with an Injury: named, with the night it heals.
     expect(within(report).getByText(/^Injured: .+, healing on the night of Year \d+ Day \d+$/)).toBeDefined();
-    // The same outcome, as the History narrates it, new, on the player's Guild (M9-S5).
+    // The same outcome, as the History narrates it, new, on the player's Guild.
     const line = inHistory(new RegExp(`^The Lantern's Party came home from ${quest} and \\w+.*: Wealth ${wealth?.replace('+', '\\+')}, Fame ${fame?.replace('+', '\\+')}\\.`));
     expect(line.classList.contains('is-new')).toBe(true);
   });
@@ -348,7 +347,7 @@ describe('the home view (M9-S3, DL-103)', () => {
   });
 });
 
-describe('a Party’s return opens its report on Guild › Home (M9-F5, DL-112 item 8)', () => {
+describe('a Party’s return opens its report on Guild › Home (DL-112 item 8)', () => {
   /** A Party of the player's out, and the game played to the Turn before the night it comes home. */
   function onTheEve(): GameState {
     const out = withPartyOut(startedFrom('reducer-test'));
@@ -443,7 +442,7 @@ describe('a game in hand', () => {
     await idle();
 
     expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 1, afternoon');
-    // What the Turn added is the History's newest, under its Day and time of day, each line marked new (M9-S5).
+    // What the Turn added is the History's newest, under its Day and time of day, each line marked new.
     const history = wholeHistory();
     const before = started().document?.history.entries.length ?? 0;
     const { entries, fresh } = summary(history);
@@ -477,7 +476,7 @@ describe('a game in hand', () => {
   });
 
   test('beside the view, the History rail gives the Guild’s latest entries, the new ones marked', () => {
-    // The last play sent a Party: a purchase is no longer in the Guild's History, nor the rail (M9-F4).
+    // The last play sent a Party: a purchase is no longer in the Guild's History, nor the rail.
     render(<App initial={withPartyOut(started())} />);
 
     const rail = screen.getByRole('complementary', { name: 'Latest for The Lantern' });
@@ -490,7 +489,7 @@ describe('a game in hand', () => {
   });
 });
 
-describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', () => {
+describe('fast forward in steps, with progress and a Stop (DL-96)', () => {
   /** The Turns the player's Stop says it played. */
   function stoppedAfter(): number {
     const sentence = within(screen.getByTestId('stop')).getByText(/^Stopped: you asked to stop, after \d+ Turns\.$/).textContent ?? '';
@@ -500,7 +499,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
   test('between steps the status bar shows the Turns played, the Day reached and the countdown below the floor; plays wait, and the game in hand stands', async () => {
     // A Party out on a Quest of ten Days, home on the 32nd Turn, in the second step; Wealth below
     // the floor since its first Day, before the fast forward, so its countdown stands and no new crossing
-    // stops it (M9-S1, DL-101).
+    // stops it (DL-101).
     render(<App initial={withWealth(withPartyOut(startedFrom('reducer-test')), -100, 0)} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
@@ -527,7 +526,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     expect(screen.queryByTestId('progress')).toBeNull();
     expect(within(screen.getByTestId('stop')).getByText("Stopped: The Lantern's Party came home.")).toBeDefined();
     expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 11, night');
-    // The History marks both steps' entries new: all it gained in the fast forward (M9-S5).
+    // The History marks both steps' entries new: all it gained in the fast forward.
     const { entries, fresh } = summary(wholeHistory());
     expect(fresh).toBe(entries - (withPartyOut(startedFrom('reducer-test')).document?.history.entries.length ?? 0));
   });
@@ -547,7 +546,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     expect(first).toBeLessThan(1080);
     expect(screen.queryByTestId('progress')).toBeNull();
     expect(screen.getByTestId('time').textContent).toBe(`Year 1 Day ${first / 3 + 1}, morning`);
-    // The History marks new all the steps played until the Stop (M9-S5).
+    // The History marks new all the steps played until the Stop.
     const { entries, fresh } = summary(wholeHistory());
     expect(fresh).toBe(entries - (withRosterReleased(startedFrom()).document?.history.entries.length ?? 0));
     expect((screen.getByRole('button', { name: 'Advance a Turn' }) as HTMLButtonElement).disabled).toBe(false);
@@ -562,7 +561,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     expect(screen.getByTestId('time').textContent).toBe(`Year 1 Day ${(first + second) / 3 + 1}, morning`);
   }, 30_000);
 
-  test('"Export this game" waits between steps, when the game in hand\'s History runs ahead of its World; stopped, it exports a save that loads (v1.0.1-S6, DL-97)', async () => {
+  test('"Export this game" waits between steps, when the game in hand\'s History runs ahead of its World; stopped, it exports a save that loads (DL-97)', async () => {
     // Between steps the game in hand shares its History with the steps' games (ADR-0008): a save of
     // it would hold Turns its World has not played, and the page's own load refuses one.
     render(<App initial={withRosterReleased(startedFrom())} />);
@@ -608,7 +607,7 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
       // Each view's sentence and its parts' are in its "About this view", closed until asked for.
       const about = within(screen.getByRole('region', { name: view })).getByText('About this view').closest('details');
       expect(about?.open).toBe(false);
-      // The Guild's parts are tabs' panels, described as a region is (M9-F2).
+      // The Guild's parts are tabs' panels, described as a region is.
       const helpIds = [...screen.getAllByRole('region'), ...screen.queryAllByRole('tabpanel')].map((region) => region.getAttribute('aria-describedby'));
       for (const id of helpIds) expect(about?.querySelector(`#${id}`), `${view}'s About holds ${id}`).not.toBeNull();
     }
@@ -646,14 +645,14 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
     for (const part of ['Transfer Offers', 'Unattached pool', 'Buy', 'Sell', 'Guilds', 'Patrons', 'This game', 'New rules available']) {
       expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
     }
-    // Each of the Guild's parts, a tab's panel, says what it is for too, from the Guild's "About this view" (M9-F2).
+    // Each of the Guild's parts, a tab's panel, says what it is for too, from the Guild's "About this view".
     for (const part of ['Home', 'Hall', 'Stores', 'Treasury']) {
       expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
     }
     // It draws every view and every part of one, beyond 5 s on a loaded machine (DL-236).
   }, 30_000);
 
-  test('the time controls say what time is and how many Turns a step of fast forward plays: the constant the steps play (v1.0.1-S6, DL-97)', () => {
+  test('the time controls say what time is and how many Turns a step of fast forward plays: the constant the steps play (DL-97)', () => {
     render(<App initial={started()} />);
 
     expect(described(time())).toMatch(/^Time moves only here; .+\.$/);
@@ -675,7 +674,7 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
       openView(view);
       check(view);
     }
-    // Each of the Guild's parts, its tab opened (M9-F3: Stores and Treasury among them).
+    // Each of the Guild's parts, its tab opened (Stores and Treasury among them, DL-116).
     for (const part of ['Home', 'Hall', 'Stores', 'Treasury'] as const) {
       openGuildPart(part);
       check(`the Guild's ${part}`);
@@ -718,11 +717,11 @@ describe('the Board with dispatch', () => {
     fireEvent.click(send);
     await idle();
 
-    // The Quest has left the Board, and its card is the Party out card in its place (M9-S4, DL-104).
+    // The Quest has left the Board, and its card is the Party out card in its place (DL-104).
     const [sent, ...others] = named();
     expect(sent?.dataset.testid).toBe('sent');
     expect(others.filter((card) => card.dataset.testid !== 'sent')).toHaveLength(before - 1);
-    // The play's line is the History's newest, marked new (M9-S5, DL-105).
+    // The play's line is the History's newest, marked new (DL-105).
     expect(inHistory(new RegExp(`^The Lantern sent .+ on ${questName}, back on the night of Year \\d+ Day \\d+`)).classList.contains('is-new')).toBe(true);
     expect(within(rosterList()).getAllByText(/^Away with a Party, back on the night of Year \d+ Day \d+$/).length).toBeGreaterThan(0);
     const out = within(openView('Guild')).getByRole('heading', { level: 3, name: 'Parties out' }).parentElement as HTMLElement;
@@ -746,7 +745,7 @@ describe('the Roster with Hero pages', () => {
     const outlooks = within(page)
       .getAllByRole('row')
       .flatMap((row) => {
-        // A Stat's row in its area's block (M9-S6): its value, then its Outlook as a chip.
+        // A Stat's row in its area's block: its value, then its Outlook as a chip.
         const cells = within(row).queryAllByRole('cell');
         return cells.length === 2 ? [cells[1]?.textContent?.replace(/^Outlook /, '')] : [];
       });
@@ -754,7 +753,7 @@ describe('the Roster with Hero pages', () => {
     for (const outlook of outlooks) expect(['Modest', 'Promising', 'Exceptional']).toContain(outlook);
     expect(within(page).getByRole('heading', { name: 'History, newest first' })).toBeDefined();
     expect(within(page).getByText(/^Page 1 of \d+, \d+ (entry|entries) in all, newest first\./)).toBeDefined();
-    // Grouped by date and time of day, as the History is (M9-S5); a first page has no newer one.
+    // Grouped by date and time of day, as the History is; a first page has no newer one.
     expect(within(page).getAllByRole('heading', { level: 5 }).length).toBeGreaterThan(0);
     expect((within(page).queryByRole('button', { name: 'Newer' }) as HTMLButtonElement | null)?.disabled ?? true).toBe(true);
 
@@ -763,7 +762,7 @@ describe('the Roster with Hero pages', () => {
   });
 });
 
-describe('the test-only switch for modules, the query parameter ?modules=probe (M8-S4)', () => {
+describe('the test-only switch for modules, the query parameter ?modules=probe', () => {
   afterEach(() => {
     window.history.replaceState(null, '', '/');
   });
@@ -790,7 +789,7 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
 
     expect(screen.getByText('Installed for testing: the probe Module.')).toBeDefined();
     expect(within(openMenu()).getByText('The probe Module')).toBeDefined();
-    // In the whole History, new, under the night it fired (M9-S5).
+    // In the whole History, new, under the night it fired.
     wholeHistory();
     const fired = inHistory(/^The probe Module recorded probe\.fired for .+\.$/);
     expect(fired.classList.contains('is-new')).toBe(true);

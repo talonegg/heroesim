@@ -7,7 +7,7 @@ import type { GameState } from '../state/reducer';
 import { rosterList, section } from './page.test-support';
 import { help } from './section';
 
-// The Roster redesigned (M9-S6, DL-106; the review's B7, B8 and E4): compact Hero cards, a Hero's
+// The Roster redesigned (DL-106; the review's B7, B8 and E4): compact Hero cards, a Hero's
 // page as a line and chips with the Stats in four blocks, the Unattached pool as rows ordered by its
 // headings, and a confirmation before a Transfer out or an offer accepted lets a Hero go. Every
 // value comes from a selector (`rosterRows`, `heroPage`, `poolView`, `offersView`).
@@ -40,7 +40,7 @@ function chip(scope: HTMLElement, words: string | RegExp): HTMLElement {
 
 /**
  * Opens the first Hero to join the Roster of `state`, the one the setups change, and gives their name
- * and page: the Roster lists by the default order since v1.1.5-S12, not the order of joining.
+ * and page: the Roster lists by the default order (DL-169), not the order of joining.
  */
 function openFirstHero(state: GameState): { name: string; page: () => HTMLElement } {
   const world = state.document?.world;
@@ -51,7 +51,7 @@ function openFirstHero(state: GameState): { name: string; page: () => HTMLElemen
   return { name: first.name, page: () => within(section('Roster')).getByRole('article') };
 }
 
-describe("the Roster's Hero cards (M9-S6)", () => {
+describe("the Roster's Hero cards", () => {
   test('give each Hero their name, Class, Level and Age, a Morale chip, and where they are, injured or away by an icon and its words', () => {
     const state = changed(withPartyOut(started()), (document, player) => {
       const hero = Object.values(document.world.heroes).find((each) => player.rosterIds.includes(each.id) && each.partyId === null);
@@ -79,7 +79,7 @@ describe("the Roster's Hero cards (M9-S6)", () => {
   });
 });
 
-describe("a Hero's page (M9-S6, the review's B7)", () => {
+describe("a Hero's page (the review's B7)", () => {
   test('is a line and chips, the Stats in four area blocks each with its Outlook as a chip, and what gear lifts in the accent', async () => {
     const held = holding(started(), 'arming-sword', 1);
     render_(held);
@@ -91,7 +91,7 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
     expect(within(state).getByText(/^Morale \d+, (wretched|low|steady|high|elated)$/)).toBeDefined();
     expect(within(state).getByText('At the Hall')).toBeDefined();
     expect(within(state).getByText(/^XP \d+$/)).toBeDefined();
-    // No longer eleven label and value rows: the only terms are the Appearance and Biography (v1.1.3-S7).
+    // No longer eleven label and value rows: the only terms are the Appearance and Biography.
     expect(within(page()).getAllByRole('term').map((term) => term.textContent)).toEqual(['Appearance', 'Biography']);
 
     const blocks = within(page()).getAllByRole('table');
@@ -115,7 +115,7 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
     expect(document.body.innerHTML).not.toMatch(/potential/i);
   });
 
-  // v1.1.4-S7 (DL-148 item 24): a Hero Trait's effects beside its name, and its Stat changes in the blocks.
+  // DL-148 item 24: a Hero Trait's effects beside its name, and its Stat changes in the blocks.
   test("gives each Trait with what it does, and a Trait's Stat change lowers the Stat where it shows", () => {
     const state = changed(started(), (document, player) => {
       const first = document.world.heroes[player.rosterIds[0] as never];
@@ -134,7 +134,7 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
     expect(value?.querySelector('.lift')?.textContent).toBe('-2 on its base of 12');
   });
 
-  // v1.1.4-S14: a Trait's Encounter bonus in words on its chip.
+  // A Trait's Encounter bonus in words on its chip.
   test("gives a Trait's Encounter bonus in words, on the Trait's chip", () => {
     const state = changed(started(), (document, player) => {
       const first = document.world.heroes[player.rosterIds[0] as never];
@@ -148,7 +148,7 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
     expect(chip(chips, 'Battle-tried: +2 to every Check of combat Encounters').title).toBe('Trait');
   });
 
-  // v1.1.4-S14: a Trait earned on a Quest and one lost to another, among the Hero's Milestones.
+  // A Trait earned on a Quest and one lost to another, among the Hero's Milestones.
   test('lists a Trait earned and a Trait lost among the Milestones', () => {
     const news = withTraitNews(started());
     render_(news);
@@ -214,7 +214,7 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
   });
 });
 
-describe('Transfer Offers (M9-S6, the review’s E4)', () => {
+describe('Transfer Offers (the review’s E4)', () => {
   test('Accept asks first, with the fee and what letting the Hero go costs; "Keep them" leaves the offer standing', () => {
     render_(withOffer(started()));
     const offers = section('Transfer Offers');
@@ -237,7 +237,7 @@ describe('Transfer Offers (M9-S6, the review’s E4)', () => {
   });
 });
 
-describe("the Unattached pool as rows (M9-S6, the review's B8)", () => {
+describe("the Unattached pool as rows (the review's B8)", () => {
   /** The pool's rows as their cells say them: Class, Level, Age, Background, Fee, Signs, after the name. */
   function rows(): { name: string; cells: string[]; row: HTMLElement }[] {
     return within(section('Unattached pool'))
@@ -305,7 +305,7 @@ describe("the Unattached pool as rows (M9-S6, the review's B8)", () => {
     fireEvent.click(within(header('Class')).getByRole('button', { name: 'Order by Class' }));
     expect(header('Class').getAttribute('aria-sort')).toBe('ascending');
     const byClass = rows().map(({ cells }) => cells[0] ?? '');
-    // In the content's declared order, Warrior, Rogue, Mage, Healer, not A to Z (v1.1.6-S14, DL-186 item 24).
+    // In the content's declared order, Warrior, Rogue, Mage, Healer, not A to Z (DL-186 item 24).
     const declared = ['Warrior', 'Rogue', 'Mage', 'Healer'];
     expect(byClass).toEqual([...byClass].sort((a, b) => declared.indexOf(a) - declared.indexOf(b)));
 
@@ -359,7 +359,7 @@ describe("the Unattached pool as rows (M9-S6, the review's B8)", () => {
   });
 });
 
-// v1.1.5-S12 (DL-169 items 6 to 11): the Roster as Tiles or a Table, its columns chosen in a panel on a
+// DL-169 items 6 to 11: the Roster as Tiles or a Table, its columns chosen in a panel on a
 // wide screen and in five tabs on a phone, one "Sort by" for both views with the Table's headings in
 // step, each Hero's Traits and Items, and every choice kept in this browser, never in the save.
 
@@ -482,7 +482,7 @@ function asPhone(): () => void {
   };
 }
 
-describe('the Roster as Tiles or a Table (v1.1.5-S12, DL-169 item 6)', () => {
+describe('the Roster as Tiles or a Table (DL-169 item 6)', () => {
   test('opens in Tiles the first time, switches to the Table and back, and keeps the last choice in this browser', () => {
     render_(started());
     // A choice of one, announced so (DL-206 item 27, DL-213).
@@ -537,7 +537,7 @@ describe('the Roster as Tiles or a Table (v1.1.5-S12, DL-169 item 6)', () => {
   });
 });
 
-describe("the Roster's Table (v1.1.5-S12, DL-169 items 7 to 9)", () => {
+describe("the Roster's Table (DL-169 items 7 to 9)", () => {
   test('has Name with its thumbnail pinned, then Class, Level, Age, Morale, where the Hero is, Traits, Items and the 20 Stats', () => {
     render_(withPartyOut(started()));
     showAs('Table');
@@ -623,7 +623,7 @@ describe("the Roster's Table (v1.1.5-S12, DL-169 items 7 to 9)", () => {
   });
 });
 
-describe('Unique Items on the Roster (v1.1.5-S14, DL-182 item 4)', () => {
+describe('Unique Items on the Roster (DL-182 item 4)', () => {
   /** `stocked()`'s game with its Mage carrying the Lantern of Stannary, a Unique Item; its Warrior carries only a Common Item. */
   function lit(): { state: GameState; warrior: string; mage: string } {
     const { state, warrior, mage } = stocked();
@@ -717,7 +717,7 @@ describe('Unique Items on the Roster (v1.1.5-S14, DL-182 item 4)', () => {
   });
 });
 
-describe('no Potential on the Roster (v1.1.5-S12, data-model rule 9)', () => {
+describe('no Potential on the Roster (data-model rule 9)', () => {
   test('neither the tiles nor the Table show Potential or its hint', () => {
     const { state } = stocked();
     render_(state);
@@ -731,7 +731,7 @@ describe('no Potential on the Roster (v1.1.5-S12, data-model rule 9)', () => {
   });
 });
 
-describe("the Table's Columns panel, on a wide screen (v1.1.5-S12, DL-169 item 7)", () => {
+describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
   test('groups its boxes as Hero and the four areas, every column on; a box hides its column, All and None a group, and Reset shows every one; Name always shows', () => {
     render_(started());
     showAs('Table');
@@ -782,7 +782,7 @@ describe("the Table's Columns panel, on a wide screen (v1.1.5-S12, DL-169 item 7
   });
 });
 
-describe("the Table's tabs, on a phone (v1.1.5-S12, DL-169 item 7)", () => {
+describe("the Table's tabs, on a phone (DL-169 item 7)", () => {
   test('shows one group at a time, Hero first, Name pinned; no Columns panel; the columns hidden on a wide screen stay hidden; the tab kept in this browser', () => {
     const restore = asPhone();
     try {
@@ -826,7 +826,7 @@ describe("the Table's tabs, on a phone (v1.1.5-S12, DL-169 item 7)", () => {
   });
 });
 
-describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
+describe("the Roster's sort (DL-169 item 10)", () => {
   test('offers Default, Name, Class, Level, Age, Morale, When free and each Stat by area, the default order first', () => {
     render_(started());
     const select = sortBy();
@@ -947,7 +947,7 @@ describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
   });
 });
 
-describe("the Roster's choices in a browser that refuses its storage (v1.1.5-S12, DL-169 item 11)", () => {
+describe("the Roster's choices in a browser that refuses its storage (DL-169 item 11)", () => {
   test('opens as by default, and its choices still work while the page is open', () => {
     localStorage.setItem('heroesim.rosterView', 'table');
     localStorage.setItem('heroesim.rosterOrder', 'name:descending');
@@ -991,16 +991,16 @@ describe("the Roster's choices in a browser that refuses its storage (v1.1.5-S12
     fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Columns' })).getByRole('checkbox', { name: 'Age' }));
 
     const kept = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index) ?? '')
-      // The page's other preferences, each kept as the page opens on it (v1.1.6-S15's verification, DL-201).
+      // The page's other preferences, each kept as the page opens on it (DL-201).
       .filter((key) => !['heroesim.view', 'heroesim.guildPart', 'heroesim.boardOrder', 'heroesim.poolOrder'].includes(key));
     expect(kept.sort()).toEqual(['heroesim.rosterColumns', 'heroesim.rosterOrder', 'heroesim.rosterTab', 'heroesim.rosterView']);
   });
 });
 
-// The verification of v1.1.5-S12 (DL-171): a Stat moved by sources whose net change is nothing, a
+// DL-171: a Stat moved by sources whose net change is nothing, a
 // browser that keeps stale or corrupt choices, and a window that crosses 600px while the Table is open.
 
-describe("the Roster's Table, a Stat whose net change is nothing (v1.1.5-S12, DL-169 item 8)", () => {
+describe("the Roster's Table, a Stat whose net change is nothing (DL-169 item 8)", () => {
   test("is plain, its figure alone, the sources and the bound still in its tooltip and the screen reader's words", () => {
     const { state, warrior } = stocked();
     render_(
@@ -1031,7 +1031,7 @@ describe("the Roster's Table, a Stat whose net change is nothing (v1.1.5-S12, DL
   });
 });
 
-describe("the Roster's filters (v1.1.7-S7, DL-206 items 25 to 29)", () => {
+describe("the Roster's filters (DL-206 items 25 to 29)", () => {
   /** Where a Hero is, as the filter names it. */
   type At = 'At the Hall' | 'Injured' | 'Away';
   interface Filtered {
@@ -1257,7 +1257,7 @@ describe("the Roster's filters (v1.1.7-S7, DL-206 items 25 to 29)", () => {
   });
 });
 
-describe("the Roster's choices kept stale or corrupt in this browser (v1.1.5-S12, DL-169 item 11)", () => {
+describe("the Roster's choices kept stale or corrupt in this browser (DL-169 item 11)", () => {
   test('open as by default: an unknown view, sort, direction or tab is forgotten, and an unknown column is left out', () => {
     localStorage.setItem('heroesim.rosterView', 'grid');
     localStorage.setItem('heroesim.rosterOrder', 'potential:descending');
@@ -1294,7 +1294,7 @@ describe("the Roster's choices kept stale or corrupt in this browser (v1.1.5-S12
   });
 });
 
-describe("the Roster's Table as the window crosses 600px (v1.1.5-S12, DL-169 item 7)", () => {
+describe("the Roster's Table as the window crosses 600px (DL-169 item 7)", () => {
   test('shows its tabs when the window narrows to a phone, its Columns again when it widens, and stops listening when the Roster closes', () => {
     const listeners = new Set<() => void>();
     let narrow = false;

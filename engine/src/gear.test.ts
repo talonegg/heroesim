@@ -19,7 +19,7 @@ import { effectiveStats, playerGuild } from './selectors.js';
 import { nightOf } from './time.js';
 import { certainHarmContent, deepFreeze, demandsCheck, testDeps, withValid } from './world.test-support.js';
 
-// M5-S2: gear in effective Stats, in the Check, going back to the Guild, and chosen by the
+// Gear in effective Stats, in the Check, going back to the Guild, and chosen by the
 // controllers (DL-49). Worlds come from `createWorld`; every document a test makes is held to the
 // validator, and the config values a test relies on are pinned.
 
@@ -287,8 +287,8 @@ describe('gear goes back to the Guild (DL-49)', () => {
     const { document } = createWorld('gear-fold', setup, withRival);
     const { world } = document;
     const rival = Object.values(world.guilds).find((guild) => guild.controller.kind === 'rival') as Guild;
-    // It is bankrupt on the first night, under no grace: the Rival folds. (Until M9-S2 its
-    // Guildmaster's Retirement folded it; that is now met by Succession, DL-102.)
+    // It is bankrupt on the first night, under no grace: the Rival folds. (Its
+    // Guildmaster's Retirement does not fold it: that is met by Succession, DL-102.)
     rival.wealth = -1_000_000;
     const [first, second] = rival.rosterIds as [HeroId, HeroId];
     const mantle = createItem(world, 'mantle-of-the-fells', slotOf(second, 'armour'));
@@ -308,7 +308,7 @@ describe('gear goes back to the Guild (DL-49)', () => {
       [first, 'guild-folded', rival.id, sword],
       [second, 'guild-folded', rival.id, mantle],
     ]);
-    // Before the fold: whatever the fold does with the Guild's holding (M5-S4) finds the gear there.
+    // Before the fold: whatever the fold does with the Guild's holding finds the gear there.
     const folded = events.findIndex((event) => event.type === 'guild.folded');
     expect(folded).toBeGreaterThan(-1);
     for (const event of returned) expect(events.indexOf(event)).toBeLessThan(folded);
@@ -412,11 +412,11 @@ describe('gearChoices: the gear the controllers equip (DL-49)', () => {
   });
 });
 
-// M6-S4 (DL-58): the one rule a controller buys gear by, a Rival with its Disposition's gearThreshold
+// DL-58: the one rule a controller buys gear by, a Rival with its Disposition's gearThreshold
 // and every slot, armour first (controllers/rival.test.ts), the harness's policy with its own multiple
 // and the armour slot alone (harness/src/policy.test.ts). Every Guild alike (ADR-0002): here the
 // player's.
-describe('gearPurchase: which piece of gear a controller buys (M6-S4)', () => {
+describe('gearPurchase: which piece of gear a controller buys', () => {
   /** The player's Guild, rich, and a Market holding `stacks` alone. */
   function shopping(seed: string, stacks: readonly (readonly [string, number])[], with_: EngineDeps = deps) {
     const { document, guild, heroes } = scene(seed, with_);

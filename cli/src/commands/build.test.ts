@@ -1,4 +1,4 @@
-// `build --facility <facility>` end to end (M3-S6): `main` run in-process against a real save in a
+// `build --facility <facility>` end to end: `main` run in-process against a real save in a
 // temporary directory, with the real content set, as main.test.ts runs the other commands.
 
 import { rmSync, writeFileSync } from 'node:fs';
@@ -119,7 +119,7 @@ describe('build', () => {
   });
 
   test('build --facility training-yard, then idle nights: each Hero on the Roster gains xpPerTrainingDay a night', () => {
-    // M3-S6's yard half of its second box, with M3-S2's `training`: the grade built through the CLI
+    // The yard's half of the grade's reading, with the night's `training`: the grade built through the CLI
     // is the one the night reads. The training XP pinned; a twin world left at grade 0 gains none.
     /** A new world, its training yard built or not, played five Days idle: its Roster's XP after. */
     const idleXp = (withYard: boolean): number[] => {

@@ -4,7 +4,7 @@ import { traitEffects, traitMoraleShift, traitUpkeepFactor } from './guildmaster
 import { excludedPair, excludeEachOther, traitOf } from './traits.js';
 import { testContent } from './world.test-support.js';
 
-// v1.1.4-S7 (DL-150 items 1 to 3): the two lists of Traits, each Trait a list of effects, and no two
+// DL-150 items 1 to 3: the two lists of Traits, each Trait a list of effects, and no two
 // Traits held of which one excludes the other.
 
 describe('traitOf', () => {

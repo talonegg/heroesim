@@ -2,8 +2,8 @@ import { createWorld, defaultConfig, playerGuild, type ContentSet, type Portrait
 import { describe, expect, test, vi } from 'vitest';
 import { exitCodes, playground, type Run } from './play.test-support.js';
 
-// `new --portrait` and `show guildmaster` over content with pictures (v1.1.2-S3, DL-125 item 3): the
-// core with a third Guildmaster picture, a young man's, beside its two (v1.1.3-S5, so that a man of
+// `new --portrait` and `show guildmaster` over content with pictures (DL-125 item 3): the
+// core with a third Guildmaster picture, a young man's, beside its two (DL-141, so that a man of
 // either band has one that fits); `main.test.ts` holds the refusal the core itself gives.
 
 const pictures: ContentSet['portraits']['guildmaster'] = { female: ['gm-female-01'], male: ['gm-male-01', 'gm-male-02'] };
@@ -38,7 +38,7 @@ function playerGuildmaster(document: WorldDocument) {
   return guild === undefined ? undefined : document.world.guildmasters[guild.guildmasterId];
 }
 
-describe('new --portrait (v1.1.2-S3)', () => {
+describe('new --portrait', () => {
   const newGame = (...more: string[]) => play(['new', '--seed', 'portrait', '--guild', 'The Test', '--master', 'Ada', ...more]);
 
   test('keeps the Portrait given, and show guildmaster names it after the sex', () => {
@@ -55,7 +55,7 @@ describe('new --portrait (v1.1.2-S3)', () => {
     expect(playerGuildmaster(saved())).toMatchObject({ sex: 'female', portraitKey: 'gm-female-01' });
   });
 
-  test("with --portrait and no --age, draws the age within the picture's (v1.1.3-S5, DL-134 item 7)", () => {
+  test("with --portrait and no --age, draws the age within the picture's (DL-134 item 7)", () => {
     // The core's gm-male-01 looks 45 to 55, held to the starting ages' 50.
     expect(newGame('--portrait', 'gm-male-01').code).toBe(exitCodes.ok);
     const age = playerGuildmaster(saved())?.ageAtEntry ?? 0;

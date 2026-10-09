@@ -29,7 +29,7 @@ import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './polic
 import { machine } from './report.js';
 import { summarise } from './stats.js';
 
-// The engine's `serialise`, watched as it is, to count the saves a game writes (v1.1.5-S1), and its
+// The engine's `serialise`, watched as it is, to count the saves a game writes, and its
 // `deserialise`, to see when a save is loaded beside its gzip (DL-239).
 vi.mock('@heroesim/engine', async (importOriginal) => {
   const engine = await importOriginal<typeof import('@heroesim/engine')>();
@@ -43,7 +43,7 @@ vi.mock('node:zlib', async (importOriginal) => {
 });
 
 // Ordinary tests, run by `npm test`: a few short games under the automatic policy. The full play
-// sweep is play.harness.test.ts, behind HEROESIM_HARNESS (M2-S12, DL-34).
+// sweep is play.harness.test.ts, behind HEROESIM_HARNESS (DL-34).
 
 const content = loadContent();
 const deps: EngineDeps = { config: { ...defaultConfig }, content };
@@ -72,7 +72,7 @@ const dealing: EngineDeps = {
   },
 };
 
-// v1.1.6-S7 (DL-193): a run's config is checked, every setting, before any game; and a game plays
+// DL-193: a run's config is checked, every setting, before any game; and a game plays
 // under the deps the engine's `playDeps` gives it, as a front end's does.
 describe('runConfig', () => {
   test("is the defaults with HEROESIM_CONFIG's values over them", () => {
@@ -209,7 +209,7 @@ describe('playGame observes the World State (M3, DL-40)', () => {
     expect(counted).toBe(pairs((playerGuild(game.document.world) as Guild).rosterIds.length));
   });
 
-  // v1.1.5-S1 (DL-174): writing a 20-year game's save at every year's end took a sixth of its time
+  // DL-174: writing a 20-year game's save at every year's end took a sixth of its time
   // and most of its memory. Each year's is counted; the last year's is gzipped from the save
   // `recordGame` writes once the game stops, the same document.
   test("the save as each year ends: every year's length as its text's, counted, and the last year's gzipped once the game stops", { timeout: 30_000 }, async () => {
@@ -509,7 +509,7 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
   });
 });
 
-describe('the M6-S3 harness assertion (DL-69): no hero.transferred names the player\'s Guild', () => {
+describe('the harness assertion (DL-69): no hero.transferred names the player\'s Guild', () => {
   test('holds under the automatic policy', () => {
     const game = playGame('play-a', deps, { years });
     expect(game.assertion).toBeNull();
@@ -640,7 +640,7 @@ describe('recordGame and measureDocument', () => {
     expect(measures.serialisedLength).toBe(record.measures.serialisedLength);
   });
 
-  test("fingerprint the last document: SHA-256 of its save, in hex, the same for the same game (M8-S1, DL-76)", async () => {
+  test("fingerprint the last document: SHA-256 of its save, in hex, the same for the same game (DL-76)", async () => {
     const { record } = await recordGame('play-a', deps, { years });
     const { document } = playGame('play-a', deps, { years });
 

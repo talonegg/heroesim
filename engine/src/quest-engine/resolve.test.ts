@@ -28,7 +28,7 @@ import { questBand, resolveQuest } from './resolve.js';
 import { synergyBonus } from './synergy.js';
 import { teamwork } from './teamwork.js';
 
-// M4-S2: a Quest resolved as its sequence of Encounters (DL-42). A created world's player Guild
+// A Quest resolved as its sequence of Encounters (DL-42). A created world's player Guild
 // sends its Roster, every Stat set to 8, on a Quest whose Encounters a test writes into content.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
@@ -37,8 +37,8 @@ const pinned = {
   checkVariance: 0,
   skillBonusPerRating: 2,
   bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
-  // v1.1.4-S2's Degrees and S3's form factors, which these scenes' numbers were worked out under;
-  // S10's balance pass moved the defaults (DL-166).
+  // DL-148's Degrees and DL-154's form factors, which these scenes' numbers were worked out under;
+  // the balance pass moved the defaults (DL-166).
   checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
   strongTriumphShare: 0.5,
   moraleCheckFactor: { wretched: 0.85, low: 0.93, steady: 1, high: 1.04, elated: 1.08 },
@@ -118,7 +118,7 @@ describe('questBand', () => {
     expect(questBand(0, 0, 0, config)).toBe('fail');
   });
 
-  // v1.1.4-S2's band boxes (DL-148 item 8): DL-83 item 17's margin, a share of Triumphs.
+  // The band boxes (DL-148 item 8): DL-83 item 17's margin, a share of Triumphs.
   test('a majority at Success or better, Triumphs or not, is a success', () => {
     expect(questBand(2, 0, 3, config)).toBe('success');
     expect(questBand(3, 1, 4, config)).toBe('success');
@@ -155,7 +155,7 @@ describe('questBand', () => {
 });
 
 describe('resolveQuest', () => {
-  // M4-S2's second box.
+  // The second acceptance box.
   test('a Hero killed in Encounter 2 contributes nothing to Encounter 3', () => {
     const content = contentWith(
       encounter('first', true),
@@ -217,13 +217,13 @@ describe('resolveQuest', () => {
     const failure = resolveQuest(lost.world, lost.quest, lost.party, lost.deps).outcome;
 
     // Two of three: a success, paying 200 × 1.5 × 1.5 × 0.5, gaining 3 + 1 + 1 − 2 Fame and 40 × 1 × 2 × 2
-    // XP, 160, split across the three Heroes sent and rounded down (v1.1.5-S13, DL-182).
+    // XP, 160, split across the three Heroes sent and rounded down (DL-182).
     expect(success).toMatchObject({ band: 'success', successes: 2, wealthDelta: 225, fameDelta: 3, xpPerHero: 53 });
     // One of three: a failure, paying nothing, losing 3 + 1 + 2 + 2 Fame, and half XP times 2, 40, split by three.
     expect(failure).toMatchObject({ band: 'fail', successes: 1, wealthDelta: 0, fameDelta: -6, xpPerHero: 13 });
   });
 
-  // v1.1.5-S13 (DL-182 item 1): the Quest's XP split across the Party sent, each share rounded down.
+  // DL-182 item 1: the Quest's XP split across the Party sent, each share rounded down.
   describe('the XP split', () => {
     const content = contentWith(encounter('pass', true), encounter('miss', false));
     /** The share each Hero of a Party of 1 to 5 (content's largest) takes of a Quest of 41 through `keys`. */
@@ -382,9 +382,9 @@ describe("the Quest Engine's config (DL-42)", () => {
   });
 });
 
-// The two seams M4-S3 and M4-S4 fill (DL-42): neutral until then, and the Synergy term neutral for
-// content without Synergies (M4-S3's own tests are synergy.test.ts).
-// v1.1.4-S1: a Query's `["hurt"]` reads the Heroes injured earlier on the same Quest (resolve.ts
+// The two seams Synergies and teamwork fill (DL-42): neutral without them, and the Synergy term neutral for
+// content without Synergies (Synergies' own tests are synergy.test.ts).
+// A Query's `["hurt"]` reads the Heroes injured earlier on the same Quest (resolve.ts
 // passes them to `queryParty` for each Encounter).
 describe('a Query on the Quest', () => {
   test('`["hurt"]` counts a Hero injured by an earlier Encounter, and no one when the Injury did not land', () => {
@@ -423,11 +423,11 @@ describe("the Check's seams", () => {
   });
 });
 
-// v1.1.4-S2 (DL-148 items 7 and 8): an Encounter of one to four Checks, combined by its pass formula
+// DL-148 items 7 and 8: an Encounter of one to four Checks, combined by its pass formula
 // into a Degree, with consequences by Degree. The scene's Party of three has Strength 24 in all and
 // the Quest a difficulty of 40, so with no variance a Check's factor sets its Degree: 0.25 a Triumph
 // (a target of 10), 0.55 a Success (22), 0.7 a Setback (28) and 2 a Failure (80).
-describe('several Checks (v1.1.4-S2)', () => {
+describe('several Checks', () => {
   const factors: Record<Degree, number> = { triumph: 0.25, success: 0.55, setback: 0.7, failure: 2 };
 
   /** A Check keyed `key` of the Party's summed Strength, coming out `degree`, with `fields` beside. */
@@ -440,7 +440,7 @@ describe('several Checks (v1.1.4-S2)', () => {
     return { key, name: key, kind: 'combat', checks, ...(pass === undefined ? {} : { pass }), consequences };
   }
 
-  // v1.1.4-S2's second box.
+  // The second acceptance box.
   test.each<[string, PassFormula]>([
     ['decided by its first Check', ['or', 'a', ['and', 'b', 'c']]],
     ['decided by its last', ['and', 'b', 'a', 'c']],
@@ -528,7 +528,7 @@ describe('several Checks (v1.1.4-S2)', () => {
     expect(resolveQuest(s.world, s.quest, s.party, s.deps).encounters[0]?.target).toBe(15);
   });
 
-  // v1.1.4-S2's verification (DL-152): a gate on a count is a gate only when nothing but the count
+  // DL-152: a gate on a count is a gate only when nothing but the count
   // reaches the roll. A raw Check's capability is its score alone.
   test('a raw Check is its score alone: no teamwork, Synergy, Skill or consumable moves a count past its flat', () => {
     const counting = (raw: boolean): Encounter =>
@@ -581,7 +581,7 @@ describe('several Checks (v1.1.4-S2)', () => {
     expect(degreeOf(true)).toBe('success');
   });
 
-  // v1.1.4-S2's third box, through the resolver (`questBand`'s own tests are above).
+  // The third acceptance box, through the resolver (`questBand`'s own tests are above).
   test('the band: a majority at Success is a success; every Encounter at Success or better, half Triumphs, strong; fewer, not', () => {
     const triumph = several('won-well', [strength('only', 'triumph')]);
     const success = several('won', [strength('only', 'success')]);
@@ -617,11 +617,11 @@ describe('several Checks (v1.1.4-S2)', () => {
   });
 });
 
-// v1.1.4-S3 (DL-148 items 9 to 11, DL-154): each Hero's form, from the band of their Morale on the
+// DL-148 items 9 to 11, DL-154: each Hero's form, from the band of their Morale on the
 // Quest and whether they are hurt on it, scales the Stats they add into a Check's score. The scene's
 // Party of three, steady at Morale 60, has Strength 24 in all; with no variance, its roll is its
 // capability.
-describe('form on the Quest (v1.1.4-S3)', () => {
+describe('form on the Quest', () => {
   /** An Encounter keyed `key` of one Check of the Party's summed Strength at `factor`, with `success` and `failure`. */
   function summed(key: string, factor: number, success: Consequence[] = [], failure: Consequence[] = [], fields: Partial<EncounterCheck> = {}): Encounter {
     return {
@@ -691,7 +691,7 @@ describe('form on the Quest (v1.1.4-S3)', () => {
     expect(resolvedAt('triumph-not-raised', 95, [summed('one', 0.5)]).encounters[0]?.checks[0]?.degree).toBe('triumph');
   });
 
-  // The verification of v1.1.4-S3: the Encounter says form decided it only when, with every form at 1
+  // DL-154: the Encounter says form decided it only when, with every form at 1
   // and the same rolls, its pass formula would have given the other side of the Success line.
   test("an Encounter's formDecided follows its pass formula: not when form raised a Check of an `and` another failed", () => {
     const anded: Encounter = {
@@ -734,7 +734,7 @@ describe('form on the Quest (v1.1.4-S3)', () => {
     expect(missed).toMatchObject({ degree: 'setback', formDecided: 'lowered' });
   });
 
-  test('every form factor 1 plays as before v1.1.4-S3: the capabilities read as they are, and nothing is formDecided', () => {
+  test('every form factor 1 plays as before form (DL-154): the capabilities read as they are, and nothing is formDecided', () => {
     const ones = { moraleCheckFactor: { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 }, hurtCheckFactor: 1 };
     const wounding = summed('wounding', 0.25, [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }, { kind: 'morale', delta: -50 }]);
     const { encounters } = resolvedAt('ones', 10, [wounding, summed('after', 0.55)], ones);
@@ -753,10 +753,10 @@ describe('form on the Quest (v1.1.4-S3)', () => {
   });
 });
 
-// v1.1.4-S4 (DL-148 item 14, DL-155): harm that reads the Stats. Who an Injury or a Death falls on
+// DL-148 item 14, DL-155: harm that reads the Stats. Who an Injury or a Death falls on
 // follows its `among` and `exposedBy`, whether it lands its `guardedBy`, and a Morale loss is each
 // Hero's own by its `steadiedBy`. The draws keep their number and order. A Stat's range is 1 to 20.
-describe('harm that reads the Stats (v1.1.4-S4)', () => {
+describe('harm that reads the Stats', () => {
   /** An Encounter keyed `key` the Party of 8s always fails, with `failure`. */
   const failing = (key: string, failure: Consequence[]): Encounter => encounter(key, false, failure);
   const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1, ...fields });
@@ -785,7 +785,7 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
       const twin = structuredClone(streamOf(h.world, 'quests'));
       const { encounters } = h.resolve();
 
-      // Each Encounter: one draw for its Check, then three an Injury and two a Death, as before v1.1.4-S4.
+      // Each Encounter: one draw for its Check, then three an Injury and two a Death, as before harm read the Stats (DL-155).
       let alive = [...h.heroes];
       const hurt = new Set<string>();
       for (const result of encounters) {
@@ -868,9 +868,9 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
     }
   });
 
-  // v1.1.5-S4 (DL-168 item 6, E3, DL-178): an Injury's `among` is read over the unhurt living Heroes,
+  // DL-168 item 6, E3, DL-178: an Injury's `among` is read over the unhurt living Heroes,
   // then gives the Heroes it names among them; a Death's, over the living Party, as before.
-  describe('an Injury on the next-weakest unhurt Hero (v1.1.5-S4)', () => {
+  describe('an Injury on the next-weakest unhurt Hero', () => {
     const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
     const strongestThree: SetQuery = ['top', 'party', 3, ['stat', 'strength']];
     /** Sets the Heroes' Strength, in order. */
@@ -946,7 +946,7 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
         // The first Encounter: its Check, then the `bottom` Injury's three, on the weakest.
         for (let draw = 0; draw < 1 + 3; draw += 1) next(twin);
         expect(first?.injured).toEqual([h.heroes[1]?.id]);
-        // The second, by hand as before v1.1.4-S4.
+        // The second, by hand as before harm read the Stats (DL-155).
         const alive = [...h.heroes];
         const hurt = new Set<string>([h.heroes[1]?.id as string]);
         const injured: string[] = [];
@@ -1027,7 +1027,7 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
     expect(Object.keys(outcome.moraleByHero)).toEqual(h.heroes.map((hero) => hero.id));
   });
 
-  // The verification of v1.1.4-S4: a steadied loss rounded as it was applied let a small one vanish.
+  // DL-155: a steadied loss rounded as it was applied let a small one vanish.
   test("steadied losses are summed as they are and each Hero's total rounded once: two −1s halved are −1, not 0", () => {
     const small: Consequence = { kind: 'morale', delta: -1, steadiedBy: ['courage'] };
     const h = harmed('small-losses', [failing('chill', [small, small])], {
@@ -1116,10 +1116,10 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
   });
 });
 
-// v1.1.4-S7 (DL-148 items 25 and 26, DL-150 item 5): Traits earned on a Quest, and a Trait's
+// DL-148 items 25 and 26, DL-150 item 5: Traits earned on a Quest, and a Trait's
 // Encounter bonus. The test content's Hero Traits, with three of the tests' own: `battle-hardened`
 // and `shaken`, which exclude each other, and `quick-study`.
-describe('earned Traits (v1.1.4-S7)', () => {
+describe('earned Traits', () => {
   const trait = (key: string, excludes: string[] = []) => ({ key, name: key, excludes, effects: [] });
   const heroTraits = {
     ...testContent.heroTraits,
@@ -1256,7 +1256,7 @@ describe('earned Traits (v1.1.4-S7)', () => {
     expect(traits).toEqual([]);
   });
 
-  test("a negative Trait is granted only at a Failure: at a Setback that reads the failure list it lands on no one, its two draws still taken (v1.1.4-S14)", () => {
+  test("a negative Trait is granted only at a Failure: at a Setback that reads the failure list it lands on no one, its two draws still taken", () => {
     // One Check of summed Strength, 24 against a target of 0.7 × 40 = 28: at 0.86 of it, a Setback (0.75 to 1).
     const setback = (key: string, failure: Consequence[]): Encounter => ({
       ...encounter(key, false),
@@ -1331,7 +1331,7 @@ describe('earned Traits (v1.1.4-S7)', () => {
   });
 
   // #52's judgement call 6 (DL-182 item 3, v1.1.5's re-close, DL-185): an earned Trait's `among` is read
-  // over the Heroes it can fall on, as an Injury's is (v1.1.5-S4, `narrowed`), not over the whole Party.
+  // over the Heroes it can fall on, as an Injury's is (DL-178, `narrowed`), not over the whole Party.
   test("a negative Trait's `bottom` among ranks those the Encounter injured, so the weakest Hero, unhurt there, is passed over; its two draws as before", () => {
     const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
     const strongest: SetQuery = ['top', 'party', 1, ['stat', 'strength']];
@@ -1361,7 +1361,7 @@ describe('earned Traits (v1.1.4-S7)', () => {
   });
 });
 
-describe("a Hero Trait's effects in a Check (v1.1.4-S7)", () => {
+describe("a Hero Trait's effects in a Check", () => {
   const withEffects = (key: string, effects: HeroTraitEffect[]) => ({ key, name: key, excludes: [], effects });
   const heroTraits = {
     ...testContent.heroTraits,
@@ -1391,7 +1391,7 @@ describe("a Hero Trait's effects in a Check (v1.1.4-S7)", () => {
     for (const hero of s.heroes) if (!hero.traits.includes('veteran')) hero.traits.push('veteran');
     expect(at(check)).toBeCloseTo(plain + 5, 10);
     expect(at({ kind: 'travel' })).toBeCloseTo(plain, 10);
-    // Tags: an Encounter of v1.1.4-S8's shape, sharing one, gains it; one sharing none does not.
+    // Tags: an Encounter with tags, sharing one, gains it; one sharing none does not.
     (s.heroes[1] as Hero).traits.push('tomb-wise');
     expect(at({ kind: 'combat', tags: ['crypt', 'undead'] })).toBeCloseTo(plain + 5 + 3, 10);
     expect(at({ kind: 'combat', tags: ['crypt'] })).toBeCloseTo(plain + 5, 10);
@@ -1401,7 +1401,7 @@ describe("a Hero Trait's effects in a Check (v1.1.4-S7)", () => {
   });
 });
 
-describe('a Finale and Loot (v1.1.4-S8)', () => {
+describe('a Finale and Loot', () => {
   // Two Encounters: `easy`, always a Triumph, then `last`, whose one Check is aimed so its roll
   // lands about the Triumph line: a Success leaves the Quest strong (every Encounter at Success or
   // better, half Triumphs), so only the Finale's rule keeps Loot from it.
@@ -1480,13 +1480,13 @@ describe('a Finale and Loot (v1.1.4-S8)', () => {
   });
 });
 
-// v1.1.6-S9 (DL-186 item 4, DL-195): who harm and an earned Trait fall on, and their draws, moved into
+// DL-186 item 4, DL-195: who harm and an earned Trait fall on, and their draws, moved into
 // harm.ts draw for draw. A Party of four, its Stats, Classes and Traits varied by seed, through five
 // Encounters met at every Degree, each Degree's list reading every field: `among` matching some, all or
 // none of its pool, `exposedBy`, `guardedBy`, `steadiedBy`, a Death on the hurt, Traits positive and
 // negative. The fingerprint was recorded against resolve.ts before the move, so it holds the
 // resolutions and the `quests` stream after them to the draw.
-describe('harm and earned Traits across seeds, draw for draw (v1.1.6-S9)', () => {
+describe('harm and earned Traits across seeds, draw for draw', () => {
   const trait = (key: string, excludes: string[] = []) => ({ key, name: key, excludes, effects: [] });
   const heroTraits = {
     ...testContent.heroTraits,

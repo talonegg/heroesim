@@ -6,9 +6,9 @@ import { afterAll, afterEach, expect, test, vi } from 'vitest';
 import { deploy, type Spawn } from '../scripts/deploy.mjs';
 
 // Wrangler walks up from web/ for a configuration to the filesystem's root, and the deploy's guard
-// walks with it (v1.0.1-S3, DL-94 item 2): the root is the last directory looked in. No test may
+// walks with it (DL-94 item 2): the root is the last directory looked in. No test may
 // write there, so `existsSync` answers for one file at the root and asks the disk for the rest
-// (v1.0.1-S6, DL-97). The other refusals are src/deploy.test.ts's.
+// (DL-97). The other refusals are src/deploy.test.ts's.
 
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>();

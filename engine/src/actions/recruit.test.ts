@@ -9,10 +9,10 @@ import { applyAction } from './action.js';
 import { applyRecruit, type RecruitRejection } from './recruit.js';
 import type { ActionResult } from './result.js';
 
-// M2-S8: recruiting from the Unattached pool (DL-27).
+// Recruiting from the Unattached pool (DL-27).
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
-// Negotiation still (M4-S5): these tests watch the fee a recruit pays, at the list price; the
+// Negotiation still: these tests watch the fee a recruit pays, at the list price; the
 // Guildmaster's Negotiation on it is tested with the other Guildmaster Stats (guildmaster.test.ts).
 const deps = testDeps({ negotiationRange: 0 });
 
@@ -190,7 +190,7 @@ describe('recruit refuses, never throwing and changing nothing', () => {
   });
 });
 
-describe('recruit and Fame (M3-S5, R10 as amended, pre-M0 review B4)', () => {
+describe('recruit and Fame (R10 as amended, pre-M0 review B4)', () => {
   // Pinned: the default may be tuned (INPUTS 5.6), these tests are written against 10.
   const gated = testDeps({ fameRequiredPerLevel: 10, negotiationRange: 0 });
 

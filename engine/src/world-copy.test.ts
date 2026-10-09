@@ -6,7 +6,7 @@ import { deserialise, serialise } from './serialise.js';
 import { copyWorld, writeOnce } from './world-copy.js';
 import { testDeps } from './world.test-support.js';
 
-// v1.1.6-S17 (ADR-0011, DL-203): the per-Turn copy by hand. It must be the copy `structuredClone`
+// ADR-0011, DL-203: the per-Turn copy by hand. It must be the copy `structuredClone`
 // made, key for key and in the same order at every depth, so the save is the same to the byte; the
 // write-once rows frozen all the way down and shared by reference; everything else copied anew.
 

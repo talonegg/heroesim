@@ -9,7 +9,7 @@ import { runSettings } from './settings.js';
 import { sweepTotals } from './counter.js';
 import { sweepFingerprint, sweepPlayInParallel, type PlaySweep } from './sweep.js';
 
-// M8-S3's module run (DL-78), collected only by the harness-run project and run only when
+// The module run (DL-78), collected only by the harness-run project and run only when
 // HEROESIM_MODULES names modules (`HEROESIM_MODULES=probe npm run harness`), in place of the
 // milestone's creation and play runs: play HEROESIM_SEEDS games (50 by default) from `seed-0001` for
 // 20 years or to their ending under the automatic policy, the core content and `defaultConfig`, once

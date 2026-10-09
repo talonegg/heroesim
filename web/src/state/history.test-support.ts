@@ -1,9 +1,9 @@
-// On which page of a History an entry stands, for the History's page-edge tests (M9-F7, DL-120 item
-// 10). The page's code called it for "Read it in the History" until M9-F5 took that away (DL-118 item
+// On which page of a History an entry stands, for the History's page-edge tests (DL-120 item
+// 10). The page's code called it for "Read it in the History" until DL-118 took that away (item
 // 5, DL-119 finding 5); it lives here now, with the index of the scope it read, as an oracle of the
 // pages' edges read apart from `historyView`: `historyPageSize` entries counted from the newest; past
-// them, in the player's Guild's History, the return a page's last Loot, Injury or Death stands beside
-// (M9-F7); and every step of a Party whose outcome the page holds, save in the World History and the
+// them, in the player's Guild's History, the return a page's last Loot, Injury or Death stands beside;
+// and every step of a Party whose outcome the page holds, save in the World History and the
 // whole History, which fold nothing.
 
 import { playerGuild, type EntityId, type Entry, type WorldDocument } from '@heroesim/engine';
@@ -19,7 +19,7 @@ function partyOf(entry: Entry): unknown {
   return (entry.payload as { partyId?: unknown } | null)?.partyId;
 }
 
-// v1.1.4-S7: a Trait a Hero earned on the Quest stands beside its return too.
+// A Trait a Hero earned (DL-159) on the Quest stands beside its return too.
 const beside = new Set(['quest.loot', 'hero.injured', 'hero.died', 'hero.trait-gained']);
 
 /** Whether `next`, older than `last`, is the return `last` stands beside, or another thing beside it. */
@@ -66,7 +66,7 @@ export function pageOfEntry(document: WorldDocument, whose: HistoryWhose, entry:
   };
   for (let start = 0, page = 0; start < places.length; page += 1) {
     let end = Math.min(places.length, start + historyPageSize);
-    // In the player's Guild's, a page that ends on a return's Loot, Injury or Death takes the return (M9-F7).
+    // In the player's Guild's, a page that ends on a return's Loot, Injury or Death takes the return.
     while (mine && end < places.length && besideItsReturn(at(end - 1), at(end))) end += 1;
     while (folds && end < places.length && isStep(at(end)) && outcomeOf(end) >= start) end += 1;
     if (index < end) return page;

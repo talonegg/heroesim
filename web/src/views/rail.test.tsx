@@ -4,7 +4,7 @@ import { App } from '../app';
 import { cameHome, played, started, withPartyOut, withReturn } from '../state/game.test-support';
 import { navButton } from './page.test-support';
 
-// The History rail (M9-S3, DL-103), as the player's Guild's History shows it since M9-F4 (DL-111
+// The History rail (DL-103), as the player's Guild's History shows it (DL-111
 // item 4, DL-112 item 7): no XP, Morale, Regard, Upkeep, purchase or sale, and "New" counting only
 // what it shows, as the navigation's count does.
 
@@ -14,14 +14,14 @@ function rail(): HTMLElement {
   return screen.getByRole('complementary', { name: 'Latest for The Lantern' });
 }
 
-/** The rail's lines, each its sentence: a return's is its own line's, without the Heroes' lines under it (M9-F5). */
+/** The rail's lines, each its sentence: a return's is its own line's, without the Heroes' lines under it. */
 function railSentences(): string[] {
   return Array.from(rail().querySelectorAll<HTMLElement>('.lines--rail > li')).map((item) =>
     (item.querySelector('.entry__text')?.textContent ?? (item.textContent ?? '').replace(/^Year \d+ Day \d+, (morning|afternoon|night)(New)? /, '')),
   );
 }
 
-describe('the rail keeps to what the Guild’s History shows (M9-F4)', () => {
+describe('the rail keeps to what the Guild’s History shows', () => {
   test('a Party home: its return is there and new, its Heroes’ XP and Morale are not, and "New" is the navigation’s count', () => {
     render(<App initial={cameHome(started('reducer-test'))} />);
     const sentences = railSentences();
@@ -45,8 +45,8 @@ describe('the rail keeps to what the Guild’s History shows (M9-F4)', () => {
   });
 });
 
-describe('a Party’s return in the rail (M9-F5, DL-111 item 2)', () => {
-  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, "Open the report", the Loot the next entry, its Injury after it (M9-F7), and no Encounter', () => {
+describe('a Party’s return in the rail (DL-111 item 2)', () => {
+  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, "Open the report", the Loot the next entry, its Injury after it, and no Encounter', () => {
     const written = withReturn(withPartyOut(started('rail-return')), {
       band: 'strong',
       wealth: 150,

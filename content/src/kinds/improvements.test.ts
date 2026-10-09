@@ -7,7 +7,7 @@ import { shipped, realFiles, parse, refusalOf } from './content.test-support.js'
 // can find it.
 
 describe('validateContent on a set built in memory', () => {
-  // The Hall's facilities named in the refusal's words, which v1.1.6-S5 reads from the engine (DL-191).
+  // The Hall's facilities named in the refusal's words, which are read from the engine (DL-191).
   test('refuses an Improvement of a facility that is not one, naming the facilities, in the file and in memory', () => {
     const files = realFiles();
     files['improvements.json'] = (files['improvements.json'] ?? '').replace('"facility": "infirmary"', '"facility": "kitchen"');

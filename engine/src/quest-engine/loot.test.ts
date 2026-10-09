@@ -17,7 +17,7 @@ import { plannedStreams, testContent, testDeps, testWorld, withEncounters, withV
 import { drawLoot } from './loot.js';
 import { applyAction } from '../actions/action.js';
 
-// M5-S5: Loot (DL-52). `drawLoot` is tested on its own for the bands, the draws and uniqueness; the
+// Loot (DL-52). `drawLoot` is tested on its own for the bands, the draws and uniqueness; the
 // night's `questsConclude` for the award, played through `advance` from created worlds whose Party is
 // sent on a Quest given the table the test needs; and a month of play for the harness's counter.
 
@@ -119,7 +119,7 @@ describe('drawLoot', () => {
     }
   });
 
-  test("on a Quest with a Finale, awards only when the Finale ended a Triumph, its two draws taken whatever it did (v1.1.4-S8)", () => {
+  test("on a Quest with a Finale, awards only when the Finale ended a Triumph, its two draws taken whatever it did", () => {
     const deps = lootDeps({}, content);
     const finales = ['none', 'triumph', 'success', 'setback', 'failure', 'unmet'] as const;
     const awarded = finales.filter((finale) => {
@@ -136,7 +136,7 @@ describe('drawLoot', () => {
     expect(drawLoot(testWorld('finale-success-band', deps), { lootTableKey: 'whetstones' }, 'success', deps, 'triumph')).toBeNull();
   });
 
-  // v1.1.6-S16 (DL-202): the Degrees a Finale may end at for Loot are `lootOnFinaleDegrees`, the Triumph alone by default.
+  // DL-202: the Degrees a Finale may end at for Loot are `lootOnFinaleDegrees`, the Triumph alone by default.
   test("on a Quest with a Finale, awards when the Finale ended at a Degree in lootOnFinaleDegrees, and always on a Quest with none", () => {
     const awardedFor = (lootOnFinaleDegrees: readonly Degree[]) =>
       (['none', 'triumph', 'success', 'setback', 'failure', 'unmet'] as const).filter((finale) => {
@@ -237,7 +237,7 @@ function home({ document, party }: Sent, deps: EngineDeps): { document: WorldDoc
 }
 
 describe("questsConclude's Loot", () => {
-  // M5-S5's first box.
+  // The first acceptance box.
   test('appears only on the configured bands and only from a Quest whose template has a table', () => {
     const content = withTables(everyCheckPasses, whetstones);
     const failing = withTables(everyCheckFails, whetstones);
@@ -290,7 +290,7 @@ describe("questsConclude's Loot", () => {
     expect(document.history.byType['quest.loot']).toHaveLength(1);
   });
 
-  // M5-S5's second box.
+  // The second acceptance box.
   test('creates a unique Item once in world.items, held by the Guild, a Milestone; the same Item is never awarded again', () => {
     const deps = lootDeps({}, withTables(everyCheckPasses, blade, bladeOrWhetstones));
     const first = sent('unique', deps, 'the-blade');
@@ -349,7 +349,7 @@ describe("questsConclude's Loot", () => {
   });
 });
 
-// ── The harness's Loot counter (M5-S5's third box) ───────────────────────────────────────────
+// ── The harness's Loot counter (the third acceptance box) ───────────────────────────────────────────
 
 /** Which Quest the player sends a Party on each afternoon, of those the Guild can staff. */
 type Regime = 'easiest' | 'hardest';

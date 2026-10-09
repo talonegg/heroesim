@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { operators, type QueryType } from './operators.js';
 import { queryProblems, type QueryKeys, type QueryPlace } from './problems.js';
 
-// v1.1.6-S10 (DL-186 item 6): each operator's row of the table, read through `queryProblems` as
+// DL-186 item 6: each operator's row of the table, read through `queryProblems` as
 // content's checks read it. Its signature is written out here, apart from the table, and each operator
 // is held to it: a node of sound arguments accepted, one short or one over refused in the words of
 // its number, and each argument of another kind refused at its place. Content's own test

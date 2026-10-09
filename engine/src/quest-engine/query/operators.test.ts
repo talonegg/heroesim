@@ -3,7 +3,7 @@ import type { NumQuery, PredQuery, QueryComparison } from '../../content-types.j
 import type { QueryContent, QueryMember, QueryParty } from '../query.js';
 import { holds, is, operators } from './operators.js';
 
-// v1.1.6-S10 (DL-186 item 6): the five comparisons share one row of each type, a Pred's of two Vals and
+// DL-186 item 6: the five comparisons share one row of each type, a Pred's of two Vals and
 // a condition's of two Nums; each comparison is held here on a number less than, equal to and greater
 // than another, which query.test.ts reads only in part. Every other row's evaluation is held by
 // query.test.ts, as it was before the table.

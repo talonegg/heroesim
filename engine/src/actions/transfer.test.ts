@@ -21,7 +21,7 @@ import { testDeps, withDispositions, withValid } from '../world.test-support.js'
 import { applyAction, type Action } from './action.js';
 import type { ActionResult, Rejection } from './result.js';
 
-// M6-S2: Transfers in both directions, the Morale they cost, the Guildmasters' Regard they raise, and
+// Transfers in both directions, the Morale they cost, the Guildmasters' Regard they raise, and
 // the Transfer Offers a Guild that answers for itself receives (R28, INPUTS 7.6, pre-M0 review D5,
 // DL-57). Every document a test makes is held to the validator; the numbers the tests rely on are
 // pinned here, and Negotiation is stilled unless a test is about it.
@@ -129,7 +129,7 @@ function listPrice(hero: Hero, config: GameConfig, content: EngineDeps['content'
 
 // ── The acceptance boxes ─────────────────────────────────────────────────────────────────────
 
-describe('a Transfer out (M6-S2)', () => {
+describe('a Transfer out', () => {
   // The story's first box.
   test("a Transfer out of a close Hero lowers the Morale of their friends and no one else's", () => {
     const document = created('friends');
@@ -272,7 +272,7 @@ describe('a Transfer out (M6-S2)', () => {
   });
 });
 
-describe('a Transfer in (M6-S2)', () => {
+describe('a Transfer in', () => {
   // The story's second box, the other way round.
   test("takes a Rival's Hero for transferFee, paid to the Rival: the document valid, the Wealth across Guilds unchanged", () => {
     const document = created('in');
@@ -518,7 +518,7 @@ describe('transferFee (INPUTS 7.6, DL-43, DL-57)', () => {
   });
 });
 
-describe("the fee every action charges is at the paying Guildmaster's Negotiation (M6-S2, DL-43, DL-57)", () => {
+describe("the fee every action charges is at the paying Guildmaster's Negotiation (DL-43, DL-57)", () => {
   test("transferIn, transferOut and offerTransfer each price the Hero at the Negotiation of the Guild that pays: not the one paid, not the list price", () => {
     const negotiating = testDeps({ ...pins, negotiationRange: 0.1 }, withDispositions({ transferAppetite: 1, recruitThreshold: 0, buildThreshold: 1_000_000 }));
     const document = created('negotiated', negotiating);

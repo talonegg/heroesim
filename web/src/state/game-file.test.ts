@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { rulesNotice, saveFileName, saveText } from './game-file';
 
-// The game as a file, the CLI's `save --as` and `load` (M7-S3 part 2, DL-73), and the notice of
+// The game as a file, the CLI's `save --as` and `load` (DL-73), and the notice of
 // new rules (pre-M0 review D1).
 
 const deps = { config: defaultConfig, content };

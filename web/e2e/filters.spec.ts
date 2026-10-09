@@ -1,7 +1,7 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { dispatchAParty, expectNoHorizontalOverflow, expectTargets, guildPart, openView, part, startGame } from './support';
 
-// The page's one filter element (v1.1.7-S7, DL-206 items 25 to 29, DL-213), in the built page at a
+// The page's one filter element (DL-206 items 25 to 29, DL-213), in the built page at a
 // phone's width, a tablet's and a desktop's: the Roster filtered by availability and by Class, by the
 // keyboard, the tiles and the Table showing the same Heroes and "Showing" saying how many, each chip's
 // count what it would show with the other filter as it is; Tiles or Table a choice of one; and the

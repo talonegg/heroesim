@@ -17,9 +17,9 @@ import { bestParties } from '../best-party.js';
 import { availableHeroes, rivalChoices, staffableQuests } from './rival.js';
 import { estimateQuest } from '../quest-engine/estimate.js';
 
-// v1.1.5-S6 (DL-175): a test may name the chance of success by the size of the Party, in place of
+// DL-175: a test may name the chance of success by the size of the Party, in place of
 // the estimate, to set a gain exactly; none set, `partyEstimator` is the real one. `asked` counts the
-// Parties so weighed (v1.1.5-S6's verification).
+// Parties so weighed (DL-175).
 const chances = vi.hoisted(() => ({ bySize: null as ((size: number) => number) | null, asked: 0 }));
 vi.mock('../quest-engine/estimate.js', async (importOriginal) => {
   const real = await importOriginal<typeof import('../quest-engine/estimate.js')>();
@@ -38,8 +38,8 @@ vi.mock('../quest-engine/estimate.js', async (importOriginal) => {
   };
 });
 
-// M2-S9: the Rivals' choices (INPUTS 4.12, DL-30), read off a world, which they change only by the
-// draws they take from `rivals`; from M6-S1 one rule reading each Disposition's weights (INPUTS 7.5,
+// The Rivals' choices (INPUTS 4.12, DL-30), read off a world, which they change only by the
+// draws they take from `rivals`; one rule reading each Disposition's weights (INPUTS 7.5,
 // DL-56). `steady` keeps DL-30's choices, so its tests stand as they were. The phase that applies
 // them is phases/rival-controllers.test.ts.
 
@@ -110,7 +110,7 @@ function takenDifficulty(world: World, guild: Guild, deps: EngineDeps): number |
   return questId === undefined ? undefined : world.quests[questId]?.difficulty;
 }
 
-/** Empties the Market of every stack and Item and stocks it with `stacks` alone (M6-S4's tests). */
+/** Empties the Market of every stack and Item and stocks it with `stacks` alone (DL-58's tests). */
 function stockMarket(world: World, stacks: readonly (readonly [string, number])[]): void {
   const held = holdings(world, marketHolder);
   for (const stack of held.stacks) delete world.stacks[stack.id];
@@ -126,7 +126,7 @@ function chanceOf(world: World, quest: Quest, heroes: readonly Hero[], deps: Eng
 
 /**
  * The Party DL-148 item 17's greedy rule names, worked out here from `estimateQuest` alone, a fresh
- * estimate for every Party weighed (v1.1.4-S6): the Heroes the requirements take, each the one who
+ * estimate for every Party weighed: the Heroes the requirements take, each the one who
  * most raises the chance of success; then the one who most raises it up to `partySizeMin`; then the
  * one who most raises it while it raises it by more than `margin`, up to `partySizeMax`. Ties go to
  * the better chance of a strong success, then the lower Hero id.
@@ -180,7 +180,7 @@ describe('steady: which Quest', () => {
     expect(dispatchOf(world, rival, deps)).toMatchObject({ kind: 'dispatch', guildId: rival.id, questId: quests[2]?.id });
   });
 
-  // M6-S1 (DL-56): a tie the weights leave is broken by a draw from `rivals`, where DL-30 took the
+  // DL-56: a tie the weights leave is broken by a draw from `rivals`, where DL-30 took the
   // lower Quest id.
   test('breaks a tie of difficulty with one draw from rivals, among the tied Quests only', () => {
     const { world, rival, deps } = scene('tie');
@@ -230,9 +230,9 @@ describe('steady: which Quest', () => {
   });
 });
 
-// v1.1.4-S6 (DL-148 item 17): a Rival chooses its Party by the chance estimate, the greedy rule
-// the Best Party states (best-party.ts), where M2-S9 sent the fewest the Quest allowed, strongest for its demands first.
-describe('which Heroes: the greedy rule by the chance estimate (v1.1.4-S6)', () => {
+// DL-148 item 17: a Rival chooses its Party by the chance estimate, the greedy rule
+// the Best Party states (best-party.ts), where DL-30 sent the fewest the Quest allowed, strongest for its demands first.
+describe('which Heroes: the greedy rule by the chance estimate', () => {
   const margins = [0, 0.02, 0.05, 0.1, 0.3, 1];
 
   test('each Disposition, at each margin set in its row, sends the Party the greedy rule names', () => {
@@ -249,7 +249,7 @@ describe('which Heroes: the greedy rule by the chance estimate (v1.1.4-S6)', () 
         const expected = greedyParty(world, quest, availableHeroes(world, rival), deps, partyMargin);
         expect(action?.heroIds, `${disposition} at ${partyMargin}`).toEqual(expected);
         sizes.set(partyMargin, [...(sizes.get(partyMargin) ?? []), expected?.length ?? 0]);
-        // v1.1.5-S6's verification: at 0 a Party stops short of the most the Quest takes only when no
+        // DL-175: at 0 a Party stops short of the most the Quest takes only when no
         // Hero left raises its chance at all.
         if (partyMargin === 0 && expected !== null && expected.length < quest.requirements.partySizeMax) {
           const party = expected.map((id) => world.heroes[id] as Hero);
@@ -262,7 +262,7 @@ describe('which Heroes: the greedy rule by the chance estimate (v1.1.4-S6)', () 
     }
     // The margin decides how many go: at 0 each Hero who raises the chance at all, at 1 the fewest.
     expect(sizes.get(1)).toEqual([1, 1, 1, 1]);
-    // (v1.1.5-S6: a Party already sure of the Quest gains nothing from a Hero, so it is not always more than one.)
+    // (DL-175: a Party already sure of the Quest gains nothing from a Hero, so it is not always more than one.)
     expect(sizes.get(0)?.some((size) => size > 1)).toBe(true);
     // And some stop short here, so the check of a Party stopped short above is exercised.
     expect(sizes.get(0)?.some((size) => size < 4)).toBe(true);
@@ -286,8 +286,8 @@ describe('which Heroes: the greedy rule by the chance estimate (v1.1.4-S6)', () 
     }
   });
 
-  // v1.1.5-S6 (DL-175, R1): past the minimum size a Hero joins only for more than the margin.
-  describe('a Hero joins only for more than the margin (v1.1.5-S6)', () => {
+  // DL-175, R1: past the minimum size a Hero joins only for more than the margin.
+  describe('a Hero joins only for more than the margin', () => {
     /**
      * On a Quest of one to four places, the chance of success a function of the Party's size: how many
      * go, how many Parties were weighed, and how many Heroes could go.
@@ -333,7 +333,7 @@ describe('which Heroes: the greedy rule by the chance estimate (v1.1.4-S6)', () 
       expect(sent(1, (size) => (size === 1 ? 0 : 1))).toBe(1);
     });
 
-    // v1.1.5-S6's verification: the loop's guard. No Hero can raise the chance by more than what is
+    // DL-175: the loop's guard. No Hero can raise the chance by more than what is
     // left of it below 1, so once that is the margin or less no Hero past the minimum is weighed: only
     // the first place's, one Party each.
     test('once what is left of the chance is not more than the margin, no Hero past the minimum is weighed', () => {
@@ -441,7 +441,7 @@ describe('which Heroes: the greedy rule by the chance estimate (v1.1.4-S6)', () 
     expect(dispatchOf(world, rival, deps)).toBeUndefined();
   });
 
-  // v1.1.4-S6's verification: the Board shows the best Party's chance without estimating it again.
+  // DL-157: the Board shows the best Party's chance without estimating it again.
   test("the Best Party comes with the estimate it was chosen by, which is estimateQuest's for it", () => {
     for (const partyMargin of [0, 0.05, 1]) {
       const { world, rival, deps } = scene('greedy-best', testDeps({}, withDispositions({ partyMargin })));
@@ -468,7 +468,7 @@ describe('which Heroes: the greedy rule by the chance estimate (v1.1.4-S6)', () 
   });
 });
 
-// M4-S5 folded M2-S4's `party-size` rejection into `requirement-unmet` (DL-43 item 1): the staffing
+// The `party-size` rejection is folded into `requirement-unmet` (DL-43 item 1): the staffing
 // rule the Rivals and the harness's policy share is held to the one test `dispatch` applies (DL-44).
 describe('staffing agrees with dispatch', () => {
   test('every Best Party meets unmetRequirements, size, Class and Skill alike', () => {
@@ -498,7 +498,7 @@ describe('staffing agrees with dispatch', () => {
     expect(named).toBeGreaterThan(20);
   });
 
-  // v1.1.4-S6 (DL-157): the stops search the Board with the Best Party's first step, which asks no estimate.
+  // DL-157: the stops search the Board with the Best Party's first step, which asks no estimate.
   test('staffableQuests names exactly the Quests for which the Best Party is one dispatch would send', () => {
     for (const seed of ['agree-a', 'agree-b', 'agree-c']) {
       const { world, rival, deps } = scene(seed, testDeps({ rivalRosterMin: 6, rivalRosterMax: 8 }));
@@ -519,10 +519,10 @@ describe('staffing agrees with dispatch', () => {
 
 describe('steady: recruiting', () => {
   // Ten Upkeeps, so that Wealth just above the threshold covers any signing fee; and no building,
-  // which `steady` chooses first once its Wealth is three times the infirmary's cost (M3-S6). Both
-  // on the row (DL-56). Negotiation still too (M4-S5): the fees are compared at the list price.
-  // Transfers stilled too (M6-S2, DL-57): a Rival that would hire weighs a Transfer before a recruit;
-  // and gear, which it buys before it hires (M6-S4, DL-58).
+  // which `steady` chooses first once its Wealth is three times the infirmary's cost. Both
+  // on the row (DL-56). Negotiation still too: the fees are compared at the list price.
+  // Transfers stilled too (DL-57): a Rival that would hire weighs a Transfer before a recruit;
+  // and gear, which it buys before it hires (DL-58).
   const noBuilding = { buildThreshold: 1_000_000, gearThreshold: 1_000_000, transferAppetite: 0 };
   const still = { negotiationRange: 0 };
   const deps = testDeps(still, withDispositions({ recruitThreshold: 10, ...noBuilding }));
@@ -575,7 +575,7 @@ describe('steady: recruiting', () => {
     expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: lowestId?.id }]);
   });
 
-  test("passes over a Hero who would refuse its Fame for the cheapest who would sign (M3-S5), and asks no one when none would", () => {
+  test("passes over a Hero who would refuse its Fame for the cheapest who would sign, and asks no one when none would", () => {
     const gated = testDeps({ fameRequiredPerLevel: 10, ...still }, withDispositions({ recruitThreshold: 10, ...noBuilding }));
     const { world, rival } = scene('fame-skip', gated);
     rival.wealth = 100_000;
@@ -740,10 +740,10 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
   });
 });
 
-describe('steady: building (M3-S6, M6-S4)', () => {
+describe('steady: building', () => {
   // Pinned: three times the cost, and a recruit threshold low enough that recruiting is on offer;
-  // Transfers stilled, which a Rival that would hire weighs before a recruit (M6-S2, DL-57); and gear,
-  // which it buys after it builds and before it hires (M6-S4, DL-58).
+  // Transfers stilled, which a Rival that would hire weighs before a recruit (DL-57); and gear,
+  // which it buys after it builds and before it hires (DL-58).
   const deps = testDeps({}, withDispositions({ buildThreshold: 3, recruitThreshold: 1, gearThreshold: 1_000_000, transferAppetite: 0 }));
   const purchases = (world: World, guild: Guild) => rivalChoices(world, guild, deps).filter((action) => action.kind !== 'dispatch');
 
@@ -757,7 +757,7 @@ describe('steady: building (M3-S6, M6-S4)', () => {
     expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'infirmary' }]);
 
     // The next grade costs 500; the other facilities built to their top, so that the infirmary is the
-    // only one with a grade to build (M6-S4 builds every facility, the next test).
+    // only one with a grade to build (DL-58: it builds every facility, the next test).
     rival.hall = { infirmary: 1, trainingYard: 3, quarters: 3 };
     rival.wealth = 3 * 500;
     expect(purchases(world, rival)).toEqual([expect.objectContaining({ kind: 'recruit' })]);
@@ -765,7 +765,7 @@ describe('steady: building (M3-S6, M6-S4)', () => {
     expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'infirmary' }]);
   });
 
-  // M6-S4 (DL-58): M3-S6's Rival built the infirmary alone; it now builds every facility of its Hall.
+  // DL-58: a Rival builds every facility of its Hall, not the infirmary alone.
   test('builds the next facility in the Hall’s order once the infirmary is at its top grade, and nothing once all are', () => {
     const { world, rival } = scene('build-top', deps);
     rival.wealth = 1_000_000;
@@ -813,11 +813,11 @@ describe('steady: building (M3-S6, M6-S4)', () => {
 
 describe('rivalChoices', () => {
   test('dispatches, then recruits, as Action values a front end would produce', () => {
-    // Transfers stilled: a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57);
-    // and gear, which it buys before it hires (M6-S4, DL-58).
+    // Transfers stilled: a Rival that would hire weighs a Transfer before a recruit (DL-57);
+    // and gear, which it buys before it hires (DL-58).
     const { world, rival, deps } = scene('both', testDeps({}, withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 })));
     rival.wealth = 100_000;
-    rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 }; // built to the top (M6-S4), so that its purchase is a recruit
+    rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 }; // built to the top, so that its purchase is a recruit
 
     const choices = rivalChoices(world, rival, deps);
 
@@ -865,9 +865,9 @@ describe('rivalChoices', () => {
   });
 });
 
-// ── M6-S1: one rule, reading each Disposition's row (INPUTS 7.5, DL-56) ─────────────────────────
+// ── One rule, reading each Disposition's row (INPUTS 7.5, DL-56) ─────────────────────────
 
-describe('one rule for every Disposition, reading its row (M6-S1)', () => {
+describe('one rule for every Disposition, reading its row', () => {
   // Six Quests every Rival can staff, at six difficulties: ranked, 25 30 40 55 60 90.
   const difficulties = [60, 40, 25, 90, 30, 55];
   const ranked = [...difficulties].sort((a, b) => a - b);
@@ -899,8 +899,8 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
   });
 
   test("each Disposition recruits above its row's recruitThreshold of Upkeeps and builds above its buildThreshold times the cost", () => {
-    // Transfers stilled: a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57);
-    // gear too, which it buys before it hires (M6-S4: its gearThreshold's own test is below).
+    // Transfers stilled: a Rival that would hire weighs a Transfer before a recruit (DL-57);
+    // gear too, which it buys before it hires (DL-58: its gearThreshold's own test is below).
     const deps = testDeps({ negotiationRange: 0 }, withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 }));
     for (const disposition of ['ambitious', 'miserly', 'reckless', 'steady']) {
       const { world, rival } = scene(`thresholds-${disposition}`, deps, disposition);
@@ -913,7 +913,7 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
       rival.wealth = row.buildThreshold * 200 + 1;
       expect(purchase(), disposition).toEqual({ kind: 'build', guildId: rival.id, facility: 'infirmary' });
 
-      // Recruiting, with the Hall built to its top (M6-S4 builds every facility).
+      // Recruiting, with the Hall built to its top (a Rival builds every facility, DL-58).
       rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
       const threshold = row.recruitThreshold * upkeep(rival, world, deps.config, deps.content);
       rival.wealth = threshold;
@@ -926,7 +926,7 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
     expect(Math.min(...rows.map((row) => row.buildThreshold))).toBe(testContent.dispositions['ambitious']?.buildThreshold);
   });
 
-  // M6-S1's second box: a fifth Disposition is a row, and plays with no code change.
+  // The second acceptance box: a fifth Disposition is a row, and plays with no code change.
   describe('a fifth Disposition, added to the content with weights of its own', () => {
     const cautious: Disposition = {
       key: 'cautious',
@@ -960,8 +960,8 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
       // 0.75 of the way along six: the fifth, 60; no other Disposition's place.
       expect(takenDifficulty(world, rival, deps)).toBe(60);
 
-      // Transfers stilled for the purchase: a Rival that would hire weighs one first (M6-S2, DL-57);
-      // gear too, which it buys before it hires (M6-S4, DL-58), until its own threshold is tried below.
+      // Transfers stilled for the purchase: a Rival that would hire weighs one first (DL-57);
+      // gear too, which it buys before it hires (DL-58), until its own threshold is tried below.
       const still = testDeps(
         { rivalCount: 5, negotiationRange: 0 },
         withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 }, withFifth()),
@@ -978,7 +978,7 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
       rival.wealth = threshold + 1;
       expect(purchase()).toMatchObject({ kind: 'recruit', guildId: rival.id });
 
-      // Its gearThreshold, 4, read as every row's is (M6-S4): armour at four times its price, and no
+      // Its gearThreshold, 4, read as every row's is: armour at four times its price, and no
       // more, with nothing else to buy. A Market of padded jacks alone; it would not hire.
       const gearing = testDeps({ rivalCount: 5, negotiationRange: 0 }, withDispositions({ transferAppetite: 0, recruitThreshold: 1_000_000 }, withFifth()));
       stockMarket(world, [['padded-jack', 5]]);
@@ -1013,10 +1013,10 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
   });
 });
 
-// ── M6-S4: buying gear at the Market, armour first, by the row's gearThreshold (DL-58) ──────────
+// ── Buying gear at the Market, armour first, by the row's gearThreshold (DL-58) ──────────
 
-describe('buying gear at the Market (M6-S4)', () => {
-  /** Nothing else on offer: no hiring and no Transfer (M6-S2), Negotiation still (M4-S5). */
+describe('buying gear at the Market', () => {
+  /** Nothing else on offer: no hiring and no Transfer, Negotiation still. */
   const buying = (gearThreshold: number, config: Partial<EngineDeps['config']> = {}): EngineDeps =>
     testDeps(
       { negotiationRange: 0, ...config },

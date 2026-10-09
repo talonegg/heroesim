@@ -8,7 +8,7 @@ import { serve, type Served } from './server.js';
 import { json, plantedTests, plantOutcome, readContentJson, scratchRepository, status } from './test-support.js';
 import type { TestRunner } from './tests-run.js';
 
-// The editor's page (v1.1.4-S12, DL-150 item 7): each of its actions driven through the API it calls,
+// The editor's page (DL-150 item 7): each of its actions driven through the API it calls,
 // on a scratch copy served on a free port, and once through the page itself in Chromium. "Finish" reads
 // the scratch copy's planted `npm test` in this process, as most of the commands' tests do (DL-234).
 
@@ -148,7 +148,7 @@ describe('the API', () => {
     expect(cli.code).toBe(1);
     expect(cli.json).toMatchObject({ kind: 'busy', problems: [expect.stringContaining('"Finish" is running'), expect.stringContaining('traits recover --force')] });
     expect((await json<{ finish: { running: boolean }; ok: boolean }>(dir, 'traits', 'doctor')).json).toMatchObject({ ok: false, finish: { running: true } });
-    // `pending` and `doc` too (v1.1.4-S14).
+    // `pending` and `doc` too.
     for (const argv of [['pending'], ['doc']]) {
       const refused = await json<{ kind: string }>(dir, 'traits', ...argv);
       expect([argv[0], refused.code, refused.json.kind]).toEqual([argv[0], 1, 'busy']);
@@ -161,7 +161,7 @@ describe('the API', () => {
     expect((await api('GET', '/api/traits')).json.pending).toEqual([]);
   });
 
-  test('a "Finish" started from the page while another runs is refused as busy, not as a Finish put back (v1.1.4-S14)', async () => {
+  test('a "Finish" started from the page while another runs is refused as busy, not as a Finish put back', async () => {
     const { dir, page, api } = await served();
     await api('PUT', '/api/traits/thrifty', { cost: 3 });
     // Another "Finish", as a command line's, holds the lock.
@@ -235,8 +235,8 @@ function chromiumInstalled(): boolean {
   }
 }
 
-// The page itself, at a desktop width, each of its controls driven as the owner drives them (v1.1.4-S12;
-// every control since v1.1.4-S14): Find, the forms to add and change, Remove refused and done,
+// The page itself, at a desktop width, each of its controls driven as the owner drives them (DL-150): Find,
+// the forms to add and change, Remove refused and done,
 // Discard, Doctor and "Finish", passed, failed and refused while another runs. `assign` and
 // `unassign` are the commands' alone, by DL-163 item 6, so the page has no control for them. Skipped
 // where Chromium is not installed.
@@ -262,7 +262,7 @@ describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
   }
   const shown = (tab: Page): Promise<string[]> => tab.locator('tr[data-key]:not(.is-hidden)').evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.key ?? ''));
 
-  test('finds, adds, changes, removes, discards and runs the doctor through its own controls (v1.1.4-S14)', async () => {
+  test('finds, adds, changes, removes, discards and runs the doctor through its own controls', async () => {
     const { tab } = await opened(plantedTests);
     expect(await tab.locator('section[data-list=guildmaster] tbody tr').count()).toBe(6);
     expect(await tab.locator('tr[data-key=thrifty] td').nth(3).innerText()).toBe('Upkeep × 0.9');
@@ -316,7 +316,7 @@ describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
     expect(await tab.locator('#discard').isDisabled()).toBe(true);
   });
 
-  test('shows a failed "Finish" put back, and tells a "Finish" running elsewhere from a use or a failure (v1.1.4-S14)', async () => {
+  test('shows a failed "Finish" put back, and tells a "Finish" running elsewhere from a use or a failure', async () => {
     const { runner, release } = heldRunner();
     const { dir, tab, api } = await opened(runner);
     await api('PUT', '/api/traits/thrifty', { cost: 3 });

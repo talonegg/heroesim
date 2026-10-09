@@ -10,10 +10,10 @@ import { help } from './section';
 import { HistoryLinksContext } from './history-entries';
 import { historyLines, inHistory, navButton, openDebugHistory, openView, section, sentenceOf } from './page.test-support';
 
-// The History as the one place to read what happened (M9-S5, DL-105), driven through the page: it
+// The History as the one place to read what happened (DL-105), driven through the page: it
 // opens on the player's Guild, the last play's entries its newest and marked new; the World History
 // and a Rival's are one choice away, a choice that holds, and the whole History is the game menu's
-// debug view (M9-F4); groups by date and time of day; a Party's
+// debug view; groups by date and time of day; a Party's
 // Encounters and a Rival's routine folded, each opened by a button; the marks, each with a word or an
 // icon; names that open whom they name; and each entity's page opening its History.
 
@@ -55,7 +55,7 @@ function cameHome(): GameState {
   return played(withPartyOut(started('reducer-test')), { kind: 'fastForward', until: [] });
 }
 
-describe('one view, opened on the player’s Guild (M9-S5)', () => {
+describe('one view, opened on the player’s Guild', () => {
   test("opens on the player's Guild, grouped by date and time of day, newest first, what the last play added marked new", () => {
     render_(cameHome());
     const history = section('History');
@@ -121,7 +121,7 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
   });
 
   test('reads its page again when the game, the log or the page changes, and not at each step of a fast forward', () => {
-    // v1.0.1-S5, DL-96 item 3: a year's History read at every step would be narrated again 36 times.
+    // DL-96 item 3: a year's History read at every step would be narrated again 36 times.
     const first = gameReducer(gameReducer(withRosterReleased(started()), { kind: 'fastForward', until: [] }), { kind: 'settle' });
     const second = gameReducer(first, { kind: 'settle' });
     expect(second.document).toBe(first.document);
@@ -142,8 +142,8 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
   });
 });
 
-describe('folds, and the marks on each line (M9-S5)', () => {
-  test("folds a Rival's Party's Encounters under how its Quest went, marked with an icon and a word, and opens them (the player's return is one entry, M9-F5)", () => {
+describe('folds, and the marks on each line', () => {
+  test("folds a Rival's Party's Encounters under how its Quest went, marked with an icon and a word, and opens them (the player's return is one entry)", () => {
     render_(cameHome());
     // A Rival's own History: the last choice.
     fireEvent.click(within(whose()).getAllByRole('button').at(-1) as HTMLElement);
@@ -221,7 +221,7 @@ describe('folds, and the marks on each line (M9-S5)', () => {
   });
 });
 
-describe('names that open whom they name (M9-S5)', () => {
+describe('names that open whom they name', () => {
   test("a Hero's name opens their page in the History, and back goes to the History it came from", () => {
     render_(withPartyOut(started()));
     const sent = inHistory(/^The Lantern sent .+ on .+, back on the night of Year \d+ Day \d+\.$/);
@@ -270,18 +270,18 @@ describe('names that open whom they name (M9-S5)', () => {
   });
 });
 
-describe("each one's page opens their History (M9-S5)", () => {
+describe("each one's page opens their History", () => {
   test("a Rival's page in the Rankings, a Patron and a Guildmaster", () => {
     render_(played(started(), { kind: 'advance', turns: 3 }));
     const guilds = section('Guilds');
-    // The player's Guild is a row of the table too (M9-S6): a Rival's is one of the others.
+    // The player's Guild is a row of the table too: a Rival's is one of the others.
     fireEvent.click(within(guilds).getAllByRole('button', { name: /^Open / }).find((each) => each.getAttribute('aria-label') !== 'Open The Lantern') as HTMLElement);
     const rival = within(guilds).getByRole('heading', { level: 4 }).textContent ?? '';
     fireEvent.click(within(guilds).getByRole('button', { name: `Read the History of ${rival}` }));
     expect(title()).toBe(`The History of ${rival}`);
     expect(within(whose()).getByRole('button', { name: rival }).getAttribute('aria-pressed')).toBe('true');
 
-    // A Patron neutral both ways is folded under the count of them (M9-S6).
+    // A Patron neutral both ways is folded under the count of them.
     const fold = within(section('Patrons')).queryByRole('button', { name: /^\d+ neutral$/ });
     if (fold !== null) fireEvent.click(fold);
     const [patron] = within(section('Patrons')).getAllByRole('button', { name: /^Read the History of / });
@@ -293,7 +293,7 @@ describe("each one's page opens their History (M9-S5)", () => {
     expect(title()).toBe('The History of Ada Vell');
   });
 
-  test('the rail opens the History on the player’s Guild, at its newest, whatever was chosen before; a Party home opens Guild › Home at its report (M9-F5)', async () => {
+  test('the rail opens the History on the player’s Guild, at its newest, whatever was chosen before; a Party home opens Guild › Home at its report', async () => {
     render_(withPartyOut(started('reducer-test')));
     fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
     openView('Board');
@@ -304,7 +304,7 @@ describe("each one's page opens their History (M9-S5)", () => {
     fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await idle();
-    // The Party's stop offers no "Read what happened": the play opened its report (M9-F5).
+    // The Party's stop offers no "Read what happened": the play opened its report.
     expect(within(screen.getByTestId('stop')).queryByRole('button', { name: 'Read what happened' })).toBeNull();
     // The keyboard moves in an effect after the render that ends the play, which a loaded machine may
     // run after `idle` has seen that render (DL-164).
@@ -315,7 +315,7 @@ describe("each one's page opens their History (M9-S5)", () => {
   });
 });
 
-describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 item 2)', () => {
+describe('a Party’s return in the player’s Guild’s History (DL-111 item 2)', () => {
   const written = withReturn(withPartyOut(started('history-return')), {
     band: 'fail',
     fame: -2,
@@ -325,7 +325,7 @@ describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 
     loot: [{ definitionKey: 'whetstone', quantity: 1 }],
   });
 
-  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, the Loot the next entry, its Injury standing out after it (M9-F7), and no Encounter', () => {
+  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, the Loot the next entry, its Injury standing out after it, and no Encounter', () => {
     render_(written.state);
     openView('History');
     const entry = inHistory(/^The Lantern's Party came home from .+ and failed: Wealth 0, Fame -2\.$/);
@@ -367,7 +367,7 @@ describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 
   });
 });
 
-describe("a Party's Encounters, and a Hero's Traits, in the History (v1.1.4-S14)", () => {
+describe("a Party's Encounters, and a Hero's Traits, in the History", () => {
   test("a Hero's History folds their Party's Encounters under its return, each with its Degree, and one written before v1.1.4 as a Success or a Failure", () => {
     // Each Encounter hurt the first Hero, so names them, and stands in their History (`quests-conclude.ts`).
     const written = withReturn(withPartyOut(started('history-degrees')), {
@@ -429,7 +429,7 @@ describe('anyone the History names, found by name (DL-74)', () => {
     const page = within(history()).getByRole('article');
     expect(within(page).getByRole('heading', { level: 3, name: dead.name })).toBeDefined();
     expect(within(page).getByText(/^Died on Year \d+ Day \d+$/)).toBeDefined();
-    // This Hero is dead by the test's own hand, with no Milestone recorded: none is drawn (M9-S3, the review's A5).
+    // This Hero is dead by the test's own hand, with no Milestone recorded: none is drawn (the review's A5).
     expect(within(page).queryByRole('heading', { name: 'Milestones' })).toBeNull();
     expect(within(page).getByRole('heading', { level: 4, name: 'History, newest first' })).toBeDefined();
     expect(within(history()).queryByRole('list', { name: 'Found in the History' })).toBeNull();
@@ -452,7 +452,7 @@ describe('anyone the History names, found by name (DL-74)', () => {
 
 // Each plays a month or more before it renders the History: up to two seconds alone, near the default
 // 5 s under the whole suite's load (DL-164).
-describe("the History's scopes (M9-F4, DL-111 item 4, DL-112 item 7)", { timeout: 30_000 }, () => {
+describe("the History's scopes (DL-111 item 4, DL-112 item 7)", { timeout: 30_000 }, () => {
   test('the choices are your Guild, the world and each Rival: the whole History is not among them', () => {
     render_(played(started(), { kind: 'advance', turns: 3 }));
     const labels = within(whose())

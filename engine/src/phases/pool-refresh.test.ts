@@ -16,13 +16,13 @@ import { phaseContext } from './phase.js';
 import { poolRefresh } from './pool-refresh.js';
 import { applyAction } from '../actions/action.js';
 
-// M2-S8: the night's pool refresh (DL-27). Documents are held to the validator after every advance
+// The night's pool refresh (DL-27). Documents are held to the validator after every advance
 // a test inspects.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /**
- * The test deps with no Rivals: from M2-S9 they recruit from the pool each afternoon, and these
+ * The test deps with no Rivals: they recruit from the pool each afternoon, and these
  * tests watch the pool's own refresh.
  */
 function quietDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
@@ -282,7 +282,7 @@ describe('the refill', () => {
     expect(unattachedHeroes(document.world)).toHaveLength(deps.config.unattachedPoolSize);
   });
 
-  test("advances only the pool stream, and each new Hero's own two, hero-portraits and hero-descriptions (v1.1.3-S6)", () => {
+  test("advances only the pool stream, and each new Hero's own two, hero-portraits and hero-descriptions", () => {
     const deps = quietDeps({ unattachedStayDays: 0 });
     const document = created('streams', deps);
     const world = structuredClone(document.world);

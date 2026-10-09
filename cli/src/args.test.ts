@@ -34,7 +34,7 @@ describe('parseArgs', () => {
     });
   });
 
-  test("reads new's Guildmaster flags: the sex, the age, the Traits by key, and the three descriptive Attributes (M9-S2)", () => {
+  test("reads new's Guildmaster flags: the sex, the age, the Traits by key, and the three descriptive Attributes", () => {
     expect(
       command(
         'new', '--guild', 'G', '--master', 'M', '--sex', 'female', '--age', '40', '--traits', 'thrifty, miser',
@@ -53,10 +53,10 @@ describe('parseArgs', () => {
       appearance: 'Grey at the temples.',
       biography: 'A life at sea.',
     });
-    // The Portrait by its key (v1.1.2-S3); whether content has it is the engine's to say.
+    // The Portrait by its key; whether content has it is the engine's to say.
     expect(command('new', '--guild', 'G', '--master', 'M', '--portrait', 'gm-female-01')).toMatchObject({ portrait: 'gm-female-01' });
     expect(command('new', '--guild', 'G', '--master', 'M')).not.toHaveProperty('portrait');
-    // Whether content lists it is the engine's to say (`unknown-portrait`), whatever its form (v1.1.2-S6).
+    // Whether content lists it is the engine's to say (`unknown-portrait`), whatever its form.
     expect(command('new', '--guild', 'G', '--master', 'M', '--portrait', 'GM Female 1')).toMatchObject({ portrait: 'GM Female 1' });
     // `none` is no Trait at all; left out, the Traits are drawn.
     expect(command('new', '--guild', 'G', '--master', 'M', '--traits', 'none')).toMatchObject({ traits: [] });
@@ -65,7 +65,7 @@ describe('parseArgs', () => {
     expect(command('new', '--guild', 'G', '--master', 'M', '--traits', 'miser,miser,brave')).toMatchObject({ traits: ['miser', 'miser', 'brave'] });
   });
 
-  test("reads new's --stats as key=number pairs, refusing a pair of another form or a key named twice (v1.1.4-S11)", () => {
+  test("reads new's --stats as key=number pairs, refusing a pair of another form or a key named twice", () => {
     expect(command('new', '--guild', 'G', '--master', 'M', '--stats', 'inspiration=12, influence=8,judgement=30')).toMatchObject({
       stats: { inspiration: 12, influence: 8, judgement: 30 },
     });
@@ -118,7 +118,7 @@ describe('parseArgs', () => {
     expect(command('rebase')).toEqual({ name: 'rebase', save: 'current' });
   });
 
-  test('reads advance --until and --max as a fast forward, in the CLI words for the stops (M2-S11)', () => {
+  test('reads advance --until and --max as a fast forward, in the CLI words for the stops', () => {
     expect(command('advance', '--until', 'party-returns')).toEqual({ name: 'advance', save: 'current', until: ['party-returned'] });
     expect(command('advance', '--until', 'decision,ended, pool-refreshed', '--max', '40', '--save', 'demo')).toEqual({
       name: 'advance',
@@ -129,7 +129,7 @@ describe('parseArgs', () => {
     expect(command('advance', '--max=7')).toEqual({ name: 'advance', save: 'current', until: [], max: 7 });
   });
 
-  test('reads --until staffable, the opt-in stop for a Quest the Heroes at home can staff, and below-floor (M9-S1)', () => {
+  test('reads --until staffable, the opt-in stop for a Quest the Heroes at home can staff, and below-floor', () => {
     expect(command('advance', '--until', 'staffable')).toEqual({ name: 'advance', save: 'current', until: ['quest-staffable'] });
     expect(command('advance', '--until', 'staffable,below-floor', '--max', '90')).toEqual({
       name: 'advance',
@@ -139,13 +139,13 @@ describe('parseArgs', () => {
     });
   });
 
-  // The bounds the engine's, read rather than repeated (DL-186 item 6, v1.1.6-S5's verification).
+  // The bounds the engine's, read rather than repeated (DL-186 item 6).
   test("the usage gives the engine's bounds of a Birthplace, an Appearance and a Biography", () => {
     const { birthplace, appearance, biography } = descriptiveAttributeMaxLength;
     expect(usage.replace(/\s+/g, ' ')).toContain(`(at most ${birthplace}, ${appearance} and ${biography.toLocaleString('en-GB')} characters)`);
   });
 
-  test("the usage names every --until word, and says which stop without being named (M9-S1)", () => {
+  test("the usage names every --until word, and says which stop without being named", () => {
     const fastForward = usage.slice(usage.indexOf('  advance --until'), usage.indexOf('  recruit '));
     for (const word of ['party-returns', 'decision', 'staffable', 'transfer-offer', 'below-floor', 'ended', 'pool-refreshed']) {
       expect(fastForward).toContain(word);
@@ -154,7 +154,7 @@ describe('parseArgs', () => {
     expect(fastForward).toMatch(/staffable \(a Quest the Heroes at home could take reaches the Board, even with a\s+Party out\)/);
   });
 
-  test('reads dispatch: a Quest id and Hero ids joined by commas (M2-S4)', () => {
+  test('reads dispatch: a Quest id and Hero ids joined by commas', () => {
     expect(command('dispatch', '--quest', 'quest-000003', '--heroes', 'hero-000001,hero-000002')).toEqual({
       name: 'dispatch',
       save: 'current',
@@ -170,7 +170,7 @@ describe('parseArgs', () => {
     });
   });
 
-  test('reads preview as dispatch is read: a Quest id and Hero ids joined by commas (M4-S5)', () => {
+  test('reads preview as dispatch is read: a Quest id and Hero ids joined by commas', () => {
     expect(command('preview', '--quest', 'quest-000003', '--heroes', 'hero-000001,hero-000002', '--save', 'demo')).toEqual({
       name: 'preview',
       save: 'demo',
@@ -181,7 +181,7 @@ describe('parseArgs', () => {
     expect(parseArgs(['preview', '--quest', 'quest-000001']).ok).toBe(false);
   });
 
-  test('reads --consumables on dispatch and preview: key:n pairs joined by commas, each key once (M5-S3)', () => {
+  test('reads --consumables on dispatch and preview: key:n pairs joined by commas, each key once', () => {
     const consumables = [
       { definitionKey: 'healing-draught', quantity: 2 },
       { definitionKey: 'whetstone', quantity: 1 },
@@ -197,7 +197,7 @@ describe('parseArgs', () => {
     }
   });
 
-  test('reads build: a facility in the CLI’s words (M3-S6)', () => {
+  test('reads build: a facility in the CLI’s words', () => {
     expect(command('build', '--facility', 'infirmary')).toEqual({ name: 'build', save: 'current', facility: 'infirmary' });
     expect(command('build', '--facility=training-yard', '--save', 'demo')).toEqual({
       name: 'build',
@@ -207,7 +207,7 @@ describe('parseArgs', () => {
     expect(command('build', '--facility', 'quarters')).toMatchObject({ facility: 'quarters' });
   });
 
-  test('reads show market, buy and sell (M5-S4)', () => {
+  test('reads show market, buy and sell', () => {
     expect(command('show', 'market')).toEqual({ name: 'show', save: 'current', view: { kind: 'market' } });
     expect(command('buy', '--item', 'padded-jack')).toEqual({ name: 'buy', save: 'current', item: 'padded-jack', quantity: 1 });
     expect(command('buy', '--item=whetstone', '--quantity', '3', '--save', 'demo')).toEqual({
@@ -221,7 +221,7 @@ describe('parseArgs', () => {
     expect(command('sell', '--item', 'item-000002')).toEqual({ name: 'sell', save: 'current', item: 'item-000002' });
   });
 
-  test('reads transfer --to and --in, accept, decline and show offers (M6-S2)', () => {
+  test('reads transfer --to and --in, accept, decline and show offers', () => {
     expect(command('transfer', '--hero', 'hero-000003', '--to', 'guild-000002')).toEqual({
       name: 'transfer',
       save: 'current',
@@ -240,7 +240,7 @@ describe('parseArgs', () => {
     expect(command('advance', '--until', 'transfer-offer')).toEqual({ name: 'advance', save: 'current', until: ['transfer-offer'] });
   });
 
-  test('reads --modules on new, load and advance: the test-only modules to install, by id, joined by commas (M8-S4)', () => {
+  test('reads --modules on new, load and advance: the test-only modules to install, by id, joined by commas', () => {
     expect(command('new', '--guild', 'G', '--master', 'M', '--modules', 'probe')).toEqual({
       name: 'new',
       save: 'current',

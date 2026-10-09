@@ -99,7 +99,7 @@ describe('a "Finish" cut off', () => {
     expect(readFileSync(file)).toEqual(before);
     expect(status(dir)).toBe('');
 
-    // And `recover` alone (v1.1.4-S14: it ran only on a clean state before).
+    // And `recover` alone.
     plantJournal(dir, gonePid, file);
     const recovered = await json(dir, 'traits', 'recover');
     expect(recovered).toEqual({ code: 0, json: { ok: true, recovered: [file] } });
@@ -107,7 +107,7 @@ describe('a "Finish" cut off', () => {
     expect(status(dir)).toBe('');
   });
 
-  test('pending and doc put back a "Finish" cut off first, and say so (v1.1.4-S14)', async () => {
+  test('pending and doc put back a "Finish" cut off first, and say so', async () => {
     const dir = scratch();
     const file = path.join(dir, 'content', 'hero-traits.json');
     const before = readFileSync(file);
@@ -120,7 +120,7 @@ describe('a "Finish" cut off', () => {
     expect(status(dir)).toBe('');
   });
 
-  test('a journal whose process number another process now holds reads as running: recover refuses, and recover --force puts the files back (v1.1.4-S14)', async () => {
+  test('a journal whose process number another process now holds reads as running: recover refuses, and recover --force puts the files back', async () => {
     const dir = scratch();
     const file = path.join(dir, 'content', 'hero-traits.json');
     const before = readFileSync(file);

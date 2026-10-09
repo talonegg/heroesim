@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { readableSeed } from './seed.js';
 
-// The CLI's `new` and the page's new-game form draw their seed here (v1.1.6-S11, DL-186 item 1).
+// The CLI's `new` and the page's new-game form draw their seed here (DL-186 item 1).
 
 function sequence(...draws: number[]): () => number {
   let index = 0;

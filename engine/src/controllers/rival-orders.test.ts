@@ -9,7 +9,7 @@ import { testDeps, withDispositions } from '../world.test-support.js';
 import { rivalChoices } from './rival.js';
 import type { Disposition } from '../content-types.js';
 
-// v1.1.6-S16 (DL-186 item 16, DL-202): a Disposition's `purchaseOrder`, `gearSlotOrder` and `buildOrder`,
+// DL-186 item 16, DL-202: a Disposition's `purchaseOrder`, `gearSlotOrder` and `buildOrder`,
 // the engine's own orders when a row has none.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };

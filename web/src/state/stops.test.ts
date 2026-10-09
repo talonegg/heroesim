@@ -6,7 +6,7 @@ import { content } from '../content';
 import { narrationFor } from './namer';
 import { stopText } from './stops';
 
-// Why time stopped, in the page's words (M7-S3): the narration's sentence (`narrateStop` in
+// Why time stopped, in the page's words: the narration's sentence (`narrateStop` in
 // `@heroesim/words`, DL-209) through the page's Namer, no id and no command, a sentence each.
 
 const partyId = 'party-000004' as PartyId;

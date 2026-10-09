@@ -16,7 +16,7 @@ import { validate } from '../validate.js';
 import { testDeps, withValid } from '../world.test-support.js';
 import { createProbe, probe, probeDefaults, probeId, type ProbeFired, type ProbeSlice } from './probe.js';
 
-// M8-S3: the probe module (ADR-0005 as amended 2026-09-25, data-model §3.4, approach §2, N6, DL-78).
+// The probe module (ADR-0005 as amended 2026-09-25, data-model §3.4, approach §2, N6, DL-78).
 // A module that exists only to prove the contract: a slice, a stream, all three hooks, one effect
 // of each kind through the effects API, a stop, and a migration from a version 0 of its slice.
 
@@ -87,7 +87,7 @@ describe('the probe registers', () => {
   });
 });
 
-// ── M8-S3 box 1 ──────────────────────────────────────────────────────────────────────────────
+// ── Box 1 ──────────────────────────────────────────────────────────────────────────────
 
 // A year of Turns, each through `advance`, which copies the world: about a second alone, and
 // five to eight under the whole suite's load, past the default 5 s (DL-164).
@@ -319,7 +319,7 @@ describe("onNight's draw", () => {
   });
 });
 
-// ── M8-S3 box 2 ──────────────────────────────────────────────────────────────────────────────
+// ── Box 2 ──────────────────────────────────────────────────────────────────────────────
 
 describe('only the probe stream moves when the probe draws', () => {
   test('each Turn, played from one document with the probe and without, the core streams agree; the probe stream moves only at night', () => {
@@ -361,7 +361,7 @@ describe('only the probe stream moves when the probe draws', () => {
   });
 });
 
-// ── M8-S3 box 3 ──────────────────────────────────────────────────────────────────────────────
+// ── Box 3 ──────────────────────────────────────────────────────────────────────────────
 
 describe('a save with a probe slice', () => {
   const deps = withProbe({ probeStopEveryDays: 2 });

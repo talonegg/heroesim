@@ -9,11 +9,11 @@ import { played, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { section, seedShown } from './page.test-support';
 
-// Saved in this browser (M7-S4, DL-67), driven through the page's controls: save the game in hand
+// Saved in this browser (DL-67), driven through the page's controls: save the game in hand
 // under a name, list it, load it back in place of a later game or before any game, export it as the
 // file the CLI reads, delete it; and where the browser keeps nothing, say so and play on. The saves
 // are kept here in a map standing in for IndexedDB, which jsdom lacks; Playwright drives IndexedDB.
-// With a game in hand they are in the game menu (M9-S3, DL-103).
+// With a game in hand they are in the game menu (DL-103).
 
 afterEach(() => {
   cleanup();
@@ -29,7 +29,7 @@ function documentOf(state: GameState): WorldDocument {
   return state.document;
 }
 
-/** `document` as `v1.1.2` saved it, schema 5: no Hero's Portrait, Appearance or Biography (v1.1.3-S6). */
+/** `document` as `v1.1.2` saved it, schema 5: no Hero's Portrait, Appearance or Biography. */
 function olderSave(document: WorldDocument): WorldDocument {
   const older = structuredClone(document);
   older.meta.version = 5;
@@ -142,7 +142,7 @@ describe('saved in this browser', () => {
     expect(store.records.size).toBe(0);
   });
 
-  test('a save of an older Heroesim, schema 5 as v1.1.2 wrote it, is refused in words beside it, before a game and with one in hand, and can still be deleted (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7)', async () => {
+  test('a save of an older Heroesim, schema 5 as v1.1.2 wrote it, is refused in words beside it, before a game and with one in hand, and can still be deleted (DL-125 item 10.2; DL-135 item 7)', async () => {
     const { store, saves } = keptInMemory();
     await saves.save('older', olderSave(documentOf(started('saved-by-v1.1.2'))));
     await saves.save('newer', documentOf(started('saved-by-v1.1.3')));

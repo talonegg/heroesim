@@ -1,4 +1,4 @@
-// `recruit --hero <id>` end to end (M2-S8): `main` run in-process against a real save in a
+// `recruit --hero <id>` end to end: `main` run in-process against a real save in a
 // temporary directory, with the real content set, as main.test.ts runs the other commands.
 
 import {
@@ -31,7 +31,7 @@ const { play, saved, document, edit } = playground('heroesim-recruit-', content)
 
 /**
  * A new world, its player's Guild and the first Hero in its pool, with the fee the player's Guild
- * pays for them: its Guildmaster's Negotiation applied (M4-S5).
+ * pays for them: its Guildmaster's Negotiation applied.
  */
 function newWorld(): { guild: Guild; hero: Hero; fee: number } {
   expect(play(['new', '--seed', 'demo', '--guild', 'The Test', '--master', 'Ada']).code).toBe(exitCodes.ok);
@@ -108,7 +108,7 @@ function pinFame(): void {
   });
 }
 
-describe('recruit and Fame (M3-S5)', () => {
+describe('recruit and Fame', () => {
   test("refuses a Hero who will not sign for the player's Guild's Fame, naming the Fame asked, and writes nothing", () => {
     const { guild, hero } = newWorld();
     pinFame();
@@ -138,7 +138,7 @@ describe('the views', () => {
     newWorld();
     const created = document();
     const deps = depsOf(created);
-    // The fee the player's Guild pays: its Guildmaster's Negotiation applied (M4-S5).
+    // The fee the player's Guild pays: its Guildmaster's Negotiation applied.
     const buyer = guildmasterOf(playerGuild(created.world) as Guild, created.world);
 
     const run = play(['show', 'pool']);
@@ -150,7 +150,7 @@ describe('the views', () => {
     }
   });
 
-  test("show pool marks the Heroes who will not yet sign for the player's Guild with the Fame they ask (M3-S5)", () => {
+  test("show pool marks the Heroes who will not yet sign for the player's Guild with the Fame they ask", () => {
     const { guild, hero } = newWorld();
     pinFame();
     edit((edited) => {

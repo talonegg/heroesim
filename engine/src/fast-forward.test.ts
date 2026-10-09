@@ -184,7 +184,7 @@ describe('fastForward: a decision needed (always on)', () => {
   });
 });
 
-describe('fastForward: the Bankruptcy floor (always on, M9-S1)', () => {
+describe('fastForward: the Bankruptcy floor (always on)', () => {
   /** A new game from `seed` with the Guild `pick` chooses given `wealth`, and `belowFloorSince` as given. */
   function withWealth(seed: string, deps: EngineDeps, pick: (document: WorldDocument) => Guild, wealth: number, belowFloorSince: number | null = null) {
     const document = structuredClone(created(seed, deps));
@@ -234,7 +234,7 @@ describe('fastForward: the Bankruptcy floor (always on, M9-S1)', () => {
   });
 });
 
-describe('fastForward: a Quest the free Heroes can staff (opt-in, M9-S1)', () => {
+describe('fastForward: a Quest the free Heroes can staff (opt-in)', () => {
   // No Rivals, which would take the Board each afternoon; two of four Heroes out on a long Quest.
   const deps = testDeps({ rivalCount: 0 });
 

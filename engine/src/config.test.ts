@@ -3,7 +3,7 @@ import { describe, expect, expectTypeOf, test } from 'vitest';
 import { configSections, configVersion, configChangelog, defaultConfig, flattenConfig, type ConfigSections, type GameConfig } from './config.js';
 import { configRules } from './config-check.js';
 
-// v1.1.6-S18 (DL-186 item 15, DL-204): the defaults' values are data, `config.json`, in sections,
+// DL-186 item 15, DL-204: the defaults' values are data, `config.json`, in sections,
 // and the engine reads them flat, every setting once, in `GameConfig`'s order.
 
 const file = new URL('./config.json', import.meta.url);

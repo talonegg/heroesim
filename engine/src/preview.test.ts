@@ -12,7 +12,7 @@ import { serialise } from './serialise.js';
 import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
 import { applyAction } from './actions/action.js';
 
-// The dispatch preview (M7-S3, DL-66): what a proposed Party would meet on a Quest from the Board,
+// The dispatch preview (DL-66): what a proposed Party would meet on a Quest from the Board,
 // moved into the engine from the CLI's `preview` so that both front ends show the rule's own
 // answers, and dispatch's verdict found by dispatch's own checks.
 
@@ -109,7 +109,7 @@ describe('previewDispatch', () => {
     expect(preview?.synergies.find(({ synergy }) => synergy.key === 'shadow-and-spell')?.encounters).toBe(1);
   });
 
-  test("gives the Party's mean form as it sets out and what it does to the odds, for the Party, and none for no one (v1.1.4-S3)", () => {
+  test("gives the Party's mean form as it sets out and what it does to the odds, for the Party, and none for no one", () => {
     const setting = proposal();
     const { world } = setting.document;
     const party = [setting.rogue, setting.mage];
@@ -126,7 +126,7 @@ describe('previewDispatch', () => {
     expect(previewDispatch(world, request(setting, []), deps)?.form).toBeNull();
   });
 
-  test('gives the chance estimate for the Party carrying what it would carry, and none for no one or Encounters drawn on the way (v1.1.4-S6)', () => {
+  test('gives the chance estimate for the Party carrying what it would carry, and none for no one or Encounters drawn on the way', () => {
     const setting = proposal();
     const { world } = setting.document;
     const party = [setting.rogue, setting.mage];
@@ -254,7 +254,7 @@ describe('skillsThatHelp', () => {
   });
 });
 
-// v1.1.4-S6 (DL-148 item 16): the Stats the Party builder shows, in place of the template's demands.
+// DL-148 item 16: the Stats the Party builder shows, in place of the template's demands.
 describe('statsRead', () => {
   test("names each Hero Stat the Quest's Encounters' Checks read, once, in the order it meets them", () => {
     const { quest } = proposal();

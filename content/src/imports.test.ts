@@ -102,7 +102,7 @@ describe("content's types come from the engine's content entry, @heroesim/engine
     }
   });
 
-  // DL-186 item 6 (v1.1.6-S5): content may take the engine's values, so it repeats none of them.
+  // DL-186 item 6: content may take the engine's values, so it repeats none of them.
   test("takes the engine's values too: the kinds that read or check by its lists, and the register of a Trait's uses import some", () => {
     const withValues = sources('content', false).filter(({ ast }) =>
       importsOf(ast).some((it) => it.from === '@heroesim/engine/content' && !it.typeOnly),
@@ -135,7 +135,7 @@ describe("content's types come from the engine's content entry, @heroesim/engine
   });
 });
 
-// The copies DL-186 item 6 retired (v1.1.6-S5): content's own sources write out none of the engine's
+// The copies DL-186 item 6 retired: content's own sources write out none of the engine's
 // lists, as an array of its members or a table keyed by them, and its entry exports no name the
 // engine exports, as `descriptionBounds` and the Biography's Trait sentence counts once were.
 describe("content repeats none of the engine's values", () => {
@@ -211,8 +211,8 @@ describe('the TypeScript project references', () => {
   });
 });
 
-// Content's Node entry is one of the two subpaths any package exports (M1-S4, DL-14 item 7); the
-// other is its register of a Trait's uses, below (v1.1.4-S12).
+// Content's Node entry is one of the two subpaths any package exports (DL-14 item 7); the
+// other is its register of a Trait's uses, below.
 describe('@heroesim/content/node', { timeout: 30_000 }, () => {
   const eslint = new ESLint({ cwd: root });
   const lint = async (pkg: string, specifier: string, file = 'subpath-probe.ts') => {
@@ -226,7 +226,7 @@ describe('@heroesim/content/node', { timeout: 30_000 }, () => {
     expect(await lint(pkg, '@heroesim/content/node')).toEqual([]);
   });
 
-  // M7-S1: web's tests compare the bundled content with the Node entry's (DL-64).
+  // Web's tests compare the bundled content with the Node entry's (DL-64).
   test.each(['subpath-probe.test.ts', 'subpath-probe.test.tsx'])(
     "may be imported by web's tests, which run on Node (%s)",
     async (file) => {
@@ -254,7 +254,7 @@ describe('@heroesim/content/node', { timeout: 30_000 }, () => {
   });
 });
 
-// The register of a Trait's uses (v1.1.4-S12, DL-150 item 14), content's second subpath, is the tools':
+// The register of a Trait's uses (DL-150 item 14), content's second subpath, is the tools':
 // the game never imports it, so no byte of it is in the page's script.
 describe('@heroesim/content/uses', { timeout: 30_000 }, () => {
   const eslint = new ESLint({ cwd: root });
@@ -281,7 +281,7 @@ describe('@heroesim/content/uses', { timeout: 30_000 }, () => {
   });
 });
 
-// The tools' write module (v1.1.6-S4, DL-186 item 14), content's third subpath: Node's, and the tools'
+// The tools' write module (DL-186 item 14), content's third subpath: Node's, and the tools'
 // alone, so no byte of it is in the page's script and no front end or the harness writes content.
 describe('@heroesim/content/write', { timeout: 30_000 }, () => {
   const eslint = new ESLint({ cwd: root });

@@ -31,7 +31,7 @@ vi.mock('./reducer', async (importOriginal) => {
   return { ...actual, calendarFor: vi.fn(actual.calendarFor) };
 });
 
-// The Market, the Unattached pool and the Transfer Offers (M7-S3 part 2, DL-73): each number beside
+// The Market, the Unattached pool and the Transfer Offers (DL-73): each number beside
 // the engine selector it comes from.
 
 const deps = { config: defaultConfig, content };
@@ -80,7 +80,7 @@ describe('marketView', () => {
   });
 });
 
-describe("the Market as tables (M9-S6, DL-106; the review's B3)", () => {
+describe("the Market as tables (DL-106; the review's B3)", () => {
   test('names each kind for sale, the gear slots in their order then consumables, counting its kinds of Item', () => {
     const view = marketView(newGame());
     const kinds = faceted(view.forSale, view.facets, {}).facets.kind.options;
@@ -184,7 +184,7 @@ describe('poolView', () => {
   });
 });
 
-describe("the Unattached pool by Class (v1.1.6-S14, DL-186 item 24)", () => {
+describe("the Unattached pool by Class (DL-186 item 24)", () => {
   test("lists the Warriors, Rogues, Mages and Healers in that order, not A to Z, ties in the Roster's default order", () => {
     const document = newGame();
     const heroes = unattachedHeroes(document.world);
@@ -207,7 +207,7 @@ describe("the Unattached pool by Class (v1.1.6-S14, DL-186 item 24)", () => {
   });
 });
 
-describe("the Unattached pool as rows (M9-S6, DL-106; the review's B8)", () => {
+describe("the Unattached pool as rows (DL-106; the review's B8)", () => {
   test("orders the pool by Class in the content's declared order, or by fee, lowest first, ties as the pool lists them: display only", () => {
     const document = newGame();
     const listed = poolView(document).rows;
@@ -265,7 +265,7 @@ describe('offersView', () => {
         guildName: rival.name,
         heroName,
         fee: offer.fee,
-        // What Accept asks before it lets the Hero go (M9-S6, the review's E4).
+        // What Accept asks before it lets the Hero go (the review's E4).
         confirm:
           `Accepting sends ${heroName} to ${rival.name} for ${offer.fee} Wealth. Their Gear stays with your Guild, and the Heroes ` +
           'left behind who held them in high Regard lose Morale.',

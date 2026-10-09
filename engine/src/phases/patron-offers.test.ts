@@ -10,7 +10,7 @@ import { boardRefresh } from './board-refresh.js';
 import { patronState } from './patron-state.js';
 import { phaseContext } from './phase.js';
 
-// M4-S5's acceptance: "a Patron whose Quests always fail offers fewer over a year than one whose
+// The acceptance box (DL-43): "a Patron whose Quests always fail offers fewer over a year than one whose
 // succeed", over 50 seeds. The epic asks for a harness fixture; this is the same measure at the
 // engine's level (DL-43): each seed's world plays a year of the phases that decide what a Patron
 // offers — the morning's Board refresh, weighted by Patron Regard, and the night's Patron State
@@ -70,7 +70,7 @@ function yearOfOffers(seed: string): { failing: number; succeeding: number } {
   return offers;
 }
 
-describe('Patron Regard weighs on the Board (M4-S5, R22)', () => {
+describe('Patron Regard weighs on the Board (R22)', () => {
   test('a Patron whose Quests always fail offers fewer over a year than one whose succeed, over 50 seeds', { timeout: 120_000 }, () => {
     const years = seeds.map(yearOfOffers);
     const failing = years.reduce((total, year) => total + year.failing, 0);

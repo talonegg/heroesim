@@ -18,7 +18,7 @@ import { applyAction } from './action.js';
 import { applyBuild, type BuildRejection } from './build.js';
 import type { ActionResult } from './result.js';
 
-// M3-S6: Hall Improvements (INPUTS 7.3, DL-38). The test content carries the core's nine
+// Hall Improvements (INPUTS 7.3, DL-38). The test content carries the core's nine
 // Improvements, three grades of each facility at 200, 500 and 1,000 Wealth. Every document a test
 // makes is held to the validator; the config values a test relies on are pinned.
 
@@ -243,9 +243,9 @@ function playTo(document: WorldDocument, turn: number, with_: EngineDeps): { doc
   return { document: current, events };
 }
 
-describe('what a grade built does (M3-S6)', () => {
+describe('what a grade built does', () => {
   test('quarters at grade 1 shift the Morale baseline by quartersMoraleBonus, and nightly drift follows it', () => {
-    // The Guildmaster's Inspiration and Traits stilled (M4-S5): this test is about the quarters.
+    // The Guildmaster's Inspiration and Traits stilled: this test is about the quarters.
     const pinned = testDeps({ rivalCount: 0, moraleBaseline: 60, quartersMoraleBonus: 5, moraleDrift: 1, inspirationMoraleShift: 0 });
     const { document, guild } = scene('quarters', 10_000, pinned);
     (document.world.guildmasters[guild.guildmasterId] as Guildmaster).traits = [];
@@ -280,7 +280,7 @@ describe('what a grade built does (M3-S6)', () => {
   });
 
   test('the infirmary at grade 1 halves a new Injury, by the factor it reads when the Injury is inflicted', () => {
-    // Every Check fails and injures the lone Hero sent, once, and nobody dies (M4-S2); the
+    // Every Check fails and injures the lone Hero sent, once, and nobody dies; the
     // infirmary's factors pinned.
     const hurt = testDeps(
       { rivalCount: 0, infirmaryHealFactor: [1, 1 / 2, 1 / 3] },
@@ -355,7 +355,7 @@ describe('what a grade built does (M3-S6)', () => {
     expect(trainingXp, `training yard ${trainingXp.join(', ')}`).toSatisfy(rising);
   });
 
-  test('the training yard at grade 1 is on the Guild row the night’s training reads (M3-S2)', () => {
+  test('the training yard at grade 1 is on the Guild row the night’s training reads', () => {
     const { document, guild } = scene('yard');
 
     const built = applyAction(document, { kind: 'build', guildId: guild.id, facility: 'trainingYard' }, deps);

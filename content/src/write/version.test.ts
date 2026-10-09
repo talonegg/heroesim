@@ -6,7 +6,7 @@ import { contentDir, loadContent } from '../node.js';
 import { transaction } from './transaction.js';
 import { raiseContentVersion, raisedVersion, readContentVersion, versionPath } from './version.js';
 
-// The content version as data (v1.1.6-S4, DL-186 item 14): `content/version.json`, which the tools
+// The content version as data (DL-186 item 14): `content/version.json`, which the tools
 // raise by writing JSON, each raise a line of its changelog, and nothing else in the file changed.
 
 const made: string[] = [];
@@ -68,8 +68,9 @@ describe('the content version', () => {
     expect(readFileSync(versionPath(root), 'utf8')).toBe(before);
   });
 
-  // The tools wrote the version into `content/src/parse.ts` and the number `content.test.ts` pinned, by
-  // regular expressions, until v1.1.6-S4: neither tool's source names either file now.
+  // The content version is `content/version.json` (DL-186 item 14): no tool writes it into
+  // `content/src/parse.ts` or a number `content.test.ts` pins by a regular expression, and neither
+  // tool's source names either file.
   test("is raised by no tool's regular expression over a TypeScript file", () => {
     const tools = path.join(contentDir, '..', 'tools');
     for (const tool of ['editor', 'portraits']) {

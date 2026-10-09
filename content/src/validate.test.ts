@@ -50,7 +50,7 @@ describe('validateContent on a set built in memory', () => {
   });
 });
 
-// Draw weights and the Rivals' orders (v1.1.6-S16, DL-186 item 16, DL-202): a weight above 0 where written,
+// Draw weights and the Rivals' orders (DL-186 item 16, DL-202): a weight above 0 where written,
 // and each order a permutation of its keys, where written; the shipped files write neither.
 describe('a weight', () => {
   const rowOfEach: [keyof Files, string][] = [

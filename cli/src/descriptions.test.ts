@@ -12,7 +12,7 @@ import {
 import { describeHero } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 
-// The Guildmaster described over the core (v1.1.2-S5, DL-125 item 6), where both packages meet: the
+// The Guildmaster described over the core (DL-125 item 6), where both packages meet: the
 // content validator reads the engine's bounds and its count of Trait sentences (DL-186 item 6) to
 // prove nothing written passes them; this holds the engine's writing to the validator's longest over
 // many requests.
@@ -72,7 +72,7 @@ describe('describeGuildmaster over the core', () => {
     for (let index = 0; index < 100; index += 1) {
       const { document } = createWorld(`world-${index}`, { guildName: 'G', guildmasterName: 'M', createdAt: 'test' }, deps);
       for (const guildmaster of Object.values(document.world.guildmasters)) {
-        // A picture's narrative is the Appearance (DL-127 item 4); every Guildmaster may have one (v1.1.3-S5).
+        // A picture's narrative is the Appearance (DL-127 item 4); every Guildmaster may have one.
         if (guildmaster.portraitKey !== null) {
           pictured += 1;
           expect(guildmaster.appearance).toBe(content.portraitAppearances.portraits[guildmaster.portraitKey]?.narrative);
@@ -87,7 +87,7 @@ describe('describeGuildmaster over the core', () => {
   });
 });
 
-// A Hero described over the core (v1.1.3-S6, DL-135 item 6): the validator proves a Hero's longest
+// A Hero described over the core (DL-135 item 6): the validator proves a Hero's longest
 // Biography in the shape `describeHero` writes, and a Hero's Appearance is drawn as a Guildmaster's.
 describe('describeHero over the core', () => {
   const longest = longestDescriptions(content);

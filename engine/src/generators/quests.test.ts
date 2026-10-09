@@ -64,7 +64,7 @@ describe('generateQuest', () => {
     }
   });
 
-  // M5-S5 (DL-52): data-model §3.2's copy of `lootTableKey`, from a template above the threshold only.
+  // DL-52: data-model §3.2's copy of `lootTableKey`, from a template above the threshold only.
   test("copies the template's Loot table when its difficultyMin is above lootDifficultyThreshold, and null otherwise", () => {
     const underworld = (threshold: number) => {
       const deps = testDeps({ lootDifficultyThreshold: threshold });
@@ -161,7 +161,7 @@ describe('generateQuest', () => {
     expect(rng()['encounters']).not.toEqual(afterBoard['encounters']);
   });
 
-  // M4-S1's second box: the sequence is drawn at generation, within the template's kinds and count.
+  // The second acceptance box: the sequence is drawn at generation, within the template's kinds and count.
   test("draws every Quest's Encounter sequence within its template's kinds and its count at the Quest's difficulty", () => {
     const deps = testDeps();
     for (const sphere of Object.keys(testContent.spheres)) {
@@ -188,7 +188,7 @@ describe('generateQuest', () => {
     }
   });
 
-  // v1.1.4-S8's second box: a Finale is always last, and a Quest without one draws as many times as before.
+  // The second acceptance box: a Finale is always last, and a Quest without one draws as many times as before.
   test("ends a Quest of a template naming a Finale with it, at the Quest's count, two encounters draws fewer; a Quest without one draws two a place", () => {
     const deps = testDeps();
     const barrow = testContent.questTemplates['clear-the-barrow'];
@@ -229,7 +229,7 @@ describe('generateQuest', () => {
   // The encounters stream is new in M4 (ADR-0009, D7), so the Board a seed produces is
   // the one it produced before M4: pinned from the engine at M3's end (v1.0-dev 8229670) for the
   // test content, no Rivals and no Party sent, over 30 Days of refreshes and expiries. The Board's
-  // Regard weighting (M4-S5, DL-43 item 5) is set to 0, DL-25's uniform draw as at M3's end: the
+  // Regard weighting (DL-43 item 5) is set to 0, DL-25's uniform draw as at M3's end: the
   // expiries move Patron Regard, which with the weighting on moves the Patrons drawn (DL-44).
   test('draws the Board a seed produced before M4, Quest for Quest, and leaves the board stream where M3 left it', () => {
     const deps = testDeps({ rivalCount: 0, boardRegardWeight: 0 });
@@ -326,7 +326,7 @@ describe('generateQuest', () => {
     expect(noStream).toEqual(withoutStream);
   });
 
-  test('throws, changing nothing, on a Finale content does not define (v1.1.4-S8)', () => {
+  test('throws, changing nothing, on a Finale content does not define', () => {
     const deps = testDeps();
     const { world, patron } = withPatron('finale-refusals', deps);
     const before = structuredClone(world);

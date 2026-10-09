@@ -6,7 +6,7 @@ import { parse, withJson, refusalOf, barrow, type Template } from './content.tes
 // can find it.
 
 describe('a Quest template', () => {
-  // DL-193: a Quest template carries no `demands` since v1.1.6-S7.
+  // DL-193: a Quest template carries no `demands`.
   test('with demands is refused, as a field a Quest template does not have', () => {
     const files = withJson('quest-templates.json', (json) => {
       Object.assign(barrow(json), { demands: [['strength', 1]] });
@@ -42,7 +42,7 @@ describe('a Quest template', () => {
     );
   });
 
-  test('naming a Loot table content lacks is refused, naming the template and the table (M5-S5)', () => {
+  test('naming a Loot table content lacks is refused, naming the template and the table', () => {
     const files = withJson('quest-templates.json', (json) => {
       Object.assign(barrow(json), { lootTableKey: 'barrow-hoard' });
     });
@@ -71,7 +71,7 @@ describe('a Quest template', () => {
   });
 });
 
-describe("a Quest template's Encounters (M4-S1)", () => {
+describe("a Quest template's Encounters", () => {
   test.each<[string, (it: Template) => void, RegExp]>([
     ['no Encounter kind', (it) => (it.encounterKinds = []), /encounterKinds is empty/],
     ['a kind listed twice', (it) => void it.encounterKinds.push('combat'), /encounterKinds: "combat" is listed twice/],

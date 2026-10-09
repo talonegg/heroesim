@@ -168,13 +168,13 @@ describe('decision-needed', () => {
 
     withValid(night.document, deps);
     // The Quests the Heroes home can staff are newly within reach too, so the opt-in stop names
-    // them as well (M9-S1); listening to every condition, all three are reported, in order.
+    // them as well; listening to every condition, all three are reported, in order.
     expect(stops.map((stop) => stop.kind)).toEqual(['party-returned', 'decision-needed', 'quest-staffable']);
     expect(stops[0]).toEqual({ kind: 'party-returned', guildId: guild.id, partyIds: [party.id] });
   });
 });
 
-describe('below-floor (M9-S1, DL-85 item 6)', () => {
+describe('below-floor (DL-85 item 6)', () => {
   const below = (guildId: string, dueDay: number) =>
     ({ type: 'guild.below-floor', turn: 5, payload: { guildId, wealth: -3, floor: 0, dueDay } }) as unknown as EngineEvent;
   const recovered = (guildId: string) =>
@@ -191,7 +191,7 @@ describe('below-floor (M9-S1, DL-85 item 6)', () => {
   });
 });
 
-describe('quest-staffable (M9-S1, DL-85 item 8)', () => {
+describe('quest-staffable (DL-85 item 8)', () => {
   /**
    * `world` with the first Hero of the Roster away in a Party, and a Quest on the Board the rest can
    * staff; `before` the same world without that Quest on the Board.
@@ -263,7 +263,7 @@ describe('quest-staffable (M9-S1, DL-85 item 8)', () => {
   });
 });
 
-describe("staffableQuests: a Quest can be staffed exactly when dispatch would send some Party of the Roster (M9-S1)", () => {
+describe("staffableQuests: a Quest can be staffed exactly when dispatch would send some Party of the Roster", () => {
   /** Every non-empty subset of `ids`. */
   function subsets<Id>(ids: readonly Id[]): Id[][] {
     const all: Id[][] = [];

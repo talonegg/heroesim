@@ -4,13 +4,13 @@ import { App } from '../app';
 import { cameHome, played, started, withPartyOut } from '../state/game.test-support';
 import { historyLines, inHistory, openDebugHistory, openMenu, openView } from './page.test-support';
 
-// The game menu's debug view (M9-F4, DL-111 item 4, DL-112 item 7, DL-117): "Debug: Whole History"
+// The game menu's debug view (DL-111 item 4, DL-112 item 7, DL-117): "Debug: Whole History"
 // (the owner's words, DL-120 item 1) is the menu's last control. It closes the menu and opens the History view on every entry,
 // unfiltered and unfolded, each with its event type, with the keyboard on its title.
 
 afterEach(cleanup);
 
-describe('the game menu’s debug view (M9-F4)', () => {
+describe('the game menu’s debug view', () => {
   test('is the last control of the menu, after the game file', () => {
     render(<App initial={started()} />);
     const menu = openMenu();
@@ -43,7 +43,7 @@ describe('the game menu’s debug view (M9-F4)', () => {
     expect(history.querySelectorAll('.fold, .entry--routine')).toHaveLength(0);
   });
 
-  test("a Hero's page opened from it goes back to it by its name: \"Back to Debug: Whole History\" (M9-F7, DL-120 item 1)", () => {
+  test("a Hero's page opened from it goes back to it by its name: \"Back to Debug: Whole History\" (DL-120 item 1)", () => {
     render(<App initial={withPartyOut(started())} />);
     openDebugHistory();
     const sent = inHistory(/^The Lantern sent .+ on .+, back on the night of Year \d+ Day \d+\.$/);

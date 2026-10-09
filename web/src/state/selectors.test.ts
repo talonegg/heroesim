@@ -68,7 +68,7 @@ import {
   type RosterOrder,
 } from './selectors';
 
-// The views' rows (M7-S3): every number is a document field or an engine selector's answer, read
+// The views' rows: every number is a document field or an engine selector's answer, read
 // here beside the selector that gives it, and no row carries a Hero's Potential.
 
 // The Best Party modules the page opens, each the engine's own, counted (DL-237).
@@ -118,14 +118,14 @@ describe('headerView', () => {
       // Whose Banner stands beside the name (DL-125 item 7).
       guildId: guild.id,
       guildName: 'The Lantern',
-      // The navigation's label for the Guildmaster view (M9-F2, DL-112 item 5).
+      // The navigation's label for the Guildmaster view (DL-112 item 5).
       guildmasterName: 'Ada Vell',
       wealth: guild.wealth,
       fame: guild.fame,
       // The date and the time of day, the Year shown at every width (DL-206 item 32, DL-210): Turn 4
       // is the afternoon of the second Day of the first Year.
       time: 'Year 1 Day 2, afternoon',
-      // The status bar's glyph; and the place in two parts, the second left unshown on a phone (M9-S3, DL-103).
+      // The status bar's glyph; and the place in two parts, the second left unshown on a phone (DL-103).
       timeOfDay: 'afternoon',
       rankings: 'Joint 1st of 5 by Fame',
       place: 'Joint 1st of 5',
@@ -175,7 +175,7 @@ describe('headerView', () => {
     expect(headerView(document)?.time).toBe('Year 2 Day 2, afternoon');
   });
 
-  test('counts the Guilds in play, a folded one not among them (v1.0.1-S6, DL-97)', () => {
+  test('counts the Guilds in play, a folded one not among them (DL-97)', () => {
     const document = structuredClone(newGame());
     const rival = Object.values(document.world.guilds).find((guild) => guild.id !== player(document).id);
     if (rival === undefined) throw new Error('expected a Rival');
@@ -184,7 +184,7 @@ describe('headerView', () => {
     expect(headerView(document)?.rankings).toBe('Joint 1st of 4 by Fame');
   });
 
-  test("says the player's Guild is not ranked once it has folded, with no measure to follow (M9-S3, DL-103)", () => {
+  test("says the player's Guild is not ranked once it has folded, with no measure to follow (DL-103)", () => {
     const document = structuredClone(newGame());
     player(document).foldedOnTurn = 0;
 
@@ -192,7 +192,7 @@ describe('headerView', () => {
   });
 });
 
-describe('the Bankruptcy countdown: countdownView, in the header (v1.0.1-S4, DL-95)', () => {
+describe('the Bankruptcy countdown: countdownView, in the header (DL-95)', () => {
   /** A new game whose player's Guild starts below the floor, played through the night of its first Day. */
   function belowTheFloor(config: Partial<typeof defaultConfig> = {}): WorldDocument {
     const start = structuredClone(newGame('countdown'));
@@ -226,7 +226,7 @@ describe('the Bankruptcy countdown: countdownView, in the header (v1.0.1-S4, DL-
 
     expect(countdownView(document)).toBe(sentence(0, defaultConfig.bankruptcyGraceDays));
     expect(headerView(document)?.countdown).toBe(sentence(0, defaultConfig.bankruptcyGraceDays));
-    // The status bar's pill says when, in a few words (M9-S3, DL-103).
+    // The status bar's pill says when, in a few words (DL-103).
     expect(headerView(document)?.due).toBe(`Bankruptcy on the night of Year 1 Day ${defaultConfig.bankruptcyGraceDays + 1}`);
     expect(headerView(belowTheFloor({ bankruptcyGraceDays: 10 }))?.due).toBe('Bankruptcy on the night of Year 1 Day 11');
     // The game's own rules, not this release's defaults: a save playing under a grace of 10 Days.
@@ -274,7 +274,7 @@ describe('boardView', () => {
   });
 });
 
-describe("the Board's Quest cards (M9-S4, DL-104)", () => {
+describe("the Board's Quest cards (DL-104)", () => {
   /** A new game whose Board's Quests are changed by `change`, in the Board's order. */
   function board(change: (quests: Quest[], document: WorldDocument) => void): WorldDocument {
     const document = structuredClone(newGame());
@@ -285,7 +285,7 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
     return document;
   }
 
-  // v1.1.4-S6 (DL-148 item 16): each Encounter and what each Check reads, in place of the template's demands.
+  // DL-148 item 16: each Encounter and what each Check reads, in place of the template's demands.
   test("gives its Encounters in order, each Check's name and what it reads, and the Skills that help as a list; no demands", () => {
     const document = board(([first]) => {
       if (first === undefined) throw new Error('an empty Board');
@@ -294,7 +294,7 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
 
     const [card] = boardView(document);
 
-    // Each Encounter's Checks' Skills, in order, each once (v1.1.4-S10's content).
+    // Each Encounter's Checks' Skills, in order, each once.
     expect(card?.skills).toEqual(['Stealth', 'Swordcraft', 'Tactics', 'Trapcraft', 'Lockpicking', 'Shieldwork', 'Field surgery', 'Herbalism']);
     expect(card?.encounters.map(({ name, kind, one }) => [name, kind, one])).toEqual([
       ['Past the watch', 'stealth', false],
@@ -312,7 +312,7 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
     expect(Object.keys(card ?? {})).not.toContain('demands');
   });
 
-  // v1.1.4-S6 (DL-148 items 15 and 17): the Party the engine would send from the free Heroes, and its chance.
+  // DL-148 items 15 and 17: the Party the engine would send from the free Heroes, and its chance.
   test("gives the best Party of the free Heroes, the engine's Best Party, with its estimate's word, or none when no Party meets the requirements", () => {
     const document = board((quests, it) => {
       const [first, second] = quests as [Quest, Quest];
@@ -334,7 +334,7 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
     expect(best.get(first?.id as QuestId)).toEqual({ chance: chanceWords[estimate?.chance ?? 'hopeless'], names: listed(heroIds.map((id) => document.world.heroes[id]?.name ?? '')) });
     expect(best.get(second?.id as QuestId)).toBeNull();
     expect([...best.keys()]).toEqual(document.world.board);
-    // v1.1.4-S6's verification: only the Board asks for it; the cards the digest and the stop read carry none.
+    // Only the Board asks for it; the cards the digest and the stop read carry none.
     expect(Object.keys(boardView(document)[0] ?? {})).not.toContain('best');
   });
 
@@ -424,7 +424,7 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
     expect(boardView(alike)[0]?.hardness).toBe('joint hardest of the 6 Quests on the Board');
   });
 
-  test('Quests that share the lowest difficulty are the joint easiest, not a joint place from the top (M9-F6, carried finding 6)', () => {
+  test('Quests that share the lowest difficulty are the joint easiest, not a joint place from the top (carried finding 6)', () => {
     const document = board((quests) => {
       [70, 40, 40, 55, 40, 90].forEach((difficulty, index) => ((quests[index] as Quest).difficulty = difficulty));
     });
@@ -477,7 +477,7 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
   });
 });
 
-describe('the default order of Heroes (v1.1.5-S11, DL-169 item 5)', () => {
+describe('the default order of Heroes (DL-169 item 5)', () => {
   /** A Hero of the new game's Roster made to order: only the fields the default order reads are changed. */
   function made(document: WorldDocument, id: string, fields: Partial<Pick<Hero, 'classKey' | 'level' | 'ageAtEntry' | 'name'>>): Hero {
     const [base] = heroes(document);
@@ -534,11 +534,11 @@ describe('the default order of Heroes (v1.1.5-S11, DL-169 item 5)', () => {
   });
 });
 
-describe('the Party builder (M9-S4, DL-104)', () => {
+describe('the Party builder (DL-104)', () => {
   /**
    * A new game whose first Quest requires Herbalism and meets the restless dead and a hostile reeve,
    * whose Checks read Spirit, Willpower, Weaponry, Power, Courage and Resistance, then Diplomacy and
-   * Charisma (v1.1.4-S10's content), and the Skills Benediction, Swordcraft and Evocation; its four Heroes are Bram (a Healer with Herbalism 1 and Benediction 2),
+   * Charisma, and the Skills Benediction, Swordcraft and Evocation; its four Heroes are Bram (a Healer with Herbalism 1 and Benediction 2),
    * Liv (a Warrior with Swordcraft 2 and Tactics 1), Cenric (a Rogue) and Ragnvald (a Mage).
    */
   function builder(): { document: WorldDocument; quest: Quest; bram: Hero; liv: Hero; cenric: Hero; ragnvald: Hero } {
@@ -560,7 +560,7 @@ describe('the Party builder (M9-S4, DL-104)', () => {
 
     const rows = partyRows(document, quest.id);
 
-    // All four can go: the default order, by Class (v1.1.5-S11, DL-169 item 5), not the order they joined.
+    // All four can go: the default order, by Class (DL-169 item 5), not the order they joined.
     expect(rows?.map((row) => row.name)).toEqual(['Liv Coldharbour', 'Cenric Yarrow', 'Ragnvald Brackenridge', 'Bram Netherby']);
     expect(rows?.[3]).toEqual({
       heroId: bram.id,
@@ -572,7 +572,7 @@ describe('the Party builder (M9-S4, DL-104)', () => {
       why: null,
       unavailable: null,
       chip: null,
-      // The Stats the Checks read, in the order the Quest meets them (v1.1.4-S6, `statsRead`), not the template's demands.
+      // The Stats the Checks read, in the order the Quest meets them (`statsRead`), not the template's demands.
       stats: (['spirit', 'willpower', 'weaponry', 'power', 'courage', 'resistance', 'diplomacy', 'charisma'] as const).map((key) => ({
         name: content.stats[key]?.name,
         value: bram.stats[key],
@@ -594,7 +594,7 @@ describe('the Party builder (M9-S4, DL-104)', () => {
     // A Rogue and a Mage have none of this Quest's Skills.
     expect(rows?.slice(1, 3).map((row) => row.className)).toEqual(['Rogue', 'Mage']);
     expect(rows?.slice(1, 3).map((row) => row.skills)).toEqual([[], []]);
-    // v1.1.4-S3's verification: no row names a Hero's Morale; the Party's one line says what it does.
+    // No row names a Hero's Morale; the Party's one line says what it does.
     for (const row of rows ?? []) expect(Object.keys(row).filter((key) => key.startsWith('morale'))).toEqual([]);
   });
 
@@ -625,7 +625,7 @@ describe('the Party builder (M9-S4, DL-104)', () => {
 
     const rows = partyRows(document, quest.id);
 
-    // Those who can go first; then Ragnvald, back on Year 1 Day 6, before Cenric, healed on Year 1 Day 7 (v1.1.5-S11, DL-169 item 4).
+    // Those who can go first; then Ragnvald, back on Year 1 Day 6, before Cenric, healed on Year 1 Day 7 (DL-169 item 4).
     expect(rows?.map(({ name, why, unavailable, chip }) => ({ name, why, unavailable, chip }))).toEqual([
       { name: 'Liv Coldharbour', why: null, unavailable: null, chip: null },
       { name: 'Bram Netherby', why: null, unavailable: null, chip: null },
@@ -729,7 +729,7 @@ describe('choosing a Party', () => {
     expect(previewView(document, 'quest-999999' as QuestId, party, [])).toBeNull();
   });
 
-  // v1.1.4-S6 (DL-148 item 15): a word for each Encounter and the Quest, and S5's estimate floored to 5% for the detail, agreeing with the word.
+  // DL-148 item 15: a word for each Encounter and the Quest, and S5's estimate floored to 5% for the detail, agreeing with the word.
   test("gives each Encounter's chance and the Quest's in a word, with the estimate's percentage floored to 5%, carrying what is carried", () => {
     const document = structuredClone(newGame());
     const quest = document.world.quests[document.world.board[0] as QuestId] as Quest;
@@ -752,7 +752,7 @@ describe('choosing a Party', () => {
     expect(previewView(document, quest.id, [], [])?.chances).toBeNull();
   });
 
-  // v1.1.4-S3 (DL-148 item 12): one Morale line for the Party, from its mean form, naming no Hero.
+  // DL-148 item 12: one Morale line for the Party, from its mean form, naming no Hero.
   test.each([
     [[60, 60], 'Makes no difference.'],
     [[95, 50], 'Raises the odds.'],
@@ -773,7 +773,7 @@ describe('choosing a Party', () => {
 });
 
 describe('rosterRows and sortedRoster', () => {
-  test("lists the player's Roster in the default order with Level, age, Morale and whereabouts (v1.1.5-S12, DL-169 item 5)", () => {
+  test("lists the player's Roster in the default order with Level, age, Morale and whereabouts (DL-169 item 5)", () => {
     const document = structuredClone(newGame());
     const [first] = heroes(document);
     if (first === undefined) throw new Error('no Hero');
@@ -788,7 +788,7 @@ describe('rosterRows and sortedRoster', () => {
     expect(rows[0]?.whereabouts).toBe('At the Hall');
   });
 
-  test("gives each card its Morale and band apart, and why a Hero is not at the Hall, for the icon beside its words (M9-S6, DL-106)", () => {
+  test("gives each card its Morale and band apart, and why a Hero is not at the Hall, for the icon beside its words (DL-106)", () => {
     const document = structuredClone(newGame());
     const [injured, away, home] = heroes(document);
     if (injured === undefined || away === undefined || home === undefined) throw new Error('three Heroes wanted');
@@ -830,7 +830,7 @@ describe('rosterRows and sortedRoster', () => {
   });
 });
 
-describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.1.5-S12, DL-169 items 8 and 9)", () => {
+describe("the Roster's Table: each Hero's effective Stats, Traits and Items (DL-169 items 8 and 9)", () => {
   /** A new game whose Guildmaster holds Old soldier (+1 Weaponry to Warriors) and Mistrusts magic (-1 Arcana to Mages). */
   function table(): { document: WorldDocument; liv: Hero; ragnvald: Hero; bram: Hero } {
     const document = structuredClone(newGame());
@@ -845,7 +845,7 @@ describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.
   }
 
   /**
-   * A Hero's row's Stat by its key. The rows are built once a document (v1.1.6-S13), and these tests
+   * A Hero's row's Stat by its key. The rows are built once a document, and these tests
    * change the world in place between reads, so each read is of a new document, as each play gives the page.
    */
   function stat(document: WorldDocument, hero: Hero, key: string) {
@@ -968,7 +968,7 @@ describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.
     expect(JSON.stringify(rows)).not.toMatch(/potential|outlook/i);
   });
 
-  test('says which Items are Unique, with their content key, and whether the Hero carries one: Common Items alone, or none, carry none (v1.1.5-S14, DL-182 item 4)', () => {
+  test('says which Items are Unique, with their content key, and whether the Hero carries one: Common Items alone, or none, carry none (DL-182 item 4)', () => {
     const { document, liv, ragnvald } = table();
     addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
     createItem(document.world, 'lantern-of-stannary', { kind: 'hero', id: liv.id, slot: 'trinket' });
@@ -993,7 +993,7 @@ describe("the Roster's Table: each Hero's effective Stats, Traits and Items (v1.
   });
 });
 
-describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
+describe("the Roster's sort (DL-169 item 10)", () => {
   /** The four Heroes of a new game, made to differ. */
   function sorted(): { document: WorldDocument; bram: Hero; liv: Hero; cenric: Hero; ragnvald: Hero } {
     const document = structuredClone(newGame());
@@ -1006,7 +1006,7 @@ describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
     return { document, bram, liv, cenric, ragnvald };
   }
 
-  // The rows are built once a document (v1.1.6-S13), and these tests change the world in place between
+  // The rows are built once a document, and these tests change the world in place between
   // sorts, so each sort is of a new document, as each play gives the page.
   const names = (document: WorldDocument, order: RosterOrder): string[] =>
     sortedRoster(rosterRows({ ...document }), order).map((row) => row.name.split(' ')[0] ?? '');
@@ -1126,7 +1126,7 @@ describe("the Roster's sort (v1.1.5-S12, DL-169 item 10)", () => {
   });
 });
 
-describe("the Roster's Table's columns (v1.1.5-S12, DL-169 item 7)", () => {
+describe("the Roster's Table's columns (DL-169 item 7)", () => {
   test('are grouped as Hero and the four areas, each Stat in its area, each column with the sort its heading orders by', () => {
     const groups = rosterColumnGroups();
     expect(groups.map(({ key, label }) => [key, label])).toEqual([
@@ -1156,7 +1156,7 @@ describe("the Roster's Table's columns (v1.1.5-S12, DL-169 item 7)", () => {
 });
 
 describe('heroPage', () => {
-  test('shows its Milestones first, newest first; its History, a page at a time, is the History view\'s (M9-S5)', () => {
+  test('shows its Milestones first, newest first; its History, a page at a time, is the History view\'s', () => {
     const document = played(240);
     // The busiest Hero of the world: a Rival's, whose Guild sends Parties while the player's rests.
     const hero = Object.values(document.world.heroes).reduce((most, each) =>
@@ -1171,7 +1171,7 @@ describe('heroPage', () => {
     expect(page).not.toHaveProperty('history');
   });
 
-  // v1.1.4-S7 (DL-148 item 27, DL-150 item 5): a Trait gained or lost is a Milestone, on the Hero's page.
+  // DL-148 item 27, DL-150 item 5: a Trait gained or lost is a Milestone, on the Hero's page.
   test("shows a Trait gained and a Trait lost among its Milestones, in the History's words", () => {
     const document = structuredClone(newGame());
     const [hero] = heroes(document);
@@ -1202,7 +1202,7 @@ describe('heroPage', () => {
   });
 });
 
-describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
+describe("a Hero's page as a header line and chips (DL-106)", () => {
   // DL-241: what the page lays out is the Hero's reading (`words/src/readings.test.ts` holds what it
   // reads); this holds the layout, and what the page adds, where the Hero is.
   test("lays out the Hero's reading: who they are in one line, their State as chips, their Stats in area blocks with what lifts each, their gear, and each Relationship marked neutral to fold", () => {
@@ -1332,7 +1332,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     ]);
   });
 
-  test("asks before a Transfer out, stating the fee and the Morale it costs in the words the page gives them (M9-S6, the review's E4)", () => {
+  test("asks before a Transfer out, stating the fee and the Morale it costs in the words the page gives them (the review's E4)", () => {
     const document = structuredClone(newGame());
     const guild = player(document);
     const [hero] = heroes(document);
@@ -1406,7 +1406,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
   });
 });
 
-describe('after a send (M9-S4, DL-104)', () => {
+describe('after a send (DL-104)', () => {
   test("names the Quest the player's Party was sent on by the last play, who went and the night they return, as the home view's Parties out does", () => {
     const state = started('selectors');
     const document = state.document as WorldDocument;
@@ -1447,7 +1447,7 @@ describe('the log and why time stopped', () => {
     expect(stopView({ ...state, stoppedBecause: null })).toBeNull();
   });
 
-  test('names each Quest a decision-needed stop names that is still on the Board, as the Board names it (M9-S3, DL-103)', () => {
+  test('names each Quest a decision-needed stop names that is still on the Board, as the Board names it (DL-103)', () => {
     const document = newGame();
     const [first, second] = boardView(document);
     if (first === undefined || second === undefined) throw new Error('expected two Quests on the Board');
@@ -1463,7 +1463,7 @@ describe('the log and why time stopped', () => {
     expect(stopView({ ...state, stoppedBecause: { kind: 'max-turns' } })?.quests).toBeUndefined();
   });
 
-  test("says the player's Stop in the page's own words, with the stops it was asked for (v1.0.1-S5, DL-96)", () => {
+  test("says the player's Stop in the page's own words, with the stops it was asked for (DL-96)", () => {
     const document = newGame();
     const state: GameState = { ...initialGameState, document, stopped: { until: ['pool-refreshed'], turnsPlayed: 90 } };
 
@@ -1471,7 +1471,7 @@ describe('the log and why time stopped', () => {
   });
 });
 
-describe('the progress of a fast forward between its steps (v1.0.1-S5, DL-96)', () => {
+describe('the progress of a fast forward between its steps (DL-96)', () => {
   /** A fast forward between steps: the game held 90 Turns on from `document`, played under its own rules. */
   function between(document: WorldDocument): GameState {
     const own = { config: { ...defaultConfig, ...document.meta.config }, content };
@@ -1489,7 +1489,7 @@ describe('the progress of a fast forward between its steps (v1.0.1-S5, DL-96)', 
     expect(progressView(between(newGame()))).toEqual({ sentence: 'Played 90 Turns so far. Now Year 1 Day 31, morning.', countdown: null });
   });
 
-  test("gives the Year under the game's own turnsPerYear (v1.0.1-S6, DL-97)", () => {
+  test("gives the Year under the game's own turnsPerYear (DL-97)", () => {
     const document = structuredClone(newGame());
     document.meta.config = { ...document.meta.config, turnsPerYear: 30 };
 
@@ -1514,7 +1514,7 @@ describe('the progress of a fast forward between its steps (v1.0.1-S5, DL-96)', 
   });
 });
 
-describe("the Guildmaster's setup, for the new-game form (M9-S2)", () => {
+describe("the Guildmaster's setup, for the new-game form", () => {
   test("gives the age a Guildmaster retires at, the configuration's (DL-113 item 5)", () => {
     expect(guildmasterSetupChoices().retirementAge).toBe(defaultConfig.guildmasterRetirementAge);
     expect(guildmasterSetupChoices(content, { ...defaultConfig, guildmasterRetirementAge: 70 }).retirementAge).toBe(70);

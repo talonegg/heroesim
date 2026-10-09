@@ -5,11 +5,11 @@ import { holding, holdingUnique, started, withOffer, withRichRivals, withWealth 
 import type { GameState } from '../state/reducer';
 import { historyLines, inHistory, navButton, openDebugHistory, rosterList, section, sentenceOf } from './page.test-support';
 
-// The plays part 2 adds, driven through the page's own controls (M7-S3 part 2, DL-73): the CLI's
+// The plays part 2 adds, driven through the page's own controls (DL-73): the CLI's
 // `buy`, `sell`, `build`, `recruit`, `equip`, `unequip`, `transfer --to`, `transfer --in`, `accept`
 // and `decline`. Each play is the engine's; the page shows what changed, the History narrates it,
-// new, on the player's Guild's (M9-S5), and a refusal is the engine's rejection as a sentence. Each
-// region is found by opening its view first (M9-S3, DL-103).
+// new, on the player's Guild's, and a refusal is the engine's rejection as a sentence. Each
+// region is found by opening its view first (DL-103).
 
 afterEach(cleanup);
 
@@ -26,13 +26,13 @@ function refusal(): string {
   return within(screen.getByRole('alert')).getByText(/./, { selector: 'p' }).textContent ?? '';
 }
 
-/** The History, opened on the player's Guild, has the play's line, marked new (M9-S5, DL-105). */
+/** The History, opened on the player's Guild, has the play's line, marked new (DL-105). */
 function logSays(pattern: RegExp): void {
   expect(inHistory(pattern).classList.contains('is-new')).toBe(true);
 }
 
 /**
- * A purchase or a sale is not in the player's Guild's History (M9-F4, DL-111 item 4): its line is
+ * A purchase or a sale is not in the player's Guild's History (DL-111 item 4): its line is
  * read, new, in the whole History, the game menu's debug view.
  */
 function debugSays(pattern: RegExp): void {
@@ -45,7 +45,7 @@ function render_(state: GameState): void {
   render(<App initial={state} />);
 }
 
-/** A table's row by what its row heading names: an Item, a Hero (M9-S6's tables). */
+/** A table's row by what its row heading names: an Item, a Hero. */
 function rowOf(scope: HTMLElement, name: string): HTMLElement {
   const row = within(scope).getByRole('rowheader', { name }).closest('tr');
   if (row === null) throw new Error(`no row for ${name}`);
@@ -63,7 +63,7 @@ describe('the Market', () => {
   test('buys what it has for sale at its price, and the Guild then holds it', async () => {
     render_(started());
     const sword = rowOf(section('Market'), 'Short sword');
-    // Kind, Effect, Price, Stock (M9-S6's table).
+    // Kind, Effect, Price, Stock.
     const price = Number(cells(sword)[2]);
     const before = wealth();
 
@@ -91,7 +91,7 @@ describe('the Market', () => {
     expect(cells(rowOf(section('Sell'), 'Whetstone'))[2]).toBe('1');
   });
 
-  test("sells a unique Item the Guild holds, one of its own with no quantity to choose (the CLI's `sell --item`, M9-S8)", async () => {
+  test("sells a unique Item the Guild holds, one of its own with no quantity to choose (the CLI's `sell --item`)", async () => {
     const blade = "The Barrow King's blade";
     render_(holdingUnique(started(), 'barrow-kings-blade'));
     const sale = rowOf(section('Sell'), blade);
@@ -107,7 +107,7 @@ describe('the Market', () => {
     await idle();
 
     expect(wealth()).toBe(before + each);
-    // The Guild holds nothing now: Sell says so, with no table (M9-F2).
+    // The Guild holds nothing now: Sell says so, with no table.
     expect(within(section('Sell')).queryByRole('table')).toBeNull();
     debugSays(new RegExp(`^The Lantern sold ${blade} at the Market for ${each} Wealth\\.$`));
   });
@@ -131,7 +131,7 @@ describe('the Hall', () => {
         .getAllByTestId('facility')
         .find((row) => row.textContent?.startsWith('Infirmary') === true) as HTMLElement;
     const build = within(infirmary()).getByRole('button', { name: 'Build Sickroom for 200 Wealth' });
-    // The cost on the button (M9-S6, the review's B9).
+    // The cost on the button (the review's B9).
     expect(build.textContent).toBe('Build Sickroom · 200');
     const before = wealth();
 
@@ -206,7 +206,7 @@ describe("a Hero's page on the player's Roster", () => {
   test('equips gear the Guild holds, and unequips it', async () => {
     render_(holding(started(), 'arming-sword', 1));
     const { name, page } = openFirstHero();
-    /** The Hero's weapon slot, as their gear lists it (M9-S6). */
+    /** The Hero's weapon slot, as their gear lists it. */
     const weapon = (): HTMLElement =>
       within(within(page()).getByRole('list', { name: `${name}'s Gear` }))
         .getAllByRole('listitem')
@@ -219,7 +219,7 @@ describe("a Hero's page on the player's Roster", () => {
     expect(within(weapon()).getByText('Arming sword')).toBeDefined();
     expect(within(weapon()).getByText('Weaponry +2, Strength +1')).toBeDefined();
     expect(within(page()).getByText('The Guild holds no Gear; the Market sells it.')).toBeDefined();
-    // Read beside the page, in the History rail, as the page stays open (M9-S3).
+    // Read beside the page, in the History rail, as the page stays open.
     const rail = screen.getByRole('complementary', { name: 'Latest for The Lantern' });
     expect(within(rail).getByText(new RegExp(`^The Lantern put Arming sword in ${name}'s weapon slot\\.$`))).toBeDefined();
 
@@ -231,7 +231,7 @@ describe("a Hero's page on the player's Roster", () => {
     logSays(new RegExp(`^The Lantern took Arming sword from ${name}'s weapon slot\\.$`));
   });
 
-  test("equips a unique Item the Guild holds, and unequips it back to the Guild (the CLI's `equip --item`, M9-S8)", async () => {
+  test("equips a unique Item the Guild holds, and unequips it back to the Guild (the CLI's `equip --item`)", async () => {
     const blade = "The Barrow King's blade";
     render_(holdingUnique(started(), 'barrow-kings-blade'));
     const { name, page } = openFirstHero();
@@ -260,7 +260,7 @@ describe("a Hero's page on the player's Roster", () => {
   test('transfers the Hero to the Guild chosen, for the fee it would pay, once asked and confirmed', async () => {
     render_(withRichRivals(started()));
     const { name, page } = openFirstHero();
-    // "Transfer…" asks first, stating the fee and what it costs (M9-S6, the review's E4).
+    // "Transfer…" asks first, stating the fee and what it costs (the review's E4).
     fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name}…` }));
     const ask = within(page()).getByRole('group', { name: `Transfer ${name}?` });
     const select = within(ask).getByLabelText(`Transfer ${name} to`) as HTMLSelectElement;
@@ -333,7 +333,7 @@ describe("another Guild's Roster", () => {
 });
 
 describe('Transfer Offers', () => {
-  test('are not drawn while none stands, and the Roster in the navigation carries no dot, until a Rival makes one (M9-S3)', () => {
+  test('are not drawn while none stands, and the Roster in the navigation carries no dot, until a Rival makes one', () => {
     const { unmount } = render(<App initial={started()} />);
     section('Roster');
     expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
@@ -350,7 +350,7 @@ describe('Transfer Offers', () => {
     const offers = section('Transfer Offers');
     const sentence = within(offers).getByText(/ offers \d+ Wealth for .+, until the night of Year \d+ Day \d+\.$/).textContent ?? '';
     const [, guildName = '', fee = '', name = ''] = /^(.+) offers (\d+) Wealth for (.+), until/.exec(sentence) ?? [];
-    // Accept asks first, stating the fee and what letting the Hero go costs (M9-S6, the review's E4).
+    // Accept asks first, stating the fee and what letting the Hero go costs (the review's E4).
     fireEvent.click(within(offers).getByRole('button', { name: `Accept ${guildName}'s Offer for ${name}…` }));
     const ask = within(offers).getByRole('group', { name: `Accept ${guildName}'s Offer for ${name}?` });
     expect(within(ask).getByText(new RegExp(`^Accepting sends ${name} to ${guildName} for ${fee} Wealth\\. Their Gear stays with your Guild`))).toBeDefined();

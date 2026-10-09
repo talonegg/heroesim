@@ -17,7 +17,7 @@ import { makeId } from './document.js';
 import { cyrb128, int, pick } from './rng.js';
 import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
 
-// M5-S1: who holds an Item, and moving Items between holders so that one stack per (definition,
+// Who holds an Item, and moving Items between holders so that one stack per (definition,
 // holder, slot) always holds (data-model §3.3, DL-48). Every document a test changes is asserted
 // valid with `withValid`, whose checks include `duplicate-stack` and `empty-stack`.
 
@@ -51,7 +51,7 @@ function totals(world: Pick<World, 'stacks'>): Record<ItemDefinitionKey, number>
 }
 
 describe('moveStack', () => {
-  // M5-S1's first box.
+  // The first acceptance box.
   test('moving 3 of a stack of 5 to a holder that already has 2 leaves stacks of 2 and 5', () => {
     const { document, world, ids, holders } = fixture();
     stackOf(world, ids.guildStack).quantity = 5;
@@ -153,7 +153,7 @@ describe('moveStack', () => {
     expect(() => moveStack(world, makeId('stacks', 999), 1, holders.guild)).toThrow(RangeError);
   });
 
-  // M5-S1's second box, its second half: the check fires on a hand-built duplicate (below, and in
+  // The second acceptance box, its second half: the check fires on a hand-built duplicate (below, and in
   // validate.test.ts) and never after moveStack, over hundreds of seeded random moves.
   test('never leaves a duplicate or an empty stack: 600 seeded random moves, each validated', () => {
     const { document, world, ids, holders } = fixture();

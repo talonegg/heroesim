@@ -17,7 +17,7 @@ import {
   type SpawnResult,
 } from '../scripts/deploy.mjs';
 
-// The deploy (M7-S5, DL-68; v1.0.1-S3, DL-94; INPUTS 7.8 and 7.9). `npm run deploy` is
+// The deploy (DL-68; DL-94; INPUTS 7.8 and 7.9). `npm run deploy` is
 // web/scripts/deploy.mjs: from a clean checkout of a release tag, it builds and gates the page
 // once, then uploads web/dist to the Worker `heroesim` (Cloudflare Workers static assets,
 // web/wrangler.jsonc) and then to the Pages project `heroesims`, from this machine, after a
@@ -28,7 +28,7 @@ import {
 // credential and `.wrangler/` out of the repository. Like the bundle gate (bundle.test.ts) they
 // run on every `npm test`, in CI included. Two need a module mocked, so have files of their own:
 // deploy-import.test.ts, that an import runs nothing, and deploy-root.test.ts, that the guard
-// looks at the filesystem's root (v1.0.1-S6, DL-97).
+// looks at the filesystem's root (DL-97).
 
 const webDir = fileURLToPath(new URL('..', import.meta.url));
 const repoDir = path.join(webDir, '..');
@@ -210,13 +210,13 @@ describe('the live check', () => {
     ]);
   });
 
-  test('takes a blank HEROESIM_LIVE_URL for none (v1.0.1-S6, DL-97)', async () => {
+  test('takes a blank HEROESIM_LIVE_URL for none (DL-97)', async () => {
     vi.stubEnv('HEROESIM_LIVE_URL', '   ');
 
     expect((await projects()).map(([name]) => name)).toEqual(['worker-phone', 'worker-desktop', 'pages-phone', 'pages-desktop']);
   });
 
-  test('runs e2e/*.live.ts alone, never the local specs, one of which sets ?modules= (DL-82 item 20; v1.0.1-S6, DL-97)', async () => {
+  test('runs e2e/*.live.ts alone, never the local specs, one of which sets ?modules= (DL-82 item 20; DL-97)', async () => {
     vi.stubEnv('HEROESIM_LIVE_URL', '');
     const { default: config } = await import('../playwright.live.config');
 
@@ -311,7 +311,7 @@ function recordEntries(pages: boolean, checkout: Checkout): object[] {
 /**
  * git answering as the checkout would, npm building, and wrangler writing its record: all
  * pretended. git answers only the three reads the guard makes, each asked whole, so that a test
- * proves what the guard asks as well as what it does with the answer (v1.0.1-S6, DL-97).
+ * proves what the guard asks as well as what it does with the answer (DL-97).
  */
 function fakeSpawn(checkout: Checkout): { spawn: Spawn; calls: Call[] } {
   const calls: Call[] = [];
@@ -388,7 +388,7 @@ describe('the deploy refuses before building', () => {
     ['HEAD carries a milestone tag alone', { tags: 'm8-modules\n' }, 'no release tag (v*)'],
     ['HEAD carries two release tags', { tags: 'v1.0.1\nv1.0.2\n' }, '2 release tags, v1.0.1 and v1.0.2'],
     ['git cannot read the checkout', { gitFails: true }, 'git could not read the checkout'],
-    // Its empty output is no clean tree (v1.0.1-S6, DL-97).
+    // Its empty output is no clean tree (DL-97).
     ['git status alone fails', { statusFails: true }, 'git could not read the checkout'],
   ])('when %s: non-zero, and neither npm nor wrangler runs', (_case, checkout, reason) => {
     const { status, output, builds, wrangler } = run(checkout);
@@ -409,7 +409,7 @@ describe('the deploy refuses before building', () => {
   });
 
   // The redirect `pages deploy` follows is found by the same walk, and `.wrangler/` is ignored by
-  // git, so the clean check never sees it (v1.0.1-S6, DL-97).
+  // git, so the clean check never sees it (DL-97).
   const redirect = path.join('.wrangler', 'deploy', 'config.json');
 
   test.each(['wrangler.json', 'wrangler.jsonc', 'wrangler.toml', redirect])(
@@ -440,7 +440,7 @@ describe('the deploy refuses before building', () => {
   });
 
   test.each(['.env', '.env.local'])(
-    'when a %s sits in web/, which wrangler loads into its environment on every run (v1.0.1-S6, DL-97)',
+    'when a %s sits in web/, which wrangler loads into its environment on every run (DL-97)',
     (name) => {
       const place = machine();
       const file = touch(path.join(place.webDir, name));
@@ -464,7 +464,7 @@ describe('the deploy refuses before building', () => {
 
   // npm keeps a flag given before its own `--` and hands the script only `npm_config_<name>`: from
   // the root, whose deploy is `npm run deploy -w web`, even `npm run deploy -- --dryrun` arrives so
-  // (npm 11.19.1; v1.0.1-S6, DL-97).
+  // (npm 11.19.1; DL-97).
   test.each([
     ['npm_config_dryrun', '--dryrun, or --dryRun'],
     ['npm_config_dry_rn', '--dry-rn'],
@@ -533,7 +533,7 @@ describe('the deploy', () => {
     for (const call of [...builds, ...wrangler]) expect(call.options.stdio).toBe('inherit');
   });
 
-  test('asks git exactly what it reads: status --porcelain, tag --points-at HEAD and rev-parse HEAD (v1.0.1-S6, DL-97)', () => {
+  test('asks git exactly what it reads: status --porcelain, tag --points-at HEAD and rev-parse HEAD (DL-97)', () => {
     // Every tag in the repository, untracked files left out, or HEAD's parent would each let
     // through a checkout the guard exists to refuse, or record the wrong commit.
     const { calls } = run();
@@ -545,7 +545,7 @@ describe('the deploy', () => {
     ]);
   });
 
-  test("hands wrangler the deploy's own environment, the login's profile, PATH and an account id, and the build the same less any Cloudflare credential (v1.0.1-S6, DL-97; DL-124)", () => {
+  test("hands wrangler the deploy's own environment, the login's profile, PATH and an account id, and the build the same less any Cloudflare credential (DL-97; DL-124)", () => {
     // Assembled, so that the credential scan below stays quiet.
     const account = ['CLOUDFLARE', 'ACCOUNT', 'ID'].join('_');
     const token = ['CLOUDFLARE', 'API', 'TOKEN'].join('_');
@@ -578,7 +578,7 @@ describe('the deploy', () => {
     ['the build fails', { build: 2 }, 2, 0],
     ["the Worker's upload fails", { worker: 1 }, 1, 1],
     ['the Pages upload fails', { pages: 7 }, 7, 2],
-    // spawnSync gives a child ended by a signal no status and no error (v1.0.1-S6, DL-97).
+    // spawnSync gives a child ended by a signal no status and no error (DL-97).
     ['the build is ended by a signal', { build: null }, 1, 0],
     ["the Worker's upload is ended by a signal", { worker: null }, 1, 1],
   ])('stops at the first failure: when %s', (_case, checkout, status, uploads) => {
@@ -589,7 +589,7 @@ describe('the deploy', () => {
     expect(result.wrangler).toHaveLength(uploads);
   });
 
-  test("when Pages fails after the Worker took the build, prints the Worker's record for the entry that records the attempt (v1.0.1-S6, DL-97)", () => {
+  test("when Pages fails after the Worker took the build, prints the Worker's record for the entry that records the attempt (DL-97)", () => {
     const { status, output } = run({ pages: 7 });
 
     expect(status).toBe(7);
@@ -609,7 +609,7 @@ describe('the deploy', () => {
     );
   });
 
-  test('reads its record past a line wrangler left unfinished (v1.0.1-S6, DL-97)', () => {
+  test('reads its record past a line wrangler left unfinished (DL-97)', () => {
     const { status, output } = run({ brokenRecordLine: true });
 
     expect(status).toBe(0);

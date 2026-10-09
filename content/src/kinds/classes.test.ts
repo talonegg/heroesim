@@ -6,7 +6,7 @@ import { shippedTexts, realFiles, parse, withJson, withText, refusalOf, warrior 
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-// The Classes' order, declared (v1.1.6-S14, DL-186 item 24): each Class once, in the order every list shows them.
+// The Classes' order, declared (DL-186 item 24): each Class once, in the order every list shows them.
 describe("the Classes' order", () => {
   test('is the Warrior, Rogue, Mage and Healer, kept when classes.json lists its keys in another order', () => {
     expect(parse(realFiles()).classOrder).toEqual(['warrior', 'rogue', 'mage', 'healer']);
@@ -94,7 +94,7 @@ describe("a Class's growth", () => {
 });
 
 describe("a Class's icon", () => {
-  // v1.1.7-S6 (DL-212): one of `classIcons`, or absent for the plain mark; the check names the Class.
+  // DL-212: one of `classIcons`, or absent for the plain mark; the check names the Class.
   test('is named by each shipped Class, each a different one of the set, and a Class without one reads as having none', () => {
     const set = parse(realFiles());
     expect(Object.values(set.classes).map((it) => it.icon)).toEqual(['sword-and-shield', 'crossed-daggers', 'tome', 'palm']);

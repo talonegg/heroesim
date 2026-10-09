@@ -6,7 +6,7 @@ import { realFiles, parse, withJson, refusalOf, guildmasterRow, heroRow, withPic
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-describe('the Portraits (v1.1.2-S3, DL-125 item 3)', () => {
+describe('the Portraits (DL-125 item 3)', () => {
   test('are required as a file, which may list none', () => {
     const files = realFiles();
     delete files['portraits.json'];
@@ -14,7 +14,7 @@ describe('the Portraits (v1.1.2-S3, DL-125 item 3)', () => {
     expect(refusalOf(() => parse(files)).message).toContain('portraits.json: missing');
   });
 
-  // A Guildmaster's and a Hero's picture has its row since v1.1.3-S1 (DL-134 item 10); a Patron's none yet.
+  // A Guildmaster's and a Hero's picture has its row (DL-134 item 10); a Patron's none yet.
   test('are accepted with a picture of each role and sex', () => {
     let files = withPicture(ownersTwo(realFiles()), 'guildmaster', 'female', 'gm-female-02', guildmasterRow());
     files = withPicture(files, 'guildmaster', 'male', 'gm-male-02', guildmasterRow());

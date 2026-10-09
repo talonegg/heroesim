@@ -32,7 +32,7 @@ function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { docu
 }
 
 /**
- * No Rivals: from M2-S9 they take Quests each afternoon, and the tests that play Turns watch the
+ * No Rivals: they take Quests each afternoon, and the tests that play Turns watch the
  * Board's own refresh.
  */
 const noRivals = { rivalCount: 0 };
@@ -120,7 +120,7 @@ describe('boardRefresh', () => {
   });
 
   test("advances the board stream and, for the new Quests' Encounter sequences, the encounters stream, and no other", () => {
-    // The morning's Market refresh draws from `market` (M5-S4): a Market of size 0 draws nothing.
+    // The morning's Market refresh draws from `market`: a Market of size 0 draws nothing.
     const deps = testDeps({ ...noRivals, marketSize: 0 });
     const document = created('streams', deps);
     const others = plannedStreams.filter((name) => !Object.hasOwn(document.world.rng, name));
@@ -151,7 +151,7 @@ describe('boardRefresh', () => {
     return tally;
   }
 
-  test('weights the Patrons uniformly while every one stands at neutral with every Guild (DL-25, M4-S5)', () => {
+  test('weights the Patrons uniformly while every one stands at neutral with every Guild (DL-25)', () => {
     const deps = testDeps();
     const { world } = created('uniform', deps);
     const patrons = Object.keys(world.patrons) as PatronId[];
@@ -166,7 +166,7 @@ describe('boardRefresh', () => {
     }
   });
 
-  test("weights each Patron by their mean Regard across the Guilds in play (R22, M4-S5): twice as often at the scale's top, never at its bottom", () => {
+  test("weights each Patron by their mean Regard across the Guilds in play (R22): twice as often at the scale's top, never at its bottom", () => {
     const deps = testDeps({ regardMin: -20, regardMax: 20, boardRegardWeight: 1 });
     const { world } = created('weighted', deps);
     const [favoured, shunned, ...rest] = Object.values(world.patrons);
@@ -207,7 +207,7 @@ describe('boardRefresh', () => {
     for (const [patronId, drawn] of tally) expect(Math.abs(drawn - expected) / expected, patronId).toBeLessThan(0.1);
   });
 
-  test('draws, with every Patron at neutral, the very Board a uniform draw gives: a new world opens on the Board it opened on before M4-S5', () => {
+  test('draws, with every Patron at neutral, the very Board a uniform draw gives: a new world opens on the Board it opened on before Patron Regard weighed the draw (DL-43)', () => {
     const deps = testDeps();
     const { world } = created('same-board', deps);
     const again = structuredClone(world);
@@ -269,7 +269,7 @@ describe('boardRefresh', () => {
     expect(events.filter((event) => event.type === 'quest.offered')).toHaveLength(deps.config.boardSize);
     expect(morning.world.rng.generation).toEqual(generation);
     expect(Object.hasOwn(m1.world.rng, 'board')).toBe(false);
-    // Its Board is what a world created at M2-S3 with an empty first Board draws on Day 1.
+    // Its Board is what a world created with an empty first Board (DL-25) draws on Day 1.
     const later = createWorld('m1-save', setup, testDeps({ boardSize: 0 })).document;
     expect(playTo(later, 3, deps).document.world).toEqual(morning.world);
   });

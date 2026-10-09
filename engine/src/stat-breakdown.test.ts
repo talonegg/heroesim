@@ -10,14 +10,14 @@ import { baseStat, effectiveStats, playerGuild, statBreakdown } from './selector
 import { traitStatModifiers } from './traits.js';
 import { testContent, testDeps } from './world.test-support.js';
 
-// v1.1.6-S13 (DL-186 item 3, DL-199): a Stat's breakdown. `effectiveStats` is on the paths that
+// DL-186 item 3, DL-199: a Stat's breakdown. `effectiveStats` is on the paths that
 // draw (a Check reads it), so it must add and hold exactly as it did. The reference below is
 // `effectiveStats` as it stood before the breakdown, word for word; every generated Hero's Stats
 // are held to it.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
-/** `effectiveStats` as it was before v1.1.6-S13: the characterisation's reference. */
+/** `effectiveStats` as it was before the breakdown (DL-199): the characterisation's reference. */
 function referenceEffectiveStats(
   hero: Pick<Hero, 'id' | 'stats' | 'classKey' | 'guildId' | 'traits'>,
   world: Pick<World, 'guilds' | 'guildmasters' | 'items' | 'stacks'>,
@@ -135,7 +135,7 @@ function generatedHeroes(seed: number): { world: World; heroes: Hero[] } {
 /** How many worlds the property tests generate; each holds about 17 Heroes. */
 const worlds = 30;
 
-describe("effectiveStats, characterised before the breakdown (v1.1.6-S13)", () => {
+describe("effectiveStats, characterised before the breakdown", () => {
   test('gives what it gave before, over many generated Heroes', () => {
     let read = 0;
     let moved = 0;
@@ -192,7 +192,7 @@ function broken(sources: [classBonus: number, gear: number, traits: number], eff
   };
 }
 
-describe('statBreakdown (v1.1.6-S13, DL-186 item 3)', () => {
+describe('statBreakdown (DL-186 item 3)', () => {
   test("is exported from the engine's entry", () => {
     expect(engine.statBreakdown).toBe(statBreakdown);
   });

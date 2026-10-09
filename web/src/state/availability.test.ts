@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { availabilityOf } from './availability';
 
-// Whether a Hero can go, and where they are (v1.1.6-S14, DL-186 item 2): the one reading the Roster,
+// Whether a Hero can go, and where they are (DL-186 item 2): the one reading the Roster,
 // a Hero's page and the Party builder share.
 
 const deps = { config: defaultConfig, content };
@@ -118,7 +118,7 @@ describe('availabilityOf', () => {
     const document = newGame();
     const hero = Object.assign(firstHero(document), change);
     expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({ why, freeOnTurn: null, where: words, until: words, chip });
-    // On no Roster, they say so first, as the Roster's words always did (v1.1.6-S14's verification, DL-200).
+    // On no Roster, they say so first, as the Roster's words always did (DL-200).
     Object.assign(hero, { guildId: null, unattachedSince: 12 });
     expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({ why, freeOnTurn: null, where: words, until: words, chip });
   });

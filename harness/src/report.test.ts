@@ -34,7 +34,7 @@ describe('numbers', () => {
     expect(whole(1000)).toBe('1,000');
   });
 
-  // v1.1.6-S1 (DL-186 item 19, DL-187): one share formatter for the play report and the Succession probe's.
+  // DL-186 item 19, DL-187: one share formatter for the play report and the Succession probe's.
   test('percent gives a share of a whole to one place, a dash of none', () => {
     expect(percent(1, 3)).toBe('33.3%');
     expect(percent(1234, 1000)).toBe('123.4%');

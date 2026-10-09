@@ -15,7 +15,7 @@ import { saveText } from './state/game-file';
 import { played, started } from './state/game.test-support';
 import { initialGameState } from './state/reducer';
 
-// Saves kept in the browser (M7-S4, DL-67): the game's save text, the CLI's canonical JSON,
+// Saves kept in the browser (DL-67): the game's save text, the CLI's canonical JSON,
 // compressed with gzip into a Blob in IndexedDB, and read back, exported and imported as that text.
 // Node has no IndexedDB, so the saves are tested here over a store that stands in for it, their
 // IndexedDB adapter over a stand-in for the browser's factory whose transactions commit when the test

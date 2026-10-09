@@ -7,7 +7,7 @@ import type { GameState } from '../state/reducer';
 import { section } from './page.test-support';
 import { Treasury } from './treasury';
 
-// The Guild's Treasury (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): the Wealth, Upkeep's next
+// The Guild's Treasury (DL-111 item 5, DL-112 item 6, DL-116): the Wealth, Upkeep's next
 // payment with its Day and parts, the Bankruptcy floor and the countdown while below it, and the
 // ledger, filtered by income or expense and by category, paged, with the totals of what is shown.
 
@@ -48,7 +48,7 @@ function totals(): string {
   return within(treasury()).getByTestId('totals').textContent ?? '';
 }
 
-describe('the Treasury (M9-F3)', () => {
+describe('the Treasury', () => {
   test("gives the Guild's Wealth, Upkeep's next payment with its Day and parts, and the Bankruptcy floor, with no countdown above it", () => {
     render(<App initial={started()} />);
     const part = treasury();
@@ -73,7 +73,7 @@ describe('the Treasury (M9-F3)', () => {
     expect(within(ledger()).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Date', 'What happened', 'Category', 'Amount']);
     const shown = rows();
     expect(shown.map((row) => row[2])).toEqual(['Upkeep', 'Heroes', 'Market', 'Opening balance']);
-    // It opens with the Wealth the Guild was founded with (M9-F7, DL-120 item 4).
+    // It opens with the Wealth the Guild was founded with (DL-120 item 4).
     expect(shown[3]).toEqual(['Year 1 Day 1, morning', 'Founded with 500 Wealth', 'Opening balance', '500']);
     expect(within(treasury()).getByText('Page 1 of 1, 3 changes in all since the founding, newest first.')).toBeDefined();
     expect(shown[0]?.[0]).toBe('Year 1 Day 10, night');
@@ -156,7 +156,7 @@ describe('the Treasury (M9-F3)', () => {
     expect(screen.getByRole('region', { name: 'Rankings' })).toBeDefined();
   });
 
-  test('opens with the Wealth the Guild was founded with, and says so while the Wealth has not changed since (M9-F7, DL-120 item 4)', () => {
+  test('opens with the Wealth the Guild was founded with, and says so while the Wealth has not changed since (DL-120 item 4)', () => {
     render(<App initial={started()} />);
 
     expect(within(treasury()).getByText('No change to the Wealth of The Lantern yet.')).toBeDefined();

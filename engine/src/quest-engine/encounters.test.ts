@@ -7,8 +7,8 @@ import { next, pick } from '../rng.js';
 import { plannedStreams, testContent, testDeps, testWorld } from '../world.test-support.js';
 import { drawSequence, encounterCount, endsWithFinale, finaleKeys, sequenceFor, sequencePlan, tagWeight } from './encounters.js';
 
-// M4-S1: how many Encounters a Quest has, and how its sequence is drawn, at generation or, for a
-// Quest generated before M4, when it resolves (DL-42). v1.1.4-S8: the draw within a kind weighted by
+// How many Encounters a Quest has, and how its sequence is drawn, at generation or, for a
+// Quest generated before M4, when it resolves (DL-42). DL-160: the draw within a kind weighted by
 // the tags an Encounter shares with its template, and a template's Finale, always last (DL-148 items
 // 22 and 23).
 
@@ -30,7 +30,7 @@ function tagged(key: string, kind: EncounterKind, tags?: string[]): Encounter {
   return { ...structuredClone(ambush), key, name: key, kind, ...(tags === undefined ? {} : { tags }) };
 }
 
-/** The sequence as M4-S1 drew it, before v1.1.4-S8: a kind by `pick`, then an Encounter of it by `pick`. */
+/** The sequence as it was drawn before DL-160: a kind by `pick`, then an Encounter of it by `pick`. */
 function drawnBefore(state: Parameters<typeof pick>[0], template: QuestTemplate, content: ContentSet, count: number): string[] {
   const pools = template.encounterKinds.map((kind) => sortedRows(content.encounters, (it) => it.kind === kind));
   return Array.from({ length: count }, () => pick(state, pick(state, pools)).key);
@@ -75,7 +75,7 @@ describe('drawSequence', () => {
     for (const key of keys) expect(barrow.encounterKinds).toContain(testContent.encounters[key]?.kind);
   });
 
-  test('with no tag shared, draws exactly what M4-S1 drew, a kind then an Encounter by pick, over 200 seeds of every template', () => {
+  test('with no tag shared, draws exactly what the draw before DL-160 drew, a kind then an Encounter by pick, over 200 seeds of every template', () => {
     const deps = testDeps();
     for (let seed = 0; seed < 200; seed += 1) {
       for (const template of sortedRows(testContent.questTemplates)) {

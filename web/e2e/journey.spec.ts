@@ -25,28 +25,27 @@ import {
   traitBox,
 } from './support';
 
-// The journey (M7-S4, DL-67), at a phone's width, a tablet's and a desktop's: a new game, a Day
+// The journey (DL-67), at a phone's width, a tablet's and a desktop's: a new game, a Day
 // advanced, a Party dispatched, a Hero recruited from the Unattached pool (the milestone's Gate,
 // DL-74), fast forward until the Party returns, the game saved in IndexedDB, the page reloaded, the
 // save loaded, the same Turn and the same Roster read; then the save exported, and the CLI's own
 // loader, run on Node, loads the exported file as the same Turn and writes it back byte for byte.
 // The page is never wider than the viewport on the way.
 //
-// Through the shell (M9-S3, DL-103): each view is opened from the navigation before its regions are
+// Through the shell (DL-103): each view is opened from the navigation before its regions are
 // read, the home view shows the Party out and then how it fared, and the game's file is the game
-// menu's. The Party is chosen in the Party builder (M9-S4, DL-104), with a Hero's page opened from it.
+// menu's. The Party is chosen in the Party builder (DL-104), with a Hero's page opened from it.
 // What each play did is read in the History, opened on the player's Guild, new; the Party's return
-// is read there too, how it went marked in a word and its Encounters folded under it (M9-S5,
-// DL-105). Since M9-F2 (DL-115), the Guildmaster, the Guild's Hall part and the Market are
-// passed through on the way, and since M9-F3 (DL-116) the Stores and the Treasury, with the signing
+// is read there too, how it went marked in a word and its Encounters folded under it
+// (DL-105). Since DL-115, the Guildmaster, the Guild's Hall part and the Market are
+// passed through on the way, and since DL-116 the Stores and the Treasury, with the signing
 // fee in its ledger.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 /**
  * Signs, from the Unattached pool, the Hero with the lowest signing fee among those who would sign
- * for the Guild at a fee it can pay; their name. The fee is the one the pool's row shows (M9-S6's
- * rows), and the Hero joins the Roster.
+ * for the Guild at a fee it can pay; their name. The fee is the one the pool's row shows, and the Hero joins the Roster.
  */
 async function recruitAHero(page: Page): Promise<string> {
   const wealth = Number(await page.getByTestId('wealth').textContent());
@@ -83,12 +82,12 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   test.setTimeout(120_000);
   await page.goto('/');
   await expectNoHorizontalOverflow(page, 'the new-game form');
-  // The Guildmaster set up under "Your Guildmaster" (M9-S7, #30), with "Choose myself" (v1.1.4-S11): a
+  // The Guildmaster set up under "Your Guildmaster" (#30), with "Choose myself": a
   // sex, an age and a picture, the Stats as they start, and two Traits within the budget of 1, a buff
   // and a penalty.
   const setup = await guildmasterSetup(page);
   await chooseGuildmaster(setup, { sex: 'male', age: '38', picture: 'Male Portrait 2' });
-  // The Age field says when a Guildmaster retires, from the rules (M9-F2, DL-113 item 5).
+  // The Age field says when a Guildmaster retires, from the rules (DL-113 item 5).
   await expect(setup.getByText(/^Years, \d+ to \d+\. Retires at \d+\.$/)).toBeVisible();
   await setup.getByRole('radio', { name: 'Choose them' }).check();
   const budget = setup.getByTestId('trait-budget');
@@ -107,7 +106,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-journey' });
   await expectNoHorizontalOverflow(page, 'a new game');
   // The Guildmaster the game began with, in the Guildmaster view at the top of the navigation
-  // (M9-F2): the Sex capitalised, the Age and the Traits chosen.
+  // The Sex capitalised, the Age and the Traits chosen.
   const guildmaster = await openView(page, 'Guildmaster');
   await expect(guildmaster.getByRole('heading', { level: 3 })).toHaveText('Ada Vell, Guildmaster of The Lantern');
   await expect(guildmaster).toContainText(/Sex\s*Male/);
@@ -115,7 +114,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(guildmaster).toContainText('Old soldier');
   await expect(guildmaster).toContainText('Mistrusts magic');
 
-  // The Guild's Hall part, its facilities with Build, and the Market's Buy and Sell (M9-F2).
+  // The Guild's Hall part, its facilities with Build, and the Market's Buy and Sell.
   const hall = await guildPart(page, 'Hall');
   await expect(hall.getByTestId('facility')).toHaveCount(3);
   await expect(hall.getByRole('button', { name: /^Build .+ for \d+ Wealth$/ }).first()).toBeVisible();
@@ -134,7 +133,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(lineOf(sent)).toHaveClass(/\bis-new\b/);
   await expect(groupOf(sent)).toHaveText('Year 1 Day 2, morning');
   // The home view names the Party out, and the night it returns: the Guild opens at the part last
-  // open, the Hall, and its Home is a tab away (M9-F2).
+  // open, the Hall, and its Home is a tab away.
   const home = await guildPart(page, 'Home');
   await expect(home.getByRole('listitem').filter({ hasText: new RegExp(`^${escaped(quest)} · .+ · back on the night of Year \\d+ Day \\d+$`) })).toHaveCount(1);
 
@@ -142,7 +141,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   const recruited = await recruitAHero(page);
   await expectNoHorizontalOverflow(page, 'a Hero recruited');
 
-  // The Guild's Stores and Treasury (M9-F3, DL-116): what the Guild owns, and its accounts, the
+  // The Guild's Stores and Treasury (DL-116): what the Guild owns, and its accounts, the
   // signing fee just paid in the ledger, which shows expense alone from its chips.
   const stores = await guildPart(page, 'Stores');
   await expect(stores.getByText(/^The Lantern owns /)).toBeVisible();
@@ -152,7 +151,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(treasury.getByTestId('upkeep-next')).toHaveText(/^Next paid on the night of Year \d+ Day \d+: \d+ Wealth\.$/);
   const ledger = treasury.getByRole('table', { name: 'The ledger of The Lantern' });
   await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Year \\d+ Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for \\d+ Wealth\\.Heroes-\\d+$`) })).toHaveCount(1);
-  // It opens with the Wealth the Guild was founded with, last on its only page (M9-F7, DL-120 item 4).
+  // It opens with the Wealth the Guild was founded with, last on its only page (DL-120 item 4).
   await expect(ledger.getByRole('row').last()).toHaveText(/^Year 1 Day 1, morningFounded with \d+ WealthOpening balance\d+$/);
   await treasury.getByRole('group', { name: 'Show income or expense' }).getByRole('button', { name: /^Expense \d+$/ }).click();
   await expect(treasury.getByTestId('totals')).toHaveText(/^Income 0 · Expense -\d+ · Net -\d+$/);
@@ -164,8 +163,8 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   const stopped = async (): Promise<string> => ((await stop.count()) === 0 ? '' : ((await stop.textContent()) ?? ''));
   for (let tries = 0; tries < 10 && !/came home/.test(await stopped()); tries += 1) await playTurns(page, fastForward);
   await expect(stop).toContainText("Stopped: The Lantern's Party came home.");
-  // The play opened Guild › Home at the Party's Quest report, with the keyboard on its heading (M9-F5,
-  // DL-112 item 8): its sections in order, how it went, what it brought, each Hero, and the Patron.
+  // The play opened Guild › Home at the Party's Quest report, with the keyboard on its heading
+  // (DL-112 item 8): its sections in order, how it went, what it brought, each Hero, and the Patron.
   const guild = page.getByRole('region', { name: 'Guild', exact: true });
   const report = guild.getByRole('region', { name: `Quest report: ${quest}`, exact: true });
   await expect(report.getByRole('heading', { level: 3 })).toBeFocused();
@@ -179,7 +178,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expectTargets(page, "a Party's Quest report");
 
   // The return in the History: one entry, new, how it went in bold, its Heroes a line each behind a
-  // disclosure, and no Encounter of its own (M9-F5, DL-111 item 2).
+  // disclosure, and no Encounter of its own (DL-111 item 2).
   const read = await history(page);
   await expect(read.getByRole('heading', { level: 3 })).toHaveText('The History of The Lantern');
   const cameHome = historyText(read, new RegExp(`^The Lantern's Party came home from ${escaped(quest)} and (failed|succeeded|succeeded strongly): Wealth [+-]?\\d+, Fame [+-]?\\d+\\.`));

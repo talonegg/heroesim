@@ -8,8 +8,8 @@ import { holding, holdingUnique, selling, started } from '../state/game.test-sup
 import type { GameState } from '../state/reducer';
 import { section } from './page.test-support';
 
-// The Market view (M9-F2, DL-111 item 6, DL-112 item 5): Buy and Sell, the Market and what the Guild
-// holds that the Hall view held (M9-S6, DL-106; the review's B3), a view of their own. What is for
+// The Market view (DL-111 item 6, DL-112 item 5): Buy and Sell, the Market and what the Guild
+// holds that the Hall view held (DL-106; the review's B3), a view of their own. What is for
 // sale as a table shown by kind, one or several; what the Guild holds as a table with Sell.
 
 afterEach(cleanup);
@@ -18,7 +18,7 @@ function render_(state: GameState): void {
   render(<App initial={state} />);
 }
 
-describe("the Market view's Buy and Sell, as tables (M9-S6, the review's B3; M9-F2)", () => {
+describe("the Market view's Buy and Sell, as tables (the review's B3)", () => {
   test('is a view with its heading and two parts, Buy and Sell, in that order', () => {
     render_(started());
     const market = section('Market');

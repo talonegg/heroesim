@@ -24,7 +24,7 @@ const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test'
 /** The bytes this process's heap has allocated so far; `undefined` on a Node whose V8 does not count them. */
 const allocatedBytes = (): number | undefined => (getHeapStatistics() as { total_allocated_bytes?: number }).total_allocated_bytes;
 
-// M1-S8: canonical serialisation (data-model rule 7) and a versioned, validated load (§6).
+// Canonical serialisation (data-model rule 7) and a versioned, validated load (§6).
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ describe('serialise', () => {
     expect(() => serialise(document)).toThrow(`$.world.heroes["${hero.id}"].morale is nan`);
   });
 
-  // v1.1.5-S1 (DL-174): JSON.stringify writes an object's array-index keys first, in ascending
+  // DL-174: JSON.stringify writes an object's array-index keys first, in ascending
   // number, and cannot be handed an own `__proto__` key by assignment; the save sorts every key by
   // its code units all the same.
   test('sorts array-index keys and an own __proto__ key by their code units like every other key', () => {
@@ -110,7 +110,7 @@ describe('serialise', () => {
     expect(text).toBe(serialise(JSON.parse(text) as WorldDocument));
   });
 
-  // v1.1.5-S1's verification (DL-174): each such key alone in its object, so that no other key
+  // DL-174: each such key alone in its object, so that no other key
   // brings the old writer in: the first and the last array index, the first number that is not one,
   // and an own `__proto__` holding an object, which a copy would take as its prototype.
   test('sorts each array-index key and an own __proto__ key by its code units when it is the only one in its object', () => {
@@ -126,7 +126,7 @@ describe('serialise', () => {
     }
   });
 
-  // v1.1.5-S1 (DL-174): a 20-year game's save of 116 MB was built from a string for every value at
+  // DL-174: a 20-year game's save of 116 MB was built from a string for every value at
   // every depth, each copied into its parent's, and allocated 22 times its length, the garbage that
   // grew a sweep's process to 1.65 GB. The text is now written in one pass.
   test.skipIf(allocatedBytes() === undefined)('writes a long History in one pass: it allocates a few times the text, not a string per value at every depth', () => {
@@ -289,7 +289,7 @@ describe('the migration chain', () => {
     (from: number): Migration =>
     (document) => ({ ...document, steps: [...(document.steps as number[]), from] });
 
-  test('holds no step, so a save of a schema before 7 is refused, not migrated (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7; v1.1.6-S7, DL-193)', () => {
+  test('holds no step, so a save of a schema before 7 is refused, not migrated (DL-125 item 10.2, DL-135 item 7, DL-193)', () => {
     expect(Object.keys(migrations)).toEqual([]);
     expect(schemaVersion).toBe(7);
     expect(defaultConfig).not.toHaveProperty('schemaVersion');
@@ -329,12 +329,12 @@ describe('the migration chain', () => {
   });
 });
 
-// ── Older saves: refused (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7; DL-193) ────
+// ── Older saves: refused (DL-125 item 10.2, DL-135 item 7; DL-193) ────
 
 describe('a save of an older schema', () => {
   /**
    * `document` as `v1.1.5` wrote it, schema 6: `meta.version` 6, the two versions and the gear slots
-   * in its config and none in `meta`, and each Quest with its template's `demands` (v1.1.6-S7).
+   * in its config and none in `meta`, and each Quest with its template's `demands`.
    */
   function asVersion6(document: WorldDocument): string {
     const parsed = JSON.parse(serialise(document)) as SavedDocument & {
@@ -356,7 +356,7 @@ describe('a save of an older schema', () => {
 
   /**
    * `document` as `v1.1.2` wrote it, schema 5: `meta.version` 5, and no Hero with a Portrait, an
-   * Appearance or a Biography (v1.1.3-S6).
+   * Appearance or a Biography.
    */
   function asVersion5(document: WorldDocument): string {
     const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object> } };

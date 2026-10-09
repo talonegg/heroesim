@@ -22,7 +22,7 @@ import { seedNames } from './seeds.js';
 import { sweepTotals } from './counter.js';
 import { sweepPlay, sweepPlayInParallel, type PlaySweep } from './sweep.js';
 
-// M8-S3 (DL-78): the modules a harness run installs, their counters, and a sweep with them.
+// DL-78: the modules a harness run installs, their counters, and a sweep with them.
 
 const content = loadContent();
 const deps: EngineDeps = { config: { ...defaultConfig }, content };
@@ -143,7 +143,7 @@ describe('a sweep with a module installed', () => {
   });
 
   // It plays the sweep again in this process: 0.6 s alone, and over 5 s under the whole suite's load
-  // from v1.1.4-S10's content, so it is given its time as DL-164 gave the long tests theirs (DL-166).
+  // from the core content, so it is given its time as DL-164 gave the long tests theirs (DL-166).
   test('differs from the same seeds with no module, whose saves hold no slice', { timeout: 60_000 }, async () => {
     const none = await sweepPlay(seeds, deps, { years });
     const fingerprints = (of: PlaySweep) => of.games.map((game) => game.measures.fingerprint);

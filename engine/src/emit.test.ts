@@ -97,7 +97,7 @@ describe('milestoneTypes', () => {
   });
 });
 
-// M5-S5 (DL-52): `quest.loot` is a Milestone when its Item is unique, and only then.
+// DL-52: `quest.loot` is a Milestone when its Item is unique, and only then.
 describe('milestoneWhen', () => {
   test('makes quest.loot a Milestone for a unique Item and not for a common one, through emit', () => {
     const { ids, emit } = fixture();

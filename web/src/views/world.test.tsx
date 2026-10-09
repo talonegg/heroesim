@@ -7,11 +7,11 @@ import { changed, played, started, withOffer, withOlderRules, withWealth } from 
 import type { GameState } from '../state/reducer';
 import { inHistory, openView, section, seedShown } from './page.test-support';
 
-// The views of the wider world and the game as a file (M7-S3 part 2, DL-73): the CLI's `show
+// The views of the wider world and the game as a file (DL-73): the CLI's `show
 // rankings`, `show guilds`, `show roster|hall|guildmaster <guildId>`, `show guildmaster`, `show
 // patrons`, `rebase`, `save --as` and `load`, driven through the page's controls. Each region is
-// found by opening its view, or the game menu, first (M9-S3, DL-103). The History's are in
-// `history.test.tsx` (M9-S5).
+// found by opening its view, or the game menu, first (DL-103). The History's are in
+// `history.test.tsx`.
 
 afterEach(() => {
   cleanup();
@@ -26,7 +26,7 @@ function render_(state: GameState): void {
   render(<App initial={state} />);
 }
 
-/** The Guilds' table, which holds the Rankings (M9-S6, DL-106; the review's B4). */
+/** The Guilds' table, which holds the Rankings (DL-106; the review's B4). */
 function guildsTable(): HTMLElement {
   return within(section('Guilds')).getByRole('table', { name: 'Every Guild, and the Rankings' });
 }
@@ -58,7 +58,7 @@ describe('the Rankings', () => {
   });
 });
 
-describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => {
+describe('shared places and the Bankruptcy countdown (DL-95)', () => {
   test('a new game, every Guild at Fame 0, is joint 1st on each row of the Rankings and in the header', () => {
     render_(started());
 
@@ -82,7 +82,7 @@ describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => 
     `The Lantern has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day ${dueDay + 1} ` +
     'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
 
-  /** The countdown as the status bar's pill says it, and in full in the home view (M9-S3, DL-103). */
+  /** The countdown as the status bar's pill says it, and in full in the home view (DL-103). */
   function shown(dueDay: number): void {
     expect(within(screen.getByRole('banner')).getByTestId('countdown').textContent).toBe(`Bankruptcy on the night of Year 1 Day ${dueDay + 1}`);
     expect(within(screen.getByRole('region', { name: 'Guild' })).getByText(countdown(dueDay))).toBeDefined();
@@ -128,12 +128,12 @@ describe('the Guilds', () => {
     fireEvent.click(within(guilds).getByRole('button', { name: 'Open The Ashford Guild' }));
 
     const page = within(section('Guilds')).getByRole('article');
-    // Under the Guilds' heading, a part of the Rankings view (M9-S3): its levels one below.
+    // Under the Guilds' heading, a part of the Rankings view: its levels one below.
     expect(within(page).getByRole('heading', { level: 4, name: 'The Ashford Guild' })).toBeDefined();
     const fees = within(page).getAllByTestId('fee').map((cell) => cell.textContent ?? '');
     expect(fees.length).toBeGreaterThan(0);
     for (const fee of fees) expect(fee).toMatch(/^\d+$/);
-    // Its Hall and Guildmaster folded (M9-S6, the review's B10).
+    // Its Hall and Guildmaster folded (the review's B10).
     expect(within(page).getAllByRole('img', { name: 'Grade 0 of 3' })).toHaveLength(3);
     expect(within(page).queryByRole('button', { name: /^Build / })).toBeNull();
     expect(within(page).getByRole('heading', { level: 5, name: /, Guildmaster of The Ashford Guild$/ })).toBeDefined();
@@ -151,7 +151,7 @@ describe('the Guildmaster and the Patrons', () => {
     expect(within(guildmaster).getByRole('heading', { level: 3, name: 'Ada Vell, Guildmaster of The Lantern' })).toBeDefined();
     expect(within(guildmaster).getByRole('rowheader', { name: 'Negotiation' })).toBeDefined();
     expect(within(guildmaster).getByText('The reward agreed and the fees paid')).toBeDefined();
-    // Regard as bands, never numbers: a new game's are neutral, folded under their counts (M9-S6).
+    // Regard as bands, never numbers: a new game's are neutral, folded under their counts.
     for (const list of within(guildmaster).getAllByRole('list').filter((each) => each.className.startsWith('regards'))) {
       for (const item of within(list).getAllByRole('listitem')) expect(item.textContent).toMatch(/(Hostile|Cool|Neutral|Warm|Close)$/);
     }
@@ -168,7 +168,7 @@ describe('the Guildmaster and the Patrons', () => {
         .map((cell) => cell.textContent ?? '');
       expect([theirs, yours]).toEqual(['Neutral', 'Neutral']);
     }
-    // Each opens their History (M9-S5).
+    // Each opens their History.
     for (const patron of patrons) expect(within(patron).getByRole('button', { name: /^Read the History of .+$/ })).toBeDefined();
   });
 });
@@ -185,7 +185,7 @@ describe('new rules', () => {
     await idle();
 
     expect(screen.queryByRole('region', { name: 'New rules available' })).toBeNull();
-    // The World History holds it, new: it names no Guild (M9-F4).
+    // The World History holds it, new: it names no Guild.
     fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The World History' }));
     expect(inHistory(`The rules moved from configVersion ${from} to ${to}.`).classList.contains('is-new')).toBe(true);
   });
@@ -237,7 +237,7 @@ describe('the game as a file', () => {
     expect(seedShown()).toBe('loaded-game');
   });
 
-  test('says in place of loading a file that an older Heroesim saved it, schema 5 as v1.1.2 wrote it, and the game in hand stays (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6)', async () => {
+  test('says in place of loading a file that an older Heroesim saved it, schema 5 as v1.1.2 wrote it, and the game in hand stays (DL-125 item 10.2)', async () => {
     const older = JSON.parse(saveText(started('saved-by-v1.1.2').document as NonNullable<GameState['document']>)) as {
       meta: { version: number };
       world: { heroes: Record<string, object> };
@@ -365,13 +365,13 @@ describe('why time stopped, with a button to what it names', () => {
       // The last iteration's view is remembered: why time stopped is the home view's to say.
       openView('Guild');
       fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: label }));
-      // Parts of the Roster view (M9-S3): their headings are one below the view's.
+      // Parts of the Roster view: their headings are one below the view's.
       expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: heading }));
       unmount();
     }
   });
 
-  test("a module's stop is said, and goes to what happened, where a module's own event reads as one (M8-S2)", () => {
+  test("a module's stop is said, and goes to what happened, where a module's own event reads as one", () => {
     const state = started();
     // A module's event naming the player's Guild, appended to the History as the engine appends each of a play's.
     const fired = { turn: 0, type: 'probe.fired', participants: ['guild-000001'], labels: { 'guild-000001': 'The Lantern' }, milestone: false, payload: { effects: [] } } as unknown as ModuleEvent;
@@ -383,7 +383,7 @@ describe('why time stopped, with a button to what it names', () => {
     const stop = screen.getByTestId('stop');
     expect(within(stop).getByText('Stopped: the probe Module asked to stop.')).toBeDefined();
     fireEvent.click(within(stop).getByRole('button', { name: 'Read what happened' }));
-    // The History, on the player's Guild, with the keyboard on its title (M9-S5).
+    // The History, on the player's Guild, with the keyboard on its title.
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'The History of The Lantern' }));
     expect(inHistory('The probe Module recorded probe.fired for The Lantern.').classList.contains('is-new')).toBe(true);
   });

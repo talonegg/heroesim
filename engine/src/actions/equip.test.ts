@@ -11,14 +11,14 @@ import { testContent, testDeps, withValid } from '../world.test-support.js';
 import { applyAction, applyGuildAction } from './action.js';
 import type { EquipRejection, EquipRequest, UnequipRejection } from './equip.js';
 
-// M5-S2: `equip` and `unequip` (DL-49). Worlds are made by `createWorld` with no Rivals, and the
+// `equip` and `unequip` (DL-49). Worlds are made by `createWorld` with no Rivals, and the
 // player's Guild is handed the Items a test needs; every document a test makes is held to the
 // validator, and the config a test relies on is pinned.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /**
- * No Rivals, the three slots pinned (INPUTS 7.1), and an empty Market (M5-S4), so that the only
+ * No Rivals, the three slots pinned (INPUTS 7.1), and an empty Market, so that the only
  * stacks of a definition are the ones a test hands the Guild.
  */
 const deps = testDeps({ rivalCount: 0, marketSize: 0 });

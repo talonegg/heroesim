@@ -5,7 +5,7 @@ import { ESLint, type Linter } from 'eslint';
 import { beforeAll, describe, expect, test } from 'vitest';
 import * as words from './index.js';
 
-// v1.1.6-S11 (DL-186 item 1): the words run in a browser, for the CLI, the page and the tools. ESLint
+// DL-186 item 1: the words run in a browser, for the CLI, the page and the tools. ESLint
 // holds the line (eslint.config.js, `wordsImports`); these tests prove its rules fire, as
 // engine/src/boundary.test.ts does for the other packages: each lints a probe as text under a path in
 // a package, through the repository's own configuration, so no probe file is ever written.
@@ -66,7 +66,7 @@ describe("the words' source", { timeout: 30_000 }, () => {
     }
   });
 
-  // v1.1.6-S11's verification (DL-197): Node reached without a static import, by a dynamic `import()`
+  // DL-197: Node reached without a static import, by a dynamic `import()`
   // or a global Node alone defines, which the import rules cannot see.
   test.each([
     ["const fs = await import('node:fs');\nexport { fs };", 'no-restricted-syntax'],
@@ -152,7 +152,7 @@ describe('words/package.json', () => {
   });
 });
 
-// v1.1.6-S11's verification (DL-197): the CLI and the page take the words from here and define none
+// DL-197: the CLI and the page take the words from here and define none
 // again under its name, as the CLI's `setup.ts` (`listed`) and both narrations (`signed`) still did.
 /** The sources of the CLI and the page, their tests and test support left out, from the repository's root. */
 function frontEndSources(): string[] {

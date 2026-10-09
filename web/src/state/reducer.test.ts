@@ -45,7 +45,7 @@ import {
 import { rejectionSentence } from './namer';
 import { stopView } from './selectors';
 
-// The one reducer (M7-S2). The engine's entry points the reducer calls are wrapped in spies that
+// The one reducer. The engine's entry points the reducer calls are wrapped in spies that
 // call the real ones, so a test can count the engine calls a play makes and read the deps it
 // passed, and every other test plays the real engine.
 vi.mock('@heroesim/engine', async (importOriginal) => {
@@ -140,7 +140,7 @@ describe('a new game', () => {
     expect(state.busy).toBe(false);
   });
 
-  test("sets up the Guildmaster from the play's optional fields, as the engine's createWorld does (M9-S2)", () => {
+  test("sets up the Guildmaster from the play's optional fields, as the engine's createWorld does", () => {
     const setup = {
       guildmasterSex: 'female',
       guildmasterAge: 33,
@@ -194,7 +194,7 @@ describe('a new game', () => {
       { guildmasterAppearance: 'a'.repeat(281) },
       { action: 'newGame', reason: 'text-too-long', attribute: 'appearance', length: 281, max: 280 },
     ],
-  ])("refuses the Guildmaster's setup with %s, the engine's refusal as its own, creating nothing (M9-S2)", (_name, change, refusal) => {
+  ])("refuses the Guildmaster's setup with %s, the engine's refusal as its own, creating nothing", (_name, change, refusal) => {
     const state = play(initialGameState, { ...newGame, ...change });
 
     expect(state.rejection).toEqual(refusal);
@@ -302,7 +302,7 @@ describe('the rules a game plays under', () => {
     expect(lastDeps(applyAction).content).toBe(content);
   });
 
-  test('a save is read by the engine, so its schema is the engine’s to judge (DL-20): an older one is refused (v1.1.2-S3, v1.1.3-S6, v1.1.6-S7)', () => {
+  test('a save is read by the engine, so its schema is the engine’s to judge (DL-20): an older one is refused', () => {
     // A schema version 6 save, as v1.1.5 wrote it: its config names the schema and the defaults it was
     // made under, and its Quests their template's demands; the engine judges the version, not the config.
     const text = saveText(started(), ({ meta, world }) => {
@@ -384,7 +384,7 @@ describe("a loaded save's warnings, the CLI's notice of content keys this conten
   });
 });
 
-describe('the modules installed (M8-S4): none unless the page is given some', () => {
+describe('the modules installed: none unless the page is given some', () => {
   /** Plays `action` as the page does with `modules` installed: accepted, then settled, a fast forward step by step. */
   function withModules(modules: readonly Module[], state: GameState, action: Play): GameState {
     let next = gameReducer(state, action, modules);
@@ -508,7 +508,7 @@ describe('a refusal is stored, never thrown', () => {
     expect(refused.document).toBe(before.document);
   });
 
-  test("a load refused carries the engine's reason whole, and the browser save it came from (v1.1.2-S3)", () => {
+  test("a load refused carries the engine's reason whole, and the browser save it came from", () => {
     const text = '{"meta":{"version":5}}';
 
     expect(play(started(), { kind: 'load', text }).rejection).toEqual({
@@ -588,7 +588,7 @@ describe('each play is the engine’s', () => {
     const guild = playerOf(state);
     const forward = play(state, { kind: 'fastForward', until: ['pool-refreshed'] });
 
-    // A year, played in steps (v1.0.1-S5, DL-96): a new game stops in its first, one call of the
+    // A year, played in steps (DL-96): a new game stops in its first, one call of the
     // first 30 Turns of the year.
     expect(fastForward).toHaveBeenCalledTimes(1);
     expect(fastForward).toHaveBeenCalledWith(
@@ -608,7 +608,7 @@ describe('each play is the engine’s', () => {
   });
 });
 
-// ── Fast forward in steps (v1.0.1-S5, DL-96) ─────────────────────────────────────────────────
+// ── Fast forward in steps (DL-96) ─────────────────────────────────────────────────
 
 /** Accepts `action` and settles it as `useGame` does, a step a settle, with `modules` installed: the state after each step. */
 function stepped(state: GameState, action: Play, modules: readonly Module[] = noModules): GameState[] {
@@ -633,7 +633,7 @@ function fastForwardCalls(): Parameters<typeof fastForward>[] {
   return vi.mocked(fastForward).mock.calls;
 }
 
-describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
+describe('fast forward in steps of at most 30 Turns (DL-96)', () => {
   // A year fast forwarded, a step at a time: several seconds alone, as the cases below (DL-164).
   test('is fastForward calls of at most 30 Turns, a settle each, each from the game the step before it left', { timeout: 30_000 }, () => {
     const before = withRosterReleased(started());
@@ -707,7 +707,7 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
     expect(gameReducer(between, { kind: 'settle' }).forwarding?.turnsPlayed).toBe(2 * fastForwardStepTurns);
   });
 
-  test("with no cap, plays a year of the game's own rules (v1.0.1-S6, DL-97)", () => {
+  test("with no cap, plays a year of the game's own rules (DL-97)", () => {
     const short = changed(withRosterReleased(started()), (document) => {
       document.meta.config = { ...document.meta.config, turnsPerYear: 90 };
     });
@@ -720,7 +720,7 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
   });
 
   // The play before a fast forward may have left a stop, the player's Stop or a refusal on the
-  // page: the first step clears each, so none stands beside the progress (v1.0.1-S6, DL-97).
+  // page: the first step clears each, so none stands beside the progress (DL-97).
   test.each([
     ['a stop reason', (state: GameState) => play(state, { kind: 'fastForward', until: [], maxTurns: fastForwardStepTurns })],
     [
@@ -741,9 +741,9 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
 });
 
 // A year of Turns played twice, in steps and in one call: 3 to 6 s on a loaded machine, past
-// Vitest's 5 s default in full runs beside other work (M9-S3, DL-103). The timeout bounds a hang,
+// Vitest's 5 s default in full runs beside other work (DL-103). The timeout bounds a hang,
 // not the speed, as DL-74 item 1 bounded a slow test.
-describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (v1.0.1-S5, DL-96)', { timeout: 30_000 }, () => {
+describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (DL-96)', { timeout: 30_000 }, () => {
   /** A Party of the player's out on the longest Quest it can staff, back on the night of Year 1 Day 11, the 32nd Turn: partway through the second step. */
   const partyOut = (): GameState => withPartyOut(startedFrom('reducer-test'));
   /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Year 1 Day 31, the 91st Turn, in the fourth step. */
@@ -791,7 +791,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
   }
 
   // A year's case plays 2,160 Turns, about 4 s alone: past the default 5 s when other suites share
-  // the machine, as M9's parallel builds do (M9-S1, DL-101).
+  // the machine, as M9's parallel builds do (DL-101).
   test.each(cases)('$name', { timeout: 30_000 }, ({ game, until, maxTurns, modules, stop, turns }) => {
     const text = serialise(documentOf(game()));
     const start = loaded(text, modules);
@@ -835,7 +835,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     expect(one.stoppedBecause.kind).toBe('decision-needed');
   });
 
-  // M9-S1 (DL-101): the new stops, through the reducer's `fastForward` and the page's sentence.
+  // DL-101: the new stops, through the reducer's `fastForward` and the page's sentence.
   test("until a Quest the Heroes at home can staff: with a Party out it stops where one call would, before the Party is home", () => {
     const text = serialise(documentOf(withPartyOut(startedFrom('reducer-test'))));
     const start = loaded(text, noModules);
@@ -850,7 +850,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     expect(last.stoppedBecause).toEqual(one.stoppedBecause);
     expect(serialise(documentOf(last))).toBe(serialise(one.document));
     expect(documentOf(last).world.turn).toBeLessThan(party?.returnsOnTurn ?? 0);
-    // Its Quests are buttons on the home view, as a decision needed's are (M9-S3's merge, DL-103).
+    // Its Quests are buttons on the home view, as a decision needed's are.
     const staffable = last.stoppedBecause?.kind === 'quest-staffable' ? last.stoppedBecause.questIds : [];
     expect(stopView(last)).toEqual({
       kind: 'quest-staffable',
@@ -880,7 +880,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
   });
 });
 
-describe("the player's Stop (v1.0.1-S5, DL-96)", () => {
+describe("the player's Stop (DL-96)", () => {
   test('between steps, ends the fast forward with the game and the log the last step left, and how far it came', () => {
     const before = withRosterReleased(started());
     const entries = documentOf(before).history.entries.length;

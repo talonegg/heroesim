@@ -1,4 +1,4 @@
-// `equip` and `unequip` end to end (M5-S2): `main` run in-process against a real save in a temporary
+// `equip` and `unequip` end to end: `main` run in-process against a real save in a temporary
 // directory, with the real content set, as main.test.ts runs the other commands.
 
 import { writeFileSync } from 'node:fs';
@@ -141,7 +141,7 @@ describe('equip and unequip', () => {
     expect(occupied.err).toMatch(/'s weapon slot holds Masterwork blade \(stack-\d{6}\): unequip it first\.$/m);
   });
 
-  // v1.1.6-S11 (DL-197): "their Gear", a glossary term, as the page says it; "their gear" until then.
+  // DL-197: "their Gear", a glossary term, as the page says it; "their gear" until then.
   test('refuses to change the Gear of a Hero away on a Quest, and writes nothing', () => {
     const { hero, guild, blades } = stocked();
     expect(play(['equip', '--hero', hero.id, '--stack', blades]).code).toBe(exitCodes.ok);

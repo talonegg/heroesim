@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vitest';
 import { pendingPath } from './editor.js';
 import { command, git, json, readContentJson, scratch, status, type Failure } from './test-support.js';
 
-// The editor's `update` (v1.1.6-S4, DL-186 item 14): one use of a Trait changed in place, its chance
+// The editor's `update` (DL-186 item 14): one use of a Trait changed in place, its chance
 // or another value of that use, held as pending and checked as every edit is, then "Finish" as ever.
 describe('update', () => {
   type Updated = { ok: true; key: string; entry: string; at: string; uses: { at: string; entry: string }[]; pending: number; unchanged?: true };

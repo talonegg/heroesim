@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { defaultConfig } from '../config.js';
 import { formEffect, formOf, meanForm, workingMorale, type FormEffect } from './form.js';
 
-// v1.1.4-S3 (DL-148 items 9 to 12, DL-154): a Hero's form, from the band of their Morale on the Quest
+// DL-148 items 9 to 12, DL-154: a Hero's form, from the band of their Morale on the Quest
 // and whether they are hurt on it; and the Party builder's one line, from the Party's mean form.
 
 const config = defaultConfig;
@@ -39,8 +39,8 @@ describe('the Party builder\'s line, from the mean form', () => {
     [[1.04, 1], 'raises'],
     [[1.08, 0.93], 'raises'],
     [[1.04, 0.93], 'lowers-a-little'],
-    // Every Hero in low spirits, at the low band's factor (0.93 until v1.1.4-S10, then 0.97, DL-166),
-    // lowers it a little; every one wretched (0.93 from v1.1.4-S10), badly.
+    // Every Hero in low spirits, at the low band's factor (0.97, DL-166),
+    // lowers it a little; every one wretched (0.93), badly.
     [[0.97, 0.97, 0.97], 'lowers-a-little'],
     [[0.93, 0.93, 0.93], 'lowers-badly'],
     [[0.85, 1], 'lowers-badly'],

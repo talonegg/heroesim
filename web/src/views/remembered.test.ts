@@ -9,8 +9,8 @@ const rememberedView = () => rememberedPreference(preferences.view);
 const rememberView = (view: Parameters<typeof rememberPreference<typeof preferences.view>>[1]) => rememberPreference(preferences.view, view);
 const rememberGuildPart = (part: Parameters<typeof rememberPreference<typeof preferences.guildPart>>[1]) => rememberPreference(preferences.guildPart, part);
 
-// What this browser remembers of the page (M9-S3, DL-103; M9-F2, DL-115): the view open, and the
-// Guild's part open. The Hall was a view until M9-F2 and is a part of the Guild since: a browser
+// What this browser remembers of the page (DL-103; DL-115): the view open, and the
+// Guild's part open. The Hall was a view and is a part of the Guild (DL-115): a browser
 // that remembers the Hall view opens the Guild at its Hall (DL-112 item 5).
 
 afterEach(() => {
@@ -19,7 +19,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe('the view and the Guild part remembered (M9-F2)', () => {
+describe('the view and the Guild part remembered', () => {
   test('a view kept is the view opened; nothing kept, or a view the page does not know, opens the Guild at its Home', () => {
     expect(rememberedView()).toBe('guild');
     expect(rememberedGuildPart()).toBe('home');
@@ -42,7 +42,7 @@ describe('the view and the Guild part remembered (M9-F2)', () => {
     expect(rememberedGuildPart()).toBe('home');
   });
 
-  test('a view remembered as "hall", from before M9-F2, opens the Guild at its Hall part', () => {
+  test('a view remembered as "hall", from before the Guild had parts, opens the Guild at its Hall part', () => {
     localStorage.setItem(viewKey, 'hall');
     localStorage.setItem(guildPartKey, 'home');
 
@@ -64,7 +64,7 @@ describe('the view and the Guild part remembered (M9-F2)', () => {
   });
 });
 
-describe("a list remembered, as the Roster's hidden columns are (v1.1.5-S12, DL-169 item 11)", () => {
+describe("a list remembered, as the Roster's hidden columns are (DL-169 item 11)", () => {
   const choices = ['class', 'level', 'strength'] as const;
 
   test('a list kept is the list read, in the order of the choices, leaving out what the page does not know', () => {
@@ -101,7 +101,7 @@ function refuseStorage(): void {
   });
 }
 
-describe('the table of the nine viewing preferences (v1.1.6-S15, DL-186 item 25)', () => {
+describe('the table of the nine viewing preferences (DL-186 item 25)', () => {
   const table = Object.entries(preferences);
 
   test('is nine, each under a key of its own, prefixed "heroesim."', () => {
@@ -203,7 +203,7 @@ describe('useRemembered', () => {
     expect(localStorage.getItem(preferences.rosterColumns.key)).toBe(`${first},${second}`);
   });
 
-  test('the Guild part reads the Hall view kept before M9-F2', () => {
+  test('the Guild part reads the Hall view kept before the Guild had parts', () => {
     localStorage.setItem(viewKey, 'hall');
     const { result } = renderHook(() => useRemembered(preferences.guildPart, rememberedGuildPart));
     expect(result.current[0]).toBe('hall');

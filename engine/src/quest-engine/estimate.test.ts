@@ -19,7 +19,7 @@ import { queryParty } from './query.js';
 import { questBand, resolveQuest } from './resolve.js';
 import { applyAction } from '../actions/action.js';
 
-// v1.1.4-S5 (DL-156): the chance estimate. Its parts are held to their formulas, and the whole to
+// DL-156: the chance estimate. Its parts are held to their formulas, and the whole to
 // the resolver: a created world's player Guild, its Roster of one Hero a Class, set out on Quests of
 // several Checks a test writes into content, each Check's target set near the Party's capability so
 // that every Degree comes up, with consequences that hurt no one and move no Morale ("if no one
@@ -204,7 +204,7 @@ describe('one Check', () => {
     // The Whetstone's +3 is on the first Encounter's Check, and the raw gate's capability is its count.
     expect(check.capability).toBe(capable + 3);
     const reach = (threshold: number): number => chanceToReach(capable + 3, s.deps.config.checkVariance, threshold * check.target);
-    // Each threshold as configured (the Triumph's 1.25 became 1.35 in v1.1.4-S10, DL-166).
+    // Each threshold as configured (the Triumph's 1.25 became 1.35 in DL-166).
     const { triumph, success, setback } = s.deps.config.checkDegrees;
     expect(check.degrees).toEqual({
       failure: 1 - reach(setback),
@@ -235,7 +235,7 @@ describe('chance bands', () => {
     expect(chanceBandNames).toEqual(['hopeless', 'unlikely', 'even', 'likely', 'near-certain']);
   });
 
-  // v1.1.4-S6 (DL-157): the margin of the player's best Party, as a Disposition's `partyMargin` is held.
+  // DL-157: the margin of the player's best Party, as a Disposition's `partyMargin` is held.
   test('playerPartyMargin is 0.05 by default', () => {
     expect(defaultConfig.playerPartyMargin).toBe(0.05);
   });
@@ -387,7 +387,7 @@ describe('the estimate', () => {
     expect(met.checks?.[0]?.capability).toBeGreaterThan(asTheySetOut);
   });
 
-  // v1.1.4-S7: a Hero Trait's Stat change and Encounter bonus are read as a Check reads them, and a
+  // A Hero Trait's Stat change and Encounter bonus are read as a Check reads them, and a
   // Trait an Injury leaves on a night away replaces one it conflicts with before the Party is met.
   test("reads a Trait an Injury leaves on a night away, which replaces one it conflicts with: its Stat change in, the other's bonus out", () => {
     const trait = (key: string, excludes: string[], effects: HeroTraitEffect[]) => ({ key, name: key, excludes, effects });

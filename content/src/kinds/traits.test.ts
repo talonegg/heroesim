@@ -7,7 +7,7 @@ import { shipped, realFiles, parse, withJson, refusalOf, type Files } from './co
 // can find it.
 
 describe('a file', () => {
-  // M4-S5, v1.1.4-S7: a Guildmaster Trait carries one effect or more, each of the closed union (DL-43,
+  // A Guildmaster Trait carries one effect or more, each of the closed union (DL-43,
   // DL-150 item 2), in `guildmaster-traits.json`.
   const traitRefusals: [string, (json: Files['guildmaster-traits.json']) => void, RegExp][] = [
     [
@@ -62,11 +62,11 @@ describe('a file', () => {
     ['an owner, which the list now says', (json) => Object.assign(json['miser'] ?? {}, { owner: 'guildmaster' }), /guildmaster-traits\.json: miser\.owner is not a field of a Guildmaster Trait/],
   ];
 
-  test.each(traitRefusals)('with %s is refused, naming the Trait (M4-S5, v1.1.4-S7)', (_, change, message) => {
+  test.each(traitRefusals)('a Guildmaster Trait with %s is refused, naming the Trait', (_, change, message) => {
     expect(refusalOf(() => parse(withJson('guildmaster-traits.json', change))).message).toMatch(message);
   });
 
-  // M9-S2: a Guildmaster Trait's cost against the Trait budget is a whole number, and its
+  // A Guildmaster Trait's cost against the Trait budget is a whole number, and its
   // exclusions name Guildmaster Traits and hold both ways (DL-100 item 3, DL-102).
   const costAndExclusionRefusals: [string, (json: Files['guildmaster-traits.json']) => void, RegExp][] = [
     ['a cost missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'cost'), /guildmaster-traits\.json: miser\.cost is missing; expected a whole number/],
@@ -95,11 +95,11 @@ describe('a file', () => {
     ],
   ];
 
-  test.each(costAndExclusionRefusals)('with %s is refused, naming the Trait (M9-S2)', (_, change, message) => {
+  test.each(costAndExclusionRefusals)('a Guildmaster Trait with %s is refused, naming the Trait (cost and exclusions)', (_, change, message) => {
     expect(refusalOf(() => parse(withJson('guildmaster-traits.json', change))).message).toMatch(message);
   });
 
-  // v1.1.4-S7: a Hero Trait in `hero-traits.json` has no cost, effects of its own list's kinds, and
+  // A Hero Trait in `hero-traits.json` has no cost, effects of its own list's kinds, and
   // exclusions of Hero Traits, both ways (DL-150 items 1 to 3 and 8).
   const heroTraitRefusals: [string, (json: Files['hero-traits.json']) => void, RegExp][] = [
     [
@@ -188,11 +188,11 @@ describe('a file', () => {
     ],
   ];
 
-  test.each(heroTraitRefusals)('with %s is refused, naming the Trait (v1.1.4-S7)', (_, change, message) => {
+  test.each(heroTraitRefusals)('a Hero Trait with %s is refused, naming the Trait', (_, change, message) => {
     expect(refusalOf(() => parse(withJson('hero-traits.json', change))).message).toMatch(message);
   });
 
-  test("a Hero Trait's effects of both kinds load as written: Stat changes naming several Stats, and an Encounter bonus by kinds, by tags or both (v1.1.4-S7)", () => {
+  test("a Hero Trait's effects of both kinds load as written: Stat changes naming several Stats, and an Encounter bonus by kinds, by tags or both", () => {
     const effects = [
       { kind: 'statModifiers', modifiers: { dexterity: -2, endurance: -1 } },
       { kind: 'encounterBonus', flat: -3, kinds: ['combat', 'travel'] },
@@ -203,7 +203,7 @@ describe('a file', () => {
     expect(parse(files).heroTraits.lame?.effects).toEqual(effects);
   });
 
-  test('a Hero Trait may exclude another that excludes it in return (v1.1.4-S7, DL-150 item 3)', () => {
+  test('a Hero Trait may exclude another that excludes it in return (DL-150 item 3)', () => {
     const files = withJson('hero-traits.json', (json) => {
       Object.assign(json['scarred'] ?? {}, { excludes: ['lame'] });
       Object.assign(json['lame'] ?? {}, { excludes: ['scarred'] });
@@ -212,7 +212,7 @@ describe('a file', () => {
     expect(parse(files).heroTraits.scarred?.excludes).toEqual(['lame']);
   });
 
-  test('the old `traits.json` is not read, and the two lists are wanted in its place (v1.1.4-S7)', () => {
+  test('the old `traits.json` is not read, and the two lists are wanted in its place', () => {
     const files = realFiles();
     const old = { scarred: { name: 'Scarred', owner: 'hero', cost: 0, excludes: [], effect: null } };
     delete files['hero-traits.json'];
@@ -225,21 +225,21 @@ describe('a file', () => {
 });
 
 describe('validateContent on a set built in memory', () => {
-  test("refuses a Hero Trait's encounterBonus on a kind of Encounter that is not one, which the parser cannot see in memory (v1.1.4-S14)", () => {
+  test("refuses a Hero Trait's encounterBonus on a kind of Encounter that is not one, which the parser cannot see in memory", () => {
     const content = structuredClone(shipped);
     Object.assign(content.heroTraits['battle-tried']?.effects[0] ?? {}, { kinds: ['combat', 'naval'] });
 
     expect(refusalOf(() => validateContent(content)).message).toMatch(/heroTraits\.battle-tried\.effects\.0\.kinds: "naval" is not a kind of Encounter/);
   });
 
-  test('refuses a Trait cost that is not a whole number, which the parser cannot see in memory (M9-S2)', () => {
+  test('refuses a Trait cost that is not a whole number, which the parser cannot see in memory', () => {
     const content = structuredClone(shipped);
     Object.assign(content.guildmasterTraits['thrifty'] ?? {}, { cost: 1.5 });
 
     expect(refusalOf(() => validateContent(content)).message).toMatch(/guildmasterTraits\.thrifty\.cost is 1\.5; it is a whole number/);
   });
 
-  test('accepts a Guildmaster Trait of two effects, a list of effects being one or more (v1.1.4-S7, DL-150 item 2)', () => {
+  test('accepts a Guildmaster Trait of two effects, a list of effects being one or more (DL-150 item 2)', () => {
     const content = structuredClone(shipped);
     content.guildmasterTraits['miser']?.effects.push({ kind: 'upkeepFactor', factor: 0.95 });
 

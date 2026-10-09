@@ -5,10 +5,10 @@ import { content } from '../content';
 import { defaultHeroOrder, orderWords, reverseOrderName } from './selectors';
 import { poolView } from './trade-views';
 
-// The page's lists by Class read the declared order (`class-order.json`, v1.1.6-S14, DL-186 item 24),
+// The page's lists by Class read the declared order (`class-order.json`, DL-186 item 24),
 // not the order of `classes.json`' keys: here the page's content set lists its Classes backwards, and
 // declares an order of its own, which the sort and its words both read, from the one content set
-// (v1.1.6-S19, DL-205).
+// (DL-205).
 vi.mock('../content', async (importOriginal) => {
   const real = await importOriginal<typeof import('../content')>();
   return {

@@ -14,7 +14,7 @@ import { serialise } from './serialise.js';
 import { ageOf, timeOfDay } from './time.js';
 import { testDeps, withValid } from './world.test-support.js';
 
-// M8-S2: phase hooks, effects and stops (ADR-0005 as amended 2026-09-25, data-model §3.4, approach
+// Phase hooks, effects and stops (ADR-0005 as amended 2026-09-25, data-model §3.4, approach
 // §2, DL-77). What a hook is given, what it may change and how, what it returns, and how it stops
 // fast forward. Each effect's own rules are effects.test.ts's.
 
@@ -124,7 +124,7 @@ describe('the context a hook is given', () => {
   });
 });
 
-// ── The frozen-world test (M8-S2 box 2) ──────────────────────────────────────────────────────
+// ── The frozen-world test ──────────────────────────────────────────────────────
 
 describe('the effects API is the only way a module can change a Hero: the frozen-world test', () => {
   test('a module that assigns world.heroes[id].morale directly fails the Turn, naming it, and changes nothing', () => {
@@ -228,7 +228,7 @@ describe('the effects API is the only way a module can change a Hero: the frozen
     expect(deps.config.boardSize).toBe(testDeps().config.boardSize);
   });
 
-  // v1.1.6-S17 (ADR-0011, DL-203): a write-once row is frozen and shared by the per-Turn copy. The view
+  // ADR-0011, DL-203: a write-once row is frozen and shared by the per-Turn copy. The view
   // hands back a frozen object's own properties as they are, as a Proxy must, so a module reads such a
   // row whole; and a write to it, through the view or into what it handed back, still fails the Turn.
   /** A new world under `deps` whose first pool Hero has left the pool, their row kept: written once. */
@@ -356,7 +356,7 @@ describe('the effects API is the only way a module can change a Hero: the frozen
   });
 });
 
-// ── Hook order (M8-S2 box 3) ─────────────────────────────────────────────────────────────────
+// ── Hook order ─────────────────────────────────────────────────────────────────
 
 describe('hook order among several modules is registration order', () => {
   /** A module whose three hooks are spies, each emitting `<id>.heard`. */
@@ -394,7 +394,7 @@ describe('hook order among several modules is registration order', () => {
   });
 });
 
-// ── A module's stop (M8-S2 box 1, the engine's half) ─────────────────────────────────────────
+// ── A module's stop ─────────────────────────────────────────
 
 describe("a module's stop", () => {
   /** A module asking for a stop at every afternoon from Turn `from` on. */
@@ -824,7 +824,7 @@ describe("a hook's context works for the call it was given to, and throws after"
   });
 });
 
-// ── The context createSlice is given (M8-S1, DL-76) ──────────────────────────────────────────
+// ── The context createSlice is given (DL-76) ──────────────────────────────────────────
 
 describe('the context createSlice is given', () => {
   test('carries the Turn of the world the slice is made in: a save first played with the module, not 0', () => {

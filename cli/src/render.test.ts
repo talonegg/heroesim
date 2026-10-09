@@ -72,7 +72,7 @@ function rowFor(lines: readonly string[], guildId: string): string {
   return row;
 }
 
-describe('renderRankings: shared places (v1.0.1-S4, DL-95)', () => {
+describe('renderRankings: shared places (DL-95)', () => {
   test('a new game, every Guild at Fame 0, marks each Rank joint 1', () => {
     const document = newGame();
 
@@ -105,9 +105,9 @@ describe('renderRankings: shared places (v1.0.1-S4, DL-95)', () => {
   });
 });
 
-// v1.1.2-S6 (the review's D): a Rival's Disposition by its name in content, as the page's Guilds' table
+// A Rival's Disposition by its name in content, as the page's Guilds' table
 // has it (DL-125 item 9), so the two read the same.
-describe("a Rival's Disposition by its content name in show guilds and show rankings (v1.1.2-S6)", () => {
+describe("a Rival's Disposition by its content name in show guilds and show rankings", () => {
   test("names the Disposition as content does, not its key capitalised, and a key content lacks as it is (rule 5)", () => {
     const document = structuredClone(newGame());
     const rivals = Object.values(document.world.guilds).filter((guild) => guild.controller.kind === 'rival');
@@ -124,7 +124,7 @@ describe("a Rival's Disposition by its content name in show guilds and show rank
   });
 });
 
-describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
+describe('the Bankruptcy countdown in show (DL-95)', () => {
   /** The Test below the floor from the start, played through the night of the first Day under `config`. */
   function belowTheFloor(config: Partial<typeof defaultConfig> = {}): WorldDocument {
     let document = structuredClone(newGame('render-countdown'));
@@ -152,7 +152,7 @@ describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
     expect(renderSummary(ten, playDeps(ten))[1]).toBe(line(10));
   });
 
-  test("names the save's own floor, from its rules (v1.0.1-S6, DL-97)", () => {
+  test("names the save's own floor, from its rules (DL-97)", () => {
     const fifty = belowTheFloor({ bankruptcyGraceDays: 10, bankruptcyFloor: 50 });
     const expected = line(10).replace('back to 0 or more', 'back to 50 or more');
 
@@ -172,8 +172,8 @@ describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
   });
 });
 
-// M9-F1 (DL-111 item 9, DL-112 item 4): the values of Sex are capitalised where the CLI prints them.
-describe('the Sex values, capitalised (M9-F1)', () => {
+// DL-111 item 9, DL-112 item 4: the values of Sex are capitalised where the CLI prints them.
+describe('the Sex values, capitalised', () => {
   const sexLine = (lines: readonly string[]) => lines.find((line) => line.startsWith('Sex'));
 
   test('renderGuildmaster prints "Male" and "Female"', () => {

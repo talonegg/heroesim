@@ -14,7 +14,7 @@ import { deepFreeze, testContent, testDeps, withValid } from '../world.test-supp
 import { phaseContext } from './phase.js';
 import { transfers } from './transfers.js';
 
-// M6-S3: the Transfer Generator's night (DL-59). Each test builds a world, sets the Rosters, Wealth
+// The Transfer Generator's night (DL-59). Each test builds a world, sets the Rosters, Wealth
 // and appetites it is about, and runs the phase on a Generator night; the numbers it relies on are
 // pinned. The acceptance boxes' multi-seed tests are controllers/transfer-generator.test.ts.
 
@@ -143,7 +143,7 @@ function pairWorld(seed: string, with_: EngineDeps): { document: WorldDocument; 
   return { document, world, ambitious, miserly };
 }
 
-describe('the Transfer Generator runs weekly (M6-S3)', () => {
+describe('the Transfer Generator runs weekly', () => {
   test('on the night of every transferGeneratorEveryDays-th Day, and on no other night', () => {
     const with_ = deps();
     const { world } = created('weekly', with_);
@@ -170,7 +170,7 @@ describe('the Transfer Generator runs weekly (M6-S3)', () => {
   });
 });
 
-describe('one draw from rivals for each pair of Rivals in play (M6-S3)', () => {
+describe('one draw from rivals for each pair of Rivals in play', () => {
   test('six draws for four Rivals, whatever they hold, and no other stream moves', () => {
     for (const [chance, content] of [
       [0, eager],
@@ -223,7 +223,7 @@ describe('one draw from rivals for each pair of Rivals in play (M6-S3)', () => {
   });
 });
 
-describe('the bid (M6-S3)', () => {
+describe('the bid', () => {
   test('the more transferAppetite-heavy of the pair bids, for the dearest Hero of the other it can pay for, through transferIn', () => {
     for (const [ambitiousAppetite, miserlyAppetite] of [
       [1, 0.5],
@@ -323,7 +323,7 @@ describe('a bidder hiring by need (DL-60)', () => {
   });
 });
 
-describe('when there is no bid (M6-S3)', () => {
+describe('when there is no bid', () => {
   /** Whether the Generator made a Transfer in the two-Rival world `change` leaves, the draw still taken. */
   function deals(seed: string, with_: EngineDeps, change: (world: World, ambitious: Guild, miserly: Guild) => void): boolean {
     const { world, ambitious, miserly } = pairWorld(seed, with_);
@@ -397,7 +397,7 @@ describe('when there is no bid (M6-S3)', () => {
   });
 });
 
-describe("the player's Roster (M6-S3)", () => {
+describe("the player's Roster", () => {
   test("is never a source: with every Rival eager and rich, the player's Guild, Guildmaster and Heroes are untouched", () => {
     const with_ = deps();
     const document = created('untouched', with_);

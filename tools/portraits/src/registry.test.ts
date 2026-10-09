@@ -4,7 +4,7 @@ import { isSex, keyOf, nextKey, parseKey, parseRegistry, picturePaths, readRegis
 import { hashBits } from './fingerprint.js';
 import { root } from './test-support.js';
 
-// The register (v1.1.3-S2, DL-135 item 11): every key ever issued, never issued twice.
+// The register (DL-135 item 11): every key ever issued, never issued twice.
 
 const settings = { method: 'dHash', bits: hashBits, similarWithin: 104, tuning: 'a test' };
 const entry = { hash: 'ab', trimmed: [] };
@@ -13,7 +13,7 @@ function registry(portraits: Registry['portraits']): Registry {
   return { fingerprint: settings, portraits };
 }
 
-// The sexes are the engine's, read rather than repeated (DL-186 item 6, v1.1.6-S5's verification).
+// The sexes are the engine's, read rather than repeated (DL-186 item 6).
 describe('sexes', () => {
   test("are the engine's list, and isSex holds a word to it", () => {
     expect(sexes).toBe(engineSexes);
@@ -68,7 +68,7 @@ describe('keys', () => {
 });
 
 describe('the register as shipped', () => {
-  test('holds the 40 Guildmaster pictures of v1.1.3-S4, live, their fingerprints taken, and the distance tuned on the owner\'s 40', () => {
+  test('holds the 40 Guildmaster pictures, live, their fingerprints taken, and the distance tuned on the owner\'s 40', () => {
     const shipped = readRegistry(root);
     const numbered = (prefix: string): string[] => Array.from({ length: 20 }, (_, index) => `${prefix}-${String(index + 1).padStart(2, '0')}`);
     expect(Object.keys(shipped.portraits).sort()).toEqual([...numbered('gm-female'), ...numbered('gm-male')]);

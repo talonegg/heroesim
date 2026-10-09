@@ -19,7 +19,7 @@ import { playDeps, type GameState } from './reducer';
 import { faceted } from './facets';
 import { storesView, type StoresRow } from './stores';
 
-// The Stores (M9-F3, DL-111 item 5, DL-112 item 6, DL-113 item 2, DL-116): everything the Guild owns,
+// The Stores (DL-111 item 5, DL-112 item 6, DL-113 item 2, DL-116): everything the Guild owns,
 // wherever it is, read from the engine's `holdings` and `carriedGear`; read only.
 
 function documentOf(state: GameState): WorldDocument {
@@ -75,7 +75,7 @@ function engineHas(document: WorldDocument, holder: HolderQuery): { definitionKe
   ];
 }
 
-describe('storesView (M9-F3)', () => {
+describe('storesView', () => {
   test("matches the engine's holdings for every holder: the Holding, each Hero on the Roster, and each Party away", () => {
     const { state } = stocked();
     const document = documentOf(state);

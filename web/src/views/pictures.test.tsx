@@ -8,12 +8,12 @@ import type { GameState } from '../state/reducer';
 import { openView, rosterList, section } from './page.test-support';
 import { GuildBanner, ItemPicture, Portrait, PortraitThumb, PortraitThumbnail } from './pictures';
 
-// The page's pictures (v1.1.2-S2; DL-125 items 2, 7 and 8): each shows its Silhouette until its
+// The page's pictures (DL-125 items 2, 7 and 8): each shows its Silhouette until its
 // picture loads, and again when it fails. A Portrait's picture is named "Portrait of {name}", and its
 // Silhouette is hidden from screen readers; a Banner and an Item's picture always are.
 //
 // These read a catalogue with two pictures of their own, so they hold whatever `media/` holds: one of
-// the Guildmaster pictures, over the owner's (v1.1.2-S4), and one of a Unique Item, which has none. Then each place a picture goes, in the page: the
+// the Guildmaster pictures, over the owner's, and one of a Unique Item, which has none. Then each place a picture goes, in the page: the
 // Guild's Banner beside the five titles, a person's Portrait on their details and their History, and
 // a Unique Item's picture in the Stores, the Market's Sell and a Hero's Gear and Equip rows.
 
@@ -77,7 +77,7 @@ test('a Portrait with a picture shows the Silhouette until it loads, then the pi
   expect(picture.classList.contains('is-loading')).toBe(false);
 });
 
-// v1.1.2-S2's verification (DL-131): a view opened again mounts its pictures again, and a picture the
+// DL-131: a view opened again mounts its pictures again, and a picture the
 // browser holds is complete as it mounts. It shows at once, with no frame of its Silhouette.
 test('a picture the browser already holds shows at once when its place is drawn again, with no Silhouette first', () => {
   const complete = vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true);
@@ -107,7 +107,7 @@ test("a Portrait's thumbnail on the new-game form: the picture over its Silhouet
   );
   const thumbnail = screen.getByTestId('portrait-thumbnail');
   expect(thumbnail.getAttribute('aria-hidden')).toBe('true');
-  // The picture's own thumbnail, never the full picture (v1.1.3-S7).
+  // The picture's own thumbnail, never the full picture.
   expect(layers(thumbnail)).toEqual([
     { is: 'silhouette', src: mediaFiles['portraits/guildmasters/female/silhouette.svg'], alt: '' },
     { is: 'picture', src: 'assets/gm-female-01.thumb-test.webp', alt: '' },
@@ -132,7 +132,7 @@ test('"Drawn from the seed" in the setup grid: the Silhouette with no picture, a
   expect(screen.getByRole('radio', { name: 'Drawn from the seed' })).toBeDefined();
 });
 
-// v1.1.3-S7 (DL-135 item 9): a person's thumbnail beside their name in a list.
+// DL-135 item 9: a person's thumbnail beside their name in a list.
 test("a person's thumbnail is their picture's thumbnail over the Silhouette of their sex, hidden from screen readers", () => {
   render(<PortraitThumb role="guildmaster" sex="female" portraitKey="gm-female-01" />);
   const thumb = screen.getByTestId('portrait-thumb');
@@ -159,7 +159,7 @@ test('a Portrait drawn from its thumbnail, as the setup preview draws it', () =>
   expect(screen.getByRole('img', { name: 'Portrait of Ada Vell' }).getAttribute('src')).toBe('assets/gm-female-01.thumb-test.webp');
 });
 
-// v1.1.3-S7 (DL-134 item 9): every picture is read lazily, decoded off the main thread, its size stated.
+// DL-134 item 9: every picture is read lazily, decoded off the main thread, its size stated.
 test('every picture is read lazily and decoded off the main thread, with its width and height', () => {
   render(
     <>
@@ -198,7 +198,7 @@ test("a key that names no picture of the person's role and sex is the Silhouette
   expect(layers(screen.getByTestId('portrait'))).toEqual([{ is: 'silhouette', src: mediaFiles['portraits/guildmasters/male/silhouette.svg'], alt: '' }]);
 });
 
-// v1.1.2-S6 (the review's A): the engine refuses a sex that is none of its own, but a place is never
+// The engine refuses a sex that is none of its own, but a place is never
 // what breaks the page: a person of no sex the folders know shows the frame with no figure.
 test("a person of a sex the folders do not know shows the neutral Silhouette, and the page does not break", () => {
   render(<Portrait role="guildmaster" sex={'other' as Sex} portraitKey="gm-female-01" name="Ada Vell" />);
@@ -245,8 +245,8 @@ function documentOf(state: GameState): WorldDocument {
 }
 
 /**
- * The player's Guildmaster, of `sex`, and with `portraitKey` as a save of schema 5 holds it (v1.1.2-S3):
- * `null`, the Silhouette, unless given, where a new game draws one of the owner's pictures (v1.1.2-S4).
+ * The player's Guildmaster, of `sex`, and with `portraitKey` as a save of schema 5 holds it:
+ * `null`, the Silhouette, unless given, where a new game draws one of the owner's pictures.
  */
 function withGuildmaster(state: GameState, sex: Sex, portraitKey: string | null = null): GameState {
   return changed(state, (document, player) => {
@@ -312,7 +312,7 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     const rival = Object.values(world.guilds).find((guild) => guild.name === heading.textContent);
     const guildmaster = rival === undefined ? undefined : world.guildmasters[rival.guildmasterId];
     if (rival === undefined || guildmaster === undefined) throw new Error('no Rival Guildmaster');
-    // A Rival's Portrait is chosen to fit them as they enter play (v1.1.3-S5): this one's, gm-male-15.
+    // A Rival's Portrait is chosen to fit them as they enter play: this one's, gm-male-15.
     expect(guildmaster.portraitKey).toBe('gm-male-15');
     expect(layers(within(page).getByTestId('portrait'))).toEqual([
       silhouette(`portraits/guildmasters/${guildmaster.sex}/silhouette.svg`),
@@ -326,11 +326,11 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     const state = holdingUnique(holding(carryingUnique(started(), 'barrow-kings-blade', 'weapon'), 'arming-sword', 1), 'lantern-of-stannary');
     const { world } = documentOf(state);
     render(<App initial={state} />);
-    // The Hero who carries the blade, by the Item on their tile (v1.1.5-S12): the Roster lists in the default order.
+    // The Hero who carries the blade, by the Item on their tile: the Roster lists in the default order.
     const carrier = within(rosterList())
       .getAllByRole('listitem')
       .find((card) => card.textContent?.includes("The Barrow King's blade") === true);
-    // On their tile, the blade's picture over the chest before its name in its chip (v1.1.5-S14), and theirs alone.
+    // On their tile, the blade's picture over the chest before its name in its chip, and theirs alone.
     expect(within(rosterList()).getAllByTestId('item-picture')).toHaveLength(1);
     expect(layers(within(carrier as HTMLElement).getByTestId('item-picture'))).toEqual([silhouette('items/silhouette.svg'), bladePicture]);
     fireEvent.click(within(carrier as HTMLElement).getByRole('button'));
@@ -372,7 +372,7 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     expect(within(title()).queryByTestId('guild-banner')).toBeNull();
     expect(layers(within(section('History')).getByTestId('portrait'))).toEqual([silhouette('portraits/guildmasters/male/silhouette.svg')]);
 
-    // A Patron's, by the sex their name came with (v1.1.2-S3): the Silhouette, since no Patron has a picture.
+    // A Patron's, by the sex their name came with: the Silhouette, since no Patron has a picture.
     const fold = within(section('Patrons')).queryByRole('button', { name: /^\d+ neutral$/ });
     if (fold !== null) fireEvent.click(fold);
     const [patron] = within(section('Patrons')).getAllByRole('button', { name: /^Read the History of / });
@@ -392,7 +392,7 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     expect(within(title()).queryByTestId('guild-banner')).toBeNull();
   });
 
-  // v1.1.3-S7 (DL-135 item 9): a thumbnail beside each name in the Roster, the pool and the Guilds' table.
+  // DL-135 item 9: a thumbnail beside each name in the Roster, the pool and the Guilds' table.
   test("the Roster, the Unattached pool and the Guilds' table: each person's thumbnail beside their name", () => {
     const state = started();
     const { world } = documentOf(state);

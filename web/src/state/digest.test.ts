@@ -10,7 +10,7 @@ import { narrateText, narrationFor } from './namer';
 import { whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 
-// What the shell reads (M9-S3, DL-103): the counts on the navigation, the home view's digest and the
+// What the shell reads (DL-103): the counts on the navigation, the home view's digest and the
 // History rail. Every number is a document field, an engine selector's answer or the last play's
 // events, which the engine appended to the History as they are (ADR-0008).
 
@@ -46,7 +46,7 @@ describe('navCounts', () => {
     expect(navCounts(withOffer(state)).offers).toBe(1);
   });
 
-  test("counts as new only the last play's entries that name the player's Guild, as its History shows them: a Party sent is one, a purchase none (M9-F4)", () => {
+  test("counts as new only the last play's entries that name the player's Guild, as its History shows them: a Party sent is one, a purchase none", () => {
     const sent = withPartyOut(started());
     expect(navCounts(sent).fresh).toBe(1);
 
@@ -56,14 +56,14 @@ describe('navCounts', () => {
     expect(navCounts(bought).fresh).toBe(0);
   });
 
-  test('counts a Party home as its History does: not its Heroes’ XP and Morale (M9-F4), nor the parts its one entry gathers (M9-F5)', () => {
+  test('counts a Party home as its History does: not its Heroes’ XP and Morale, nor the parts its one entry gathers', () => {
     const state = partyHome(started('reducer-test'));
     const guild = playerOf(state);
     const naming = state.log.filter((event) => event.participants.includes(guild.id));
     // The owner's list: XP, Morale, the Regards, Upkeep, purchases and sales.
     const leftOut = ['hero.xp-gained', 'hero.morale-changed', 'patron.regard-changed', 'guildmaster.regard-changed', 'hero.regard-changed', 'guild.upkeep-paid', 'item.bought', 'item.sold'];
     // What a return's entry gathers: its Encounters and consumables; its Heroes' Levels that night; the dead's gear. Its
-    // Injuries and Deaths stand out beside it, and count (M9-F7, DL-120 item 6).
+    // Injuries and Deaths stand out beside it, and count (DL-120 item 6).
     const home = naming.filter((event): event is EngineEventOf<'quest.resolved'> => event.type === 'quest.resolved').flatMap((event) => event.payload.heroIds);
     const gathered = (event: TurnEvent): boolean =>
       ['quest.encounter', 'item.expended'].includes(event.type) ||
@@ -162,7 +162,7 @@ describe('railView', () => {
     expect(railView({ ...sent, log: [] }, 5)?.lines.some((line) => line.fresh)).toBe(false);
   });
 
-  test("leaves out what the Guild's History leaves out: a purchase is not in it, and nothing is new (M9-F4)", () => {
+  test("leaves out what the Guild's History leaves out: a purchase is not in it, and nothing is new", () => {
     const bought = played(started(), { kind: 'buy', definitionKey: 'short-sword', quantity: 1 });
     const rail = railView(bought, 24);
 
@@ -181,7 +181,7 @@ describe('railView', () => {
     expect(railView(initialGameState, 5)).toBeNull();
   });
 
-  test("keys a return's line by its Party, so the key holds as newer lines come in above it (the M9-F5 review)", () => {
+  test("keys a return's line by its Party, so the key holds as newer lines come in above it (DL-118)", () => {
     const written = withReturn(withPartyOut(started('rail-return')), { band: 'success', wealth: 10, xp: 5 });
     const keyOf = (state: GameState): string | undefined => railView(state, 24)?.lines.find((line) => line.questReturn !== null)?.key;
     const later = played(written.state, { kind: 'advance', turns: 3 });
@@ -190,7 +190,7 @@ describe('railView', () => {
     expect(keyOf(later)).toBe(keyOf(written.state));
   });
 
-  test("gives a Party's return as its one entry, the Loot next after it, then its Injuries and Deaths, and no Encounter (M9-F5; M9-F7)", () => {
+  test("gives a Party's return as its one entry, the Loot next after it, then its Injuries and Deaths, and no Encounter (DL-120)", () => {
     const written = withReturn(withPartyOut(started('rail-return')), {
       band: 'success',
       wealth: 150,

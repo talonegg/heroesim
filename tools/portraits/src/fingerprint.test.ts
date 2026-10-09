@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { dHash, distance, drawnHeight, drawnWidth, hashBits, hashDistance, type Fingerprint } from './fingerprint.js';
 
-// The fingerprint's arithmetic, on pixels made here (v1.1.3-S2): Chromium's part is proved on the
+// The fingerprint's arithmetic, on pixels made here: Chromium's part is proved on the
 // committed pictures (chromium.test.ts) and on the owner's 40 (owner.test.ts).
 
 /** RGBA pixels of the drawn size, each grey as `shade(x, y)` gives it. */

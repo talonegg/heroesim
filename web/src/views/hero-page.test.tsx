@@ -7,12 +7,12 @@ import { gameReducer, initialGameState, type GameState, type Play } from '../sta
 import { HeroPage } from './hero-page';
 import { closeMenu, openGuildPart, openMenu, openView, rosterList, section, type GuildPartName, type ViewName } from './page.test-support';
 
-// M7-S3's third box: `show hero`'s rule holds in the browser. Potential is never rendered (data-model
-// rule 9, M3-S3): every Hero's Potential is set to numbers found nowhere else, each Hero's page is
+// `show hero`'s rule holds in the browser. Potential is never rendered (data-model
+// rule 9): every Hero's Potential is set to numbers found nowhere else, each Hero's page is
 // rendered, and the rendered DOM, text and attributes alike, is searched for them: the whole page,
 // every section of it. A Hero's page is searched for the word too. The page elsewhere may name the
 // concept, as the CLI does: the Guildmaster's Judgement bears on "how sharp the Potential hints read"
-// (DL-73). The page is views in a shell (M9-S3, DL-103): "the whole page" is every view and the game
+// (DL-73). The page is views in a shell (DL-103): "the whole page" is every view and the game
 // menu, each opened in turn, beside the status bar and the History rail that are always there.
 
 afterEach(cleanup);
@@ -80,7 +80,7 @@ function everyView(container: HTMLElement, sentinels: readonly string[]): void {
     openView(view);
     expect(sentinelsIn(container.innerHTML, sentinels), view).toEqual([]);
   }
-  // Each of the Guild's parts, its tab opened (M9-F2).
+  // Each of the Guild's parts, its tab opened.
   for (const part of ['Home', 'Hall', 'Stores', 'Treasury'] as const satisfies readonly GuildPartName[]) {
     openGuildPart(part);
     expect(sentinelsIn(container.innerHTML, sentinels), `the Guild's ${part}`).toEqual([]);
@@ -114,7 +114,7 @@ describe('Potential is never rendered', { timeout: 30_000 }, () => {
       expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
       expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
 
-      // Every page of the Hero's History too, its folds among them; a History of one page has no pages to turn (M9-S5).
+      // Every page of the Hero's History too, its folds among them; a History of one page has no pages to turn.
       const older = (): HTMLButtonElement | null => within(page).queryByRole('button', { name: 'Older' });
       while (older()?.disabled === false) {
         fireEvent.click(within(page).getByRole('button', { name: 'Older' }));
@@ -131,7 +131,7 @@ describe('Potential is never rendered', { timeout: 30_000 }, () => {
     const pool = (): HTMLElement => section('Unattached pool');
     const guilds = (): HTMLElement => section('Guilds');
 
-    // In a part of a view, a Hero's name is one level below the part's heading (M9-S3).
+    // In a part of a view, a Hero's name is one level below the part's heading.
     expect(everyPageFrom(pool, 'Back to the pool', container, sentinels, 4)).toBeGreaterThan(0);
     let opened = 0;
     const rivals = within(guilds())

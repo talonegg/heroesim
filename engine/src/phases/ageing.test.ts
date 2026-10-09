@@ -13,7 +13,7 @@ import { buildDocument, heroStatKeys, plannedStreams, testContent, testDeps, wit
 import { ageing } from './ageing.js';
 import { phaseContext } from './phase.js';
 
-// M3-S4: the yearly ageing decline (INPUTS 5.5, DL-37). A test of the rule over many nights runs the
+// The yearly ageing decline (INPUTS 5.5, DL-37). A test of the rule over many nights runs the
 // phase alone on a world whose Turn it moves from night to night; the tests of what it does beside
 // the Retirement check play the whole pipeline and hold every document to the validator.
 //

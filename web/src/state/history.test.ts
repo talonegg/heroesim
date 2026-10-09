@@ -39,7 +39,7 @@ import {
 import { pageOfEntry } from './history.test-support';
 import { historyPageSize } from './history-reader';
 
-// The History as the one place to read what happened (M9-S5, DL-105): a page of it grouped by date
+// The History as the one place to read what happened (DL-105): a page of it grouped by date
 // and time of day, newest first, each group in the order it happened; a Party's Encounters folded
 // under its outcome, each Rival's routine under one line a Guild; every line marked whose it is,
 // whether the last play appended it and, for an outcome, how it went. Every expectation is read from
@@ -90,7 +90,7 @@ function entriesOn(document: WorldDocument, view: HistoryView): Entry[] {
   return view.groups.flatMap((group) => group.rows.flatMap(linesOf)).map((line) => entryOf(document, line));
 }
 
-// ── The History's scopes (M9-F4, DL-111 item 4, DL-112 item 7, DL-113 item 1) ────────────────
+// ── The History's scopes (DL-111 item 4, DL-112 item 7, DL-113 item 1) ────────────────
 
 /** What the player's Guild's History leaves out: the owner's list (DL-111 item 4). */
 const leftOutOfYours = [
@@ -141,9 +141,9 @@ function entriesLeaving(document: WorldDocument, entityId: Parameters<typeof ent
 
 /**
  * The parts of the player's Guild's returns, which its History gathers under each return's one entry
- * (M9-F5, DL-111 item 2, DL-113 item 1): each Encounter and consumable used, and, that night, its
+ * (DL-111 item 2, DL-113 item 1): each Encounter and consumable used, and, that night, its
  * Heroes' Levels and the gear of its dead back to the Guild. Its Injuries and Deaths stand out beside
- * it (M9-F7, DL-120 item 6).
+ * it (DL-120 item 6).
  */
 function returnParts(document: WorldDocument, guildId: GuildId): Set<Entry> {
   const parts = new Set<Entry>();
@@ -168,14 +168,14 @@ function inYourGuild(document: WorldDocument, guildId: GuildId): Entry[] {
   return entriesLeaving(document, guildId, leftOutOfYours).filter((entry) => !parts.has(entry));
 }
 
-describe("the Guilds' filters (M9-F4, DL-111 item 4)", () => {
+describe("the Guilds' filters (DL-111 item 4)", () => {
   // A purchase and its sale, then a Party sent and fifty Days played: every type the filters name.
   const bought = playedState(started('app-test'), { kind: 'buy', definitionKey: 'short-sword', quantity: 1 });
   const guildId = playerOf(bought.document as WorldDocument).id;
   const jack = holdings((bought.document as WorldDocument).world, { kind: 'guild', id: guildId }).stacks.find((stack) => stack.definitionKey === 'short-sword');
   const sold = playedState(bought, { kind: 'sell', stackId: jack?.id ?? ('stack-000000' as never), quantity: 1 });
   // One Hero's Morale a point above the high band's floor of 75, so that its drift toward the baseline
-  // crosses into steady within the fifty Days whatever the Quests do (v1.1.4-S10: they are the content's).
+  // crosses into steady within the fifty Days whatever the Quests do (they are the content's, DL-166).
   const elated = changed(sold, (it, player) => void ((it.world.heroes[player.rosterIds.at(-1) as HeroId] as Hero).morale = 76));
   const state = playedState(withPartyOut(elated), { kind: 'advance', turns: 150 });
   // Games share their History as it is appended (ADR-0008), so another game for a Party's return.
@@ -193,12 +193,12 @@ describe("the Guilds' filters (M9-F4, DL-111 item 4)", () => {
     for (const type of ['guild.upkeep-paid', 'item.bought']) expect(theirs, type).toContain(type);
   });
 
-  test("the player's Guild's History leaves out exactly XP, Morale, the three Regards, Upkeep, purchases and sales, and a return's parts (M9-F5)", () => {
+  test("the player's Guild's History leaves out exactly XP, Morale, the three Regards, Upkeep, purchases and sales, and a return's parts", () => {
     expect(shownIn(document, state.log, null)).toEqual(inYourGuild(document, guild.id));
     expect(historyView(document, state.log, null, 0).entries).toBe(inYourGuild(document, guild.id).length);
   });
 
-  test("a return's line carries its entry in the player's Guild's History, and in no other History (M9-F5)", () => {
+  test("a return's line carries its entry in the player's Guild's History, and in no other History", () => {
     const home = cameHome(started('history-parts'));
     const homeDocument = home.document as WorldDocument;
     const lines = (whose: Parameters<typeof historyView>[2]): HistoryLine[] =>
@@ -216,7 +216,7 @@ describe("the Guilds' filters (M9-F4, DL-111 item 4)", () => {
     }
   });
 
-  test("a return's parts are gathered under its entry: its Encounters, consumables, Injuries and Deaths, and its Heroes' Levels that night (M9-F5)", () => {
+  test("a return's parts are gathered under its entry: its Encounters, consumables, Injuries and Deaths, and its Heroes' Levels that night", () => {
     const home = cameHome(started('history-parts'));
     const homeDocument = home.document as WorldDocument;
     const parts = returnParts(homeDocument, guild.id);
@@ -282,7 +282,7 @@ function worldNews(seed = 'history-world', turns = 120): { document: WorldDocume
   return { document: state.document as WorldDocument, log: state.log };
 }
 
-describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", () => {
+describe("a History's Banner and Portrait (DL-125 items 2 and 7)", () => {
   test("a Guild's History has its Banner and no Portrait", () => {
     const { document, log } = played(3);
     for (const guild of Object.values(document.world.guilds)) {
@@ -293,7 +293,7 @@ describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", ()
   test("a Guildmaster's has their Portrait by their sex and key, the player's and each Rival's chosen to fit them, and no Banner", () => {
     const { document, log } = played(3);
     const keys = Object.values(document.world.guildmasters).map((guildmaster) => guildmaster.portraitKey);
-    // With 20 pictures of each sex (v1.1.3-S4), each of the five has one of their own (v1.1.3-S5).
+    // With 20 pictures of each sex, each of the five has one of their own.
     expect(keys.filter((key) => key !== null)).toHaveLength(5);
     expect(new Set(keys).size).toBe(5);
     for (const guildmaster of Object.values(document.world.guildmasters)) {
@@ -302,14 +302,14 @@ describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", ()
         portrait: { role: 'guildmaster', sex: guildmaster.sex, portraitKey: guildmaster.portraitKey },
       });
     }
-    // A save of schema 5 holds a key (v1.1.2-S3), which the History reads as it is.
+    // A save of schema 5 holds a key, which the History reads as it is.
     const [first] = Object.values(document.world.guildmasters);
     if (first === undefined) throw new Error('no Guildmaster');
     first.portraitKey = `gm-${first.sex}-01`;
     expect(historyView(document, log, first.id, 0).portrait).toEqual({ role: 'guildmaster', sex: first.sex, portraitKey: `gm-${first.sex}-01` });
   });
 
-  test("a Patron's has theirs by the sex their name came with (v1.1.2-S3); a Hero's has none, their page showing it, and a body none", () => {
+  test("a Patron's has theirs by the sex their name came with; a Hero's has none, their page showing it, and a body none", () => {
     const { state, gone } = withTheGone(started());
     const { document } = state;
     if (document === null) throw new Error('no game in hand');
@@ -341,7 +341,7 @@ describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", ()
   });
 });
 
-describe('the World History (M9-F4, DL-112 item 7, DL-113 item 1)', () => {
+describe('the World History (DL-112 item 7, DL-113 item 1)', () => {
   const { document, log } = worldNews();
   const world = document.history.entries.filter((entry) => worldTypes.includes(entry.type)).reverse();
 
@@ -390,7 +390,7 @@ describe('the World History (M9-F4, DL-112 item 7, DL-113 item 1)', () => {
   });
 });
 
-describe('the whole History, the debug view (M9-F4, DL-112 item 7)', () => {
+describe('the whole History, the debug view (DL-112 item 7)', () => {
   const { document, log } = worldNews('history-debug', 60);
 
   test('shows every entry, unfolded, each line with its event type', () => {
@@ -424,7 +424,7 @@ describe('the whole History, the debug view (M9-F4, DL-112 item 7)', () => {
   });
 });
 
-describe('a page grouped by date and time of day (M9-S5)', () => {
+describe('a page grouped by date and time of day', () => {
   const { document, log } = played(40);
 
   test('groups newest first, each headed by its date and time of day, and each holding the entries of its Turn as they happened', () => {
@@ -486,7 +486,7 @@ describe('a page grouped by date and time of day (M9-S5)', () => {
 /** A Party's steps on a Quest, which fold under its outcome: its Encounters and the consumables it used. */
 const stepTypes: readonly string[] = ['quest.encounter', 'item.expended'];
 
-describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
+describe("a Party's Encounters, folded under its outcome", () => {
   // A Party of the player's sent, then fifty Days in one play: it comes home, and so do the Rivals'.
   const state = playedState(withPartyOut(started('history-folds')), { kind: 'advance', turns: 150 });
   const { document, log } = { document: state.document as WorldDocument, log: state.log };
@@ -567,7 +567,7 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
     expect(outcome?.kind === 'entry' ? outcome.stepsWords : null).toBe('2 Encounters and 1 Consumable used');
   });
 
-  test("reads each Encounter's Degree, and one written before v1.1.4-S2 as its outcome, a Success or a Failure", () => {
+  test("reads each Encounter's Degree, and one written before Degrees (DL-152) as its outcome, a Success or a Failure", () => {
     const written = withReturn(withPartyOut(started('history-degrees')), {
       band: 'success',
       encounters: [
@@ -618,7 +618,7 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
   });
 });
 
-describe("a return's Loot, Injuries and Deaths keep it on their page (M9-F7, code review)", () => {
+describe("a return's Loot, Injuries and Deaths keep it on their page (code review)", () => {
   test("a page of the player's Guild's History that would end on a return's Death runs on to the return, and the next page starts after it", () => {
     const written = withReturn(withPartyOut(started('history-beside')), {
       band: 'fail',
@@ -774,7 +774,7 @@ describe("the pages' count, from the edges the pages keep (the M9 review)", () =
 });
 
 /**
- * The routine a Rival's entries fold into (M9-S5, DL-105), and the word each kind is summed up by:
+ * The routine a Rival's entries fold into (DL-105), and the word each kind is summed up by:
  * its Heroes' drift and small changes of State, its Items, its Upkeep, and Regard crossing a band.
  */
 const routineWords: Readonly<Record<string, string>> = {
@@ -796,11 +796,11 @@ const routineWords: Readonly<Record<string, string>> = {
   'item.sold': 'sales',
 };
 
-describe("each Rival's routine, one line a Guild, and the marks on every line (M9-S5)", () => {
+describe("each Rival's routine, one line a Guild, and the marks on every line", () => {
   const state = playedState(withPartyOut(started('history-folds')), { kind: 'advance', turns: 150 });
   const { document, log } = { document: state.document as WorldDocument, log: state.log };
   const guild = playerOf(document);
-  // Each Rival's History folds its routine (M9-F4: the whole History folds nothing).
+  // Each Rival's History folds its routine (DL-117: the whole History folds nothing).
   const groups = Object.values(document.world.guilds)
     .filter((each) => each.controller.kind === 'rival')
     .flatMap((rival) => pagesOf(document, log, rival.id))
@@ -920,13 +920,13 @@ describe("a Hero's own History, where a Rival's routine does not fold (DL-109 it
     expect(wouldFold.length).toBeGreaterThan(0);
   });
 
-  test("the Hero's Guild's History still folds it; the whole History folds nothing (M9-F4)", () => {
+  test("the Hero's Guild's History still folds it; the whole History folds nothing", () => {
     expect(viewsOf(guildId).flatMap((view) => view.groups.flatMap((group) => group.rows)).some((row) => row.kind === 'routine')).toBe(true);
     expect(viewsOf('all').flatMap((view) => view.groups.flatMap((group) => group.rows)).some((row) => row.kind === 'routine')).toBe(false);
   });
 });
 
-describe('whose History (M9-S5)', () => {
+describe('whose History', () => {
   const { document, log } = played(12);
   const guild = playerOf(document);
 
@@ -963,7 +963,7 @@ describe('whose History (M9-S5)', () => {
     }
   });
 
-  test("with no player's Guild, as a hand-made save may have, the History opens on the world's, not the debug view (M9-F6, carried finding 4)", () => {
+  test("with no player's Guild, as a hand-made save may have, the History opens on the world's, not the debug view (carried finding 4)", () => {
     const orphan = structuredClone(document);
     const own = orphan.world.guilds[guild.id];
     if (own === undefined) throw new Error('no Guild');
@@ -974,8 +974,8 @@ describe('whose History (M9-S5)', () => {
   });
 });
 
-describe('the choices one step away (M9-S5)', () => {
-  test("the player's Guild first, where the History opens, then the world, then each Rival in play (M9-F4)", () => {
+describe('the choices one step away', () => {
+  test("the player's Guild first, where the History opens, then the world, then each Rival in play", () => {
     const { document } = played(3);
     const guild = playerOf(document);
     const rivals = Object.values(document.world.guilds).filter((each) => each.id !== guild.id);
@@ -1042,7 +1042,7 @@ describe('anyone the History names, found by name (DL-74)', () => {
     });
   });
 
-  test("says a Rival's retired Guildmaster is retired, and their successor the Guildmaster of the Guild now (M9-S2, the M9 review)", () => {
+  test("says a Rival's retired Guildmaster is retired, and their successor the Guildmaster of the Guild now (the M9 review)", () => {
     const start = createWorld('history-succession', setup, deps).document;
     const rival = Object.values(start.world.guilds).find((guild) => guild.controller.kind === 'rival') as Guild;
     const retiring = start.world.guildmasters[rival.guildmasterId];

@@ -12,7 +12,7 @@ import { webpSize } from './webp.js';
 // HEROESIM_OWNER_PICTURES names (`C:\JHH\source\heroesim-inbox\guildmaster` on the owner's machine).
 // They run only when it is set, a run apart from `npm test`, whose tail they were (DL-234); set, a
 // folder without the 40 fails them. chromium.test.ts proves the same on the pictures committed in
-// every run. Two of the 40 are the originals of the pictures in the game (v1.1.3-S2's acceptance):
+// every run. Two of the 40 are the originals of the pictures in the game:
 // - each of the 40 converts within 120 kB, with a thumbnail of 160 × 213;
 // - the two originals are similar to gm-male-01 and gm-female-01, and none of the other 38 to either;
 // - each picture is similar to a 5% crop of itself.

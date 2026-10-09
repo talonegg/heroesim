@@ -53,7 +53,7 @@ const meta: Meta = {
   createdAt: 'harness',
 };
 
-// Real streams, seeded from the fixture's seed (M1-S2).
+// Real streams, seeded from the fixture's seed.
 const rng = createStreams(meta.seed, streamNames);
 
 /** A valid empty world: every table empty, the Board empty, History empty. */
@@ -348,7 +348,7 @@ describe('the World State document', () => {
     expect(defaultDocument.meta).toBe(meta);
   });
 
-  test('the streams so far are generation, board (M2-S3), quests (M2-S5), encounters (M4-S1), pool (M2-S8), heroes (M2-S6), progression (M3-S1), rivals (M2-S9), market (M5-S4), gm-portraits (v1.1.2-S3, renamed v1.1.2-S7), descriptions (v1.1.2-S5), hero-portraits and hero-descriptions (v1.1.3-S6), in ADR-0009 order', () => {
+  test('the streams so far are generation, board, quests, encounters, pool, heroes, progression, rivals, market, gm-portraits, descriptions, hero-portraits and hero-descriptions, in ADR-0009 order', () => {
     expect(streamNames).toEqual([
       'generation',
       'board',
@@ -652,7 +652,7 @@ describe('the types match data-model.md', () => {
   });
 });
 
-// v1.1.6-S8 (DL-186 item 26): the one row lookup the engine's rules share.
+// DL-186 item 26: the one row lookup the engine's rules share.
 describe('rowOf and requireRow', () => {
   const rows: Record<string, { name: string }> = { 'hero-000001': { name: 'Ada' } };
   const parsed: Record<string, { name: string }> = JSON.parse('{"__proto__": {"name": "Own"}}');

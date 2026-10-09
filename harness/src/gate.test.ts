@@ -8,7 +8,7 @@ import { runReport, type RunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
 import { sweepPlay } from './sweep.js';
 
-// v1.1.6-S2 (DL-186 items 13 and 21): the Gate's spec, `harness/gate.json`, and a run checked against
+// DL-186 items 13 and 21: the Gate's spec, `harness/gate.json`, and a run checked against
 // it line by line; the spec as the owner approved it (DL-188).
 
 const content = loadContent();
@@ -82,7 +82,7 @@ describe("the Gate's spec", () => {
       'gate.lines.saveGrowth is not a line of the spec',
     ]);
     expect(() => parseGateSpec('{"status":"approved"}')).toThrow(/harness\/gate.json: gate.decided is missing/);
-    // The copy's baseline is a share, a number from 0 (v1.1.7-S1, DL-207).
+    // The copy's baseline is a share, a number from 0 (DL-207).
     const copyShare = (baselineShare: unknown): unknown => ({ ...spec, lines: { ...spec.lines, copyShare: { ...spec.lines.copyShare, baselineShare } } });
     expect(gateSpecProblems(copyShare(0.25))).toEqual([]);
     expect(gateSpecProblems(copyShare(null))).toEqual(['gate.lines.copyShare.baselineShare is a number from 0, not null']);
@@ -132,7 +132,7 @@ describe('a run checked against the Gate, line by line', () => {
     expect(result.lines.filter((it) => it.verdict === 'fail').map((it) => it.line)).toEqual([line]);
   });
 
-  // v1.1.6-S2's verification (DL-188): a game that ended before its last Turn finished; only a game
+  // DL-188: a game that ended before its last Turn finished; only a game
   // neither ended nor at its last Turn is unfinished.
   test('a game that ended early, by a Bankruptcy, is not unfinished', () => {
     const ended = passing((run) => {
@@ -145,7 +145,7 @@ describe('a run checked against the Gate, line by line', () => {
     expect(checkGate(shaped, ended).pass).toBe(true);
   });
 
-  // v1.1.7-S1 (DL-206 item 17): the copy's share of a Turn, the baseline S17's full gate measured,
+  // DL-206 item 17: the copy's share of a Turn, the baseline S17's full gate measured,
   // 0.847 ms over 3.346 ms, 0.253, read from the shipped spec; a run at its limit, 0.31625, passes, one
   // over it fails.
   test("the shipped spec's copy line holds the full gate's baseline share and reads it", () => {

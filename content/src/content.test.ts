@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vitest';
 import { contentFiles, contentWarnings, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
 
-// The core content set as the Node entry loads it from this package's directory (M1-S4).
+// The core content set as the Node entry loads it from this package's directory.
 
 describe('loadContent()', () => {
   const content = loadContent();
@@ -15,7 +15,7 @@ describe('loadContent()', () => {
   /** A Guildmaster Trait's effect that helps the Guild: DL-100 item 3's buff. */
   const buff = (effect: GuildmasterTraitEffect): boolean => (effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0);
 
-  // The content version is data, `version.json` (v1.1.6-S4, DL-186 item 14): the tools raise it there,
+  // The content version is data, `version.json` (DL-186 item 14): the tools raise it there,
   // and this test reads it, pinning no number of its own.
   test('is the core content set, at the version its file holds, whose changelog says why it was last raised', () => {
     const file = JSON.parse(readFileSync(join(contentDir, 'version.json'), 'utf8')) as { version: number; changelog: string[] };
@@ -42,7 +42,7 @@ describe('loadContent()', () => {
     expect(male).toHaveLength(16);
   });
 
-  test("lists the pictures by role and sex: the owner's two Guildmasters since v1.1.2-S4, 38 more since v1.1.3-S4, and no Hero's or Patron's (DL-125 items 3, 4 and 12)", () => {
+  test("lists the pictures by role and sex: the owner's two Guildmasters, 38 more, and no Hero's or Patron's (DL-125 items 3, 4 and 12)", () => {
     const twenty = (sex: string) => Array.from({ length: 20 }, (_, index) => `gm-${sex}-${String(index + 1).padStart(2, '0')}`);
     expect(content.portraits).toEqual({
       guildmaster: { female: twenty('female'), male: twenty('male') },
@@ -51,7 +51,7 @@ describe('loadContent()', () => {
     });
   });
 
-  test("gives each of the owner's two pictures DL-134 item 8's row, its narrative as DL-127 item 5 wrote it (v1.1.3-S1)", () => {
+  test("gives each of the owner's two pictures DL-134 item 8's row, its narrative as DL-127 item 5 wrote it", () => {
     const { features, portraits } = content.portraitAppearances;
     expect(features).toEqual({
       beard: { maleOnly: true, shows: [] },
@@ -63,7 +63,7 @@ describe('loadContent()', () => {
       'grey-hair': { maleOnly: false, shows: [] },
       bald: { maleOnly: false, shows: [] },
     });
-    // The owner's two first; v1.1.3-S4 took in 38 more, and its analysis gave these two hooks.
+    // The owner's two first, then 38 more; these two have hooks.
     expect(Object.keys(portraits).slice(0, 2)).toEqual(['gm-male-01', 'gm-female-01']);
     expect(Object.keys(portraits)).toHaveLength(40);
     expect(portraits['gm-male-01']).toEqual({
@@ -87,14 +87,14 @@ describe('loadContent()', () => {
         '{He} has pinned {his} braids with the same worked clasp since {his} first muster, and is never seen without it.',
       ],
     });
-    // DL-127 item 5 counts them: 243 and 241 characters, within a narrative's 260; v1.1.3-S4's
+    // DL-127 item 5 counts them: 243 and 241 characters, within a narrative's 260; the
     // analysis read gm-female-01's eyes as pale, and made it 255.
     expect([...(portraits['gm-male-01']?.narrative ?? '')]).toHaveLength(243);
     expect([...(portraits['gm-female-01']?.narrative ?? '')]).toHaveLength(255);
   });
 
   test("warns of every sex and band of Guildmaster pictures, and every Class and sex of Hero pictures, short of three (DL-134 item 10)", () => {
-    // Since v1.1.3-S4 every sex and band of Guildmaster pictures holds three or more.
+    // Every sex and band of Guildmaster pictures holds three or more.
     expect(contentWarnings(content)).toEqual([
       'portraits.hero.female: 0 pictures of the Class warrior, fewer than 3',
       'portraits.hero.female: 0 pictures of the Class rogue, fewer than 3',
@@ -125,7 +125,7 @@ describe('loadContent()', () => {
     });
   });
 
-  describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6)", () => {
+  describe("what a Guildmaster's descriptive Attributes are written from (DL-125 item 6)", () => {
     const { descriptions } = content;
     const bands = descriptions.ageBands.map((band) => band.key);
     const guildBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'guild').map((row) => row.key);
@@ -160,9 +160,9 @@ describe('loadContent()', () => {
       }
     });
 
-    // v1.1.3-S1: the structure proved with a first sentence in every list; the first `analyse` run fills
-    // them to three or more (v1.1.3-S4, DL-135 item 11).
-    test("has DL-134 item 8's three Stations, six Tempers and seven Callings, lawyer apart from merchant (DL-135 item 1), and v1.1.3-S4's genial", () => {
+    // The structure proved with a first sentence in every list; the first `analyse` run fills
+    // them to three or more (DL-135 item 11).
+    test("has DL-134 item 8's three Stations, six Tempers and seven Callings, lawyer apart from merchant (DL-135 item 1), and genial", () => {
       expect(descriptions.stations).toEqual(['common', 'trade', 'gentry']);
       expect(descriptions.tempers).toEqual(['stern', 'composed', 'intense', 'calculating', 'wry', 'steady', 'genial']);
       expect(descriptions.callings).toEqual({
@@ -218,7 +218,7 @@ describe('loadContent()', () => {
       expect(phrases.length).toBeGreaterThan(150);
     });
 
-    // v1.1.2-S6, the S5 verification's findings: the prose read whole, and what it showed held here.
+    // The prose read whole, and what it showed held here.
     const biographySentences = (): string[] => {
       const { origins, careers, backgrounds, traits, closings, successors, stationOrigins, callingCareers, temperClosings } = descriptions.biography;
       const hero = descriptions.heroBiography;
@@ -296,9 +296,9 @@ describe('loadContent()', () => {
   });
 
   // The Traits are the owner's to add, change and remove through the content editor (DL-150 items 7
-  // to 12), so these tests hold the rules a Trait keeps, not the Traits shipped (the verification of
-  // v1.1.4-S13); the content's checks hold the rest, an exclusion both ways among them.
-  test("costs a Guildmaster Trait as DL-100 item 3 says: a buff costs, and a penalty refunds (M9-S2)", () => {
+  // to 12), so these tests hold the rules a Trait keeps, not the Traits shipped (DL-163);
+  // the content's checks hold the rest, an exclusion both ways among them.
+  test("costs a Guildmaster Trait as DL-100 item 3 says: a buff costs, and a penalty refunds", () => {
     const traits = Object.values(content.guildmasterTraits);
     expect(traits.length).toBeGreaterThan(0);
     for (const trait of traits) {
@@ -308,7 +308,7 @@ describe('loadContent()', () => {
     }
   });
 
-  test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
+  test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3)', () => {
     const improvements = Object.values(content.improvements);
     for (const facility of facilityKeys) {
       const grades = improvements
@@ -338,7 +338,7 @@ describe('loadContent()', () => {
       // DL-56 set the rows, DL-58 gave reckless a gearThreshold of 3; the M6 close's balance pass
       // (DL-69) moved steady to the middle of the Quests it can staff, every transferAppetite below a
       // third, so that no Rival sells itself below rivalRosterMin, and the hiring and building bars.
-      // v1.1.4-S6 gave each its partyMargin, 0.05 and reckless's 0.10, first values S10 tunes (DL-148).
+      // Each has its partyMargin, 0.05 and reckless's 0.10 (DL-148).
       steady: { key: 'steady', name: 'Steady', ...weights(0.5, 60, 12, 3, 0.2, 0.05) },
       ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.7, 45, 1.5, 2, 0.3, 0.05) },
       miserly: { key: 'miserly', name: 'Miserly', ...weights(0.35, 60, 40, 10, 0.1, 0.05) },
@@ -390,7 +390,7 @@ describe('loadContent()', () => {
     }
   });
 
-  test("gives each Guildmaster Trait an effect, and the four Injury Traits DL-148 item 24's Stat changes (M4-S5, v1.1.4-S7)", () => {
+  test("gives each Guildmaster Trait an effect, and the four Injury Traits DL-148 item 24's Stat changes", () => {
     for (const trait of Object.values(content.guildmasterTraits)) expect(trait.effects.length, trait.key).toBeGreaterThan(0);
     const modifiers = (it: Record<string, number>) => ({ effects: [{ kind: 'statModifiers', modifiers: it }] });
     expect(content.heroTraits).toMatchObject({
@@ -401,7 +401,7 @@ describe('loadContent()', () => {
     });
   });
 
-  test('keys every Trait in one of the two lists, Guildmaster and Hero, never both (v1.1.4-S7, DL-150 item 1)', () => {
+  test('keys every Trait in one of the two lists, Guildmaster and Hero, never both (DL-150 item 1)', () => {
     const both = Object.keys(content.heroTraits).filter((key) => Object.hasOwn(content.guildmasterTraits, key));
     expect(both).toEqual([]);
   });
@@ -429,7 +429,7 @@ describe('loadContent()', () => {
     expect(content.names.patron.length).toBeGreaterThan(0);
   });
 
-  describe('Quest templates (M2-S3)', () => {
+  describe('Quest templates', () => {
     const templates = Object.values(content.questTemplates);
 
     test('are twelve, two for each Sphere', () => {
@@ -469,7 +469,7 @@ describe('loadContent()', () => {
       expect(requiring.length).toBeLessThan(templates.length / 2);
     });
 
-    test('are drawn with 2 to 5 Encounters by difficulty (INPUTS 6.1), of kinds content has Encounters of (M4-S1)', () => {
+    test('are drawn with 2 to 5 Encounters by difficulty (INPUTS 6.1), of kinds content has Encounters of', () => {
       const kinds = new Set(Object.values(content.encounters).map((it) => it.kind));
       for (const it of templates) {
         expect(it.encountersMin, it.key).toBeGreaterThanOrEqual(2);
@@ -485,11 +485,11 @@ describe('loadContent()', () => {
     });
   });
 
-  // M4-S1's third box; the Encounters as v1.1.4-S10 wrote them from the drafts the owner approved
+  // The Encounters as written from the drafts the owner approved
   // (DL-162, DL-165): each in Checks scored by Queries over the Party, with a pass formula.
-  describe('Encounters (M4-S1, v1.1.4-S10)', () => {
+  describe('Encounters', () => {
     const encounters = Object.values(content.encounters);
-    /** Each Encounter as `encounters.json` writes it: the new form (v1.1.4-S2). */
+    /** Each Encounter as `encounters.json` writes it: the new form. */
     const written = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<
       string,
       { checks: Record<string, unknown>[]; pass?: unknown; consequences: Record<string, unknown[]> }
@@ -504,7 +504,7 @@ describe('loadContent()', () => {
       for (const [kind, count] of Object.entries(byKind(encounters.filter((it) => !finales.has(it.key))))) expect(count, kind).toBeGreaterThanOrEqual(2);
     });
 
-    // v1.1.4-S8 (DL-148 item 22, DL-160): the tags that weight the draw, matched to the templates'.
+    // DL-148 item 22, DL-160: the tags that weight the draw, matched to the templates'.
     test("each has one to three tags, each one some template carries, so that every tag weights some Quest's draw", () => {
       const carried = new Set(Object.values(content.questTemplates).flatMap((it) => it.tags));
       for (const it of encounters) {
@@ -560,9 +560,9 @@ describe('loadContent()', () => {
       }
     });
 
-    // v1.1.6-S6 (DL-192): the old form is no longer read, so every shipped row is in the new one: an
+    // DL-192: the old form is no longer read, so every shipped row is in the new one: an
     // Encounter's `checks` a list, a Synergy's `requires` a list (29 of 29 and 9 of 9 when it was retired).
-    // v1.1.6-S7 (DL-193): nor does a Quest template carry `demands`, which no rule read (12 of 12 when
+    // DL-193: nor does a Quest template carry `demands`, which no rule read (12 of 12 when
     // they went).
     test('carry no demands, as written', () => {
       const written = JSON.parse(readFileSync(join(contentDir, 'quest-templates.json'), 'utf8')) as Record<string, Record<string, unknown>>;
@@ -599,7 +599,7 @@ describe('loadContent()', () => {
       return [];
     }
 
-    // v1.1.4-S10's coverage (DL-148 item 21, the epic's gate): no Hero Stat goes unread by the Quests.
+    // Coverage (DL-148 item 21, the epic's gate): no Hero Stat goes unread by the Quests.
     test('read every Hero Stat by three Checks at least, across two kinds at least', () => {
       const short = heroStats.flatMap((stat) => {
         const kinds = encounters.flatMap((it) => it.checks.filter((check) => statsAdded(check.score).includes(stat.key)).map(() => it.kind));
@@ -618,9 +618,9 @@ describe('loadContent()', () => {
   });
 
   // INPUTS 6.4: six starter Synergies, among them Warrior + Healer, Rogue + Mage and three Warriors;
-  // v1.1.4-S10 writes them as Queries over the Party, and three more that read Stats and Levels (DL-162).
-  describe('Synergies (M4-S3, v1.1.4-S10)', () => {
-    // v1.1.6-S6 (DL-192): see the Encounters'; every Synergy's `requires` is a list of conditions on the Party.
+  // They are Queries over the Party, and three more that read Stats and Levels (DL-162).
+  describe('Synergies', () => {
+    // DL-192: see the Encounters'; every Synergy's `requires` is a list of conditions on the Party.
     test('are every one written with a list of conditions, and none in the old form', () => {
       const written = JSON.parse(readFileSync(join(contentDir, 'synergies.json'), 'utf8')) as Record<string, Record<string, unknown>>;
       expect(Object.keys(written)).toHaveLength(Object.keys(content.synergies).length);
@@ -659,14 +659,14 @@ describe('loadContent()', () => {
     });
   });
 
-  // M5-S1: twenty to start, nine gear three a slot at three grades, six consumables, five unique gear
-  // as Loot only (DL-48); v1.1.4-S10 adds six trinkets for the Mental and Social Stats (DL-162).
-  describe('Item definitions (M5-S1, v1.1.4-S10)', () => {
+  // Twenty to start, nine gear three a slot at three grades, six consumables, five unique gear
+  // as Loot only (DL-48), and six trinkets for the Mental and Social Stats (DL-162).
+  describe('Item definitions', () => {
     const items = Object.values(content.items);
     const gear = items.filter((it) => it.kind === 'gear');
     const consumables = items.filter((it) => it.kind === 'consumable');
     const grades = ['plain', 'fine', 'masterwork'];
-    /** v1.1.4-S10's trinkets for the Mental and Social Stats, beside each slot's line of three. */
+    /** The trinkets for the Mental and Social Stats, beside each slot's line of three. */
     const mentalAndSocial = ['commonplace-book', 'reading-glass', 'signet-ring', 'officers-sash', 'courtiers-brooch', 'scholars-almanac'];
     const lines = gear.filter((it) => !it.unique && !mentalAndSocial.includes(it.key));
 
@@ -734,10 +734,10 @@ describe('loadContent()', () => {
     });
   });
 
-  // M5-S5 (DL-52): the templates carry a Loot table chosen by difficulty band (INPUTS 7.4). Which
+  // DL-52: the templates carry a Loot table chosen by difficulty band (INPUTS 7.4). Which
   // templates carry one agrees with `defaultConfig.lootDifficultyThreshold`, which content cannot
   // read: the harness's creation.test.ts holds that.
-  describe('Loot tables (M5-S5)', () => {
+  describe('Loot tables', () => {
     const templates = Object.values(content.questTemplates);
     const tables = Object.values(content.lootTables);
 
@@ -766,7 +766,7 @@ describe('loadContent()', () => {
     });
   });
 
-  describe('Injury types (M2-S5)', () => {
+  describe('Injury types', () => {
     const types = Object.values(content.injuries);
 
     test('are a few, healing in 5 to 30 Days (INPUTS 4.5)', () => {

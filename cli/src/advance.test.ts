@@ -2,7 +2,7 @@ import type { GuildId, HeroId, OfferId, PartyId, QuestId, StopReason, WorldDocum
 import { describe, expect, test } from 'vitest';
 import { stopLine } from './advance.js';
 
-// Why a fast forward stopped, in the CLI's words (M2-S11; M6-S2, M9-S1): the narration's sentence
+// Why a fast forward stopped, in the CLI's words (DL-101, DL-209): the narration's sentence
 // (`narrateStop` in `@heroesim/words`, DL-209) with the ids the CLI's commands take and the command
 // that answers.
 

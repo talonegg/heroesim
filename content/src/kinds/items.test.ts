@@ -6,8 +6,8 @@ import { shipped, realFiles, parse, withJson, refusalOf, withoutLoot, type Files
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-// M5-S1's third box, and the rest of an Item definition's refusals (DL-48).
-describe('an Item definition (M5-S1)', () => {
+// The refusals of an Item definition (DL-48).
+describe('an Item definition', () => {
   type Row = Record<string, unknown>;
   const rowOf = (json: Files['items.json'], key: string): Row => {
     const found = json[key];
@@ -79,7 +79,7 @@ describe('an Item definition (M5-S1)', () => {
 });
 
 describe('validateContent on a set built in memory', () => {
-  test('refuses gear of a slot that is not one, and a consumable with a slot, which the parser cannot see in memory (M5-S1)', () => {
+  test('refuses gear of a slot that is not one, and a consumable with a slot, which the parser cannot see in memory', () => {
     const content = structuredClone(shipped);
     Object.assign(content.items['short-sword'] ?? {}, { slot: 'belt' });
     Object.assign(content.items['healing-draught'] ?? {}, { slot: 'trinket', statModifiers: { spirit: 1 } });

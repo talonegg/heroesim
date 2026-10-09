@@ -9,7 +9,7 @@ import { generatePatron } from './patrons.js';
 import { generateQuest } from './quests.js';
 import { testContent, testDeps, testWorld } from '../world.test-support.js';
 
-// Draw weights (v1.1.6-S16, DL-186 item 16, DL-202): a Class, Background, Quest template or Sphere with no
+// Draw weights (DL-186 item 16, DL-202): a Class, Background, Quest template or Sphere with no
 // `weight` is drawn as it was by `pick`, and every Hero's sex by `heroSexWeights`, equal by default.
 
 /** `content` with every row of its four weighted tables given `weight`, or given the weights `by` names by key. */
@@ -116,7 +116,7 @@ describe('a weight changes the odds', () => {
   });
 });
 
-// The deals at creation (v1.1.7-S2, DL-206 item 1, DL-208): a Guild's starting Roster and the Patrons'
+// The deals at creation (DL-206 item 1, DL-208): a Guild's starting Roster and the Patrons'
 // Spheres are dealt evenly, as `dealEvenly` deals, while every weight is 1, and by weight otherwise; a
 // Guildmaster's sex is drawn by `guildmasterSexWeights`.
 
@@ -302,7 +302,7 @@ describe('a weight changes the deals at creation', () => {
         expect(generateGuild(world, deps, { ...guildOptions, rosterSize: 0 }).guildmaster.sex).toBe(only);
       }
     }
-    // A sex chosen at setup replaces the one drawn, after the draw (M9-S2).
+    // A sex chosen at setup replaces the one drawn, after the draw.
     const male = testDeps({ guildmasterSexWeights: { female: 0, male: 1 } });
     const chosen = testWorld('deal-gm-sex-chosen', male);
     expect(generateGuild(chosen, male, { ...guildOptions, rosterSize: 0, guildmaster: { sex: 'female' } }).guildmaster.sex).toBe('female');

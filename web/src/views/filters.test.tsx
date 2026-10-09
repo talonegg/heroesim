@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import type { Facets } from '../state/facets';
 import { FilterChips, OneChoice, useFacets } from './ui';
 
-// The page's one filter element and its one-choice switch (v1.1.7-S7, DL-206 items 26 to 29,
+// The page's one filter element and its one-choice switch (DL-206 items 26 to 29,
 // DL-213): "All" pressed when no option is, pressing it clearing them; an option toggling; every
 // option pressed reading as "All"; beside each option the count of what it would show with the other
 // filters as they are, an option at 0 greyed; each chip a toggle button. The switch is a choice of one.

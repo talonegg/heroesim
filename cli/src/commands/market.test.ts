@@ -1,4 +1,4 @@
-// `show market`, `buy` and `sell` end to end (M5-S4): `main` run in-process against a real save in a
+// `show market`, `buy` and `sell` end to end: `main` run in-process against a real save in a
 // temporary directory, with the real content set, as main.test.ts runs the other commands. The
 // Market is arranged by hand in the save, and the prices the tests read are pinned in its config.
 

@@ -130,7 +130,7 @@ describe('baseStat', () => {
   });
 });
 
-describe('effectiveStats (M4-S2, M4-S5, DL-44)', () => {
+describe('effectiveStats (DL-44)', () => {
   test("is every Hero Stat content defines at its base until something modifies it, a Stat the Hero lacks reading the default, and no Guildmaster Stat", () => {
     const deps = testDeps();
     const { world } = createWorld('effective', setup, deps).document;
@@ -150,8 +150,8 @@ describe('effectiveStats (M4-S2, M4-S5, DL-44)', () => {
   });
 });
 
-// M9-F1 (DL-112 item 3): Upkeep's parts and its Day, for the Treasury, read from the engine.
-describe("upkeepParts and nextUpkeepDay (M9-F1)", () => {
+// DL-112 item 3: Upkeep's parts and its Day, for the Treasury, read from the engine.
+describe("upkeepParts and nextUpkeepDay", () => {
   test("are exported from the engine's index, for the page", () => {
     expect(engine.upkeepParts).toBe(upkeepParts);
     expect(engine.nextUpkeepDay).toBe(nextUpkeepDay);
@@ -276,7 +276,7 @@ describe('upkeep', () => {
   });
 });
 
-describe('rankings (pulled forward from M3-S5, DL-28)', () => {
+describe('rankings (pulled forward from DL-28)', () => {
   /** Five Guilds whose Fame and Wealth order them differently, with a tie in each. */
   function ranked() {
     const { document } = createWorld('rankings', setup, testDeps());
@@ -327,7 +327,7 @@ describe('rankings (pulled forward from M3-S5, DL-28)', () => {
   });
 });
 
-describe('rankings (M3-S5)', () => {
+describe('rankings', () => {
   /** A created world whose five Guilds are given Fame and Wealth that order them differently. */
   function differing() {
     const deps = testDeps();
@@ -379,7 +379,7 @@ describe('rankings (M3-S5)', () => {
   });
 });
 
-describe('rankingPlaces (v1.0.1-S4, DL-95)', () => {
+describe('rankingPlaces (DL-95)', () => {
   test('five Guilds at Fame 0, as a new game has them, share 1st, in the order rankings gives', () => {
     const { document } = createWorld('places-new', setup, testDeps());
     const { world } = document;
@@ -434,7 +434,7 @@ describe('rankingPlaces (v1.0.1-S4, DL-95)', () => {
   });
 });
 
-describe('bankruptcyCountdown (v1.0.1-S4, DL-95)', () => {
+describe('bankruptcyCountdown (DL-95)', () => {
   /** A new game whose player's Guild has `wealth` Wealth. */
   function created(seed: string, deps: EngineDeps, wealth: number): WorldDocument {
     const { document } = createWorld(seed, setup, deps);
@@ -544,7 +544,7 @@ describe('bankruptcyCountdown (v1.0.1-S4, DL-95)', () => {
   });
 });
 
-describe('signingRefusal (M3-S5, pre-M0 review B4)', () => {
+describe('signingRefusal (pre-M0 review B4)', () => {
   // Pinned rather than read from the default, which a balance pass may change.
   const config = { fameRequiredPerLevel: 10 };
   const hero = (level: number) => ({ level });
@@ -570,7 +570,7 @@ describe('signingRefusal (M3-S5, pre-M0 review B4)', () => {
   });
 });
 
-describe('unsignableHeroes (M3-S5)', () => {
+describe('unsignableHeroes', () => {
   test("is the pool's Heroes who would refuse the Guild's Fame, in id order, whoever the Guild is", () => {
     const deps = testDeps({ fameRequiredPerLevel: 10, unattachedPoolSize: 4 });
     const { document } = createWorld('unsignable', setup, deps);
@@ -594,7 +594,7 @@ describe('unsignableHeroes (M3-S5)', () => {
 });
 
 describe('cheapestUnattached (DL-38)', () => {
-  // Negotiation still (M4-S5): these tests are about who is cheapest and who would sign.
+  // Negotiation still: these tests are about who is cheapest and who would sign.
   const deps = testDeps({ fameRequiredPerLevel: 10, unattachedPoolSize: 4, negotiationRange: 0 });
 
   function pool() {

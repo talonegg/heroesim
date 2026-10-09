@@ -25,7 +25,7 @@ import { makeId, takeId } from './document.js';
 import { passiveEntryTypes, refusalChecks, warningChecks } from './validate.js';
 import { buildDocument, checkWhatHistoryFromHid, fixtureTurn, heroStatKeys, testContent, testDeps, withValid } from './world.test-support.js';
 
-// M1-S7: the validator of data-model §6. Each refusal test mutates the valid fixture document into
+// The validator of data-model §6. Each refusal test mutates the valid fixture document into
 // one failing shape and asserts the check it names and the id it points at, never the prose.
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ describe('§6: an id referenced by a row that does not exist in its table', () =
       (d) => (stack(d, ids.heroStack).holder = { kind: 'hero', id: nowhere.hero, slot: 'armour' }),
       ids.heroStack,
     ],
-    // M5-S3 (DL-50): a Party's consumables go home as it is removed, so none is held by a removed Party.
+    // DL-50: a Party's consumables go home as it is removed, so none is held by a removed Party.
     ["a Party's consumables' holder", (d) => (stack(d, ids.partyStack).holder = { kind: 'party', id: nowhere.party }), ids.partyStack],
     ['a Regard key', (d) => (hero(d, ids.partyHero).regard[nowhere.patron] = regard()), ids.partyHero],
     ['the Board', (d) => d.world.board.push(nowhere.quest), '$.world.board'],
@@ -246,10 +246,10 @@ describe('§6: a Hero on two Rosters, or in two Parties, or on a Roster of a Gui
   });
 });
 
-// v1.1.6-S17 (ADR-0011, DL-203): a Hero out of play is written once, frozen and shared by the per-Turn
+// ADR-0011, DL-203: a Hero out of play is written once, frozen and shared by the per-Turn
 // copy; the rules that walk a Roster or a Party write those they find, so a save with one there is
 // refused, not played until a write to the frozen row throws.
-describe('a Hero out of play on a Roster or in a Party (v1.1.6-S17, ADR-0011)', () => {
+describe('a Hero out of play on a Roster or in a Party (ADR-0011)', () => {
   test('a dead Hero back on their Roster is refused, naming the Hero', () => {
     expect(refusals((d) => guild(d, ids.playerGuild).rosterIds.push(ids.deadHero))).toEqual([
       failure('departed-hero-in-play', ids.deadHero),
@@ -290,7 +290,7 @@ describe("§6: a Hero's pool fields disagree with their Guild (DL-27)", () => {
     expect(refusals(mutate)).toEqual([failure('unattached-mismatch', id)]);
   });
 
-  test('a Hero on a Roster marked as gone from the pool is refused, and as out of play on a Roster (v1.1.6-S17)', () => {
+  test('a Hero on a Roster marked as gone from the pool is refused, and as out of play on a Roster', () => {
     expect(refusals((d) => (hero(d, idleHero).leftPoolOnTurn = 30))).toEqual([
       failure('unattached-mismatch', idleHero),
       failure('departed-hero-in-play', idleHero),
@@ -352,7 +352,7 @@ describe('§6: a folded Guild with a Hero on its Roster or a Party of its own (D
   });
 });
 
-describe('a retired Guildmaster (M9-S2, DL-102)', () => {
+describe('a retired Guildmaster (DL-102)', () => {
   test("a Guild in play led by a Guildmaster who has retired is refused, naming the Guildmaster", () => {
     const rivalGuildmaster = guild(buildDocument().document, ids.rivalGuild).guildmasterId;
     expect(refusals((d) => (guildmaster(d, rivalGuildmaster).retiredOnTurn = 30))).toEqual([
@@ -404,7 +404,7 @@ describe('§6: two stacks with the same definition, holder and slot', () => {
   };
   const second = makeId('stacks', buildDocument().document.world.counters.stacks);
 
-  // M5-S1's second box, its first half.
+  // The second acceptance box, its first half.
   test('are refused, naming the second', () => {
     expect(refusals(copyTo(ids.guildStack, { kind: 'guild', id: ids.playerGuild }))).toEqual([
       failure('duplicate-stack', second),
@@ -437,7 +437,7 @@ describe('a stack of no Items (data-model §3.3, DL-48)', () => {
   });
 });
 
-describe("a Hero's gear slot holding more than one Item (M5-S2's slot-occupied, DL-48)", () => {
+describe("a Hero's gear slot holding more than one Item (slot-occupied, DL-48)", () => {
   const armour = { kind: 'hero', id: ids.partyHero, slot: 'armour' } as const;
 
   test.each<[string, Mutation]>([
@@ -586,10 +586,10 @@ describe('document-shape', () => {
 
   test.each<[string, Mutation, string]>([
     ['a missing table', (d) => drop(d.world, 'offers'), '$.world.offers'],
-    // v1.1.6-S7 (DL-193): the version of the defaults is `meta`'s, a whole number. `meta` is shared
+    // DL-193: the version of the defaults is `meta`'s, a whole number. `meta` is shared
     // between documents, so each is changed on a copy.
     [
-      'a meta without the version of its defaults, as schema 6 wrote it (v1.1.6-S7)',
+      'a meta without the version of its defaults, as schema 6 wrote it',
       (d) => {
         const meta = { ...d.meta };
         drop(meta, 'configVersion');
@@ -598,7 +598,7 @@ describe('document-shape', () => {
       '$.meta.configVersion',
     ],
     [
-      'a version of the defaults that is not a whole number (v1.1.6-S7)',
+      'a version of the defaults that is not a whole number',
       (d) => set(d, 'meta', { ...d.meta, configVersion: 13.5 }),
       '$.meta.configVersion',
     ],
@@ -614,41 +614,41 @@ describe('document-shape', () => {
     ],
     ['an ending without its reason', (d) => set(d.world, 'ended', { turn: 3 }), '$.world.ended.reason'],
     [
-      'a Guildmaster without a Biography (M9-S2)',
+      'a Guildmaster without a Biography',
       (d) => drop(guildmaster(d, ids.playerGuildmaster), 'biography'),
       `$.world.guildmasters["${ids.playerGuildmaster}"].biography`,
     ],
     [
-      'a Guildmaster whose Retirement is not a Turn (M9-S2)',
+      'a Guildmaster whose Retirement is not a Turn',
       (d) => set(guildmaster(d, ids.playerGuildmaster), 'retiredOnTurn', 'yesterday'),
       `$.world.guildmasters["${ids.playerGuildmaster}"].retiredOnTurn`,
     ],
     [
-      "a Guildmaster without a Portrait's key, as schema 4 wrote them (v1.1.2-S3)",
+      "a Guildmaster without a Portrait's key, as schema 4 wrote them",
       (d) => drop(guildmaster(d, ids.playerGuildmaster), 'portraitKey'),
       `$.world.guildmasters["${ids.playerGuildmaster}"].portraitKey`,
     ],
     [
-      "a Guildmaster whose Portrait's key is not a string or null (v1.1.2-S3)",
+      "a Guildmaster whose Portrait's key is not a string or null",
       (d) => set(guildmaster(d, ids.playerGuildmaster), 'portraitKey', 7),
       `$.world.guildmasters["${ids.playerGuildmaster}"].portraitKey`,
     ],
-    ['a Patron without a sex, as schema 4 wrote them (v1.1.2-S3)', (d) => drop(patron(d, ids.patron), 'sex'), `${patronPath}.sex`],
-    // v1.1.3-S6 (DL-135 items 6 and 7): a Hero's Portrait and two texts, which schema 5 lacked.
-    ["a Hero without a Portrait's key, as schema 5 wrote them (v1.1.3-S6)", (d) => drop(hero(d, ids.partyHero), 'portraitKey'), `${heroPath}.portraitKey`],
-    ["a Hero whose Portrait's key is not a string or null (v1.1.3-S6)", (d) => set(hero(d, ids.partyHero), 'portraitKey', 7), `${heroPath}.portraitKey`],
-    ['a Hero without an Appearance, as schema 5 wrote them (v1.1.3-S6)', (d) => drop(hero(d, ids.partyHero), 'appearance'), `${heroPath}.appearance`],
-    ['a Hero whose Biography is not a string (v1.1.3-S6)', (d) => set(hero(d, ids.partyHero), 'biography', null), `${heroPath}.biography`],
-    ['a Patron whose sex is not a string or null (v1.1.2-S3)', (d) => set(patron(d, ids.patron), 'sex', false), `${patronPath}.sex`],
-    // v1.1.2-S6 (the review's A): a sex is one of the engine's `sexes`, as a holder's kind is one it knows,
+    ['a Patron without a sex, as schema 4 wrote them', (d) => drop(patron(d, ids.patron), 'sex'), `${patronPath}.sex`],
+    // DL-135 items 6 and 7: a Hero's Portrait and two texts, which schema 5 lacked.
+    ["a Hero without a Portrait's key, as schema 5 wrote them", (d) => drop(hero(d, ids.partyHero), 'portraitKey'), `${heroPath}.portraitKey`],
+    ["a Hero whose Portrait's key is not a string or null", (d) => set(hero(d, ids.partyHero), 'portraitKey', 7), `${heroPath}.portraitKey`],
+    ['a Hero without an Appearance, as schema 5 wrote them', (d) => drop(hero(d, ids.partyHero), 'appearance'), `${heroPath}.appearance`],
+    ['a Hero whose Biography is not a string', (d) => set(hero(d, ids.partyHero), 'biography', null), `${heroPath}.biography`],
+    ['a Patron whose sex is not a string or null', (d) => set(patron(d, ids.patron), 'sex', false), `${patronPath}.sex`],
+    // A sex is one of the engine's `sexes`, as a holder's kind is one it knows,
     // since the page finds a Portrait's folder by it.
     [
-      "a Guildmaster whose sex is none of the engine's (v1.1.2-S6)",
+      "a Guildmaster whose sex is none of the engine's",
       (d) => set(guildmaster(d, ids.playerGuildmaster), 'sex', 'other'),
       `$.world.guildmasters["${ids.playerGuildmaster}"].sex`,
     ],
-    ["a Hero whose sex is none of the engine's (v1.1.2-S6)", (d) => set(hero(d, ids.partyHero), 'sex', 'Female'), `${heroPath}.sex`],
-    ["a Patron whose sex is none of the engine's (v1.1.2-S6)", (d) => set(patron(d, ids.patron), 'sex', ''), `${patronPath}.sex`],
+    ["a Hero whose sex is none of the engine's", (d) => set(hero(d, ids.partyHero), 'sex', 'Female'), `${heroPath}.sex`],
+    ["a Patron whose sex is none of the engine's", (d) => set(patron(d, ids.patron), 'sex', ''), `${patronPath}.sex`],
     [
       'a holder without its slot',
       (d) => set(item(d, ids.item), 'holder', { kind: 'hero', id: ids.partyHero }),
@@ -799,7 +799,7 @@ describe('a key the content does not define warns and never refuses', () => {
       'slay-the-wyrm',
     ],
     [
-      'an Injury type (M2-S5)',
+      'an Injury type',
       (d) => (hero(d, idleHero).injury = { typeKey: 'frostbite', healsOnTurn: fixtureTurn + 3 }),
       'unknown-injury',
       idleHero,
@@ -813,63 +813,63 @@ describe('a key the content does not define warns and never refuses', () => {
       'timid',
     ],
     [
-      'gear a Hero holds in a slot it is not made for (M5-S1)',
+      'gear a Hero holds in a slot it is not made for',
       (d) => (stack(d, ids.heroStack).holder = { kind: 'hero', id: ids.partyHero, slot: 'weapon' }),
       'misplaced-item',
       ids.heroStack,
       'padded-jack',
     ],
     [
-      'a consumable a Hero holds in a slot (M5-S1)',
+      'a consumable a Hero holds in a slot',
       (d) => (stack(d, ids.heroStack).definitionKey = 'healing-draught'),
       'misplaced-item',
       ids.heroStack,
       'healing-draught',
     ],
     [
-      "a Quest's Loot table (M5-S5)",
+      "a Quest's Loot table",
       (d) => (quest(d, ids.offeredQuest).lootTableKey = 'the-lost-hoard'),
       'unknown-loot-table',
       ids.offeredQuest,
       'the-lost-hoard',
     ],
     [
-      "a Guildmaster's Portrait the content has no picture for (v1.1.2-S3)",
+      "a Guildmaster's Portrait the content has no picture for",
       (d) => (guildmaster(d, gm).portraitKey = 'gm-male-99'),
       'unknown-portrait',
       gm,
       'gm-male-99',
     ],
     [
-      "a Hero's picture as a Guildmaster's Portrait (v1.1.2-S3)",
+      "a Hero's picture as a Guildmaster's Portrait",
       (d) => Object.assign(guildmaster(d, gm), { sex: 'female', portraitKey: 'hero-female-01' }),
       'unknown-portrait',
       gm,
       'hero-female-01',
     ],
     [
-      "a Guildmaster's Portrait of the other sex (v1.1.2-S3)",
+      "a Guildmaster's Portrait of the other sex",
       (d) => Object.assign(guildmaster(d, gm), { sex: 'female', portraitKey: 'gm-male-01' }),
       'portrait-of-another-sex',
       gm,
       'gm-male-01',
     ],
     [
-      "a Guildmaster's picture as a Hero's Portrait (v1.1.3-S6)",
+      "a Guildmaster's picture as a Hero's Portrait",
       (d) => Object.assign(hero(d, ids.partyHero), { sex: 'male', portraitKey: 'gm-male-01' }),
       'unknown-portrait',
       ids.partyHero,
       'gm-male-01',
     ],
     [
-      "a Hero's Portrait of the other sex (v1.1.3-S6)",
+      "a Hero's Portrait of the other sex",
       (d) => Object.assign(hero(d, ids.partyHero), { sex: 'male', portraitKey: 'hero-female-01' }),
       'portrait-of-another-sex',
       ids.partyHero,
       'hero-female-01',
     ],
     [
-      "an Encounter in a Quest's sequence (M4-S1)",
+      "an Encounter in a Quest's sequence",
       (d) => (quest(d, ids.offeredQuest).encounterKeys = ['hold-the-line', 'the-dragon-wakes']),
       'unknown-encounter',
       ids.offeredQuest,
@@ -879,7 +879,7 @@ describe('a key the content does not define warns and never refuses', () => {
     expect(warnings(mutate)).toEqual([{ check, id, key }]);
   });
 
-  test('two Traits held of which one excludes the other warn, naming the later of the first pair (v1.1.4-S7, DL-150 item 3)', () => {
+  test('two Traits held of which one excludes the other warn, naming the later of the first pair (DL-150 item 3)', () => {
     // Miser excludes Well liked; Thrifty excludes neither.
     expect(warnings((d) => (guildmaster(d, gm).traits = ['miser', 'thrifty', 'well-liked']))).toEqual([
       { check: 'excluded-traits', id: gm, key: 'well-liked' },
@@ -892,18 +892,18 @@ describe('a key the content does not define warns and never refuses', () => {
     expect(warnings((d) => (hero(d, idleHero).traits = ['lame', 'one-eyed']), content)).toEqual([]);
   });
 
-  test("a Hero's Portrait of their sex warns of nothing, nor does none, the Silhouette (v1.1.3-S6)", () => {
+  test("a Hero's Portrait of their sex warns of nothing, nor does none, the Silhouette", () => {
     expect(warnings((d) => Object.assign(hero(d, ids.partyHero), { sex: 'female', portraitKey: 'hero-female-01' }))).toEqual([]);
     expect(warnings((d) => Object.assign(hero(d, ids.partyHero), { portraitKey: null }))).toEqual([]);
   });
 
-  test("a Guildmaster's Portrait of their sex warns of nothing, nor does none, the Silhouette (v1.1.2-S3)", () => {
+  test("a Guildmaster's Portrait of their sex warns of nothing, nor does none, the Silhouette", () => {
     expect(warnings((d) => Object.assign(guildmaster(d, gm), { sex: 'female', portraitKey: 'gm-female-02' }))).toEqual([]);
     expect(warnings((d) => Object.assign(guildmaster(d, gm), { sex: 'male', portraitKey: 'gm-male-03' }))).toEqual([]);
     expect(warnings((d) => (guildmaster(d, gm).portraitKey = null))).toEqual([]);
   });
 
-  test('an Item a Hero holds in a slot that is no gear slot warns, naming the slot (M5-S1, DL-193)', () => {
+  test('an Item a Hero holds in a slot that is no gear slot warns, naming the slot (DL-193)', () => {
     const { document } = buildDocument();
     Object.assign(document.world.items[ids.item]?.holder ?? {}, { slot: 'belt' });
     const result = validate(document, testDeps());
@@ -974,7 +974,7 @@ describe('withValid', () => {
   });
 });
 
-// ── historyFrom: the History read from where the last validation left it (M2-S12, DL-34) ────
+// ── historyFrom: the History read from where the last validation left it (DL-34) ────
 
 describe('validating from historyFrom', () => {
   const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };

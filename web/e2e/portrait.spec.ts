@@ -1,12 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { chooseGuildmaster, expectNoHorizontalOverflow, expectTargets, guildmasterSetup, openView, region, startGame } from './support';
 
-// The Guildmaster's Portrait chosen at setup (v1.1.2-S4, DL-125 items 3 and 6), at a phone's 360px, a
-// tablet's 820px and a desktop's 1280px. Since v1.1.3-S7 the setup grid (DL-134 item 9, DL-143): one
+// The Guildmaster's Portrait chosen at setup (DL-125 items 3 and 6), at a phone's 360px, a
+// tablet's 820px and a desktop's 1280px. The setup grid (DL-134 item 9, DL-143): one
 // sex's thumbnails at a time, reading 250 kB of pictures or less; the choice reached by the keyboard and
 // named for a screen reader, each thumbnail a radio button whose label is its picture; the engine's note
 // beside a picture chosen that does not fit, never a refusal; and the Portrait chosen, or the one the
-// preview named, on the Guildmaster view, loaded. Since v1.1.4-S11 (DL-149 items 2 and 4): with "Choose
+// preview named, on the Guildmaster view, loaded. DL-149 items 2 and 4: with "Choose
 // myself" the grid offers no draw and reads no picture until a sex is chosen, then that sex's only; with
 // "Choose for me" the preview shows the Guildmaster chosen for the player, their Portrait among them.
 
@@ -209,7 +209,7 @@ test('with "Choose myself", the Stats set within the Stat points are the ones th
   const stats = setup.getByRole('group', { name: 'Stats', exact: true });
   await expect(stats.getByTestId('stat-points')).toContainText('Stat points left: 0');
   // Every point spent: none can be raised until another is lowered. A step held is aria-disabled, so it
-  // keeps the keyboard (v1.1.4-S14).
+  // keeps the keyboard.
   await expect(stats.getByRole('button', { name: 'Raise Negotiation' })).toHaveAttribute('aria-disabled', 'true');
   for (let n = 0; n < 5; n += 1) await stats.getByRole('button', { name: 'Lower Coaching' }).click();
   await expect(stats.getByRole('button', { name: 'Lower Coaching' })).toHaveAttribute('aria-disabled', 'true');

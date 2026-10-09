@@ -7,9 +7,9 @@ import { shipped, realFiles, parse, withJson, withText, refusalOf, type Files, t
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-// M4-S3: a Synergy naming an unknown Class, Skill or Encounter kind is refused, as is a count below
+// A Synergy naming an unknown Class, Skill or Encounter kind is refused, as is a count below
 // 1, a bonus that is not one, and a requirement of nothing (DL-45).
-describe('a Synergy (M4-S3)', () => {
+describe('a Synergy', () => {
   const salve = (json: Files['synergies.json']) => json['sword-and-salve'] as SynergyRow;
 
   test.each<[string, (it: SynergyRow) => void, RegExp]>([
@@ -85,10 +85,10 @@ describe('a Synergy (M4-S3)', () => {
   });
 });
 
-// v1.1.4-S1: every refusal of a Query names its path, each argument by its place in its array
+// Every refusal of a Query names its path, each argument by its place in its array
 // (DL-148 items 4 to 6). A Synergy's requirement, as conditions on the Party, holds each one here; an
 // Encounter's Check is held in memory below.
-describe('a Query (v1.1.4-S1)', () => {
+describe('a Query', () => {
   /** The real files with Sword and salve requiring `condition` alone. */
   const requiring = (condition: unknown) =>
     withJson('synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).requires = [condition] as SynergyRow['requires']));
@@ -150,7 +150,7 @@ describe('a Query (v1.1.4-S1)', () => {
     ['a Set filtered by Sex within another, counted', counted(['top', ['where', 'party', ['and', ['class', 'mage'], ['not', ['sex', 'male']]]], 2, ['level']]), path('.1: a Set filtered by Sex is counted')],
     ['a Set filtered by Sex, summed as ones', ['>=', ['sum', ['where', 'party', ['sex', 'male']], 1], 1], path('.1: a Set filtered by Sex is counted')],
     ['the Hero of a Set filtered by Sex, read as a number alone', ['>=', ['of', ['best', ['where', 'party', ['sex', 'male']], ['level']], 1], 1], path('.1: a Set filtered by Sex is counted')],
-    // v1.1.4-S1's verification: a requirement is a gate, so any reading of Sex in it is a value.
+    // A requirement is a gate, so any reading of Sex in it is a value.
     ['Sex in a requirement, in a sum of a Stat', ['>=', ['sum', ['where', 'party', ['sex', 'female']], ['stat', 'strength']], 10], path('.1.1.2: ["sex", …] stands in no Synergy\'s requirement')],
     ['Sex in a requirement, the max of a Level', ['>', ['max', ['where', 'party', ['sex', 'female']], ['level']], 0], path('.1.1.2: ["sex", …] stands in no Synergy\'s requirement')],
     ['Sex in a requirement, a constant disguised as a sum', ['>', ['sum', ['where', 'party', ['sex', 'female']], ['+', 1, ['*', 0, ['level']]]], 0], path('.1.1.2: ["sex", …] stands in no Synergy\'s requirement')],
@@ -193,7 +193,7 @@ describe('a Query (v1.1.4-S1)', () => {
     expect(message).toMatch(/encounters\.the-patrons-steward\.checks\.1\.name is empty/);
   });
 
-  // v1.1.4-S1's verification: in a Check's score, a Set filtered by Sex may be read only by a Val
+  // In a Check's score, a Set filtered by Sex may be read only by a Val
   // that reads a Hero; one that is constant, or reads a Hero only times a literal 0, counts the Set.
   test.each<[string, unknown, RegExp | null]>([
     ['a constant disguised with × 0', ['sum', ['where', 'party', ['sex', 'female']], ['+', 1, ['*', 0, ['level']]]], /score: a Set filtered by Sex is counted/],
@@ -221,7 +221,7 @@ describe('a Query (v1.1.4-S1)', () => {
 });
 
 describe('validateContent on a set built in memory', () => {
-  test('refuses a Synergy on a kind of Encounter that is not one, which the parser cannot see in memory (M4-S3)', () => {
+  test('refuses a Synergy on a kind of Encounter that is not one, which the parser cannot see in memory', () => {
     const content = structuredClone(shipped);
     const salve = content.synergies['sword-and-salve'];
     if (salve) Object.assign(salve, { kinds: ['naval'] });

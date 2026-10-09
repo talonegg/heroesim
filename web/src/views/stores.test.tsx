@@ -5,7 +5,7 @@ import { carrying, changed, holding, holdingUnique, started } from '../state/gam
 import type { GameState } from '../state/reducer';
 import { section } from './page.test-support';
 
-// The Guild's Stores (M9-F3, DL-111 item 5, DL-112 item 6, DL-113 item 2, DL-116): one table of every
+// The Guild's Stores (DL-111 item 5, DL-112 item 6, DL-113 item 2, DL-116): one table of every
 // Item the Guild owns, wherever it is, filtered by kind and by where; read only, with a way to the
 // Market's Sell.
 
@@ -34,7 +34,7 @@ function rows(): string[][] {
     .map((row) => Array.from(row.querySelectorAll('th, td'), (cell) => cell.textContent ?? ''));
 }
 
-describe('the Stores (M9-F3)', () => {
+describe('the Stores', () => {
   test('is one table: Item, Kind, where it is, Quantity, and what a held Item sells for', () => {
     render(<App initial={stocked()} />);
 

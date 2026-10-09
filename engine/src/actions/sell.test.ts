@@ -10,7 +10,7 @@ import { buildDocument, testDeps, withValid } from '../world.test-support.js';
 import { applyAction, applyGuildAction } from './action.js';
 import type { SellRequest } from './sell.js';
 
-// M5-S4: selling to the Market (R31, DL-51). `sellRatio` and the Loot-only price are pinned; the
+// Selling to the Market (R31, DL-51). `sellRatio` and the Loot-only price are pinned; the
 // test content prices a Healing draught at 30, a Whetstone at 25. The built document holds a stack
 // for every kind of holder: 3 Healing draughts in the player's Guild's holding, 12 on the Market, 2
 // with the Party, a Padded jack in a Hero's armour slot, and the Lantern of Stannary in their

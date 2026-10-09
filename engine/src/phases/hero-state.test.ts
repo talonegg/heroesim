@@ -14,7 +14,7 @@ import { heroState, lastAnniversaryNight, retirementChance } from './hero-state.
 import { phaseContext } from './phase.js';
 import { applyAction } from '../actions/action.js';
 
-// M2-S6: the night's Hero State Engine (DL-29). Documents a test inspects after `advance` are held
+// The night's Hero State Engine (DL-29). Documents a test inspects after `advance` are held
 // to the validator; a test of one rule over many nights runs the phase alone on a world whose Turn
 // it moves from night to night.
 
@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 /**
- * A created world whose Guildmasters hold no Traits: from M4-S5 a `guildMoraleShift` Trait moves the
+ * A created world whose Guildmasters hold no Traits: a `guildMoraleShift` Trait moves the
  * Morale baseline, which these tests read as `moraleBaseline` (the Traits are guildmaster.test.ts's).
  */
 function created(seed: string, deps: EngineDeps): WorldDocument {
@@ -98,7 +98,7 @@ describe('healing', () => {
     expect(hero(world, heroId).traits).toEqual(['scarred']);
   });
 
-  // v1.1.4-S7 (DL-150 item 5): the wound is a fact of the body.
+  // DL-150 item 5: the wound is a fact of the body.
   test("a Trait an Injury leaves replaces each held one it conflicts with, either way round, with hero.trait-lost, a Milestone, after hero.healed", () => {
     const base = testDeps();
     const trait = (key: string, excludes: string[]) => ({ key, name: key, excludes, effects: [] });
@@ -169,7 +169,7 @@ describe('healing', () => {
 
 describe('Morale drift', () => {
   test('converges on the baseline over nights from either side, never passing it', () => {
-    // Inspiration still (M4-S5): the baseline is moraleBaseline.
+    // Inspiration still: the baseline is moraleBaseline.
     const deps = testDeps({ moraleDrift: 3, inspirationMoraleShift: 0 });
     const { world } = created('converge', deps);
     const baseline = deps.config.moraleBaseline;
@@ -200,7 +200,7 @@ describe('Morale drift', () => {
   test('a year of drift that crosses no band appends nothing; one crossing appends exactly one hero.morale-changed', { timeout: 60_000 }, () => {
     // Only the Hero State Engine runs, so every entry the year appends is its own.
     for (const phase of phases) if (phase.name !== 'heroState') vi.spyOn(phase, 'run').mockReturnValue([]);
-    // Inspiration still (M4-S5): the baseline is moraleBaseline.
+    // Inspiration still: the baseline is moraleBaseline.
     const deps = testDeps({ inspirationMoraleShift: 0 });
     expect(deps.config.moraleBands).toEqual({ wretched: 0, low: 20, steady: 40, high: 75, elated: 90 });
     const start = created('drift-year', deps);

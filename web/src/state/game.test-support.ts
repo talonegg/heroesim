@@ -1,8 +1,8 @@
-// Games in a given state, for the page's tests (M7-S3 part 2, DL-73). Tests outside `state/` take
-// only types from the engine (M7-S2's import check), so the setups that need its values live here:
+// Games in a given state, for the page's tests (DL-73). Tests outside `state/` take
+// only types from the engine, so the setups that need its values live here:
 // a Transfer Offer standing, rules behind this release's, Items held, Wealth, Heroes dead, retired
 // and gone from the world (DL-74); the Roster released, and a Party out, for fast forward's steps
-// (v1.0.1-S5, DL-96). Never imported by the page, so never bundled.
+// (DL-96). Never imported by the page, so never bundled.
 
 import {
   bestParties,
@@ -88,9 +88,9 @@ export function changed(state: GameState, change: (document: WorldDocument, play
 /**
  * `state` with the player's first Hero holding the Hero Trait Lame, and a Trait they gained on a Quest
  * the History names and one they lost to Lame written to the History as the engine writes them, Milestones
- * both, at the Turn the world stands on (v1.1.4-S7): the gain as `quests-conclude.ts` emits it, naming the
+ * both, at the Turn the world stands on: the gain as `quests-conclude.ts` emits it, naming the
  * Hero and the Quest, the loss as `hero-state.ts` does, naming the Hero; `emit` appends the Hero's Guild
- * to each (v1.1.4-S14).
+ * to each.
  */
 export function withTraitNews(state: GameState): GameState {
   return changed(state, (document, player) => {
@@ -123,13 +123,13 @@ export function selling(state: GameState, stock: Readonly<Record<string, number>
 
 /**
  * The player's Guild holding one unique Item of `definitionKey` besides what it held, as Loot leaves
- * one (M5-S5): an Item of its own, which the CLI names by `--item` (M9-S8).
+ * one: an Item of its own, which the CLI names by `--item`.
  */
 export function holdingUnique(state: GameState, definitionKey: ItemDefinitionKey): GameState {
   return changed(state, (document, player) => void createItem(document.world, definitionKey, { kind: 'guild', id: player.id }));
 }
 
-/** The player's first Hero carrying one `definitionKey` in `slot`, as gear equipped leaves it (M9-F3's Stores). */
+/** The player's first Hero carrying one `definitionKey` in `slot`, as gear equipped leaves it. */
 export function carrying(state: GameState, definitionKey: ItemDefinitionKey, slot: SlotKey): GameState {
   return changed(state, (document, player) => {
     const [first] = player.rosterIds;
@@ -139,8 +139,8 @@ export function carrying(state: GameState, definitionKey: ItemDefinitionKey, slo
 }
 
 /**
- * The player's first Hero carrying one unique Item of `definitionKey` in `slot`, as one equipped leaves it
- * (v1.1.2-S2); or the Hero `at` that place in the order they joined (v1.1.5-S14).
+ * The player's first Hero carrying one unique Item of `definitionKey` in `slot`, as one equipped leaves it;
+ * or the Hero `at` that place in the order they joined.
  */
 export function carryingUnique(state: GameState, definitionKey: ItemDefinitionKey, slot: SlotKey, at = 0): GameState {
   return changed(state, (document, player) => {
@@ -153,7 +153,7 @@ export function carryingUnique(state: GameState, definitionKey: ItemDefinitionKe
 /**
  * The player's Guild with `wealth` Wealth; and, given `belowFloorSince`, below the Bankruptcy floor
  * since that Turn, as a Guild that fell below it before the play to come: its countdown stands, and
- * no new crossing stops a fast forward (M9-S1, DL-101).
+ * no new crossing stops a fast forward (DL-101).
  */
 export function withWealth(state: GameState, wealth: number, belowFloorSince?: number): GameState {
   return changed(state, (_, player) => {
@@ -181,7 +181,7 @@ export function withRosterReleased(state: GameState, wealth = 1_000_000): GameSt
  * A Party of the player's out on the longest Quest on the Board the Roster can staff, sent by the
  * page's own dispatch: while it is out no decision is needed, so a fast forward stops when it
  * comes home (or for an offer, or at the end). The Party is the Best Party at the player's margin of 1,
- * the fewest the Quest allows (v1.1.4-S6), so that Heroes stay at home to staff what comes next.
+ * the fewest the Quest allows, so that Heroes stay at home to staff what comes next.
  */
 export function withPartyOut(state: GameState): GameState {
   const document = documentOf(state);
@@ -201,7 +201,7 @@ export function withPartyOut(state: GameState): GameState {
 }
 
 /**
- * S5's estimate for `heroIds` of `state`'s player on `questId`, carrying `carried` (v1.1.4-S6): for a
+ * S5's estimate for `heroIds` of `state`'s player on `questId`, carrying `carried`: for a
  * view's test to hold the page's chances to, since a view imports no engine value.
  */
 export function estimateOf(state: GameState, questId: QuestId, heroIds: readonly HeroId[], carried: ConsumableRequest[] = []): QuestEstimate | null {
@@ -243,8 +243,8 @@ export interface ReturnTold {
   fame?: number;
   xp?: number;
   /**
-   * The Encounters, each written as before v1.1.4-S2, with no Degree, unless it is told one: then as
-   * since, decided by its one Check; form decided it, and so the Encounter, when it is told so (v1.1.4-S3).
+   * The Encounters, each written as before the Degree (DL-152), with no Degree, unless it is told one: then as
+   * since, decided by its one Check; form decided it, and so the Encounter, when it is told so.
    */
   encounters?: readonly {
     encounterKey?: string;
@@ -259,7 +259,7 @@ export interface ReturnTold {
   loot?: readonly { definitionKey: ItemDefinitionKey; quantity: number }[];
   injuries?: readonly { hero: number; typeKey: InjuryTypeKey; healsOnTurn: number }[];
   deaths?: readonly number[];
-  /** The Traits the Party's Heroes earned, each from an Encounter of the sequence (v1.1.4-S7). */
+  /** The Traits the Party's Heroes earned, each from an Encounter of the sequence. */
   traits?: readonly { hero: number; traitKey: string; encounterIndex: number }[];
   /** Morale the return moved, each change as the Hero State Engine records it; a Hero outside the Party by their id. */
   morale?: readonly { hero: number | HeroId; cause: 'encounters' | 'strong-success' | 'roster-death'; before: number; after: number; bandAfter: MoraleBand }[];
@@ -330,7 +330,7 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
       const hurt = injured.map(hero);
       const killed = died.map(hero);
       const rolled = { roll: 10, target: 10, margin: 0 };
-      // Decided by the Encounter's first Check, as the resolver names it (v1.1.4-S2).
+      // Decided by the Encounter's first Check, as the resolver names it.
       const decidedBy = content.encounters[encounterKey]?.checks[0]?.key ?? encounterKey;
       write('quest.encounter', [questId, partyId, guildId, ...hurt, ...killed], {
         questId,
@@ -469,7 +469,7 @@ export function withOffer(state: GameState): GameState {
 }
 
 /**
- * `state` with the World History's news to come in its first Days (M9-F4): the first Rival's
+ * `state` with the World History's news to come in its first Days: the first Rival's
  * Guildmaster at the age a Guildmaster retires, read from the game's rules, so the first night meets
  * it with Succession; and the second Rival's Roster released to the Unattached pool with no Wealth,
  * so that night it folds, its Roster wiped, and a new Rival is founded in its place later.

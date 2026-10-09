@@ -80,7 +80,7 @@ describe('a refused removal names every use', () => {
   });
 });
 
-// The Trait skills' `assign` and `unassign` (v1.1.4-S13, DL-150 item 13): a use of a Trait added in
+// The Trait skills' `assign` and `unassign` (DL-150 item 13): a use of a Trait added in
 // other content, and taken out, through each content entry of the register, held as pending and
 // checked with the content's checks as every edit is.
 describe('assign and unassign', () => {
@@ -162,7 +162,7 @@ describe('assign and unassign', () => {
     expect([...finished.json.changed].sort()).toEqual(['descriptions.json', 'hero-traits.json', 'injuries.json']);
     expect(readContentJson(dir, 'injuries.json')['shattered-knee']).toMatchObject({ leavesTrait: null });
     expect(readContentJson(dir, 'hero-traits.json').lame).toBeUndefined();
-    // The content version's changelog says it in a few words, a line of `version.json` (v1.1.6-S4).
+    // The content version's changelog says it in a few words, a line of `version.json`.
     expect(readContentJson<{ changelog: string[] }>(dir, 'version.json').changelog.at(-1)).toMatch(/ from the content editor's Finish of \d{4}-\d\d-\d\d \(removed lame; 4 uses unassigned, of lame\)\.$/);
   });
 
@@ -228,7 +228,7 @@ describe('assign and unassign', () => {
     expect((await command(['traits', 'assign', 'lame', 'excludes', '--target', '[1]', '--root', dir])).code).toBe(2);
   });
 
-  // The verification of v1.1.4-S13.
+  // The verification (DL-150 item 13).
   test('a Biography sentence unassigned is the one assigned, the others standing', async () => {
     const dir = scratch();
     const before = readContentJson(dir, 'descriptions.json');

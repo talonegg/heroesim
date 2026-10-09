@@ -10,7 +10,7 @@ import { classIcons } from '../state/names';
 import { ClassMark } from './icons';
 import { rosterList, section } from './page.test-support';
 
-// The Class icon before a Hero's name (v1.1.7-S6, DL-206 items 22 to 24, DL-212): one name element,
+// The Class icon before a Hero's name (DL-206 items 22 to 24, DL-212): one name element,
 // in the five places a Hero is listed with their Class, hidden from assistive technology, its tooltip
 // the Class's name, the Class's name kept in words where it stood.
 

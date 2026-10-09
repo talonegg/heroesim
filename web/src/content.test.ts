@@ -9,7 +9,7 @@ import { contentGate, validateContentDir } from '../content-gate';
 import { bundledFiles, content, fileNameOf } from './content';
 
 // The browser takes its content from the bundler, the CLI and the harness from disk. They must be
-// the same content set, or the front ends are not playing the same game (M7-S1). The test runs in
+// the same content set, or the front ends are not playing the same game. The test runs in
 // Node's environment rather than jsdom's: the Node entry finds its directory with node:url's
 // `fileURLToPath`, which refuses jsdom's `URL`.
 describe('the bundled content set', () => {
@@ -30,7 +30,7 @@ describe('the bundled content set', () => {
   });
 });
 
-// v1.1.4-S2's verification (DL-152): the script reads the content with its shapes checked, and the
+// DL-152: the script reads the content with its shapes checked, and the
 // build validates the same files, failing on a rule across rows that the reader does not check.
 describe('the content gate', () => {
   const contentDir = path.join(import.meta.dirname, '..', '..', 'content');

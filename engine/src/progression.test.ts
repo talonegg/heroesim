@@ -6,7 +6,7 @@ import { growOneLevel, levelsDue, xpForLevel, xpToNextLevel } from './progressio
 import { createStreams, next } from './rng.js';
 import { heroStatKeys, testContent, testDeps, testWorld } from './world.test-support.js';
 
-// M3-S1: the XP curve and one Level's growth (INPUTS 5.2, 5.3, DL-36). The night phase that applies
+// The XP curve and one Level's growth (INPUTS 5.2, 5.3, DL-36). The night phase that applies
 // them is tested in phases/level-ups.test.ts.
 
 /** INPUTS 5.2 and 5.3's values, pinned: these tests are written against them, not the defaults. */

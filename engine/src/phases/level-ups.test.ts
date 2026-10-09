@@ -15,7 +15,7 @@ import { levelUps } from './level-ups.js';
 import { phaseContext } from './phase.js';
 import { applyAction } from '../actions/action.js';
 
-// M3-S1: the night phase `levelUps` (DL-36). Worlds are created and played through `advance`, each
+// The night phase `levelUps` (DL-36). Worlds are created and played through `advance`, each
 // document held to the validator; a test of the rule alone runs the phase on a world moved to a
 // night.
 

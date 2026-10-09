@@ -81,7 +81,7 @@ describe('durationDaysOf', () => {
   });
 });
 
-// M9-F1 (DL-113 items 4 and 5): the Turn a Guildmaster retires on, for the endings and the page.
+// DL-113 items 4 and 5: the Turn a Guildmaster retires on, for the endings and the page.
 describe('retirementTurn', () => {
   const rules = { turnsPerYear: 1080, guildmasterRetirementAge: 61 };
 
@@ -113,7 +113,7 @@ describe('retirementTurn', () => {
   });
 });
 
-describe('retiresOn (M9-F6)', () => {
+describe('retiresOn', () => {
   const rules = { turnsPerYear: 1080, guildmasterRetirementAge: 61 };
 
   test("is retirementTurn while that night is still to be played", () => {

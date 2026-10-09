@@ -4,7 +4,7 @@ import { eventEmitter } from './emit.js';
 import { changeMorale } from './morale.js';
 import { buildDocument, testDeps } from './world.test-support.js';
 
-// `changeMorale`, the writer of a discrete change of Morale (M2-S6, DL-29). M9-F1 (DL-112 item 2):
+// `changeMorale`, the writer of a discrete change of Morale (DL-29). DL-112 item 2:
 // a change a Quest's return causes names the Quest; any other names none.
 
 describe('changeMorale', () => {

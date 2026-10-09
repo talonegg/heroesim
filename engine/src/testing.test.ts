@@ -7,7 +7,7 @@ import * as events from './events.js';
 import * as engine from './index.js';
 import * as testing from './testing.js';
 
-// v1.1.6-S8 (DL-186 item 9): the engine's interface narrowed to what its callers use. The entry
+// DL-186 item 9: the engine's interface narrowed to what its callers use. The entry
 // exports the values the other packages' production code imports, the module seam's error and
 // tables, and the values of its modules of types (events, content's types); the mutators and the
 // engine's own helpers are not exported. What only tests take is `@heroesim/engine/testing`, which
@@ -16,7 +16,7 @@ import * as testing from './testing.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 
-/** The packages' TypeScript sources outside the engine, as paths from the repository's root; the words' from v1.1.6-S11. */
+/** The packages' TypeScript sources outside the engine, as paths from the repository's root; the words' too (DL-197). */
 function sources(): string[] {
   const dirs = ['cli/src', 'content/src', 'words/src', 'harness/src', 'web/src', 'web/e2e', 'tools/editor/src', 'tools/portraits/src'];
   return dirs.flatMap((dir) =>

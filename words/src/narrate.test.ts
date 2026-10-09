@@ -19,7 +19,7 @@ import { describe, expect, test } from 'vitest';
 import type { Calendar } from './calendar.js';
 import { crossed, itemsWords, narrate, narratedTypes, narrateStop, resolvedParts, sentenceText, type Namer, type Sentence, type Slot } from './narrate.js';
 
-// v1.1.6-S12 (DL-186 item 1): the narration, one sentence for each event type, its names as slots.
+// DL-186 item 1: the narration, one sentence for each event type, its names as slots.
 // Each sentence is read here through a Namer of the test's own, which writes each slot as what it
 // holds, `<hero:hero-000007|Brenna Ashcombe>`, so the table pins the words and the slots apart from
 // either front end's names for them; `cli/src/namer.test.ts` and `web/src/state/namer.test.ts` hold
@@ -284,7 +284,7 @@ const sentences: { [Type in EngineEventType]: string } = {
   'guild.improved': `${kestrel} built ${named(content.improvements, 'quarters-2')} for 500 Wealth: its quarters are now grade 2.`,
   'hero.levelled': `${brenna} reached Level 3: ${named(content.stats, 'courage')} +2, ${named(content.stats, 'strength')} +1.`,
   'patron.regard-changed': `${maud}'s Regard for ${kestrel} fell from neutral to cool when an Offer of theirs went untaken.`,
-  // A Hero a Guildmaster's Regard is for is a Hero slot (v1.1.7-S3, DL-209); a Patron or a Guildmaster a name.
+  // A Hero a Guildmaster's Regard is for is a Hero slot (DL-209); a Patron or a Guildmaster a name.
   'guildmaster.regard-changed': `${osric}'s Regard for ${brenna} rose from neutral to warm.`,
   'hero.regard-changed': `${brenna}'s Regard for ${aldred} rose from warm to close through a Module.`,
   'item.expended': `${kestrel}'s <party:${partyId}> used one ${named(content.items, 'healing-draught')} on ${brenna}: their Injury heals 1 Day sooner.`,
@@ -395,7 +395,7 @@ describe('the words beside the sentences', () => {
   });
 });
 
-describe("a Guildmaster's Regard names whom it is for by what they are (v1.1.7-S3, DL-209, DL-206 item 13)", () => {
+describe("a Guildmaster's Regard names whom it is for by what they are (DL-209, DL-206 item 13)", () => {
   const regard = samples['guildmaster.regard-changed'];
   const forwhom = (entityId: string): string => sentenceText(narrate({ ...regard, labels: { ...regard.labels, [entityId]: labels[entityId] as string }, payload: { ...regard.payload, entityId: entityId as never } }, content, calendar), shown);
 
@@ -409,7 +409,7 @@ describe("a Guildmaster's Regard names whom it is for by what they are (v1.1.7-S
   });
 });
 
-describe('why a fast forward stopped, nine sentences (v1.1.7-S3, DL-209, DL-206 item 2)', () => {
+describe('why a fast forward stopped, nine sentences (DL-209, DL-206 item 2)', () => {
   const offer = { id: offerId, kind: 'transfer', ...terms, offeredOnTurn: 16, expiresOnTurn: 23 };
   const world = {
     guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },

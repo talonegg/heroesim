@@ -5,7 +5,7 @@ import { check } from './check.js';
 import { run } from './cli.js';
 import { readJson, root, scratchRepository, writeJson } from './test-support.js';
 
-// `check` (v1.1.3-S2): passes on the tree as shipped, and fails on each thing wrong, naming it.
+// `check`: passes on the tree as shipped, and fails on each thing wrong, naming it.
 
 const scratches: (() => void)[] = [];
 afterEach(() => {
@@ -29,7 +29,7 @@ describe('check', () => {
     const result = check(root);
     expect(result.failures).toEqual([]);
     expect(result.ok).toBe(true);
-    expect(result.live).toBe(40); // gm-female-01..20 and gm-male-01..20, since v1.1.3-S4
+    expect(result.live).toBe(40); // gm-female-01..20 and gm-male-01..20
     expect(await cli('check')).toMatchObject({ code: 0, json: { ok: true, failures: [] } });
   });
 

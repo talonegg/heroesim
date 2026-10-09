@@ -58,7 +58,7 @@ describe('guildState', () => {
   });
 
   test('deducts Upkeep from the player and a Rival on the same Turn, the Upkeep night, driven through advance', () => {
-    // The Rival's controller is stilled: from M2-S9 it recruits and dispatches each afternoon,
+    // The Rival's controller is stilled: it recruits and dispatches each afternoon,
     // moving the Wealth this test watches Upkeep alone move.
     const rivalControllers = phases.find((phase) => phase.name === 'rivalControllers');
     if (rivalControllers === undefined) throw new Error('No rivalControllers phase');
@@ -185,8 +185,8 @@ describe('guildState', () => {
   });
 });
 
-// M9-F1 (DL-112 item 3): the phase and the Treasury read one rule for the Upkeep Day.
-describe('the Upkeep Day, nextUpkeepDay (M9-F1)', () => {
+// DL-112 item 3: the phase and the Treasury read one rule for the Upkeep Day.
+describe('the Upkeep Day, nextUpkeepDay', () => {
   test('Upkeep is charged on the night of nextUpkeepDay from every Turn before it, and on no other night', () => {
     for (const upkeepEveryDays of [10, 7]) {
       const { deps } = smallWorld({ upkeepEveryDays, startingWealth: 100_000 });
@@ -206,7 +206,7 @@ describe('the Upkeep Day, nextUpkeepDay (M9-F1)', () => {
   });
 });
 
-describe('the Bankruptcy floor heard: guild.below-floor and guild.floor-recovered (M9-S1, DL-85 item 6, DL-101)', () => {
+describe('the Bankruptcy floor heard: guild.below-floor and guild.floor-recovered (DL-85 item 6, DL-101)', () => {
   /** The events of `type` among `events`. */
   function ofType<Type extends 'guild.below-floor' | 'guild.floor-recovered'>(events: readonly TurnEvent[], type: Type) {
     return events.filter((event): event is EngineEventOf<Type> => event.type === type);

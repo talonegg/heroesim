@@ -15,8 +15,8 @@ import { nightOf } from './time.js';
 import { testContent, testDeps, withValid } from './world.test-support.js';
 import { applyAction } from './actions/action.js';
 
-// M5-S4: the Market Engine's prices, what the Market lists, a folding Guild's Items (pre-M0 review
-// D6), and the Rivals, who ignored the Market in M5 (DL-51) and buy gear there from M6-S4 (DL-58).
+// The Market Engine's prices, what the Market lists, a folding Guild's Items (pre-M0 review
+// D6), and the Rivals, who buy gear there (DL-58).
 // Config values relied on are pinned.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
@@ -187,13 +187,13 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
   });
 });
 
-// M5-S4's test that the Rivals ignore the Market — "Rivals' Wealth is unaffected by the Market: steady
-// neither buys nor sells, whatever the Market holds" (DL-51 item 8, DL-54 item 3) — is retired by
-// M6-S4, whose Rivals buy gear there, armour first, by their Disposition's `gearThreshold` (DL-58).
+// The test that the Rivals ignore the Market — "Rivals' Wealth is unaffected by the Market: steady
+// neither buys nor sells, whatever the Market holds" (DL-51 item 8, DL-54 item 3) — is retired,
+// the Rivals buying gear there, armour first, by their Disposition's `gearThreshold` (DL-58).
 // What stands of it: a Rival buys only what the Market has, sells nothing but by a fold, and with no
 // Market buys nothing. controllers/rival.test.ts has the rule; controllers/rivals-build-and-buy.test.ts
 // the twenty years.
-describe('the Rivals and the Market (M6-S4)', () => {
+describe('the Rivals and the Market', () => {
   test('Rivals buy gear from the Market and sell none; with an empty Market they buy nothing', () => {
     const withMarket = testDeps({ ...pinned, rivalCount: 4 });
     const noMarket = testDeps({ ...pinned, rivalCount: 4, marketSize: 0 });

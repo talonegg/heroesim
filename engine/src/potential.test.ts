@@ -5,7 +5,7 @@ import type { Hero } from './document.js';
 import { potentialHint } from './potential.js';
 import { testContent, testDeps, withValid } from './world.test-support.js';
 
-// M3-S3: Potential hints (INPUTS 5.4, data-model rule 9, DL-37). The bands are pinned here, not read
+// Potential hints (INPUTS 5.4, data-model rule 9, DL-37). The bands are pinned here, not read
 // from the defaults a balance pass may move.
 
 const bands = { modest: 0, promising: 6, exceptional: 10 };
@@ -69,7 +69,7 @@ describe('potentialHint', () => {
     expect(potentialHint(hero, 'no-such-stat', config)).toBe('modest');
   });
 
-  test('takes its bands from config alone, so narrower bands (M4-S5) change the hint and not the Hero', () => {
+  test('takes its bands from config alone, so narrower bands change the hint and not the Hero', () => {
     const hero = withGap(4);
     const before = structuredClone(hero);
     const narrowed = { potentialHintBands: { modest: 0, promising: 3, exceptional: 4 } };

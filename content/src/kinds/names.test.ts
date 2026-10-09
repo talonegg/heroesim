@@ -26,7 +26,7 @@ describe('a name list', () => {
   });
 });
 
-describe("a Patron's name (v1.1.2-S3, DL-125 item 5)", () => {
+describe("a Patron's name (DL-125 item 5)", () => {
   test('without its sex is refused, naming where it is', () => {
     const files = withJson('names.json', (json) => {
       json.patron[3] = { name: 'Denholm Crane' } as Names['patron'][number];

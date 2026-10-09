@@ -4,17 +4,17 @@ import { chooseGuildmaster, expectNoHorizontalOverflow, expectTargets, guildmast
 
 /**
  * Every picture's narrative, read from content as it stands, so that the spec holds whatever the
- * owner's pictures' words become (v1.1.3-S7; S4 changed them, and an analysis run may again).
+ * owner's pictures' words become (an analysis run may change them).
  */
 const narratives: string[] = Object.values(
   (JSON.parse(readFileSync(new URL('../../content/portrait-appearances.json', import.meta.url), 'utf8')) as { portraits: Record<string, { narrative: string }> })
     .portraits,
 ).map((row) => row.narrative);
 
-// The Guildmaster described at setup (v1.1.2-S5, DL-125 item 6), at a phone's 360px, a tablet's 820px
+// The Guildmaster described at setup (DL-125 item 6), at a phone's 360px, a tablet's 820px
 // and a desktop's 1280px: "Write them for me" and "Again" fill the Birthplace, Appearance and
 // Biography from the engine's content, reached by the keyboard; the fields stay the player's to edit;
-// and what they hold at "Start the game" is what the Guildmaster view shows. Since v1.1.4-S11 they are
+// and what they hold at "Start the game" is what the Guildmaster view shows. Since DL-149 they are
 // "Choose myself"'s, written once the sex, the age and a picture are chosen.
 
 test('"Write them for me" and "Again" fill the three texts by the keyboard, and what the fields hold at the start is the Guildmaster view\'s', async ({ page }) => {

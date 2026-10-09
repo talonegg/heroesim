@@ -16,7 +16,7 @@ import { cheapestUnattached, effectiveStats, signingFee, upkeep } from './select
 import { nightOf } from './time.js';
 import { buildDocument, testContent, testDeps } from './world.test-support.js';
 
-// M4-S5: the Guildmaster's five Stat rules and the closed union of Trait effects (R8, pre-M0 review
+// The Guildmaster's five Stat rules and the closed union of Trait effects (R8, pre-M0 review
 // B2, B6, D9, INPUTS 6.5, DL-43). Every value these tests rely on is pinned here.
 
 const pinned: Partial<GameConfig> = {
@@ -109,7 +109,7 @@ function footprint(stats: Partial<Record<GuildmasterRule, number>>): Footprint {
   };
 }
 
-describe('the Guildmaster Stats, each at the bottom and the top of its range (M4-S5, R8)', () => {
+describe('the Guildmaster Stats, each at the bottom and the top of its range (R8)', () => {
   const at = (rule: GuildmasterRule, value: number): Footprint => footprint({ [rule]: value });
   /** What each rule's own footprint is, at the bottom and at the top, on the fixture's numbers. */
   const { world, ids } = scene();
@@ -214,7 +214,7 @@ function traitFootprint(world: World, guild: Guild, content: ContentSet = testCo
   };
 }
 
-describe('the Guildmaster Trait effects, each through the selector it lives in and nowhere else (M4-S5, pre-M0 review B2)', () => {
+describe('the Guildmaster Trait effects, each through the selector it lives in and nowhere else (pre-M0 review B2)', () => {
   test('classStatBonus: Old soldier gives the Guild\'s Warriors +1 Weaponry in effectiveStats, and nothing else', () => {
     const plain = withTraits([]);
     const trained = withTraits(['old-soldier']);
@@ -301,7 +301,7 @@ describe('the Guildmaster Trait effects, each through the selector it lives in a
     expect(traitFootprint(traited.world, player)).toEqual(playerBefore);
   });
 
-  test('a Trait content does not define, or a Hero Trait, of the other list (v1.1.4-S7), bears on nothing (data-model rule 5)', () => {
+  test('a Trait content does not define, or a Hero Trait, of the other list, bears on nothing (data-model rule 5)', () => {
     const plain = withTraits([]);
     const unknown = withTraits(['luck-of-the-draw', 'scarred']);
     expect(traitFootprint(unknown.world, unknown.guild)).toEqual(traitFootprint(plain.world, plain.guild));

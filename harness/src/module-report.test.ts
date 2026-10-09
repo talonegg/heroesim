@@ -9,7 +9,7 @@ import { sweepTotals } from './counter.js';
 import type { SweepTotals } from './game-counters.js';
 import { sweepFingerprint, sweepPlay } from './sweep.js';
 
-// M8-S3 (DL-78): the report of a module run, on two short sweeps of the same seeds.
+// DL-78: the report of a module run, on two short sweeps of the same seeds.
 
 const content = loadContent();
 const deps: EngineDeps = { config: { ...defaultConfig }, content };
@@ -28,7 +28,7 @@ describe('coreCounters', () => {
       ],
       moduleEvents: { 'probe.fired': 9 },
       moduleEffects: { probe: { 'hero.injured': 9 } },
-      // v1.1.6-S17 (DL-203): the copy's time differs between two runs of one game, so `compare` leaves it out.
+      // DL-203: the copy's time differs between two runs of one game, so `compare` leaves it out.
       worlds: [{ characters: [10], heroes: { live: [1], writeOnce: [1] }, copyMs: [1.5] }],
     } as unknown as SweepTotals;
 

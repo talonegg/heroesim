@@ -6,7 +6,7 @@ import { realFiles, parse, withJson, withText, refusalOf, type Files } from './c
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-describe('a Disposition (M6-S1)', () => {
+describe('a Disposition', () => {
   const reckless = (json: Files['dispositions.json']) => json['reckless'] as Omit<Disposition, 'key'>;
 
   test.each<[string, (it: Omit<Disposition, 'key'>) => void, RegExp]>([
@@ -61,7 +61,7 @@ describe('a Disposition (M6-S1)', () => {
 });
 
 describe('a file', () => {
-  test('whose Disposition has a field the schema does not know is refused, naming it (M2-S9)', () => {
+  test('whose Disposition has a field the schema does not know is refused, naming it', () => {
     const files = withJson('dispositions.json', (json) => {
       Object.assign(json['steady'] ?? {}, { riskAppetite: 0.2 });
     });

@@ -23,27 +23,27 @@ import {
   type ViewName,
 } from './support';
 
-// The shell at the three widths (M9-S3, DL-103; M7-S3's fourth box, proved here as M7-S4): at a
+// The shell at the three widths (DL-103): at a
 // phone's 360px, a tablet's 820px and a desktop's 1280px, every view and the game menu, with no
 // sideways scroll of the page and every control a target of at least 44px. Then everything that
 // opens, opened in turn: a Party being chosen, a Hero's page, a pool Hero's page, a Rival's Guild
 // page and one of its Heroes' pages, the Rankings by Wealth, an older page of the History, names
 // found in the History and a page opened from them (DL-74), a name in the History opened, the
 // new-game form over a game, and a save with a long name. The History opens on the player's Guild;
-// its search is in its head, and the World History a choice away (M9-S5, DL-105); the whole History
-// is the game menu's debug view (M9-F4, DL-117). The Guild's and
+// its search is in its head, and the World History a choice away (DL-105); the whole History
+// is the game menu's debug view (DL-117). The Guild's and
 // the Guildmaster's names are long, and one word runs 61 letters unbroken. The Board's cards, one
 // unfolded, and the Party builder are checked at each width, the phone's at 390px as well, with
-// Send in view at the foot of the form (M9-S4, DL-104). So are the Roster's cards and a Hero's page
+// Send in view at the foot of the form (DL-104). So are the Roster's cards and a Hero's page
 // with its Transfer asked for, the pool's rows, the Hall's facilities, Guildmaster, Market and
 // holdings, and the Rankings' table, a Rival's page unfolded and the Patrons' table: a wide table
-// scrolls in its own box, never the page (M9-S6, DL-106). Since M9-F2 (DL-115) the seven views and
+// scrolls in its own box, never the page (DL-106). Since DL-115 the seven views and
 // each of the Guild's parts, the navigation's one order at each width, and the Guildmaster's long
-// name cut in it. Since M9-F3 (DL-116) the Stores and the Treasury, each with its table.
+// name cut in it. Since DL-116 the Stores and the Treasury, each with its table.
 
 const longGuild = 'The Most Honourable and Ancient Company of the Lantern-Bearers of Aldmoor';
 const longMaster = 'Ælfwine Grimbeorhtssonofthewestmarchesandthefellsbeyondthebarrowdowns';
-// The seven views, in the navigation's order (M9-F2).
+// The seven views, in the navigation's order.
 const views: readonly ViewName[] = viewNames;
 
 test('every view and the game menu, with no sideways scroll and every control a 44px target', async ({ page }) => {
@@ -57,7 +57,7 @@ test('every view and the game menu, with no sideways scroll and every control a 
   await statusBar(page).getByRole('button', { name: 'More ways to Fast forward' }).click();
   await playTurns(page, page.getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
 
-  // One order at every width (M9-F2, DL-112 item 5): under 600px the bar holds Guild, Roster, Board
+  // One order at every width (DL-112 item 5): under 600px the bar holds Guild, Roster, Board
   // and Rankings, and More the other three; from 600px all seven show, the Guildmaster first.
   const nav = page.getByRole('navigation', { name: 'Views' });
   const shownLabels = nav.locator('.nav__list > .nav__item:visible .nav__label');
@@ -87,7 +87,7 @@ test('every view and the game menu, with no sideways scroll and every control a 
     await expectNoHorizontalOverflow(page, `the ${view} view, its help open`);
   }
 
-  // Each of the Guild's parts, opened from its tab (M9-F2).
+  // Each of the Guild's parts, opened from its tab.
   for (const name of guildPartNames) {
     await guildPart(page, name);
     await expectNoHorizontalOverflow(page, `the Guild's ${name}`);
@@ -107,7 +107,7 @@ test('the Board and the Party builder: no sideways scroll, 44px targets, Send in
   await page.goto('/');
   await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
   const { width: projectWidth, height } = page.viewportSize() ?? { width: 0, height: 0 };
-  // The phone's 360px and a larger phone's 390px (M9-S4), the tablet's 820px, the desktop's 1280px.
+  // The phone's 360px and a larger phone's 390px, the tablet's 820px, the desktop's 1280px.
   const widths = projectWidth < 600 ? [360, 390] : [projectWidth];
 
   for (const width of widths) {
@@ -209,15 +209,15 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await expectNoHorizontalOverflow(page, 'the Rankings by Wealth');
   const history = await openView(page, 'History');
   await expect(history.getByRole('heading', { level: 3 })).toHaveText(`The History of ${longGuild}`);
-  // The World History, then the whole History's oldest page, each line with its event type (M9-F4).
+  // The World History, then the whole History's oldest page, each line with its event type.
   await history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The World History', exact: true }).click();
   await expect(history.getByRole('heading', { level: 3 })).toHaveText('The World History');
   await expectNoHorizontalOverflow(page, 'the World History');
   // A choice that is on stays legible under the pointer: its words and its face at 4.5:1 or more
-  // (M9-F6, from the close's screenshots, where the hover's face took the pressed one's place).
+  // (from the close's screenshots, where the hover's face took the pressed one's place).
   const world = history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The World History', exact: true });
   await world.hover();
-  // Read once the hover's colour transition has run: read during it, the face is between the two (M9-F7).
+  // Read once the hover's colour transition has run: read during it, the face is between the two.
   await expect.poll(() => world.evaluate(pressedContrast)).toBeGreaterThanOrEqual(4.5);
   await debugHistory(page);
   await history.getByRole('button', { name: 'Oldest' }).click();
@@ -268,7 +268,7 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(longGuild);
 });
 
-test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasury and the Rankings: no sideways scroll, a wide table in its own box, and 44px targets (M9-S6, M9-F2, M9-F3)', async ({ page }) => {
+test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasury and the Rankings: no sideways scroll, a wide table in its own box, and 44px targets', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('/');
   await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
@@ -308,7 +308,7 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     await pool.getByRole('button', { name: 'Order by Fee' }).click();
 
     // The Guild's Hall part, its facilities; the Guildmaster view; the Market's Buy filtered, and
-    // its Sell (M9-F2).
+    // its Sell.
     await guildPart(page, 'Hall');
     await check("the Guild's Hall part");
     await openView(page, 'Guildmaster');
@@ -327,21 +327,21 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     await longFirstName(sell, `the Market's Sell at ${width}px`);
 
     // The Guild's Stores, holding what was just bought, and its Treasury, the purchase in the
-    // ledger: each table in its own box (M9-F3).
+    // ledger: each table in its own box.
     const stores = await guildPart(page, 'Stores');
     await expect(stores.getByRole('table')).toBeVisible();
     await check("the Guild's Stores");
     await inViewClear(stores.getByRole('table'), `the Guild's Stores' headings and buttons at ${width}px`);
     await noNeedlessScroll(stores.getByRole('table'), `the Guild's Stores at ${width}px`);
     await longFirstName(stores.getByRole('table'), `the Guild's Stores at ${width}px`);
-    // Its five columns fit a tablet's width and more, where the Market's wider table scrolls (M9-F6,
-    // from the close's screenshots, where "Sells for" was cut at 820px).
+    // Its five columns fit a tablet's width and more, where the Market's wider table scrolls
+    // (from the close's screenshots, where "Sells for" was cut at 820px).
     if (width >= 820) expect(await stores.locator('.table-wrap').evaluate((box) => box.scrollWidth - box.clientWidth)).toBeLessThanOrEqual(0);
     const treasury = await guildPart(page, 'Treasury');
     await expect(treasury.getByRole('table', { name: /^The ledger of / })).toBeVisible();
     await check("the Guild's Treasury");
     // A name in the ledger's sentence reads as a name in the History's lines do: a link's look, in the
-    // sentence, not a bordered button (M9-F6, from the close's screenshots).
+    // sentence, not a bordered button (from the close's screenshots).
     const named = treasury.getByRole('table', { name: /^The ledger of / }).locator('button.name').first();
     await expect(named).toHaveCSS('border-top-style', 'none');
     await expect(named).toHaveCSS('text-decoration-line', 'underline');
@@ -381,9 +381,9 @@ interface SaveFile {
 }
 
 /**
- * The game in hand exported and loaded back with two Unique Items (v1.1.2-S6, S2's verification): the
+ * The game in hand exported and loaded back with two Unique Items: the
  * Barrow King's blade in the Guild's Stores, and the Lantern of Stannary carried by its first Hero, as
- * the screenshots of v1.1.2-S2 held them.
+ * the screenshots of the Unique Items held them.
  */
 async function holdingUniques(page: Page, testInfo: TestInfo): Promise<void> {
   const [download] = await Promise.all([page.waitForEvent('download'), (await thisGame(page)).getByRole('button', { name: 'Export this game' }).click()]);
@@ -407,9 +407,9 @@ async function holdingUniques(page: Page, testInfo: TestInfo): Promise<void> {
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
 }
 
-// v1.1.2-S6 (S2's verification): the Stores and the Market's Sell with a Unique Item's picture beside
+// The Stores and the Market's Sell with a Unique Item's picture beside
 // its name, at every width, and at 360px in the dark scheme too.
-test("the Stores and the Market's Sell with a Unique Item's picture: no sideways scroll and 44px targets, and at 360px in the dark scheme (v1.1.2-S6)", async ({
+test("the Stores and the Market's Sell with a Unique Item's picture: no sideways scroll and 44px targets, and at 360px in the dark scheme", async ({
   page,
 }, testInfo) => {
   test.setTimeout(120_000);
@@ -443,7 +443,7 @@ test("the Stores and the Market's Sell with a Unique Item's picture: no sideways
   }
 });
 
-test("the Guildmaster's header and a Hero's page's: the Portrait, 3 × 4, beside the name, and the Guild's Banner beside its titles, with no sideways scroll (v1.1.2-S2)", async ({
+test("the Guildmaster's header and a Hero's page's: the Portrait, 3 × 4, beside the name, and the Guild's Banner beside its titles, with no sideways scroll", async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -500,9 +500,9 @@ test("the Guildmaster's header and a Hero's page's: the Portrait, 3 × 4, beside
   await portraitBeside(rival, rival.getByRole('heading', { level: 5, name: /, Guildmaster of / }), "a Rival's Guildmaster on its page");
 });
 
-// v1.1.3-S7 (DL-135 item 9): a thumbnail beside each name in the Roster, the pool and the Guilds' table,
+// DL-135 item 9: a thumbnail beside each name in the Roster, the pool and the Guilds' table,
 // 48px high and before the name, at every width and in both schemes, with no sideways scroll.
-test("the Roster's cards, the pool's rows and the Guilds' table: each name with its thumbnail or small Silhouette, and no sideways scroll (v1.1.3-S7)", async ({
+test("the Roster's cards, the pool's rows and the Guilds' table: each name with its thumbnail or small Silhouette, and no sideways scroll", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -575,7 +575,7 @@ test("the Roster's cards, the pool's rows and the Guilds' table: each name with 
 // a Hero is listed with their Class, at every width: the mark the text's size, before the name and
 // clear of it, on the line of the name's first word and never alone on a line (the owner's (b),
 // DL-212), and no word of the name broken inside it.
-test("a Hero's name with their Class's mark: the mark before the name, the text's size, on the first word's line, and no word of the name broken (v1.1.7-S6)", async ({
+test("a Hero's name with their Class's mark: the mark before the name, the text's size, on the first word's line, and no word of the name broken", async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -798,12 +798,12 @@ async function drawn(scope: Locator): Promise<void> {
   await scope.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
 }
 
-/** The rows of the Guilds' table that are not the player's Guild (M9-S6). */
+/** The rows of the Guilds' table that are not the player's Guild. */
 function rivalRows(guilds: Locator): Locator {
   return guilds.locator('[data-testid="guild-row"]:not(.mine)');
 }
 
-test("the new-game form with the Guildmaster's setup open, a Trait chosen and others marked: no sideways scroll, and 44px targets (M9-S7)", async ({
+test("the new-game form with the Guildmaster's setup open, a Trait chosen and others marked: no sideways scroll, and 44px targets", async ({
   page,
 }) => {
   await page.goto('/');
@@ -824,11 +824,11 @@ test("the new-game form with the Guildmaster's setup open, a Trait chosen and ot
   await expectNoHorizontalOverflow(page, "the Guildmaster's setup refused");
 });
 
-// v1.1.4-S11 (DL-149): the setup screen's two ways at each width, in the light and the dark scheme: "Choose
+// DL-149: the setup screen's two ways at each width, in the light and the dark scheme: "Choose
 // for me" with the Guildmaster chosen for the player beside their Portrait, and "Choose myself" before a
 // sex is chosen, then with the grid, the Stats' steppers and a point left unspent, every control a 44px
 // target and the page never wider than the viewport.
-test('the setup screen, each way, in the light and the dark scheme: no sideways scroll, and 44px targets (v1.1.4-S11)', async ({ page }) => {
+test('the setup screen, each way, in the light and the dark scheme: no sideways scroll, and 44px targets', async ({ page }) => {
   const backgrounds: string[] = [];
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
@@ -876,11 +876,11 @@ test('the setup screen, each way, in the light and the dark scheme: no sideways 
   expect(new Set(backgrounds).size).toBe(2);
 });
 
-// v1.1.4-S6 (DL-148 items 15 to 17): the Board's card with "Your best Party:" and a chance word, unfolded to
+// DL-148 items 15 to 17: the Board's card with "Your best Party:" and a chance word, unfolded to
 // each Encounter and what each Check reads, and the Party builder with a chance word for each Encounter and
 // the Quest and the numbers in its detail, opened, at each width, in the light and the dark scheme: no
 // sideways scroll and 44px targets.
-test('the Board’s chances and what each Check reads, and the Party builder’s, in the light and the dark scheme (v1.1.4-S6)', async ({ page }) => {
+test('the Board’s chances and what each Check reads, and the Party builder’s, in the light and the dark scheme', async ({ page }) => {
   test.setTimeout(120_000);
   const backgrounds: string[] = [];
   for (const scheme of ['light', 'dark'] as const) {
@@ -926,12 +926,12 @@ test('the Board’s chances and what each Check reads, and the Party builder’s
   expect(new Set(backgrounds).size).toBe(2);
 });
 
-// v1.1.5-S12 (DL-169 items 6 to 12): the Roster's Table, at 360px and 390px on a phone and at each wider
+// DL-169 items 6 to 12: the Roster's Table, at 360px and 390px on a phone and at each wider
 // width, in the light and the dark scheme. The Guildmaster's Old soldier raises the Warrior's Weaponry and
 // Mistrusts magic lowers the Mage's Arcana, so a Stat stands raised and one lowered. No sideways scroll of
 // the page and 44px targets; the Table scrolls in its own box, its Name pinned; on a wide screen the
 // Columns panel, on a phone the five tabs; and the green and the red at 4.5:1 or more on what is under them.
-test("the Roster's Table, its Columns panel and its tabs, in the light and the dark scheme: no sideways scroll, 44px targets, the Table in its own box, and the green and red legible (v1.1.5-S12)", async ({
+test("the Roster's Table, its Columns panel and its tabs, in the light and the dark scheme: no sideways scroll, 44px targets, the Table in its own box, and the green and red legible", async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -1037,13 +1037,13 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
   expect(new Set(backgrounds).size).toBe(2);
 });
 
-// v1.1.5-S14 (DL-182 item 4): the Roster's Unique Items, at 360px and 390px on a phone and at each wider
+// DL-182 item 4: the Roster's Unique Items, at 360px and 390px on a phone and at each wider
 // width, in the light and the dark scheme. The first Hero carries the Lantern of Stannary: on the tiles,
 // its picture before its name in its chip and their tile the gold glow; in the Table, their row the glow
 // and no picture, on each of the phone's tabs too. The gold at 3:1 or more on what is either side of it
 // (WCAG 1.4.11, a part that is not text), no sideways scroll of the page, 44px targets, and the Table in its
 // own box, its Name pinned and still outlined when scrolled to its end.
-test("the Roster's Unique Items: the picture on a tile and the gold glow on its tile and its Table row, in the light and the dark scheme: at 3:1, no sideways scroll, 44px targets, the Table in its own box (v1.1.5-S14)", async ({
+test("the Roster's Unique Items: the picture on a tile and the gold glow on its tile and its Table row, in the light and the dark scheme: at 3:1, no sideways scroll, 44px targets, the Table in its own box", async ({
   page,
 }, testInfo) => {
   test.setTimeout(240_000);
@@ -1126,7 +1126,7 @@ test("the Roster's Unique Items: the picture on a tile and the gold glow on its 
   expect(new Set(backgrounds).size).toBe(2);
 });
 
-test("a view's first part, straight under its head, draws no rule above it, as the game menu's first part draws none (M9-S8)", async ({
+test("a view's first part, straight under its head, draws no rule above it, as the game menu's first part draws none", async ({
   page,
 }) => {
   await page.goto('/');
@@ -1151,7 +1151,7 @@ test("a view's first part, straight under its head, draws no rule above it, as t
 });
 
 /**
- * The contrast of a button's words on its own face, as the browser draws it (M9-F6): WCAG 2.2's ratio
+ * The contrast of a button's words on its own face, as the browser draws it: WCAG 2.2's ratio
  * of the computed `color` and `background-color`, each opaque. Runs in the page.
  */
 function pressedContrast(element: Element): number {
@@ -1169,7 +1169,7 @@ function pressedContrast(element: Element): number {
 }
 
 /**
- * The contrast of an element's words on what is drawn under them (v1.1.5-S12): WCAG 2.2's ratio of its
+ * The contrast of an element's words on what is drawn under them: WCAG 2.2's ratio of its
  * computed `color` and the first opaque `background-color` from it outwards, the page's when none is.
  * Runs in the page.
  */
@@ -1208,7 +1208,7 @@ async function shotAround(page: Page, element: Locator, path: string): Promise<v
 }
 
 /**
- * The contrast of a Roster tile's or row's gold outline (v1.1.5-S14), a part that is not text, on what is
+ * The contrast of a Roster tile's or row's gold outline, a part that is not text, on what is
  * drawn either side of it (WCAG 1.4.11): WCAG 2.2's ratio of the first colour of its computed `box-shadow`,
  * the outline's, and the first opaque `background-color` from the element outwards, and from its parent
  * outwards, the page's when none is; the lesser of the two. Nought when it draws no outline. Runs in the page.
@@ -1259,7 +1259,7 @@ function dateShown(): { text: string; lines: number; inView: boolean; factsOverf
   };
 }
 
-// v1.1.7-S4 (DL-206 item 32, DL-210): the date in the status bar with its Year at every width, a
+// DL-206 item 32, DL-210: the date in the status bar with its Year at every width, a
 // phone's 360px among them, the time of day after it: the first date of a game and the longest a
 // player reads in twenty Years, `Year 12 Day 360, afternoon`, each on one line, in view, with no
 // sideways scroll.

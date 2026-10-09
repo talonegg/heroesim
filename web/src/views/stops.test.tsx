@@ -4,8 +4,8 @@ import { App } from '../app';
 import { changed, holding, started, withPartyOut, withRosterReleased } from '../state/game.test-support';
 import { navButton, openView, section, time } from './page.test-support';
 
-// The page's side of #32 (M9-S7): the split button's opt-in stops, "until a Quest you can staff
-// appears" (`quest-staffable`, M9-S1) beside "until new Heroes join the pool"; the words that say
+// The page's side of #32: the split button's opt-in stops, "until a Quest you can staff
+// appears" (`quest-staffable`) beside "until new Heroes join the pool"; the words that say
 // which stops are always on; and the Bankruptcy stop (`below-floor`) in the home view, a warning
 // card with the Day it falls on, what can be done, and the ways to what the Guild holds and the Board. Driven
 // through the page's own controls.
@@ -30,7 +30,7 @@ function otherWays(): HTMLElement {
   return ways;
 }
 
-describe('the ways to fast forward (M9-S7, #32)', () => {
+describe('the ways to fast forward (#32)', () => {
   test('the split button offers "until a Quest you can staff appears" beside "until new Heroes join the pool", and says which stops are always on', () => {
     render(<App initial={started()} />);
     const ways = otherWays();
@@ -61,7 +61,7 @@ describe('the ways to fast forward (M9-S7, #32)', () => {
     ]) {
       expect(words, stop).toContain(stop);
     }
-    // The Guild's Home says it, a part of the Guild since M9-F2.
+    // The Guild's Home says it, a part of the Guild (DL-115).
     expect(described(section('Home'))).toContain('the Bankruptcy countdown while your Guild is below the floor');
   });
 
@@ -89,7 +89,7 @@ describe('the ways to fast forward (M9-S7, #32)', () => {
   });
 });
 
-describe('the Bankruptcy stop in the home view (M9-S7, #32)', () => {
+describe('the Bankruptcy stop in the home view (#32)', () => {
   test('falling below the floor stops a fast forward unasked: one warning card, with the Day Bankruptcy falls on and what can be done', async () => {
     render(<App initial={changed(started(), (_, player) => void (player.wealth = -1))} />);
     openView('Roster');
@@ -110,7 +110,7 @@ describe('the Bankruptcy stop in the home view (M9-S7, #32)', () => {
     expect(within(home).queryByText(/has been below the Bankruptcy floor since/)).toBeNull();
   });
 
-  test("goes to the Market's Sell, and to the Board; after the next play, the countdown stands as before (M9-F2)", async () => {
+  test("goes to the Market's Sell, and to the Board; after the next play, the countdown stands as before", async () => {
     // Something to sell.
     render(<App initial={changed(holding(started(), 'healing-draught', 2), (_, player) => void (player.wealth = -1))} />);
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
@@ -134,7 +134,7 @@ describe('the Bankruptcy stop in the home view (M9-S7, #32)', () => {
   });
 });
 
-describe("the pool's stop and the end, through a fast forward (M9-S8, the epic's §3)", () => {
+describe("the pool's stop and the end, through a fast forward (the epic's §3)", () => {
   test('"until new Heroes join the pool" plays until the pool turns over, names who joined, and its step opens the pool', async () => {
     // No Hero on the Roster: no Party comes home, no decision is needed and no offer made.
     render(<App initial={withRosterReleased(started())} />);

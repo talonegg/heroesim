@@ -6,8 +6,8 @@ import { realFiles, parse, withJson, refusalOf, withoutLoot, type Files } from '
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-// M5-S5's content: a Loot table's refusals (DL-52).
-describe('a Loot table (M5-S5)', () => {
+// A Loot table's refusals (DL-52).
+describe('a Loot table', () => {
   type Entry = LootTable['entries'][number];
   const lesser = (json: Files['loot-tables.json']) => json['lesser-loot'] as Omit<LootTable, 'key'>;
   const first = (json: Files['loot-tables.json']) => lesser(json).entries[0] as Entry;

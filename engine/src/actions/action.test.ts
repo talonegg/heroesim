@@ -23,7 +23,7 @@ import type {
   TransferOutRejection,
 } from './transfer.js';
 
-// v1.1.6-S8 (DL-194, the verification): `applyAction` narrows its result's rejection to the
+// DL-194, the verification: `applyAction` narrows its result's rejection to the
 // action's own by one cast, `RejectionOf`. These hold the cast to each action's rejection type, so
 // that a rejection named by a front end for one action is never another's. Checked by `tsc`.
 

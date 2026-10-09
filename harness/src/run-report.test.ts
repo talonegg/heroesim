@@ -14,7 +14,7 @@ import { seedNames } from './seeds.js';
 import { sweepTotals } from './counter.js';
 import { sweepFingerprint, sweepPlay, type PlaySweep } from './sweep.js';
 
-// v1.1.6-S2 (DL-186 item 13): a play sweep's JSON report beside its Markdown, and two runs compared.
+// DL-186 item 13: a play sweep's JSON report beside its Markdown, and two runs compared.
 
 const content = loadContent();
 const deps: EngineDeps = { config: { ...defaultConfig }, content };
@@ -111,7 +111,7 @@ describe('compare', () => {
     expect(compareRuns(b, fewer)).toEqual(expect.arrayContaining(['Seeds: 1 only in a, 0 only in b.', `Years: ${years} → 2.`, '  refusals: 1 → 0 (−1)']));
   });
 
-  // v1.1.6-S19 (DL-205): the save's size as each year ended is a measure, as the worlds are: a change
+  // DL-205: the save's size as each year ended is a measure, as the worlds are: a change
   // of the save's shape or its config moves it while no play counter moves.
   test("lists the save's sizes moved apart from the counters, as measures", () => {
     // A year's saves, which these games are too short to reach.
@@ -131,7 +131,7 @@ describe('compare', () => {
     expect(same).toContain(`Counters: 0 moved, ${whole(counters.length)} the same.`);
   });
 
-  // v1.1.6-S2's verification (DL-188): a seed one run alone played is not a save that differs, and a
+  // DL-188: a seed one run alone played is not a save that differs, and a
   // change of content or of modules is named.
   test('names the content and modules changed, and counts only the seeds both played among the saves that differ', () => {
     const b = structuredClone(report);
@@ -150,7 +150,7 @@ describe('compare', () => {
   });
 });
 
-// v1.1.6-S2's verification (DL-188): each game's line reads its record, an ended, stopped, refused or
+// DL-188: each game's line reads its record, an ended, stopped, refused or
 // invalid game as such, so that the Gate's invariants are read from the JSON.
 test("a game's line reads how it ended, whether it was stopped or invalid, and its refusals", () => {
   const [first, second] = sweep.games as [PlaySweep['games'][number], PlaySweep['games'][number]];

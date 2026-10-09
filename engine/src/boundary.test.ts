@@ -163,7 +163,7 @@ describe('engine/package.json', () => {
   });
 });
 
-// v1.1.6-S8 (DL-186 item 9): the engine's test entry, for tests alone.
+// DL-186 item 9: the engine's test entry, for tests alone.
 describe("the engine's test entry, @heroesim/engine/testing", { timeout: 30_000 }, () => {
   const code = "import { makeId } from '@heroesim/engine/testing';\nexport { makeId };";
 
@@ -224,7 +224,7 @@ describe("the engine's content entry, @heroesim/engine/content", { timeout: 30_0
 describe('the other packages reach each other by name only', { timeout: 30_000 }, () => {
   test.each([
     ['content', "import type { ContentSet } from '@heroesim/engine/content';\nexport type { ContentSet };"],
-    // DL-186 item 6 (v1.1.6-S5): content takes the engine's values as well as its types, by the
+    // DL-186 item 6: content takes the engine's values as well as its types, by the
     // engine's content entry (DL-243).
     ['content', "import { encounterKinds } from '@heroesim/engine/content';\nexport { encounterKinds };"],
     ['cli', "import { x } from '@heroesim/engine';\nimport { y } from '@heroesim/content';\nexport { x, y };"],
@@ -257,7 +257,7 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
 
   test("content's Node entry may import node:fs", async () => {
     // Linted as text under the entry's path rather than written there, so the real
-    // content/src/node.ts (M1-S4) can never be overwritten or deleted by this test.
+    // content/src/node.ts can never be overwritten or deleted by this test.
     const [result] = await eslint.lintText("import fs from 'node:fs';\nexport { fs };", {
       filePath: `${root}content/src/node.ts`,
     });
@@ -266,7 +266,7 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
   });
 });
 
-// M7-S1: the browser front end's components are .tsx, and its page runs in a browser.
+// The browser front end's components are .tsx, and its page runs in a browser.
 describe("web/'s page, components included", { timeout: 30_000 }, () => {
   test('a component may import the engine and content by name', async () => {
     const code = [
@@ -294,7 +294,7 @@ describe("web/'s page, components included", { timeout: 30_000 }, () => {
     expect(errors[0]?.ruleId).toBe(restrictedImports);
   });
 
-  // M7-S2 (DL-65): `web/src/content.ts` shares the content package's name, and a module one
+  // DL-65: `web/src/content.ts` shares the content package's name, and a module one
   // directory down reaches it as `../content`, which leaves neither `web/src/` nor `web/`.
   test.each(['ts', 'tsx', 'test.ts'])("a .%s module under web/src/state/ may import the page's own ../content", async (extension) => {
     const [result] = await eslint.lintText("import { content } from '../content';\nexport { content };", {

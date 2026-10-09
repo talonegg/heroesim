@@ -5,7 +5,7 @@ import type { Module } from './modules.js';
 import { cyrb128, int } from './rng.js';
 import { testContent, testMeta } from './world.test-support.js';
 
-// v1.1.6-S7 (DL-186 item 12, DL-193): every setting checked, from one table of rules, before any play.
+// DL-186 item 12, DL-193: every setting checked, from one table of rules, before any play.
 
 const content = testContent;
 

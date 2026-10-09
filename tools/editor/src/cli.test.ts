@@ -6,7 +6,7 @@ import { pendingPath } from './editor.js';
 import { command, git, json, plantOutcome, readContentJson, scratch, status, writeContentJson, type Failure, type Row } from './test-support.js';
 import { npmTest } from './tests-run.js';
 
-// The editor's commands (v1.1.4-S12, DL-150 items 7 to 12), each driven on a scratch copy of the
+// The editor's commands (DL-150 items 7 to 12), each driven on a scratch copy of the
 // repository, made a git repository so that `git status` shows what each left behind. Separate
 // command lines share the pending edits through `.editor/traits.json`, as the skills' calls will.
 // The commands on a Trait's uses are `uses.test.ts`'s and `update.test.ts`'s (DL-234).
@@ -19,7 +19,7 @@ describe('reading', () => {
     const { code, json: listed } = await json<{ rows: Row[]; pending: number }>(dir, 'traits', 'list');
 
     expect(code).toBe(0);
-    // Every Trait of the content, in its files' order: the owner's to add to (the verification of v1.1.4-S13).
+    // Every Trait of the content, in its files' order: the owner's to add to.
     expect(listed.rows.map((row) => `${row.list}:${row.key}`)).toEqual([
       ...Object.keys(readContentJson(dir, 'guildmaster-traits.json')).map((key) => `guildmaster:${key}`),
       ...Object.keys(readContentJson(dir, 'hero-traits.json')).map((key) => `hero:${key}`),
@@ -195,7 +195,7 @@ describe('editing, held as pending between command lines', () => {
   });
 });
 
-// The verification of v1.1.4-S12: every list of edits saved passes the content's checks, a change
+// The verification (DL-150): every list of edits saved passes the content's checks, a change
 // holds only the fields it gave, and the pending file is written whole and dropped when unreadable.
 describe('the pending edits, checked as saved', () => {
   test('a Trait added, excluded by another and removed leaves edits that apply and pass (the verifier\'s case)', async () => {
@@ -304,7 +304,7 @@ describe('finish', () => {
     const numstat = git(dir, 'diff', '--numstat', '--', 'content/guildmaster-traits.json', 'content/hero-traits.json');
     expect(numstat.trim().split('\n')).toEqual(['1\t1\tcontent/guildmaster-traits.json', '3\t2\tcontent/hero-traits.json']);
     expect(readContentJson(dir, 'hero-traits.json').brave).toEqual({ name: 'Brave', excludes: ['scarred'], effects: [{ kind: 'statModifiers', modifiers: { courage: 2 } }] });
-    // Raised through its file, `version.json`, a line of whose changelog says why (v1.1.6-S4).
+    // Raised through its file, `version.json`, a line of whose changelog says why.
     expect(readContentJson<{ version: number; changelog: string[] }>(dir, 'version.json')).toMatchObject({ version: version + 1 });
     expect(readContentJson<{ changelog: string[] }>(dir, 'version.json').changelog.at(-1)).toMatch(new RegExp(`^${version + 1} from the content editor's Finish of `));
     const raised = git(dir, 'diff', '--numstat', '--', 'content/version.json');

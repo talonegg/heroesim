@@ -10,9 +10,9 @@ import { runTurn } from '../pipeline.js';
 import { dispositionOf, playerGuild } from '../selectors.js';
 import { testContent, testDeps, withEncounters, withValid } from '../world.test-support.js';
 
-// M6-S1's first box (INPUTS 7.5, DL-56): over 100 seeds, `reckless` Rivals take higher mean
+// The first acceptance box (INPUTS 7.5, DL-56): over 100 seeds, `reckless` Rivals take higher mean
 // difficulty than `miserly` and lose more Heroes, and `ambitious` builds first. The four
-// Dispositions are the test content's rows, M6-S1 to S4's, which the M6 close's balance pass left
+// Dispositions are the test content's rows, which the balance pass left
 // behind when it retuned the core's (DL-69 item 8), dealt round-robin to a default world's four
 // Rivals; nothing here tells a Rival what to do.
 //
@@ -97,7 +97,7 @@ function sweep(): Record<DispositionKey, Tally> {
 
 const mean = (values: readonly number[]): number => values.reduce((total, value) => total + value, 0) / values.length;
 
-describe('the four Dispositions over 100 seeds (M6-S1)', () => {
+describe('the four Dispositions over 100 seeds', () => {
   test('reckless takes higher mean difficulty than miserly and loses more Heroes; ambitious builds first', { timeout: 120_000 }, () => {
     expect(deps.config.rivalCount).toBe(4);
     expect(Object.keys(testContent.dispositions).sort()).toEqual([...dispositions]);

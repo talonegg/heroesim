@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { commandLine, halfTheProcessors, probeNames, profileNames, profiles, runSettings, settingsSet, type Env, type RunSettings } from './settings.js';
 
-// v1.1.6-S2 (DL-186 item 13): every `HEROESIM_*` variable a harness run reads, through one parser.
+// DL-186 item 13: every `HEROESIM_*` variable a harness run reads, through one parser.
 
 const half = Math.max(1, Math.floor(availableParallelism() / 2));
 
@@ -176,7 +176,7 @@ describe('a bad value is refused by its name', () => {
   });
 
   // The CLI's, the live check's, the deploy's and the portrait tool's owner test's (docs/environment.md): one set
-  // in the shell for another package must not refuse a harness run (v1.1.6-S2's verification, DL-188).
+  // in the shell for another package must not refuse a harness run (DL-188).
   test("leaves alone the variables of the same prefix other packages read", () => {
     expect(runSettings({ HEROESIM_SAVE_DIR: 'x', HEROESIM_LIVE_URL: 'y', HEROESIM_DEPLOY_RECORD: 'z', HEROESIM_OWNER_PICTURES: 'w' })).toEqual(runSettings({}));
   });

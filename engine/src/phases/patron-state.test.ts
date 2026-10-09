@@ -11,7 +11,7 @@ import { testDeps, withValid } from '../world.test-support.js';
 import { patronState } from './patron-state.js';
 import { phaseContext } from './phase.js';
 
-// M4-S5: the Patron State Engine, Patron Regard recovering toward neutral each night (pre-M0 review
+// The Patron State Engine, Patron Regard recovering toward neutral each night (pre-M0 review
 // B5, DL-43). The scale, the bands and the rate are pinned here.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
@@ -134,7 +134,7 @@ describe('patronState', () => {
 
   test('runs each night, after the Guild State Engine and before the pool refresh', () => {
     const names = phases.filter((phase) => phase.timeOfDay === 'night').map((phase) => phase.name);
-    // After and before, not next to: M6-S3's Transfer Generator runs between the Guild State Engine and
+    // After and before, not next to: the Transfer Generator (DL-59) runs between the Guild State Engine and
     // this phase (DL-59); pipeline.test.ts holds the whole order to a literal.
     expect(names.indexOf('patronState')).toBeGreaterThan(names.indexOf('guildState'));
     expect(names.indexOf('poolRefresh')).toBeGreaterThan(names.indexOf('patronState'));

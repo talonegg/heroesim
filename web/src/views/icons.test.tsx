@@ -3,7 +3,7 @@ import { classIcons } from '../state/names';
 import { afterEach, describe, expect, test } from 'vitest';
 import { ClassMark, classDrawingNames, HeroName, Icon, iconNames } from './icons';
 
-// The icon set (M9-S3, DL-103; the review's D3): inline SVG in one stroke style, decoration beside
+// The icon set (DL-103; the review's D3): inline SVG in one stroke style, decoration beside
 // words that say the same, and at least the icons the epic names.
 
 afterEach(cleanup);
@@ -29,7 +29,7 @@ test('the set holds the icons the epic names', () => {
   expect(named.filter((name) => !(iconNames as readonly string[]).includes(name))).toEqual([]);
 });
 
-// The Class icons (v1.1.7-S6, DL-206 item 22, DL-212): the names content may give a Class, the
+// The Class icons (DL-206 item 22, DL-212): the names content may give a Class, the
 // drawings the page holds, and a plain mark for a Class with none.
 describe('the Class icons', () => {
   test('every name content may give a Class is drawn, and no drawing is without a name', () => {

@@ -18,12 +18,12 @@ import { narrateSegments, narrateText, narrationFor, textOf } from './namer';
 import { questReturn, reportSections, returnEntry, returnsIn, type QuestReturn } from './quest-return';
 import { calendarFor } from './reducer';
 
-// A Quest's return read from the History (M9-F5, DL-111 items 2 and 3, DL-112 item 8): by its Party
-// and Quest, from the entries that name the Quest (M9-F1, DL-114), and a Level and a dead Hero's gear
+// A Quest's return read from the History (DL-111 items 2 and 3, DL-112 item 8): by its Party
+// and Quest, from the entries that name the Quest (DL-114), and a Level and a dead Hero's gear
 // by Hero and night. Each return is written as the Quest Engine writes one (`withReturn`), with the
 // outcome the test chooses; the expectations are the words and numbers the test wrote.
 
-// Every narration passes through, counted: the entry reads its Hero lines without the report's (M9-F7).
+// Every narration passes through, counted: the entry reads its Hero lines without the report's.
 vi.mock('./namer', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./namer')>();
   return { ...actual, narrateSegments: vi.fn(actual.narrateSegments) };
@@ -52,7 +52,7 @@ function nameOf(written: Written, heroId: string): string {
   return documentOf(written).world.heroes[heroId as never]?.name ?? '';
 }
 
-describe('questReturn (M9-F5)', () => {
+describe('questReturn', () => {
   test('a strong success with a Level: the Quest, its Patron, the Party and the band; the reward; each Hero’s XP, and the Level by Hero and night', () => {
     const written = withReturn(base, {
       band: 'strong',
@@ -124,7 +124,7 @@ describe('questReturn (M9-F5)', () => {
     expect(report.band).toBe('fail');
     expect(report.bandWords).toBe('Failure');
     expect(report.reward).toEqual({ wealth: 0, fame: -2, xp: 10 });
-    // Written as before v1.1.4-S2, with no Degree: each reads as its outcome, a Success or a Failure.
+    // Written as before Degrees (DL-152), with no Degree: each reads as its outcome, a Success or a Failure.
     expect(report.encounters.map((encounter) => [encounter.outcome, encounter.degree, encounter.sentence, encounter.used.map((used) => used.sentence)])).toEqual([
       ['success', 'success', "The Lantern's Party came through Ambush on the road (Encounter 1), a Success.", []],
       [
@@ -171,7 +171,7 @@ describe('questReturn (M9-F5)', () => {
     expect(third?.regard).toEqual([]);
   });
 
-  test('what a Death cost the Heroes at home: one line, the Guild mourning the dead, and whose Morale fell by how much (M9-F7, DL-120 item 7)', () => {
+  test('what a Death cost the Heroes at home: one line, the Guild mourning the dead, and whose Morale fell by how much (DL-120 item 7)', () => {
     const document = base.document as WorldDocument;
     const guild = playerGuild(document.world);
     if (guild === undefined) throw new Error("no player's Guild");
@@ -202,7 +202,7 @@ describe('questReturn (M9-F5)', () => {
     expect(reportSections(report).find((section) => section.kind === 'heroes')).toMatchObject({ home: report.home });
   });
 
-  test('the Heroes at home: two Deaths cost each twice, a fall that differs is given as a span, and a return with no Death has no line (M9-F7)', () => {
+  test('the Heroes at home: two Deaths cost each twice, a fall that differs is given as a span, and a return with no Death has no line', () => {
     // A second Hero at home, signed before the Party comes home.
     const [signing] = unattachedHeroes((base.document as WorldDocument).world);
     if (signing === undefined) throw new Error('no one in the pool');
@@ -231,7 +231,7 @@ describe('questReturn (M9-F5)', () => {
     expect(read(withReturn(base, { band: 'success', wealth: 10, xp: 5 })).home).toBeNull();
   });
 
-  test('a Hero away with another Party when the Death came is not at home: their grief is left out of the line (M9-F7, code review)', () => {
+  test('a Hero away with another Party when the Death came is not at home: their grief is left out of the line (code review)', () => {
     const document = base.document as WorldDocument;
     const guild = playerGuild(document.world);
     if (guild === undefined) throw new Error("no player's Guild");
@@ -338,7 +338,7 @@ describe('questReturn (M9-F5)', () => {
   });
 });
 
-describe('the report’s sections (M9-F5, DL-112 item 8)', () => {
+describe('the report’s sections (DL-112 item 8)', () => {
   test('come as typed sections in the plan’s order: the Quest, the Encounters, the rewards, the Heroes, the Patron', () => {
     const report = read(withReturn(base, { band: 'success', wealth: 100, xp: 20, encounters: [{ outcome: 'success' }], loot: [{ definitionKey: 'whetstone', quantity: 1 }] }));
     const sections = reportSections(report);
@@ -355,7 +355,7 @@ describe('the report’s sections (M9-F5, DL-112 item 8)', () => {
   });
 });
 
-describe('the return’s entry (M9-F5, DL-111 item 2)', () => {
+describe('the return’s entry (DL-111 item 2)', () => {
   test('reads the History’s sentence, cut at the band so it can be bold; a line per Hero, their name one to open', () => {
     const written = withReturn(base, {
       band: 'strong',
@@ -382,7 +382,7 @@ describe('the return’s entry (M9-F5, DL-111 item 2)', () => {
   });
 });
 
-describe('the entry reads its Hero lines without building the whole report (M9-F7, DL-120 item 10)', () => {
+describe('the entry reads its Hero lines without building the whole report (DL-120 item 10)', () => {
   test('puts no Encounter or consumable in words, as the report does, and gives the report’s Hero lines', () => {
     const written = withReturn(base, {
       band: 'fail',
@@ -422,7 +422,7 @@ describe('the entry reads its Hero lines without building the whole report (M9-F
   });
 });
 
-describe('a Trait earned on the Quest (v1.1.4-S7, DL-148 items 25 and 27)', () => {
+describe('a Trait earned on the Quest (DL-148 items 25 and 27)', () => {
   test("is in the report's line of the Hero who earned it, and a Milestone that stands beside the return in the player's Guild's History", () => {
     const written = withReturn(base, {
       band: 'fail',
@@ -444,7 +444,7 @@ describe('a Trait earned on the Quest (v1.1.4-S7, DL-148 items 25 and 27)', () =
   });
 });
 
-describe('the player’s Guild’s History gathers a return’s parts under its entry (M9-F5, DL-113 item 1; M9-F7, DL-120 item 6)', () => {
+describe('the player’s Guild’s History gathers a return’s parts under its entry (DL-113 item 1; DL-120 item 6)', () => {
   test('its Encounters, consumables, the dead’s gear, and its Heroes’ Levels that night; not a Level at home that night, nor the Loot; its Injuries and Deaths stand out beside it', () => {
     const document = base.document as WorldDocument;
     const guild = playerGuild(document.world);
@@ -477,7 +477,7 @@ describe('the player’s Guild’s History gathers a return’s parts under its 
   });
 });
 
-describe('returnsIn (M9-F5)', () => {
+describe('returnsIn', () => {
   test("gives the player's Parties home in the last play, in the order they came home; no Rival's, and none when none came home", () => {
     const home = cameHome(started('reducer-test'));
     const document = home.document as WorldDocument;

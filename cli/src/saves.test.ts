@@ -61,7 +61,7 @@ describe('opening a save', () => {
   });
 
   test("compares meta.version with the engine's schemaVersion, never with the save's own config", () => {
-    // The schema's version is the engine's since v1.1.6-S7, no setting (DL-193); a save's config that
+    // The schema's version is the engine's, no setting (DL-193); a save's config that
     // holds one is not read for it (DL-20 item 11).
     const text = edited((saved) => {
       saved.meta.version = 999;
@@ -114,7 +114,7 @@ describe('opening a save', () => {
     expect(defaultConfig.turnsPerYear).not.toBe(1);
   });
 
-  test('opens a save under the modules given: its slice checked by its own module, and its deps installing them (M8-S4)', () => {
+  test('opens a save under the modules given: its slice checked by its own module, and its deps installing them', () => {
     const text = serialise(createWorld('saves', setup, { config: defaultConfig, content, modules: [probe] }).document);
 
     const installed = openSave(text, content, [probe]);

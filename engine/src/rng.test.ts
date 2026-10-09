@@ -71,7 +71,7 @@ describe('the generator is pinned', () => {
   });
 });
 
-// ── M1-S2 acceptance ─────────────────────────────────────────────────────────────────────────
+// ── Acceptance ─────────────────────────────────────────────────────────────────────────
 
 describe('named streams', () => {
   test('the same seed and name produce the same first thousand draws in another process', () => {
@@ -193,7 +193,7 @@ describe('named streams', () => {
   });
 });
 
-describe('ensureStreams, for a save made before a stream existed (M2-S3, DL-25)', () => {
+describe('ensureStreams, for a save made before a stream existed (DL-25)', () => {
   test("gives the world each core stream it lacks, seeded as a new world's, and moves none it has", () => {
     const fresh = createStreams(seed, streamNames);
     const generation = advancedCopy(fresh.generation, 7);
@@ -404,7 +404,7 @@ describe('chance', () => {
   });
 });
 
-describe('weightedPick (M4-S5, DL-43)', () => {
+describe('weightedPick (DL-43)', () => {
   test('takes one draw, and with every weight 1 picks what pick picks from the same state', () => {
     const items = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
     const ones = items.map(() => 1);
@@ -417,7 +417,7 @@ describe('weightedPick (M4-S5, DL-43)', () => {
     }
   });
 
-  // v1.1.4-S4 (DL-155): who harm falls on is drawn by weightedPick, where before it was `int` from 0
+  // DL-155: who harm falls on is drawn by weightedPick, where before it was `int` from 0
   // to the last of the Heroes it could fall on, `pick`'s draw; with no field that reads the Stats,
   // every weight is 1 and the draw must be the same, for any Party's size.
   test('with every weight 1, for every length from 1 to 8, picks the item int and pick pick from the same state', () => {
@@ -439,7 +439,7 @@ describe('weightedPick (M4-S5, DL-43)', () => {
     }
   });
 
-  // v1.1.6-S16 (DL-202): a Class, Background, Quest template and Sphere draw by weight, 1 when none is
+  // DL-202: a Class, Background, Quest template and Sphere draw by weight, 1 when none is
   // given, and every game must play as it did. Both sides take the one draw and multiply it by the list's
   // size (the weights' total) before comparing it to a whole number, so the floating-point rounding of the
   // product is the same on both and no bucket's edge falls differently; held here for the list sizes a draw

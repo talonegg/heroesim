@@ -57,7 +57,7 @@ import {
 } from './counters.js';
 import { countGame, gameCounters } from './game-counters.js';
 
-// M2-S9's counter, against the core content: the player's Quests and the Rivals' counted apart.
+// The counter, against the core content: the player's Quests and the Rivals' counted apart.
 
 const content = loadContent();
 const deps: EngineDeps = { config: { ...defaultConfig }, content };
@@ -250,7 +250,7 @@ describe("M3's counters, from the History", () => {
     expect(counters.heroesRetired).toEqual({ player: 1, rival: 2 });
   });
 
-  // v1.1.4-S7: the Traits earned and lost, and the careers they are counted over.
+  // The Traits earned and lost, and the careers they are counted over.
   test('Traits gained and lost by controller, and each Hero sent on a Quest once, by the Guild that first sent them', () => {
     const { document, player, rivals } = fixture('counters-traits');
     const [mine, rivalHero] = [firstHero(player), firstHero(rivals[0])];
@@ -275,7 +275,7 @@ describe("M3's counters, from the History", () => {
     expect(counters.traitsGainedByKey).toEqual({ player: { scarred: 1 }, rival: { lame: 1 } });
   });
 
-  // v1.1.4-S10: the Party sizes and the XP each Hero took, for the owner's decision on splitting XP.
+  // The Party sizes and the XP each Hero took, for the owner's decision on splitting XP.
   test('Quests resolved by controller and the size of the Party sent, their bands, and the XP each Hero who came home took', () => {
     const { document, player, rivals } = fixture('counters-parties');
     const [a, b, c] = player.rosterIds as [HeroId, HeroId, HeroId];
@@ -362,7 +362,7 @@ describe("M3's counters, from the History", () => {
   });
 });
 
-describe("M9-S2's counter, from the History", () => {
+describe("the Rival Guildmasters' counter, from the History", () => {
   test('Rival folds by cause, and the Successions that met a Rival Guildmaster\'s Retirement (guildmaster.succeeded), which fold nothing', () => {
     const { document, rivals } = fixture('counters-succession');
     const [a, b] = rivals;
@@ -532,7 +532,7 @@ describe("M4's counters, from the History", () => {
     };
     resolved(5, player, ['shadow-and-spell', 'sword-and-salve']);
     resolved(8, player, []);
-    // An entry written before M4-S3 has no synergyKeys: it applied none.
+    // An entry written before the Synergies were recorded has no synergyKeys: it applied none.
     resolved(9, rivals[0]);
     resolved(12, rivals[1], ['sword-and-salve']);
     document.world.turn = 20;
@@ -839,7 +839,7 @@ describe("M5's counters, from the History", () => {
       { definitionKey: 'healing-draught', quantity: 1 },
     ]);
     taken(4, player, other, []);
-    // An entry written before M5-S3 carries nothing.
+    // An entry written before the Loot was recorded carries nothing.
     taken(5, rivals[0], makeId('quests', 902));
     const expended = (turn: number, id: EntityId, use: object): void => {
       add(document, turn, 'item.expended', [id, partyId, player.id], {
@@ -909,7 +909,7 @@ describe("M5's counters, from the History", () => {
     move(8, 'item.returned', rivals[0], 'retired');
     move(9, 'item.returned', rivals[1], 'guild-folded');
     move(10, 'item.returned', rivals[1], 'guild-folded');
-    // A Hero's gear goes back to the selling Guild with them transferred (M6-S2, DL-57; the merge, DL-63).
+    // A Hero's gear goes back to the selling Guild with them transferred (DL-57; the merge, DL-63).
     move(11, 'item.returned', rivals[0], 'transferred');
     document.world.turn = 20;
 
@@ -1279,7 +1279,7 @@ describe("M6's counters, from the World State as each year begins", () => {
   });
 });
 
-describe("M9-S1's counters, from the History (DL-101)", () => {
+describe("the Bankruptcy floor counters, from the History (DL-101)", () => {
   test('a new world has fallen below the Bankruptcy floor, and recovered, never', () => {
     const { document } = fixture('counters-floor-new');
     const counted = countGame(document, shortYears);
@@ -1308,7 +1308,7 @@ describe("M9-S1's counters, from the History (DL-101)", () => {
   });
 });
 
-describe("v1.1.3-S5's Portrait counters, from the World State (DL-134 item 9)", () => {
+describe("the Portrait counters, from the World State (DL-134 item 9)", () => {
   test("every Guildmaster who entered play, by their Guild's controller: with a picture or the Silhouette, the age held and a Calling clashing", () => {
     const { document, player, rivals } = fixture('counters-portraits');
     const { guildmasters } = document.world;
@@ -1339,7 +1339,7 @@ describe("v1.1.3-S5's Portrait counters, from the World State (DL-134 item 9)", 
   });
 });
 
-describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 item 6)", () => {
+describe("the Hero counters and the save's size (DL-134 item 9, DL-135 item 6)", () => {
   test("reads each hero.generated of a batch of events, the pool's not in the History among them: a picture or the Silhouette, a repeat, the longest texts, and none gone", () => {
     const { document, events } = createWorld('counters-heroes', harnessSetup, shortYears);
     const { world } = document;
@@ -1403,7 +1403,7 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
     ]);
   });
 
-  // v1.1.6-S17 (DL-203): the World State's size, its rows and the per-Turn copy's time as a year ends.
+  // DL-203: the World State's size, its rows and the per-Turn copy's time as a year ends.
   test('the World State as a year ends: its characters in the save, its rows in play and written once, and the copy timed', () => {
     const { document, player, rivals } = fixture('counters-world');
     const { world } = document;
@@ -1459,7 +1459,7 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
     expect(() => counted({ ...history, entries: [...history.entries] })).toThrow(RangeError);
   });
 
-  // v1.1.5-S1 (DL-174): the years' saves are measured, not written.
+  // DL-174: the years' saves are measured, not written.
   test("savedLength is the save's length, counted without writing it", () => {
     const { document } = fixture('counters-save');
     expect(savedLength(document)).toBe(serialise(document).length);

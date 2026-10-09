@@ -8,7 +8,7 @@ import type { Plugin } from 'vite';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import config from '../vite.config.js';
 
-// The production build and the bundle gate (M7-S1, DL-64). `npm run build -w web` is `vite build`
+// The production build and the bundle gate (DL-64). `npm run build -w web` is `vite build`
 // then scripts/check-bundle.mjs; these tests run the same two into a temporary directory, so the
 // gate is proved on every `npm test`, in CI included, and web/dist is never touched. The build
 // itself refuses a Node built-in, which never reaches the bundle for the gate to see (DL-74).
@@ -72,14 +72,14 @@ describe('the production build', { timeout: 120_000 }, () => {
     expect(html).not.toMatch(/type="module"|crossorigin/);
   });
 
-  test("inlines each of media/'s Silhouettes into the one script, and every picture is a hashed file beside it (v1.1.2-S2)", () => {
+  test("inlines each of media/'s Silhouettes into the one script, and every picture is a hashed file beside it", () => {
     const assets = readdirSync(path.join(outDir, 'assets'));
     const [script = ''] = assets.filter((file) => /^index-[\w-]+\.js$/.test(file));
     const silhouettes = readdirSync(mediaDir, { recursive: true, encoding: 'utf8' }).filter((file) => file.endsWith('silhouette.svg'));
     const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
 
     expect(silhouettes.length).toBeGreaterThan(0);
-    // Each Silhouette, and the neutral one `media.ts` draws for a sex no folder knows (v1.1.2-S6).
+    // Each Silhouette, and the neutral one `media.ts` draws for a sex no folder knows.
     expect(text.match(/data:image\/svg\+xml,/g)).toHaveLength(silhouettes.length + 1);
     expect(assets.filter((file) => file !== script).filter((file) => !/-[\w-]{8}\.webp$/.test(file))).toEqual([]);
   });
@@ -91,7 +91,7 @@ describe('the production build', { timeout: 120_000 }, () => {
     expect(gated.status).toBe(0);
   });
 
-  // v1.1.3-S7 (DL-134 item 9, DL-143): the content's JSON is bundled as data, not as it is written,
+  // DL-134 item 9, DL-143: the content's JSON is bundled as data, not as it is written,
   // so its indentation and line breaks do not count against the script's 850 kB.
   test("bundles each content file's JSON without its whitespace", () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
@@ -106,7 +106,7 @@ describe('the production build', { timeout: 120_000 }, () => {
     }
   });
 
-  // v1.1.4-S6's verification (DL-157): the content package's manifests are no content, and each
+  // DL-157: the content package's manifests are no content, and each
   // picture's URL resolves against the script's address, worked out once.
   test("bundles neither of the content package's manifests", () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
@@ -127,7 +127,7 @@ describe('the production build', { timeout: 120_000 }, () => {
     for (const picture of pictures) expect(text.includes(`new URL(\`${picture}\`,${base})`), picture).toBe(true);
   });
 
-  // v1.1.6-S4 (DL-186 item 14): the content version is data, `content/version.json`, which the page
+  // DL-186 item 14: the content version is data, `content/version.json`, which the page
   // bundles with the content, but its changelog is for the people who read the file, and is bundled
   // empty; and the tools' write module, `@heroesim/content/write`, is in no built file.
   test("bundles the content version without its changelog, and none of content's write module", () => {
@@ -144,7 +144,7 @@ describe('the production build', { timeout: 120_000 }, () => {
     expect(text).not.toContain(mark);
   });
 
-  // v1.1.6-S18 (DL-186 item 15, DL-204): the defaults' values are data, `engine/src/config.json`,
+  // DL-186 item 15, DL-204: the defaults' values are data, `engine/src/config.json`,
   // which the engine imports; its changelog is for the people who read the file, and is bundled empty.
   test("bundles the defaults' values without their changelog", () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
@@ -155,7 +155,7 @@ describe('the production build', { timeout: 120_000 }, () => {
     expect(text).toContain('guildmasterRegardOnPatronSuccess');
   });
 
-  // v1.1.6-S6 (DL-192): the old form of an Encounter and a Synergy is no longer read, so the words
+  // DL-192: the old form of an Encounter and a Synergy is no longer read, so the words
   // its refusals were written in, which v1.1.5's parser and register held, are in no built file.
   test("holds none of the words the old content form's refusals were written in", () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
@@ -187,8 +187,8 @@ describe('the production build', { timeout: 120_000 }, () => {
     expect(statSync(path.join(outDir, 'assets', script)).size).toBeLessThan(scriptLimit);
   });
 
-  // v1.1.4-S14 (DL-150 item 7, the epic's Gate: "The editor is in no file of the built game"), checked
-  // by hand at S12 (DL-161) and held here: words only the content editor's page and commands, or the
+  // DL-150 item 7, the epic's Gate: "The editor is in no file of the built game", checked
+  // by hand once (DL-161) and held here: words only the content editor's page and commands, or the
   // register of a Trait's uses, hold are in no built file. Each is first found in its own source, so
   // a word the editor stops using cannot leave the check empty.
   test("holds no file of the content editor or the register of a Trait's uses", () => {
@@ -316,7 +316,7 @@ describe('the bundle gate', () => {
     expect(gated.status).toBe(1);
   });
 
-  // v1.1.3-S7 (DL-134 item 9; 850 kB since DL-166): the one script is held under 850 kB, so the page stays as quick to open
+  // DL-134 item 9; 850 kB since DL-166: the one script is held under 850 kB, so the page stays as quick to open
   // as it is. A stylesheet or the page itself is not a script, and is not held to it.
   test('fails a script over 850 kB, naming its size, and passes one of 850 kB', () => {
     // `const pad = '` and `';` are 15 characters. Padded with digits: a long run of letters would

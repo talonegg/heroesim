@@ -7,7 +7,7 @@ import { generatedPart, registerDoc, withGeneratedPart, docBegins, docEnds } fro
 import { at, setAt, UseRefusal, type ContentJson } from './json.js';
 import { contentEntries, engineEntriesOf, register, rulesFor, usesOf, type ContentEntry, type TraitUse } from './register.js';
 
-// The register of a Trait's uses (v1.1.4-S12, DL-150 item 14): each content entry finds the uses the
+// The register of a Trait's uses (DL-150 item 14): each content entry finds the uses the
 // shipped content holds, adds one where it says how, and takes it out again, the content passing its
 // checks after each. The drift and freshness checks are the editor's (tools/editor).
 
@@ -17,7 +17,7 @@ function shipped(): Record<ContentFileName, unknown> {
 }
 
 /**
- * The shipped content with an Encounter and a Synergy in the new form (v1.1.4-S1, S2), whose Queries
+ * The shipped content with an Encounter and a Synergy in the new form, whose Queries
  * a `has-trait` may filter: `ambush-on-the-road` one Check scored by the strongest Warrior, and
  * `shield-wall` requiring three Warriors. The Encounter has no Triumph list of its own, so that its
  * Triumph reads its Success list.
@@ -145,7 +145,7 @@ describe('a use added and removed', () => {
     expect(usesOf({ ...content, ...changed }, 'lame').map((use) => use.at)).toContain('synergies.json: shield-wall.requires.1.1.1.2');
   });
 
-  // The verification of v1.1.4-S13's skill runs: a use `add` made without a path, or a list it made,
+  // A use `add` made without a path, or a list it made,
   // is taken out whole by `remove`, so an assignment and its unassignment leave the content as it was.
   test("a Synergy's condition on the Party, added without a path, is taken out whole", () => {
     const content = withQueries();
@@ -165,7 +165,7 @@ describe('a use added and removed', () => {
     expect({ ...added, ...entry('encounter-trait').remove?.apply(added, use) }).toEqual(content);
   });
 
-  // The verification of v1.1.4-S13: a sentence is a use of its own, a use is never added twice in one
+  // A sentence is a use of its own, a use is never added twice in one
   // place, and `add` names the use it made even where an older one moved.
   test('a Biography sentence added is the one taken out, the others standing', () => {
     const content = withQueries();
@@ -252,7 +252,7 @@ describe('a use added and removed', () => {
   });
 });
 
-// v1.1.6-S4 (DL-186 item 14): a use changed in place, where its entry holds values besides the key: a
+// DL-186 item 14: a use changed in place, where its entry holds values besides the key: a
 // trait consequence's chance or among, a Biography sentence's words. Any other entry has none.
 describe('a use changed in place', () => {
   /** The shipped use of `key` in `id`, the first. */
@@ -308,7 +308,7 @@ describe('a use changed in place', () => {
     expect(() => entry('biography-sentences').update?.apply(content, sentence, { sentence: other })).toThrow('holds that sentence already');
   });
 
-  // The verification of v1.1.6-S4: a chance is "above 0 and at most 1", as the entry's words say, in
+  // A chance is "above 0 and at most 1", as the entry's words say, in
   // an update and an assignment alike; the content's checks take 0, a consequence that never comes.
   test.each([0, -0.1, 1.5])('refuses a chance of %s, changed or assigned, naming the bound', (chance) => {
     const content = shipped();

@@ -11,7 +11,7 @@ import { serialise } from '../serialise.js';
 import { deepFreeze, testContent, testDeps, withValid } from '../world.test-support.js';
 import { applyAction, applyGuildAction } from './action.js';
 
-// M5-S4: buying from the Market (R31, DL-51). Each test arranges the Market by hand, so that no
+// Buying from the Market (R31, DL-51). Each test arranges the Market by hand, so that no
 // test leans on what the refresh drew; prices are the test content's (a Healing draught 30, a Padded
 // jack 40) and the Loot-only price is pinned. No Rival acts.
 

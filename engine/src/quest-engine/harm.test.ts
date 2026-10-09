@@ -8,7 +8,7 @@ import { testContent } from '../world.test-support.js';
 import { chooseEarner, exposure, guard, meanShare, moraleOf, narrowed, strike, type Candidates } from './harm.js';
 import type { QueryMember, QueryParty } from './query.js';
 
-// v1.1.4-S4 (DL-148 item 14, DL-155): harm that reads the Stats. A share is of a Stat's content
+// DL-148 item 14, DL-155: harm that reads the Stats. A share is of a Stat's content
 // range, 1 to 20 in the test content, so 1 is a share of 0, 20 of 1, and 10.5 of a half.
 
 const config = defaultConfig;
@@ -82,7 +82,7 @@ describe('narrowed', () => {
     expect(narrowed(heroes.slice(2), warriors, party)).toEqual(heroes.slice(2));
   });
 
-  // v1.1.5-S4 (DL-168 item 6, E3, DL-178): among is read over the pool's own Heroes, not the whole Party.
+  // DL-168 item 6, E3, DL-178: among is read over the pool's own Heroes, not the whole Party.
   test('reads among over the pool, so a `bottom` or a `top` passes over a Hero it cannot fall on to the next', () => {
     const five = ['hero-000001', 'hero-000002', 'hero-000003', 'hero-000004', 'hero-000005'] as HeroId[];
     const strengths = [20, 16, 12, 8, 4];
@@ -117,10 +117,10 @@ describe('narrowed', () => {
   });
 });
 
-// v1.1.6-S9 (DL-186 item 4, DL-195): harm.ts owns who a harm or an earned Trait falls on and the
+// DL-186 item 4, DL-195: harm.ts owns who a harm or an earned Trait falls on and the
 // draws each takes; resolve.ts asks and applies. Five Heroes in Party order, Strength 20, 4, 12, 8
 // and 16, the second and fourth Warriors; a twin of the stream counts the draws.
-describe('who harm falls on, and its draws (v1.1.6-S9)', () => {
+describe('who harm falls on, and its draws', () => {
   const ids = ['hero-000001', 'hero-000002', 'hero-000003', 'hero-000004', 'hero-000005'] as HeroId[];
   const strengths = [20, 4, 12, 8, 16];
   const heroTraits = {

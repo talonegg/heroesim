@@ -126,7 +126,7 @@ describe('new', () => {
     expect(existsSync(current())).toBe(false);
   });
 
-  test("sets the Guildmaster's sex, age, Traits and descriptive Attributes from its flags, as the engine makes them (M9-S2)", () => {
+  test("sets the Guildmaster's sex, age, Traits and descriptive Attributes from its flags, as the engine makes them", () => {
     const run = newDemo(
       '--sex', 'male', '--age', '44', '--traits', 'spendthrift,well-liked',
       '--birthplace', ' Harrowgate ', '--appearance', 'Grey at the temples.', '--biography', 'Once a quartermaster.',
@@ -160,7 +160,7 @@ describe('new', () => {
     expect(guildmasterOf(document().world.guilds[playerId] as Guild, document().world)?.traits).toEqual([]);
   });
 
-  test('writes each descriptive Attribute left blank as the engine does, with no flag, and keeps one given (v1.1.2-S5)', () => {
+  test('writes each descriptive Attribute left blank as the engine does, with no flag, and keeps one given', () => {
     expect(newDemo('--birthplace', 'Harrowgate').code).toBe(exitCodes.ok);
     const expected = createWorld(
       'demo',
@@ -192,11 +192,11 @@ describe('new', () => {
     ],
     ['a Birthplace too long', ['--birthplace', 'x'.repeat(61)], 'The Birthplace is 61 characters long; it holds at most 60.'],
     ['a Biography too long', ['--biography', 'x'.repeat(1001)], 'The Biography is 1001 characters long; it holds at most 1000.'],
-    // v1.1.2-S4: the core lists its pictures, 40 since v1.1.3-S4: gm-female-01 to 20 and gm-male-01 to 20 (`portrait.test.ts` holds the rest).
+    // The core lists its 40 pictures: gm-female-01 to 20 and gm-male-01 to 20 (`portrait.test.ts` holds the rest).
     ['a Portrait content lacks', ['--portrait', 'gm-male-99'], 'No Guildmaster Portrait is called "gm-male-99". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
     ['a Portrait not in the form of a key', ['--portrait', 'GM Female 1'], 'No Guildmaster Portrait is called "GM Female 1". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
     ['a Portrait of the other sex', ['--sex', 'female', '--portrait', 'gm-male-01'], "That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female: choose a Portrait of that Sex, or leave out --sex."],
-  ])('refuses %s with its own sentence as a bad command line, writing nothing (M9-S2)', (_, flags, sentence) => {
+  ])('refuses %s with its own sentence as a bad command line, writing nothing', (_, flags, sentence) => {
     const run = newDemo(...flags);
 
     expect(run.code).toBe(exitCodes.usage);
@@ -204,7 +204,7 @@ describe('new', () => {
     expect(existsSync(current())).toBe(false);
   });
 
-  // v1.1.4-S11 (DL-149 item 9): the Guildmaster's Stats, every one or none, within the Stat points.
+  // DL-149 item 9: the Guildmaster's Stats, every one or none, within the Stat points.
   test("--stats sets the Guildmaster's Stats, as the engine makes them; left out, they are drawn", () => {
     const stats = { inspiration: 12, influence: 8, negotiation: 15, coaching: 5, judgement: 10 };
     const run = newDemo('--stats', 'inspiration=12,influence=8,negotiation=15,coaching=5,judgement=10');
@@ -217,7 +217,7 @@ describe('new', () => {
     ).document;
     expect(saved()).toBe(serialise(expected));
     expect(guildmasterOf(document().world.guilds[playerId] as Guild, document().world)?.stats).toEqual(stats);
-    // Stat points left unspent are allowed, and lost, and `new` says so (v1.1.4-S14); spent in full, it says nothing of them.
+    // Stat points left unspent are allowed, and lost, and `new` says so; spent in full, it says nothing of them.
     expect(run.out).not.toContain('Stat points');
     const unspent = newDemo('--stats', 'inspiration=5,influence=5,negotiation=5,coaching=5,judgement=5', '--force');
     expect(unspent.code).toBe(exitCodes.ok);
@@ -248,7 +248,7 @@ describe('new', () => {
     ['a Hero Stat', 'strength=10', 'No Guildmaster Stat is called "strength".'],
     ['a Stat named twice', 'inspiration=10,inspiration=12', '--stats names inspiration twice.\n\n'],
     ['a Stat with no number', 'inspiration=high', '--stats needs each Guildmaster Stat as key=number, such as inspiration=12, joined by commas; got "inspiration=high"'],
-  ])('refuses %s with its own sentence as a bad command line, writing nothing (v1.1.4-S11)', (_, stats, sentence) => {
+  ])('refuses %s with its own sentence as a bad command line, writing nothing (DL-153)', (_, stats, sentence) => {
     const run = newDemo('--stats', stats);
 
     expect(run.code).toBe(exitCodes.usage);
@@ -302,7 +302,7 @@ describe('show', () => {
     expect(rowOf(run.out, playerId)).toContain('Player');
   });
 
-  test("show and show guilds name each Guildmaster's Portrait, its picture's key or the Silhouette (v1.1.3-S5)", () => {
+  test("show and show guilds name each Guildmaster's Portrait, its picture's key or the Silhouette", () => {
     const rivalId = makeId('guilds', 2);
     edit((edited) => {
       const rival = edited.world.guilds[rivalId] as Guild;
@@ -324,7 +324,7 @@ describe('show', () => {
 
   test('guilds marks a folded Guild with the date it folded, and show lists only the Guilds in play (DL-28, DL-33, DL-210)', () => {
     const rivalId = makeId('guilds', 2);
-    // Folded as M2-S10's fold leaves a Guild: its Heroes released to the pool, its Roster empty.
+    // Folded as a fold leaves a Guild: its Heroes released to the pool, its Roster empty.
     edit((edited) => {
       const rival = edited.world.guilds[rivalId] as Guild;
       for (const heroId of rival.rosterIds) {
@@ -372,7 +372,7 @@ describe('show', () => {
     expect(play(['show', 'offers']).out).toBe(`${sentence}\n`);
   });
 
-  test('patrons prints each Patron with their Sex and the name of their Sphere (v1.1.2-S3)', () => {
+  test('patrons prints each Patron with their Sex and the name of their Sphere', () => {
     const patrons = Object.values(document().world.patrons);
 
     const run = play(['show', 'patrons']);
@@ -523,7 +523,7 @@ describe('advance', () => {
     expect(saved()).toBe(original);
   });
 
-  test('plays on a save made before the Board existed, filling its Board on the first morning (M2-S3)', () => {
+  test('plays on a save made before the Board existed, filling its Board on the first morning', () => {
     // An M1 save: no board stream, no Quests.
     edit((edited) => {
       Reflect.deleteProperty(edited.world.rng, 'board');
@@ -577,7 +577,7 @@ describe('advance', () => {
     const cleared = play(['advance']);
     expect(cleared.out).toContain('Now Turn 5 (Year 1 Day 2, night).');
     expect(cleared.out).not.toContain('has been below the Bankruptcy floor');
-    // That night's check is heard (M9-S1): the event says so, and the countdown is gone.
+    // That night's check is heard: the event says so, and the countdown is gone.
     expect(cleared.out).toContain(
       "The Test's Wealth, 1000, is back to the Bankruptcy floor of 0 or more, after falling below it on Year 1 Day 1: no Bankruptcy is due.",
     );
@@ -585,7 +585,7 @@ describe('advance', () => {
   });
 });
 
-describe('advance --until: fast forward (M2-S11)', () => {
+describe('advance --until: fast forward', () => {
   beforeEach(() => {
     newDemo();
   });
@@ -666,7 +666,7 @@ describe('advance --until: fast forward (M2-S11)', () => {
     expect(run.out).toMatch(/Stopped: a decision is needed: The Test has no Party out, and could send one on quest-\d{6}.* \(show board\)\./);
   });
 
-  test('staffable stops, with a Party out, the morning a Quest the Heroes at home could take reaches the Board (M9-S1)', () => {
+  test('staffable stops, with a Party out, the morning a Quest the Heroes at home could take reaches the Board', () => {
     const { returnsOnTurn } = sendParty();
     const before = document();
     const expected = fastForward(
@@ -687,7 +687,7 @@ describe('advance --until: fast forward (M2-S11)', () => {
     expect(document().world.turn).toBe(returnsOnTurn);
   });
 
-  test("the player's Guild falling below the floor stops it unasked, naming the night, the countdown after (M9-S1)", () => {
+  test("the player's Guild falling below the floor stops it unasked, naming the night, the countdown after", () => {
     edit((edited) => {
       edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 10 };
       (edited.world.guilds[playerId] as Guild).wealth = -1;
@@ -751,7 +751,7 @@ describe('advance --until: fast forward (M2-S11)', () => {
   });
 });
 
-describe('dispatch (M2-S4)', () => {
+describe('dispatch', () => {
   beforeEach(() => {
     newDemo();
   });
@@ -864,8 +864,8 @@ describe('dispatch (M2-S4)', () => {
     expect(play(['dispatch', '--quest', 'the-barrow', '--heroes', 'hero-000001']).code).toBe(exitCodes.usage);
   });
 
-  // M5-S3 (DL-50): the player's Guild is given three healing draughts and a whetstone by hand.
-  describe('with --consumables (M5-S3)', () => {
+  // DL-50: the player's Guild is given three healing draughts and a whetstone by hand.
+  describe('with --consumables', () => {
     beforeEach(() => {
       edit((edited) => {
         addStack(edited.world, 'healing-draught', 3, { kind: 'guild', id: playerId });
@@ -1153,7 +1153,7 @@ describe('save and load', () => {
     expect(saved()).toBe(original);
   });
 
-  test("a save of schema 4, as v1.1.1 wrote it, is refused in words, by load and by any command that opens it (v1.1.2-S3, DL-125 item 10.2)", () => {
+  test("a save of schema 4, as v1.1.1 wrote it, is refused in words, by load and by any command that opens it (DL-125 item 10.2)", () => {
     newDemo();
     const original = saved();
     const parsed = JSON.parse(original) as {
@@ -1178,7 +1178,7 @@ describe('save and load', () => {
     expect(shown.err).toContain('This game was saved by an older Heroesim and cannot be loaded');
   });
 
-  test("a save of schema 5, as v1.1.2 wrote it, is refused in the owner's words, and replacing it with a new game works (v1.1.3-S6, DL-135 item 7)", () => {
+  test("a save of schema 5, as v1.1.2 wrote it, is refused in the owner's words, and replacing it with a new game works (DL-135 item 7)", () => {
     newDemo();
     const parsed = JSON.parse(saved()) as { meta: { version: number }; world: { heroes: Record<string, object> } };
     parsed.meta.version = 5;
@@ -1202,7 +1202,7 @@ describe('save and load', () => {
     expect(play(['show']).code).toBe(exitCodes.ok);
   });
 
-  test('a save whose config breaks a rule is refused at load, naming the setting, and left as it was (v1.1.6-S7, DL-193)', () => {
+  test('a save whose config breaks a rule is refused at load, naming the setting, and left as it was (DL-193)', () => {
     newDemo();
     edit((edited) => {
       edited.meta.config.boardSize = -2;
@@ -1238,7 +1238,7 @@ describe('save and load', () => {
   });
 });
 
-describe('--modules: the test-only probe on new, advance and load (M8-S4)', () => {
+describe('--modules: the test-only probe on new, advance and load', () => {
   /** A seed on which the probe fires on the eleventh Turn, the night of Year 1 Day 4: its stream's first draw below 0.02. */
   const firingSeed = 'modules';
   const withProbe = { config: defaultConfig, content, modules: [probe] };
@@ -1366,7 +1366,7 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
   });
 });
 
-describe('show guildmaster, show patrons and preview (M4-S5)', () => {
+describe('show guildmaster, show patrons and preview', () => {
   beforeEach(() => {
     newDemo();
   });
@@ -1395,7 +1395,7 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
       guildmaster.traits = ['old-soldier', 'thrifty'];
       guildmaster.regard[patronId as EntityId] = { value: 13.25, since: 0, reason: 'quest.resolved' };
       guildmaster.regard[heroId as EntityId] = { value: -7.5, since: 0, reason: 'quest.resolved' };
-      // M6-S2 writes Regard between Guildmasters; the view reads it for a Guild through its Guildmaster.
+      // A Transfer writes Regard between Guildmasters; the view reads it for a Guild through its Guildmaster.
       guildmaster.regard[rival.guildmasterId] = { value: 5, since: 0, reason: 'test' };
     });
 
@@ -1426,9 +1426,9 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     for (const number of ['13.25', '13', '7.5', '-7.5']) expect(run.out).not.toContain(` ${number}\n`);
   });
 
-  test('show guildmaster prints the descriptive Attributes written, after the sex and age, and none left empty (M9-S2)', () => {
+  test('show guildmaster prints the descriptive Attributes written, after the sex and age, and none left empty', () => {
     const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
-    // Every Guildmaster's are written as they enter play since v1.1.2-S5: an older save may hold one empty.
+    // Every Guildmaster's are written as they enter play (DL-125 item 6): an older save may hold one empty.
     edit((edited) => {
       Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, {
         birthplace: 'Harrowgate',
@@ -1444,15 +1444,15 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     expect(mine[age + 1]).toMatch(/^Birthplace\s+Harrowgate$/);
     expect(mine[age + 2]).toMatch(/^Biography\s+Once a quartermaster of the river levies\.$/);
     expect(mine.some((line) => line.startsWith('Appearance'))).toBe(false);
-    // A Rival's Guildmaster is described as they enter play (v1.1.2-S5).
+    // A Rival's Guildmaster is described as they enter play.
     for (const label of ['Birthplace', 'Appearance', 'Biography']) expect(theirs).toMatch(new RegExp(`^${label}\\s+\\S`, 'm'));
   });
 
-  test("show guildmaster names the Portrait's key after the sex, or the Silhouette where there is none (v1.1.2-S3)", () => {
+  test("show guildmaster names the Portrait's key after the sex, or the Silhouette where there is none", () => {
     const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
     const lines = (run: Run) => run.out.split('\n');
 
-    // Chosen to fit them from the core's pictures of the sex since v1.1.3-S5: its 20 of each sex, or
+    // Chosen to fit them from the core's pictures of the sex (DL-141): its 20 of each sex, or
     // the Silhouette where none fits their age. Under the seed 'demo' they are a man of 39, and gm-male-14's
     // row is of a man of 38 to 48.
     const bare = lines(play(['show', 'guildmaster']));
@@ -1533,7 +1533,7 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     expect(saved()).toBe(original);
   });
 
-  // v1.1.4-S6 (DL-148 item 15): each Encounter's chance and the Quest's in a word, with the estimate's percentage floored to 5.
+  // DL-148 item 15: each Encounter's chance and the Quest's in a word, with the estimate's percentage floored to 5.
   test('preview gives the chance of each Encounter and of the Quest, a word and the estimate floored to a multiple of 5%, if no one falls', () => {
     const { world } = document();
     const [questId] = world.board as QuestId[];
@@ -1611,8 +1611,8 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
   });
 });
 
-// M4-S3's third box: the epic's `show party` is M4-S5's `preview --quest --heroes` (DL-43, DL-45).
-describe('preview lists the Synergies a proposed Party would have (M4-S3)', () => {
+// The epic's `show party` is `preview --quest --heroes` (DL-43, DL-45).
+describe('preview lists the Synergies a proposed Party would have', () => {
   beforeEach(() => {
     newDemo();
   });
@@ -1678,7 +1678,7 @@ describe('preview lists the Synergies a proposed Party would have (M4-S3)', () =
     expect(synergies(run.out)).toEqual(["  Shield wall: ×1.15 on combat Encounters; this Quest's Encounters are drawn on the way."]);
   });
 
-  // v1.1.4-S3 (DL-148 item 12): one line for the Party's Morale, from its mean form, naming no Hero.
+  // DL-148 item 12: one line for the Party's Morale, from its mean form, naming no Hero.
   test.each([
     [[60, 60], 'Makes no difference'],
     [[80, 60], 'Raises the odds'],
@@ -1731,12 +1731,12 @@ describe('the command line', () => {
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain('Usage: heroesim <command> [flags]');
-    // Each section preview prints is named in its help, the Synergies (M4-S3), the consumables (M5-S3) and the chances (v1.1.4-S6) among them.
+    // Each section preview prints is named in its help, the Synergies, the consumables and the chances among them.
     const preview = run.out.slice(run.out.indexOf('  preview '), run.out.indexOf('  dispatch '));
     for (const part of ['requirement', 'cannot go', 'Synergies', 'Morale', 'chances', 'consumables', 'reward', 'dispatch would send']) expect(preview).toContain(part);
   });
 
-  test("help gives new's ages as the rules do: 21 to 50, retiring at 61 (M9-F1, DL-113 item 4)", () => {
+  test("help gives new's ages as the rules do: 21 to 50, retiring at 61 (DL-113 item 4)", () => {
     const { out } = play(['help']);
     const newHelp = out.slice(out.indexOf('  new '), out.indexOf('  show ')).replace(/\s+/g, ' ');
 
@@ -1744,7 +1744,7 @@ describe('the command line', () => {
     expect(newHelp).not.toContain('30 to 45');
   });
 
-  test("help gives new's --stats: every Guildmaster Stat or none, by key, within the rules' range and points (v1.1.4-S11)", () => {
+  test("help gives new's --stats: every Guildmaster Stat or none, by key, within the rules' range and points", () => {
     const { out } = play(['help']);
     const newHelp = out.slice(out.indexOf('  new '), out.indexOf('  show ')).replace(/\s+/g, ' ');
 

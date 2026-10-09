@@ -5,7 +5,7 @@ import { realFiles, parse, withJson, refusalOf, type Files } from './content.tes
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-// The content version, as data (v1.1.6-S4, DL-186 item 14): read from `version.json` with the rest.
+// The content version, as data (DL-186 item 14): read from `version.json` with the rest.
 describe('the content version', () => {
   test('is read from version.json, as the tools raise it there', () => {
     const files = withJson('version.json', (json) => {

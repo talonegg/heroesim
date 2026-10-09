@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import { debugHistory, groupOf, historyText, playTurns, startGame } from './support';
 
-// The test-only switch for modules (M8-S4, DL-79), in the built page: opened at `?modules=probe`, the
+// The test-only switch for modules (DL-79), in the built page: opened at `?modules=probe`, the
 // page says the probe is installed, and a game from seed `modules`, on which the probe's stream first
 // draws below its threshold on the eleventh Turn, the night of Year 1 Day 4, shows `probe.fired` in the log
 // of that Turn. Opened without the switch, the same Turns install and show nothing of a module.
 // What a play did is read in the History, the whole History here, the game menu's debug view, where
-// a module's events are (M9-S5, DL-105; M9-F4, DL-117).
+// a module's events are (DL-105, DL-117).
 
 /** Starts a game from the firing seed and plays eleven Turns, one at a time. */
 async function elevenTurns(page: Page): Promise<void> {

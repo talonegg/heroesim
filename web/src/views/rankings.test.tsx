@@ -5,7 +5,7 @@ import { changed, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { openView, section } from './page.test-support';
 
-// The Rankings redesigned (M9-S6, DL-106; the review's B4, B5 and B10): the Rankings and the Guilds
+// The Rankings redesigned (DL-106; the review's B4, B5 and B10): the Rankings and the Guilds
 // as one table whose headings order it, By Fame and By Wealth keeping their shared places; a
 // Rival's page with its Roster as a table and its Hall and Guildmaster folded; and the Patrons as
 // one table with the neutral folded. Every value comes from a selector (`guildsTable`, `guildPage`,
@@ -59,7 +59,7 @@ const five = [
   ['Cinder', 0, 200, 3],
 ] as const;
 
-describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", () => {
+describe("the Guilds and the Rankings as one table (the review's B4)", () => {
   test('gives Place, Guild, Disposition, Fame, Wealth, Heroes and Upkeep, the Rankings by Fame first, the player’s row marked', () => {
     render_(arranged(five));
 
@@ -180,7 +180,7 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
   });
 });
 
-describe("a Guild's page (M9-S6, the review's B10)", () => {
+describe("a Guild's page (the review's B10)", () => {
   test("opens from its row: its Roster as a table with the Transfer fees and Take in, and its Hall and Guildmaster folded", () => {
     render_(started());
     const rival = rows().find(({ name }) => name === 'The Ashford Guild');
@@ -238,7 +238,7 @@ describe("a Guild's page (M9-S6, the review's B10)", () => {
   });
 });
 
-describe("the Patrons as one table (M9-S6, the review's B5)", () => {
+describe("the Patrons as one table (the review's B5)", () => {
   test("give each Patron's Sphere, their Regard for the Guild, the Guildmaster's for them, and their Quests on the Board, the neutral folded", () => {
     const state = changed(started(), (document, player) => {
       const guildmaster = document.world.guildmasters[player.guildmasterId];

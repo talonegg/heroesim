@@ -27,7 +27,7 @@ import { playReport } from './play-report.js';
 import { compareReplay, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, type PlaySweep } from './sweep.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
-// play.harness.test.ts (M2-S12, DL-34).
+// play.harness.test.ts (DL-34).
 
 // The Fame gate's reading, which its counter's observer makes before each Turn's choices, watched as
 // a game plays, so a test can count the Turns observed (DL-189, DL-239).
@@ -64,7 +64,7 @@ describe('sweepPlay', () => {
     expect(sweep.replay).toMatchObject({ seed: 'seed-0001', identical: true, advance: { count: 60 } });
   });
 
-  // v1.1.6-S3 (DL-189): the replay compares its one play with the record the sweep made of the seed.
+  // DL-189: the replay compares its one play with the record the sweep made of the seed.
   describe('the replay comparison', () => {
     const recorded = sweep.games[0] as GameRecord;
     const { serialisedLength, fingerprint } = recorded.measures;
@@ -138,7 +138,7 @@ describe('sweepPlay', () => {
     expect(parallel.replay).toMatchObject({ seed: 'seed-0001', identical: true, length: sweep.replay?.length });
   });
 
-  // v1.1.4-S10: each seed is a child of its own, at most `workers` at once, the next as one ends.
+  // Each seed is a child of its own, at most `workers` at once, the next as one ends.
   test('plays the same games with more seeds than processes, one seed a child, and skips the replay when asked', { timeout: 120_000 }, async () => {
     const three = seedNames(3);
     const serial = await sweepPlay(three, deps, { years, replay: false });
@@ -152,7 +152,7 @@ describe('sweepPlay', () => {
 
   test("totals the games' counters", () => {
     expect(totals.games).toBe(2);
-    // Two short games: no founding Guildmaster reaches 65 (M9-S2).
+    // Two short games: no founding Guildmaster reaches 65.
     expect(totals.rivalSuccessions).toBe(0);
     expect(totals.endings).toEqual({ retirement: 0, bankruptcy: 0, 'roster-wiped': 0, survived: 2 });
     const taken = sweep.games.reduce((sum, game) => sum + game.counters.questsTaken.player, 0);
@@ -258,7 +258,7 @@ describe('sweepPlay', () => {
     expect(totals.rankings[0]?.fame.reduce((a, b) => a + b, 0)).toBe(2);
   });
 
-  test("totals and renders M9-S1's counters: each game's nights below the Bankruptcy floor and back, by controller (DL-101)", () => {
+  test("totals and renders the Bankruptcy floor counters: each game's nights below the Bankruptcy floor and back, by controller (DL-101)", () => {
     const games = sweep.games.map((game, index) => ({
       ...game,
       counters: { ...game.counters, belowFloor: { player: index + 1, rival: 3 }, floorRecovered: { player: index, rival: 2 } },
@@ -274,7 +274,7 @@ describe('sweepPlay', () => {
     expect(report).toContain('| Back to it or more (`guild.floor-recovered`) | 1 | 0.50 | 4 | 2.00 |');
   });
 
-  test("totals and renders v1.1.4-S10's Party sizes with the XP each Hero took, and the Traits earned by key (DL-148 item 19)", () => {
+  test("totals and renders the Party sizes with the XP each Hero took, and the Traits earned by key (DL-148 item 19)", () => {
     const games = sweep.games.map((game) => ({
       ...game,
       counters: {
@@ -292,7 +292,7 @@ describe('sweepPlay', () => {
     expect(summed.partySizes.player).toEqual({ 2: { quests: 4, fail: 2, strong: 2, xpPerHero: 180, heroesHome: 6, xpTaken: 300 } });
     expect(summed.traitsGainedByKey).toEqual({ player: { lame: 2 }, rival: {} });
     const report = playReport(parties, { deps, machine: machine(), startedAt: new Date(2026, 9, 3, 12), milestone: 'm9-v114-s10' });
-    // v1.1.5-S13 (DL-182): the heading says the XP is split across the Party sent.
+    // DL-182: the heading says the XP is split across the Party sent.
     expect(report).toContain(
       "with the XP each Hero who came home took (`xpPerHero`: the Quest's XP split across the Party sent, its Dead counted, rounded down, v1.1.5-S13, DL-182) and the XP the Party took in all, a Quest:",
     );
@@ -305,7 +305,7 @@ describe('sweepPlay', () => {
     expect(report).toContain('| `scarred` | 0 | 0 |');
   });
 
-  test("totals and renders v1.1.3-S5's Portrait counters, by controller and in all (DL-134 item 9)", () => {
+  test("totals and renders the Portrait counters, by controller and in all (DL-134 item 9)", () => {
     const games = sweep.games.map((game) => ({
       ...game,
       counters: {
@@ -335,7 +335,7 @@ describe('sweepPlay', () => {
     expect(report.indexOf('## Portraits')).toBeLessThan(report.indexOf('## Measures'));
   });
 
-  test("totals and renders v1.1.3-S6's Hero counters and the saves as each year ended (DL-134 item 9, DL-135 item 6)", () => {
+  test("totals and renders the Hero counters and the saves as each year ended (DL-134 item 9, DL-135 item 6)", () => {
     const mib = 1024 * 1024;
     const games = sweep.games.map((game, index) => ({
       ...game,
@@ -371,7 +371,7 @@ describe('sweepPlay', () => {
     expect(report.indexOf('## Heroes described')).toBeLessThan(report.indexOf('## Measures'));
   });
 
-  // v1.1.6-S1 (DL-186 item 7, DL-187): the totals are one fold over each game's counters, so a counter
+  // DL-186 item 7, DL-187: the totals are one fold over each game's counters, so a counter
   // reaches them with no line of its own. These hold every number a game's counters give to its sum,
   // and each declared exception to its rule.
   describe('one fold over the games', () => {
@@ -518,7 +518,7 @@ describe('sweepPlay', () => {
       ]);
     });
 
-    // v1.1.6-S17 (DL-203): the World State as each year ended, joined as the saves are.
+    // DL-203: the World State as each year ended, joined as the saves are.
     test("joins the worlds as each year ended: each game's numbers kept, in the games' order, and renders them with the copy's time", () => {
       const world = (n: number): WorldSize => ({
         characters: n * 1024 * 1024,
@@ -622,17 +622,17 @@ describe('sweepPlay', () => {
     const context = { deps, machine: machine(), startedAt: new Date(2026, 8, 26, 12), milestone: 'm4' };
     const report = playReport(sweep, context);
 
-    test("gives the sweep's fingerprint, so two runs' saves compare in one line (M8-S1, DL-76)", () => {
+    test("gives the sweep's fingerprint, so two runs' saves compare in one line (DL-76)", () => {
       expect(report).toContain(`| Fingerprint of every seed's last save | \`${sweepFingerprint(sweep.games)}\` |`);
     });
 
-    test('names the draft content files it played in place of the core files, and none when it played the core (v1.1.4-S9)', () => {
+    test('names the draft content files it played in place of the core files, and none when it played the core', () => {
       expect(report).toContain(` · content \`core\` version ${deps.content.version} · config version`);
       const drafted = playReport(sweep, { ...context, drafted: ['encounters.json', 'items.json'] });
       expect(drafted).toContain(` · content \`core\` version ${deps.content.version} with the drafts of \`encounters.json\`, \`items.json\` · config version`);
     });
 
-    test('names the config it changed from the defaults, and nothing when it changed none (v1.1.4-S9 verification)', () => {
+    test('names the config it changed from the defaults, and nothing when it changed none (DL-162)', () => {
       expect(report).toContain(`schema version ${schemaVersion} · \`createdAt`);
       const changed = playReport(sweep, { ...context, configured: { checkVariance: 0.4, marketSize: 14 } });
       expect(changed).toContain(`schema version ${schemaVersion}, the defaults changed by \`{"checkVariance":0.4,"marketSize":14}\` · \`createdAt`);
@@ -640,7 +640,7 @@ describe('sweepPlay', () => {
 
     test('states the seeds, the endings, byte equality and the measures against the targets', () => {
       expect(report).toContain('2 seeds, `seed-0001` to `seed-0002`');
-      // M9-S2: the Rival Guildmasters succeeded, beside the folds by cause.
+      // The Rival Guildmasters succeeded, beside the folds by cause.
       expect(report).toContain('| Rival Guildmasters succeeded | 0, 0.00 a game |');
       expect(report).toContain("A Rival Guildmaster's Retirement is met by Succession (`guildmaster.succeeded`, M9-S2), not a fold: 0 in all.");
       expect(report).toContain('ran the full 0.06 years 2');
@@ -670,7 +670,7 @@ describe('sweepPlay', () => {
       expect(report).not.toMatch(/year 0/i);
     });
 
-    // v1.1.6-S2 (DL-186 items 17 and 21): the years label reads the run's years, a run of other than 20
+    // DL-186 items 17 and 21: the years label reads the run's years, a run of other than 20
     // is set against no 20-year target, and the save's target is the Gate's, its gzipped mean (DL-188).
     test("reads the save's target from the Gate's spec, and sets a run of other than 20 years against no 20-year target", () => {
       const saveTarget =
@@ -692,7 +692,7 @@ describe('sweepPlay', () => {
       expect(twenty).toContain('(the 2 games that ran 20 years) |');
       expect(twenty).not.toContain('not comparable');
 
-      // v1.1.6-S2's verification (DL-188): the gzipped measure is the saves' after the 20th year.
+      // DL-188: the gzipped measure is the saves' after the 20th year.
       const mebibyte = 1024 * 1024;
       const savedFor20Years = (gzipped: number): PlaySweep['games'][number]['observations']['saves'] =>
         Array.from({ length: 20 }, (_, year) => ({ length: 140 * mebibyte, heroFields: 0, gzipped: year === 19 ? gzipped : null }));
@@ -711,7 +711,7 @@ describe('sweepPlay', () => {
       expect(measured).toContain(`${saveTarget} gzipped: mean 19.00 MiB, max 21.00 MiB; uncompressed: mean`);
     });
 
-    test("names the policy's values it changed from the defaults (v1.1.6-S2), and writes the Gate's lines when checked", () => {
+    test("names the policy's values it changed from the defaults, and writes the Gate's lines when checked", () => {
       expect(report).not.toContain("the policy's defaults changed");
       expect(playReport(sweep, { ...context, policyChanged: { rosterLimit: 10 } })).toContain(
         `schema version ${schemaVersion} · the policy's defaults changed by \`{"rosterLimit":10}\` · \`createdAt`,

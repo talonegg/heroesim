@@ -30,9 +30,9 @@ import { countdownView } from './selectors';
 import { faceted, type FacetChoices } from './facets';
 import { ledgerOf, ledgerPage, treasuryAccounts, wealthChangeOf } from './treasury';
 
-// The Treasury (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): the ledger is every change to a Guild's
+// The Treasury (DL-111 item 5, DL-112 item 6, DL-116): the ledger is every change to a Guild's
 // Wealth read from the History by six categories. Its heart is that it misses nothing: from its opening
-// row, the Wealth the Guild was founded with (M9-F7, DL-120 item 4), it adds up to its Wealth now.
+// row, the Wealth the Guild was founded with (DL-120 item 4), it adds up to its Wealth now.
 
 const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-30T09:00:00.000Z' };
 
@@ -162,7 +162,7 @@ function playersMonth(document: WorldDocument, month: number): WorldDocument {
 /**
  * A game from `seed` played `years` years, the player's Guild playing its month every 30 Days. The last
  * Rival is founded with no Wealth and its Roster released to the Unattached pool, its founding saying
- * so, so it folds that night with its Roster wiped, and a Rival is founded in its place (M9-F7).
+ * so, so it folds that night with its Roster wiped, and a Rival is founded in its place.
  */
 function playedGame(seed: string, years: number): { start: WorldDocument; now: WorldDocument } {
   const start = createWorld(seed, setup, deps).document;
@@ -183,7 +183,7 @@ function playedGame(seed: string, years: number): { start: WorldDocument; now: W
   return { start: structuredClone(start), now };
 }
 
-describe('the ledger misses nothing (M9-F3)', () => {
+describe('the ledger misses nothing', () => {
   // Played before the tests rather than as they are collected, so that the run, which starts the files
   // that took longest first, counts the games' time (DL-234).
   const seeds = ['ledger-1', 'ledger-2', 'ledger-3'];
@@ -193,7 +193,7 @@ describe('the ledger misses nothing (M9-F3)', () => {
   }, 120_000);
 
   test.each(seeds)(
-    "%s: every Guild's ledger, from its opening row, adds up to its Wealth now: the player's, each founding Rival's and each replacement's (M9-F7)",
+    "%s: every Guild's ledger, from its opening row, adds up to its Wealth now: the player's, each founding Rival's and each replacement's",
     (seed) => {
       const game = games.find((each) => each.seed === seed);
       if (game === undefined) throw new Error(`no game of ${seed}`);
@@ -259,7 +259,7 @@ function treasuryPage(document: WorldDocument, filter: FacetChoices<'flow' | 'ca
   return { ...rest, ledger: { ...ledgerPage(ledger, shown, page), filters: shown.facets } };
 }
 
-describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', () => {
+describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor', () => {
   test("gives the Guild's Wealth, and Upkeep's next payment with its Day and its parts, as the engine reckons them", () => {
     const state = played(started('treasury-upkeep'), { kind: 'advance', turns: 7 });
     const document = documentOf(state);
@@ -293,7 +293,7 @@ describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', ()
     expect(treasuryPage(documentOf(state), both, 0)?.upkeep.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.9' });
   });
 
-  test("gives a factor of two Traits as a figure a player reads, not the float's digits (M9-F6, code review)", () => {
+  test("gives a factor of two Traits as a figure a player reads, not the float's digits (code review)", () => {
     // Thrifty and Spendthrift together are no legal set, but a row that holds both multiplies their
     // factors, 0.9 × 1.1, which is 0.9900000000000001 in floating point.
     const state = changed(started('treasury-factors'), (document, player) => {
@@ -331,7 +331,7 @@ describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', ()
   });
 });
 
-describe("The Treasury: the ledger's filters, totals and pages (M9-F3)", () => {
+describe("The Treasury: the ledger's filters, totals and pages", () => {
   /** A game in which The Lantern bought and sold at the Market, signed a Hero and paid Upkeep. */
   function traded(): GameState {
     let state = withWealth(started('treasury-ledger'), 5_000);
@@ -368,7 +368,7 @@ describe("The Treasury: the ledger's filters, totals and pages (M9-F3)", () => {
       ['heroes', -fee],
       ['market', proceeds],
       ['market', -cost],
-      // The ledger opens with the Wealth the Guild was founded with (M9-F7, DL-120 item 4).
+      // The ledger opens with the Wealth the Guild was founded with (DL-120 item 4).
       [null, founding],
     ]);
     const [paid, , , bought, opening] = view?.ledger.rows ?? [];
@@ -473,7 +473,7 @@ describe("The Treasury: the ledger's filters, totals and pages (M9-F3)", () => {
     expect(last?.rows.at(-1)?.category).toBeNull();
   });
 
-  test("a new game's ledger holds its opening row alone, on one page, and totals of nothing (M9-F7)", () => {
+  test("a new game's ledger holds its opening row alone, on one page, and totals of nothing", () => {
     const view = treasuryPage(documentOf(started('treasury-empty')), both, 0)?.ledger;
     expect(view?.rows.map((row) => row.sentence)).toEqual([`Founded with ${defaultConfig.startingWealth} Wealth`]);
     expect(view?.page).toBe(0);
@@ -484,7 +484,7 @@ describe("The Treasury: the ledger's filters, totals and pages (M9-F3)", () => {
     expect(view?.totals).toMatchObject({ income: 0, expense: 0, net: 0 });
   });
 
-  test('a save whose founding names no Wealth, as one made before M9-F7, has no opening row, and a ledger with nothing to show has one empty page', () => {
+  test('a save whose founding names no Wealth, as one made before DL-120, has no opening row, and a ledger with nothing to show has one empty page', () => {
     const state = changed(started('treasury-older'), (document) => {
       for (const entry of document.history.entries) {
         if (entry.type === 'guild.founded') delete (entry.payload as { wealth?: number }).wealth;

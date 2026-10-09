@@ -4,10 +4,10 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { StopView } from '../state/selectors';
 import { StopCard } from './stop';
 
-// Why time stopped, in the home view (M9-S3, DL-103). "Fast forward again" (v1.0.1-S5, DL-96 item
+// Why time stopped, in the home view (DL-103). "Fast forward again" (DL-96 item
 // 5): after the player's Stop it asks for the stops the stopped fast forward was asked for,
-// `pool-refreshed` among them; after a year's `max-turns` it asks for none, as before (v1.0.1-S6,
-// DL-97). A decision needed makes each Quest it names a button to its Party.
+// `pool-refreshed` among them; after a year's `max-turns` it asks for none, as before
+// (DL-97). A decision needed makes each Quest it names a button to its Party.
 
 afterEach(cleanup);
 
@@ -60,7 +60,7 @@ describe('a decision needed', () => {
   });
 });
 
-describe('the Bankruptcy stop (M9-S7, #32)', () => {
+describe('the Bankruptcy stop (#32)', () => {
   const sentence = 'Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day 35 unless its Wealth recovers by then.';
 
   test('is a warning card with the Day Bankruptcy falls on, and says in words what can be done about it', () => {
@@ -75,7 +75,7 @@ describe('the Bankruptcy stop (M9-S7, #32)', () => {
     expect(stop.textContent).toContain('Sell what the Guild holds at the Market, or send a Party on a Quest: its reward comes in when it comes home.');
   });
 
-  test("goes to the Market's Sell, and to the Board (DL-109 item 2, Q20, as M9-F2 moves Sell)", () => {
+  test("goes to the Market's Sell, and to the Board (DL-109 item 2, Q20)", () => {
     const { onGo } = card({ kind: 'below-floor', sentence });
 
     fireEvent.click(screen.getByRole('button', { name: 'Sell what the Guild holds' }));
@@ -86,7 +86,7 @@ describe('the Bankruptcy stop (M9-S7, #32)', () => {
   });
 });
 
-describe('a Quest to staff (M9-S7, #32)', () => {
+describe('a Quest to staff (#32)', () => {
   const sentence = "Stopped: a Quest to staff: The Lantern's Heroes at home could go on Clear the barrow.";
 
   test('makes each Quest it names a button to its Party, as a decision needed does', () => {
@@ -106,7 +106,7 @@ describe('a Quest to staff (M9-S7, #32)', () => {
   });
 });
 
-describe("a Party's return and a module's stop (M9-F5, DL-112 item 8)", () => {
+describe("a Party's return and a module's stop (DL-112 item 8)", () => {
   test('the Party stop offers nothing more: its report is under it on Guild › Home; a module’s stop keeps "Read what happened"', () => {
     card({ kind: 'party-returned', sentence: "Stopped: The Lantern's Party came home." });
     expect(screen.queryByRole('button', { name: 'Read what happened' })).toBeNull();

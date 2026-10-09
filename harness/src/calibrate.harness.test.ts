@@ -7,11 +7,11 @@ import { runConfig } from './play.js';
 import { machine, print, writeReport } from './report.js';
 import { runSettings, settingsSet } from './settings.js';
 
-// v1.1.4-S9's calibration (DL-162), collected only by the harness-run project and run only when
+// The calibration (DL-162), collected only by the harness-run project and run only when
 // HEROESIM_PROBE names it: `npm run harness -- calibrate` (main.ts sets the probe from the word), or
 // `HEROESIM_PROBE=calibrate npm run harness`. It calibrates the shipped content, or that content with
 // the drafts of HEROESIM_DRAFTS (a directory of content files, each in place of the core file of its
-// name, such as `docs/quests/drafts`; unset, blank or `none`, the content alone, since v1.1.4-S14),
+// name, such as `docs/quests/drafts`; unset, blank or `none`, the content alone),
 // HEROESIM_PARTIES random Parties a cell (120 by default) and HEROESIM_SEEDS seeds a spot-check sample (4,000 by default), and writes
 // `calibration.md` and `calibration.json` beside the drafts' directory (`docs/quests/`), or into
 // HEROESIM_CALIBRATION_OUT.
@@ -20,10 +20,10 @@ import { runSettings, settingsSet } from './settings.js';
 // difficulty factor in the drafts' `encounters.json` so that at `defaultTuningAim` (Level 5, difficulty 60) random Parties of 3
 // succeed at each Encounter with that chance (`tunedFactors`), and writes the file back, then
 // calibrates it; each Finale at the middle of its template's difficulties (`aimOf`). HEROESIM_FLAT, a
-// share from 0 to 1, puts that share of each target at the aim into the Check's flat term (v1.1.4-S9's
+// share from 0 to 1, puts that share of each target at the aim into the Check's flat term (DL-162
 // verification). HEROESIM_CONFIG plays config values in place of the defaults, as a play sweep does.
-// Each variable is read, and a bad value refused, by `settings.ts` (v1.1.6-S2), which also refuses
-// HEROESIM_TUNE without HEROESIM_DRAFTS (v1.1.4-S14: tuning writes the drafts' files, never the
+// Each variable is read, and a bad value refused, by `settings.ts`, which also refuses
+// HEROESIM_TUNE without HEROESIM_DRAFTS (tuning writes the drafts' files, never the
 // content's). The drafts' tuning is in docs/quests/calibration.md's command line.
 
 const run = runSettings();

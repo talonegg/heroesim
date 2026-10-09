@@ -30,7 +30,7 @@ import {
   patronsView,
 } from './world-views';
 
-// The views of the wider world (M7-S3 part 2, DL-73): every number beside the engine selector or
+// The views of the wider world (DL-73): every number beside the engine selector or
 // document field it comes from, as `selectors.test.ts` does for part 1's.
 
 const deps = { config: defaultConfig, content };
@@ -58,7 +58,7 @@ function rival(document: WorldDocument): Guild {
   return guild;
 }
 
-describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review's B4)", () => {
+describe("the Guilds as one table, the Rankings in it (DL-106; the review's B4)", () => {
   /** A new game whose five Guilds have the names, Fame, Wealth and Roster sizes given, in the world's order. */
   function arranged(rows: readonly [name: string, fame: number, wealth: number, heroes: number][]): WorldDocument {
     const document = structuredClone(newGame());
@@ -82,7 +82,7 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
         guildId: guild.id,
         name: guild.name,
         mine: guild.controller.kind === 'player',
-        // Its Guildmaster's sex and Portrait's key, for the thumbnail beside its name (v1.1.3-S7).
+        // Its Guildmaster's sex and Portrait's key, for the thumbnail beside its name.
         guildmaster: { sex: document.world.guildmasters[guild.guildmasterId]?.sex, portraitKey: document.world.guildmasters[guild.guildmasterId]?.portraitKey },
         place: expect.stringMatching(/^(Joint )?\d+(st|nd|rd|th)$/),
         disposition: guild.controller.kind === 'player' ? 'Yours' : content.dispositions[guild.controller.disposition]?.name,
@@ -187,7 +187,7 @@ describe('hallView', () => {
     }
     expect(view?.facilities.find((row) => row.facility === 'quarters')).toMatchObject({ built: 'Comfortable lodgings', next: null });
     expect(view?.facilities.find((row) => row.facility === 'infirmary')).toMatchObject({ built: 'none' });
-    // The Upkeep left the Hall for the Treasury (M9-F3, DL-112 item 6).
+    // The Upkeep left the Hall for the Treasury (DL-112 item 6).
     expect(view).not.toHaveProperty('upkeep');
   });
 
@@ -199,7 +199,7 @@ describe('hallView', () => {
     expect(hallView(document, 'guild-999999' as GuildId)).toBeNull();
   });
 
-  test("gives each facility's top grade from the Improvements content defines, for its pips (M9-S6, the review's B9)", () => {
+  test("gives each facility's top grade from the Improvements content defines, for its pips (the review's B9)", () => {
     const document = structuredClone(newGame());
     player(document).hall.infirmary = 1;
 
@@ -246,13 +246,13 @@ describe('guildmasterView', () => {
     }
   });
 
-  test('gives the descriptive Attributes written, after the sex and age, and none left empty (M9-S2)', () => {
+  test('gives the descriptive Attributes written, after the sex and age, and none left empty', () => {
     const document = createWorld(
       'world-views',
       { ...setup, guildmasterBirthplace: 'Harrowgate', guildmasterBiography: 'Once a quartermaster of the river levies.' },
       deps,
     ).document;
-    // Every Guildmaster's blanks are written as they enter play since v1.1.2-S5: an older save may hold one empty.
+    // Every Guildmaster's blanks are written as they enter play (DL-132): an older save may hold one empty.
     const player = playerGuild(document.world);
     const mine = player === undefined ? undefined : document.world.guildmasters[player.guildmasterId];
     if (mine !== undefined) mine.appearance = '';
@@ -262,7 +262,7 @@ describe('guildmasterView', () => {
       ['Birthplace', 'Harrowgate'],
       ['Biography', 'Once a quartermaster of the river levies.'],
     ]);
-    // A Rival's are written as they enter play (v1.1.2-S5), so it shows all three.
+    // A Rival's are written as they enter play, so it shows all three.
     expect(guildmasterView(document, rival(document).id)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age', 'Birthplace', 'Appearance', 'Biography']);
   });
 
@@ -277,9 +277,9 @@ describe('guildmasterView', () => {
       expect(view?.sex).toBe(guildmaster.sex);
       keys.push(view?.portraitKey);
     }
-    // The player's first, a male of 41, then the Rivals', each of their sex and age (v1.1.3-S5).
+    // The player's first, a male of 41, then the Rivals', each of their sex and age.
     expect(keys).toEqual(['gm-male-10', 'gm-male-19', 'gm-female-12', 'gm-male-16', 'gm-male-05']);
-    // The key a save of schema 5 holds (v1.1.2-S3) is read as it is.
+    // The key a save of schema 5 holds is read as it is.
     const later = structuredClone(document);
     const guildmaster = guildmasterOf(player(later), later.world);
     if (guildmaster === undefined) throw new Error('no Guildmaster');
@@ -300,7 +300,7 @@ describe('guildmasterView', () => {
     }
   });
 
-  describe("the Guildmaster's Retirement, read from the engine's retirementTurn (M9-F3, DL-113 item 5, DL-116)", () => {
+  describe("the Guildmaster's Retirement, read from the engine's retirementTurn (DL-113 item 5, DL-116)", () => {
     /** A world whose player's Guildmaster is `age` on Turn 0, played on to `turn`. */
     function aged(age: number, turn = 0): WorldDocument {
       const document = structuredClone(createWorld('world-views-retirement', { ...setup, guildmasterAge: age }, deps).document);
@@ -318,7 +318,7 @@ describe('guildmasterView', () => {
       expect(guildmasterView(aged(50))?.retirement).toBe('Retires at 61 on the night of Year 12 Day 1: in 11 Years.');
     });
 
-    test('says "in 1 year" a year or more away, and the Days left once it is less than a year away (M9-F7, DL-120 item 2)', () => {
+    test('says "in 1 year" a year or more away, and the Days left once it is less than a year away (DL-120 item 2)', () => {
       // A year to the Day before: the engine's Day 3600, 360 Days, is a year away.
       expect(guildmasterView(aged(50, 10 * 1080))?.retirement).toBe('Retires at 61 on the night of Year 12 Day 1: in 1 Year.');
       // A Day later it is less than a year away, though still the Year before.
@@ -333,7 +333,7 @@ describe('guildmasterView', () => {
       expect(guildmasterView(document)?.retirement).toBe('Retired at 61 on the night of Year 12 Day 1.');
     });
 
-    test('says why none came once the game has ended otherwise, or the Guild has folded (M9-F7, DL-120 item 9)', () => {
+    test('says why none came once the game has ended otherwise, or the Guild has folded (DL-120 item 9)', () => {
       const bankrupt = aged(30, 900);
       bankrupt.world.ended = { turn: 900, reason: 'bankruptcy' };
       expect(guildmasterView(bankrupt)?.retirement).toBe('Never retired: the game ended in Bankruptcy on Year 1 Day 301.');
@@ -351,7 +351,7 @@ describe('guildmasterView', () => {
       expect(guildmasterView(folded, other.id)?.retirement).toBe('Never retired: the Guild folded on Year 1 Day 46.');
     });
 
-    test("says why a Rival's Guildmaster never retired when the player's game ended first, naming the player's Guild (M9-F7)", () => {
+    test("says why a Rival's Guildmaster never retired when the player's game ended first, naming the player's Guild", () => {
       const document = aged(30, 900);
       document.world.ended = { turn: 900, reason: 'bankruptcy' };
       expect(guildmasterView(document, rival(document).id)?.retirement).toBe('Never retired: the game ended on Year 1 Day 301, when The Lantern went bankrupt.');
@@ -361,7 +361,7 @@ describe('guildmasterView', () => {
       );
     });
 
-    test('says the coming night for one past the night retirementTurn gave but still in office, as a save adopting younger rules has (M9-F6, code review)', () => {
+    test('says the coming night for one past the night retirementTurn gave but still in office, as a save adopting younger rules has (code review)', () => {
       // At 45 on Turn 0, the night of their 61st was Turn 17,282. On Turn 18,500 they are 62 and
       // still in office: the endings retire them on the next night, Turn 18,503, Year 18 Day 48.
       expect(guildmasterView(aged(45, 18_500))?.retirement).toBe('Retires at 62 on the night of Year 18 Day 48: in 1 Day.');
@@ -391,7 +391,7 @@ describe('guildmasterView', () => {
     expect(guildmasterView(document, other.id)?.guildName).toBe(other.name);
   });
 
-  test("marks each Regard that is neutral, for the page to fold (M9-S6, the review's C8)", () => {
+  test("marks each Regard that is neutral, for the page to fold (the review's C8)", () => {
     const document = structuredClone(newGame());
     const guild = player(document);
     const guildmaster = guildmasterOf(guild, document.world);
@@ -425,7 +425,7 @@ describe('patronsView', () => {
     );
   });
 
-  test("gives, beside their Regard for the player's Guild, the player's Guildmaster's Regard for them and their Quests on the Board now, and marks a row neutral when both Regards are (M9-S6, the review's B5)", () => {
+  test("gives, beside their Regard for the player's Guild, the player's Guildmaster's Regard for them and their Quests on the Board now, and marks a row neutral when both Regards are (the review's B5)", () => {
     const document = structuredClone(played(9));
     const guild = player(document);
     const guildmaster = guildmasterOf(guild, document.world);
@@ -480,7 +480,7 @@ describe('guildPage', () => {
     expect(guildPage(document, 'guild-999999' as GuildId)).toBeNull();
   });
 
-  test("says whose it is, its Background, Fame and Wealth; the player's own has no fees (M9-S6, the review's B10)", () => {
+  test("says whose it is, its Background, Fame and Wealth; the player's own has no fees (the review's B10)", () => {
     const document = newGame();
     const other = rival(document);
     const mine = player(document);

@@ -5,8 +5,8 @@ import { changed, played, started } from '../state/game.test-support';
 import { initialGameState, type GameState } from '../state/reducer';
 import { section } from './page.test-support';
 
-// The Guildmaster view (M9-F2, DL-111 item 7, DL-112 item 5): the Guildmaster part the Hall view
-// held (M9-S6, DL-106; the review's C8), a view of its own at the top of the navigation. The
+// The Guildmaster view (DL-111 item 7, DL-112 item 5): the Guildmaster part the Hall view
+// held (DL-106; the review's C8), a view of its own at the top of the navigation. The
 // Traits with their effects, the descriptive Attributes written, and Regard as chips with the
 // neutral folded.
 
@@ -16,7 +16,7 @@ function render_(state: GameState): void {
   render(<App initial={state} />);
 }
 
-describe('the Guildmaster view (M9-F2)', () => {
+describe('the Guildmaster view', () => {
   test("is a view with its heading, and gives the player's Guildmaster: name and Guild, Sex and Age, Stats, Traits and Regard", () => {
     render_(started());
     const view = section('Guildmaster');
@@ -34,7 +34,7 @@ describe('the Guildmaster view (M9-F2)', () => {
     expect(screen.queryByRole('region', { name: 'Hall' })).toBeNull();
   });
 
-  test("gives the Guildmaster's Retirement: its Day and the years left, read from the engine (M9-F3, DL-113 item 5)", () => {
+  test("gives the Guildmaster's Retirement: its Day and the years left, read from the engine (DL-113 item 5)", () => {
     render_(
       played(initialGameState, { kind: 'newGame', seed: 'app-test', guildName: 'The Lantern', guildmasterName: 'Ada Vell', guildmasterAge: 30, createdAt: '2026-09-30T09:00:00.000Z' }),
     );
@@ -42,14 +42,14 @@ describe('the Guildmaster view (M9-F2)', () => {
     expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Year 32 Day 1: in 31 Years.');
   });
 
-  test('says why no Retirement came once the game has ended by another ending (M9-F7, DL-120 item 9)', () => {
+  test('says why no Retirement came once the game has ended by another ending (DL-120 item 9)', () => {
     render_(changed(started(), (document) => void (document.world.ended = { turn: 0, reason: 'bankruptcy' })));
 
     expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Never retired: the game ended in Bankruptcy on Year 1 Day 1.');
     expect(within(section('Guildmaster')).queryByText(/Retires at/)).toBeNull();
   });
 
-  test('gives the Days left once the Retirement is less than a year away (M9-F7, DL-120 item 2)', () => {
+  test('gives the Days left once the Retirement is less than a year away (DL-120 item 2)', () => {
     render_(
       changed(started(), (document, player) => {
         const guildmaster = document.world.guildmasters[player.guildmasterId];
@@ -69,7 +69,7 @@ describe('the Guildmaster view (M9-F2)', () => {
       if (guildmaster === undefined || patron === undefined) throw new Error('no Guildmaster or Patron');
       guildmaster.traits = ['thrifty', 'mistrusts-magic'] as never;
       guildmaster.birthplace = 'Harrowgate';
-      // Written as they enter play since v1.1.2-S5: an older save may hold one empty, which shows none.
+      // Written as they enter play (DL-132): an older save may hold one empty, which shows none.
       guildmaster.appearance = '';
       guildmaster.biography = 'Once a quartermaster of the river levies.';
       guildmaster.regard[patron.id] = { value: 8, since: 0, reason: 'test' };

@@ -12,7 +12,7 @@ import { playerGuild } from '../selectors.js';
 import { demandsCheck, encounterCapability as capability, heroStatKeys, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { resolveQuest } from './resolve.js';
 
-// M5-S3 (DL-50): the consumables a Party carries, used as the Quest Engine resolves its sequence. A
+// DL-50: the consumables a Party carries, used as the Quest Engine resolves its sequence. A
 // created world's player Guild sends its Roster, every Stat set to 8, on a Quest whose Encounters a
 // test writes into content, carrying the stacks a test gives the Party.
 
@@ -22,7 +22,7 @@ const pinned: Partial<GameConfig> = {
   checkVariance: 0,
   skillBonusPerRating: 2,
   bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
-  // v1.1.4-S2's Degrees, as these Quests were written under; S10 moved the defaults (DL-166).
+  // DL-148's Degrees, as these Quests were written under; the defaults have moved since (DL-166).
   checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
   strongTriumphShare: 0.5,
   xpPerDifficultyPoint: 1,
@@ -80,7 +80,7 @@ function scene(
     hero.skills = {};
   }
   const offered = world.quests[world.board[0] as Quest['id']] as Quest;
-  const quest: Quest = { ...structuredClone(offered), difficulty: 40, reward: 200, fameEffect: 3, encounterKeys: keys, lootTableKey: null }; // no Loot draws (M5-S5): these tests count the reroll's
+  const quest: Quest = { ...structuredClone(offered), difficulty: 40, reward: 200, fameEffect: 3, encounterKeys: keys, lootTableKey: null }; // no Loot draws: these tests count the reroll's
   const party: Party = {
     id: makeId('parties', 99),
     questId: quest.id,
@@ -109,7 +109,7 @@ const ambush = encounter('ambush', 'combat', true);
 const ambushFailed = encounter('ambush-failed', 'combat', false);
 
 describe('a reroll', () => {
-  // M5-S3's first box, in the Quest Engine: questsConclude.test.ts holds it gone from the world after.
+  // The first acceptance box, in the Quest Engine: questsConclude.test.ts holds it gone from the world after.
   test('turns exactly one failure into a second roll: one more draw from quests, straight after the first, and it is used up', () => {
     const variance = 0.5;
     const s = scene('reroll', contentWith([ford]), ['ford', 'ford'], [['grappling-line', 1]], { overrides: { checkVariance: variance } });
@@ -336,10 +336,10 @@ describe('consumables.ts', () => {
   });
 });
 
-// v1.1.4-S2 (DL-148 items 7 and 13): on an Encounter of several Checks, a bonus adds to every one of
+// DL-148 items 7 and 13: on an Encounter of several Checks, a bonus adds to every one of
 // them, one Item for the Encounter; a reroll rolls again each Check of a failed Encounter that fell
 // short of Success, one draw each in the order listed, and the new rolls stand.
-describe('on an Encounter of several Checks (v1.1.4-S2)', () => {
+describe('on an Encounter of several Checks', () => {
   /** A Check keyed `key` of the Party's summed Strength, which any Party of 8s meets (`pass`) or misses. */
   const strength = (key: string, pass: boolean) => demandsCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000);
   /** An Encounter keyed `key` of `kind`: a met Check `met`, then a missed one `missed` and another `also`, all three needed. */

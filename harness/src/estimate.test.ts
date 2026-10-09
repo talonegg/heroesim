@@ -4,9 +4,9 @@ import { describe, expect, test } from 'vitest';
 import { compareSample, drawSample, estimateChecks, estimateMoraleTolerance, estimateProbe, estimateReport, estimateTolerance, harmless, moraleHeld, moraleIn, questsStream, unhurt, widest, type Compared, type Sample } from './estimate.js';
 import { machine } from './report.js';
 
-// v1.1.4-S5 (DL-156): the estimate probe's parts, and the probe over a few samples. The probe proper,
+// DL-156: the estimate probe's parts, and the probe over a few samples. The probe proper,
 // 200 samples × 20,000 seeds held within 2 points, is `HEROESIM_PROBE=estimate npm run harness`.
-// v1.1.5-S7 (DL-173): its second measure, the same samples with Morale's consequences left in, held
+// DL-173: its second measure, the same samples with Morale's consequences left in, held
 // within 3 points; owner's answer 2026-10-04: held on the Quest's chances only, each Encounter's reported.
 
 const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };

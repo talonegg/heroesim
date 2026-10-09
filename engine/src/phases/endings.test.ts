@@ -32,7 +32,7 @@ import { endings } from './endings.js';
 import { phaseContext } from './phase.js';
 import { applyAction } from '../actions/action.js';
 
-// M2-S10: the endings (DL-28). Each ending is arranged on a world `createWorld` made, then played
+// The endings (DL-28). Each ending is arranged on a world `createWorld` made, then played
 // through `advance`; every document a test inspects is held to the validator.
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
@@ -42,7 +42,7 @@ afterEach(() => {
 });
 
 /**
- * Stills every Rival's controller until the returned spy is restored. From M2-S9 each Rival
+ * Stills every Rival's controller until the returned spy is restored. Each Rival
  * dispatches and recruits every afternoon (DL-30), changing the Roster, the Parties and the pool
  * that a test arranges before an ending; a test whose subject is not the Rivals' choices stills
  * them, as DL-30 item 11 does.
@@ -111,7 +111,7 @@ function wipeRoster(world: World, guild: Guild): void {
   guild.rosterIds = [];
 }
 
-/** The cheapest fee in the pool at the price `guild` pays: its Guildmaster's Negotiation applied (M4-S5). */
+/** The cheapest fee in the pool at the price `guild` pays: its Guildmaster's Negotiation applied. */
 function cheapestFee(world: World, deps: EngineDeps, guild: Guild): number {
   const buyer = world.guildmasters[guild.guildmasterId];
   return Math.min(...unattachedHeroes(world).map((hero) => signingFee(hero, deps, buyer)));
@@ -119,7 +119,7 @@ function cheapestFee(world: World, deps: EngineDeps, guild: Guild): number {
 
 const reasons = ['retirement', 'bankruptcy', 'roster-wiped'] as const satisfies readonly EndingReason[];
 
-/** The endings that fold a Rival: a Rival's Guildmaster's Retirement is met by Succession (M9-S2). */
+/** The endings that fold a Rival: a Rival's Guildmaster's Retirement is met by Succession. */
 const foldReasons = ['bankruptcy', 'roster-wiped'] as const satisfies readonly EndingReason[];
 
 type Arrangement = (world: World, guild: Guild, deps: EngineDeps) => void;
@@ -228,7 +228,7 @@ describe("the player's ending ends the game", () => {
   });
 
   test('an empty Roster with Wealth for the cheapest Hero in the pool is not wiped', () => {
-    // No Rivals: from M2-S9 a Rival signs the cheapest Hero in the afternoon, and the player's
+    // No Rivals: a Rival signs the cheapest Hero in the afternoon, and the player's
     // Wealth, the fee of the cheapest at Turn 0, no longer covers the cheapest left by night.
     const deps = testDeps({ rivalCount: 0 });
     const start = created('not-wiped', deps);
@@ -241,7 +241,7 @@ describe("the player's ending ends the game", () => {
     expect(document.world.ended).toBeNull();
   });
 
-  test('an empty Roster whose Wealth reaches only Heroes who refuse its Fame is waiting, not wiped (M3-S5, DL-38)', () => {
+  test('an empty Roster whose Wealth reaches only Heroes who refuse its Fame is waiting, not wiped (DL-38)', () => {
     // No Rivals, so that nobody signs from the pool before night.
     const refusing = testDeps({ rivalCount: 0, fameRequiredPerLevel: 10 });
     const start = created('waiting-for-fame', refusing);
@@ -302,10 +302,10 @@ describe("the player's ending ends the game", () => {
   });
 });
 
-// M9-F1 (DL-113 items 4 and 5): every Guildmaster 21 to 50 at the start and retiring at 61, on the
+// DL-113 items 4 and 5: every Guildmaster 21 to 50 at the start and retiring at 61, on the
 // Turn `retirementTurn` gives, which the endings read. The year is the default's 1,080 Turns: the
 // world is moved to the night before, and the Rivals stilled.
-describe('Retirement at 61, on the Turn retirementTurn gives (M9-F1)', () => {
+describe('Retirement at 61, on the Turn retirementTurn gives', () => {
   test('the defaults: every Guildmaster starts 21 to 50 and retires at 61 (DL-113)', () => {
     expect(defaultConfig).toMatchObject({
       guildmasterStartingAgeMin: 21,
@@ -364,7 +364,7 @@ describe('Retirement at 61, on the Turn retirementTurn gives (M9-F1)', () => {
     expect(ofType(events, 'guildmaster.succeeded').map((event) => [event.turn, event.payload.guildmasterId])).toEqual([[retires, guildmaster.id]]);
   });
 
-  test('one past the night retirementTurn gave, as in a save that adopted younger rules, retires on the night retiresOn gives (M9-F6)', () => {
+  test('one past the night retirementTurn gave, as in a save that adopted younger rules, retires on the night retiresOn gives', () => {
     const { deps, eve, guildmaster, retires } = toTheEve('past-it', firstRival, 45);
     // A year past their Retirement night, on a morning played: they are 62 and still in office.
     const since = structuredClone(eve);
@@ -410,7 +410,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       { rivalCount: 2, bankruptcyGraceDays: 2, rivalReplacementDays: 5 },
       // Out of every Rival's reach, so that none re-signs the released Heroes (a Rival recruits
       // above its Disposition's recruitThreshold of Upkeeps), whose leaving the pool the test
-      // watches; and no building (M3-S6), which would spend a new Rival's Wealth before its first
+      // watches; and no building, which would spend a new Rival's Wealth before its first
       // Upkeep and, under this test's two Days' grace, fold it too (DL-56).
       withDispositions(thriftyRivals),
     );
@@ -421,7 +421,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     const roster: HeroId[] = [...rival.rosterIds];
     const foldNight = nightOf(2); // below the floor from the night of Day 0, then two Days' grace
 
-    // Until the fold the Rivals' controllers are stilled: from M2-S9 the bankrupt Rival still sends
+    // Until the fold the Rivals' controllers are stilled: the bankrupt Rival still sends
     // a Party each afternoon, and a fold with Parties in flight is a test of its own, below.
     const stilled = stillRivalControllers();
     const before = playTo(start, nightOf(1), deps);
@@ -476,12 +476,12 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     const newcomerId = founded[0]?.payload.guildId ?? ('' as GuildId);
     const newcomer = guildOf(replaced.document.world, newcomerId);
     expect(founded[0]).toMatchObject({ turn: replacementNight, milestone: true });
-    // Its founding names its founding Wealth, drawn as a founding Rival's is (M9-F7, DL-120 item 4).
+    // Its founding names its founding Wealth, drawn as a founding Rival's is (DL-120 item 4).
     expect(founded[0]?.payload.wealth).toBe(newcomer.wealth);
     expect(newcomer.wealth).toBeGreaterThanOrEqual(deps.config.rivalStartingWealthMin);
     expect(newcomer.wealth).toBeLessThanOrEqual(deps.config.rivalStartingWealthMax);
     // It takes the controller of the Rival it replaces, so the world keeps every Disposition it was
-    // dealt (M6-S1, DL-56): here the first Rival's, `ambitious`, dealt first in key order.
+    // dealt (DL-56): here the first Rival's, `ambitious`, dealt first in key order.
     expect(newcomer).toMatchObject({
       foundedTurn: replacementNight,
       foldedOnTurn: null,
@@ -522,7 +522,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
 
   test.each(foldReasons)('%s arranged on a Rival folds it and the game goes on', (reason) => {
     const deps = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 });
-    // The Rival's controller is stilled: from M2-S9 it signs a Hero in the afternoon, onto the
+    // The Rival's controller is stilled: it signs a Hero in the afternoon, onto the
     // Roster recorded here at Turn 0.
     stillRivalControllers();
     const start = created(`rival-${reason}`, deps);
@@ -541,14 +541,14 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
 
   test("a folded Rival's Party in flight is disbanded: its Quest is abandoned unresolved and its Heroes are in the pool that night", () => {
     const deps = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 });
-    // The Rival's controller is stilled: from M2-S9 it sends a Party of its own in the afternoon,
+    // The Rival's controller is stilled: it sends a Party of its own in the afternoon,
     // which the fold would disband beside the one made here.
     stillRivalControllers();
     const start = created('party', deps);
     const { world } = start;
     const rival = firstRival(world);
     arrange.bankruptcy(world, rival, deps);
-    // A Party away on a taken Quest, as dispatch (M2-S4) leaves one, made by hand here.
+    // A Party away on a taken Quest, as dispatch leaves one, made by hand here.
     const patronId = Object.keys(world.patrons)[0] as keyof World['patrons'];
     const questId = takeId(world, 'quests');
     const partyId = takeId(world, 'parties');
@@ -616,8 +616,8 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       expect(ofType(events, 'guild.founded')).toHaveLength(rivalReplacementDays === 0 ? 1 : 0);
       const rng = world.rng as Record<string, unknown>;
       for (const name of plannedStreams) {
-        // A Guildmaster entering play is given a Portrait and described, each on a stream of its own
-        // (v1.1.2-S5, v1.1.3-S5), and so is each Hero of the new Rival's Roster (v1.1.3-S6).
+        // A Guildmaster entering play is given a Portrait and described, each on a stream of its own,
+        // and so is each Hero of the new Rival's Roster.
         const own = ['generation', 'gm-portraits', 'descriptions', 'hero-portraits', 'hero-descriptions'];
         const moved = own.includes(name) && rivalReplacementDays === 0;
         if (moved) expect(rng[name], name).not.toEqual(before[name]);
@@ -627,7 +627,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
   });
 });
 
-// ── Succession (M9-S2, DL-83 item 19, DL-100 item 3) ────────────────────────────────────────
+// ── Succession (DL-83 item 19, DL-100 item 3) ────────────────────────────────────────
 
 describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
   /** A world whose first Rival's Guildmaster retires on the first night, the Rivals stilled. */
@@ -663,7 +663,7 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
       retiredOnTurn: null,
       regard: {},
     });
-    // Described as they enter play (v1.1.2-S5, DL-125 item 6).
+    // Described as they enter play (DL-125 item 6).
     for (const text of [successor.birthplace, successor.appearance, successor.biography]) expect(text).not.toBe('');
     expect(successor.ageAtEntry).toBeGreaterThanOrEqual(deps.config.guildmasterStartingAgeMin);
     expect(successor.ageAtEntry).toBeLessThanOrEqual(deps.config.guildmasterStartingAgeMax);
@@ -726,7 +726,7 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
     expect(successor?.regard).toEqual({});
   });
 
-  test('the successor is drawn from generation alone, given a Portrait from gm-portraits, and described from descriptions (v1.1.2-S5, v1.1.3-S5)', () => {
+  test('the successor is drawn from generation alone, given a Portrait from gm-portraits, and described from descriptions', () => {
     const deps = testDeps({ rivalCount: 1 });
     const document = created('succession-streams', deps);
     const world = structuredClone(document.world);
@@ -817,9 +817,9 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
   });
 });
 
-// ── Every entrant's Portrait (v1.1.3-S5, DL-134 item 5, DL-135 items 3 and 4) ────────────────────
+// ── Every entrant's Portrait (DL-134 item 5, DL-135 items 3 and 4) ────────────────────
 
-describe("every Guildmaster entering play through Succession or a replacement has a Portrait that fits, or the Silhouette (v1.1.3-S5)", () => {
+describe("every Guildmaster entering play through Succession or a replacement has a Portrait that fits, or the Silhouette", () => {
   /** A Guildmaster picture's row: its ages, and the rest as any Guildmaster's. */
   const row = (apparentAge: [number, number], narrative: string): PortraitAppearance => ({
     apparentAge,

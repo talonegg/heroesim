@@ -13,8 +13,8 @@ import { phaseContext } from './phase.js';
 import { training } from './training.js';
 import { applyAction } from '../actions/action.js';
 
-// M3-S2: the night phase `training`, the training yard's XP (DL-36). The yard's grade is set on the
-// Hall directly: M3-S6's `build` raises it in play.
+// The night phase `training`, the training yard's XP (DL-36). The yard's grade is set on the
+// Hall directly: `build` raises it in play.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
@@ -22,7 +22,7 @@ const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test'
  * INPUTS 5.1's training XP and 5.2's curve, pinned. No Rivals, whose Parties would blur what a test
  * watches (DL-30 item 11); Wealth enough that no Upkeep bankrupts the Guild in a year; and no
  * Retirement, of a Hero or the Guildmaster, to take a Hero off the Roster. The Guildmaster's Coaching
- * still (M4-S5): it is tested with the other Guildmaster Stats (guildmaster.test.ts).
+ * still: it is tested with the other Guildmaster Stats (guildmaster.test.ts).
  */
 function soloDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = testContent): EngineDeps {
   return testDeps(

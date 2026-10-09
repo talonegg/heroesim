@@ -6,7 +6,7 @@ import { parse, withJson, withText, refusalOf, type Files } from './content.test
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-describe('an Injury type (M2-S5)', () => {
+describe('an Injury type', () => {
   const deepCut = (json: Files['injuries.json']) => json['deep-cut'] as Omit<InjuryType, 'key'>;
 
   test.each<[string, (it: Omit<InjuryType, 'key'>) => void, RegExp]>([

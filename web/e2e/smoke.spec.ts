@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 
-// The built page mounts and loads its content set, served and from the filesystem (M7-S1).
+// The built page mounts and loads its content set, served and from the filesystem.
 
 const builtPage = pathToFileURL(
   path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'index.html'),

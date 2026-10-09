@@ -25,10 +25,10 @@ import { phaseContext } from './phase.js';
 import { rivalControllers } from './rival-controllers.js';
 import { applyAction } from '../actions/action.js';
 
-// M2-S9: the afternoon's Rival controllers (DL-30). Every document a test inspects is held to the
+// The afternoon's Rival controllers (DL-30). Every document a test inspects is held to the
 // validator.
 
-// The rules the player's `dispatch`, `recruit` and (from M3-S6) `build` run, watched: a Rival's
+// The rules the player's `dispatch`, `recruit` and `build` run, watched: a Rival's
 // choices must reach them and nothing else (the story's second acceptance box). Each spy calls the
 // real rule.
 vi.mock('../actions/dispatch.js', async (importOriginal) => {
@@ -43,7 +43,7 @@ vi.mock('../actions/build.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../actions/build.js')>();
   return { ...actual, applyBuild: vi.fn(actual.applyBuild) };
 });
-// M6-S4: a Rival buys at the Market through the player's `buy` (DL-58).
+// A Rival buys at the Market through the player's `buy` (DL-58).
 vi.mock('../actions/buy.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../actions/buy.js')>();
   return { ...actual, applyBuy: vi.fn(actual.applyBuy) };
@@ -54,14 +54,14 @@ const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test'
 /**
  * INPUTS 4.6's wage and 4.12's three Upkeeps, under which every starting Rival has the Wealth to
  * recruit on its first afternoon: the tests that watch a recruit pin them on every Disposition, since
- * the balance passes raised both (DL-35, DL-41) and M6-S1 moved the threshold into the rows (DL-56).
+ * the balance passes raised both (DL-35, DL-41) and the threshold is in the rows (DL-56).
  * Building is put out of reach unless a test asks for it, at three times the cost, since a Rival
  * builds its infirmary in place of a recruit once its Wealth is above its `buildThreshold` times the
- * cost (M3-S6, DL-38), which a starting Rival's may be. Transfers are stilled (`transferAppetite` 0):
- * a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57), which these tests do not
+ * cost (DL-38), which a starting Rival's may be. Transfers are stilled (`transferAppetite` 0):
+ * a Rival that would hire weighs a Transfer before a recruit (DL-57), which these tests do not
  * watch; controllers/rival.test.ts shows that weighing one draws from `rivals` alone. Buying gear is
  * put out of reach unless a test asks for it, at three times the price, since a Rival buys gear after
- * it builds and before it hires (M6-S4, DL-58), and a starting Rival's Heroes carry none.
+ * it builds and before it hires (DL-58), and a starting Rival's Heroes carry none.
  */
 const recruitingDeps = (building = false, buying = false): EngineDeps =>
   testDeps(
@@ -142,7 +142,7 @@ describe('rivalControllers', () => {
     // What the first Rival takes when the player leaves the Board alone.
     const alone = created('after-the-player', deps);
     const first = firstRival(alone.world);
-    // On a copy: a Rival's choice draws from `rivals` (M6-S1), which the afternoon must find unmoved.
+    // On a copy: a Rival's choice draws from `rivals`, which the afternoon must find unmoved.
     const wanted = rivalChoices(structuredClone(alone.world), first, deps).find((action) => action.kind === 'dispatch');
     if (wanted === undefined) throw new Error('The first Rival takes nothing');
     const untouched = ofType(advance(alone, deps).events, 'quest.taken');
@@ -167,8 +167,8 @@ describe('rivalControllers', () => {
   test("apply each choice through the player's dispatch, recruit, build and buy rules, and emit only what those return", () => {
     const deps = recruitingDeps(true, true);
     const document = created('through-the-actions', deps);
-    // The first Rival rich enough to build its infirmary (M3-S6); the second to buy gear for its
-    // Heroes, who carry none (M6-S4); the others, whose Heroes carry a piece in every slot, to recruit.
+    // The first Rival rich enough to build its infirmary; the second to buy gear for its
+    // Heroes, who carry none; the others, whose Heroes carry a piece in every slot, to recruit.
     rivals(document.world).forEach((rival, index) => {
       rival.wealth = index === 0 ? 10_000 : 500;
       if (index < 2) return;
@@ -243,7 +243,7 @@ describe('rivalControllers', () => {
     expect(ofType(events, 'quest.taken').length).toBe(vi.mocked(applyDispatch).mock.calls.length);
     expect(ofType(events, 'hero.recruited').length).toBe(vi.mocked(applyRecruit).mock.calls.length);
     expect(ofType(events, 'guild.improved').length).toBe(vi.mocked(applyBuild).mock.calls.length);
-    // M6-S4: the Rivals build and buy, every purchase at the Market through `buy` (the player buys nothing).
+    // The Rivals build and buy, every purchase at the Market through `buy` (the player buys nothing).
     expect(vi.mocked(applyBuy).mock.calls.length).toBeGreaterThan(0);
     expect(ofType(events, 'item.bought').length).toBe(vi.mocked(applyBuy).mock.calls.length);
   });
@@ -267,8 +267,8 @@ describe('rivalControllers', () => {
     expect(Object.values(world.parties).some((party) => party.guildId === rival.id)).toBe(false);
   });
 
-  // M6-S1's third box: only `rivals` advances during Rival choice, one draw for each dispatch chosen;
-  // building and buying (M6-S4) draw nothing.
+  // The third acceptance box: only `rivals` advances during Rival choice, one draw for each dispatch chosen;
+  // building and buying draw nothing.
   test.each(['streams-a', 'streams-b', 'streams-c'])(
     'advances only the rivals stream, one draw for each dispatch, every Disposition alike (%s)',
     (seed) => {

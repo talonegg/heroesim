@@ -8,7 +8,7 @@ import { diffJson, diffRun } from './diff.js';
 import { writeRun } from './runs.js';
 import { readJson, root, scratchRepository, status, writeJson } from './test-support.js';
 
-// `corpus` and `diff` (v1.1.3-S3): what the `portrait-analyse` and `portrait-apply` skills read. Each
+// `corpus` and `diff`: what the `portrait-analyse` and `portrait-apply` skills read. Each
 // counts or compares, and changes nothing.
 
 const scratches: (() => void)[] = [];
@@ -51,7 +51,7 @@ describe('corpus', () => {
       { key: 'middle', from: 31, to: 40 },
       { key: 'older', from: 41, to: null },
     ]);
-    // Since v1.1.3-S4 the game holds 40 pictures: gm-female-01..20 and gm-male-01..20.
+    // The game holds 40 pictures: gm-female-01..20 and gm-male-01..20.
     const pictures = result.pictures.map((picture) => [picture.key, picture.status, picture.listed, picture.bands, picture.picture, picture.row?.temper]);
     const numbered = (prefix: string): string[] => Array.from({ length: 20 }, (_, index) => `${prefix}-${String(index + 1).padStart(2, '0')}`);
     expect(pictures.map((picture) => picture[0])).toEqual([...numbered('gm-female'), ...numbered('gm-male')]);
@@ -88,7 +88,7 @@ describe('corpus', () => {
     ]) {
       expect(keys).toContain(key);
     }
-    // Since v1.1.3-S4 no key is short of three; one cut back to a sentence is named.
+    // No key is short of three; one cut back to a sentence is named.
     expect(result.sentences.short).toEqual([]);
     const dir = scratch();
     const descriptions = readJson<Descriptions>(dir, 'content/descriptions.json');
@@ -141,7 +141,7 @@ describe('corpus', () => {
     expect(code).toBe(0);
     expect(json.source).toBe('docs/portraits/analysis/2026-10-02/');
     const sentences = json.sentences as { lists: { list: string; key: string; count: number }[] };
-    // The content's wry holds three sentences since v1.1.3-S4; the run's, two more.
+    // The content's wry holds three sentences; the run's, two more.
     expect(sentences.lists).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 5 });
     expect(corpus(dir).sentences.lists).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 3 });
     expect(status(dir)).toBe(before);

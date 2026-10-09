@@ -101,7 +101,7 @@ describe('generateHero', () => {
   });
 
   test("a Warrior's mean Strength exceeds a Mage's by at least the minimum bias", () => {
-    // No Hero picture (v1.1.3-S6): ten thousand Heroes in one pool would each read every other for the
+    // No Hero picture: ten thousand Heroes in one pool would each read every other for the
     // pictures in use, which no Stat reads.
     const deps = testDeps({}, withoutPortraits());
     const world = testWorld('bias', deps);
@@ -134,7 +134,7 @@ describe('generateHero', () => {
     expect([...ratings].sort()).toEqual([1, deps.config.startingSkillRatingMax]);
   });
 
-  test("draws only from generation, and the Hero's own two streams (v1.1.3-S6): every other planned stream is unchanged", () => {
+  test("draws only from generation, and the Hero's own two streams: every other planned stream is unchanged", () => {
     const deps = testDeps();
     const world = testWorld('streams', deps, plannedStreams);
     const before = structuredClone(world.rng);
@@ -152,7 +152,7 @@ describe('generateHero', () => {
     expect(world.rng.generation).not.toEqual(before.generation);
   });
 
-  test('draws from the stream its caller names instead (M2-S8 names pool)', () => {
+  test('draws from the stream its caller names instead (pool)', () => {
     const deps = testDeps();
     const fromPool = testWorld('named-stream', deps, plannedStreams);
     const fromGeneration = testWorld('named-stream', deps, plannedStreams);
@@ -286,9 +286,9 @@ describe('generateHero', () => {
   });
 });
 
-// ── A Hero's Portrait and texts (v1.1.3-S6; DL-135 items 3 to 6) ─────────────────────────────
+// ── A Hero's Portrait and texts (DL-135 items 3 to 6) ─────────────────────────────
 
-describe("generateHero gives each Hero a Portrait and their texts (v1.1.3-S6)", () => {
+describe("generateHero gives each Hero a Portrait and their texts", () => {
   /** The test content with Hero pictures of `female`: each a Warrior's from 18 to 30, as `hero-female-01` is. */
   const withHeroPictures = (female: string[]): ContentSet => {
     const row = testDeps().content.portraitAppearances.portraits['hero-female-01'];

@@ -7,7 +7,7 @@ import { ageOf } from '../time.js';
 import { classSkillRequires, demandsCheck, heroStatKeys, testDeps, testWorld } from '../world.test-support.js';
 import { evaluate, heroOf, holds, is, membersOf, queryParty, valueOf, type QueryParty } from './query.js';
 
-// v1.1.4-S1: the Query evaluator (ADR-0010, DL-148 items 4 to 6). Five Heroes are generated, then
+// The Query evaluator (ADR-0010, DL-148 items 4 to 6). Five Heroes are generated, then
 // given the Stats, Skills, Traits and facts each test reads; every other Hero Stat is 10. The owner's
 // three examples come first, each beside its SQL reading.
 
@@ -328,7 +328,7 @@ describe('a Party-level condition', () => {
 });
 
 describe('the old form of an Encounter', () => {
-  // Every result the same to the last bit (v1.1.4-S1): the old Check added `weight × aggregate` for each
+  // Every result the same to the last bit: the old Check added `weight × aggregate` for each
   // demand in order, from 0, `best` being Math.max(0, …) of the members' values and `sum` their sum.
   test.each(['best', 'sum'] as const)('with `%s`, its Check scores exactly as the old capability did', (aggregate) => {
     const demands: [string, number][] = [['strength', 0.3], ['wits', 0.1], ['dexterity', 0.2], ['intelligence', 0.4]];
@@ -386,7 +386,7 @@ describe('queryParty', () => {
   });
 });
 
-// v1.1.4-S3 (DL-148 items 9 to 11, DL-154): a Hero's form scales only the Stat values they add into a
+// DL-148 items 9 to 11, DL-154: a Hero's form scales only the Stat values they add into a
 // Check's score (`withForm`). Aric is hurt on the Quest (steady, so 0.85), Dara is in low spirits
 // (0.93), and the rest are steady (1). Every read that chooses, filters or counts reads them as they are.
 describe('form: what it scales, and what it does not', () => {
@@ -492,7 +492,7 @@ describe('form: what it scales, and what it does not', () => {
       expect(holds(['>=', ['sum', 'party', ['stat', 'strength']], 53], formed)).toBe(true);
     });
 
-    test('without `withForm`, every read is as before v1.1.4-S3', () => {
+    test('without `withForm`, every read is as before form (DL-154)', () => {
       expect(evaluate(['sum', 'party', ['stat', 'strength']], formed)).toBe(15 + 15 + 6 + 8 + 9);
       expect(evaluate(['max', warriors, ['stat', 'strength']], formed)).toBe(15);
       expect(valueOf(['weighted', [['strength', 1]]], member('aric', formed), formed.content)).toBe(15);
@@ -513,7 +513,7 @@ describe('form: what it scales, and what it does not', () => {
   });
 });
 
-describe("queryParty's Morale on the Quest (v1.1.4-S3)", () => {
+describe("queryParty's Morale on the Quest", () => {
   test('is the stored Morale plus the Morale consequences so far, held to the scale, and sets the band of the form', () => {
     const { world, all } = scene('working');
     const at = (delta: number) =>
@@ -538,7 +538,7 @@ describe("queryParty's Morale on the Quest (v1.1.4-S3)", () => {
     expect(taken.members.map((it) => it.hurt)).toEqual([true, true, false, false, false]);
   });
 
-  // v1.1.4-S4 (DL-155): a Morale loss `steadiedBy` some Stats is less for some Heroes, so each Hero's
+  // DL-155: a Morale loss `steadiedBy` some Stats is less for some Heroes, so each Hero's
   // Morale on the Quest is their own.
   test("reads each Hero's own Morale consequences, and 0 for a Hero with none", () => {
     const { world, all } = scene('own-morale');

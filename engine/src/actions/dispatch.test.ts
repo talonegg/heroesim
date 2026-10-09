@@ -16,7 +16,7 @@ import { buildDocument, fixtureTurn, harmlessContent, testDeps, withValid, type 
 import { applyAction } from './action.js';
 import { applyDispatch, type ConsumableRequest, type DispatchRejection, type DispatchRequest } from './dispatch.js';
 
-// No Rivals in a created world: from M2-S9 they take Quests off the Board each afternoon, and
+// No Rivals in a created world: they take Quests off the Board each afternoon, and
 // these tests play Turns to watch the player's own Parties.
 const deps = testDeps({ rivalCount: 0 });
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
@@ -96,7 +96,7 @@ describe('dispatch', () => {
         payload: { questId, partyId, guildId: ids.playerGuild, heroIds: [rogue, mage], returnsOnTurn, reward: agreed, consumables: [] },
       },
     ]);
-    // The reward agreed is the offer's, the Guildmaster's Negotiation applied (M4-S5), and the Quest carries it.
+    // The reward agreed is the offer's, the Guildmaster's Negotiation applied, and the Quest carries it.
     expect(questOf(world, questId).reward).toBe(agreed);
     expect(next.history.entries.at(-1)).toBe(result.events[0]);
     // A new world; the old one as it was; meta and the History shared, as advance shares them.
@@ -223,7 +223,7 @@ describe('dispatch', () => {
       expect(applyAction(document, { kind: 'dispatch', ...request([rogue, mage, healer]) }, deps).ok).toBe(true);
     });
 
-    test('requirement-unmet: naming each requirement the Party misses, class and skill, in that order (M4-S5)', () => {
+    test('requirement-unmet: naming each requirement the Party misses, class and skill, in that order', () => {
       const { document, ids, rogue, mage, healer } = built();
       const demanding = structuredClone(document);
       const quest = questOf(demanding.world, ids.offeredQuest);
@@ -257,7 +257,7 @@ describe('dispatch', () => {
       );
     });
 
-    test('requirement-unmet: a Quest requiring a Healer refuses a Party without one, naming class (M4-S5)', () => {
+    test('requirement-unmet: a Quest requiring a Healer refuses a Party without one, naming class', () => {
       const { document, ids, rogue, mage, healer } = built();
       const wanting = structuredClone(document);
       questOf(wanting.world, ids.offeredQuest).requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'healer' };
@@ -316,7 +316,7 @@ describe('dispatch', () => {
   });
 });
 
-// M5-S3 (DL-50): the fixture's player Guild holds a stack of three healing draughts.
+// DL-50: the fixture's player Guild holds a stack of three healing draughts.
 describe('dispatch with consumables', () => {
   /** The built document, the player's Guild also holding two whetstones. */
   function stocked() {
@@ -481,7 +481,7 @@ describe('a Party in play', () => {
     }
   });
 
-  // Every Turn before the return night; that night's questsConclude (M2-S5) frees them (next test).
+  // Every Turn before the return night; that night's questsConclude frees them (next test).
   test('keeps a dispatched Hero from being dispatched again on every Turn until the Party returns', () => {
     const start = createWorld('twice', setup, deps).document;
     const guild = playerGuild(start.world) as Guild;
@@ -503,7 +503,7 @@ describe('a Party in play', () => {
     }
   });
 
-  // M2-S4's last box, closed by M2-S5's questsConclude (DL-25 item 16, DL-29).
+  // The dispatch's last acceptance box, closed by questsConclude (DL-25 item 16, DL-29).
   test('frees its Heroes on the night of Day d + k, so they are dispatchable again on the morning of Day d + k + 1, whichever Turn of Day d they left in', () => {
     // No harm, so the Heroes come home fit to go again, and no Rivals to empty the Board (DL-30
     // item 11): the timing is what is checked.

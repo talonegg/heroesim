@@ -2,7 +2,7 @@ import { defaultConfig } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { calendarOf, dateOfDay, dateOfTurn, fileDateOfTurn, nightOfDay, nightOfTurn, whenOfTurn } from './calendar.js';
 
-// v1.1.7-S4 (DL-206 items 30 to 33, DL-210): a date as a player reads it, "Year Y Day D", the Year
+// DL-206 items 30 to 33, DL-210: a date as a player reads it, "Year Y Day D", the Year
 // from 1 and the Day of the Year from 1, the engine's Turn, Day and Year counting from 0.
 
 const year = { turnsPerYear: defaultConfig.turnsPerYear };

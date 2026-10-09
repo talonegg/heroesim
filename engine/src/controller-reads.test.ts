@@ -3,9 +3,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
 // No engine rule asks whether a Guild is the player's (ADR-0002), except the three the owner
-// accepted on 2026-09-25 (listed in ADR-0002): the player's ending ends the game while a Rival's folds it
-// (M2-S10); on the Board the player's controller acts before the Rivals', the player's choices
-// being the player's and a Rival's its Disposition's (M2-S9); and the Transfer Generator never
+// accepted on 2026-09-25 (listed in ADR-0002): the player's ending ends the game while a Rival's folds it;
+// on the Board the player's controller acts before the Rivals', the player's choices
+// being the player's and a Rival's its Disposition's; and the Transfer Generator never
 // takes from the player's Guild (M6). The M2 epic's risk table asks for a test that greps for
 // them: this one finds every read of a Guild's `controller.kind` in the engine's source and holds
 // each file to the reads listed below (DL-28, DL-30).
@@ -20,31 +20,31 @@ const acceptedReads: Record<string, { reads: number; why: string }> = {
     why:
       "`playerGuild`: how a front end and the harness find the player's Guild, and no rule calls it; " +
       "`dispositionOf`: ADR-0002's exception 2, the player's controller acts before the Rivals' — where a Guild's " +
-      'choices come from, the player or its Disposition, read by the Rival controllers (M2-S9, DL-30)',
+      'choices come from, the player or its Disposition, read by the Rival controllers (DL-30)',
   },
   'phases/endings.ts': {
     reads: 1,
-    why: "ADR-0002's exception 1: the player's ending ends the game, a Rival's folds that Guild (M2-S10)",
+    why: "ADR-0002's exception 1: the player's ending ends the game, a Rival's folds that Guild",
   },
   'validate.ts': {
     reads: 1,
     why:
       "`unknownDisposition`: warns when a Guild's Disposition key is not content the game knows; reads " +
-      "whether the Guild has one at all to know what to check, not which Guild kind it is (M2-S7)",
+      "whether the Guild has one at all to know what to check, not which Guild kind it is",
   },
   'phases/transfers.ts': {
     reads: 1,
     why:
       "ADR-0002's exception 3: the Transfer Generator iterates only the Guilds whose " +
-      "controller is a Rival's, so it never takes from the player's Guild (M6-S3, DL-59)",
+      "controller is a Rival's, so it never takes from the player's Guild (DL-59)",
   },
   'controllers/chooser.ts': {
     reads: 1,
     why:
       "`chooser`: reads a Guild's Disposition to run its rule (`rivalChoices`), to set the margin of its " +
-      "Best Party (DL-175) and to answer a Transfer asked of it (`transferAnswer`, M6-S2, DL-57): a Guild's consent is its choice, which comes from its " +
+      "Best Party (DL-175) and to answer a Transfer asked of it (`transferAnswer`, DL-57): a Guild's consent is its choice, which comes from its " +
       "Disposition or, for a Guild with none, from its controller through an offer — the same read " +
-      "`selectors.ts`'s own docstring names as the Rival controllers' (M2-S9, DL-30)",
+      "`selectors.ts`'s own docstring names as the Rival controllers' (DL-30)",
   },
 };
 

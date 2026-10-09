@@ -7,7 +7,7 @@ import { readsIn, scannedEffectKinds, scannedFiles } from './reads.js';
 import { root, scratchRepository } from './test-support.js';
 import { traitsKind } from './traits-kind.js';
 
-// The drift test (v1.1.4-S12, DL-150 item 14): the engine and the content's checks read a Trait only
+// The drift test (DL-150 item 14): the engine and the content's checks read a Trait only
 // where the register lists, and the register lists no place that reads none. It runs on this
 // repository in CI; a planted read in a scratch copy proves it fails.
 
@@ -28,7 +28,7 @@ describe('the drift test', () => {
     expect(report.reads).toBeGreaterThan(50);
   });
 
-  test("reads every effect kind of the engine's, as the editor's forms offer them (v1.1.4-S14)", () => {
+  test("reads every effect kind of the engine's, as the editor's forms offer them", () => {
     // The forms are keyed by the engine's unions, so a kind added there is a form here, and a read here.
     const offered = traitsKind.forms(readContentFiles(root).values).flatMap((form) => form.effects.map((effect) => effect.kind));
     expect([...scannedEffectKinds].sort()).toEqual(offered.sort());
@@ -77,7 +77,7 @@ describe('the drift test', () => {
     ]);
   });
 
-  // The verification of v1.1.4-S12: a rule may read a Trait through a helper, or name a kind or an
+  // The verification (DL-150 item 14): a rule may read a Trait through a helper, or name a kind or an
   // event in a way the first scanner missed. Each form, planted in a new file, is drift.
   test.each([
     ['a helper called', "import { traitOf } from '../traits.js';\nexport function planted(c: never, k: string): unknown {\n  return traitOf(c, k);\n}\n", 'planted traitOf()'],

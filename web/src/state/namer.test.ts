@@ -25,10 +25,10 @@ import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { narrateSegments, narrateText, narrationFor, pageNamer, questNamer, resolvedWords, textOf, type Narration, type Segment } from './namer';
 
-// The page's Namer (v1.1.6-S12, DL-186 item 1) filling the narration's sentences (`@heroesim/words`):
+// The page's Namer (DL-186 item 1) filling the narration's sentences (`@heroesim/words`):
 // every sentence below is the page's as it was before the narration moved, word for word.
 //
-// The log's words (M7-S3's first box): every event type in the engine's union has a sentence. The
+// The log's words: every event type in the engine's union has a sentence. The
 // samples table's type is derived from the union, so a type the engine adds fails `npm run
 // typecheck` here, as it does in the map, until both have it; at run time the union is enumerated
 // by the engine's `milestoneTypes`, a record keyed by every event type.
@@ -39,14 +39,14 @@ const questId = 'quest-000003' as QuestId;
 const partyId = 'party-000004' as PartyId;
 const patronId = 'patron-000005';
 const guildmasterId = 'guildmaster-000002';
-/** A Rival Guildmaster's successor (M9-S2). */
+/** A Rival Guildmaster's successor. */
 const successorId = 'guildmaster-000007';
 const otherHeroId = 'hero-000009' as HeroId;
 const stackId = 'stack-000004' as StackId;
 const itemId = 'item-000002' as ItemId;
 const rivalId = 'guild-000003' as GuildId;
 const offerId = 'offer-000001' as OfferId;
-/** A Transfer Offer's terms (M6-S2): the Rival asks The Kestrel Guild for Brenna. */
+/** A Transfer Offer's terms: the Rival asks The Kestrel Guild for Brenna. */
 const terms = { offerId, fromGuildId: guildId, toGuildId: rivalId, heroId, fee: 420 };
 
 const labels: Record<string, string> = {
@@ -431,7 +431,7 @@ function namesIn(segments: readonly Segment[]): [string, string][] {
   return segments.flatMap((segment) => (segment.kind === 'name' ? [[segment.entityId, segment.text] as [string, string]] : []));
 }
 
-describe('a line as segments: its words, and the names in it the page can open (M9-S5)', () => {
+describe('a line as segments: its words, and the names in it the page can open', () => {
   test.each(union)('%s reads word for word as its sentence, and marks only names of whom the event names', (type) => {
     const segments = narrateSegments(samples[type], narration);
 
@@ -465,7 +465,7 @@ describe('a line as segments: its words, and the names in it the page can open (
       [guildId, 'The Kestrel Guild'],
       [heroId, 'Brenna Ashcombe'],
     ]);
-    // M9-S2's Succession, each Guildmaster a name that opens their History.
+    // A Succession, each Guildmaster a name that opens their History.
     expect(namesIn(narrateSegments(samples['guildmaster.succeeded'], narration))).toEqual([
       [guildmasterId, 'Osric Vane'],
       [guildId, 'The Kestrel Guild'],
@@ -505,7 +505,7 @@ describe('a line as segments: its words, and the names in it the page can open (
   });
 });
 
-describe("a module's own event: one generic sentence for any type, never a crash (M8-S4)", () => {
+describe("a module's own event: one generic sentence for any type, never a crash", () => {
   /** An event a module made, as the History holds it: the page knows neither its type nor its payload. */
   function moduleEvent(type: string, participants: string[], payload: unknown): ModuleEvent {
     const named = Object.fromEntries(participants.flatMap((id) => (labels[id] === undefined ? [] : [[id, labels[id]]])));
@@ -537,7 +537,7 @@ describe("the CLI's words, adapted for the page", () => {
     expect(narrateText(samples['quest.taken'], narration)).toBe(
       `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Year 1 Day 8, carrying Whetstone ×2.`,
     );
-    // An entry written before v1.1.4-S2 reads as its outcome, a Failure or a Success.
+    // An entry written before Degrees (DL-152) reads as its outcome, a Failure or a Success.
     expect(narrateText(samples['quest.encounter'], narration)).toBe(
       `The Kestrel Guild's Party failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Failure: Brenna Ashcombe was injured.`,
     );
@@ -548,7 +548,7 @@ describe("the CLI's words, adapted for the page", () => {
     );
   });
 
-  test("gives an Encounter's Degree and, of several Checks, the name of the one that decided it (v1.1.4-S2)", () => {
+  test("gives an Encounter's Degree and, of several Checks, the name of the one that decided it", () => {
     const ambush = content.encounters['ambush-on-the-road'] as Encounter;
     const [front] = ambush.checks as [EncounterCheck];
     const several: Narration = {
@@ -572,14 +572,14 @@ describe("the CLI's words, adapted for the page", () => {
     expect(narrateText({ ...samples['quest.encounter'], payload }, several)).toBe(
       `The Kestrel Guild's Party failed at ${ambush.name} (Encounter 2), a Setback, decided by Nerve: Brenna Ashcombe was injured.`,
     );
-    // One Check named as its Encounter names none: it is the Encounter's own (the old form's, v1.1.4-S1).
+    // One Check named as its Encounter names none: it is the Encounter's own (the old form's).
     const one = { ...payload, decidedBy: front.key, degree: 'triumph' as const, outcome: 'success' as const, injured: [], checks: payload.checks.slice(0, 1) };
     const own: Narration = {
       ...narration,
       content: { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: ambush.name }] } } },
     };
     expect(narrateText({ ...samples['quest.encounter'], payload: one }, own)).toBe(`The Kestrel Guild's Party came through ${ambush.name} (Encounter 2), a Triumph.`);
-    // One Check named otherwise than its Encounter is named (v1.1.4-S2's verification, DL-152).
+    // One Check named otherwise than its Encounter is named.
     const renamed: Narration = {
       ...narration,
       content: { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: 'Steel' }] } } },
@@ -589,7 +589,7 @@ describe("the CLI's words, adapted for the page", () => {
     );
   });
 
-  test("says once, for the Party, when form decided whether the Encounter succeeded, exactly when its formDecided is set, naming no Hero (v1.1.4-S3)", () => {
+  test("says once, for the Party, when form decided whether the Encounter succeeded, exactly when its formDecided is set, naming no Hero", () => {
     const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
     const front: CheckRoll = { key: 'front', ...roll, degree: 'setback' };
     const base = { ...samples['quest.encounter'].payload, degree: 'setback' as const, decidedBy: 'front', checks: [front] };
@@ -605,7 +605,7 @@ describe("the CLI's words, adapted for the page", () => {
     // A Check form moved across the Success line, in an Encounter it did not decide: no sentence.
     const other: CheckRoll = { key: 'other', ...roll, degree: 'success', formDecided: 'raised' };
     expect(line({ ...base, checks: [other, front] })).toBe(plain);
-    // An entry written before v1.1.4-S3, or before v1.1.4-S2, has no such sentence.
+    // An entry written before form (DL-154) or Degrees (DL-152) has no such sentence.
     const older = { ...base };
     Reflect.deleteProperty(older, 'checks');
     expect(line(older)).not.toMatch(/spirits/);
@@ -680,7 +680,7 @@ describe('a played game narrates', () => {
   });
 });
 
-describe("the page's Namer (v1.1.6-S12)", () => {
+describe("the page's Namer", () => {
   const namer = pageNamer(narration.questName);
   const guild: Slot = { kind: 'name', table: 'guilds', id: guildId, label: 'The Kestrel Guild' };
   const brenna: Slot = { kind: 'hero', table: 'heroes', id: heroId, label: 'Brenna Ashcombe' };

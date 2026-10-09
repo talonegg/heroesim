@@ -6,10 +6,10 @@ import { realFiles, parse, withJson, changed, refusalOf, guildmasterRow, heroRow
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
 // can find it.
 
-// v1.1.2-S4 parses the file and holds its keys to the pictures; v1.1.2-S5 adds the rest of DL-127's
-// checks; v1.1.3-S1 gives each row its role's fields, and `features` in the place of `keywords`
+// The file is parsed and its keys held to the pictures, with the rest of DL-127's checks; each row has
+// its role's fields, and `features` in the place of `keywords`
 // (DL-134 items 3 and 10, DL-135 item 2).
-describe('the Appearances mapped to pictures (v1.1.2-S4, DL-126 item 2, DL-127)', () => {
+describe('the Appearances mapped to pictures (DL-126 item 2, DL-127)', () => {
   test('are required as a file', () => {
     const files = realFiles();
     delete files['portrait-appearances.json'];
@@ -48,7 +48,7 @@ describe('the Appearances mapped to pictures (v1.1.2-S4, DL-126 item 2, DL-127)'
   });
 });
 
-describe("a picture's row (v1.1.3-S1, DL-134 items 3 and 10, DL-135 item 2)", () => {
+describe("a picture's row (DL-134 items 3 and 10, DL-135 item 2)", () => {
   test("is required for every Guildmaster's and Hero's picture, each named, and a Patron's picture has none yet", () => {
     let files = withPicture(ownersTwo(realFiles()), 'guildmaster', 'male', 'gm-male-02', undefined);
     files = withPicture(files, 'hero', 'female', 'hero-female-01', undefined);
@@ -169,7 +169,7 @@ describe("a picture's row (v1.1.3-S1, DL-134 items 3 and 10, DL-135 item 2)", ()
   });
 
   // A narrative is shown as written (DL-127 item 4), so a slot in it would show as braces
-  // (DL-138's open point, closed by v1.1.3-S5); a hook is filled, and a stray brace in one is refused.
+  // (DL-138's open point, closed by DL-141); a hook is filled, and a stray brace in one is refused.
   test('is refused with a narrative holding a slot or a brace, or a hook with a brace that is no slot', () => {
     const files = withJson('portrait-appearances.json', (json) => {
       pictureRowOf(json, 'gm-male-01')['narrative'] = '{His} face is weathered.';
@@ -197,7 +197,7 @@ describe("a picture's row (v1.1.3-S1, DL-134 items 3 and 10, DL-135 item 2)", ()
   });
 });
 
-describe('the pictures short of three (v1.1.3-S1, DL-134 item 10)', () => {
+describe('the pictures short of three (DL-134 item 10)', () => {
   test('are warned of, not refused: each sex and band of Guildmaster pictures, and each Class and sex of Hero pictures', () => {
     let files = withPicture(ownersTwo(realFiles()), 'guildmaster', 'male', 'gm-male-02', { ...guildmasterRow(), apparentAge: [38, 46] });
     files = withPicture(files, 'guildmaster', 'male', 'gm-male-03', { ...guildmasterRow(), apparentAge: [41, 60] });

@@ -4,7 +4,7 @@ import { createProbe } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { playGame } from './play.js';
 
-// v1.1.6-S17 (ADR-0011, DL-203): nothing writes a write-once row once the per-Turn copy has frozen
+// ADR-0011, DL-203: nothing writes a write-once row once the per-Turn copy has frozen
 // and shared it. Games played under the automatic policy, every action through `applyAction`, with
 // the probe module applying an effect of each kind on its nights: a write to a frozen row throws in
 // the engine's strict-mode modules, so a game that plays to its end wrote none. A short year, so

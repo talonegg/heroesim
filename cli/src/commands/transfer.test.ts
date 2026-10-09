@@ -1,5 +1,5 @@
 // `transfer`, `accept`, `decline`, `show offers` and fast forward's Transfer Offer stop end to end
-// (M6-S2, DL-57): `main` run in-process against a real save in a temporary directory, with the real
+// (DL-57): `main` run in-process against a real save in a temporary directory, with the real
 // content set, as main.test.ts runs the other commands. The Rivals of seed `demo` are dealt the core's
 // four Dispositions in Guild id order (DL-56): guild-000002 ambitious, guild-000003 miserly,
 // guild-000004 reckless, guild-000005 steady.
@@ -62,7 +62,7 @@ function newWorld(edit: (world: World) => void = () => {}): WorldDocument {
   return edited;
 }
 
-describe('transfer (M6-S2)', () => {
+describe('transfer', () => {
   test('transfer --hero <id> --to <guildId> sends a Hero to a Rival that wants them, for the fee, and saves', () => {
     const before = newWorld((world) => {
       guildOf(world, ambitious).wealth = 1_000_000; // rich enough to hire: its appetite takes a Hero
@@ -182,7 +182,7 @@ describe('transfer (M6-S2)', () => {
   });
 });
 
-describe('Transfer Offers (M6-S2)', () => {
+describe('Transfer Offers', () => {
   /** The ambitious Rival's offer for the player's first Hero, made through the engine and saved. */
   function withOffer(): { heroId: HeroId; offerId: string; fee: number } {
     const before = newWorld((world) => {
@@ -239,7 +239,7 @@ describe('Transfer Offers (M6-S2)', () => {
       // A rich ambitious Rival, and one of the player's Heroes the dearest in the world: when it
       // weighs a Transfer (three times in ten, the core's `transferAppetite` 0.3 since DL-69, hence
       // the tries), it offers for them. Its Hall is built and its Heroes are outfitted, since it
-      // builds and buys gear before it weighs a Transfer (M6-S4, DL-58).
+      // builds and buys gear before it weighs a Transfer (DL-58).
       const rival = guildOf(world, ambitious);
       rival.wealth = 1_000_000;
       rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };

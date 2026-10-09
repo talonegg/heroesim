@@ -55,7 +55,7 @@ describe('the Parties chosen and not sent', () => {
   });
 });
 
-// The Party builder's rows without React (v1.1.6-S14, DL-186 item 5): what `Builder` laid out is
+// The Party builder's rows without React (DL-186 item 5): what `Builder` laid out is
 // one answer now, whose parts the view only renders.
 describe('the Party builder', () => {
   const state = holding(started(), 'healing-draught', 3);
