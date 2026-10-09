@@ -163,15 +163,15 @@ describe("the page's addresses", () => {
     expect(addresses.pages).toBe('https://heroesims.pages.dev');
   });
 
-  test("are both in the README, and the Worker's in INPUTS 7.8", () => {
+  // The deploy guide, docs/deploy.md, holds what INPUTS 7.8 held, the archived inputs being frozen (DL-217).
+  test('are both in the README and in the deploy guide', () => {
     const readme = readText('README.md');
-    const inputs78 = readText('docs/planning/epics/INPUTS-REQUIRED.md')
-      .split(/\r?\n/)
-      .find((line) => line.startsWith('| 7.8 |'));
+    const guide = readText('docs/deploy.md');
 
     expect(readme).toContain(addresses.worker);
     expect(readme).toContain(addresses.pages);
-    expect(inputs78).toContain(addresses.worker);
+    expect(guide).toContain(addresses.worker);
+    expect(guide).toContain(addresses.pages);
   });
 });
 
@@ -224,17 +224,22 @@ describe('the live check', () => {
   });
 });
 
-describe('the README', () => {
+// The deploy guide moved from the README to docs/deploy.md, which the README links (DL-217).
+describe('the deploy guide', () => {
   test('names both addresses, the deploy from a clean checkout of a release tag, the one-time login and the live check', () => {
-    const readme = readText('README.md');
+    const guide = readText('docs/deploy.md');
 
-    expect(readme).toContain('https://heroesims.pages.dev');
-    expect(readme).toContain(addresses.worker);
-    expect(readme).toContain('npm run deploy');
-    expect(readme).toContain('npx wrangler login');
-    expect(readme).toContain('clean checkout of its release tag');
-    expect(readme).toContain('npm run e2e:live -w web');
-    expect(readme).toContain('HEROESIM_LIVE_URL');
+    expect(guide).toContain('https://heroesims.pages.dev');
+    expect(guide).toContain(addresses.worker);
+    expect(guide).toContain('npm run deploy');
+    expect(guide).toContain('npx wrangler login');
+    expect(guide).toContain('clean checkout of its release tag');
+    expect(guide).toContain('npm run e2e:live -w web');
+    expect(guide).toContain('HEROESIM_LIVE_URL');
+  });
+
+  test('is linked from the README', () => {
+    expect(readText('README.md')).toContain('(docs/deploy.md)');
   });
 });
 

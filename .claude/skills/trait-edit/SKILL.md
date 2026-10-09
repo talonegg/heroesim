@@ -9,7 +9,7 @@ Makes the owner's change to the Trait lists through the editor: `add`, `change` 
 pending edits, then "Finish", which writes the files, raises the content version and runs `npm test`.
 The editor makes every change; this skill decides what to ask it for.
 
-Read `docs/agents/traits.md` first: its guardrails bind every step. A use of a Trait in other content
+Read `docs/agents/traits.md` first: its guardrails and shared steps bind every step. A use of a Trait in other content
 (an Injury, an Encounter, a Query, a Biography sentence, a Calling, a Feature) is `trait-assign`'s.
 
 **The root.** Commands run from the repository's root. For a trial on a scratch copy, add
@@ -17,16 +17,8 @@ Read `docs/agents/traits.md` first: its guardrails bind every step. A use of a T
 
 ## 1. The doctor
 
-```sh
-npm run --silent edit -- traits doctor --json
-```
-
-- **`"ok": true`** with no pending edits: go on.
-- **Drift or a stale doc**: follow the guardrails' "When the doctor reports drift": update the
-  register (`content/src/uses/register.ts`), regenerate the doc (`npm run edit -- traits doc`), run
-  the doctor again until it passes, and include both in this session's change.
-- **Pending edits already there**: list them (`traits pending --json`) and ask the owner whether they
-  are this session's to finish or to drop (`traits discard`).
+Follow `docs/agents/traits.md`, "The steps every session shares": step 1, the doctor, and where it
+reports drift or a stale register file, step 2.
 
 Done when: the doctor reports `"ok": true`, and any pending edits are ones the owner has said to keep.
 
@@ -77,18 +69,9 @@ traits finish --json
 ```
 
 It takes as long as `npm test`, a few minutes; run it in the background where the session allows,
-and wait for it.
-
-- **Exit 0.** Note `changed`, `contentVersion` (from → to) and the tests' result.
-- **Exit 1, `undone`.** Every file is put back and the edits stay pending. Sort each failure as the
-  guardrails' "When Finish is undone" says: the edit at fault, a use the tests want, or a test that
-  pins the content as shipped, which waits for the owner's word. Then finish again.
-
-Then the doctor again:
-
-```sh
-npm run --silent edit -- traits doctor --json
-```
+and wait for it. Then follow `docs/agents/traits.md`'s step 3: on exit 0 note `changed`,
+`contentVersion` (from → to) and the tests' result; on `undone`, sort each failure as it says, and
+finish again. Then run the doctor again (step 1).
 
 Done when: `finish` exits 0, and the doctor after it reports `"ok": true` with no pending edits.
 

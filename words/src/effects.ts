@@ -1,9 +1,8 @@
 // What a Trait and an Item do, in words (v1.1.6-S11, DL-186 item 1): a Trait's effects (M4-S5,
 // v1.1.4-S7), Gear's Stat modifiers (M5-S2), a Consumable's effect as a Party's preview says it
-// (M5-S3) and as the Market's cell says it, and an Item's kind. Words only; no rule. The CLI's
-// `render.ts`, `market.ts` and `preview.ts` and the page's `names.ts`, `selectors.ts` and
-// `trade-views.ts` each held a copy until v1.1.6-S11; the CLI's "no effect" became the page's
-// "No effect", which stands alone (docs/agents/ui-text.md).
+// (M5-S3) and as the Market's cell says it, and an Item's kind. Words only; no rule; one copy for
+// the CLI and the page alike (DL-197). "No effect" stands alone, so it begins with a capital
+// (docs/agents/ui-text.md).
 
 import type { ConsumableEffect, ContentSet, GearDefinition, ItemDefinition, TraitEffect } from '@heroesim/engine';
 import { capitalised, listed, nameIn, signed } from './names.js';

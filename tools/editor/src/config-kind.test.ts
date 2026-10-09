@@ -146,13 +146,16 @@ describe('set', () => {
 });
 
 describe('finish', () => {
+  // A decision no entry holds, built so that the citation check (tools/decisions, DL-215) reads none here.
+  const reason = `the economy pass (DL-${999})`;
+
   test('writes the values, raises the config version with its reason, and runs the tests', async () => {
     const dir = scratch();
     const before = readConfig(dir);
     await json(dir, 'config', 'set', 'wagePerLevel', '25');
     await json(dir, 'config', 'set', 'transferRegardBand', 'close');
 
-    const finished = await command(['config', 'finish', '--reason', 'the economy pass (DL-999).', '--root', dir], planted);
+    const finished = await command(['config', 'finish', '--reason', `${reason}.`, '--root', dir], planted);
 
     expect(finished.code).toBe(0);
     expect(finished.out.split('\n')).toEqual([
@@ -162,7 +165,7 @@ describe('finish', () => {
     ]);
     const after = readConfig(dir);
     expect(after.version).toBe(before.version + 1);
-    expect(after.changelog).toEqual([...before.changelog, `${before.version + 1} from the economy pass (DL-999): wagePerLevel 20 to 25, transferRegardBand warm to close.`]);
+    expect(after.changelog).toEqual([...before.changelog, `${before.version + 1} from ${reason}: wagePerLevel 20 to 25, transferRegardBand warm to close.`]);
     expect(after.sections.guilds?.wagePerLevel).toBe(25);
     expect(after.sections.transfers?.transferRegardBand).toBe('close');
     // The file in its own layout: the two values, the version, the changelog's last line's comma and its new line.

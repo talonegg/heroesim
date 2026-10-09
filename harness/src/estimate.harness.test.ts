@@ -16,7 +16,7 @@ import { runSettings } from './settings.js';
 // chances only, its bands and success (the owner's answer of 2026-10-04, DL-173); each Encounter's gaps
 // there are written to the report, "reported, not held", and do not fail. Both limits are the Gate's
 // (`harness/gate.json`, v1.1.6-S2). The report, both measures, is written to
-// harness/reports/<milestone>-<date>.md, the milestone HEROESIM_MILESTONE's or `m9-estimate`, so that
+// harness/reports/<name>-<date>.md, the name HEROESIM_MILESTONE gives or `estimate`, so that
 // a story's run need not overwrite an earlier one's.
 
 const settings = runSettings();

@@ -249,12 +249,12 @@ export interface GameCounters {
   traitsGainedByKey: Record<ControllerKind, Record<string, number>>;
   /**
    * `quest.resolved` by the resolving Guild's controller, then by the size of the Party sent (v1.1.4-S10,
-   * for the owner's decision on splitting XP, DL-148 item 19; split since v1.1.5-S13, DL-182).
+   * for the owner's decision on splitting XP, DL-148 item 19; split by DL-182).
    */
   partySizes: Record<ControllerKind, Record<string, PartySizeTally>>;
   /**
-   * `guild.folded`, by the reason the Rival reached its ending. Since M9-S2 a Rival's Guildmaster's
-   * Retirement is met by Succession, so `retirement` stays 0 in a game played under its rules.
+   * `guild.folded`, by the reason the Rival reached its ending. A Rival's Guildmaster's Retirement
+   * is met by Succession (DL-102), so `retirement` stays 0 in a game played under its rules.
    */
   rivalFolds: Record<EndingReason, number>;
   /** `guildmaster.succeeded`: the Rival Guildmasters whose Retirement was met by Succession (M9-S2, DL-102). */
@@ -662,7 +662,7 @@ export const noSynergies = (): SynergyTally => ({ quests: 0, withAny: 0, applied
 
 /**
  * A kind of Guild's resolved Quests sent with Parties of one size (v1.1.4-S10, DL-148 item 19): each
- * Hero who comes home takes `xpPerHero`, since v1.1.5-S13 the Quest's XP split across the Party sent,
+ * Hero who comes home takes `xpPerHero`, the Quest's XP split across the Party sent,
  * its Dead counted, rounded down (DL-182).
  */
 export interface PartySizeTally {
@@ -1064,7 +1064,7 @@ function lootCounters(document: WorldDocument): Record<ControllerKind, Record<st
   return counts;
 }
 
-/** A `quest.taken` entry's consumables carried, summed over their quantities; none when absent (before M5-S3). */
+/** A `quest.taken` entry's consumables carried, summed over their quantities; none when absent (before DL-50). */
 function carriedBy(entry: Entry, what: string): number {
   const carried = payloadField(entry, 'consumables') ?? [];
   if (!Array.isArray(carried)) throw new Error(`${what} has consumables that are not a list`);

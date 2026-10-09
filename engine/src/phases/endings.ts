@@ -7,7 +7,7 @@
 // refusal for Fame lasts only until the pool turns over). A folded Guild is out of play and skipped.
 //
 // What an ending does is the one place this phase asks whose Guild it is, one of the three
-// exceptions to ADR-0002 the owner accepted (`plan.md` §1): the player's ending ends the game
+// exceptions to ADR-0002 the owner accepted (ADR-0002, exception 1): the player's ending ends the game
 // (`world.ended`, after which `advance` is a no-op); a Rival's folds that Guild and releases its
 // Heroes into the Unattached pool, save its Guildmaster's Retirement, which is met by Succession
 // (M9-S2, DL-83 item 19, DL-100 item 3). `rivalReplacementDays` after a fold a new Rival is founded,
@@ -67,7 +67,7 @@ function endingOf(guild: Guild, world: World, ctx: PhaseContext): EndingReason |
 
 /**
  * The lowest signing fee `guild` would pay in the Unattached pool (`cheapestUnattached`, its
- * Guildmaster's Negotiation applied from M4-S5), whoever the Hero would sign for. With nobody in
+ * Guildmaster's Negotiation applied, DL-43), whoever the Hero would sign for. With nobody in
  * the pool no Hero can be signed at any price, so it is infinite, and a Guild with an empty Roster
  * is wiped whatever its Wealth.
  *
@@ -82,7 +82,7 @@ function cheapestSigningFee(world: World, guild: Guild, deps: Pick<EngineDeps, '
 
 /**
  * What reaching an ending does: the one read of `controller.kind` in this phase, and one of the
- * three the owner accepted (`plan.md` §1). The player's ending ends the game; a Rival's folds it,
+ * three the owner accepted (ADR-0002, exception 1). The player's ending ends the game; a Rival's folds it,
  * save Retirement, which a Rival meets by Succession (M9-S2): the Guild carries on under a
  * successor, and its other endings are checked again that night under them, so a Rival that is
  * also bankrupt or wiped folds as it would have, its successor the Guildmaster it folds with.

@@ -3,9 +3,9 @@
 // it in, written once. A sentence is its words and a slot for each name in it, each slot carrying the
 // id it was read from and what it names; a front end's Namer fills each slot its own way: the CLI
 // with the id its commands take, `Brenna Ashcombe (hero-000007)`, the page with a name that opens whom
-// it names. The CLI's `narrate.ts` (M2-S11, DL-33) and the page's (M7-S3, DL-66; its segments M9-S5,
-// DL-105) were two copies until v1.1.6-S12, the page's adapting the CLI's (DL-65 item 6): a Party
-// called its Guild's and a Quest by its template's name, and no id. Those differences are the slots'.
+// it names. One narration serves both front ends (DL-198); where the page's words differed from the
+// CLI's (DL-65 item 6: a Party called its Guild's and a Quest by its template's name, and no id),
+// the difference is the slots'.
 //
 // Names come from each event's labels, written when it happened, so a Hero or a Guild whose row has
 // since gone still reads; content keys become content's names. One map, keyed by every event type, so
@@ -318,7 +318,7 @@ const sentences: Sentences = {
     return say`${called(event, patronId)}'s ${quest(questId, nameIn(content.questTemplates, templateKey))} expired untaken.`;
   },
   'quest.taken': (event, content, calendar) => {
-    // What the Party carries (M5-S3), when it carries anything; an entry from before M5-S3 has none.
+    // What the Party carries (M5-S3, DL-50), when it carries anything; an entry written before DL-50 has none.
     const { guildId, partyId, questId, heroIds, returnsOnTurn, consumables = [] } = event.payload;
     const carrying = consumables.map(({ definitionKey, quantity }) => `${nameIn(content.items, definitionKey)} ×${quantity}`);
     const carried = carrying.length === 0 ? '' : `, carrying ${listed(carrying)}`;
@@ -487,7 +487,7 @@ export const narratedTypes = Object.freeze(Object.keys(sentences)) as readonly E
  */
 export function resolvedParts(event: EngineEventOf<'quest.resolved'>, content: ContentSet): { lead: Sentence; band: string; rest: Sentence } {
   const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta, synergyKeys = [] } = event.payload;
-  // The Synergies that applied (M4-S3), when any did; an entry from before M4-S3 has none.
+  // The Synergies that applied (M4-S3, DL-45), when any did; an entry written before DL-45 has none.
   const synergies = synergyKeys.length === 0 ? '' : ` Synergies: ${synergyKeys.map((key) => nameIn(content.synergies, key)).join(', ')}.`;
   const party: PartySlot = { kind: 'party', id: partyId };
   return {

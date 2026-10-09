@@ -3,7 +3,7 @@
 // the bottom of its difficulty range to `encountersMax` at the top; each Encounter is a kind drawn
 // from the template's list, then an Encounter of that kind drawn from content.
 //
-// Every draw is from the `encounters` stream (ADR-0009 as amended, pre-M0 review D7), which is new
+// Every draw is from the `encounters` stream (ADR-0009, pre-M0 review D7), which is new
 // in M4, so the Board a seed produces is what it was before: the Quest Generator draws the Board
 // from `board` exactly as it did, and the sequence beside it from `encounters`. The sequence is
 // drawn when a Quest is generated and stored on its row as `encounterKeys`. A Quest generated

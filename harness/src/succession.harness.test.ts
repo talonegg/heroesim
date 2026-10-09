@@ -13,7 +13,7 @@ import { probeInParallel, successionProbeAge, successionReport } from './success
 // policy, the core content and `defaultConfig`, each in a child process of its own, HEROESIM_WORKERS
 // at once (v1.1.6-S2: the sweep's queue); with HEROESIM_VALIDATE=1, validate after every advance; and
 // write the Successions, the Rival across its Succession, the Regard held for it and the folds after
-// to harness/reports/m9-succession-<date>.md. M9-F6 runs it and records it in its DL.
+// to harness/reports/succession-<date>.md. M9-F6 runs it and records it in its DL.
 
 const settings = runSettings();
 const probe = settings.run === 'succession' ? settings : null;
@@ -31,7 +31,7 @@ test.runIf(probe !== null)(
 
     const games = await probeInParallel(seeds, deps, { years, validate, workers, age: successionProbeAge });
     const report = successionReport(games, { deps, years, age: successionProbeAge, machine: machine(), startedAt, workers, validated: validate });
-    const path = writeReport(reportPath('m9-succession', startedAt), report);
+    const path = writeReport(reportPath('succession', startedAt), report);
 
     // The report is written before anything is asserted, so a failing run leaves it to read.
     const succeeded = games.filter((game) => game.after !== null).length;

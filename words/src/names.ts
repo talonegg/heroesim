@@ -1,7 +1,7 @@
 // How the front ends name things in words (v1.1.6-S11, DL-186 item 1): a content row by its name, a
 // list as a sentence gives one, a signed number, and a capital for text that stands alone
-// (docs/agents/ui-text.md). Words only; no rule. The CLI's `render.ts` and the page's `names.ts` each
-// held a copy until v1.1.6-S11.
+// (docs/agents/ui-text.md). Words only; no rule; one copy for the CLI and the page alike
+// (DL-197).
 
 /** A content row's name; a key the content does not define is shown as it is (data-model rule 5). */
 export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {

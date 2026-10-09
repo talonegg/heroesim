@@ -3,8 +3,8 @@
 // morning's refresh (phases/market-refresh.ts) replaces its stacks, `buy` and `sell` move Items
 // between it and a Guild, and a folding Guild's unique Items are sold to it (pre-M0 review D6).
 //
-// Every Guild meets the same prices (ADR-0002). The player's Guild buys and sells by choice; from
-// M6-S4 a Rival buys gear for its Heroes, armour first, by its Disposition's `gearThreshold`
+// Every Guild meets the same prices (ADR-0002). The player's Guild buys and sells by choice; a
+// Rival buys gear for its Heroes, armour first, by its Disposition's `gearThreshold`
 // (`gearPurchase`, DL-58), and sells nothing, though a folding Rival's unique Items are sold to it
 // as any Guild's would be.
 

@@ -33,14 +33,19 @@ export function localTimestamp(date: Date): string {
 }
 
 /**
- * A milestone's report for the day of `date`: `reports/m1-2026-09-26.md`; a run of a milestone's
- * that is not its play run adds a kebab-case name, `m8-probe` (M8-S3, DL-78).
+ * A report's name: its release, `v1.1.9`, or a word, `play`, each with kebab-case words after it if
+ * wanted, `v1.1.9-s3-neutral`. Delivery is tracked by release, so a milestone's `m<n>` names none
+ * from v1.1.8 on (DL-228); the reports named so before stay as they are.
  */
-export function reportPath(milestone: string, date: Date, dir: string = reportsDir): string {
-  if (!/^m\d+(?:-[a-z0-9]+)*$/.test(milestone)) {
-    throw new RangeError(`A milestone is m<n>, or m<n>-<name>, not ${JSON.stringify(milestone)}`);
-  }
-  return join(dir, `${milestone}-${localDate(date)}.md`);
+export const reportName = /^(?!m\d)(?:v\d+\.\d+\.\d+|[a-z][a-z0-9]*)(?:-[a-z0-9]+)*$/;
+
+/** What is said of a name `reportName` refuses. */
+export const reportNameRule = 'v<x>.<y>.<z>, or a word, each with -<name> words after it if wanted, never a milestone';
+
+/** A report for the day of `date`: `reports/v1.1.9-s3-neutral-2026-10-09.md`. */
+export function reportPath(name: string, date: Date, dir: string = reportsDir): string {
+  if (!reportName.test(name)) throw new RangeError(`A report's name is ${reportNameRule}; not ${JSON.stringify(name)}`);
+  return join(dir, `${name}-${localDate(date)}.md`);
 }
 
 /**

@@ -8,7 +8,7 @@
 // each of the estimate's samples is resolved for (`resolutions`), and the seeds of each of the
 // calibration's spot-check samples (`spotSeeds`).
 //
-// The command line (`npm run harness -- gate <milestone>`, `harness/src/main.ts`) reaches a run through
+// The command line (`npm run harness -- gate <name>`, `harness/src/main.ts`) reaches a run through
 // these variables too: a profile through `HEROESIM_PROFILE`, a probe through `HEROESIM_PROBE`.
 //
 // The harness may read the environment: it is not the engine (ADR-0001 binds the engine only).
@@ -20,6 +20,7 @@ import { defaultEstimateRuns, defaultEstimateSamples } from './estimate.js';
 import { defaultModuleSeedCount, harnessModules } from './modules.js';
 import { defaultYears } from './play.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
+import { reportName, reportNameRule } from './report.js';
 import { defaultProbeSeedCount, defaultProbeYears } from './succession.js';
 
 /** The environment a run's settings are read from: `process.env`, or a test's own. */
@@ -63,7 +64,7 @@ export interface MilestoneSettings {
   run: 'milestone';
   /** `HEROESIM_PROFILE`: the named sweep this is, which plays the play sweep alone; `null` for none. */
   profile: ProfileName | null;
-  /** `HEROESIM_MILESTONE`: the report's name, `m8` unless set. */
+  /** `HEROESIM_MILESTONE`: the report's name, `play` unless set. */
   milestone: string;
   /** `HEROESIM_EXPECT`: the fingerprint the run must play, for a play-neutral story; `null` for none. */
   expect: string | null;
@@ -111,7 +112,7 @@ export interface SuccessionSettings {
 /** v1.1.4-S5's estimate probe (DL-156). */
 export interface EstimateSettings {
   run: 'estimate';
-  /** `HEROESIM_MILESTONE`: the report's name, `m9-estimate` unless set. */
+  /** `HEROESIM_MILESTONE`: the report's name, `estimate` unless set. */
   milestone: string;
   /** `HEROESIM_SAMPLES`: the Parties and Quests drawn. */
   samples: number;
@@ -142,7 +143,7 @@ export type RunKind = RunSettings['run'];
 
 /**
  * Every variable a harness run reads, and the runs that read it: the list a variable is checked
- * against, and the harness's documentation of them (INPUTS §9).
+ * against, and the harness's documentation of them (docs/environment.md).
  */
 export const variables: Readonly<Record<string, { readBy: readonly (RunKind | 'vitest')[]; means: string }>> = Object.freeze({
   HEROESIM_HARNESS: { readBy: ['vitest'], means: 'set by `npm run harness`: the harness-run Vitest project exists (vitest.config.ts)' },
@@ -166,7 +167,7 @@ export const variables: Readonly<Record<string, { readBy: readonly (RunKind | 'v
   HEROESIM_CALIBRATION_OUT: { readBy: ['calibrate'], means: 'where the calibration is written' },
 });
 
-/** Variables of the same prefix that other packages read, which a harness run leaves alone (INPUTS §9). */
+/** Variables of the same prefix that other packages read, which a harness run leaves alone (docs/environment.md). */
 const elsewhere: readonly string[] = ['HEROESIM_SAVE_DIR', 'HEROESIM_LIVE_URL', 'HEROESIM_DEPLOY_RECORD', 'HEROESIM_OWNER_PICTURES'];
 
 /** `value` trimmed, or `null` when unset or blank. */
@@ -202,11 +203,11 @@ function oneOf<Name extends string>(env: Env, name: string, names: readonly Name
   return known;
 }
 
-/** A report's name, `m<n>` or `m<n>-<name>` (`reportPath`); `fallback` when unset or blank. */
+/** A report's name, by `reportName` (`reportPath`, DL-228); `fallback` when unset or blank. */
 function milestoneOf(env: Env, fallback: string): string {
   const value = given(env, 'HEROESIM_MILESTONE');
   if (value === null) return fallback;
-  if (!/^m\d+(?:-[a-z0-9]+)*$/.test(value)) throw new RangeError(`HEROESIM_MILESTONE is m<n>, or m<n>-<name>, not ${JSON.stringify(env['HEROESIM_MILESTONE'])}`);
+  if (!reportName.test(value)) throw new RangeError(`HEROESIM_MILESTONE names a report: ${reportNameRule}; not ${JSON.stringify(env['HEROESIM_MILESTONE'])}`);
   return value;
 }
 
@@ -329,7 +330,7 @@ export function runSettings(env: Env = process.env): RunSettings {
   }
   if (probe === 'estimate') {
     const own = profiles.estimate;
-    return { run: 'estimate', milestone: milestoneOf(env, 'm9-estimate'), samples: count(env, 'HEROESIM_SAMPLES', own.samples), resolutions: count(env, 'HEROESIM_SEEDS', own.resolutions) };
+    return { run: 'estimate', milestone: milestoneOf(env, 'estimate'), samples: count(env, 'HEROESIM_SAMPLES', own.samples), resolutions: count(env, 'HEROESIM_SEEDS', own.resolutions) };
   }
   if (probe === 'calibrate') {
     const own = profiles.calibrate;
@@ -357,7 +358,7 @@ export function runSettings(env: Env = process.env): RunSettings {
   return {
     run: 'milestone',
     profile,
-    milestone: milestoneOf(env, 'm8'),
+    milestone: milestoneOf(env, 'play'),
     expect: expectedOf(env),
     worlds: count(env, 'HEROESIM_SEEDS', profiles.milestone.worlds),
     games: count(env, 'HEROESIM_SEEDS', own.games),
@@ -385,12 +386,12 @@ export type HarnessCommand = { kind: 'vitest'; env: Record<string, string>; args
 /**
  * The command line's words (`npm run harness -- <words>`, `main.ts`), read into the variables a run
  * reads (v1.1.6-S2, DL-186 items 13 and 30). The first word may name:
- * - a profile, `gate <milestone>` or `neutral <milestone>`, with `--expect <fingerprint>` after it if
+ * - a profile, `gate <name>` or `neutral <name>`, with `--expect <fingerprint>` after it if
  *   wanted: the play sweep alone (`play.harness`), under `HEROESIM_PROFILE` and `HEROESIM_MILESTONE`;
  * - a probe, `succession`, `estimate` or `calibrate`: its file alone, under `HEROESIM_PROBE`;
  * - `compare <a> <b>`: two runs' reports compared, no Vitest run.
  * Any other words pass through to Vitest, as the words after a profile's or a probe's do. Throws on a
- * profile without a milestone, an `--expect` without a fingerprint, or a `compare` without two reports.
+ * profile without a report's name, an `--expect` without a fingerprint, or a `compare` without two reports.
  */
 export function commandLine(words: readonly string[]): HarnessCommand {
   const [first, ...rest] = words;
@@ -402,7 +403,7 @@ export function commandLine(words: readonly string[]): HarnessCommand {
   const profile = profileNames.find((name) => name === first);
   if (profile !== undefined) {
     const [milestone, ...after] = rest;
-    if (milestone === undefined || milestone.startsWith('-')) throw new RangeError(`${profile} names its report: npm run harness -- ${profile} <milestone>`);
+    if (milestone === undefined || milestone.startsWith('-')) throw new RangeError(`${profile} names its report: npm run harness -- ${profile} <name>`);
     const env: Record<string, string> = { HEROESIM_PROFILE: profile, HEROESIM_MILESTONE: milestone };
     const at = after.indexOf('--expect');
     if (at >= 0) {

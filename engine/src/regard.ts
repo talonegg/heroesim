@@ -15,7 +15,7 @@
 //   (phases/patron-state.ts) returns it toward neutral each night.
 // - **Guildmaster Regard** (R9), keyed by the id of the Patron, Hero or Guildmaster it is for: for
 //   the Patron whose Quest the Guild resolved, and for each Hero of the Party who came home to the
-//   Roster; and, from M6-S2, for the Guildmaster of a Guild theirs made a Transfer with
+//   Roster; and, by DL-57, for the Guildmaster of a Guild theirs made a Transfer with
 //   (`regardOnTransferDeal`). Regard for a Guild is a selector over Regard for its Guildmaster, never
 //   stored (`guildmasterRegardForGuild`, rule 1). No rule reads
 //   Guildmaster Regard in the first build (pre-M0 review B3).

@@ -11,7 +11,8 @@
     "cli",
     "web",
     "tools/portraits",
-    "tools/editor"
+    "tools/editor",
+    "tools/decisions"
   ],
   "engines": {
     "node": ">=22"
@@ -29,7 +30,8 @@
     "play": "tsx cli/src/main.ts",
     "portraits": "tsx tools/portraits/src/main.ts",
     "quest-review": "tsx cli/src/quest-review.ts",
-    "edit": "tsx tools/editor/src/main.ts"
+    "edit": "tsx tools/editor/src/main.ts",
+    "decisions": "tsx tools/decisions/src/main.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

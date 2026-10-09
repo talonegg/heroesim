@@ -59,4 +59,5 @@ Done when: `apply` has exited and `check` has run.
 ## 4. Tell the owner
 
 Give the files changed, the content version's change, and that `git diff` shows them, for the owner
-to commit with a message naming the run's report.
+to commit with a message naming the run's report. The run's folder, `docs/portraits/analysis/<run>/`,
+is then removed in the same commit: the content holds its files, and its report stays (DL-218).

@@ -10,8 +10,8 @@ it does, where its key stands in content, and which rules read it. It changes no
 stops and names it (step 1). The one write its commands may make is the editor's own, putting back
 a "Finish" cut off, which the command reports as `recovered`; tell the owner when one does.
 
-Read `docs/agents/traits.md` first: its guardrails bind every step, and its register part says what
-each use and each rule is.
+Read `docs/agents/traits.md` first: its guardrails bind every step. The register,
+`docs/agents/traits-register.md`, says what each use and each rule is.
 
 **The root.** Commands run from the repository's root. For a trial on a scratch copy, add
 `--root <dir>` to every command.
@@ -43,7 +43,7 @@ Pick each command the question needs:
 | Every Trait of both lists | `traits list --json` |
 | One Trait: its fields, effects, uses and the rules that read it | `traits show <key> --json` |
 | Every use of a Trait in content | `traits uses <key> --json` |
-| The rules and events that read Traits, and where in the code | the register part of `docs/agents/traits.md`: "In the engine and the content's checks" |
+| The rules and events that read Traits, and where in the code | `docs/agents/traits-register.md`: "In the engine and the content's checks" |
 
 Each prefixed `npm run --silent edit -- `. An effect is found in its words (`courage`, `-2 perception`,
 `Upkeep ×`) and as JSON (`encounterBonus`). `find` gives each match's `matched` (key, name, effects, uses); follow each

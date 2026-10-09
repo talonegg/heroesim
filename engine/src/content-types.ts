@@ -30,13 +30,13 @@ export type SphereKey = string;
 /** A Quest template (M2-S3). */
 export type QuestTemplateKey = string;
 /**
- * A tag a Quest template carries (M2-S3), and from v1.1.4-S8 an Encounter: an Encounter sharing one
+ * A tag a Quest template carries (M2-S3), and an Encounter (DL-160): an Encounter sharing one
  * with its template is likelier drawn (`encounterTagWeight`).
  */
 export type QuestTagKey = string;
 /** A type of Injury (M2-S5, `injuries.json`). */
 export type InjuryTypeKey = string;
-/** A Rival Guild's Disposition: `steady` from M2, `ambitious`, `miserly` and `reckless` from M6-S1. */
+/** A Rival Guild's Disposition: `steady`, `ambitious`, `miserly` or `reckless` (DL-56). */
 export type DispositionKey = string;
 /** An Encounter a Quest is drawn with (M4). */
 export type EncounterKey = string;
@@ -165,7 +165,7 @@ export type GuildmasterTraitEffectKind = GuildmasterTraitEffect['kind'];
  *   as gear's are (DL-148 item 24), so the change shows wherever a Stat shows. One effect may name
  *   several Stats.
  * - `encounterBonus`: `flat` added to the capability of every Check of an Encounter of one of its
- *   `kinds`, or sharing one of its `tags` (an Encounter's, from v1.1.4-S8), when any Hero still in
+ *   `kinds`, or sharing one of its `tags` (an Encounter's, DL-160), when any Hero still in
  *   the sequence holds the Trait: once for the Party however many hold it (DL-148 item 26), and never
  *   to a raw Check, which is its score alone (DL-152), as a consumable's bonus is not.
  */
@@ -329,7 +329,7 @@ export interface QuestTemplate {
 
 /**
  * The kinds of Encounter (M4-S1): the flavour of a Check, and what a Quest template draws from.
- * `lore`, for Intelligence and Knowledge, riddles, records and clues, from v1.1.4-S8 (DL-148 item 21).
+ * `lore` is for Intelligence and Knowledge, riddles, records and clues (DL-148 item 21, DL-160).
  */
 export const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth', 'lore'] as const;
 
@@ -405,8 +405,8 @@ export type CheckKey = string;
 /**
  * One Check of an Encounter (v1.1.4-S1, DL-148 item 7): the Party's capability is its `score`, a
  * Num Query, plus a bonus for the best rating held of each of its `skills`, against its target,
- * `flat` plus `difficultyFactor` times the Quest's difficulty. An Encounter has one to four since
- * v1.1.4-S2, combined by its `pass`.
+ * `flat` plus `difficultyFactor` times the Quest's difficulty. An Encounter has one to four,
+ * combined by its `pass` (DL-152).
  */
 export interface EncounterCheck {
   key: CheckKey;
@@ -499,7 +499,7 @@ export interface MoraleConsequence {
   steadiedBy?: StatKey[];
 }
 
-/** Every pair in the Party has its Regard for each other moved by `delta` (applied from M4-S4). */
+/** Every pair in the Party has its Regard for each other moved by `delta` (DL-46). */
 export interface RegardConsequence {
   kind: 'regard';
   between: 'party';
@@ -603,7 +603,7 @@ export interface SynergyBonus {
 
 /**
  * A Synergy (R26, CONTEXT.md; `synergies.json`, M4-S3): an authored bonus for a Party that meets its
- * requirements, Queries over the Party since v1.1.4-S1, added to each Check of an Encounter of one
+ * requirements, Queries over the Party (DL-151), added to each Check of an Encounter of one
  * of its `kinds`, or of every kind when it names none. Relationship between the members is
  * teamwork's, apart (M4-S4).
  */
@@ -654,7 +654,7 @@ export interface Disposition {
   /**
    * It builds a facility's next grade only while its Wealth is above this many times that
    * grade's cost (M6-S1: M3-S6's `buildWealthMultiple`, which the row replaces, DL-56; every
-   * facility of the Hall from M6-S4, DL-58). 0 or more.
+   * facility of the Hall, DL-58). 0 or more.
    */
   buildThreshold: number;
   /**
@@ -973,7 +973,7 @@ export interface HeroBiographySentences {
 /**
  * What a Guildmaster's descriptive Attributes are written from (`descriptions.json`, v1.1.2-S5;
  * DL-125 item 6, DL-127): the age bands, the pronoun each slot is for each sex, the Birthplaces, the
- * Appearance's phrases by sex and age band, and the Biography's sentences; and since v1.1.3-S1 the
+ * Appearance's phrases by sex and age band, and the Biography's sentences; and the
  * vocabulary a picture is read in, its Stations, Tempers and Callings, and a Hero's Biography's
  * sentences (DL-134 item 4, DL-135 item 6). The content validator proves that nothing it can write
  * passes `descriptiveAttributeMaxLength`.

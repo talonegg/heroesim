@@ -7,7 +7,7 @@ import { expect, type FrameLocator, type Locator, type Page } from '@playwright/
 // open, so a spec opens the view first, through the navigation, as a player would. A region of the
 // game menu is found by opening it.
 //
-// Seven views since M9-F2 (DL-112 item 5, DL-115), in one order at every width: the Guildmaster,
+// Seven views (DL-112 item 5, DL-115), in one order at every width: the Guildmaster,
 // Guild, Roster, Board, Rankings, Market and History. Under 600px the Guildmaster, the Market and
 // the History are under "More". The Guildmaster's button is named by the Guildmaster's name, and
 // described as "Guildmaster". The Guild's parts, Home and Hall, are tabs under its heading, each
@@ -77,7 +77,7 @@ export type ViewName = 'Guildmaster' | 'Guild' | 'Roster' | 'Board' | 'Rankings'
 /** Every view in the navigation's order (M9-F2). */
 export const viewNames: readonly ViewName[] = ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'];
 
-/** The Guild's parts, each a tab under its heading (M9-F2; Stores and Treasury from M9-F3). */
+/** The Guild's parts, each a tab under its heading (DL-115; Stores and Treasury, DL-116). */
 export type GuildPartName = 'Home' | 'Hall' | 'Stores' | 'Treasury';
 
 /** The Guild's parts in the order of their tabs. */

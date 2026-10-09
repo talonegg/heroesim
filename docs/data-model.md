@@ -80,11 +80,11 @@ the content set the game was last loaded under rather than the one it was create
 
 ```
 turn:      integer                     absolute Turn index from 0
-rng:       Record<StreamName, State>   one seeded generator per subsystem (ADR-0009)
+rng:       Record<StreamName, State>   one seeded generator per component (ADR-0009)
 counters:  Record<TableName, integer>  next id number per table
 ended:     { turn, reason } | null     set once, when the player-controlled Guild's ending
                                        is reached (an accepted exception to ADR-0002,
-                                       plan.md §1); advance on an ended world is a no-op
+                                       listed there); advance on an ended world is a no-op
 ```
 
 Day and time of day are derived: `day = floor(turn / 3)`, `timeOfDay = turn % 3` (morning,
@@ -95,20 +95,34 @@ whole Days, so that no Day straddles two Years; a player reads a date as "Year Y
 `yearOf + 1` and the Day of the Year `(turn mod turnsPerYear) div 3 + 1`, Turn 0 being Year 1 Day 1,
 morning (`@heroesim/words`' calendar). Only the words count from 1; the save holds the Turn.
 
-Streams are named per drawing subsystem so that adding a subsystem never shifts another's
-draws: `generation`, `board`, `quests`, `encounters`, `pool`, `heroes` (the Hero State
-Engine), `progression`, `rivals`, `market`, each added in the milestone that introduces its
-subsystem (ADR-0009 as amended 2026-09-26), then `gm-portraits` (v1.1.2-S3, renamed in S7; one
-draw for each Guildmaster entering play, whatever is chosen, from v1.1.3-S5)
-and `descriptions` (v1.1.2-S5, fifteen draws for each Guildmaster entering play, whatever is written), drawn apart
-from `generation` so that no existing draw moves (ADR-0009 as amended 2026-09-30), then `hero-portraits`
-(v1.1.3-S6, one draw for each Hero generated) and `hero-descriptions` (v1.1.3-S6, thirteen draws for each
-Hero generated, whatever is written), drawn apart from `generation` and `pool` likewise (ADR-0009 as
-amended 2026-10-01, again). A stream is seeded from the master seed and its
-name. A new subsystem gets a new stream and never shares an old one. A module that draws
-random numbers registers a stream of its own. A subsystem is a component: a new draw inside a
-component uses that component's stream, and the Transfer Generator's draw from `rivals` is an
-accepted exception (amended 2026-09-28, DL-84; ADR-0009 as amended 2026-09-28).
+Streams are named per drawing component, so that adding one never shifts another's draws
+(ADR-0009). A stream is seeded from the master seed and its name. A new draw inside a component uses
+that component's stream and shifts only its later draws; a new component gets a new stream and never
+shares an old one; a module that draws random numbers registers a stream of its own (Random Events
+among them, so `events` is not a core stream). The core's streams, in the order of a new world's
+`rng` keys (`streamNames`, `engine/src/rng.ts`):
+
+| Stream | What draws from it | Decided |
+| --- | --- | --- |
+| `generation` | The world's creation: its Guilds, Heroes and Patrons, and the deals at creation; a Rival replacement and a Succession | ADR-0009, DL-28, DL-102 |
+| `board` | The Quests the Board offers | Pre-M0 review D7 |
+| `quests` | The Quest Engine's resolutions, Loot among them | D7, DL-84 |
+| `encounters` | Each Quest's Encounter sequence, apart from the Board's draws | D7, DL-42 |
+| `pool` | The Unattached pool's refill | D7 |
+| `heroes` | The Hero State Engine: Retirement checks and ageing's decline | D7, DL-84 |
+| `progression` | The growth points of a Level gained | D7, DL-36 |
+| `rivals` | The Rival controllers' Dispositions, and the Transfer Generator, an accepted exception | D7, DL-30, DL-84 |
+| `market` | The Market's morning refresh | D7, DL-51 |
+| `gm-portraits` | A Guildmaster's Portrait: one draw for each entering play, whatever is chosen | DL-125, DL-134, DL-135 |
+| `descriptions` | A Guildmaster's descriptive Attributes: fifteen draws each, whatever is written | DL-125 |
+| `hero-portraits` | A Hero's Portrait: one draw for each Hero generated | DL-134 item 2, DL-135 |
+| `hero-descriptions` | A Hero's Appearance and Biography: thirteen draws each, whatever is written | DL-135 item 6 |
+
+The last four are accepted exceptions too. Each is part of generating a Guildmaster or a Hero, drawn
+apart from `generation` and `pool` so that no existing draw moved when it was added, and appended
+last. Each takes a fixed number of draws, so that a choice or a text moves no later draw. A Hero's
+pictures and words are two streams, so that pictures added later move no Hero's text, and apart from
+the Guildmasters', so that neither role's draws move the other's.
 
 The deals at creation read the content's weights (DL-206 item 1, DL-208): a Guild's starting Roster
 is dealt its Classes, and the Patrons created with the world their Spheres, by `dealByWeight`. While
@@ -396,7 +410,7 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
    Upkeep and availability are selectors. No selector is cached until the harness shows it slow.
 2. **Copy `world` once per Turn**, mutate the copy, share `meta` and `history`.
 3. **History is append-only** and only the engine's append function touches it (ADR-0008).
-4. **Named random streams**, one per subsystem (ADR-0009).
+4. **Named random streams**, one per component that draws (ADR-0009).
 5. **Unknown keys are kept.** A Stat, Class or Item key the current content does not define
    survives a load; rules ignore it; the validator warns. A missing Stat reads as the
    content's default. The same holds for `meta.config`: a field the current `GameConfig`
@@ -479,53 +493,23 @@ runs per Turn in play.
 
 A refused document names the failed check. Nothing is repaired silently.
 
-## 7. Performance targets (provisional; rebaselined 2026-09-28)
+## 7. Performance targets
 
-As settled on 2026-09-25: not a priority in the first increments; to be rebaselined against
-the first harness runs. That rebaseline was made on 2026-09-28, below.
+The targets a release is held to are lines of the harness's Gate, [`harness/gate.json`](../harness/gate.json),
+which change only with a DL entry (DL-186 item 13, DL-188); the harness's report reads them from there
+and names each measure. Among them, a save after 20 years is measured gzipped, as the page keeps it:
+the mean over a Gate run's 20-year saves is under 30 MiB, with no guard on the uncompressed size, which
+the report prints (DL-188). The first, provisional targets (DL-08), their rebaseline on the M8 run's
+figures (DL-84, DL-81 item 6) and the measures at each close are in those entries and the harness's
+reports.
 
-*Rebaselined 2026-09-28 (DL-84).* The targets are now the M8 run's verified figures
-(`harness/reports/m8-2026-09-28.md`, DL-81 item 6), and save size is measured compressed, every
-save being gzipped. The owner's decision, where the agents recommended chasing the measures a
-player feels and budgeting the rest. The first, provisional targets, which the first build
-recorded and did not chase (DL-08), are kept beside them.
-
-| Measure | First target (provisional) | Target: the M8 run's figure |
-| --- | --- | --- |
-| Advance one Turn | under 5 ms | mean 5.91 ms (p99 14.2) under 16 processes' load; 4.96 ms alone |
-| Fast forward a year | under 1 s | 5.4 s (4.96 ms × 1,080 Turns) |
-| Harness: 1,000 games of 20 years | under 10 min | 367 min of games in 16 processes, validated after every advance |
-| Save after 20 years | under 19.07 MiB (first written "under 20 MB") | gzipped: 12.08 MiB for `seed-0001`, the one twenty-year save measured compressed (DL-67 item 8), whose bytes the M8 run reproduced (DL-81 item 2); uncompressed: mean 99.21 MiB, max 118.29 MiB |
-| Load a save | under 1 s | mean 4.62 s, max 7.82 s under 16 processes' load |
-
-*The save's target, since v1.1.6-S2 (DL-186 item 21, DL-188).* A save after 20 years is measured
-gzipped, as the page keeps it: the mean over a Gate run's 20-year saves, under 30 MiB. The owner's
-answer, approving the Gate's first spec (DL-188): "stay under 30mb", the mean and not every save. It is
-a line of the harness's Gate, `harness/gate.json`, which changes only with a DL entry; the harness's
-report reads it from there and names the measure. No guard holds the uncompressed size, which has
-grown from 99.21 MiB (M8) to 136.69 MiB at `v1.1.5`; the report prints it beside the gzipped sizes.
-At `v1.1.5`'s close (DL-184) the gzipped mean was 17.95 MiB, its largest 21.08 MiB, and the
-uncompressed mean 136.69 MiB.
-
-How far past its figure a later run may go before it counts as a regression is open for the other
-measures. The machine's single-thread rate varied by a factor of about three between days (DL-81
-item 6: a Turn alone took 1.5 ms on 2026-09-27 and about 4 ms on 2026-09-28), so the figures
-for a Turn alone and a year of fast forward depend on the day they were taken.
-
-The History will dominate save size. The levers, in order: lean entries (ids and labels,
-never entity copies), rule 10 (drift is not an event), and compression on write with Node's
-built-in `zlib` or the browser's `CompressionStream`. Archiving or dropping old entries is not
-a lever: R36 forbids it. Not writing the pool's comings and goings of a Hero never hired is
-another, taken 2026-10-06 (DL-206 item 20, DL-211): a 20-year game's History 265,423 entries for
-276,933 in the mean, its save gzipped 17.51 MiB for 17.95, nothing dropped. Compression is taken everywhere (amended 2026-09-28, DL-84): the
-browser's saves are gzipped already (DL-67), and the CLI's and the harness's are to be gzipped
-too. A leaner entry shape (DL-81's leaner `quest.encounter` entry) is not taken now, and no
-schema change is made for it (the owner's decision, where the agents recommended lean entries as
-well as gzip). For the cost of a Turn, the lever decided is to profile first and then to keep
-the rows out of play (dead and retired Heroes, old Loot and the like) as a historical set that
-each Turn references and appends to but does not copy, in the spirit of ADR-0008 (DL-84). Built in
-v1.1.6-S17 (ADR-0011, DL-203) without a section of its own: the write-once rows stay in their tables,
-frozen and shared by reference by the per-Turn copy, so the saved shape is unchanged. A browser's `localStorage` holds about
+The History dominates save size. The levers are lean entries (ids and labels, never entity copies),
+rule 10 (drift is not an event), not writing the pool's comings and goings of a Hero never hired
+(DL-211), and compression on write: the page's saves are gzipped (DL-67), and the CLI's and the
+harness's are to be too (DL-84). Archiving or dropping old entries is not a lever: R36 forbids it. A
+leaner entry shape is not taken, and no schema change is made for it (DL-84). For the cost of a Turn,
+the write-once rows (dead and retired Heroes, old Loot and the like) stay in their tables, frozen and
+shared by reference by the per-Turn copy, so the saved shape is unchanged (ADR-0011, DL-203). A browser's `localStorage` holds about
 5 MiB per origin, so the web front end saves to IndexedDB.
 
 ## 8. Type sketch

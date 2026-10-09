@@ -47,7 +47,7 @@ export function doctorText(report: Doctor): string[] {
   return [
     ...(report.finish.recovered.length > 0 ? [`! A "Finish" was cut off: ${report.finish.recovered.length} files are put back as they were`] : []),
     ...line(report.drift.ok, `No drift: the register lists all ${report.drift.reads} reads of a Trait`, 'Drift: the register and the code differ', report.drift.problems),
-    ...line(report.freshness.ok, 'docs/agents/traits.md is fresh', 'docs/agents/traits.md is stale', report.freshness.problems),
+    ...line(report.freshness.ok, 'docs/agents/traits-register.md is fresh', 'docs/agents/traits-register.md is stale', report.freshness.problems),
     ...line(report.content.ok, 'The content passes its checks', 'The content fails its checks', report.content.problems),
     ...line(
       report.pending.ok,

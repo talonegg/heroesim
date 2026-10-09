@@ -2,14 +2,14 @@
 // consumables): what a proposed Party of the player's Heroes would meet on a Quest from the Board,
 // and what it would carry, before it is sent. It changes nothing and writes nothing.
 //
-// The CLI holds no rule: what the Party would meet is the engine's `previewDispatch` (moved there
-// from here by M7-S3, DL-66, so the browser shows the same): each requirement met or missed, each
+// The CLI holds no rule: what the Party would meet is the engine's `previewDispatch` (DL-66,
+// so the browser shows the same): each requirement met or missed, each
 // Hero who cannot go, the Synergies the Party would have and on how many of the Quest's Encounters
 // (M4-S3, DL-45), what it would carry, the reward its `negotiatedReward` for the player's
 // Guildmaster, and the verdict `dispatch`'s own checks. The preview is a list of sections of words.
-// From v1.1.4-S3, one line for the Party's Morale, from its mean form, naming no Hero (DL-148 item 12).
-// From v1.1.4-S6, the chance of each Encounter and of the Quest in a word, with its percentage floored to 5,
-// if no one falls: the engine's estimate (`estimateQuest`, through the preview; DL-148 item 15).
+// One line for the Party's Morale, from its mean form, naming no Hero (DL-148 item 12, DL-154).
+// The chance of each Encounter and of the Quest in a word, with its percentage floored to 5, if no
+// one falls: the engine's estimate (`estimateQuest`, through the preview; DL-148 item 15, DL-157).
 
 import {
   playerGuild,

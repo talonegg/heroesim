@@ -44,22 +44,24 @@ describe('numbers', () => {
 });
 
 describe('where a report goes', () => {
-  test('a milestone report is m<n>-<local date>.md under harness/reports', () => {
+  test('a report is <name>-<local date>.md under harness/reports, named by its release or a word, never a milestone', () => {
     const date = new Date(2026, 8, 6, 23, 59, 7);
     expect(localDate(date)).toBe('2026-09-06');
     expect(localTimestamp(date)).toMatch(/^2026-09-06 23:59:07 [+-]\d\d:\d\d$/);
-    expect(reportPath('m1', date)).toBe(join(reportsDir, 'm1-2026-09-06.md'));
+    expect(reportPath('v1.1.9', date)).toBe(join(reportsDir, 'v1.1.9-2026-09-06.md'));
     expect(reportsDir.replaceAll('\\', '/')).toMatch(/\/harness\/reports\/$/);
-    expect(() => reportPath('M1', date)).toThrow(RangeError);
-    expect(reportPath('m8-probe', date)).toBe(join(reportsDir, 'm8-probe-2026-09-06.md'));
-    expect(() => reportPath('m8-', date)).toThrow(RangeError);
-    expect(() => reportPath('m8-Probe', date)).toThrow(RangeError);
+    expect(reportPath('v1.1.9-s3-neutral', date)).toBe(join(reportsDir, 'v1.1.9-s3-neutral-2026-09-06.md'));
+    expect(reportPath('play', date)).toBe(join(reportsDir, 'play-2026-09-06.md'));
+    expect(reportPath('modules-probe', date)).toBe(join(reportsDir, 'modules-probe-2026-09-06.md'));
+    for (const name of ['m1', 'm8-probe', 'M1', 'V1.1.9', 'v1.1-s3', 'v1.1.9-', 'v1.1.9-S3', 'play-']) {
+      expect(() => reportPath(name, date), name).toThrow(RangeError);
+    }
   });
 
   test('writeReport makes the directory and ends the file with a newline', () => {
     const dir = mkdtempSync(join(tmpdir(), 'heroesim-report-'));
     try {
-      const path = writeReport(join(dir, 'nested', 'm1-2026-09-26.md'), '# Report');
+      const path = writeReport(join(dir, 'nested', 'v1.1.9-2026-09-26.md'), '# Report');
       expect(readFileSync(path, 'utf8')).toBe('# Report\n');
     } finally {
       rmSync(dir, { recursive: true, force: true });

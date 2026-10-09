@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { addresses } from './scripts/deploy.mjs';
 
-// The deployed page (M7-S5's first box, DL-75; both addresses since v1.0.1-S3, DL-94):
+// The deployed page (M7-S5's first box, DL-75; both addresses, DL-94):
 // `npm run e2e:live -w web`, after `npm run deploy`. Kept out of `npm run e2e`, which never needs
 // the network: this reads the production addresses (INPUTS 7.8), never a local server, each at a
 // phone's width and a desktop's, four projects in all. The addresses are the deploy's own

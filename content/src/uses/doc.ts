@@ -1,7 +1,7 @@
-// `docs/agents/traits.md`'s generated part (v1.1.4-S12, DL-150 item 14): the register, written out
-// for the Trait skills and the people who read them. The rest of the file, the guardrails, is
-// written by hand. `npm run edit -- traits doc` writes this part between the markers, and the
-// freshness test fails when the file holds anything else there.
+// `docs/agents/traits-register.md`'s generated part (DL-150 item 14, DL-219): the register, written
+// out for the Trait skills and the people who read them, under a heading written by hand. The
+// guardrails are `docs/agents/traits.md`'s. `npm run edit -- traits doc` writes this part between
+// the markers, and the freshness test fails when the file holds anything else there.
 
 import type { ContentEntry, EngineEntry, RegisterEntry, SourcePlace } from './register.js';
 import { contentEntries, engineEntriesOf, register, traitHelpers } from './register.js';

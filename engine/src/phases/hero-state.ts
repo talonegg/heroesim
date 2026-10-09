@@ -17,8 +17,8 @@
 //   hold that it excludes or that excludes it, each with `hero.trait-lost` after (v1.1.4-S7, DL-150
 //   item 5): the wound is a fact of the body.
 // - **Morale drift.** Morale moves `moraleDrift` toward the Hero's baseline, `moraleBaselineFor`
-//   (`moraleBaseline`, raised by the Guild's quarters from M3-S6 and moved by its Guildmaster's
-//   Inspiration and Traits from M4-S5), and stops there. Drift emits
+//   (`moraleBaseline`, raised by the Guild's quarters, DL-38, and moved by its Guildmaster's
+//   Inspiration and Traits, DL-43), and stops there. Drift emits
 //   `hero.morale-changed` only on the night it takes Morale from one of `moraleBands` into
 //   another (data-model rule 10); the discrete changes are `questsConclude`'s.
 // - **Regard decay** (M4-S4, hero-regard.ts). The Hero's Regard for each other Hero with whom they

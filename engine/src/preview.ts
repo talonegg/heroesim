@@ -2,14 +2,14 @@
 // consumables): what a proposed Party of a Guild's Heroes would meet on a Quest from the Board,
 // and what it would carry, before it is sent. A selector: it changes nothing.
 //
-// The CLI's `preview` assembled it from the engine's selectors until M7-S3 moved it here (DL-66),
+// The engine holds it, not the CLI's `preview` (DL-66),
 // so that the CLI and the browser show one statement of it and the browser computes no rule: each
 // requirement met or missed is `unmetRequirements`', each Hero who cannot go `unavailability`'s,
 // the Synergies `synergiesFor`'s and where each applies `appliesOn`'s, the reward the Guildmaster's
-// `negotiatedReward`, and the verdict `dispatch`'s own checks (`dispatchRefusal`). From v1.1.4-S3,
-// what the Party's form as it sets out does to its odds, for the Party as a whole (`formEffect`); from
-// v1.1.4-S6, how likely it is to come through each Encounter and the Quest (`estimateQuest`), and
-// which Stats the Quest's Checks read (`statsRead`).
+// `negotiatedReward`, and the verdict `dispatch`'s own checks (`dispatchRefusal`). Also what the
+// Party's form as it sets out does to its odds, for the Party as a whole (`formEffect`, DL-154); how
+// likely it is to come through each Encounter and the Quest (`estimateQuest`), and which Stats the
+// Quest's Checks read (`statsRead`, DL-157).
 
 import {
   dispatchRefusal,

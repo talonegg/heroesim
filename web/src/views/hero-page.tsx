@@ -1,5 +1,5 @@
-// A Hero's page (M7-S3; the CLI's `show hero` and `show history <heroId>`; redesigned by M9-S6,
-// DL-106, the review's B7): who the Hero is in one line and their State as chips, the Stats as four
+// A Hero's page (M7-S3; the CLI's `show hero` and `show history <heroId>`; its design DL-106,
+// the review's B7): who the Hero is in one line and their State as chips, the Stats as four
 // area blocks with what gear lifts and each Stat's Outlook, gear with Equip and Unequip, Skills,
 // Relationships on the Roster as bands with the neutral ones folded, then the Hero's Milestones,
 // which a Hero's page always shows first, and their History, newest first, a page at a time.

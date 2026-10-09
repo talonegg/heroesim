@@ -1,5 +1,5 @@
-// Named random streams, one per subsystem that draws (ADR-0001, ADR-0009 as amended
-// 2026-09-26, data-model §3.1). The generator is xoshiro128** seeded through cyrb128 (DL-12).
+// Named random streams, one per component that draws (ADR-0001, ADR-0009, data-model §3.1). The
+// generator is xoshiro128** seeded through cyrb128 (DL-12).
 //
 // A stream's state is four unsigned 32-bit integers in a plain array, kept in `world.rng`, so
 // it is saved, cloned and compared with the rest of the document (data-model rule 6). Drawing
@@ -16,10 +16,10 @@
 // pinned draws in rng.test.ts fail first.
 
 /**
- * The core streams. Each is added in the milestone that introduces the subsystem that draws
+ * The core streams. Each is added in the milestone that introduces the component that draws
  * from it — `quests`, `encounters`, `pool`, `heroes`, `progression`, `rivals` and `market`
- * follow `board`, in the order their milestones land — and a new subsystem never shares an old
- * stream (ADR-0009 as amended, pre-M0 review D7). M1 draws only to generate the world.
+ * follow `board`, in the order their milestones land — and a new component never shares an old
+ * stream (ADR-0009, pre-M0 review D7). M1 draws only to generate the world.
  *
  * Adding one is appending its name here. A stream depends only on the master seed and its own
  * name, so a document saved before the name existed gains the stream a new world would have

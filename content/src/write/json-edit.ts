@@ -1,7 +1,7 @@
 // A content file changed where its value changes, and laid out as it was everywhere else (v1.1.3-S3).
 // The content's JSON is laid out by hand: Features' values aligned, a sentence list opened out even
 // where it would fit on a line, and a role's picture lists on one line while they fit (the Heroes'
-// and Patrons') and a key to a line once they do not (the Guildmasters', since v1.1.3-S4). So
+// and Patrons') and a key to a line once they do not (the Guildmasters', DL-143). So
 // `write-rows` and `apply` write the new value into the file's own text rather than laying it out
 // afresh, and `git diff` shows only the rows, terms and sentences that changed:
 // - a value that is unchanged keeps its text, byte for byte;

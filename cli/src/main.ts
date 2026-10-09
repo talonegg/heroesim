@@ -74,7 +74,7 @@ export interface CliIo {
   stderr(text: string): void;
   /** The working directory: saves and relative paths resolve against it. */
   cwd: string;
-  /** Read for `HEROESIM_SAVE_DIR` (INPUTS §9). */
+  /** Read for `HEROESIM_SAVE_DIR` (docs/environment.md). */
   env: Readonly<Record<string, string | undefined>>;
   /** The clock, read once by `new` for `meta.createdAt`. */
   now(): Date;

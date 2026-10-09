@@ -4,13 +4,13 @@
 // a report reopens from its entry (Q7).
 //
 // What belongs to a return is what an event says it belongs to (principle 5, DL-112 item 2): every
-// entry naming the Quest, read through the History's own index (`entriesFor`), which since M9-F1
+// entry naming the Quest, read through the History's own index (`entriesFor`), which
 // holds the Encounters, the consumables used, the outcome, the Loot, the Injuries and Deaths, and
 // the XP, Morale and Regard the return caused (DL-114). Two things name no Quest, and are matched by
 // Hero and night: a Level, since `levelUps` runs straight after the return and a Hero away trains
 // for none, so a Level a Party's Hero gains that night follows the Quest's XP; and a dead Hero's gear
 // going back to the Guild on the night of the Death (`gearReturn`). Nothing is built for a return
-// written before M9-F1 (DL-113 item 3): its Morale and Regard name no Quest, and read as none.
+// written before DL-114 (DL-113 item 3): its Morale and Regard name no Quest, and read as none.
 //
 // Nothing here computes a rule (ADR-0007): every figure is an event's payload, and the Patron's band
 // now is the engine's `regardBand` of `patronRegardFor`.

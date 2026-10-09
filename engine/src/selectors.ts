@@ -33,7 +33,7 @@ export function playerGuild(world: Pick<World, 'guilds'>): Guild | undefined {
 
 /**
  * The Disposition that makes `guild`'s choices, or `null` for the Guild whose choices the player
- * makes. Where a Guild's choices come from is one of `plan.md` §1's three accepted exceptions to
+ * makes. Where a Guild's choices come from is one of the accepted exceptions listed in
  * ADR-0002, and this is the one place the Rival controllers read it (M2-S9, DL-30).
  */
 export function dispositionOf(guild: Pick<Guild, 'controller'>): DispositionKey | null {
@@ -217,9 +217,8 @@ export interface Ranking {
  * ordered by `by` from highest to lowest, ties by Guild id in code-unit order. A folded Guild is
  * not in them (pre-M0 review D6). Computed, never stored (data-model rule 1).
  *
- * Pulled forward from M3-S5 by M2-S10, whose acceptance needs a folded Rival to be absent from
- * them (DL-28); M3-S5 adds the CLI's `show rankings`. Rankings are read, not narrated: no event
- * marks a change of rank, until a front end asks for one (DL-38).
+ * The endings need a folded Rival absent from them (DL-28). Rankings are read, not narrated: no
+ * event marks a change of rank, until a front end asks for one (DL-38).
  */
 export function rankings(world: Pick<World, 'guilds'>, by: RankingMeasure): Ranking[] {
   return Object.values(world.guilds)
@@ -303,8 +302,8 @@ export function baseStat(values: StatValues, stat: Pick<Stat, 'key' | 'default'>
  *
  * The Guild State Engine charges it, and every controller and front end reads it, with `content`,
  * whose Trait rows it needs. Without `content`, or given a Guild or world that lacks its
- * Guildmaster, no Trait applies: the Upkeep as it stood before M4-S5, which tests written before
- * it still ask for (DL-43).
+ * Guildmaster, no Trait applies: the Upkeep without the Guildmaster's Traits, which some tests
+ * still ask for (DL-43).
  */
 export function upkeep(
   guild: Pick<Guild, 'rosterIds' | 'hall'> & Partial<Pick<Guild, 'guildmasterId'>>,

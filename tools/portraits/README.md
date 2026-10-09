@@ -32,7 +32,7 @@ npm run portraits -- <command> [--root <dir>] [--json]
 | `media/inbox/guildmaster/`, `media/inbox/hero/` | Uploads, ignored by git; each may hold `male/` and `female/` |
 | `content/version.json` | The content version and its changelog, raised by an intake and an apply (v1.1.6-S4) |
 | `docs/portraits/intake/<run>.md` | An intake's report |
-| `docs/portraits/analysis/<run>.md`, `<run>/` | An analysis run: its report, and its recommended `portraits.json`, `portrait-appearances.json` and `descriptions.json` |
+| `docs/portraits/analysis/<run>.md`, `<run>/` | An analysis run: its report, and its recommended `portraits.json`, `portrait-appearances.json` and `descriptions.json`. Once a run is applied its folder is removed, the content holding its files and git their history; the report stays (DL-218) |
 
 A run is named by its date, `2026-10-02`, and a second run on a day is `2026-10-02-2`.
 

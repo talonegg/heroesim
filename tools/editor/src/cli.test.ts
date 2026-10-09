@@ -701,7 +701,7 @@ describe('doctor and doc', () => {
     const planted = path.join(dir, 'engine', 'src', 'planted.ts');
     const { writeFileSync } = await import('node:fs');
     writeFileSync(planted, "export function planted(content: { heroTraits: object }): object {\n  return content.heroTraits;\n}\n");
-    const docPath = path.join(dir, 'docs', 'agents', 'traits.md');
+    const docPath = path.join(dir, 'docs', 'agents', 'traits-register.md');
     writeFileSync(docPath, readFileSync(docPath, 'utf8').replace('## In content', '## In the content'));
     const rows = readContentJson(dir, 'hero-traits.json');
     rows.lame = { ...(rows.lame as object), excludes: ['scarred'] };
@@ -710,7 +710,7 @@ describe('doctor and doc', () => {
     const sick = await json<{ ok: boolean; drift: { problems: string[] }; freshness: { problems: string[] }; content: { problems: string[] } }>(dir, 'traits', 'doctor');
     expect(sick.code).toBe(1);
     expect(sick.json.drift.problems).toEqual(['engine/src/planted.ts:2: planted reads .heroTraits, which no entry of the register lists']);
-    expect(sick.json.freshness.problems).toEqual(["docs/agents/traits.md's register part is not what the register makes now: run `npm run edit -- traits doc`"]);
+    expect(sick.json.freshness.problems).toEqual(["docs/agents/traits-register.md's register part is not what the register makes now: run `npm run edit -- traits doc`"]);
     expect(sick.json.content.problems.join('\n')).toContain('"scarred" does not exclude "lame" in return');
 
     const text = await command(['traits', 'doctor', '--root', dir]);

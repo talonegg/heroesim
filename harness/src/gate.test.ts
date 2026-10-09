@@ -40,20 +40,20 @@ const verdicts = (run: RunReport, expect_: string | null = null): Record<string,
 describe("the Gate's spec", () => {
   // The owner's answers (DL-188): the fixed lines as drafted; no band on the Traits a career; the
   // Bankruptcies at most 3 of 50; the save's gzipped mean under 30 MiB, no guard on its uncompressed size.
-  test("the spec as shipped is whole and approved by the owner, its baseline v1.1.6's closing full gate (DL-205, DL-214)", () => {
+  test("the spec as shipped is whole and approved by the owner, its baseline v1.1.8's closing full gate (DL-229)", () => {
     expect(gateSpecProblems(spec)).toEqual([]);
     expect(spec.status).toBe('approved');
     expect(spec.run).toMatchObject({ games: 50, years: 20 });
     expect(spec.baseline).toMatchObject({
-      release: 'v1.1.6',
-      report: 'harness/reports/m9-v116-s19-rerun1-2026-10-06.md',
-      fingerprint: 'bce997d27793192742247d4a7e4adc1ee80a9460752a8c7847258e0495cf2d77',
+      release: 'v1.1.8',
+      report: 'harness/reports/v1.1.8-gate-2026-10-09.md',
+      fingerprint: '5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b',
     });
-    expect(spec.lines.saveGzipped).toMatchObject({ baselineMeanMiB: 17.95, baselineMaxMiB: 21.08 });
+    expect(spec.lines.saveGzipped).toMatchObject({ baselineMeanMiB: 17.51, baselineMaxMiB: 20.64 });
     expect(spec.lines.playerBankruptcies.baseline).toBe(0);
     expect(Object.keys(spec.lines)).toEqual(['refusals', 'invalid', 'stopped', 'unfinished', 'roundTrips', 'replay', 'playerBankruptcies', 'saveGzipped', 'copyShare']);
     // The owner's answers (DL-203 answer 3, DL-206 item 17): the copy's share of a Turn at most 25%
-    // over its baseline, 0.847 ms over 3.346 ms at S17's full gate.
+    // over its baseline, 0.847 ms over 3.346 ms at S17's full gate, kept as the anchor by the owner (DL-229).
     expect(spec.lines.copyShare).toMatchObject({ growth: 0.25, baselineShare: 0.253 });
     expect(spec.lines.playerBankruptcies.max).toBe(3);
     expect(spec.lines.saveGzipped.meanMiB).toBe(30);

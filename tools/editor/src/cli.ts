@@ -32,12 +32,12 @@ export const usage = `Usage: npm run edit -- [traits <command> | config <command
   traits remove <key>             Remove a Trait, pending; refused while it is used, naming each use
   traits assign <key> <entry> [<field>=<value> ...] [--target <json or @file>]
                                   Add a use of a Trait in other content, pending, through the
-                                  register's entry (docs/agents/traits.md names each, and its fields)
+                                  register's entry (docs/agents/traits-register.md names each, and its fields)
   traits unassign <key> <entry> <at>
                                   Take a use out, pending: <at> as \`traits uses\` gives it
   traits update <key> <entry> <at> [<field>=<value> ...] [--target <json or @file>]
                                   Change a use in place, pending: its chance, say, or another value
-                                  its entry names (docs/agents/traits.md); <at> as \`traits uses\` gives it
+                                  its entry names (docs/agents/traits-register.md); <at> as \`traits uses\` gives it
   traits pending                  The pending edits
   traits discard [<key>]          Drop the pending edits, or one Trait's
   traits finish                   Write the pending edits, raise the content version, run npm test;
@@ -46,7 +46,7 @@ export const usage = `Usage: npm run edit -- [traits <command> | config <command
   traits recover [--force]        Put back the files of a "Finish" cut off (every command does first);
                                   --force where no "Finish" runs but its journal's process number is
                                   held by another process
-  traits doc                      Write docs/agents/traits.md's register part from the register
+  traits doc                      Write docs/agents/traits-register.md from the register
 
   config show [<section>]         The tuning values, engine/src/config.json's, by section, with the
                                   pending edits made

@@ -6,7 +6,7 @@
 // the Rankings with the Guilds and the Patrons; and the History, the one place to read what
 // happened, the last play's entries its newest (M9-S5, DL-105).
 //
-// Seven views since M9-F2 (DL-111 items 5 to 8, DL-112 item 5, DL-115), and the Hall view gone. The
+// Seven views (DL-111 items 5 to 8, DL-112 item 5, DL-115), and no Hall view. The
 // Guildmaster is a view at the top of the navigation, the Market a view with Buy and Sell, and the
 // Guild has parts as tabs, Home and Hall, the Hall with Build (M9-F3 adds Stores and Treasury). The
 // Guild's part open is the shell's, remembered in this browser as the view is. The navigation has

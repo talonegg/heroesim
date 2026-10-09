@@ -118,7 +118,7 @@ function preferencesFor(content: Pick<ContentSet, 'descriptions' | 'portraitAppe
  * `null`, the Silhouette of the sex, where no picture meets what must match, and for a Guildmaster
  * where every one that does is in use. A picture with no row fits no one. Exactly one draw from
  * `state` whatever is listed, chosen or left, so the pictures content holds never move a later draw
- * of the stream (`gm-portraits` for a Guildmaster, `hero-portraits` for a Hero from v1.1.3-S6).
+ * of the stream (`gm-portraits` for a Guildmaster, `hero-portraits` for a Hero, DL-142).
  */
 export function choosePortrait(
   state: Stream,
@@ -221,7 +221,7 @@ export function portraitNotes(
   return notes;
 }
 
-/** The stream every Hero's Portrait is drawn from (ADR-0009 as amended 2026-10-01; v1.1.3-S6). */
+/** The stream every Hero's Portrait is drawn from (ADR-0009; v1.1.3-S6). */
 export const heroPortraitsStream = 'hero-portraits';
 
 /**

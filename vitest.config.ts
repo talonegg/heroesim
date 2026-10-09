@@ -4,8 +4,8 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // One project per workspace package; tests sit beside the code as src/**/*.test.ts.
 //
 // A harness run (src/**/*.harness.test.ts) plays thousands of games, so it is a project of its
-// own that exists only when HEROESIM_HARNESS is set. `npm run harness` sets it; `npm test`
-// never sees it and stays fast.
+// own that exists only when HEROESIM_HARNESS is set: the harness's, and the engine's twenty-year
+// boxes (DL-230). `npm run harness` sets it; `npm test` never sees them and stays fast.
 //
 // The browser front end's tests render React into jsdom, so its project has the React plugin and
 // a DOM, and takes .tsx as well (M7-S1). Its Playwright specs, web/e2e/*.spec.ts, are not
@@ -29,9 +29,9 @@ export default defineConfig({
           environment: 'node',
           include: ['src/**/*.test.ts'],
           exclude: [...configDefaults.exclude, harnessRuns],
-          // The harness's tests play short games under the automatic policy, which from v1.1.5-S2
-          // (DL-176) estimates every Quest it can staff at each choice; under the whole suite's load
-          // some passed 5 s, so its project gives each 30 s, as `play.test.ts` gave its slowest.
+          // The harness's tests play short games under the automatic policy, which estimates every
+          // Quest it can staff at each choice (DL-176); under the whole suite's load some passed
+          // 5 s, so its project gives each 30 s, as `play.test.ts` gave its slowest.
           ...(name === 'harness' ? { testTimeout: 30_000 } : {}),
         },
       })),
@@ -59,6 +59,15 @@ export default defineConfig({
           hookTimeout: 60_000,
         },
       },
+      // The decision log's tool (DL-215): the index's freshness, the citations and the documents' links (DL-218).
+      {
+        test: {
+          name: 'decisions',
+          root: './tools/decisions',
+          environment: 'node',
+          include: ['src/**/*.test.ts'],
+        },
+      },
       {
         plugins: [react()],
         test: {
@@ -76,6 +85,14 @@ export default defineConfig({
               test: {
                 name: 'harness-run',
                 root: './harness',
+                environment: 'node',
+                include: [`src/${harnessRuns}`],
+              },
+            },
+            {
+              test: {
+                name: 'engine-run',
+                root: './engine',
                 environment: 'node',
                 include: [`src/${harnessRuns}`],
               },

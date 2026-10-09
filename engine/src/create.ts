@@ -1,7 +1,7 @@
 // `createWorld` (M1-S6, approach §3): a seeded World State at Turn 0 and the events that
-// explain it. The order below is DL-19 item 9; changing it changes every seed's world. Since
-// M2-S3 the first Board is drawn last, from the `board` stream, so a new game opens on a full
-// Board rather than waiting for the first morning phase at Turn 3 (DL-25).
+// explain it. The order below is DL-19 item 9; changing it changes every seed's world. The first
+// Board is drawn last, from the `board` stream, so a new game opens on a full Board rather than
+// waiting for the first morning phase at Turn 3 (DL-25).
 
 import { configVersion, type EngineDeps, type GameConfig } from './config.js';
 import type { BackgroundKey, ContentSet, PortraitKey, StatKey, TraitKey } from './content-types.js';
@@ -432,7 +432,7 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
   }
 
   // Turn 0 is a morning whose phases never run (DL-24), so its Board is drawn here, by the same
-  // refresh, from `board` alone: the world above is what it was before M2-S3.
+  // refresh, from `board` alone: the world above draws nothing from it (DL-25 item 7).
   generated.push(...boardRefresh(world, phaseContext(world, deps)));
   // The Market likewise (M5-S4, DL-51), from `market` alone, after the Board as on every morning.
   generated.push(...marketRefresh(world, phaseContext(world, deps)));

@@ -557,7 +557,7 @@ export interface PlayReportContext {
 }
 
 /**
- * data-model §7's targets, provisional, to set the measures against (DL-08). The save's is the Gate's
+ * The first build's provisional targets, to set the measures against (DL-08, DL-84). The save's is the Gate's
  * (`harness/gate.json`, v1.1.6-S2, DL-186 item 21, DL-188).
  */
 const targets = {
@@ -567,7 +567,7 @@ const targets = {
   harnessMinutesPerThousand: 10,
 };
 
-/** The years data-model §7's targets are set on: "1,000 games of 20 years", "a save after 20 years". */
+/** The years those targets are set on: "1,000 games of 20 years", "a save after 20 years" (DL-08). */
 const targetYears = 20;
 
 const listed = 20;
@@ -801,7 +801,7 @@ type EncounterTally = EncounterCounts[keyof EncounterCounts];
 
 /**
  * v1.1.4-S10's counters: the Quests resolved by the size of the Party sent, their bands and the XP
- * each Hero took (DL-148 item 19, the owner's decision on splitting XP: split since v1.1.5-S13, DL-182),
+ * each Hero took (DL-148 item 19, the owner's decision on splitting XP: split by DL-182),
  * and the Traits earned by key.
  */
 function partiesAndTraits(totals: SweepTotals, deps: EngineDeps): string[] {
@@ -1802,7 +1802,7 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
       ['left', 'right', 'right', 'right', 'right', 'right'],
     ),
     '',
-    "Against data-model §7's provisional targets (recorded, not chased: DL-08):",
+    "Against the first build's provisional targets (recorded, not chased: DL-08, DL-84):",
     '',
     markdownTable(
       ['Measure', 'Target', 'Measured'],

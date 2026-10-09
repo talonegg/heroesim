@@ -48,7 +48,7 @@ export type WorldCreated = Entry<'world.created', { seed: string }>;
 
 /**
  * A Guild came into being, player's or Rival's alike. A Milestone, naming the Guild and its Guildmaster.
- * `wealth` is the Guild's founding Wealth, for every Guild founded from M9-F7 (DL-120 item 4), the
+ * `wealth` is the Guild's founding Wealth (DL-120 item 4, DL-121), for every Guild founded, the
  * player's, the founding Rivals' and each replacement's; optional, as `questId` is, since an older save's
  * foundings have none.
  */
@@ -178,12 +178,12 @@ export type QuestTaken = Entry<
     returnsOnTurn: Turn;
     /**
      * The reward agreed: the Quest's reward as the Guildmaster's Negotiation set it at dispatch,
-     * which the Quest now carries (M4-S5, DL-43). Absent from an entry written before M4-S5.
+     * which the Quest now carries (M4-S5, DL-43). Absent from an entry written before DL-43.
      */
     reward?: number;
     /**
      * The consumables the Party carries from the Guild's holding (M5-S3, DL-50), in the order asked:
-     * `[]` for none. Absent from an entry written before M5-S3.
+     * `[]` for none. Absent from an entry written before DL-50.
      */
     consumables?: { definitionKey: ItemDefinitionKey; quantity: number }[];
   }
@@ -193,11 +193,11 @@ export type QuestTaken = Entry<
 
 /**
  * One Encounter of a Quest's sequence was checked as the Party came home (M4-S2): its key and kind,
- * the roll, the target it had to reach, the margin between them (since v1.1.4-S2, the roll less
+ * the roll, the target it had to reach, the margin between them (the roll less
  * `checkDegrees.success` times the target, the same at its default of 1), the outcome, and whom its
- * consequences injured or killed. Since v1.1.4-S2 also its Degree, the Check that decided it, whose
- * roll, target, margin and outcome those are, and each of its Checks rolled; an entry written before
- * then has none of the three, and reads as its outcome, a Success or a Failure (`encounterDegree`).
+ * consequences injured or killed. Also its Degree (DL-152), the Check that decided it, whose roll,
+ * target, margin and outcome those are, and each of its Checks rolled; an entry written before
+ * DL-152 has none of the three, and reads as its outcome, a Success or a Failure (`encounterDegree`).
  * One per Encounter reached, in sequence order (`index` from 0), all before the Quest's
  * `quest.resolved`. Names the Quest, the Party and the Guild.
  */
@@ -216,7 +216,7 @@ export function encounterDegree(payload: Pick<QuestEncounter['payload'], 'degree
  * Whether form decided whether a `quest.encounter` entry's Encounter succeeded, and which way
  * (v1.1.4-S3's verification): with every form at 1 and the same rolls, its pass formula would have
  * given the other side of the Success line. The narration's one sentence of the Encounter is said
- * exactly when it is set; an entry written before v1.1.4-S3 has none.
+ * exactly when it is set; an entry written before DL-154 has none.
  */
 export function encounterForm(payload: Pick<QuestEncounter['payload'], 'formDecided'>): FormDecided | undefined {
   return payload.formDecided;
@@ -233,13 +233,13 @@ export type QuestResolved = Entry<
   Omit<QuestOutcome, 'synergyKeys' | 'moraleByHero'> & {
     /**
      * The Synergies that added to any of the Quest's Checks, in key order (M4-S3, DL-45): none is
-     * `[]`. Absent from an entry written before M4-S3, which reads as none.
+     * `[]`. Absent from an entry written before DL-45, which reads as none.
      */
     synergyKeys?: SynergyKey[];
     /**
      * The Morale each Hero who came home brought from the Encounters, by id (v1.1.4-S4, DL-148 item
      * 14), which a loss `steadiedBy` their Stats makes their own. Absent from an entry written before
-     * v1.1.4-S4, whose every Hero brought `moraleDelta`.
+     * DL-155, whose every Hero brought `moraleDelta`.
      */
     moraleByHero?: QuestOutcome['moraleByHero'];
     questId: QuestId;
@@ -290,8 +290,8 @@ export type HeroInjured = Entry<
 export type HeroDied = Entry<'hero.died', { heroId: HeroId; questId: QuestId }>;
 
 /**
- * A Hero gained XP from a Quest (training XP, M3-S2, is a drift and emits none). Names the Hero and,
- * from M9-F1, the Quest (DL-112 item 2).
+ * A Hero gained XP from a Quest (training XP, M3-S2, is a drift and emits none). Names the Hero and
+ * the Quest (DL-112 item 2).
  */
 export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: QuestId; amount: number }>;
 
@@ -308,9 +308,9 @@ export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encount
 /**
  * A Hero's Morale changed: always for a discrete change, and for the nightly drift only when it
  * crosses from one of `moraleBands` to another (data-model rule 10). Names the Hero. `moduleId`
- * names the module whose effect moved it, for the `module` cause alone. From M9-F1 (DL-112 item 2),
- * `questId` names the Quest whose return caused it, for `encounters`, `strong-success` and
- * `roster-death`, and the Quest is a participant; an entry written before M9-F1 has none.
+ * names the module whose effect moved it, for the `module` cause alone. `questId` names the Quest
+ * whose return caused it, for `encounters`, `strong-success` and `roster-death`, and the Quest is a
+ * participant (DL-112 item 2); an entry written before DL-114 has none.
  */
 export type HeroMoraleChanged = Entry<
   'hero.morale-changed',
@@ -419,7 +419,7 @@ export type PatronRegardCause = 'quest-success' | 'quest-failure' | 'offer-expir
  * A Patron's Regard for a Guild crossed from one of `regardBands` into another: emitted for a
  * discrete change and for the nightly recovery alike, and only on a crossing (data-model rule 10).
  * `before` and `after` are the values, which a front end shows as bands. Names the Patron and the
- * Guild, and from M9-F1, for `quest-success` and `quest-failure`, the Quest (`questId`, DL-112
+ * Guild, and, for `quest-success` and `quest-failure`, the Quest (`questId`, DL-112
  * item 2).
  */
 export type PatronRegardChanged = Entry<
@@ -447,9 +447,9 @@ export type PatronRegardChanged = Entry<
 export type GuildmasterRegardCause = 'quest-success' | 'quest-failure' | 'transfer-deal' | 'module';
 
 /**
- * A Guildmaster's Regard for `entityId`, a Patron or a Hero (from M6-S2 a Guildmaster), crossed
+ * A Guildmaster's Regard for `entityId`, a Patron, a Hero or a Guildmaster (DL-57), crossed
  * from one of `regardBands` into another; only on a crossing (data-model rule 10, pre-M0 review
- * B3). Names the Guildmaster, the entity and the Guildmaster's Guild, and from M9-F1, for
+ * B3). Names the Guildmaster, the entity and the Guildmaster's Guild, and, for
  * `quest-success` and `quest-failure`, the Quest (`questId`, DL-112 item 2).
  */
 export type GuildmasterRegardChanged = Entry<
@@ -484,7 +484,7 @@ export type HeroRegardCause = 'shared-quest' | 'decay' | 'module';
  * emitted for a shared Quest's change and for the nightly decay alike, and only on a crossing
  * (data-model rule 10), one entry for each Hero whose Regard crossed, so the two of a pair each
  * have their own. `before` and `after` are the values, which a front end shows as bands. Names the
- * Hero, the other Hero, and their Guilds, and from M9-F1, for `shared-quest`, the Quest (`questId`,
+ * Hero, the other Hero, and their Guilds, and, for `shared-quest`, the Quest (`questId`,
  * DL-112 item 2). Not a Milestone.
  */
 export type HeroRegardChanged = Entry<

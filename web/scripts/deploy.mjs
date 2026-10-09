@@ -325,7 +325,7 @@ function workerRecord(file) {
       `the Worker is served at ${targets.join(', ') || 'no address'}, not at ${addresses.worker},`,
       'the address the live check reads.',
       "Run the live check on each address alone, with HEROESIM_LIVE_URL set to the Worker's address, then to",
-      `${addresses.pages}, and correct \`addresses.worker\` in web/scripts/deploy.mjs, the README and INPUTS 7.8`,
+      `${addresses.pages}, and correct \`addresses.worker\` in web/scripts/deploy.mjs, the README and docs/deploy.md`,
       'in the commit that records this deploy.',
     );
   }

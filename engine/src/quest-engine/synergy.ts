@@ -1,7 +1,7 @@
 // Synergies (M4-S3, R26, INPUTS 6.4, DL-45), and the Synergy term of a Check's capability (M4-S2's
 // seam, DL-42). A Synergy is content (`synergies.json`, principle 6): what a Party must meet, the
-// bonus it earns, and the Encounter kinds it earns it on. Since v1.1.4-S1 its requirements are
-// Party-level conditions written as Queries (DL-148 item 20, ADR-0010), every one of which must hold
+// bonus it earns, and the Encounter kinds it earns it on. Its requirements are Party-level
+// conditions written as Queries (DL-148 item 20, DL-151, ADR-0010), every one of which must hold
 // (`holds`, query.ts). The engine only evaluates the conditions over the Party's members and adds
 // the bonus; a new Synergy is a content change.
 //

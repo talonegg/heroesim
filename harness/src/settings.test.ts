@@ -20,7 +20,7 @@ describe('the milestone run', () => {
     expect(runSettings({})).toEqual({
       run: 'milestone',
       profile: null,
-      milestone: 'm8',
+      milestone: 'play',
       expect: null,
       worlds: 1000,
       games: 200,
@@ -37,7 +37,7 @@ describe('the milestone run', () => {
 
   test('reads each variable, blanks as unset and spaces trimmed', () => {
     const settings = settingsOf('milestone', {
-      HEROESIM_MILESTONE: ' m9-v116-s2 ',
+      HEROESIM_MILESTONE: ' v1.1.6-s2 ',
       HEROESIM_SEEDS: '7',
       HEROESIM_YEARS: '2',
       HEROESIM_WORKERS: ' 8 ',
@@ -50,7 +50,7 @@ describe('the milestone run', () => {
       HEROESIM_HARNESS: '1',
     });
     expect(settings).toMatchObject({
-      milestone: 'm9-v116-s2',
+      milestone: 'v1.1.6-s2',
       worlds: 7,
       games: 7,
       years: 2,
@@ -70,7 +70,7 @@ describe('the milestone run', () => {
 describe('the profiles', () => {
   test('gate is 50 games of 20 years in 8 processes, and neutral 10 (DL-186 items 13 and 30), the play sweep alone', () => {
     expect(profileNames).toEqual(['gate', 'neutral']);
-    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'gate', HEROESIM_MILESTONE: 'm9-v116-s3' })).toMatchObject({ profile: 'gate', games: 50, years: 20, workers: 8, replay: true, validate: false });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'gate', HEROESIM_MILESTONE: 'v1.1.6-s3' })).toMatchObject({ profile: 'gate', games: 50, years: 20, workers: 8, replay: true, validate: false });
     expect(settingsOf('milestone', { HEROESIM_PROFILE: ' Neutral ' })).toMatchObject({ profile: 'neutral', games: 10, years: 20, workers: 8 });
   });
 
@@ -86,7 +86,7 @@ describe('the profiles', () => {
 
   test("the probes and the module run keep their own: the Succession probe's 50 × 12, the estimate's 200 × 20,000, the calibration's 120 and 4,000, the modules' 50", () => {
     expect(runSettings({ HEROESIM_PROBE: 'succession' })).toEqual({ run: 'succession', games: 50, years: 12, workers: half, validate: false });
-    expect(runSettings({ HEROESIM_PROBE: 'estimate' })).toEqual({ run: 'estimate', milestone: 'm9-estimate', samples: 200, resolutions: 20_000 });
+    expect(runSettings({ HEROESIM_PROBE: 'estimate' })).toEqual({ run: 'estimate', milestone: 'estimate', samples: 200, resolutions: 20_000 });
     expect(runSettings({ HEROESIM_PROBE: 'calibrate' })).toEqual({ run: 'calibrate', drafts: null, config: {}, parties: 120, spotSeeds: 4000, tune: null, flat: 0, out: null });
     expect(runSettings({ HEROESIM_MODULES: 'probe' })).toEqual({ run: 'modules', modules: ['probe'], games: 50, workers: half, validate: false });
     expect(profiles.succession).toMatchObject({ games: 50, years: 12 });
@@ -98,10 +98,10 @@ describe("HEROESIM_SEEDS' four meanings, named apart", () => {
     expect(settingsOf('milestone', { HEROESIM_SEEDS: '9' })).toMatchObject({ worlds: 9, games: 9 });
     expect(settingsOf('modules', { HEROESIM_MODULES: 'probe', HEROESIM_SEEDS: '9' })).toMatchObject({ games: 9 });
     expect(settingsOf('succession', { HEROESIM_PROBE: 'succession', HEROESIM_SEEDS: '9', HEROESIM_YEARS: '35' })).toMatchObject({ games: 9, years: 35 });
-    expect(settingsOf('estimate', { HEROESIM_PROBE: 'estimate', HEROESIM_SEEDS: '9', HEROESIM_SAMPLES: '3', HEROESIM_MILESTONE: 'm9-v116-estimate' })).toMatchObject({
+    expect(settingsOf('estimate', { HEROESIM_PROBE: 'estimate', HEROESIM_SEEDS: '9', HEROESIM_SAMPLES: '3', HEROESIM_MILESTONE: 'v1.1.6-estimate' })).toMatchObject({
       resolutions: 9,
       samples: 3,
-      milestone: 'm9-v116-estimate',
+      milestone: 'v1.1.6-estimate',
     });
     expect(settingsOf('calibrate', { HEROESIM_PROBE: 'calibrate', HEROESIM_SEEDS: '9', HEROESIM_PARTIES: '5' })).toMatchObject({ spotSeeds: 9, parties: 5 });
   });
@@ -138,7 +138,8 @@ describe('a bad value is refused by its name', () => {
     [{ HEROESIM_WORKERS: 'eight' }, 'HEROESIM_WORKERS must be a whole number from 1, not "eight"'],
     [{ HEROESIM_VALIDATE: 'yes' }, 'HEROESIM_VALIDATE is 1 or 0, not "yes"'],
     [{ HEROESIM_REPLAY: 'no' }, 'HEROESIM_REPLAY is 1 or 0, not "no"'],
-    [{ HEROESIM_MILESTONE: 'M9' }, 'HEROESIM_MILESTONE is m<n>, or m<n>-<name>, not "M9"'],
+    [{ HEROESIM_MILESTONE: 'M9' }, 'HEROESIM_MILESTONE names a report: v<x>.<y>.<z>, or a word, each with -<name> words after it if wanted, never a milestone; not "M9"'],
+    [{ HEROESIM_MILESTONE: 'm9-v118-s8' }, 'HEROESIM_MILESTONE names a report: v<x>.<y>.<z>, or a word, each with -<name> words after it if wanted, never a milestone; not "m9-v118-s8"'],
     [{ HEROESIM_PROFILE: 'gates' }, 'HEROESIM_PROFILE names one of gate, neutral, not "gates"'],
     [{ HEROESIM_PROBE: 'successions' }, 'HEROESIM_PROBE names one of succession, estimate, calibrate, not "successions"'],
     [{ HEROESIM_EXPECT: 'e7ae1710' }, 'HEROESIM_EXPECT is a fingerprint of 64 hexadecimal digits, not "e7ae1710"'],
@@ -166,7 +167,7 @@ describe('a bad value is refused by its name', () => {
     expect(() => runSettings(env)).toThrow(message);
   });
 
-  // The CLI's, the live check's, the deploy's and the portrait tool's owner test's (INPUTS §9): one set
+  // The CLI's, the live check's, the deploy's and the portrait tool's owner test's (docs/environment.md): one set
   // in the shell for another package must not refuse a harness run (v1.1.6-S2's verification, DL-188).
   test("leaves alone the variables of the same prefix other packages read", () => {
     expect(runSettings({ HEROESIM_SAVE_DIR: 'x', HEROESIM_LIVE_URL: 'y', HEROESIM_DEPLOY_RECORD: 'z', HEROESIM_OWNER_PICTURES: 'w' })).toEqual(runSettings({}));
@@ -181,10 +182,10 @@ test('settingsSet gives the variables a run reads and that are set, as NAME=valu
 
 describe('the command line', () => {
   test('gate and neutral name their report and play the play sweep alone, --expect giving the fingerprint', () => {
-    expect(commandLine(['gate', 'm9-v116-s3'])).toEqual({ kind: 'vitest', env: { HEROESIM_PROFILE: 'gate', HEROESIM_MILESTONE: 'm9-v116-s3' }, args: ['play.harness'] });
-    expect(commandLine(['neutral', 'm9-v116-s5', '--expect', 'abc', '--reporter=verbose'])).toEqual({
+    expect(commandLine(['gate', 'v1.1.6-s3'])).toEqual({ kind: 'vitest', env: { HEROESIM_PROFILE: 'gate', HEROESIM_MILESTONE: 'v1.1.6-s3' }, args: ['play.harness'] });
+    expect(commandLine(['neutral', 'v1.1.6-s5', '--expect', 'abc', '--reporter=verbose'])).toEqual({
       kind: 'vitest',
-      env: { HEROESIM_PROFILE: 'neutral', HEROESIM_MILESTONE: 'm9-v116-s5', HEROESIM_EXPECT: 'abc' },
+      env: { HEROESIM_PROFILE: 'neutral', HEROESIM_MILESTONE: 'v1.1.6-s5', HEROESIM_EXPECT: 'abc' },
       args: ['play.harness', '--reporter=verbose'],
     });
   });
@@ -196,9 +197,9 @@ describe('the command line', () => {
   });
 
   test.each([
-    [['gate'], 'gate names its report: npm run harness -- gate <milestone>'],
+    [['gate'], 'gate names its report: npm run harness -- gate <name>'],
     [['neutral', '--expect', 'abc'], 'neutral names its report'],
-    [['gate', 'm9-x', '--expect'], '--expect names a fingerprint'],
+    [['gate', 'v1.1.9-x', '--expect'], '--expect names a fingerprint'],
     [['compare', 'a'], 'compare takes two reports'],
     [['compare', 'a', 'b', 'c'], 'compare takes two reports'],
   ])('refuses %j', (words, message) => {

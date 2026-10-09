@@ -36,7 +36,7 @@ import { pickOrNone, streamOf, type Stream } from './generators/draw.js';
 import { ageSpanOf, portraitRowOf } from './portraits.js';
 import { createStreams } from './rng.js';
 
-/** The stream every description is drawn from (ADR-0009 as amended; v1.1.2-S5). */
+/** The stream every description is drawn from (ADR-0009; v1.1.2-S5). */
 export const descriptionsStream = 'descriptions';
 
 /**
@@ -219,7 +219,7 @@ export function describeBlanks(
 
 // ── A Hero described (v1.1.3-S6, DL-135 item 6) ──────────────────────────────────────────────
 
-/** The stream every Hero's Appearance and Biography are drawn from (ADR-0009 as amended 2026-10-01; v1.1.3-S6). */
+/** The stream every Hero's Appearance and Biography are drawn from (ADR-0009; v1.1.3-S6). */
 export const heroDescriptionsStream = 'hero-descriptions';
 
 /**

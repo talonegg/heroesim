@@ -294,7 +294,7 @@ Every system in the game must serve at least one of these:
 - ~~Whether the stub Quest Engine assesses a Quest by area sums or by a weighted list of Stat
   demands carried on the Quest.~~ Resolved 2026-09-25 in the plan interview: weighted Stat
   demands and Skill keys carried on the Quest template and copied to the Quest row; the area
-  grouping stays display-only (`plan.md` §5, pre-M0 review F4). (Amended 2026-10-05, DL-193: no rule
+  grouping stays display-only (DL-06, pre-M0 review F4). (Amended 2026-10-05, DL-193: no rule
   read them from v1.1.4-S6, and from v1.1.6-S7 neither the template nor the Quest row carries them.)
 - ~~Rival disposition names.~~ Resolved by INPUTS 7.5 in M6-S1: `steady`, `ambitious`,
   `miserly` and `reckless`, four rows of weights in `content/dispositions.json` (DL-56).

@@ -174,8 +174,8 @@ export const fastForwardStepTurns = 30;
 
 /**
  * A new game's setup that breaks a rule, checked before `createWorld`, which throws on it: the
- * engine's `SetupRefusal`, by its reason, with what it names (M9-S2; the names and the Background
- * since M7-S2).
+ * engine's `SetupRefusal`, by its reason, with what it names (M9-S2, DL-102; the names and the
+ * Background, DL-65).
  */
 export type NewGameRejection = SetupRefusal extends infer Refusal
   ? Refusal extends SetupRefusal

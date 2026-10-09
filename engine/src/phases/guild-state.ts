@@ -3,7 +3,7 @@
 //
 // Runs the same rule over every Guild alike, player and Rival (ADR-0002), skipping a folded one
 // (`foldedOnTurn` set — M2-CONTEXT: every per-Guild rule skips a folded Guild). On the Day
-// `upkeepEveryDays` names (DL-26 says which Days precisely; `nextUpkeepDay` gives it, from M9-F1),
+// `upkeepEveryDays` names (DL-26 says which Days precisely; `nextUpkeepDay` gives it, DL-114),
 // deducts `upkeep` (selectors.ts)
 // from Wealth — which may go negative — and emits `guild.upkeep-paid`. Every night, whether or
 // not it is an Upkeep Day, a Guild whose Wealth is now below `bankruptcyFloor` has

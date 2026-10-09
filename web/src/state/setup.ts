@@ -5,13 +5,13 @@
 // `guildmasterTraitCost`'s sum through `traitBudgetView`, so the form copies no rule (ADR-0007).
 // Built on M9-S2's `guildmasterSetupChoices`, `traitBudgetView` and `newGameRefusal`.
 //
-// Since v1.1.2-S4 (DL-125 items 3 and 6): the Guildmaster pictures offered for the Portrait, and the
-// preview of what the seed draws, which is the engine's `previewGuildmaster`, the function
-// `createWorld` makes the Guildmaster by, so the form names what "Start the game" makes. Since
-// v1.1.2-S5: the Birthplace, Appearance and Biography written for that Guildmaster by the engine's
-// `describeGuildmaster`, for "Write them for me" and "Again".
+// The Guildmaster pictures offered for the Portrait, and the preview of what the seed draws, which
+// is the engine's `previewGuildmaster`, the function `createWorld` makes the Guildmaster by, so the
+// form names what "Start the game" makes (DL-125 items 3 and 6, DL-131). The Birthplace, Appearance
+// and Biography written for that Guildmaster by the engine's `describeGuildmaster`, for "Write them
+// for me" and "Again" (DL-132).
 //
-// Since v1.1.4-S11 (DL-149): the two ways of "Your Guildmaster", "Choose for me", which leaves the whole
+// The two ways of "Your Guildmaster" (DL-149, DL-153): "Choose for me", which leaves the whole
 // Guildmaster to the seed, and "Choose myself", which holds "Start the game" until the sex, the age and
 // a picture are chosen (`unchosenWords`); the Portrait grid of the sex chosen, and none before; and the
 // five Guildmaster Stats set within the Stat points (`statPicksView`), each judged by the engine's
