@@ -39,16 +39,17 @@ export type ProfileName = (typeof profileNames)[number];
 
 /**
  * Each run's own values when no variable sets them. The milestone's run plays on half the logical
- * processors (`null`); the profiles on 8, the most a 27.6 GB machine holds of 20-year games (DL-174).
- * A variable set overrides its profile's value.
+ * processors (`null`); the `gate` on 8, the most a 27.6 GB machine holds of 20-year games (DL-174);
+ * `neutral` on as many as its games (`seeds`), one process a game, since its 10 fit (DL-231 Q13). A
+ * variable set overrides its profile's value.
  */
 export const profiles = Object.freeze({
   /** INPUTS 4.13: 1,000 worlds created (M1-S10) and 200 games of 20 years (DL-34 item 7). */
   milestone: { worlds: 1000, games: 200, years: defaultYears, workers: null },
   /** A release's Gate (DL-186 item 13): 50 games of 20 years in 8 processes, the replay played. */
   gate: { games: 50, years: defaultYears, workers: 8 },
-  /** A play-neutral story's proof (DL-186 item 30): 10 games of 20 years in 8 processes, about 7 minutes. */
-  neutral: { games: 10, years: defaultYears, workers: 8 },
+  /** A play-neutral story's proof (DL-186 item 30): 10 games of 20 years, a process each (DL-231 Q13). */
+  neutral: { games: 10, years: defaultYears, workers: 'seeds' as const },
   /** M8-S3 (DL-78): 50 games, each with the modules and with none. */
   modules: { games: defaultModuleSeedCount, workers: null },
   /** M9-F1 (DL-113 item 7): 50 games of 12 years. */
@@ -298,9 +299,9 @@ export function halfTheProcessors(): number {
   return Math.max(1, Math.floor(availableParallelism() / 2));
 }
 
-/** `HEROESIM_WORKERS`, or the profile's, or half the logical processors. */
-function workersOf(env: Env, profile: number | null): number {
-  return count(env, 'HEROESIM_WORKERS', profile ?? halfTheProcessors());
+/** `HEROESIM_WORKERS`, or the profile's (`seeds`: as many as the run's `games`), or half the logical processors. */
+function workersOf(env: Env, profile: number | 'seeds' | null, games = 0): number {
+  return count(env, 'HEROESIM_WORKERS', profile === 'seeds' ? games : (profile ?? halfTheProcessors()));
 }
 
 /**
@@ -355,15 +356,16 @@ export function runSettings(env: Env = process.env): RunSettings {
   }
 
   const own = profile === null ? profiles.milestone : profiles[profile];
+  const games = count(env, 'HEROESIM_SEEDS', own.games);
   return {
     run: 'milestone',
     profile,
     milestone: milestoneOf(env, 'play'),
     expect: expectedOf(env),
     worlds: count(env, 'HEROESIM_SEEDS', profiles.milestone.worlds),
-    games: count(env, 'HEROESIM_SEEDS', own.games),
+    games,
     years: count(env, 'HEROESIM_YEARS', own.years),
-    workers: workersOf(env, own.workers),
+    workers: workersOf(env, own.workers, games),
     validate,
     replay: flag(env, 'HEROESIM_REPLAY', true),
     drafts: given(env, 'HEROESIM_DRAFTS'),

@@ -206,17 +206,22 @@ export function probeGame(seed: string, deps: EngineDeps, options: ProbeOptions 
       const guild = document.world.guilds[rivalId] as Guild;
       founder = structuredClone(document.world.guildmasters[guild.guildmasterId] as Guildmaster);
     },
-    afterAdvance: (before, now) => {
-      if (rivalId === null || after !== null) return;
-      const was = before.world.guilds[rivalId];
-      const is = now.world.guilds[rivalId];
-      if (was === undefined || is === undefined || was.guildmasterId === is.guildmasterId) return;
-      eve = snapshot(before.world, rivalId);
-      after = snapshot(now.world, rivalId);
-      otherRivalIds = rivalsById(before.world)
-        .filter((guild) => guild.id !== rivalId && guild.foldedOnTurn === null)
-        .map((guild) => guild.id);
-    },
+    // The probe watches each `advance` for the first Rival's Succession (DL-239).
+    observers: [
+      {
+        advanced: ({ before, after: now }) => {
+          if (rivalId === null || after !== null) return;
+          const was = before.world.guilds[rivalId];
+          const is = now.world.guilds[rivalId];
+          if (was === undefined || is === undefined || was.guildmasterId === is.guildmasterId) return;
+          eve = snapshot(before.world, rivalId);
+          after = snapshot(now.world, rivalId);
+          otherRivalIds = rivalsById(before.world)
+            .filter((guild) => guild.id !== rivalId && guild.foldedOnTurn === null)
+            .map((guild) => guild.id);
+        },
+      },
+    ],
   });
 
   const { document } = game;

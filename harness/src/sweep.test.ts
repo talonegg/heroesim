@@ -5,7 +5,7 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   controllerKinds,
   noBands,
-  observe,
+  observeFameGate,
   noOffers,
   noTransfers,
   noWealth,
@@ -22,15 +22,18 @@ import { copyTimes } from './gate.js';
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { compareReplay, playReport, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { sweepTotals } from './counter.js';
+import { playReport } from './play-report.js';
+import { compareReplay, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, type PlaySweep } from './sweep.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (M2-S12, DL-34).
 
-// The observer of each Turn, watched as it plays, so a test can count the Turns observed (v1.1.6-S3).
+// The Fame gate's reading, which its counter's observer makes before each Turn's choices, watched as
+// a game plays, so a test can count the Turns observed (DL-189, DL-239).
 vi.mock('./counters.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./counters.js')>();
-  return { ...actual, observe: vi.fn(actual.observe) };
+  return { ...actual, observeFameGate: vi.fn(actual.observeFameGate) };
 });
 
 const content = loadContent();
@@ -43,9 +46,10 @@ function tickingClock(): () => number {
   return () => (t += 1);
 }
 
+const seeds = seedNames(2);
+const sweep = await sweepPlay(seeds, deps, { years, validate: true, now: tickingClock() });
+
 describe('sweepPlay', () => {
-  const seeds = seedNames(2);
-  const sweep = sweepPlay(seeds, deps, { years, validate: true, now: tickingClock() });
   const totals = sweepTotals(sweep, deps.config.turnsPerYear);
 
   test('plays every seed, keeping a record of each and no document', () => {
@@ -86,11 +90,11 @@ describe('sweepPlay', () => {
       expect(replayedGame([], 'seed-0001')).toBeUndefined();
     });
 
-    test('plays bare: the sweep observes each of its Turns, the replay none', () => {
-      vi.mocked(observe).mockClear();
-      const once = sweepPlay(['seed-0001'], deps, { years });
+    test('plays bare: the sweep observes each of its Turns, the replay none', async () => {
+      vi.mocked(observeFameGate).mockClear();
+      const once = await sweepPlay(['seed-0001'], deps, { years });
       expect(once.replay).toMatchObject({ identical: true, advance: { count: 60 } });
-      expect(vi.mocked(observe)).toHaveBeenCalledTimes(once.games[0]?.turnsPlayed ?? 0);
+      expect(vi.mocked(observeFameGate)).toHaveBeenCalledTimes(once.games[0]?.turnsPlayed ?? 0);
       expect(once.games[0]?.turnsPlayed).toBe(60);
     });
   });
@@ -98,7 +102,7 @@ describe('sweepPlay', () => {
   // S10, the close review: nothing held that the replay finds two saves that differ. The replay's game
   // (`prepare`'s second call: the sweep's game, then the replay's) is given its player's Guild a
   // name one letter different, of the same length, so that only the saves' contents tell the two apart.
-  test('finds the replay not identical when its game differs by one character of the save', () => {
+  test('finds the replay not identical when its game differs by one character of the save', async () => {
     let calls = 0;
     const prepare = (document: WorldDocument): void => {
       calls += 1;
@@ -107,7 +111,7 @@ describe('sweepPlay', () => {
       if (guild === undefined) throw new Error("no player's Guild");
       guild.name = `${guild.name.slice(0, -1)}${guild.name.endsWith('x') ? 'y' : 'x'}`;
     };
-    const changed = sweepPlay(['seed-0001'], deps, { years, prepare });
+    const changed = await sweepPlay(['seed-0001'], deps, { years, prepare });
     expect(calls).toBe(2);
     expect(changed.replay).toMatchObject({ seed: 'seed-0001', identical: false, length: changed.games[0]?.measures.serialisedLength });
   });
@@ -137,7 +141,7 @@ describe('sweepPlay', () => {
   // v1.1.4-S10: each seed is a child of its own, at most `workers` at once, the next as one ends.
   test('plays the same games with more seeds than processes, one seed a child, and skips the replay when asked', { timeout: 120_000 }, async () => {
     const three = seedNames(3);
-    const serial = sweepPlay(three, deps, { years, replay: false });
+    const serial = await sweepPlay(three, deps, { years, replay: false });
     const parallel = await sweepPlayInParallel(three, deps, { years, workers: 2, replay: false });
     expect(serial.replay).toBeNull();
     expect(parallel.replay).toBeNull();
@@ -501,7 +505,7 @@ describe('sweepPlay', () => {
       ];
       const joined = sweep.games.map((game, index) => ({
         ...game,
-        observations: { ...game.observations, rivals: rivals[index] ?? [], saves: saves[index] ?? [] },
+        observations: { ...game.observations, rivalYearStarts: rivals[index] ?? [], saves: saves[index] ?? [] },
       }));
       const totals = sweepTotals({ ...sweep, games: joined }, deps.config.turnsPerYear);
       expect(totals.rivalYearStarts).toEqual([
@@ -801,8 +805,8 @@ describe('sweepPlay', () => {
       const made: PlaySweep = {
         ...sweep,
         games: [
-          { ...first, observations: { ...first.observations, rivals: [[rival('ambitious', 3, 200), rival('miserly', 9, 500)]], rankings: [{ fame: 1, wealth: 3, guilds: 3 }] } },
-          { ...second, observations: { ...second.observations, rivals: [[rival('ambitious', 5, 800)]], rankings: [{ fame: 2, wealth: 3, guilds: 3 }] } },
+          { ...first, observations: { ...first.observations, rivalYearStarts: [[rival('ambitious', 3, 200), rival('miserly', 9, 500)]], rankings: [{ fame: 1, wealth: 3, guilds: 3 }] } },
+          { ...second, observations: { ...second.observations, rivalYearStarts: [[rival('ambitious', 5, 800)]], rankings: [{ fame: 2, wealth: 3, guilds: 3 }] } },
         ],
       };
       const summed = sweepTotals(made, deps.config.turnsPerYear);
@@ -826,8 +830,8 @@ describe('sweepPlay', () => {
       const made: PlaySweep = {
         ...sweep,
         games: [
-          { ...first, observations: { ...first.observations, rivals: [[rival(4, 300)]] } },
-          { ...second, observations: { ...second.observations, rivals: [[rival(8, 700)]] } },
+          { ...first, observations: { ...first.observations, rivalYearStarts: [[rival(4, 300)]] } },
+          { ...second, observations: { ...second.observations, rivalYearStarts: [[rival(8, 700)]] } },
         ],
       };
       const text = playReport(made, { ...context, deps: { ...deps, config: { ...deps.config, rivalRosterMin: 4, rivalRosterMax: 8, rivalStartingWealthMin: 300, rivalStartingWealthMax: 700 } } });
@@ -897,7 +901,7 @@ describe('sweepPlay', () => {
         },
         observations: {
           ...game.observations,
-          rivals: [Object.keys(content.dispositions).map((key) => ({ disposition: key, heroes: 4 + k, wealth: 1000 * k }))],
+          rivalYearStarts: [Object.keys(content.dispositions).map((key) => ({ disposition: key, heroes: 4 + k, wealth: 1000 * k }))],
         },
       });
       const [first, second] = sweep.games;

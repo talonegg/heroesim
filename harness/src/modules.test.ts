@@ -12,13 +12,15 @@ import {
 } from '@heroesim/engine';
 import { createProbe } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
-import { countGame, effectEventTypes, moduleCounters } from './counters.js';
+import { effectEventTypes, moduleCounters } from './counters.js';
+import { countGame } from './game-counters.js';
 import { harnessSetup } from './creation.js';
 import { harnessModules, idsOf, modulesFor } from './modules.js';
 import { playGame } from './play.js';
 import { runShard } from './shard.js';
 import { seedNames } from './seeds.js';
-import { sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { sweepTotals } from './counter.js';
+import { sweepPlay, sweepPlayInParallel, type PlaySweep } from './sweep.js';
 
 // M8-S3 (DL-78): the modules a harness run installs, their counters, and a sweep with them.
 
@@ -118,9 +120,10 @@ describe("the modules' counters (M8, DL-78)", () => {
   });
 });
 
+const seeds = seedNames(2);
+const sweep = await sweepPlay(seeds, { ...deps, modules: [probe] }, { years, validate: true });
+
 describe('a sweep with a module installed', () => {
-  const seeds = seedNames(2);
-  const sweep = sweepPlay(seeds, { ...deps, modules: [probe] }, { years, validate: true });
 
   test('plays with the probe: its slice in every save, the counters summed, the replay identical', () => {
     expect(sweep.games.every((game) => game.invalid === null && game.refusals.length === 0 && game.measures.roundTrips)).toBe(true);
@@ -135,14 +138,14 @@ describe('a sweep with a module installed', () => {
     const played = (of: PlaySweep) => of.games.map(({ seed, counters, measures }) => ({ seed, counters, fingerprint: measures.fingerprint }));
 
     expect(played(parallel)).toEqual(played(sweep));
-    const shard = runShard({ seeds: ['seed-0001'], config: deps.config, years, validate: false, policy: sweep.policy, modules: ['probe'] });
+    const shard = await runShard({ seeds: ['seed-0001'], config: deps.config, years, validate: false, policy: sweep.policy, modules: ['probe'] });
     expect(shard.games[0]?.measures.fingerprint).toBe(sweep.games[0]?.measures.fingerprint);
   });
 
   // It plays the sweep again in this process: 0.6 s alone, and over 5 s under the whole suite's load
   // from v1.1.4-S10's content, so it is given its time as DL-164 gave the long tests theirs (DL-166).
-  test('differs from the same seeds with no module, whose saves hold no slice', { timeout: 60_000 }, () => {
-    const none = sweepPlay(seeds, deps, { years });
+  test('differs from the same seeds with no module, whose saves hold no slice', { timeout: 60_000 }, async () => {
+    const none = await sweepPlay(seeds, deps, { years });
     const fingerprints = (of: PlaySweep) => of.games.map((game) => game.measures.fingerprint);
 
     expect(fingerprints(none)).not.toEqual(fingerprints(sweep));

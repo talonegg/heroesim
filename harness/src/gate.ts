@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { fixed, markdownTable, whole } from './report.js';
 import type { RunReport } from './run-report.js';
-import type { WorldYear } from './sweep.js';
+import type { WorldYear } from './game-counters.js';
 
 /** `harness/gate.json`. */
 export const gatePath = fileURLToPath(new URL('../gate.json', import.meta.url));

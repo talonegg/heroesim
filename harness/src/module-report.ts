@@ -6,18 +6,13 @@
 // moves because a module drew (M8-S1's box 2).
 
 import { configVersion, dayOf, schemaVersion, timeOfDay, type EngineDeps } from '@heroesim/engine';
+import { coreKinds, kindOf, sweepTotals, type Counter } from './counter.js';
 import { endingReasons } from './counters.js';
 import { harnessSetup } from './creation.js';
+import { gameCounters, type SweepTotals } from './game-counters.js';
 import type { GameRecord } from './play.js';
 import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
-import { sweepFingerprint, sweepTotals, type PlaySweep, type SweepTotals } from './sweep.js';
-
-/**
- * The fields of `SweepTotals` left out of the core's counters: the modules' own counters, and the
- * World State's measures as each year ended, whose copy times differ between two runs of one game
- * (v1.1.6-S17, DL-203).
- */
-const notCore: readonly (keyof SweepTotals)[] = ['moduleEvents', 'moduleEffects', 'worlds'];
+import { sweepFingerprint, type PlaySweep } from './sweep.js';
 
 /** Adds every number in `value` to `into` by its path from `path`; a list's entries share the list's path and `[]`. */
 function addLeaves(into: Map<string, number>, value: unknown, path: string): void {
@@ -33,16 +28,17 @@ function addLeaves(into: Map<string, number>, value: unknown, path: string): voi
 /**
  * Every core counter in `totals`, by its path: `heroesInjured.player`, `wealth.rival.sales.fold`.
  * The entries of a list (years, bands, places in the Rankings, Rivals) are summed into one number at
- * the list's path followed by `[]`: `levelsGained.player[]`, `rosters[].player.wealth`. The modules'
- * own counters (`moduleEvents`, `moduleEffects`) and the World State's measures (`worlds`) are left
- * out. In the order `sweepTotals` gives them.
+ * the list's path followed by `[]`: `levelsGained.player[]`, `rosters[].player.wealth`. A counter is
+ * the core's by its declared kind (`coreKinds`, DL-239): play or a measure, the modules' own and the
+ * timings left out, as `worlds`, whose copy times differ between two runs of one game (DL-203). In
+ * the order `sweepTotals` gives them.
  */
-export function coreCounters(totals: SweepTotals): Map<string, number> {
-  const counters = new Map<string, number>();
+export function coreCounters(totals: SweepTotals, counters: readonly Counter[] = gameCounters): Map<string, number> {
+  const core = new Map<string, number>();
   for (const [key, value] of Object.entries(totals)) {
-    if (!notCore.includes(key as keyof SweepTotals)) addLeaves(counters, value, key);
+    if (coreKinds.includes(kindOf(counters, key))) addLeaves(core, value, key);
   }
-  return counters;
+  return core;
 }
 
 /** A core counter the modules moved: its value over the sweep with none installed, and with them. */
@@ -57,9 +53,13 @@ export interface CounterDelta {
  * a counter one sweep lacks counting 0 there; and how many are the same. In `coreCounters`' order,
  * `without`'s first, then any only `installed` has.
  */
-export function counterDeltas(without: SweepTotals, installed: SweepTotals): { moved: CounterDelta[]; unchanged: number } {
-  const before = coreCounters(without);
-  const after = coreCounters(installed);
+export function counterDeltas(
+  without: SweepTotals,
+  installed: SweepTotals,
+  counters: readonly Counter[] = gameCounters,
+): { moved: CounterDelta[]; unchanged: number } {
+  const before = coreCounters(without, counters);
+  const after = coreCounters(installed, counters);
   const moved: CounterDelta[] = [];
   let unchanged = 0;
   for (const counter of new Set([...before.keys(), ...after.keys()])) {
@@ -157,7 +157,7 @@ export function moduleReport(installed: PlaySweep, without: PlaySweep, { deps, m
   const effectRows = Object.entries(withTotals.moduleEffects).flatMap(([moduleId, byType]) =>
     Object.entries(byType).map(([type, n]) => [`\`${moduleId}\``, `\`${type}\``, whole(n), perGame(n)]),
   );
-  const { moved, unchanged } = counterDeltas(withoutTotals, withTotals);
+  const { moved, unchanged } = counterDeltas(withoutTotals, withTotals, installed.counters);
   const deltaRows = moved.map(({ counter, without: before, with: after }) => [
     `\`${counter}\``,
     cell(before),

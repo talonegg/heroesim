@@ -1,12 +1,12 @@
 // The play sweep's game (M2-S12): create a world and play it under the automatic policy
 // (`policy.ts`) until the game ends or the years run out, applying the policy's actions between
-// Turns through the real actions and timing every `advance`. Counters come from the History
-// (`counters.ts`), and what it cannot give from the World State before the policy acts on each
-// Turn (`observe`, M3, DL-40), after each `advance` the Heroes it generated and, as each year ends, the
-// save's size (v1.1.3-S6) and the World State's with the per-Turn copy's time (v1.1.6-S17), and, for each Quest the policy sends a Party on, from the Quest's row
-// as it dispatches (its difficulty, M5, DL-62); and, for the Rivals' afternoons, from the world as
-// each `advance` found it: the difficulty of each Quest a Rival took, and whether the seller of each
-// Transfer was in debt (M6, DL-69). Measures from the harness's clock. DL-34 records the method.
+// Turns through the real actions and timing every `advance`. DL-34 records the method.
+//
+// The loop announces its moments to a list of observers (DL-239): the world created, each Turn
+// before the policy chooses, each action applied, each `advance`, each year's end, and the game's
+// end. A counter's observer gathers what the History cannot give (`game-counters.ts`), and a probe's
+// watches what it probes (the Succession probe, `succession.ts`). A game played with no observer is
+// played bare, as the replay is (DL-189): the same game, with nothing gathered about it.
 //
 // One harness assertion is checked after every `advance` (M6-S3, DL-59, DL-69): under the automatic
 // policy, which declines every Transfer Offer and never transfers, no `hero.transferred` may name the
@@ -19,10 +19,10 @@
 // A game plays under the deps a front end would give it, the engine's `playDeps` over its own
 // `meta.config`, checked before its first Turn; and a run's `HEROESIM_CONFIG` is checked by the
 // engine's `playConfig` before any game starts (`runConfig`), so a bad setting is refused by name
-// (v1.1.6-S7, DL-186 item 12, DL-193).
+// (DL-186 item 12, DL-193).
 
 import { createHash } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
+import { gzip } from 'node:zlib';
 import {
   advance,
   applyActions,
@@ -37,35 +37,25 @@ import {
   validate,
   type ActionRejection,
   type EngineDeps,
+  type Entry,
   type GameConfig,
   type GuildAction,
   type GuildId,
-  type LoadResult,
   type QuestId,
   type ValidationResult,
+  type WorldActionResult,
   type WorldDocument,
   type WorldSetup,
 } from '@heroesim/engine';
+import { gatherers, readCounters, type Counter, type Seen } from './counter.js';
+import { savedLength, type GameCounters, type GameObservations } from './counters.js';
 import { harnessSetup } from './creation.js';
-import {
-  countGame,
-  emptyObservations,
-  observe,
-  observeHeroes,
-  observeSave,
-  observeWorld,
-  historyLengthCounter,
-  savedDocumentLength,
-  savedLength,
-  takeCensus,
-  type GameCounters,
-  type GameObservations,
-} from './counters.js';
+import { gameCounters } from './game-counters.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 
 /**
  * The config a run plays: `defaultConfig` with `HEROESIM_CONFIG`'s values over it (`configured`),
- * every setting checked by the engine's `playConfig` (v1.1.6-S7, DL-193).
+ * every setting checked by the engine's `playConfig` (DL-193).
  *
  * @throws RangeError naming each setting refused, as `HEROESIM_CONFIG: <problem>`, before any game
  */
@@ -77,7 +67,7 @@ export function runConfig(configured: Readonly<Partial<GameConfig>>): GameConfig
 
 /**
  * The deps `document` plays under, as a front end's: the engine's `playDeps` over its own config,
- * `given`'s content and modules (v1.1.6-S7, DL-193).
+ * `given`'s content and modules (DL-193).
  *
  * @throws RangeError naming each setting refused: the run's config was not checked by `runConfig`
  */
@@ -89,6 +79,65 @@ function playedDeps(document: WorldDocument, given: EngineDeps): EngineDeps {
 
 /** Years a harness game is played for when it does not end first (INPUTS 4.13). */
 export const defaultYears = 20;
+
+// ── The moments a game announces (DL-239) ──────────────────────────────────────────────────────
+
+/** A document as it stands at a moment, and the deps it plays under. */
+export interface Moment {
+  document: WorldDocument;
+  deps: EngineDeps;
+}
+
+/** The world created, before its first Turn, and the events of its creation (its Heroes generated among them). */
+export interface Created extends Moment {
+  events: readonly Entry[];
+}
+
+/** One action of the policy's list, applied: the document the list began from, which it leaves as it was, and its outcome. */
+export interface ActionApplied {
+  before: WorldDocument;
+  action: GuildAction;
+  result: WorldActionResult;
+  deps: EngineDeps;
+}
+
+/**
+ * An `advance`: the document it began from, whose World State it left as it was, the one it gave, the
+ * Turn's events, and `from`, the History's length before it: the History is appended to in place
+ * (ADR-0008), so the entries from `from` on are the `advance`'s.
+ */
+export interface Advanced {
+  before: WorldDocument;
+  after: WorldDocument;
+  events: readonly Entry[];
+  from: number;
+  deps: EngineDeps;
+}
+
+/** A year's last Turn played: the clock, and the World State's length in the save, walked once however many ask (DL-238). */
+export interface YearEnded extends Moment {
+  now: () => number;
+  worldLength(): number;
+}
+
+/**
+ * What watches a game (DL-239): each moment it announces, in play order. An observer reads the
+ * document it is given and changes nothing, so a game plays the same with any observers or none.
+ */
+export interface PlayObserver {
+  /** The world created and arranged (`prepare`), before its first Turn. */
+  created?(moment: Created): void;
+  /** A Turn about to be chosen for: the World State as the policy sees it. */
+  beforeChoices?(moment: Moment): void;
+  /** Each of the policy's actions, in order, once its list is applied on one copy (DL-238). */
+  actionApplied?(moment: ActionApplied): void;
+  /** Each `advance`. */
+  advanced?(moment: Advanced): void;
+  /** The last Turn of a year played: `turnsPerYear` Turns from the world's creation, and every such Turn after. */
+  yearEnded?(moment: YearEnded): void;
+  /** The game stopped: ended, out of years, refused by the validator or stopped by the harness assertion. */
+  ended?(moment: Moment): void;
+}
 
 export interface PlayOptions {
   /** Years to play unless the game ends first: `years × turnsPerYear` Turns at most. */
@@ -107,24 +156,15 @@ export interface PlayOptions {
   choose?: (document: WorldDocument, deps: EngineDeps, policy: Readonly<PolicyConfig>) => GuildAction[];
   setup?: WorldSetup;
   /**
-   * Called once on the created world, before the first Turn: a probe's arrangement, such as the
-   * Succession probe's Rival Guildmaster at 50 (M9-F1, DL-113 item 7). It may change the document.
+   * Called once on the created world, before its observers are told of it: a probe's arrangement,
+   * such as the Succession probe's Rival Guildmaster at 50 (DL-113 item 7). The one call that may
+   * change the document.
    */
   prepare?: (document: WorldDocument) => void;
-  /**
-   * Called after each `advance` with the document it began from, whose World State `advance` left as
-   * it was, and the one it gave: what a probe watches (M9-F1). It changes neither.
-   */
-  afterAdvance?: (before: WorldDocument, after: WorldDocument) => void;
+  /** What watches the game, told of each moment in this order (DL-239); none plays it bare. */
+  observers?: readonly PlayObserver[];
   /** A millisecond clock: `performance.now` unless a test gives its own. */
   now?: () => number;
-  /**
-   * Play with the observers and the yearly measurement walks off (`observe`, `observeHeroes`,
-   * `observeSave`, `takeCensus`, `readAdvance`): the game and its document are the same, only
-   * `observations` stay empty. `advanceMs` times `advance` alone, as it always does, with none of
-   * the observers' work about it (the replay's, v1.1.6-S3, DL-189).
-   */
-  bare?: boolean;
 }
 
 /** A policy action the rules refused: a bug in the policy, since it chooses only what they accept. */
@@ -141,9 +181,9 @@ export interface Invalid {
 }
 
 /**
- * A harness assertion a game broke (M6-S3's, DL-59, DL-69), in a validator failure's shape: the
- * Turn of the offending entry, the assertion (`player-transferred`: a `hero.transferred` naming the
- * player's Guild), the entry's place in the History, and prose.
+ * A harness assertion a game broke (DL-59, DL-69), in a validator failure's shape: the Turn of the
+ * offending entry, the assertion (`player-transferred`: a `hero.transferred` naming the player's
+ * Guild), the entry's place in the History, and prose.
  */
 export interface AssertionFailure {
   turn: number;
@@ -192,49 +232,27 @@ export interface PlayedGame {
   invalid: Invalid | null;
   /** The harness assertion the game broke, which stopped it; `null` when it broke none (DL-69). */
   assertion: AssertionFailure | null;
-  /** What the World State showed before the policy acted on each Turn, and at the last (`observe`). */
-  observations: GameObservations;
-  /**
-   * The difficulty of each Quest the policy's Guild took, by Quest id, read from the Quest's row as
-   * each accepted dispatch was applied: no entry of the History records it (M5, DL-62).
-   */
-  playerQuestDifficulty: Map<string, number>;
-  /**
-   * The difficulty of each Quest a Rival took, by Quest id, from the Quest's row in the world the
-   * `advance` that took it began with (M6, DL-69).
-   */
-  rivalQuestDifficulty: Map<string, number>;
-  /**
-   * The History positions of the `hero.transferred` entries of an afternoon whose selling Guild was in
-   * debt (`belowFloorSince` set) in the world that afternoon's `advance` began with (M6, DL-69).
-   */
-  sellerInDebt: Set<number>;
 }
 
-/** Where the History stood before an `advance`: how many entries of each type `readAdvance` reads. */
-export interface HistoryMark {
-  taken: number;
-  transferred: number;
-}
-
-/** Marks where `document`'s History stands, before an `advance`, which appends to the same History (ADR-0008). */
-export function markHistory(document: WorldDocument): HistoryMark {
-  const { byType } = document.history;
-  return { taken: byType['quest.taken']?.length ?? 0, transferred: byType['hero.transferred']?.length ?? 0 };
+/** The positions in `positions`, ascending, from `from` on: read from the end, so a Turn's reading is its own entries' length. */
+function since(positions: readonly number[] | undefined, from: number): number[] {
+  const found: number[] = [];
+  for (let at = (positions?.length ?? 0) - 1; at >= 0 && (positions?.[at] ?? -1) >= from; at -= 1) found.push(positions?.[at] as number);
+  return found.reverse();
 }
 
 /**
- * What an `advance` from `before`, whose History stood at `mark`, to `after` did that no entry
- * records (M6, DL-69), added to `rivalQuestDifficulty` and `sellerInDebt`: each Quest it took (the
- * player's are taken between Turns, never in it), with the Quest's difficulty in `before`; and, when
- * the Turn it played is an afternoon, each Transfer whose seller was in debt in `before`, when a
- * Rival's `debtTransfer` may sell (DL-57 item 5). `before` is the world the afternoon's Rivals read:
- * `advance` plays the Turn after it on a copy, and nothing but the night's Guild State Engine sets
- * or clears a debt.
+ * What an `advance` from `before` to `after` did that no entry records (DL-69), its entries those from
+ * the History's position `from` on, added to `rivalQuestDifficulty` and `sellerInDebt`: each Quest it
+ * took (the player's are taken between Turns, never in it), with the Quest's difficulty in `before`;
+ * and, when the Turn it played is an afternoon, each Transfer whose seller was in debt in `before`,
+ * when a Rival's `debtTransfer` may sell (DL-57 item 5). `before` is the world the afternoon's Rivals
+ * read: `advance` plays the Turn after it on a copy, and nothing but the night's Guild State Engine
+ * sets or clears a debt.
  */
 export function readAdvance(
   before: WorldDocument,
-  mark: HistoryMark,
+  from: number,
   after: WorldDocument,
   rivalQuestDifficulty: Map<string, number>,
   sellerInDebt: Set<number>,
@@ -245,33 +263,59 @@ export function readAdvance(
     return typeof payload === 'object' && payload !== null ? Reflect.get(payload, name) : undefined;
   };
   const { quests, guilds } = before.world;
-  for (const position of (byType['quest.taken'] ?? []).slice(mark.taken)) {
+  for (const position of since(byType['quest.taken'], from)) {
     const questId = field(position, 'questId');
     const quest = isId('quests', questId) && Object.hasOwn(quests, questId) ? quests[questId as QuestId] : undefined;
     if (quest !== undefined) rivalQuestDifficulty.set(quest.id, quest.difficulty);
   }
   if (timeOfDay(after.world.turn) !== 'afternoon') return;
-  for (const position of (byType['hero.transferred'] ?? []).slice(mark.transferred)) {
+  for (const position of since(byType['hero.transferred'], from)) {
     const fromGuildId = field(position, 'fromGuildId');
     const seller = isId('guilds', fromGuildId) && Object.hasOwn(guilds, fromGuildId) ? guilds[fromGuildId as GuildId] : undefined;
     if (seller !== undefined && seller.belowFloorSince !== null) sellerInDebt.add(position);
   }
 }
 
+/** What the play loop sees that no entry records, as `Seen` gives it to the counters read from the History. */
+export interface InPlay extends PlayObserver {
+  playerQuestDifficulty: Map<string, number>;
+  afternoons: { questDifficulty: Map<string, number>; sellerInDebt: Set<number> };
+}
+
+/**
+ * An observer of what the play loop sees that no entry records (M5, DL-62; M6, DL-69): the difficulty
+ * of each Quest the policy's Guild took, read from the Quest's row as each accepted dispatch was
+ * applied; and, of the Rivals' afternoons (`readAdvance`), the difficulty of each Quest a Rival took
+ * and the Transfers whose seller was in debt.
+ */
+export function seenInPlay(): InPlay {
+  const playerQuestDifficulty = new Map<string, number>();
+  const afternoons = { questDifficulty: new Map<string, number>(), sellerInDebt: new Set<number>() };
+  return {
+    playerQuestDifficulty,
+    afternoons,
+    actionApplied({ before, action, result }) {
+      const quest = result.ok && action.kind === 'dispatch' ? before.world.quests[action.questId] : undefined;
+      if (quest !== undefined) playerQuestDifficulty.set(quest.id, quest.difficulty);
+    },
+    advanced({ before, after, from }) {
+      readAdvance(before, from, after, afternoons.questDifficulty, afternoons.sellerInDebt);
+    },
+  };
+}
+
 /** A validation's result is a problem when it refuses or warns: the engine's worlds warn of nothing. */
 const troubled = (result: ValidationResult): boolean => !result.ok || result.warnings.length > 0;
 
 /**
- * Creates `seed`'s world and plays it: before each Turn, the World State observed (`observe`) and
- * then the policy's actions, applied in order on one copy through `applyActions` (DL-238); then
- * `advance`, timed; then, when validating, the validator from the
- * History's length at its last run (`historyFrom`), so that validating every Turn stays linear
- * in the History; and once the game stops, the year's census if it stopped at a year's start
- * without ending, and the validator over the whole document. After each `advance`, what it did that
- * no entry records (`readAdvance`), and the harness assertion (`playerTransferred`). Stops when the
- * game ends, when `years × turnsPerYear` Turns have been reached, at a validator refusal or
- * warning, or at a broken assertion. Never throws on what it finds: a refused action or document,
- * or a broken assertion, is recorded.
+ * Creates `seed`'s world and plays it: before each Turn, the policy's actions, applied in order on one
+ * copy through `applyActions` (DL-238); then `advance`, timed; then, when validating, the validator from
+ * the History's length at its last run (`historyFrom`), so that validating every Turn stays linear in
+ * the History; and once the game stops, the validator over the whole document. After each `advance`,
+ * the harness assertion (`playerTransferred`). Stops when the game ends, when `years × turnsPerYear`
+ * Turns have been reached, at a validator refusal or warning, or at a broken assertion. Tells
+ * `observers` of each moment (`PlayObserver`). Never throws on what it finds: a refused action or
+ * document, or a broken assertion, is recorded.
  */
 export function playGame(seed: string, given: EngineDeps, options: PlayOptions = {}): PlayedGame {
   const {
@@ -281,9 +325,8 @@ export function playGame(seed: string, given: EngineDeps, options: PlayOptions =
     choose = automaticPolicy,
     setup = harnessSetup,
     prepare,
-    afterAdvance,
+    observers = [],
     now = () => performance.now(),
-    bare = false,
   } = options;
   const creation = createWorld(seed, setup, given);
   let { document } = creation;
@@ -297,10 +340,6 @@ export function playGame(seed: string, given: EngineDeps, options: PlayOptions =
   let assertion: AssertionFailure | null = null;
   let validated = 0;
   let transfersAsserted = 0;
-  const observations = emptyObservations();
-  const playerQuestDifficulty = new Map<string, number>();
-  const rivalQuestDifficulty = new Map<string, number>();
-  const sellerInDebt = new Set<number>();
 
   /** Validates from `from`, timing it into `times`; records and reports a problem. */
   const check = (from: number, times: number[]): boolean => {
@@ -312,52 +351,35 @@ export function playGame(seed: string, given: EngineDeps, options: PlayOptions =
     return invalid === null;
   };
 
-  // Every Hero generated with the world, and the save's length as each year ends (v1.1.3-S6),
-  // counted without writing it (v1.1.5-S1): `recordGame` gzips the last year's from the save it
-  // writes once the game stops. With it, the World State's size and the per-Turn copy's time
-  // (v1.1.6-S17, DL-203). The World State is walked once a year, and the History, append-only
-  // (ADR-0008), counted as it grows (DL-238).
-  if (!bare) observeHeroes(observations, document.world, creation.events);
-  const historyLength = historyLengthCounter();
-  const yearEnded = (): void => {
-    const { turn } = document.world;
-    if (bare || turn === 0 || turn % deps.config.turnsPerYear !== 0) return;
-    const world = savedLength(document.world);
-    observeSave(observations, document.world, savedDocumentLength(document, historyLength, world));
-    observeWorld(observations, document.world, now, world);
-  };
-
-  const created: number[] = [];
-  if (!validating || check(0, created)) {
+  for (const observer of observers) observer.created?.({ document, deps, events: creation.events });
+  if (!validating || check(0, [])) {
     while (document.world.ended === null && document.world.turn < lastTurn) {
-      if (!bare) observe(observations, document.world, deps);
+      for (const observer of observers) observer.beforeChoices?.({ document, deps });
       const actions = choose(document, deps, policy);
-      // The Quests are read from the document the actions began from, which they leave as it was.
-      const chosen = document;
-      const applied = applyActions(chosen, actions, deps);
+      // The actions are read with the document they began from, which they leave as it was.
+      const before = document;
+      const applied = applyActions(before, actions, deps);
       applied.results.forEach((result, at) => {
         const action = actions[at] as GuildAction;
-        if (!result.ok) {
-          refusals.push({ turn: chosen.world.turn, action, rejection: result.rejection });
-          return;
-        }
-        const quest = action.kind === 'dispatch' ? chosen.world.quests[action.questId] : undefined;
-        if (quest !== undefined) playerQuestDifficulty.set(quest.id, quest.difficulty);
+        if (!result.ok) refusals.push({ turn: before.world.turn, action, rejection: result.rejection });
+        for (const observer of observers) observer.actionApplied?.({ before, action, result, deps });
       });
       document = applied.document;
 
       const unadvanced = document;
-      const mark = markHistory(document);
+      const from = document.history.entries.length;
       const started = now();
       const advanced = advance(document, deps);
       advanceMs.push(now() - started);
       document = advanced.document;
-      if (!bare) {
-        readAdvance(unadvanced, mark, document, rivalQuestDifficulty, sellerInDebt);
-        observeHeroes(observations, document.world, advanced.events);
+      for (const observer of observers) observer.advanced?.({ before: unadvanced, after: document, events: advanced.events, from, deps });
+      const { turn } = document.world;
+      if (turn % deps.config.turnsPerYear === 0) {
+        // The World State walked once a year, however many observers ask (DL-238).
+        let walked: number | null = null;
+        const worldLength = (): number => (walked ??= savedLength(document.world));
+        for (const observer of observers) observer.yearEnded?.({ document, deps, now, worldLength });
       }
-      yearEnded();
-      afterAdvance?.(unadvanced, document);
 
       if (validating && !check(validated, validateMs)) break;
       // The M6-S3 harness assertion, over every Transfer since the last Turn's check, the policy's own included.
@@ -365,9 +387,8 @@ export function playGame(seed: string, given: EngineDeps, options: PlayOptions =
       transfersAsserted = document.history.byType['hero.transferred']?.length ?? 0;
       if (assertion !== null) break;
     }
-    // The last year's end, when the game ran its full length: the policy does not act on it.
-    if (!bare && document.world.ended === null) takeCensus(observations, document.world, deps);
   }
+  for (const observer of observers) observer.ended?.({ document, deps });
 
   const whole: number[] = [];
   if (validating && invalid === null) check(0, whole);
@@ -381,10 +402,6 @@ export function playGame(seed: string, given: EngineDeps, options: PlayOptions =
     refusals,
     invalid,
     assertion,
-    observations,
-    playerQuestDifficulty,
-    rivalQuestDifficulty,
-    sellerInDebt,
   };
 }
 
@@ -401,31 +418,56 @@ export interface DocumentMeasures {
   /**
    * SHA-256 of `serialise(document)`, in hex: equal for two games only when their saves are byte for
    * byte equal, so a run's games compare with another run's without keeping either's documents
-   * (M8-S1, DL-76). Not a counter: it changes none.
+   * (DL-76). Not a counter: it changes none.
    */
   fingerprint: string;
   /** Its length gzipped, as the page keeps it (DL-67), when asked for; else `null`. */
   gzipped: number | null;
 }
 
+/** A game's last save, written: its text, which the load takes and drops, and what writing it cost. */
+interface Written {
+  text: string | null;
+  serialiseMs: number;
+  historyEntries: number;
+}
+
+/** `document`'s save written, timed on `now`. */
+function written(document: WorldDocument, now: () => number): Written {
+  const started = now();
+  const text = serialise(document);
+  return { text, serialiseMs: now() - started, historyEntries: document.history.entries.length };
+}
+
+/** `text`'s length gzipped, as the page keeps it (DL-67), compressed in zlib's thread pool (DL-239). */
+function gzippedLength(text: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    gzip(text, (error, compressed) => (error === null ? resolve(compressed.length) : reject(error)));
+  });
+}
+
 /**
- * Serialises `document`, loads it back, times both, fingerprints the save and, when `gzip` is set,
- * measures it gzipped. The loaded document is serialised again once the first text is out of reach,
- * and compared with it by length and fingerprint, so that the two texts, 116 MB each at a 20-year
- * game's end, are never held at once (v1.1.5-S1, DL-174).
+ * Loads a written save back, timing the load, fingerprints it and, when `gzip` is set, measures it
+ * gzipped in zlib's thread pool while the load runs here (DL-239). The text is dropped once loaded, and
+ * the loaded document serialised again and compared with it by length and fingerprint, so that the two
+ * texts, 116 MB each at a 20-year game's end, are never held at once (DL-174).
  */
-export function measureDocument(
-  document: WorldDocument,
-  deps: EngineDeps,
-  now: () => number = () => performance.now(),
-  gzip = false,
-): DocumentMeasures {
-  const { length, fingerprint, gzipped, serialiseMs, deserialiseMs, loaded } = saveAndLoad(document, deps, now, gzip);
+async function measureSave(save: Written, deps: EngineDeps, now: () => number, gzip: boolean): Promise<DocumentMeasures> {
+  const text = save.text;
+  if (text === null) throw new Error('A save is measured once');
+  const length = text.length;
+  const fingerprint = fingerprintOf(text);
+  const gzipping = gzip ? gzippedLength(text) : null;
+  const started = now();
+  const loaded = deserialise(text, deps);
+  const deserialiseMs = now() - started;
+  save.text = null;
+  const gzipped = gzipping === null ? null : await gzipping;
   const again = loaded.ok ? serialise(loaded.document) : null;
   return {
-    historyEntries: document.history.entries.length,
+    historyEntries: save.historyEntries,
     serialisedLength: length,
-    serialiseMs,
+    serialiseMs: save.serialiseMs,
     deserialiseMs,
     roundTrips: again !== null && again.length === length && fingerprintOf(again) === fingerprint,
     fingerprint,
@@ -433,26 +475,14 @@ export function measureDocument(
   };
 }
 
-/** Saves `document` and loads the text back, timing both; keeps the text's length, fingerprint and gzipped length, not the text. */
-function saveAndLoad(
-  document: WorldDocument,
-  deps: EngineDeps,
-  now: () => number,
-  gzip: boolean,
-): { length: number; fingerprint: string; gzipped: number | null; serialiseMs: number; deserialiseMs: number; loaded: LoadResult } {
-  const saveStarted = now();
-  const text = serialise(document);
-  const serialiseMs = now() - saveStarted;
-  const loadStarted = now();
-  const loaded = deserialise(text, deps);
-  const deserialiseMs = now() - loadStarted;
-  const gzipped = gzip ? gzipSync(text).length : null;
-  return { length: text.length, fingerprint: fingerprintOf(text), gzipped, serialiseMs, deserialiseMs, loaded };
+/** Serialises `document`, loads it back, times both, fingerprints the save and, when `gzip` is set, measures it gzipped. */
+export function measureDocument(document: WorldDocument, deps: EngineDeps, now: () => number = () => performance.now(), gzip = false): Promise<DocumentMeasures> {
+  return measureSave(written(document, now), deps, now, gzip);
 }
 
 /**
  * SHA-256 of a save's text, in hex: `DocumentMeasures.fingerprint`'s, and the replay's (`sweep.ts`),
- * which compares two games by it so as not to hold the first game's text (v1.1.5-S10, DL-181).
+ * which compares two games by it so as not to hold the first game's text (DL-181).
  */
 export function fingerprintOf(text: string): string {
   return createHash('sha256').update(text).digest('hex');
@@ -461,7 +491,9 @@ export function fingerprintOf(text: string): string {
 /** One game of a sweep, reduced to what the report needs, so the sweep keeps no document. */
 export interface GameRecord {
   seed: string;
+  /** The counters read from the game's History once it stopped (`Counter.read`), by key. */
   counters: GameCounters;
+  /** The counters its observers gathered as it was played (`Counter.observe`), by key. */
   observations: GameObservations;
   turnsPlayed: number;
   /** Whether the game ran to its last Turn without ending. */
@@ -474,40 +506,75 @@ export interface GameRecord {
   measures: DocumentMeasures;
 }
 
-/** Plays `seed` and reduces the game to its record; returns the advance and validation times too. */
-export function recordGame(
+/** How a game is recorded: as it is played, but for its observers, which its counters bring. */
+export interface RecordOptions extends Omit<PlayOptions, 'observers'> {
+  /** The counters gathered: `gameCounters` unless a test declares its own (DL-239). */
+  counters?: readonly Counter[];
+}
+
+/** A game played and read, its save written: all its record takes but what its save's load measures and its observers gathered. */
+interface Played extends Omit<GameRecord, 'seed' | 'observations' | 'measures'> {
+  save: Written;
+  /** Whether the game stopped at its last year's end, whose save is gzipped. */
+  lastYear: boolean;
+  advanceMs: number[];
+  validateMs: number[];
+}
+
+/**
+ * Plays `seed` told to `observers` and the loop's sight (`seenInPlay`), reads the counters of
+ * `options.counters` its History gives, and writes its save. The game's document is out of reach once
+ * this returns, so that it and the document its save loads are never held at once (DL-239): no
+ * observer keeps its History past the game's end.
+ */
+function playedAndRead(seed: string, deps: EngineDeps, options: RecordOptions, observers: readonly PlayObserver[]): Played {
+  const { counters: declared = gameCounters, ...playing } = options;
+  const lastTurn = (options.years ?? defaultYears) * deps.config.turnsPerYear;
+  const seen = seenInPlay();
+  const game = playGame(seed, deps, { ...playing, observers: [seen, ...observers] });
+  const { document, turnsPlayed, refusals, invalid, assertion, wholeValidateMs, advanceMs, validateMs } = game;
+  const sight: Seen = { playerQuestDifficulty: seen.playerQuestDifficulty, afternoons: seen.afternoons };
+  const { turn, ended } = document.world;
+  return {
+    counters: readCounters(declared, document, deps, sight) as unknown as GameCounters,
+    turnsPlayed,
+    ranFullLength: ended === null && turn >= lastTurn,
+    refusals,
+    invalid,
+    assertion,
+    wholeValidateMs,
+    save: written(document, options.now ?? (() => performance.now())),
+    // The last year's save gzipped, from the save written here (DL-174): a game that reached its last
+    // year's end stopped there, so its document is the one that year ended with.
+    lastYear: lastTurn > 0 && lastTurn % deps.config.turnsPerYear === 0 && turn === lastTurn,
+    advanceMs,
+    validateMs,
+  };
+}
+
+/**
+ * Plays `seed` with an observer of each observed counter of `options.counters` (`gameCounters` unless
+ * given) and the loop's sight, and reduces the game to its record: the counters read from its
+ * History, then its last save loaded back once the game's document is out of reach (DL-239), then the
+ * observed counters, which may read the save's measures. Returns the advance and validation times too.
+ */
+export async function recordGame(
   seed: string,
   deps: EngineDeps,
-  options: PlayOptions = {},
-): { record: GameRecord; advanceMs: number[]; validateMs: number[] } {
-  const game = playGame(seed, deps, options);
-  const years = options.years ?? defaultYears;
-  const lastTurn = years * deps.config.turnsPerYear;
-  const { document } = game;
-  const counters = countGame(document, deps, game.playerQuestDifficulty, {
-    questDifficulty: game.rivalQuestDifficulty,
-    sellerInDebt: game.sellerInDebt,
-  });
-  // The last year's save gzipped (v1.1.3-S6), from the save written here (v1.1.5-S1): a game that
-  // reached its last year's end stopped there, so its document is the one that year ended with.
-  const lastYear = lastTurn > 0 && lastTurn % deps.config.turnsPerYear === 0 && document.world.turn === lastTurn;
-  const measures = measureDocument(document, deps, options.now, lastYear);
-  const lastSave = lastYear ? game.observations.saves.at(-1) : undefined;
-  if (lastSave !== undefined) lastSave.gzipped = measures.gzipped;
-  return {
-    record: {
-      seed,
-      counters,
-      observations: game.observations,
-      turnsPlayed: game.turnsPlayed,
-      ranFullLength: document.world.ended === null && document.world.turn >= lastTurn,
-      refusals: game.refusals,
-      invalid: game.invalid,
-      assertion: game.assertion,
-      wholeValidateMs: game.wholeValidateMs,
-      measures,
-    },
-    advanceMs: game.advanceMs,
-    validateMs: game.validateMs,
-  };
+  options: RecordOptions = {},
+): Promise<{ record: GameRecord; advanceMs: number[]; validateMs: number[] }> {
+  const observing = gatherers(options.counters ?? gameCounters);
+  const { save, lastYear, advanceMs, validateMs, ...read } = playedAndRead(
+    seed,
+    deps,
+    options,
+    observing.map(([, gatherer]) => gatherer),
+  );
+  const measures = await measureSave(save, deps, options.now ?? (() => performance.now()), lastYear);
+  const observations: Record<string, unknown> = {};
+  for (const [key, gatherer] of observing) {
+    gatherer.measured?.(measures);
+    observations[key] = gatherer.value();
+  }
+  return { record: { seed, ...read, observations: observations as unknown as GameObservations, measures }, advanceMs, validateMs };
 }

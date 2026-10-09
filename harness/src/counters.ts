@@ -1,13 +1,15 @@
-// The play sweep's counters (M2-S12), each read from a document's History through its index by
-// type, `history.byType`, never by scanning every entry, and joined to the World State only for
-// the Guild an entry names. M2-S9 added the first, the Quests taken by each kind of controller,
-// which shows how contested the Board is (DL-30); M2-S12 adds the rest (DL-34).
+// How the play sweep's counters are read (M2-S12), each from a document's History through its index
+// by type, `history.byType`, never by scanning every entry, and joined to the World State only for
+// the Guild an entry names; or from the World State as a game is played, by an observer of the play
+// loop. Each counter is declared once in `game-counters.ts` (DL-239), which reads it through these.
+// The Quests taken by each kind of controller show how contested the Board is (DL-30); DL-34 adds the
+// rest of the first counters.
 //
 // M3's counters (the epic's §2, DL-40) add Levels and declines per Guild-year, Retirements by age,
 // growth against decline, and the Improvement grades reached in the first 10 years, from the History as
-// before; and two the History cannot give, read from the World State while the game is played
-// (`observe`): how many pool Heroes refuse each Guild for its Fame each morning, and the Rosters'
-// Levels and Heroes at Potential as each year begins.
+// before; and two the History cannot give, read from the World State while the game is played: how
+// many pool Heroes refuse each Guild for its Fame each morning (`observeFameGate`), and the Rosters'
+// Levels and Heroes at Potential as each year begins (`rosterCensus`).
 //
 // M4's counters (the epic's §2, DL-55) add, from the History, the Encounters' outcomes by kind, the
 // Synergies each Quest applied, Injuries by type and the Patrons silent in a year; and, from the
@@ -24,7 +26,7 @@
 // Transfer between two Rivals happened and by the selling and the buying Guild, their fees among the
 // Wealth flows; the Transfer Offers by the Guild that made them and the Guild asked; and each
 // Disposition's Quests, Deaths, recruits, folds, Market purchases and Improvement grades. Two things
-// no entry records come from the play loop's sight of each afternoon (`RivalAfternoons`): the
+// no entry records come from the play loop's sight of each afternoon (`RivalAfternoons`, `seenInPlay`): the
 // difficulty of each Quest a Rival took, and whether a Transfer's seller was in debt. From the World
 // State as each year begins: each Rival's Roster and Wealth, and the player's Guild's place in the
 // Rankings.
@@ -159,7 +161,7 @@ function guildOf(document: WorldDocument, entry: Entry, position: string): Guild
 }
 
 /** The entries of `type` counted by the kind of controller of the Guild each is about. */
-function countByController(document: WorldDocument, type: EventType): ByController {
+export function countByController(document: WorldDocument, type: EventType): ByController {
   const counts = byController();
   entriesOf(document, type).forEach((entry, index) => {
     counts[guildOf(document, entry, `${index}`).controller.kind] += 1;
@@ -756,7 +758,7 @@ function pointsGrown(entry: Entry, index: number): number {
  * History, so a Level gained on the night of the first decline, whose `levelUps` runs before
  * `ageing`, counts as before.
  */
-function progressionCounters(
+export function progressionCounters(
   document: WorldDocument,
   turnsPerYear: number,
   lastTurn: number,
@@ -822,7 +824,7 @@ function noGradesByDisposition(content: EngineDeps['content']): Record<string, G
  * (M6, DL-69), counted by the highest grade each facility reached in them; `null` when the game
  * stopped before their end (DL-38 item 15).
  */
-function improvementGrades(
+export function improvementGrades(
   document: WorldDocument,
   deps: EngineDeps,
   lastTurn: number,
@@ -876,7 +878,7 @@ function listLength(entry: Entry, field: string, what: string): number {
 }
 
 /** `quest.encounter` by controller and kind: each Check's outcome, and whom its consequences harmed. */
-function encounterCounters(document: WorldDocument): Record<ControllerKind, EncounterCounts> {
+export function encounterCounters(document: WorldDocument): Record<ControllerKind, EncounterCounts> {
   const counts = { player: noEncounters(), rival: noEncounters() };
   entriesOf(document, 'quest.encounter').forEach((entry, index) => {
     const what = `quest.encounter entry ${index}`;
@@ -892,7 +894,7 @@ function encounterCounters(document: WorldDocument): Record<ControllerKind, Enco
 }
 
 /** `quest.resolved`'s `synergyKeys` by controller: an entry without them applied none (DL-45). */
-function synergyCounters(document: WorldDocument): Record<ControllerKind, SynergyTally> {
+export function synergyCounters(document: WorldDocument): Record<ControllerKind, SynergyTally> {
   const counts = { player: noSynergies(), rival: noSynergies() };
   entriesOf(document, 'quest.resolved').forEach((entry, index) => {
     const keys = payloadField(entry, 'synergyKeys') ?? [];
@@ -909,7 +911,7 @@ function synergyCounters(document: WorldDocument): Record<ControllerKind, Synerg
 }
 
 /** `quest.resolved` by controller and the size of the Party sent, with its band, XP and Deaths (v1.1.4-S10). */
-function partySizeCounters(document: WorldDocument): Record<ControllerKind, Record<string, PartySizeTally>> {
+export function partySizeCounters(document: WorldDocument): Record<ControllerKind, Record<string, PartySizeTally>> {
   const counts: Record<ControllerKind, Record<string, PartySizeTally>> = { player: {}, rival: {} };
   entriesOf(document, 'quest.resolved').forEach((entry, index) => {
     const what = `quest.resolved entry ${index}`;
@@ -932,7 +934,7 @@ function partySizeCounters(document: WorldDocument): Record<ControllerKind, Reco
 }
 
 /** `hero.trait-gained` by the controller of the Hero's Guild then (`guildOf`), and the Trait (v1.1.4-S10). */
-function traitsGainedByKey(document: WorldDocument): Record<ControllerKind, Record<string, number>> {
+export function traitsGainedByKey(document: WorldDocument): Record<ControllerKind, Record<string, number>> {
   const counts: Record<ControllerKind, Record<string, number>> = { player: {}, rival: {} };
   entriesOf(document, 'hero.trait-gained').forEach((entry, index) => {
     const key = payloadField(entry, 'traitKey');
@@ -944,7 +946,7 @@ function traitsGainedByKey(document: WorldDocument): Record<ControllerKind, Reco
 }
 
 /** `hero.injured` by the controller of the Hero's Guild then (`guildOf`), and the Injury type. */
-function injuryCounters(document: WorldDocument): Record<ControllerKind, Record<string, number>> {
+export function injuryCounters(document: WorldDocument): Record<ControllerKind, Record<string, number>> {
   const counts: Record<ControllerKind, Record<string, number>> = { player: {}, rival: {} };
   entriesOf(document, 'hero.injured').forEach((entry, index) => {
     const typeKey = payloadField(entry, 'typeKey');
@@ -959,7 +961,7 @@ function injuryCounters(document: WorldDocument): Record<ControllerKind, Record<
  * For each year played in full (its last Turn reached by `lastTurn`), the Patrons generated by the
  * Turn it began (`patron.generated`), and how many of them no `quest.offered` of the year names.
  */
-function patronSilence(
+export function patronSilence(
   document: WorldDocument,
   turnsPerYear: number,
   lastTurn: number,
@@ -1011,7 +1013,7 @@ function isEffect(value: unknown): value is ConsumableEffectName {
 }
 
 /** Wealth spent and taken by category, by the controller of the Guild each entry names. */
-function wealthCounters(document: WorldDocument): Record<ControllerKind, WealthFlows> {
+export function wealthCounters(document: WorldDocument): Record<ControllerKind, WealthFlows> {
   const flows = { player: noWealth(), rival: noWealth() };
   const each = (type: EventType, apply: (into: WealthFlows, entry: Entry, what: string) => void): void => {
     entriesOf(document, type).forEach((entry, index) => {
@@ -1050,7 +1052,7 @@ function wealthCounters(document: WorldDocument): Record<ControllerKind, WealthF
 }
 
 /** `quest.loot` by controller and `lootTableKey`: awards, Items, and the unique among them. */
-function lootCounters(document: WorldDocument): Record<ControllerKind, Record<string, LootTally>> {
+export function lootCounters(document: WorldDocument): Record<ControllerKind, Record<string, LootTally>> {
   const counts: Record<ControllerKind, Record<string, LootTally>> = { player: {}, rival: {} };
   entriesOf(document, 'quest.loot').forEach((entry, index) => {
     const what = `quest.loot entry ${index}`;
@@ -1079,7 +1081,7 @@ function carriedBy(entry: Entry, what: string): number {
 }
 
 /** Consumables carried (`quest.taken`) and expended (`item.expended`) against the Quests resolved, by controller. */
-function consumableCounters(document: WorldDocument): Record<ControllerKind, ConsumableTally> {
+export function consumableCounters(document: WorldDocument): Record<ControllerKind, ConsumableTally> {
   const counts = { player: noConsumables(), rival: noConsumables() };
   entriesOf(document, 'quest.resolved').forEach((entry, index) => {
     counts[guildOf(document, entry, `${index}`).controller.kind].quests += 1;
@@ -1108,7 +1110,7 @@ function consumableCounters(document: WorldDocument): Record<ControllerKind, Con
 }
 
 /** `item.equipped`, `item.unequipped` and `item.returned` by its `cause`, by controller. */
-function gearCounters(document: WorldDocument): Record<ControllerKind, GearTally> {
+export function gearCounters(document: WorldDocument): Record<ControllerKind, GearTally> {
   const counts = { player: noGear(), rival: noGear() };
   entriesOf(document, 'item.equipped').forEach((entry, index) => {
     counts[guildOf(document, entry, `${index}`).controller.kind].equipped += 1;
@@ -1130,7 +1132,7 @@ function gearCounters(document: WorldDocument): Record<ControllerKind, GearTally
  * difficulty's band and by the year of the `quest.resolved`, with the `quest.loot` each won counted
  * in the same band and year. A Quest the map does not hold counts in neither.
  */
-function playerDifficulty(
+export function playerDifficulty(
   document: WorldDocument,
   turnsPerYear: number,
   difficulties: ReadonlyMap<string, number>,
@@ -1205,7 +1207,7 @@ function addTransfer(tally: TransferTally, fee: number): void {
  * by the selling and the buying side, and the Transfers that took a Hero to a Guild that had sold them
  * before.
  */
-function transferCounters(
+export function transferCounters(
   document: WorldDocument,
   afternoons: RivalAfternoons | undefined,
 ): Pick<GameCounters, 'transfers' | 'rivalTransfers' | 'transfersBySide' | 'transfersBack'> {
@@ -1247,7 +1249,7 @@ function isOfferEndCause(value: unknown): value is TransferOfferEndCause {
  * Transfer Offers by the side of the Guild that made them (the terms' `toGuildId`, which would pay)
  * and of the Guild asked (`fromGuildId`, whose Roster the Hero is on), from their four events.
  */
-function offerCounters(document: WorldDocument): Record<string, Record<string, OfferTally>> {
+export function offerCounters(document: WorldDocument): Record<string, Record<string, OfferTally>> {
   const offers: Record<string, Record<string, OfferTally>> = {};
   const tallyOf = (entry: Entry, what: string): OfferTally => {
     const maker = guildNamed(document, entry, 'toGuildId', what);
@@ -1281,7 +1283,7 @@ function offerCounters(document: WorldDocument): Record<string, Record<string, O
  * the Quests they took (with the difficulty `afternoons` recorded) and resolved, their Heroes' Deaths,
  * their recruits and their folds, from the History. Every Disposition content holds is listed.
  */
-function dispositionCounters(
+export function dispositionCounters(
   document: WorldDocument,
   deps: EngineDeps,
   lastTurn: number,
@@ -1333,7 +1335,7 @@ function dispositionCounters(
 }
 
 /** `item.bought` by the buying Guild's side: the purchases, the Items they moved and their cost. */
-function marketPurchaseCounters(document: WorldDocument): Record<string, MarketTally> {
+export function marketPurchaseCounters(document: WorldDocument): Record<string, MarketTally> {
   const purchases: Record<string, MarketTally> = {};
   entriesOf(document, 'item.bought').forEach((entry, index) => {
     const what = `item.bought entry ${index}`;
@@ -1345,27 +1347,10 @@ function marketPurchaseCounters(document: WorldDocument): Record<string, MarketT
   return purchases;
 }
 
-/**
- * Every counter of a harness game, read from `document`'s History through `byType` and joined to
- * the World State for the Guild each entry is about.
- *
- * @throws Error on an entry the engine would not have made: one naming no Guild the world holds,
- * a `quest.resolved` without a band, an ending without a reason, a `hero.retired` without an age,
- * a `quest.encounter` without a kind or outcome, a `hero.injured` without a type, and the like.
- * `playerQuestDifficulty`, the difficulty of each Quest the player's Guild took by Quest id, which
- * no entry records (the play loop keeps it), gives the player's Quests by difficulty (M5, DL-62);
- * without it those two counters are `null`. `afternoons`, the play loop's sight of the Rivals'
- * afternoons (M6, DL-69), gives each Disposition's mean difficulty taken and parts the afternoon's
- * Transfers between two Rivals by the seller's debt; without it no difficulty is counted and every
- * such Transfer counts as `afternoon`.
- */
-export function countGame(
-  document: WorldDocument,
-  deps: EngineDeps,
-  playerQuestDifficulty?: ReadonlyMap<string, number>,
-  afternoons?: RivalAfternoons,
-): GameCounters {
-  const { turnsPerYear } = deps.config;
+// ── The game's ending, its length and the rest of DL-34's and DL-40's ───────────────────────
+
+/** `quest.resolved` by the resolving Guild's controller, then by band. */
+export function questsResolvedByController(document: WorldDocument): GameCounters['questsResolved'] {
   const questsResolved: GameCounters['questsResolved'] = {
     player: { fail: 0, success: 0, strong: 0 },
     rival: { fail: 0, success: 0, strong: 0 },
@@ -1375,28 +1360,65 @@ export function countGame(
     if (!isBand(band)) throw new Error(`quest.resolved entry ${index} has no band`);
     questsResolved[guildOf(document, entry, `${index}`).controller.kind][band] += 1;
   });
+  return questsResolved;
+}
 
+/** `guild.folded` by the reason the Rival reached its ending. */
+export function rivalFoldCounters(document: WorldDocument): Record<EndingReason, number> {
   const rivalFolds = byReason();
   entriesOf(document, 'guild.folded').forEach((entry, index) => {
     const reason = payloadField(entry, 'reason');
     if (!isReason(reason)) throw new Error(`guild.folded entry ${index} has no reason`);
     rivalFolds[reason] += 1;
   });
+  return rivalFolds;
+}
 
+/** `guildmaster.succeeded`: the Rival Guildmasters whose Retirement was met by Succession (DL-102). */
+export function successionCount(document: WorldDocument): number {
+  return entriesOf(document, 'guildmaster.succeeded').length;
+}
+
+/**
+ * `game.ended`'s reason, or `null` when the player's game has not ended.
+ *
+ * @throws Error on a History of more than one `game.ended`, or one without a reason
+ */
+export function endingOf(document: WorldDocument): EndingReason | null {
   const endings = entriesOf(document, 'game.ended');
   if (endings.length > 1) throw new Error(`The History holds ${endings.length} game.ended entries`);
   const reason = endings[0] === undefined ? null : payloadField(endings[0], 'reason');
   if (reason !== null && !isReason(reason)) throw new Error('The game.ended entry has no reason');
+  return reason;
+}
 
-  const { world } = document;
-  const lastTurn = world.ended?.turn ?? world.turn;
-  const years = Math.ceil(lastTurn / turnsPerYear);
+/** The Turn the game ended on, or the world's Turn when it has not. */
+export function lastTurnOf({ world }: WorldDocument): number {
+  return world.ended?.turn ?? world.turn;
+}
 
+/** The years the game lasted, a year begun counting whole: the length of each counter by year. */
+const yearsOf = (document: WorldDocument, turnsPerYear: number): number => Math.ceil(lastTurnOf(document) / turnsPerYear);
+
+/** The years each kind of Guild was in play in each year of the game, summed over its Guilds. */
+export function guildYearCounters(document: WorldDocument, turnsPerYear: number): ByYear {
+  const lastTurn = lastTurnOf(document);
   const guildYears = byYear();
-  for (const guild of Object.values(world.guilds)) {
+  for (const guild of Object.values(document.world.guilds)) {
     addGuildYears(guildYears[guild.controller.kind], guild.foundedTurn, inPlayUntil(guild, lastTurn), turnsPerYear);
   }
+  return padTo(guildYears, yearsOf(document, turnsPerYear));
+}
 
+/** `hero.levelled` and `hero.declined` by controller and year, each series as long as the game's years. */
+export function levelsAndDeclines(document: WorldDocument, turnsPerYear: number): Pick<GameCounters, 'levelsGained' | 'declines'> {
+  const { levelsGained, declines } = progressionCounters(document, turnsPerYear, lastTurnOf(document));
+  const years = yearsOf(document, turnsPerYear);
+  return { levelsGained: padTo(levelsGained, years), declines: padTo(declines, years) };
+}
+
+/** `hero.retired`, by controller, then by the age retired at. */
+export function retirementAgeCounters(document: WorldDocument): GameCounters['retirementAges'] {
   const retirementAges: GameCounters['retirementAges'] = { player: {}, rival: {} };
   entriesOf(document, 'hero.retired').forEach((entry, index) => {
     const age = payloadField(entry, 'age');
@@ -1404,52 +1426,7 @@ export function countGame(
     const ages = retirementAges[guildOf(document, entry, `${index}`).controller.kind];
     ages[age] = (ages[age] ?? 0) + 1;
   });
-
-  const { levelsGained, declines, growthAgainstDecline } = progressionCounters(document, turnsPerYear, lastTurn);
-  const difficulty = playerQuestDifficulty === undefined ? undefined : playerDifficulty(document, turnsPerYear, playerQuestDifficulty);
-  const grades = improvementGrades(document, deps, lastTurn);
-  return {
-    questsTaken: questsTakenByController(document),
-    questsResolved,
-    heroesInjured: countByController(document, 'hero.injured'),
-    heroesDied: countByController(document, 'hero.died'),
-    heroesRecruited: countByController(document, 'hero.recruited'),
-    heroesRetired: countByController(document, 'hero.retired'),
-    traitsGained: countByController(document, 'hero.trait-gained'),
-    traitsLost: countByController(document, 'hero.trait-lost'),
-    questingHeroes: questingHeroes(document),
-    traitsGainedByKey: traitsGainedByKey(document),
-    partySizes: partySizeCounters(document),
-    rivalFolds,
-    rivalSuccessions: entriesOf(document, 'guildmaster.succeeded').length,
-    ending: reason,
-    lastTurn,
-    guildYears: padTo(guildYears, years),
-    levelsGained: padTo(levelsGained, years),
-    declines: padTo(declines, years),
-    retirementAges,
-    growthAgainstDecline,
-    improvementGrades: grades?.byController ?? null,
-    encounters: encounterCounters(document),
-    synergies: synergyCounters(document),
-    injuriesByType: injuryCounters(document),
-    ...patronSilence(document, turnsPerYear, lastTurn),
-    wealth: wealthCounters(document),
-    loot: lootCounters(document),
-    consumables: consumableCounters(document),
-    gear: gearCounters(document),
-    playerQuestsByDifficulty: difficulty?.byBand ?? null,
-    playerQuestsByYear: difficulty?.byYear ?? null,
-    ...transferCounters(document, afternoons),
-    offers: offerCounters(document),
-    dispositions: dispositionCounters(document, deps, lastTurn, afternoons),
-    marketPurchases: marketPurchaseCounters(document),
-    improvementGradesByDisposition: grades?.byDisposition ?? null,
-    ...moduleCounters(document),
-    belowFloor: countByController(document, 'guild.below-floor'),
-    floorRecovered: countByController(document, 'guild.floor-recovered'),
-    portraits: portraitCounters(document, deps),
-  };
+  return retirementAges;
 }
 
 // ── Read from the World State while a game is played (M3, DL-40) ────────────────────────────
@@ -1505,21 +1482,22 @@ export interface PlayerRanking {
   guilds: number;
 }
 
-/** What a game's World State showed while it was played: what its History cannot give. */
+/**
+ * What a game's observers gathered from its World State while it was played: what its History cannot
+ * give, each counter's by its key (`game-counters.ts`, DL-239).
+ */
 export interface GameObservations {
   fameGate: Record<ControllerKind, FameGate>;
   /** The Rosters as each year begins, before the policy acts: index k is after k years, 0 the new world. */
   rosters: Record<ControllerKind, RosterCensus>[];
   /** Taken with the census after `countedYear` years; `null` until then, and for a game that stopped first. */
   regardAtCountedYear: RegardSnapshot | null;
-  /** Each Rival in play, in Guild order, taken with the census: index as `rosters` (M6, DL-69). */
-  rivals: RivalAtYearStart[][];
-  /** The player's Guild's place in the Rankings, taken with the census; `null` for a world without it. */
+  /** Each Rival in play, in Guild order, as each year begins: index as `rosters` (M6, DL-69). */
+  rivalYearStarts: RivalAtYearStart[][];
+  /** The player's Guild's place in the Rankings as each year begins; `null` for a world without it. */
   rankings: (PlayerRanking | null)[];
   /** Every Hero generated, and their Portraits and texts (v1.1.3-S6): `observeHeroes`. */
   heroes: HeroTally;
-  /** The last Turn whose `hero.generated` events `observeHeroes` has read, `null` before any: a batch is read once. */
-  heroTurnsRead: number | null;
   /** The save as each year ended (`observeSave`, v1.1.3-S6): index k is after k + 1 years. */
   saves: SaveSize[];
   /** The World State as each year ended (`observeWorld`, v1.1.6-S17): index k is after k + 1 years. */
@@ -1578,40 +1556,32 @@ export interface WorldSize {
 export const noFameGate = (): FameGate => ({ heroDays: 0, guildDays: 0, guildDaysWithAny: 0 });
 export const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
 
-export function emptyObservations(): GameObservations {
-  return {
-    fameGate: { player: noFameGate(), rival: noFameGate() },
-    rosters: [],
-    regardAtCountedYear: null,
-    rivals: [],
-    rankings: [],
-    heroes: noHeroes(),
-    heroTurnsRead: null,
-    saves: [],
-    worlds: [],
-  };
+/** The Heroes generated so far, and the last Turn whose `hero.generated` events were read, `null` before any. */
+export interface HeroesSeen {
+  tally: HeroTally;
+  turnsRead: number | null;
 }
 
 /**
  * Reads each `hero.generated` among `events`, a batch: the world's creation's or one `advance`'s
  * (v1.1.3-S6, DL-211), with the Hero's row as `world` holds it just after the Turn that generated them: whether they have a picture
  * or the Silhouette, whether another Hero on a Roster or in the pool held the same picture as they were
- * given it (a repeat), and their texts' lengths. A pool Hero leaves before the refill of the same night,
- * so no Hero is gone the Turn they are generated; one whose row is gone is not counted. Called once the
- * world is created and after each `advance`.
+ * given it (a repeat), and their texts' lengths, into `seen`'s tally. A pool Hero leaves before the
+ * refill of the same night, so no Hero is gone the Turn they are generated; one whose row is gone is
+ * not counted. Called once the world is created and after each `advance`.
  *
  * The holders are read once a batch, as the World State stands after it, less the batch's own Heroes,
  * who are added in the order they were generated: so the first holder of a picture is no repeat, and
  * each later one is (v1.1.3-S8). A holder who died or left within the same batch is not seen.
  *
- * Each batch is of one Turn, later than the last: an event of a Turn already read (`heroTurnsRead`)
- * is not counted again.
+ * Each batch is of one Turn, later than the last: an event of a Turn already read (`turnsRead`) is not
+ * counted again.
  */
-export function observeHeroes(observations: GameObservations, world: World, events: readonly Entry[]): void {
-  const tally = observations.heroes;
-  const read = observations.heroTurnsRead;
+export function observeHeroes(seen: HeroesSeen, world: World, events: readonly Entry[]): void {
+  const { tally } = seen;
+  const read = seen.turnsRead;
   const fresh = events.filter((event) => event.type === 'hero.generated' && (read === null || event.turn > read));
-  for (const { turn } of fresh) observations.heroTurnsRead = Math.max(observations.heroTurnsRead ?? turn, turn);
+  for (const { turn } of fresh) seen.turnsRead = Math.max(seen.turnsRead ?? turn, turn);
   const batch = fresh
     .map(({ payload }) => (typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'heroId') : undefined));
   let heldBy: Map<string, number> | null = null;
@@ -1659,12 +1629,12 @@ export function heroFieldsLength(world: World): number {
 }
 
 /**
- * Adds the save's size as a year ends (v1.1.3-S6): its text's `length`, `serialise(document).length`
- * or `savedLength(document)`, the Heroes' new fields' share, and, when `gzipped` is given, its
- * gzipped length.
+ * Adds to `saves` the save's size as a year ends (v1.1.3-S6): its text's `length`,
+ * `serialise(document).length` or `savedLength(document)`, the Heroes' new fields' share, and, when
+ * `gzipped` is given, its gzipped length.
  */
-export function observeSave(observations: GameObservations, world: World, length: number, gzipped: number | null = null): void {
-  observations.saves.push({ length, heroFields: heroFieldsLength(world), gzipped });
+export function observeSave(saves: SaveSize[], world: World, length: number, gzipped: number | null = null): void {
+  saves.push({ length, heroFields: heroFieldsLength(world), gzipped });
 }
 
 /** How many times `observeWorld` copies the World State to time the copy: their mean is the year's. */
@@ -1678,18 +1648,19 @@ function countRows<Row>(rows: Readonly<Record<string, Row>>, isWriteOnce: (row: 
 }
 
 /**
- * Adds the World State as a year ends (v1.1.6-S17, DL-203): its characters in the save, its rows live
- * and written once, and the per-Turn copy's time, the mean of `copiesTimed` copies of it by the
- * engine's `copyWorld` on the clock `now`. The copies are made and dropped: the copy leaves `world` as
- * it was, but for freezing its write-once rows, as the next `advance`'s copy would (ADR-0011), so the
- * game plays on as it would have. `characters` is `savedLength(world)`, given when already counted.
+ * Adds to `worlds` the World State as a year ends (v1.1.6-S17, DL-203): its characters in the save,
+ * its rows live and written once, and the per-Turn copy's time, the mean of `copiesTimed` copies of it
+ * by the engine's `copyWorld` on the clock `now`. The copies are made and dropped: the copy leaves
+ * `world` as it was, but for freezing its write-once rows, as the next `advance`'s copy would
+ * (ADR-0011), so the game plays on as it would have. `characters` is `savedLength(world)`, given when
+ * already counted.
  */
-export function observeWorld(observations: GameObservations, world: World, now: () => number, characters = savedLength(world)): void {
+export function observeWorld(worlds: WorldSize[], world: World, now: () => number, characters = savedLength(world)): void {
   const started = now();
   for (let copy = 0; copy < copiesTimed; copy += 1) copyWorld(world);
   const copyMs = (now() - started) / copiesTimed;
   const { heroes, guildmasters, guilds, patrons, quests, parties, items, stacks, offers } = world;
-  observations.worlds.push({
+  worlds.push({
     characters,
     heroes: countRows(heroes, writeOnce.heroes),
     guildmasters: countRows(guildmasters, writeOnce.guildmasters),
@@ -1874,20 +1845,18 @@ function hasStatAtPotential(hero: Hero, content: EngineDeps['content']): boolean
 }
 
 /**
- * On the first Turn of a year not yet counted, a census of every Roster of a Guild in play, added
- * as the next entry of `observations.rosters`, with each Rival's Disposition, Roster size and Wealth
- * (`rivals`) and the player's Guild's place in the Rankings (`rankings`, M6); and after `countedYear`
- * years the player's Guild's Regard (`regardSnapshot`); nothing on any other Turn, so it may be asked
- * on every Turn and once more when a game stops.
+ * Whether `world` stands on the first Turn of a year after the `taken` year-starts a census has
+ * counted (the new world's the first): a census counts each year-start once, and none but those, so
+ * it may be asked as the world is created and as each year ends.
  */
-export function takeCensus(observations: GameObservations, world: World, deps: EngineDeps): void {
-  if (world.turn !== observations.rosters.length * deps.config.turnsPerYear) return;
-  if (observations.rosters.length === countedYear) observations.regardAtCountedYear = regardSnapshot(world, deps.config);
+export function isYearStart(world: World, taken: number, deps: EngineDeps): boolean {
+  return world.turn === taken * deps.config.turnsPerYear;
+}
+
+/** Every Roster of a Guild in play in `world`, by the Guild's controller: the Guilds, their Wealth, Heroes and Levels, and the Heroes at Potential. */
+export function rosterCensus(world: World, deps: EngineDeps): Record<ControllerKind, RosterCensus> {
   const census = { player: noCensus(), rival: noCensus() };
-  const rivals: RivalAtYearStart[] = [];
   for (const guild of guildsInPlay(world)) {
-    const disposition = dispositionOf(guild);
-    if (disposition !== null) rivals.push({ disposition, heroes: guild.rosterIds.length, wealth: guild.wealth });
     const counts = census[guild.controller.kind];
     counts.guilds += 1;
     counts.wealth += guild.wealth;
@@ -1899,25 +1868,30 @@ export function takeCensus(observations: GameObservations, world: World, deps: E
       if (hasStatAtPotential(hero, deps.content)) counts.atPotential += 1;
     }
   }
-  observations.rosters.push(census);
-  observations.rivals.push(rivals);
-  observations.rankings.push(playerRanking(world));
+  return census;
+}
+
+/** Each Rival in play in `world`, in Guild order: its Disposition, its Roster's size and its Wealth (M6, DL-69). */
+export function rivalsInPlay(world: World): RivalAtYearStart[] {
+  const rivals: RivalAtYearStart[] = [];
+  for (const guild of guildsInPlay(world)) {
+    const disposition = dispositionOf(guild);
+    if (disposition !== null) rivals.push({ disposition, heroes: guild.rosterIds.length, wealth: guild.wealth });
+  }
+  return rivals;
 }
 
 /**
- * Reads `world` as it stands on its Turn before the policy acts: on a morning, the Fame gate, the
- * pool Heroes who would refuse each Guild in play (DL-38 item 9); on the first Turn of a year, the
- * Rosters (`takeCensus`). Adds to `observations`.
+ * Adds to `gate`, on a morning, the Fame gate: the pool Heroes who would refuse each Guild in play
+ * (DL-38 item 9), read from `world` as it stands before the policy acts; nothing on any other Turn.
  */
-export function observe(observations: GameObservations, world: World, deps: EngineDeps): void {
-  if (timeOfDay(world.turn) === 'morning') {
-    for (const guild of guildsInPlay(world)) {
-      const refusing = unsignableHeroes(world, guild, deps.config).length;
-      const gate = observations.fameGate[guild.controller.kind];
-      gate.heroDays += refusing;
-      gate.guildDays += 1;
-      if (refusing > 0) gate.guildDaysWithAny += 1;
-    }
+export function observeFameGate(gate: Record<ControllerKind, FameGate>, world: World, deps: EngineDeps): void {
+  if (timeOfDay(world.turn) !== 'morning') return;
+  for (const guild of guildsInPlay(world)) {
+    const refusing = unsignableHeroes(world, guild, deps.config).length;
+    const tally = gate[guild.controller.kind];
+    tally.heroDays += refusing;
+    tally.guildDays += 1;
+    if (refusing > 0) tally.guildDaysWithAny += 1;
   }
-  takeCensus(observations, world, deps);
 }

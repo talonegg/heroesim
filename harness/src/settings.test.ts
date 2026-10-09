@@ -69,10 +69,17 @@ describe('the milestone run', () => {
 });
 
 describe('the profiles', () => {
-  test('gate is 50 games of 20 years in 8 processes, and neutral 10 (DL-186 items 13 and 30), the play sweep alone', () => {
+  test('gate is 50 games of 20 years in 8 processes, and neutral 10 in a process each (DL-186 items 13 and 30, DL-231 Q13), the play sweep alone', () => {
     expect(profileNames).toEqual(['gate', 'neutral']);
     expect(settingsOf('milestone', { HEROESIM_PROFILE: 'gate', HEROESIM_MILESTONE: 'v1.1.6-s3' })).toMatchObject({ profile: 'gate', games: 50, years: 20, workers: 8, replay: true, validate: false });
-    expect(settingsOf('milestone', { HEROESIM_PROFILE: ' Neutral ' })).toMatchObject({ profile: 'neutral', games: 10, years: 20, workers: 8 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: ' Neutral ' })).toMatchObject({ profile: 'neutral', games: 10, years: 20, workers: 10 });
+  });
+
+  test('neutral plays as many processes as its seeds, however many it is given, unless HEROESIM_WORKERS says otherwise (DL-231 Q13)', () => {
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '4', HEROESIM_YEARS: '2' })).toMatchObject({ games: 4, workers: 4 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '12' })).toMatchObject({ games: 12, workers: 12 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_WORKERS: '8' })).toMatchObject({ games: 10, workers: 8 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'gate', HEROESIM_SEEDS: '12' })).toMatchObject({ games: 12, workers: 8 });
   });
 
   test('a variable set overrides its profile', () => {

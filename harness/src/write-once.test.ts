@@ -37,21 +37,25 @@ describe('the write-once rows (ADR-0011)', () => {
           const rival = Object.values(document.world.guilds).find((guild) => guild.controller.kind === 'rival');
           if (rival !== undefined) rival.wealth = -1_000_000;
         },
-        afterAdvance: (before, after) => {
-          // Every row written once in the world `advance` was given is frozen, and the same row in the world it gave.
-          for (const { table, id, row } of writeOnceRows(before.world)) {
-            expect(Object.isFrozen(row)).toBe(true);
-            const now = (after.world[table] as Record<string, object>)[id];
-            if (now !== undefined) expect(now).toBe(row);
-            shared[table] += 1;
-          }
-          // And the copy is the one structuredClone makes, to the save's text, every 50th Turn.
-          if (after.world.turn % 50 === 0) {
-            const { meta, history } = after;
-            expect(serialise({ meta, world: copyWorld(after.world), history })).toBe(serialise({ meta, world: structuredClone(after.world), history }));
-            copiesChecked += 1;
-          }
-        },
+        observers: [
+          {
+            advanced: ({ before, after }) => {
+              // Every row written once in the world `advance` was given is frozen, and the same row in the world it gave.
+              for (const { table, id, row } of writeOnceRows(before.world)) {
+                expect(Object.isFrozen(row)).toBe(true);
+                const now = (after.world[table] as Record<string, object>)[id];
+                if (now !== undefined) expect(now).toBe(row);
+                shared[table] += 1;
+              }
+              // And the copy is the one structuredClone makes, to the save's text, every 50th Turn.
+              if (after.world.turn % 50 === 0) {
+                const { meta, history } = after;
+                expect(serialise({ meta, world: copyWorld(after.world), history })).toBe(serialise({ meta, world: structuredClone(after.world), history }));
+                copiesChecked += 1;
+              }
+            },
+          },
+        ],
       });
       expect(game.refusals).toEqual([]);
       expect(game.invalid).toBeNull();

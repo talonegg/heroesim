@@ -567,3 +567,69 @@ Verified 2026-10-10 at 2ff2a7a: every rule refuses before it writes (no id, draw
 before its last refusal), the Rival phase and the neutral's counters are as before, the save's
 bytes and refusals are the old ones, and the count matches the walk; added a test of each rule's
 late refusals, which the existing tests missed, and one of the profile's `applyAction` part.
+
+## DL-239 — v1.1.9-S6 built: the harness's counters declared once, and play observed
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner (DL-231 Q13, DL-232, the
+epic's S6); the declaration's shape, the kinds and the moments by the agent
+
+**Context.** The architecture review's #7 and #10 (the epic's §5.1). A counter was written in up to
+six places in `sweep.ts` (1,889 lines) and `counters.ts`: its reading, its observation, its zero, its
+fold, its report lines, and `notCore` or `isMeasure`. The play loop took its observations through one
+`observe` call and an `afterAdvance` hook. The last year's save was gzipped on the game's thread
+while the game's document was still held.
+
+**Decision.**
+
+1. **One declaration a counter** (`Counter`, `harness/src/counter.ts`). Each declares its key; its
+   kind; how a game gives it (`read` from the History once the game stops, or `observe`, a new
+   observer a game); its zero and fold (`sum`, `greatest`, `joined`, or one a field), or its
+   `total` or `of` the games; and its Summary rows and its section's lines. The core's 62 are
+   `gameCounters` (`game-counters.ts`). `sweepTotals` folds them and `playReport`
+   (`play-report.ts`) renders them, reading nothing else; a key no counter declares is refused.
+2. **The kinds:** `play`, `measure` (the save's sizes, DL-205), `timing` (the World State's copy,
+   DL-203) and `module` (DL-78). `compare` lists measures apart and leaves out timings and modules';
+   the module report's core is play and measure. `notCore` and `isMeasure` are gone.
+3. **The play loop's moments,** told to a list of observers in play order: `created`,
+   `beforeChoices`, `actionApplied`, `advanced` (with the History's length before it),
+   `yearEnded` (the World State walked once however many ask, DL-238) and `ended`. Each observed
+   counter's state lives in its observer; the loop's own sight (a Quest's difficulty, the
+   afternoons) is one more (`seenInPlay`). The replay passes none. The Succession probe is an
+   observer. `sweep.ts` (203 lines) keeps running and replay.
+4. **The end of a game.** The game's document is out of reach before its save is loaded back, and
+   the last year's save is gzipped with `zlib.gzip`, in its thread pool, while the load runs.
+5. **`neutral`'s workers** are its seeds (Q13 a); `HEROESIM_WORKERS` still overrides. Rule 6 of
+   `docs/agents/delivery.md` says so; the `gate` keeps 8 and its replay alone (DL-189).
+6. The policy's memo (a Quest's choice kept when none of its Party was sent) is the Best Party
+   module's reuse (DL-237): verified, nothing added.
+
+*Judgement calls, for the owner to see:*
+- **A fourth kind, `timing`,** so the copy's times stay out of `compare` and the module report, as
+  `notCore` kept them.
+- A game's record keeps two lists, `counters` (read) and `observations` (observed), as before, so
+  the record's JSON and the fold's tests keep their shape.
+- The census counters (Rosters, Rivals, Rankings, the Regard) are taken as the world is created and
+  as each year ends, not on a year's first morning and at the end: the same Turns.
+- **The totals' keys now follow the report's order:** a run's JSON lists them so, and the module
+  report's rows follow it. `compare` reads by key and is unchanged.
+- The Gate still reads its counters by key.
+- `countGame` stays, as the declarations' readings, for the tests and the sample.
+- Tests that called `observe`, `takeCensus`, `afterAdvance` or the sweep at once moved to the
+  observers and `await`, keeping their assertions: `counters`, `play`, `sweep`, `gate`,
+  `run-report`, `module-report`, `modules`, `calibrate`, `write-once`, `play.harness`,
+  `modules.harness`. The settings test that pinned `neutral` at 10 workers now pins it at its
+  seeds.
+- `counter.test.ts` was written with the code, not before it; it was shown red by two mutations
+  (a recorded game gathering only the core's counters: 5 of 7 fail; every fold a sum: 3 of 7).
+- Source lines citing a story fell from 1,788 to 1,747, comments in the old `sweep.ts` rewritten;
+  `tools/decisions/story-citations.json` is not yet lowered (the agent was refused the edit).
+
+**Consequences.** The neutral run took 215.1 s in 10 processes, from S5's 237.1 s in 8 and the
+baseline's 413.9 s. Its shards peaked at 1,106 to 1,686 MB each, one game a process (the baseline's
+1,072 to 1,426 MB, one or two games in each of 8). A counter is added by one declaration.
+
+**Evidence.** `harness/src/counter.test.ts`; the moments' and gzip's tests in `play.test.ts`; the
+workers' in `settings.test.ts`. `neutral --expect` identical, alone:
+`harness/reports/v1.1.9-s6-neutral-2026-10-10.md`; `compare` with S5's: 0 moved, 505 the same, and
+the Markdown the same but its timings. DL-176's "stale Parties kept" mutation fails 8 of
+`policy.test.ts`'s 32 against S4's module. The epic's S6 boxes.

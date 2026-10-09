@@ -17,7 +17,7 @@ const spec = readGateSpec();
 const mebibyte = 1024 * 1024;
 
 /** Two short games' report, as a run of the spec's shape: 2 games of 1 year, its saves after the year given. */
-const sweep = sweepPlay(seedNames(2), deps, { years: 60 / deps.config.turnsPerYear });
+const sweep = await sweepPlay(seedNames(2), deps, { years: 60 / deps.config.turnsPerYear });
 const played = runReport(sweep, { milestone: 'm9-gate-test', startedAt: new Date(2026, 9, 5), machine: machine(), config: deps.config, content });
 const shaped: GateSpec = { ...spec, run: { ...spec.run, games: 2, years: 1 }, lines: { ...spec.lines, copyShare: { ...spec.lines.copyShare, baselineShare: 0.2 } } };
 

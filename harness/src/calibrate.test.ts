@@ -87,7 +87,7 @@ describe('loadDrafts', () => {
 // Three games of forty Days, one through a shard: three seconds alone, more than the default 5 s under
 // the whole suite's load (DL-164).
 describe('a play shard with drafts (HEROESIM_DRAFTS)', { timeout: 60_000 }, () => {
-  test('plays the content with the drafts its job names, as this process plays it, and otherwise the core', () => {
+  test('plays the content with the drafts its job names, as this process plays it, and otherwise the core', async () => {
     const years = 120 / deps.config.turnsPerYear;
     const job = { seeds: ['seed-0001'], config: deps.config, years, validate: false, policy: defaultPolicyConfig };
     // Drafts that differ from the core, which holds S9's since v1.1.4-S10: every Check twice as hard.
@@ -95,10 +95,10 @@ describe('a play shard with drafts (HEROESIM_DRAFTS)', { timeout: 60_000 }, () =
     const encounters = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<string, { checks: { difficultyFactor: number }[] }>;
     for (const encounter of Object.values(encounters)) for (const check of encounter.checks) check.difficultyFactor *= 2;
     writeFileSync(join(dir, 'encounters.json'), JSON.stringify(encounters), 'utf8');
-    const drafted = runShard({ ...job, drafts: dir });
-    const here = recordGame('seed-0001', { config: deps.config, content: loadDrafts(dir).content }, { years });
+    const drafted = await runShard({ ...job, drafts: dir });
+    const here = await recordGame('seed-0001', { config: deps.config, content: loadDrafts(dir).content }, { years });
     expect(drafted.games[0]?.measures.fingerprint).toBe(here.record.measures.fingerprint);
-    expect(runShard(job).games[0]?.measures.fingerprint).not.toBe(here.record.measures.fingerprint);
+    expect((await runShard(job)).games[0]?.measures.fingerprint).not.toBe(here.record.measures.fingerprint);
   });
 });
 

@@ -5,7 +5,9 @@ import { describe, expect, test } from 'vitest';
 import { coreCounters, counterDeltas, moduleReport, nightsPlayed } from './module-report.js';
 import { fixed, machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { sweepFingerprint, sweepPlay, sweepTotals, type SweepTotals } from './sweep.js';
+import { sweepTotals } from './counter.js';
+import type { SweepTotals } from './game-counters.js';
+import { sweepFingerprint, sweepPlay } from './sweep.js';
 
 // M8-S3 (DL-78): the report of a module run, on two short sweeps of the same seeds.
 
@@ -61,9 +63,10 @@ test('nightsPlayed counts the nights among Turns 1 to n, Turn 2 the first', () =
   expect([0, 1, 2, 3, 4, 5, 6, 60].map(nightsPlayed)).toEqual([0, 0, 1, 1, 1, 2, 2, 20]);
 });
 
+const installed = await sweepPlay(seeds, { ...deps, modules: [createProbe({ probeFireBelow: 1 })] }, { years, validate: true });
+const without = await sweepPlay(seeds, deps, { years, validate: true });
+
 describe('moduleReport', () => {
-  const installed = sweepPlay(seeds, { ...deps, modules: [createProbe({ probeFireBelow: 1 })] }, { years, validate: true });
-  const without = sweepPlay(seeds, deps, { years, validate: true });
   const context = { deps, moduleIds: ['probe'], machine: machine(), startedAt: new Date(2026, 8, 27, 12, 0, 0) };
   const report = moduleReport(installed, without, context);
 
@@ -103,8 +106,8 @@ describe('moduleReport', () => {
     expect(report).toContain('| Games the validator refused | 0 | 0 |');
   });
 
-  test('refuses two sweeps of different seeds', () => {
-    const other = sweepPlay(seedNames(1), deps, { years });
+  test('refuses two sweeps of different seeds', async () => {
+    const other = await sweepPlay(seedNames(1), deps, { years });
 
     expect(() => moduleReport(installed, other, context)).toThrow(RangeError);
   });

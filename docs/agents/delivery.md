@@ -43,12 +43,12 @@ name its path, or use `rg -u`.
    is fine.
 5. **Saves** need no backward compatibility until the owner says otherwise: no migrations, no
    loading tests of old saves. `schemaVersion` is raised only when the document's shape changes.
-6. **Sweeps** (`npm run harness -- …`) run one at a time, alone, nothing else running, with
-   `HEROESIM_WORKERS=8`.
+6. **Sweeps** (`npm run harness -- …`) run one at a time, alone, nothing else running.
+   - A `gate`, and every sweep but a `neutral`, runs with `HEROESIM_WORKERS=8`.
+   - A `neutral` runs with no `HEROESIM_WORKERS`: its profile plays one process a seed (DL-231 Q13).
    - Run each in the background and wait for its completion notice; never poll in a loop.
-   - A `neutral` run takes about 7 minutes, and a full `gate` about 25.
-   - The quick check is
-     `HEROESIM_WORKERS=8 HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- neutral <name>`.
+   - A `neutral` run takes about 4 minutes, and a full `gate` about 25.
+   - The quick check is `HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- neutral <name>`.
    - A report is committed, with `git add -f`, only where the story says so.
 7. **A permission denied is not laundered:** never get the same effect another way. Stop and
    report it.

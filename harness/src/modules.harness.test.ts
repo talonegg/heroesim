@@ -6,7 +6,8 @@ import { modulesFor } from './modules.js';
 import { machine, print, reportPath, writeReport } from './report.js';
 import { seedNames } from './seeds.js';
 import { runSettings } from './settings.js';
-import { sweepFingerprint, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { sweepTotals } from './counter.js';
+import { sweepFingerprint, sweepPlayInParallel, type PlaySweep } from './sweep.js';
 
 // M8-S3's module run (DL-78), collected only by the harness-run project and run only when
 // HEROESIM_MODULES names modules (`HEROESIM_MODULES=probe npm run harness`), in place of the

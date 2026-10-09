@@ -8,7 +8,8 @@ import { machine, print, reportPath, writeReport } from './report.js';
 import { addCommand, jsonPathOf, runReport, writeRunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
 import { runSettings, settingsSet } from './settings.js';
-import { playReport, sweepPlayInParallel } from './sweep.js';
+import { playReport } from './play-report.js';
+import { sweepPlayInParallel } from './sweep.js';
 
 // The milestone's harness run (M2-S12, DL-34; M3's counters, DL-40; M4's, DL-55; M5's, DL-62;
 // M6's, DL-69; M8's, the first build's tagged run with HEROESIM_SEEDS=1000, DL-81), collected only

@@ -11,14 +11,15 @@ import { coreCounters } from './module-report.js';
 import { machine, whole } from './report.js';
 import { addCommand, compareRuns, jsonPathOf, parseRunReport, readRunReport, runReport, runReportJson, writeRunReport, type RunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
-import { sweepFingerprint, sweepPlay, sweepTotals, type PlaySweep } from './sweep.js';
+import { sweepTotals } from './counter.js';
+import { sweepFingerprint, sweepPlay, type PlaySweep } from './sweep.js';
 
 // v1.1.6-S2 (DL-186 item 13): a play sweep's JSON report beside its Markdown, and two runs compared.
 
 const content = loadContent();
 const deps: EngineDeps = { config: { ...defaultConfig }, content };
 const years = 60 / deps.config.turnsPerYear;
-const sweep = sweepPlay(seedNames(2), deps, { years, validate: true });
+const sweep = await sweepPlay(seedNames(2), deps, { years, validate: true });
 const context = { milestone: 'm9-v116-s2', profile: 'neutral' as const, startedAt: new Date(2026, 9, 5, 12), settings: ['HEROESIM_SEEDS=2'], machine: machine(), config: deps.config, content };
 const report = runReport(sweep, context);
 

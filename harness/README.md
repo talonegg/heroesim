@@ -11,7 +11,7 @@ when `HEROESIM_HARNESS` is set, so `npm test` never plays it. `npm run harness` 
 | --- | --- |
 | `npm run harness` | The default runs: 1,000 worlds created, then 200 games of 20 years played (INPUTS 4.13) |
 | `npm run harness -- gate <name>` | A release's Gate: 50 games of 20 years in 8 processes, the replay played once, alone, and compared with its shard's record, checked against `harness/gate.json` |
-| `npm run harness -- neutral <name> --expect <fingerprint>` | A play-neutral story's proof: 10 games of 20 years in 8 processes, about 7 minutes, its fingerprint checked against the one given (DL-186 item 30) |
+| `npm run harness -- neutral <name> --expect <fingerprint>` | A play-neutral story's proof: 10 games of 20 years, one process a game (DL-231 Q13), its fingerprint checked against the one given (DL-186 item 30) |
 | `npm run harness -- succession` | The Succession probe: 50 games of 12 years, the first Rival's Guildmaster at 50 (M9-F1) |
 | `npm run harness -- estimate` | The estimate probe: 200 Parties and Quests, each resolved 20,000 times (v1.1.4-S5) |
 | `npm run harness -- calibrate` | The calibration of the content, or of drafts (v1.1.4-S9): `docs/quests/calibration.md`, kept, and `calibration.json`, generated and ignored, which `npm run quest-review` reads; v1.1.4's is an asset of its GitHub Release (DL-218) |
@@ -71,6 +71,21 @@ previous one leaves the tree (`docs/agents/documentation.md`). Those v1.1.8's cl
 v1.1.6 baselines among them, are read from git at `efa515b` (DL-229). The 84 committed before 2026-10-08 that nothing live cited are
 read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists them, and
 `git show b6d455c:harness/reports/<name>` prints one.
+
+## Counters
+
+Each counter a play sweep reports is declared once, in `src/game-counters.ts` (DL-239): how a game
+gives it, read from its History once it stops or gathered by an observer of the play loop as it is
+played; where its total starts and how each game folds into it (summed, the greatest, or joined); its
+kind; and its rows and lines in the report. The totals (`sweepTotals`, `src/counter.ts`) and the
+report (`src/play-report.ts`) read nothing else, so a new counter is one declaration. Its kind decides
+how two runs compare: `compare` lists the play counters that moved and, apart, the measures (the
+save's sizes, DL-205), and leaves out the timings (the World State's copy) and the modules' own
+counters, which the module report states apart.
+
+The play loop (`src/play.ts`) tells its observers each moment of a game: the world created, each Turn
+before the policy chooses, each action applied, each `advance`, each year's end, and the game's end.
+The replay plays with none.
 
 ## The Gate
 
