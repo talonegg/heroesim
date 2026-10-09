@@ -28,6 +28,7 @@ links are re-pointed to where their files now are.
 | [v1.1.5](v1.1.5-release.md) | `v1.1.5` | DL-168 to DL-185 |  |
 | [v1.1.6](v1.1.6-release.md) | `v1.1.6` | DL-186 to DL-205 |  |
 | [v1.1.7](v1.1.7-release.md) | `v1.1.7` | DL-206 to DL-214 |  |
+| [v1.1.8](v1.1.8-release.md) | `v1.1.8` | DL-215 to DL-230 | The documentation slimmed |
 | [Inputs required from the owner](INPUTS-REQUIRED.md) | the first build's inputs | DL-82 to DL-90 | Frozen at `m8-modules`; code cites its rows as `INPUTS n.m`. Its §9 is now [`docs/environment.md`](../../environment.md), its §8 is `plan.md` §3's Random Events item, and row 7.8's addresses are in [`docs/deploy.md`](../../deploy.md) (DL-217) |
 | [The first build's plan](first-build-plan.md) | `v1.0.0` | DL-01 to DL-10 | `plan.md`'s §1, milestones, increments and §5, moved here when the plan was cut to the delivery of releases (DL-220) |
 | [The web UI review](web-ui-review-2026-09-29.md) | built by M9 | DL-99 | Moved from `docs/`; its findings decided in DL-99 |

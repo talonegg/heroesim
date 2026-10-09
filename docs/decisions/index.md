@@ -224,22 +224,22 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-212 | 2026-10-06 | v1.1.7-S6 built: Class icons; the owner's five rounds of drawings approved, an optional `icon` on a … |  | [DL-206-214-v1.1.7](archive/DL-206-214-v1.1.7.md) |
 | DL-213 | 2026-10-07 | v1.1.7-S7 built: one filter element for the page, several choices to a filter, "All" when none and … |  | [DL-206-214-v1.1.7](archive/DL-206-214-v1.1.7.md) |
 | DL-214 | 2026-10-07 | v1.1.7-S8, the close: the close review's findings fixed: a Hero's leaving the pool decided over the … |  | [DL-206-214-v1.1.7](archive/DL-206-214-v1.1.7.md) |
-| DL-215 | 2026-10-08 | The decision log archived by release, superseded items set apart, and an index made from its … |  | [decision-log](../decision-log.md) |
-| DL-216 | 2026-10-08 | The closed epics archived, and `plan.md` §2 the one release ledger | item 4 in part by DL-228 | [decision-log](../decision-log.md) |
-| DL-217 | 2026-10-08 | `INPUTS-REQUIRED.md` archived once its live parts moved out, and the README an entry page with the … |  | [decision-log](../decision-log.md) |
-| DL-218 | 2026-10-08 | A delivery guide in the repository; generated files and applied runs out of the tree; the … |  | [decision-log](../decision-log.md) |
-| DL-219 | 2026-10-08 | The lean entry held by a test; story ids out of the comments by a rule and a baseline; the Traits' … |  | [decision-log](../decision-log.md) |
-| DL-220 | 2026-10-08 | `plan.md` cut to the delivery of releases; the first build's plan archived | item 1 in part by DL-228 | [decision-log](../decision-log.md) |
-| DL-221 | 2026-10-08 | The delivery guide accepted; the archives out of a search; ADR-0009 and data-model §7 trimmed | item 2 in part by DL-222; item 3 by DL-222 | [decision-log](../decision-log.md) |
-| DL-222 | 2026-10-08 | ADR-0009 restated from every decision on streams, its old wording archived |  | [decision-log](../decision-log.md) |
-| DL-223 | 2026-10-08 | The owner's answers to Q3 and Q5: M9's table stays archived; the harness's reports pruned to those … |  | [decision-log](../decision-log.md) |
-| DL-224 | 2026-10-08 | The owner's answers to Q6: `origin/HEAD` on `main`, #34 closed, #33 corrected, the agent's memory … |  | [decision-log](../decision-log.md) |
-| DL-225 | 2026-10-09 | v1.1.8-S7 closed: CONTEXT.md's story ids replaced by their entries, and `neutral --expect` passing | item 2 in part by DL-229 | [decision-log](../decision-log.md) |
-| DL-226 | 2026-10-09 | v1.1.8-S8 closed: the close's review, its fourteen findings fixed, and the Gate met |  | [decision-log](../decision-log.md) |
-| DL-227 | 2026-10-09 | How to keep the documents lean, and how to archive, written as one guide |  | [decision-log](../decision-log.md) |
-| DL-228 | 2026-10-09 | Delivery tracked by release alone; Random Events the first module but not necessarily next |  | [decision-log](../decision-log.md) |
-| DL-229 | 2026-10-09 | One 50 × 20 baseline on v1.1.8, and the harness's reports cut to those cited live |  | [decision-log](../decision-log.md) |
-| DL-230 | 2026-10-09 | The engine's two twenty-year boxes out of `npm test`, into `npm run harness` |  | [decision-log](../decision-log.md) |
+| DL-215 | 2026-10-08 | The decision log archived by release, superseded items set apart, and an index made from its … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-216 | 2026-10-08 | The closed epics archived, and `plan.md` §2 the one release ledger | item 4 in part by DL-228 | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-217 | 2026-10-08 | `INPUTS-REQUIRED.md` archived once its live parts moved out, and the README an entry page with the … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-218 | 2026-10-08 | A delivery guide in the repository; generated files and applied runs out of the tree; the … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-219 | 2026-10-08 | The lean entry held by a test; story ids out of the comments by a rule and a baseline; the Traits' … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-220 | 2026-10-08 | `plan.md` cut to the delivery of releases; the first build's plan archived | item 1 in part by DL-228 | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-221 | 2026-10-08 | The delivery guide accepted; the archives out of a search; ADR-0009 and data-model §7 trimmed | item 2 in part by DL-222; item 3 by DL-222 | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-222 | 2026-10-08 | ADR-0009 restated from every decision on streams, its old wording archived |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-223 | 2026-10-08 | The owner's answers to Q3 and Q5: M9's table stays archived; the harness's reports pruned to those … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-224 | 2026-10-08 | The owner's answers to Q6: `origin/HEAD` on `main`, #34 closed, #33 corrected, the agent's memory … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-225 | 2026-10-09 | v1.1.8-S7 closed: CONTEXT.md's story ids replaced by their entries, and `neutral --expect` passing | item 2 in part by DL-229 | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-226 | 2026-10-09 | v1.1.8-S8 closed: the close's review, its fourteen findings fixed, and the Gate met |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-227 | 2026-10-09 | How to keep the documents lean, and how to archive, written as one guide |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-228 | 2026-10-09 | Delivery tracked by release alone; Random Events the first module but not necessarily next |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-229 | 2026-10-09 | One 50 × 20 baseline on v1.1.8, and the harness's reports cut to those cited live |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-230 | 2026-10-09 | The engine's two twenty-year boxes out of `npm test`, into `npm run harness` |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
 
 ## Pre-M0 review decisions
 
