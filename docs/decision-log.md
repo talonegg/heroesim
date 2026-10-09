@@ -1018,3 +1018,9 @@ what it writes. Source lines citing a story fell from 1,638 to 1,623, and the ba
 a failing test undoing it; a "Finish" cut off put back by the next call, then finished; a journal
 whose process number another holds; a file not put back; Ctrl+C; the shared lock).
 `content/src/write/version.test.ts`'s `raisedVersion` (2). The epic's S11 boxes.
+Verified 2026-10-10 at 3ff06c2: 156 command runs, JSON and text, the same under the old editor and
+the new, files and all, and every raise of either version byte for byte; of 24 mutations of the
+session, 22 go red at its tests for both adapters, four of them only with the tests added, and 2
+are equivalent under the lock; added three tests for each adapter (a "Finish" cut off at each step;
+a refused edit not held and "Finish" checking again; `discard`'s check), and a second "Finish" and
+`recover --force` to the lock's.

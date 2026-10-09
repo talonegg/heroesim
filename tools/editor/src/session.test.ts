@@ -6,7 +6,7 @@ import { describe, expect, test } from 'vitest';
 import { configFile, configPath, type ConfigEdit } from './config-kind.js';
 import { contentFiles, type Edit } from './content-files.js';
 import { Busy, journalPath, journalState, onSignals, writeAtomically } from './finish-journal.js';
-import { EditSession, type SessionAdapter } from './session.js';
+import { EditSession, pendingPath, Refused, type SessionAdapter } from './session.js';
 import { scratch, status } from './test-support.js';
 import { traitsKind } from './traits-kind.js';
 import type { TestResult, TestRunner } from './tests-run.js';
@@ -30,6 +30,10 @@ interface Trial {
   name: string;
   open(dir: string): EditSession<unknown, unknown>;
   edit: unknown;
+  /** An edit that applies but fails the kind's checks. */
+  failing: unknown;
+  /** Two edits, the second passing the kind's checks only with the first made. */
+  pair: [unknown, unknown];
   reason: string;
   /** The files "Finish" writes, as `git status` names them. */
   written: string[];
@@ -45,34 +49,58 @@ interface Trial {
   value(dir: string): unknown;
 }
 
-function trial<E, W>(name: string, adapter: SessionAdapter<E, W>, edit: E, rest: Omit<Trial, 'name' | 'open' | 'edit'>): Trial {
-  return { name, open: (dir) => new EditSession(dir, adapter) as EditSession<unknown, unknown>, edit, ...rest };
+function trial<E, W>(name: string, adapter: SessionAdapter<E, W>, edits: { edit: E; failing: E; pair: [E, E] }, rest: Omit<Trial, 'name' | 'open' | 'edit' | 'failing' | 'pair'>): Trial {
+  return { name, open: (dir) => new EditSession(dir, adapter) as EditSession<unknown, unknown>, ...edits, ...rest };
 }
 
 const readJson = <T>(file: string): T => JSON.parse(readFileSync(file, 'utf8')) as T;
 type Versioned = { version: number; changelog: string[] };
 
 const trials: Trial[] = [
-  trial<Edit, unknown>('the content files', contentFiles(traitsKind, traitsKind), { op: 'change', list: 'guildmaster', key: 'thrifty', fields: { cost: 3 } }, {
-    reason: '',
-    written: ['content/guildmaster-traits.json', 'content/version.json'],
-    changed: ['guildmaster-traits.json'],
-    wrote: 'guildmaster-traits.json',
-    versionName: 'content version',
-    version: (dir) => readContentVersion(dir),
-    logged: (dir) => readJson<Versioned>(path.join(dir, 'content', 'version.json')).changelog.at(-1),
-    value: (dir) => readJson<Record<string, { cost: number }>>(path.join(dir, 'content', 'guildmaster-traits.json')).thrifty?.cost,
-  }),
-  trial<ConfigEdit, unknown>('the config file', configFile, { setting: 'wagePerLevel', value: 25 }, {
-    reason: 'a trial',
-    written: ['engine/src/config.json'],
-    changed: ['wagePerLevel'],
-    wrote: 'engine/src/config.json',
-    versionName: 'config version',
-    version: (dir) => readJson<Versioned>(configPath(dir)).version,
-    logged: (dir) => readJson<Versioned>(configPath(dir)).changelog.at(-1),
-    value: (dir) => readJson<{ sections: { guilds: { wagePerLevel: number } } }>(configPath(dir)).sections.guilds.wagePerLevel,
-  }),
+  trial<Edit, unknown>(
+    'the content files',
+    contentFiles(traitsKind, traitsKind),
+    {
+      edit: { op: 'change', list: 'guildmaster', key: 'thrifty', fields: { cost: 3 } },
+      failing: { op: 'add', list: 'guildmaster', key: 'idle', row: { name: 'Idle', cost: 0, excludes: [], effects: [] } },
+      pair: [
+        { op: 'add', list: 'guildmaster', key: 'genial', row: { name: 'Genial', cost: 1, excludes: [], effects: [{ kind: 'guildMoraleShift', delta: 2 }] } },
+        { op: 'change', list: 'guildmaster', key: 'genial', fields: { cost: 2 } },
+      ],
+    },
+    {
+      reason: '',
+      written: ['content/guildmaster-traits.json', 'content/version.json'],
+      changed: ['guildmaster-traits.json'],
+      wrote: 'guildmaster-traits.json',
+      versionName: 'content version',
+      version: (dir) => readContentVersion(dir),
+      logged: (dir) => readJson<Versioned>(path.join(dir, 'content', 'version.json')).changelog.at(-1),
+      value: (dir) => readJson<Record<string, { cost: number }>>(path.join(dir, 'content', 'guildmaster-traits.json')).thrifty?.cost,
+    },
+  ),
+  trial<ConfigEdit, unknown>(
+    'the config file',
+    configFile,
+    {
+      edit: { setting: 'wagePerLevel', value: 25 },
+      failing: { setting: 'boardSize', value: -1 },
+      pair: [
+        { setting: 'rivalRosterMax', value: 12 },
+        { setting: 'rivalRosterMin', value: 10 },
+      ],
+    },
+    {
+      reason: 'a trial',
+      written: ['engine/src/config.json'],
+      changed: ['wagePerLevel'],
+      wrote: 'engine/src/config.json',
+      versionName: 'config version',
+      version: (dir) => readJson<Versioned>(configPath(dir)).version,
+      logged: (dir) => readJson<Versioned>(configPath(dir)).changelog.at(-1),
+      value: (dir) => readJson<{ sections: { guilds: { wagePerLevel: number } } }>(configPath(dir)).sections.guilds.wagePerLevel,
+    },
+  ),
 ];
 
 /** The edit held as pending, through the session. */
@@ -177,6 +205,75 @@ describe.each(trials)('the edit session over $name', (each) => {
     expect((await next.finish({ runTests: passing, reason: each.reason })).version).toEqual({ from: version, to: version + 1 });
   });
 
+  test('a "Finish" cut off at any step, after its journal or after any of its files is written, is put back by the next call', async () => {
+    const dir = scratch();
+    const before = bytesOf(dir, each.written);
+    hold(each.open(dir), each.edit);
+    // The journal and every file as "Finish" writes them, read while its tests run.
+    let cut: { journal: { files: Record<string, string | null> }; files: Map<string, Buffer> } | undefined;
+    await each
+      .open(dir)
+      .finish({
+        runTests: (root) => {
+          const journal = readJson<{ files: Record<string, string | null> }>(journalPath(root));
+          cut = { journal, files: new Map(Object.keys(journal.files).map((file) => [file, readFileSync(file)])) };
+          return failing(root, () => {});
+        },
+        reason: each.reason,
+      })
+      .catch(() => {});
+    if (cut === undefined) throw new Error('the tests never ran');
+    const order = Object.keys(cut.journal.files);
+    expect(order.map((file) => relative(dir, file)).sort()).toEqual(each.written);
+
+    for (let written = 0; written <= order.length; written++) {
+      // The disk as a kill leaves it: the journal, whose process is gone, and the first files
+      // written, in the order "Finish" writes them, the versioned file's raise last.
+      writeAtomically(journalPath(dir), JSON.stringify({ ...cut.journal, pid: gonePid }));
+      for (const file of order.slice(0, written)) writeFileSync(file, cut.files.get(file) ?? '');
+      expect(journalState(dir)).toBe('cut-off');
+
+      const next = each.open(dir);
+      expect(next.edits()).toEqual([each.edit]);
+      expect(next.recovered.map((file) => relative(dir, file)).sort()).toEqual(each.written);
+      expect(bytesOf(dir, each.written)).toEqual(before);
+      expect(status(dir)).toBe('');
+      expect(journalState(dir)).toBe('none');
+    }
+  });
+
+  test('an edit the checks refuse is not held; and "Finish" checks the pending edits again, refusing them before it writes a file or runs the tests', async () => {
+    const dir = scratch();
+    const session = each.open(dir);
+    expect(() => hold(session, each.failing)).toThrow(Refused);
+    expect(session.edits()).toEqual([]);
+    // Held by another hand, unchecked: an edit that applies and fails the checks.
+    writeAtomically(pendingPath(dir, session.adapter.name), JSON.stringify({ kind: session.adapter.name, edits: [each.failing] }));
+
+    const refused = await session.finish({ runTests: () => Promise.reject(new Error('no test run for edits refused')), reason: each.reason }).catch((error: unknown) => error);
+
+    expect(refused).toBeInstanceOf(Refused);
+    expect((refused as Refused).problems).toEqual(session.problems());
+    expect(session.problems()).not.toEqual([]);
+    expect(status(dir)).toBe('');
+    expect(journalState(dir)).toBe('none');
+    expect(session.edits()).toEqual([each.failing]);
+  });
+
+  test('discard refuses to leave edits that fail the checks, unless told not to check', () => {
+    const dir = scratch();
+    const session = each.open(dir);
+    const [first, second] = each.pair;
+    hold(session, first);
+    hold(session, second);
+    const isFirst = (edit: unknown): boolean => JSON.stringify(edit) === JSON.stringify(first);
+
+    expect(() => session.discard(isFirst)).toThrow(Refused);
+    expect(session.edits()).toEqual([first, second]);
+    expect(session.discard(isFirst, { check: false })).toEqual({ discarded: 1, left: 1 });
+    expect(session.edits()).toEqual([second]);
+  });
+
   test('a journal whose process number another process now holds reads as running: every call is refused as busy, and recover with force puts the files back', () => {
     const dir = scratch();
     const file = path.join(dir, each.written[0] ?? '');
@@ -247,26 +344,28 @@ describe.each(trials)('the edit session over $name', (each) => {
     expect(status(dir)).toBe('');
   });
 
-  test('while its "Finish" runs, every call of a session of either adapter is refused as busy', async () => {
+  test('while its "Finish" runs, every call of a session of either adapter is refused as busy, a second "Finish" and recover with force among them', async () => {
     const dir = scratch();
     hold(each.open(dir), each.edit);
     const refused: unknown[] = [];
     await each.open(dir).finish({
-      runTests: (root) => {
+      runTests: async (root) => {
         for (const other of trials) {
           const session = other.open(root);
-          for (const call of [() => session.edits(), () => session.recover(), () => session.problems(), () => session.discard()]) {
+          for (const call of [() => session.edits(), () => session.recover(), () => session.recover({ force: true }), () => session.problems(), () => session.discard()]) {
             try {
               call();
             } catch (error) {
               refused.push(error instanceof Busy);
             }
           }
+          refused.push(await session.finish({ runTests: passing, reason: other.reason }).then(() => false, (error: unknown) => error instanceof Busy));
         }
-        return passing(root, () => {});
+        return passed;
       },
       reason: each.reason,
     });
-    expect(refused).toEqual(new Array(8).fill(true));
+    expect(refused).toEqual(new Array(12).fill(true));
+    expect(status(dir)).not.toBe('');
   });
 });
