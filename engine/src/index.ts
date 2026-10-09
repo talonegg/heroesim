@@ -134,10 +134,9 @@ export {
 } from './config.js';
 export { checkConfig, playConfig, playDeps, type ConfigProblem, type ConfigRule, type UnsoundConfig } from './config-check.js';
 export * from './content-types.js';
+export { bestParties, type BestParties, type BestParty } from './best-party.js';
 export {
   availableHeroes,
-  bestParty,
-  type BestParty,
   type TransferAnswer,
   type TransferRefusalReason,
   type TransferSide,
@@ -308,7 +307,6 @@ export {
 export {
   chanceToReach,
   estimateQuest,
-  questEstimator,
   type CheckEstimate,
   type DegreeChances,
   type EncounterEstimate,

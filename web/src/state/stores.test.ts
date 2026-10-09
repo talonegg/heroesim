@@ -1,5 +1,6 @@
 // @vitest-environment node
 import {
+  bestParties,
   addStack,
   availableHeroes,
   holdings,
@@ -11,7 +12,7 @@ import {
   type HolderQuery,
   type WorldDocument,
 } from '@heroesim/engine';
-import { createItem, partyFor } from '@heroesim/engine/testing';
+import { createItem } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { changed, holding, played, started } from './game.test-support';
 import { playDeps, type GameState } from './reducer';
@@ -43,7 +44,7 @@ function stocked(): { state: GameState; away: HeroId; home: HeroId } {
   const guild = playerOf(document);
   const available = availableHeroes(document.world, guild);
   const sent = offeredQuests(document.world).flatMap((quest) => {
-    const heroIds = partyFor(document.world, guild, quest, available, playDeps(document));
+    const heroIds = bestParties(document.world, guild, playDeps(document)).party(quest, available)?.heroIds ?? null;
     return heroIds === null || heroIds.length === guild.rosterIds.length ? [] : [{ quest, heroIds }];
   })[0];
   if (sent === undefined) throw new Error('no Quest a part of the Roster can staff');

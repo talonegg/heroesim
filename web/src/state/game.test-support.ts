@@ -5,6 +5,7 @@
 // (v1.0.1-S5, DL-96). Never imported by the page, so never bundled.
 
 import {
+  bestParties,
   addStack,
   applyAction,
   availableHeroes,
@@ -44,7 +45,7 @@ import {
   type StatKey,
   type WorldDocument,
 } from '@heroesim/engine';
-import { append, createItem, makeId, partyFor } from '@heroesim/engine/testing';
+import { append, createItem, makeId } from '@heroesim/engine/testing';
 import { content } from '../content';
 import { gameReducer, initialGameState, playDeps, type GameState, type Play } from './reducer';
 
@@ -179,7 +180,7 @@ export function withRosterReleased(state: GameState, wealth = 1_000_000): GameSt
 /**
  * A Party of the player's out on the longest Quest on the Board the Roster can staff, sent by the
  * page's own dispatch: while it is out no decision is needed, so a fast forward stops when it
- * comes home (or for an offer, or at the end). The Party is `partyFor`'s at the player's margin of 1,
+ * comes home (or for an offer, or at the end). The Party is the Best Party at the player's margin of 1,
  * the fewest the Quest allows (v1.1.4-S6), so that Heroes stay at home to staff what comes next.
  */
 export function withPartyOut(state: GameState): GameState {
@@ -189,7 +190,7 @@ export function withPartyOut(state: GameState): GameState {
   const fewest = { ...deps, config: { ...deps.config, playerPartyMargin: 1 } };
   const [longest] = offeredQuests(document.world)
     .flatMap((quest) => {
-      const heroIds = partyFor(document.world, playerOf(document), quest, available, fewest);
+      const heroIds = bestParties(document.world, playerOf(document), fewest).party(quest, available)?.heroIds ?? null;
       return heroIds === null ? [] : [{ quest, heroIds }];
     })
     .sort((a, b) => durationDaysOf(b.quest) - durationDaysOf(a.quest));

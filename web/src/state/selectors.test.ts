@@ -4,6 +4,7 @@ import {
   advance,
   availableHeroes,
   bankruptcyCountdown,
+  bestParties,
   createWorld,
   dayOf,
   defaultConfig,
@@ -33,8 +34,8 @@ import {
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
-import { append, createItem, nightOf, partyFor } from '@heroesim/engine/testing';
-import { describe, expect, test } from 'vitest';
+import { append, createItem, nightOf } from '@heroesim/engine/testing';
+import { describe, expect, test, vi } from 'vitest';
 import { chanceWords, dateOfTurn, listed, shownPercent, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { partiesOutView } from './digest';
@@ -68,6 +69,19 @@ import {
 
 // The views' rows (M7-S3): every number is a document field or an engine selector's answer, read
 // here beside the selector that gives it, and no row carries a Hero's Potential.
+
+// The Best Party modules the page opens, each the engine's own, counted (DL-237).
+const opened = vi.hoisted(() => ({ modules: 0 }));
+vi.mock('@heroesim/engine', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@heroesim/engine')>();
+  return {
+    ...real,
+    bestParties: (...args: Parameters<typeof real.bestParties>): ReturnType<typeof real.bestParties> => {
+      opened.modules += 1;
+      return real.bestParties(...args);
+    },
+  };
+});
 
 const deps = { config: defaultConfig, content };
 const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' };
@@ -298,7 +312,7 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
   });
 
   // v1.1.4-S6 (DL-148 items 15 and 17): the Party the engine would send from the free Heroes, and its chance.
-  test("gives the best Party of the free Heroes, partyFor's, with its estimate's word, or none when no Party meets the requirements", () => {
+  test("gives the best Party of the free Heroes, the engine's Best Party, with its estimate's word, or none when no Party meets the requirements", () => {
     const document = board((quests, it) => {
       const [first, second] = quests as [Quest, Quest];
       first.requirements = { partySizeMin: 1, partySizeMax: 4 };
@@ -309,7 +323,7 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
     const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest);
     const guild = player(document);
     const available = availableHeroes(document.world, guild);
-    const heroIds = partyFor(document.world, guild, first as Quest, available, deps) ?? [];
+    const heroIds = bestParties(document.world, guild, deps).party(first as Quest, available)?.heroIds ?? [];
     const estimate = estimateQuest(document.world, first as Quest, heroIds.map((id) => document.world.heroes[id] as Hero), deps);
 
     const best = bestPartyView(document);
@@ -321,6 +335,22 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
     expect([...best.keys()]).toEqual(document.world.board);
     // v1.1.4-S6's verification: only the Board asks for it; the cards the digest and the stop read carry none.
     expect(Object.keys(boardView(document)[0] ?? {})).not.toContain('best');
+  });
+
+  // DL-237: the page's Best Party module lives as long as its document, keyed by the document's world.
+  test('opens one Best Party module a document, which every question of it shares, and a new one for the next document', () => {
+    const document = newGame('best-shared');
+    opened.modules = 0;
+    const first = bestPartyView(document);
+    expect([...first.values()].some((best) => best !== null)).toBe(true);
+    expect(bestPartyView(document)).toEqual(first);
+    expect(opened.modules).toBe(1);
+
+    const next = advance(document, deps).document;
+    const after = bestPartyView(next);
+    expect(opened.modules).toBe(2);
+    // What it names of the next document is what a module opened afresh names of it.
+    expect(after).toEqual(bestPartyView(structuredClone(next)));
   });
 
   test('a Quest whose Encounters are drawn on the way counts none, and its Skills are its own', () => {

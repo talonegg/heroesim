@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { dispatchRefusal } from './actions/dispatch.js';
 import { advance } from './advance.js';
-import { availableHeroes, partyFor, staffableQuests } from './controllers/rival.js';
+import { bestParties } from './best-party.js';
+import { availableHeroes, staffableQuests } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, GuildId, Hero, HeroId, Party, Quest, World, WorldDocument } from './document.js';
 import type { EngineEvent } from './events.js';
@@ -391,7 +392,7 @@ describe('stopsOfTurn', () => {
       const guild = player(document.world);
       const idle = guild.rosterIds.every((heroId) => document.world.heroes[heroId]?.partyId === null);
       const [quest] = idle && turn % 3 === 0 ? staffableQuests(document.world, guild, deps) : [];
-      const heroIds = quest === undefined ? null : partyFor(document.world, guild, quest, availableHeroes(document.world, guild), deps);
+      const heroIds = quest === undefined ? null : bestParties(document.world, guild, deps).party(quest, availableHeroes(document.world, guild))?.heroIds ?? null;
       if (quest !== undefined && heroIds !== null) {
         const sent = applyAction(document, { kind: 'dispatch', guildId, questId: quest.id, heroIds }, deps);
         if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);

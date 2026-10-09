@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance } from '../advance.js';
 import { questBands, type EngineDeps, type GameConfig, type QuestBand } from '../config.js';
 import type { ContentSet, Degree, LootTable } from '../content-types.js';
-import { availableHeroes, partyFor, staffableQuests } from '../controllers/rival.js';
+import { bestParties } from '../best-party.js';
+import { availableHeroes, staffableQuests } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, Party, Quest, WorldDocument } from '../document.js';
 import type { EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
@@ -371,7 +372,7 @@ function season(seed: string, regime: Regime, days: number, deps: EngineDeps): {
     const [quest] = offered;
     if (quest !== undefined && world.ended === null) {
       const available = availableHeroes(world, guild);
-      const party = partyFor(world, guild, quest, available, deps) ?? [];
+      const party = bestParties(world, guild, deps).party(quest, available)?.heroIds ?? [];
       const rest = available.map((hero) => hero.id).filter((id) => !party.includes(id));
       const heroIds = [...party, ...rest].slice(0, quest.requirements.partySizeMax);
       const result = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds }, deps);

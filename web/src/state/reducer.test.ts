@@ -1,6 +1,7 @@
 // @vitest-environment node
 import type * as Engine from '@heroesim/engine';
 import {
+  bestParties,
   advance,
   applyAction,
   availableHeroes,
@@ -25,7 +26,7 @@ import {
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
-import { makeId, partyFor } from '@heroesim/engine/testing';
+import { makeId } from '@heroesim/engine/testing';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
 import { changed, started as startedFrom, withPartyOut, withRosterReleased } from './game.test-support';
@@ -986,9 +987,9 @@ describe('the document is never mutated', () => {
         const { world } = documentOf(state);
         const available = availableHeroes(world, playerOf(state));
         const deps = playDeps(documentOf(state));
-        const quest = offeredQuests(world).find((each) => partyFor(world, playerOf(state), each, available, deps) !== null);
+        const quest = offeredQuests(world).find((each) => bestParties(world, playerOf(state), deps).party(each, available) !== null);
         if (quest === undefined) throw new Error('expected a Quest the Roster can staff');
-        const heroIds = partyFor(world, playerOf(state), quest, available, deps) ?? [];
+        const heroIds = bestParties(world, playerOf(state), deps).party(quest, available)?.heroIds ?? [];
         return { kind: 'dispatch', questId: quest.id, heroIds, consumables: [{ definitionKey: 'whetstone', quantity: 1 }] };
       },
       () => ({ kind: 'build', facility: 'infirmary' }),

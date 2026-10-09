@@ -1,5 +1,6 @@
 // @vitest-environment node
 import {
+  bestParties,
   advance,
   applyAction,
   availableHeroes,
@@ -19,7 +20,7 @@ import {
   type GuildId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { createProbe, makeId, partyFor } from '@heroesim/engine/testing';
+import { createProbe, makeId } from '@heroesim/engine/testing';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { nightOfDay, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
@@ -141,7 +142,7 @@ function playersMonth(document: WorldDocument, month: number): WorldDocument {
   const owner = guild();
   for (const quest of offeredQuests(next.world)) {
     if (owner === undefined) break;
-    const heroIds = partyFor(next.world, owner, quest, available, deps);
+    const heroIds = bestParties(next.world, owner, deps).party(quest, available)?.heroIds ?? null;
     if (heroIds === null) continue;
     next = tried(next, applyAction(next, { kind: 'dispatch', guildId, questId: quest.id, heroIds }, deps));
     break;

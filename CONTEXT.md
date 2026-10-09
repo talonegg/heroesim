@@ -432,10 +432,10 @@ falls", and the numbers stay in the detail (DL-148 item 15, DL-156, DL-157).
 _Avoid_: Odds (for the word), Rating, Difficulty
 
 **Best Party**:
-The Party the engine would send on a Quest from a Guild's free Heroes (`partyFor`): first those its
-Class and Skill requirements take, then whoever most raises the estimated chance of success up to
-its least Party size, then each Hero who raises it by more than the Guild's **Party margin**
-(DL-175), up to its greatest. A Rival sends it, at its Disposition's margin; the Board shows the
+The Party the engine would send on a Quest from a Guild's free Heroes (`bestParties`, DL-237):
+first those its Class and Skill requirements take, then whoever most raises the estimated chance of
+success up to its least Party size, then each Hero who raises it by more than the Guild's
+**Party margin** (DL-175), up to its greatest. A Rival sends it, at its Disposition's margin; the Board shows the
 player's, "Your best Party", at the configuration's `playerPartyMargin`, and the harness's policy
 sends that (DL-148 item 17, DL-157).
 _Avoid_: Strongest Party, Optimal Party, Recommended Party

@@ -28,7 +28,7 @@ import {
   descriptiveAttributes,
   durationDaysOf,
   gearSlotKeys,
-  bestParty,
+  bestParties,
   entriesFor,
   guildmasterOf,
   guildmasterTraitCost,
@@ -52,6 +52,7 @@ import {
   statsRead,
   timeOfDay,
   transferFee,
+  type BestParties,
   type ConsumableRequest,
   type ContentSet,
   type DescriptiveAttribute,
@@ -263,7 +264,7 @@ export interface EncounterView extends EncounterReading {
 }
 
 /**
- * The Party the engine would send from the player's free Heroes (`bestParty`, v1.1.4-S6), as the card
+ * The Party the engine would send from the player's free Heroes (the Best Party, v1.1.4-S6), as the card
  * gives it: its chance in a word and the Heroes' names; its chance `null` while the Quest's
  * Encounters are drawn on the way; or, when no Party of them meets the Quest's requirements, `null`.
  */
@@ -339,21 +340,37 @@ function questCards(document: WorldDocument): QuestCard[] {
 }
 
 /**
+ * The Best Party module of each world the page holds, opened for the player's Guild (DL-237): one a
+ * document, keyed by its world, which no play changes, since each action and each Turn makes a new
+ * document. So every question asked of one document shares what its module weighed, and the module
+ * goes when its document does. Never stored in the document (DL-232 item 3).
+ */
+const bestPartiesByWorld = new WeakMap<World, BestParties>();
+
+/** `document`'s Best Party module for `guild`, the player's, opened at its first question. */
+function bestPartiesOf(document: WorldDocument, guild: Guild): BestParties {
+  const known = bestPartiesByWorld.get(document.world);
+  if (known !== undefined) return known;
+  const opened = bestParties(document.world, guild, playDeps(document));
+  bestPartiesByWorld.set(document.world, opened);
+  return opened;
+}
+
+/**
  * "Your best Party" for each Quest on the Board, by Quest id in the Board's order (v1.1.4-S6): the
- * engine's `bestParty` from the player's free Heroes, its chance the estimate the rule chose it by.
- * The Board's alone, since it estimates many Parties of each Quest: `boardView`'s cards, which the
- * digest and the stop read too, carry none (v1.1.4-S6's verification, DL-157).
+ * engine's Best Party from the player's free Heroes (`bestPartiesOf`), its chance the estimate the
+ * rule chose it by. The Board's alone, since it estimates many Parties of each Quest: `boardView`'s
+ * cards, which the digest and the stop read too, carry none (v1.1.4-S6's verification, DL-157).
  */
 export function bestPartyView(document: WorldDocument): ReadonlyMap<QuestId, BestPartyView> {
   const { world } = document;
   const guild = playerGuild(world);
-  const deps = playDeps(document);
   const available = guild === undefined ? [] : availableHeroes(world, guild);
   return new Map(
     world.board.flatMap((questId): [QuestId, BestPartyView][] => {
       const quest = rowOf(world.quests, questId);
       if (quest === undefined) return [];
-      const best = guild === undefined ? null : bestParty(world, guild, quest, available, deps);
+      const best = guild === undefined ? null : bestPartiesOf(document, guild).party(quest, available);
       if (best === null) return [[questId, null]];
       const names = listed(best.heroIds.flatMap((id) => rowOf(world.heroes, id)?.name ?? []));
       return [[questId, { chance: best.estimate === null ? null : chanceWords[best.estimate.chance], names }]];

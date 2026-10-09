@@ -4,6 +4,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  bestParties,
   addStack,
   advance,
   ageOf,
@@ -34,7 +35,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { count, makeId, nightOf, partyFor, potentialHints } from '@heroesim/engine/testing';
+import { count, makeId, nightOf, potentialHints } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { chanceWords, shownPercent, queryWords } from '@heroesim/words';
 import { beforeEach, describe, expect, test } from 'vitest';
@@ -474,7 +475,7 @@ describe('show', () => {
       });
       const block = lines.slice(at + 1, at + 1 + expected.length + 1);
       expect(block.slice(0, -1), id).toEqual(expected);
-      const heroIds = partyFor(world, guild, quest, availableHeroes(world, guild), deps);
+      const heroIds = bestParties(world, guild, deps).party(quest, availableHeroes(world, guild))?.heroIds ?? null;
       const best = block.at(-1) ?? '';
       if (heroIds === null) {
         expect(best).toBe('  No Party of your free Heroes meets its requirements.');

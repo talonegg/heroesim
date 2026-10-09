@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
-import { partyFor, staffableQuests } from './controllers/rival.js';
+import { bestParties } from './best-party.js';
+import { staffableQuests } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, Hero, Party, Quest, WorldDocument } from './document.js';
 import type { EngineEvent, TurnEvent } from './events.js';
@@ -127,7 +128,7 @@ describe('fastForward: a decision needed (always on)', () => {
     for (const questId of questIds) {
       expect(newToday.has(questId), questId).toBe(true);
       const quest = after.world.quests[questId] as Quest;
-      const heroIds = partyFor(after.world, player(after), quest, player(after).rosterIds.map((id) => after.world.heroes[id]!), deps);
+      const heroIds = bestParties(after.world, player(after), deps).party(quest, player(after).rosterIds.map((id) => after.world.heroes[id]!))?.heroIds ?? null;
       expect(heroIds, questId).not.toBeNull();
       expect(applyAction(after, { kind: 'dispatch', guildId, questId, heroIds: heroIds ?? [] }, deps).ok, questId).toBe(true);
     }
@@ -157,7 +158,7 @@ describe('fastForward: a decision needed (always on)', () => {
     const quest = pairs.sort((a, b) => b.durationTurns - a.durationTurns)[0];
     if (quest === undefined) throw new Error('No long Quest a pair can take');
     const available = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
-    const going = partyFor(document.world, guild, { ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available, deps);
+    const going = bestParties(document.world, guild, deps).party({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available)?.heroIds ?? null;
     if (going === null) throw new Error('No pair for the Quest');
     const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: going }, deps);
     if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
@@ -246,7 +247,7 @@ describe('fastForward: a Quest the free Heroes can staff (opt-in, M9-S1)', () =>
     const quest = pairs.sort((a, b) => b.durationTurns - a.durationTurns)[0];
     if (quest === undefined) throw new Error('No long Quest a pair can take');
     const available = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
-    const going = partyFor(document.world, guild, { ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available, deps);
+    const going = bestParties(document.world, guild, deps).party({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available)?.heroIds ?? null;
     if (going === null) throw new Error('No pair for the Quest');
     const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: going }, deps);
     if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
@@ -273,7 +274,7 @@ describe('fastForward: a Quest the free Heroes can staff (opt-in, M9-S1)', () =>
     expect(result.stoppedBecause.questIds.length).toBeGreaterThan(0);
     for (const questId of result.stoppedBecause.questIds) {
       expect(newToday.has(questId), questId).toBe(true);
-      const heroIds = partyFor(after.world, player(after), after.world.quests[questId] as Quest, home, deps);
+      const heroIds = bestParties(after.world, player(after), deps).party(after.world.quests[questId] as Quest, home)?.heroIds ?? null;
       expect(heroIds, questId).not.toBeNull();
       expect(applyAction(after, { kind: 'dispatch', guildId, questId, heroIds: heroIds ?? [] }, deps).ok, questId).toBe(true);
     }

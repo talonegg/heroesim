@@ -4,7 +4,7 @@ import {
   advance,
   applyAction,
   availableHeroes,
-  bestParty,
+  bestParties,
   compareByCodeUnit,
   createWorld,
   defaultConfig,
@@ -24,12 +24,12 @@ import {
   type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
-import { makeId, marketHolder, partyFor } from '@heroesim/engine/testing';
+import { makeId, marketHolder } from '@heroesim/engine/testing';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { harnessSetup } from './creation.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 
-// The chance the policy reads of a Quest's Party, `bestParty`'s estimate, set by a test when it
+// The chance the policy reads of a Quest's Party, the Best Party's estimate, set by a test when it
 // sets `chances.of` (v1.1.5-S2): the Party is still the engine's, and only its chance of success is
 // answered, from the Quest and the Party, as the estimate's is. Unset, or answering `undefined`, it is
 // the real estimate, as in every other test.
@@ -38,10 +38,16 @@ vi.mock('@heroesim/engine', async (importOriginal) => {
   const real = await importOriginal<typeof import('@heroesim/engine')>();
   return {
     ...real,
-    bestParty: (...args: Parameters<typeof real.bestParty>): ReturnType<typeof real.bestParty> => {
-      const found = real.bestParty(...args);
-      const success = found === null || found.estimate === null ? undefined : chances.of?.(args[2], found.heroIds);
-      return found === null || found.estimate === null || success === undefined ? found : { ...found, estimate: { ...found.estimate, success } };
+    bestParties: (...args: Parameters<typeof real.bestParties>): ReturnType<typeof real.bestParties> => {
+      const opened = real.bestParties(...args);
+      return {
+        ...opened,
+        party: (quest, heroes) => {
+          const found = opened.party(quest, heroes);
+          const success = found === null || found.estimate === null ? undefined : chances.of?.(quest as Quest, found.heroIds);
+          return found === null || found.estimate === null || success === undefined ? found : { ...found, estimate: { ...found.estimate, success } };
+        },
+      };
     },
   };
 });
@@ -77,7 +83,7 @@ function openBoard(quests: Quest[], min = 2): void {
   });
 }
 
-/** The player's margin at 1 (v1.1.4-S6): `partyFor` sends the fewest Heroes each Quest allows, so four Heroes make two Parties. */
+/** The player's margin at 1 (v1.1.4-S6): the Best Party is the fewest Heroes each Quest allows, so four Heroes make two Parties. */
 const fewest: EngineDeps = { ...deps, config: { ...deps.config, playerPartyMargin: 1 } };
 
 const dispatches = (actions: GuildAction[]) => actions.filter((action) => action.kind === 'dispatch');
@@ -106,9 +112,9 @@ function alike(quests: Quest[]): void {
   }
 }
 
-/** The chance of success the policy reads of `quest`'s Party from `heroes`: `bestParty`'s estimate's, held to at most 1 as `partyFor` holds it. */
+/** The chance of success the policy reads of `quest`'s Party from `heroes`: the Best Party's estimate's, held to at most 1 as the Best Party holds it. */
 function chanceOf(document: WorldDocument, guild: Guild, quest: Quest, heroes: readonly Hero[], given: EngineDeps = deps): number {
-  const found = bestParty(document.world, guild, quest, heroes, given);
+  const found = bestParties(document.world, guild, given).party(quest, heroes);
   if (found === null) throw new Error(`No Party for ${quest.id}`);
   return Math.min(1, found.estimate?.success ?? 0);
 }
@@ -165,12 +171,12 @@ describe('automaticPolicy', () => {
 
     const [first] = automaticPolicy(document, deps);
 
-    const party = partyFor(document.world, guild, best, availableHeroes(document.world, guild), deps);
+    const party = bestParties(document.world, guild, deps).party(best, availableHeroes(document.world, guild))?.heroIds ?? null;
     expect(party?.length).toBeGreaterThanOrEqual(2);
     expect(first).toEqual({ kind: 'dispatch', guildId: guild.id, questId: best.id, heroIds: party });
     // At the player's margin of 1, the fewest the Quest allows.
     const [fewer] = automaticPolicy(document, fewest);
-    expect(fewer).toMatchObject({ questId: best.id, heroIds: partyFor(document.world, guild, best, availableHeroes(document.world, guild), fewest) });
+    expect(fewer).toMatchObject({ questId: best.id, heroIds: bestParties(document.world, guild, fewest).party(best, availableHeroes(document.world, guild))?.heroIds });
     expect(fewer?.kind === 'dispatch' && fewer.heroIds).toHaveLength(2);
   });
 
@@ -267,7 +273,7 @@ describe('automaticPolicy', () => {
       hero.injury = { typeKey: 'bruised-ribs', healsOnTurn: 30 };
       const heroes = availableHeroes(document.world, guild);
       expect(heroes).toHaveLength(3);
-      expect(bestParty(document.world, guild, easy, heroes, fewest)).toBeNull();
+      expect(bestParties(document.world, guild, fewest).party(easy, heroes)).toBeNull();
       expect(chanceOf(document, guild, next, heroes, fewest)).toBeGreaterThan(chanceOf(document, guild, quests.at(-1) as Quest, heroes, fewest));
 
       const sent = dispatches(automaticPolicy(document, fewest));
@@ -285,10 +291,10 @@ describe('automaticPolicy', () => {
       document.world.board = [a.id, b.id, c.id];
       const heroes = availableHeroes(document.world, guild);
       expect(heroes).toHaveLength(4);
-      const firstParty = partyFor(document.world, guild, a, heroes, fewest) ?? [];
+      const firstParty = bestParties(document.world, guild, fewest).party(a, heroes)?.heroIds ?? [];
       const shares = (heroIds: readonly HeroId[]) => heroIds.some((heroId) => firstParty.includes(heroId));
       // `b`'s Party from every Hero shares one with `a`'s, so that from the Heroes `a` leaves it is another Party.
-      expect(shares(partyFor(document.world, guild, b, heroes, fewest) ?? [])).toBe(true);
+      expect(shares(bestParties(document.world, guild, fewest).party(b, heroes)?.heroIds ?? [])).toBe(true);
       // `a` the likeliest; `b` next with a Hero `a` takes, and the least likely without; `c` between.
       // By reward the policy would send `c` then `b`; by the chances read once, `a` then `b`.
       chances.of = (quest, heroIds) => (quest.id === a.id ? 0.9 : quest.id === b.id ? (shares(heroIds) ? 0.8 : 0.1) : 0.5);
@@ -298,12 +304,12 @@ describe('automaticPolicy', () => {
       expect(sent.map((action) => action.questId)).toEqual([a.id, c.id]);
       const [first, second] = sent;
       if (first === undefined || second === undefined) throw new Error('Too few Parties');
-      expect(first.heroIds).toEqual(partyFor(document.world, guild, a, heroes, fewest));
-      expect(second.heroIds).toEqual(partyFor(document.world, guild, c, without(heroes, first.heroIds), fewest));
+      expect(first.heroIds).toEqual(bestParties(document.world, guild, fewest).party(a, heroes)?.heroIds ?? null);
+      expect(second.heroIds).toEqual(bestParties(document.world, guild, fewest).party(c, without(heroes, first.heroIds))?.heroIds ?? null);
       expect(second.heroIds.some((heroId) => first.heroIds.includes(heroId))).toBe(false);
     });
 
-    test('holds a chance to at most 1, as `partyFor` does: one above it by a sum’s rounding ties with a certain one, and the reward decides', () => {
+    test('holds a chance to at most 1, as the Best Party does: one above it by a sum’s rounding ties with a certain one, and the reward decides', () => {
       const { document, quests } = scene();
       openBoard(quests);
       const [low] = quests;
@@ -320,7 +326,7 @@ describe('automaticPolicy', () => {
       const top = quests.at(-1) as Quest;
       const next = quests.at(-2) as Quest;
       top.encounterKeys = [];
-      expect(bestParty(document.world, guild, top, availableHeroes(document.world, guild), fewest)?.estimate).toBeNull();
+      expect(bestParties(document.world, guild, fewest).party(top, availableHeroes(document.world, guild))?.estimate).toBeNull();
       // Every other Quest unlikely, but likelier than none.
       chances.of = () => 0.05;
 

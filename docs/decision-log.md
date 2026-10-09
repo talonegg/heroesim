@@ -415,3 +415,71 @@ the controls before the page had enabled them again, after the page said "Finish
 **Evidence.** Each new test was red before its fix and green after: the three scans listed a
 planted probe, and the Chromium test saw `#add-hero` disabled when "Finished" appeared. The commit
 message holds the three full runs' times.
+
+## DL-237 — v1.1.9-S4 built: the Best Party module
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner (DL-231 Q20, DL-232 QB a,
+the epic's S4); the interface, the guard and the formulas' cache by the agent
+
+**Context.** The architecture review's #1 (the epic's §5.1). `bestParty` built a new estimator on
+every call. Five callers reached it and shared no work: the Rivals (through `partyFor`, a
+pass-through), the policy (every Quest, again after each dispatch), the page's Board, the CLI's
+board and the calibration. The baseline profile (DL-233) put the estimate at 49.0% of a game.
+
+**Decision.**
+
+1. **One deep module,** `engine/src/best-party.ts`. Its interface is small:
+   - `bestParties(world, guild, deps)` opens it over one world and a Guild;
+   - `party(quest, heroes)` names the Best Party and the estimate it was chosen by;
+   - `chance(quest, heroes)` gives a Party's estimate, carrying nothing.
+
+   Behind it: the rule, moved unchanged from `rival.ts`; the Guild's margin; each Hero brought home
+   once a return night (`partyEstimator`, `estimate.ts`); and every Party weighed, keyed by what the
+   estimate reads of a Quest (difficulty, length, Encounters) and the Heroes in order. The engine's
+   entry exports `bestParties` and its two types. `bestParty`, `partyFor` and `questEstimator` are
+   gone.
+2. **Its lifetime** (QB a): one `rivalChoices` call (opened after its draw), one `automaticPolicy`
+   call, one document on the page (a `WeakMap` keyed by the world, in `web/src/state/selectors.ts`),
+   one board the CLI renders, and one pool or drawn Quest in the calibration. It is never
+   module-global in the engine and never stored in the document.
+3. **A change of world fails.** Each question compares the world's Turn, id counters and random
+   streams with theirs at opening, and each Hero asked of with the world's own row. A difference
+   throws a `RangeError`.
+4. **The policy's reuse.** After each dispatch the policy asks again of the Heroes left, of the same
+   module. A Quest whose Party lost no Hero is answered from Parties already weighed, with no new
+   estimate. That is S6's memo.
+5. **The formulas' cache** (Q20 b). After items 1 to 4 the profile still had the estimate on top
+   (47.7%), with 38% of the game spent folding each Encounter's Checks through its pass formula. The
+   estimator now reads each Encounter's formula once for each combination of its Checks' Degrees
+   (`Passes`), a combination numbered in base 4. The combinations are met and summed in the same
+   order as before, so every sum is the same to the last bit.
+6. **`chooser`** moves to `controllers/chooser.ts`, read by the Rivals and for the Best Party's
+   margin. `controller-reads.test.ts` names that file: the same one read, moved.
+
+*Judgement calls, for the owner to see:*
+- The guard reads a stamp, not the whole world. An in-place change that moves no Turn, counter or
+  stream (an equip), asked of Heroes the world still holds, is not seen. The lifetimes are chosen
+  so that no caller changes its world while a module is open.
+- Item 5 is a cache whose key is every input of `passDegree`; the search is unchanged. Q20 (b)'s
+  pruning of the search was not built: it cannot name the same Party, ties included, without
+  weighing every candidate, and after item 5 the estimate is no longer on top.
+- A Hero brought home later joins the world the first brought home, since each comes home of their
+  own alone, as the estimator's test of a pool already held.
+- The calibration's report and `docs/quests/calibration.md` name `bestParties`, and the sweep's
+  report line names the Best Party. No other wording changes.
+- The tests that called `partyFor` ask the module. The Rival test that compared `bestParty` with
+  `partyFor`, the same code, now compares it with its own greedy reference.
+
+**Consequences.** One game of 20 years in one process took 65.3 s, from 102.3 s. Of it:
+- the estimate, 23.7% (from 49.0%);
+- the Rivals' controllers, 21.8% (from 51.9%, which then counted the policy's calls of the rule,
+  since it lived in `rival.ts`); their phase, 22.3% (from 42.1%);
+- the policy, 11.8% (from 13.6%);
+- `copyWorld`, now on top, 25.1%.
+
+A caller that changes its world opens a new module.
+
+**Evidence.** `engine/src/best-party.test.ts`, red before the module and again before item 5; the
+page's test of one module a document. `neutral --expect` identical, alone:
+`harness/reports/v1.1.9-s4-neutral-2026-10-10.md`, 274.8 s against the baseline's 413.9 s.
+The epic's S4 boxes. The profiles and the doctor's readings are in the commit message.

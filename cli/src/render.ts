@@ -21,7 +21,7 @@ import {
   ageOf,
   availableHeroes,
   bankruptcyCountdown,
-  bestParty,
+  bestParties,
   baseStat,
   carriedGear,
   descriptiveAttributeLabels,
@@ -49,6 +49,7 @@ import {
   relationship,
   unattachedHeroes,
   upkeep,
+  type BestParty,
   type ContentSet,
   type EngineDeps,
   type Entry,
@@ -61,6 +62,7 @@ import {
   type RankingMeasure,
   type Stack,
   type UniqueItem,
+  type World,
   type WorldDocument,
 } from '@heroesim/engine';
 import {
@@ -757,6 +759,7 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
   const quests = world.board.flatMap((id) => rowIn(world.quests, id) ?? []);
   const heading = `Board: ${quests.length} ${quests.length === 1 ? 'Quest' : 'Quests'} on offer, ${renderTime(world.turn, deps.config)}`;
   if (quests.length === 0) return [heading, '', 'The Board is empty.'];
+  const bestOf = playerBestParties(world, deps);
   return [
     heading,
     '',
@@ -791,16 +794,28 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
       [{ heading: 'Id' }, { heading: 'Skills that help' }, { heading: 'Encounters' }],
       quests.map((quest) => [quest.id, skillsThatHelpWords(quest, content), encounterKindsOf(quest, content)]),
     ),
-    ...quests.flatMap((quest) => ['', ...questReadings(document, quest, deps)]),
+    ...quests.flatMap((quest) => ['', ...questReadings(world, quest, bestOf, deps)]),
   ];
+}
+
+/**
+ * The player's Best Party for each Quest from their free Heroes, every Quest asked of one Best Party
+ * module over the document's world (DL-237); `null` for none, and when there is no player's Guild.
+ */
+function playerBestParties(world: World, deps: EngineDeps): (quest: Quest) => BestParty | null {
+  const guild = playerGuild(world);
+  if (guild === undefined) return () => null;
+  const best = bestParties(world, guild, deps);
+  const available = availableHeroes(world, guild);
+  return (quest) => best.party(quest, available);
 }
 
 /**
  * A Quest's Encounters as the Board gives them (v1.1.4-S6): each with its kind and each Check's name
  * and what it reads, an Encounter of one Check of its own name on one line; then the Party the engine
- * would send from the player's free Heroes (`partyFor`) and its chance, if no one falls.
+ * would send from the player's free Heroes (`bestOf`, the Best Party) and its chance, if no one falls.
  */
-function questReadings(document: WorldDocument, quest: Quest, deps: EngineDeps): string[] {
+function questReadings(world: World, quest: Quest, bestOf: (quest: Quest) => BestParty | null, deps: EngineDeps): string[] {
   const { content } = deps;
   const readings = encounterReadings(quest, content);
   const lines = readings.flatMap((reading) => {
@@ -811,16 +826,12 @@ function questReadings(document: WorldDocument, quest: Quest, deps: EngineDeps):
   return [
     `${quest.id}, ${nameIn(content.questTemplates, quest.templateKey)}`,
     ...(readings.length === 0 ? ['  Its Encounters are drawn on the way.'] : lines),
-    `  ${bestPartyWords(document, quest, deps)}`,
+    `  ${bestPartyWords(world, bestOf(quest))}`,
   ];
 }
 
-/** "Your best Party": the Party `partyFor` names from the player's free Heroes, its chance in a word and floored to 5%, or why there is none. */
-function bestPartyWords(document: WorldDocument, quest: Quest, deps: EngineDeps): string {
-  const { world } = document;
-  const guild = playerGuild(world);
-  const available = guild === undefined ? [] : availableHeroes(world, guild);
-  const best = guild === undefined ? null : bestParty(world, guild, quest, available, deps);
+/** "Your best Party": the Best Party of the player's free Heroes, its chance in a word and floored to 5%, or why there is none. */
+function bestPartyWords(world: World, best: BestParty | null): string {
   if (best === null) return 'No Party of your free Heroes meets its requirements.';
   const names = best.heroIds.flatMap((id) => rowIn(world.heroes, id)?.name ?? []).join(', ');
   // The estimate the rule chose the Party by, which is `estimateQuest`'s for it: not worked out again.

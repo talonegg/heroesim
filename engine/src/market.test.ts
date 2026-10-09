@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
 import { defaultConfig } from './config.js';
-import { availableHeroes, partyFor } from './controllers/rival.js';
+import { bestParties } from './best-party.js';
+import { availableHeroes } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, GuildId, ItemId, StackId, WorldDocument } from './document.js';
 import type { EngineEvent, ItemSold, TurnEvent } from './events.js';
@@ -102,7 +103,7 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
     const { document: start } = createWorld(seed, setup, deps);
     const rival = Object.values(start.world.guilds).find((guild) => guild.controller.kind === 'rival') as Guild;
     const quest = start.world.quests[start.world.board[0] as string as keyof typeof start.world.quests];
-    const heroIds = quest === undefined ? null : partyFor(start.world, rival, quest, availableHeroes(start.world, rival), deps);
+    const heroIds = quest === undefined ? null : bestParties(start.world, rival, deps).party(quest, availableHeroes(start.world, rival))?.heroIds ?? null;
     if (quest === undefined || heroIds === null) throw new Error('The Rival cannot staff the first Quest');
     const sent = applyAction(start, { kind: 'dispatch', guildId: rival.id, questId: quest.id, heroIds }, deps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);

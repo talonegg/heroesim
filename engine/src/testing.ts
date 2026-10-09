@@ -6,7 +6,6 @@
 // the rule fires), and engine/src/testing.test.ts holds every package's production code to it.
 
 export { chanceBandNames, potentialHints } from './config.js';
-export { partyFor } from './controllers/rival.js';
 export { describeHero } from './descriptions.js';
 export { makeId } from './document.js';
 export { append, count, createHistory } from './history.js';

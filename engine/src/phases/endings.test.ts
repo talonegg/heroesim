@@ -3,7 +3,8 @@ import { advance } from '../advance.js';
 import type { StopReason } from '../stops.js';
 import { defaultConfig, type EngineDeps } from '../config.js';
 import type { ContentSet, PortraitAppearance } from '../content-types.js';
-import { availableHeroes, partyFor } from '../controllers/rival.js';
+import { bestParties } from '../best-party.js';
+import { availableHeroes } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import {
   takeId,
@@ -960,7 +961,7 @@ describe("a fold's one order (DL-54)", () => {
     // A Party in flight, its first member wearing a unique Item and common gear.
     const staffing = (questId: QuestId) => {
       const quest = world.quests[questId];
-      const heroIds = quest === undefined ? null : partyFor(world, rival, quest, availableHeroes(world, rival), deps);
+      const heroIds = quest === undefined ? null : bestParties(world, rival, deps).party(quest, availableHeroes(world, rival))?.heroIds ?? null;
       return quest === undefined || heroIds === null ? [] : [{ quest, heroIds }];
     };
     const [staffed] = world.board.flatMap(staffing);

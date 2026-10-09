@@ -16,8 +16,9 @@
 import type { GuildAction } from '../actions/action.js';
 import { dispatchRefusal, unavailability, type DispatchAction } from '../actions/dispatch.js';
 import type { TransferInAction } from '../actions/transfer.js';
+import { bestParties, requiredParty } from '../best-party.js';
 import type { EngineDeps } from '../config.js';
-import { gearSlotKeys, purchaseSteps, type ContentSet, type Disposition, type PurchaseStep, type SlotKey } from '../content-types.js';
+import { gearSlotKeys, purchaseSteps, type Disposition, type PurchaseStep, type SlotKey } from '../content-types.js';
 import {
   compareByCodeUnit,
   facilityKeys,
@@ -31,13 +32,12 @@ import {
 import { gearChoices, gearPurchase } from '../gear.js';
 import { streamOf } from '../generators/draw.js';
 import { guildmasterOf } from '../guildmaster.js';
-import { questEstimator, type QuestEstimate } from '../quest-engine/estimate.js';
 import { chance, pick } from '../rng.js';
 import { transferLock } from '../transfer.js';
+import { chooser } from './chooser.js';
 import {
   affordableImprovement,
   cheapestUnattached,
-  dispositionOf,
   offeredQuests,
   transferFee,
   upkeep,
@@ -108,19 +108,6 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
     }
   }
   return choices;
-}
-
-/**
- * What makes `guild`'s choices: its Disposition's row; `'own'` for a Guild with no Disposition,
- * whose controller makes its own choices through the actions (the player's, ADR-0002); or `null` for
- * a Disposition content does not define (data-model rule 5). The one place the Rival controllers
- * read where a Guild's choices come from (`dispositionOf`, ADR-0002's exception 2), for their own choices and
- * for a Guild's answer to a Transfer asked of it (`transferAnswer`), which is a choice too.
- */
-function chooser(guild: Pick<Guild, 'controller'>, content: Pick<ContentSet, 'dispositions'>): Disposition | 'own' | null {
-  const key = dispositionOf(guild);
-  if (key === null) return 'own';
-  return Object.hasOwn(content.dispositions, key) ? (content.dispositions[key] as Disposition) : null;
 }
 
 // ── Transfers (M6-S2, R28, DL-57) ──────────────────────────────────────────────────────────────
@@ -383,15 +370,15 @@ export function staffableQuests(world: World, guild: Guild, deps: EngineDeps): Q
 
 /**
  * A Party of `available`, `guild`'s free Heroes, that `dispatch` would send on `quest` as it stands,
- * or `null` when there is none (M9-S1, DL-101). The search is `partyFor`'s own first step, the Party
+ * or `null` when there is none (M9-S1, DL-101). The search is the Best Party's own first step, the Party
  * its requirements take (`requiredParty`), and the verdict is `dispatch`'s own (`dispatchRefusal`,
  * with no consumables), so no second copy of the rule decides what can be staffed: a check
  * `dispatch` gains is a check here at once.
  *
  * It misses no Party: `dispatch` asks of free Heroes on the Roster only the Quest's requirements
  * (`unmetRequirements`: a size, a Class and a Skill), and `requiredParty` names a Party whenever one
- * of `available` meets them, which `stops.test.ts` holds against every Party of a Roster. `partyFor`
- * names a Party exactly when it does, choosing who by the chance estimate (v1.1.4-S6), which cannot
+ * of `available` meets them, which `stops.test.ts` holds against every Party of a Roster. The Best
+ * Party is named exactly when it names one, choosing who by the chance estimate (v1.1.4-S6), which cannot
  * change whether a Party can go; so the stops ask no estimate of every Quest on the Board each Turn
  * (DL-157). Reads, never writes, and draws nothing.
  */
@@ -410,9 +397,10 @@ function staffingParty(world: World, guild: Guild, quest: Quest, available: read
  * and the one `questRiskAppetite` of the way along names the difficulty it wants: 0 the easiest
  * (DL-30's `steady`), 1 the hardest, 0.5 the middle, the place rounded to the nearest. Every Quest
  * it can staff at that difficulty is a candidate, in Quest id order, and one draw from `rivals`
- * picks among them, one draw however many there are. The Party is `partyFor`'s, for the Quest
- * chosen only: which Quests it can staff is `partyFor`'s first step (`requiredParty`), which the
- * estimate cannot change (v1.1.4-S6, DL-157).
+ * picks among them, one draw however many there are. The Party is the Best Party (`bestParties`,
+ * opened over the world as it stands after the draw, DL-237), for the Quest chosen only: which Quests
+ * it can staff is the Best Party's first step (`requiredParty`), which the estimate cannot change
+ * (v1.1.4-S6, DL-157).
  */
 function preferredQuest(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): DispatchAction | null {
   const available = availableHeroes(world, guild);
@@ -424,7 +412,7 @@ function preferredQuest(world: World, guild: Guild, disposition: Disposition, de
   const wanted = staffable[place]?.difficulty;
   const candidates = staffable.filter((quest) => quest.difficulty === wanted);
   const quest = pick(streamOf(world, 'rivals'), candidates);
-  const heroIds = partyFor(world, guild, quest, available, deps) ?? [];
+  const heroIds = bestParties(world, guild, deps).party(quest, available)?.heroIds ?? [];
   return { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds };
 }
 
@@ -465,178 +453,6 @@ const armourFirst: readonly SlotKey[] = [
  */
 function gearBuy(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
   return gearPurchase(world, guild, disposition.gearSlotOrder ?? armourFirst, disposition.gearThreshold, deps);
-}
-
-/**
- * The Party the engine sends on `quest` from `available`, the free Heroes of `guild`, or `null` when
- * no Party of them meets the Quest's size and requirements (v1.1.4-S6, DL-148 item 17). The rule, by
- * the chance estimate (`questEstimator`: the chance of a success or a strong success, the Party as it
- * comes home, carrying nothing, if no one falls):
- *
- * 1. It starts with the Heroes who meet the Quest's Class and Skill requirements: while one is unmet,
- *    the Hero who most raises the chance among those who meet every requirement still unmet, or,
- *    when no one does, among those who meet one of them. So one Hero who has both goes alone, and
- *    two go only when no one Hero has both.
- * 2. It adds the Hero who most raises the chance until it reaches `partySizeMin`.
- * 3. It keeps adding the Hero who most raises it while that Hero raises it by more than the Guild's
- *    margin (`partyMarginOf`: its Disposition's `partyMargin`), up to `partySizeMax`: by more than
- *    nothing at a margin of 0 (v1.1.5-S6, DL-175).
- *
- * Of Heroes who raise it alike, the one who most raises the chance of a strong success goes, then the
- * lowest Hero id, so the rule is deterministic; a Quest whose Encounters are drawn on the way has no
- * estimate, so its Heroes are added by id. The Party is in the order its Heroes were added, which
- * the Quest's Queries read for their ties (DL-148 item 18). `null` exactly when `requiredParty` is,
- * so `staffableQuests` searches with that and lets `dispatch`'s own checks judge the Party.
- *
- * Exported as the one staffing rule: the Rivals send it, the harness's automatic policy sends it for
- * the player's Guild (M2-S12, DL-34), and the Board shows it as "Your best Party" (`bestParty`, with
- * its estimate). It reads nothing but its arguments and draws nothing.
- */
-export function partyFor(
-  world: World,
-  guild: Pick<Guild, 'controller'>,
-  quest: Quest,
-  available: readonly Hero[],
-  deps: EngineDeps,
-): HeroId[] | null {
-  return bestParty(world, guild, quest, available, deps)?.heroIds ?? null;
-}
-
-/** The Party `partyFor` names, and the estimate it was chosen by (`estimateQuest`'s for it); `null` for no estimate. */
-export interface BestParty {
-  heroIds: HeroId[];
-  estimate: QuestEstimate | null;
-}
-
-/**
- * `partyFor`'s Party with the estimate the rule last read of it, which is `estimateQuest`'s for that
- * Party carrying nothing, so that a view showing the Party's chance does not estimate it again
- * (v1.1.4-S6's verification, DL-157). `null` exactly when `partyFor` is.
- */
-export function bestParty(
-  world: World,
-  guild: Pick<Guild, 'controller'>,
-  quest: Quest,
-  available: readonly Hero[],
-  deps: EngineDeps,
-): BestParty | null {
-  if (requiredParty(quest, available) === null) return null;
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
-  const estimate = questEstimator(world, quest, available, deps);
-  // Each Party's chance, by its Heroes in order: the Party the search ends on is one `best` weighed
-  // already, and an estimate is the rule's whole cost (DL-164). It draws nothing, so asking once is
-  // asking as often.
-  const weighed = new Map<string, Chance>();
-  const chanceOf = (heroes: readonly Hero[]): Chance => {
-    const key = heroes.map((hero) => hero.id).join(' ');
-    const known = weighed.get(key);
-    if (known !== undefined) return known;
-    const chance = chanceIn(estimate(heroes));
-    weighed.set(key, chance);
-    return chance;
-  };
-  const party: Hero[] = [];
-  const left = (): Hero[] => available.filter((hero) => !party.includes(hero));
-  // Of `candidates`, the Hero whose joining leaves the Party the best chance, and that chance.
-  const best = (candidates: readonly Hero[]): { hero: Hero; chance: Chance } => {
-    let chosen: { hero: Hero; chance: Chance } | undefined;
-    for (const hero of candidates) {
-      const chance = chanceOf([...party, hero]);
-      if (chosen === undefined || better(chance, hero, chosen.chance, chosen.hero)) chosen = { hero, chance };
-    }
-    if (chosen === undefined) throw new RangeError(`partyFor found no Hero to add for ${quest.id}`);
-    return chosen;
-  };
-
-  const ofClass = (hero: Hero): boolean => hero.classKey === classKey;
-  const withSkill = (hero: Hero): boolean => skillKey !== undefined && Object.hasOwn(hero.skills, skillKey);
-  const unmet = (): ((hero: Hero) => boolean)[] => [
-    ...(classKey !== undefined && !party.some(ofClass) ? [ofClass] : []),
-    ...(skillKey !== undefined && !party.some(withSkill) ? [withSkill] : []),
-  ];
-  for (let needs = unmet(); needs.length > 0; needs = unmet()) {
-    const rest = left();
-    const every = rest.filter((hero) => needs.every((meets) => meets(hero)));
-    party.push(best(every.length > 0 ? every : rest.filter((hero) => needs.some((meets) => meets(hero)))).hero);
-  }
-  while (party.length < partySizeMin) party.push(best(left()).hero);
-
-  const margin = partyMarginOf(guild, deps);
-  let chance = chanceOf(party);
-  // No Hero can raise the chance by more than what is left of it below 1, so none is asked once that
-  // cannot pass the margin.
-  while (party.length < partySizeMax && party.length < available.length && 1 - chance.success > margin) {
-    const next = best(left());
-    if (!(next.chance.success - chance.success > margin)) break;
-    party.push(next.hero);
-    chance = next.chance;
-  }
-  return { heroIds: party.map((hero) => hero.id), estimate: chance.estimate };
-}
-
-/** What `partyFor` weighs a Party by: its chance of a success or better, and of a strong success; and the estimate they are of. */
-interface Chance {
-  success: number;
-  strong: number;
-  estimate: QuestEstimate | null;
-}
-
-/**
- * `estimate`'s chances, a success's held to at most 1 against a sum's rounding, so that no Hero raises
- * it by more than is left of it; none for a Quest whose Encounters are drawn on the way.
- */
-function chanceIn(estimate: QuestEstimate | null): Chance {
-  return estimate === null ? { success: 0, strong: 0, estimate } : { success: Math.min(1, estimate.success), strong: estimate.bands.strong, estimate };
-}
-
-/** Whether `hero` joining for `chance` beats `other` joining for `otherChance`: the better success, then strong success, then the lower id. */
-function better(chance: Chance, hero: Hero, otherChance: Chance, other: Hero): boolean {
-  if (chance.success !== otherChance.success) return chance.success > otherChance.success;
-  if (chance.strong !== otherChance.strong) return chance.strong > otherChance.strong;
-  return compareByCodeUnit(hero.id, other.id) < 0;
-}
-
-/**
- * How much more than this a Hero must raise the chance to join `guild`'s Party past `partySizeMin` (`partyFor`):
- * its Disposition's `partyMargin`; for a Guild with no Disposition, the player's, or with one content
- * does not define, the configuration's `playerPartyMargin` (v1.1.4-S6, DL-157).
- */
-function partyMarginOf(guild: Pick<Guild, 'controller'>, deps: Pick<EngineDeps, 'config' | 'content'>): number {
-  const disposition = chooser(guild, deps.content);
-  return disposition === 'own' || disposition === null ? deps.config.playerPartyMargin : disposition.partyMargin;
-}
-
-/**
- * A Party of `available` that meets `quest`'s size and requirements, or `null` when none does: the
- * first of them, in the order given, who meets both a required Class and a required Skill, or, when
- * no one does, the first who meets each; then the first of the rest up to `partySizeMin`. `partyFor`
- * names a Party exactly when this does; who goes is its estimate's to choose. Draws nothing and asks
- * no estimate, so the Board can be searched with it every Turn.
- */
-function requiredParty(quest: Pick<Quest, 'requirements'>, available: readonly Hero[]): Hero[] | null {
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
-  const ofClass = (hero: Hero): boolean => classKey === undefined || hero.classKey === classKey;
-  const withSkill = (hero: Hero): boolean => skillKey === undefined || Object.hasOwn(hero.skills, skillKey);
-  const party: Hero[] = [];
-  if (classKey !== undefined || skillKey !== undefined) {
-    const both = available.find((hero) => ofClass(hero) && withSkill(hero));
-    if (both !== undefined) {
-      party.push(both);
-    } else {
-      // Only when both are required and no one Hero meets both: then two Heroes meet one each.
-      const classHero = available.find(ofClass);
-      const skillHero = available.find(withSkill);
-      if (classHero === undefined || skillHero === undefined) return null;
-      party.push(classHero, skillHero);
-    }
-  }
-  const size = Math.max(partySizeMin, party.length);
-  if (size > partySizeMax || size > available.length) return null;
-  for (const hero of available) {
-    if (party.length >= size) break;
-    if (!party.includes(hero)) party.push(hero);
-  }
-  return party;
 }
 
 /**

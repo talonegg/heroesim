@@ -5,16 +5,17 @@
 //
 // Deterministic: it reads the document and draws no random number, so a seed played twice under
 // it plays the same game (ADR-0001). It sends Parties through the engine's own staffing rule,
-// `partyFor`, the one the Rivals use (DL-30; by the chance estimate, DL-157), at the player's
+// the Best Party, the one the Rivals send (DL-30; by the chance estimate, DL-157), at the player's
 // margin, `playerPartyMargin`: the Party the Board gives as "Your best Party". It chooses its Quests
 // by that Party's chance (DL-168 item 2, DL-176): of the Quests it can staff from the Heroes still
 // free, the likeliest first, ties to the higher reward, then the Quest id, and then again from the
-// Heroes left.
+// Heroes left. One Best Party module serves a call (DL-237), so a Quest asked again from the Heroes
+// left weighs only the Parties it has not weighed, and keeps its Party when none of it was sent.
 
 import {
   affordableImprovement,
   availableHeroes,
-  bestParty,
+  bestParties,
   cheapestUnattached,
   compareByCodeUnit,
   gearChoices,
@@ -26,6 +27,7 @@ import {
   offersTo,
   playerGuild,
   upkeep,
+  type BestParties,
   type ConsumableRequest,
   type EngineDeps,
   type Guild,
@@ -87,15 +89,15 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   they are home: the engine's `gearChoices`, the rule `steady` equips by (M5-S2, DL-49).
  * - **Dispatch, the likeliest Quest first** (v1.1.5-S2, DL-168 item 2; `likeliest`). To each offered
  *   Quest on the Board its Party is the one the engine would send from the Guild's Heroes still free
- *   (`partyFor`: those the requirements take, then whoever most raises the estimated chance of success
- *   up to `partySizeMin`, then while each raises it by more than `playerPartyMargin`, v1.1.4-S6). Of
- *   the Quests it can staff, it sends the one whose Party has the highest chance of success by that
- *   estimate (`bestParty`'s), ties to the higher reward, then the lower Quest id; then chooses again,
- *   each Quest's Party and chance taken afresh from the Heroes left, until no Hero is left or no Quest
- *   can be staffed. A Quest it cannot staff is passed over. Each Party **carries one of each
- *   consumable** the Guild holds that could serve its Quest (`consumablesFor`, DL-62), while the Guild
- *   has one left after the Parties before it; the chance it is chosen by is the Party's carrying
- *   nothing, as `partyFor` weighs it.
+ *   (the Best Party: those the requirements take, then whoever most raises the estimated chance of
+ *   success up to `partySizeMin`, then while each raises it by more than `playerPartyMargin`,
+ *   v1.1.4-S6). Of the Quests it can staff, it sends the one whose Party has the highest chance of
+ *   success by that estimate (the Best Party's), ties to the higher reward, then the lower Quest id;
+ *   then chooses again, each Quest's Party and chance asked again of the Heroes left, until no Hero is
+ *   left or no Quest can be staffed. A Quest it cannot staff is passed over. Each Party **carries one
+ *   of each consumable** the Guild holds that could serve its Quest (`consumablesFor`, DL-62), while
+ *   the Guild has one left after the Parties before it; the chance it is chosen by is the Party's
+ *   carrying nothing, as the Best Party weighs it.
  * - **One purchase a Turn**, the first of these that applies:
  *   - **Build** the infirmary's next grade when Wealth is above `buildWealthMultiple` times its cost
  *     (M3-S6, DL-38), until the infirmary is at its top grade.
@@ -133,8 +135,10 @@ export function automaticPolicy(
     ...offersTo(world, guild.id).map((offer): GuildAction => ({ kind: 'declineTransfer', guildId: guild.id, offerId: offer.id })),
     ...gearChoices(world, guild, deps),
   ];
+  // The world does not change in this call, so one Best Party module answers every question (DL-237).
+  const best = bestParties(world, guild, deps);
   let available = availableHeroes(world, guild);
-  let choices = staffed(world, guild, offeredQuests(world), available, deps);
+  let choices = staffed(best, offeredQuests(world), available);
   const left = heldConsumables(world, guild, deps);
   for (let choice = likeliest(choices); choice !== undefined; choice = likeliest(choices)) {
     const { quest, heroIds } = choice;
@@ -144,7 +148,7 @@ export function automaticPolicy(
     available = available.filter((hero) => !sent.has(hero.id));
     // Each Quest left is staffed and estimated again from the Heroes left; one it could not staff it
     // cannot from fewer.
-    choices = staffed(world, guild, choices.filter((other) => other !== choice).map((other) => other.quest), available, deps);
+    choices = staffed(best, choices.filter((other) => other !== choice).map((other) => other.quest), available);
   }
 
   const purchase =
@@ -264,7 +268,7 @@ function armourPurchase(
   return gearPurchase(world, guild, ['armour'], policy.buyWealthMultiple, deps);
 }
 
-/** A Quest the policy could send a Party on, the Party (`partyFor`'s) and its chance of success. */
+/** A Quest the policy could send a Party on, the Party (the Best Party) and its chance of success. */
 interface Choice {
   quest: Quest;
   heroIds: HeroId[];
@@ -272,15 +276,15 @@ interface Choice {
 }
 
 /**
- * Each Quest of `quests` that `partyFor` can staff from `available`, with its Party and that Party's
- * chance of success by the estimate it was chosen by (`bestParty`'s, carrying nothing, held to at most
- * 1 as `partyFor` holds it; none for a Quest whose Encounters are drawn on the way, read as 0). None
+ * Each Quest of `quests` for which `best` names a Best Party from `available`, with its Party and that
+ * Party's chance of success by the estimate it was chosen by (carrying nothing, held to at most 1 as
+ * the Best Party holds it; none for a Quest whose Encounters are drawn on the way, read as 0). None
  * when no Hero is available.
  */
-function staffed(world: World, guild: Guild, quests: readonly Quest[], available: readonly Hero[], deps: EngineDeps): Choice[] {
+function staffed(best: BestParties, quests: readonly Quest[], available: readonly Hero[]): Choice[] {
   if (available.length === 0) return [];
   return quests.flatMap((quest) => {
-    const party = bestParty(world, guild, quest, available, deps);
+    const party = best.party(quest, available);
     return party === null ? [] : [{ quest, heroIds: party.heroIds, chance: Math.min(1, party.estimate?.success ?? 0) }];
   });
 }

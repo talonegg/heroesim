@@ -7,7 +7,7 @@ Every rate is the chance estimate's (v1.1.4-S5): "if no one falls", carrying not
 
 ## The Quest target, as the estimate sees it
 
-For each template and Level, 48 Quests drawn by the Quest Generator, each met by the best Party (`bestParty`, the Board's "Your best Party" and the harness's policy's Party) of a Roster of 8 Heroes drawn from the Level's pool, redrawn until it can staff the Quest. The target (DL-83 item 4): the player's Quests fail 20 to 30%, and are strong successes at most 50%. These rates assume no one falls; in play, Injuries, Deaths and Morale lower the later Encounters' chances, so failures run higher.
+For each template and Level, 48 Quests drawn by the Quest Generator, each met by the best Party (`bestParties`, the Board's "Your best Party" and the harness's policy's Party) of a Roster of 8 Heroes drawn from the Level's pool, redrawn until it can staff the Quest. The target (DL-83 item 4): the player's Quests fail 20 to 30%, and are strong successes at most 50%. These rates assume no one falls; in play, Injuries, Deaths and Morale lower the later Encounters' chances, so failures run higher.
 
 | Level | Quests | Fail, all thirds | Strong, all thirds | Fail, the hardest third | Strong, the hardest third |
 | --- | ---: | ---: | ---: | ---: | ---: |
