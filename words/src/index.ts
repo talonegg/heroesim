@@ -81,6 +81,8 @@ export {
   bestPartyReading,
   boardReading,
   heroReading,
+  heroSkills,
+  heroTraits,
   playerReading,
   poolNote,
   poolReading,

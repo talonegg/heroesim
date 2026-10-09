@@ -400,6 +400,24 @@ describe('show', () => {
     expect(run.out).toContain('The Board is empty.');
   });
 
+  test('hero never prints Potential, even as a number found nowhere else', () => {
+    const id = makeId('heroes', 1);
+    const sentinels: string[] = [];
+    edit((edited) => {
+      const hero = edited.world.heroes[id] as Hero;
+      Object.keys(hero.potential).forEach((key, index) => {
+        hero.potential[key] = 900_001 + index;
+        sentinels.push(String(900_001 + index));
+      });
+    });
+
+    const run = play(['show', 'hero', id]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    for (const sentinel of sentinels) expect(run.out).not.toContain(sentinel);
+    expect(run.out).not.toContain('9000');
+  });
+
   test("hero refuses an id not in the save", () => {
     const run = play(['show', 'hero', 'hero-999999']);
 

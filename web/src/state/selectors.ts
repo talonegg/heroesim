@@ -86,6 +86,8 @@ import {
   consumableEffectWords,
   endedSentence,
   heroReading,
+  heroSkills,
+  heroTraits,
   kindWords,
   listed,
   modifierWords,
@@ -438,7 +440,7 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
     .sort((a, b) => soonest(a, b) || order(a, b))
     .map((hero): PartyRow => {
       const values = statValues(hero, world);
-      const held = heldSkills(hero);
+      const held = heroSkills(content, hero);
       const { why, until, chip } = availability.get(hero.id) ?? availabilityOf(hero, world, calendar);
       return {
         heroId: hero.id,
@@ -820,11 +822,6 @@ export function rosterColumnGroups(set: ContentSet = content): RosterColumnGroup
   return [hero, ...areas];
 }
 
-/** Each Trait a Hero holds, by name, with what its effects do in words (v1.1.4-S7, `traitEffectWords`): a Hero's page's and the Roster's. */
-function traitsOf(hero: Hero): { name: string; effect: string }[] {
-  return hero.traits.map((key) => ({ name: nameIn(content.heroTraits, key), effect: traitEffectWords(rowOf(content.heroTraits, key)?.effects ?? [], content) }));
-}
-
 /**
  * The Gear a Hero carries in their own slots (`carriedGear` gives only those rows), by name, with its Stat
  * modifiers in words (DL-169 item 9), and whether each is a Unique Item, with its content key (v1.1.5-S14).
@@ -927,7 +924,7 @@ function buildRosterRows(document: WorldDocument): RosterRows {
       moraleBand: moraleBand(read.morale, config),
       why: availability.why,
       whereabouts: availability.where,
-      traits: traitsOf(hero),
+      traits: heroTraits(content, hero),
       items,
       carriesUnique: items.some((item) => item.unique),
       stats: rosterStats(hero, world),
@@ -1213,15 +1210,6 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
  */
 function statValues(hero: Hero, world: World): Map<string, { base: number; effective: number }> {
   return new Map(Object.entries(statBreakdown(hero, world, content)).map(([key, { base, effective }]) => [key, { base, effective }]));
-}
-
-/** The Skills a Hero has, in content's order, then any content does not define, each with its rating. */
-function heldSkills(hero: Hero): { key: string; name: string; rating: number }[] {
-  const skillKeys = Object.keys(hero.skills);
-  return [
-    ...Object.keys(content.skills).filter((key) => skillKeys.includes(key)),
-    ...skillKeys.filter((key) => !Object.hasOwn(content.skills, key)),
-  ].map((key) => ({ key, name: nameIn(content.skills, key), rating: hero.skills[key] ?? 0 }));
 }
 
 /**

@@ -265,6 +265,19 @@ describe("a Hero's reading", () => {
     expect(read(document, hero).skills).toEqual(order.map((key) => ({ key, name: content.skills[key]?.name, rating: hero.skills[key] })));
   });
 
+  test("gives Skills held in another order in content's, then one content does not define, by its key", () => {
+    const document = newGame();
+    const [hero] = heroes(document) as [Hero];
+    const [first, second] = Object.keys(content.skills) as [string, string];
+    hero.skills = { 'sea-lore': 1, [second]: 2, [first]: 3 };
+
+    expect(read(document, hero).skills).toEqual([
+      { key: first, name: content.skills[first]?.name, rating: 3 },
+      { key: second, name: content.skills[second]?.name, rating: 2 },
+      { key: 'sea-lore', name: 'sea-lore', rating: 1 },
+    ]);
+  });
+
   test("gives each other Hero on the Roster with the Hero's Regard for them and their Relationship, as bands and never as numbers; none off a Roster", () => {
     const document = newGame();
     const guild = player(document);

@@ -803,6 +803,10 @@ reading. Source lines citing a story fell from 1,727 to 1,706, and the baseline 
 tests in `cli/src/render.test.ts` and `web/src/state/selectors.test.ts`, and `main.test.ts`'s test of
 the one refusal. The readings' and the page reading's tests were each red against a mutation of the
 code. Every view was captured before and after. The epic's S8 boxes.
+Verified 2026-10-10 at 3c798f3: over 22 documents the page's 5,287 views were the same from 7d82a02
+and 82184ad, the CLI's 1,951 runs changed only as listed, and one reading and one config check served
+a document. Fixed: the page's copies of the reading's Traits and Skills became `heroTraits` and
+`heroSkills`; the CLI's check that `show hero` never prints Potential is back; the Skills' order tested.
 
 ## DL-242 — v1.1.9-S9 built: the History reader
 

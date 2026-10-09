@@ -267,7 +267,7 @@ export function heroReading(reading: PlayerReading, hero: Hero): HeroReading {
     guild: hero.guildId === null ? null : { id: hero.guildId, name: guild?.name },
     unattached: hero.unattachedSince !== null,
     injury: hero.injury === null ? null : { name: nameIn(content.injuries, hero.injury.typeKey), healsOnTurn: hero.injury.healsOnTurn },
-    traits: hero.traits.map((key) => ({ name: nameIn(content.heroTraits, key), effect: traitEffectWords(rowOf(content.heroTraits, key)?.effects ?? [], content) })),
+    traits: heroTraits(content, hero),
     texts: heroAttributes.flatMap((attribute) => (hero[attribute] === '' ? [] : [{ label: descriptiveAttributeLabels[attribute], words: hero[attribute] }])),
     transferFee: theirs ? transferFee(hero, guildmaster, deps) : null,
     signing: signs === null ? null : { fee: signingFee(hero, deps, guildmaster), signs },
@@ -277,7 +277,7 @@ export function heroReading(reading: PlayerReading, hero: Hero): HeroReading {
     leftPool: hero.leftPoolOnTurn,
     stats: statsOf(reading, hero),
     gear: gearOf(reading, hero),
-    skills: skillsOf(content, hero),
+    skills: heroSkills(content, hero),
     relationships: onRoster ? relationshipsOf(reading, hero, guild) : null,
   };
 }
@@ -320,7 +320,13 @@ function gearOf({ world, content }: PlayerReading, hero: Hero): GearReading[] {
   ];
 }
 
-function skillsOf(content: ContentSet, hero: Hero): HeroReading['skills'] {
+/** Each Trait `hero` holds, by name, with what its effects do in words: a Hero's reading's, and the page's Roster rows'. */
+export function heroTraits(content: ContentSet, hero: Hero): HeroReading['traits'] {
+  return hero.traits.map((key) => ({ name: nameIn(content.heroTraits, key), effect: traitEffectWords(rowOf(content.heroTraits, key)?.effects ?? [], content) }));
+}
+
+/** The Skills `hero` has, in content's order, then any content does not define, each with its rating: a Hero's reading's, and the page's Party rows'. */
+export function heroSkills(content: ContentSet, hero: Hero): HeroReading['skills'] {
   const held = Object.keys(hero.skills);
   return [...Object.keys(content.skills).filter((key) => held.includes(key)), ...held.filter((key) => !Object.hasOwn(content.skills, key))].map((key) => ({
     key,
