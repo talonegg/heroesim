@@ -219,3 +219,6 @@ are still checked, at every close.
 
 **Evidence.** `v1.1.9-measures.md`; `harness/reports/v1.1.9-s1-baseline-2026-10-09.md`. The epic's
 S1 boxes.
+Verified 2026-10-09 at `3631851`: the baseline re-read from its raw runs, its run 2 failures, tests'
+times and coverage note on `tools/measure` corrected; the tool's untested sorting, cuts and
+once-a-stack counts given tests, and the time limits held out of `npm test` by `speed-runs.test.ts`.

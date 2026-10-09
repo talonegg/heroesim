@@ -56,6 +56,14 @@ describe('suite', () => {
     expect(lines).toContain('| 30 s to more | 1 | 40.0 |');
     expect(lines.slice(-2)).toEqual(['Failed:', '- tools/editor/src/cli.test.ts › finish | puts back']);
   });
+
+  test("puts a test of a bucket's bound in the next bucket", () => {
+    const tests = [99, 100, 1_000].map((duration) => ({ title: `${duration} ms`, duration, status: 'passed' }));
+    const lines = suiteTables({ startTime: 0, numTotalTests: 3, numFailedTests: 0, success: true, testResults: [{ name: '/r/heroesim/words/src/a.test.ts', status: 'passed', assertionResults: tests }] });
+    expect(lines).toContain('| 0 s to 0.1 s | 1 | 0.1 |');
+    expect(lines).toContain('| 0.1 s to 1 s | 1 | 0.1 |');
+    expect(lines).toContain('| 1 s to 5 s | 1 | 1.0 |');
+  });
 });
 
 const counted = (covered: number, total: number) => ({ covered, total });
@@ -80,6 +88,12 @@ describe('coverage', () => {
     expect(lines).toContain('| tools/editor | 1 | 0.0% | — | — | 0.0% |');
     expect(lines).toContain('| All | 3 | 75.0% | 75.0% | 100.0% | 75.0% |');
     expect(lines.slice(-1)).toEqual(['- tools/editor: tools/editor/src/main.ts']);
+  });
+
+  test("names a file outside the packages' sources by its first folder, and leaves out the All row and the untouched list when there are none", () => {
+    expect(packageOf('scripts/check.ts')).toBe('scripts');
+    const lines = coverageTables({ 'C:\\r\\heroesim\\words\\src\\a.ts': { lines: counted(1, 1), branches: counted(0, 0), functions: counted(1, 1), statements: counted(1, 1) } });
+    expect(lines).toEqual(['| Package | Files | Lines | Branches | Functions | Statements |', '|---|---:|---:|---:|---:|---:|', '| words | 1 | 100.0% | — | 100.0% | 100.0% |']);
   });
 });
 
@@ -113,6 +127,27 @@ describe('ci', () => {
     expect(lines).toContain('| check (node-22) | success | 630 | Run npm test 540 |');
     expect(lines.at(-1)).toBe("Jobs' time 690 s (11.5 min); billed 12 min, each job rounded up to a minute.");
   });
+
+  test('names the four slowest steps of a second or more, slowest first, and bills each job of a minute and a second two', () => {
+    const at = (second: number): string => new Date(Date.UTC(2026, 9, 9, 10, 0, second)).toISOString();
+    const step = (name: string, from: number, to: number) => ({ name, startedAt: at(from), completedAt: at(to) });
+    const lines = ciTables('7', {
+      jobs: [
+        {
+          name: 'e2e',
+          conclusion: 'failure',
+          startedAt: at(0),
+          completedAt: at(61),
+          steps: [step('a', 0, 2), step('b', 2, 12), step('c', 12, 13), step('d', 13, 18), step('e', 18, 21), step('f', 21, 50)],
+        },
+        { name: 'lint', conclusion: 'success', startedAt: at(0), completedAt: at(61), steps: [step('quick', 0, 0.5), step('lint', 1, 4)] },
+      ],
+    });
+    expect(lines[0]).toBe('Run 7');
+    expect(lines).toContain('| e2e | failure | 61 | f 29; b 10; d 5; e 3 |');
+    expect(lines).toContain('| lint | success | 61 | lint 3 |');
+    expect(lines.at(-1)).toBe("Jobs' time 122 s (2.0 min); billed 4 min, each job rounded up to a minute.");
+  });
 });
 
 // A root calling advance, which calls the estimate, and through it passDegree, and copyWorld. A
@@ -145,6 +180,27 @@ describe('profile', () => {
     expect(lines).toContain('| passDegree engine/src/quest-engine/degree.ts | 2 | 40.0% |');
     expect(lines).toContain('| advance engine/src/advance.ts | 5 | 100.0% |');
     expect(lines).toContain('| engine/src/advance.ts | 5 | 100.0% |');
+  });
+
+  test('counts a sample once for a function or a module that its stack holds more than once', () => {
+    // advance calls estimate, which calls itself: 3 ms in the inner estimate, then 3 ms in advance alone.
+    const recursive: CpuProfile = {
+      nodes: [
+        { id: 1, callFrame: { functionName: 'advance', url: 'file:///C:/r/heroesim/engine/src/advance.ts', lineNumber: 1 }, children: [2] },
+        { id: 2, callFrame: { functionName: 'estimate', url: 'file:///C:/r/heroesim/engine/src/quest-engine/estimate.ts', lineNumber: 9 }, children: [3] },
+        { id: 3, callFrame: { functionName: 'estimate', url: 'file:///C:/r/heroesim/engine/src/quest-engine/estimate.ts', lineNumber: 9 } },
+      ],
+      samples: [3, 1],
+      timeDeltas: [0, 3_000],
+      startTime: 0,
+      endTime: 4_000,
+    };
+    const lines = profileTables(recursive);
+    expect(lines).toContain('| The quest estimate | 3 | 50.0% |');
+    expect(lines).toContain('| engine/src/quest-engine/estimate.ts | 3 | 50.0% |');
+    const inclusive = lines.slice(lines.indexOf('| Inclusive, by function | ms | Share |'));
+    expect(inclusive).toContain('| estimate engine/src/quest-engine/estimate.ts | 3 | 50.0% |');
+    expect(inclusive).toContain('| advance engine/src/advance.ts | 6 | 100.0% |');
   });
 });
 
@@ -182,6 +238,11 @@ describe('npm run measure', () => {
     expect(run(['ci', '7', '8'], runs.io, dir)).toBe(0);
     expect(runs.out).toHaveLength(2);
     expect(runs.out[1]).toMatch(/^\n## 8\n\nRun 8/);
+
+    writeFileSync(join(dir, 'game.cpuprofile'), JSON.stringify(profile));
+    const profiled = io();
+    expect(run(['profile', join(dir, 'game.cpuprofile')], profiled.io, dir)).toBe(0);
+    expect(profiled.out[0]).toContain('| The quest estimate | 3 | 60.0% |');
   });
 
   test('gives its usage when asked, and refuses a command it does not know or one without its files', () => {
