@@ -91,21 +91,36 @@ describe('the probe registers', () => {
 
 // A year of Turns, each through `advance`. Its length is chosen: a year of 12 Turns, four Days, is
 // still a year of whole Days, and shows the counts as a year of any length does (DL-246); the
-// hooks Turn by Turn are `modules.test.ts`'s.
+// hooks Turn by Turn are `modules.test.ts`'s. A year of the default probe's would meet a stop and a
+// firing, which four Days of its defaults never do, so the probe here stops every second Day and
+// fires on a night in two: the counts hold on an afternoon that stops and on one that does not, and
+// on a night that fires and on one that does not (DL-246).
 describe('over a year', () => {
   // Wealth enough that the player's Guild, which takes no Quest here, lasts the year unbankrupt.
   const yearDeps = testDeps({ startingWealth: 1_000_000, turnsPerYear: 12 });
   const turns = yearDeps.config.turnsPerYear;
 
   test("installed, the probe's counts equal the mornings, afternoons and nights played", () => {
-    const deps = withProbe({}, yearDeps);
+    const deps = withProbe({ probeStopEveryDays: 2, probeFireBelow: 0.5 }, yearDeps);
     let document = created('a-year', deps);
-    for (let turn = 1; turn <= turns; turn += 1) document = advance(document, deps).document;
+    let stops = 0;
+    let fired = 0;
+    for (let turn = 1; turn <= turns; turn += 1) {
+      const result = advance(document, deps);
+      document = result.document;
+      if (result.stoppedBecause?.kind === 'module') stops += 1;
+      fired += result.events.filter((event) => isModuleEvent(event) && (event.type as string) === 'probe.fired').length;
+    }
 
     const played = { morning: 0, afternoon: 0, night: 0 };
     for (let turn = 1; turn <= turns; turn += 1) played[timeOfDay(turn)] += 1;
     expect(withValid(document, deps).world.turn).toBe(turns);
     expect(sliceOf(document).hooks).toEqual(played);
+    // Both ways through each hook that may stop or fire were met.
+    expect(stops).toBeGreaterThan(0);
+    expect(stops).toBeLessThan(played.afternoon);
+    expect(fired).toBeGreaterThan(0);
+    expect(fired).toBeLessThan(played.night);
     // A year is whole Days, and Turn 0, a morning, plays no phase (DL-24): one of each a Day.
     expect(played).toEqual({ morning: turns / 3, afternoon: turns / 3, night: turns / 3 });
   });

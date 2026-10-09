@@ -1146,3 +1146,9 @@ statements unchanged; the page's lines 98.0% → 97.9%, from earlier stories' co
 removed no page test. `npm test` passes; `neutral --expect` identical, alone; the doctor no drift
 before and after. Planted bugs run: `copyTable`'s ids reversed (world-copy red), buy's quantity + 1
 (the table's buy row red), each restored.
+Verified 2026-10-10 at 88eb14c: every subsuming test stands; of 50 planted bugs 48 turned it red, the
+two left being `advance`'s call to `ensureStreams` (the old-save path Q24 gave up) and a first Patron
+weighed 1.1 at neutral, which B-8 caught and one Board does not, so the two exact Board tests compare
+200 Boards (red from 1.02); the engine's coverage run for run against `3f6cd99` the same, 95.86% of
+branches, the new guard alone uncovered; 17 shrink mutants red or green as the full-size test was, but
+two the 12-Turn year never met, a stop and a firing, so the probe there stops and fires within it.

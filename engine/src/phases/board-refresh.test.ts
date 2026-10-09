@@ -161,25 +161,31 @@ describe('boardRefresh', () => {
     expect(patronBoardWeight(favoured, world, deps.config)).toBeCloseTo(1 + 1 / guildIds.length, 10);
   });
 
-  /** The Board `boardRefresh` offers `world` emptied, and the Board `pick` over the Patrons gives, with the streams each leaves. */
-  function offeredAndUniform(world: World, deps: EngineDeps) {
+  /**
+   * The Boards `boardRefresh` offers `world` emptied, `rounds` times, and the Boards `pick` over the
+   * Patrons gives, with the streams each leaves. Many Boards, not one: a Patron weighed a little off
+   * uniform moves only the rare draw near a bucket's edge, which a single Board seldom meets (DL-246).
+   */
+  function offeredAndUniform(world: World, deps: EngineDeps, rounds = 200) {
     const again = structuredClone(world);
-    takeFromBoard(world, world.board.length);
-    takeFromBoard(again, again.board.length);
     const patrons = Object.values(again.patrons).sort((a, b) => compareByCodeUnit(a.id, b.id));
-
-    const offered = boardRefresh(world, phaseContext(world, deps)).map((event) => event.participants[1]);
-    // The same draws by `pick`, as DL-25's refresh made them: one draw for the Patron, then the Quest's.
+    const offered: (string | undefined)[] = [];
     const uniform: string[] = [];
-    const state = again.rng.board;
-    while (again.board.length < deps.config.boardSize) {
-      const patron = pick(state, patrons);
-      uniform.push(generateQuest(again, patron, deps).events[0]?.participants[1] ?? '');
+    for (let round = 0; round < rounds; round += 1) {
+      takeFromBoard(world, world.board.length);
+      takeFromBoard(again, again.board.length);
+      offered.push(...boardRefresh(world, phaseContext(world, deps)).map((event) => event.participants[1]));
+      // The same draws by `pick`, as DL-25's refresh made them: one draw for the Patron, then the Quest's.
+      const state = again.rng.board;
+      while (again.board.length < deps.config.boardSize) {
+        const patron = pick(state, patrons);
+        uniform.push(generateQuest(again, patron, deps).events[0]?.participants[1] ?? '');
+      }
     }
     return { offered, uniform, stream: world.rng.board, uniformStream: again.rng.board };
   }
 
-  test('draws uniformly whatever the Regard when boardRegardWeight is 0: the very Board a uniform draw gives', () => {
+  test('draws uniformly whatever the Regard when boardRegardWeight is 0: the very Boards a uniform draw gives, refresh after refresh', () => {
     const deps = testDeps({ boardRegardWeight: 0 });
     const { world } = created('unweighted', deps);
     const [favoured] = Object.values(world.patrons);
@@ -192,7 +198,7 @@ describe('boardRefresh', () => {
     expect(stream).toEqual(uniformStream);
   });
 
-  test('draws, with every Patron at neutral, the very Board a uniform draw gives: a new world opens on the Board it opened on before Patron Regard weighed the draw (DL-43)', () => {
+  test('draws, with every Patron at neutral, the very Boards a uniform draw gives, refresh after refresh: a new world opens on the Board it opened on before Patron Regard weighed the draw (DL-43)', () => {
     const deps = testDeps();
     const { world } = created('same-board', deps);
 
