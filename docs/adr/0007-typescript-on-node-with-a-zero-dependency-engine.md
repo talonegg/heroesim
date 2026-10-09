@@ -11,3 +11,8 @@ static files, and in a test that plays a thousand games.
 development runs on the current release (26.9 at the time), and CI runs both 22 and the
 development version so the floor is tested rather than assumed. Decided by the owner (pre-M0
 review A8).
+
+*Amended 2026-10-09.* "Node 22 or later" reads "Node 26 or later": the floor is the version
+this repository is developed on, `engines` declares `>=26`, and CI tests the floor by testing
+that version, `.node-version`, in one job. Nothing is released on Node 22 any more. The intent holds: the floor is tested rather
+than assumed. Decided by the owner (DL-235).

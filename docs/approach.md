@@ -135,8 +135,8 @@ that needs a new kind of condition or effect is an engine change, and should be 
 
 ## 5. Repository layout
 
-One repository, npm workspaces, Node 22 or later (developed on the current release, CI on
-both), TypeScript, Vitest, ESLint.
+One repository, npm workspaces, Node 26 or later (developed and tested in CI on `.node-version`,
+the floor; DL-235), TypeScript, Vitest, ESLint.
 
 ```
 engine/     pure rules, state, generators, engines; zero dependencies; tests beside

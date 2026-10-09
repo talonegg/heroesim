@@ -1,15 +1,16 @@
 name: check
 
-# M0-S3: lint, typecheck and test on push and pull request. No deploy, and no repository secret is
-# referenced anywhere below. The matrix proves the documented floor (Node 22, ADR-0007 / pre-M0
-# review A8) against the Node this repository is developed on (.node-version), rather than
-# assuming the floor works.
+# Lint, typecheck and test on push and pull request, on the Node of `.node-version`. No deploy, and
+# no repository secret is referenced anywhere below. The floor `engines` declares is that Node, the
+# one this repository is developed on, and nothing is released on an older one (DL-235, ADR-0007),
+# so one job tests the floor rather than assuming it.
 #
 # DL-124: every line's branches by pattern, `v#.#-dev` and `v#.#-release`, so that a new line edits
 # no workflow; and the browser specs, `npm run e2e -w web`, in Chromium at the three widths,
 # superseding INPUTS 7.10's "no Playwright in CI". `main` is not here: only a release branch's
-# merged pull request moves it, whose commit `check` has already passed on the release branch,
-# and release.yml checks again before it deploys.
+# merged pull request moves it, whose commit `check` has already passed on the release branch. The
+# deploy runs the suite and the specs again unless the release's tree is the one they passed on
+# (DL-235).
 on:
   push:
     branches:
@@ -26,20 +27,11 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: node-22
-            node-version: '22'
-          - name: node-version-file
-            node-version-file: '.node-version'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node-version }}
-          node-version-file: ${{ matrix.node-version-file }}
+          node-version-file: '.node-version'
           cache: npm
       - run: npm ci
       - run: npm run lint

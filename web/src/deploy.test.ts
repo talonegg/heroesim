@@ -938,6 +938,24 @@ describe('the deploy workflow (DL-122, DL-124)', () => {
     expect(deployJob).toContain('cancel-in-progress: false');
   });
 
+  // DL-235: the suite and the specs are skipped only on tested.mjs's `run=false`, and the lint, the
+  // typecheck, the build (inside `npm run deploy`) and the live check always run.
+  test('runs the suite and the specs again unless tested.mjs finds the tree passed check already', () => {
+    const decided = stepWith('node web/scripts/tested.mjs "$EVENT"');
+    const skippable = "if: steps.tested.outputs.run != 'false'";
+
+    expect(steps[decided]).toMatch(/^name: [^\n]+\n {8}id: tested\n/);
+    expect(steps[decided]).toContain('GH_TOKEN: ${{ github.token }}');
+    expect(steps[decided]).toContain('EVENT: ${{ github.event_name }}');
+    expect(decided).toBeGreaterThan(stepWith('The tag is the newest release, on main'));
+    for (const text of ['npm test', 'npm run e2e -w web']) {
+      expect(decided).toBeLessThan(stepWith(text));
+      expect(steps[stepWith(text)]).toContain(skippable);
+    }
+    expect(steps.filter((step) => step.includes(skippable))).toHaveLength(2);
+    expect(deployJob).toMatch(/\n {4}permissions:\n {6}contents: read\n {6}actions: read\n/);
+  });
+
   test('hands the credentials only to the two steps that talk to Cloudflare, from the production environment', () => {
     expect(deployJob).toMatch(/environment:\n {6}name: production/);
     expect(workflow).toMatch(/\npermissions:\n {2}contents: read\n/);
@@ -975,6 +993,8 @@ describe('the release workflows (DL-124)', () => {
     expect(jobOf(workflow, 'deploy')).toMatch(
       /uses: \.\/\.github\/workflows\/deploy\.yml\n {4}with:\n {6}tag: \$\{\{ needs\.tag\.outputs\.tag \}\}\n {4}secrets: inherit/,
     );
+    // A called workflow's token has no more than its caller grants: the deploy reads check's runs (DL-235).
+    expect(jobOf(workflow, 'deploy')).toMatch(/permissions:\n {6}contents: write\n {6}actions: read\n/);
     expect(secretsIn(workflow)).toEqual([]);
   });
 
@@ -1014,6 +1034,20 @@ describe('the release workflows (DL-124)', () => {
     expect(jobOf(check, 'e2e')).toContain('npm run e2e -w web');
     expect(check).not.toContain('npm run deploy');
     expect(check).not.toContain('secrets.');
+  });
+
+  // DL-235: the floor is the Node of `.node-version`, so one `check` on it tests the floor.
+  test('check.yml: one check on .node-version, the floor that engines declares', () => {
+    const check = workflowText('check.yml');
+    const major = readText('.node-version').trim().split('.')[0];
+    const lock = JSON.parse(readText('package-lock.json')) as { packages: Record<string, { engines?: { node?: string } }> };
+
+    expect(jobOf(check, 'check')).toContain("node-version-file: '.node-version'");
+    expect(check).not.toContain('matrix');
+    expect(check).not.toMatch(/node-version: /);
+    expect(jobOf(check, 'check')).toContain('run: npm test');
+    expect((readManifest('package.json') as Manifest & { engines?: { node?: string } }).engines?.node).toBe(`>=${major}`);
+    expect(lock.packages['']?.engines?.node).toBe(`>=${major}`);
   });
 
   test('no workflow names a secret but the two Cloudflare credentials', () => {

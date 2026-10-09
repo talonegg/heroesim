@@ -276,8 +276,8 @@ Every system in the game must serve at least one of these:
   The core runs with none installed (ADR-0005).
 - N7. **Content over code.** Classes, Stats, Skills, Synergies, Items, Quest templates and
   events are data files; adding one never changes the engine (ADR-0006).
-- N8. **TypeScript on Node 22 or later, zero dependencies in the engine**, Vitest, one
-  repository (ADR-0007 as amended 2026-09-25).
+- N8. **TypeScript on Node 26 or later, zero dependencies in the engine**, Vitest, one
+  repository (ADR-0007 as amended 2026-10-09, DL-235).
 - N9. **Every tunable is a named, defaulted configuration field.** A literal balance number
   in rules code is a defect.
 - N10. **Measured before tuned.** A harness with an automatic policy plays many seeded games

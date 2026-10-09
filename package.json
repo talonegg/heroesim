@@ -16,7 +16,7 @@
     "tools/measure"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=26"
   },
   "scripts": {
     "test": "vitest run",

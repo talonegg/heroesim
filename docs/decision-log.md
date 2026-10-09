@@ -92,6 +92,8 @@ engineering design. The analyses found the following:
    - The full suite and e2e run on `.node-version`. Node 22 runs `npm ci`, typecheck, the build, and
      the engine's and `words`' tests (Q18 a), with ADR-0007 amended.
    - The deploy skips the tests when the merge commit's tree is the tested release tree (Q19 a).
+
+   *Superseded in part by DL-235, 2026-10-09: no Node 22 job; the floor is Node 26, `.node-version`, which the one `check` job tests. The record: [superseded/DL-231.md](./decisions/archive/superseded/DL-231.md).*
 7. **The harness.** `neutral` runs as many workers as seeds. The `gate` keeps 8 workers and its
    replay alone (Q13 a).
 8. **The plan** (Q28 a): S1 the tooling and baselines, S2 the suite's structure, S3 CI, S4–S6 the
@@ -300,3 +302,65 @@ and the owner's pictures held, and "Finish" through npm no longer proved the lin
 passed on, now a test of `cli.test.ts`; of five full runs two failed, the words' scan of `web/src`
 reading a probe file of `engine/src/boundary.test.ts` that the longest-first order now runs beside
 it, and `app.test.tsx`'s 5 s limit as at the baseline, both for the owner.
+
+## DL-235 — v1.1.9-S3 built: CI on Node 26 alone, and a deploy that tests a tree once
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Decided by:** the owner ("nothing will be released
+on node 22 going forward", then option (a): raise the floor to Node 26 and drop the Node 22 job;
+DL-231 Q19 a); the deploy's script by the agent
+
+**Context.** DL-231 item 6 kept a Node 22 job, the floor, on a subset of the tests (Q18 a), and had
+the deploy skip the tests on a tree already tested (Q19 a). S1's baseline found the Node 22 job
+billing 9–13 of each push's 22–29 minutes, and a release running the suite and the browser specs
+again on the tree its release branch had passed. Asked about the subset, the owner answered that
+nothing will be released on Node 22, and chose to raise the floor.
+
+**Decision.**
+
+1. **The floor is Node 26.** `engines` declares `>=26`, the major of `.node-version` (`.npmrc`'s
+   `engine-strict` enforces it), and the lock's root says the same. ADR-0007 takes a dated
+   amendment; N8 and `docs/approach.md` read "Node 26 or later". This supersedes in part DL-231
+   item 6 (record: `superseded/DL-231.md`).
+2. **One `check` job.** `check.yml` has no matrix: lint, typecheck and `npm test` on
+   `node-version-file: '.node-version'`, with `e2e` beside it. Testing the development version tests
+   the floor, so the intent "tested rather than assumed" holds. `deploy.test.ts` holds `engines` to
+   `.node-version`'s major and the job to that file.
+3. **The deploy tests a tree once** (Q19 a). `web/scripts/tested.mjs <event> [commit]` decides, and
+   `deploy.yml` runs `npm test` and `npm run e2e -w web` unless it wrote `run=false`. It writes
+   `run=false` only when all of these hold:
+   - the event is a push: release.yml's call, or a tag pushed by hand;
+   - the commit is a merge, and its tree is its second parent's (`git rev-parse <a>^{tree}`), the
+     release branch's tip;
+   - GitHub lists a push run of `check.yml` on that tip, completed with success. That run is both
+     jobs, `check` and `e2e`.
+
+   Anything else runs them: a deploy run by hand, no second parent, another tree, git or `gh api`
+   failing, or no such run. The reason goes to the log and the run's summary. Lint, typecheck, the
+   build with its bundle gate (inside `npm run deploy`) and `e2e:live` always run. The deploy job
+   reads with `actions: read`, which release.yml's call now grants. `docs/deploy.md` and
+   `docs/environment.md` say so.
+
+*Judgement calls, for the owner to see:*
+- Every manual dispatch runs the tests, the newest tag's redeploy as well as a rollback: both are
+  rare, and a redeploy usually follows a failure.
+- Only a push run counts. A pull request's run tests the pull request merged into its base, not the
+  tip's own tree.
+- The proof is the whole workflow's run, read through the workflow-runs API (`actions: read`),
+  rather than the `check` job's check run (`checks: read`), so that the browser specs count too.
+- The deploy's `if` is `run != 'false'`, so a missing output runs the tests.
+- Tying `engines` to `.node-version`'s major means a new development version raises the floor with
+  it. Otherwise CI would stop testing the floor.
+- The job's name is now `check`, not `check (node-version-file)`. The private repository has no
+  branch protection to name it (the API answers that the plan lacks it).
+
+**Consequences.** Node 22 is no longer supported. An install on an older Node is refused. A push is
+estimated to bill 11–17 minutes, not 22–29: the five baseline pushes less their Node 22 job, about
+10.6 minutes a push on average. A release whose tree is its tested tip skips about 748 s of its
+deploy (v1.1.8's `npm test` 479 s and specs 269 s), estimated at 5 billed minutes rather than 17.
+Both are measured after the owner's push.
+
+**Evidence.** `web/src/tested.test.ts` compares trees in temporary repositories both ways: a merge
+whose tree is the tested tip, and one whose `main` moved first. A dry run on this repository's
+history, read-only: `v1.1.8`, `v1.1.7` and `v1.1.6` would have skipped, the first on run
+37862464900 of `3f11670`; `c844dcd`, a merge with another tree, and `061c7ce`, no merge, would run
+them. The epic's S3 boxes.

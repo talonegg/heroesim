@@ -81,10 +81,13 @@ jobs:
           echo "Released $tag: $BRANCH, merged into main by #$NUMBER." >> "$GITHUB_STEP_SUMMARY"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
+  # The called deploy's token has no more than this grants: actions: read lets it read check's runs
+  # on the release branch's tip (DL-235).
   deploy:
     needs: tag
     permissions:
       contents: write
+      actions: read
     uses: ./.github/workflows/deploy.yml
     with:
       tag: ${{ needs.tag.outputs.tag }}
