@@ -241,6 +241,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-229 | 2026-10-09 | One 50 × 20 baseline on v1.1.8, and the harness's reports cut to those cited live |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
 | DL-230 | 2026-10-09 | The engine's two twenty-year boxes out of `npm test`, into `npm run harness` |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
 | DL-231 | 2026-10-09 | v1.1.9 planned: the tests and the harness faster and leaner, play and the design unchanged |  | [decision-log](../decision-log.md) |
+| DL-232 | 2026-10-09 | v1.1.9 widened to the architecture review's twelve candidates |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

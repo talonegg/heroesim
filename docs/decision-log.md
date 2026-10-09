@@ -113,3 +113,57 @@ to runs that only a close plays. CI proves Node 22's floor by a subset of the te
 **Evidence.** The epic's §5. The analyses ran at `26cd276`: `npm test` twice, each project alone,
 coverage via `npm i --no-save`, one profiled `neutral` game (with one worker, to profile a single
 process), and CI's jobs by `gh`.
+
+## DL-232 — v1.1.9 widened to the architecture review's twelve candidates
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Decided by:** the owner, answering QA–QD after an
+architecture review ([the epic](./planning/epics/v1.1.9-release.md) §5.1, §6)
+
+**Context.** After DL-231, the owner asked for a review of the codebase's architecture.
+- Three read-only explorations of the hot spots since 2026-09-28 found twelve candidates: modules
+  whose knowledge of one thing is spread across modules that change together, or written twice.
+- The owner then asked how to fit them into v1.1.9.
+- The agent recommended taking seven and deferring five.
+
+**Decision.**
+
+1. **All twelve candidates join v1.1.9** (QA c). The epic grows from 13–17 to 25–31 sessions, and
+   its stories are renumbered S1–S16.
+2. **The new and changed stories:**
+
+   | Story | What it builds | Review |
+   |---|---|---|
+   | S4 | The Best Party module, replacing the plain caches | #1 |
+   | S5 | Adds the list of a Guild's actions applied on one copy | #2 |
+   | S6 | The harness's counters declared once, and the play loop observed | #7, #10 |
+   | S7 | Refusals behind the Namer | #5 |
+   | S8 | Readings in `words`, and the player's reading | #4, #8 |
+   | S9 | The History reader | #9 |
+   | S10 | Content kinds | #3, #11, #12 |
+   | S11 | The editor's edit session | #6 |
+
+   Pruning becomes S12–S15 and the close S16. The order keeps Q28 (a), and each review story comes
+   before the pruning of the package whose tests it moves.
+3. **A cache lives no longer than its unchanging world** (QB a). This amends Q20's "one call or one
+   phase of a Turn". The page's lifetime is one document, which is immutable. A cache is never
+   module-global and never stored in the document. The world's identity is its key.
+4. **Drifted wording** (QC a). Where the CLI and the page now differ, the wording is settled by
+   `docs/agents/ui-text.md`. Every changed sentence is listed in the story's DL entry for the owner.
+5. **Deferral** (QD a). A deferred candidate would be recorded in `plan.md` §3. With QA (c), none is
+   deferred.
+6. **The Gate gains a content line.** S10 reads the shipped content to the same value, deep-equal,
+   and refuses every row it refused before.
+
+*Judgement calls, for the owner to see:*
+- #1's module is named for the glossary's Best Party, so `CONTEXT.md` gains no term. A story that
+  names a new domain concept adds it in the same story.
+- S9 may tag a return's events with their Quest. That changes the save's shape, so it is proved by
+  `compare` and a new baseline (Q2), not by an identical fingerprint.
+
+**Consequences.**
+- The release doubles in size.
+- S9 to S11 are the most separable stories, if it must be cut.
+- Players may see settled wording from S7 and S8.
+
+**Evidence.** The review's report, written outside the repository, was summarised in the epic's
+§5.1. The epic's §0 table and §1 stories give the new plan.
