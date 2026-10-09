@@ -81,6 +81,22 @@ describe('returnOf', () => {
     expect(returnOf(history, { partyId: makeId('parties', 9), questId: quest })).toBeNull();
     expect(returnOf(history, { partyId: party, questId: makeId('quests', 9) })).toBeNull();
   });
+
+  test("of two outcomes of the Party on the Quest, reads the newest; and nothing of its night before the outcome, nor its dead's gear back for another cause", () => {
+    const history = historyOf(
+      resolved(night, { heroIds: [ada] }),
+      levelled(night + 3, ada, 2),
+      resolved(night + 3, { heroIds: [ada, bo], deaths: [bo] }),
+      gearBack(night + 3, bo, 'retired'),
+      levelled(night + 3, ada, 3),
+      gearBack(night + 3, bo, 'died'),
+    );
+    const read = returnOf(history, { partyId: party, questId: quest });
+
+    expect(read?.position).toBe(2);
+    expect(read?.levels).toEqual([history.entries[4]]);
+    expect(read?.gear).toEqual([history.entries[5]]);
+  });
 });
 
 describe('nightsReturnOf', () => {
@@ -101,6 +117,12 @@ describe('nightsReturnOf', () => {
 
   test("names none for a Level at home, one on another night, gear back for another cause, or an entry naming the Quest", () => {
     for (const each of [cys, retired, later, outcome]) expect(nightsReturnOf(history, each as Entry), each?.type).toBeNull();
+  });
+
+  test('names none for a Level gained at home before the Hero goes on a Quest that comes home on a later night', () => {
+    const atHome = levelled(night - 2, cy, 2);
+    const home = historyOf(atHome, resolved(night, { heroIds: [cy] }));
+    expect(nightsReturnOf(home, atHome)).toBeNull();
   });
 });
 

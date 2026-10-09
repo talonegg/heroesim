@@ -871,3 +871,9 @@ History page, rail and ledger the page showed over 22 played documents (three se
 years, and their edge cases), 261,792 views, identical before and after. `neutral --expect` identical,
 alone: `harness/reports/v1.1.9-s9-neutral-2026-10-10.md`; `compare` with S6's verified run: 0 moved,
 505 the same. The epic's S9 boxes.
+Verified 2026-10-10 at af72f08: `returnOf` and `nightsReturnOf` equal the old night walk and
+`partOfAReturn` over five multi-year games (32,940 returns, every listed edge met), and the page's
+views from 82184ad's sources equal today's over eleven documents (about 400,000 views); four mutants
+of `returns.ts` lived (the newest outcome, the night's bound, before the outcome, the gear's cause)
+and the line test missed an alias and a read by key, each now red under test; the eight `withReturn`
+tests do tell outcomes the rules never write (Morale bands, −10 grief, +5 on a strong success, one Loot).

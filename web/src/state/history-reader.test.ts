@@ -91,24 +91,45 @@ const srcDir = fileURLToPath(new URL('..', import.meta.url));
 /** The History's own lists, which the reader alone reads. */
 const lists = new Set(['entries', 'byEntity', 'byType', 'milestones']);
 
-/** Whether `node` names the History: an expression ending in `history`, as `document.history` does. */
-function namesHistory(node: ts.Expression): boolean {
+/**
+ * Whether `node` names the History: an expression ending in `history`, as `document.history` does, or
+ * a name the file gave the History (`aliases`).
+ */
+function namesHistory(node: ts.Expression, aliases: ReadonlySet<string> = new Set()): boolean {
   const name = ts.isPropertyAccessExpression(node) ? node.name.text : ts.isIdentifier(node) ? node.text : '';
-  return /history$/i.test(name);
+  return /history$/i.test(name) || (ts.isIdentifier(node) && aliases.has(name));
+}
+
+/** The names `ast` gives the History: a variable set to it, or a variable or parameter of its type. */
+function historyAliasesOf(ast: ts.SourceFile): Set<string> {
+  const aliases = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    if ((ts.isVariableDeclaration(node) || ts.isParameter(node)) && ts.isIdentifier(node.name)) {
+      const typed = node.type !== undefined && /(^|\W)History$|\[['"]history['"]\]$/.test(node.type.getText());
+      if (typed || (node.initializer !== undefined && namesHistory(node.initializer))) aliases.add(node.name.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  return aliases;
 }
 
 /**
  * Where `source` reads one of the History's lists: `byEntity` or `byType` of anything, since nothing
- * else has them; `entries` or `milestones` of the History, read or taken apart.
+ * else has them; `entries` or `milestones` of the History, read, read by key or taken apart.
  */
 function historyReadsOf(source: string, file = 'probe.ts'): string[] {
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  const aliases = historyAliasesOf(ast);
   const found: string[] = [];
   const visit = (node: ts.Node): void => {
     if (ts.isPropertyAccessExpression(node) && lists.has(node.name.text)) {
       const call = ts.isCallExpression(node.parent) && node.parent.expression === node;
-      if (node.name.text === 'byEntity' || node.name.text === 'byType' || (!call && namesHistory(node.expression))) found.push(node.getText());
-    } else if (ts.isVariableDeclaration(node) && node.initializer !== undefined && ts.isObjectBindingPattern(node.name) && namesHistory(node.initializer)) {
+      if (node.name.text === 'byEntity' || node.name.text === 'byType' || (!call && namesHistory(node.expression, aliases))) found.push(node.getText());
+    } else if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression) && lists.has(node.argumentExpression.text)) {
+      const key = node.argumentExpression.text;
+      if (key === 'byEntity' || key === 'byType' || namesHistory(node.expression, aliases)) found.push(node.getText());
+    } else if (ts.isVariableDeclaration(node) && node.initializer !== undefined && ts.isObjectBindingPattern(node.name) && namesHistory(node.initializer, aliases)) {
       for (const element of node.name.elements) {
         const key = element.propertyName ?? element.name;
         if (ts.isIdentifier(key) && lists.has(key.text)) found.push(element.getText());
@@ -144,6 +165,11 @@ describe('the page reads the History only through the reader (DL-242)', () => {
     ['state.document.history.milestones', 1],
     ['const { entries, byEntity } = document.history;', 2],
     ['const { entries: all } = history;', 1],
+    ['const log = document.history; log.entries.length;', 1],
+    ['function first(log: History): Entry | undefined { return log.entries[0]; }', 1],
+    ["history['entries'].length", 1],
+    ["view['byEntity']", 1],
+    ["rows['entries']", 0],
     ['Object.entries(rows)', 0],
     ['rows.entries', 0],
     ['new Map().entries()', 0],
