@@ -181,7 +181,8 @@ export function checkEffect(at: string, effect: { kind: string }, kinds: Readonl
   const values = effect as unknown as Readonly<Record<string, unknown>>;
   for (const [name, field] of fieldsOf(described)) {
     const value = values[name];
-    if (value === undefined && field.optional === true) continue;
+    // An optional field left out, or null in a set built in memory, is not held to its description.
+    if ((value === undefined || value === null) && field.optional === true) continue;
     const where = `${at}.${name}`;
     switch (field.type) {
       case 'integer':

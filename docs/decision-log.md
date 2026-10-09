@@ -947,3 +947,8 @@ Source lines citing a story fell from 1,701 to 1,638, and the baseline with them
 `validateContent` calls the old suite made, 581 of them refused, were replayed: each the same, its
 problems in the same order, so no words change (QC a: none to list). `neutral --expect` identical,
 alone: `harness/reports/v1.1.9-s10-neutral-2026-10-10.md`. The epic's S10 boxes.
+Verified 2026-10-10 at 2c2981c: the shipped content, the drafts and the raw read deep-equal under
+the old package and the new; 22,921 broken files and 14,081 broken sets built in memory checked by
+both, every refusal kept, changed only in order across kinds (29 and 11 cases) and by the listed
+refusal of an undescribed effect kind; fixed an Encounter bonus's `kinds` or `tags` null in memory,
+which threw where it was refused, and pinned the editor's forms to the description.

@@ -69,6 +69,20 @@ describe("the effect kinds' description", () => {
     ]);
   });
 
+  test('holds an optional field null, in a set built in memory, as left out', () => {
+    const content = structuredClone(shipped);
+    Object.assign(content.heroTraits['battle-tried'] ?? {}, {
+      effects: [
+        { kind: 'encounterBonus', flat: 1, kinds: null },
+        { kind: 'encounterBonus', flat: 1, kinds: ['combat'], tags: null },
+      ],
+    });
+
+    expect(refusalOf(() => validateContent(content)).problems).toEqual([
+      'heroTraits.battle-tried.effects.0 names no Encounter kind and no tag: it adds to the Encounters it names',
+    ]);
+  });
+
   test('refuses a kind the description does not have, in a set built in memory, naming the kinds there are', () => {
     const content = structuredClone(shipped);
     Object.assign(content.guildmasterTraits['old-soldier'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { strength: 1 } }] });
