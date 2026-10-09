@@ -597,7 +597,8 @@ while the game's document was still held.
    afternoons) is one more (`seenInPlay`). The replay passes none. The Succession probe is an
    observer. `sweep.ts` (203 lines) keeps running and replay.
 4. **The end of a game.** The game's document is out of reach before its save is loaded back, and
-   the last year's save is gzipped with `zlib.gzip`, in its thread pool, while the load runs.
+   the last year's save is gzipped with `zlib.gzip`, in its thread pool, once the load is done:
+   zlib's copy of the text held through the load raised a game's peak by some 230 MB.
 5. **`neutral`'s workers** are its seeds (Q13 a); `HEROESIM_WORKERS` still overrides. Rule 6 of
    `docs/agents/delivery.md` says so; the `gate` keeps 8 and its replay alone (DL-189).
 6. The policy's memo (a Quest's choice kept when none of its Party was sent) is the Best Party
@@ -617,7 +618,7 @@ while the game's document was still held.
 - Tests that called `observe`, `takeCensus`, `afterAdvance` or the sweep at once moved to the
   observers and `await`, keeping their assertions: `counters`, `play`, `sweep`, `gate`,
   `run-report`, `module-report`, `modules`, `calibrate`, `write-once`, `play.harness`,
-  `modules.harness`. The settings test that pinned `neutral` at 10 workers now pins it at its
+  `modules.harness`. The settings test that pinned `neutral` at 8 workers now pins it at 10, its
   seeds.
 - `counter.test.ts` was written with the code, not before it; it was shown red by two mutations
   (a recorded game gathering only the core's counters: 5 of 7 fail; every fold a sum: 3 of 7).
@@ -625,11 +626,17 @@ while the game's document was still held.
   `tools/decisions/story-citations.json` is not yet lowered (the agent was refused the edit).
 
 **Consequences.** The neutral run took 215.1 s in 10 processes, from S5's 237.1 s in 8 and the
-baseline's 413.9 s. Its shards peaked at 1,106 to 1,686 MB each, one game a process (the baseline's
-1,072 to 1,426 MB, one or two games in each of 8). A counter is added by one declaration.
+baseline's 413.9 s. Its shards peaked at 1,129 to 1,573 MB each, one game a process, with the gzip
+after the load (1,106 to 1,686 MB with it beside the load; the baseline's 1,072 to 1,426 MB, one or
+two games in each of 8). A counter is added by one declaration.
 
 **Evidence.** `harness/src/counter.test.ts`; the moments' and gzip's tests in `play.test.ts`; the
 workers' in `settings.test.ts`. `neutral --expect` identical, alone:
 `harness/reports/v1.1.9-s6-neutral-2026-10-10.md`; `compare` with S5's: 0 moved, 505 the same, and
 the Markdown the same but its timings. DL-176's "stale Parties kept" mutation fails 8 of
 `policy.test.ts`'s 32 against S4's module. The epic's S6 boxes.
+Verified 2026-10-10 at 7b70ab2: the claims hold (compare 0 moved, 505 the same; the replay bare and
+identical; the Succession probe's report and games byte-equal to S5's over 8 seeds); one game's peak
+had risen 230 MB because zlib's copy of the text was held through the load, so the gzip now starts
+once the load is done (one game 1,735 to 1,509 MB; `neutral` again identical, shards 1,129 to
+1,573 MB, `v1.1.9-s6v-neutral`), and the census's ended world and the probe's observer are now tested.

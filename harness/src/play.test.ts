@@ -5,6 +5,7 @@ import {
   applyAction,
   createWorld,
   defaultConfig,
+  deserialise,
   dispositionOf,
   playerGuild,
   serialise,
@@ -28,10 +29,11 @@ import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './polic
 import { machine } from './report.js';
 import { summarise } from './stats.js';
 
-// The engine's `serialise`, watched as it is, to count the saves a game writes (v1.1.5-S1).
+// The engine's `serialise`, watched as it is, to count the saves a game writes (v1.1.5-S1), and its
+// `deserialise`, to see when a save is loaded beside its gzip (DL-239).
 vi.mock('@heroesim/engine', async (importOriginal) => {
   const engine = await importOriginal<typeof import('@heroesim/engine')>();
-  return { ...engine, serialise: vi.fn(engine.serialise) };
+  return { ...engine, serialise: vi.fn(engine.serialise), deserialise: vi.fn(engine.deserialise) };
 });
 
 // zlib, watched as it is, to see which way a save is gzipped (DL-239).
@@ -179,6 +181,19 @@ describe('playGame observes the World State (M3, DL-40)', () => {
     const levels = guild.rosterIds.reduce((sum, id) => sum + (game.document.world.heroes[id]?.level ?? 0), 0);
     expect(rosters[2]?.player).toMatchObject({ heroes: guild.rosterIds.length, levels });
     expect(observers.regard.value()).toBeNull();
+  });
+
+  test('none of a world that ended as its year ended: the census counts the years a game was in play (DL-239)', () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 30 } };
+    const rosters = observerOf('rosters');
+    const { document } = createWorld('play-a', harnessSetup, shortYears);
+    rosters.created?.({ document, deps: shortYears, events: [] });
+    const yearEnd = (ended: WorldDocument['world']['ended']): WorldDocument => ({ ...document, world: { ...document.world, turn: 30, ended } });
+    const moment = { deps: shortYears, now: () => 0, worldLength: () => 0 };
+    rosters.yearEnded?.({ ...moment, document: yearEnd({ turn: 30, reason: 'bankruptcy' }) });
+    expect(rosters.value()).toHaveLength(1);
+    rosters.yearEnded?.({ ...moment, document: yearEnd(null) });
+    expect(rosters.value()).toHaveLength(2);
   });
 
   test("the player's Guild's Regard after 10 years, from the world as the last Turn left it (M4, DL-55)", () => {
@@ -596,6 +611,15 @@ describe('recordGame and measureDocument', () => {
     expect(vi.mocked(gzipSync)).not.toHaveBeenCalled();
     expect(record.measures.gzipped).toBeGreaterThan(0);
     expect(record.observations.saves.at(-1)?.gzipped).toBe(record.measures.gzipped);
+  });
+
+  test("gzip the save once it is loaded, so zlib's copy of its text is not held while the load builds the document (DL-239)", async () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 21 } };
+    vi.mocked(gzip).mockClear();
+    vi.mocked(deserialise).mockClear();
+    await recordGame('play-a', shortYears, { years: 1 });
+    expect(vi.mocked(deserialise)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(gzip).mock.invocationCallOrder[0]).toBeGreaterThan(vi.mocked(deserialise).mock.invocationCallOrder[0] as number);
   });
 
   test('reduce a game to its counters and the measures of its last document, which loads back', async () => {

@@ -448,19 +448,20 @@ function gzippedLength(text: string): Promise<number> {
 
 /**
  * Loads a written save back, timing the load, fingerprints it and, when `gzip` is set, measures it
- * gzipped in zlib's thread pool while the load runs here (DL-239). The text is dropped once loaded, and
- * the loaded document serialised again and compared with it by length and fingerprint, so that the two
- * texts, 116 MB each at a 20-year game's end, are never held at once (DL-174).
+ * gzipped in zlib's thread pool once it is loaded (DL-239): zlib copies the text, 164 MB at a 20-year
+ * game's end, and that copy held through the load raised a game's peak by some 230 MB. The text is
+ * dropped once gzipped, and the loaded document serialised again and compared with it by length and
+ * fingerprint, so that the two texts are never held at once (DL-174).
  */
 async function measureSave(save: Written, deps: EngineDeps, now: () => number, gzip: boolean): Promise<DocumentMeasures> {
   const text = save.text;
   if (text === null) throw new Error('A save is measured once');
   const length = text.length;
   const fingerprint = fingerprintOf(text);
-  const gzipping = gzip ? gzippedLength(text) : null;
   const started = now();
   const loaded = deserialise(text, deps);
   const deserialiseMs = now() - started;
+  const gzipping = gzip ? gzippedLength(text) : null;
   save.text = null;
   const gzipped = gzipping === null ? null : await gzipping;
   const again = loaded.ok ? serialise(loaded.document) : null;

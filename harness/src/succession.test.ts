@@ -93,6 +93,10 @@ describe('the Succession probe over a few seeds', () => {
   });
 
   test('the Guild carries on across it: its Roster, Wealth, Fame and Hall as they were, and the Regard held for it through its Guildmaster neutral', () => {
+    // The probe's observer of each `advance` (DL-239) sees the Guild across every Succession its History records.
+    const succeeded = games.filter((game) => game.successions.some((succession) => succession.guildId === game.rivalId));
+    expect(succeeded.length).toBeGreaterThan(0);
+    expect(games.filter((it) => it.after !== null).map((it) => it.seed)).toEqual(succeeded.map((it) => it.seed));
     for (const game of games.filter((it) => it.after !== null)) {
       const { eve, after } = game as Required<ProbeGame> & { eve: NonNullable<ProbeGame['eve']>; after: NonNullable<ProbeGame['after']> };
       expect(after.guildmasterId, game.seed).not.toBe(eve.guildmasterId);
