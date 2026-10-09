@@ -368,6 +368,8 @@ Verified 2026-10-09 at 99d6032: the dry run, the floor, the supersession and the
 22 mutations of the script and the workflows went red once the script also required the run to be
 check.yml's own and tests were added for unread trees, an answer listing no runs, no repository
 asked nothing, and no deploy step conditional but the suite, the specs and the record.
+Measured 2026-10-10 on the owner's push of `15e5833` (run 37953845586, passed): `check` 492 s
+(`npm test` 407), `e2e` 302 s; 15 minutes billed a push, against 22–29 before.
 
 ## DL-236 — v1.1.9: three tests that failed under load fixed on the owner's word
 
