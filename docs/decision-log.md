@@ -567,6 +567,7 @@ Verified 2026-10-10 at 2ff2a7a: every rule refuses before it writes (no id, draw
 before its last refusal), the Rival phase and the neutral's counters are as before, the save's
 bytes and refusals are the old ones, and the count matches the walk; added a test of each rule's
 late refusals, which the existing tests missed, and one of the profile's `applyAction` part.
+The owner approved ADR-0011's amendment on 2026-10-10 ("2.a"), and it was made as proposed.
 
 ## DL-239 — v1.1.9-S6 built: the harness's counters declared once, and play observed
 

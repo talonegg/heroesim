@@ -1,6 +1,6 @@
 # The write-once rows are frozen and shared by reference outside the per-Turn copy
 
-*Amendment proposed 2026-10-10 (DL-238), awaiting the owner's word:* a Guild's list of actions
+*Amended 2026-10-10 (DL-238), on the owner's word:* a Guild's list of actions
 in a Turn is played on one copy of `world`, not on one an action. `applyActions` copies `world` once
 (`copyWorld`) and applies the list's actions to the copy in order, each through its rule. A refused
 action changes nothing, since every rule decides a refusal before it writes, and the done actions'
