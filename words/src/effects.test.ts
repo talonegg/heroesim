@@ -1,5 +1,5 @@
 import { loadContent } from '@heroesim/content/node';
-import type { ConsumableEffect, ItemDefinition, TraitEffect } from '@heroesim/engine';
+import type { ConsumableEffect, ItemDefinition, TraitEffect } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { consumableEffectWords, itemEffectWords, kindOf, kindWords, modifierWords, traitEffectWords } from './effects.js';
 

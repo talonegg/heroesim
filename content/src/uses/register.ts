@@ -11,7 +11,7 @@
 // (`sources`, which the drift test checks both ways) and those its rule runs through that read none
 // themselves (`through`, which the drift test checks are there).
 
-import { degrees } from '@heroesim/engine';
+import { degrees } from '@heroesim/engine/content';
 import type { ContentFileName } from '../parse.js';
 import {
   at,

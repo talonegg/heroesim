@@ -14,10 +14,8 @@ import {
   descriptiveAttributeLabels,
   parseId,
   playerGuild,
-  sexes,
   traitOf,
   type ActionRejection,
-  type ContentSet,
   type Ending,
   type EntityId,
   type Guild,
@@ -27,6 +25,7 @@ import {
   type UnmetRequirement,
   type World,
 } from '@heroesim/engine';
+import { sexes, type ContentSet } from '@heroesim/engine/content';
 import { gearUnavailableWords, unavailableWords } from './availability.js';
 import { dateOfTurn, type Calendar } from './calendar.js';
 import { listed, nameIn, rowOf } from './names.js';

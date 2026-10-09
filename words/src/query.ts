@@ -9,14 +9,13 @@
 import {
   describeQuery,
   type ChanceBand,
-  type ContentSet,
-  type EncounterKind,
   type PredAccount,
   type Quest,
   type QueryAccount,
   type SetAccount,
   type ValAccount,
 } from '@heroesim/engine';
+import { type ContentSet, type EncounterKind } from '@heroesim/engine/content';
 import { listed, nameIn } from './names.js';
 
 /** A chance band in words (DL-148 item 15). */

@@ -877,3 +877,24 @@ views from 82184ad's sources equal today's over eleven documents (about 400,000 
 of `returns.ts` lived (the newest outcome, the night's bound, before the outcome, the gear's cause)
 and the line test missed an alias and a read by key, each now red under test; the eight `withReturn`
 tests do tell outcomes the rules never write (Morale bands, −10 grief, +5 on a strong success, one Loot).
+
+## DL-243 — v1.1.9-S10 built: content kinds, effect kinds by their fields, and content's own entry
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner (DL-232 QA c, the epic's S10);
+the kinds' interface, the seams and the vocabularies by the agent
+
+**Context.** The architecture review's #3, #11 and #12 (the epic's §5.1). Being built: this entry is
+completed as the story closes.
+
+**Decision.**
+
+1. **Content's own entry** (#12). `@heroesim/engine/content` (`engine/src/content.ts`) holds
+   content's types and lists, the bounds content checks against and `queryProblems`. Content imports
+   the engine by it alone, its tests by either entry; the words and the content editor take content's
+   names from it. The main entry names only the content types and lists a front end, the harness or
+   the portrait tool takes, 503 names where it had 583. ESLint bars the CLI, the page and the harness
+   from the content entry; `testing.test.ts` and `boundary.test.ts` hold both.
+
+**Consequences.** Being built.
+
+**Evidence.** Being built.

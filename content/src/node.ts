@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { ContentSet } from '@heroesim/engine';
+import type { ContentSet } from '@heroesim/engine/content';
 import { contentFiles, parseContent } from './index.js';
 
 /** This package's directory, where the core content files sit. */

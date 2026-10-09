@@ -27,8 +27,13 @@ const restrictedImports = '@typescript-eslint/no-restricted-imports';
 const importing = (specifier: string): string => `import * as x from '${specifier}';\nexport { x };`;
 
 describe("the words' source", { timeout: 30_000 }, () => {
+  // Content's vocabulary from the engine's content entry (DL-243), the rest from its main entry.
   test.each(['ts', 'tsx'])('a .%s file may import the engine, its types and values, by name', async (extension) => {
-    const code = "import { describeQuery, type ContentSet } from '@heroesim/engine';\nexport const words = (set: ContentSet) => [describeQuery, set];";
+    const code = [
+      "import { describeQuery } from '@heroesim/engine';",
+      "import { encounterKinds, type ContentSet } from '@heroesim/engine/content';",
+      'export const words = (set: ContentSet) => [describeQuery, encounterKinds, set];',
+    ].join('\n');
 
     expect(await lint('words/src', code, extension)).toEqual([]);
   });

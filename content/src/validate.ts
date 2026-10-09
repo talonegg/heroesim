@@ -16,7 +16,7 @@ import type {
   PortraitRole,
   QueryKeys,
   Sex,
-} from '@heroesim/engine';
+} from '@heroesim/engine/content';
 import {
   biographyTraitSentences,
   classIcons,
@@ -29,7 +29,7 @@ import {
   isClassIcon,
   purchaseSteps,
   queryProblems,
-} from '@heroesim/engine';
+} from '@heroesim/engine/content';
 
 /**
  * Content that breaks the schema. The message lists every problem found, one per line, and

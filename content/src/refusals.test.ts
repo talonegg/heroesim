@@ -19,8 +19,8 @@ import type {
   LootTable,
   Stat,
   Synergy,
-} from '@heroesim/engine';
-import { classIcons } from '@heroesim/engine';
+} from '@heroesim/engine/content';
+import { classIcons } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { ContentError, contentFiles, contentWarnings, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';

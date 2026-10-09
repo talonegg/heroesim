@@ -61,8 +61,8 @@ import type {
   Synergy,
   SynergyBonus,
   SynergyRequires,
-} from '@heroesim/engine';
-import { encounterKinds as encounterKindList, facilityKeys, gearSlotKeys, purchaseSteps, sexes } from '@heroesim/engine';
+} from '@heroesim/engine/content';
+import { encounterKinds as encounterKindList, facilityKeys, gearSlotKeys, purchaseSteps, sexes } from '@heroesim/engine/content';
 import { findDuplicateKeys } from './duplicate-keys.js';
 import { ContentError, validateContent } from './validate.js';
 

@@ -3,8 +3,10 @@
 // Its values are what the other packages' production code uses, with the module seam's error and
 // tables (v1.1.6-S8, DL-186 item 9): the mutators and the engine's own helpers are not exported, and
 // what only tests take is `@heroesim/engine/testing` (testing.ts). Every type stays, but the hidden
-// generators' options and results. `export *` stays for the modules of types (events, content's
-// types) and for modules whose every value a caller uses; testing.test.ts holds the entry to this.
+// generators' options and results. `export *` stays for the events' types and for modules whose every
+// value a caller uses; testing.test.ts holds the entry to this. Content's vocabulary is its own entry,
+// `@heroesim/engine/content` (content.ts, DL-243): this one names the content types and lists the
+// front ends and the harness take, and content-entry.test.ts holds it to them.
 
 export {
   applyAction,
@@ -135,7 +137,38 @@ export {
   type RegardBand,
 } from './config.js';
 export { checkConfig, playConfig, playDeps, type ConfigProblem, type ConfigRule, type UnsoundConfig } from './config-check.js';
-export * from './content-types.js';
+export {
+  classIcons,
+  degrees,
+  encounterKinds,
+  gearSlotKeys,
+  isClassIcon,
+  type BackgroundKey,
+  type CheckKey,
+  type ClassIcon,
+  type ClassKey,
+  type Consequence,
+  type ContentSet,
+  type Degree,
+  type Encounter,
+  type EncounterCheck,
+  type EncounterKind,
+  type GuildmasterTrait,
+  type InjuryTypeKey,
+  type ItemDefinition,
+  type ItemDefinitionKey,
+  type NumQuery,
+  type PassFormula,
+  type PortraitAppearance,
+  type PortraitKey,
+  type PortraitRole,
+  type QuestTemplate,
+  type QuestTemplateKey,
+  type SlotKey,
+  type StatKey,
+  type Synergy,
+  type TraitKey,
+} from './content-types.js';
 export { bestParties, type BestParties, type BestParty } from './best-party.js';
 export {
   availableHeroes,
@@ -146,9 +179,7 @@ export {
 export { classComparator } from './class-order.js';
 export * from './create.js';
 export {
-  biographyTraitSentences,
   describeGuildmaster,
-  heroBiographyTraitSentences,
   type DescribeRequest,
   type DescriptionFacts,
   type GuildmasterDescription,
@@ -327,9 +358,6 @@ export {
   type Resolution,
 } from './quest-engine/resolve.js';
 export { queryParty, type OnQuest, type QueryContent, type QueryMember, type QueryParty } from './quest-engine/query.js';
-// Content's checker holds every Query to its type, keys, size and Sex rules by the operators' own
-// signatures (v1.1.6-S10, DL-186 item 6); the page checks none.
-export { queryProblems, type QueryKeys, type QueryPlace } from './quest-engine/query/problems.js';
 export {
   affordableImprovement,
   bankruptcyCountdown,

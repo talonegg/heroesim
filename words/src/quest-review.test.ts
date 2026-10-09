@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { contentDir, loadContent, loadDrafts } from '@heroesim/content/node';
-import { degrees, encounterKinds, type Encounter } from '@heroesim/engine';
+import { degrees, encounterKinds, type Encounter } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { consequenceWords, passWords, reviewPage, type ReviewCalibration, type ReviewCell } from './quest-review.js';
 

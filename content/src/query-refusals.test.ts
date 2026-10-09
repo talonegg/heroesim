@@ -1,4 +1,4 @@
-import type { ContentSet, Encounter } from '@heroesim/engine';
+import type { ContentSet, Encounter } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { ContentError, validateContent } from './index.js';
 import { loadContent } from './node.js';

@@ -4,7 +4,7 @@
 // the CLI and the page alike (DL-197). "No effect" stands alone, so it begins with a capital
 // (docs/agents/ui-text.md).
 
-import type { ConsumableEffect, ContentSet, GearDefinition, ItemDefinition, TraitEffect } from '@heroesim/engine';
+import type { ConsumableEffect, ContentSet, GearDefinition, ItemDefinition, TraitEffect } from '@heroesim/engine/content';
 import { capitalised, listed, nameIn, signed } from './names.js';
 
 /** The content an effect's keys are named from. */

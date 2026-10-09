@@ -3,7 +3,8 @@ import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ESLint } from 'eslint';
 import ts from 'typescript';
-import * as engine from '@heroesim/engine';
+import * as engineMain from '@heroesim/engine';
+import * as engine from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import * as content from './index.js';
 import { contentDir } from './node.js';
@@ -62,7 +63,7 @@ describe('the sources these tests read', () => {
     // count among the files that take the engine's values.
     const file = `boundary-probe-${randomUUID()}.ts`;
     const path = join(root, 'content', 'src', file);
-    writeFileSync(path, "import { x } from '@heroesim/engine';\nexport { x };\n");
+    writeFileSync(path, "import { x } from '@heroesim/engine/content';\nexport { x };\n");
     try {
       const files = sources('content').map((source) => source.file);
 
@@ -74,21 +75,23 @@ describe('the sources these tests read', () => {
   });
 });
 
-describe("content's types come from @heroesim/engine", () => {
+describe("content's types come from the engine's content entry, @heroesim/engine/content", () => {
   const engineTypes = ['ContentSet', 'Stat', 'Class', 'Skill', 'Trait', 'Background', 'Sphere', 'Names'];
 
   test('the pure and Node entries take the ContentSet type from the engine', () => {
     const fromEngine = sources('content', false).filter(({ ast }) =>
-      importsOf(ast).some((it) => it.from === '@heroesim/engine'),
+      importsOf(ast).some((it) => it.from === '@heroesim/engine/content'),
     );
 
     expect(fromEngine.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['node.ts', 'parse.ts', 'uses/register.ts', 'validate.ts']);
   });
 
-  test('every import of another package, tests included, is of the engine by name', () => {
+  // DL-243: content's view of the engine is its content entry; a test may also take the main entry.
+  test("every import of another package is of the engine's content entry by name, a test's of the engine too", () => {
     for (const { file, ast } of sources('content')) {
+      const allowed = file.endsWith('.test.ts') ? ['@heroesim/engine/content', '@heroesim/engine'] : ['@heroesim/engine/content'];
       for (const it of importsOf(ast).filter((each) => each.from.startsWith('@heroesim/'))) {
-        expect({ file, from: it.from }).toEqual({ file, from: '@heroesim/engine' });
+        expect(allowed, `${file} imports ${it.from}`).toContain(it.from);
       }
     }
   });
@@ -96,7 +99,7 @@ describe("content's types come from @heroesim/engine", () => {
   // DL-186 item 6 (v1.1.6-S5): content may take the engine's values, so it repeats none of them.
   test("takes the engine's values too: the parser, the checks and the register of a Trait's uses import some", () => {
     const withValues = sources('content', false).filter(({ ast }) =>
-      importsOf(ast).some((it) => it.from === '@heroesim/engine' && !it.typeOnly),
+      importsOf(ast).some((it) => it.from === '@heroesim/engine/content' && !it.typeOnly),
     );
 
     expect(withValues.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['parse.ts', 'uses/register.ts', 'validate.ts']);
@@ -121,7 +124,7 @@ describe("content repeats none of the engine's values", () => {
     encounterKinds: engine.encounterKinds,
     facilityKeys: engine.facilityKeys,
     gearSlotKeys: engine.gearSlotKeys,
-    descriptiveAttributes: engine.descriptiveAttributes,
+    descriptiveAttributes: engineMain.descriptiveAttributes,
     sexes: engine.sexes,
     degrees: engine.degrees,
     purchaseSteps: engine.purchaseSteps,
@@ -162,7 +165,7 @@ describe("content repeats none of the engine's values", () => {
   });
 
   test('the entry exports no name the engine exports', () => {
-    expect(Object.keys(content).filter((name) => Object.hasOwn(engine, name))).toEqual([]);
+    expect(Object.keys(content).filter((name) => Object.hasOwn(engine, name) || Object.hasOwn(engineMain, name))).toEqual([]);
   });
 });
 

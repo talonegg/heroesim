@@ -9,7 +9,7 @@
 // how, and only so.
 
 import { contentEntries, rulesFor, traitFiles, usesOf, UseRefusal, type ContentEntry, type ContentJson, type TraitList, type TraitUse } from '@heroesim/content/uses';
-import { encounterKinds, type GuildmasterTraitEffectKind, type HeroTraitEffectKind } from '@heroesim/engine';
+import { encounterKinds, type GuildmasterTraitEffectKind, type HeroTraitEffectKind } from '@heroesim/engine/content';
 import type { EffectForm, FieldForm, Kind, ListForm, Row, Rule, Use, UseChange } from './kind.js';
 
 const lists: Record<TraitList, { title: string }> = {

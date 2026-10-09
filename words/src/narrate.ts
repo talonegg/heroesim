@@ -24,14 +24,11 @@ import {
   isModuleEvent,
   parseId,
   regardBandNames,
-  type ContentSet,
-  type Degree,
   type EndingReason,
   type EngineEvent,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
-  type FacilityKey,
   type FormDecided,
   type GearMove,
   type GearReturnCause,
@@ -49,6 +46,7 @@ import {
   type TurnEvent,
   type World,
 } from '@heroesim/engine';
+import { type ContentSet, type Degree, type FacilityKey } from '@heroesim/engine/content';
 import { dateOfTurn, nightOfDay, nightOfTurn, type Calendar } from './calendar.js';
 import { listed, nameIn, signed } from './names.js';
 

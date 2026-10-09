@@ -170,7 +170,7 @@ describe("the engine's test entry, @heroesim/engine/testing", { timeout: 30_000 
   test('is declared beside the entry in engine/package.json', () => {
     const manifest = JSON.parse(readFileSync(`${root}engine/package.json`, 'utf8')) as { exports: Record<string, string> };
 
-    expect(manifest.exports).toEqual({ '.': './src/index.ts', './testing': './src/testing.ts' });
+    expect(manifest.exports).toEqual({ '.': './src/index.ts', './content': './src/content.ts', './testing': './src/testing.ts' });
   });
 
   test.each([
@@ -198,11 +198,35 @@ describe("the engine's test entry, @heroesim/engine/testing", { timeout: 30_000 
   });
 });
 
+// DL-243: content's own entry, its types, lists and `queryProblems`, for content, the words and the
+// tools; a front end and the harness take the engine by its main entry.
+describe("the engine's content entry, @heroesim/engine/content", { timeout: 30_000 }, () => {
+  const code = "import { encounterKinds, type ContentSet } from '@heroesim/engine/content';\nexport const x = (set: ContentSet) => [set, encounterKinds];";
+
+  test.each(['content', 'words', 'tools/editor', 'tools/portraits'])('%s may import it', async (pkg) => {
+    expect(await lintProbe(pkg, code)).toEqual([]);
+  });
+
+  test.each([
+    ['cli', 'ts'],
+    ['harness', 'ts'],
+    ['web', 'ts'],
+    ['web', 'tsx'],
+    ['cli', 'test.ts'],
+  ])('%s (.%s) may not import it', async (pkg, extension) => {
+    const errors = await lintProbe(pkg, code, extension);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe(restrictedImports);
+  });
+});
+
 describe('the other packages reach each other by name only', { timeout: 30_000 }, () => {
   test.each([
-    ['content', "import type { World } from '@heroesim/engine';\nexport type { World };"],
-    // DL-186 item 6 (v1.1.6-S5): content takes the engine's values as well as its types.
-    ['content', "import { encounterKinds } from '@heroesim/engine';\nexport { encounterKinds };"],
+    ['content', "import type { ContentSet } from '@heroesim/engine/content';\nexport type { ContentSet };"],
+    // DL-186 item 6 (v1.1.6-S5): content takes the engine's values as well as its types, by the
+    // engine's content entry (DL-243).
+    ['content', "import { encounterKinds } from '@heroesim/engine/content';\nexport { encounterKinds };"],
     ['cli', "import { x } from '@heroesim/engine';\nimport { y } from '@heroesim/content';\nexport { x, y };"],
     ['web', "import { x } from '@heroesim/engine';\nimport { y } from '@heroesim/content';\nexport { x, y };"],
     ['harness', "import { x } from '@heroesim/engine';\nexport { x };"],
@@ -212,6 +236,7 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
 
   test.each([
     ['content', 'a subpath of the engine', "import { x } from '@heroesim/engine/src/index.ts';\nexport { x };"],
+    ['content', "the engine's main entry (DL-243)", "import type { World } from '@heroesim/engine';\nexport type { World };"],
     ['content', 'a Node built-in outside its Node entry', "import fs from 'node:fs';\nexport { fs };"],
     ['content', 'a front end', "import x from '@heroesim/cli';\nexport { x };"],
     ['cli', 'web', "import x from '@heroesim/web';\nexport { x };"],

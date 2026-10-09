@@ -18,7 +18,6 @@ import {
   carriedGear,
   descriptiveAttributeLabels,
   durationDaysOf,
-  gearSlotKeys,
   guildmasterOf,
   itemDefinition,
   judgedHintBands,
@@ -37,15 +36,12 @@ import {
   type BestParty,
   type BestParties,
   type ChanceBand,
-  type ClassKey,
-  type ContentSet,
   type EngineDeps,
   type Guild,
   type GuildId,
   type Guildmaster,
   type Hero,
   type HeroId,
-  type ItemDefinitionKey,
   type MoraleBand,
   type PartyId,
   type PatronId,
@@ -53,11 +49,10 @@ import {
   type Quest,
   type QuestId,
   type RegardBand,
-  type Sex,
-  type StatKey,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
+import { gearSlotKeys, type ClassKey, type ContentSet, type ItemDefinitionKey, type Sex, type StatKey } from '@heroesim/engine/content';
 import { modifierWords, traitEffectWords } from './effects.js';
 import { capitalised, nameIn, rowOf } from './names.js';
 import { encounterReadings, shownPercent, type EncounterReading } from './query.js';

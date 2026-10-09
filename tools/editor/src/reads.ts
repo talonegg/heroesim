@@ -19,7 +19,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { traitHelpers, type SourcePlace } from '@heroesim/content/uses';
-import type { GuildmasterTraitEffectKind, HeroTraitEffectKind } from '@heroesim/engine';
+import type { GuildmasterTraitEffectKind, HeroTraitEffectKind } from '@heroesim/engine/content';
 import ts from 'typescript';
 
 /** The properties whose read is a read of a Trait. */

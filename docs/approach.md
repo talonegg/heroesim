@@ -102,9 +102,10 @@ entry, `applyAction(document, action, deps)`, the action a value told apart by i
 the rejection narrowed to that action's own; the function each had of its own is gone. A Guild's
 list of actions in a Turn may be taken at once through `applyActions`, on one copy (ADR-0011 as
 amended 2026-10-10, DL-238). The
-engine's entry exports what the front ends, the harness, content and the tools use, and what only
-tests take is `@heroesim/engine/testing`, which production code may not import (amended
-2026-10-05, DL-194).
+engine's entry exports what the front ends, the harness and the tools use; content's vocabulary,
+its types, lists and `queryProblems`, is `@heroesim/engine/content`, which content, the words and
+the content editor take (DL-243); and what only tests take is `@heroesim/engine/testing`, which
+production code may not import (amended 2026-10-05, DL-194).
 
 Rules read `deps.config`. A front end passes the document's own `meta.config`, so a loaded
 game plays under the rules it was started with; `rebase` rewrites `meta.config` to the
