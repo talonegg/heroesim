@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { advance, createWorld, defaultConfig, playerGuild, type Hero, type PartyId, type QuestId, type World, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { probe } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { modulesFromQuery, pageModules } from './modules';

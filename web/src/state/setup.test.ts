@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createWorld, defaultConfig, portraitFit, type DescriptiveAttribute, type Sex } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { capitalised } from '@heroesim/words';

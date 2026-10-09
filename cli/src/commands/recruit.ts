@@ -1,12 +1,10 @@
 // `recruit --hero <heroId>` (M2-S8, DL-27): the player's Guild signs an Unattached Hero for the
 // signing fee. The engine's `recruit` decides; this reads the save, names the player's Guild,
-// explains a refusal and writes the save back when the World State changed.
-//
-// It imports main.ts's output helpers, and main.ts imports it to register the command; each reads
-// the other only when a command runs, never while the modules load.
+// explains a refusal and writes the save back when the World State changed. It opens the save and
+// says what happened through the commands' shared context, context.ts (DL-234).
 
 import { applyAction, isId, playerGuild, type HeroRecruited, type RecruitRejection } from '@heroesim/engine';
-import { exitCodes, noActionAfterTheEnd, open, over, refuse, say, type Context, type Exit } from '../main.js';
+import { exitCodes, noActionAfterTheEnd, open, over, refuse, say, type Context, type Exit } from '../context.js';
 import { rowIn } from '../render.js';
 import { writeSave } from '../saves.js';
 

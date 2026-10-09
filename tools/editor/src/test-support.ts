@@ -1,7 +1,8 @@
 // For the editor's tests: a scratch copy of the parts of this repository the editor reads and writes,
 // made a git repository of its own, so a test can change it and read `git status` after. Its `npm
 // test` is a planted script, passing or failing as the test says, so that "Finish" runs a real
-// command line without running this suite inside itself.
+// command line without running this suite inside itself; most tests read the same script in this
+// process, `plantedTests`, and a few run it through npm (DL-234).
 
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -9,10 +10,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { ContentFileName } from '@heroesim/content';
 import { formatJson } from '@heroesim/content/write';
-import { afterAll } from 'vitest';
+import { afterAll, afterEach } from 'vitest';
 import { run, type Deps } from './cli.js';
 import { repositoryRoot } from './content-files.js';
 import { isBoundaryProbe } from './reads.js';
+import { failuresIn, type TestRunner } from './tests-run.js';
 
 export const root = repositoryRoot;
 
@@ -112,6 +114,23 @@ export function scratchRepository(options: { engine?: boolean } = {}): { dir: st
   return { dir, remove: () => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) };
 }
 
+const scratches: (() => void)[] = [];
+afterEach(() => {
+  for (const remove of scratches.splice(0)) remove();
+});
+
+/** A scratch copy, removed after the test; with `engine`, its engine/src/ too, for a test that runs the doctor. */
+export function scratch(options: { engine?: boolean } = {}): string {
+  const { dir, remove } = scratchRepository(options);
+  scratches.push(remove);
+  return dir;
+}
+
+/** A Trait as the commands give it in JSON. */
+export type Row = { key: string; list: string; row: Record<string, unknown>; uses: { at: string; blocksRemoval: boolean }[]; rules: { id: string }[]; pending: string | null };
+/** A command's refusal in JSON. */
+export type Failure = { ok: false; kind: string; problems: string[]; uses?: { at: string; entry: string }[] };
+
 /** Sets whether the scratch copy's planted `npm test` passes, committed so `git status` stays clean. */
 export function plantOutcome(dir: string, outcome: 'pass' | 'fail' | 'hang'): void {
   writeFileSync(path.join(dir, 'test-outcome.txt'), `${outcome}\n`);
@@ -128,8 +147,32 @@ export function writeContentJson(dir: string, file: ContentFileName, value: unkn
   writeFileSync(path.join(dir, 'content', file), formatJson(value));
 }
 
-/** One command line's run: its exit code, and what it wrote, each stream joined. */
-export async function command(argv: readonly string[], deps?: Deps): Promise<{ code: number; out: string; err: string }> {
+/**
+ * The planted `npm test` read in this process: the lines it prints, and how it ends, as
+ * `test-outcome.txt` says, read through the runner's own `failuresIn`. "Finish"'s tests run it in
+ * place of the process, but for the two of `cli.test.ts` that run the planted script through `npm`
+ * end to end, and the cut-off "Finish" of `recovery.test.ts` (DL-234).
+ */
+export const plantedTests: TestRunner = async (dir, onLine) => {
+  const outcome = readFileSync(path.join(dir, 'test-outcome.txt'), 'utf8').trim();
+  const lines = [' RUN  the planted tests'];
+  const said = (line: string): void => {
+    lines.push(line);
+    onLine(line);
+  };
+  onLine(lines[0] ?? '');
+  if (outcome === 'fail') {
+    said(' FAIL  |content| src/planted.test.ts > a planted test fails');
+    said('   × a planted test fails');
+    return { ok: false, exitCode: 1, failures: failuresIn(lines), tail: lines.slice(-30) };
+  }
+  if (outcome !== 'pass') throw new Error(`the planted tests ${outcome} only through npm`);
+  said(' ✓ src/planted.test.ts (1 test)');
+  return { ok: true, exitCode: 0, failures: [], tail: lines.slice(-30) };
+};
+
+/** One command line's run: its exit code, and what it wrote, each stream joined. "Finish" runs the planted tests in this process unless `deps` says otherwise. */
+export async function command(argv: readonly string[], deps: Deps = { runTests: plantedTests }): Promise<{ code: number; out: string; err: string }> {
   const out: string[] = [];
   const err: string[] = [];
   const code = await run(argv, { out: (text) => out.push(text), err: (text) => err.push(text) }, deps);

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { applyAction, createWorld, defaultConfig, playerGuild, type OfferId, type PartyId, type QuestId, type StopReason } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';

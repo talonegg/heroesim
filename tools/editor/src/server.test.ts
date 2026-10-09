@@ -1,23 +1,23 @@
 import { existsSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
-import { chromium, type Page } from '@playwright/test';
+import { chromium, type Browser, type Page } from '@playwright/test';
 import { readContentVersion } from '@heroesim/content/write';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { Editor } from './editor.js';
 import { serve, type Served } from './server.js';
-import { json, plantOutcome, readContentJson, scratchRepository, status } from './test-support.js';
-import { npmTest, type TestRunner } from './tests-run.js';
+import { json, plantedTests, plantOutcome, readContentJson, scratchRepository, status } from './test-support.js';
+import type { TestRunner } from './tests-run.js';
 
 // The editor's page (v1.1.4-S12, DL-150 item 7): each of its actions driven through the API it calls,
-// on a scratch copy served on a free port, and once through the page itself in Chromium. "Finish" runs
-// the scratch copy's planted `npm test`, as the commands' tests do.
+// on a scratch copy served on a free port, and once through the page itself in Chromium. "Finish" reads
+// the scratch copy's planted `npm test` in this process, as most of the commands' tests do (DL-234).
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
 
-async function served(runTests: TestRunner = npmTest, options: { engine?: boolean } = {}): Promise<{ dir: string; page: Served; api: (method: string, path: string, body?: unknown) => Promise<{ status: number; json: Record<string, unknown> }> }> {
+async function served(runTests: TestRunner = plantedTests, options: { engine?: boolean } = {}): Promise<{ dir: string; page: Served; api: (method: string, path: string, body?: unknown) => Promise<{ status: number; json: Record<string, unknown> }> }> {
   const { dir, remove } = scratchRepository(options);
   cleanups.push(remove);
   const page = await serve({ root: dir, port: 0, runTests });
@@ -91,7 +91,7 @@ describe('the API', () => {
   });
 
   test('discards, and runs the doctor', async () => {
-    const { api } = await served(npmTest, { engine: true });
+    const { api } = await served(plantedTests, { engine: true });
     await api('PUT', '/api/traits/lame', { name: 'Limping' });
     const discarded = await api('POST', '/api/discard', {});
     expect(discarded.json.discarded).toEqual({ discarded: 1, left: 0 });
@@ -241,11 +241,20 @@ function chromiumInstalled(): boolean {
 // `unassign` are the commands' alone, by DL-163 item 6, so the page has no control for them. Skipped
 // where Chromium is not installed.
 describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
+  // One browser for the three, each test in a context of its own, closed after it (DL-234).
+  let browser: Browser;
+  beforeAll(async () => {
+    browser = await chromium.launch();
+  });
+  afterAll(async () => {
+    await browser?.close();
+  });
+
   async function opened(runTests: TestRunner): Promise<{ dir: string; tab: Page; api: Awaited<ReturnType<typeof served>>['api'] }> {
     const { dir, page, api } = await served(runTests, { engine: true });
-    const browser = await chromium.launch();
-    cleanups.push(() => browser.close());
-    const tab = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    cleanups.push(() => context.close());
+    const tab = await context.newPage();
     tab.on('dialog', (dialog) => void dialog.accept());
     await tab.goto(page.url);
     await tab.locator('section[data-list=hero] tr[data-key=lame]').waitFor();
@@ -254,7 +263,7 @@ describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
   const shown = (tab: Page): Promise<string[]> => tab.locator('tr[data-key]:not(.is-hidden)').evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.key ?? ''));
 
   test('finds, adds, changes, removes, discards and runs the doctor through its own controls (v1.1.4-S14)', async () => {
-    const { tab } = await opened(npmTest);
+    const { tab } = await opened(plantedTests);
     expect(await tab.locator('section[data-list=guildmaster] tbody tr').count()).toBe(6);
     expect(await tab.locator('tr[data-key=thrifty] td').nth(3).innerText()).toBe('Upkeep × 0.9');
 

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { entriesFor, playerGuild, type EngineEventOf, type Guild, type TurnEvent, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { leavingTodayView, navCounts, partiesOutView, railView } from './digest';

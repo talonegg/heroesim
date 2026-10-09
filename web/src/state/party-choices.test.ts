@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { HeroId, QuestId, WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { changed, holding, played, started, withPartyOut } from './game.test-support';

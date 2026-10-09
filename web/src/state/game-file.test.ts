@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { configVersion, createWorld, defaultConfig, deserialise, serialise, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';

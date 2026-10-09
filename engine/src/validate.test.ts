@@ -23,7 +23,7 @@ import {
 import { append } from './history.js';
 import { makeId, takeId } from './document.js';
 import { passiveEntryTypes, refusalChecks, warningChecks } from './validate.js';
-import { buildDocument, fixtureTurn, heroStatKeys, testContent, testDeps, withValid } from './world.test-support.js';
+import { buildDocument, checkWhatHistoryFromHid, fixtureTurn, heroStatKeys, testContent, testDeps, withValid } from './world.test-support.js';
 
 // M1-S7: the validator of data-model §6. Each refusal test mutates the valid fixture document into
 // one failing shape and asserts the check it names and the id it points at, never the prose.
@@ -952,6 +952,25 @@ describe('withValid', () => {
     hero(document, ids.partyHero).stats.luck = 7;
     expect(() => withValid(document, deps)).toThrow(`unknown-stat ${ids.partyHero}`);
     expect(withValid(document, deps, { allowWarnings: true })).toBe(document);
+  });
+
+  // DL-234: a test game is checked Turn after Turn from where the last check left its History, and
+  // whole at the test's end, where a fault in an older entry, which no later check reads, is found.
+  test('reads a game Turn by Turn from where it left its History; a fault in an older entry is found at the end', () => {
+    const played = testDeps();
+    let { document } = createWorld('with-valid', { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' }, played);
+    document = withValid(document, played);
+    for (let turn = 0; turn < 5; turn += 1) document = withValid(advance(document, played).document, played);
+    expect(() => checkWhatHistoryFromHid()).not.toThrow();
+
+    const first = document.history.entries[0] as { turn: number };
+    const turn = first.turn;
+    first.turn = document.world.turn + 1;
+    expect(validate(document, played).ok).toBe(false);
+    // The next Turn's check reads only its own entries, and passes; the check at the end does not.
+    withValid(advance(document, played).document, played);
+    expect(() => checkWhatHistoryFromHid()).toThrow('history-turn-order $.history.entries[1]: $.history.entries[1] is at Turn 0, after an entry at Turn');
+    first.turn = turn;
   });
 });
 

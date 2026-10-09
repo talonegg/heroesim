@@ -1,12 +1,9 @@
 // `equip` and `unequip` end to end (M5-S2): `main` run in-process against a real save in a temporary
 // directory, with the real content set, as main.test.ts runs the other commands.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import {
   addStack,
-  deserialise,
   holdings,
   playerGuild,
   serialise,
@@ -14,46 +11,15 @@ import {
   type Hero,
   type ItemId,
   type StackId,
-  type WorldDocument,
 } from '@heroesim/engine';
 import { count, createItem } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, main } from '../main.js';
+import { describe, expect, test } from 'vitest';
+import { exitCodes, playground } from '../play.test-support.js';
 
 const content = loadContent();
 
-let dir: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-equip-'));
-});
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
-
-function play(argv: string[]): { code: number; out: string; err: string } {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env: {},
-    now: () => new Date('2026-09-26T09:30:00.000Z'),
-    random: () => 0,
-  });
-  return { code, out, err };
-}
-
-const current = (): string => join(dir, '.saves', 'current.json');
-const saved = (): string => readFileSync(current(), 'utf8');
-
-function document(): WorldDocument {
-  const loaded = deserialise(saved(), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
-}
+const { play, current, saved, document } = playground('heroesim-equip-', content);
 
 interface Stocked {
   hero: Hero;

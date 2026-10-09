@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createWorld, defaultConfig, playerGuild, unattachedHeroes, type Hero, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test, vi } from 'vitest';
 import { content } from '../content';

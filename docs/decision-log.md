@@ -222,3 +222,76 @@ S1 boxes.
 Verified 2026-10-09 at `3631851`: the baseline re-read from its raw runs, its run 2 failures, tests'
 times and coverage note on `tools/measure` corrected; the tool's untested sorting, cuts and
 once-a-stack counts given tests, and the time limits held out of `npm test` by `speed-runs.test.ts`.
+
+## DL-234 — v1.1.9-S2 built: the suite's structure
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Decided by:** the owner (DL-231 Q15, Q23, Q26, the
+epic's S2); the groups, the stubs and the check at a test's end by the agent
+
+**Context.** S1's baseline (DL-233) found the full run's time spent mostly in contention. The tests
+that start browsers, builds and processes ran beside the rest, each slowing the other: the editor's
+`cli.test.ts` took 90 s in the full run and 24 s alone. Vitest queued the projects by name, so the
+page's slow files started last, and the owner's 40 pictures were the local run's tail. DL-231 asked
+for those tests in a limited group with their counts cut (Q23), the owner's pictures apart (Q15), the
+page's state on Node, a test-support module for the CLI, the transform cache, isolation off where
+safe, and `withValid` reading only the History's new entries (Q26).
+
+**Decision.**
+
+1. **Two groups.** `vitest.config.ts` runs the projects in two groups, one after the other. First
+   every project but three, on every worker. Then the editor's, the portrait tool's and `web-build`
+   (the page's production build and bundle gate, `bundle.test.ts`), on 8 workers. Vitest 5 runs
+   projects of different `maxWorkers` only in groups of their own (`sequence.groupOrder`), so the
+   limited group follows the rest rather than running beside it.
+2. **Longest first.** A sequencer starts, within each group, the files that took longest in the last
+   run, whatever their project, and a file never run first of all. The Treasury's ledger games are
+   played in a `beforeAll`, not as the file is collected, so that their time is counted.
+3. **Fewer processes.**
+   - The editor's "Finish" tests read the planted `npm test` in this process (`plantedTests`), but
+     for the two of `cli.test.ts`'s `finish`, which run it through npm, and `recovery.test.ts`'s
+     cut-off Finish.
+   - The editor page's three Chromium tests share one browser, a context each, and its commands' 68
+     tests are three files, `cli.test.ts`, `uses.test.ts` and `update.test.ts`, run side by side.
+   - The portrait tool's scratch copies copy a template made once a file, as the editor's do (DL-164).
+   - `bundle.test.ts` builds 3 pages, not 5. The refusal of `fs` and `fs/promises` is asked of the
+     configuration's plugin, and `node:fs` is refused by a build, end to end.
+4. **The page's state on Node.** The 20 `web/src/state/*.test.ts` say `// @vitest-environment node`,
+   as the 12 top-level files do.
+5. **The owner's pictures apart.** `owner.test.ts` runs only when `HEROESIM_OWNER_PICTURES` is set,
+   from the folder it names; set, a folder without the 40 fails it. `docs/environment.md`, the tool's
+   README and the intake and analyse skills say so.
+6. **The CLI's commands.** `cli/src/context.ts` holds what every command shares: the outside world,
+   the exit codes, the save opened, `say`, `refuse` and `over`. `recruit.ts` imports it, not
+   `main.ts`, so the cycle is gone. `play.test-support.ts` gives the tests a scratch directory, `play`
+   and the save read back. It alone imports `main.ts`, where seven test files did.
+7. **Transforms and isolation.** Every project keeps its transforms in `node_modules/.vitest-cache`
+   (`fsModuleCache`). `content`, `words`, `decisions` and `measure` run without isolation: their
+   tests mock nothing, no module of theirs keeps state, and they passed three times both ways.
+8. **`withValid`.** It reads a History from where its last check of that History left it
+   (`historyFrom`, DL-34), and the World State in full. `engine/src/test-setup.ts` reads each such
+   History whole at the test's end, and fails the test on any refusal the partial checks could not
+   see. Where the setup is not installed, every History is read whole.
+
+*Judgement calls, for the owner to see:*
+- The ESLint boundary tests and the scans of the repository stay in the first group. They run ESLint
+  in the worker, each under 7 s, and were no slower in the full run than alone.
+- The harness's tests that start child processes stay in the first group: alone they total 30 s, and
+  in the limited group they would lengthen its tail.
+- The engine, the CLI, the harness and the page keep isolation. The CLI's portrait test mocks a
+  module, the page's tests share jsdom's storage, and nothing proved the engine's or the harness's
+  modules free of state.
+- One group, every project on every worker and the slowest files first, ran in 91 s, faster than
+  the two groups. But under its load the editor page's last Chromium test failed: it reads a control
+  enabled without waiting for it. The two groups stay, and the test is unchanged, for the owner to see.
+- `owner.test.ts` is skipped, not left out of the configuration, so `npm test` still counts it.
+- `historyFrom` would hide a fault planted in an older entry: the next Turn's check passes it.
+  So a full check stays, at each test's end, and it fails such a test (Evidence).
+
+**Consequences.** The full run no longer waits on its slowest processes beside 31 workers, and its
+tail is the limited group. A new test that starts a browser or a build belongs in that group's
+projects. A test of the engine that damages an older entry of a History after `withValid` read it
+fails at its end unless it repairs the entry first.
+
+**Evidence.** The epic's S2 boxes. `validate.test.ts`'s `withValid` test plants the fault and finds
+it at the end; a planted test file that passed its own body failed at its end, and was deleted. The
+commit's message holds the runs' times per project and the counts.

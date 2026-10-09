@@ -20,7 +20,7 @@ None are needed before M7, and none are read by the engine, ever.
 | `HEROESIM_SAVE_DIR` | `cli/` | Optional override of `.saves/` | Shell |
 | `HEROESIM_LIVE_URL` | `web/playwright.live.config.ts` | Optional: one address for `npm run e2e:live -w web` to check, in place of the two addresses of [`deploy.md`](deploy.md) (DL-94) | Shell |
 | `HEROESIM_DEPLOY_RECORD` | `web/scripts/deploy.mjs` | Optional: a file the deploy's record is also written to, for the tag's GitHub Release (DL-124 item 8) | CI's deploy job |
-| `HEROESIM_OWNER_PICTURES` | `tools/portraits/src/owner.test.ts` | Optional: where the owner's 40 Guildmaster pictures are, in place of `..\heroesim-inbox\guildmaster\` (DL-136) | Shell |
+| `HEROESIM_OWNER_PICTURES` | `tools/portraits/src/owner.test.ts` | Set to run the tests of the owner's 40 Guildmaster pictures, which `npm test` and CI skip: the folder that holds them, `..\heroesim-inbox\guildmaster\` on the owner's machine (DL-136, DL-234) | Shell |
 | `WRANGLER_OUTPUT_FILE_PATH` | `wrangler` | Set by `web/scripts/deploy.mjs` for each wrangler run, to a file in the system's temporary directory from which it reads the deploy's record (DL-94); never set by hand | The deploy's own process |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | `wrangler` | The deploy in CI (`deploy.yml`, DL-124); `CLOUDFLARE_ACCOUNT_ID` also for a deploy by hand when the login sees more than one account (DL-94) | The repository's `production` environment's secrets, or the deploying process alone; never a file in the repository |
 

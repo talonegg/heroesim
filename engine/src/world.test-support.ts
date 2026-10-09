@@ -54,6 +54,7 @@ import {
   type GuildmasterId,
   type Hero,
   type HeroId,
+  type History,
   type Holder,
   type ItemId,
   type Meta,
@@ -1169,10 +1170,52 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
 // ── withValid ────────────────────────────────────────────────────────────────────────────────
 
 /**
+ * How far into each History a check has read: the number of its entries when `withValid` last
+ * accepted a document holding it. A History is shared by reference from one Turn's document to the
+ * next (ADR-0008), so the next check of a test game reads only the entries appended since
+ * (`historyFrom`, DL-34), and a game of n Turns is checked in time linear in n, not quadratic
+ * (DL-234).
+ */
+const checkedTo = new WeakMap<History, number>();
+
+/**
+ * The last document of each History checked from part of its entries in the running test, its deps
+ * and where that check began; `null` until the engine's test setup installs the check at each test's
+ * end, and `withValid` reads every History whole until it does.
+ */
+let checkedInPart: Map<History, { document: WorldDocument; deps: EngineDeps; from: number }> | null = null;
+
+/** What a validation of `document` refuses, a line each. */
+function refusals(document: WorldDocument, deps: EngineDeps, historyFrom = 0): string[] {
+  const result = validate(document, deps, { historyFrom });
+  return result.ok ? [] : result.failures.map(({ check, id, detail }) => `  ${check} ${id}: ${detail}`);
+}
+
+/**
+ * The check at a test's end (DL-234): each History `withValid` read in part during the test, its last
+ * document read whole. What it refuses that the check from where the last one began does not is a
+ * fault in an older entry, or in a list or counter only older entries name, which `historyFrom` does
+ * not see (validate.ts); it throws, naming each. `engine/src/test-setup.ts` runs it after every engine
+ * test, and calling it first installs it: until then `withValid` reads every History whole.
+ */
+export function checkWhatHistoryFromHid(): void {
+  const checked = [...(checkedInPart ?? new Map()).values()];
+  checkedInPart = new Map();
+  const hidden = checked.flatMap(({ document, deps, from }) => {
+    const seen = new Set(refusals(document, deps, Math.min(from, document.history.entries.length)));
+    return refusals(document, deps).filter((line) => !seen.has(line));
+  });
+  if (hidden.length > 0) throw new Error(`The validator refuses, read whole, what withValid read only from where it last left the History:\n${hidden.join('\n')}`);
+}
+
+/**
  * Returns `document` when the validator accepts it under `deps.content`, and throws, listing
  * every failure, when it refuses. A warning throws too unless `allowWarnings` is set: a document
  * the engine makes from content should hold only that content's keys. Wrap every document an
  * engine test makes or changes: `const document = withValid(advance(...).document, deps)`.
+ *
+ * A History it has read before is read from where it left it, and whole at the test's end
+ * (`checkWhatHistoryFromHid`, DL-234); the World State is read in full each time.
  *
  * Takes `deps` rather than a bare `ContentSet` (DL-23), so that a test already holding the deps
  * it built a document with can pass them straight on.
@@ -1182,10 +1225,19 @@ export function withValid<Document extends WorldDocument>(
   deps: EngineDeps,
   { allowWarnings = false }: { allowWarnings?: boolean } = {},
 ): Document {
-  const result = validate(document, deps);
+  const history = document.history as History | undefined;
+  const entries = Array.isArray(history?.entries) ? history.entries.length : undefined;
+  const known = history === undefined ? undefined : checkedTo.get(history);
+  const from = checkedInPart !== null && entries !== undefined && known !== undefined && known <= entries ? known : 0;
+  const result = validate(document, deps, { historyFrom: from });
   if (!result.ok) {
     const lines = result.failures.map(({ check, id, detail }) => `  ${check} ${id}: ${detail}`);
     throw new Error(`The validator refuses the document:\n${lines.join('\n')}`);
+  }
+  if (history !== undefined && entries !== undefined) {
+    checkedTo.set(history, entries);
+    if (from > 0) checkedInPart?.set(history, { document, deps, from });
+    else checkedInPart?.delete(history);
   }
   if (!allowWarnings && result.warnings.length > 0) {
     const lines = result.warnings.map(({ check, id, detail }) => `  ${check} ${id}: ${detail}`);

@@ -8,21 +8,16 @@ import { readRegistry } from './registry.js';
 import { root } from './test-support.js';
 import { webpSize } from './webp.js';
 
-// The owner's 40 Guildmaster pictures (DL-136), where they are kept outside the repository:
-// `C:\JHH\source\heroesim-inbox\guildmaster\{male,female}\`, or HEROESIM_OWNER_PICTURES. Where
-// they are not, as in CI, these are skipped; chromium.test.ts proves the same on the pictures
-// committed. Two of the 40 are the originals of the pictures in the game (v1.1.3-S2's acceptance):
+// The owner's 40 Guildmaster pictures (DL-136), kept outside the repository, in the folder
+// HEROESIM_OWNER_PICTURES names (`C:\JHH\source\heroesim-inbox\guildmaster` on the owner's machine).
+// They run only when it is set, a run apart from `npm test`, whose tail they were (DL-234); set, a
+// folder without the 40 fails them. chromium.test.ts proves the same on the pictures committed in
+// every run. Two of the 40 are the originals of the pictures in the game (v1.1.3-S2's acceptance):
 // - each of the 40 converts within 120 kB, with a thumbnail of 160 × 213;
 // - the two originals are similar to gm-male-01 and gm-female-01, and none of the other 38 to either;
 // - each picture is similar to a 5% crop of itself.
 
-const candidates = [
-  process.env.HEROESIM_OWNER_PICTURES,
-  path.join(root, '..', 'heroesim-inbox', 'guildmaster'),
-  // Where DL-136 records them, for a worktree of the repository whose parent is elsewhere.
-  'C:\\JHH\\source\\heroesim-inbox\\guildmaster',
-];
-const source = candidates.find((dir) => dir !== undefined && existsSync(dir)) ?? '';
+const source = process.env.HEROESIM_OWNER_PICTURES ?? '';
 const originals: Readonly<Record<string, string>> = {
   'gm-male-01': path.join(source, 'male', '1790740777932.jpg'),
   'gm-female-01': path.join(source, 'female', '1790741002208.jpg'),
@@ -46,13 +41,14 @@ const crops: readonly Trim[] = [
 ];
 const allRound: Trim = { left: 0.025, top: 0.025, right: 0.025, bottom: 0.025 };
 
-describe.skipIf(!present || !chromiumInstalled())("the owner's 40 (DL-136)", () => {
+describe.skipIf(source === '' || !chromiumInstalled())("the owner's 40 (DL-136)", () => {
   let chromium: Chromium;
   const prints = new Map<string, Fingerprint>();
   const registry = readRegistry(root);
   const { similarWithin } = registry.fingerprint;
 
   beforeAll(async () => {
+    if (!present) throw new Error(`HEROESIM_OWNER_PICTURES is ${source}, which does not hold the owner's 40 in male\\ and female\\`);
     chromium = await launchChromium();
     for (const file of files) prints.set(file, await fingerprint(chromium, dataUrlOf(file)));
   }, 300_000);

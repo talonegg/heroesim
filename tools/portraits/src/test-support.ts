@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { crc32, deflateSync } from 'node:zlib';
 import { formatJson } from '@heroesim/content/write';
+import { afterAll } from 'vitest';
 import { repositoryRoot } from './cli.js';
 
 /** The repository the tests read: this one. */
@@ -30,11 +31,30 @@ export function status(dir: string): string {
 }
 
 /**
+ * The scratch copies' first state, made once for each test file that asks for one, and removed after
+ * its tests: each copy is a copy of its folder, `.git` and all, as the editor's tests make theirs
+ * (DL-164), so that a test spawns no git to make one: adding and committing the pictures for each
+ * test took most of the tool's tests' time (DL-234).
+ */
+let template: string | undefined;
+afterAll(() => {
+  if (template !== undefined) rmSync(template, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  template = undefined;
+});
+
+/**
  * A scratch copy of this repository's `content/` (its JSON, the content version's `version.json`
  * among it), `media/` and the inbox, committed; removed by the function it returns with.
  */
 export function scratchRepository(): { dir: string; remove: () => void } {
+  template ??= templateRepository();
   const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-portraits-'));
+  cpSync(template, dir, { recursive: true, preserveTimestamps: true });
+  return { dir, remove: () => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) };
+}
+
+function templateRepository(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-portraits-template-'));
   const copy = (relative: string): void => cpSync(path.join(root, relative), path.join(dir, relative), { recursive: true });
   cpSync(path.join(root, 'content'), path.join(dir, 'content'), {
     recursive: true,
@@ -51,10 +71,11 @@ export function scratchRepository(): { dir: string; remove: () => void } {
     writeFileSync(path.join(dir, 'media', 'inbox', role, '.gitkeep'), '');
   }
   writeFileSync(path.join(dir, '.gitignore'), 'media/inbox/**\n!media/inbox/*/\n!media/inbox/*/.gitkeep\n');
-  git(dir, 'init', '--quiet');
+  // No template of git's own: its sample hooks are files each copy would copy for nothing.
+  git(dir, 'init', '--quiet', '--template=');
   git(dir, 'add', '--all');
   git(dir, 'commit', '--quiet', '-m', 'scratch');
-  return { dir, remove: () => rmSync(dir, { recursive: true, force: true }) };
+  return dir;
 }
 
 /** Reads a JSON file of a scratch repository. */

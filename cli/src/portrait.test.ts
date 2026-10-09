@@ -1,9 +1,6 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createWorld, defaultConfig, deserialise, playerGuild, type ContentSet, type PortraitAppearance, type WorldDocument } from '@heroesim/engine';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { exitCodes, main } from './main.js';
+import { createWorld, defaultConfig, playerGuild, type ContentSet, type PortraitAppearance, type WorldDocument } from '@heroesim/engine';
+import { describe, expect, test, vi } from 'vitest';
+import { exitCodes, playground, type Run } from './play.test-support.js';
 
 // `new --portrait` and `show guildmaster` over content with pictures (v1.1.2-S3, DL-125 item 3): the
 // core with a third Guildmaster picture, a young man's, beside its two (v1.1.3-S5, so that a man of
@@ -29,32 +26,11 @@ const { loadContent } = await import('@heroesim/content/node');
 const content = loadContent();
 const clock = new Date('2026-09-30T09:30:00.000Z');
 
-let dir: string;
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-cli-portrait-'));
-});
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
+const { play: playAt, document: saved } = playground('heroesim-cli-portrait-', content);
 
-function play(argv: string[]): { code: number; out: string; err: string } {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env: {},
-    now: () => clock,
-    random: () => 0,
-  });
-  return { code, out, err };
-}
-
-function saved(): WorldDocument {
-  const loaded = deserialise(readFileSync(join(dir, '.saves', 'current.json'), 'utf8'), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
+/** A command line, on the day these tests were written. */
+function play(argv: string[]): Run {
+  return playAt(argv, { now: () => clock });
 }
 
 function playerGuildmaster(document: WorldDocument) {

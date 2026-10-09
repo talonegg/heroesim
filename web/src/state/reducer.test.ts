@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type * as Engine from '@heroesim/engine';
 import {
   advance,

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { bankruptcyCountdown, nextUpkeepDay, playerGuild, retiresOn, type EngineEventOf, type Entry, type Guild, type Hero, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';

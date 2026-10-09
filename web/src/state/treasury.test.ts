@@ -1,3 +1,4 @@
+// @vitest-environment node
 import {
   advance,
   applyAction,
@@ -19,7 +20,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { createProbe, makeId, partyFor } from '@heroesim/engine/testing';
-import { describe, expect, test } from 'vitest';
+import { beforeAll, describe, expect, test } from 'vitest';
 import { nightOfDay, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { changed, played, started, withWealth } from './game.test-support';
@@ -182,11 +183,20 @@ function playedGame(seed: string, years: number): { start: WorldDocument; now: W
 }
 
 describe('the ledger misses nothing (M9-F3)', () => {
-  const games = ['ledger-1', 'ledger-2', 'ledger-3'].map((seed) => ({ seed, ...playedGame(seed, 2) }));
+  // Played before the tests rather than as they are collected, so that the run, which starts the files
+  // that took longest first, counts the games' time (DL-234).
+  const seeds = ['ledger-1', 'ledger-2', 'ledger-3'];
+  const games: ({ seed: string } & ReturnType<typeof playedGame>)[] = [];
+  beforeAll(() => {
+    games.push(...seeds.map((seed) => ({ seed, ...playedGame(seed, 2) })));
+  }, 120_000);
 
-  test.each(games.map((game) => [game.seed, game] as const))(
+  test.each(seeds)(
     "%s: every Guild's ledger, from its opening row, adds up to its Wealth now: the player's, each founding Rival's and each replacement's (M9-F7)",
-    (_, { start, now }) => {
+    (seed) => {
+      const game = games.find((each) => each.seed === seed);
+      if (game === undefined) throw new Error(`no game of ${seed}`);
+      const { start, now } = game;
       const guilds = Object.values(now.world.guilds);
       // A Rival was founded in the folded one's place.
       expect(guilds.filter((guild) => !Object.hasOwn(start.world.guilds, guild.id)).length).toBeGreaterThan(0);

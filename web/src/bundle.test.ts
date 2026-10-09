@@ -4,7 +4,9 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, wr
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Plugin } from 'vite';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import config from '../vite.config.js';
 
 // The production build and the bundle gate (M7-S1, DL-64). `npm run build -w web` is `vite build`
 // then scripts/check-bundle.mjs; these tests run the same two into a temporary directory, so the
@@ -200,21 +202,40 @@ describe('a Node built-in the page imports', { timeout: 120_000 }, () => {
     return run([vite, 'build', root, '--configLoader', 'runner', '--config', config, '--outDir', temporaryDir(), '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
   }
 
+  /** What the page's configuration's refusal of a Node built-in says of `specifier`, asked in this process. */
+  async function refusalOf(specifier: string): Promise<string> {
+    const plugin = (config.plugins ?? []).flat().find((each): each is Plugin => typeof each === 'object' && each !== null && 'name' in each && each.name === 'heroesim:no-node-builtins');
+    const resolveId = plugin?.resolveId;
+    if (typeof resolveId !== 'function') throw new Error("vite.config.ts has no heroesim:no-node-builtins plugin with a resolveId");
+    try {
+      await (resolveId as (this: unknown, source: string, importer: string) => unknown).call({ error: (message: string) => { throw new Error(message); } }, specifier, 'probe.ts');
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+    return '';
+  }
+
   // Vite would put an empty stub in its place, with only a warning, and the gate would pass the
-  // bundle: its specifier is gone (M7 verification, DL-74). The build refuses it instead.
+  // bundle: its specifier is gone (M7 verification, DL-74). The build refuses it instead: one build
+  // proves it end to end, and the refusal is asked of the configuration's plugin for the other
+  // specifiers, so that the probe builds two pages, not four (DL-234).
   test.each([
-    ['node:fs', "import { readFileSync } from 'node:fs';"],
-    ['fs', "import { readFileSync } from 'fs';"],
-    ['fs/promises', "import { readFile as readFileSync } from 'fs/promises';"],
-  ])('fails the build: %s', (specifier, line) => {
+    ['node:fs', "import { readFileSync } from 'node:fs';", true],
+    ['fs', "import { readFileSync } from 'fs';", false],
+    ['fs/promises', "import { readFile as readFileSync } from 'fs/promises';", false],
+  ])('fails the build: %s', async (specifier, line, endToEnd) => {
+    const refusal = `imports the Node built-in "${specifier}"`;
+    expect(await refusalOf(specifier)).toContain(refusal);
+    if (!endToEnd) return;
     const built = buildProbe(`${line}\n(globalThis as Record<string, unknown>).probe = () => readFileSync('x', 'utf8');\n`);
 
-    expect(built.output).toContain(`imports the Node built-in "${specifier}"`);
+    expect(built.output).toContain(refusal);
     expect(built.status).not.toBe(0);
   });
 
-  test('and the same page without it builds', () => {
+  test('and the same page without it builds', async () => {
     expect(buildProbe("(globalThis as Record<string, unknown>).probe = () => 'x';\n").status).toBe(0);
+    expect(await refusalOf('probe-module')).toBe('');
   });
 });
 

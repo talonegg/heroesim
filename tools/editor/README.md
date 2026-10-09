@@ -235,7 +235,10 @@ site's form can send without asking first.
 
 ## Tests
 
-`npm test` runs them with the rest, each on a scratch copy of the repository made a git repository,
-so that `git status` shows what each command left behind. The page's passes in Chromium, each of its
-controls driven (v1.1.4-S14), through the Playwright the page's specs install, are skipped where
-Chromium is not installed.
+`npm test` runs them with the rest, after the other projects' tests and on a few workers, since they
+start git and Chromium (DL-234). Each runs on a scratch copy of the repository made a git repository,
+so that `git status` shows what each command left behind. "Finish" reads the scratch copy's planted
+`npm test` in the test's own process, but in two tests of `cli.test.ts`, which run it through npm
+end to end. The page's passes in Chromium, each of its controls driven (v1.1.4-S14), share one
+browser, through the Playwright the page's specs install, and are skipped where Chromium is not
+installed.

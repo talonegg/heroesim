@@ -133,7 +133,9 @@ npm run portraits -- write-rows <draft> --json
   and run it again. An upload the tool refuses as too large to fit takes no fix: take it out of the
   draft, and list it in the report as left in the inbox, with the tool's words.
 
-Then `npm run portraits -- check`.
+Then `npm run portraits -- check`. The owner's 40 pictures are checked apart from `npm test`:
+`tools/portraits/src/owner.test.ts` runs only when `HEROESIM_OWNER_PICTURES` names their folder
+(`docs/environment.md`).
 
 Done when: `write-rows` exits 0 and `check` passes.
 

@@ -25,12 +25,10 @@ import {
   parseId,
   playerGuild,
   setupRefusal,
-  type ContentSet,
   type EngineDeps,
   type EntityId,
   type Guild,
   type Hero,
-  type Module,
   type StopReason,
   type TurnEvent,
   type WorldDocument,
@@ -53,7 +51,6 @@ import { modulesFor } from './modules.js';
 import { stopLine, renderAdvance } from './advance.js';
 import {
   renderBoard,
-  renderDate,
   renderGuildmaster,
   renderGuilds,
   renderHall,
@@ -66,41 +63,10 @@ import {
   renderSummary,
   rowIn,
 } from './render.js';
-import { readSave, savePath, withModules, writeSave, type ReadSave } from './saves.js';
+import { savePath, withModules, writeSave } from './saves.js';
+import { exitCodes, noActionAfterTheEnd, open, over, refuse, say, type CliIo, type Context, type Exit } from './context.js';
 
-/** Everything the CLI takes from outside itself. */
-export interface CliIo {
-  stdout(text: string): void;
-  stderr(text: string): void;
-  /** The working directory: saves and relative paths resolve against it. */
-  cwd: string;
-  /** Read for `HEROESIM_SAVE_DIR` (docs/environment.md). */
-  env: Readonly<Record<string, string | undefined>>;
-  /** The clock, read once by `new` for `meta.createdAt`. */
-  now(): Date;
-  /** A draw in `[0, 1)` for a made-up seed: `Math.random` in play. */
-  random(): number;
-}
-
-/**
- * 0 done; 1 refused (no save, a save that does not load, an id not in it, a save `new` would
- * replace, a file-system error); 2 a bad command line or a bad value on it (DL-21).
- */
-export const exitCodes = { ok: 0, refused: 1, usage: 2 } as const;
-
-export type Exit = (typeof exitCodes)[keyof typeof exitCodes];
-
-export interface Context {
-  io: CliIo;
-  content: ContentSet;
-  /** The save the command reads and writes. */
-  path: string;
-  /**
-   * The modules the command installs, by `--modules` on `new`, `load` and `advance` (M8-S4, DL-79):
-   * none unless given, and none for every other command.
-   */
-  modules: readonly Module[];
-}
+export { exitCodes, type CliIo, type Exit } from './context.js';
 
 /** Runs one command; returns the exit code. */
 export function main(argv: readonly string[], io: CliIo): Exit {
@@ -170,53 +136,6 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
     case 'load':
       return load(command.file, context);
   }
-}
-
-// ── Output ───────────────────────────────────────────────────────────────────────────────────
-
-export function say(io: CliIo, lines: readonly string[]): Exit {
-  io.stdout(`${lines.join('\n')}\n`);
-  return exitCodes.ok;
-}
-
-export function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refused): Exit {
-  io.stderr(`${problem}\n`);
-  return code;
-}
-
-/**
- * Why the save at `path` does not load, in a sentence. A save of an older schema than this engine
- * reads, as a `v1.1.1` save is since schema 5 and a `v1.1.2` save since schema 6, is refused in the
- * owner's words, the page's too (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7); the rest
- * name the engine's reason.
- */
-function loadRefusalWords(reason: Exclude<ReadSave, { ok: true }>['reason'], path: string): string {
-  if (reason.kind === 'missing') return `${reason.message}. Create a world with \`new\`, or name a save with --save.`;
-  if (reason.kind === 'unsupported-version' && reason.documentVersion < reason.schemaVersion) {
-    return `This game was saved by an older Heroesim and cannot be loaded: ${path}.`;
-  }
-  return `Cannot load ${path}: ${reason.message}.`;
-}
-
-/**
- * The save at `path`, loaded and checked, with the deps to play it under, `modules` installed (none
- * unless given); `undefined` after printing why it does not load. Content keys the content does not
- * define, and a module's slice no module in `modules` owns, are warned about and the save still loads
- * (data-model rule 5, §3.4).
- */
-export function open(
-  io: CliIo,
-  path: string,
-  content: ContentSet,
-  modules: readonly Module[] = [],
-): { document: WorldDocument; deps: EngineDeps } | undefined {
-  const read = readSave(path, content, modules);
-  if (!read.ok) {
-    refuse(io, loadRefusalWords(read.reason, path));
-    return undefined;
-  }
-  for (const warning of read.warnings) io.stderr(`Warning: ${warning.detail}\n`);
-  return { document: read.document, deps: read.deps };
 }
 
 /**
@@ -377,19 +296,6 @@ function show(view: View, { io, content, path }: Context): Exit {
 }
 
 // ── advance and rebase ───────────────────────────────────────────────────────────────────────
-
-/**
- * The refusal of a Turn, or of an action, after the game's end, or `undefined` while it goes on:
- * once the player's game has ended the world stops as it stands (DL-28), and nothing is written. Its
- * date is by `deps.config`, the config the save plays under (`playDeps`, DL-210).
- */
-export function over(io: CliIo, document: WorldDocument, deps: EngineDeps, what = 'No Turn follows.'): Exit | undefined {
-  const { ended } = document.world;
-  return ended === null ? undefined : refuse(io, `The game ended on ${renderDate(ended.turn, deps.config)}: ${ended.reason}. ${what}`);
-}
-
-/** What `over` says of an action refused after the end (M3 verification, DL-53). */
-export const noActionAfterTheEnd = 'Nothing more can be done in it.';
 
 /**
  * `advance [--turns n] [--modules ids]`: plays up to `turns` Turns under the rules the save plays

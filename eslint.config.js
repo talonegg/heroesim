@@ -319,7 +319,7 @@ export default defineConfig(
     },
   },
   {
-    files: ['engine/**/*.test.ts'],
+    files: ['engine/**/*.test.ts', 'engine/src/test-setup.ts'],
     rules: {
       'no-restricted-syntax': ['error', ...readsOfTheClock],
       'no-restricted-globals': ['error', noOutput],

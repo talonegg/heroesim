@@ -1,8 +1,7 @@
 // End to end: `main` run in-process, as `npm run play -- …` runs it, against real save files in
 // a temporary directory, with the real content set, a fixed clock and a scripted random source.
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   addStack,
@@ -15,7 +14,6 @@ import {
   dayOf,
   defaultConfig,
   describeQuery,
-  deserialise,
   effectiveStats,
   estimateQuest,
   fastForward,
@@ -39,59 +37,27 @@ import {
 import { count, makeId, nightOf, partyFor, potentialHints } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { chanceWords, shownPercent, queryWords } from '@heroesim/words';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, main } from './main.js';
+import { beforeEach, describe, expect, test } from 'vitest';
+import { exitCodes, playground, type Run } from './play.test-support.js';
 import { narrateLine } from './namer.js';
 
 const content = loadContent();
 const clock = new Date('2026-09-26T09:30:00.000Z');
 const playerId = makeId('guilds', 1);
 
-let dir: string;
+const scratch = playground('heroesim-cli-', content);
+const { current, saved, document, edit } = scratch;
+/** The running test's scratch directory. */
+const dir = (): string => scratch.dir();
+/** The random source's draws, in order, then 0s. */
 let draws: number[];
-
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-cli-'));
   draws = [];
 });
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
 
-interface Run {
-  code: number;
-  out: string;
-  err: string;
-}
-
+/** A command line in the scratch directory, with `env`, the clock and the draws. */
 function play(argv: string[], env: Record<string, string> = {}): Run {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env,
-    now: () => clock,
-    random: () => draws.shift() ?? 0,
-  });
-  return { code, out, err };
-}
-
-const current = (): string => join(dir, '.saves', 'current.json');
-const saved = (path = current()): string => readFileSync(path, 'utf8');
-
-function document(path = current()): WorldDocument {
-  const loaded = deserialise(saved(path), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
-}
-
-/** Rewrites the save at `path` after `change`, bypassing the CLI, as a hand edit would. */
-function edit(change: (document: WorldDocument) => void, path = current()): void {
-  const edited = document(path);
-  change(edited);
-  writeFileSync(path, serialise(edited));
+  return scratch.play(argv, { env, now: () => clock, random: () => draws.shift() ?? 0 });
 }
 
 /** The save text with `meta.version: 999`, a schema this code has never heard of. */
@@ -298,11 +264,11 @@ describe('new', () => {
 
   test('writes to the save --save names, in HEROESIM_SAVE_DIR when it is set', () => {
     expect(newDemo('--save', 'demo').code).toBe(exitCodes.ok);
-    expect(existsSync(join(dir, '.saves', 'demo.json'))).toBe(true);
+    expect(existsSync(join(dir(), '.saves', 'demo.json'))).toBe(true);
 
     const run = play(['new', '--guild', 'G', '--master', 'M'], { HEROESIM_SAVE_DIR: 'elsewhere' });
     expect(run.code).toBe(exitCodes.ok);
-    expect(existsSync(join(dir, 'elsewhere', 'current.json'))).toBe(true);
+    expect(existsSync(join(dir(), 'elsewhere', 'current.json'))).toBe(true);
     expect(play(['show'], { HEROESIM_SAVE_DIR: 'elsewhere' }).code).toBe(exitCodes.ok);
   });
 });
@@ -1456,7 +1422,7 @@ describe('save and load', () => {
 
     const copied = play(['save', '--as', 'backup']);
     expect(copied.code).toBe(exitCodes.ok);
-    expect(saved(join(dir, '.saves', 'backup.json'))).toBe(original);
+    expect(saved(join(dir(), '.saves', 'backup.json'))).toBe(original);
 
     play(['new', '--seed', 'another', '--guild', 'G', '--master', 'M', '--force']);
     expect(saved()).not.toBe(original);
@@ -1472,9 +1438,9 @@ describe('save and load', () => {
     const original = saved();
 
     expect(play(['save', '--as', 'copies/one.json']).code).toBe(exitCodes.ok);
-    expect(saved(join(dir, 'copies', 'one.json'))).toBe(original);
+    expect(saved(join(dir(), 'copies', 'one.json'))).toBe(original);
     expect(play(['load', 'copies/one.json', '--save', 'two']).code).toBe(exitCodes.ok);
-    expect(saved(join(dir, '.saves', 'two.json'))).toBe(original);
+    expect(saved(join(dir(), '.saves', 'two.json'))).toBe(original);
   });
 
   test.each([
@@ -1492,7 +1458,7 @@ describe('save and load', () => {
   ])('a refused load of %s prints the reason, exits non-zero and changes nothing', (_what, spoil, reason) => {
     newDemo();
     const original = saved();
-    const bad = join(dir, 'bad.json');
+    const bad = join(dir(), 'bad.json');
     const spoilt = spoil(original);
     expect(spoilt).not.toBe(original);
     writeFileSync(bad, spoilt);
@@ -1516,7 +1482,7 @@ describe('save and load', () => {
     parsed.meta.version = 4;
     for (const guildmaster of Object.values(parsed.world.guildmasters)) Reflect.deleteProperty(guildmaster, 'portraitKey');
     for (const patron of Object.values(parsed.world.patrons)) Reflect.deleteProperty(patron, 'sex');
-    const older = join(dir, 'older.json');
+    const older = join(dir(), 'older.json');
     writeFileSync(older, JSON.stringify(parsed));
 
     const run = play(['load', older]);
@@ -1539,12 +1505,12 @@ describe('save and load', () => {
       for (const field of ['portraitKey', 'appearance', 'biography']) Reflect.deleteProperty(hero, field);
     }
     const older = JSON.stringify(parsed);
-    writeFileSync(join(dir, '.saves', 'current.json'), older);
+    writeFileSync(join(dir(), '.saves', 'current.json'), older);
 
     for (const argv of [['show'], ['show', 'guildmaster'], ['advance']]) {
       const run = play(argv);
       expect(run.code, argv.join(' ')).toBe(exitCodes.refused);
-      expect(run.err).toBe(`This game was saved by an older Heroesim and cannot be loaded: ${join(dir, '.saves', 'current.json')}.\n`);
+      expect(run.err).toBe(`This game was saved by an older Heroesim and cannot be loaded: ${join(dir(), '.saves', 'current.json')}.\n`);
     }
     expect(saved()).toBe(older);
 
@@ -1573,7 +1539,7 @@ describe('save and load', () => {
 
   test('the newer-schema refusal names both versions', () => {
     newDemo();
-    const bad = join(dir, 'future.json');
+    const bad = join(dir(), 'future.json');
     writeFileSync(bad, fromTheFuture(saved()));
 
     const run = play(['load', bad]);
@@ -1587,7 +1553,7 @@ describe('save and load', () => {
     const run = play(['save', '--as', 'backup']);
     expect(run.code).toBe(exitCodes.refused);
     expect(run.err).toContain('`new`');
-    expect(existsSync(join(dir, '.saves', 'backup.json'))).toBe(false);
+    expect(existsSync(join(dir(), '.saves', 'backup.json'))).toBe(false);
   });
 });
 
@@ -1707,7 +1673,7 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
 
   test('load --modules probe refuses a save whose probe slice the probe refuses, naming the module', () => {
     newWithProbe();
-    const bad = join(dir, 'bad.json');
+    const bad = join(dir(), 'bad.json');
     const spoilt = saved().replace('"morning":0', '"morning":-1');
     expect(spoilt).not.toBe(saved());
     writeFileSync(bad, spoilt);

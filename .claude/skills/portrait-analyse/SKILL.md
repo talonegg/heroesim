@@ -119,7 +119,9 @@ npm run portraits -- diff <run>
 ```
 
 Done when: `write-run` exits 0, `corpus --run` shows no short key, and `git status` shows only the
-new files under `docs/portraits/analysis/`.
+new files under `docs/portraits/analysis/`. The owner's 40 pictures are checked apart from `npm
+test`: `tools/portraits/src/owner.test.ts` runs only when `HEROESIM_OWNER_PICTURES` names their folder
+(`docs/environment.md`).
 
 ## 8. Tell the owner
 

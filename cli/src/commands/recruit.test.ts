@@ -1,16 +1,11 @@
 // `recruit --hero <id>` end to end (M2-S8): `main` run in-process against a real save in a
 // temporary directory, with the real content set, as main.test.ts runs the other commands.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import {
-  deserialise,
   guildmasterOf,
   playDeps,
   playerGuild,
   rankings,
-  serialise,
   signingFee,
   unattachedHeroes,
   type EngineDeps,
@@ -20,8 +15,8 @@ import {
 } from '@heroesim/engine';
 import { makeId } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, main } from '../main.js';
+import { describe, expect, test } from 'vitest';
+import { exitCodes, playground } from '../play.test-support.js';
 
 const content = loadContent();
 
@@ -32,45 +27,7 @@ function depsOf(document: WorldDocument): EngineDeps {
   return played.deps;
 }
 
-let dir: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-recruit-'));
-});
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
-
-function play(argv: string[]): { code: number; out: string; err: string } {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env: {},
-    now: () => new Date('2026-09-26T09:30:00.000Z'),
-    random: () => 0,
-  });
-  return { code, out, err };
-}
-
-const current = (): string => join(dir, '.saves', 'current.json');
-const saved = (): string => readFileSync(current(), 'utf8');
-
-/** The save, loaded and validated as the CLI loads it. */
-function document(): WorldDocument {
-  const loaded = deserialise(saved(), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
-}
-
-/** Rewrites the save after `change`, bypassing the CLI, as a hand edit would. */
-function edit(change: (document: WorldDocument) => void): void {
-  const edited = document();
-  change(edited);
-  writeFileSync(current(), serialise(edited));
-}
+const { play, saved, document, edit } = playground('heroesim-recruit-', content);
 
 /**
  * A new world, its player's Guild and the first Hero in its pool, with the fee the player's Guild

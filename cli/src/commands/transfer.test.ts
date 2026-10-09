@@ -4,14 +4,11 @@
 // four Dispositions in Guild id order (DL-56): guild-000002 ambitious, guild-000003 miserly,
 // guild-000004 reckless, guild-000005 steady.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
 import {
   addStack,
   applyAction,
   defaultConfig,
-  deserialise,
   playerGuild,
   serialise,
   transferFee,
@@ -23,41 +20,12 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, main } from '../main.js';
+import { describe, expect, test } from 'vitest';
+import { exitCodes, playground } from '../play.test-support.js';
 
 const content = loadContent();
 
-let dir: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-transfer-'));
-});
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
-
-function play(argv: string[]): { code: number; out: string; err: string } {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env: {},
-    now: () => new Date('2026-09-26T09:30:00.000Z'),
-    random: () => 0,
-  });
-  return { code, out, err };
-}
-
-const current = (): string => join(dir, '.saves', 'current.json');
-
-function document(): WorldDocument {
-  const loaded = deserialise(readFileSync(current(), 'utf8'), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
-}
+const { play, current, document } = playground('heroesim-transfer-', content);
 
 function thePlayer(world: World): Guild {
   const guild = playerGuild(world);
