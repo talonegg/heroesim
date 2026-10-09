@@ -23,7 +23,10 @@ _Avoid_: Company, Agency, Faction
 The person who runs a Guild: a named individual whose Stats and Traits bear on running it, never
 on fighting, for a Guildmaster joins no Party (R8; joining one is a later feature). Every Guild
 has one (R7 to R9); the player's character is the Guildmaster of the player's Guild. Distinct
-from the player, the human at the keyboard.
+from the player, the human at the keyboard, who sees what their Guildmaster sees and pays: a Hero's
+Potential hints through the Guildmaster's Judgement, and every fee at their Negotiation. The CLI and
+the page show a Hero, a Quest and a Hero of the pool or a Roster in one reading of the world through
+the Guildmaster, each laying it out its own way (DL-241).
 _Avoid_: Player, Owner, Boss
 
 **Hero**:

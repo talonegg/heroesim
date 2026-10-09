@@ -4,9 +4,9 @@
 // It opens the save and says what happened through the commands' shared context, context.ts (DL-234).
 
 import { applyAction, isId, playerGuild, type HeroRecruited } from '@heroesim/engine';
+import { rowOf } from '@heroesim/words';
 import { exitCodes, open, over, refuse, say, type Context, type Exit } from '../context.js';
 import { refusalLine } from '../namer.js';
-import { rowIn } from '../render.js';
 import { writeSave } from '../saves.js';
 
 /**
@@ -24,13 +24,14 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
   const { document, deps } = opened;
   const ended = over(io, document, deps, 'recruit');
   if (ended !== undefined) return ended;
+  const setting = { world: document.world, content: deps.content, calendar: deps.config };
   const guild = playerGuild(document.world);
-  if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);
-  const hero = rowIn(document.world.heroes, heroId);
+  if (guild === undefined) return refuse(io, refusalLine({ action: 'recruit', reason: 'no-player-guild' }, setting));
+  const hero = rowOf(document.world.heroes, heroId);
   if (hero === undefined) return refuse(io, `${path} has no Hero ${heroId}.`);
 
   const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId }, deps);
-  if (!result.ok) return refuse(io, refusalLine(result.rejection, { world: document.world, content: deps.content, calendar: deps.config }));
+  if (!result.ok) return refuse(io, refusalLine(result.rejection, setting));
 
   writeSave(path, result.document);
   const signed = result.document.world.guilds[guild.id] ?? guild;

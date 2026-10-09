@@ -721,3 +721,85 @@ captured before and after over 88 samples. The epic's S7 boxes.
 Verified 2026-10-10 at d1d9f51: 82 kinds, one deleted failing `tsc -b`; the page's 740 refusals as
 15e5833's, the CLI's 182 lines changed only as listed (a wiped Roster's added); preview's own two
 refusals now the table's.
+
+## DL-241 — v1.1.9-S8 built: readings in `words`, and the player's reading
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner (DL-232 QA c, QB a, QC a, the
+epic's S8); the interface, the seams and the settled wording by the agent
+
+**Context.** The architecture review's #4 and #8 (the epic's §5.1). `cli/src/render.ts` and
+`web/src/state/selectors.ts` changed together 9 times, each reading a Hero, the Board and the pool
+afresh, their words drifting (`'none'`/`'None'`). The page found the player's Guild in 39 places and
+its deps in 32, `playDeps` checking the config each time. There were three row lookups.
+
+**Decision.**
+
+1. **Readings** (`words/src/readings.ts`): `heroReading`, `rosterReading`, `poolReading` with
+   `poolNote` and `signsWords`, `boardReading` and `questReading`, and `bestPartyReading`. Each gives
+   rows of words and numbers and no layout: the Stats with their Outlook, gear by slot, Skills,
+   Relationships as bands, the fees and the Best Party. The seam is the layout, with two adapters:
+   - the CLI's `renderHero`, `renderRoster`, `renderPool` and `renderBoard` take a reading and lay it
+     out as tables;
+   - the page's `heroPage`, `poolView`, `guildPage`'s Roster, the Board's cards, `bestPartyView` and
+     the Roster's rows lay it out, adding only a Class's mark, where a Hero is, the actions and the
+     Milestones.
+2. **The player's reading** (`playerReading(document, deps)`): the world, the deps, the content, the
+   calendar, the player's Guild and Guildmaster, the hint bands their Judgement reads, and
+   `bestParty(quest)`, one Best Party module over the world opened at the first question (DL-237). The
+   rule that the player sees what their Guildmaster sees and pays is said there once.
+   - The page's adapter, `readingOf(document, given?)` in `web/src/state/reading.ts`, adds the
+     narration. It keeps one reading a document while the document holds the world and the rules it
+     was read from, and makes one afresh for a test's own content or config.
+   - Every selector of `state/` reads it in place of `playerGuild`, `playDeps`, `calendarFor` and
+     `narrationFor`. Two `calendarFor` calls stay, where a test holds that a view reads the calendar
+     once. The CLI opens one reading for each `show`.
+3. **`playDeps`** fills forward and checks each config once, keeping its deps by the config object,
+   which no play changes in place.
+4. **One row lookup**, `rowOf` in `words`; the CLI's `rowIn`, the page's `rowOf` and the refusals'
+   own are gone.
+5. **How a game ended** is `endedSentence`, the lead of the refusal after it. The page's header and
+   the CLI's `advance` say it.
+
+**The changed sentences** (QC a). The page's: none of 3,954 views captured over 20 documents (three
+games played to Turn 2,400 by the policy, a bankrupt and an idle one, each also with no player's
+Guild, some edited). The CLI's: 2,170 of 3,102 views, in eight kinds:
+- *Rule 1, a cell or a value that stands alone opens with a capital, as the page writes them:*
+  - `show hero`'s Outlook `promising` → `Promising` (and `modest`, `exceptional`);
+  - its gear slots `weapon` → `Weapon`, and an empty slot `none` → `None`;
+  - `Injury  none` → `Injury  None`;
+  - a band in `show hero`'s Relationships, `show guildmaster` and `show patrons`, `neutral` →
+    `Neutral`;
+  - the Board's Encounters cell `combat, travel` → `Combat, travel`, `drawn on the way` → `Drawn on
+    the way`.
+- *One wording for both front ends:*
+  - "Your best Party: Likely (60% if no one falls), A, B, C." → "…, A, B and C.";
+  - `advance`'s "The game ended on Year 1 Day 41 (Turn 122): bankruptcy." → "…: The Test went
+    bankrupt.";
+  - "<save path> has no player's Guild." → "The save has no player's Guild.", the table's, in
+    `recruit`, `show roster`, `show hall`, `show guildmaster` and `advance --until`. `show offers`
+    reads its line from the table, and its words are unchanged.
+
+*Judgement calls, for the owner to see:*
+- `show guildmaster`'s and `show patrons`' bands are no reading's; they were capitalised too, so that
+  the CLI writes a band one way.
+- No glossary headword: "reading" is the code's word, not the player's. The rule it carries is now
+  in `CONTEXT.md`'s Guildmaster entry.
+- The page's selectors still take a document and derive the reading from it once. A test gives its
+  own content or config to `readingOf`, or its own deps to `playerReading`.
+- `show offers` with no player's Guild still writes to standard output and exits 0.
+- Tests moved:
+  - `heroPage`'s six tests of what a Hero is became `words/src/readings.test.ts`, with one layout test;
+  - the CLI's 17 `show` checks of a Hero, the Board, the pool and a Roster (`main.test.ts` 15,
+    `render.test.ts` 2) did too, with four layout tests in `render.test.ts`.
+  Kept: the commands' refusals, a content key's warning, an Age under the save's own config, the
+  Milestones and the actions. The pins of a settled sentence pin the new one: `main.test.ts` 9 lines,
+  `equip.test.ts` 2.
+
+**Consequences.** A new Hero field touches the reading and its layouts. Tried: a field
+`enteredOnTurn` changed `readings.ts`, `render.ts` and `selectors.ts`, and the CLI's layout test's
+reading. Source lines citing a story fell from 1,727 to 1,706, and the baseline with them.
+
+**Evidence.** `words/src/readings.test.ts` (25 tests), `web/src/state/reading.test.ts` (4), the layout
+tests in `cli/src/render.test.ts` and `web/src/state/selectors.test.ts`, and `main.test.ts`'s test of
+the one refusal. The readings' and the page reading's tests were each red against a mutation of the
+code. Every view was captured before and after. The epic's S8 boxes.

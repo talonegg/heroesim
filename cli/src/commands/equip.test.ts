@@ -80,8 +80,8 @@ describe('equip and unequip', () => {
     // The base, then the effective value, side by side; never Potential.
     expect(statRow(shown.out, 'Strength').slice(0, 2)).toEqual(['8', '10']);
     expect(statRow(shown.out, 'Weaponry').slice(0, 2)).toEqual(['8', '11']);
-    expect(shown.out).toMatch(/^weapon\s+Masterwork blade\s+stack-\d{6}\s+Weaponry \+3, Strength \+2$/m);
-    expect(shown.out).toMatch(/^armour\s+none$/m);
+    expect(shown.out).toMatch(/^Weapon\s+Masterwork blade\s+stack-\d{6}\s+Weaponry \+3, Strength \+2$/m);
+    expect(shown.out).toMatch(/^Armour\s+None$/m);
     expect(shown.out).not.toMatch(/potential/i);
     expect(guild.id).toBe('guild-000001');
   });

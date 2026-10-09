@@ -16,10 +16,9 @@ import {
   type Hero,
   type WorldDocument,
 } from '@heroesim/engine';
-import { nameIn, nightOfTurn } from '@heroesim/words';
+import { nameIn, nightOfTurn, rowOf } from '@heroesim/words';
 import type { Command } from '../args.js';
 import { refusalLine } from '../namer.js';
-import { rowIn } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
 /** Printed after every dispatch: Rivals act on what the player leaves (pre-M0 review D2, M2-S9). */
@@ -28,12 +27,12 @@ export const rivalsReminder =
 
 /** A Hero as the CLI names one: `Brenna Ashcombe (hero-000003)`. */
 function heroName(document: WorldDocument, heroId: string): string {
-  const hero: Hero | undefined = rowIn(document.world.heroes, heroId);
+  const hero: Hero | undefined = rowOf(document.world.heroes, heroId);
   return hero === undefined ? heroId : `${hero.name} (${heroId})`;
 }
 
 function templateName(content: ContentSet, key: string): string {
-  return rowIn(content.questTemplates, key)?.name ?? key;
+  return rowOf(content.questTemplates, key)?.name ?? key;
 }
 
 /** Consumables as the CLI lists them (M5-S3): `Whetstone ×2, Healing draught ×1`. */
@@ -56,16 +55,16 @@ export function dispatchParty(
   const guild = playerGuild(document.world);
   if (guild === undefined) return { ok: false, problem: refusalLine({ action: 'dispatch', reason: 'no-player-guild' }, setting) };
 
-  const offered = rowIn(document.world.quests, command.quest)?.reward;
+  const offered = rowOf(document.world.quests, command.quest)?.reward;
   const consumables = command.consumables ?? [];
   const request = { guildId: guild.id, questId: command.quest, heroIds: command.heroes, consumables };
   const result = applyAction(document, { kind: 'dispatch', ...request }, deps);
   if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
 
   const { world } = result.document;
-  const quest = rowIn(world.quests, command.quest);
+  const quest = rowOf(world.quests, command.quest);
   const partyId = quest?.partyIds.at(-1);
-  const party = partyId === undefined ? undefined : rowIn(world.parties, partyId);
+  const party = partyId === undefined ? undefined : rowOf(world.parties, partyId);
   if (quest === undefined || party === undefined) throw new Error('dispatch succeeded but left no Party');
   const days = durationDaysOf(quest);
   return {

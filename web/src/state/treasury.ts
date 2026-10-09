@@ -14,7 +14,6 @@
 import {
   isEngineEvent,
   nextUpkeepDay,
-  playerGuild,
   upkeepParts,
   type EngineEventOf,
   type EngineEventType,
@@ -26,8 +25,9 @@ import {
 import { nightOfDay, signed, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import type { Facets } from './facets';
-import { narrateSegments, narrationFor, textOf, type Narration, type Segment } from './namer';
-import { calendarFor, playDeps } from './reducer';
+import { narrateSegments, textOf, type Narration, type Segment } from './namer';
+import { readingOf } from './reading';
+
 import { countdownView, historyPageSize } from './selectors';
 
 // ── What an entry did to a Guild's Wealth ────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null 
   const sentence = `Founded with ${wealth} Wealth`;
   return {
     key: `ledger-${position}`,
-    when: whenOfTurn(founded.turn, calendarFor(document)),
+    when: whenOfTurn(founded.turn, readingOf(document).calendar),
     segments: [{ kind: 'text', text: sentence }],
     sentence,
     category: null,
@@ -216,7 +216,7 @@ function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null 
 
 /** Every change to `guildId`'s Wealth the History holds, newest first, then its opening row when the History has one. */
 export function ledgerOf(document: WorldDocument, guildId: GuildId): LedgerRow[] {
-  const narration = narrationFor(document, content);
+  const narration = readingOf(document).narration;
   const opening = openingOf(document, guildId);
   return [...changesOf(document, guildId).map((change) => ledgerRow(change, narration)), ...(opening === null ? [] : [opening])];
 }
@@ -313,9 +313,9 @@ function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
  */
 export function treasuryAccounts(document: WorldDocument): TreasuryAccounts | null {
   const { world } = document;
-  const guild = playerGuild(world);
+  const { guild, deps } = readingOf(document);
   if (guild === undefined) return null;
-  const { config } = playDeps(document);
+  const { config } = deps;
 
   const parts = upkeepParts(guild, world, config, content);
   const playing = world.ended === null && guild.foldedOnTurn === null;
@@ -341,7 +341,7 @@ export function treasuryAccounts(document: WorldDocument): TreasuryAccounts | nu
       changes,
       facets: ledgerFacets(ledgerCategories.filter((key) => changes.some((row) => row.category === key))),
       opening: openingOf(document, guild.id),
-      narration: narrationFor(document, content),
+      narration: readingOf(document).narration,
     },
   };
 }

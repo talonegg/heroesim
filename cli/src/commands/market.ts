@@ -19,9 +19,9 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { itemEffectWords, kindOf, nameIn } from '@heroesim/words';
+import { itemEffectWords, kindOf, nameIn, rowOf } from '@heroesim/words';
 import { refusalLine } from '../namer.js';
-import { renderTime, rowIn, table } from '../render.js';
+import { renderTime, table } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
 /** `3 × Whetstone`, or the name alone for one. */
@@ -103,7 +103,7 @@ export function buyItems(command: Extract<Command, { name: 'buy' }>, document: W
   if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
 
   const bought = result.events.find((event): event is ItemBought => event.type === 'item.bought');
-  const after = rowIn(result.document.world.guilds, guild.id);
+  const after = rowOf(result.document.world.guilds, guild.id);
   if (bought === undefined || after === undefined) throw new Error('buy succeeded but bought nothing');
   const { definitionKey, quantity, unitPrice, cost, itemIds } = bought.payload;
   const what = counted(quantity, nameIn(deps.content.items, definitionKey));
@@ -134,7 +134,7 @@ export function sellItems(command: Extract<Command, { name: 'sell' }>, document:
   if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
 
   const sold = result.events.find((event): event is ItemSold => event.type === 'item.sold');
-  const after = rowIn(result.document.world.guilds, guild.id);
+  const after = rowOf(result.document.world.guilds, guild.id);
   if (sold === undefined || after === undefined) throw new Error('sell succeeded but sold nothing');
   const { definitionKey, quantity, unitPrice, proceeds } = sold.payload;
   return {

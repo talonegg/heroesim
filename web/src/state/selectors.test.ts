@@ -14,10 +14,8 @@ import {
   entriesFor,
   estimateQuest,
   guildmasterOf,
-  judgedHintBands,
   milestoneTypes,
   playerGuild,
-  potentialHint,
   rankingPlaces,
   rankings,
   sexes,
@@ -38,10 +36,11 @@ import {
 } from '@heroesim/engine';
 import { append, createItem, nightOf } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
-import { chanceWords, dateOfTurn, listed, shownPercent, whenOfTurn } from '@heroesim/words';
+import { capitalised, chanceWords, dateOfTurn, heroReading, listed, shownPercent, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { partiesOutView } from './digest';
 import { played as playedThrough, started } from './game.test-support';
+import { readingOf } from './reading';
 import { initialGameState, type GameState } from './reducer';
 import {
   bestPartyView,
@@ -1157,24 +1156,6 @@ describe("the Roster's Table's columns (v1.1.5-S12, DL-169 item 7)", () => {
 });
 
 describe('heroPage', () => {
-  test("shows each Stat's base, effective value and hint, never its Potential", () => {
-    const document = newGame();
-    const guild = player(document);
-    const bands = { potentialHintBands: judgedHintBands(guildmasterOf(guild, document.world), content, defaultConfig) };
-
-    for (const hero of Object.values(document.world.heroes)) {
-      const page = heroPage(document, hero.id);
-      const stats = Object.values(content.stats).filter((stat) => stat.owner === 'hero');
-
-      const rows = page?.areas.flatMap((area) => area.stats) ?? [];
-      expect(rows.map((row) => row.outlook)).toEqual(stats.map((stat) => potentialHint(hero, stat.key, bands)));
-      // The hint as its chip says it (DL-125 item 9).
-      expect(rows.map((row) => row.outlookWords)).toEqual(rows.map((row) => ({ modest: 'Modest', promising: 'Promising', exceptional: 'Exceptional' })[row.outlook]));
-      expect(rows.map((row) => row.base)).toEqual(stats.map((stat) => hero.stats[stat.key]));
-      expect(JSON.stringify(page)).not.toMatch(/potential/i);
-    }
-  });
-
   test('shows its Milestones first, newest first; its History, a page at a time, is the History view\'s (M9-S5)', () => {
     const document = played(240);
     // The busiest Hero of the world: a Rival's, whose Guild sends Parties while the player's rests.
@@ -1208,13 +1189,6 @@ describe('heroPage', () => {
     expect(sentences.some((sentence) => sentence.startsWith(`${hero.name} earned the Trait Lame on `))).toBe(true);
   });
 
-  test("gives the Hero's sex for their Portrait, and no Portrait's key: every Hero shows the Silhouette of their sex (DL-125 items 2 and 4)", () => {
-    const document = newGame();
-    for (const hero of Object.values(document.world.heroes)) {
-      expect(heroPage(document, hero.id)).toMatchObject({ sex: hero.sex, portraitKey: null });
-    }
-  });
-
   test('is null for a Hero the world does not hold', () => {
     expect(heroPage(newGame(), 'hero-999999' as HeroId)).toBeNull();
   });
@@ -1229,88 +1203,64 @@ describe('heroPage', () => {
 });
 
 describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
-  test('says who the Hero is in one line: Class, Level, Age, Sex, Background and Guild, "Age" and the Sex capitalised (DL-111 item 9)', () => {
+  // DL-241: what the page lays out is the Hero's reading (`words/src/readings.test.ts` holds what it
+  // reads); this holds the layout, and what the page adds, where the Hero is.
+  test("lays out the Hero's reading: who they are in one line, their State as chips, their Stats in area blocks with what lifts each, their gear, and each Relationship marked neutral to fold", () => {
     const document = structuredClone(newGame());
-    const [hero] = heroes(document);
-    if (hero === undefined) throw new Error('no Hero');
-    hero.classKey = 'rogue';
-    hero.level = 3;
-    hero.sex = 'female';
-    hero.backgroundKey = 'poachers-child';
-    hero.ageAtEntry = 18;
-    hero.enteredTurn = 0;
-
-    expect(heroPage(document, hero.id)?.line).toEqual(['Rogue', 'Level 3', 'Age 18', 'Female', content.backgrounds['poachers-child']?.name, 'of The Lantern']);
-  });
-
-  test('gives Morale with its band, where the Hero is and why they cannot go, the Injury, XP and Traits as chips', () => {
-    const document = structuredClone(newGame());
-    const [hero, other] = heroes(document);
-    if (hero === undefined || other === undefined) throw new Error('two Heroes wanted');
-    hero.morale = 30;
-    hero.xp = 45;
+    const [hero, liked, ...rest] = heroes(document) as [Hero, Hero, ...Hero[]];
+    Object.assign(hero, { classKey: 'mage', level: 3, sex: 'female', backgroundKey: 'poachers-child', ageAtEntry: 18, enteredTurn: 0, morale: 30, xp: 45 });
     hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
     hero.traits = ['scarred' as never];
-
-    const page = heroPage(document, hero.id);
-
-    expect(page).toMatchObject({
-      morale: { value: 30, band: 'low' },
-      where: { why: 'injured', words: 'Injured, healing on the night of Year 1 Day 7' },
-      injury: content.injuries['deep-cut']?.name,
-      xp: 45,
-      // v1.1.4-S7: each Trait with what it does, in `traitEffectWords`.
-      traits: [{ name: content.heroTraits.scarred?.name ?? 'scarred', effect: '+1 Courage, -1 Charisma' }],
-      fee: null,
-    });
-    expect(heroPage(document, other.id)).toMatchObject({ where: { why: null, words: 'At the Hall' }, injury: null, traits: [] });
-  });
-
-  test('gives the Stats in four area blocks, in content’s order, each with the value a Check reads and what gear and the Guildmaster’s Traits add', () => {
-    const document = structuredClone(newGame());
-    const [hero] = heroes(document);
-    if (hero === undefined) throw new Error('no Hero');
-    hero.classKey = 'mage';
+    hero.regard[liked.id] = { value: 8, since: 0, reason: 'test' };
     const guildmaster = guildmasterOf(player(document), document.world);
     if (guildmaster === undefined) throw new Error('no Guildmaster');
     guildmaster.traits = ['mistrusts-magic' as never];
     addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: hero.id, slot: 'weapon' });
+    const read = heroReading(readingOf(document), hero);
 
-    const areas = heroPage(document, hero.id)?.areas ?? [];
+    const page = heroPage(document, hero.id);
 
-    expect(areas.map((area) => [area.name, area.stats.length])).toEqual([
+    // "Age" as a label and the Sex as a word, capitalised (DL-111 item 9).
+    expect(page?.line).toEqual(['Mage', 'Level 3', 'Age 18', 'Female', content.backgrounds['poachers-child']?.name, 'of The Lantern']);
+    expect(page).toMatchObject({
+      heroId: read.id,
+      name: read.name,
+      sex: 'female',
+      portraitKey: null,
+      texts: read.texts.map(({ label, words }) => [label, words]),
+      className: 'Mage',
+      classKey: 'mage',
+      morale: { value: 30, band: 'low' },
+      where: { why: 'injured', words: 'Injured, healing on the night of Year 1 Day 7' },
+      injury: content.injuries['deep-cut']?.name,
+      xp: 45,
+      traits: read.traits,
+      fee: null,
+      skills: read.skills.map(({ name, rating }) => ({ name, rating })),
+    });
+    expect(page?.areas.map((area) => [area.name, area.stats.length])).toEqual([
       ['Physical', 5],
       ['Mental', 6],
       ['Magical', 5],
       ['Social', 4],
     ]);
-    const stat = (name: string) => areas.flatMap((area) => area.stats).find((row) => row.name === name);
-    const base = (key: string): number => hero.stats[key] ?? 0;
-    // The arming sword: Weaponry +2 and Strength +1; Mistrusts magic: −1 Arcana to Mages.
-    expect(stat('Weaponry')).toMatchObject({ value: base('weaponry') + 2, lift: { words: '+2', up: true } });
-    expect(stat('Strength')).toMatchObject({ value: base('strength') + 1, lift: { words: '+1', up: true } });
-    expect(stat('Arcana')).toMatchObject({ value: base('arcana') - 1, lift: { words: '-1', up: false } });
-    expect(stat('Wits')).toMatchObject({ value: base('wits'), lift: null });
-    // v1.1.4-S7 (DL-148 item 24): a Hero Trait's Stat change shows where the Stat shows, as gear's does.
-    hero.traits = ['lame' as never];
-    const lame = heroPage(document, hero.id)?.areas.flatMap((area) => area.stats) ?? [];
-    expect(lame.find((row) => row.name === 'Dexterity')).toMatchObject({ value: Math.max(1, base('dexterity') - 2), lift: { words: '-2', up: false } });
-    expect(lame.find((row) => row.name === 'Strength')).toMatchObject({ value: base('strength') + 1, lift: { words: '+1', up: true } });
-    expect(JSON.stringify(areas)).not.toMatch(/potential/i);
-  });
-
-  test('gives each other Hero on the Roster as a Relationship, marked neutral when both bands are, for the page to fold', () => {
-    const document = structuredClone(newGame());
-    const [hero, liked, disliked, stranger] = heroes(document);
-    if (hero === undefined || liked === undefined || disliked === undefined || stranger === undefined) throw new Error('four Heroes wanted');
-    hero.regard[liked.id] = { value: 8, since: 0, reason: 'test' };
-    disliked.regard[hero.id] = { value: -30, since: 0, reason: 'test' };
-
-    const rows = heroPage(document, hero.id)?.relationships ?? [];
-
-    expect(rows.find((row) => row.name === liked.name)).toMatchObject({ regard: 'warm', neutral: false });
-    expect(rows.find((row) => row.name === disliked.name)).toMatchObject({ regard: 'neutral', neutral: false });
-    expect(rows.find((row) => row.name === stranger.name)).toMatchObject({ regard: 'neutral', relationship: 'neutral', neutral: true });
+    const stat = (name: string) => page?.areas.flatMap((area) => area.stats).find((row) => row.name === name);
+    // The arming sword: Weaponry +2; Mistrusts magic: −1 Arcana to Mages; Wits as it is.
+    expect(stat('Weaponry')).toMatchObject({ lift: { words: '+2', up: true } });
+    expect(stat('Arcana')).toMatchObject({ lift: { words: '-1', up: false } });
+    expect(stat('Wits')).toMatchObject({ lift: null });
+    // The hint as its chip says it (DL-125 item 9).
+    expect(page?.areas.flatMap((area) => area.stats).map(({ name, base, value, outlook, outlookWords }) => ({ name, base, value, outlook, outlookWords }))).toEqual(
+      read.stats.map(({ name, base, value, outlook }) => ({ name, base, value, outlook, outlookWords: capitalised(outlook) })),
+    );
+    expect(page?.gear.map(({ slotName, item, worn }) => [slotName, item, worn])).toEqual([
+      ['Weapon', content.items['arming-sword']?.name, true],
+      ['Armour', 'None', false],
+      ['Trinket', 'None', false],
+    ]);
+    expect(page?.relationships?.find((row) => row.name === liked.name)).toMatchObject({ regard: 'warm', neutral: false });
+    for (const mate of rest) expect(page?.relationships?.find((row) => row.name === mate.name)).toMatchObject({ regard: 'neutral', relationship: 'neutral', neutral: true });
+    expect(JSON.stringify(page)).not.toMatch(/potential/i);
   });
 
   test("a dead Hero's whereabouts say when they died, and why they cannot go", () => {

@@ -1,12 +1,15 @@
 // What the views read (M7-S3, DL-66): each function takes the game in hand and returns plain rows
 // of words and numbers for a component to lay out. Nothing in `web/` computes a rule (ADR-0007,
-// principle 12), so every number here is a document field or the answer of an engine selector,
-// the same ones the CLI's `render.ts` reads (`rankingPlaces`, `bankruptcyCountdown`, `ageOf`,
-// `statBreakdown`, `potentialHint`, `judgedHintBands`, `carriedGear`, `regardBand`,
-// `relationship`, `transferFee`, `previewDispatch`, `skillsThatHelp`, `entriesFor`); where a view
-// needed an answer no selector gave, the selector went into the engine (`previewDispatch`,
-// `skillsThatHelp`, `dispatchRefusal`, `rankingPlaces`, `bankruptcyCountdown`), never here. The
-// words are the CLI's, as its `show` views print them.
+// principle 12), so every number here is a document field or the answer of an engine selector
+// (`rankingPlaces`, `bankruptcyCountdown`, `statBreakdown`, `carriedGear`, `previewDispatch`,
+// `skillsThatHelp`, `entriesFor`); where a view needed an answer no selector gave, the selector went
+// into the engine (`previewDispatch`, `skillsThatHelp`, `dispatchRefusal`, `rankingPlaces`,
+// `bankruptcyCountdown`), never here.
+//
+// Each reads the document through the player's reading (`reading.ts`, DL-241), derived once for it.
+// A Hero, a Roster's rows and the Board are the readings of `@heroesim/words` that the CLI's `show`
+// lays out too, laid out here for the page, which adds what is its own: a Class's mark, where a Hero
+// is, the actions and the Milestones.
 //
 // Potential is never in a view (data-model rule 9, M3-S3): a Hero's page carries each Stat's hint,
 // the word `potentialHint` gives through the bands the player's Guildmaster reads, and no row type
@@ -16,7 +19,6 @@
 
 import {
   ageOf,
-  availableHeroes,
   bankruptcyCountdown,
   carriedGear,
   classComparator,
@@ -26,38 +28,25 @@ import {
   descriptiveAttributeLabels,
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
-  durationDaysOf,
-  gearSlotKeys,
-  bestParties,
   entriesFor,
   guildmasterOf,
   guildmasterTraitCost,
   guildmasterTraitsOf,
   holdings,
   itemDefinition,
-  judgedHintBands,
   moraleBand,
-  playerGuild,
-  potentialHint,
   previewDispatch,
   rankingPlaces,
-  regardBand,
-  regardValue,
-  relationship,
   sexes,
-  signingFee,
-  signingRefusal,
   skillsThatHelp,
   statBreakdown,
   statsRead,
   timeOfDay,
   transferFee,
-  type BestParties,
   type ConsumableRequest,
   type ContentSet,
   type DescriptiveAttribute,
   type EngineEventOf,
-  type EngineDeps,
   type TurnEvent,
   type Entry,
   type GameConfig,
@@ -74,7 +63,6 @@ import {
   type RegardBand,
   type Sex,
   type SlotKey,
-  type Stack,
   type StatKey,
   type StackId,
   type StopCondition,
@@ -84,19 +72,20 @@ import {
   type TimeOfDay,
   type TraitKey,
   type Unavailability,
-  type UniqueItem,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
 import {
   atHallWords,
+  bestPartyReading,
+  boardReading,
   capitalised,
   chanceWords,
   dateOfDay,
   dateOfTurn,
   consumableEffectWords,
-  encounterReadings,
-  endingWords,
+  endedSentence,
+  heroReading,
   kindWords,
   listed,
   modifierWords,
@@ -104,8 +93,11 @@ import {
   nightOfDay,
   nightOfTurn,
   readsAsOne,
+  rosterReading,
+  rowOf,
   shownPercent,
   signed,
+  signsWords,
   statPartsWords,
   statSourcesMoving,
   traitEffectWords,
@@ -113,14 +105,15 @@ import {
   unavailableWords,
   whenOfTurn,
   type EncounterReading,
+  type HeroReading,
 } from '@heroesim/words';
 import { availabilityOf } from './availability';
 import { content } from '../content';
-import { narrateText, narrationFor, questNamer, type Narration } from './namer';
+import { narrateText, questNamer, rejectionSentence, sentenceWords, type Narration } from './namer';
 import type { Facets } from './facets';
-import { classMarkOf, type ClassMarked, placeWords, rowOf, transferCostWords } from './names';
-import { calendarFor, playDeps, type GameState } from './reducer';
-import { rejectionSentence } from './namer';
+import { classMarkOf, type ClassMarked, placeWords, transferCostWords } from './names';
+import { readingOf, type PageReading } from './reading';
+import type { GameState } from './reducer';
 import { stopText } from './stops';
 
 // ── The header ───────────────────────────────────────────────────────────────────────────────
@@ -164,9 +157,10 @@ export interface HeaderView {
 /** The player's Guild at a glance; `null` for a save with no player's Guild. */
 export function headerView(document: WorldDocument): HeaderView | null {
   const { world } = document;
-  const guild = playerGuild(world);
+  const reading = readingOf(document);
+  const { guild } = reading;
   if (guild === undefined) return null;
-  const { config } = playDeps(document);
+  const { config } = reading.deps;
   const byFame = rankingPlaces(world, 'fame');
   const place = byFame.find((ranking) => ranking.guildId === guild.id);
   const { ended } = world;
@@ -175,7 +169,7 @@ export function headerView(document: WorldDocument): HeaderView | null {
   return {
     guildId: guild.id,
     guildName: guild.name,
-    guildmasterName: guildmasterOf(guild, world)?.name ?? null,
+    guildmasterName: reading.guildmaster?.name ?? null,
     wealth: guild.wealth,
     fame: guild.fame,
     time: whenOfTurn(world.turn, config),
@@ -186,7 +180,8 @@ export function headerView(document: WorldDocument): HeaderView | null {
     measure,
     countdown: countdownView(document),
     due: dueView(document),
-    ended: ended === null ? null : `The game ended on ${dateOfTurn(ended.turn, config)}: ${guild.name} ${endingWords[ended.reason]}.`,
+    // How it ended, as a refusal after it says it (DL-241).
+    ended: ended === null ? null : sentenceWords(endedSentence(ended, { world, content: reading.content, calendar: config })),
   };
 }
 
@@ -199,10 +194,9 @@ export function headerView(document: WorldDocument): HeaderView | null {
  * forward too (v1.0.1-S5).
  */
 export function countdownView(document: WorldDocument): string | null {
-  const { world } = document;
-  const guild = playerGuild(world);
-  if (guild === undefined || world.ended !== null) return null;
-  const { config } = playDeps(document);
+  const { guild, deps } = readingOf(document);
+  if (guild === undefined || document.world.ended !== null) return null;
+  const { config } = deps;
   const countdown = bankruptcyCountdown(guild, config);
   if (countdown === null) return null;
   return (
@@ -213,9 +207,9 @@ export function countdownView(document: WorldDocument): string | null {
 
 /** The countdown's Day, `Bankruptcy on the night of Year 1 Day 31`: when `countdownView` gives a sentence, and only then. */
 function dueView(document: WorldDocument): string | null {
-  const guild = playerGuild(document.world);
+  const { guild, deps } = readingOf(document);
   if (guild === undefined || document.world.ended !== null) return null;
-  const { config } = playDeps(document);
+  const { config } = deps;
   const countdown = bankruptcyCountdown(guild, config);
   return countdown === null ? null : `Bankruptcy on ${nightOfDay(countdown.dueDay, config)}`;
 }
@@ -303,80 +297,53 @@ export function boardView(document: WorldDocument, order: BoardOrder = 'posted')
   return [...cards].sort((a, b) => key(a) - key(b));
 }
 
-/** The Quests on offer as cards, in the Board's order. */
+/** The Quests on offer as cards, in the Board's order: the Board's readings (`boardReading`, DL-241) laid out. */
 function questCards(document: WorldDocument): QuestCard[] {
-  const { world } = document;
-  const calendar = calendarFor(document);
-  const today = dayOf(world.turn);
-  const quests = world.board.flatMap((questId) => rowOf(world.quests, questId) ?? []);
+  const reading = readingOf(document);
+  const { calendar } = reading;
+  const today = dayOf(document.world.turn);
+  const quests = boardReading(reading);
   const difficulties = quests.map((quest) => quest.difficulty);
   const lowest = Math.min(...difficulties);
   const highest = Math.max(...difficulties);
   const along = (difficulty: number): number => (highest === lowest ? 0.5 : (difficulty - lowest) / (highest - lowest));
-  return quests.map((quest, index): QuestCard => {
-    const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
-    return {
-      questId: quest.id,
-      name: nameIn(content.questTemplates, quest.templateKey),
-      patron: rowOf(world.patrons, quest.patronId)?.name ?? 'a Patron',
-      difficulty: quest.difficulty,
-      days: durationDaysOf(quest),
-      reward: quest.reward,
-      fame: quest.fameEffect,
-      party: `${partySizeMin} to ${partySizeMax} Heroes`,
-      needs: [
-        ...(classKey === undefined ? [] : [`a ${nameIn(content.classes, classKey)}`]),
-        ...(skillKey === undefined ? [] : [`a Hero with ${nameIn(content.skills, skillKey)}`]),
-      ],
-      lastDay: dayOf(quest.expiresOnTurn),
-      until: `Until ${dateOfTurn(quest.expiresOnTurn, calendar)}`,
-      leavesToday: dayOf(quest.expiresOnTurn) === today,
-      skills: skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)),
-      encounters: encounterReadings(quest, content).map((reading) => ({ ...reading, one: readsAsOne(reading) })),
-      meter: { lowest, highest, at: along(quest.difficulty), others: difficulties.filter((_, other) => other !== index).map(along) },
-      hardness: hardnessWords(quest.difficulty, difficulties),
-    };
-  });
-}
-
-/**
- * The Best Party module of each world the page holds, opened for the player's Guild under its
- * document's rules (DL-237): one a document, keyed by its world, which no play changes, since each
- * action and each Turn makes a new world. `rebase` alone makes a new document of the same world, under
- * other rules, so the module is kept with the rules it was opened under and answers only a document
- * of those. So every question asked of one document shares what its module weighed, and the module
- * goes when its world does. Never stored in the document (DL-232 item 3).
- */
-const bestPartiesByWorld = new WeakMap<World, { config: WorldDocument['meta']['config']; opened: BestParties }>();
-
-/** `document`'s Best Party module for `guild`, the player's, opened at its first question. */
-function bestPartiesOf(document: WorldDocument, guild: Guild): BestParties {
-  const { world, meta } = document;
-  const known = bestPartiesByWorld.get(world);
-  if (known !== undefined && known.config === meta.config) return known.opened;
-  const opened = bestParties(world, guild, playDeps(document));
-  bestPartiesByWorld.set(world, { config: meta.config, opened });
-  return opened;
+  return quests.map((quest, index): QuestCard => ({
+    questId: quest.id,
+    name: quest.name,
+    patron: quest.patron ?? 'a Patron',
+    difficulty: quest.difficulty,
+    days: quest.days,
+    reward: quest.reward,
+    fame: quest.fame,
+    party: `${quest.partySizeMin} to ${quest.partySizeMax} Heroes`,
+    needs: [...(quest.classRequired === null ? [] : [`a ${quest.classRequired}`]), ...(quest.skillRequired === null ? [] : [`a Hero with ${quest.skillRequired}`])],
+    lastDay: dayOf(quest.expiresOnTurn),
+    until: `Until ${dateOfTurn(quest.expiresOnTurn, calendar)}`,
+    leavesToday: dayOf(quest.expiresOnTurn) === today,
+    skills: quest.skills,
+    encounters: quest.encounters.map((encounter) => ({ ...encounter, one: readsAsOne(encounter) })),
+    meter: { lowest, highest, at: along(quest.difficulty), others: difficulties.filter((_, other) => other !== index).map(along) },
+    hardness: hardnessWords(quest.difficulty, difficulties),
+  }));
 }
 
 /**
  * "Your best Party" for each Quest on the Board, by Quest id in the Board's order (v1.1.4-S6): the
- * engine's Best Party from the player's free Heroes (`bestPartiesOf`), its chance the estimate the
- * rule chose it by. The Board's alone, since it estimates many Parties of each Quest: `boardView`'s
- * cards, which the digest and the stop read too, carry none (v1.1.4-S6's verification, DL-157).
+ * Best Party of the player's free Heroes (`bestPartyReading`), its chance the estimate the rule chose
+ * it by, every question asked of the document's reading's one Best Party module (DL-237, DL-241).
+ * The Board's alone, since it estimates many Parties of each Quest: `boardView`'s cards, which the
+ * digest and the stop read too, carry none (v1.1.4-S6's verification, DL-157).
  */
 export function bestPartyView(document: WorldDocument): ReadonlyMap<QuestId, BestPartyView> {
   const { world } = document;
-  const guild = playerGuild(world);
-  const available = guild === undefined ? [] : availableHeroes(world, guild);
+  const reading = readingOf(document);
   return new Map(
     world.board.flatMap((questId): [QuestId, BestPartyView][] => {
       const quest = rowOf(world.quests, questId);
       if (quest === undefined) return [];
-      const best = guild === undefined ? null : bestPartiesOf(document, guild).party(quest, available);
+      const best = bestPartyReading(reading, quest);
       if (best === null) return [[questId, null]];
-      const names = listed(best.heroIds.flatMap((id) => rowOf(world.heroes, id)?.name ?? []));
-      return [[questId, { chance: best.estimate === null ? null : chanceWords[best.estimate.chance], names }]];
+      return [[questId, { chance: best.chance === null ? null : chanceWords[best.chance.band], names: listed(best.names) }]];
     }),
   );
 }
@@ -406,7 +373,7 @@ function hardnessWords(difficulty: number, difficulties: readonly number[]): str
  */
 export function defaultHeroOrder(document: WorldDocument): (a: Hero, b: Hero) => number {
   const { turn } = document.world;
-  const { config } = playDeps(document);
+  const { config } = readingOf(document).deps;
   return (a, b) =>
     byClass(a, b) ||
     b.level - a.level ||
@@ -454,7 +421,7 @@ export interface PartyRow extends ClassMarked {
  */
 export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[] | null {
   const { world } = document;
-  const guild = playerGuild(world);
+  const { guild, calendar } = readingOf(document);
   const quest = rowOf(world.quests, questId);
   if (guild === undefined || quest === undefined || !world.board.includes(questId)) return null;
   const { skillKey } = quest.requirements;
@@ -465,7 +432,6 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
     const hero = rowOf(world.heroes, heroId);
     return hero === undefined ? [] : [hero];
   });
-  const calendar = calendarFor(document);
   const availability = new Map(onRoster.map((hero) => [hero.id, availabilityOf(hero, world, calendar)]));
   const soonest = (a: Hero, b: Hero): number => compareNumbers(availability.get(a.id)?.freeOnTurn ?? Infinity, availability.get(b.id)?.freeOnTurn ?? Infinity);
   return onRoster
@@ -499,7 +465,7 @@ export interface ConsumableChoice {
 
 /** The consumables the player's Guild holds, which a Party may carry (M5-S3). */
 export function consumableChoices(document: WorldDocument): ConsumableChoice[] {
-  const guild = playerGuild(document.world);
+  const { guild } = readingOf(document);
   if (guild === undefined) return [];
   return holdings(document.world, { kind: 'guild', id: guild.id }).stacks.flatMap((stack): ConsumableChoice[] => {
     const definition = itemDefinition(content, stack.definitionKey);
@@ -555,10 +521,10 @@ export function previewView(
   consumables: readonly ConsumableRequest[],
 ): PreviewView | null {
   const { world } = document;
-  const guild = playerGuild(world);
+  const { guild, deps } = readingOf(document);
   if (guild === undefined) return null;
   const request = { guildId: guild.id, questId, heroIds: [...heroIds], consumables: [...consumables] };
-  const preview = previewDispatch(world, request, playDeps(document));
+  const preview = previewDispatch(world, request, deps);
   if (preview === null) return null;
   const reach = (encounters: number | null): string =>
     encounters === null ? "this Quest's Encounters are drawn on the way" : `${encounters} of this Quest's ${preview.encounterKinds.length}`;
@@ -649,7 +615,7 @@ export interface SentView {
  */
 export function sentView(state: Pick<GameState, 'document' | 'log'>): SentView | null {
   const { document, log } = state;
-  const guild = document === null ? undefined : playerGuild(document.world);
+  const guild = document === null ? undefined : readingOf(document).guild;
   if (document === null || guild === undefined) return null;
   const taken = log.filter((event): event is Taken => event.type === 'quest.taken' && (event as Taken).payload.guildId === guild.id).at(-1);
   if (taken === undefined) return null;
@@ -658,7 +624,7 @@ export function sentView(state: Pick<GameState, 'document' | 'log'>): SentView |
     questId: payload.questId,
     quest: questNamer(document, content)(payload.questId),
     heroes: listed(payload.heroIds.map((heroId) => labels[heroId] ?? rowOf(document.world.heroes, heroId)?.name ?? 'a Hero')),
-    returns: nightOfTurn(payload.returnsOnTurn, calendarFor(document)),
+    returns: nightOfTurn(payload.returnsOnTurn, readingOf(document).calendar),
   };
 }
 
@@ -938,25 +904,27 @@ export function rosterRows(document: WorldDocument): RosterRows {
 /** The Roster's rows for `document`, built: what `rosterRows` keeps. */
 function buildRosterRows(document: WorldDocument): RosterRows {
   const { world } = document;
-  const guild = playerGuild(world);
+  const reading = readingOf(document);
+  const { guild } = reading;
   if (guild === undefined) return { entries: [], byDefault: () => 0 };
-  const { config } = playDeps(document);
+  const { config } = reading.deps;
   const byDefault = defaultHeroOrder(document);
-  const entries = guild.rosterIds.flatMap((heroId): RosterEntry[] => {
-    const hero = rowOf(world.heroes, heroId);
+  // Each Hero on it as a row of a Roster (`rosterReading`, DL-241), and what the Table adds.
+  const entries = rosterReading(reading, guild).flatMap((read): RosterEntry[] => {
+    const hero = rowOf(world.heroes, read.id);
     if (hero === undefined) return [];
     const items = itemsOf(hero, world);
     const availability = availabilityOf(hero, world, config);
     const row: RosterRow = {
-      heroId,
-      name: hero.name,
-      sex: hero.sex,
-      portraitKey: hero.portraitKey,
-      ...classMarkOf(content, hero.classKey),
-      level: hero.level,
-      age: ageOf(hero, world.turn, config),
-      morale: hero.morale,
-      moraleBand: moraleBand(hero.morale, config),
+      heroId: read.id,
+      name: read.name,
+      sex: read.sex,
+      portraitKey: read.portraitKey,
+      ...classMarkOf(reading.content, read.classKey),
+      level: read.level,
+      age: read.age,
+      morale: read.morale,
+      moraleBand: moraleBand(read.morale, config),
       why: availability.why,
       whereabouts: availability.where,
       traits: traitsOf(hero),
@@ -1159,137 +1127,92 @@ export function linesOf(entries: readonly Entry[], narration: Narration): LogLin
 }
 
 /**
- * `show hero`: the Hero's Attributes, State, Stats with their hints, gear, Skills and, on a Roster,
- * Relationships, as the CLI prints them; then their Milestones, newest first. Their History, a page
- * at a time, is `historyView`'s (`history.ts`, M9-S5). `null` for a Hero the world does not hold.
+ * `show hero`: the Hero's reading (`heroReading`, DL-241) laid out for their page: who they are in one
+ * line, their State as chips, their Stats by area with what lifts each, their gear, Skills and, on a
+ * Roster, Relationships; and what is the page's own, their Class's mark, where they are, what the
+ * player can do with them and their Milestones, newest first. Their History, a page at a time, is
+ * `historyView`'s (`history.ts`, M9-S5). `null` for a Hero the world does not hold.
  */
 export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView | null {
   const { world, history } = document;
   const hero = rowOf(world.heroes, heroId);
   if (hero === undefined) return null;
-  const deps = playDeps(document);
-  const { config } = deps;
-  const guild = hero.guildId === null ? undefined : rowOf(world.guilds, hero.guildId);
-  const player = playerGuild(world);
-  const reader = player === undefined ? undefined : guildmasterOf(player, world);
-  const bands = { potentialHintBands: judgedHintBands(reader, content, config) };
-  const onRoster = guild?.rosterIds.includes(hero.id) === true;
-  const available = availabilityOf(hero, world, config);
+  const reading = readingOf(document);
+  const read = heroReading(reading, hero);
 
-  // Who the Hero is in one line, and their State as chips (M9-S6, the review's B7): what were eleven
-  // label and value rows. A Hero in the pool or gone from it names no Guild; `where` says where they are.
+  // Who the Hero is in one line, and their State as chips (M9-S6, the review's B7). A Hero in the
+  // pool or gone from it names no Guild; `where` says where they are.
   const who = [
-    nameIn(content.classes, hero.classKey),
-    `Level ${hero.level}`,
+    read.className,
+    `Level ${read.level}`,
     // "Age" as a label and the Sex as a word, capitalised (DL-111 item 9); an age in a sentence stays lowercase.
-    `Age ${ageOf(hero, world.turn, config)}`,
-    capitalised(hero.sex),
-    nameIn(content.backgrounds, hero.backgroundKey),
-    ...(guild === undefined ? [] : [`of ${guild.name}`]),
+    `Age ${read.age}`,
+    capitalised(read.sex),
+    read.background,
+    ...(read.guild?.name === undefined ? [] : [`of ${read.guild.name}`]),
   ];
-  // A Hero on another Guild's Roster: what the player's Guild would pay to take them (M6-S2).
-  const fee = player !== undefined && guild !== undefined && guild.id !== player.id && onRoster ? transferFee(hero, reader, deps) : null;
 
-  const values = statValues(hero, world);
   const areas: StatArea[] = [];
-  for (const stat of Object.values(content.stats).filter((each) => each.owner === 'hero')) {
-    const { base, effective } = values.get(stat.key) ?? { base: 0, effective: 0 };
-    const outlook = potentialHint(hero, stat.key, bands);
+  for (const stat of read.stats) {
     const row: StatRow = {
       name: stat.name,
-      base,
-      value: effective,
-      lift: effective === base ? null : { words: signed(effective - base), up: effective > base },
-      outlook,
-      outlookWords: capitalised(outlook),
+      base: stat.base,
+      value: stat.value,
+      lift: stat.value === stat.base ? null : { words: signed(stat.value - stat.base), up: stat.value > stat.base },
+      outlook: stat.outlook,
+      outlookWords: capitalised(stat.outlook),
     };
-    const name = capitalised(stat.area);
     const area = areas.at(-1);
-    if (area?.name === name) area.stats.push(row);
-    else areas.push({ name, stats: [row] });
+    if (area?.name === stat.area) area.stats.push(row);
+    else areas.push({ name: stat.area, stats: [row] });
   }
 
-  // What the Hero carries, each in the slot it is held in: `carriedGear` gives only the Hero's own rows.
-  const carried = carriedGear(world, hero.id).flatMap((row: UniqueItem | Stack) =>
-    row.holder.kind === 'hero' ? [{ row, slot: row.holder.slot }] : [],
-  );
-  const line = (slot: SlotKey, row: UniqueItem | Stack): HeroPageView['gear'][number] => {
-    const definition = itemDefinition(content, row.definitionKey);
-    return {
-      slot,
-      slotName: capitalised(slot),
-      item: nameIn(content.items, row.definitionKey),
-      modifies: definition?.kind === 'gear' ? modifierWords(definition, content) : '',
-      worn: true,
-      definitionKey: row.definitionKey,
-      unique: definition?.unique === true,
-    };
-  };
-  const listedSlots: readonly SlotKey[] = gearSlotKeys;
-  const gear = [
-    ...listedSlots.flatMap((slot) => {
-      const inSlot = carried.filter((each) => each.slot === slot);
-      return inSlot.length === 0
-        ? [{ slot, slotName: capitalised(slot), item: 'None', modifies: '', worn: false, definitionKey: null, unique: false }]
-        : inSlot.map((each) => line(slot, each.row));
-    }),
-    ...carried.filter((each) => !listedSlots.includes(each.slot)).map((each) => line(each.slot, each.row)),
-  ];
-
-  const skills = heldSkills(hero).map(({ name, rating }) => ({ name, rating }));
-
-  const relationships = onRoster
-    ? (guild?.rosterIds ?? []).flatMap((id) => {
-        const mate = id === hero.id ? undefined : rowOf(world.heroes, id);
-        if (mate === undefined) return [];
-        const regard = regardBand(regardValue(hero.regard, mate.id), config);
-        const between = regardBand(relationship(hero.id, mate.id, world, config), config);
-        return [
-          {
-            name: mate.name,
-            className: nameIn(content.classes, mate.classKey),
-            regard,
-            relationship: between,
-            neutral: regard === 'neutral' && between === 'neutral',
-          },
-        ];
-      })
-    : null;
-
-  const narration = narrationFor(document, content);
-  const all = entriesFor(history, hero.id);
+  const available = availabilityOf(hero, world, reading.calendar);
   return {
-    heroId: hero.id,
-    name: hero.name,
-    sex: hero.sex,
-    portraitKey: hero.portraitKey,
-    texts: (['appearance', 'biography'] as const).flatMap((attribute): [string, string][] =>
-      hero[attribute] === '' ? [] : [[descriptiveAttributeLabels[attribute], hero[attribute]]],
-    ),
+    heroId: read.id,
+    name: read.name,
+    sex: read.sex,
+    portraitKey: read.portraitKey,
+    texts: read.texts.map(({ label, words }): [string, string] => [label, words]),
     line: who,
-    ...classMarkOf(content, hero.classKey),
-    morale: { value: hero.morale, band: moraleBand(hero.morale, config) },
+    ...classMarkOf(reading.content, read.classKey),
+    morale: { value: read.morale, band: read.moraleBand },
     where: { why: available.why, words: available.where },
-    injury: hero.injury === null ? null : nameIn(content.injuries, hero.injury.typeKey),
-    xp: hero.xp,
-    traits: traitsOf(hero),
-    fee,
+    injury: read.injury?.name ?? null,
+    xp: read.xp,
+    traits: read.traits,
+    fee: read.transferFee,
     areas,
-    gear,
-    skills,
-    relationships,
+    gear: read.gear.map(({ slot, item }) => ({
+      slot: slot as SlotKey,
+      slotName: capitalised(slot),
+      item: item?.name ?? 'None',
+      modifies: item?.modifies ?? '',
+      worn: item !== null,
+      definitionKey: item?.definitionKey ?? null,
+      unique: item?.unique ?? false,
+    })),
+    skills: read.skills.map(({ name, rating }) => ({ name, rating })),
+    relationships:
+      read.relationships?.map(({ name, className, regard, relationship }) => ({
+        name,
+        className,
+        regard,
+        relationship,
+        neutral: regard === 'neutral' && relationship === 'neutral',
+      })) ?? null,
     milestones: linesOf(
-      all.filter((entry) => entry.milestone),
-      narration,
+      entriesFor(history, hero.id).filter((entry) => entry.milestone),
+      reading.narration,
     ),
-    actions: heroActions(hero, guild, onRoster, world, deps),
+    actions: heroActions(hero, read, reading),
   };
 }
 
 /**
  * Each of a Hero's Stats as a Check reads it beside its base, keyed by Stat: the engine's
  * `statBreakdown` (the Guildmaster's Class bonus, the Hero's gear, M5-S2, and their Hero Traits' Stat
- * changes, v1.1.4-S7, applied; v1.1.6-S13), what a Hero's page and the Party builder show alike.
+ * changes, v1.1.4-S7, applied; v1.1.6-S13), what the Party builder shows, as a Hero's page does.
  */
 function statValues(hero: Hero, world: World): Map<string, { base: number; effective: number }> {
   return new Map(Object.entries(statBreakdown(hero, world, content)).map(([key, { base, effective }]) => [key, { base, effective }]));
@@ -1304,22 +1227,20 @@ function heldSkills(hero: Hero): { key: string; name: string; rating: number }[]
   ].map((key) => ({ key, name: nameIn(content.skills, key), rating: hero.skills[key] ?? 0 }));
 }
 
-/** What the player can do with `hero`, who is on `guild`'s Roster when `onRoster`. */
-function heroActions(hero: Hero, guild: Guild | undefined, onRoster: boolean, world: World, deps: EngineDeps): HeroActions | null {
-  const player = playerGuild(world);
+/**
+ * What the player can do with `hero`, read as `read`: recruit them from the pool for the signing fee,
+ * take them in from another Guild's Roster for the Transfer fee, the fees the reading's (DL-241); or,
+ * on the player's Roster, equip, unequip and transfer them out.
+ */
+function heroActions(hero: Hero, read: HeroReading, reading: PageReading): HeroActions | null {
+  const { world, deps, guild: player } = reading;
   if (player === undefined) return null;
-  const buyer = guildmasterOf(player, world);
-  if (hero.unattachedSince !== null) {
-    const refusal = signingRefusal(player, hero, deps.config);
-    return {
-      kind: 'pool',
-      fee: signingFee(hero, deps, buyer),
-      signs: refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`,
-      willSign: refusal === null,
-    };
+  if (read.signing !== null) {
+    const { fee, signs } = read.signing;
+    return { kind: 'pool', fee, signs: signsWords(signs), willSign: signs.willSign };
   }
-  if (guild === undefined || !onRoster) return null;
-  if (guild.id !== player.id) return { kind: 'rival', guildName: guild.name, fee: transferFee(hero, buyer, deps) };
+  if (read.transferFee !== null) return { kind: 'rival', guildName: read.guild?.name ?? '', fee: read.transferFee };
+  if (read.guild?.id !== player.id || read.relationships === null) return null;
   return {
     kind: 'own',
     equip: gearChoices(world, player),
@@ -1390,8 +1311,8 @@ export function stopView(state: GameState): StopView | null {
   // Between steps, so after a step's Turns: never fewer than one.
   if (stopped !== null) return { kind: 'player', sentence: `Stopped: you asked to stop, after ${stopped.turnsPlayed} Turns.`, until: stopped.until };
   if (stoppedBecause === null) return null;
-  const maxTurns = playDeps(document).config.turnsPerYear;
-  const sentence = stopText(stoppedBecause, document, maxTurns, narrationFor(document, content));
+  const reading = readingOf(document);
+  const sentence = stopText(stoppedBecause, document, reading.deps.config.turnsPerYear, reading.narration);
   if (stoppedBecause.kind !== 'decision-needed' && stoppedBecause.kind !== 'quest-staffable') return { kind: stoppedBecause.kind, sentence };
   const board = boardView(document);
   const quests = stoppedBecause.questIds.flatMap((questId): StopQuest[] => {
@@ -1419,9 +1340,9 @@ export function progressView(state: GameState): ProgressView | null {
   if (forwarding === null) return null;
   const { document } = forwarding;
   const { turn } = document.world;
-  const { config } = playDeps(document);
+  const { calendar } = readingOf(document);
   return {
-    sentence: `Played ${forwarding.turnsPlayed} Turns so far. Now ${whenOfTurn(turn, config)}.`,
+    sentence: `Played ${forwarding.turnsPlayed} Turns so far. Now ${whenOfTurn(turn, calendar)}.`,
     countdown: countdownView(document),
   };
 }

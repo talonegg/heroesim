@@ -13,7 +13,6 @@ import {
   compareByCodeUnit,
   holdings,
   itemDefinition,
-  playerGuild,
   sellPrice,
   type HeroId,
   type ItemDefinitionKey,
@@ -22,12 +21,12 @@ import {
   type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
-import { kindOf, listed } from '@heroesim/words';
+import { kindOf, listed, rowOf } from '@heroesim/words';
 import { content } from '../content';
 import { kindFacet, type Facets } from './facets';
-import { rowOf } from './names';
 import { questNamer, textOf, type Segment } from './namer';
-import { playDeps } from './reducer';
+import { readingOf } from './reading';
+
 import { kindKeyOf, type MarketKind } from './trade-views';
 
 /** Where an Item is: in the Holding, carried by a Hero on the Roster, or with a Party away. */
@@ -89,9 +88,8 @@ function itemCountWords(count: number): string {
  */
 export function storesView(document: WorldDocument): StoresView | null {
   const { world } = document;
-  const guild = playerGuild(world);
+  const { guild, deps } = readingOf(document);
   if (guild === undefined) return null;
-  const deps = playDeps(document);
   const questName = questNamer(document, content);
 
   const rowFor = (row: UniqueItem | Stack, where: StoresWhere, whereSegments: Segment[], heroId: HeroId | null, partyId: PartyId | null): StoresRow => {

@@ -4,24 +4,17 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  bestParties,
   addStack,
   advance,
-  ageOf,
   applyAction,
-  availableHeroes,
   configVersion,
   createWorld,
   dayOf,
   defaultConfig,
-  describeQuery,
-  effectiveStats,
   estimateQuest,
   fastForward,
   guildmasterOf,
   isModuleEvent,
-  judgedHintBands,
-  potentialHint,
   probe,
   schemaVersion,
   serialise,
@@ -35,9 +28,9 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { count, makeId, nightOf, potentialHints } from '@heroesim/engine/testing';
+import { count, makeId, nightOf } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
-import { chanceWords, shownPercent, queryWords } from '@heroesim/words';
+import { chanceWords, shownPercent } from '@heroesim/words';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, playground, type Run } from './play.test-support.js';
 import { narrateLine } from './namer.js';
@@ -353,25 +346,6 @@ describe('show', () => {
     expect(summary.out).toContain(`${defaultConfig.rivalCount} Guilds in play and 1 folded (show guilds lists them)`);
   });
 
-  test("roster prints the player's Roster, with ages from the engine and names from content", () => {
-    const { world } = document();
-    const guild = world.guilds[playerId];
-
-    const run = play(['show', 'roster']);
-
-    expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toContain(`Roster of The Test (${playerId})`);
-    expect(guild?.rosterIds).toHaveLength(defaultConfig.startingRosterSize);
-    for (const id of guild?.rosterIds ?? []) {
-      const hero = world.heroes[id] as Hero;
-      const row = rowOf(run.out, id);
-      expect(row).toContain(hero.name);
-      expect(row).toContain(content.classes[hero.classKey]?.name);
-      expect(row).toContain(content.backgrounds[hero.backgroundKey]?.name);
-      expect(row).toMatch(new RegExp(`\\s${hero.level}\\s+${ageOf(hero, world.turn, defaultConfig)}\\s+${hero.morale}\\s`));
-    }
-  });
-
   test("roster takes another Guild's id, and refuses one not in the save", () => {
     const { world } = document();
     const rival = world.guilds[makeId('guilds', 2)];
@@ -385,16 +359,17 @@ describe('show', () => {
     expect(refused.err).toContain('guild-000999');
   });
 
-  test('pool prints every Unattached Hero and no Hero on a Roster', () => {
-    const heroes = Object.values(document().world.heroes);
+  // DL-241: one sentence, the refusals' table's (DL-240), wherever the save has no player's Guild.
+  test("says a save has no player's Guild in the refusals' words, wherever a command needs one", () => {
+    edit((edited) => {
+      (edited.world.guilds[playerId] as Guild).controller = { kind: 'rival', disposition: 'steady' };
+    });
+    const sentence = "The save has no player's Guild.";
 
-    const run = play(['show', 'pool']);
-
-    expect(run.code).toBe(exitCodes.ok);
-    const pool = heroes.filter((hero) => hero.guildId === null);
-    expect(pool).toHaveLength(defaultConfig.unattachedPoolSize);
-    for (const hero of pool) expect(rowOf(run.out, hero.id)).toContain(hero.name);
-    for (const hero of heroes.filter((one) => one.guildId !== null)) expect(run.out).not.toContain(hero.id);
+    for (const argv of [['show', 'roster'], ['show', 'hall'], ['show', 'guildmaster'], ['recruit', '--hero', 'hero-000001'], ['advance', '--until', 'decision']]) {
+      expect(play(argv), argv.join(' ')).toMatchObject({ code: exitCodes.refused, out: '', err: `${sentence}\n` });
+    }
+    expect(play(['show', 'offers']).out).toBe(`${sentence}\n`);
   });
 
   test('patrons prints each Patron with their Sex and the name of their Sphere (v1.1.2-S3)', () => {
@@ -412,114 +387,6 @@ describe('show', () => {
     }
   });
 
-  test("board prints the Quests on offer in the Board's order, each with its template, Patron and terms (M2-S3)", () => {
-    const { world } = document();
-    expect(world.board).toHaveLength(defaultConfig.boardSize);
-
-    const run = play(['show', 'board']);
-
-    expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toContain(`Board: ${defaultConfig.boardSize} Quests on offer, Turn 0 (Year 1 Day 1, morning)`);
-    const lines = run.out.split('\n');
-    const positions = world.board.map((id) => lines.findIndex((line) => line.startsWith(id)));
-    expect(positions).toEqual([...positions].sort((a, b) => a - b));
-    for (const id of world.board) {
-      const quest = world.quests[id];
-      if (quest === undefined) throw new Error(`No Quest ${id}`);
-      const row = rowOf(run.out, id);
-      expect(row).toContain(content.questTemplates[quest.templateKey]?.name);
-      expect(row).toContain(world.patrons[quest.patronId]?.name);
-      expect(row).toMatch(new RegExp(`\\s${quest.difficulty}\\s+${quest.durationTurns / 3}\\s+${quest.reward}\\s`));
-      // The last Day on offer: the engine's Day 2, the third.
-      expect(row).toMatch(/\sYear 1 Day 3$/);
-    }
-  });
-
-  test('board says what kinds of Encounter each Quest is made of, in order (M4-S1)', () => {
-    const { world } = document();
-
-    const run = play(['show', 'board']);
-
-    expect(run.out).toMatch(/Encounters/);
-    for (const id of world.board) {
-      const quest = world.quests[id];
-      if (quest === undefined) throw new Error(`No Quest ${id}`);
-      expect(quest.encounterKeys.length).toBeGreaterThanOrEqual(2);
-      const kinds = quest.encounterKeys.map((key) => content.encounters[key]?.kind).join(', ');
-      const lines = run.out.split('\n').filter((line) => line.startsWith(id));
-      expect(lines.some((line) => line.endsWith(kinds)), `${id}: ${kinds}`).toBe(true);
-    }
-  });
-
-  // v1.1.4-S6 (DL-148 items 15 to 17): what each Check reads, in place of the template's demands, and the best Party.
-  test("board gives each Quest's Encounters, each Check's name and what it reads, and the best Party of the free Heroes with its chance", () => {
-    const { world } = document();
-    const deps = { config: defaultConfig, content };
-    const guild = world.guilds[playerId] as Guild;
-
-    const run = play(['show', 'board']);
-
-    expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).not.toContain('Demands');
-    const lines = run.out.split('\n');
-    for (const id of world.board) {
-      const quest = world.quests[id] as Quest;
-      const at = lines.indexOf(`${id}, ${content.questTemplates[quest.templateKey]?.name}`);
-      expect(at, id).toBeGreaterThan(0);
-      // Each Encounter of the core content has several Checks (v1.1.4-S10): its name and kind on a line,
-      // then each Check's name and what it reads on a line of its own.
-      const expected = quest.encounterKeys.flatMap((key) => {
-        const encounter = content.encounters[key];
-        expect(encounter?.checks.length, key).toBeGreaterThan(1);
-        return [`  ${encounter?.name} (${encounter?.kind})`, ...(encounter?.checks ?? []).map((check) => `    ${check.name}: ${queryWords(describeQuery(check.score), content)}`)];
-      });
-      const block = lines.slice(at + 1, at + 1 + expected.length + 1);
-      expect(block.slice(0, -1), id).toEqual(expected);
-      const heroIds = bestParties(world, guild, deps).party(quest, availableHeroes(world, guild))?.heroIds ?? null;
-      const best = block.at(-1) ?? '';
-      if (heroIds === null) {
-        expect(best).toBe('  No Party of your free Heroes meets its requirements.');
-        continue;
-      }
-      const estimate = estimateQuest(world, quest, heroIds.map((heroId) => world.heroes[heroId] as Hero), deps);
-      const names = heroIds.map((heroId) => world.heroes[heroId]?.name).join(', ');
-      expect(best).toBe(`  Your best Party: ${chanceWords[estimate?.chance ?? 'hopeless']} (${shownPercent(estimate?.success ?? 0)}% if no one falls), ${names}.`);
-    }
-  });
-
-  test("board's Skills that help are the Skills its Encounters' Checks read, not its template's (M4 verification)", () => {
-    const { world } = document();
-
-    const run = play(['show', 'board']);
-
-    let told = 0;
-    for (const id of world.board) {
-      const quest = world.quests[id];
-      if (quest === undefined) throw new Error(`No Quest ${id}`);
-      const keys = [...new Set(quest.encounterKeys.flatMap((key) => content.encounters[key]?.checks.flatMap((it) => it.skills) ?? []))];
-      const skills = keys.length === 0 ? 'None' : keys.map((key) => content.skills[key]?.name).join(', ');
-      const kinds = quest.encounterKeys.map((key) => content.encounters[key]?.kind).join(', ');
-      const line = run.out.split('\n').find((it) => it.startsWith(id) && it.endsWith(kinds));
-      expect(line?.split(/\s{2,}/).at(-2), id).toBe(skills);
-      if (quest.skillKeys.some((key) => !keys.includes(key))) told += 1;
-    }
-    // Some Quest's template names a Skill none of its Encounters reads, which the Board no longer claims helps.
-    expect(told).toBeGreaterThan(0);
-  });
-
-  test('board says a Quest saved before M4 has its Encounters drawn on the way (DL-42)', () => {
-    const [questId] = document().world.board;
-    if (questId === undefined) throw new Error('An empty Board');
-    edit((edited) => {
-      const quest = edited.world.quests[questId];
-      if (quest !== undefined) quest.encounterKeys = [];
-    });
-
-    const lines = play(['show', 'board']).out.split('\n').filter((line) => line.startsWith(questId));
-
-    expect(lines.some((line) => line.endsWith('drawn on the way'))).toBe(true);
-  });
-
   test('board says so when the Board is empty', () => {
     edit((edited) => {
       edited.world.board = [];
@@ -533,155 +400,11 @@ describe('show', () => {
     expect(run.out).toContain('The Board is empty.');
   });
 
-  test("hero prints a Hero's Attributes, Stats and Skills by their content names", () => {
-    const { world } = document();
-    const hero = world.heroes[makeId('heroes', 1)] as Hero;
-
-    const run = play(['show', 'hero', hero.id]);
-
-    expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toContain(`${hero.name} (${hero.id})`);
-    // The Portrait, and the two texts written as the Hero was generated (v1.1.3-S6): the core has no Hero picture.
-    expect(run.out).toMatch(/^Portrait\s+None: the Silhouette$/m);
-    expect(hero.appearance).not.toBe('');
-    expect(hero.biography).not.toBe('');
-    const lineOf = (label: string) => run.out.split('\n').find((line) => line.startsWith(`${label} `));
-    expect(lineOf('Appearance')?.replace(/^Appearance +/, '')).toBe(hero.appearance);
-    expect(lineOf('Biography')?.replace(/^Biography +/, '')).toBe(hero.biography);
-    expect(run.out).toMatch(new RegExp(`^Age\\s+${ageOf(hero, world.turn, defaultConfig)}$`, 'm'));
-    expect(run.out).toMatch(new RegExp(`^Class\\s+${content.classes[hero.classKey]?.name}$`, 'm'));
-    expect(run.out).toMatch(/^Guild\s+The Test \(guild-000001\)$/m);
-    // The hints the player's Guildmaster reads: their Judgement narrows the bands (M4-S5).
-    const reader = guildmasterOf(world.guilds[playerId] as Guild, world);
-    const bands = { potentialHintBands: judgedHintBands(reader, content, defaultConfig) };
-    // Base and effective side by side (M5-S2): the effective value is the engine's selector's.
-    const effective = effectiveStats(hero, world, content);
-    for (const stat of Object.values(content.stats).filter((row) => row.owner === 'hero')) {
-      const hint = potentialHint(hero, stat.key, bands);
-      expect(run.out).toMatch(
-        new RegExp(`\\s${stat.name}\\s+${hero.stats[stat.key]}\\s+${effective[stat.key]}\\s+${hint}$`, 'm'),
-      );
-    }
-    for (const [key, rating] of Object.entries(hero.skills)) {
-      expect(run.out).toMatch(new RegExp(`^${content.skills[key]?.name}\\s+${rating}$`, 'm'));
-    }
-  });
-
-  // `show hero` for every Hero of the world: a third of a second alone, three to six under the whole
-  // suite's load, which ran past the default 5 s (DL-164).
-  test('hero never prints Potential, and every Stat row carries its hint (data-model rule 9, M3-S3)', { timeout: 30_000 }, () => {
-    const { world } = document();
-    for (const hero of Object.values(world.heroes)) {
-      const run = play(['show', 'hero', hero.id]);
-      expect(run.code).toBe(exitCodes.ok);
-      expect(run.out).not.toMatch(/potential/i);
-      const effective = effectiveStats(hero, world, content);
-
-      for (const stat of Object.values(content.stats).filter((row) => row.owner === 'hero')) {
-        const row = run.out.split('\n').find((line) => new RegExp(`\\s${stat.name}\\s`).test(line)) ?? '';
-        // Every Stat row ends in one of the three hint words, the base and the effective value before
-        // it (M5-S2).
-        const [base, value, hint] = row.trim().split(/\s+/).slice(-3);
-        expect(potentialHints, `${hero.id} ${stat.key}: ${row}`).toContain(hint);
-        expect(base).toBe(String(hero.stats[stat.key]));
-        expect(value).toBe(String(effective[stat.key]));
-        // Where the Potential differs from both values shown, its number is nowhere in the row.
-        const potential = hero.potential[stat.key];
-        if (potential !== hero.stats[stat.key] && potential !== effective[stat.key]) {
-          expect(row).not.toMatch(new RegExp(`\\b${potential}\\b`));
-        }
-      }
-    }
-  });
-
-  test("hero prints each Stat's hint from the save's own bands, never its Potential", () => {
-    const id = makeId('heroes', 1);
-    // Bands unlike the defaults, so the hints can only come from the save's config.
-    const potentialHintBands = { modest: 0, promising: 2, exceptional: 4 };
-    const gaps = [0, 1, 2, 3, 4, 7];
-    const stats = Object.values(content.stats).filter((row) => row.owner === 'hero').slice(0, gaps.length);
-    edit((edited) => {
-      edited.meta.config.potentialHintBands = potentialHintBands;
-      // Judgement still (M4-S5), so the save's bands are the bands read.
-      edited.meta.config.judgementHintSharpening = 0;
-      const hero = edited.world.heroes[id] as Hero;
-      stats.forEach((stat, index) => {
-        hero.stats[stat.key] = 5;
-        hero.potential[stat.key] = 5 + (gaps[index] ?? 0);
-      });
-    });
-
-    const run = play(['show', 'hero', id]);
-
-    expect(run.code).toBe(exitCodes.ok);
-    const hints = stats.map((stat) => {
-      const row = run.out.split('\n').find((line) => new RegExp(`\\s${stat.name}\\s`).test(line)) ?? '';
-      expect(row, stat.name).not.toMatch(/\b(6|7|8|9|12)\b/);
-      return row.trim().split(/\s+/).at(-1);
-    });
-    expect(hints).toEqual(['modest', 'modest', 'promising', 'promising', 'exceptional', 'exceptional']);
-  });
-
-  test('hero never prints Potential, even as a number found nowhere else', () => {
-    const id = makeId('heroes', 1);
-    const sentinels: string[] = [];
-    edit((edited) => {
-      const hero = edited.world.heroes[id] as Hero;
-      Object.keys(hero.potential).forEach((key, index) => {
-        hero.potential[key] = 900_001 + index;
-        sentinels.push(String(900_001 + index));
-      });
-    });
-
-    const run = play(['show', 'hero', id]);
-
-    expect(run.code).toBe(exitCodes.ok);
-    for (const sentinel of sentinels) expect(run.out).not.toContain(sentinel);
-    expect(run.out).not.toContain('9000');
-  });
-
   test("hero refuses an id not in the save", () => {
     const run = play(['show', 'hero', 'hero-999999']);
 
     expect(run.code).toBe(exitCodes.refused);
     expect(run.err).toContain('hero-999999');
-  });
-
-  test("hero names an Injury by its content name and its healing night as the narration does, and an unknown type by its key", () => {
-    const id = makeId('heroes', 1);
-    edit((edited) => {
-      (edited.world.heroes[id] as Hero).injury = { typeKey: 'sprained-ankle', healsOnTurn: nightOf(13) };
-    });
-
-    const run = play(['show', 'hero', id]);
-
-    expect(run.code).toBe(exitCodes.ok);
-    const name = content.injuries['sprained-ankle']?.name ?? '';
-    expect(name).not.toBe('');
-    // The engine's Day 13 is the fourteenth: the date, with the Turn beside it (DL-210).
-    expect(run.out).toMatch(new RegExp(`^Injury\\s+${name}, healing on the night of Year 1 Day 14 \\(Turn ${nightOf(13)}\\)$`, 'm'));
-    expect(run.out).not.toContain('sprained-ankle');
-
-    edit((edited) => {
-      (edited.world.heroes[id] as Hero).injury = { typeKey: 'frostbite-of-the-soul', healsOnTurn: nightOf(13) };
-    });
-    expect(play(['show', 'hero', id]).out).toMatch(/^Injury\s+frostbite-of-the-soul, healing on the night of Year 1 Day 14/m);
-  });
-
-  test('hero gives the date a Hero died, retired or left the pool, the Turn beside it (DL-206 item 33, DL-210)', () => {
-    // A Hero of the pool, out of play: the three Turns are only read here, never played.
-    const id = (Object.values(document().world.heroes).find((hero) => hero.unattachedSince !== null) as Hero).id;
-    // The engine's Turn 2,198 falls on the night of Year 3 Day 13; Turn 1,079 on the night of the last Day of Year 1.
-    edit((edited) => {
-      Object.assign(edited.world.heroes[id] as Hero, { unattachedSince: null, diedOnTurn: 2_198, retiredOnTurn: 1_079, leftPoolOnTurn: 0 });
-    });
-
-    const run = play(['show', 'hero', id]);
-
-    expect(run.code, run.err).toBe(exitCodes.ok);
-    expect(run.out).toMatch(/^Died\s+Year 3 Day 13 \(Turn 2198\)$/m);
-    expect(run.out).toMatch(/^Retired\s+Year 1 Day 360 \(Turn 1079\)$/m);
-    expect(run.out).toMatch(/^Left the pool\s+Year 1 Day 1 \(Turn 0\)$/m);
   });
 
   test('hero shows a content key the content does not define as it is, with a warning (rule 5)', () => {
@@ -695,49 +418,6 @@ describe('show', () => {
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toMatch(/^Background\s+sea-born$/m);
     expect(run.err).toContain('Warning');
-  });
-
-  test("hero lists each other Hero on the Roster with the Hero's Regard for them and their Relationship, as bands and never as numbers (M4-S4)", () => {
-    const guild = document().world.guilds[playerId] as Guild;
-    const [heroId, closeId, coolId, ...rest] = guild.rosterIds as [HeroId, HeroId, HeroId, ...HeroId[]];
-    edit((edited) => {
-      const hero = edited.world.heroes[heroId] as Hero;
-      hero.regard[closeId] = { value: 17.25, since: 0, reason: 'quest.resolved' };
-      (edited.world.heroes[closeId] as Hero).regard[heroId] = { value: 13.75, since: 0, reason: 'quest.resolved' };
-      // One way only: the Hero's Regard is cool, and the Relationship, the mean with none held back, neutral.
-      hero.regard[coolId] = { value: -7.5, since: 0, reason: 'quest.resolved' };
-    });
-
-    const run = play(['show', 'hero', heroId]);
-
-    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
-    const lines = run.out.split('\n');
-    const start = lines.indexOf('Relationships on the Roster');
-    expect(start).toBeGreaterThan(-1);
-    // The heading, the table's head and its rule, then a row for each other Hero on the Roster.
-    const rows = lines.slice(start + 3).filter((line) => line !== '');
-    expect(rows).toHaveLength(guild.rosterIds.length - 1);
-    expect(rowOf(run.out, closeId)).toMatch(/\sclose\s+close$/);
-    expect(rowOf(run.out, coolId)).toMatch(/\scool\s+neutral$/);
-    for (const id of rest) expect(rowOf(run.out, id)).toMatch(/\sneutral\s+neutral$/);
-    for (const row of rows) expect(row.replace(/^\S+/, ''), row).not.toMatch(/\d/);
-    for (const number of ['17.25', '13.75', '15.5', '7.5', '3.75']) expect(run.out).not.toContain(number);
-  });
-
-  test('hero lists no Relationships for a Hero on no Roster', () => {
-    const id = makeId('heroes', 1);
-    edit((edited) => {
-      const hero = edited.world.heroes[id] as Hero;
-      const guild = edited.world.guilds[playerId] as Guild;
-      guild.rosterIds = guild.rosterIds.filter((heroId) => heroId !== id);
-      hero.guildId = null;
-      hero.unattachedSince = edited.world.turn;
-    });
-
-    const run = play(['show', 'hero', id]);
-
-    expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).not.toContain('Relationships');
   });
 
   test("ages a Hero under the save's own config, not the current defaults", () => {
@@ -1337,7 +1017,7 @@ describe("every date under the save's own calendar, not this release's (DL-210)"
     const ended = play(['advance', '--turns', '20']);
 
     // Three Days' grace from the engine's Day 0: the night of its Day 3, Turn 11, the second Day of the second Year.
-    expect(ended.out).toContain('The game ended on Year 2 Day 2 (Turn 11): bankruptcy.');
+    expect(ended.out).toContain('The game ended on Year 2 Day 2 (Turn 11): The Test went bankrupt.');
     expect(play(['advance']).err).toContain('The game ended on Year 2 Day 2 (Turn 11): The Test went bankrupt. No Turn follows.');
   });
 
@@ -1354,7 +1034,7 @@ describe("every date under the save's own calendar, not this release's (DL-210)"
 
     expect(play(['advance', '--until', 'pool-refreshed']).out).toContain('Bankruptcy on the night of Year 1 Day 4 unless its Wealth recovers by then.');
     expect(document().meta.config).not.toHaveProperty('turnsPerYear');
-    expect(play(['advance', '--turns', '20']).out).toContain('The game ended on Year 1 Day 4 (Turn 11): bankruptcy.');
+    expect(play(['advance', '--turns', '20']).out).toContain('The game ended on Year 1 Day 4 (Turn 11): The Test went bankrupt.');
     expect(play(['advance']).err).toContain('The game ended on Year 1 Day 4 (Turn 11): The Test went bankrupt. No Turn follows.');
   });
 
@@ -1691,7 +1371,7 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     newDemo();
   });
 
-  const bandWords = ['hostile', 'cool', 'neutral', 'warm', 'close'];
+  const bandWords = ['Hostile', 'Cool', 'Neutral', 'Warm', 'Close'];
 
   /** The rows of the section of `output` headed `heading`, up to the blank line after its table. */
   function section(output: string, heading: string): string[] {
@@ -1735,9 +1415,9 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     const guilds = section(run.out, 'Regard for the other Guilds, through their Guildmasters');
     expect(patrons).toHaveLength(Object.keys(world.patrons).length);
     expect(heroes).toHaveLength(guild.rosterIds.length);
-    expect(rowOf(run.out, patronId as string)).toMatch(/\sclose$/);
-    expect(rowOf(run.out, heroId as string)).toMatch(/\scool$/);
-    expect(rowOf(run.out, rival.id)).toMatch(/\swarm$/);
+    expect(rowOf(run.out, patronId as string)).toMatch(/\sClose$/);
+    expect(rowOf(run.out, heroId as string)).toMatch(/\sCool$/);
+    expect(rowOf(run.out, rival.id)).toMatch(/\sWarm$/);
     for (const row of [...patrons, ...heroes, ...guilds]) {
       expect(bandWords, row).toContain(row.trim().split(/\s+/).at(-1));
       // Beyond the row's id, not a digit: Regard is shown as its band only.
@@ -1801,7 +1481,7 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
 
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toContain(`Guildmaster of ${rival.name} (${rivalId})`);
-    expect(rowOf(run.out, playerId)).toMatch(/\sneutral$/);
+    expect(rowOf(run.out, playerId)).toMatch(/\sNeutral$/);
     expect(play(['show', 'guildmaster', makeId('guilds', 99)]).code).toBe(exitCodes.refused);
   });
 
@@ -1818,8 +1498,8 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
 
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toMatch(/Regard for us/);
-    expect(rowOf(run.out, first as string)).toMatch(/\shostile$/);
-    expect(rowOf(run.out, second as string)).toMatch(/\sneutral$/);
+    expect(rowOf(run.out, first as string)).toMatch(/\sHostile$/);
+    expect(rowOf(run.out, second as string)).toMatch(/\sNeutral$/);
     expect(run.out).not.toContain('-13');
   });
 

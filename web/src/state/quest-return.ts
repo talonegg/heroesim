@@ -19,7 +19,6 @@ import {
   encounterDegree,
   entriesFor,
   patronRegardFor,
-  playerGuild,
   regardBand,
   type Degree,
   type EncounterOutcome,
@@ -38,9 +37,10 @@ import {
 } from '@heroesim/engine';
 import { capitalised, crossed, itemsWords, listed, nameIn, nightOfTurn, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { narrateSegments, narrationFor, resolvedWords, textOf, type Narration, type Segment } from './namer';
+import { narrateSegments, resolvedWords, textOf, type Narration, type Segment } from './namer';
+import { readingOf } from './reading';
 import { bandWords } from './names';
-import { calendarFor, playDeps } from './reducer';
+import { calendarFor } from './reducer';
 
 /** What a return is read by: its Party and its Quest (DL-112 item 8). */
 export interface ReturnKey {
@@ -187,7 +187,7 @@ function lineOf(entry: Entry, narration: Narration): ReturnLine {
  */
 export function returnsIn(state: { document: WorldDocument | null; log: readonly TurnEvent[] }): ReturnKey[] {
   const { document, log } = state;
-  const guild = document === null ? undefined : playerGuild(document.world);
+  const guild = document === null ? undefined : readingOf(document).guild;
   if (guild === undefined) return [];
   return log
     .filter((event): event is Resolved => event.type === 'quest.resolved' && (event as Resolved).payload.guildId === guild.id)
@@ -324,7 +324,7 @@ function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null
   const offered = ofQuest.find((entry): entry is EngineEventOf<'quest.offered'> => entry.type === 'quest.offered');
   const patronId = offered?.payload.patronId ?? (outcome.participants.find((id) => id.startsWith('patron-')) as PatronId | undefined);
   const patronName = patronId === undefined ? undefined : (Object.hasOwn(world.patrons, patronId) ? world.patrons[patronId]?.name : undefined) ?? labels[patronId];
-  const narration = narrationFor(document, content);
+  const narration = readingOf(document).narration;
   const expended = ofParty.filter((entry): entry is EngineEventOf<'item.expended'> => entry.type === 'item.expended');
   const encounters = ofParty
     .filter((entry): entry is EngineEventOf<'quest.encounter'> => entry.type === 'quest.encounter')
@@ -418,7 +418,7 @@ function standing(document: WorldDocument, ofQuest: readonly Entry[], about: { p
       (entry as EngineEventOf<'patron.regard-changed'>).payload.guildId === guildId,
   );
   const patron = Object.hasOwn(document.world.patrons, patronId) ? document.world.patrons[patronId] : undefined;
-  const band = regardBand(patron === undefined ? 0 : patronRegardFor(patron, guildId), playDeps(document).config);
+  const band = regardBand(patron === undefined ? 0 : patronRegardFor(patron, guildId), readingOf(document).deps.config);
   const moved = crossing === undefined ? null : { bandBefore: crossing.payload.bandBefore, bandAfter: crossing.payload.bandAfter };
   const sentence =
     moved === null

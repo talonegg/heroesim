@@ -29,7 +29,7 @@ import {
 } from '@heroesim/engine';
 import { gearUnavailableWords, unavailableWords } from './availability.js';
 import { dateOfTurn, type Calendar } from './calendar.js';
-import { listed, nameIn } from './names.js';
+import { listed, nameIn, rowOf } from './names.js';
 import { endingWords, facilityIs, facilityNames, ids, say, type CommandSlot, type NameSlot, type Piece, type QuestSlot, type Sentence } from './narrate.js';
 
 // ── Kinds ────────────────────────────────────────────────────────────────────────────────────
@@ -76,10 +76,6 @@ export interface RefusalSetting {
   world: World | null;
   content: ContentSet;
   calendar: Calendar;
-}
-
-function rowOf<Row>(rows: Readonly<Record<string, Row>> | undefined, id: string): Row | undefined {
-  return rows !== undefined && Object.hasOwn(rows, id) ? rows[id] : undefined;
 }
 
 /** A Hero, labelled with the name the world holds, or with none. */
@@ -167,6 +163,15 @@ function notFound({ offerId }: Extract<ActionRejection, { reason: 'offer-not-fou
   return say`No such Transfer Offer${ids(offerId)} stands for ${player(setting)}'s Heroes${command('show-offers')}.`;
 }
 
+/**
+ * How the game ended, and when: `The game ended on Year 1 Day 41: The Test went bankrupt.` A refusal
+ * made after it opens with it, and the page's header and the CLI's `advance` say it (DL-241).
+ */
+export function endedSentence(ending: Ending, setting: RefusalSetting): Sentence {
+  const date = { kind: 'date', turn: ending.turn, date: dateOfTurn(ending.turn, setting.calendar) } as const;
+  return say`The game ended on ${date}: ${player(setting)} ${endingWords[ending.reason]}.`;
+}
+
 /** What follows a refusal made once the game has ended: no Turn, or no action. */
 function afterTheEnd(action: string): string {
   return action === 'advance' || action === 'fastForward' ? 'No Turn follows.' : 'Nothing more can be done in it.';
@@ -181,10 +186,7 @@ type Sentences = {
 const sentences: Sentences = {
   // Any play on a game.
   'no-player-guild': () => say`The save has no player's Guild.`,
-  'game-ended': ({ action, ending }, setting) => {
-    const date = { kind: 'date', turn: ending.turn, date: dateOfTurn(ending.turn, setting.calendar) } as const;
-    return say`The game ended on ${date}: ${player(setting)} ${endingWords[ending.reason]}. ${afterTheEnd(action)}`;
-  },
+  'game-ended': ({ action, ending }, setting) => say`${endedSentence(ending, setting)} ${afterTheEnd(action)}`,
 
   // A new game's setup (DL-102): the page's form and the CLI's flags, the flag a slot.
   'newGame guild-name-blank': () => say`The Guild needs a name${command('name-guild')}.`,

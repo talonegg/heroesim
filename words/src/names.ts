@@ -3,6 +3,15 @@
 // (docs/agents/ui-text.md). Words only; no rule; one copy for the CLI and the page alike
 // (DL-197).
 
+/**
+ * The row `rows` holds under `id`, read as an own property, so that a key of `Object.prototype`
+ * (`constructor`) reads as absent; `undefined` when the table has none, or there is no table. The
+ * front ends' one row lookup (DL-241).
+ */
+export function rowOf<Row>(rows: Readonly<Record<string, Row>> | undefined, id: string): Row | undefined {
+  return rows !== undefined && Object.hasOwn(rows, id) ? rows[id] : undefined;
+}
+
 /** A content row's name; a key the content does not define is shown as it is (data-model rule 5). */
 export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
   return Object.hasOwn(rows, key) ? (rows[key]?.name ?? key) : key;

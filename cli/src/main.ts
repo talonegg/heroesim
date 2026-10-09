@@ -36,7 +36,7 @@ import {
 } from '@heroesim/engine';
 import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
-import { readableSeed } from '@heroesim/words';
+import { heroReading, playerReading, readableSeed, rowOf } from '@heroesim/words';
 import { parseArgs, usage, type Command, type View } from './args.js';
 import { buildImprovement } from './commands/build.js';
 import { equipGear, unequipGear } from './commands/equip.js';
@@ -62,7 +62,6 @@ import {
   renderRankings,
   renderRoster,
   renderSummary,
-  rowIn,
 } from './render.js';
 import { savePath, withModules, writeSave } from './saves.js';
 import { exitCodes, open, over, refuse, say, type CliIo, type Context, type Exit } from './context.js';
@@ -235,6 +234,15 @@ function show(view: View, { io, content, path }: Context): Exit {
   if (opened === undefined) return exitCodes.refused;
   const { document, deps } = opened;
   const { world, history } = document;
+  // What the player reads the save through, once for the view (DL-241).
+  const reading = playerReading(document, deps);
+  /** The Guild named, or the player's; a refusal in the refusals' words when the save has no player's Guild (DL-240). */
+  const guildOf = (guildId: string | undefined): Guild | Exit => {
+    if (guildId === undefined) {
+      return reading.guild ?? refuse(io, refusalLine({ action: 'show', reason: 'no-player-guild' }, { world, content, calendar: deps.config }));
+    }
+    return rowOf(world.guilds, guildId) ?? refuse(io, `${path} has no Guild ${guildId}.`);
+  };
 
   switch (view.kind) {
     case 'summary':
@@ -242,41 +250,29 @@ function show(view: View, { io, content, path }: Context): Exit {
     case 'guilds':
       return say(io, renderGuilds(document, deps));
     case 'roster': {
-      const guild: Guild | undefined =
-        view.guildId === undefined ? playerGuild(world) : rowIn(world.guilds, view.guildId);
-      if (guild === undefined) {
-        return refuse(io, view.guildId === undefined ? `${path} has no player's Guild.` : `${path} has no Guild ${view.guildId}.`);
-      }
-      return say(io, renderRoster(guild, document, deps));
+      const guild = guildOf(view.guildId);
+      return typeof guild === 'number' ? guild : say(io, renderRoster(reading, guild));
     }
     case 'hall': {
-      const guild: Guild | undefined =
-        view.guildId === undefined ? playerGuild(world) : rowIn(world.guilds, view.guildId);
-      if (guild === undefined) {
-        return refuse(io, view.guildId === undefined ? `${path} has no player's Guild.` : `${path} has no Guild ${view.guildId}.`);
-      }
-      return say(io, renderHall(guild, deps));
+      const guild = guildOf(view.guildId);
+      return typeof guild === 'number' ? guild : say(io, renderHall(guild, deps));
     }
     case 'pool':
-      return say(io, renderPool(document, deps));
+      return say(io, renderPool(reading));
     case 'patrons':
       return say(io, renderPatrons(document, deps));
     case 'board':
-      return say(io, renderBoard(document, deps));
+      return say(io, renderBoard(reading));
     case 'rankings':
       return say(io, renderRankings(document, deps, view.by));
     case 'hero': {
-      const hero: Hero | undefined = rowIn(world.heroes, view.heroId);
+      const hero: Hero | undefined = rowOf(world.heroes, view.heroId);
       if (hero === undefined) return refuse(io, `${path} has no Hero ${view.heroId}.`);
-      return say(io, renderHero(hero, document, deps));
+      return say(io, renderHero(heroReading(reading, hero), deps.config));
     }
     case 'guildmaster': {
-      const guild: Guild | undefined =
-        view.guildId === undefined ? playerGuild(world) : rowIn(world.guilds, view.guildId);
-      if (guild === undefined) {
-        return refuse(io, view.guildId === undefined ? `${path} has no player's Guild.` : `${path} has no Guild ${view.guildId}.`);
-      }
-      return say(io, renderGuildmaster(guild, document, deps));
+      const guild = guildOf(view.guildId);
+      return typeof guild === 'number' ? guild : say(io, renderGuildmaster(guild, document, deps));
     }
     case 'market':
       return say(io, renderMarket(document, deps));
@@ -346,7 +342,9 @@ function fastForwardTurns(
   const refused = over(io, document, deps, 'advance');
   if (refused !== undefined) return refused;
   const guild = playerGuild(document.world);
-  if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);
+  if (guild === undefined) {
+    return refuse(io, refusalLine({ action: 'fastForward', reason: 'no-player-guild' }, { world: document.world, content: deps.content, calendar: deps.config }));
+  }
 
   const maxTurns = command.max ?? deps.config.turnsPerYear;
   const result = fastForward(document, { guildId: guild.id, until: command.until, maxTurns }, deps);

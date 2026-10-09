@@ -363,15 +363,29 @@ type Outcome =
   | { ok: false; rejection: PlayRejection };
 
 /**
+ * The deps each config plays under, by the config itself: a document's config is never changed in
+ * place, each play keeping its document's or making a new one (`rebase`), so it is filled forward
+ * and checked once (DL-241), and let go with the last document that holds it.
+ */
+const checkedDeps = new WeakMap<object, EngineDeps>();
+
+/**
  * The deps a game plays under, the engine's `playDeps`: its own config, filled forward with the
- * current defaults (D3) and checked, and the modules installed, none unless given (M8-S4). The
- * selectors, which run no hook, give none. A game in hand was loaded, checked by `deserialise`, or
- * made or rebased under `defaultConfig`, so its config is sound; one that is not is a bug, and throws.
+ * current defaults (D3) and checked, once a config (`checkedDeps`), and the modules installed, none
+ * unless given (M8-S4). The selectors, which run no hook, give none. A game in hand was loaded,
+ * checked by `deserialise`, or made or rebased under `defaultConfig`, so its config is sound; one
+ * that is not is a bug, and throws.
  */
 export function playDeps(document: Pick<WorldDocument, 'meta'>, modules: readonly Module[] = noModules): EngineDeps {
-  const played = enginePlayDeps(document, content, modules);
-  if (!played.ok) throw new Error(played.refusal.message);
-  return played.deps;
+  const { config } = document.meta;
+  let deps = checkedDeps.get(config);
+  if (deps === undefined) {
+    const played = enginePlayDeps(document, content);
+    if (!played.ok) throw new Error(played.refusal.message);
+    deps = played.deps;
+    checkedDeps.set(config, deps);
+  }
+  return modules.length === 0 ? deps : { ...deps, modules };
 }
 
 /**

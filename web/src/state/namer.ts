@@ -160,6 +160,11 @@ function segmentsOf(sentence: Sentence, namer: Namer<Segment[]>): Segment[] {
   return joined(sentence.flatMap((part) => (part.kind === 'text' ? [words(part.text)] : namer(part))));
 }
 
+/** A sentence of the words' that names no Quest, as plain words: the game's ending in the header (DL-241). */
+export function sentenceWords(sentence: Sentence): string {
+  return textOf(segmentsOf(sentence, pageNamer(() => 'a Quest')));
+}
+
 /**
  * `event`'s sentence as segments (M9-S5, DL-105): its words, and each name in it of a Guild, a Hero,
  * a Guildmaster or a Patron marked with the id the sentence read it from, capitalised where it opens

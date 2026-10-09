@@ -5,9 +5,9 @@
 // page puts a button (`web/src/state/stops.ts`).
 
 import type { EngineDeps, StopReason, TurnEvent, WorldDocument } from '@heroesim/engine';
-import { narrateStop, sentenceText, whenOfTurn, type Calendar } from '@heroesim/words';
+import { endedSentence, narrateStop, sentenceText, whenOfTurn, type Calendar } from '@heroesim/words';
 import { cliNamer, narrateLine } from './namer.js';
-import { renderCountdown, renderDate, renderTime, table } from './render.js';
+import { renderCountdown, renderTime, table } from './render.js';
 
 /**
  * Why a fast forward stopped, in one line: the narration's sentence (`narrateStop` in
@@ -39,7 +39,8 @@ export function renderAdvance(
     `Played ${played} ${played === 1 ? 'Turn' : 'Turns'}. Now ${renderTime(turn, deps.config)}.`,
     ...(stop === undefined ? [] : [stop]),
     ...renderCountdown(document, deps),
-    ...(ended === null ? [] : [`The game ended on ${renderDate(ended.turn, deps.config)}: ${ended.reason}.`]),
+    // How it ended, as a refusal after it says it (DL-241).
+    ...(ended === null ? [] : [sentenceText(endedSentence(ended, { world: document.world, content: deps.content, calendar: deps.config }), cliNamer)]),
     '',
     ...(events.length === 0
       ? ['No events.']

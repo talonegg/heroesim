@@ -17,25 +17,26 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
+import { rowOf } from '@heroesim/words';
 import type { Command } from '../args.js';
 import { narrateLine, refusalLine } from '../namer.js';
-import { renderTime, rowIn, table } from '../render.js';
+import { renderTime, table } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
 /** A Hero by name and id, or the id alone when the save has no such Hero. */
 function heroCalled(world: World, heroId: string): string {
-  const hero = rowIn(world.heroes, heroId);
+  const hero = rowOf(world.heroes, heroId);
   return hero === undefined ? heroId : `${hero.name} (${heroId})`;
 }
 
 /** A Guild by name, or its id when the save has no such Guild. */
 function guildCalled(world: World, guildId: string): string {
-  return rowIn(world.guilds, guildId)?.name ?? guildId;
+  return rowOf(world.guilds, guildId)?.name ?? guildId;
 }
 
 /** The lines a successful Transfer prints: each event in the CLI's words, then the Guild's Wealth and Roster. */
 function done(document: WorldDocument, events: readonly EngineEvent[], guildId: Guild['id'], deps: EngineDeps): string[] {
-  const guild = rowIn(document.world.guilds, guildId);
+  const guild = rowOf(document.world.guilds, guildId);
   return [
     ...events.map((event) => narrateLine(event, deps.content, deps.config)),
     `${guild?.name ?? guildId}: Wealth ${guild?.wealth ?? 0}; ${guild?.rosterIds.length ?? 0} Heroes on the Roster.`,
@@ -57,7 +58,7 @@ export function transferHero(
   const player = playerGuild(world);
   if (player === undefined) return { ok: false, problem: refusalLine({ action: 'transfer', reason: 'no-player-guild' }, setting) };
   if ('to' in command) {
-    if (rowIn(world.guilds, command.to) === undefined) return { ok: false, problem: `The save has no Guild ${command.to} (show guilds).` };
+    if (rowOf(world.guilds, command.to) === undefined) return { ok: false, problem: `The save has no Guild ${command.to} (show guilds).` };
     const result = applyAction(document, { kind: 'transferOut', guildId: player.id, heroId: command.hero, toGuildId: command.to }, deps);
     if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
     return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
@@ -90,7 +91,7 @@ export function answerOffer(
 export function renderOffers(document: WorldDocument, deps: EngineDeps): string[] {
   const { world } = document;
   const player = playerGuild(world);
-  if (player === undefined) return ["The save has no player's Guild."];
+  if (player === undefined) return [refusalLine({ action: 'show', reason: 'no-player-guild' }, { world, content: deps.content, calendar: deps.config })];
   const offers = offersTo(world, player.id);
   if (offers.length === 0) return [`No Transfer Offer stands for ${player.name}'s Heroes.`];
   return [

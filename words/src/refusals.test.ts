@@ -11,7 +11,7 @@ import {
 import { makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { sentenceText, type Namer, type Slot } from './narrate.js';
-import { refusalKind, refusalKinds, refusalSentence, requirementWords, type Refusal, type RefusalKind, type RefusalSetting } from './refusals.js';
+import { endedSentence, refusalKind, refusalKinds, refusalSentence, requirementWords, type Refusal, type RefusalKind, type RefusalSetting } from './refusals.js';
 
 // The refusals' table (DL-240): one sentence for every refusal a play can meet, its names as slots.
 // The samples' type is the table's, so a refusal kind the engine adds fails `npm run typecheck` here
@@ -328,6 +328,14 @@ describe('what the slots carry', () => {
     expect(said({ action: 'advance', reason: 'game-ended', ending })).toMatch(/went bankrupt\. No Turn follows\.$/);
     expect(said({ action: 'fastForward', reason: 'game-ended', ending })).toMatch(/No Turn follows\.$/);
     expect(said({ action: 'recruit', reason: 'game-ended', ending })).toMatch(/went bankrupt\. Nothing more can be done in it\.$/);
+  });
+
+  // DL-241: the page's header and the CLI's advance say how it ended in the refusal's words.
+  test('how the game ended is the refusal after it, without what follows', () => {
+    expect(sentenceText(endedSentence(ending, setting), shown)).toBe(`The game ended on <date:540|Year 1 Day 181>: ${lantern} went bankrupt.`);
+    expect(sentenceText(endedSentence({ turn: 3, reason: 'roster-wiped' }, { ...setting, world: null }), shown)).toBe(
+      'The game ended on <date:3|Year 1 Day 2>: your Guild had its Roster wiped out.',
+    );
   });
 
   test('a Hero Trait asked of a Guildmaster is named as the Trait it is', () => {

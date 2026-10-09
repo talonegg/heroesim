@@ -29,7 +29,6 @@ import {
   compareByCodeUnit,
   isId,
   type EngineEventOf,
-  playerGuild,
   timeOfDay,
   type EngineEventType,
   type EntityId,
@@ -43,11 +42,11 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
-import { listed, whenOfTurn } from '@heroesim/words';
-import { content } from '../content';
+import { listed, rowOf, whenOfTurn } from '@heroesim/words';
 import type { PortraitRole } from '../media';
-import { bandWords, rowOf } from './names';
-import { narrateSegments, narrationFor, textOf, type Narration, type Segment } from './namer';
+import { bandWords } from './names';
+import { narrateSegments, textOf, type Narration, type Segment } from './namer';
+import { readingOf } from './reading';
 import { partOfAReturn, returnEntry, type ReturnEntry } from './quest-return';
 import { historyPageSize } from './selectors';
 
@@ -435,7 +434,7 @@ function scopeOf(document: WorldDocument, target: EntityId | 'world' | 'all'): S
  */
 function resolved(document: WorldDocument, whose: HistoryWhose): { target: EntityId | 'world' | 'all'; entityId: EntityId | null; name: string | null } {
   if (whose === 'all' || whose === 'world') return { target: whose, entityId: null, name: null };
-  const player = playerGuild(document.world)?.id ?? null;
+  const player = readingOf(document).guild?.id ?? null;
   for (const wanted of [whose, player]) {
     const name = wanted === null ? null : entityName(document, wanted);
     if (wanted !== null && name !== null) return { target: wanted, entityId: wanted, name };
@@ -468,7 +467,7 @@ export function historyTitle(document: WorldDocument, whose: HistoryWhose): stri
  */
 export function historyView(document: WorldDocument, log: readonly TurnEvent[], whose: HistoryWhose, page: number): HistoryView {
   const { world, history } = document;
-  const player = playerGuild(world);
+  const player = readingOf(document).guild;
   const { target, entityId, name } = resolved(document, whose);
 
   const scope = scopeOf(document, target);
@@ -483,7 +482,7 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
     document,
     returns: scope.kind === 'mine',
     entries: history.entries,
-    narration: narrationFor(document, content),
+    narration: readingOf(document).narration,
     world,
     player: player?.id ?? null,
     fresh,
@@ -782,7 +781,7 @@ export interface HistoryChoice {
  */
 export function historyChoices(document: WorldDocument): HistoryChoice[] {
   const guilds = Object.values(document.world.guilds);
-  const player = playerGuild(document.world);
+  const player = readingOf(document).guild;
   return [
     ...(player === undefined ? [] : [{ whose: null, label: player.name, mine: true }]),
     { whose: 'world', label: 'The World History', mine: false },
