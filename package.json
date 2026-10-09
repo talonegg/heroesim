@@ -12,7 +12,8 @@
     "web",
     "tools/portraits",
     "tools/editor",
-    "tools/decisions"
+    "tools/decisions",
+    "tools/measure"
   ],
   "engines": {
     "node": ">=22"
@@ -31,11 +32,14 @@
     "portraits": "tsx tools/portraits/src/main.ts",
     "quest-review": "tsx cli/src/quest-review.ts",
     "edit": "tsx tools/editor/src/main.ts",
-    "decisions": "tsx tools/decisions/src/main.ts"
+    "decisions": "tsx tools/decisions/src/main.ts",
+    "coverage": "vitest run --coverage --maxWorkers=50% --testTimeout=120000",
+    "measure": "tsx tools/measure/src/main.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "26.6.3",
+    "@vitest/coverage-v8": "5.0.2",
     "eslint": "10.11.0",
     "globals": "17.12.0",
     "tsx": "4.23.15",

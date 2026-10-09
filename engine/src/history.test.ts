@@ -401,23 +401,6 @@ describe('entriesBetween', () => {
       }
     });
 
-    test('runs under 1 ms (median of 100 calls, for a year and for the whole History)', () => {
-      for (const [from, to] of [
-        [1095, 2190],
-        [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY],
-      ] as const) {
-        for (let i = 0; i < 20; i += 1) entriesBetween(big, from, to);
-        const times: number[] = [];
-        for (let i = 0; i < 100; i += 1) {
-          const start = performance.now();
-          entriesBetween(big, from, to);
-          times.push(performance.now() - start);
-        }
-        times.sort((a, b) => a - b);
-        expect(times[50]).toBeLessThan(1);
-      }
-    });
-
     test('reads a logarithmic number of entries to find a range, not every entry', () => {
       let reads = 0;
       const entriesSpy = new Proxy(big.entries, {

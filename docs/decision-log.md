@@ -167,3 +167,55 @@ architecture review ([the epic](./planning/epics/v1.1.9-release.md) §5.1, §6)
 
 **Evidence.** The review's report, written outside the repository, was summarised in the epic's
 §5.1. The epic's §0 table and §1 stories give the new plan.
+
+## DL-233 — v1.1.9-S1 built: coverage, the measures, the time limits apart, and the baseline
+
+**Status:** Accepted · **Date:** 2026-10-09 · **Decided by:** the owner ("develop as per the detailed
+development plan … for the epic 1.1.9"); the measures' shape by the agent
+
+**Context.** DL-231 asked for coverage reported but not enforced (Q5), the speed assertions in a
+run apart (Q22), and one baseline that every story and the close measure against (Q6, Q17).
+
+**Decision.**
+
+1. **Coverage.** `@vitest/coverage-v8` 5.0.2, the same version as Vitest, is a development dependency.
+   `npm run coverage` runs the suite under V8 over each package's source, without its tests or their
+   support files. It writes `coverage/coverage-summary.json` with `reportOnFailure`. It runs on half
+   the workers, with 120 s a test where a test sets none: with every worker, 18 tests timed out under
+   V8's instrumentation, and with half, all pass in the same time.
+2. **The measures.** A tool, `tools/measure` (`npm run measure`), has four commands. `coverage` gives
+   coverage per package; `suite` gives a Vitest JSON report's time per project, file and test; `ci`
+   gives a workflow run's jobs and billed minutes, through `gh`; and `profile` shows where a profiled
+   game's time goes. `peak.mjs`, preloaded, logs each process's peak memory to `MEASURE_PEAK_LOG`.
+   Its README holds the method, so that S16 measures in the same way.
+3. **Time limits apart.** A test of a time limit is a `*.speed.test.ts` file. It is left out of
+   `npm test` and runs in the harness's projects, through `npm run harness -- speed`, alone, at a
+   close. `delivery.md`'s close says so. Two tests moved, unchanged:
+   - the History's range read, under 1 ms;
+   - the validator, under 50 ms.
+
+   What each returns, and how few entries the range read reads, stay in `npm test`.
+4. **The baseline.** [`v1.1.9-measures.md`](./planning/epics/v1.1.9-measures.md), beside the epic,
+   holds the baseline, taken at `07ca2f2`:
+   - two full runs and each project alone;
+   - coverage per package;
+   - five pushes' and the v1.1.8 release's CI minutes;
+   - a `neutral` run, identical to v1.1.8's baseline;
+   - one game's profile;
+   - the game's figures.
+
+   S16 adds the after column.
+
+*Judgement calls, for the owner to see:*
+- `harness/src/children.test.ts` ("rejects promptly", under 20 s) stays in `npm test`. It checks
+  that a failing shard is not waited out behind 60 s jobs. That is behaviour, and its bound is
+  three times what it needs.
+- The tool is a workspace package, not a set of scripts, so that its tables are tested and the same
+  at the close.
+- The baseline's `neutral` report, `v1.1.9-s1-baseline`, is committed, since this entry cites it.
+
+**Consequences.** `npm test` no longer fails on a busy machine because of a time limit. The limits
+are still checked, at every close.
+
+**Evidence.** `v1.1.9-measures.md`; `harness/reports/v1.1.9-s1-baseline-2026-10-09.md`. The epic's
+S1 boxes.

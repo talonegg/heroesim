@@ -74,7 +74,8 @@ to its order is in [`planning/archive/`](./planning/archive/README.md).
 
 - **Now: `v1.1.9`, the tests and the harness made faster and leaner, and the code's modules
   deepened**, on `v1.1.9-dev` ([epic](./planning/epics/v1.1.9-release.md)): planned (DL-231,
-  DL-232), no story started.
+  DL-232) and being built; its
+  Status line says how far.
 - **Next: chosen after `v1.1.9` is released**, among Random Events and the lists below (DL-228).
 - **Random Events** (#12; its groundwork #15 and #17) will be the first real module, but is not
   necessarily the next epic: when it starts is the owner's (DL-214, DL-228). Random Events never

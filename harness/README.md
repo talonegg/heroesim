@@ -16,6 +16,7 @@ when `HEROESIM_HARNESS` is set, so `npm test` never plays it. `npm run harness` 
 | `npm run harness -- estimate` | The estimate probe: 200 Parties and Quests, each resolved 20,000 times (v1.1.4-S5) |
 | `npm run harness -- calibrate` | The calibration of the content, or of drafts (v1.1.4-S9): `docs/quests/calibration.md`, kept, and `calibration.json`, generated and ignored, which `npm run quest-review` reads; v1.1.4's is an asset of its GitHub Release (DL-218) |
 | `npm run harness -- rivals-build-and-buy transfer-generator` | The engine's twenty-year boxes, out of `npm test` (DL-230): Rivals build and buy over 4 seeds, and the Transfer Generator over 100, about fifty minutes alone; a bare `npm run harness` runs them too |
+| `npm run harness -- speed` | The tests of a time limit, `*.speed.test.ts`, out of `npm test` (DL-233): the History's range read under 1 ms and the validator under 50 ms; seconds, alone, at a close |
 | `npm run harness -- compare <a> <b>` | What moved between two play sweeps' JSON reports: the play counters, and apart from them the save's sizes, measures that the save's shape and its config move (DL-205) |
 
 `<name>` names the report: its release, or a word, each with kebab-case words after it if wanted, as

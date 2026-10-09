@@ -18,7 +18,7 @@ Write a fact in its home, and link to it from anywhere else. Never copy it.
 | What the game is and does | `docs/requirements.md`; the save's shape, `docs/data-model.md` |
 | A tuning value; a content value | `engine/src/config.json`; `content/` |
 | How a story or a release is run | `docs/agents/delivery.md` |
-| A tool's commands and mechanics | Its README: `harness/`, `tools/editor/`, `tools/portraits/` |
+| A tool's commands and mechanics | Its README: `harness/`, `tools/editor/`, `tools/portraits/`, `tools/measure/` |
 | Environment variables; the deploy | `docs/environment.md`; `docs/deploy.md` |
 | A release's plan, stories and boxes | Its epic in `docs/planning/epics/` |
 | A release's record | One row of `docs/plan.md` §2, and its epic's Status line |

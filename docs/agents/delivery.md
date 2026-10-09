@@ -17,6 +17,7 @@ rules brief each release's agents were given in a session's scratchpad (DL-218).
 | Requirements (`R`, `N` numbers); the World State document | `docs/requirements.md`; `docs/data-model.md` |
 | Environment variables; the deploy | `docs/environment.md`; `docs/deploy.md` |
 | The harness, its commands and the Gate's spec | `harness/README.md`, `harness/gate.json` |
+| Coverage, and the measures of the suite, CI and a game | `tools/measure/README.md` |
 | The content editor; the portrait tool | `tools/editor/README.md`; `tools/portraits/README.md` |
 
 Read a decision through the index: open its file and search for `## DL-nn `. Never read an archive
@@ -137,6 +138,7 @@ name its path, or use `rg -u`.
      `neutral --expect` where it cannot. The baseline moves as `documentation.md` says. Where play
      could move, run the engine's twenty-year boxes too, alone:
      `npm run harness -- rivals-build-and-buy transfer-generator` (DL-230).
+   - Run the tests of a time limit alone, `npm run harness -- speed` (DL-233).
    - Bring the epic up to date.
 3. **Release** (DL-124), on the owner's word:
    - `v1.1-release` is fast-forwarded to the dev branch and pushed;

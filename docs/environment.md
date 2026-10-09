@@ -16,6 +16,7 @@ None are needed before M7, and none are read by the engine, ever.
 | `HEROESIM_YEARS`, `HEROESIM_WORKERS`, `HEROESIM_REPLAY` | `harness/` | Optional: the years each game plays (M9-S2), the child processes at once (v1.1.4-S10), and whether the play sweep replays one seed; each overrides a profile's value | Shell |
 | `HEROESIM_DRAFTS`, `HEROESIM_CONFIG`, `HEROESIM_POLICY` | `harness/` | Optional trials: draft content files, config values and the automatic policy's values played in place of the core's and the defaults (v1.1.4-S9; `HEROESIM_POLICY` v1.1.6-S2) | Shell |
 | `HEROESIM_SAMPLES`, `HEROESIM_PARTIES`, `HEROESIM_TUNE`, `HEROESIM_FLAT`, `HEROESIM_CALIBRATION_OUT` | `harness/` | Optional, the estimate probe's and the calibration's own (v1.1.4-S5, v1.1.4-S9); every harness variable is parsed by `harness/src/settings.ts`, which refuses a bad value and an unknown `HEROESIM_*` name by name | Shell |
+| `MEASURE_PEAK_LOG` | `tools/measure/peak.mjs` | Optional: the file each Node process of a measured run appends its peak memory and time to, when `peak.mjs` is preloaded (DL-233) | Shell |
 | `HEROESIM_SAVE_DIR` | `cli/` | Optional override of `.saves/` | Shell |
 | `HEROESIM_LIVE_URL` | `web/playwright.live.config.ts` | Optional: one address for `npm run e2e:live -w web` to check, in place of the two addresses of [`deploy.md`](deploy.md) (DL-94) | Shell |
 | `HEROESIM_DEPLOY_RECORD` | `web/scripts/deploy.mjs` | Optional: a file the deploy's record is also written to, for the tag's GitHub Release (DL-124 item 8) | CI's deploy job |

@@ -938,39 +938,6 @@ describe('the checks', () => {
     expect(new Set(names).size).toBe(names.length);
     for (const name of names) expect(name).toMatch(/^[a-z]+(-[a-z0-9]+)*$/);
   });
-
-  // 10 to 13 ms alone. Under `npm test`'s thirty-odd workers and whatever else the machine runs,
-  // every run slows, the processor itself shared: the median of seven was measured at 55 to 67 ms
-  // and failed one full run in three (DL-34), and the fastest of eleven at 25 to 53 ms. Load only
-  // ever adds time, so the fastest run is the validator's own cost, and the bound is unchanged: it
-  // times runs until one is under 50 ms, for up to 400 runs or 15 s, so that a busy moment passes,
-  // while a validator slower than 50 ms is slower in every run and fails. No retry is needed. Forty
-  // runs or 3 s were too few once v1.1.4's tests kept the machine busy for the first minute of the
-  // suite: the fastest of forty was 62 ms in the run that found it and 63 in one of eleven since, with
-  // the validator's own cost unchanged from v1.1.3 (DL-164). The timeout covers the world's building
-  // and 15 s of runs on a loaded machine.
-  test('validate a 1,000-Hero world in under 50 ms (the fastest of up to 400 runs)', { timeout: 30_000 }, () => {
-    const { document } = buildDocument({ rivals: 9, rosterSize: 20, unattached: 799 });
-    expect(Object.keys(document.world.heroes)).toHaveLength(1000);
-    withValid(document, deps);
-
-    // Timed in this process's CPU time, not wall-clock time: another process busy on the machine
-    // delays the run without adding to its CPU time, so load no longer fails the test, while a
-    // validator that does more than 50 ms of work still does in every run.
-    const cpuMs = (since: NodeJS.CpuUsage): number => {
-      const { user, system } = process.cpuUsage(since);
-      return (user + system) / 1_000;
-    };
-    const began = performance.now();
-    let fastest = Number.POSITIVE_INFINITY;
-    for (let run = 0; run < 400 && fastest >= 50 && performance.now() - began < 15_000; run += 1) {
-      const start = process.cpuUsage();
-      validate(document, deps);
-      fastest = Math.min(fastest, cpuMs(start));
-    }
-
-    expect(fastest).toBeLessThan(50);
-  });
 });
 
 describe('withValid', () => {

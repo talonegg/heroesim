@@ -7,6 +7,10 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // own that exists only when HEROESIM_HARNESS is set: the harness's, and the engine's twenty-year
 // boxes (DL-230). `npm run harness` sets it; `npm test` never sees them and stays fast.
 //
+// A test of a time limit (src/**/*.speed.test.ts) measures the machine as well as the code, and
+// fails under the full suite's load, so it runs apart too, in the same projects: `npm run harness --
+// speed`, alone, at a release's close (DL-233, DL-231 Q22).
+//
 // The browser front end's tests render React into jsdom, so its project has the React plugin and
 // a DOM, and takes .tsx as well (M7-S1). Its Playwright specs, web/e2e/*.spec.ts, are not
 // Vitest's: `npm run e2e` runs them, here and in CI (DL-124).
@@ -18,9 +22,21 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // tests word content's rows read from disk, so they run on Node with the other packages.
 const nodePackages = ['engine', 'content', 'words', 'harness', 'cli'];
 const harnessRuns = '**/*.harness.test.ts';
+const speedRuns = '**/*.speed.test.ts';
 
 export default defineConfig({
   test: {
+    // `npm run coverage` (DL-233): every package's source, the tests and their support
+    // left out, read by V8. It reports even when a test fails, and enforces nothing (DL-231 Q5):
+    // `npm run measure -- coverage` gives it per package.
+    coverage: {
+      provider: 'v8',
+      include: ['{engine,content,words,harness,cli,web}/src/**/*.{ts,tsx}', 'tools/*/src/**/*.ts'],
+      exclude: ['**/*.test.{ts,tsx}', '**/*.test-support.{ts,tsx}', '**/test-setup.ts'],
+      reporter: ['text-summary', 'json-summary'],
+      reportsDirectory: './coverage',
+      reportOnFailure: true,
+    },
     projects: [
       ...nodePackages.map((name) => ({
         test: {
@@ -28,7 +44,7 @@ export default defineConfig({
           root: `./${name}`,
           environment: 'node',
           include: ['src/**/*.test.ts'],
-          exclude: [...configDefaults.exclude, harnessRuns],
+          exclude: [...configDefaults.exclude, harnessRuns, speedRuns],
           // The harness's tests play short games under the automatic policy, which estimates every
           // Quest it can staff at each choice (DL-176); under the whole suite's load some passed
           // 5 s, so its project gives each 30 s, as `play.test.ts` gave its slowest.
@@ -59,6 +75,15 @@ export default defineConfig({
           hookTimeout: 60_000,
         },
       },
+      // The measures of the suite, coverage, CI and a game's profile (DL-233).
+      {
+        test: {
+          name: 'measure',
+          root: './tools/measure',
+          environment: 'node',
+          include: ['src/**/*.test.ts'],
+        },
+      },
       // The decision log's tool (DL-215): the index's freshness, the citations and the documents' links (DL-218).
       {
         test: {
@@ -86,7 +111,7 @@ export default defineConfig({
                 name: 'harness-run',
                 root: './harness',
                 environment: 'node',
-                include: [`src/${harnessRuns}`],
+                include: [`src/${harnessRuns}`, `src/${speedRuns}`],
               },
             },
             {
@@ -94,7 +119,7 @@ export default defineConfig({
                 name: 'engine-run',
                 root: './engine',
                 environment: 'node',
-                include: [`src/${harnessRuns}`],
+                include: [`src/${harnessRuns}`, `src/${speedRuns}`],
               },
             },
           ]
