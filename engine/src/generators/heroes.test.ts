@@ -77,14 +77,13 @@ describe('generateHero', () => {
     expect(world.counters.guilds).toBe(1);
   });
 
-  // 10,000 Heroes generated: about 0.65 s alone, 1.7 s in a full `npm test` on a busy machine; the
-  // timeout bounds a hang with room for a busier one, not the speed.
-  test('over 10,000 Heroes every Stat stays in its content range and Potential is at least the base', { timeout: 30_000 }, () => {
-    const deps = testDeps();
+  // No Hero picture: each Hero would read every other for the pictures in use, which no Stat reads.
+  test('over 1,000 Heroes every Stat stays in its content range and Potential is at least the base', () => {
+    const deps = testDeps({}, withoutPortraits());
     const world = testWorld('ranges', deps);
     const heroStats = Object.values(deps.content.stats).filter((stat) => stat.owner === 'hero');
 
-    for (const hero of heroes(world, deps, 10_000)) {
+    for (const hero of heroes(world, deps, 1000)) {
       expect(Object.keys(hero.stats).sort()).toEqual(heroStats.map((stat) => stat.key).sort());
       expect(Object.keys(hero.potential).sort()).toEqual(Object.keys(hero.stats).sort());
       for (const { key, min, max } of heroStats) {
@@ -101,12 +100,11 @@ describe('generateHero', () => {
   });
 
   test("a Warrior's mean Strength exceeds a Mage's by at least the minimum bias", () => {
-    // No Hero picture: ten thousand Heroes in one pool would each read every other for the
-    // pictures in use, which no Stat reads.
+    // No Hero picture: each Hero would read every other for the pictures in use, which no Stat reads.
     const deps = testDeps({}, withoutPortraits());
     const world = testWorld('bias', deps);
-    const warriors = heroes(world, deps, 5000, 'warrior');
-    const mages = heroes(world, deps, 5000, 'mage');
+    const warriors = heroes(world, deps, 500, 'warrior');
+    const mages = heroes(world, deps, 500, 'mage');
     const strength = (hero: Hero): number => hero.stats.strength ?? Number.NaN;
 
     expect(deps.content.classes.warrior?.leadingStats).toContain('strength');
@@ -117,12 +115,12 @@ describe('generateHero', () => {
   });
 
   test("holds only Skills its Class gates, as many and as highly rated as the config allows", () => {
-    const deps = testDeps();
+    const deps = testDeps({}, withoutPortraits());
     const world = testWorld('skills', deps);
     const counts = new Set<number>();
     const ratings = new Set<number>();
 
-    for (const hero of heroes(world, deps, 2000)) {
+    for (const hero of heroes(world, deps, 300)) {
       const gated = deps.content.classes[hero.classKey]?.gatedSkills ?? [];
       const held = Object.keys(hero.skills);
       for (const key of held) expect(gated).toContain(key);
@@ -138,7 +136,7 @@ describe('generateHero', () => {
     const deps = testDeps();
     const world = testWorld('streams', deps, plannedStreams);
     const before = structuredClone(world.rng);
-    heroes(world, deps, 1000);
+    heroes(world, deps, 50);
 
     const own = ['generation', 'hero-portraits', 'hero-descriptions'];
     for (const name of own) expect((world.rng as Record<string, unknown>)[name], name).not.toEqual((before as Record<string, unknown>)[name]);

@@ -4,19 +4,20 @@ import type { EngineDeps, GameConfig } from '../config.js';
 import type { ContentSet } from '../content-types.js';
 import { createWorld } from '../create.js';
 import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from '../document.js';
-import type { EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
+import type { TurnEvent } from '../events.js';
 import { xpForLevel } from '../progression.js';
 import { playerGuild } from '../selectors.js';
-import { nightOf, timeOfDay } from '../time.js';
-import { harmlessContent, testContent, testDeps, withValid } from '../world.test-support.js';
+import { nightOf } from '../time.js';
+import { harmlessContent, ofType, playWith, setup, testContent, testDeps, withValid } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { training } from './training.js';
 import { applyAction } from '../actions/action.js';
 
+/** Advances to a Turn, validating the document it stops at. */
+const playTo = playWith(advance, { validate: 'last' });
+
 // The night phase `training`, the training yard's XP (DL-36). The yard's grade is set on the
 // Hall directly: `build` raises it in play.
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /**
  * INPUTS 5.1's training XP and 5.2's curve, pinned. No Rivals, whose Parties would blur what a test
@@ -42,23 +43,8 @@ function soloDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = tes
   );
 }
 
-const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
-  events.filter((event): event is EngineEventOf<Type> => event.type === type);
-
 const hero = (world: World, id: HeroId): Hero => world.heroes[id] as Hero;
 const player = (world: World): Guild => playerGuild(world) as Guild;
-
-/** Advances to Turn `turn`, validating the document it stops at, and returns the events of the Turns played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
-  let current = document;
-  const events: TurnEvent[] = [];
-  while (current.world.turn < turn) {
-    const result = advance(current, deps);
-    current = result.document;
-    events.push(...result.events);
-  }
-  return { document: withValid(current, deps), events };
-}
 
 /** A created world whose player's training yard is at `grade`. */
 function withYard(seed: string, grade: number, deps: EngineDeps): WorldDocument {
@@ -76,25 +62,21 @@ function night(world: World, day: number, deps: EngineDeps): TurnEvent[] {
 const xpOf = (world: World, ids: readonly HeroId[]): number[] => ids.map((id) => hero(world, id).xp);
 
 describe('training', () => {
-  test('a Hero idle at grade 1 for a year has gained 360 × xpPerTrainingDay XP', () => {
-    const deps = soloDeps();
+  test("a Hero idle at grade 1 for a year has gained a night's xpPerTrainingDay XP for each of the year's nights", () => {
+    // A year of 90 Turns, 30 nights, and a curve of 10 to Level 2: 60 XP is Level 3 (10, then 50).
+    const deps = soloDeps({ turnsPerYear: 90, xpCurveBase: 10 });
     const start = withYard('idle-year', 1, deps);
     const roster = [...player(start.world).rosterIds];
     expect(xpOf(start.world, roster).every((xp) => xp === 0)).toBe(true);
 
     const { document, events } = playTo(start, deps.config.turnsPerYear, deps);
 
-    // A year of 1,080 Turns from the morning of Day 0 holds the nights of Days 0 to 359.
-    const nights = Array.from({ length: deps.config.turnsPerYear }, (_, index) => index + 1).filter(
-      (turn) => timeOfDay(turn) === 'night',
-    );
-    expect(nights).toHaveLength(360);
     // Idle every night: no Party sent, no Injury, and the Roster whole.
     expect(ofType(events, 'quest.taken')).toEqual([]);
     expect(ofType(events, 'hero.injured')).toEqual([]);
     expect(player(document.world).rosterIds).toEqual(roster);
-    expect(xpOf(document.world, roster)).toEqual(roster.map(() => 360 * 2));
-    // Training XP emits nothing of its own; the Levels it reached are entries (500 XP is Level 3).
+    expect(xpOf(document.world, roster)).toEqual(roster.map(() => (deps.config.turnsPerYear / 3) * 2));
+    // Training XP emits nothing of its own; the Levels it reached are entries (50 XP is Level 3).
     expect(ofType(events, 'hero.xp-gained')).toEqual([]);
     expect(roster.map((id) => hero(document.world, id).level)).toEqual(roster.map(() => 3));
     expect(ofType(events, 'hero.levelled')).toHaveLength(2 * roster.length);

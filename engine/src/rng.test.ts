@@ -155,19 +155,6 @@ describe('named streams', () => {
     expect(draws(cloned)).toEqual(expected);
   });
 
-  test('drawing from board leaves heroes unchanged', () => {
-    // `board` and `heroes` arrive with M2; createStreams takes any name, so the property is
-    // proved now rather than when the second stream lands.
-    const streams = createStreams(seed, ['board', 'heroes']);
-    const heroesBefore = structuredClone(streams.heroes);
-    const boardBefore = structuredClone(streams.board);
-
-    draws(streams.board);
-
-    expect(streams.heroes).toEqual(heroesBefore);
-    expect(streams.board).not.toEqual(boardBefore);
-  });
-
   test('drawing from any planned stream leaves every other deep-equal', () => {
     const streams = createStreams(seed, plannedStreams);
 
@@ -255,13 +242,15 @@ describe('next', () => {
     const state = generation('uniform-next');
     const bins = new Array<number>(10).fill(0);
     let sum = 0;
+    const outside: number[] = [];
     for (const draw of draws(state, 100_000)) {
-      expect(draw >= 0 && draw < 1).toBe(true);
+      if (!(draw >= 0 && draw < 1)) outside.push(draw);
       const bin = Math.floor(draw * 10);
       bins[bin] = (bins[bin] ?? 0) + 1;
       sum += draw;
     }
 
+    expect(outside).toEqual([]);
     // Chi-square with 9 degrees of freedom: 27.88 is the 0.1% critical value.
     expect(chiSquare(bins)).toBeLessThan(27.88);
     expect(Math.abs(sum / 100_000 - 0.5)).toBeLessThan(0.005);
@@ -272,12 +261,14 @@ describe('int', () => {
   test('includes both bounds and nothing outside them', () => {
     const state = generation('int-bounds');
     const seen = new Set<number>();
+    const outside: number[] = [];
     for (let i = 0; i < 10_000; i += 1) {
       const value = int(state, -3, 3);
-      expect(Number.isInteger(value) && value >= -3 && value <= 3).toBe(true);
+      if (!(Number.isInteger(value) && value >= -3 && value <= 3)) outside.push(value);
       seen.add(value);
     }
 
+    expect(outside).toEqual([]);
     expect([...seen].sort((a, b) => a - b)).toEqual([-3, -2, -1, 0, 1, 2, 3]);
   });
 
@@ -405,42 +396,9 @@ describe('chance', () => {
 });
 
 describe('weightedPick (DL-43)', () => {
-  test('takes one draw, and with every weight 1 picks what pick picks from the same state', () => {
-    const items = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
-    const ones = items.map(() => 1);
-    const weighted = generation('weighted-even');
-    const uniform = generation('weighted-even');
-    for (let i = 0; i < 1000; i += 1) {
-      const afterOne = advancedCopy(weighted, 1);
-      expect(weightedPick(weighted, items, ones)).toBe(pick(uniform, items));
-      expect(weighted).toEqual(afterOne);
-    }
-  });
-
-  // DL-155: who harm falls on is drawn by weightedPick, where before it was `int` from 0
-  // to the last of the Heroes it could fall on, `pick`'s draw; with no field that reads the Stats,
-  // every weight is 1 and the draw must be the same, for any Party's size.
-  test('with every weight 1, for every length from 1 to 8, picks the item int and pick pick from the same state', () => {
-    for (let length = 1; length <= 8; length += 1) {
-      const items = Array.from({ length }, (_, index) => index);
-      const ones = items.map(() => 1);
-      const weighted = generation(`weighted-ones-${length}`);
-      const byInt = generation(`weighted-ones-${length}`);
-      const byPick = generation(`weighted-ones-${length}`);
-      // The draws that differ, compared without an expect each: 320,000 expects took five seconds (DL-164).
-      const differing: { draw: number; drawn: number; int: number; pick: number }[] = [];
-      for (let i = 0; i < 20_000; i += 1) {
-        const drawn = weightedPick(weighted, items, ones);
-        const [byIntDrawn, byPickDrawn] = [int(byInt, 0, length - 1), pick(byPick, items)];
-        if (drawn !== byIntDrawn || drawn !== byPickDrawn) differing.push({ draw: i, drawn, int: byIntDrawn, pick: byPickDrawn });
-      }
-      expect(differing, `length ${length}`).toEqual([]);
-      expect(weighted).toEqual(byInt);
-    }
-  });
-
   // DL-202: a Class, Background, Quest template and Sphere draw by weight, 1 when none is
-  // given, and every game must play as it did. Both sides take the one draw and multiply it by the list's
+  // given, and every game must play as it did; DL-155: who harm falls on is drawn by weightedPick
+  // and must be pick's draw for any Party's size. Both sides take the one draw and multiply it by the list's
   // size (the weights' total) before comparing it to a whole number, so the floating-point rounding of the
   // product is the same on both and no bucket's edge falls differently; held here for the list sizes a draw
   // is made over and a few beyond them.

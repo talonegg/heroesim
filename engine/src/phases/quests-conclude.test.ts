@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import type { Consequence, ContentSet, Encounter } from '../content-types.js';
@@ -216,7 +216,8 @@ describe('questsConclude', () => {
   // DL-182 item 1: the Quest's XP split across the Party sent, its Dead counted.
   for (const rival of [false, true]) {
     test(`gives each Hero who came home the Quest's XP split across the Party sent, the dead Hero nothing: ${rival ? "a Rival's" : "the player's"} Party`, () => {
-      const deps = rival ? testDeps({ rivalCount: 1 }, certainHarmContent) : soloDeps({}, certainHarmContent);
+      const xp = { xpPerDifficultyPoint: 1, xpBandFactor: { fail: 0.5, success: 1, strong: 1 } };
+      const deps = rival ? testDeps({ rivalCount: 1, ...xp }, certainHarmContent) : soloDeps(xp, certainHarmContent);
       if (rival) stillRivalControllers();
       const { eve, guildId, heroIds } = sentAway(rival ? 'split-rival' : 'split', deps, { rival, size: 3, difficulty: 5000, encounterKeys: oneEncounter });
       expect(guildOf(eve.world, guildId).controller.kind).toBe(rival ? 'rival' : 'player');
@@ -227,7 +228,6 @@ describe('questsConclude', () => {
       if (outcome === undefined) throw new Error('Not resolved');
       // One failed Encounter: a failure, one Hero dead, and 5,000 × 1 × 0.5 XP split by the three sent.
       expect(outcome.band).toBe('fail');
-      expect(deps.config.xpPerDifficultyPoint * deps.config.xpBandFactor.fail).toBe(0.5);
       expect(outcome.xpPerHero).toBe(Math.floor(2500 / 3));
       expect(outcome.deaths).toHaveLength(1);
       const [deadId] = outcome.deaths;
@@ -273,7 +273,6 @@ describe('questsConclude', () => {
       expect(payload).toMatchObject({ cause: 'roster-death', after: payload.before + deps.config.moraleOnRosterDeath });
       expect(hero(world, payload.heroId).morale).toBe(payload.after);
     }
-    expect(deps.config.moraleOnRosterDeath).toBe(-10);
   });
 
   test('an injured Hero carries the Injury until the night its Days run out, the infirmary at the time shortening it', () => {
@@ -450,7 +449,7 @@ describe('questsConclude', () => {
     withValid({ ...eve, world }, deps);
   });
 
-  test('resolves a Quest saved before M4, with no Encounters, through a sequence drawn from the encounters stream', () => {
+  test('resolves a Quest with no Encounter stored, as one whose Encounters content no longer defines (rule 5), through a sequence drawn from the encounters stream', () => {
     const deps = soloDeps({}, harmlessContent);
     const { eve, party, quest } = sentAway('pre-m4', deps, { encounterKeys: [] });
     const template = deps.content.questTemplates[quest.templateKey];
@@ -566,6 +565,30 @@ describe('questsConclude', () => {
     }
     expect(resolved).toHaveLength(taken.filter((event) => event.payload.returnsOnTurn <= document.world.turn).length);
     for (const party of Object.values(document.world.parties)) expect(party.returnsOnTurn).toBeGreaterThan(document.world.turn);
+  });
+
+  test("a Level a Party's Hero gains on the night of the return follows the Quest's XP: away, they trained for none", () => {
+    const deps = soloDeps();
+    const { eve, heroIds, quest } = sentAway('levelled-home', deps, { difficulty: 2 });
+    // One XP short of Level 2 on the eve, so only the Quest's XP brings the Level: a Quest of 2, split
+    // between the two Heroes sent, gives each 1.
+    for (const heroId of heroIds) hero(eve.world, heroId).xp = xpForLevel(2, deps.config) - 1;
+
+    const { document, events } = playTo(withValid(eve, deps), eve.world.turn + 1, deps);
+
+    const gained = ofType(events, 'hero.xp-gained');
+    const levelled = ofType(events, 'hero.levelled');
+    expect(levelled.map((event) => event.payload.heroId).sort()).toEqual([...heroIds].sort());
+    for (const heroId of heroIds) {
+      const xp = gained.find((event) => event.payload.heroId === heroId);
+      const level = levelled.find((event) => event.payload.heroId === heroId);
+      expect(xp?.payload.questId).toBe(quest.id);
+      expect(xp?.participants).toContain(quest.id);
+      expect(level?.turn).toBe(xp?.turn);
+      expect(events.indexOf(level as TurnEvent)).toBeGreaterThan(events.indexOf(xp as TurnEvent));
+      // Nothing but the Quest's XP moved theirs that night.
+      expect(hero(document.world, heroId).xp).toBe(xpForLevel(2, deps.config) - 1 + (xp?.payload.amount ?? 0));
+    }
   });
 });
 
@@ -858,8 +881,10 @@ describe('the Quest named on what its return causes', () => {
   const seeds = ['named-a', 'named-b', 'named-c'] as const;
   /** Every event each game emitted, those its History does not record among them (DL-211). */
   const emitted = new Map<string, TurnEvent[]>();
-  const played = new Map(
-    seeds.map((seed) => {
+  /** Each game's end, read only. */
+  const played = new Map<string, WorldDocument>();
+  beforeAll(() => {
+    for (const seed of seeds) {
       const created = createWorld(seed, setup, deps);
       let { document } = created;
       const events: TurnEvent[] = [...created.events];
@@ -869,9 +894,9 @@ describe('the Quest named on what its return causes', () => {
         events.push(...result.events);
       }
       emitted.set(seed, events);
-      return [seed, withValid(document, deps)] as const;
-    }),
-  );
+      played.set(seed, withValid(document, deps));
+    }
+  }, 120_000);
 
   /**
    * A History entry as it was before DL-112: the new `questId` and the Quest's participation taken out;
@@ -943,30 +968,6 @@ describe('the Quest named on what its return causes', () => {
     expect(named).toBeGreaterThan(0);
   });
 
-  test("a Level a Party's Hero gains on the night of the return follows the Quest's XP: away, they trained for none", () => {
-    const deps = soloDeps();
-    const { eve, heroIds, quest } = sentAway('levelled-home', deps, { difficulty: 2 });
-    // One XP short of Level 2 on the eve, so only the Quest's XP brings the Level: a Quest of 2, split
-    // between the two Heroes sent, gives each 1.
-    for (const heroId of heroIds) hero(eve.world, heroId).xp = xpForLevel(2, deps.config) - 1;
-
-    const { document, events } = playTo(withValid(eve, deps), eve.world.turn + 1, deps);
-
-    const gained = ofType(events, 'hero.xp-gained');
-    const levelled = ofType(events, 'hero.levelled');
-    expect(levelled.map((event) => event.payload.heroId).sort()).toEqual([...heroIds].sort());
-    for (const heroId of heroIds) {
-      const xp = gained.find((event) => event.payload.heroId === heroId);
-      const level = levelled.find((event) => event.payload.heroId === heroId);
-      expect(xp?.payload.questId).toBe(quest.id);
-      expect(xp?.participants).toContain(quest.id);
-      expect(level?.turn).toBe(xp?.turn);
-      expect(events.indexOf(level as TurnEvent)).toBeGreaterThan(events.indexOf(xp as TurnEvent));
-      // Nothing but the Quest's XP moved theirs that night.
-      expect(hero(document.world, heroId).xp).toBe(xpForLevel(2, deps.config) - 1 + (xp?.payload.amount ?? 0));
-    }
-  });
-
   test("every founding in the games names its Guild's founding Wealth, the player's, the Rivals' and any replacement's", () => {
     for (const seed of seeds) {
       const document = played.get(seed) as WorldDocument;
@@ -976,14 +977,34 @@ describe('the Quest named on what its return causes', () => {
     }
   });
 
-  test('a History written before the three were recorded (DL-112), with none of them, still validates and loads', () => {
+  test("a History with a founding that names no Wealth, or an entry of a Quest's cause that names no Quest, is refused, naming each entry (DL-246)", () => {
     const document = played.get('named-a') as WorldDocument;
+    const { entries } = document.history;
+    /** The field taken out of each entry, by its position: a founding's Wealth, and the Quest of the first entry of each type and Quest's cause. */
+    const stripped = new Map<number, string>([[entries.findIndex((entry) => entry.type === 'guild.founded'), 'wealth']]);
+    for (const [type, causes] of Object.entries(namedCauses)) {
+      for (const cause of causes ?? []) {
+        stripped.set(
+          entries.findIndex((entry) => entry.type === type && (entry.payload as { cause: string }).cause === cause),
+          'questId',
+        );
+      }
+    }
+    expect([...stripped.keys()].every((position) => position >= 0)).toBe(true);
     const history = createHistory();
-    for (const entry of document.history.entries) append(history, unnamed(entry) as Entry);
+    entries.forEach((entry, position) => {
+      const field = stripped.get(position);
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      if (field !== undefined) delete payload[field];
+      append(history, { ...entry, payload } as Entry);
+    });
 
     const loaded = deserialise(serialise({ ...document, history }), deps);
 
-    expect(loaded.ok && loaded.warnings).toEqual([]);
+    const failures = loaded.ok || loaded.reason.kind !== 'invalid' ? [] : loaded.reason.failures.map(({ check, id }) => ({ check, id }));
+    expect(failures).toEqual(
+      [...stripped.keys()].sort((a, b) => a - b).map((position) => ({ check: 'entry-field-missing', id: `$.history.entries[${position}]` })),
+    );
   });
 
   test("nothing else moves: the same seed's events give the History of 86c7afa, entry for entry, but for the new fields and participants (the questId, DL-112, and the founding Wealth, DL-120) and the Rivals' Parties", () => {

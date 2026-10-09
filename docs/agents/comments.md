@@ -15,7 +15,8 @@ code (DL-186 item 27, DL-204).
   when something was built; the DL entry says what was decided and why. `npm test` refuses a comment
   that tells history by a story ("since" or "until" one), and holds the lines that still cite a story
   id at or under the baseline in `tools/decisions/story-citations.json`. A story that rewrites some
-  lowers it to the new count, never raises it (DL-219).
+  lowers it to the new count, never raises it (DL-219). Tests, their names and their support count as
+  source does, but the few files whose story ids are data, which `storyIdsAsData` names (DL-246).
 - **No value in a comment that the data holds.** A tuning value lives in `engine/src/config.json`
   (docs/agents/config.md) and a content value in `content/`; a comment that repeats one goes stale
   the day the value changes. Say what the value is for instead.

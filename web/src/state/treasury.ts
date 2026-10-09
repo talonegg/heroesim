@@ -182,8 +182,8 @@ function ledgerRow({ position, entry, category, amount }: LedgerChange, narratio
 }
 
 /**
- * The ledger's opening row: the Wealth `guildId` was founded with, from its `guild.founded`, the first
- * entry naming it; `null` when that names none, as a founding written before DL-121 does.
+ * The ledger's opening row: the Wealth `guildId` was founded with, which its `guild.founded`, the first
+ * entry naming it, always names (DL-246); `null` when the History holds no founding for it.
  */
 function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null {
   const found = foundingOf(document.history, guildId);

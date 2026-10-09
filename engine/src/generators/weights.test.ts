@@ -32,7 +32,7 @@ describe('a Hero is drawn as pick draws it when no row has a weight, or every we
   ])('sex, Background and Class, with %s', (_what, content) => {
     const deps = testDeps({}, content);
     const world = testWorld('weights-hero', deps);
-    for (let index = 0; index < 400; index += 1) {
+    for (let index = 0; index < 60; index += 1) {
       // What the Hero Generator drew before weights: `pick` from a copy of the stream, in its order.
       const state = structuredClone(streamOf(world));
       const sex = pick(state, sexes);
@@ -211,12 +211,12 @@ describe("a starting Roster and the Patrons' Spheres are dealt as dealEvenly dea
     for (let patrons = 1; patrons <= 12; patrons += 1) {
       // The even deal by hand: the world with no Patron, then `dealEvenly` over the Spheres from where
       // that left the stream, then a Patron of each Sphere dealt, in turn (DL-208).
-      const none = testDeps({ patronCount: 0, unattachedPoolSize: 0 }, content);
+      const none = testDeps({ patronCount: 0, unattachedPoolSize: 0, rivalCount: 0 }, content);
       const before = createWorld(`deal-spheres-${patrons}`, setup, none).document.world;
       const sphereKeys = dealEvenly(streamOf(before), sortedKeys(content.spheres), patrons);
       for (const sphereKey of sphereKeys) generatePatron(before, none, { sphereKey });
 
-      const deps = testDeps({ patronCount: patrons, unattachedPoolSize: 0 }, content);
+      const deps = testDeps({ patronCount: patrons, unattachedPoolSize: 0, rivalCount: 0 }, content);
       const world = createWorld(`deal-spheres-${patrons}`, setup, deps).document.world;
 
       expect(Object.values(world.patrons).map((patron) => patron.sphereKey)).toEqual(sphereKeys);

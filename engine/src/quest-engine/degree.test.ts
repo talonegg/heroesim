@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'vitest';
-import { defaultConfig } from '../config.js';
 import { degrees, type Degree, type PassFormula } from '../content-types.js';
 import { degreeOf, passDegree, passOf, succeeded } from './degree.js';
 
@@ -37,9 +36,7 @@ describe('degreeOf', () => {
     }
   });
 
-  // The Triumph at 1.35 (DL-166).
-  test('reads checkDegrees, whose defaults are 1.35, 1 and 0.75', () => {
-    expect(defaultConfig.checkDegrees).toEqual({ triumph: 1.35, success: 1, setback: 0.75 });
+  test('reads checkDegrees', () => {
     const strict = { checkDegrees: { triumph: 2, success: 1.1, setback: 1 } };
     expect([150, 105, 100].map((roll) => degreeOf(roll, 100, strict))).toEqual(['success', 'setback', 'setback']);
     expect(degreeOf(99, 100, strict)).toBe('failure');

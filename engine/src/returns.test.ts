@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { beforeAll, describe, expect, test } from 'vitest';
 import { advance } from './advance.js';
 import { createWorld } from './create.js';
 import { makeId, type EntityId, type Entry, type History, type WorldDocument } from './document.js';
@@ -126,12 +126,20 @@ describe('nightsReturnOf', () => {
   });
 });
 
-describe('a year the engine played, every Death certain on a failed Check', () => {
+describe('the Turns the engine played, every Death certain on a failed Check', () => {
   const deps = testDeps({}, certainHarmContent);
-  let document: WorldDocument = createWorld('returns', { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' }, deps).document;
-  for (let turn = 0; turn < 600; turn += 1) document = advance(document, deps).document;
-  const { entries } = document.history;
-  const outcomes = entries.filter((each): each is EngineEventOf<'quest.resolved'> => each.type === 'quest.resolved');
+  let document: WorldDocument;
+  let entries: Entry[];
+  let outcomes: EngineEventOf<'quest.resolved'>[];
+
+  // Played once, read by the one test below. A Level and a dead Hero's gear on a night a Party came home
+  // were both met by Turn 88; 180 Turns is twice that.
+  beforeAll(() => {
+    document = createWorld('returns', { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' }, deps).document;
+    for (let turn = 0; turn < 180; turn += 1) document = advance(document, deps).document;
+    entries = document.history.entries;
+    outcomes = entries.filter((each): each is EngineEventOf<'quest.resolved'> => each.type === 'quest.resolved');
+  });
 
   test("each Level and dead Hero's gear on a night a Party came home is that return's, and no other is", () => {
     const parts = new Map<Entry, string>();

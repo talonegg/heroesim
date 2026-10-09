@@ -6,7 +6,7 @@ import { playerGuild, signingFee, unattachedHeroes } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { testDeps, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
-import { applyRecruit, type RecruitRejection } from './recruit.js';
+import type { RecruitRejection } from './recruit.js';
 import type { ActionResult } from './result.js';
 
 // Recruiting from the Unattached pool (DL-27).
@@ -80,19 +80,6 @@ describe('recruit', () => {
     expect(count(history, 'hero.recruited')).toBe(1);
   });
 
-  test("gives a new world and leaves the input's as it was, sharing meta and the History", () => {
-    const { document, guild, hero } = scene();
-    const before = structuredClone(document.world);
-
-    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
-
-    if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
-    expect(result.document.world).not.toBe(document.world);
-    expect(document.world).toEqual(before);
-    expect(result.document.meta).toBe(document.meta);
-    expect(result.document.history).toBe(document.history);
-  });
-
   test('is the same rule for a Rival (ADR-0002)', () => {
     const { document, rival, hero } = scene();
     const fee = signingFee(hero, deps);
@@ -114,17 +101,6 @@ describe('recruit', () => {
     expect(result.ok && result.document.world.guilds[guild.id]?.wealth).toBe(0);
   });
 
-  test('is the rule applyAction runs on a copy of the world', () => {
-    const { document, guild, hero } = scene('apply');
-    const world = structuredClone(document.world);
-
-    const applied = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
-    const inPlace = applyRecruit(world, { guildId: guild.id, heroId: hero.id }, deps);
-
-    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
-    expect(world).toEqual(applied.document.world);
-    expect(inPlace.events).toEqual(applied.events);
-  });
 });
 
 describe('recruit refuses, never throwing and changing nothing', () => {

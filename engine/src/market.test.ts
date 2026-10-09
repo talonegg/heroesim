@@ -6,20 +6,22 @@ import { bestParties } from './best-party.js';
 import { availableHeroes } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, GuildId, ItemId, StackId, WorldDocument } from './document.js';
-import type { EngineEvent, ItemSold, TurnEvent } from './events.js';
+import type { EngineEvent, ItemSold } from './events.js';
 import { addStack, createItem, holdings } from './items.js';
 import { marketHolder, marketPrice, marketStock, sellPrice } from './market.js';
 import { phases } from './pipeline.js';
 import { playerGuild } from './selectors.js';
 import { nightOf } from './time.js';
-import { testContent, testDeps, withValid } from './world.test-support.js';
+import { playWith, setup, testContent, testDeps, withValid } from './world.test-support.js';
 import { applyAction } from './actions/action.js';
+
+/** Advances to a Turn, validating every document. */
+const playTo = playWith(advance);
 
 // The Market Engine's prices, what the Market lists, a folding Guild's Items (pre-M0 review
 // D6), and the Rivals, who buy gear there (DL-58).
 // Config values relied on are pinned.
 
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 const pinned = { sellRatio: 0.5, lootOnlyPrice: 600, marketSize: 10, marketStackMin: 1, marketStackMax: 5 };
 
 afterEach(() => {
@@ -72,18 +74,6 @@ function stillRivalControllers() {
   const rivalControllers = phases.find((phase) => phase.name === 'rivalControllers');
   if (rivalControllers === undefined) throw new Error('No rivalControllers phase');
   return vi.spyOn(rivalControllers, 'run').mockReturnValue([]);
-}
-
-/** Plays Turns until `turn`, checking every document, returning the last and every event. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
-  let current = document;
-  const events: TurnEvent[] = [];
-  while (current.world.turn < turn) {
-    const result = advance(current, deps);
-    current = withValid(result.document, deps);
-    events.push(...result.events);
-  }
-  return { document: current, events };
 }
 
 describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
@@ -187,12 +177,10 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
   });
 });
 
-// The test that the Rivals ignore the Market — "Rivals' Wealth is unaffected by the Market: steady
-// neither buys nor sells, whatever the Market holds" (DL-51 item 8, DL-54 item 3) — is retired,
-// the Rivals buying gear there, armour first, by their Disposition's `gearThreshold` (DL-58).
-// What stands of it: a Rival buys only what the Market has, sells nothing but by a fold, and with no
-// Market buys nothing. controllers/rival.test.ts has the rule; controllers/rivals-build-and-buy.test.ts
-// the twenty years.
+// The Rivals buy gear from the Market, armour first, by their Disposition's `gearThreshold` (DL-58): a
+// Rival buys only what the Market has, sells nothing but by a fold, and with no Market buys nothing.
+// controllers/rival.test.ts has the rule; controllers/rivals-build-and-buy.harness.test.ts the twenty
+// years. Two Days are played: by the first night two Rivals had bought, so this keeps twice that.
 describe('the Rivals and the Market', () => {
   test('Rivals buy gear from the Market and sell none; with an empty Market they buy nothing', () => {
     const withMarket = testDeps({ ...pinned, rivalCount: 4 });
@@ -200,7 +188,7 @@ describe('the Rivals and the Market', () => {
     const play = (deps: EngineDeps): WorldDocument => {
       const { document } = createWorld('rivals-and-the-market', setup, deps);
       (playerGuild(document.world) as Guild).wealth = 100_000; // the player buys nothing
-      return playTo(withValid(document, deps), nightOf(20), deps).document;
+      return playTo(withValid(document, deps), nightOf(2), deps).document;
     };
     /** The History's `type` entries whose Guild is a Rival. */
     const tradesBy = <Type extends 'item.bought' | 'item.sold'>(document: WorldDocument, type: Type) =>

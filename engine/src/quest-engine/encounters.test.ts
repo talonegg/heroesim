@@ -75,11 +75,12 @@ describe('drawSequence', () => {
     for (const key of keys) expect(barrow.encounterKinds).toContain(testContent.encounters[key]?.kind);
   });
 
-  test('with no tag shared, draws exactly what the draw before DL-160 drew, a kind then an Encounter by pick, over 200 seeds of every template', () => {
+  test('with no tag shared, draws exactly what the draw before DL-160 drew, a kind then an Encounter by pick, over 20 seeds of every template', () => {
     const deps = testDeps();
-    for (let seed = 0; seed < 200; seed += 1) {
+    for (let seed = 0; seed < 20; seed += 1) {
+      const stream = streamOf(testWorld(`before-${seed}`, deps), 'encounters');
       for (const template of sortedRows(testContent.questTemplates)) {
-        const state = streamOf(testWorld(`before-${seed}`, deps), 'encounters');
+        const state = structuredClone(stream);
         const twin = structuredClone(state);
         const count = template.encountersMax;
         expect(drawSequence(state, sequencePlan(template, testContent), count, config), template.key).toEqual(
@@ -219,7 +220,7 @@ describe('sequenceFor', () => {
     expect(at.rng).toEqual(before);
   });
 
-  test('for a Quest generated before M4, with none, is drawn from the encounters stream as the Quest Generator draws it', () => {
+  test('for a Quest with no Encounter that content still defines, is drawn from the encounters stream as the Quest Generator draws it', () => {
     const at = world();
     const twin = world();
     const before = structuredClone(at.rng) as Record<string, unknown>;
@@ -242,13 +243,6 @@ describe('sequenceFor', () => {
 
     const drawn = sequenceFor(at, { templateKey: 'clear-the-barrow', difficulty: 30, encounterKeys: ['gone'] }, deps);
     expect(drawn).toHaveLength(2);
-  });
-
-  test("for a Quest generated before M4, ends with its template's Finale", () => {
-    const content = withRows([], [{ ...barrow, finale: 'hold-the-line' }]);
-    const sequence = sequenceFor(world(), { templateKey: 'clear-the-barrow', difficulty: 70, encounterKeys: [] }, { ...deps, content });
-    expect(sequence).toHaveLength(4);
-    expect(sequence.at(-1)?.key).toBe('hold-the-line');
   });
 
   test('for a template content no longer defines, is one Encounter drawn among all of content', () => {

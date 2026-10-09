@@ -17,9 +17,7 @@ import { getHeapStatistics } from 'node:v8';
 import { createWorld } from './create.js';
 import type { EntityId } from './document.js';
 import { append } from './history.js';
-import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
+import { buildDocument, setup, testContent, testDeps, withValid } from './world.test-support.js';
 
 /** The bytes this process's heap has allocated so far; `undefined` on a Node whose V8 does not count them. */
 const allocatedBytes = (): number | undefined => (getHeapStatistics() as { total_allocated_bytes?: number }).total_allocated_bytes;
@@ -92,13 +90,6 @@ describe('serialise', () => {
     expect(written.world.guilds[guildId ?? '']?.rosterIds).toEqual(roster);
   });
 
-  test('throws, naming the path, on a document that is not JSON-safe', () => {
-    const document = built();
-    const hero = Object.values(document.world.heroes)[0] as Hero;
-    hero.morale = Number.NaN;
-    expect(() => serialise(document)).toThrow(`$.world.heroes["${hero.id}"].morale is nan`);
-  });
-
   // DL-174: JSON.stringify writes an object's array-index keys first, in ascending
   // number, and cannot be handed an own `__proto__` key by assignment; the save sorts every key by
   // its code units all the same.
@@ -157,11 +148,6 @@ describe('serialise', () => {
 // ── deserialise ──────────────────────────────────────────────────────────────────────────────
 
 describe('deserialise', () => {
-  test('serialise(deserialise(serialise(d))) equals serialise(d) byte for byte', () => {
-    const text = serialise(built());
-    expect(serialise(loaded(deserialise(text, deps)))).toBe(text);
-  });
-
   test('returns an equal document and no warnings', () => {
     const document = built();
     const result = deserialise(serialise(document), deps);
@@ -289,9 +275,8 @@ describe('the migration chain', () => {
     (from: number): Migration =>
     (document) => ({ ...document, steps: [...(document.steps as number[]), from] });
 
-  test('holds no step, so a save of a schema before 7 is refused, not migrated (DL-125 item 10.2, DL-135 item 7, DL-193)', () => {
+  test('holds no step, so an older save is refused, not migrated (DL-125, DL-135, DL-193)', () => {
     expect(Object.keys(migrations)).toEqual([]);
-    expect(schemaVersion).toBe(7);
     expect(defaultConfig).not.toHaveProperty('schemaVersion');
   });
 
@@ -409,12 +394,7 @@ describe('a save of an older schema', () => {
 // ── structuredClone and JSON agree (rule 6) ──────────────────────────────────────────────────
 
 describe('a document is JSON-safe', () => {
-  test('structuredClone(world) and JSON.parse(JSON.stringify(world)) deep-equal', () => {
-    const { world } = built();
-    expect(structuredClone(world)).toStrictEqual(JSON.parse(JSON.stringify(world)));
-  });
-
-  test('so do the whole document and its History', () => {
+  test('structuredClone and JSON.parse(JSON.stringify()) deep-equal on the whole document and its History', () => {
     const document = built();
     expect(structuredClone(document)).toStrictEqual(JSON.parse(JSON.stringify(document)));
     expect(structuredClone(document.history)).toStrictEqual(JSON.parse(serialise(document)).history);

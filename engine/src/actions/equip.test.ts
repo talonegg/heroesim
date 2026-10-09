@@ -8,7 +8,7 @@ import { addStack, createItem, holdings } from '../items.js';
 import { effectiveStats, playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { testContent, testDeps, withValid } from '../world.test-support.js';
-import { applyAction, applyGuildAction } from './action.js';
+import { applyAction } from './action.js';
 import type { EquipRejection, EquipRequest, UnequipRejection } from './equip.js';
 
 // `equip` and `unequip` (DL-49). Worlds are made by `createWorld` with no Rivals, and the
@@ -138,19 +138,6 @@ describe('equip', () => {
     (document.world.heroes[hero.id] as Hero).injury = { typeKey: 'broken-arm', healsOnTurn: 30 };
 
     expect(applyAction(document, { kind: 'equip', guildId: guild.id, heroId: hero.id, stackId: blades }, deps).ok).toBe(true);
-  });
-
-  test('applyAction and applyGuildAction run the same rule', () => {
-    const { document, guild, hero, blades } = scene();
-    const action = { kind: 'equip', guildId: guild.id, heroId: hero.id, stackId: blades } as const;
-
-    const viaDocument = applyAction(document, action, deps);
-    const world = structuredClone(document.world);
-    const viaWorld = applyGuildAction(world, action, deps);
-
-    if (!viaDocument.ok || !viaWorld.ok) throw new Error('Refused');
-    expect(viaWorld.events).toEqual(viaDocument.events);
-    expect(world).toEqual(viaDocument.document.world);
   });
 
   describe('refuses, changing nothing, in the order it checks', () => {

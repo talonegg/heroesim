@@ -1,6 +1,7 @@
 // Story ids in the source (DL-219): a comment says what a thing is and why, citing the deciding DL
 // entry, and the history of stories belongs in the decision log (`docs/agents/comments.md`). Two
-// rules, over every source file but tests, specs and builds:
+// rules, over every source file, tests, specs and their support among them, but builds and the few
+// test files whose story ids are data (DL-246):
 // - none narrates history by a story: "since v1.x.y-Sn", "until M<n>-S<n>" and the like are refused;
 // - the lines that still cite a story id may only fall: their count is held at or under the
 //   baseline in `story-citations.json`, which is lowered as they are rewritten, never raised.
@@ -29,9 +30,15 @@ export const storyPattern = new RegExp(String.raw`\b${storyId}\b`);
 
 const sourceExtensions = ['.ts', '.tsx', '.js', '.mjs', '.cjs'];
 
-/** Whether `file` is source the rule reads: not a test, a test's support, a spec or a build. */
+/**
+ * The test files whose story ids are data, not citations, which the rule leaves out: the pattern's
+ * own fixtures, and the harness's report, whose names and sections print a story id (DL-246).
+ */
+export const storyIdsAsData: ReadonlySet<string> = new Set(['tools/decisions/src/stories.test.ts', 'harness/src/report.test.ts', 'harness/src/sweep.test.ts']);
+
+/** Whether `file` is source the rule reads: code, tests and their support alike, but a build and a file of `storyIdsAsData`. */
 export function isSource(file: string): boolean {
-  return !/(\.test\.tsx?|test-support\.tsx?|test-setup\.ts|\.spec\.ts|\.live\.ts)$/.test(file) && !/(^|\/)dist\//.test(file);
+  return !storyIdsAsData.has(file) && !/(^|\/)dist\//.test(file);
 }
 
 /** The lines of `files` that `pattern` matches. */

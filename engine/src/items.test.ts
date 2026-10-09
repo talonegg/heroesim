@@ -5,7 +5,6 @@ import {
   gearSlotKeys,
   holdings,
   itemDefinition,
-  validate,
   type Holder,
   type ItemDefinitionKey,
   type Stack,
@@ -153,8 +152,8 @@ describe('moveStack', () => {
     expect(() => moveStack(world, makeId('stacks', 999), 1, holders.guild)).toThrow(RangeError);
   });
 
-  // The second acceptance box, its second half: the check fires on a hand-built duplicate (below, and in
-  // validate.test.ts) and never after moveStack, over hundreds of seeded random moves.
+  // The second acceptance box, its second half: the check fires on a hand-built duplicate (validate.test.ts)
+  // and never after moveStack, over hundreds of seeded random moves.
   test('never leaves a duplicate or an empty stack: 600 seeded random moves, each validated', () => {
     const { document, world, ids, holders } = fixture();
     const idleHero = ids.idleHero ?? ids.partyHero;
@@ -208,23 +207,6 @@ describe('moveStack', () => {
     // Every path was taken, many times.
     expect(seen.moves).toBeGreaterThan(300);
     expect(Math.min(seen.merged, seen.split, seen.whole, seen.intoSlot)).toBeGreaterThan(10);
-  });
-
-  test('a hand-built duplicate is refused by duplicate-stack, where moveStack merges', () => {
-    const { document, world, ids, holders } = fixture();
-    const duplicate = makeId('stacks', world.counters.stacks++);
-    world.stacks[duplicate] = { id: duplicate, definitionKey: 'healing-draught', quantity: 1, holder: holders.guild };
-
-    const result = validate(document, deps);
-    expect(result.ok ? [] : result.failures.map(({ check, id }) => ({ check, id }))).toEqual([
-      { check: 'duplicate-stack', id: duplicate },
-    ]);
-
-    // The same Item moved rather than built: it joins the Guild's stack.
-    const { document: moved, world: again } = fixture();
-    const loose = addStack(again, 'healing-draught', 1, holders.rival);
-    expect(moveStack(again, loose, 1, holders.guild)).toBe(ids.guildStack);
-    withValid(moved, deps);
   });
 });
 

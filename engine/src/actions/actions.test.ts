@@ -1,10 +1,18 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { EngineDeps } from '../config.js';
 import type { Guild, GuildId, Hero, HeroId, Stack, World, WorldDocument } from '../document.js';
 import { transferFee } from '../selectors.js';
 import { serialise } from '../serialise.js';
-import { buildDocument, testDeps, withValid } from '../world.test-support.js';
+import { buildDocument, testDeps, withValid, type FixtureIds } from '../world.test-support.js';
 import { copyWorld } from '../world-copy.js';
 import { applyAction, applyActions, applyGuildActions, type GuildAction } from './action.js';
+import { applyBuild } from './build.js';
+import { applyBuy } from './buy.js';
+import { applyDispatch } from './dispatch.js';
+import { applyEquip, applyUnequip } from './equip.js';
+import { applyRecruit } from './recruit.js';
+import { applySell } from './sell.js';
+import { applyAcceptTransfer, applyDeclineTransfer, applyOfferTransfer, applyTransferIn, applyTransferOut } from './transfer.js';
 import type { WorldActionResult } from './result.js';
 
 // A Guild's actions in a Turn applied on one copy of the world (DL-238, ADR-0011 as amended): the
@@ -252,4 +260,85 @@ describe('applyActions', () => {
     expect(refused.results).toEqual([{ ok: false, rejection: expect.objectContaining({ action: 'buy', reason: 'insufficient-wealth' }) }]);
     expect(serialise(document)).toBe(before);
   });
+});
+
+describe('applyAction', () => {
+  // Every Guild action is its rule run on a copy of the document's world (DL-24, DL-238): for an
+  // accepted action of each kind, the rule run in place on a clone ends with the world the copy did,
+  // and the same events; the document given keeps its world, and shares its meta and its History.
+  // Each row names its kind's own rule, so the table holds `applyGuildAction`'s routing too (DL-246).
+  const player = (ids: FixtureIds) => ids.playerGuild;
+  const idle = (ids: FixtureIds) => ids.idleHero as HeroId;
+  /** The Rival lets a Hero of its Roster go and takes one in at once (the late refusals' arrangement above). */
+  const ambitious = (world: World, ids: FixtureIds): void => {
+    (world.guilds[ids.rivalGuild] as Guild).controller = { kind: 'rival', disposition: 'ambitious' };
+  };
+  /** The Party's Hero's armour, the fixture's padded jack, moved to `holder`. */
+  const jackTo = (world: World, ids: FixtureIds, holder: Stack['holder']): void => {
+    (world.stacks[ids.heroStack] as Stack).holder = holder;
+  };
+  interface Row {
+    action: GuildAction;
+    /** The kind's own rule, run in place. */
+    rule: (world: World) => WorldActionResult;
+    prepare?: ((world: World) => void) | undefined;
+  }
+  /** A row: `action` on the built document, `rule` its kind's rule, the world arranged by `prepare` first. */
+  const row =
+    <Request,>(
+      action: (ids: FixtureIds, world: World) => GuildAction & Request,
+      rule: (world: World, request: Request, deps: EngineDeps) => WorldActionResult,
+      prepare?: (world: World, ids: FixtureIds) => void,
+    ) =>
+    (ids: FixtureIds, world: World): Row => {
+      const made = action(ids, world);
+      return { action: made, rule: (on) => rule(on, made, deps), prepare: prepare === undefined ? undefined : (on) => prepare(on, ids) };
+    };
+  const rows: Record<GuildAction['kind'] | 'sell an Item', (ids: FixtureIds, world: World) => Row> = {
+    dispatch: row(
+      (ids, world) => ({ kind: 'dispatch', guildId: player(ids), questId: ids.offeredQuest, heroIds: [idle(ids), (world.guilds[player(ids)] as Guild).rosterIds[2] as HeroId] }),
+      applyDispatch,
+    ),
+    recruit: row((ids) => ({ kind: 'recruit', guildId: player(ids), heroId: ids.unattachedHero as HeroId }), applyRecruit),
+    build: row((ids) => ({ kind: 'build', guildId: player(ids), facility: 'quarters' }), applyBuild),
+    equip: row((ids) => ({ kind: 'equip', guildId: player(ids), heroId: idle(ids), stackId: ids.heroStack }), applyEquip, (world, ids) =>
+      jackTo(world, ids, { kind: 'guild', id: player(ids) }),
+    ),
+    unequip: row((ids) => ({ kind: 'unequip', guildId: player(ids), heroId: idle(ids), slot: 'armour' }), applyUnequip, (world, ids) =>
+      jackTo(world, ids, { kind: 'hero', id: idle(ids), slot: 'armour' }),
+    ),
+    buy: row((ids) => ({ kind: 'buy', guildId: player(ids), definitionKey: 'healing-draught', quantity: 2 }), applyBuy),
+    sell: row((ids) => ({ kind: 'sell', guildId: player(ids), stackId: ids.guildStack, quantity: 2 }), applySell),
+    'sell an Item': row((ids) => ({ kind: 'sell', guildId: player(ids), itemId: ids.item }), applySell, (world, ids) => {
+      (world.items[ids.item] as { holder: Stack['holder'] }).holder = { kind: 'guild', id: player(ids) };
+    }),
+    transferIn: row((ids) => ({ kind: 'transferIn', guildId: player(ids), heroId: ids.rivalHero }), applyTransferIn, ambitious),
+    transferOut: row((ids) => ({ kind: 'transferOut', guildId: player(ids), heroId: idle(ids), toGuildId: ids.rivalGuild }), applyTransferOut, ambitious),
+    offerTransfer: row((ids) => ({ kind: 'offerTransfer', guildId: ids.rivalGuild, heroId: idle(ids) }), applyOfferTransfer),
+    acceptTransfer: row((ids) => ({ kind: 'acceptTransfer', guildId: ids.rivalGuild, offerId: ids.offer }), applyAcceptTransfer),
+    declineTransfer: row((ids) => ({ kind: 'declineTransfer', guildId: ids.rivalGuild, offerId: ids.offer }), applyDeclineTransfer),
+  };
+
+  test.each(Object.keys(rows))('%s is its rule run on a copy of the world: the same world and events, the input left as it was, meta and the History shared', (kind) => {
+    const { document, ids } = built(10_000);
+    const arranged = rows[kind as keyof typeof rows](ids, document.world);
+    arranged.prepare?.(document.world);
+    const before = structuredClone(document.world);
+    const world = structuredClone(document.world);
+
+    const applied = applyAction(document, arranged.action, deps);
+    const inPlace = arranged.rule(world);
+
+    expect(applied.ok ? 'done' : applied.rejection.reason).toBe('done');
+    expect(inPlace.ok ? 'done' : inPlace.rejection.reason).toBe('done');
+    if (!applied.ok || !inPlace.ok) return;
+    expect(world).toEqual(applied.document.world);
+    expect(inPlace.events).toEqual(applied.events);
+    withValid(applied.document, deps);
+    expect(applied.document.world).not.toBe(document.world);
+    expect(document.world).toEqual(before);
+    expect(applied.document.meta).toBe(document.meta);
+    expect(applied.document.history).toBe(document.history);
+  });
+
 });

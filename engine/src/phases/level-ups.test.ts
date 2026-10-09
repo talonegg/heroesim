@@ -1,25 +1,26 @@
 import { describe, expect, test } from 'vitest';
 import { advance } from '../advance.js';
-import { defaultConfig, type EngineDeps, type GameConfig } from '../config.js';
+import type { EngineDeps, GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from '../document.js';
-import type { EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
+import type { TurnEvent } from '../events.js';
 import { generateHero } from '../generators/heroes.js';
 import { append } from '../history.js';
 import { xpForLevel } from '../progression.js';
-import { createStreams, next, streamNames } from '../rng.js';
+import { next, streamNames } from '../rng.js';
 import { playerGuild, upkeep } from '../selectors.js';
 import { nightOf, timeOfDay } from '../time.js';
-import { testDeps, withValid } from '../world.test-support.js';
+import { ofType, playWith, setup, testDeps, withValid } from '../world.test-support.js';
 import { levelUps } from './level-ups.js';
 import { phaseContext } from './phase.js';
 import { applyAction } from '../actions/action.js';
 
+/** Advances to a Turn, validating every document. */
+const playTo = playWith(advance);
+
 // The night phase `levelUps` (DL-36). Worlds are created and played through `advance`, each
 // document held to the validator; a test of the rule alone runs the phase on a world moved to a
 // night.
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /**
  * INPUTS 5.2 and 5.3's curve and growth, and M2's wage, pinned: these tests are written against
@@ -37,23 +38,8 @@ function soloDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
   });
 }
 
-const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
-  events.filter((event): event is EngineEventOf<Type> => event.type === type);
-
 const hero = (world: World, id: HeroId): Hero => world.heroes[id] as Hero;
 const player = (world: World): Guild => playerGuild(world) as Guild;
-
-/** Advances to Turn `turn`, validating every document, and returns the events of the Turns played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
-  let current = document;
-  const events: TurnEvent[] = [];
-  while (current.world.turn < turn) {
-    const result = advance(current, deps);
-    current = withValid(result.document, deps);
-    events.push(...result.events);
-  }
-  return { document: current, events };
-}
 
 /** A created world played to the afternoon of Day 0, the eve of its first night. */
 function eve(seed: string, deps: EngineDeps): WorldDocument {
@@ -102,13 +88,13 @@ describe('levelUps', () => {
     expect(milestones.filter((entry) => entry?.type === 'hero.levelled')).toEqual(levelled);
   });
 
-  test('no Stat exceeds its Potential after 10,000 Level-ups over random Heroes', () => {
+  test('no Stat exceeds its Potential after 2,000 Level-ups over random Heroes', () => {
     const deps = soloDeps({ levelCap: 21 });
-    const { document } = createWorld('ten-thousand', setup, deps);
+    const { document } = createWorld('two-thousand', setup, deps);
     const { world, history } = document;
     const guild = player(world);
     const heroIds: HeroId[] = [];
-    for (let n = 0; n < 500; n += 1) {
+    for (let n = 0; n < 100; n += 1) {
       const { hero: row, events } = generateHero(world, deps, { guildId: guild.id });
       for (const event of events) append(history, event);
       row.xp = xpForLevel(21, deps.config);
@@ -121,7 +107,7 @@ describe('levelUps', () => {
     for (const event of events) append(history, event);
 
     const levelled = ofType(events, 'hero.levelled').filter((event) => heroIds.includes(event.payload.heroId));
-    expect(levelled).toHaveLength(10_000);
+    expect(levelled).toHaveLength(2_000);
     let lost = 0;
     for (const heroId of heroIds) {
       const row = hero(world, heroId);
@@ -134,7 +120,7 @@ describe('levelUps', () => {
       expect(row.potential).toEqual(start.potential);
     }
     for (const event of levelled) lost += event.payload.pointsLost;
-    // Potential binds: 30,000 points were more than these Heroes' headroom.
+    // Potential binds: 6,000 points were more than these Heroes' headroom.
     expect(lost).toBeGreaterThan(0);
     withValid({ ...document, world }, deps);
   });
@@ -185,10 +171,6 @@ describe('levelUps', () => {
     expect(upkeep(player(after.world), after.world, deps.config) - upkeepBefore).toBe(3 * 70);
   });
 
-  test('the default wage is 20 a Level, since Heroes gain Levels (DL-36)', () => {
-    expect(defaultConfig).toMatchObject({ wagePerLevel: 20 });
-  });
-
   test('moves the progression stream alone, growthPointsPerLevel draws a Level, and none on a night no one levels', () => {
     const deps = soloDeps({ growthPointsPerLevel: 4 });
     const { world } = createWorld('streams', setup, deps).document;
@@ -227,20 +209,5 @@ describe('levelUps', () => {
     expect(ofType(events, 'hero.levelled').map((event) => event.payload.heroId).sort()).toEqual([playerHero, rivalHero].sort());
     expect(hero(world, foldedHero).level).toBe(1);
     expect(pooled.level).toBe(1);
-  });
-
-  test('an old save without the progression stream gains it, seeded as a new world would have it', () => {
-    const deps = soloDeps();
-    const document = eve('old-save', deps);
-    const [heroId] = player(document.world).rosterIds as [HeroId];
-    hero(document.world, heroId).xp = xpForLevel(2, deps.config);
-    const fresh = structuredClone(document);
-    delete (document.world.rng as Partial<World['rng']>).progression;
-
-    const old = advance(document, deps);
-    const current = advance(fresh, deps);
-
-    expect(old.document.world).toEqual(current.document.world);
-    expect(old.document.world.rng.progression).not.toEqual(createStreams(document.meta.seed, ['progression']).progression);
   });
 });

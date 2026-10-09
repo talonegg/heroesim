@@ -7,7 +7,7 @@ import { moraleBandNames, type GameConfig, type MoraleBand } from './config.js';
 import type { ContentSet } from './content-types.js';
 import { rowOf, type Hero, type QuestId, type World } from './document.js';
 import type { Emit } from './emit.js';
-import type { HeroMoraleChanged, MoraleCause } from './events.js';
+import { namingTheQuest, questCauses, type HeroMoraleChanged, type MoraleCause } from './events.js';
 import { guildmasterOf, inspirationShift, traitMoraleShift } from './guildmaster.js';
 
 /**
@@ -86,8 +86,7 @@ export function moraleChanged(
     participants: questId === undefined ? [hero.id] : [hero.id, questId],
     payload: {
       heroId: hero.id,
-      cause,
-      ...(questId === undefined ? {} : { questId }),
+      ...namingTheQuest(questCauses['hero.morale-changed'], cause, questId),
       before,
       after,
       bandBefore: moraleBand(before, config),

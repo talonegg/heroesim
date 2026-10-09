@@ -13,10 +13,6 @@ const content = testContent;
 const broken = (changes: Readonly<Record<string, unknown>>): string[] => checkConfig({ ...defaultConfig, ...changes }).map((problem) => problem.setting);
 
 describe('the rules', () => {
-  test('one for every setting of GameConfig, and none for a setting it lacks', () => {
-    expect(Object.keys(configRules).sort()).toEqual(Object.keys(defaultConfig).sort());
-  });
-
   test('the defaults break none', () => {
     expect(checkConfig(defaultConfig)).toEqual([]);
   });
@@ -49,20 +45,6 @@ describe('the rules', () => {
     expect(broken({ turnsPerYear: 3 })).toEqual([]);
   });
 
-  test('a starting Wealth is no debt (DL-206 item 8, DL-210)', () => {
-    expect(checkConfig({ ...defaultConfig, startingWealth: -1000, rivalStartingWealthMin: -1 })).toEqual([
-      { setting: 'startingWealth', message: 'startingWealth is -1000; it is a whole number, at least 0' },
-      { setting: 'rivalStartingWealthMin', message: 'rivalStartingWealthMin is -1; it is a whole number, at least 0' },
-    ]);
-  });
-
-  test('Fame has a floor of at least 0, never negative Fame (pre-M0 review D10.3; the owner, 2026-10-06, DL-210)', () => {
-    expect(checkConfig({ ...defaultConfig, fameFloor: -1 })).toEqual([
-      { setting: 'fameFloor', message: 'fameFloor is -1; it is a whole number, at least 0' },
-    ]);
-    expect(broken({ fameFloor: 0 })).toEqual([]);
-  });
-
   test('never throws, whatever a save holds', () => {
     for (const value of [null, 'x', {}, true, Number.NaN, undefined]) {
       for (const setting of Object.keys(defaultConfig)) {
@@ -85,6 +67,12 @@ const share: Case = { refused: [-0.01, 1.01, Number.NaN], allowed: [0, 0.5, 1] }
 const anyWhole: Case = { refused: [0.5, Number.NaN, '3'], allowed: [-7, 0, 7] };
 const anyFinite: Case = { refused: [Number.NaN, Number.POSITIVE_INFINITY, '1'], allowed: [-1.5, 0, 2.5] };
 
+/** A `<name>Max` row's own kind edges (not whole, not a number); its relation to its Min is held by 'a Min and its Max'. */
+const maxOf = (min: keyof GameConfig, max: keyof GameConfig): Case => ({
+  refused: [(defaultConfig[max] as number) + 0.5, Number.NaN],
+  allowed: [defaultConfig[min] as number, defaultConfig[max] as number],
+});
+
 const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   // Whole Days, so that a Day never straddles two Years (DL-206 item 8, DL-210).
   turnsPerYear: { refused: [0, 1, 2, 4, 20, 1081, -3, 1080.5, Number.POSITIVE_INFINITY], allowed: [3, 6, 21, 1080] },
@@ -92,15 +80,15 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   // A Guild starts with no debt (DL-206 item 8, DL-210).
   startingWealth: wholeFrom(0),
   rivalCount: wholeFrom(0),
-  rivalRosterMin: { refused: [-1, 0.5], allowed: [0, 4] },
-  rivalRosterMax: { refused: [3, 4.5], allowed: [4, 9] },
+  rivalRosterMin: { refused: [-1, 0.5], allowed: [0, defaultConfig.rivalRosterMax] },
+  rivalRosterMax: maxOf('rivalRosterMin', 'rivalRosterMax'),
   rivalHireReserveUpkeeps: finiteFrom(0),
-  rivalStartingWealthMin: { refused: [-1, 1.5, Number.NaN], allowed: [0, 700] },
-  rivalStartingWealthMax: { refused: [299, 300.5], allowed: [300, 701] },
+  rivalStartingWealthMin: { refused: [-1, 1.5, Number.NaN], allowed: [0, defaultConfig.rivalStartingWealthMax] },
+  rivalStartingWealthMax: maxOf('rivalStartingWealthMin', 'rivalStartingWealthMax'),
   patronCount: wholeFrom(1),
   unattachedPoolSize: wholeFrom(0),
-  heroStartingAgeMin: { refused: [-1, 18.5], allowed: [0, 36] },
-  heroStartingAgeMax: { refused: [17, 20.5], allowed: [18, 60] },
+  heroStartingAgeMin: { refused: [-1, 18.5], allowed: [0, defaultConfig.heroStartingAgeMax] },
+  heroStartingAgeMax: maxOf('heroStartingAgeMin', 'heroStartingAgeMax'),
   heroSexWeights: {
     refused: [
       { female: 0, male: 0 },
@@ -113,19 +101,19 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
     ],
     allowed: [{ female: 1, male: 1 }, { female: 0, male: 3 }, { female: 0.25, male: 0 }],
   },
-  statBaseMin: { refused: [-1, 2.5], allowed: [0, 10] },
-  statBaseMax: { refused: [2, 10.5], allowed: [3, 12] },
-  statBiasMin: { refused: [-1, 1.5], allowed: [0, 4] },
-  statBiasMax: { refused: [1, 4.5], allowed: [2, 6] },
-  potentialGapMin: { refused: [-1, 2.5], allowed: [0, 12] },
-  potentialGapMax: { refused: [2, 12.5], allowed: [3, 20] },
-  startingSkillsMin: { refused: [-1, 0.5], allowed: [0, 2] },
-  startingSkillsMax: { refused: [0, 2.5], allowed: [1, 3] },
+  statBaseMin: { refused: [-1, 2.5], allowed: [0, defaultConfig.statBaseMax] },
+  statBaseMax: maxOf('statBaseMin', 'statBaseMax'),
+  statBiasMin: { refused: [-1, 1.5], allowed: [0, defaultConfig.statBiasMax] },
+  statBiasMax: maxOf('statBiasMin', 'statBiasMax'),
+  potentialGapMin: { refused: [-1, 2.5], allowed: [0, defaultConfig.potentialGapMax] },
+  potentialGapMax: maxOf('potentialGapMin', 'potentialGapMax'),
+  startingSkillsMin: { refused: [-1, 0.5], allowed: [0, defaultConfig.startingSkillsMax] },
+  startingSkillsMax: maxOf('startingSkillsMin', 'startingSkillsMax'),
   // A Skill rating, 1 to 5 (`SkillRating`): the Hero generator draws a starting rating up to it (DL-205's verification).
   startingSkillRatingMax: { refused: [0, 1.5, 6, Number.POSITIVE_INFINITY], allowed: [1, 5] },
   moraleBaseline: { refused: [-0.5, 100.5, Number.NaN], allowed: [0, 60.5, 100] },
-  guildmasterStartingAgeMin: { refused: [-1, 21.5], allowed: [0, 50] },
-  guildmasterStartingAgeMax: { refused: [20, 50.5], allowed: [21, 60] },
+  guildmasterStartingAgeMin: { refused: [-1, 21.5], allowed: [0, defaultConfig.guildmasterStartingAgeMax] },
+  guildmasterStartingAgeMax: maxOf('guildmasterStartingAgeMin', 'guildmasterStartingAgeMax'),
   // A Guildmaster's own sex weights (DL-206 item 1, DL-208), held as a Hero's are.
   guildmasterSexWeights: {
     refused: [
@@ -141,11 +129,11 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
     ],
     allowed: [{ female: 1, male: 1 }, { female: 3, male: 0 }, { female: 0, male: 0.5 }],
   },
-  guildmasterStatMin: { refused: [-1, 5.5], allowed: [0, 15] },
-  guildmasterStatMax: { refused: [4, 15.5], allowed: [5, 20] },
+  guildmasterStatMin: { refused: [-1, 5.5], allowed: [0, defaultConfig.guildmasterStatMax] },
+  guildmasterStatMax: maxOf('guildmasterStatMin', 'guildmasterStatMax'),
   guildmasterStatPoints: wholeFrom(0),
-  guildmasterTraitsMin: { refused: [-1, 0.5], allowed: [0, 2] },
-  guildmasterTraitsMax: { refused: [-1, 2.5], allowed: [0, 3] },
+  guildmasterTraitsMin: { refused: [-1, 0.5], allowed: [0, defaultConfig.guildmasterTraitsMax] },
+  guildmasterTraitsMax: maxOf('guildmasterTraitsMin', 'guildmasterTraitsMax'),
   guildmasterTraitBudget: anyFinite,
   upkeepEveryDays: wholeFrom(1),
   wagePerLevel: wholeFrom(0),
@@ -160,8 +148,8 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   fameRequiredPerLevel: finiteFrom(0),
   boardSize: wholeFrom(0),
   questOfferDays: wholeFrom(1),
-  questDifficultyMin: { refused: [0, 10.5], allowed: [1, 100] },
-  questDifficultyMax: { refused: [9, 100.5], allowed: [10, 120] },
+  questDifficultyMin: { refused: [0, 10.5], allowed: [1, defaultConfig.questDifficultyMax] },
+  questDifficultyMax: maxOf('questDifficultyMin', 'questDifficultyMax'),
   encounterTagWeight: { refused: [0.99, 0, -3, Number.NaN, Number.POSITIVE_INFINITY], allowed: [1, 3.5] },
   checkVariance: share,
   skillBonusPerRating: finiteFrom(0),
@@ -210,7 +198,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   },
   playerPartyMargin: { refused: [-0.05, 1.5, Number.NaN], allowed: [0, 0.5, 1] },
   moraleMin: { refused: [-0.5, 0.5, Number.NaN, '0'], allowed: [-7, 0] },
-  moraleMax: { refused: [-1, 100.5, Number.NaN], allowed: [100, 120] },
+  moraleMax: { refused: [100.5, Number.NaN], allowed: [100, 120] },
   moraleDrift: finiteFrom(0),
   moraleBands: {
     refused: [
@@ -289,8 +277,8 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   lootOnBands: { refused: [['strong', 'strong'], ['great'], 'strong'], allowed: [[], ['fail', 'success', 'strong']] },
   lootOnFinaleDegrees: { refused: [['triumph', 'triumph'], ['strong'], ['unmet'], 'triumph'], allowed: [[], ['success', 'triumph'], ['failure', 'setback', 'success', 'triumph']] },
   marketSize: wholeFrom(0),
-  marketStackMin: { refused: [0, 1.5], allowed: [1, 5] },
-  marketStackMax: { refused: [0, 5.5], allowed: [1, 6] },
+  marketStackMin: { refused: [0, 1.5], allowed: [1, defaultConfig.marketStackMax] },
+  marketStackMax: maxOf('marketStackMin', 'marketStackMax'),
   sellRatio: { refused: [-0.01, 1, Number.NaN], allowed: [0, 0.99] },
   lootOnlyPrice: wholeFrom(0),
 };
@@ -330,8 +318,11 @@ describe('a Min and its Max', () => {
   });
 
   test("the Max's words name the Min and its value", () => {
-    expect(checkConfig({ ...defaultConfig, rivalRosterMax: 3 })).toEqual([
-      { setting: 'rivalRosterMax', message: 'rivalRosterMax is 3; it is a whole number, at least rivalRosterMin (4)' },
+    expect(checkConfig({ ...defaultConfig, rivalRosterMax: defaultConfig.rivalRosterMin - 1 })).toEqual([
+      {
+        setting: 'rivalRosterMax',
+        message: `rivalRosterMax is ${defaultConfig.rivalRosterMin - 1}; it is a whole number, at least rivalRosterMin (${defaultConfig.rivalRosterMin})`,
+      },
     ]);
   });
 
@@ -354,7 +345,7 @@ describe('a Min and its Max', () => {
     expect(checkConfig({ ...defaultConfig, rivalStartingWealthMax: 5_000_000_000 })).toEqual([
       {
         setting: 'rivalStartingWealthMax',
-        message: 'rivalStartingWealthMax is 5000000000; it is a whole number from rivalStartingWealthMin (300) to 4294967295 above it, the most a draw spans',
+        message: `rivalStartingWealthMax is 5000000000; it is a whole number from rivalStartingWealthMin (${defaultConfig.rivalStartingWealthMin}) to 4294967295 above it, the most a draw spans`,
       },
     ]);
   });
@@ -362,20 +353,21 @@ describe('a Min and its Max', () => {
 
 describe('the bands, in their order', () => {
   test('the Morale bands, and the baseline, lie within moraleMin and moraleMax', () => {
-    expect(broken({ moraleMin: 10 })).toEqual(['moraleBands']);
-    expect(broken({ moraleMax: 80 })).toEqual(['moraleBands']);
-    expect(broken({ moraleMin: 61 })).toEqual(['moraleBaseline', 'moraleBands']);
+    expect(broken({ moraleMin: defaultConfig.moraleBands.wretched + 1 })).toEqual(['moraleBands']);
+    expect(broken({ moraleMax: defaultConfig.moraleBands.elated - 1 })).toEqual(['moraleBands']);
+    expect(broken({ moraleMin: defaultConfig.moraleBaseline + 1 })).toEqual(['moraleBaseline', 'moraleBands']);
   });
 
   test('the Regard bands lie within regardMin and regardMax', () => {
-    expect(broken({ regardMin: -10 })).toEqual(['regardBands']);
-    expect(broken({ regardMax: 10 })).toEqual(['regardBands']);
+    expect(broken({ regardMin: defaultConfig.regardBands.hostile + 1 })).toEqual(['regardBands']);
+    expect(broken({ regardMax: defaultConfig.regardBands.close - 1 })).toEqual(['regardBands']);
   });
 
   test('the chance bands from unlikely, hopeless being below them', () => {
     expect(chanceBandNames[0]).toBe('hopeless');
-    expect(checkConfig({ ...defaultConfig, chanceBands: { ...defaultConfig.chanceBands, even: 0.7 } })[0]?.message).toBe(
-      'chanceBands is {"unlikely":0.1,"even":0.7,"likely":0.65,"near-certain":0.9}; it holds unlikely < even < likely < near-certain, each a finite number, above 0 and below 1',
+    const bands = { ...defaultConfig.chanceBands, even: defaultConfig.chanceBands.likely };
+    expect(checkConfig({ ...defaultConfig, chanceBands: bands })[0]?.message).toBe(
+      `chanceBands is ${JSON.stringify(bands)}; it holds unlikely < even < likely < near-certain, each a finite number, above 0 and below 1`,
     );
   });
 });

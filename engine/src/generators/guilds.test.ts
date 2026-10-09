@@ -266,12 +266,8 @@ describe("a drawn Guildmaster's Traits on the budget (DL-100 item 3; DL-109 item
   const costOf = (deps: ReturnType<typeof testDeps>, keys: readonly string[]): number =>
     keys.reduce((sum, key) => sum + (deps.content.guildmasterTraits[key]?.cost ?? Number.NaN), 0);
 
-  test('the budget is guildmasterTraitBudget, 1 by default (DL-102, DL-113)', () => {
-    expect(testDeps().config).toMatchObject({ guildmasterTraitBudget: 1, guildmasterTraitsMin: 0, guildmasterTraitsMax: 2 });
-  });
-
   test('every drawn Guildmaster keeps within the budget and holds no excluded pair, and 0, 1 and 2 Traits are all drawn', () => {
-    const deps = testDeps();
+    const deps = testDeps({ guildmasterTraitBudget: 1, guildmasterTraitsMin: 0, guildmasterTraitsMax: 2 });
     const drawn = guildmasters(deps, 400);
     const held = new Set<string>();
 
@@ -307,7 +303,7 @@ describe("a drawn Guildmaster's Traits on the budget (DL-100 item 3; DL-109 item
       'old-soldier spendthrift',
       'spendthrift well-liked',
     ];
-    const pairs = guildmasters(testDeps({ guildmasterTraitsMin: 2, guildmasterTraitsMax: 2 }), 1800).map(({ traits }) => traits.join(' '));
+    const pairs = guildmasters(testDeps({ guildmasterTraitBudget: 1, guildmasterTraitsMin: 2, guildmasterTraitsMax: 2 }), 1800).map(({ traits }) => traits.join(' '));
     const counts = tally(pairs);
 
     expect(Object.keys(counts).sort()).toEqual(legalPairs);
@@ -448,11 +444,11 @@ describe('dealtDisposition (DL-56)', () => {
 // DL-113 item 4: a replacement Rival's Guildmaster and a successor are drawn 21 to 50, as a
 // founder is.
 describe("the drawn Guildmasters' ages, 21 to 50", () => {
-  test("replacements' and successors' span 21 to 50 over a thousand draws each", () => {
+  test("replacements' and successors' span 21 to 50 over 320 draws each", () => {
     const deps = testDeps();
     const replacements = new Set<number>();
     const successors = new Set<number>();
-    for (let round = 0; round < 125; round += 1) {
+    for (let round = 0; round < 40; round += 1) {
       const world = testWorld(`drawn-ages-${round}`, deps);
       for (let i = 0; i < 8; i += 1) {
         const { guild } = generateRival(world, deps, { controller: rival });

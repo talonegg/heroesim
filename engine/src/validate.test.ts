@@ -700,10 +700,6 @@ describe('the History indexes agree with the entries', () => {
 });
 
 describe('rule 8: a removed Hero named by a non-passive entry', () => {
-  test('the passive entry types are a named list', () => {
-    expect(passiveEntryTypes).toEqual(['hero.generated', 'hero.left-pool']);
-  });
-
   test('a dead Hero removed while hero.died names them is refused', () => {
     expect(refusals((d) => delete d.world.heroes[ids.deadHero])).toEqual([
       failure('removed-hero-in-history', ids.deadHero),

@@ -6,22 +6,23 @@ import { bestParties } from '../best-party.js';
 import { availableHeroes, staffableQuests } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, Party, Quest, WorldDocument } from '../document.js';
-import type { EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
+import type { TurnEvent } from '../events.js';
 import { streamOf } from '../generators/draw.js';
 import { createItem, holdings } from '../items.js';
 import { phases } from '../pipeline.js';
 import { next } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { nightOf } from '../time.js';
-import { plannedStreams, testContent, testDeps, testWorld, withEncounters, withValid } from '../world.test-support.js';
+import { ofType, plannedStreams, playWith, setup, testContent, testDeps, testWorld, withEncounters, withValid } from '../world.test-support.js';
 import { drawLoot } from './loot.js';
 import { applyAction } from '../actions/action.js';
+
+/** Advances to a Turn, validating every document. */
+const playTo = playWith(advance);
 
 // Loot (DL-52). `drawLoot` is tested on its own for the bands, the draws and uniqueness; the
 // night's `questsConclude` for the award, played through `advance` from created worlds whose Party is
 // sent on a Quest given the table the test needs; and a month of play for the harness's counter.
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -67,9 +68,6 @@ function lootDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = tes
     content,
   );
 }
-
-const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
-  events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 // ── drawLoot ─────────────────────────────────────────────────────────────────────────────────
 
@@ -216,18 +214,6 @@ function sent(seed: string, deps: EngineDeps, lootTableKey: string | null, { riv
   quest.lootTableKey = lootTableKey;
   const party = result.document.world.parties[quest.partyIds[0] as Party['id']] as Party;
   return { document: withValid(result.document, deps), party: structuredClone(party), quest: structuredClone(quest), guildId: guild.id };
-}
-
-/** Advances to Turn `turn`, validating every document, and returns the events of the Turns played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
-  let current = document;
-  const events: TurnEvent[] = [];
-  while (current.world.turn < turn) {
-    const result = advance(current, deps);
-    current = withValid(result.document, deps);
-    events.push(...result.events);
-  }
-  return { document: current, events };
 }
 
 /** Plays `sent`'s Party home and returns the document and the events of its return night. */
@@ -394,14 +380,13 @@ function season(seed: string, regime: Regime, days: number, deps: EngineDeps): {
 }
 
 describe("the harness's Loot counter", () => {
-  // The harness counts Loot from M5's close (the counter task); until then this plays the rule the
-  // counter will read, over eight seeds and two regimes of the player's own choosing, a season of 90
-  // Days each. Measured when written: a mean difficulty of 24 to 27 and 20 Loot in all for the
-  // easiest, 46 to 75 and 46 Loot for the hardest.
+  // The harness counts Loot (harness/src/counters.ts); this plays the rule it reads, over three seeds
+  // and two regimes of the player's own choosing, 45 Days each: the hardest regime takes a higher mean
+  // difficulty and more Loot in every seed, far beyond seed noise.
   test("rises with the player's mean Quest difficulty, over several seeds", { timeout: 60_000 }, () => {
     const deps = lootDeps({ startingWealth: 5000 });
-    const seeds = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((letter) => `counter-${letter}`);
-    const played = (regime: Regime) => seeds.map((seed) => season(seed, regime, 90, deps));
+    const seeds = ['a', 'b', 'c'].map((letter) => `counter-${letter}`);
+    const played = (regime: Regime) => seeds.map((seed) => season(seed, regime, 45, deps));
     const easiest = played('easiest');
     const hardest = played('hardest');
     const sum = (seasons: { loot: number }[]) => seasons.reduce((total, it) => total + it.loot, 0);

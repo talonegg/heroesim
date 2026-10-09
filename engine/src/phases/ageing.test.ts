@@ -4,14 +4,17 @@ import type { EngineDeps, GameConfig } from '../config.js';
 import type { ContentSet, StatArea } from '../content-types.js';
 import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type HeroId, type History, type World, type WorldDocument } from '../document.js';
-import type { EngineEvent, EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
+import type { EngineEvent, EngineEventOf, TurnEvent } from '../events.js';
 import { append, createHistory } from '../history.js';
 import { createStreams, next } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { nightOf } from '../time.js';
-import { buildDocument, heroStatKeys, plannedStreams, testContent, testDeps, withValid } from '../world.test-support.js';
+import { buildDocument, heroStatKeys, ofType, plannedStreams, playWith, setup, testContent, testDeps } from '../world.test-support.js';
 import { ageing } from './ageing.js';
 import { phaseContext } from './phase.js';
+
+/** Advances to a Turn, validating every document. */
+const playTo = playWith(advance);
 
 // The yearly ageing decline (INPUTS 5.5, DL-37). A test of the rule over many nights runs the
 // phase alone on a world whose Turn it moves from night to night; the tests of what it does beside
@@ -27,8 +30,6 @@ const rules = {
   declineAreas: ['physical'],
 } satisfies Partial<GameConfig>;
 
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
-
 function created(seed: string, deps: EngineDeps): WorldDocument {
   return createWorld(seed, setup, deps).document;
 }
@@ -38,21 +39,6 @@ function night(world: World, day: number, deps: EngineDeps, history?: History): 
   world.turn = nightOf(day);
   return ageing(world, phaseContext(world, deps, history));
 }
-
-/** Advances to Turn `turn`, validating every document, and returns the events of the Turns played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
-  let current = document;
-  const events: TurnEvent[] = [];
-  while (current.world.turn < turn) {
-    const result = advance(current, deps);
-    current = withValid(result.document, deps);
-    events.push(...result.events);
-  }
-  return { document: current, events };
-}
-
-const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
-  events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 const hero = (world: World, id: HeroId): Hero => world.heroes[id] as Hero;
 const rosterOf = (world: World): HeroId[] => (playerGuild(world) as Guild).rosterIds;
@@ -367,12 +353,5 @@ describe('what it covers and draws', () => {
 
     expect(asListed.length).toBeGreaterThan(100);
     expect(declines(reversed)).toEqual(asListed);
-  });
-
-  test('defaults to INPUTS 5.5: from 40, one point a year, from the Physical Stats', () => {
-    const { config } = testDeps();
-
-    expect([config.declineAge, config.declinePerYear, config.declineAreas]).toEqual([40, 1, ['physical']]);
-    expect(Object.isFrozen(config.declineAreas)).toBe(true);
   });
 });

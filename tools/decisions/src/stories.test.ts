@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { repositoryRoot } from './cli.js';
-import { baselinePath, historyLines, historyPattern, isSource, linesMatching, storyBaseline, storyPattern, storyReport } from './stories.js';
+import { baselinePath, historyLines, historyPattern, isSource, linesMatching, storyBaseline, storyIdsAsData, storyPattern, storyReport } from './stories.js';
 import { scratchRepository } from './test-support.js';
 
-// The ids below are built, so that this file cites none (it is a test, which the rule does not read).
+// The ids below are built, so that this file cites as few as it can; the rule leaves it out (`storyIdsAsData`), its fixtures being data.
 const v = (story: string): string => `v1.1.4-${story}`;
 
 describe('story ids in the source', () => {
@@ -42,9 +42,12 @@ describe('story ids in the source', () => {
     }
   });
 
-  test('reads source, never a test, its support, a spec, a live check or a build', () => {
-    expect(['engine/src/a.ts', 'web/src/a.tsx', 'web/scripts/a.mjs', 'vitest.config.ts'].every(isSource)).toBe(true);
-    expect(['engine/src/a.test.ts', 'web/src/a.test.tsx', 'engine/src/world.test-support.ts', 'web/src/test-setup.ts', 'web/e2e/a.spec.ts', 'web/e2e/a.live.ts', 'engine/dist/a.js'].some(isSource)).toBe(false);
+  test('reads source, tests, their support, specs and live checks alike, never a build or a file whose story ids are data', () => {
+    const read = ['engine/src/a.ts', 'web/src/a.tsx', 'web/scripts/a.mjs', 'vitest.config.ts', 'engine/src/a.test.ts', 'web/src/a.test.tsx'];
+    const supports = ['engine/src/world.test-support.ts', 'web/src/test-setup.ts', 'web/e2e/a.spec.ts', 'web/e2e/a.live.ts'];
+    expect([...read, ...supports].every(isSource)).toBe(true);
+    expect(['engine/dist/a.js', ...storyIdsAsData].some(isSource)).toBe(false);
+    expect([...storyIdsAsData].sort()).toEqual(['harness/src/report.test.ts', 'harness/src/sweep.test.ts', 'tools/decisions/src/stories.test.ts']);
   });
 
   test("this repository's source tells no history by a story, and cites stories on as many lines as its baseline", () => {

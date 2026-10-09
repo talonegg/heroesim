@@ -11,7 +11,7 @@ import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild, signingFee, transferFee, unattachedHeroes, upkeep } from '../selectors.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { applyTransferOut } from '../actions/transfer.js';
-import { deepFreeze, harmlessContent, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
+import { deepFreeze, harmlessContent, setup, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
 import { applyGuildAction, type GuildAction } from '../actions/action.js';
 import { bestParties } from '../best-party.js';
 import { availableHeroes, rivalChoices, staffableQuests } from './rival.js';
@@ -42,8 +42,6 @@ vi.mock('../quest-engine/estimate.js', async (importOriginal) => {
 // draws they take from `rivals`; one rule reading each Disposition's weights (INPUTS 7.5,
 // DL-56). `steady` keeps DL-30's choices, so its tests stand as they were. The phase that applies
 // them is phases/rival-controllers.test.ts.
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 interface Scene {
   world: World;
@@ -95,6 +93,21 @@ function openBoard(world: World, difficulties: number[], [min, max]: [number, nu
     quest.requirements = { partySizeMin: min, partySizeMax: max };
   });
   return quests;
+}
+
+/**
+ * Freezes everything in `world` but the one stream a Rival may draw from, and returns the world as it
+ * must stand after one draw from that stream: a Rival's dispatch takes it, and nothing else changes.
+ */
+function frozenButRivals(world: World): World {
+  const before = structuredClone(world);
+  for (const [key, value] of Object.entries(world)) if (key !== 'rng') deepFreeze(value);
+  for (const [name, state] of Object.entries(world.rng)) if (name !== 'rivals') deepFreeze(state);
+  Object.freeze(world.rng);
+  Object.freeze(world);
+  const drawn = structuredClone(before.rng.rivals);
+  next(drawn);
+  return { ...before, rng: { ...before.rng, rivals: drawn } };
 }
 
 /** The only dispatch among `guild`'s choices, or `undefined`. */
@@ -238,10 +251,13 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
   test('each Disposition, at each margin set in its row, sends the Party the greedy rule names', () => {
     const sizes = new Map<number, number[]>();
     for (const disposition of ['ambitious', 'miserly', 'reckless', 'steady']) {
+      // One world a Disposition: a margin draws nothing at creation, so only the deps read differ.
+      const made = scene(`greedy-${disposition}`, testDeps(), disposition);
+      openBoard(made.world, [70, 75, 80, 85, 90, 95], [1, 4]);
       for (const partyMargin of margins) {
-        const { world, rival, deps } = scene(`greedy-${disposition}`, testDeps({}, withDispositions({ partyMargin })), disposition);
-        openBoard(world, [70, 75, 80, 85, 90, 95], [1, 4]);
-        expect(rowOf(rival, deps).partyMargin).toBe(partyMargin);
+        const deps = testDeps({}, withDispositions({ partyMargin }));
+        const world = structuredClone(made.world);
+        const rival = world.guilds[made.rival.id] as Guild;
 
         const action = dispatchOf(world, rival, deps);
         const quest = world.quests[action?.questId as QuestId] as Quest;
@@ -441,31 +457,6 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
     expect(dispatchOf(world, rival, deps)).toBeUndefined();
   });
 
-  // DL-157: the Board shows the best Party's chance without estimating it again.
-  test("the Best Party comes with the estimate it was chosen by, which is estimateQuest's for it", () => {
-    for (const partyMargin of [0, 0.05, 1]) {
-      const { world, rival, deps } = scene('greedy-best', testDeps({}, withDispositions({ partyMargin })));
-      const quests = openBoard(world, [40, 60, 80, 90, 95, 99], [1, 4]);
-      quests[1]!.requirements = { partySizeMin: 9, partySizeMax: 9 };
-      const available = availableHeroes(world, rival);
-      for (const quest of quests) {
-        const best = bestParties(world, rival, deps).party(quest, available);
-        expect(best?.heroIds ?? null, quest.id).toEqual(greedyParty(world, quest, available, deps, partyMargin));
-        if (best === null) continue;
-        expect(best.estimate).toEqual(estimateQuest(world, quest, best.heroIds.map((id) => heroOf(world, id)), deps));
-      }
-    }
-  });
-
-  test('draws nothing and changes nothing: the world after the Best Party is asked is the world before', () => {
-    const { world, rival, deps } = scene('greedy-pure', testDeps({}, withDispositions({ partyMargin: 0 })));
-    const [quest] = openBoard(world, [80, 90, 90, 90, 90, 90], [1, 4]) as [Quest];
-    const before = structuredClone(world);
-
-    bestParties(world, rival, deps).party(quest, availableHeroes(world, rival));
-
-    expect(world).toEqual(before);
-  });
 });
 
 // The `party-size` rejection is folded into `requirement-unmet` (DL-43 item 1): the staffing
@@ -473,7 +464,7 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
 describe('staffing agrees with dispatch', () => {
   test('every Best Party meets unmetRequirements, size, Class and Skill alike', () => {
     let named = 0;
-    for (const seed of ['agree-a', 'agree-b', 'agree-c']) {
+    for (const seed of ['agree-a']) {
       const { world, rival, deps } = scene(seed, testDeps({ rivalRosterMin: 6, rivalRosterMax: 8 }));
       const available = availableHeroes(world, rival);
       const shapes = [
@@ -541,7 +532,6 @@ describe('steady: recruiting', () => {
   test("recruits the cheapest Unattached Hero only while Wealth exceeds its row's recruitThreshold of Upkeeps", () => {
     const { world, rival } = scene('threshold', deps);
     const threshold = rowOf(rival, deps).recruitThreshold * upkeep(rival, world, deps.config, deps.content);
-    expect(rowOf(rival, deps).recruitThreshold).toBe(10);
     expect(threshold).toBeGreaterThan(0);
 
     rival.wealth = threshold;
@@ -549,19 +539,6 @@ describe('steady: recruiting', () => {
 
     rival.wealth = threshold + 1;
     expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: cheapest(world).id }]);
-  });
-
-  test("reads the threshold from steady's row: sixty Upkeeps, M3's balance pass's value (DL-41, DL-56)", () => {
-    // INPUTS 4.12 says three; DL-35 raised the config's default to ten and DL-41 to sixty, which
-    // the row carries now that the config field is gone.
-    expect(testContent.dispositions['steady']?.recruitThreshold).toBe(60);
-    const { world, rival } = scene('multiple', deps);
-    const wealth = 5 * upkeep(rival, world, deps.config, deps.content);
-    rival.wealth = wealth;
-
-    expect(recruits(world, rival)).toEqual([]);
-    const lower = testDeps(still, withDispositions({ recruitThreshold: 4, ...noBuilding }));
-    expect(rivalChoices(world, rival, lower).filter((action) => action.kind === 'recruit')).toHaveLength(1);
   });
 
   test('breaks a tie of fees by the lower Hero id', () => {
@@ -749,7 +726,6 @@ describe('steady: building', () => {
 
   test("builds the infirmary's next grade, in place of a recruit, only while Wealth exceeds three times its cost", () => {
     const { world, rival } = scene('build-threshold', deps);
-    expect(testContent.dispositions['steady']?.buildThreshold).toBe(3);
 
     rival.wealth = 3 * 200;
     expect(purchases(world, rival)).toEqual([expect.objectContaining({ kind: 'recruit' })]);
@@ -851,17 +827,10 @@ describe('rivalChoices', () => {
   test('changes nothing in the world but the rivals stream, which its dispatch advances by one draw', () => {
     const { world, rival, deps } = scene('pure');
     rival.wealth = 100_000;
-    const before = structuredClone(world);
-    // Everything frozen but the one stream a Rival may draw from.
-    for (const [key, value] of Object.entries(world)) if (key !== 'rng') deepFreeze(value);
-    for (const [name, state] of Object.entries(world.rng)) if (name !== 'rivals') deepFreeze(state);
-    Object.freeze(world.rng);
-    Object.freeze(world);
+    const expected = frozenButRivals(world);
 
     expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['dispatch', 'build']);
-    const drawn = structuredClone(before.rng.rivals);
-    next(drawn);
-    expect(world).toEqual({ ...before, rng: { ...before.rng, rivals: drawn } });
+    expect(world).toEqual(expected);
   });
 });
 
@@ -1157,15 +1126,9 @@ describe('buying gear at the Market', () => {
   test('changes nothing in the world but the rivals stream when it buys, which only its dispatch draws from', () => {
     const deps = buying(3);
     const { world, rival } = outfitting('pure-buy', deps, [['mail-shirt', 5]]);
-    const before = structuredClone(world);
-    for (const [key, value] of Object.entries(world)) if (key !== 'rng') deepFreeze(value);
-    for (const [name, state] of Object.entries(world.rng)) if (name !== 'rivals') deepFreeze(state);
-    Object.freeze(world.rng);
-    Object.freeze(world);
+    const expected = frozenButRivals(world);
 
     expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['dispatch', 'buy']);
-    const drawn = structuredClone(before.rng.rivals);
-    next(drawn);
-    expect(world).toEqual({ ...before, rng: { ...before.rng, rivals: drawn } });
+    expect(world).toEqual(expected);
   });
 });

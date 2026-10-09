@@ -107,7 +107,6 @@ describe('retirementTurn', () => {
   });
 
   test("reads the age and the year from the config it is given, and is exported from the engine's index", () => {
-    expect(retirementTurn({ ageAtEntry: 50, enteredTurn: 0 }, defaultConfig)).toBe(11_882);
     expect(retirementTurn({ ageAtEntry: 50, enteredTurn: 0 }, { turnsPerYear: 30, guildmasterRetirementAge: 65 })).toBe(15 * 30 + 2);
     expect(engine.retirementTurn).toBe(retirementTurn);
   });

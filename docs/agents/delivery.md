@@ -139,6 +139,8 @@ name its path, or use `rg -u`.
      `neutral --expect` where it cannot. The baseline moves as `documentation.md` says. Where play
      could move, run the engine's twenty-year boxes too, alone:
      `npm run harness -- rivals-build-and-buy transfer-generator` (DL-230).
+   - Run the engine's boxes kept apart at full size alone, `npm run harness -- resolve.harness
+     patron-offers.harness` (DL-246).
    - Run the tests of a time limit alone, `npm run harness -- speed` (DL-233).
    - Bring the epic up to date.
 3. **Release** (DL-124), on the owner's word:

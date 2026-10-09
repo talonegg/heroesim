@@ -36,7 +36,7 @@ import {
   type World,
 } from './document.js';
 import type { Emit } from './emit.js';
-import type { EngineEvent, HeroRegardCause } from './events.js';
+import { namingTheQuest, questCauses, type EngineEvent, type HeroRegardCause } from './events.js';
 import { adjustRegard, crossedBand, recoverRegard, regardBand, regardReach, regardValue, type RegardChange } from './regard.js';
 import { turnsPerDay } from './time.js';
 
@@ -153,7 +153,7 @@ export function heroRegardChanged(
     ctx.emit({
       type: 'hero.regard-changed',
       participants: questId === undefined ? [heroId, entityId] : [heroId, entityId, questId],
-      payload: { heroId, entityId, cause, ...(questId === undefined ? {} : { questId }), ...change },
+      payload: { heroId, entityId, ...namingTheQuest(questCauses['hero.regard-changed'], cause, questId), ...change },
     }),
   ];
 }

@@ -48,7 +48,7 @@ describe('emit', () => {
     const founded = emit({
       type: 'guild.founded',
       participants: [ids.rivalGuild],
-      payload: { guildId: ids.rivalGuild, guildmasterId: ids.playerGuildmaster },
+      payload: { guildId: ids.rivalGuild, guildmasterId: ids.playerGuildmaster, wealth: 500 },
     });
     const adopted = emit({ type: 'world.rules-adopted', participants: [], payload: { oldConfigVersion: 1, newConfigVersion: 2 } });
 

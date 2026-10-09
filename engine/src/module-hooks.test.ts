@@ -10,15 +10,13 @@ import { ModuleError, type Module, type ModuleContext, type ModuleResult, type R
 import { phases } from './pipeline.js';
 import { regardValue } from './regard.js';
 import { effectiveStats, offeredQuests, playerGuild, rankings, unattachedHeroes, upkeep } from './selectors.js';
-import { serialise } from './serialise.js';
+import { deserialise, serialise } from './serialise.js';
 import { ageOf, timeOfDay } from './time.js';
-import { testDeps, withValid } from './world.test-support.js';
+import { setup, testDeps, withValid } from './world.test-support.js';
 
 // Phase hooks, effects and stops (ADR-0005 as amended 2026-09-25, data-model §3.4, approach
 // §2, DL-77). What a hook is given, what it may change and how, what it returns, and how it stops
 // fast forward. Each effect's own rules are effects.test.ts's.
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 type Hook = NonNullable<Module['onMorning']>;
 
@@ -34,6 +32,22 @@ function withModules(...modules: Module[]): EngineDeps {
 /** A new world under `deps`, validated. */
 function created(seed: string, deps: EngineDeps): WorldDocument {
   return withValid(createWorld(seed, setup, deps).document, deps);
+}
+
+/** The saved texts of the worlds some cases share, by key: each case loads a copy of its own (ADR-0008). */
+const saved = new Map<string, { text: string; goneId?: HeroId }>();
+
+/** A copy, loaded for `deps`, of the world `make` builds the first time `key` is asked for. */
+function loadedCopy(key: string, make: () => { document: WorldDocument; goneId?: HeroId }, deps: EngineDeps): { document: WorldDocument; goneId?: HeroId } {
+  let kept = saved.get(key);
+  if (kept === undefined) {
+    const made = make();
+    kept = { text: serialise(made.document), ...(made.goneId === undefined ? {} : { goneId: made.goneId }) };
+    saved.set(key, kept);
+  }
+  const result = deserialise(kept.text, deps);
+  if (!result.ok) throw new Error(`Refused: ${JSON.stringify(result)}`);
+  return { document: result.document, ...(kept.goneId === undefined ? {} : { goneId: kept.goneId }) };
 }
 
 /** A Hero on a Roster in `document`. */
@@ -217,7 +231,7 @@ describe('the effects API is the only way a module can change a Hero: the frozen
 
   test.each(writes)('%s fails the Turn too, naming the module', (_what, write) => {
     const deps = withModules(moduleWith('writer', { onAfternoon: (world, _slice, ctx) => (write(world, ctx), { events: [] }) }));
-    const document = created('writes', deps);
+    const { document } = loadedCopy('writes', () => ({ document: created('writes', deps) }), deps);
     const before = serialise(document);
 
     const thrown = thrownBy(() => advance(document, deps));
@@ -233,10 +247,14 @@ describe('the effects API is the only way a module can change a Hero: the frozen
   // row whole; and a write to it, through the view or into what it handed back, still fails the Turn.
   /** A new world under `deps` whose first pool Hero has left the pool, their row kept: written once. */
   const withGone = (deps: EngineDeps): { document: WorldDocument; goneId: HeroId } => {
-    const document = created('gone', deps);
-    const gone = Object.values(document.world.heroes).find((row) => row.unattachedSince !== null) as Hero;
-    Object.assign(gone, { unattachedSince: null, leftPoolOnTurn: 0 });
-    return { document, goneId: gone.id };
+    const id = deps.modules?.[0]?.id ?? '';
+    const { document, goneId } = loadedCopy(`gone-${id}`, () => {
+      const made = created('gone', deps);
+      const gone = Object.values(made.world.heroes).find((row) => row.unattachedSince !== null) as Hero;
+      Object.assign(gone, { unattachedSince: null, leftPoolOnTurn: 0 });
+      return { document: made, goneId: gone.id };
+    }, deps);
+    return { document, goneId: goneId as HeroId };
   };
 
   test('a module reads a write-once row, frozen and shared, through the view as it is', () => {

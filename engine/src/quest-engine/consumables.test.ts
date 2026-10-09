@@ -1,22 +1,18 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import type { EngineDeps, GameConfig } from '../config.js';
 import type { Consequence, ContentSet, Encounter, EncounterKind, InjuryType } from '../content-types.js';
-import { createWorld } from '../create.js';
-import { makeId, type Guild, type Hero, type Party, type Quest, type World } from '../document.js';
+import type { Hero, Party, Quest, World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { addStack } from '../items.js';
 import { next } from '../rng.js';
-import { playerGuild } from '../selectors.js';
-import { demandsCheck, encounterCapability as capability, heroStatKeys, testContent, testDeps, withFactor } from '../world.test-support.js';
+import { demandsCheck, encounterCapability as capability, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { resolveQuest } from './resolve.js';
+import { scene as sharedScene } from './resolve.test-support.js';
 
 // DL-50: the consumables a Party carries, used as the Quest Engine resolves its sequence. A
 // created world's player Guild sends its Roster, every Stat set to 8, on a Quest whose Encounters a
 // test writes into content, carrying the stacks a test gives the Party.
 
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 const pinned: Partial<GameConfig> = {
   rivalCount: 0,
   checkVariance: 0,
@@ -61,8 +57,9 @@ interface Scene {
 }
 
 /**
- * The player's first `size` Heroes, Stats all 8, sent through `keys` on a Quest of difficulty 40,
- * carrying `carried` (definition key and quantity), under the pinned config and `overrides`.
+ * The shared Quest scene (resolve.test-support.ts) of the player's first `size` Heroes on a Quest of
+ * difficulty 40 through `keys`, carrying `carried` (definition key and quantity), under this file's pinned
+ * config and `overrides`, with no Loot: these tests count the reroll's draws.
  */
 function scene(
   seed: string,
@@ -71,24 +68,10 @@ function scene(
   carried: [string, number][],
   { size = 3, overrides = {} }: { size?: number; overrides?: Partial<GameConfig> } = {},
 ): Scene {
+  const shared = sharedScene(seed, content, keys, { size });
   const deps = testDeps({ ...pinned, ...overrides }, content);
-  const { world } = createWorld(seed, setup, deps).document;
-  const guild = playerGuild(world) as Guild;
-  const heroes = guild.rosterIds.slice(0, size).map((id) => world.heroes[id] as Hero);
-  for (const hero of heroes) {
-    hero.stats = Object.fromEntries(heroStatKeys.map((key) => [key, 8]));
-    hero.skills = {};
-  }
-  const offered = world.quests[world.board[0] as Quest['id']] as Quest;
-  const quest: Quest = { ...structuredClone(offered), difficulty: 40, reward: 200, fameEffect: 3, encounterKeys: keys, lootTableKey: null }; // no Loot draws: these tests count the reroll's
-  const party: Party = {
-    id: makeId('parties', 99),
-    questId: quest.id,
-    guildId: guild.id,
-    heroIds: heroes.map((hero) => hero.id),
-    departedOnTurn: 0,
-    returnsOnTurn: 5,
-  };
+  const { world, heroes, quest, party } = shared;
+  quest.lootTableKey = null;
   for (const [definitionKey, quantity] of carried) addStack(world, definitionKey, quantity, { kind: 'party', id: party.id });
   return { world, heroes, quest, party, deps, twin: structuredClone(streamOf(world, 'quests')) };
 }
@@ -325,14 +308,6 @@ describe('what a Party carries', () => {
     function hurt(): Encounter {
       return encounter('hurt-deep-cut', 'combat', false, [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }]);
     }
-  });
-});
-
-// M4's third risk, held for the Party's consumables as for the Check (DL-50 item 3).
-describe('consumables.ts', () => {
-  test('never mentions the Guildmaster', () => {
-    const source = readFileSync(fileURLToPath(new URL('./consumables.ts', import.meta.url)), 'utf8');
-    expect(source.toLowerCase()).not.toContain('guildmaster');
   });
 });
 

@@ -151,18 +151,6 @@ describe('the Guildmaster Regard writers (R9, pre-M0 review B3): one test each',
     guildmasterRegardOnHeroFailure: -0.25,
   });
 
-  test('for a Patron, on a success of one of their Quests: guildmasterRegardOnPatronSuccess', () => {
-    const { world, guild, guildmaster, patron } = scene();
-    regardOnQuestResolved(world, context(world, writers), resolved(guild, patron.id, [], true));
-    expect(regardValue(guildmaster.regard, patron.id)).toBe(2);
-  });
-
-  test('for a Patron, on a failure of one of their Quests: guildmasterRegardOnPatronFailure', () => {
-    const { world, guild, guildmaster, patron } = scene();
-    regardOnQuestResolved(world, context(world, writers), resolved(guild, patron.id, [], false));
-    expect(regardValue(guildmaster.regard, patron.id)).toBe(-3);
-  });
-
   test('for each Hero home on the Roster, on a success: guildmasterRegardOnHeroSuccess', () => {
     const { world, guild, guildmaster, patron, heroes } = scene();
     regardOnQuestResolved(world, context(world, writers), resolved(guild, patron.id, heroes, true));

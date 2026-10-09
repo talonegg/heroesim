@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
-import { defaultConfig, type EngineDeps } from '../config.js';
+import type { EngineDeps } from '../config.js';
 import {
   degrees,
   type Consequence,
@@ -14,89 +14,75 @@ import {
   type SetQuery,
   type TraitConsequence,
 } from '../content-types.js';
-import { createWorld } from '../create.js';
 import { addStack } from '../items.js';
-import { makeId, type Guild, type Hero, type Party, type Quest, type World } from '../document.js';
+import { makeId, type Hero } from '../document.js';
 import { streamOf } from '../generators/draw.js';
 import { chance, int, next } from '../rng.js';
-import { playerGuild } from '../selectors.js';
-import { demandsCheck, encounterCapability as capability, heroStatKeys, testContent, testDeps, withFactor } from '../world.test-support.js';
+import { demandsCheck, encounterCapability as capability, onlyCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { capability as checkCapability } from './check.js';
 import { drawLoot } from './loot.js';
 import { queryParty } from './query.js';
 import { questBand, resolveQuest } from './resolve.js';
-import { synergyBonus } from './synergy.js';
+import { contentWith, encounter, pinned, scene, type Scene } from './resolve.test-support.js';
 import { teamwork } from './teamwork.js';
 
-// A Quest resolved as its sequence of Encounters (DL-42). A created world's player Guild
-// sends its Roster, every Stat set to 8, on a Quest whose Encounters a test writes into content.
+// A Quest resolved as its sequence of Encounters (DL-42), in the scene `resolve.test-support.ts` builds.
 
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
-const pinned = {
-  rivalCount: 0,
-  checkVariance: 0,
-  skillBonusPerRating: 2,
-  bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
-  // DL-148's Degrees and DL-154's form factors, which these scenes' numbers were worked out under;
-  // the balance pass moved the defaults (DL-166).
-  checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
-  strongTriumphShare: 0.5,
-  moraleCheckFactor: { wretched: 0.85, low: 0.93, steady: 1, high: 1.04, elated: 1.08 },
-  hurtCheckFactor: 0.85,
-  xpPerDifficultyPoint: 1,
-  xpBandFactor: { fail: 0.5, success: 1, strong: 1 },
-  infirmaryHealFactor: [1, 1 / 2, 1 / 3],
+const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
+const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
+/** An Injury at a chance of 1, one Hero; `fields` change it. */
+const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1, ...fields });
+/** An Encounter the Party of 8s always fails, with `failure`. */
+const failing = (key: string, failure: Consequence[] = []): Encounter => encounter(key, false, failure);
+/** Sets the Heroes' Classes, in order. */
+const classes =
+  (...keys: string[]) =>
+  (heroes: Hero[]): void => {
+    heroes.forEach((hero, index) => (hero.classKey = keys[index] ?? hero.classKey));
+  };
+/** Sets the Heroes' Strength, in order. */
+const strengths =
+  (...values: number[]) =>
+  (heroes: Hero[]): void => {
+    heroes.forEach((hero, index) => (hero.stats['strength'] = values[index] ?? 8));
+  };
+const trait = (key: string, excludes: string[] = []) => ({ key, name: key, excludes, effects: [] });
+/** The Hero Traits the earned-Trait tests grant: two that exclude each other, and one that does not. */
+const earnableTraits = {
+  ...testContent.heroTraits,
+  'battle-hardened': trait('battle-hardened', ['shaken']),
+  shaken: trait('shaken', ['battle-hardened']),
+  'quick-study': trait('quick-study'),
 };
 
-/** An Encounter keyed `key`: one Stat, `sum`, no Skills, which `pass` or fail any Party of 8s, with `success`/`failure`. */
-function encounter(key: string, pass: boolean, failure: Consequence[] = [], success: Consequence[] = []): Encounter {
-  return {
-    key,
-    name: key,
-    kind: 'combat',
-    checks: [demandsCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000)],
-    consequences: { success, failure },
-  };
-}
-
-/** The test content with `encounters` beside its own. */
-function contentWith(...encounters: Encounter[]): ContentSet {
-  return { ...testContent, encounters: { ...testContent.encounters, ...Object.fromEntries(encounters.map((it) => [it.key, it])) } };
-}
-
-interface Scene {
-  world: World;
-  guild: Guild;
-  heroes: Hero[];
-  quest: Quest;
-  party: Party;
-  deps: EngineDeps;
-}
-
 /**
- * The player's first `size` Heroes, Stats all 8, sent through `keys` on a Quest of `difficulty`. A
- * `size` above the starting Roster's 4 starts the Roster with `size` Heroes.
+ * The draws of one Encounter's Injury and Death worked out by hand, as before harm read the Stats (DL-155):
+ * one for the Check, then `count` times whether the Injury lands, `pick` over the unhurt and the Days, then
+ * whether the Death lands and `pick` over the living. Advances `twin` and adds those injured to `hurt`.
  */
-function scene(seed: string, content: ContentSet, keys: string[], { size = 3, difficulty = 40 } = {}): Scene {
-  const deps = testDeps({ ...pinned, ...(size > 4 ? { startingRosterSize: size } : {}) }, content);
-  const { world } = createWorld(seed, setup, deps).document;
-  const guild = playerGuild(world) as Guild;
-  const heroes = guild.rosterIds.slice(0, size).map((id) => world.heroes[id] as Hero);
-  for (const hero of heroes) {
-    hero.stats = Object.fromEntries(heroStatKeys.map((key) => [key, 8]));
-    hero.skills = {};
+function drawnBefore(
+  twin: Parameters<typeof next>[0],
+  alive: readonly Hero[],
+  hurt: Set<string>,
+  { count, injuryChance, deathChance }: { count: number; injuryChance: number; deathChance: number },
+): { injured: string[]; died: string[] } {
+  const injured: string[] = [];
+  const died: string[] = [];
+  next(twin);
+  for (let time = 0; time < count; time += 1) {
+    const lands = chance(twin, injuryChance);
+    const unhurt = alive.filter((hero) => !hurt.has(hero.id));
+    const who = unhurt[int(twin, 0, Math.max(0, unhurt.length - 1))];
+    int(twin, 6, 12);
+    if (lands && who !== undefined) {
+      hurt.add(who.id);
+      injured.push(who.id);
+    }
   }
-  const offered = world.quests[world.board[0] as Quest['id']] as Quest;
-  const quest: Quest = { ...structuredClone(offered), difficulty, reward: 200, fameEffect: 3, encounterKeys: keys };
-  const party: Party = {
-    id: makeId('parties', 99),
-    questId: quest.id,
-    guildId: guild.id,
-    heroIds: heroes.map((hero) => hero.id),
-    departedOnTurn: 0,
-    returnsOnTurn: 5,
-  };
-  return { world, guild, heroes, quest, party, deps };
+  const lands = chance(twin, deathChance);
+  const dead = alive[int(twin, 0, Math.max(0, alive.length - 1))];
+  if (lands && dead !== undefined) died.push(dead.id);
+  return { injured, died };
 }
 
 describe('questBand', () => {
@@ -359,31 +345,6 @@ describe('resolveQuest', () => {
   });
 });
 
-describe("the Quest Engine's config (DL-42)", () => {
-  test("defaults to ±40% (INPUTS 6.2's ±20% until DL-165) and Skill rating × 2, all strong and a majority success, and the stub's fields are gone", () => {
-    // The Degrees, the share of Triumphs and the form factors as the balance pass set them (DL-166).
-    expect(defaultConfig).toMatchObject({
-      checkVariance: 0.4,
-      skillBonusPerRating: 2,
-      bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
-      checkDegrees: { triumph: 1.35, success: 1, setback: 0.75 },
-      strongTriumphShare: 0.6,
-      moraleCheckFactor: { wretched: 0.93, low: 0.97, steady: 1, high: 1.03, elated: 1.06 },
-      hurtCheckFactor: 0.93,
-      exposureRange: 2,
-      guardRange: 0.5,
-    });
-    for (const field of ['stubBands', 'stubVariance', 'stubSkillBonusPerRating', 'stubInjuryChance', 'stubDeathChance']) {
-      expect(Object.hasOwn(defaultConfig, field), field).toBe(false);
-    }
-    expect(Object.isFrozen(defaultConfig.bandBySuccessShare)).toBe(true);
-    expect(Object.isFrozen(defaultConfig.checkDegrees)).toBe(true);
-    expect(Object.isFrozen(defaultConfig.moraleCheckFactor)).toBe(true);
-  });
-});
-
-// The two seams Synergies and teamwork fill (DL-42): neutral without them, and the Synergy term neutral for
-// content without Synergies (Synergies' own tests are synergy.test.ts).
 // A Query's `["hurt"]` reads the Heroes injured earlier on the same Quest (resolve.ts
 // passes them to `queryParty` for each Encounter).
 describe('a Query on the Quest', () => {
@@ -411,15 +372,6 @@ describe('a Query on the Quest', () => {
     const [unwounded, countedNone] = resolved(0);
     expect(unwounded?.injured).toEqual([]);
     expect(countedNone).toMatchObject({ encounterKey: 'counted', roll: 0, outcome: 'failure' });
-  });
-});
-
-describe("the Check's seams", () => {
-  test('the Synergy bonus is 0 and the teamwork scalar 1, whatever the Party', () => {
-    const { world, heroes, deps } = scene('seams', { ...testContent, synergies: {} }, []);
-    const any = testContent.encounters['ambush-on-the-road'] as Encounter;
-    expect(synergyBonus(queryParty(heroes, world, deps), any, 30, deps)).toBe(0);
-    expect(teamwork(heroes, world, deps)).toBe(1);
   });
 });
 
@@ -757,10 +709,6 @@ describe('form on the Quest', () => {
 // follows its `among` and `exposedBy`, whether it lands its `guardedBy`, and a Morale loss is each
 // Hero's own by its `steadiedBy`. The draws keep their number and order. A Stat's range is 1 to 20.
 describe('harm that reads the Stats', () => {
-  /** An Encounter keyed `key` the Party of 8s always fails, with `failure`. */
-  const failing = (key: string, failure: Consequence[]): Encounter => encounter(key, false, failure);
-  const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1, ...fields });
-  const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
 
   /** The scene through `encounters`, of `size` Heroes, each set by `set` before they set out. */
   function harmed(seed: string, encounters: Encounter[], { size = 3, set = (() => undefined) as (heroes: Hero[]) => void, config = {} as Partial<EngineDeps['config']> } = {}) {
@@ -770,16 +718,9 @@ describe('harm that reads the Stats', () => {
     return { ...s, deps, resolve: () => resolveQuest(s.world, s.quest, s.party, deps) };
   }
 
-  /** Sets the Heroes' Classes, in order. */
-  const classes =
-    (...keys: string[]) =>
-    (heroes: Hero[]): void => {
-      heroes.forEach((hero, index) => (hero.classKey = keys[index] ?? hero.classKey));
-    };
-
   test('with none of the fields, whether it lands and on whom are what chance and pick drew, and the Days follow', () => {
     const harm: Consequence[] = [injury({ chance: 0.5, count: 3 }), { kind: 'death', chance: 0.4 }];
-    for (let seed = 0; seed < 40; seed += 1) {
+    for (let seed = 0; seed < 10; seed += 1) {
       const h = harmed(`plain-${seed}`, [failing('harm', harm), failing('again', harm)]);
       h.quest.lootTableKey = null; // No Loot's draws after the sequence.
       const twin = structuredClone(streamOf(h.world, 'quests'));
@@ -789,26 +730,9 @@ describe('harm that reads the Stats', () => {
       let alive = [...h.heroes];
       const hurt = new Set<string>();
       for (const result of encounters) {
-        const injured: string[] = [];
-        const died: string[] = [];
-        next(twin);
-        for (let time = 0; time < 3; time += 1) {
-          const lands = chance(twin, 0.5);
-          const unhurt = alive.filter((hero) => !hurt.has(hero.id));
-          const who = unhurt[int(twin, 0, Math.max(0, unhurt.length - 1))];
-          int(twin, 6, 12);
-          if (lands && who !== undefined) {
-            hurt.add(who.id);
-            injured.push(who.id);
-          }
-        }
-        const lands = chance(twin, 0.4);
-        const dead = alive[int(twin, 0, Math.max(0, alive.length - 1))];
-        if (lands && dead !== undefined) {
-          died.push(dead.id);
-          alive = alive.filter((hero) => hero.id !== dead.id);
-          hurt.delete(dead.id);
-        }
+        const { injured, died } = drawnBefore(twin, alive, hurt, { count: 3, injuryChance: 0.5, deathChance: 0.4 });
+        alive = alive.filter((hero) => !died.includes(hero.id));
+        for (const id of died) hurt.delete(id);
         expect([result.injured, result.died]).toEqual([injured, died]);
       }
       expect(streamOf(h.world, 'quests')).toEqual(twin);
@@ -826,7 +750,7 @@ describe('harm that reads the Stats', () => {
     const vary = (heroes: Hero[]): void => {
       heroes.forEach((hero, index) => Object.assign(hero.stats, { constitution: 1 + 9 * index, endurance: 20 - 7 * index, courage: 3 + 8 * index }));
     };
-    for (let seed = 0; seed < 30; seed += 1) {
+    for (let seed = 0; seed < 10; seed += 1) {
       const a = harmed(`neutral-${seed}`, [failing('harm', plain), failing('again', plain)], { set: vary, config: none });
       const b = harmed(`neutral-${seed}`, [failing('harm', reading), failing('again', reading)], { set: vary, config: none });
       expect(b.resolve()).toEqual(a.resolve());
@@ -835,7 +759,7 @@ describe('harm that reads the Stats', () => {
   });
 
   test('among narrows who an Injury falls on, and a count it finds hurt falls on the others', () => {
-    for (let seed = 0; seed < 20; seed += 1) {
+    for (let seed = 0; seed < 5; seed += 1) {
       const h = harmed(`among-${seed}`, [failing('front', [injury({ among: warriors })])], { set: classes('mage', 'warrior', 'mage') });
       expect(h.resolve().encounters[0]?.injured).toEqual([h.heroes[1]?.id]);
     }
@@ -848,7 +772,7 @@ describe('harm that reads the Stats', () => {
   // The epic's second box.
   test('among falls back to the whole unhurt Party when it matches no one, so leaving the Warriors at home dodges nothing', () => {
     const hit = new Set<string>();
-    for (let seed = 0; seed < 40; seed += 1) {
+    for (let seed = 0; seed < 20; seed += 1) {
       const h = harmed(`fallback-${seed}`, [failing('front', [injury({ among: warriors })])], { set: classes('mage', 'rogue', 'mage') });
       const { encounters, outcome } = h.resolve();
       expect(encounters[0]?.injured).toHaveLength(1);
@@ -858,31 +782,12 @@ describe('harm that reads the Stats', () => {
     expect(hit.size).toBe(3);
   });
 
-  test('a Death among the Warriors may fall on a hurt one, since a wound makes no one safer', () => {
-    for (let seed = 0; seed < 20; seed += 1) {
-      const harm: Consequence[] = [injury({ among: warriors }), { kind: 'death', chance: 1, among: warriors }];
-      const h = harmed(`death-among-${seed}`, [failing('front', harm)], { set: classes('mage', 'warrior', 'mage') });
-      const [result] = h.resolve().encounters;
-      expect(result?.injured).toEqual([h.heroes[1]?.id]);
-      expect(result?.died).toEqual([h.heroes[1]?.id]);
-    }
-  });
-
   // DL-168 item 6, E3, DL-178: an Injury's `among` is read over the unhurt living Heroes,
   // then gives the Heroes it names among them; a Death's, over the living Party, as before.
   describe('an Injury on the next-weakest unhurt Hero', () => {
-    const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
-    const strongestThree: SetQuery = ['top', 'party', 3, ['stat', 'strength']];
-    /** Sets the Heroes' Strength, in order. */
-    const strengths =
-      (...values: number[]) =>
-      (heroes: Hero[]): void => {
-        heroes.forEach((hero, index) => (hero.stats['strength'] = values[index] ?? 8));
-      };
-
     // The epic's first box: the weakest hurt by one Encounter, or by the count before, the next falls on the next weakest.
     test('with the weakest hurt, a `bottom` Injury falls on the next weakest unhurt, its three draws a count as before', () => {
-      for (let seed = 0; seed < 20; seed += 1) {
+      for (let seed = 0; seed < 5; seed += 1) {
         // Party order 12, 4, 8: the weakest second, the next weakest third.
         const h = harmed(`next-weakest-${seed}`, [failing('first', [injury({ among: weakest })]), failing('second', [injury({ among: weakest })])], {
           set: strengths(12, 4, 8),
@@ -900,43 +805,10 @@ describe('harm that reads the Stats', () => {
       }
     });
 
-    test('a `top` 3 with one of the three strongest hurt names the three strongest unhurt', () => {
-      const hit = new Set<number>();
-      for (let seed = 0; seed < 40; seed += 1) {
-        // Party order 20, 16, 12, 8, 4; the Warrior, at 16, hurt first. The scene's Roster holds four
-        // Heroes, so a fifth, the fourth's copy under a new id, joins the Party: with four, the three
-        // unhurt would be the whole pool, and a `top` 3 would name them whichever way it ranked
-        // (the S4 verification, DL-178).
-        const h = harmed(`top-three-${seed}`, [failing('front', [injury({ among: warriors })]), failing('top', [injury({ among: strongestThree })])], { size: 4 });
-        const fifth: Hero = { ...structuredClone(h.heroes[3] as Hero), id: makeId('heroes', 999_999) };
-        h.world.heroes[fifth.id] = fifth;
-        h.party.heroIds = [...h.party.heroIds, fifth.id];
-        h.heroes.push(fifth);
-        strengths(20, 16, 12, 8, 4)(h.heroes);
-        classes('mage', 'warrior', 'mage', 'mage', 'mage')(h.heroes);
-        expect(h.party.heroIds).toHaveLength(5);
-        const [front, top] = h.resolve().encounters;
-        expect(front?.injured).toEqual([h.heroes[1]?.id]);
-        expect(top?.injured).toHaveLength(1);
-        hit.add(h.heroes.findIndex((hero) => hero.id === top?.injured[0]));
-      }
-      expect(hit).toEqual(new Set([0, 2, 3]));
-    });
-
-    test("a Death's `among` still reads the living Party: the weakest, hurt, is the one it names", () => {
-      for (let seed = 0; seed < 20; seed += 1) {
-        const harm: Consequence[] = [injury({ among: weakest }), { kind: 'death', chance: 1, among: weakest }];
-        const h = harmed(`death-weakest-${seed}`, [failing('front', harm)], { set: strengths(12, 4, 8) });
-        const [result] = h.resolve().encounters;
-        expect(result?.injured).toEqual([h.heroes[1]?.id]);
-        expect(result?.died).toEqual([h.heroes[1]?.id]);
-      }
-    });
-
     // The epic's fourth box: with the weakest hurt, an Injury and a Death with none of the fields draw
     // as before the change, whether it lands then `pick` over the unhurt (or the living) then the Days.
     test('with the weakest hurt, a consequence with none of the fields draws as a twin before the change', () => {
-      for (let seed = 0; seed < 30; seed += 1) {
+      for (let seed = 0; seed < 10; seed += 1) {
         const plain: Consequence[] = [injury({ chance: 0.5, count: 2 }), { kind: 'death', chance: 0.4 }];
         const h = harmed(`plain-after-${seed}`, [failing('first', [injury({ among: weakest })]), failing('plain', plain)], { set: strengths(12, 4, 8) });
         h.quest.lootTableKey = null;
@@ -947,69 +819,16 @@ describe('harm that reads the Stats', () => {
         for (let draw = 0; draw < 1 + 3; draw += 1) next(twin);
         expect(first?.injured).toEqual([h.heroes[1]?.id]);
         // The second, by hand as before harm read the Stats (DL-155).
-        const alive = [...h.heroes];
         const hurt = new Set<string>([h.heroes[1]?.id as string]);
-        const injured: string[] = [];
-        const died: string[] = [];
-        next(twin);
-        for (let time = 0; time < 2; time += 1) {
-          const lands = chance(twin, 0.5);
-          const unhurt = alive.filter((hero) => !hurt.has(hero.id));
-          const who = unhurt[int(twin, 0, Math.max(0, unhurt.length - 1))];
-          int(twin, 6, 12);
-          if (lands && who !== undefined) {
-            hurt.add(who.id);
-            injured.push(who.id);
-          }
-        }
-        const lands = chance(twin, 0.4);
-        const dead = alive[int(twin, 0, Math.max(0, alive.length - 1))];
-        if (lands && dead !== undefined) died.push(dead.id);
+        const { injured, died } = drawnBefore(twin, h.heroes, hurt, { count: 2, injuryChance: 0.5, deathChance: 0.4 });
         expect([second?.injured, second?.died]).toEqual([injured, died]);
         expect(streamOf(h.world, 'quests')).toEqual(twin);
       }
     });
   });
 
-  // The epic's third box.
-  // 20,000 resolutions for a ratio held to 5%, and 60,000 for three rates held to 1.5 points below: one
-  // to two seconds each alone, past the default 5 s under the whole suite's load (DL-164).
-  test('over 20,000 draws, the Hero at the bottom of exposedBy is hit about three times as often as the one at the top', { timeout: 30_000 }, () => {
-    const h = harmed('exposure', [failing('front', [injury({ exposedBy: ['constitution'] })])], {
-      size: 2,
-      set: (heroes) => heroes.forEach((hero, index) => (hero.stats['constitution'] = index === 0 ? 1 : 20)),
-    });
-    const [low, high] = h.heroes as [Hero, Hero];
-    const hits = new Map<string, number>();
-    for (let draw = 0; draw < 20_000; draw += 1) {
-      const hurt = h.resolve().encounters[0]?.injured[0] ?? 'no one';
-      hits.set(hurt, (hits.get(hurt) ?? 0) + 1);
-    }
-    expect(hits.get('no one')).toBeUndefined();
-    const ratio = (hits.get(low.id) ?? 0) / (hits.get(high.id) ?? 1);
-    expect(ratio).toBeGreaterThan(2.85);
-    expect(ratio).toBeLessThan(3.15);
-  });
-
-  test('over 20,000 draws, guardedBy at the top halves the chance, and at the bottom leaves it', { timeout: 30_000 }, () => {
-    const rate = (constitution: number, kind: 'injury' | 'death'): number => {
-      const harm: Consequence = kind === 'injury' ? injury({ chance: 0.8, guardedBy: ['constitution'] }) : { kind, chance: 0.8, guardedBy: ['constitution'] };
-      const h = harmed(`guard-${constitution}-${kind}`, [failing('front', [harm])], {
-        size: 1,
-        set: (heroes) => heroes.forEach((hero) => (hero.stats['constitution'] = constitution)),
-      });
-      let landed = 0;
-      for (let draw = 0; draw < 20_000; draw += 1) {
-        const [result] = h.resolve().encounters;
-        landed += (result?.injured.length ?? 0) + (result?.died.length ?? 0);
-      }
-      return landed / 20_000;
-    };
-
-    expect(Math.abs(rate(20, 'injury') - 0.4)).toBeLessThan(0.015);
-    expect(Math.abs(rate(1, 'injury') - 0.8)).toBeLessThan(0.015);
-    expect(Math.abs(rate(20, 'death') - 0.4)).toBeLessThan(0.015);
-  });
+  // The epic's third box, its 20,000 draws a test, is resolve.harness.test.ts, run apart by `npm run
+  // harness` (DL-246).
 
   test("steadiedBy makes each Hero's Morale loss their own, a gain as written, and moraleDelta stays the sum as written", () => {
     const steadied: Consequence[] = [
@@ -1120,19 +939,9 @@ describe('harm that reads the Stats', () => {
 // Encounter bonus. The test content's Hero Traits, with three of the tests' own: `battle-hardened`
 // and `shaken`, which exclude each other, and `quick-study`.
 describe('earned Traits', () => {
-  const trait = (key: string, excludes: string[] = []) => ({ key, name: key, excludes, effects: [] });
-  const heroTraits = {
-    ...testContent.heroTraits,
-    'battle-hardened': trait('battle-hardened', ['shaken']),
-    shaken: trait('shaken', ['battle-hardened']),
-    'quick-study': trait('quick-study'),
-  };
   const earned = (traitKey: string, fields: Partial<TraitConsequence> = {}): TraitConsequence => ({ kind: 'trait', traitKey, chance: 1, ...fields });
-  const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1, ...fields });
   /** An Encounter the Party of 8s always meets at a Triumph, with `triumph`. */
   const triumphant = (key: string, triumph: Consequence[] = []): Encounter => ({ ...encounter(key, true), consequences: { success: [], failure: [], triumph } });
-  /** An Encounter the Party of 8s always fails, with `failure`. */
-  const failing = (key: string, failure: Consequence[] = []): Encounter => encounter(key, false, failure);
 
   /** The scene through `encounters`, of `size` Heroes, each set by `set`, with no Loot unless `loot`. */
   function earning(
@@ -1141,7 +950,7 @@ describe('earned Traits', () => {
     {
       size = 3,
       set = (() => undefined) as (heroes: Hero[]) => void,
-      traits = heroTraits as ContentSet['heroTraits'],
+      traits = earnableTraits as ContentSet['heroTraits'],
       loot = false,
       config = {} as Partial<EngineDeps['config']>,
     } = {},
@@ -1231,57 +1040,6 @@ describe('earned Traits', () => {
     expect(traits).toEqual([{ heroId: h.heroes[0]?.id, traitKey: 'one-eyed', encounterIndex: 2, encounterKey: 'ambush' }]);
   });
 
-  test('draws whether it lands, then on whom by pick among those who may take it', () => {
-    for (let seed = 0; seed < 20; seed += 1) {
-      const h = earning(`whom-${seed}`, [triumphant('feat', [earned('quick-study', { chance: 0.5 })]), triumphant('again')]);
-      const twin = structuredClone(streamOf(h.world, 'quests'));
-      const { traits } = h.resolve();
-      next(twin);
-      const lands = chance(twin, 0.5);
-      const who = h.heroes[int(twin, 0, h.heroes.length - 1)] as Hero;
-      expect(traits.map((it) => it.heroId)).toEqual(lands ? [who.id] : []);
-    }
-  });
-
-  test('a negative Trait falls only on a Hero that Encounter injured', () => {
-    for (let seed = 0; seed < 20; seed += 1) {
-      const h = earning(`shaken-${seed}`, [failing('ambush', [injury(), earned('shaken')])]);
-      const { encounters, traits } = h.resolve();
-      expect(traits).toEqual([{ heroId: encounters[0]?.injured[0], traitKey: 'shaken', encounterIndex: 0, encounterKey: 'ambush' }]);
-    }
-    // No one injured by that Encounter, though one is hurt from the one before: it falls on no one.
-    const h = earning('shaken-none', [failing('ambush', [injury()]), failing('rout', [injury({ chance: 0 }), earned('shaken')])]);
-    const { encounters, traits } = h.resolve();
-    expect(encounters[0]?.injured).toHaveLength(1);
-    expect(traits).toEqual([]);
-  });
-
-  test("a negative Trait is granted only at a Failure: at a Setback that reads the failure list it lands on no one, its two draws still taken", () => {
-    // One Check of summed Strength, 24 against a target of 0.7 × 40 = 28: at 0.86 of it, a Setback (0.75 to 1).
-    const setback = (key: string, failure: Consequence[]): Encounter => ({
-      ...encounter(key, false),
-      checks: [demandsCheck(key, key, 'sum', [['strength', 1]], [], 0.7)],
-      consequences: { success: [], failure },
-    });
-    for (let seed = 0; seed < 10; seed += 1) {
-      const without = earning(`setback-${seed}`, [setback('ambush', [injury()])]);
-      const twin = structuredClone(without.world);
-      const plain = without.resolve();
-      const withIt = earning(`setback-${seed}`, [setback('ambush', [injury(), earned('shaken')])]);
-      const { encounters, traits, outcome } = withIt.resolve();
-
-      expect(encounters[0]?.degree).toBe('setback');
-      expect(encounters[0]?.injured).toHaveLength(1);
-      expect(traits).toEqual([]);
-      expect(outcome).toEqual(plain.outcome);
-      // The twin, resolved without it, then two draws on: what the Trait drew though it could not land.
-      resolveQuest(twin, without.quest, without.party, without.deps);
-      next(streamOf(twin, 'quests'));
-      next(streamOf(twin, 'quests'));
-      expect(streamOf(withIt.world, 'quests')).toEqual(streamOf(twin, 'quests'));
-    }
-  });
-
   test('a negative Trait on a Failure is granted on a failed Quest, and a Hero who died on the Quest gains none', () => {
     const hurt: SetQuery = ['where', 'party', ['hurt']];
     const kept = earning('kept', [failing('ambush', [injury(), earned('shaken')])], { size: 1 }).resolve();
@@ -1310,7 +1068,7 @@ describe('earned Traits', () => {
     expect(all.resolve().traits).toEqual([]);
 
     // One that conflicts, either way round: `shaken` excludes `battle-hardened` from its own side only.
-    for (const traits of [heroTraits, { ...heroTraits, 'battle-hardened': trait('battle-hardened') }]) {
+    for (const traits of [earnableTraits, { ...earnableTraits, 'battle-hardened': trait('battle-hardened') }]) {
       const shaken = earning('conflict', [triumphant('feat', [earned('battle-hardened')]), triumphant('again')], {
         traits,
         set: (heroes) => heroes.forEach((hero) => hero.traits.push('shaken')),
@@ -1319,26 +1077,13 @@ describe('earned Traits', () => {
     }
   });
 
-  test('among names who it may fall on, and when it names no one it falls on no one', () => {
-    const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
-    const classes = (...keys: string[]) => (heroes: Hero[]) => heroes.forEach((hero, index) => (hero.classKey = keys[index] ?? hero.classKey));
-    for (let seed = 0; seed < 10; seed += 1) {
-      const h = earning(`among-${seed}`, [triumphant('feat', [earned('quick-study', { among: warriors })]), triumphant('again')], { set: classes('mage', 'warrior', 'rogue') });
-      expect(h.resolve().traits.map((it) => it.heroId)).toEqual([h.heroes[1]?.id]);
-    }
-    const none = earning('among-none', [triumphant('feat', [earned('quick-study', { among: warriors })]), triumphant('again')], { set: classes('mage', 'mage', 'rogue') });
-    expect(none.resolve().traits).toEqual([]);
-  });
-
   // #52's judgement call 6 (DL-182 item 3, v1.1.5's re-close, DL-185): an earned Trait's `among` is read
   // over the Heroes it can fall on, as an Injury's is (DL-178, `narrowed`), not over the whole Party.
   test("a negative Trait's `bottom` among ranks those the Encounter injured, so the weakest Hero, unhurt there, is passed over; its two draws as before", () => {
-    const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
     const strongest: SetQuery = ['top', 'party', 1, ['stat', 'strength']];
     // Party order 12, 4, 8: the weakest second; the Injury falls on the strongest, the first.
-    const strengths = (heroes: Hero[]): void => [12, 4, 8].forEach((value, index) => ((heroes[index] as Hero).stats['strength'] = value));
     for (let seed = 0; seed < 20; seed += 1) {
-      const h = earning(`pool-${seed}`, [failing('ambush', [injury({ among: strongest }), earned('shaken', { among: weakest })])], { set: strengths });
+      const h = earning(`pool-${seed}`, [failing('ambush', [injury({ among: strongest }), earned('shaken', { among: weakest })])], { set: strengths(12, 4, 8) });
       h.quest.lootTableKey = null;
       const twin = structuredClone(streamOf(h.world, 'quests'));
       const { encounters, traits } = h.resolve();
@@ -1348,15 +1093,6 @@ describe('earned Traits', () => {
       // One Check's draw, the Injury's three, then the Trait's two, whether it lands and on whom.
       for (let draw = 0; draw < 1 + 3 + 2; draw += 1) next(twin);
       expect(streamOf(h.world, 'quests')).toEqual(twin);
-    }
-  });
-
-  test("a positive Trait's among still reads the living Party, which is its pool: the weakest named", () => {
-    const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
-    const strengths = (heroes: Hero[]): void => [12, 4, 8].forEach((value, index) => ((heroes[index] as Hero).stats['strength'] = value));
-    for (let seed = 0; seed < 10; seed += 1) {
-      const h = earning(`living-${seed}`, [triumphant('feat', [earned('quick-study', { among: weakest })]), triumphant('again')], { set: strengths });
-      expect(h.resolve().traits.map((it) => it.heroId)).toEqual([h.heroes[1]?.id]);
     }
   });
 });
@@ -1375,16 +1111,16 @@ describe("a Hero Trait's effects in a Check", () => {
     const s = scene('lame', content, ['strength']);
     const party = () => queryParty(s.heroes, s.world, s.deps);
     const check = (s.deps.content.encounters['strength'] as Encounter);
-    const before = checkCapability(party(), check, onlyCheckOf(check), s.world, s.deps);
+    const before = checkCapability(party(), check, onlyCheck(check), s.world, s.deps);
     (s.heroes[0] as Hero).traits.push('lame');
     const form = party().members[0]?.form ?? 1;
-    expect(checkCapability(party(), check, onlyCheckOf(check), s.world, s.deps)).toBeCloseTo(before - 2 * form * teamwork(s.heroes, s.world, s.deps), 10);
+    expect(checkCapability(party(), check, onlyCheck(check), s.world, s.deps)).toBeCloseTo(before - 2 * form * teamwork(s.heroes, s.world, s.deps), 10);
   });
 
   test('an Encounter bonus applies once however many hold it, to an Encounter of its kinds or tags, and never to a raw Check', () => {
     const s = scene('bonus', content, ['strength']);
     const check = s.deps.content.encounters['strength'] as Encounter;
-    const at = (target: Parameters<typeof checkCapability>[1], it = onlyCheckOf(check)) => checkCapability(queryParty(s.heroes, s.world, s.deps), target, it, s.world, s.deps);
+    const at = (target: Parameters<typeof checkCapability>[1], it = onlyCheck(check)) => checkCapability(queryParty(s.heroes, s.world, s.deps), target, it, s.world, s.deps);
     const plain = at(check);
     (s.heroes[0] as Hero).traits.push('veteran');
     expect(at(check)).toBeCloseTo(plain + 5, 10);
@@ -1396,7 +1132,7 @@ describe("a Hero Trait's effects in a Check", () => {
     expect(at({ kind: 'combat', tags: ['crypt', 'undead'] })).toBeCloseTo(plain + 5 + 3, 10);
     expect(at({ kind: 'combat', tags: ['crypt'] })).toBeCloseTo(plain + 5, 10);
     // A raw Check is its score alone (DL-152).
-    const raw: EncounterCheck = { ...onlyCheckOf(check), raw: true };
+    const raw: EncounterCheck = { ...onlyCheck(check), raw: true };
     expect(at(check, raw)).toBe(at({ kind: 'travel' }, raw));
   });
 });
@@ -1413,8 +1149,8 @@ describe('a Finale and Loot', () => {
     const plain = contentWith(easy, encounter('last', true));
     const s = scene(seed, plain, ['easy', 'last']);
     const last = plain.encounters['last'] as Encounter;
-    const aim = checkCapability(queryParty(s.heroes, s.world, s.deps), last, onlyCheckOf(last), s.world, s.deps) / 1.2;
-    const aimed: Encounter = { ...last, checks: [{ ...onlyCheckOf(last), difficultyFactor: 0, flat: aim }] };
+    const aim = checkCapability(queryParty(s.heroes, s.world, s.deps), last, onlyCheck(last), s.world, s.deps) / 1.2;
+    const aimed: Encounter = { ...last, checks: [{ ...onlyCheck(last), difficultyFactor: 0, flat: aim }] };
     const template = s.deps.content.questTemplates[s.quest.templateKey];
     if (template === undefined) throw new Error(`No template ${s.quest.templateKey}`);
     const content: ContentSet = {
@@ -1428,7 +1164,7 @@ describe('a Finale and Loot', () => {
 
   test("Loot is never drawn on a Quest whose Finale did not end a Triumph, and is on one whose Finale did; its two draws taken whatever happens", () => {
     const seen = new Map<string, number>();
-    for (let seed = 0; seed < 120; seed += 1) {
+    for (let seed = 0; seed < 20; seed += 1) {
       const withFinale = finaleScene(`finale-${seed}`, true);
       const without = finaleScene(`finale-${seed}`, false);
       const resolved = resolveQuest(withFinale.world, withFinale.quest, withFinale.party, withFinale.deps);
@@ -1487,17 +1223,8 @@ describe('a Finale and Loot', () => {
 // negative. The fingerprint was recorded against resolve.ts before the move, so it holds the
 // resolutions and the `quests` stream after them to the draw.
 describe('harm and earned Traits across seeds, draw for draw', () => {
-  const trait = (key: string, excludes: string[] = []) => ({ key, name: key, excludes, effects: [] });
-  const heroTraits = {
-    ...testContent.heroTraits,
-    'battle-hardened': trait('battle-hardened', ['shaken']),
-    shaken: trait('shaken', ['battle-hardened']),
-    'quick-study': trait('quick-study'),
-  };
   const earned = (traitKey: string, fields: Partial<TraitConsequence> = {}): TraitConsequence => ({ kind: 'trait', traitKey, chance: 0.6, ...fields });
   const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 0.7, count: 1, ...fields });
-  const weakest: SetQuery = ['bottom', 'party', 1, ['stat', 'strength']];
-  const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
   const hurt: SetQuery = ['where', 'party', ['hurt']];
   /** An Encounter of summed Strength against `factor` × the difficulty, met at any Degree within `checkVariance`. */
   const chancy = (key: string, factor: number, consequences: Encounter['consequences']): Encounter => ({
@@ -1529,7 +1256,7 @@ describe('harm and earned Traits across seeds, draw for draw', () => {
     const resolutions: unknown[] = [];
     const seen = { degrees: new Set<string>(), injuries: 0, deaths: 0, positive: 0, negative: 0 };
     for (let seed = 0; seed < 300; seed += 1) {
-      const s = scene(`pinned-${seed}`, { ...contentWith(...sequence), synergies: {}, heroTraits }, sequence.map((it) => it.key), { size: 4 });
+      const s = scene(`pinned-${seed}`, { ...contentWith(...sequence), synergies: {}, heroTraits: earnableTraits }, sequence.map((it) => it.key), { size: 4 });
       s.heroes.forEach((hero, index) => {
         Object.assign(hero.stats, {
           strength: 4 + ((5 * index + seed) % 9),
@@ -1555,8 +1282,3 @@ describe('harm and earned Traits across seeds, draw for draw', () => {
     expect(createHash('sha256').update(JSON.stringify(resolutions)).digest('hex')).toBe('cc68247a91e2de98f28b80633fc933b27a7c939930998631750085b04f96b726');
   });
 });
-
-/** An Encounter's one Check. */
-function onlyCheckOf(it: Encounter): EncounterCheck {
-  return it.checks[0] as EncounterCheck;
-}

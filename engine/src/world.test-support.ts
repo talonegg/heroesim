@@ -9,6 +9,7 @@
 // content set mirrors its keys. It is not exported from the package (DL-20). The harness checks
 // the engine against the real content.
 
+import type { advance } from './advance.js';
 import { configVersion, defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type {
   AppearancePhrases,
@@ -71,10 +72,12 @@ import {
   type World,
   type WorldDocument,
 } from './document.js';
+import type { EngineEventOf, EngineEventType, TurnEvent } from './events.js';
 import { append } from './history.js';
 import { capability, check, type CheckResult } from './quest-engine/check.js';
 import { queryParty } from './quest-engine/query.js';
 import { createStreams, streamNames } from './rng.js';
+import type { StopReason } from './stops.js';
 import { validate } from './validate.js';
 
 // ── Content ──────────────────────────────────────────────────────────────────────────────────
@@ -936,9 +939,9 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
   world.turn = fixtureTurn;
   const next = <Table extends TableName>(table: Table) => makeId(table, world.counters[table]++);
   const entries: Entry[] = [];
-  const log = (turn: number, type: EventType, participants: EntityId[], milestone = false): void => {
+  const log = (turn: number, type: EventType, participants: EntityId[], milestone = false, payload: object = {}): void => {
     const labels = Object.fromEntries(participants.map((id) => [id, `Name of ${id}`]));
-    entries.push({ turn, type, participants, labels, milestone, payload: {} });
+    entries.push({ turn, type, participants, labels, milestone, payload });
   };
   log(0, 'world.created', []);
 
@@ -1021,7 +1024,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       retiredOnTurn: null,
       regard: {},
     };
-    log(0, 'guild.founded', [id, guildmasterId], true);
+    log(0, 'guild.founded', [id, guildmasterId], true, { guildId: id, guildmasterId, wealth: guild.wealth });
     log(0, 'guildmaster.generated', [guildmasterId, id]);
     for (let r = 0; r < rosterSize; r += 1) guild.rosterIds.push(hero(id).id);
   }
@@ -1244,4 +1247,50 @@ export function withValid<Document extends WorldDocument>(
     throw new Error(`The validator warns about the document:\n${lines.join('\n')}`);
   }
   return document;
+}
+
+// ── Helpers the engine's tests repeat ────────────────────────────────────────────────────────
+
+/** The setup most tests create a world from. */
+export const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
+
+/** The events of `type` among `events`. */
+export const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
+  events.filter((event): event is EngineEventOf<Type> => event.type === type);
+
+/** What a `playWith` function returns: the document, every event of every Turn played and what the last Turn reported. */
+export interface Played {
+  document: WorldDocument;
+  events: TurnEvent[];
+  stoppedBecause: StopReason | null;
+}
+
+/**
+ * A `playTo` over the engine's `step` (`advance`, passed in so that a test file's mocks of the engine's
+ * modules still take effect): it advances a document to Turn `turn`, returning the last document and the
+ * events of every Turn played. `validate` is `'each'` to hold every document to the validator (the default)
+ * or `'last'` for the one it stops at; `stopAtEnd` stops when the game ends.
+ */
+export const playWith =
+  (step: typeof advance, { validate = 'each', stopAtEnd = false }: { validate?: 'each' | 'last'; stopAtEnd?: boolean } = {}) =>
+  (document: WorldDocument, turn: number, deps: EngineDeps): Played => {
+    let current = document;
+    let stoppedBecause: StopReason | null = null;
+    const events: TurnEvent[] = [];
+    while (current.world.turn < turn && !(stopAtEnd && current.world.ended !== null)) {
+      const result = step(current, deps);
+      current = validate === 'each' ? withValid(result.document, deps) : result.document;
+      stoppedBecause = result.stoppedBecause;
+      events.push(...result.events);
+    }
+    return { document: validate === 'each' ? current : withValid(current, deps), events, stoppedBecause };
+  };
+
+/**
+ * The planned streams that stand wrongly between `before` and `after`: one in `moved` that stands still, and
+ * one not in `moved` that moved. A test asserts it is empty (ADR-0009).
+ */
+export function streamsOutOfPlace(before: object, after: object, moved: readonly string[]): string[] {
+  const rng = (world: object): Record<string, unknown> => world as Record<string, unknown>;
+  return plannedStreams.filter((name) => (JSON.stringify(rng(before)[name]) !== JSON.stringify(rng(after)[name])) !== moved.includes(name));
 }

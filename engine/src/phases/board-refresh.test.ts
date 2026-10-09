@@ -3,32 +3,20 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
 import { compareByCodeUnit, type GuildId, type PatronId, type QuestId, type World, type WorldDocument } from '../document.js';
-import type { TurnEvent } from '../events.js';
 import { count, entriesFor } from '../history.js';
 import { generateQuest } from '../generators/quests.js';
 import { patronBoardWeight } from '../regard.js';
 import { createStreams, pick } from '../rng.js';
 import { dayOf, timeOfDay } from '../time.js';
-import { plannedStreams, testContent, testDeps, withValid } from '../world.test-support.js';
+import { plannedStreams, playWith, setup, streamsOutOfPlace, testContent, testDeps, withValid } from '../world.test-support.js';
 import { boardRefresh } from './board-refresh.js';
 import { phaseContext } from './phase.js';
 
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
+/** Advances to a Turn, validating every document. */
+const playTo = playWith(advance);
 
 function created(seed: string, deps: EngineDeps = testDeps()): WorldDocument {
   return withValid(createWorld(seed, setup, deps).document, deps);
-}
-
-/** Plays Turns until `turn`, checking every document, and returns the last and every event. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
-  const events: TurnEvent[] = [];
-  let current = document;
-  while (current.world.turn < turn) {
-    const result = advance(current, deps);
-    current = withValid(result.document, deps);
-    events.push(...result.events);
-  }
-  return { document: current, events };
 }
 
 /**
@@ -48,7 +36,7 @@ describe('boardRefresh', () => {
     let document = created('refill', deps);
     expect(document.world.board).toHaveLength(deps.config.boardSize);
 
-    for (let turn = 1; turn <= 90; turn += 1) {
+    for (let turn = 1; turn <= 30; turn += 1) {
       // Two Quests go each afternoon, as Rivals would take them.
       if (timeOfDay(document.world.turn) === 'afternoon') {
         document = { ...document, world: structuredClone(document.world) };
@@ -130,12 +118,8 @@ describe('boardRefresh', () => {
 
     const morning = playTo(night, 9, deps).document;
 
-    const after = morning.world.rng as Record<string, unknown>;
     expect(count(morning.history, 'quest.expired')).toBe(deps.config.boardSize);
-    for (const name of plannedStreams) {
-      if (name === 'board' || name === 'encounters') expect(after[name], name).not.toEqual(before[name]);
-      else expect(after[name], name).toEqual(before[name]);
-    }
+    expect(streamsOutOfPlace(before, morning.world.rng, ['board', 'encounters'])).toEqual([]);
   });
 
   /** How many Quests each Patron offers over `rounds` refreshes of an emptied Board, run alone. */
@@ -150,21 +134,6 @@ describe('boardRefresh', () => {
     }
     return tally;
   }
-
-  test('weights the Patrons uniformly while every one stands at neutral with every Guild (DL-25)', () => {
-    const deps = testDeps();
-    const { world } = created('uniform', deps);
-    const patrons = Object.keys(world.patrons) as PatronId[];
-    const rounds = 2000;
-
-    const tally = tallyOffers(world, deps, rounds);
-
-    const expected = (rounds * deps.config.boardSize) / patrons.length;
-    expect([...tally.keys()].sort()).toEqual([...patrons].sort());
-    for (const [patronId, drawn] of tally) {
-      expect(Math.abs(drawn - expected) / expected, patronId).toBeLessThan(0.1);
-    }
-  });
 
   test("weights each Patron by their mean Regard across the Guilds in play (R22): twice as often at the scale's top, never at its bottom", () => {
     const deps = testDeps({ regardMin: -20, regardMax: 20, boardRegardWeight: 1 });
@@ -192,24 +161,8 @@ describe('boardRefresh', () => {
     expect(patronBoardWeight(favoured, world, deps.config)).toBeCloseTo(1 + 1 / guildIds.length, 10);
   });
 
-  test('draws uniformly whatever the Regard when boardRegardWeight is 0', () => {
-    const deps = testDeps({ boardRegardWeight: 0 });
-    const { world } = created('unweighted', deps);
-    const [favoured] = Object.values(world.patrons);
-    const patrons = Object.keys(world.patrons);
-    if (favoured === undefined) throw new Error('No Patrons');
-    for (const guildId of Object.keys(world.guilds) as GuildId[]) favoured.regard[guildId] = { value: 20, since: 0, reason: 'test' };
-    const rounds = 2000;
-
-    const tally = tallyOffers(world, deps, rounds);
-
-    const expected = (rounds * deps.config.boardSize) / patrons.length;
-    for (const [patronId, drawn] of tally) expect(Math.abs(drawn - expected) / expected, patronId).toBeLessThan(0.1);
-  });
-
-  test('draws, with every Patron at neutral, the very Board a uniform draw gives: a new world opens on the Board it opened on before Patron Regard weighed the draw (DL-43)', () => {
-    const deps = testDeps();
-    const { world } = created('same-board', deps);
+  /** The Board `boardRefresh` offers `world` emptied, and the Board `pick` over the Patrons gives, with the streams each leaves. */
+  function offeredAndUniform(world: World, deps: EngineDeps) {
     const again = structuredClone(world);
     takeFromBoard(world, world.board.length);
     takeFromBoard(again, again.board.length);
@@ -223,8 +176,30 @@ describe('boardRefresh', () => {
       const patron = pick(state, patrons);
       uniform.push(generateQuest(again, patron, deps).events[0]?.participants[1] ?? '');
     }
+    return { offered, uniform, stream: world.rng.board, uniformStream: again.rng.board };
+  }
+
+  test('draws uniformly whatever the Regard when boardRegardWeight is 0: the very Board a uniform draw gives', () => {
+    const deps = testDeps({ boardRegardWeight: 0 });
+    const { world } = created('unweighted', deps);
+    const [favoured] = Object.values(world.patrons);
+    if (favoured === undefined) throw new Error('No Patrons');
+    for (const guildId of Object.keys(world.guilds) as GuildId[]) favoured.regard[guildId] = { value: 20, since: 0, reason: 'test' };
+
+    const { offered, uniform, stream, uniformStream } = offeredAndUniform(world, deps);
+
     expect(offered).toEqual(uniform);
-    expect(world.rng.board).toEqual(again.rng.board);
+    expect(stream).toEqual(uniformStream);
+  });
+
+  test('draws, with every Patron at neutral, the very Board a uniform draw gives: a new world opens on the Board it opened on before Patron Regard weighed the draw (DL-43)', () => {
+    const deps = testDeps();
+    const { world } = created('same-board', deps);
+
+    const { offered, uniform, stream, uniformStream } = offeredAndUniform(world, deps);
+
+    expect(offered).toEqual(uniform);
+    expect(stream).toEqual(uniformStream);
   });
 
   test('never draws a Patron whose Sphere no template serves, and leaves the Board empty when none is served', () => {
@@ -253,24 +228,5 @@ describe('boardRefresh', () => {
     takeFromBoard(world, world.board.length);
     expect(boardRefresh(world, phaseContext(world, none))).toEqual([]);
     expect(world.board).toEqual([]);
-  });
-
-  test('fills the Board of a save made before the board stream existed, which plays on (DL-25)', () => {
-    const deps = testDeps();
-    // An M1 save: created with an empty Board, and no board stream.
-    const m1 = createWorld('m1-save', setup, testDeps({ boardSize: 0 })).document;
-    Reflect.deleteProperty(m1.world.rng, 'board');
-    const generation = structuredClone(m1.world.rng.generation);
-    withValid(m1, deps);
-
-    const { document: morning, events } = playTo(m1, 3, deps);
-
-    expect(morning.world.board).toHaveLength(deps.config.boardSize);
-    expect(events.filter((event) => event.type === 'quest.offered')).toHaveLength(deps.config.boardSize);
-    expect(morning.world.rng.generation).toEqual(generation);
-    expect(Object.hasOwn(m1.world.rng, 'board')).toBe(false);
-    // Its Board is what a world created with an empty first Board (DL-25) draws on Day 1.
-    const later = createWorld('m1-save', setup, testDeps({ boardSize: 0 })).document;
-    expect(playTo(later, 3, deps).document.world).toEqual(morning.world);
   });
 });

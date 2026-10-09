@@ -3,22 +3,23 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type HeroId, type Quest, type World, type WorldDocument } from '../document.js';
-import type { EngineEvent, EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
+import type { EngineEvent, TurnEvent } from '../events.js';
 import { append, createHistory } from '../history.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { durationDaysOf, nightOf } from '../time.js';
-import { buildDocument, harmlessContent, plannedStreams, testDeps, withValid } from '../world.test-support.js';
+import { buildDocument, harmlessContent, ofType, plannedStreams, playWith, setup, streamsOutOfPlace, testDeps, withValid } from '../world.test-support.js';
 import { heroState, lastAnniversaryNight, retirementChance } from './hero-state.js';
 import { phaseContext } from './phase.js';
 import { applyAction } from '../actions/action.js';
 
+/** Advances to a Turn, validating every document. */
+const playTo = playWith(advance);
+
 // The night's Hero State Engine (DL-29). Documents a test inspects after `advance` are held
 // to the validator; a test of one rule over many nights runs the phase alone on a world whose Turn
 // it moves from night to night.
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -34,26 +35,11 @@ function created(seed: string, deps: EngineDeps): WorldDocument {
   return document;
 }
 
-/** Advances to Turn `turn`, validating every document, and returns the events of the Turns played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
-  let current = document;
-  const events: TurnEvent[] = [];
-  while (current.world.turn < turn) {
-    const result = advance(current, deps);
-    current = withValid(result.document, deps);
-    events.push(...result.events);
-  }
-  return { document: current, events };
-}
-
 /** Runs the phase alone on `world` on the night of Day `day`. */
 function night(world: World, day: number, deps: EngineDeps, document?: WorldDocument): TurnEvent[] {
   world.turn = nightOf(day);
   return heroState(world, phaseContext(world, deps, document?.history));
 }
-
-const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
-  events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 const hero = (world: World, id: HeroId): Hero => world.heroes[id] as Hero;
 const rosterOf = (world: World): HeroId[] => (playerGuild(world) as Guild).rosterIds;
@@ -195,20 +181,19 @@ describe('Morale drift', () => {
     }
   });
 
-  // Two years of Turns, 2,160 advances: 0.8 to 1.7 s alone, 4.5 s in a full `npm test` on a busy
-  // machine, against Vitest's default timeout of 5 s. The timeout bounds a hang, not the speed.
-  test('a year of drift that crosses no band appends nothing; one crossing appends exactly one hero.morale-changed', { timeout: 60_000 }, () => {
-    // Only the Hero State Engine runs, so every entry the year appends is its own.
+  // Morale drifts one a night, so each walk below reaches its band's edge within 20 nights; a month a half.
+  test('a month of drift that crosses no band appends nothing; one crossing appends exactly one hero.morale-changed', () => {
+    // Only the Hero State Engine runs, so every entry the month appends is its own.
     for (const phase of phases) if (phase.name !== 'heroState') vi.spyOn(phase, 'run').mockReturnValue([]);
     // Inspiration still: the baseline is moraleBaseline.
-    const deps = testDeps({ inspirationMoraleShift: 0 });
-    expect(deps.config.moraleBands).toEqual({ wretched: 0, low: 20, steady: 40, high: 75, elated: 90 });
+    const deps = testDeps({ inspirationMoraleShift: 0, moraleBands: { wretched: 0, low: 20, steady: 40, high: 75, elated: 90 } });
+    const month = nightOf(30);
     const start = created('drift-year', deps);
     const [quiet, falling, rising] = rosterOf(start.world) as [HeroId, HeroId, HeroId];
 
     // Steady to steady: 70 drifts to 60 without leaving the band.
     hero(start.world, quiet).morale = 70;
-    const calm = playTo(start, deps.config.turnsPerYear, deps);
+    const calm = playTo(start, month, deps);
     expect(calm.events).toEqual([]);
     expect(hero(calm.document.world, quiet).morale).toBe(60);
 
@@ -216,7 +201,7 @@ describe('Morale drift', () => {
     hero(calm.document.world, falling).morale = 80;
     hero(calm.document.world, rising).morale = 35;
     const from = calm.document.world.turn;
-    const { document, events } = playTo(calm.document, from + deps.config.turnsPerYear, deps);
+    const { document, events } = playTo(calm.document, from + month, deps);
 
     const crossings = ofType(events, 'hero.morale-changed');
     expect(events).toHaveLength(2);
@@ -248,11 +233,10 @@ describe('Retirement', () => {
   });
 
   test('has a chance of heroRetirementChancePerYear for each year past heroRetirementAge, none at or below it, doubled while injured', () => {
-    const { config } = testDeps();
+    const { config } = testDeps({ heroRetirementAge: 45, heroRetirementChancePerYear: 0.02, heroRetirementInjuredMultiplier: 2 });
     const fit = { injury: null };
     const injured = { injury: { typeKey: 'broken-arm', healsOnTurn: 99 } };
 
-    expect([config.heroRetirementAge, config.heroRetirementChancePerYear, config.heroRetirementInjuredMultiplier]).toEqual([45, 0.02, 2]);
     expect([18, 44, 45, 46, 50].map((age) => retirementChance(fit, age, config))).toEqual([0, 0, 0, 0.02, 0.1]);
     expect(retirementChance(injured, 46, config)).toBe(0.04);
     expect(retirementChance(injured, 200, config)).toBe(1);
@@ -432,10 +416,6 @@ describe('which Heroes it covers', () => {
     const events = night(world, 360, deps);
 
     expect(ofType(events, 'hero.healed').length).toBeGreaterThan(0);
-    const after = world.rng as Record<string, unknown>;
-    for (const name of plannedStreams) {
-      if (name === 'heroes') expect(after[name], name).not.toEqual(before[name]);
-      else expect(after[name], name).toEqual(before[name]);
-    }
+    expect(streamsOutOfPlace(before, world.rng, ['heroes'])).toEqual([]);
   });
 });

@@ -11,7 +11,7 @@ import { phaseContext } from '../phases/phase.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
-import { testContent, testDeps } from '../world.test-support.js';
+import { setup, testContent, testDeps } from '../world.test-support.js';
 import { capability } from './check.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { chanceBand, chanceToReach, estimateQuest, partyEstimator, type CheckEstimate, type QuestEstimate } from './estimate.js';
@@ -27,8 +27,6 @@ import { applyAction } from '../actions/action.js';
 // Hero State Engine's nights away (`homeNight`), as `questsConclude` does. The resolver's rate over a few thousand seeds of the `quests` stream is held within 3
 // points of the estimate here; the 200 Parties and Quests over 20,000 seeds each are the harness's
 // estimate probe (`HEROESIM_PROBE=estimate npm run harness`, harness/src/estimate.ts).
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /** A Check keyed `key` reading `score`, its target `multiple` × the Party's capability on it (set by `scene`). */
 interface Drafted {
@@ -233,11 +231,6 @@ describe('chance bands', () => {
       'near-certain',
     ]);
     expect(chanceBandNames).toEqual(['hopeless', 'unlikely', 'even', 'likely', 'near-certain']);
-  });
-
-  // DL-157: the margin of the player's best Party, as a Disposition's `partyMargin` is held.
-  test('playerPartyMargin is 0.05 by default', () => {
-    expect(defaultConfig.playerPartyMargin).toBe(0.05);
   });
 });
 

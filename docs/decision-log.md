@@ -1085,3 +1085,64 @@ Verified 2026-10-10 at 8479270: the ten moves keep every assertion, only the rul
 lone returns of six seeds, and each again with a Death and gear told, rebuilt byte for byte as the
 night's (world, History, events); the Levels-before-gear order and withReturn's two checks were
 unpinned, now tested.
+
+## DL-246 — v1.1.9-S12 built: the engine's tests pruned, on the owner's batch
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, approving the engine's
+batch (`prune-engine.md`) on 2026-10-10 with ten answers; the application by the agents (Sonnet the
+mechanical lines, Opus the rest)
+
+**Context.** DL-231 item 4 prunes each package as one batch the owner approves. The engine's list
+held 136 ids (A–D) with kind, evidence, subsuming test and verdict, and ten questions.
+
+**Decision.**
+
+1. **The ten answers.**
+   1. The dispositions box (C-4): the Deaths ratio (reckless ≥ 1.25 × miserly) removed altogether;
+      the box is 10 seeds in `npm test` with its other checks; no harness file.
+   2. Harm's third box (A-35): both 20,000-draw tests move unchanged to
+      `quest-engine/resolve.harness.test.ts`, run apart by `npm run harness`.
+   3. Patron Regard's box (B-29): 50 seeds in `patron-offers.harness.test.ts`, 10 in `npm test`.
+   4. Probe's year (C-15): a 12-Turn year, its comment saying the length was chosen; no 60 s limit.
+   5. `ensureStreams`' two unit tests stay (A-22); the old-save scenarios through it go (B-38, B-39).
+   6. B-41's test kept, its old-save name rewritten (rule 5); the schema-version refusals stay
+      (D-27). B-42 changed: a founding's `wealth`, and `questId` on an entry of a Quest's cause, are
+      required, in `events.ts` and in the validator (`entry-field-missing`), with no schema raise.
+   7. B-12's pin removed, and `docs/agents/config.md`'s example rewritten to point at the rule.
+   8. Struck: A-3, A-4, A-16, B-23, C-10.
+   9. The reference `effectiveStats` (D-35, D-33) retired.
+   10. Tests count under the story-id ratchet, but three files whose ids are data
+       (`storyIdsAsData`: the pattern's fixtures, the harness report's names and sections).
+2. **The rest as listed.** Removed: 64 tests, each named with its subsuming test in the commit's
+   list. Shrunk: 37. Rewritten: 36 (C-1's six "copy equals in place" tests one table over every
+   Guild action kind; world-copy's walk gathers its mismatches and asserts once, on one game played
+   once, each test loading its save; the helpers `setup`, `ofType`, `playWith` and
+   `streamsOutOfPlace` in `world.test-support.ts`). Moved: 3 tests to two harness files. Struck: 5.
+3. **B-42 in the engine.** `questCauses` names, by type, the causes a Quest's return makes; the type
+   `NamingTheQuest` ties `questId` to them, and `namingTheQuest` builds a writer's fields, throwing on a
+   mismatch (`morale.test.ts` holds
+   it). The validator refuses a founding with no Wealth, or a Quest's cause with no Quest.
+
+*Judgement calls, for the owner to see:*
+- **D-27 kept whole,** the five old-schema refusals, as answer 6 read; Q24's one survivor is then
+  not alone.
+- **B-42's reach.** The namers' and narration's sample events (`web`, `cli`, `words`) gained the
+  Quest and the Wealth the types now require; no sentence moved. The fixture `buildDocument`
+  founds its Guilds with their Wealth.
+- **The exemption is by file,** not by line: a story id added to those three files goes uncounted.
+- **Helpers whose copies differ** (`created`, `night`, `playerOf`, `guildmasterOf`) stay local;
+  `stillRivalControllers` needs `vi`, which support files may not import.
+- **C-20:** `fastForward` appends to the History it is given, so each case plays a clone.
+
+**Consequences.** The engine's `npm test` is about two fifths of its time. Two harness files join
+the close's list (`delivery.md`, the harness README). A save whose founding or Quest-caused entry
+lacks the field is refused as invalid. The story-id baseline falls to 1,618.
+
+**Evidence.** The engine alone (`--project engine`), before at `8479270` and after: 2,401 tests,
+226.0 s tests' time, 19.1 s wall → 2,349 tests, 95.6 s, 7.0 s (another agent's file, run beside the
+before, left out). Coverage, S1 → after: the engine's lines 99.7% → 99.7%, branches 95.9% → 95.8%
+(3,490 of 3,644; the new check's guard of a payload that is no map among the misses), functions and
+statements unchanged; the page's lines 98.0% → 97.9%, from earlier stories' code, as this batch
+removed no page test. `npm test` passes; `neutral --expect` identical, alone; the doctor no drift
+before and after. Planted bugs run: `copyTable`'s ids reversed (world-copy red), buy's quantity + 1
+(the table's buy row red), each restored.

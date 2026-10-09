@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ESLint, type Linter } from 'eslint';
 import { beforeAll, describe, expect, test } from 'vitest';
 
 // The engine's boundary is enforced by ESLint (ADR-0001, ADR-0003, ADR-0007). These tests prove
-// the rules fire: each writes a probe file into a package's src/, lints it with the repository's
-// own eslint.config.js through ESLint's Node API, and deletes it whatever happens.
+// the rules fire: each lints a probe as text under a path in a package's src/ with the repository's
+// own eslint.config.js through ESLint's Node API.
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 let eslint: ESLint;
@@ -16,14 +16,9 @@ beforeAll(() => {
 });
 
 async function lintProbe(pkg: string, code: string, extension = 'ts'): Promise<Linter.LintMessage[]> {
-  const file = `${root}${pkg}/src/boundary-probe-${randomUUID()}.${extension}`;
-  writeFileSync(file, code);
-  try {
-    const [result] = await eslint.lintFiles([file]);
-    return errorsIn(result);
-  } finally {
-    rmSync(file, { force: true });
-  }
+  // Linted as text under a path in the package's src/, so no file is written.
+  const [result] = await eslint.lintText(code, { filePath: `${root}${pkg}/src/boundary-probe.${extension}` });
+  return errorsIn(result);
 }
 
 function errorsIn(result: ESLint.LintResult | undefined): Linter.LintMessage[] {
@@ -245,7 +240,6 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
     ['cli', 'a subpath of the engine', "import x from '@heroesim/engine/src/index.ts';\nexport { x };"],
     ['web', 'a subpath of content', "import x from '@heroesim/content/src/index.ts';\nexport { x };"],
     ['cli', 'a relative path into engine/', "import x from '../../engine/src/index.js';\nexport { x };"],
-    ['web', 'a relative path into content/', "import x from '../../content/src/index.js';\nexport { x };"],
     ['harness', 'a relative path into cli/', "import x from '../../cli/src/index.js';\nexport { x };"],
     ['content', 'a relative path into engine/', "import x from '../../engine/src/index.js';\nexport { x };"],
   ])('%s may not import %s', async (pkg, _what, code) => {

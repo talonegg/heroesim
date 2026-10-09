@@ -7,7 +7,7 @@ import type { SlotKey } from './content-types.js';
 import { rivalChoices } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, Hero, HeroId, Holder, Party, Quest, QuestId, World, WorldDocument } from './document.js';
-import type { EngineEventOf, EngineEventType, TurnEvent } from './events.js';
+import type { TurnEvent } from './events.js';
 import { gearChoices, gearModifiers, gearPurchase } from './gear.js';
 import { addStack, createItem, holdings } from './items.js';
 import { phaseContext } from './phases/phase.js';
@@ -17,13 +17,11 @@ import { capability, check } from './quest-engine/check.js';
 import { queryParty } from './quest-engine/query.js';
 import { effectiveStats, playerGuild } from './selectors.js';
 import { nightOf } from './time.js';
-import { certainHarmContent, deepFreeze, demandsCheck, testDeps, withValid } from './world.test-support.js';
+import { certainHarmContent, deepFreeze, demandsCheck, ofType, setup, testDeps, withValid } from './world.test-support.js';
 
 // Gear in effective Stats, in the Check, going back to the Guild, and chosen by the
 // controllers (DL-49). Worlds come from `createWorld`; every document a test makes is held to the
 // validator, and the config values a test relies on are pinned.
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /** No Rivals, the Check without variance, and the three slots (INPUTS 7.1). */
 const deps = testDeps({ rivalCount: 0, checkVariance: 0 });
@@ -60,9 +58,6 @@ function equipped(document: WorldDocument, request: EquipRequest, with_: EngineD
   return withValid(result.document, with_);
 }
 
-const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
-  events.filter((event): event is EngineEventOf<Type> => event.type === type);
-
 describe('effectiveStats with gear (DL-49)', () => {
   test('adds the modifiers of the gear a Hero carries in its own slots, to every Stat each names', () => {
     const { document, guild, heroes } = scene('gear-sum');
@@ -90,56 +85,6 @@ describe('effectiveStats with gear (DL-49)', () => {
       arcana: 8,
     });
     expect(guild.rosterIds).toContain(hero.id);
-  });
-
-  test("the Guildmaster's Class bonus and gear are added first and the sum held inside the Stat's range once", () => {
-    const { document, heroes } = scene('gear-clamp');
-    const [warrior, mage] = heroes as [Hero, Hero];
-    const { world } = document;
-    warrior.classKey = 'warrior';
-    mage.classKey = 'mage';
-    for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = ['old-soldier', 'mistrusts-magic'];
-    addStack(world, 'masterwork-blade', 1, slotOf(warrior.id, 'weapon')); // Weaponry +3, Strength +2
-    addStack(world, 'plate-harness', 1, slotOf(warrior.id, 'armour')); // Dexterity −1
-    addStack(world, 'runed-circlet', 1, slotOf(mage.id, 'trinket')); // Arcana +3, Spelllore +2
-    warrior.stats['weaponry'] = 17;
-    warrior.stats['strength'] = 19;
-    warrior.stats['dexterity'] = 1;
-    mage.stats['arcana'] = 1;
-    withValid(document, deps);
-
-    const warriorStats = effectiveStats(warrior, world, deps.content);
-    // 17 + 1 (Old soldier) + 3 = 21, held at 20; 19 + 2 = 21, held at 20; 1 − 1 = 0, held at 1.
-    expect([warriorStats['weaponry'], warriorStats['strength'], warriorStats['dexterity']]).toEqual([20, 20, 1]);
-    // 1 − 1 (Mistrusts magic) + 3 = 3: one hold at the end, so no modifier is lost to an early one.
-    expect(effectiveStats(mage, world, deps.content)['arcana']).toBe(3);
-    expect(warrior.stats['weaponry']).toBe(17);
-  });
-
-  test('two pieces of gear on one Stat add together', () => {
-    const { document, heroes } = scene('gear-overlap');
-    const [hero] = heroes as [Hero];
-    const { world } = document;
-    createItem(world, 'barrow-kings-blade', slotOf(hero.id, 'weapon')); // Courage +1
-    addStack(world, 'lucky-charm', 1, slotOf(hero.id, 'trinket')); // Courage +1
-    withValid(document, deps);
-
-    expect(gearModifiers(hero.id, world, deps.content)['courage']).toBe(2);
-    expect(effectiveStats(hero, world, deps.content)['courage']).toBe(8 + 1 + 1);
-  });
-
-  test("a Guildmaster's penalty is taken from the sum with gear, not from gear already held at the top of the range", () => {
-    const { document, heroes } = scene('gear-top');
-    const [, mage] = heroes as [Hero, Hero];
-    const { world } = document;
-    mage.classKey = 'mage';
-    for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = ['mistrusts-magic'];
-    addStack(world, 'runed-circlet', 1, slotOf(mage.id, 'trinket')); // Arcana +3
-    mage.stats['arcana'] = 19;
-    withValid(document, deps);
-
-    // 19 − 1 (Mistrusts magic) + 3 = 21, held at 20 once; holding 19 + 3 at 20 first would leave 19.
-    expect(effectiveStats(mage, world, deps.content)['arcana']).toBe(20);
   });
 
   test('an Item in a slot not its own, or of a definition content lacks, counts for nothing', () => {

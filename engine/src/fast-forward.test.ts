@@ -11,10 +11,8 @@ import { playerGuild } from './selectors.js';
 import { serialise } from './serialise.js';
 import { alwaysStops, stopConditions, type StopCondition } from './stops.js';
 import { timeOfDay } from './time.js';
-import { testDeps, withValid } from './world.test-support.js';
+import { setup, testDeps, withValid } from './world.test-support.js';
 import { applyAction } from './actions/action.js';
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 function created(seed: string, deps: EngineDeps): WorldDocument {
   return withValid(createWorld(seed, setup, deps).document, deps);
@@ -387,8 +385,12 @@ describe('fastForward: maxTurns', () => {
 
   test('always terminates within maxTurns', () => {
     const deps = testDeps();
+    // Each seed's world is made once; a fast forward appends to the History it is given, so each case plays a copy.
+    const made = new Map<string, WorldDocument>();
     for (const { seed, until, maxTurns } of cases) {
-      const { document } = createWorld(seed, setup, deps);
+      const base = made.get(seed) ?? createWorld(seed, setup, deps).document;
+      made.set(seed, base);
+      const document = structuredClone(base);
       const label = `${seed} ${until.join(',')} ${maxTurns}`;
 
       const result = fastForward(document, { guildId: player(document).id, until, maxTurns }, deps);

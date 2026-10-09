@@ -28,13 +28,6 @@ describe('config.json', () => {
     expect(Object.keys(defaultConfig)).toEqual(Object.keys(configRules));
   });
 
-  test("each setting's value is the file's", () => {
-    for (const section of Object.values(configSections)) {
-      for (const [setting, value] of Object.entries(section)) expect(defaultConfig[setting as keyof GameConfig], setting).toEqual(value);
-    }
-    expect(defaultConfig.infirmaryHealFactor).toEqual([1, 1 / 2, 1 / 3, 1 / 4]);
-  });
-
   test('the defaults are frozen all the way down', () => {
     expect(Object.isFrozen(defaultConfig)).toBe(true);
     for (const value of Object.values(defaultConfig)) if (typeof value === 'object') expect(Object.isFrozen(value)).toBe(true);

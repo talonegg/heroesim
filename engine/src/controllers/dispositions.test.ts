@@ -10,33 +10,29 @@ import { runTurn } from '../pipeline.js';
 import { dispositionOf, playerGuild } from '../selectors.js';
 import { testContent, testDeps, withEncounters, withValid } from '../world.test-support.js';
 
-// The first acceptance box (INPUTS 7.5, DL-56): over 100 seeds, `reckless` Rivals take higher mean
-// difficulty than `miserly` and lose more Heroes, and `ambitious` builds first. The four
-// Dispositions are the test content's rows, which the balance pass left
-// behind when it retuned the core's (DL-69 item 8), dealt round-robin to a default world's four
-// Rivals; nothing here tells a Rival what to do.
+// The first acceptance box (INPUTS 7.5, DL-56), over 10 seeds: `reckless` Rivals take higher mean
+// difficulty than `miserly`, and `ambitious` builds first. The box asked also that `reckless` lose
+// more Heroes; that margin needed about 30 seeds to hold, and the owner removed it, with the box's
+// 100 seeds (DL-246). The harness counts Deaths by Disposition over the core content and twenty years.
+// The four Dispositions are the test content's rows, which the balance pass left behind when it
+// retuned the core's (DL-69 item 8), dealt round-robin to a world's four Rivals; nothing here tells a
+// Rival what to do.
 //
-// Each seed plays a month. A Death is rare under the test content's Encounters (a failure kills
-// one time in fifty, in two Encounters of twelve), too rare to count in a month of 100 worlds (4
-// `reckless` Deaths against 3 `miserly` in a trial), so the Encounters here kill one time in five
-// on every failure and do nothing else: the same Quest Engine and the same rule, with harm common
-// enough for a month to show whose Quests are the dangerous ones. The harness counts Deaths by
-// Disposition over the core content and twenty years (the M6 close).
+// Each seed plays a month. The Encounters here kill one time in five on every failure and do
+// nothing else, as the box was measured under: harm makes a Quest's danger cost a Rival its Heroes.
 
-const seeds = Array.from({ length: 100 }, (_, index) => `dispositions-${String(index + 1).padStart(3, '0')}`);
+const seeds = Array.from({ length: 10 }, (_, index) => `dispositions-${String(index + 1).padStart(3, '0')}`);
 const days = 30;
 const turnsPerDay = 3;
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 const dispositions = ['ambitious', 'miserly', 'reckless', 'steady'] as const;
 
 /** A failed Encounter kills a member of the Party one time in five, and costs nothing else. */
-const deps: EngineDeps = testDeps({}, withEncounters({ failure: [{ kind: 'death', chance: 0.2 }] }));
+const deps: EngineDeps = testDeps({ rivalCount: 4 }, withEncounters({ failure: [{ kind: 'death', chance: 0.2 }] }));
 
 interface Tally {
   /** The difficulty of every Quest a Rival of the Disposition took. */
   difficulties: number[];
-  /** Heroes of its Rivals who died. */
-  deaths: number;
   /** The Turn its first Improvement was built, per seed, or `null` when it built none. */
   firstBuilds: (number | null)[];
 }
@@ -60,7 +56,7 @@ function play(document: WorldDocument, watch: (event: TurnEvent) => void): void 
 
 function sweep(): Record<DispositionKey, Tally> {
   const tallies = Object.fromEntries(
-    dispositions.map((disposition) => [disposition, { difficulties: [], deaths: 0, firstBuilds: [] } as Tally]),
+    dispositions.map((disposition) => [disposition, { difficulties: [], firstBuilds: [] } as Tally]),
   ) as Record<DispositionKey, Tally>;
   seeds.forEach((seed, index) => {
     const document = createWorld(seed, setup, deps).document;
@@ -84,12 +80,6 @@ function sweep(): Record<DispositionKey, Tally> {
     });
     if (index % 10 === 0) withValid(document, deps);
 
-    for (const hero of Object.values(world.heroes)) {
-      if (hero.diedOnTurn === null || hero.guildId === null) continue;
-      const disposition = dealt(hero.guildId);
-      const tally = disposition === null ? undefined : tallies[disposition];
-      if (tally !== undefined) tally.deaths += 1;
-    }
     for (const disposition of dispositions) tallies[disposition]?.firstBuilds.push(firstBuild[disposition] ?? null);
   });
   return tallies;
@@ -97,22 +87,18 @@ function sweep(): Record<DispositionKey, Tally> {
 
 const mean = (values: readonly number[]): number => values.reduce((total, value) => total + value, 0) / values.length;
 
-describe('the four Dispositions over 100 seeds', () => {
-  test('reckless takes higher mean difficulty than miserly and loses more Heroes; ambitious builds first', { timeout: 120_000 }, () => {
-    expect(deps.config.rivalCount).toBe(4);
+describe('the four Dispositions over 10 seeds', () => {
+  test('reckless takes higher mean difficulty than miserly; ambitious builds first', { timeout: 60_000 }, () => {
     expect(Object.keys(testContent.dispositions).sort()).toEqual([...dispositions]);
 
     const { ambitious, miserly, reckless, steady } = sweep() as Record<(typeof dispositions)[number], Tally>;
 
     // Every Disposition took Quests in every sweep, so each mean is over many.
-    for (const tally of [ambitious, miserly, reckless, steady]) expect(tally.difficulties.length).toBeGreaterThan(500);
-    // reckless takes the hardest it can staff, miserly a quarter of the way along; and loses more
-    // Heroes to them. By a margin, not a hair: two Rivals of the same row differ a little by
-    // where they act in the afternoon's order alone, and this is to be the rows' difference.
+    for (const tally of [ambitious, miserly, reckless, steady]) expect(tally.difficulties.length).toBeGreaterThan(50);
+    // reckless takes the hardest it can staff, miserly a quarter of the way along. By a margin, not a
+    // hair: two Rivals of the same row differ a little by where they act in the afternoon's order
+    // alone, and this is to be the rows' difference.
     expect(mean(reckless.difficulties)).toBeGreaterThan(mean(miserly.difficulties) + 10);
-    // A quarter more. S10's drafts, before its balance pass, gave 217 Deaths to 178, a fifth more, and
-    // the margin was eased to 1.15 for them (DL-165); after it, 239 to 161, and a quarter is kept (DL-166).
-    expect(reckless.deaths).toBeGreaterThan(1.25 * miserly.deaths);
 
     // ambitious builds first: in every seed it builds, and no Rival of another Disposition builds
     // before it; over the sweep its first Improvement comes earliest on average.

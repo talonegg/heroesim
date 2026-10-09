@@ -62,8 +62,9 @@ describe('previewGuildmaster', () => {
       'every part chosen',
       { guildmasterSex: 'male', guildmasterAge: 50, guildmasterTraitKeys: [], guildmasterPortraitKey: 'gm-male-01', guildmasterStats: chosenStats },
     ],
-  ])('names what createWorld makes, over %i seeds, with %s', (_, chosen) => {
-    for (const seed of seeds) {
+  ])('names what createWorld makes over the seeds, with %s', (_, chosen) => {
+    // Everything drawn takes all 120 seeds; a part chosen leaves less to draw, so the first 20 show it.
+    for (const seed of Object.keys(chosen).length === 0 ? seeds : seeds.slice(0, 20)) {
       const setup = { ...bare, ...chosen };
       expect(previewed(setup, seed), seed).toEqual(made(seed, setup));
     }

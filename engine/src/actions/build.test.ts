@@ -15,7 +15,7 @@ import { serialise } from '../serialise.js';
 import { dayOf, nightOf } from '../time.js';
 import { testContent, testDeps, withEncounters, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
-import { applyBuild, type BuildRejection } from './build.js';
+import type { BuildRejection } from './build.js';
 import type { ActionResult } from './result.js';
 
 // Hall Improvements (INPUTS 7.3, DL-38). The test content carries the core's nine
@@ -99,19 +99,6 @@ describe('build', () => {
     expect(history.milestones.at(-1)).toBe(history.entries.length - 1);
   });
 
-  test("gives a new world and leaves the input's as it was, sharing meta and the History", () => {
-    const { document, guild } = scene();
-    const before = structuredClone(document.world);
-
-    const result = applyAction(document, { kind: 'build', guildId: guild.id, facility: 'infirmary' }, deps);
-
-    if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
-    expect(result.document.world).not.toBe(document.world);
-    expect(document.world).toEqual(before);
-    expect(result.document.meta).toBe(document.meta);
-    expect(result.document.history).toBe(document.history);
-  });
-
   test('builds with Wealth exactly equal to the cost, leaving none', () => {
     const { document, guild } = scene('exact', 200);
 
@@ -120,21 +107,17 @@ describe('build', () => {
     expect(result.ok && result.document.world.guilds[guild.id]?.wealth).toBe(0);
   });
 
-  test('is the same rule for a Rival (ADR-0002), the rule applyAction runs on a copy of the world', () => {
+  test('is the same rule for a Rival (ADR-0002)', () => {
     const withRival = testDeps({ rivalCount: 1 });
     const { document } = createWorld('rival-builds', setup, withRival);
     const rival = Object.values(document.world.guilds).find((each) => each.controller.kind === 'rival') as Guild;
     rival.wealth = 1_000;
-    const world = structuredClone(document.world);
 
     const applied = applyAction(document, { kind: 'build', guildId: rival.id, facility: 'infirmary' }, withRival);
-    const inPlace = applyBuild(world, { guildId: rival.id, facility: 'infirmary' }, withRival);
 
-    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
+    if (!applied.ok) throw new Error('Refused');
     const valid = withValid(applied.document, withRival);
     expect(valid.world.guilds[rival.id]).toMatchObject({ wealth: 800, hall: { infirmary: 1, trainingYard: 0, quarters: 0 } });
-    expect(world).toEqual(applied.document.world);
-    expect(inPlace.events).toEqual(applied.events);
   });
 
   test('raises Upkeep by hallMaintenancePerGrade for each grade built (DL-26)', () => {

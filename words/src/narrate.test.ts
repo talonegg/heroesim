@@ -65,7 +65,7 @@ const outcome = { successes: 1, encounterCount: 3, xpPerHero: 30, moraleDelta: 0
 /** One of every event type: the compiler refuses a type left out, or one the engine lacks. */
 const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'world.created': event('world.created', [], { seed: 'demo' }),
-  'guild.founded': event('guild.founded', [guildId, guildmasterId], { guildId, guildmasterId: guildmasterId as never }),
+  'guild.founded': event('guild.founded', [guildId, guildmasterId], { guildId, guildmasterId: guildmasterId as never, wealth: 500 }),
   'guildmaster.generated': event('guildmaster.generated', [guildmasterId, guildId], { guildmasterId: guildmasterId as never, guildId }),
   'hero.generated': event('hero.generated', [heroId], { heroId, guildId: null, classKey: 'rogue' }),
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
@@ -124,7 +124,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.injured': event('hero.injured', [heroId, questId], { heroId, questId, typeKey: 'deep-cut', healsOnTurn: 41 }),
   'hero.died': event('hero.died', [heroId, questId], { heroId, questId }),
   'hero.xp-gained': event('hero.xp-gained', [heroId], { heroId, questId, amount: 30 }),
-  'hero.morale-changed': event('hero.morale-changed', [heroId], { heroId, cause: 'roster-death', before: 45, after: 35, bandBefore: 'steady', bandAfter: 'low' }),
+  'hero.morale-changed': event('hero.morale-changed', [heroId], { heroId, cause: 'roster-death', questId, before: 45, after: 35, bandBefore: 'steady', bandAfter: 'low' }),
   'hero.healed': event('hero.healed', [heroId], { heroId, typeKey: 'deep-cut', traitKey: 'scarred' }),
   'hero.trait-gained': event('hero.trait-gained', [heroId, questId], { heroId, traitKey: 'scarred', questId, encounterIndex: 1, encounterKey: 'ambush-on-the-road' }),
   'hero.trait-lost': event('hero.trait-lost', [heroId], { heroId, traitKey: 'lame', replacedBy: 'scarred' }),
@@ -155,6 +155,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     entityId: heroId,
     cause: 'quest-success',
+    questId,
     before: 3.5,
     after: 4.5,
     bandBefore: 'neutral',

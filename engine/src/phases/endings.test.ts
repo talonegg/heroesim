@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance } from '../advance.js';
-import type { StopReason } from '../stops.js';
-import { defaultConfig, type EngineDeps } from '../config.js';
+import type { EngineDeps } from '../config.js';
 import type { ContentSet, PortraitAppearance } from '../content-types.js';
 import { bestParties } from '../best-party.js';
 import { availableHeroes } from '../controllers/rival.js';
@@ -17,7 +16,7 @@ import {
   type World,
   type WorldDocument,
 } from '../document.js';
-import type { EngineEvent, TurnEvent } from '../events.js';
+import type { TurnEvent } from '../events.js';
 import { count, entriesFor } from '../history.js';
 import { addStack, createItem, holdings } from '../items.js';
 import { marketHolder, sellPrice } from '../market.js';
@@ -26,11 +25,14 @@ import { createStreams } from '../rng.js';
 import { dispositionOf, playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
 import { nightOf, retirementTurn, retiresOn } from '../time.js';
 import { guildmasterRegardForGuild } from '../regard.js';
-import { plannedStreams, testContent, testDeps, thriftyRivals, withDispositions, withValid } from '../world.test-support.js';
+import { ofType, plannedStreams, playWith, streamsOutOfPlace, testContent, testDeps, thriftyRivals, withDispositions, withValid } from '../world.test-support.js';
 import { ageSpanOf, portraitSexOf } from '../portraits.js';
 import { endings } from './endings.js';
 import { phaseContext } from './phase.js';
 import { applyAction } from '../actions/action.js';
+
+/** Advances to a Turn, validating the document it stops at, or until the game ends. */
+const playTo = playWith(advance, { validate: 'last', stopAtEnd: true });
 
 // The endings (DL-28). Each ending is arranged on a world `createWorld` made, then played
 // through `advance`; every document a test inspects is held to the validator.
@@ -56,31 +58,6 @@ function stillRivalControllers() {
 function created(seed: string, deps: EngineDeps): WorldDocument {
   return createWorld(seed, setup, deps).document;
 }
-
-interface Played {
-  document: WorldDocument;
-  /** Every event of every Turn played. */
-  events: TurnEvent[];
-  /** What the last Turn played reported. */
-  stoppedBecause: StopReason | null;
-}
-
-/** Advances `document` to Turn `turn`, or until the game ends. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): Played {
-  let current = document;
-  let stoppedBecause: StopReason | null = null;
-  const events: TurnEvent[] = [];
-  while (current.world.turn < turn && current.world.ended === null) {
-    const result = advance(current, deps);
-    current = result.document;
-    stoppedBecause = result.stoppedBecause;
-    events.push(...result.events);
-  }
-  return { document: withValid(current, deps), events, stoppedBecause };
-}
-
-const ofType = <Type extends EngineEvent['type']>(events: TurnEvent[], type: Type) =>
-  events.filter((event): event is Extract<EngineEvent, { type: Type }> => event.type === type);
 
 function guildOf(world: World, id: GuildId): Guild {
   const guild = world.guilds[id];
@@ -145,16 +122,15 @@ const arrange: Record<(typeof reasons)[number], Arrangement> = {
 // ── The player's endings ─────────────────────────────────────────────────────────────────────
 
 describe("the player's ending ends the game", () => {
-  test('Retirement: on the first night the Guildmaster is guildmasterRetirementAge, 61 by default (DL-113)', () => {
+  test('Retirement: on the first night the Guildmaster is guildmasterRetirementAge (DL-113)', () => {
     const deps = testDeps({ turnsPerYear: 30 }); // ten Days a year, so that a birthday comes soon
-    expect(deps.config.guildmasterRetirementAge).toBe(61);
     const start = created('retirement', deps);
     const player = thePlayer(start.world);
     const guildmaster = start.world.guildmasters[player.guildmasterId];
     if (guildmaster === undefined) throw new Error('No Guildmaster');
-    guildmaster.ageAtEntry = 60;
+    guildmaster.ageAtEntry = deps.config.guildmasterRetirementAge - 1;
 
-    // 60 until Turn 30, the morning of Day 10; the check is at night.
+    // One year short of the age until Turn 30, the morning of Day 10; the check is at night.
     const before = playTo(start, nightOf(9), deps);
     expect(before.document.world.ended).toBeNull();
     const { document, events, stoppedBecause } = playTo(before.document, nightOf(10), deps);
@@ -177,22 +153,21 @@ describe("the player's ending ends the game", () => {
     expect(count(document.history, 'guild.folded')).toBe(0);
   });
 
-  test('Bankruptcy: once Wealth has stayed below the floor for bankruptcyGraceDays, 30 by default', () => {
-    const deps = testDeps();
-    expect(deps.config.bankruptcyGraceDays).toBe(30);
+  test('Bankruptcy: once Wealth has stayed below the floor for bankruptcyGraceDays', () => {
+    const deps = testDeps({ bankruptcyGraceDays: 3 });
     const start = created('bankruptcy', deps);
     const player = thePlayer(start.world);
     player.wealth = deps.config.bankruptcyFloor - 1;
 
-    // Below the floor from the night of Day 0 (the Guild State Engine); thirty Days on, it ends.
-    const before = playTo(start, nightOf(29), deps);
+    // Below the floor from the night of Day 0 (the Guild State Engine); three Days on, it ends.
+    const before = playTo(start, nightOf(2), deps);
     expect(guildOf(before.document.world, player.id).belowFloorSince).toBe(nightOf(0));
     expect(before.document.world.ended).toBeNull();
-    const { document, events, stoppedBecause } = playTo(before.document, nightOf(30), deps);
+    const { document, events, stoppedBecause } = playTo(before.document, nightOf(3), deps);
 
-    expect(document.world.ended).toEqual({ turn: nightOf(30), reason: 'bankruptcy' });
+    expect(document.world.ended).toEqual({ turn: nightOf(3), reason: 'bankruptcy' });
     expect(ofType(events, 'game.ended')).toEqual([
-      expect.objectContaining({ turn: nightOf(30), milestone: true, payload: { guildId: player.id, reason: 'bankruptcy' } }),
+      expect.objectContaining({ turn: nightOf(3), milestone: true, payload: { guildId: player.id, reason: 'bankruptcy' } }),
     ]);
     expect(stoppedBecause).toEqual({ kind: 'ended' });
   });
@@ -306,14 +281,6 @@ describe("the player's ending ends the game", () => {
 // Turn `retirementTurn` gives, which the endings read. The year is the default's 1,080 Turns: the
 // world is moved to the night before, and the Rivals stilled.
 describe('Retirement at 61, on the Turn retirementTurn gives', () => {
-  test('the defaults: every Guildmaster starts 21 to 50 and retires at 61 (DL-113)', () => {
-    expect(defaultConfig).toMatchObject({
-      guildmasterStartingAgeMin: 21,
-      guildmasterStartingAgeMax: 50,
-      guildmasterRetirementAge: 61,
-    });
-  });
-
   /** A world whose Guildmaster of the Guild `pick` gives entered aged `age` on `enteredTurn`, moved to the night before their Retirement. */
   function toTheEve(seed: string, pick: (world: World) => Guild, age: number, enteredTurn = 0) {
     stillRivalControllers();
@@ -738,11 +705,7 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
     const events = endings(world, phaseContext(world, deps, document.history));
 
     expect(ofType(events, 'guildmaster.succeeded')).toHaveLength(1);
-    const rng = world.rng as Record<string, unknown>;
-    for (const name of plannedStreams) {
-      if (name === 'generation' || name === 'gm-portraits' || name === 'descriptions') expect(rng[name], name).not.toEqual(before[name]);
-      else expect(rng[name], name).toEqual(before[name]);
-    }
+    expect(streamsOutOfPlace(before, world.rng, ['generation', 'gm-portraits', 'descriptions'])).toEqual([]);
   });
 
   test("the successor's name is none in use: not a Guildmaster's in office, nor a Hero's in play", () => {

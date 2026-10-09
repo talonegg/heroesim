@@ -43,6 +43,7 @@ import {
   type WorldDocument,
 } from './document.js';
 import { sexes } from './generators/draw.js';
+import { questCauses } from './events.js';
 import { findJsonUnsafe, formatPath } from './json-safe.js';
 import { sliceFailures, unknownSlices } from './modules.js';
 import { dispositionOf } from './selectors.js';
@@ -78,6 +79,7 @@ export const refusalChecks = [
   'history-index-mismatch',
   'history-turn-order',
   'removed-hero-in-history',
+  'entry-field-missing',
   'module-slice',
 ] as const;
 
@@ -204,6 +206,7 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   historyIndexMismatch,
   historyTurnOrder,
   removedHeroInHistory,
+  entryFieldMissing,
 ];
 
 const contentChecks: readonly ContentCheck[] = [
@@ -1300,6 +1303,28 @@ function historyTurnOrder({ world, history }: WorldDocument, from: number): Vali
     else if (turn > world.turn) detail = `${id} is at Turn ${turn}; the world is at Turn ${world.turn}`;
     if (detail !== null) failures.push({ check: 'history-turn-order', id, detail });
     previous = Math.max(previous, turn);
+  }
+  return failures;
+}
+
+/**
+ * An entry holds what its type requires where the shape, which reads any payload, cannot say it
+ * (DL-246): a Guild's founding names its founding Wealth (DL-120 item 4), and an entry of a cause a
+ * Quest's return makes names the Quest (`questCauses`, DL-112 item 2).
+ */
+function entryFieldMissing({ history }: WorldDocument, from: number): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  for (const [index, entry] of entriesFrom(history, from)) {
+    const payload: unknown = entry.payload;
+    if (!isMap(payload)) continue;
+    const id = formatPath(['history', 'entries', index]);
+    if (entry.type === 'guild.founded' && typeof payload.wealth !== 'number') {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} founds a Guild and names no founding Wealth` });
+    }
+    const causes: readonly string[] | undefined = rowOf(questCauses, entry.type);
+    if (causes?.includes(payload.cause as string) === true && typeof payload.questId !== 'string') {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} is caused by ${q(payload.cause)}, a Quest's return, and names no Quest` });
+    }
   }
   return failures;
 }

@@ -116,41 +116,6 @@ describe('guildState', () => {
     }
   });
 
-  test('sets belowFloorSince to this Turn when Wealth falls below the floor, and clears it on recovery', () => {
-    const { world, deps } = smallWorld({ bankruptcyFloor: 0 });
-    const [guild] = Object.values(world.guilds);
-    if (guild === undefined) throw new Error('no Guild');
-    guild.wealth = 2; // less than the 5 Wealth the single Hero's wage costs
-    world.turn = nightOf(9);
-
-    guildState(world, phaseContext(world, deps));
-    expect(guild.wealth).toBeLessThan(0);
-    expect(guild.belowFloorSince).toBe(nightOf(9));
-
-    // A later Turn, off the Upkeep Day, where Wealth has recovered above the floor.
-    guild.wealth = 50;
-    world.turn = nightOf(10);
-    guildState(world, phaseContext(world, deps));
-
-    expect(guild.belowFloorSince).toBeNull();
-  });
-
-  test('does not move belowFloorSince a second time while Wealth stays below the floor', () => {
-    const { world, deps } = smallWorld({ bankruptcyFloor: 0 });
-    const [guild] = Object.values(world.guilds);
-    if (guild === undefined) throw new Error('no Guild');
-    guild.wealth = -100;
-    world.turn = nightOf(3);
-    guildState(world, phaseContext(world, deps));
-    expect(guild.belowFloorSince).toBe(nightOf(3));
-
-    guild.wealth = -200; // still below the floor
-    world.turn = nightOf(4);
-    guildState(world, phaseContext(world, deps));
-
-    expect(guild.belowFloorSince).toBe(nightOf(3)); // unchanged: it was already set
-  });
-
   test('clamps Fame at fameFloor and leaves Fame above it untouched', () => {
     const { world, deps } = smallWorld({ fameFloor: 0 });
     const [low, ...rest] = Object.values(world.guilds);

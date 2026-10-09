@@ -89,11 +89,12 @@ describe('the probe registers', () => {
 
 // ── Box 1 ──────────────────────────────────────────────────────────────────────────────
 
-// A year of Turns, each through `advance`, which copies the world: about a second alone, and
-// five to eight under the whole suite's load, past the default 5 s (DL-164).
-describe('over a year', { timeout: 60_000 }, () => {
+// A year of Turns, each through `advance`. Its length is chosen: a year of 12 Turns, four Days, is
+// still a year of whole Days, and shows the counts as a year of any length does (DL-246); the
+// hooks Turn by Turn are `modules.test.ts`'s.
+describe('over a year', () => {
   // Wealth enough that the player's Guild, which takes no Quest here, lasts the year unbankrupt.
-  const yearDeps = testDeps({ startingWealth: 1_000_000 });
+  const yearDeps = testDeps({ startingWealth: 1_000_000, turnsPerYear: 12 });
   const turns = yearDeps.config.turnsPerYear;
 
   test("installed, the probe's counts equal the mornings, afternoons and nights played", () => {

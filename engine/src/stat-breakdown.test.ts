@@ -1,42 +1,15 @@
 import { describe, expect, test } from 'vitest';
 import type { ContentSet, GuildmasterTrait, HeroTrait } from './content-types.js';
 import { createWorld } from './create.js';
-import { rowOf, type Guild, type Hero, type StatValues, type World } from './document.js';
-import { gearModifiers } from './gear.js';
-import { guildmasterOf, traitStatBonuses } from './guildmaster.js';
+import type { Guild, Hero, World } from './document.js';
 import * as engine from './index.js';
 import { addStack, createItem } from './items.js';
-import { baseStat, effectiveStats, playerGuild, statBreakdown } from './selectors.js';
-import { traitStatModifiers } from './traits.js';
+import { playerGuild, statBreakdown } from './selectors.js';
 import { testContent, testDeps } from './world.test-support.js';
 
-// DL-186 item 3, DL-199: a Stat's breakdown. `effectiveStats` is on the paths that
-// draw (a Check reads it), so it must add and hold exactly as it did. The reference below is
-// `effectiveStats` as it stood before the breakdown, word for word; every generated Hero's Stats
-// are held to it.
+// DL-186 item 3, DL-199: a Stat's breakdown; `effectiveStats` is its effective value read off.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
-
-/** `effectiveStats` as it was before the breakdown (DL-199): the characterisation's reference. */
-function referenceEffectiveStats(
-  hero: Pick<Hero, 'id' | 'stats' | 'classKey' | 'guildId' | 'traits'>,
-  world: Pick<World, 'guilds' | 'guildmasters' | 'items' | 'stacks'>,
-  content: Pick<ContentSet, 'stats' | 'guildmasterTraits' | 'heroTraits' | 'items'>,
-): StatValues {
-  const guild = hero.guildId !== null ? rowOf(world.guilds, hero.guildId) : undefined;
-  const bonuses = guild === undefined ? {} : traitStatBonuses(guildmasterOf(guild, world), hero.classKey, content);
-  const gear = gearModifiers(hero.id, world, content);
-  const marks = traitStatModifiers(hero, content);
-  const effective: StatValues = {};
-  for (const stat of Object.values(content.stats)) {
-    if (stat.owner !== 'hero') continue;
-    const bonus = Object.hasOwn(bonuses, stat.key) ? (bonuses[stat.key] ?? 0) : 0;
-    const worn = Object.hasOwn(gear, stat.key) ? (gear[stat.key] ?? 0) : 0;
-    const marked = Object.hasOwn(marks, stat.key) ? (marks[stat.key] ?? 0) : 0;
-    effective[stat.key] = Math.min(stat.max, Math.max(stat.min, baseStat(hero.stats, stat) + bonus + worn + marked));
-  }
-  return effective;
-}
 
 /** A Guildmaster Trait of Class Stat bonuses, for the generated Guildmasters. */
 function bonusTrait(key: string, ...bonuses: [classKey: string, statKey: string, delta: number][]): [string, GuildmasterTrait] {
@@ -132,31 +105,8 @@ function generatedHeroes(seed: number): { world: World; heroes: Hero[] } {
   return { world, heroes };
 }
 
-/** How many worlds the property tests generate; each holds about 17 Heroes. */
+/** How many worlds the property test generates; each holds about 17 Heroes. */
 const worlds = 30;
-
-describe("effectiveStats, characterised before the breakdown", () => {
-  test('gives what it gave before, over many generated Heroes', () => {
-    let read = 0;
-    let moved = 0;
-    for (let seed = 1; seed <= worlds; seed += 1) {
-      const { world, heroes } = generatedHeroes(seed);
-      for (const hero of heroes) {
-        const now = effectiveStats(hero, world, breakdownContent);
-        const before = referenceEffectiveStats(hero, world, breakdownContent);
-        expect(now, `${seed} ${hero.id}`).toStrictEqual(before);
-        expect(Object.keys(now)).toEqual(Object.keys(before));
-        read += 1;
-        for (const stat of Object.values(breakdownContent.stats)) {
-          if (stat.owner === 'hero' && before[stat.key] !== baseStat(hero.stats, stat)) moved += 1;
-        }
-      }
-    }
-    // The generator reaches what it means to: hundreds of Heroes, thousands of Stats moved.
-    expect(read).toBeGreaterThan(400);
-    expect(moved).toBeGreaterThan(2000);
-  });
-});
 
 /** A world of the breakdown's content, its Guildmasters with no Trait, and a Warrior of the player's Roster with every Stat at 8 and no Trait. */
 function scene(seed: string): { world: World; hero: Hero; guild: Guild } {
@@ -200,6 +150,8 @@ describe('statBreakdown (DL-186 item 3)', () => {
   test("gives every Hero Stat content defines, in content's order, at its base with nothing moving it, and no Guildmaster Stat", () => {
     const { world, hero } = scene('breakdown-bare');
     Reflect.deleteProperty(hero.stats, 'wits');
+    // A Stat content does not define, which the breakdown leaves out.
+    hero.stats['luck'] = 20;
 
     const breakdown = statBreakdown(hero, world, breakdownContent);
 
@@ -305,14 +257,12 @@ describe('statBreakdown (DL-186 item 3)', () => {
     expect(breakdown['power']).toEqual(broken([1, 0, 2], 20, true, 20));
   });
 
-  test("is effectiveStats' total: the same value for every Stat of every generated Hero", () => {
+  test('flags a Stat clamped exactly when its sources take its sum out of the range, for every Stat of every generated Hero', () => {
     let clamped = 0;
     for (let seed = 1; seed <= worlds; seed += 1) {
       const { world, heroes } = generatedHeroes(seed);
       for (const hero of heroes) {
         const breakdown = statBreakdown(hero, world, breakdownContent);
-        const total = Object.fromEntries(Object.entries(breakdown).map(([key, stat]) => [key, stat.effective]));
-        expect(effectiveStats(hero, world, breakdownContent), `${seed} ${hero.id}`).toStrictEqual(total);
         for (const stat of Object.values(breakdown)) {
           const sum = stat.sources.reduce((value, { change }) => value + change, stat.base);
           expect(stat.clamped).toBe(sum !== stat.effective);

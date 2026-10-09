@@ -14,7 +14,7 @@ import { dayOf, durationDaysOf, nightOf, timeOfDay } from '../time.js';
 import { validate } from '../validate.js';
 import { buildDocument, fixtureTurn, harmlessContent, testDeps, withValid, type FixtureIds } from '../world.test-support.js';
 import { applyAction } from './action.js';
-import { applyDispatch, type ConsumableRequest, type DispatchRejection, type DispatchRequest } from './dispatch.js';
+import type { ConsumableRequest, DispatchRejection, DispatchRequest } from './dispatch.js';
 
 // No Rivals in a created world: they take Quests off the Board each afternoon, and
 // these tests play Turns to watch the player's own Parties.
@@ -104,20 +104,6 @@ describe('dispatch', () => {
     expect(document.world).toEqual(worldBefore);
     expect(next.meta).toBe(document.meta);
     expect(next.history).toBe(document.history);
-  });
-
-  test('is the rule applyAction runs on a copy of the world', () => {
-    const { document, ids, rogue, healer } = built();
-    const request = { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, healer] };
-    const world = structuredClone(document.world);
-
-    const applied = applyAction(document, { kind: 'dispatch', ...request }, deps);
-    const inPlace = applyDispatch(world, request, deps);
-
-    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
-    withValid(applied.document, deps);
-    expect(world).toEqual(applied.document.world);
-    expect(inPlace.events).toEqual(applied.events);
   });
 
   test('leaves a document the validator accepts: quest.partyIds and party.questId agree, as it checks', () => {
@@ -255,20 +241,6 @@ describe('dispatch', () => {
       expect(rejected(demanding, request([healer]))).toEqual(
         unmet({ requirement: 'party-size', size: 1, partySizeMin: 2, partySizeMax: 4 }, needsMage, needsLockpicking),
       );
-    });
-
-    test('requirement-unmet: a Quest requiring a Healer refuses a Party without one, naming class', () => {
-      const { document, ids, rogue, mage, healer } = built();
-      const wanting = structuredClone(document);
-      questOf(wanting.world, ids.offeredQuest).requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'healer' };
-      withValid(wanting, deps);
-      const request = (heroIds: HeroId[]): DispatchRequest => ({ guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds });
-
-      const rejection = rejected(wanting, request([rogue, mage]));
-      expect(rejection.reason).toBe('requirement-unmet');
-      expect(rejection.reason === 'requirement-unmet' && rejection.unmet).toEqual([{ requirement: 'class', classKey: 'healer' }]);
-      expect(heroOf(wanting.world, healer).classKey).toBe('healer');
-      expect(applyAction(wanting, { kind: 'dispatch', ...request([rogue, healer]) }, deps).ok).toBe(true);
     });
 
     test('guild-folded: a Guild that has folded sends no Party, whatever else the request gets right', () => {
@@ -463,7 +435,7 @@ function sent(
 
 describe('a Party in play', () => {
   test('returns on the night of Day d + k, whichever of the three Turns of Day d it left in', () => {
-    for (const day of [0, 1, 14]) {
+    for (const day of [0, 1, 4]) {
       for (const turn of [3 * day, 3 * day + 1, 3 * day + 2]) {
         // A world of its own each time: documents share their History, so no two branch from one.
         const document = playTo(createWorld(`return-${day}`, setup, deps).document, turn);
