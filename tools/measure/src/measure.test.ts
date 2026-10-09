@@ -182,6 +182,30 @@ describe('profile', () => {
     expect(lines).toContain('| engine/src/advance.ts | 5 | 100.0% |');
   });
 
+  test("counts a Guild's list of actions (applyActions) and one action (applyAction) as the one part, applyAction (DL-238)", () => {
+    // A root calling applyActions, which copies the world, applyAction, which copies it too, and
+    // advance: 1, 2, 1 and 1 ms.
+    const action = 'file:///C:/r/heroesim/engine/src/actions/action.ts';
+    const copy = 'file:///C:/r/heroesim/engine/src/world-copy.ts';
+    const actions: CpuProfile = {
+      nodes: [
+        { id: 1, callFrame: { functionName: '(root)', url: '', lineNumber: -1 }, children: [2, 3, 6] },
+        { id: 2, callFrame: { functionName: 'applyActions', url: action, lineNumber: 120 }, children: [4] },
+        { id: 3, callFrame: { functionName: 'applyAction', url: action, lineNumber: 100 }, children: [5] },
+        { id: 4, callFrame: { functionName: 'copyWorld', url: copy, lineNumber: 3 } },
+        { id: 5, callFrame: { functionName: 'copyWorld', url: copy, lineNumber: 3 } },
+        { id: 6, callFrame: { functionName: 'advance', url: 'file:///C:/r/heroesim/engine/src/advance.ts', lineNumber: 1 } },
+      ],
+      samples: [2, 4, 3, 6],
+      timeDeltas: [0, 1_000, 2_000, 1_000],
+      startTime: 0,
+      endTime: 5_000,
+    };
+    const lines = profileTables(actions);
+    expect(lines).toContain('| applyAction | 4 | 80.0% |');
+    expect(lines).toContain('| copyWorld | 2 | 40.0% |');
+  });
+
   test('counts a sample once for a function or a module that its stack holds more than once', () => {
     // advance calls estimate, which calls itself: 3 ms in the inner estimate, then 3 ms in advance alone.
     const recursive: CpuProfile = {

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { Guild, WorldDocument } from '../document.js';
+import type { Guild, GuildId, Hero, HeroId, Stack, World, WorldDocument } from '../document.js';
+import { transferFee } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { buildDocument, testDeps, withValid } from '../world.test-support.js';
 import { copyWorld } from '../world-copy.js';
@@ -128,6 +129,115 @@ describe('applyActions', () => {
     // Every rule, each refusal a reason of its own.
     expect(new Set(reasons).size).toBe(refused.length);
     expect(JSON.stringify(world)).toBe(before);
+  });
+
+  test("each rule's late refusals, met once the checks before them have passed, leave the world as they found it", () => {
+    const { document, ids } = built(0);
+    const player = ids.playerGuild;
+    const rival = ids.rivalGuild;
+    const idle = ids.idleHero as HeroId;
+    const third = (document.world.guilds[player] as Guild).rosterIds[2] as HeroId;
+    const pair = [idle, third];
+    /** The Rival answers a Transfer at once, by a Disposition that lets a Hero of its Roster of three go and takes one in. */
+    const ambitious = (world: World): void => {
+      (world.guilds[rival] as Guild).controller = { kind: 'rival', disposition: 'ambitious' };
+    };
+    /** The Guild's Wealth one short of the Transfer fee its Guildmaster's Negotiation sets for `heroId`. */
+    const shortOfFee = (world: World, guildId: GuildId, heroId: HeroId): void => {
+      const guild = world.guilds[guildId] as Guild;
+      guild.wealth = transferFee(world.heroes[heroId] as Hero, world.guildmasters[guild.guildmasterId], deps) - 1;
+    };
+    const cases: [GuildAction, string, ((world: World) => void)?][] = [
+      [{ kind: 'dispatch', guildId: player, questId: ids.offeredQuest, heroIds: [idle] }, 'requirement-unmet'],
+      [
+        { kind: 'dispatch', guildId: player, questId: ids.offeredQuest, heroIds: pair, consumables: [{ definitionKey: 'padded-jack', quantity: 1 }] },
+        'not-consumable',
+      ],
+      [
+        { kind: 'dispatch', guildId: player, questId: ids.offeredQuest, heroIds: pair, consumables: [{ definitionKey: 'whetstone', quantity: 1 }] },
+        'not-held-by-guild',
+      ],
+      [
+        {
+          kind: 'dispatch',
+          guildId: player,
+          questId: ids.offeredQuest,
+          heroIds: pair,
+          consumables: [{ definitionKey: 'healing-draught', quantity: 4 }],
+        },
+        'insufficient-quantity',
+      ],
+      [{ kind: 'equip', guildId: player, heroId: idle, stackId: ids.marketStack }, 'not-held-by-guild'],
+      [{ kind: 'equip', guildId: player, heroId: idle, stackId: ids.guildStack }, 'not-gear'],
+      [
+        { kind: 'equip', guildId: player, heroId: idle, stackId: ids.heroStack, slot: 'trinket' },
+        'wrong-slot',
+        (world) => {
+          (world.stacks[ids.heroStack] as Stack).holder = { kind: 'guild', id: player };
+        },
+      ],
+      [
+        { kind: 'equip', guildId: player, heroId: idle, stackId: ids.partyStack },
+        'slot-occupied',
+        (world) => {
+          (world.stacks[ids.heroStack] as Stack).holder = { kind: 'hero', id: idle, slot: 'armour' };
+          Object.assign(world.stacks[ids.partyStack] as Stack, { definitionKey: 'padded-jack', holder: { kind: 'guild', id: player } });
+        },
+      ],
+      [{ kind: 'unequip', guildId: player, heroId: idle, slot: 'armour' }, 'slot-empty'],
+      [
+        { kind: 'transferIn', guildId: player, heroId: ids.rivalHero },
+        'recently-transferred',
+        (world) => {
+          ambitious(world);
+          (world.heroes[ids.rivalHero] as Hero).transferredOnTurn = world.turn;
+        },
+      ],
+      [{ kind: 'transferIn', guildId: player, heroId: ids.rivalHero }, 'insufficient-wealth', ambitious],
+      [{ kind: 'transferOut', guildId: player, heroId: idle, toGuildId: rival }, 'transfer-refused'],
+      [
+        { kind: 'transferOut', guildId: player, heroId: idle, toGuildId: rival },
+        'insufficient-wealth',
+        (world) => {
+          ambitious(world);
+          shortOfFee(world, rival, idle);
+        },
+      ],
+      [
+        { kind: 'offerTransfer', guildId: rival, heroId: idle },
+        'offer-pending',
+        (world) => {
+          Object.assign(world.offers[ids.offer] as object, { fromGuildId: player, toGuildId: rival, heroId: idle });
+        },
+      ],
+      [{ kind: 'offerTransfer', guildId: rival, heroId: idle }, 'insufficient-wealth', (world) => shortOfFee(world, rival, idle)],
+      [
+        { kind: 'acceptTransfer', guildId: rival, offerId: ids.offer },
+        'guild-folded',
+        (world) => {
+          (world.guilds[player] as Guild).foldedOnTurn = world.turn;
+        },
+      ],
+      [
+        { kind: 'acceptTransfer', guildId: rival, offerId: ids.offer },
+        'hero-in-party',
+        (world) => {
+          (world.heroes[ids.rivalHero] as Hero).partyId = ids.party;
+        },
+      ],
+      [{ kind: 'acceptTransfer', guildId: rival, offerId: ids.offer }, 'insufficient-wealth'],
+    ];
+
+    for (const [action, reason, prepare] of cases) {
+      const world = structuredClone(document.world);
+      prepare?.(world);
+      const before = serialise({ ...document, world });
+
+      const [result] = applyGuildActions(world, [action], deps);
+
+      expect(result?.ok ? 'done' : `${result?.rejection.action} ${result?.rejection.reason}`).toBe(`${action.kind} ${reason}`);
+      expect(serialise({ ...document, world })).toBe(before);
+    }
   });
 
   test('gives back the document it was given when no action is done: none copied for an empty list', () => {
