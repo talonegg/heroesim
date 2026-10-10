@@ -302,7 +302,9 @@ same JSON, though the page has no control for them: `GET /api/<family>/<command>
 object for the rest, a part's command its two words as a path (`/api/quests/beat/add`). The input's
 names: `key`, `at`, `to`, `tier`, `tierMin`, `tierMax`, `encounter`, `line`, `check`, `degree`,
 `values` (the fields, or a Tier's figures), `figures` (those `override clear` clears), `pass` and
-`force`. Their "Finish" answers once its tests end.
+`force`. Their "Finish" answers once its tests end. Each call reads the session afresh, as a command
+line does, and an answer that put back a "Finish" cut off names its files (`recovered`), as the
+command line's JSON does. A read sent as a `POST`, or a change as a `GET`, is refused (405).
 
 ## The page
 
@@ -345,8 +347,9 @@ start git and Chromium (DL-234). "Finish", its undoing and a "Finish" cut off ar
 edit session, for both its adapters (`src/session.ts`'s tests, DL-244); the commands' tests hold what
 each kind's commands show. Each Quest template's and Encounter's command is driven through both of
 its own adapters, the command line and the API, on two scratch copies side by side, their JSON,
-answers and pending edits held the same (`src/quests.test.ts`, DL-267). Each runs on a scratch copy of the repository made a git repository,
-so that `git status` shows what each command left behind. "Finish" reads the scratch copy's planted
+answers and pending edits held the same, and their "Finish" undone and cut off through both too
+(`src/quests.test.ts`, DL-267). Each test runs on a scratch copy of the repository made a git
+repository, so that `git status` shows what each command left behind. "Finish" reads the scratch copy's planted
 `npm test` in the test's own process, but in two tests of `cli.test.ts`, which run it through npm
 end to end. The page's passes in Chromium, each of its controls driven (v1.1.4-S14), share one
 browser, through the Playwright the page's specs install, and are skipped where Chromium is not

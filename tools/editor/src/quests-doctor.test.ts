@@ -134,6 +134,18 @@ describe('the report, through both adapters', () => {
     }
   });
 
+  test('fails on content its own checks refuse though the content’s pass, with nothing pending, exit 1', async () => {
+    const dir = scratch();
+    // The arcane pools drawing combat: the arcane Encounters, none a Finale, met by no Quest.
+    const templates = readContentJson<Record<string, { beats: { pool: Record<string, unknown> }[] }>>(dir, 'quest-templates/');
+    for (const template of Object.values(templates)) for (const each of template.beats) if (JSON.stringify(each.pool) === '{"kinds":["arcane"]}') each.pool = { kinds: ['combat'] };
+    writeContentJson(dir, 'quest-templates/', templates);
+    const report = await json<QuestsDoctor>(dir, 'quests', 'doctor');
+    expect(report.code).toBe(1);
+    expect(report.json).toMatchObject({ ok: false, content: { ok: true }, pending: { ok: true, edits: 0 }, quests: { drawn: { ok: false } } });
+    expect(report.json.quests.drawn.problems).toContain("encounters/the-sealed-door.json: no Beat's pool may draw it, and it is no Finale, so no Quest meets it");
+  });
+
   test('names a pending edit that leaves an Encounter no Quest meets, exit 1, the API answering its report', async () => {
     const dir = scratch();
     // One template whose Beats reach every kind, its last the only one to draw the lore Encounters, serving every Sphere.

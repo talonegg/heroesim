@@ -1,10 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { readContentVersion } from '@heroesim/content/write';
 import { afterEach, describe, expect, test } from 'vitest';
+import { journalPath, writeAtomically } from './finish-journal.js';
 import { pendingPath } from './session.js';
 import { serve } from './server.js';
-import { command, json, plantedTests, readContentJson, scratch, scratchRepository, status } from './test-support.js';
+import { command, json, plantOutcome, plantedTests, readContentJson, scratch, scratchRepository, status } from './test-support.js';
 
 // The Quest templates' and Encounters' commands (DL-257 item 8, DL-267), each driven through both of
 // their adapters, the command line (`npm run edit -- quests …`, `encounters …`) and the page's API
@@ -37,6 +38,7 @@ function statusOf(code: number, answer: Json): number {
 async function pair(): Promise<{
   cliDir: string;
   apiDir: string;
+  url: string;
   both: (cli: readonly string[], method: 'GET' | 'POST', route: string, body?: unknown) => Promise<{ code: number; json: Json }>;
 }> {
   const cliDir = scratch();
@@ -57,7 +59,7 @@ async function pair(): Promise<{
     expect(pending(apiDir)).toBe(pending(cliDir));
     return viaCli;
   };
-  return { cliDir, apiDir, both };
+  return { cliDir, apiDir, url: page.url, both };
 }
 
 /** A new Quest template's fields: three Beats, Tiers 1 and 2. */
@@ -133,12 +135,30 @@ describe('reading, through both adapters', () => {
     expect(text.out).toContain('failure.1 {"kind":"death","chance":0.04,"guardedBy":["constitution"]}');
   });
 
-  test('a command it cannot read is a usage, exit 2 and 400', async () => {
-    const { both } = await pair();
+  test('a command it cannot read is a usage, exit 2 and 400, or 405 sent with the wrong method', async () => {
+    const { cliDir, url, both } = await pair();
     const noKey = await both(['quests', 'show'], 'GET', '/api/quests/show');
     expect(noKey).toEqual({ code: 2, json: { ok: false, kind: 'usage', problems: ['quests show wants a key'] } });
     const notIndex = await both(['quests', 'beat', 'remove', 'a-quiet-word', 'first'], 'POST', '/api/quests/beat/remove', { key: 'a-quiet-word', at: 'first' });
     expect(notIndex.json.problems).toEqual(["quests beat remove wants the Beat's index, from 0, a whole number, not \"first\""]);
+
+    // The command line's own: a word, a field or a flag its command does not take.
+    const usageOf = async (...argv: string[]): Promise<Json> => {
+      const answer = await json<Json>(cliDir, ...argv);
+      expect(answer.code, argv.join(' ')).toBe(2);
+      return answer.json.problems;
+    };
+    expect(await usageOf('quests', 'beat', 'add', 'a-quiet-word', '1', 'more', 'line=Late.', 'pool={"kinds":["social"]}')).toEqual(['quests beat add takes 2 words before its fields, not "more"']);
+    expect(await usageOf('quests', 'list', 'name=All')).toEqual(['quests list takes no field: name']);
+    expect(await usageOf('quests', 'show', 'a-quiet-word', '--pass', 'null')).toEqual(["--pass is encounters check's alone"]);
+
+    // The API's own: a command that changes nothing is a GET, the rest a POST.
+    const asPost = await fetch(new URL('/api/quests/list', url), { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    expect(asPost.status).toBe(405);
+    expect(await asPost.json()).toEqual({ ok: false, kind: 'usage', problems: ['quests list is a GET'] });
+    const asGet = await fetch(new URL('/api/quests/beat/add?key=a-quiet-word', url));
+    expect(asGet.status).toBe(405);
+    expect(await asGet.json()).toEqual({ ok: false, kind: 'usage', problems: ['quests beat add is a POST'] });
   });
 });
 
@@ -188,6 +208,10 @@ describe('the Quest templates, through both adapters', () => {
     expect(rekeyed.json.problems).toEqual(['a key is fixed once made: add a new row instead']);
     const loot = await both(['quests', 'change', 'a-quiet-word', '--row', '{"lootTableKey":"no-such-table"}'], 'POST', '/api/quests/change', { key: 'a-quiet-word', values: { lootTableKey: 'no-such-table' } });
     expect(problemsOf(loot.json)).toContain('questTemplates.a-quiet-word.lootTableKey: "no-such-table" is not a Loot table');
+
+    // A row's discard drops its own edits alone.
+    await both(['quests', 'change', 'clear-the-barrow', '--name', 'Clear the old barrow'], 'POST', '/api/quests/change', { key: 'clear-the-barrow', values: { name: 'Clear the old barrow' } });
+    expect((await both(['quests', 'discard', 'a-quiet-word'], 'POST', '/api/quests/discard', { key: 'a-quiet-word' })).json).toEqual({ ok: true, discarded: 3, left: 1 });
   });
 
   test('remove takes a template out, pending, and one added in the session goes with its edits', async () => {
@@ -258,15 +282,23 @@ describe('the Quest templates, through both adapters', () => {
   });
 
   test('override set and clear change a Tier’s figures for the template, refusing a figure or a Tier it cannot have', async () => {
-    const { both } = await pair();
+    const { cliDir, both } = await pair();
     const set = await both(['quests', 'override', 'set', 'a-quiet-word', '2', 'daysMax=9', 'rewardFactor=2'], 'POST', '/api/quests/override/set', { key: 'a-quiet-word', tier: 2, values: { daysMax: 9, rewardFactor: 2 } });
     expect(set.json.row.row.overrides).toEqual({ 2: { daysMax: 9, rewardFactor: 2 } });
     expect(set.json.row.tiers[1]).toMatchObject({ tier: 2, overridden: ['daysMax', 'rewardFactor'], figures: { daysMax: 9, rewardFactor: 2 } });
 
     const cleared = await both(['quests', 'override', 'clear', 'a-quiet-word', '2', 'rewardFactor'], 'POST', '/api/quests/override/clear', { key: 'a-quiet-word', tier: 2, figures: ['rewardFactor'] });
     expect(cleared.json.row.row.overrides).toEqual({ 2: { daysMax: 9 } });
+    const text = await command(['quests', 'show', 'a-quiet-word', '--root', cliDir]);
+    expect(text.out).toContain('Tier 2: difficulty 28 to 46, Days 5 to 9, plays 3 Beats: beats.0, beats.1, beats.2 (overrides daysMax)');
+    const notOverridden = await both(['quests', 'override', 'clear', 'a-quiet-word', '2', 'rewardFactor'], 'POST', '/api/quests/override/clear', { key: 'a-quiet-word', tier: 2, figures: ['rewardFactor'] });
+    expect(notOverridden.json.problems).toEqual(['Tier 2 does not override rewardFactor: it overrides daysMax']);
     const gone = await both(['quests', 'override', 'clear', 'a-quiet-word', '2'], 'POST', '/api/quests/override/clear', { key: 'a-quiet-word', tier: 2 });
     expect(gone.json.row.row).not.toHaveProperty('overrides');
+    // A Tier's last figure cleared by name takes its override out with it.
+    await both(['quests', 'override', 'set', 'a-quiet-word', '1', 'daysMax=4'], 'POST', '/api/quests/override/set', { key: 'a-quiet-word', tier: 1, values: { daysMax: 4 } });
+    const last = await both(['quests', 'override', 'clear', 'a-quiet-word', '1', 'daysMax'], 'POST', '/api/quests/override/clear', { key: 'a-quiet-word', tier: 1, figures: ['daysMax'] });
+    expect(last.json.row.row).not.toHaveProperty('overrides');
 
     const refusals: [readonly string[], string, Record<string, unknown>, string][] = [
       [['set', 'a-quiet-word', '2', 'colour=3'], 'set', { key: 'a-quiet-word', tier: 2, values: { colour: 3 } }, '"colour" is not a figure of a Tier'],
@@ -317,8 +349,10 @@ describe('the Encounters, through both adapters', () => {
       values: { line: 'A bridge out.', pool: { encounters: ['a-broken-bridge'] } },
     });
     expect(pooled.json.row.beats.at(-1).draws).toEqual(['a-broken-bridge']);
-    const tagged = await both(['encounters', 'change', 'a-broken-bridge', '--tags', 'bridge,water'], 'POST', '/api/encounters/change', { key: 'a-broken-bridge', values: { tags: ['bridge', 'water'] } });
+    const tagged = await both(['encounters', 'change', 'a-broken-bridge', '--tags', ' bridge,,water, '], 'POST', '/api/encounters/change', { key: 'a-broken-bridge', values: { tags: ['bridge', 'water'] } });
     expect(tagged.json.row.row.tags).toEqual(['bridge', 'water']);
+    const noTags = await both(['encounters', 'change', 'a-broken-bridge', '--no-tags'], 'POST', '/api/encounters/change', { key: 'a-broken-bridge', values: { tags: [] } });
+    expect(noTags.json.row.row.tags).toEqual([]);
     const untagged = await both(['encounters', 'change', 'a-broken-bridge', '--row', '{"tags":null}'], 'POST', '/api/encounters/change', { key: 'a-broken-bridge', values: { tags: null } });
     expect(untagged.json.row.row).not.toHaveProperty('tags');
 
@@ -337,11 +371,12 @@ describe('the Encounters, through both adapters', () => {
       'change quests a-quiet-word',
       'change encounters a-broken-bridge',
       'change encounters a-broken-bridge',
+      'change encounters a-broken-bridge',
     ]);
     const stranded = await both(['encounters', 'discard'], 'POST', '/api/encounters/discard', {});
     expect(problemsOf(stranded.json)).toContain('questTemplates.a-quiet-word.beats.3.pool.encounters: "a-broken-bridge" is not an Encounter');
     const quests = await both(['quests', 'discard', 'a-quiet-word'], 'POST', '/api/quests/discard', { key: 'a-quiet-word' });
-    expect(quests.json).toEqual({ ok: true, discarded: 1, left: 3 });
+    expect(quests.json).toEqual({ ok: true, discarded: 1, left: 4 });
     const removed = await both(['encounters', 'remove', 'a-broken-bridge'], 'POST', '/api/encounters/remove', { key: 'a-broken-bridge' });
     expect(removed.json).toEqual({ ok: true, key: 'a-broken-bridge', list: 'encounters', pending: 0 });
   });
@@ -389,6 +424,13 @@ describe('the Encounters, through both adapters', () => {
       values: { difficultyFactor: 0.08, flat: 1 },
     });
     expect(changed.json.row.row.checks[1]).toMatchObject({ difficultyFactor: 0.08, flat: 1 });
+    // The pass formula alone changed with a Check named.
+    const passed = await both(['encounters', 'check', 'change', 'a-broken-bridge', 'nerve', '--pass', '["or","cross","nerve"]'], 'POST', '/api/encounters/check/change', {
+      key: 'a-broken-bridge',
+      check: 'nerve',
+      pass: ['or', 'cross', 'nerve'],
+    });
+    expect(passed.json.row.row.pass).toEqual(['or', 'cross', 'nerve']);
     const twice = await both(['encounters', 'check', 'add', 'a-broken-bridge', '--row', JSON.stringify(second)], 'POST', '/api/encounters/check/add', { key: 'a-broken-bridge', values: second });
     expect(twice.json.problems).toEqual(['"nerve" is a Check of it already']);
     const named = await both(['encounters', 'check', 'remove', 'a-broken-bridge', 'nerve'], 'POST', '/api/encounters/check/remove', { key: 'a-broken-bridge', check: 'nerve' });
@@ -429,6 +471,16 @@ describe('the Encounters, through both adapters', () => {
       expect(refused.code, words.join(' ')).toBe(1);
       expect(problemsOf(refused.json), words.join(' ')).toContain(problem);
     }
+
+    // A consequence added at a place goes there, the rest after it.
+    const failures = readContentJson<Record<string, Json>>(cliDir, 'encounters/')['the-flooded-ford'].consequences.failure;
+    const first = await both(['encounters', 'consequence', 'add', 'the-flooded-ford', 'failure', '0', 'kind=morale', 'delta=-1'], 'POST', `${route}/add`, {
+      key: 'the-flooded-ford',
+      degree: 'failure',
+      at: 0,
+      values: { kind: 'morale', delta: -1 },
+    });
+    expect(first.json.row.row.consequences.failure).toEqual([{ kind: 'morale', delta: -1 }, ...failures]);
   });
 });
 
@@ -460,5 +512,67 @@ describe('finishing, the doctor and recovery, through both adapters', () => {
     const elsewhere = await both(['encounters', 'doctor'], 'GET', '/api/encounters/doctor');
     expect(elsewhere.code).toBe(2);
     expect(elsewhere.json.problems[0]).toContain('(`quests doctor` checks both)');
+  });
+
+  // "Finish", its undoing and a "Finish" cut off, on the edit session's content files' adapter
+  // (DL-244), for this kind's two folders.
+  test('a test that fails undoes "Finish" through both: every file of both lists put back, the edits still pending', async () => {
+    const { cliDir, apiDir, both } = await pair();
+    for (const dir of [cliDir, apiDir]) plantOutcome(dir, 'fail');
+    await both(['encounters', 'add', 'a-broken-bridge', '--row', JSON.stringify(bridge)], 'POST', '/api/encounters/add', { key: 'a-broken-bridge', values: bridge });
+    await both(['quests', 'remove', 'the-sickness-at-the-mill'], 'POST', '/api/quests/remove', { key: 'the-sickness-at-the-mill' });
+    const undone = await both(['encounters', 'finish'], 'POST', '/api/encounters/finish', {});
+    expect(undone).toMatchObject({ code: 1, json: { ok: false, kind: 'undone' } });
+    for (const dir of [cliDir, apiDir]) expect(status(dir)).toBe('');
+    const pending = await both(['quests', 'pending'], 'GET', '/api/quests/pending');
+    expect(pending.json.edits.map((edit: Json) => `${edit.op} ${edit.list} ${edit.key}`)).toEqual(['add encounters a-broken-bridge', 'remove quests the-sickness-at-the-mill']);
+  });
+
+  test('a "Finish" cut off is put back by the next command through both, which names its files once; one held by a live process is busy until recover --force', async () => {
+    const { cliDir, apiDir, url } = await pair();
+    const template = (dir: string): string => path.join(dir, 'content', 'quest-templates', 'a-quiet-word.json');
+    const before = readFileSync(template(cliDir));
+    /** A journal the process `pid` left, the file since written over. */
+    const plant = (pid: number): void => {
+      for (const dir of [cliDir, apiDir]) {
+        writeAtomically(journalPath(dir), JSON.stringify({ pid, startedAt: '2026-10-11T00:00:00Z', contentVersion: 39, edits: 1, files: { [template(dir)]: before.toString('base64') } }));
+        writeFileSync(template(dir), '{}\n');
+      }
+    };
+    const viaApi = async (method: 'GET' | 'POST', route: string): Promise<{ status: number; json: Json }> => {
+      const response = await fetch(new URL(route, url), method === 'GET' ? {} : { method, headers: { 'content-type': 'application/json' }, body: '{}' });
+      return { status: response.status, json: await response.json() };
+    };
+    const putBack = (): void => {
+      for (const dir of [cliDir, apiDir]) {
+        expect(readFileSync(template(dir))).toEqual(before);
+        expect(status(dir)).toBe('');
+      }
+    };
+
+    // A process long gone.
+    plant(2 ** 22 + 7);
+    expect((await json(cliDir, 'quests', 'pending')).json).toEqual({ edits: [], recovered: [template(cliDir)] });
+    expect((await viaApi('GET', '/api/quests/pending')).json).toEqual({ edits: [], recovered: [template(apiDir)] });
+    putBack();
+    expect((await json(cliDir, 'encounters', 'recover')).json).toEqual({ ok: true, recovered: [] });
+    expect((await viaApi('POST', '/api/encounters/recover')).json).toEqual({ ok: true, recovered: [] });
+
+    // A process alive, this one's parent: read as running, until --force.
+    plant(process.ppid);
+    expect((await json(cliDir, 'quests', 'pending')).json).toMatchObject({ ok: false, kind: 'busy' });
+    expect(await viaApi('GET', '/api/quests/pending')).toMatchObject({ status: 409, json: { ok: false, kind: 'busy' } });
+    expect((await json(cliDir, 'encounters', 'recover', '--force')).json).toEqual({ ok: true, recovered: [template(cliDir)] });
+    const forced = await fetch(new URL('/api/encounters/recover', url), { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"force":true}' });
+    expect(await forced.json()).toEqual({ ok: true, recovered: [template(apiDir)] });
+    putBack();
+  });
+
+  test('a pending edit that no longer applies is named with its own family’s discard', async () => {
+    const { cliDir, apiDir, both } = await pair();
+    await both(['encounters', 'change', 'the-patrons-steward', '--name', 'The steward'], 'POST', '/api/encounters/change', { key: 'the-patrons-steward', values: { name: 'The steward' } });
+    for (const dir of [cliDir, apiDir]) rmSync(path.join(dir, 'content', 'encounters', 'the-patrons-steward.json'));
+    const stale = await both(['quests', 'list'], 'GET', '/api/quests/list');
+    expect(stale.json.problems[0]).toBe('The pending edit 1 (change the-patrons-steward) no longer applies; discard it with `encounters discard the-patrons-steward`');
   });
 });

@@ -97,7 +97,6 @@ async function body(request: IncomingMessage): Promise<Record<string, unknown>> 
 /** Serves the page and its API for the repository at `root`, on `port` (0 for any free one). */
 export async function serve({ root, port = 4180, runTests = npmTest }: { root: string; port?: number; runTests?: TestRunner }): Promise<Served> {
   const editor = new Editor(root);
-  const quests = new QuestsEditor(root);
   let finish: FinishState = { state: 'idle', lines: [], result: null, problems: [] };
   let running: Promise<void> = Promise.resolve();
 
@@ -120,8 +119,12 @@ export async function serve({ root, port = 4180, runTests = npmTest }: { root: s
       const read = reads.includes(command);
       if (commands[family].includes(command) && read !== (method === 'GET')) return send(response, 405, { ok: false, kind: 'usage', problems: [`${family} ${command} is a ${read ? 'GET' : 'POST'}`] });
       const input = method === 'GET' ? Object.fromEntries(url.searchParams) : await body(request);
+      // A call's own editor, as the command line makes one a command, so that the files of a "Finish"
+      // cut off that it puts back are named once, in its answer, as the command line's (DL-267).
+      const quests = new QuestsEditor(root);
       const result = await runCommand(family, command, input, quests, { runTests, onLine: () => {} });
-      return send(response, 200, result.json);
+      const recovered = quests.recovered.length > 0 && command !== 'recover' ? { recovered: quests.recovered } : {};
+      return send(response, 200, { ...(result.json as object), ...recovered });
     }
     if (what === 'traits' && key === undefined && method === 'GET') return send(response, 200, everything());
     if (what === 'traits' && key === undefined && method === 'POST') {

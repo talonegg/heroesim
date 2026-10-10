@@ -800,3 +800,10 @@ command through both adapters), `quests-doctor.test.ts` (8), content's `kinds.te
 red first). `quests doctor` clean: 38 Beats of 12 templates, 23 Tiers, 29 Encounters, 4 Finales, two
 notes. A scratch session on the repository (a Beat added, an override set, shown, discarded) left
 `git diff` of the content empty. The epic's S9 boxes.
+Verified 2026-10-11 at 4b14363: every command run on a scratch copy, done and refused, "Finish" (39 to
+40), undone and cut off; each kind of the doctor's problem planted, each exit 1; "both adapters" read
+as the commands' two front ends, as the repository names a CLI's and a page's adapters, and tested in
+DL-244's sense too ("Finish" undone and cut off for this kind); of 58 mutations 39 went red, 2 are
+equivalent and 17 were killed by tests added; fixed, test first: the API's one long-lived editor never
+named the files a "Finish" cut off put back and its `recover` named them again, now an editor a call
+naming `recovered` as the command line does.
