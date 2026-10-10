@@ -22,4 +22,12 @@ describe('validateContent on a set built in memory', () => {
     );
   });
 
+  test('refuses a grade that is not a whole number from 1 and a cost that is not a whole number above 0, each named', () => {
+    const content = structuredClone(shipped);
+    Object.assign(content.improvements['infirmary-1'] ?? {}, { grade: 0, cost: 0 });
+
+    const { message } = refusalOf(() => validateContent(content));
+    expect(message).toContain('improvements.infirmary-1.grade is 0; it is a whole number from 1');
+    expect(message).toContain('improvements.infirmary-1.cost is 0; it is a whole number above 0');
+  });
 });

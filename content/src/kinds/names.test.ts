@@ -1,6 +1,6 @@
 import { type Names } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
-import { parse, withJson, refusalOf } from './content.test-support.js';
+import { parse, withJson, withText, refusalOf } from './content.test-support.js';
 
 // The name lists' refusals (DL-243). Each is triggered by content built in memory from the shipped files with one
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
@@ -55,5 +55,9 @@ describe("a Patron's name (DL-125 item 5)", () => {
     const files = withJson('names.json', (json) => json.patron.push({ name: 'Jocelyn Pike', sex: 'female' }));
 
     expect(refusalOf(() => parse(files)).message).toMatch(/names\.patron: "Jocelyn Pike" is listed twice/);
+  });
+
+  test('as a file that is no object is refused, naming the file', () => {
+    expect(refusalOf(() => parse(withText('names.json', '[]'))).message).toContain('names.json: must be an object of name lists');
   });
 });

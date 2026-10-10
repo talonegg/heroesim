@@ -1,5 +1,6 @@
 import { type Disposition } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
+import { validateContent } from '../index.js';
 import { realFiles, parse, shipped, withJson, withText, refusalOf, type Files } from './content.test-support.js';
 
 // The Dispositions' refusals (DL-243). Each is triggered by content built in memory from the shipped files with one
@@ -111,5 +112,21 @@ describe("a Disposition's orders", () => {
     ['buildOrder', ['infirmary', 'trainingYard', 'quarters', 'library']],
   ])('%s naming a key it has none of is refused by the parser', (field, order) => {
     expect(refusalOf(() => parse(written((it) => void (it[field] = order)))).message).toContain(`steady.${field} is`);
+  });
+
+  test('with an order naming a key it has none of is refused in memory, naming the key and the keys it may have', () => {
+    const content = structuredClone(shipped);
+    Object.assign(content.dispositions['steady'] ?? {}, { gearSlotOrder: ['weapon', 'armour', 'ring'] });
+
+    expect(refusalOf(() => validateContent(content)).message).toContain(
+      'dispositions.steady.gearSlotOrder: "ring" is not one of weapon, armour, trinket',
+    );
+  });
+
+  test('as a file that is no object, or a row that is none, is refused, naming the file and the row', () => {
+    expect(refusalOf(() => parse(withText('dispositions.json', '[]'))).message).toContain(
+      'dispositions.json: must be an object of rows keyed by content key',
+    );
+    expect(refusalOf(() => parse(withText('dispositions.json', '{"steady": null}'))).message).toContain('dispositions.json: steady must be an object');
   });
 });

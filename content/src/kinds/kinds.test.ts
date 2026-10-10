@@ -4,7 +4,7 @@ import { readKinds } from '../parse.js';
 import { validateKinds } from '../validate.js';
 import { changed, realFiles, refusalOf, shipped } from './content.test-support.js';
 import { contentFieldNames, contentKinds, contentRules } from './index.js';
-import { number, optional, table, text } from './read.js';
+import { number, oneOf, optional, table, text } from './read.js';
 import type { KindRules } from './rules.js';
 import { spheresKind, spheresRules } from './spheres.js';
 
@@ -72,5 +72,16 @@ describe('the kinds', () => {
     expect(contentKinds.map((kind) => kind.key)).toEqual(places);
     expect(new Set(contentKinds.map((kind) => kind.file)).size).toBe(contentKinds.length);
     expect(contentRules.map((kind) => kind.key)).toEqual(places.filter((place) => place !== 'version'));
+  });
+});
+
+describe('a reader', () => {
+  test('of a choice from no choices says there is nothing to choose from', () => {
+    const nothing = table<'spheres', { key: string; pick: never }>('spheres', 'spheres.json', { pick: oneOf<never>({}) }, 'a thing');
+    const problems: string[] = [];
+
+    nothing.read({ 'a-thing': { pick: 'anything' } }, problems);
+
+    expect(problems).toEqual(['spheres.json: a-thing.pick is "anything"; expected none: there is nothing to choose from']);
   });
 });

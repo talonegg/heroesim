@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { parse, withJson, refusalOf, type Files } from './content.test-support.js';
+import { parse, withJson, withText, refusalOf, type Files } from './content.test-support.js';
 
 // The content version's refusals (DL-243). Each is triggered by content built in memory from the shipped files with one
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
@@ -22,5 +22,11 @@ describe('the content version', () => {
     ['a field it does not know', (json: Files['version.json']) => void (json.notes = 'x'), 'version.json: notes is not a field of the content version'],
   ])('is refused with %s, naming it', (_name, change, problem) => {
     expect(refusalOf(() => parse(withJson('version.json', change))).message).toContain(problem);
+  });
+
+  test('as a file that is no object is refused, naming the file', () => {
+    expect(refusalOf(() => parse(withText('version.json', '[]'))).message).toContain(
+      'version.json: must be an object of the version and its changelog',
+    );
   });
 });

@@ -1497,8 +1497,9 @@ files counted; 12 and 50 seeds starting 12 and 50 processes), then green.
 ## DL-252 — v1.1.9-S16's close: the Gate, the copy line anchored at this close, and the after-report
 
 **Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, answering the copy line's
-failure with (a): its share anchored at this release's closing full gate, the growth kept; the rest by
-the agent, as the delivery guide's close and the documentation guide say
+failure with (a): its share anchored at this release's closing full gate, the growth kept; and the
+coverage drops with (b): content's unreached checks covered, the rest accepted as explained; the rest
+by the agent, as the delivery guide's close and the documentation guide say
 
 **Context.** The close runs the Gate line by line (the epic). Its full `gate` played v1.1.8's games,
 but its copy line failed: a share of 0.3900 against at most 0.31625 (v1.1.6-S17's 0.253 + 25%).
@@ -1530,9 +1531,11 @@ but its copy line failed: a share of 0.3900 against at most 0.31625 (v1.1.6-S17'
      - the copy line as in item 1.
    - *The engine's twenty-year boxes,* alone: 2 files and 6 tests, 3,273 s.
    - *The boxes kept apart* (`resolve.harness`, `patron-offers.harness`): 3 tests. *The speed run:* 2.
-   - *Coverage,* alone: every test passes. Against S1's, three figures are below it, each explained
-     in the after-report:
-     - `content`'s branches, 91.9% to 91.6%;
+   - *Coverage,* alone: every test passes. `content`'s branches fell, 91.9% to 91.6%; on the owner's
+     answer (b) its unreached checks have rows, 15 refusals and 4 wordings, each red on a planted
+     bug. It reads 99.4% and 93.1% against S1's 98.3% and 91.9%; 8 defensive arms are left, named in
+     the after-report. Two figures stay below S1's, explained there and accepted by the owner on
+     2026-10-10:
      - `web`'s lines, 98.0% to 97.9%;
      - the portrait tool's lines, 95.3% to 95.2%, counted the baseline's way. With its
        `test-support.ts` left out, it reads 95.0% and 76.3% both before and after.
@@ -1554,8 +1557,9 @@ but its copy line failed: a share of 0.3900 against at most 0.31625 (v1.1.6-S17'
 *Judgement calls, for the owner to see:*
 - **The baseline kept, not moved** to `v1.1.9-gate`: that is DL-229 item 2's rule for a release that
   changes no play. Only the copy line names this close's report, which is committed.
-- **S16's first box is left unticked:** the coverage line needs the owner's acceptance of the three
-  drops.
+- **Two wordings through a kind of the test's own.** No shipped effect kind has an unbounded number
+  or a list of one kind, so those rows call `checkEffect`, the rules' seam, with one. The plural's
+  row is an `and` of no part: one part was already shown.
 - **The tools measured both ways** by a second coverage run without the new exclude, with the config
   restored after it.
 - **The `neutral` reference** is the release's last `neutral` (S16's, at `67f3d55`) rather than a new
@@ -1571,3 +1575,5 @@ its ceiling holds, each red when mutated; the committed report passes every line
 no content branch below S1 is cover lost (S1's tree run again with coverage); fixed the `neutral`
 comparison to report against report, 411.1 s, and gave the History reader's unreached line and a
 Hero's coming home a test each.
+Verified 2026-10-10 at `1d1668b` with content's new rows: 21 bugs planted in its checks, each red and
+restored; `npm run coverage` alone, 6,034 passed, leaves content's 8 group C arms of the 27.

@@ -103,4 +103,15 @@ describe("a Quest template's Encounters", () => {
       /questTemplates\.clear-the-barrow\.encounterKinds: no Encounter is of kind "stealth"/,
     );
   });
+
+  test('with no Sphere, a negative reward or a negative fame is refused, each worded and named', () => {
+    const files = withJson('quest-templates.json', (json) => {
+      Object.assign(barrow(json), { sphereKeys: [], rewardPerDifficulty: -2, fameEffect: -1 });
+    });
+
+    const { message } = refusalOf(() => parse(files));
+    expect(message).toContain('questTemplates.clear-the-barrow.sphereKeys is empty: no Patron offers it');
+    expect(message).toContain('questTemplates.clear-the-barrow.rewardPerDifficulty is -2; it is a number of 0 or more');
+    expect(message).toContain('questTemplates.clear-the-barrow.fameEffect is -1; it is a whole number of 0 or more');
+  });
 });

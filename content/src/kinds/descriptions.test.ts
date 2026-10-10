@@ -67,6 +67,32 @@ describe('the vocabulary a picture is read in (DL-134 item 4)', () => {
   });
 });
 
+describe('the lists a description is written from', () => {
+  test('is refused with no age band, no Birthplace and no Calling, each named', () => {
+    const files = withJson('descriptions.json', (json) => {
+      json.ageBands = [];
+      json.birthplaces = [];
+      json.callings = {};
+    });
+
+    const { message } = refusalOf(() => parse(files));
+    expect(message).toContain('descriptions.ageBands is empty: every age needs a band');
+    expect(message).toContain('descriptions.birthplaces is empty');
+    expect(message).toContain('descriptions.callings is empty');
+  });
+
+  test('is refused with a pronoun that is blank or not trimmed, each named', () => {
+    const files = withJson('descriptions.json', (json) => {
+      json.pronouns.female.he = '';
+      json.pronouns.male.him = 'him ';
+    });
+
+    const { message } = refusalOf(() => parse(files));
+    expect(message).toContain('descriptions.pronouns.female.he is ""; it is a word, trimmed');
+    expect(message).toContain('descriptions.pronouns.male.him is "him "; it is a word, trimmed');
+  });
+});
+
 describe("the Biography's sentences from a picture, and a Hero's (DL-134 items 4 and 6, DL-135 item 6)", () => {
   test('are refused with a key that is no station, calling, age band, temper, Hero Background, Class or Hero Trait, each named', () => {
     const files = withJson('descriptions.json', (json) => {

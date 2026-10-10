@@ -2,7 +2,8 @@ import type { GuildmasterTraitEffect, HeroTraitEffect } from '@heroesim/engine/c
 import { describe, expect, test } from 'vitest';
 import { validateContent } from '../validate.js';
 import { refusalOf, shipped } from './content.test-support.js';
-import { guildmasterTraitEffects, heroTraitEffects, type EffectKinds } from './trait-effects.js';
+import { knownOf } from './rules.js';
+import { checkEffect, guildmasterTraitEffects, heroTraitEffects, type EffectKinds } from './trait-effects.js';
 
 // The effect kinds of a Trait, each described once by its fields (DL-243): the reader, the rules, the
 // editor's forms and its scan of the code derive from the description, which the engine's unions
@@ -91,6 +92,20 @@ describe("the effect kinds' description", () => {
     expect(refusalOf(() => validateContent(content)).problems).toEqual([
       'guildmasterTraits.old-soldier.effects.0.kind is "statModifiers"; it is classStatBonus, guildMoraleShift or upkeepFactor',
       'heroTraits.battle-tried.effects.0.kind is "upkeepFactor"; it is statModifiers or encounterBonus',
+    ]);
+  });
+
+  test('words a list of one kind as that kind alone, and a number with no bound as a number or a whole number', () => {
+    const lone = { sum: { label: 'A sum', fields: { whole: { type: 'integer', label: 'Whole' }, any: { type: 'number', label: 'Any' } } } };
+    const problems: string[] = [];
+
+    checkEffect('lone.0', { kind: 'product' }, lone, knownOf(shipped), problems);
+    checkEffect('lone.1', { kind: 'sum', whole: 1.5, any: Number.NaN } as { kind: string }, lone, knownOf(shipped), problems);
+
+    expect(problems).toEqual([
+      'lone.0.kind is "product"; it is sum',
+      'lone.1.whole is 1.5; it is a whole number',
+      'lone.1.any is NaN; it is a number',
     ]);
   });
 });

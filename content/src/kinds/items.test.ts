@@ -89,4 +89,13 @@ describe('validateContent on a set built in memory', () => {
     expect(message).toMatch(/items\.whetstone\.effect\.kinds: "naval" is not a kind of Encounter/);
   });
 
+
+  test('refuses gear with an effect, which the parser cannot see in memory', () => {
+    const content = structuredClone(shipped);
+    Object.assign(content.items['short-sword'] ?? {}, { effect: { kind: 'bonus', flat: 3, kinds: ['combat'] } });
+
+    expect(refusalOf(() => validateContent(content)).message).toContain(
+      'items.short-sword.effect: gear has no effect; only a consumable has one',
+    );
+  });
 });

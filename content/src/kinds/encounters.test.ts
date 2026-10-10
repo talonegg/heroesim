@@ -131,6 +131,7 @@ describe('an Encounter in the new form', () => {
     ['a Check not named', { pass: ['or', 'front', 'wits'] }, path('pass: "nerve" is not named; every Check is named once')],
     ['an operator no formula has', { pass: ['or', ['xor', 'front', 'nerve'], 'wits'] }, path('pass.1.0 is "xor"; a pass formula\'s operator is and, or or at-least')],
     ['an `and` of one part', { pass: ['or', ['and', 'front'], 'nerve', 'wits'] }, path('pass.1 has 1 part; and combines two or more')],
+    ['an `and` of no part', { pass: ['or', ['and'], 'front', 'nerve', 'wits'] }, path('pass.1 has 0 parts; and combines two or more')],
     ['an `at-least` of 0', { pass: ['at-least', 0, 'front', 'nerve', 'wits'] }, path("pass.1 is 0; at-least's k is a whole number from 1 to the number of its parts, 3")],
     ['an `at-least` of more than its parts', { pass: ['at-least', 4, 'front', 'nerve', 'wits'] }, path("pass.1 is 4; at-least's k")],
     ['an `at-least` of a fraction', { pass: ['at-least', 1.5, 'front', 'nerve', 'wits'] }, path("pass.1 is 1.5; at-least's k")],
