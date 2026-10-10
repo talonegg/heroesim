@@ -61,5 +61,5 @@ every environment variable the repository reads is in [`docs/environment.md`](do
 - [`harness/README.md`](./harness/README.md), [`tools/editor/README.md`](./tools/editor/README.md), [`tools/portraits/README.md`](./tools/portraits/README.md) — the harness, the content editor, the portrait tool
 - [`docs/images/`](./docs/images/) — the conceptual game-flow diagram this baseline was drawn from, and the runtime architecture
 
-The v1 design and its proof of concept remain in history: the design at commit `059b645`, the
-built game on branch `feature/poc`. v2 starts clean; nothing from v1 is assumed.
+The initial proof of concept remains in history: the design at commit `059b645`, the
+built game on branch `feature/poc`. Current build starts clean; nothing from the poc is assumed.
