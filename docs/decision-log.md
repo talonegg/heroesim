@@ -994,3 +994,9 @@ Encounter tuned in place keeps its newline; a ladder that would fail "Finish" fa
 1, `calibrate.test.ts` 2, `quests-doctor.test.ts` 1, `quests.test.ts` 3, `config-kind.test.ts` 1,
 `settings.test.ts` 1, `targets.test.ts` 1, `quest-review.test.ts` 1, `counters.test.ts` 1,
 `sweep.test.ts` 1. The review: the session's scratchpad, `s13-review.md`. The epic's S13 Status.
+Verified 2026-10-11 at 6154cf3: each fix re-derived (the built script's changelog empty; `playedBeats`
+the engine's `beatsDrawn` through `tiersOf`; the S2 gate's `transfersBack` 24, all between Rivals,
+so unchanged; R1's figures as its reports give them; the corrections facts); 27 mutations, 20 red,
+6 killed by tests added (an untuned file rewritten, a sound ladder refused, the by-year words, an
+unescaped name, the 20- and 25-year slice words), 1 equivalent; the flaky test, `release.test.ts`'s
+git repositories, 4.3 to 4.6 s of a 5 s default, timing out under load, given 30 s.

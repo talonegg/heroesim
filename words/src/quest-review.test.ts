@@ -100,6 +100,14 @@ describe('the review page', () => {
     const before = [{ line: 'By the water.', pool: { tags: ['town'] } }, ...beats.slice(1)];
     const retagged = reviewPage({ content: pooled, core: { ...core, questTemplates: { ...core.questTemplates, [key]: { ...template, beats: before } } }, calibration, notes: {}, made: '2026-10-03' });
     expect(retagged).toContain(`Beats Any tagged town, Ambush on the road, Combat or Travel tagged wilds or town, Lore or Hold the line → ${words}`);
+
+    // A named Encounter's name is escaped in the Beats line, as every name on the page is.
+    const ambush = pooled.encounters['ambush-on-the-road'];
+    if (ambush === undefined) throw new Error('no ambush-on-the-road among the drafts');
+    const marked = { ...pooled, encounters: { ...pooled.encounters, 'ambush-on-the-road': { ...ambush, name: 'Ambush <b>& run' } } };
+    const escaped = reviewPage({ content: marked, core, calibration, notes: {}, made: '2026-10-03' });
+    expect(escaped).toContain(' · Beats Any tagged water, Ambush &lt;b&gt;&amp; run, Combat');
+    expect(escaped).not.toContain('<b>&');
   });
 
   test('with fragment, is the title, the style and the content alone, in that order, padding only the block ends', () => {

@@ -213,7 +213,8 @@ describe('writeTunedEncounters', () => {
     const [kept, moved, untuned] = Object.keys(rows).sort();
     if (kept === undefined || moved === undefined || untuned === undefined) throw new Error('fewer than three drafted Encounters');
     mkdirSync(join(dir, 'encounters'), { recursive: true });
-    const texts = Object.fromEntries([kept, moved, untuned].map((key) => [key, `${formatJson(rows[key])}\n`]));
+    // The untuned file in a layout the write-back would not give it, so that rewriting it shows.
+    const texts = Object.fromEntries([kept, moved, untuned].map((key) => [key, key === untuned ? `${JSON.stringify(rows[key], null, 4)}\n` : `${formatJson(rows[key])}\n`]));
     for (const [key, text] of Object.entries(texts)) writeFileSync(join(dir, 'encounters', `${key}.json`), text);
     const keptChecks = Object.fromEntries((rows[kept]?.checks ?? []).map((it) => [it.key, { difficultyFactor: it.difficultyFactor, ...(it.flat === undefined ? {} : { flat: it.flat }) }]));
     const movedChecks = Object.fromEntries((rows[moved]?.checks ?? []).map((it) => [it.key, { difficultyFactor: 0.123 }]));

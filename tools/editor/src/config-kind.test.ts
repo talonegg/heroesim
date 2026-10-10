@@ -135,6 +135,17 @@ describe('set', () => {
     expect(status(dir)).toBe('');
   });
 
+  test('holds a changed Tier ladder every Quest template can play, and "Finish" writes it', async () => {
+    const dir = scratch();
+    const tiers = readConfig(dir).sections.questTiers?.tiers as { daysMax: number }[];
+    const longer = tiers.map((row, index) => (index === 0 ? { ...row, daysMax: row.daysMax + 1 } : row));
+    expect((await json(dir, 'config', 'set', 'tiers', JSON.stringify(longer))).code).toBe(0);
+    expect((await json<{ edits: { setting: string }[] }>(dir, 'config', 'pending')).json.edits.map((edit) => edit.setting)).toEqual(['tiers']);
+
+    expect((await command(['config', 'finish', '--reason', 'a trial', '--root', dir], planted)).code).toBe(0);
+    expect(readConfig(dir).sections.questTiers?.tiers).toEqual(longer);
+  });
+
   test('refuses a setting the file lacks', async () => {
     const dir = scratch();
     const unknown = await json<Failure>(dir, 'config', 'set', 'gearSlots', '3');

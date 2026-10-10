@@ -593,6 +593,13 @@ describe('sweepPlay', () => {
     test('names the slice of a game it measures (DL-83 item 18)', () => {
       // A run shorter than the slice says so, rather than call its years the slice (DL-270).
       expect(report).toContain(" · the first 0.06 years of games that run 20 to 35 years, short of DL-83 item 18's slice, their first 20 · ");
+      expect(playReport({ ...sweep, years: 20 }, context)).toContain(' · the first 20 years of games that run 20 to 35 years, the slice measured (DL-83 item 18) · ');
+      expect(playReport({ ...sweep, years: 25 }, context)).toContain(" · the first 25 years of games that run 20 to 35 years, past DL-83 item 18's slice, their first 20 · ");
+    });
+
+    // A game ended early is not in a later year's mean (`carryHighestLevels`), and the table says so (DL-270).
+    test("words the highest Levels by year as the mean over the games still in play", () => {
+      expect(report).toContain('the mean over the games still in play that year in which the side had a Hero by then');
     });
 
     test('sets its Targets after the Summary and before the Counters (DL-259)', () => {
