@@ -437,7 +437,8 @@ founded with as a setting, in place of the constant `foundingFame = 0` in
   more) and a test of the first Board's draw uses one. The brief named "sizes below 1" as nonsense;
   refusing them is a one-line change to the two rules.
 - **The floor of the sum,** not of the growth alone; the same while the start is whole. A growth not
-  exactly a binary fraction (0.29 × 100 is 28.999…) floors one Quest short of the decimal sum.
+  exactly a binary fraction (1.16 × 25 is 28.999…) is counted whole within 1e-9, so the Board gains
+  its Quest in the Year the decimal parts make one (the verification).
 - **`foundingFame` at least `fameFloor`,** where a lower one would be raised the first night: so
   `fameFloor`'s own case allows 0 only, its edges above 0 held beside `foundingFame`'s.
 - **The neutral fingerprint moves by construction:** each save records `configVersion` and the
@@ -454,3 +455,9 @@ five keys alone, 0 counters moved of 547, the saves 12,400 bytes longer. With th
 `boardSize` 6, the rules, `boardSizeAt` given 6, 0 and 6, Fame 0) the 4 × 2 quick check gave
 `38d1c0d4…`, the baseline, the files then restored by SHA-256; at the build, `7ae6defa…`. The epic's
 S4 boxes.
+Verified 2026-10-11 at 3344e92: play unchanged, every one of the 208 year-end saves of the S4 `neutral` and a
+4 × 2 quick check exactly 62 characters longer than S3's and S2's verifier's, the config's five keys,
+547 and 481 counters the same, and the quick check's `7ae6defa…` and the `neutral` `661789f1…` reproduced;
+fixed, test first: the Board floored a Quest short at decimal growths (1,331 of 804,000 tried, growths
+in hundredths to 10, Years to 200, four starts), and a test kills a surviving mutant counting part of a
+Year; two stale comments. The put-back was not repeated: its temporary edit was denied.

@@ -46,11 +46,26 @@ describe('boardSizeAt (DL-261)', () => {
     expect(boardSizeAt(turnsPerYear - 1, config)).toBe(4);
     expect(boardSizeAt(turnsPerYear, config)).toBe(5);
     expect(boardSizeAt(3 * turnsPerYear + 7, config)).toBe(4 + yearOf(3 * turnsPerYear + 7, config));
+
+    // Never by a part of a Year: at 1.5 a Year, the last Turn of Year 1 holds Year 1's 3.5, not 4.95.
+    const faster = testDeps({ turnsPerYear, boardSizeStart: 2, boardGrowthPerYear: 1.5, boardSizeMax: 10 }).config;
+    expect(boardSizeAt(2 * turnsPerYear - 1, faster)).toBe(3);
+    expect(boardSizeAt(2 * turnsPerYear, faster)).toBe(5);
   });
 
   test('a part of a Quest a Year adds a Quest each time the parts make a whole one', () => {
     const config = testDeps({ turnsPerYear, boardSizeStart: 3, boardGrowthPerYear: 0.5, boardSizeMax: 6 }).config;
     expect([0, 1, 2, 3, 4, 5, 6, 7, 8].map((year) => boardSizeAt(year * turnsPerYear, config))).toEqual([3, 3, 4, 4, 5, 5, 6, 6, 6]);
+  });
+
+  test('a growth in hundredths adds its Quest in the Year its parts make a whole one, though no binary fraction holds it exactly', () => {
+    // 0.29 × 100 and 1.16 × 25 are 28.999… and 28.999… in floating point.
+    const hundredths = testDeps({ turnsPerYear, boardSizeStart: 6, boardGrowthPerYear: 0.29, boardSizeMax: 100 }).config;
+    expect(boardSizeAt(100 * turnsPerYear, hundredths)).toBe(35);
+    expect(boardSizeAt(99 * turnsPerYear, hundredths)).toBe(34);
+    const larger = testDeps({ turnsPerYear, boardSizeStart: 0, boardGrowthPerYear: 1.16, boardSizeMax: 100 }).config;
+    expect(boardSizeAt(25 * turnsPerYear, larger)).toBe(29);
+    expect(boardSizeAt(24 * turnsPerYear, larger)).toBe(27);
   });
 
   test('with no growth, is the start every Year: the defaults keep a Board of one size', () => {

@@ -102,7 +102,7 @@ const counter = <K extends keyof SweepTotals>(totals: SweepTotals, key: K): Swee
 /** A ratio of a count to the sweep's games. */
 const aGame = (totals: SweepTotals, n: number | undefined): Ratio | null => (n === undefined ? null : { n, of: totals.games });
 
-/** The share of year-starts after 1 year or more the player stood first by `by`: the new world's tie at Fame 0 left out (DL-86 item 12). */
+/** The share of year-starts after 1 year or more the player stood first by `by`: the new world's tie at the founding Fame left out (DL-86 item 12). */
 const firstBy = (by: 'fame' | 'wealth') => (totals: SweepTotals): Ratio | null => {
   const years = counter(totals, 'rankings')?.slice(1) ?? [];
   return { n: sum(years.map((tally) => tally[by][0] ?? 0)), of: sum(years.map((tally) => tally.games)) };

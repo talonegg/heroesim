@@ -106,8 +106,8 @@ export interface GeneratedGuild {
 /**
  * Generates a Guild into `world` (DL-19 items 6 and 7): the Guild, its Guildmaster, and its Roster
  * through the Heroes Generator, all drawn from `options.stream` (`generation` by default); ids
- * from the counters; the Hall at grade 0 in every facility and Fame 0. Returns both rows and the
- * events for the caller to append.
+ * from the counters; the Hall at grade 0 in every facility and Fame `foundingFame` (DL-261).
+ * Returns both rows and the events for the caller to append.
  *
  * Throws, changing nothing, on a programming error: a blank name, a key that is not a Guild
  * Background, a Roster size that is not a whole number from 0, a Wealth that is not a finite

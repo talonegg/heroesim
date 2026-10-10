@@ -18,13 +18,19 @@ import type { PhaseContext, PhaseRun } from './phase.js';
 export const boardRefresh: PhaseRun = (world, ctx) => [...expireQuests(world, ctx), ...fillBoard(world, ctx)];
 
 /**
+ * How near the Board's grown size must come to a whole Quest to count as it: a growth written in
+ * decimals is rarely a binary fraction, and 1.16 × 25 is 28.999… in floating point (DL-261).
+ */
+const wholeQuestTolerance = 1e-9;
+
+/**
  * How many Quests the Board holds on `turn` (DL-257 item 4, DL-261): `boardSizeStart` plus
  * `boardGrowthPerYear` for each whole Year played, the Years `yearOf` counts from Turn 0, floored to
  * a whole Board and never above `boardSizeMax`. A Year begins on a morning (`turnsPerYear` is whole
  * Days, DL-210), so the Board grows at that morning's refresh.
  */
 export function boardSizeAt(turn: Turn, config: Pick<GameConfig, 'turnsPerYear' | 'boardSizeStart' | 'boardGrowthPerYear' | 'boardSizeMax'>): number {
-  const grown = Math.floor(config.boardSizeStart + config.boardGrowthPerYear * yearOf(turn, config));
+  const grown = Math.floor(config.boardSizeStart + config.boardGrowthPerYear * yearOf(turn, config) + wholeQuestTolerance);
   return Math.min(config.boardSizeMax, grown);
 }
 
