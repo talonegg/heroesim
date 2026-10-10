@@ -603,3 +603,7 @@ v1.2.0-s6-quick` (4 × 2): play identical to S5's, `7e0eed8f…`, 0 of 576 count
 identical, `cc178d34…`; against the first, 402 of 589 counters moved: the Rivals' Quests taken at
 Tiers 1, 3, 4 and 5 918 → 1,195, 1,194 → 1,086, 223 → 137 and 17 → 4, their Bankruptcies 0 → 6.
 The epic's S6 boxes.
+Verified 2026-10-11 at 30380c3: every chooser of a Quest searched, Fame at the minimum taking it and
+none moving between a choice and its dispatch, the sentence per ui-text.md, 20 mutations each red;
+fixed, test first: the estimate probe sent its sample's Party whatever the Tier's Fame minimum, which
+a non-zero minimum refuses (158 of 200 samples above Tier 1), now raising the Guild's Fame to it.

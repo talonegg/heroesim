@@ -11,8 +11,9 @@
 // - and, for half the samples, Whetstones, lockpicks, grappling lines and blessed candles carried.
 //
 // The Party is estimated as it is about to be sent, then sent by `dispatch` (the Quest's requirements
-// set to any Party of one to four) and the world advanced, every phase played, to the afternoon
-// before the night it comes home: the Quest lasts its template's two to ten Days, so each Hero's
+// set to any Party of one to four, and the Guild's Fame raised to its Tier's Fame minimum, DL-264) and
+// the world advanced, every phase played, to the afternoon before the night it comes home: the Quest
+// lasts its template's two to ten Days, so each Hero's
 // Morale has drifted toward their baseline, their Regard decayed, before the resolver meets them, as
 // `questsConclude` would meet them that night (v1.1.4-S5's verification). The Rivals play their own
 // Guilds meanwhile, and the player's Guild, which no policy plays here, does nothing.
@@ -49,6 +50,7 @@ import {
   degrees,
   encounterKinds,
   estimateQuest,
+  fameRefusal,
   moraleBand,
   playerGuild,
   queryParty,
@@ -263,7 +265,10 @@ export function drawSample(seed: string, deps: EngineDeps): Drawn {
   if (estimate === null) throw new Error(`${seed}: the Quest has no estimate`);
   const bandsAtFirst = heroes.map((hero) => moraleBand(hero.morale, deps.config));
 
-  // Sent, and played to the afternoon before the night it comes home.
+  // Sent, and played to the afternoon before the night it comes home. The probe measures the estimate,
+  // not whether the Guild may take the Quest, so its Fame is raised to the Tier's minimum (DL-264).
+  const closed = fameRefusal(guild, world.quests[questId] as Quest, sampled);
+  if (closed !== null) guild.fame = closed.fameMinimum;
   const sent = applyAction(created, { kind: 'dispatch', guildId: guild.id, questId, heroIds: heroes.map((hero) => hero.id), consumables: carried }, sampled);
   if (!sent.ok) throw new Error(`${seed}: dispatch refused the Party, ${sent.rejection.reason}`);
   let document = sent.document;

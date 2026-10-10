@@ -49,6 +49,19 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
     expect(questsStream('seed-0001')).not.toEqual(questsStream('seed-0002'));
   });
 
+  // DL-264's verification: the probe measures the estimate, not whether its Guild may take the Quest, so
+  // a Fame minimum above the Guild's Fame neither refuses its Party nor changes what is measured.
+  test("sends its Party whatever the Fame minimum of its Quest's Tier, the sample as with none", () => {
+    const base = { ...deps, content: harmless(deps.content) };
+    const tiers = base.config.tiers.map((row) => ({ ...row, fameMinimum: 50 }));
+    const closed = { ...base, config: { ...base.config, tiers } };
+    const [open, shut] = [drawSample('estimate-0001', base), drawSample('estimate-0001', closed)];
+    expect(shut.quest).toEqual(open.quest);
+    expect(shut.estimate).toEqual(open.estimate);
+    expect(shut.party).toEqual(open.party);
+    expect(shut.party.heroIds.map((id) => shut.world.heroes[id])).toEqual(open.party.heroIds.map((id) => open.world.heroes[id]));
+  });
+
   test('takes every Injury and Death out of the content, and keeps Morale and the rest', () => {
     const kept = unhurt(deps.content);
     const all = Object.values(kept.encounters).flatMap(({ consequences }) => Object.values(consequences).flat());
