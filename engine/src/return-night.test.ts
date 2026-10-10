@@ -128,6 +128,26 @@ describe('playReturnNight', () => {
     expect(document.world.parties).toEqual({});
   });
 
+  test("plays the night's Levels once, after every Party's outcome, as the night does: a Level told to the first Party comes after the second's outcome", () => {
+    const { eve, parties } = eveOfReturns('return-night-two-levels', 2);
+    const [first, second] = drawnAll(eve, parties);
+    const [leading, following] = parties;
+    if (first === undefined || second === undefined || leading === undefined || following === undefined) throw new Error('two Parties');
+    // Enough XP for each of the first Party's Heroes to reach the next Level on the night.
+    const xp = Math.max(...leading.heroIds.map((heroId) => {
+      const hero = eve.world.heroes[heroId];
+      if (hero === undefined) throw new Error('no Hero');
+      return xpForLevel(hero.level + 1, deps.config) - hero.xp;
+    }));
+    const levelled: Resolution = { ...first, outcome: { ...first.outcome, xpPerHero: xp, deaths: [], injuries: [] }, traits: [] };
+
+    const { events } = playReturnNight(eve, [{ partyId: leading.id, resolution: levelled }, { partyId: following.id, resolution: second }], deps, leading.returnsOnTurn);
+
+    const types = events.map((event) => event.type);
+    expect(types).toContain('hero.levelled');
+    expect(types.lastIndexOf('quest.resolved')).toBeLessThan(types.indexOf('hero.levelled'));
+  });
+
   test("refuses a night already played: a return is the engine's once", () => {
     const { eve, party } = eveOfReturn('return-night-past');
     const home = advance(structuredClone(eve), deps).document;

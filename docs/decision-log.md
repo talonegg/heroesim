@@ -1452,3 +1452,7 @@ could write.
   - the reader's line test red on `selectors.ts` and `namer.ts`.
 - `npm test`, lint and typecheck pass. The doctor reads no drift before and after.
 - `neutral --expect` is identical, alone (`v1.1.9-s16-neutral`).
+- Verified 2026-10-10 at 67f3d55: `playReturnNight` equals a real night byte for byte (events, world,
+  History) on 2,359 nights of 7,513 Parties home together, Rivals' among them; nine mutations red,
+  and one (the Levels played after each Party's outcome) survived, so a test now tells a Level to the
+  first of two Parties and holds it after the second's outcome.
