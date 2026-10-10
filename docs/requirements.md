@@ -20,9 +20,9 @@ over every Quest.
 
 The game is a Guild, not a Party. The player runs an institution over the Guildmaster's career, and
 a Quest serves that management (DL-256). Every system in the game serves at least one pillar. The
-`v1.2` line's target design is the [Guild Management Model](./management-model.md).
+`v1.2` line's target design is the [Guild Management Design](./management-design.md).
 
-1. **Recruitment is a gamble**: the player searches for talent and signs it under uncertainty.
+1. **Recruitment is a gamble**: the player searches for Heroes worth signing, and signs them under uncertainty.
 2. **Development is a decision**: the player decides how a Hero spends their limited time.
 3. **Selection is a dilemma**: the strongest Hero is not always the right one to send.
 4. **Careers matter**: a Hero has a trajectory, not only a Level.

@@ -73,10 +73,10 @@ A release's close adds its row here and fills its epic's Status line, and nothin
 What comes next, in order. Releases already made are §2's ledger. The record of how this list came
 to its order is in [`planning/archive/`](./planning/archive/README.md).
 
-The `v1.2` line builds the [Guild Management Model](./management-model.md) (DL-256): first choices
+The `v1.2` line builds the [Guild Management Design](./management-design.md) (DL-256): first choices
 that cost something, then the management core, then reputation and legacy. Each release is its own
 epic. It opens with a table of the owner's inputs (its numbers, each a question with an agent's
-default, as the first build's `INPUTS-REQUIRED.md` §8 asked), names the model's sentence it aims at,
+default, as the first build's `INPUTS-REQUIRED.md` §8 asked), names the design's sentence it aims at,
 and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.md)). The economy pass
 (#51) is spread across the releases that change what it tunes.
 
@@ -92,15 +92,15 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
        and the Market's size and draws by slot (DL-168 items 2, 9 and 12).
 
      It takes in #22, #40 and #19.
-  2. `v1.2.1`, Fatigue and the Captain, the Roster's Tiles, Table and phone views as the model's
+  2. `v1.2.1`, Fatigue and the Captain, the Roster's Tiles, Table and phone views as the design's
      part 11 sets them, and #51's form factors. It takes in #41.
   3. `v1.2.2`, Rivals who compete, and Fame raising the stakes. It takes in #21, #25 and #51's Rival
      income.
 - **Medium term: the management core,** in this order:
   - Contracts: #51's wage, and the harness's policy deciding renewals (#20).
   - Development: the Training focus, Skill growth, and Decline lowering Potential (#29, #35).
-  - The talent market: Unattached Heroes of every age and Level, and Scouting and hidden
-    information. The Outing limit comes with scouting and applies to every Guild (R4, pre-M0 review
+  - Scouting and a deeper Unattached pool: Heroes of every age and Level, and hidden information.
+    The Outing limit comes with scouting and applies to every Guild (R4, pre-M0 review
     B1, DL-89). It takes in the Guildmaster Trait that sharpens Potential hints (requirements §2,
     pre-M0 review D9; #31), #24 and #49.
   - Ambitions and Career stages.

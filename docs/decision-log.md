@@ -174,3 +174,9 @@ re-labelled only on the owner's word.
 **Evidence.** The commit `v1.2.0 (DL-256)`. The assessment's figures are from the gate report named
 above.
 
+*Note, 2026-10-10 (the owner's answers on three glossary clashes).* On the live pages, item 9's
+"talent market" is Scouting and a deeper Unattached pool (the glossary avoids Talent and keeps Market
+for Items); the model page is the Guild Management Design, `docs/management-design.md` (the glossary
+avoids Model for the World State); and item 20's area scores are a summary figure for each Stat area,
+named when the tile is designed.
+

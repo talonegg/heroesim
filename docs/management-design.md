@@ -1,4 +1,4 @@
-# Heroesim — the Guild Management Model
+# Heroesim — the Guild Management Design
 
 The target design of the `v1.2` line: what the game is building toward, by the twelve parts an
 independent design brief asked a guild-management game to define before its Quests. The owner's
@@ -10,7 +10,7 @@ Each part's numbers (rates, sizes, wages) are asked in its epic's inputs table, 
 ## The aim
 
 The player runs an institution, not a Party. Heroes are its people and Quests its fixtures. Over one
-Guildmaster's career, the player recruits uncertain talent, develops Heroes through managed careers,
+Guildmaster's career, the player signs Heroes of uncertain worth, develops them through managed careers,
 chooses who goes on Quests that matter, competes with Rival Guilds, and ends with a legacy. A Quest
 serves the management and never becomes its master system.
 
@@ -49,7 +49,7 @@ these nine sentences the player finds themselves saying. Each epic names the sen
      the captaincy, Fame, Wealth, mastering a Skill, teaching, or retiring early. Whether it is met
      moves their Morale, which shapes their Contract demands, their renewals and whether they listen
      to a Rival. A Hero never refuses to be sent.
-3. **The recruitment pipeline.** A talent market: Unattached Heroes of every age and Level, an older one
+3. **The recruitment pipeline.** A deeper Unattached pool: Heroes of every age and Level, an older one
    better now and with less room to grow. Fame decides who will sign.
 4. **Development.**
    - Each Hero has a Training focus, an area or a Skill, that steers their growth, and Skills grow.
@@ -97,10 +97,11 @@ these nine sentences the player finds themselves saying. Each epic names the sen
     - Later, a retiring Hero may stay on as a Worker, in a post: trainer, physician, scout or Mentor.
 11. **Information and scouting.**
     - An Unattached Hero's Stats show as ranges until scouted, which changes R29. Scouting is an
-      Outing, which brings R4's limit of one Outing a Turn. The Guildmaster's Judgement sets how sharp the hints are (DL-85 item 11).
+      Outing, which brings R4's limit of one Outing a Turn. The Guildmaster's Judgement sets how
+      sharp the hints are (DL-85 item 11).
     - The page keeps the 20 Stats and layers them:
-      - **Tiles:** a Captain icon, and indicators of Morale and Fatigue. An aggregated score for
-        each Stat area, and the wage, are to be designed later.
+      - **Tiles:** a Captain icon, and indicators of Morale and Fatigue. A summary figure for
+        each Stat area, and the wage, are to be designed later, the figure named then.
       - **Table:** the Captain icon, and filterable columns for Morale, Fatigue, Ambition and
         Contract.
       - **Phone:** the Captain icon beside the name. Morale, Fatigue, Ambition and Contract form a
