@@ -510,8 +510,9 @@ _Avoid_: Factory, Spawner
 
 **State Engine**:
 A part of the engine that advances one kind of entity each night: the Hero State Engine
-(healing, Morale drift, Regard decay, Retirement), the Guild State Engine (Upkeep and the
-Bankruptcy floor) and the Patron State Engine (Patron Regard recovering towards neutral).
+(healing, Morale drift, Regard decay, Retirement), the Guild State Engine (Upkeep, the
+Bankruptcy floor and the Fame floor) and the Patron State Engine (Patron Regard recovering
+towards neutral).
 _Avoid_: System, Manager, Updater
 
 **Event**:
@@ -592,7 +593,7 @@ _Avoid_: Skip, Auto-play, Simulate
 A typed reason Fast forward halts. Some always stop it: an ending, the watched Guild falling below
 the Bankruptcy floor, its Party coming home, a decision it needs to make, a Transfer Offer for it,
 and a module asking; others only when the caller names them: a Quest its free Heroes can staff
-appearing, even with a Party out, and the Unattached pool refreshing (approach §2, DL-33, DL-85,
+appearing, even with a Party out, and the Unattached pool refreshing (`StopReason`, DL-33, DL-85,
 DL-101). To be built: an opt-in stop for a Random Event (DL-82).
 _Avoid_: Interrupt, Pause, Breakpoint
 

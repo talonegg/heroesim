@@ -14,12 +14,13 @@ One JSON document, three top-level sections with different lifecycles:
 | Section | Lifecycle | Holds |
 | --- | --- | --- |
 | `meta` | Written at creation; `rebase` rewrites `config` and `configVersion` (§2), and a migration step, when the chain has one, `version` (§6) | schema version, seed, content set id and version, the configuration in force and the version of the defaults it was taken from, creation timestamp supplied by the caller |
-| `world` | Copied by `copyWorld` once per Turn and once per action or Guild's list of actions, then mutated; its write-once rows frozen and shared, not copied (ADR-0011) | every table, the Board, random stream states, id counters, Module slices, the current Turn |
+| `world` | Copied by `copyWorld` once per Turn and once per Guild's action or list of actions, then mutated; its write-once rows frozen and shared, not copied (ADR-0011) | every table, the Board, random stream states, id counters, Module slices, the current Turn, the game's Ending once it falls |
 | `history` | Append-only, shared by reference across Turns, never copied | entries and their indexes |
 
 `advance(document, deps)` copies `world`, mutates the copy, appends to `history`, and returns a
 new document sharing `meta` and `history` with the old one; `applyAction` does the same for one
-action, and `applyActions` for a Guild's list of actions on one copy (DL-238). The copy
+Guild's action, and `applyActions` for a Guild's list of actions on one copy (DL-238). `rebase`
+copies nothing: it returns a new `meta` with the same `world` and `history` (§2). The copy
 (`copyWorld`) equals `structuredClone`'s, so the save is the same to the byte; how it freezes and
 shares the write-once rows is ADR-0011's. `deps` is what play takes, `{ config, content, modules? }`
 ([`approach.md`](./approach.md) §3). The History is the one deliberate exception to "state in, new
@@ -50,8 +51,9 @@ config migration exists. The defaults, `configVersion` and its changelog are dat
 
 Content has no `rebase`: a content change reaches a saved game when it is loaded (pre-M0 review
 D3), and no rule reads `meta.content`, which names the content set the game was created under.
-Recording a change of content on load, with a `world.content-changed` Milestone and `meta.content`
-updated, is planned ([`plan.md`](./plan.md) §3, DL-84).
+Planned: on load, a content version other than `meta.content`'s is shown, a
+`world.content-changed` Milestone appended and `meta.content` updated ([`plan.md`](./plan.md) §3,
+DL-84 item 5).
 
 ## 3. `world`
 
@@ -94,11 +96,11 @@ among them, so `events` is not a core stream). The core's streams, in the order 
 | `hero-portraits` | A Hero's Portrait: one draw for each Hero generated | DL-134 item 2, DL-135 |
 | `hero-descriptions` | A Hero's Appearance and Biography: thirteen draws each, whatever is written | DL-135 item 6 |
 
-The last four are accepted exceptions too: each generates part of a Guildmaster or a Hero apart
-from `generation` and `pool`, was appended last so no existing draw moved, and takes a fixed number
-of draws, so a choice or a text moves no later draw. A Hero's pictures and words are two streams, so
-that pictures added later move no Hero's text, and apart from the Guildmasters', so that neither
-role's draws move the other's.
+The last four are accepted exceptions too: each generates part of a Guildmaster or a Hero apart from
+`generation` and `pool`, and takes a fixed number of draws, so a choice or a text moves no later
+draw; the four stand last in `streamNames`, so they move no other stream's draws. A Hero's pictures
+and words are two streams, so that pictures added later move no Hero's text, and apart from the
+Guildmasters', so that neither role's draws move the other's.
 
 An id is a table's prefix and a counter zero-padded to six digits, `hero-000042` or `quest-001337`,
 so string order is numeric order. The validator refuses a counter past 999,999 or not above every
@@ -203,9 +205,9 @@ Guildmasters, and their Regard for a Guild is read through its Guildmaster, neve
 id, templateKey, patronId
 difficulty, tags, reward, fameEffect
 durationTurns:  integer                     durationDays × 3, from the template's range
-skillKeys:      SkillKey[]                  copied from the template; read by no rule, the Checks
-                                            reading the Skills their Encounters name (DL-248)
-encounterKeys:  string[]                    one or more, drawn at generation in the order met,
+skillKeys:      SkillKey[]                  copied from the template; read by no rule, each Check
+                                            reading its own Skills (DL-248)
+encounterKeys:  EncounterKey[]              one or more, drawn at generation in the order met,
                                             weighted by the tags each shares with the template,
                                             the last the template's Finale when it names one
                                             (DL-160, DL-248)
@@ -241,8 +243,8 @@ fromGuildId, toGuildId, heroId
 fee
 offeredOnTurn, expiresOnTurn
 ```
-A pending Transfer Offer. Its Hero is on `fromGuildId`'s Roster; it is removed when accepted,
-declined or expired, and the History keeps its record.
+A pending Transfer Offer. Its Hero is on `fromGuildId`'s Roster; rule 8 says when its row goes,
+and the History keeps its record.
 
 **RegardEntry**, wherever a `regard` map appears:
 ```
@@ -302,8 +304,9 @@ The document holds slices, not a list of the Modules installed: whoever plays it
 each run or command (`HEROESIM_MODULES`, [`environment.md`](./environment.md); the CLI's
 `--modules`; the page's `?modules=`), and only the test-only probe ships. A front end gives a
 Module's event one generic sentence naming the Module, the type and whom it concerns (DL-79).
-Decided and not built: a game's Modules chosen at creation and recorded in `meta` (DL-82, with
-Random Events, [`plan.md`](./plan.md) §3), and a Module's Regard Effect always emitting (DL-84).
+Decided and not built: a game's Modules chosen at creation, on by default, and recorded in `meta`,
+a save made before then adopting a Module only by an explicit action (DL-82, with Random Events,
+[`plan.md`](./plan.md) §3); and a Module's Regard Effect always emitting (DL-84).
 
 ## 4. `history`
 
@@ -321,7 +324,7 @@ An entry is the engine's event plus where it sits in time:
 ```
 
 `emit` completes an event from the World State (`emit.ts`); `append`, the History's only writer,
-checks its Turn and indexes it (`history.ts`):
+checks the entry's type, participants and Turn, and indexes it (`history.ts`):
 
 - Entries arrive in Turn order, so a Turn range is a binary search on `entries` (`entriesBetween`).
 - `participants` lists every entity the event touches, with the Guild of any Hero involved, so a
@@ -329,15 +332,17 @@ checks its Turn and indexes it (`history.ts`):
 - `labels` holds the display name, at emission, of each participant that has one (a Guild,
   Guildmaster, Hero or Patron), so an entry narrates without a lookup that could fail once a row
   is removed.
-- Some types require a payload field (`entry-field-missing`, DL-246): a Guild's founding names its
-  Wealth; an entry caused by a Quest's return names the Quest (`questCauses`); an Encounter names
-  its Degree, the Check that decided it and the Checks rolled.
+- Some types require a payload field, which the validator holds (`entry-field-missing`, DL-246):
+  a Guild's founding names its Wealth; an entry caused by a Quest's return names the Quest
+  (`questCauses`); an Encounter names its Degree, the Check that decided it and the Checks rolled.
 - Appending costs one push to `entries` plus one integer per participant, one per type, and one
   for a Milestone.
 
-The engine reads the History through `entriesFor` (an entity's entries, newest first, paged),
-`entriesBetween` (a Turn range), `count` (a type's length in `byType`), and `returnOf` and
-`nightsReturnOf`, which name a Quest's return and the entries of its night (DL-242). The harness
+The History's readers are `entriesFor` (an entity's entries, newest first, paged),
+`entriesBetween` (a Turn range), `count` (a type's length in `byType`), `names` (whether an entry
+names an entity, which `record` reads for rule 8), and `returnOf` and `nightsReturnOf`, which name
+a Quest's return and the entries of its night (DL-242); the Retirement check reads a Hero's
+entries from `byEntity` (`hero-state.ts`). The harness
 reads its counters through `byType`, or observes them in play
 ([`harness/README.md`](../harness/README.md)).
 
@@ -347,8 +352,8 @@ reads its counters through `byType`, or observes them in play
    Level, Morale, Regard, Injury, base Stats. Effective Stats, Relationship, Rankings, age,
    Upkeep and availability are selectors. A selector is cached only once the harness shows it
    slow, and never in the document (the Best Party, DL-237).
-2. **Copy `world` once per Turn**, and once per action or list of actions; mutate the copy; share
-   `meta` and `history` (ADR-0011, DL-238).
+2. **Copy `world` once per Turn**, and once per Guild's action or list of actions; mutate the copy;
+   share `meta` and `history`, which `rebase` alone replaces with a new `meta` (ADR-0011, DL-238).
 3. **History is append-only** and only the engine's `append` touches it (ADR-0008).
 4. **Named random streams**, one per component that draws (ADR-0009).
 5. **Unknown keys are kept.** A Stat, Class or Item key the current content does not define
@@ -360,17 +365,20 @@ reads its counters through `byType`, or observes them in play
    document (`json-safe.ts`), so `structuredClone` and `JSON.stringify` agree.
 7. **Canonical serialisation**: sorted keys, so the same state always produces the same bytes
    and the harness can check determinism by byte equality.
-8. **Row lifecycle.** A Quest's row is removed when it expires or resolves, a Party's when it comes
-   home, a Transfer Offer's when it is answered or expires, and an emptied stack's at once; the
-   History keeps their records. Dead and retired Heroes keep their rows, with their State. A Hero
-   leaves the Unattached pool `unattachedStayDays` after the Day they entered it
-   (`unattachedSince`); their row is removed once the Turn's events are in, unless an entry names
-   them, before their leaving or after it in the same Turn (a Module's `onNight`). Then their row
-   stays, out of play with `leftPoolOnTurn` set, and their `hero.left-pool` is recorded (DL-27,
-   DL-214). One reading of the Turn's events, `record`, decides both, so the row and the History
-   never disagree (DL-211). An older save holds a `hero.generated` and a `hero.left-pool` for
-   every pool Hero; the validator accepts a Hero's row removed that only these passive entries
-   name, and refuses one any other entry names (`removed-hero-in-history`).
+8. **Row lifecycle.** A Quest's row is removed when it expires, resolves or is abandoned by a
+   folding Guild; a Party's when it comes home or its Guild folds; a Transfer Offer's when it is
+   answered or withdrawn (its night passed, its Hero gone from the Roster, a Guild folded); a
+   stack's when it empties, the Market's at each Market refresh, and a folding Guild's when it is
+   discarded. The History keeps their records; unique Items, Patrons, Guilds and Guildmasters keep
+   their rows. Dead and retired Heroes keep their rows, with their State. A Hero leaves the
+   Unattached pool `unattachedStayDays` after the Day they entered it (`unattachedSince`); their row
+   is removed once the Turn's events are in, unless an entry names them, before their leaving or
+   after it in the same Turn (a Module's `onNight`). Then their row stays, out of play with
+   `leftPoolOnTurn` set, and their `hero.left-pool` is recorded (DL-27, DL-214). One reading of the
+   Turn's events, `record`, decides both, so the row and the History never disagree (DL-211). A save
+   made before DL-211 holds a `hero.generated` and a `hero.left-pool` for every pool Hero; the
+   validator accepts a Hero's row removed that only these passive entries name, and refuses one any
+   other entry names (`removed-hero-in-history`).
 9. **Hidden information is stored plainly.** Potential is a field the front end does not show.
 10. **Discrete changes are entries; nightly drift is not** ([principle 11](./principles.md),
     [R36](./requirements.md)). A Quest outcome, an Injury, a Level, a Transfer, a purchase each
@@ -421,7 +429,10 @@ runs per Turn in play. Each check is named as the code names it (`refusalChecks`
 
 | Check | What it warns of |
 | --- | --- |
-| `unknown-*` | A Stat, Class, Skill, Trait, Background, Sphere, Item, template, Injury type, Disposition, Encounter, slot, Loot table or Portrait key that content does not define; a Guildmaster's Trait that is no Guildmaster Trait, or a Hero's that is no Hero Trait |
+| `unknown-stat`, `unknown-class`, `unknown-skill`, `unknown-background`, `unknown-sphere`, `unknown-item`, `unknown-template`, `unknown-injury`, `unknown-disposition`, `unknown-encounter`, `unknown-loot-table` | A Stat, Class, Skill, Background, Sphere, Item, Quest template, Injury type, Disposition, Encounter or Loot table key that content does not define |
+| `unknown-trait` | A Guildmaster's Trait that is no Guildmaster Trait content defines, or a Hero's that is no Hero Trait |
+| `unknown-portrait` | A Guildmaster's Portrait that is no Guildmaster picture content lists, or a Hero's that is no Hero picture (DL-125 item 3) |
+| `unknown-slot` | An Item a Hero holds in a slot that is no gear slot (`gearSlotKeys`, DL-48) |
 | `excluded-traits` | Two Traits one person holds, one excluding the other (DL-150) |
 | `misplaced-item` | An Item in a Hero's slot that is not Gear for that slot (DL-48) |
 | `portrait-of-another-sex` | A `portraitKey` naming a picture of the other sex (DL-130) |
@@ -439,7 +450,8 @@ the page keeps it, with no guard on the uncompressed size (DL-188).
 The History dominates save size. Its levers are lean entries (ids and labels, never entity copies),
 rule 10 (drift is no entry), not recording the pool's comings and goings of a Hero never hired
 (DL-211), and compression on write: the page's saves are gzipped (DL-67); the CLI's are planned
-([`plan.md`](./plan.md) §3, DL-84). Archiving or dropping old entries is no lever: R36 forbids it,
+([`plan.md`](./plan.md) §3), and the harness's sample (`harness:sample`) is to be too (DL-84
+item 2). Archiving or dropping old entries is no lever: R36 forbids it,
 and no schema change is made for a leaner entry (DL-84). For the cost of a Turn, the write-once
 rows (dead, retired and gone Heroes, retired Guildmasters, folded Guilds) stay in their tables,
 frozen and shared by the copy, so the saved shape is unchanged (ADR-0011). A browser's

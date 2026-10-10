@@ -13,7 +13,7 @@ Write a fact in its home, and link to it from anywhere else. Never copy it.
 | The fact | Its home |
 | --- | --- |
 | A decision and its reasons | A DL entry, appended to `docs/decision-log.md` |
-| A decision that is hard to reverse | An ADR in `docs/adr/` |
+| A decision that is hard to reverse, surprising later and a real trade-off | An ADR in `docs/adr/` |
 | What a word means | `CONTEXT.md` |
 | What the game is and does | `docs/requirements.md`; the save's shape, `docs/data-model.md` |
 | A tuning value; a content value | `engine/src/config.json`; `content/` |

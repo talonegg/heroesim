@@ -1641,3 +1641,11 @@ applied: approach 41, data model 65, requirements 51.
 **Evidence.** The commit `v1.1.9 (DL-253)`. Sizes (working copy) before → after: approach 11,472
 → 11,399; data model 37,257 → 30,998; requirements 21,974 → 18,299; principles 5,415 → 5,488.
 `engine/src/document.test.ts` passes on the rewritten page (45 tests).
+Verified 2026-10-10 at 0c3d41b: about 235 claims checked against the code, 27 refusals and 18
+warnings against `validate.ts` (none missing or invented), every cited section, rule, R and N
+resolving; fixed: rule 8 (Parties and Quests at a fold, offers withdrawn, the Market's and a folded
+Guild's stacks), `rebase` copying nothing, §4's readers and `append`'s checks, §6's warned keys
+named, the contract's actions and the words' entry, R4, R8, R15, R25, R32, R36, the Portraits row;
+restored: DL-82's default-on Modules, DL-84's content version shown and harness sample gzipped (the
+harness does write a save), the Hall grades' open prices, R37's same-story rule, N2's small group,
+the ADR criteria (`agents/documentation.md`); CONTEXT's Guild State Engine gains the Fame floor.
