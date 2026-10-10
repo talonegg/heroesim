@@ -5,12 +5,14 @@ import { fileURLToPath } from 'node:url';
 import { playerGuild, type EngineEventOf, type EntityId, type Entry, type TurnEvent, type WorldDocument } from '@heroesim/engine';
 import ts from 'typescript';
 import { describe, expect, test } from 'vitest';
+import { append, createHistory } from '@heroesim/engine/testing';
 import { playedDocument } from './game.test-support';
 import {
   appendedOf,
   awayAt,
   foundingOf,
   historyPage,
+  historyPageSize,
   newestEntries,
   newestNaming,
   partOfAReturn,
@@ -77,6 +79,21 @@ describe('the reader reads the shared History by reference and never copies it (
     for (const part of parts) expect(['quest.encounter', 'item.expended', 'hero.levelled', 'item.returned']).toContain(part.type);
     const [heroId] = outcome.payload.heroIds;
     expect(awayAt(history, heroId as EntityId as never, history.entries.indexOf(outcome))).toBe(true);
+    // Once its Party's outcome is written, the Hero is home, no longer away.
+    expect(awayAt(history, heroId as EntityId as never, history.entries.indexOf(outcome) + 1)).toBe(false);
+  });
+
+  test("a Party's steps with no outcome newer than them fold under none: a page holds twenty of them, as any entries", () => {
+    const step = history.entries.find((entry) => entry.type === 'quest.encounter');
+    if (step === undefined) throw new Error('no step in the game');
+    const steps = createHistory();
+    for (let count = 0; count < historyPageSize + 5; count += 1) append(steps, structuredClone(step));
+    const count = steps.entries.length;
+    const scope = { count, at: (index: number) => count - 1 - index, foldsSteps: true, keepsReturns: false };
+
+    expect(historyPage(steps, scope, 0)).toMatchObject({ page: 0, pages: 2 });
+    expect(historyPage(steps, scope, 0).positions).toHaveLength(historyPageSize);
+    expect(historyPage(steps, scope, 1).positions).toHaveLength(5);
   });
 });
 

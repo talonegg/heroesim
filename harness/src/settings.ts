@@ -299,7 +299,7 @@ export function halfTheProcessors(): number {
   return Math.max(1, Math.floor(availableParallelism() / 2));
 }
 
-/** The most processes a profile that plays one a seed starts: `neutral`'s 10 (DL-251). */
+/** The most processes at once of a profile that plays each seed in a process of its own: `neutral`'s 10 (DL-251). */
 const seedsCeiling = 10;
 
 /** `HEROESIM_WORKERS`, or the profile's (`seeds`: one a game up to `seedsCeiling`), or half the logical processors. */

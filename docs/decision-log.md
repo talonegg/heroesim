@@ -1545,7 +1545,7 @@ but its copy line failed: a share of 0.3900 against at most 0.31625 (v1.1.6-S17'
    [`v1.1.9-measures.md`](./planning/epics/v1.1.9-measures.md). Its headline figures, before and
    after:
    - the suite's wall, 114–115 s to 77–82 s, and its tests' time, 1,608–1,650 s to 765–849 s;
-   - the `gate`, 1,423.5 s to 891.9 s, and `neutral`, 413.9 s to 224.8 s;
+   - the `gate`, 1,423.5 s to 891.9 s, and `neutral`, 411.1 s to 224.8 s, report to report;
    - one game, 102.5 s to 62.7 s, and the quest estimate's share of it, 49.0% to 26.6%;
    - a year's fast forward, 3,161 ms to 1,763 ms;
    - CI, 22–29 billed minutes to 15 (S3's push, DL-235). A run after S15's e2e workers is pending
@@ -1566,3 +1566,8 @@ against this release's Turn. The release awaits the owner's word (the delivery g
 
 **Evidence.** `harness/reports/v1.1.9-gate-2026-10-10.md` and its JSON; `v1.1.9-measures.md`; the
 epic's S16 box. `gate.test.ts` was red on the old anchor first, then green.
+Verified 2026-10-10 at `1570b79`: DL-251's exclude matches the three tools' `test-support.ts` alone and
+its ceiling holds, each red when mutated; the committed report passes every line of the shipped spec;
+no content branch below S1 is cover lost (S1's tree run again with coverage); fixed the `neutral`
+comparison to report against report, 411.1 s, and gave the History reader's unreached line and a
+Hero's coming home a test each.
