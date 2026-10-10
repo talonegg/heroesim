@@ -265,6 +265,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-253 | 2026-10-10 | v1.1.9: approach, data model and requirements say what is true at v1.1.9 |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
 | DL-254 | 2026-10-10 | v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a … |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
 | DL-255 | 2026-10-10 | A merge of docs, records and the release pipeline alone releases nothing: no tag, no deploy |  | [decision-log](../decision-log.md) |
+| DL-256 | 2026-10-10 | The `v1.2` line: the Guild as an institution, from an independent design brief; the owner's answers … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

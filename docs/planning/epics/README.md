@@ -50,8 +50,8 @@ act from M2 with one trivial disposition so nothing is ever tuned against an unc
 the module contract comes last so the pipeline's phases are settled by use before they become an
 interface (ADR-0005 as amended).
 
-Why the middle runs Progression → Quest Engine → Items → Rivals: growth is the pull
-(principle 2), so Levels and Potential land first and are tuned against the stub; the real
+Why the middle runs Progression → Quest Engine → Items → Rivals: Levels and Potential land
+first and are tuned against the stub; the real
 Quest Engine then has Skills and Levels to read; Items and Loot are consumed by the Quest Engine
 so they follow it; Transfers are the last thing the automatic policy needs to be sensible about.
 

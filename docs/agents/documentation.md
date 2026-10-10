@@ -16,6 +16,7 @@ Write a fact in its home, and link to it from anywhere else. Never copy it.
 | A decision that is hard to reverse, surprising later and a real trade-off | An ADR in `docs/adr/` |
 | What a word means | `CONTEXT.md` |
 | What the game is and does | `docs/requirements.md`; the save's shape, `docs/data-model.md` |
+| What the open line builds toward | `docs/management-model.md` |
 | A tuning value; a content value | `engine/src/config.json`; `content/` |
 | How a story or a release is run | `docs/agents/delivery.md` |
 | A tool's commands and mechanics | Its README: `harness/`, `tools/editor/`, `tools/portraits/`, `tools/measure/` |

@@ -16,18 +16,20 @@ The engine is mechanical first: the pull of the game is growth and management, n
 Story will come through Modules (Scenarios, Campaigns, Contacts) at the moments built for it, not
 over every Quest.
 
-### The five pulls
+### The six pillars
 
-Every system in the game serves at least one of these:
+The game is a Guild, not a Party. The player runs an institution over the Guildmaster's career, and
+a Quest serves that management (DL-256). Every system in the game serves at least one pillar. The
+`v1.2` line's target design is the [Guild Management Model](./management-model.md).
 
-1. **Managing the Guild**: recruiting and transferring the best Heroes, managing team dynamics
-   and Relationships.
-2. **Growing a young Hero** and watching them reach their Potential.
-3. **Harder, richer Quests** as the Guild develops, demanding different Skills, Classes and
-   Synergies.
-4. **Loot** from hard Quests that benefits Heroes or the Guild.
-5. **Campaigns** (later): story, Contacts, Patrons and Factions, scripted events with
-   cathartic pay-offs.
+1. **Recruitment is a gamble**: the player searches for talent and signs it under uncertainty.
+2. **Development is a decision**: the player decides how a Hero spends their limited time.
+3. **Selection is a dilemma**: the strongest Hero is not always the right one to send.
+4. **Careers matter**: a Hero has a trajectory, not only a Level.
+5. **Reputation matters**: the Guild's success changes what is offered to it.
+6. **History matters**: the Guild remembers what happened.
+
+Loot and Campaigns are kept as features serving Reputation and History.
 
 ## 2. Scope
 

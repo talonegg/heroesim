@@ -73,36 +73,67 @@ A release's close adds its row here and fills its epic's Status line, and nothin
 What comes next, in order. Releases already made are §2's ledger. The record of how this list came
 to its order is in [`planning/archive/`](./planning/archive/README.md).
 
-- **Now: none open.** `v1.1.9` was released on 2026-10-10 (§2). The owner chooses which epic comes
-  next, among Random Events and the lists below (DL-228).
-- **Random Events** (#12; its groundwork #15 and #17) will be the first real module, but is not
-  necessarily the next epic: when it starts is the owner's (DL-214, DL-228). Random Events never
-  produce Quests (DL-82).
-  Its epic opens with a table of the owner's inputs, as the first build's `INPUTS-REQUIRED.md` §8
-  asked: rows an agent drafts, each a question with a default and the owner's answer. Three of them
-  block the build story until the owner answers: the catalogue of events, their rate, and whom they
-  befall. DL-82 already answers some of it. Random Events befall the player's Guild only, and the
-  harness reports their effects on that Guild alone. Morale's band edges are among their inputs.
-  An agent proposes the harness's acceptance bands, and the owner approves them before the run.
-  When their installation lands, the probe module leaves the public page.
-- **Other features, in an order chosen as each release closes:**
+The `v1.2` line builds the [Guild Management Model](./management-model.md) (DL-256): first choices
+that cost something, then the management core, then reputation and legacy. Each release is its own
+epic. It opens with a table of the owner's inputs (its numbers, each a question with an agent's
+default, as the first build's `INPUTS-REQUIRED.md` §8 asked), names the model's sentence it aims at,
+and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.md)). The economy pass
+(#51) is spread across the releases that change what it tunes.
+
+- **Now: none open.** `v1.1.9` was released on 2026-10-10 (§2). `v1.2.0` is next, and its epic is
+  planned on the owner's word.
+- **Short term: choices that cost something.**
+  1. `v1.2.0`, fewer, weightier Quests:
+     - fewer and longer Quests, Party minimums of three or more, and a cap on the Parties a Guild has
+       out;
+     - XP no longer divided by the Party;
+     - the Death factor, with Death rare and on the hardest Quests and a Quest's danger shown;
+     - rewards rebalanced to DL-83's targets as restated: #51's late Bankruptcies, the Quests' volume
+       and the Market's size and draws by slot (DL-168 items 2, 9 and 12).
+
+     It takes in #22, #40 and #19.
+  2. `v1.2.1`, Fatigue and the Captain, the Roster's Tiles, Table and phone views as the model's
+     part 11 sets them, and #51's form factors. It takes in #41.
+  3. `v1.2.2`, Rivals who compete, and Fame raising the stakes. It takes in #21, #25 and #51's Rival
+     income.
+- **Medium term: the management core,** in this order:
+  - Contracts: #51's wage, and the harness's policy deciding renewals (#20).
+  - Development: the Training focus, Skill growth, and Decline lowering Potential (#29, #35).
+  - The talent market: Unattached Heroes of every age and Level, and Scouting and hidden
+    information. The Outing limit comes with scouting and applies to every Guild (R4, pre-M0 review
+    B1, DL-89). It takes in the Guildmaster Trait that sharpens Potential hints (requirements §2,
+    pre-M0 review D9; #31), #24 and #49.
+  - Ambitions and Career stages.
+  - Relationships that can sour (#26).
+  - Poaching (#27), then Mentors.
+  - Career statistics and the Rankings' history.
+- **Long term: reputation and legacy.**
+  - Private offers, growing with Fame, and Reputation by Sphere. Patron visits, the second kind of
+    Outing. Hostile Patrons refusing a Guild (#28).
+  - The Legacy review, then the Aim chosen at setup, then the Guild's culture named.
+  - **Random Events** (#12; its groundwork #15 and #17), the first real module (DL-228), its
+    catalogue drawn from the systems above (DL-256). Random Events never produce Quests (DL-82).
+    Its epic's inputs table has three rows that block the build story until the owner answers: the
+    catalogue of events, their rate, and whom they befall. DL-82 already answers some of it. Random
+    Events befall the player's Guild only, and the harness reports their effects on that Guild alone.
+    Morale's band edges are among their inputs. An agent proposes the harness's acceptance bands,
+    and the owner approves them before the run. When their installation lands, the probe module
+    leaves the public page.
+  - Workers, a retiring Hero kept on in a post, and the Hall's grades 4 to 6 as late-game Wealth
+    sinks (#23, DL-83).
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
-    Factions; Scouting and hidden information.
-  - Patron visits. The Outing limit comes with the first of Patron visits and scouting, as
-    pre-M0 review B1 decided, and applies to every Guild (R4, DL-89).
-  - Poaching; Rival encounters during Quests; direct contests between Guilds, a separate later
-    feature (DL-89). Guild Battle, the owner's diagram's term, keeps the meaning CONTEXT gives
-    it: Rival encounters during Quests and the deferred ending Defeated by a Rival (DL-89).
+    Factions; Loot's content (#36).
+  - Rival encounters during Quests; direct contests between Guilds, a separate later feature
+    (DL-89). Guild Battle, the owner's diagram's term, keeps the meaning CONTEXT gives it: Rival
+    encounters during Quests and the deferred ending Defeated by a Rival (DL-89).
   - Several Guilds' Parties on one Quest, as a candidate (DL-89).
-  - The Guildmaster Trait that sharpens Potential hints (requirements §2, pre-M0 review D9);
-    mid-Quest reports, the afternoon reporting a Quest's progress (M4's deferral).
-  - Workers; Skill growth; the Guildmaster in a Party; the deferred endings.
+  - Mid-Quest reports, the afternoon reporting a Quest's progress (M4's deferral); the Guildmaster
+    in a Party; the deferred endings.
   - Patron pictures, drawn on a `patron-portraits` stream, through the portrait tool (DL-135
     item 10).
-- **In the backlog, their place to be decided:**
-  - The economy pass (#51): the late Bankruptcies, the DL-83 targets, the wage's shape, Rival
-    income, the form factors, and the Market's size and draws by slot (DL-168 items 2, 9 and 12),
-    deferred by the owner after other balances and features (DL-182).
+- **Alongside, their place decided as each release closes:**
+  - Taken into the release that touches their code: #16, #46 and #52, and `loot.ts`'s comment,
+    which still cites principle 2's fourth pull (DL-256).
   - The Transfer Generator's Roster bound removed: its own bids keep a Rival's Roster at or below
     `rivalRosterMax` (DL-59), kept only as a development measure to constrain testing load
     (DL-185).

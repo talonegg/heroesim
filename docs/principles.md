@@ -12,13 +12,15 @@ moments designed to carry it.
 *Without it:* every Quest gets a paragraph, the writing runs dry within a weekend, and the
 engine's rules bend to serve prose that nobody reads twice.
 
-## 2. Growth is the pull
+## 2. The Guild is the game
 
-Every system must feed one of the five pulls: managing the Guild, growing a young Hero,
-harder and richer Quests, Loot, and later Campaigns. A mechanic that feeds none of them is
-cut, however elegant.
+Every system must serve one of the six pillars of [`requirements.md`](./requirements.md) §1:
+recruitment is a gamble, development is a decision, selection is a dilemma, careers matter,
+reputation matters, history matters. A mechanic that serves none of them is cut, however elegant.
+A Quest serves the Guild's management and never becomes its master system (DL-256).
 
-*Without it:* the game accretes systems that are fun to build and dull to play.
+*Without it:* the game accretes systems that are fun to build and dull to play, and every choice
+has an obvious answer.
 
 ## 3. Reproducible by seed
 

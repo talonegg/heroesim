@@ -97,3 +97,80 @@ deploys nothing, so a workflow's change is first exercised by the next release.
 repository.
 Verified 2026-10-10 at 4a3d70f: 21 mutations red (one survivor closed by a test), and a scratch repository's tag, record merges and code merge dry-run through both workflows' blocks, found item 2's "a git failure fails the step" untrue (inside `[ "$(...)" = record ]` a failing judgement fell through to tagging and deploying), so both workflows now take the verdict as a statement of their own, test first; added a test that the base is the newest tag by number, and the record's pull request to delivery.md.
 
+## DL-256 — The `v1.2` line: the Guild as an institution, from an independent design brief; the owner's answers and the backlog
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, answering four rounds on
+2026-10-10; the agent's drafting marked below
+
+**Context.** The owner commissioned an independent design brief for a guild-management game,
+preferring its "Football Manager fantasy" and "dynasty or club" loops, and asked for it to be assessed
+against the build. The build already holds most of the brief's first prototype. What it lacks is cost:
+the `v1.1.9` gate (`harness/reports/v1.1.9-gate-2026-10-10.md`, the automatic player) measured about
+403 Quests a Guild-year at a mean Party of 1.55, with no fatigue, benching cost, contracts or
+ambitions, and development automatic. Success snowballed outside DL-83's bands: first by Fame at 91.6%
+of year-starts (40–60%), no Bankruptcy in 50 games (5–15%), 4.28 Deaths a game (25–40) and 6.8% of
+Quests failed (20–30%). Of the brief's nine playtest sentences, one could be said and three partly.
+
+**Decision.**
+
+1. **The charter.** A new line, `v1.2`. Requirements §1's five pulls become the brief's six pillars,
+   and principle 2 is restated; Loot and Campaigns serve Reputation and History. The brief's twelve
+   parts are drafted as `docs/management-model.md`, to be refined.
+2. **Scarcity, then Fatigue.** Fewer, longer, weightier Quests, Party minimums of three or more, a
+   cap on Parties out and XP undivided; Fatigue in the next release. In time, a Guild's Quests grow
+   with its Fame and its Patrons' Regard.
+3. **The ending.** The game ends at the Guildmaster's Retirement (R34) with a Legacy review. There is
+   no dynasty.
+4. **The playtest** closes each epic, scored by the nine sentences.
+5. **Private offers** from a Patron at warm Regard or better, more with Fame, beside the shared Board.
+6. **Pushback.** Competent Rivals first (reward, Fame and Patron weighed; the best Hero they can
+   afford; a dispatch whenever staffed; the first pick shared), then Fame raising the stakes.
+7. **Contracts** for every Hero in every Guild: a wage and a length, renewal or the pool, and release
+   with a payout.
+8. **Development.** A Training focus, with Skills growing, first; Mentors after.
+9. **The talent market.** Unattached Heroes of every age and Level, Stats as ranges until scouted,
+   scouting an Outing, and Judgement setting the hints' resolution.
+10. **Death** is rare, falls on the hardest Quests, and its danger is shown; DL-83's band is lowered
+    to about 3–8 a game, its figure set in `v1.2.0`'s inputs. One config setting, the Death factor,
+    scales every content Death chance, so the rate is tuned without code (the owner's addition).
+11. **Success.** The Legacy review, then an Aim chosen at setup and judged there.
+12. **Random Events** wait until the line's core is built, their catalogue drawn from it.
+13. **The Captain**, one a Guild. Their Party gains Morale and effectiveness, and the Roster a little
+    Morale while they are at home.
+14. **Ambitions**, one a Hero, from a simple, configurable list in content that later expansions
+    enrich.
+15. **Poaching**, after Contracts and Ambitions: approaches during a Contract, answered by a raise, a
+    sale or a refusal at a Morale cost.
+16. **Fame stays one total.** A Guild's Reputation in a Sphere aggregates the Regard of that Sphere's
+    Patrons for it.
+17. **Workers**: a retiring Hero may stay on in a post, as a later feature.
+18. **Regard moves both ways**, its bands shown in the Party builder.
+19. **Fatigue** is a State, rising on Quests and falling at home.
+20. **The page** keeps the 20 Stats.
+    - Tiles: a Captain icon, and Morale and Fatigue indicators. Area scores and the wage are
+      designed later.
+    - Table: the icon, and filterable columns for Morale, Fatigue, Ambition and Contract.
+    - Phone: the icon by the name, and those four as a category opened like the Stat areas.
+21. **Culture** is named from the record and read by no rule now; rules that read it come later.
+22. **Career stages** are worked out and shown, and read by Ambitions and the Legacy review.
+23. **The record.** This entry, the model page, the charter, `plan.md` §3 and delivery.md's playtest
+    go on `v1.2.0-dev`, cut from `main`, released as records alone (DL-255).
+
+*Judgement calls, for the owner to see.*
+- The backlog's order in `plan.md` §3 is the agent's. It was put to the owner, who changed nothing.
+- Five planned words clash with the glossary: Contract, Reputation, Career stage, the owner's
+  "staff" and a "rivals" Regard band. The model page lists them, and each enters CONTEXT.md, its
+  clash resolved, in the epic that builds it. "Squad" and "team" stay Party, and a "recruit" an
+  Unattached Hero.
+- The model page is a new home, registered in documentation.md's table.
+- `loot.ts`'s comment citing principle 2's fourth pull is left for the release that touches it, so
+  that this change stays records alone. The epics README's citation of the old principle 2 is cut.
+
+**Consequences.** `v1.2.0` is next, and its epic opens with an inputs table. Its plan entry
+supersedes, with their records, the items it changes, among them DL-182's XP split and DL-83's band
+for Deaths. #51 is spread across the releases that change what it tunes. GitHub's issues are
+re-labelled only on the owner's word.
+
+**Evidence.** The commit `v1.2.0 (DL-256)`. The assessment's figures are from the gate report named
+above.
+

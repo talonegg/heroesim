@@ -143,6 +143,9 @@ name its path, or use `rg -u`.
    - Run the engine's boxes kept apart at full size alone, `npm run harness -- resolve.harness
      patron-offers.harness` (DL-246).
    - Run the tests of a time limit alone, `npm run harness -- speed` (DL-233).
+   - The owner's playtest: a few in-game years of the release's build, scored by which of the
+     [Guild Management Model](../management-model.md)'s nine sentences the player finds themselves
+     saying, the epic naming the sentence it aimed at (DL-256).
    - Bring the epic up to date.
 3. **Release** (DL-124), on the owner's word:
    - `v1.1-release` is fast-forwarded to the dev branch and pushed;
