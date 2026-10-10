@@ -180,6 +180,8 @@ describe('templatesOpenAt', () => {
   test("reads a template's Tiers held on the ladder", () => {
     expect(keys(5, [{ key: 'past', tierMin: 7, tierMax: 9 }])).toEqual(['past']);
     expect(keys(1, [{ key: 'past', tierMin: 7, tierMax: 9 }, { key: 'low', tierMin: 1, tierMax: 1 }])).toEqual(['low']);
+    // Past the ladder, held at its last Tier: open at the top 5 beside another.
+    expect(keys(5, [{ key: 'past', tierMin: 7, tierMax: 9 }, { key: 'low', tierMin: 1, tierMax: 1 }])).toEqual(['past', 'low']);
   });
 });
 

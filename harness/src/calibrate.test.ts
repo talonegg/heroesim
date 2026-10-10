@@ -2,10 +2,11 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { contentDir, readSource } from '@heroesim/content/node';
-import { defaultConfig, degrees, describeQuery, estimateQuest, type EngineDeps, type NumQuery, type Quest } from '@heroesim/engine';
+import { defaultConfig, degrees, describeQuery, estimateQuest, offeredTiers, type EngineDeps, type NumQuery, type Quest } from '@heroesim/engine';
 import { afterAll, describe, expect, test } from 'vitest';
 import {
   calibrate,
+  calibrateTemplates,
   checksAtLeast,
   coverageGrid,
   defaultCalibration,
@@ -335,6 +336,19 @@ describe('the rates', { timeout: 60_000 }, () => {
       const near = Math.min(Math.abs(all - aim.chance), Math.abs(successOf(tuned, finale.key, middle, scoring) - aim.chance));
       expect(near, `${finale.key} at ${middle}`).toBeLessThan(0.01);
     }
+  });
+
+  test("draws each template's Quests over its whole difficulty range, every Tier it offers, whatever the pool's world has unlocked (DL-271)", () => {
+    // The pool's world is a new one, its Guilds' best fours at Level 1, its Board's top Tier 1.
+    const settings = { ...defaultCalibration, sizes: [2], parties: 10, questsPerTemplate: 24 };
+    const spread = Object.values(content.questTemplates).filter((it) => offeredTiers(it, drafts.config).length >= 3);
+    expect(spread.length).toBeGreaterThan(0);
+    const results = calibrateTemplates([pool], settings, { ...drafts, content: { ...content, questTemplates: Object.fromEntries(spread.map((it) => [it.key, it])) } });
+    for (const result of results) {
+      if (result.rows.length === 0) continue;
+      expect(new Set(result.rows.map((row) => row.third)), result.key).toEqual(new Set(['low', 'mid', 'high']));
+    }
+    expect(results.some((result) => result.rows.length > 0)).toBe(true);
   });
 
   test('a small calibration has every cell, each a chance of each Degree, and its spot-check holds to the resolver', () => {

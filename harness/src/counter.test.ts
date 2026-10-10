@@ -160,3 +160,36 @@ describe('the Quests by Tier', () => {
     expect(cells("The player's Guild: every Tier")?.slice(-2)).toEqual(['2', '0.071']);
   });
 });
+
+// DL-271: the Board's top Tier and each side's best four, as each year begins.
+describe("the Tiers unlocked", () => {
+  test("total each year's top Tier a game at its Tier, and give each side's mean best four and unlocked Tier over the games", () => {
+    const counter = gameCounters.find((it) => it.key === 'tierUnlocks');
+    if (counter?.lines === undefined) throw new Error('No tierUnlocks counter');
+    const tiers = (counts: Record<number, number>): number[] => [1, 2, 3, 4, 5].map((tier) => counts[tier] ?? 0);
+    const game = (seed: string, tierUnlocks: unknown) => ({ seed, counters: {}, observations: { tierUnlocks } });
+    const games = [
+      game('a', [
+        { top: 1, sides: { player: { guilds: 1, levels: 1, unlocked: tiers({ 1: 1 }) } } },
+        { top: 3, sides: { player: { guilds: 1, levels: 6.5, unlocked: tiers({ 3: 1 }) }, ambitious: { guilds: 2, levels: 7, unlocked: tiers({ 2: 2 }) } } },
+      ]),
+      game('b', [{ top: 1, sides: { player: { guilds: 1, levels: 2, unlocked: tiers({ 1: 1 }) } } }]),
+    ];
+    const totals = sweepTotals({ counters: [counter], games, years: 2 } as never, 10) as unknown as SweepTotals;
+
+    expect(totals.tierUnlocks).toEqual([
+      { games: 2, top: [2], sides: { player: { guilds: 2, levels: 3, unlocked: tiers({ 1: 2 }) } } },
+      { games: 1, top: [0, 0, 1], sides: { player: { guilds: 1, levels: 6.5, unlocked: tiers({ 3: 1 }) }, ambitious: { guilds: 2, levels: 7, unlocked: tiers({ 2: 2 }) } } },
+    ]);
+    const lines = counter.lines(totals, {} as never).flatMap((text) => text.split('\n'));
+    const rows = (start: string): string[][] => lines.filter((line) => line.startsWith(`| ${start} `)).map((line) => line.split('|').map((cell) => cell.trim()).slice(1, -1));
+    // The top Tier: the games, the mean top Tier, and the games at each Tier.
+    expect(rows('0')[0]).toEqual(['0', '2', '1.00', '2 (100.0%)', '0 (0.0%)', '0 (0.0%)', '0 (0.0%)', '0 (0.0%)']);
+    expect(rows('1')[0]).toEqual(['1', '1', '3.00', '0 (0.0%)', '0 (0.0%)', '1 (100.0%)', '0 (0.0%)', '0 (0.0%)']);
+    // Each side: its Guilds, the mean best four, the mean unlocked Tier, and the Guilds at each.
+    expect(rows('1').slice(1).map((row) => row.slice(1, 6))).toEqual([
+      ["The player's Guild", '1', '6.50', '3.00', '0 (0.0%)'],
+      ['`ambitious`', '2', '3.50', '2.00', '0 (0.0%)'],
+    ]);
+  });
+});

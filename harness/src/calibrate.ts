@@ -11,8 +11,8 @@
 //   drawn at random from the pool, each estimated on a Quest of that one Encounter at each
 //   difficulty; each Degree's rate is the mean of their chances, the Encounter's and each Check's.
 // - *Each template.* For each Level, Quests drawn by the Quest Generator (`generateQuest`) for the
-//   template, their Encounters and difficulty as the game draws them, binned by the third of the
-//   template's difficulty range they fall in. For each, the Best Party (`bestParties`) of a Roster of
+//   template, their Encounters and difficulty as the game draws them with every Tier unlocked (DL-271),
+//   binned by the third of the template's difficulty range they fall in. For each, the Best Party (`bestParties`) of a Roster of
 //   `roster` Heroes of the pool (the Board's "Your best Party", the harness's policy's Party), and
 //   Parties of each size the template allows drawn at random, each meeting its requirements; each
 //   Quest band's rate, and the positive Earned Traits a Quest draws.
@@ -413,8 +413,17 @@ function traitsDrawn(estimate: QuestEstimate, content: ContentSet): number {
 }
 
 /**
+ * The Board's top Tier a template's Quests are drawn under here: the ladder's last, every Tier unlocked
+ * (DL-271), so that they span every Tier the template offers and every third of its difficulty range,
+ * at every Level, whatever the pool's own world, whose Guilds stay at Level 1, has unlocked.
+ */
+function everyTier(config: Pick<GameConfig, 'tiers'>): number {
+  return config.tiers.length;
+}
+
+/**
  * Each template's Quest band rates by Level and difficulty third: `settings.questsPerTemplate` Quests
- * drawn by the Quest Generator at each Level, each met by the best Party of a Roster drawn from the
+ * drawn by the Quest Generator at each Level, every Tier unlocked (`everyTier`), each met by the best Party of a Roster drawn from the
  * pool (redrawn until it can staff the Quest, at most 50 times) and by random Parties of each size the
  * template allows.
  */
@@ -441,7 +450,7 @@ export function calibrateTemplates(pools: readonly Pool[], settings: Calibration
       if (patron === undefined) continue;
       const rows = new Map<Third, TemplateRow>();
       for (let n = 0; n < settings.questsPerTemplate; n += 1) {
-        const { quest } = generateQuest(world, patron, deps, { templateKey: template.key });
+        const { quest } = generateQuest(world, patron, deps, { templateKey: template.key, topTier: everyTier(deps.config) });
         world.board = world.board.filter((id) => id !== quest.id);
         delete world.quests[quest.id];
         // Opened once the Quest is drawn, which moved the world (DL-237).
@@ -525,7 +534,7 @@ export function spotCheck(pools: readonly Pool[], settings: CalibrationSettings,
       const template = one(templates);
       const patron = Object.values(world.patrons).find((it: Patron) => template.sphereKeys.includes(it.sphereKey));
       if (patron === undefined) continue;
-      quest = generateQuest(world, patron, safe, { templateKey: template.key }).quest;
+      quest = generateQuest(world, patron, safe, { templateKey: template.key, topTier: everyTier(safe.config) }).quest;
       world.board = world.board.filter((id) => id !== quest.id);
       delete world.quests[quest.id];
       let roster = partyOf(pool.heroes, settings.roster, draw);

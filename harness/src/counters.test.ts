@@ -1685,6 +1685,19 @@ describe("the Targets' counters (DL-259)", () => {
     ]);
   });
 
+  test("counts each of a side's Guilds at the Tier it unlocked, two of one Disposition apart (DL-271)", () => {
+    const { document, rivals } = fixture('counters-unlocks-side');
+    const { world } = document;
+    const [a, b] = rivals;
+    b.controller = structuredClone(a.controller);
+    for (const [guild, level] of [[a, 3], [b, 4]] as const) for (const heroId of guild.rosterIds) (world.heroes[heroId] as Hero).level = level;
+    const unlocks = observerOf('tierUnlocks');
+    census(document, shortYears, unlocks);
+
+    const side = a.controller.kind === 'rival' ? a.controller.disposition : 'none';
+    expect(unlocks.value()[0]?.sides[side]).toEqual({ guilds: 2, levels: 7, unlocked: [0, 2, 0, 0, 0] });
+  });
+
   test("the player's Wealth in months of its Upkeep as each year begins, a month a twelfth of a year's Upkeeps", () => {
     const { document, player } = fixture('counters-months');
     const { world } = document;

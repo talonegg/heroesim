@@ -2,11 +2,13 @@ import { describe, expect, test } from 'vitest';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
-import { compareByCodeUnit, type GuildId, type PatronId, type QuestId, type World, type WorldDocument } from '../document.js';
+import type { QuestTemplate } from '../content-types.js';
+import { compareByCodeUnit, type GuildId, type Hero, type PatronId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
 import { count, entriesFor } from '../history.js';
 import { generateQuest } from '../generators/quests.js';
 import { patronBoardWeight } from '../regard.js';
 import { createStreams, pick } from '../rng.js';
+import { boardTopTier, offeredTiers } from '../tiers.js';
 import { dayOf, timeOfDay, yearOf } from '../time.js';
 import { plannedStreams, playWith, setup, streamsOutOfPlace, testContent, testDeps, withValid } from '../world.test-support.js';
 import { boardRefresh, boardSizeAt } from './board-refresh.js';
@@ -266,6 +268,37 @@ describe('boardRefresh', () => {
 
     expect(offered).toEqual(uniform);
     expect(stream).toEqual(uniformStream);
+  });
+
+  test("draws each Quest up to the Board's top Tier, the highest the Guilds in play have unlocked as the refresh begins (DL-271)", () => {
+    const deps = testDeps();
+    const { world } = created('top-tier', deps);
+    /** The Tiers of `rounds` Boards drawn afresh, each Quest's beside the lowest its template offers. */
+    const drawn = (rounds: number): { tier: number; lowest: number }[] => {
+      const all: { tier: number; lowest: number }[] = [];
+      for (let round = 0; round < rounds; round += 1) {
+        takeFromBoard(world, world.board.length);
+        boardRefresh(world, phaseContext(world, deps));
+        for (const questId of world.board) {
+          const quest = world.quests[questId] as Quest;
+          const template = testContent.questTemplates[quest.templateKey] as QuestTemplate;
+          all.push({ tier: quest.tier, lowest: offeredTiers(template, deps.config)[0] as number });
+        }
+      }
+      return all;
+    };
+
+    // A new world's Heroes are at Level 1: the top is Tier 1, and each Quest is at its template's lowest Tier.
+    expect(boardTopTier(world, deps.config)).toBe(1);
+    for (const { tier, lowest } of drawn(20)) expect(tier).toBe(lowest);
+
+    // Every Hero on a Roster at Level 9: the best fours unlock Tier 4, and the refresh draws above the lowest, never past 4 but at a lowest above it.
+    for (const guild of Object.values(world.guilds)) for (const heroId of guild.rosterIds) (world.heroes[heroId] as Hero).level = 9;
+    expect(boardTopTier(world, deps.config)).toBe(4);
+    const unlocked = drawn(20);
+    expect(unlocked.some(({ tier, lowest }) => tier > lowest)).toBe(true);
+    expect(unlocked.some(({ tier }) => tier === 4)).toBe(true);
+    for (const { tier, lowest } of unlocked) expect(tier).toBeLessThanOrEqual(Math.max(4, lowest));
   });
 
   test('never draws a Patron whose Sphere no template serves, and leaves the Board empty when none is served', () => {

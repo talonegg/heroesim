@@ -175,6 +175,14 @@ describe("a Quest template's Tiers and Beats (DL-262)", () => {
     expect(refusalOf(() => parse(files)).message).toMatch(/clear-the-barrow\.json: overrides\.3\.duration is not a field of a Tier's override/);
   });
 
+  test("with a Tier's unlock Level in its override is refused, naming it: the world's, which no template overrides (DL-271)", () => {
+    const files = withJson('quest-templates/', (json) => {
+      barrow(json).overrides = { '3': { unlockLevel: 0 } as never };
+    });
+
+    expect(refusalOf(() => parse(files)).message).toMatch(/clear-the-barrow\.json: overrides\.3\.unlockLevel is not a field of a Tier's override/);
+  });
+
   test('with a kind that is not one of the six is refused, naming the field', () => {
     const files = withJson('quest-templates/', (json) => {
       (barrow(json).beats[0] as QuestBeat).pool = { kinds: ['naval' as never] };

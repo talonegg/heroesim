@@ -1070,6 +1070,7 @@ reckless, steady, 4.00, 4.00, 3.13, 3.75, 3.75, at year 2 5.00, 4.94, 4.13, 4.75
 Guild-year 219.75 → 267.38 the player's, the Rivals' 112.63, 119.00, 61.38, 111.63 → 147.88, 142.63,
 110.88, 145.13; the mean Party 2.07 → 2.02; Deaths 0 → 0 and the Rivals' 2 → 0; Bankruptcies 0 and 0.
 The epic's S14 boxes.
+Verified 2026-10-11 at bd06abe: the rules and the report re-derived; the calibration drew each template at its lowest Tier only, its world's top Tier 1, so it now draws with every Tier unlocked; tests added where a mutation survived (the Board's refresh reading the top, an `unlockLevel` override in content, the counter's totals and a side's two Guilds, a Tier past the ladder); the web's "game it started from" is the History shared by ADR-0008, the world untouched.
 
 ## DL-272 — v1.2.0-S11 built: the content written, twelve Quest templates over three Tiers or more, their Beats' lines and pools; content 40
 
