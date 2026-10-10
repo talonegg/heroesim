@@ -2,14 +2,16 @@
   "name": "A quiet word",
   "sphereKeys": ["underworld"],
   "tags": ["talk", "town"],
-  "difficultyMin": 15, "difficultyMax": 45,
-  "durationDaysMin": 2, "durationDaysMax": 4,
+  "tierMin": 1, "tierMax": 2,
   "rewardPerDifficulty": 5,
   "fameEffect": 1,
   "partySizeMin": 1, "partySizeMax": 2,
   "skillKeys": ["stealth", "lockpicking"],
   "requires": {},
   "lootTableKey": null,
-  "encounterKinds": ["social", "stealth"],
-  "encountersMin": 2, "encountersMax": 3
+  "beats": [
+    { "line": "Words to be had.", "pool": { "kinds": ["social"] } },
+    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
+    { "line": "Words to be had.", "pool": { "kinds": ["social"] } }
+  ]
 }

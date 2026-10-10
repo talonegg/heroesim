@@ -1,19 +1,17 @@
 {
   "name": "Recover the strongbox",
   "sphereKeys": ["merchants"],
-  "tags": ["recover","water"],
-  "difficultyMin": 25,
-  "difficultyMax": 60,
-  "durationDaysMin": 2,
-  "durationDaysMax": 5,
+  "tags": ["recover", "water"],
+  "tierMin": 2, "tierMax": 3,
   "rewardPerDifficulty": 4.5,
   "fameEffect": 2,
-  "partySizeMin": 1,
-  "partySizeMax": 3,
-  "skillKeys": ["lockpicking","trapcraft"],
+  "partySizeMin": 1, "partySizeMax": 3,
+  "skillKeys": ["lockpicking", "trapcraft"],
   "requires": {},
   "lootTableKey": null,
-  "encounterKinds": ["travel","stealth"],
-  "encountersMin": 2,
-  "encountersMax": 3
+  "beats": [
+    { "line": "A hard road.", "pool": { "kinds": ["travel"] } },
+    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
+    { "line": "A hard road.", "pool": { "kinds": ["travel"] } }
+  ]
 }

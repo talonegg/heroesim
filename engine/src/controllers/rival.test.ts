@@ -11,7 +11,7 @@ import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild, signingFee, transferFee, unattachedHeroes, upkeep } from '../selectors.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { applyTransferOut } from '../actions/transfer.js';
-import { deepFreeze, harmlessContent, setup, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
+import { deepFreeze, harmlessContent, setEncounters, setup, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
 import { applyGuildAction, type GuildAction } from '../actions/action.js';
 import { bestParties } from '../best-party.js';
 import { availableHeroes, rivalChoices, staffableQuests } from './rival.js';
@@ -426,7 +426,7 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
     const { world, rival, deps } = scene('greedy-unknown', testDeps({}, withDispositions({ partyMargin: 0.05 })));
     const [quest] = openBoard(world, [10, 90, 90, 90, 90, 90], [2, 4]) as [Quest];
     // Content defines none of its Encounters (data-model rule 5).
-    quest.encounterKeys = ['no-such-encounter'];
+    setEncounters(quest, ['no-such-encounter']);
 
     expect(dispatchOf(world, rival, deps)?.heroIds).toEqual(byId(availableHeroes(world, rival)).slice(0, 2).map((hero) => hero.id));
   });

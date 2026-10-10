@@ -34,15 +34,18 @@ import {
   createWorld,
   degrees,
   describeQuery,
+  difficultyBand,
   encounterKinds,
   generateHero,
   generateQuest,
   growOneLevel,
+  offeredTiers,
   passDegree,
   passOf,
   playerGuild,
   questBands,
   resolveQuest,
+  tierFigures,
   type CheckKey,
   type ContentSet,
   type Degree,
@@ -50,6 +53,7 @@ import {
   type Encounter,
   type EncounterKind,
   type EngineDeps,
+  type GameConfig,
   type Guild,
   type Hero,
   type Party,
@@ -202,7 +206,8 @@ function partyOf(heroes: readonly Hero[], size: number, draw: () => number, firs
 
 /** A Quest of `encounterKeys` at `difficulty`, as the estimate and the resolver read one: a day long. */
 function questOf(template: Quest, difficulty: number, encounterKeys: string[]): Quest {
-  return { ...template, difficulty, encounterKeys, durationTurns: 3, lootTableKey: null, requirements: { partySizeMin: 1, partySizeMax: 5 } };
+  const beatLines = encounterKeys.map(() => 'A Beat of the calibration.');
+  return { ...template, difficulty, encounterKeys, beatLines, durationTurns: 3, lootTableKey: null, requirements: { partySizeMin: 1, partySizeMax: 5 } };
 }
 
 // --- The rates --------------------------------------------------------------------------------------
@@ -350,10 +355,25 @@ export function calibrateEncounters(pools: readonly Pool[], settings: Calibratio
   return results;
 }
 
-/** Which third of `template`'s difficulty range `difficulty` falls in. */
-export function thirdOf(template: Pick<QuestTemplate, 'difficultyMin' | 'difficultyMax'>, difficulty: number): Third {
-  const span = template.difficultyMax - template.difficultyMin;
-  const share = span > 0 ? (difficulty - template.difficultyMin) / span : 0;
+/** A range of difficulties, from its `difficultyMin` to its `difficultyMax`. */
+export interface DifficultyRange {
+  difficultyMin: number;
+  difficultyMax: number;
+}
+
+/**
+ * The difficulties `template`'s Quests are drawn at under `config` (DL-262): from the bottom of the
+ * band of the lowest Tier it offers to the top of the highest's, its overrides read, held in the scale.
+ */
+export function difficultyRange(template: QuestTemplate, config: GameConfig): DifficultyRange {
+  const bands = offeredTiers(template, config).map((tier) => difficultyBand(tierFigures(template, tier, config), config));
+  return { difficultyMin: Math.min(...bands.map(([low]) => low)), difficultyMax: Math.max(...bands.map(([, high]) => high)) };
+}
+
+/** Which third of a template's difficulty range (`difficultyRange`) `difficulty` falls in. */
+export function thirdOf(range: DifficultyRange, difficulty: number): Third {
+  const span = range.difficultyMax - range.difficultyMin;
+  const share = span > 0 ? (difficulty - range.difficultyMin) / span : 0;
   return share < 1 / 3 ? 'low' : share < 2 / 3 ? 'mid' : 'high';
 }
 
@@ -431,7 +451,7 @@ export function calibrateTemplates(pools: readonly Pool[], settings: Calibration
           result.unstaffed += 1;
           continue;
         }
-        const third = thirdOf(template, quest.difficulty);
+        const third = thirdOf(difficultyRange(template, deps.config), quest.difficulty);
         const row = rows.get(third) ?? {
           level: pool.level,
           third,
@@ -613,15 +633,16 @@ export const defaultTuningAim: Readonly<Omit<TuningAim, 'chance'>> = Object.free
 
 /**
  * Where `encounter` is tuned: at `aim`, but a Finale (v1.1.4-S9's verification) at the middle of its
- * template's difficulties, with Parties of the aim's size brought within the template's sizes; the
- * first template's, when it ends more than one.
+ * template's difficulties under `config` (`difficultyRange`), with Parties of the aim's size brought
+ * within the template's sizes; the first template's, when it ends more than one.
  */
-export function aimOf(encounter: Encounter, aim: TuningAim, content: ContentSet): TuningAim {
+export function aimOf(encounter: Encounter, aim: TuningAim, content: ContentSet, config: GameConfig): TuningAim {
   const template = Object.values(content.questTemplates).find((it) => it.finale === encounter.key);
   if (template === undefined) return aim;
+  const { difficultyMin, difficultyMax } = difficultyRange(template, config);
   return {
     ...aim,
-    difficulty: Math.round((template.difficultyMin + template.difficultyMax) / 2),
+    difficulty: Math.round((difficultyMin + difficultyMax) / 2),
     size: Math.min(Math.max(aim.size, template.partySizeMin), template.partySizeMax),
   };
 }
@@ -650,7 +671,7 @@ export function tunedFactors(pool: Pool, aim: TuningAim, parties: number, deps: 
   const best = bestParties(pool.world, pool.guild, deps);
   const tuned: Record<string, Record<CheckKey, CheckTuning>> = {};
   for (const encounter of Object.values(content.encounters)) {
-    const { difficulty, size } = aimOf(encounter, aim, content);
+    const { difficulty, size } = aimOf(encounter, aim, content, config);
     const quest = questOf(template, difficulty, [encounter.key]);
     const capabilities = partiesOf(size).map((party) => (best.chance(quest, party) as QuestEstimate).encounters[0]?.checks.map((it) => it.capability) ?? []);
     const tunable = encounter.checks.map((it) => it.raw !== true && it.difficultyFactor > 0);

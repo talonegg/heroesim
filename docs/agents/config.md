@@ -4,10 +4,10 @@ The game's tuning values, every setting of `GameConfig` (`engine/src/config.ts`)
 in one data file, `engine/src/config.json` (v1.1.6-S18, DL-186 item 15, DL-204). It holds:
 
 - **`sections`**: the settings grouped by what they tune (`world`, `heroes`, `guildmasters`,
-  `guilds`, `recruitment`, `board`, `quest`, `heroState`, `ageing`, `endings`, `progression`,
-  `regard`, `patrons`, `guildmasterStats`, `guildmasterRegard`, `transfers`, `loot`, `market`). The
-  engine reads them flat, as `defaultConfig`: each setting is in one section, once, and the sections
-  hold every setting of `GameConfig` and nothing else (`engine/src/config.test.ts`).
+  `guilds`, `recruitment`, `board`, `questTiers`, `quest`, `heroState`, `ageing`, `endings`,
+  `progression`, `regard`, `patrons`, `guildmasterStats`, `guildmasterRegard`, `transfers`, `loot`,
+  `market`). The engine reads them flat, as `defaultConfig`: each setting is in one section, once,
+  and the sections hold every setting of `GameConfig` and nothing else (`engine/src/config.test.ts`).
 - **`version`**: the config version, written into each new game's `meta.configVersion`, raised
   whenever a default changes, so that `rebase` can offer a game the new defaults (DL-193).
 - **`changelog`**: a line for each raise, saying why, citing its decision-log entry.
@@ -29,7 +29,8 @@ npm run edit -- config finish --reason "<why> (DL-NNN)"
 
 - **`set`** reads the value as JSON where it is JSON (`25`, `0.5`, `{"female":1,"male":3}`,
   `["strong"]`) and as text where not (`warm`), an object's keys in the file's order whatever order
-  they are given in. Each edit is checked at once with the engine's
+  they are given in. A list is set whole: the Tier ladder as `config set tiers '[{…}, …]'`, every
+  Tier's ten fields given (DL-262). Each edit is checked at once with the engine's
   `checkConfig`, with every pending edit made, and refused, naming the
   setting, where a rule refuses it: `boardSizeStart is -1; it is a whole number, at least 0`. A setting
   another's rule reads is named too: a Min set above its Max names the Max. Nothing is written to

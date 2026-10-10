@@ -19,6 +19,7 @@ import {
   testDeps,
   testWorld,
   withValid,
+  setEncounters,
 } from '../world.test-support.js';
 import { queryParty } from './query.js';
 import { resolveQuest } from './resolve.js';
@@ -266,7 +267,7 @@ describe("the Quest's outcome lists the Synergies that applied", () => {
     const sent = applyAction(withValid(start, gameDeps), { kind: 'dispatch', guildId: guild.id, questId: open.id, heroIds }, gameDeps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     const quest = sent.document.world.quests[open.id] as Quest;
-    quest.encounterKeys = ['the-long-march', 'a-hostile-reeve'];
+    setEncounters(quest, ['the-long-march', 'a-hostile-reeve']);
     const party = sent.document.world.parties[quest.partyIds[0] as Party['id']] as Party;
 
     let document: WorldDocument = withValid(sent.document, gameDeps);

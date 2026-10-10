@@ -1,6 +1,6 @@
 // Loot (M5-S5, R32, INPUTS 7.4, principle 2's fourth pull, DL-52): Items awarded by a Quest's
-// outcome. A Quest carries the Loot table of its template when the template's `difficultyMin` is
-// above `lootDifficultyThreshold` (the Quest Generator's copy); on a band in `lootOnBands` one entry
+// outcome. A Quest carries the Loot table of its template when its Tier's `loot` is true (the Quest
+// Generator's copy, DL-262); on a band in `lootOnBands` one entry
 // of it goes to the holding of the Guild whose Party came home. Every Guild alike (ADR-0002).
 //
 // Two halves, so that the Quest Engine stays a reader (resolve.ts): `drawLoot` is the Quest Engine's

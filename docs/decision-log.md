@@ -461,3 +461,65 @@ Verified 2026-10-11 at 3344e92: play unchanged, every one of the 208 year-end sa
 fixed, test first: the Board floored a Quest short at decimal growths (1,331 of 804,000 tried, growths
 in hundredths to 10, Years to 200, four starts), and a test kills a surviving mutant counting part of a
 Year; two stale comments. The put-back was not repeated: its temporary edit was denied.
+
+## DL-262 — v1.2.0-S5 built: the Tier engine, the `questTiers` ladder with `levelsPerTier` and `tierDrawWeights`, Quest templates in Tiers and Beats, `schemaVersion` 8; config version 19, content 38
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257 items 1–3 (Q4, Q13–Q15, Q23, Q24) build #22's Board scaling: a ladder of Tiers,
+templates offering Tiers and played as Beats, the Tier drawn around the world's mean Level, its
+factors neutral a Party-Day against v1.1.9. A template held its own difficulty, Days and Encounter
+counts, and `lootDifficultyThreshold` gave Loot.
+
+**Decision.**
+
+1. **The ladder,** `tiers` in a `questTiers` section after `board` (§2's figures), one row a Tier
+   (`TierRow`, `tierFields`), with `levelsPerTier` 3 and `tierDrawWeights` 1, 0.5, 0.2. The rules
+   (`tierRowProblems`) hold each row whole and its band and Days not below the Tier's beneath.
+   `lootDifficultyThreshold` is gone, a Tier's `loot` in its place. Config version 19.
+2. **The template** (`content/src/kinds/quest-templates.ts`): `tierMin`/`tierMax` within the ladder;
+   `beats`, each a line and a pool (kinds, tags or named Encounters; a Finale in none); `finale` with
+   `finaleLine`; `overrides` by Tier, each merged row held by the ladder's rules. A pool too small to
+   draw its Beats none twice is refused, naming the Beat. Twelve templates and their drafts converted
+   by a script (content version 38): Tiers from the midpoints of the Tier bands their difficulty spans,
+   a Beat a kind with a working line, S11's to write.
+3. **The Generator** (`engine/src/tiers.ts`, `generators/quests.ts`): the centre 1 + ⌊mean Level ÷
+   `levelsPerTier`⌋, the Tier drawn by its distance among those the template offers; the difficulty
+   within the band, the Days at its place in the Tier's Days; the first k−1 Beats and the Finale, or
+   the first k; reward × `rewardFactor`; Loot by `loot`. XP × `xpFactor`, read live at resolution.
+4. **The Quest** carries `tier` and `beatLines`; `schemaVersion` 8, a save of 7 refused (rule 5); the
+   validator holds a line an Encounter. `quest.offered` and `quest.taken` name the Tier.
+5. **The factors** (Q23 a), each v1.1.9's figure a Day at the Tier's difficulties over v1.2.0's at
+   factor 1 (the epic's §2): reward 1.36, 1.64, 2.04, 2.43, 2.55; XP 1.40, 1.64, 2.04, 2.42, 2.51.
+6. **The report** reads Quests by Tier and controller (`questTiers`): offered, taken, Party, Days,
+   bands, Wealth and XP a Party-Day, Loot a Quest.
+
+*Judgement calls, for the owner to see.*
+- **Three templates offer fewer than three Tiers:** the Sickness and the Tithe Tier 1 alone, the Quiet
+  word 1–2, their v1.1.9 difficulties narrow. Q25 asked for three or more; S11's content to widen.
+- **The section is `questTiers`,** not `tiers`, as a setting's key stands once in the config's text.
+- **`daysMax` whole,** as `daysMin`; no draw span is asked of a band, the scale clamping it.
+- **A Tier is given only with its template,** refused before any draw (the CLI's and tests' Quests).
+- **A pool's empty list, and a tag no Encounter carries, are refused**, as a typo would be.
+- **The factors rounded to two places:** the design's 2.05 (Tier 3 reward) and 2.43 (Tier 4 XP) are
+  2.04 and 2.42 by the arithmetic.
+- **The counter splits by controller,** player and Rivals; its Deaths column waits for S7.
+- **The Board's templates, Patrons and stream are unchanged** (still three draws a Quest), so seed
+  pins moved only in their figures: the Board pin (`quests.test.ts`), three History prints and the
+  harm fingerprint (`quests-conclude`, `resolve`), the estimate's seed (0023 → 0011, the
+  first Board's Quest drawn anew), web tests' Day of return, and fixtures given a Tier and Beats. No test pinned a
+  default this story changed.
+
+**Consequences.** S6 and S7 read the ladder's `fameMinimum` and `deathScale`; S11
+writes the Beats' lines and widens the Tiers; DL-257 item 11 tunes. The quick run's moves (Evidence)
+are the owner's to read against S2's: the player's Quest rewards 21% more over two Years
+(`wealth.player.questRewards`), its cause not yet read.
+
+**Evidence.** The commit `v1.2.0-S5 (DL-262)`. The doctor before and after: no drift, 104 reads.
+`neutral v1.2.0-s5-quick` (4 × 2, `harness/reports/v1.2.0-s5-quick-2026-10-11`): refusals 0,
+invalid 0, the replay identical, `7e0eed8f…`. `compare` with S2's gate: the config's keys, 568
+counters moved of 662, the run's shape apart; with S2's 4 × 2 quick check, the same shape, 391 of 590,
+S2 → S5: the player's Quests a Guild-year 378 → 284, its Party 1.66 → 1.54, Days away 3.96 → 6.04,
+failed 19.9% → 18.1%, Deaths a game 1.75 → 1.25, Wealth at Year 2 15.6 → 22.3 months of Upkeep;
+Bankruptcies 0 and 0. Offered by Tier: 20.9%, 38.6%, 29.4%, 9.9%, 1.1%; the player took 35.8%,
+48.3%, 14.9%, 0.9%, 0. Tests 6,192 (6,188 passed, 4 skipped); lint, typecheck and the build pass.

@@ -30,10 +30,12 @@ Markdown's path.
 Sweeps run one at a time, with nothing else running, since a 20-year game's process holds about
 1.3 GB (DL-184).
 
-The current `neutral` baseline, every play-neutral story's `--expect`, is
+The last `neutral` baseline is
 `661789f1d2811cfac869463d6dd1a0164874e3222f13690ba6adf9c43bdf2d6f` (`v1.2.0-s4-neutral`, DL-261: schema 7,
-config version 18, content version 37, v1.1.9's games). The 4 × 2 quick check at the same versions is
-`7ae6defaeecc13e1e8eeab521d9f5f3cbf5e8bdb7f2416a4e5a02574ea7dea37`. Each changes
+config version 18, content version 37, v1.1.9's games). v1.2.0-S5 changed play (the Tiers, DL-262): its
+4 × 2 quick check, at schema 8, config version 19 and content version 38, is
+`7e0eed8f4829dc9818d7167e0f2629dc30068af26d62a140bda85df3d774fe74` (`v1.2.0-s5-quick`), and the next
+`neutral` run at its versions sets the baseline every play-neutral story's `--expect` reads. Each changes
 only with a DL entry, as at a story that changes play or the save's shape or raises the content version
 or the config version, both of which every save records (with `meta.config`). The full `gate`'s, 50 × 20,
 is `5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b` (`v1.1.8-gate`, v1.1.8's close, the

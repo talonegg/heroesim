@@ -69,8 +69,11 @@ describe('fastForward: a Party returning (always on)', () => {
       // Rival Parties came home earlier and did not stop it.
       const rivalReturns = ofType(result.events, 'quest.resolved').filter((event) => event.payload.guildId !== guildId);
       expect(rivalReturns.some((event) => event.turn < party.returnsOnTurn)).toBe(true);
-      // Every event since the call, in order, as the History holds them.
-      expect(after.history.entries.slice(entries)).toEqual(result.events);
+      // Every event since the call, in order, as the History holds them: all but the Unattached pool's
+      // comings and goings of a Hero no entry names, which it never records (DL-211), and which a Quest
+      // long enough to outlast a pool Hero's stay brings (DL-262).
+      const passage = (event: { type: string }): boolean => event.type === 'hero.generated' || event.type === 'hero.left-pool';
+      expect(after.history.entries.slice(entries).filter((event) => !passage(event))).toEqual(result.events.filter((event) => !passage(event)));
     },
   );
 

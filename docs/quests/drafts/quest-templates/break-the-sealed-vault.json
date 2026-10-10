@@ -1,20 +1,19 @@
 {
   "name": "Break the sealed vault",
   "sphereKeys": ["scholars"],
-  "tags": ["delve","dark","recover","study"],
-  "difficultyMin": 60,
-  "difficultyMax": 100,
-  "durationDaysMin": 5,
-  "durationDaysMax": 10,
+  "tags": ["delve", "dark", "recover", "study"],
+  "tierMin": 4, "tierMax": 5,
   "rewardPerDifficulty": 4,
   "fameEffect": 5,
-  "partySizeMin": 3,
-  "partySizeMax": 5,
-  "skillKeys": ["warding","runecraft"],
-  "requires": {"classKey":"mage"},
+  "partySizeMin": 3, "partySizeMax": 5,
+  "skillKeys": ["warding", "runecraft"],
+  "requires": { "classKey": "mage" },
   "lootTableKey": "greater-loot",
-  "encounterKinds": ["arcane","stealth","combat","lore"],
-  "encountersMin": 4,
-  "encountersMax": 5,
-  "finale": "the-wardens-seal"
+  "beats": [
+    { "line": "Something uncanny.", "pool": { "kinds": ["arcane"] } },
+    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
+    { "line": "A fight on the way.", "pool": { "kinds": ["combat"] } },
+    { "line": "Something to be learned.", "pool": { "kinds": ["lore"] } }
+  ],
+  "finale": "the-wardens-seal", "finaleLine": "The last of it."
 }

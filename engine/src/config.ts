@@ -183,19 +183,36 @@ export interface GameConfig {
   boardSizeMax: number;
   /** Days a Quest stays on offer, the Day it is drawn included; it expires the next morning. */
   questOfferDays: number;
-  /**
-   * The difficulty scale: a template's difficulty range is held inside it before the draw.
-   * Durations and rewards are the templates' own (INPUTS 4.2: per template).
-   */
+  /** The difficulty scale: a Tier's difficulty band is held inside it before the draw. */
   questDifficultyMin: number;
   questDifficultyMax: number;
   /**
-   * How much likelier an Encounter is drawn, within its kind, for each tag it shares with its Quest's
+   * How much likelier an Encounter is drawn from a Beat's pool for each tag it shares with its Quest's
    * template (DL-148 item 22, DL-160): its weight in the one `weightedPick` is this to the power of
    * the tags shared, so at 3 one shared tag draws it three times as often as one sharing none. A finite
    * number of 1 or more, so that a tag shared never makes an Encounter rarer; at 1 tags change nothing.
    */
   encounterTagWeight: number;
+
+  // ── `questTiers`: the Tier ladder and the Tier a Quest is drawn at (DL-257 items 1 and 3, DL-262) ─
+  /**
+   * The Tier ladder, Tier n its nth row (`TierRow`), at least one: what a Quest of each Tier is worth,
+   * how long and how hard it is and how many Beats it plays. A template offers some consecutive
+   * Tiers of it and may override any figure for any of them (`tierFigures`). Each row's bands
+   * at least the row's below.
+   */
+  tiers: readonly TierRow[];
+  /**
+   * The Levels a Tier spans in the world's mean Level: the Board's draw centres on Tier 1 +
+   * ⌊mean Level ÷ this⌋, the ladder's last at most (`centreTier`, DL-257 item 3, #22).
+   */
+  levelsPerTier: number;
+  /**
+   * A Tier's weight in its Quest's draw by its distance from the centre, the centre's first: a
+   * distance past the list weighs 0. Among the Tiers a template offers, the centre held inside them
+   * (`tierWeights`), so the first is above 0.
+   */
+  tierDrawWeights: readonly number[];
 
   // ── `quest`: the Quest Engine (INPUTS 6.2, DL-42) ──────────────────────────────────────────
   /**
@@ -496,13 +513,7 @@ export interface GameConfig {
   transferLockDays: number;
 
   // ── `loot`: Loot (R32, INPUTS 7.4, DL-52) ──────────────────────────────────────────────────────
-  /**
-   * A Quest carries its template's Loot table only when the template's `difficultyMin` is above
-   * this: the Quest Generator copies `lootTableKey` onto the Quest then, and `null` otherwise. Content
-   * chooses each template's table by its difficulty band; this says from which difficulty a Quest
-   * awards Loot at all: set so that Loot is for hard Quests (DL-62).
-   */
-  lootDifficultyThreshold: number;
+  // Whether a Quest carries its template's Loot table at all is its Tier's `loot` (DL-257, DL-262).
   /** The bands on which a Quest with a Loot table awards one entry of it (INPUTS 7.4: strong only). */
   lootOnBands: readonly QuestBand[];
   /**
@@ -539,6 +550,44 @@ export interface GameConfig {
 export const questBands = ['fail', 'success', 'strong'] as const;
 
 export type QuestBand = (typeof questBands)[number];
+
+/**
+ * One rung of the Tier ladder, `tiers` (DL-257 items 1, 3 and 5, DL-262): every figure a Quest of the
+ * Tier is drawn and paid by, each of which a template may override for a Tier it offers.
+ */
+export interface TierRow {
+  /** The band a Quest's difficulty is drawn in, held inside the difficulty scale. */
+  difficultyMin: number;
+  difficultyMax: number;
+  /** Its Days away, at the place in them its difficulty has in its band (`daysAt`, DL-257 item 1). */
+  daysMin: number;
+  daysMax: number;
+  /** The Encounters a Quest of it meets, a Beat each, its template's Finale counted (DL-257 item 2). */
+  beats: number;
+  /** Whether a Quest of it carries its template's Loot table. */
+  loot: boolean;
+  /** Its reward's and its XP's factors: neutral a Party-Day against the Quests before Tiers (DL-257 item 7). */
+  rewardFactor: number;
+  xpFactor: number;
+  /** What its Encounters' Death chances are scaled by (DL-257 item 5). */
+  deathScale: number;
+  /** The Fame a Guild needs to take a Quest of it (DL-257 item 3). */
+  fameMinimum: number;
+}
+
+/** A Tier row's fields, in the order `config.json` writes them: every one a row holds, and a template may override. */
+export const tierFields = Object.freeze([
+  'difficultyMin',
+  'difficultyMax',
+  'daysMin',
+  'daysMax',
+  'beats',
+  'loot',
+  'rewardFactor',
+  'xpFactor',
+  'deathScale',
+  'fameMinimum',
+] as const satisfies readonly (keyof TierRow)[]);
 
 /** The named ranges Morale falls in, lowest first (M2-S6, pre-M0 review A7). */
 export const moraleBandNames = ['wretched', 'low', 'steady', 'high', 'elated'] as const;

@@ -2,14 +2,16 @@
   "name": "Escort the tithe",
   "sphereKeys": ["church"],
   "tags": ["escort", "wilds", "holy"],
-  "difficultyMin": 10, "difficultyMax": 35,
-  "durationDaysMin": 2, "durationDaysMax": 4,
+  "tierMin": 1, "tierMax": 1,
   "rewardPerDifficulty": 4,
   "fameEffect": 1,
   "partySizeMin": 1, "partySizeMax": 3,
   "skillKeys": ["tactics", "field-surgery"],
   "requires": {},
   "lootTableKey": null,
-  "encounterKinds": ["travel", "combat", "social"],
-  "encountersMin": 2, "encountersMax": 3
+  "beats": [
+    { "line": "A hard road.", "pool": { "kinds": ["travel"] } },
+    { "line": "A fight on the way.", "pool": { "kinds": ["combat"] } },
+    { "line": "Words to be had.", "pool": { "kinds": ["social"] } }
+  ]
 }

@@ -469,7 +469,7 @@ describe('fast forward in steps, with progress and a Stop (DL-96)', () => {
   }
 
   test('between steps the status bar shows the Turns played, the Day reached and the countdown below the floor; plays wait, and the game in hand stands', async () => {
-    // A Party out on a Quest of ten Days, home on the 32nd Turn, in the second step; Wealth below
+    // A Party out on a Quest of sixteen Days, home on the 50th Turn, in the second step; Wealth below
     // the floor since its first Day, before the fast forward, so its countdown stands and no new crossing
     // stops it (DL-101).
     render(<App initial={withWealth(withPartyOut(started('reducer-test')), -100, 0)} />);
@@ -497,7 +497,7 @@ describe('fast forward in steps, with progress and a Stop (DL-96)', () => {
 
     expect(screen.queryByTestId('progress')).toBeNull();
     expect(within(screen.getByTestId('stop')).getByText("Stopped: The Lantern's Party came home.")).toBeDefined();
-    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 11, night');
+    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 17, night');
     // The History marks both steps' entries new: all it gained in the fast forward.
     const { entries, fresh } = summary(wholeHistory());
     expect(fresh).toBe(entries - (withPartyOut(started('reducer-test')).document?.history.entries.length ?? 0));

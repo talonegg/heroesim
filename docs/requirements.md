@@ -154,11 +154,13 @@ Loot and Campaigns are kept as features serving Reputation and History.
 
 ### 3.4 Quests
 
-- R21. A Quest carries its Patron, difficulty, tags, duration in Days, reward in Wealth, Fame
-  effect, requirements (Party size, and any Class or Skill it needs), the Encounters drawn for it
-  when it is posted, the Turn its offer expires, and, when its template is hard enough, a Loot
-  table. It copies these from its Quest template, so a changed template never alters a Quest
-  already offered (DL-25).
+- R21. A Quest carries its Patron, its Tier, difficulty, tags, duration in Days, reward in Wealth,
+  Fame effect, requirements (Party size, and any Class or Skill it needs), the Encounters drawn for
+  it when it is posted with its Beats' lines, the Turn its offer expires, and, when its Tier awards
+  Loot, a Loot table. It copies these from its Quest template, so a changed template never alters a
+  Quest already offered (DL-25). Its Tier is drawn among those its template offers, around the
+  world's mean Level, and sets its difficulty band, its Days, its Beats, its Loot and its reward and
+  XP factors (DL-257, DL-262).
 - R22. The Board refreshes each morning with Quests drawn from the Patrons, each Patron weighted
   by their mean Regard for the Guilds in play (DL-43), up to its size, which may grow with the
   Years to a cap (DL-261). Every Guild draws from the one Board, the player's first.
@@ -197,9 +199,9 @@ Loot and Campaigns are kept as features serving Reputation and History.
 - R31. The Market buys and sells Items; the sell price is below the purchase price. It
   refreshes each morning.
 - R32. Loot is an Item, or a stack of a common one, drawn from a Quest's Loot table and awarded
-  when the Quest ends on a band in `lootOnBands`. Only a Quest whose template's least difficulty is
-  above `lootDifficultyThreshold` carries a table, and on a Quest with a Finale the Finale must end
-  at a Degree in `lootOnFinaleDegrees` (DL-52, DL-202).
+  when the Quest ends on a band in `lootOnBands`. Only a Quest of a Tier whose `loot` is true
+  carries a table, and on a Quest with a Finale the Finale must end at a Degree in
+  `lootOnFinaleDegrees` (DL-52, DL-202, DL-262).
 
 ### 3.7 The Hall
 

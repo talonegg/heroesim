@@ -1543,6 +1543,8 @@ describe('preview lists the Synergies a proposed Party would have', () => {
     edit((edited) => {
       const quest = edited.world.quests[questId] as Quest;
       quest.encounterKeys = encounterKeys;
+      // A line for each, as the validator holds a Quest's Beats' lines to its Encounters (DL-262).
+      quest.beatLines = encounterKeys.map(() => 'A Beat.');
       quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
       heroIds.forEach((id, index) => {
         const hero = edited.world.heroes[id] as Hero;

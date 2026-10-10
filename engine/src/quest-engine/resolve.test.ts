@@ -11,6 +11,7 @@ import {
   type InjuryConsequence,
   type HeroTraitEffect,
   type PassFormula,
+  type QuestTemplate,
   type SetQuery,
   type TraitConsequence,
 } from '../content-types.js';
@@ -207,6 +208,27 @@ describe('resolveQuest', () => {
     expect(success).toMatchObject({ band: 'success', successes: 2, wealthDelta: 225, fameDelta: 3, xpPerHero: 53 });
     // One of three: a failure, paying nothing, losing 3 + 1 + 2 + 2 Fame, and half XP times 2, 40, split by three.
     expect(failure).toMatchObject({ band: 'fail', successes: 1, wealthDelta: 0, fameDelta: -6, xpPerHero: 13 });
+  });
+
+  test("multiplies the XP by its Tier's xpFactor, the template's override over the ladder's (DL-262)", () => {
+    const content = contentWith(encounter('pass', true));
+    const at = (tiers: number[], overrides?: QuestTemplate['overrides']): number => {
+      const base = scene('tier-xp', content, ['pass', 'pass'], { size: 1, difficulty: 40 });
+      const template = base.deps.content.questTemplates[base.quest.templateKey] as QuestTemplate;
+      const withOverride = overrides === undefined ? base.deps.content : { ...base.deps.content, questTemplates: { ...base.deps.content.questTemplates, [template.key]: { ...template, overrides } } };
+      const deps = { ...base.deps, config: { ...base.deps.config, tiers: base.deps.config.tiers.map((tier, index) => ({ ...tier, xpFactor: tiers[index] ?? 1 })) }, content: withOverride };
+      return resolveQuest(base.world, base.quest, base.party, deps).outcome.xpPerHero;
+    };
+    const { quest } = scene('tier-xp', content, ['pass', 'pass'], { size: 1, difficulty: 40 });
+    const tierOf = quest.tier;
+    const factors = (factor: number): number[] => [1, 2, 3, 4, 5].map((tier) => (tier === tierOf ? factor : 7));
+    // A strong success of 40: 40 × 1 × the Tier's factor, a Party of one taking it whole.
+    expect(at(factors(1))).toBe(40);
+    expect(at(factors(2.5))).toBe(100);
+    expect(at(factors(0))).toBe(0);
+    expect(at(factors(2.5), { [String(tierOf)]: { xpFactor: 0.5 } })).toBe(20);
+    // An override of another Tier changes nothing.
+    expect(at(factors(2.5), { [String(tierOf === 5 ? 4 : tierOf + 1)]: { xpFactor: 0.5 } })).toBe(100);
   });
 
   // DL-182 item 1: the Quest's XP split across the Party sent, each share rounded down.
@@ -1221,7 +1243,8 @@ describe('a Finale and Loot', () => {
 // Encounters met at every Degree, each Degree's list reading every field: `among` matching some, all or
 // none of its pool, `exposedBy`, `guardedBy`, `steadiedBy`, a Death on the hurt, Traits positive and
 // negative. The fingerprint was recorded against resolve.ts before the move, so it holds the
-// resolutions and the `quests` stream after them to the draw.
+// resolutions and the `quests` stream after them to the draw; re-recorded when a Quest's Loot table came
+// to follow its Tier (DL-262), which moves the scenes' Loot draws alone: with the old copy, the old print.
 describe('harm and earned Traits across seeds, draw for draw', () => {
   const earned = (traitKey: string, fields: Partial<TraitConsequence> = {}): TraitConsequence => ({ kind: 'trait', traitKey, chance: 0.6, ...fields });
   const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 0.7, count: 1, ...fields });
@@ -1279,6 +1302,6 @@ describe('harm and earned Traits across seeds, draw for draw', () => {
     }
     expect([...seen.degrees].sort()).toEqual(['failure', 'setback', 'success', 'triumph']);
     expect(Math.min(seen.injuries, seen.deaths, seen.positive, seen.negative)).toBeGreaterThan(0);
-    expect(createHash('sha256').update(JSON.stringify(resolutions)).digest('hex')).toBe('cc68247a91e2de98f28b80633fc933b27a7c939930998631750085b04f96b726');
+    expect(createHash('sha256').update(JSON.stringify(resolutions)).digest('hex')).toBe('8d9793bcf3cc9c875ab9fc8627da40e85a1644edfd7cb6183f06067c54f46cc0');
   });
 });

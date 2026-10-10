@@ -1,19 +1,18 @@
 {
   "name": "Survey the old workings",
   "sphereKeys": ["scholars"],
-  "tags": ["delve","dark","study"],
-  "difficultyMin": 25,
-  "difficultyMax": 60,
-  "durationDaysMin": 3,
-  "durationDaysMax": 6,
+  "tags": ["delve", "dark", "study"],
+  "tierMin": 2, "tierMax": 3,
   "rewardPerDifficulty": 4,
   "fameEffect": 2,
-  "partySizeMin": 2,
-  "partySizeMax": 3,
-  "skillKeys": ["runecraft","trapcraft"],
+  "partySizeMin": 2, "partySizeMax": 3,
+  "skillKeys": ["runecraft", "trapcraft"],
   "requires": {},
   "lootTableKey": null,
-  "encounterKinds": ["travel","arcane","stealth","lore"],
-  "encountersMin": 2,
-  "encountersMax": 4
+  "beats": [
+    { "line": "A hard road.", "pool": { "kinds": ["travel"] } },
+    { "line": "Something uncanny.", "pool": { "kinds": ["arcane"] } },
+    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
+    { "line": "Something to be learned.", "pool": { "kinds": ["lore"] } }
+  ]
 }

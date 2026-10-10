@@ -23,7 +23,7 @@ import {
 import { append } from './history.js';
 import { makeId, takeId } from './document.js';
 import { passiveEntryTypes, refusalChecks, warningChecks } from './validate.js';
-import { buildDocument, checkWhatHistoryFromHid, fixtureTurn, heroStatKeys, testContent, testDeps, withValid } from './world.test-support.js';
+import { buildDocument, checkWhatHistoryFromHid, fixtureTurn, heroStatKeys, setEncounters, testContent, testDeps, withValid } from './world.test-support.js';
 
 // The validator of data-model §6. Each refusal test mutates the valid fixture document into
 // one failing shape and asserts the check it names and the id it points at, never the prose.
@@ -656,6 +656,14 @@ describe('document-shape', () => {
     ],
     // DL-248: every Quest is drawn with one Encounter or more.
     ['a Quest with no Encounters', (d) => set(quest(d, ids.offeredQuest), 'encounterKeys', []), `$.world.quests["${ids.offeredQuest}"].encounterKeys`],
+    // DL-262: a Quest's Tier, from 1, and a line for each of its Encounters.
+    ['a Quest without a Tier, as schema 7 wrote them', (d) => drop(quest(d, ids.offeredQuest), 'tier'), `$.world.quests["${ids.offeredQuest}"].tier`],
+    ['a Quest of Tier 0', (d) => set(quest(d, ids.offeredQuest), 'tier', 0), `$.world.quests["${ids.offeredQuest}"].tier`],
+    ['a Quest of a Tier that is not whole', (d) => set(quest(d, ids.offeredQuest), 'tier', 1.5), `$.world.quests["${ids.offeredQuest}"].tier`],
+    ["a Quest without its Beats' lines", (d) => drop(quest(d, ids.offeredQuest), 'beatLines'), `$.world.quests["${ids.offeredQuest}"].beatLines`],
+    ['a Quest with a line that is not a string', (d) => set(quest(d, ids.offeredQuest), 'beatLines', [7]), `$.world.quests["${ids.offeredQuest}"].beatLines`],
+    ['a Quest with more lines than Encounters', (d) => set(quest(d, ids.offeredQuest), 'beatLines', ['One.', 'Two.']), `$.world.quests["${ids.offeredQuest}"].beatLines`],
+    ['a Quest with fewer lines than Encounters', (d) => set(quest(d, ids.offeredQuest), 'beatLines', []), `$.world.quests["${ids.offeredQuest}"].beatLines`],
   ])('%s is refused, and no other check runs on it', (_, mutate, path) => {
     expect(refusals(mutate)).toEqual([failure('document-shape', path)]);
   });
@@ -868,7 +876,7 @@ describe('a key the content does not define warns and never refuses', () => {
     ],
     [
       "an Encounter in a Quest's sequence",
-      (d) => (quest(d, ids.offeredQuest).encounterKeys = ['hold-the-line', 'the-dragon-wakes']),
+      (d) => setEncounters(quest(d, ids.offeredQuest), ['hold-the-line', 'the-dragon-wakes']),
       'unknown-encounter',
       ids.offeredQuest,
       'the-dragon-wakes',

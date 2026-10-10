@@ -1,5 +1,5 @@
 {
-  "version": 37,
+  "version": 38,
   "changelog": [
     "2 from M2-S3, which added the Quest templates.",
     "3 from M2-S9, which added the Dispositions.",
@@ -38,6 +38,7 @@
     "34 from v1.1.6-S7, whose Quest templates no longer carry `demands`, which no rule had read since v1.1.4-S6 and no Quest copies now (DL-193).",
     "35 from v1.1.6-S14, which declares the Classes' order in `class-order.json`, Warrior, Rogue, Mage and Healer, each Class once, for every list that shows them (DL-200).",
     "36 from v1.1.6-S16, which adds the optional `weight` of a Class, Background, Quest template and Sphere and the optional `purchaseOrder`, `gearSlotOrder` and `buildOrder` of a Disposition, none yet written, every game as it was (DL-202).",
-    "37 from v1.1.7-S6, which gives each Class its `icon`, the name of the drawing shown before a Hero's name (DL-206 items 22 to 24, DL-212)."
+    "37 from v1.1.7-S6, which gives each Class its `icon`, the name of the drawing shown before a Hero's name (DL-206 items 22 to 24, DL-212).",
+    "38 from v1.2.0-S5, which writes each Quest template in Tiers and Beats, `tierMin`, `tierMax`, `beats` and a Finale's `finaleLine`, in place of its difficulty, Days and Encounter kinds and counts, by a script: each to the Tiers whose bands' middles its difficulty spanned, a Beat with a working line for each Encounter kind (DL-257 items 1 and 2, DL-262)."
   ]
 }

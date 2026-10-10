@@ -88,6 +88,7 @@ import { chooseEarner, moraleOf, strike, type Candidates } from './harm.js';
 import { drawLoot, type FinaleOutcome, type LootDraw } from './loot.js';
 import { queryParty, type OnQuest, type QueryParty } from './query.js';
 import { synergiesOn } from './synergy.js';
+import { tierFigures } from '../tiers.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
 export interface QuestInjury {
@@ -257,7 +258,8 @@ interface Working {
  * its Degree (v1.1.4-S2) applied in the order content lists them. The band follows the shares at
  * Success or better and of Triumphs (`questBand`); the Wealth is the reward times the wealth factors, rounded, on a success and
  * nothing on a failure; the Fame the Fame effect, won or lost by the band, plus the Encounters'; the
- * XP the difficulty × `xpPerDifficultyPoint` × the band's `xpBandFactor` × the XP factors, divided by
+ * XP the difficulty × `xpPerDifficultyPoint` × the band's `xpBandFactor` × its Tier's `xpFactor`
+ * (`tierFigures`, DL-262) × the Encounters' XP factors, divided by
  * the size of the Party sent, its Dead counted, and rounded down: each Hero who comes home takes that
  * share (v1.1.5-S13, DL-182). An Injury's Days are drawn from its type's range and multiplied by `infirmaryHealFactor` at
  * the Guild's infirmary grade now (`healFactor`, DL-53), rounded to the nearest Day and at least 1
@@ -351,7 +353,9 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
   const traits = working.earned
     .filter((it) => (!it.positive || (band === 'strong' && !marked.has(it.heroId))) && !working.deaths.includes(it.heroId))
     .map(({ heroId, traitKey, encounterIndex, encounterKey }) => ({ heroId, traitKey, encounterIndex, encounterKey }));
-  const xp = quest.difficulty * config.xpPerDifficultyPoint * config.xpBandFactor[band] * working.xpFactor;
+  // The Tier's XP factor, read from the template and the game's config as it resolves (DL-262).
+  const tierXp = tierFigures(rowOf(deps.content.questTemplates, quest.templateKey), quest.tier, config).xpFactor;
+  const xp = quest.difficulty * config.xpPerDifficultyPoint * config.xpBandFactor[band] * tierXp * working.xpFactor;
   return {
     outcome: {
       band,

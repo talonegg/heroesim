@@ -17,7 +17,7 @@ import { capability, check } from './quest-engine/check.js';
 import { queryParty } from './quest-engine/query.js';
 import { effectiveStats, playerGuild } from './selectors.js';
 import { nightOf } from './time.js';
-import { certainHarmContent, deepFreeze, demandsCheck, ofType, setup, testDeps, withValid } from './world.test-support.js';
+import { certainHarmContent, deepFreeze, demandsCheck, ofType, setEncounters, setup, testDeps, withValid } from './world.test-support.js';
 
 // Gear in effective Stats, in the Check, going back to the Guild, and chosen by the
 // controllers (DL-49). Worlds come from `createWorld`; every document a test makes is held to the
@@ -165,7 +165,7 @@ describe('gear goes back to the Guild (DL-49)', () => {
     // The doomed Hero alone, through one Encounter they cannot pass, whose failure kills for certain.
     const offered = current.world.quests[current.world.board[0] as QuestId] as Quest;
     offered.requirements = { partySizeMin: 1, partySizeMax: 4 };
-    offered.encounterKeys = ['ambush-on-the-road'];
+    setEncounters(offered, ['ambush-on-the-road']);
     const sent = applyAction(current, { kind: 'dispatch', guildId: guild.id, questId: offered.id, heroIds: [doomed.id] }, harm);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     (sent.document.world.quests[offered.id] as Quest).difficulty = 5000;

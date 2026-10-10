@@ -273,15 +273,21 @@ describe('questReturn', () => {
   });
 
   test('two Parties home the same night for the same Patron: each has its own Regard line, the band it moved into or the band now', () => {
-    // Two Quests of one Patron and one length on the Board, each taken the same morning by two of the
+    // Two Quests of one Patron on the Board, made one length, each taken the same morning by two of the
     // Roster, so both Parties come home the same night and the engine plays both outcomes on it (DL-250).
-    const game = started('two-home');
-    const document = documentOf(game);
+    const drawn = started('two-home');
+    const document = documentOf(drawn);
     const guild = playerGuild(document.world);
     if (guild === undefined) throw new Error("no player's Guild");
     const open = offeredQuests(document.world).filter(({ requirements }) => requirements.classKey === undefined && requirements.skillKey === undefined && requirements.partySizeMin <= 2 && 2 <= requirements.partySizeMax);
-    const pair = open.flatMap((quest) => open.filter((other) => other.id > quest.id && other.patronId === quest.patronId && other.durationTurns === quest.durationTurns).map((other) => [quest, other]))[0];
-    if (pair === undefined) throw new Error('no two Quests of one Patron and one length on the Board');
+    const pair = open.flatMap((quest) => open.filter((other) => other.id > quest.id && other.patronId === quest.patronId).map((other) => [quest, other]))[0];
+    if (pair === undefined) throw new Error('no two Quests of one Patron on the Board');
+    // As long as each other whatever Days their Tiers drew (DL-262).
+    const game = changed(drawn, (next) => {
+      const [one, other] = pair.map((quest) => next.world.quests[quest.id]);
+      if (one === undefined || other === undefined) throw new Error('no Quests');
+      other.durationTurns = one.durationTurns;
+    });
     const sent = pair.reduce((state, quest, at) => played(state, { kind: 'dispatch', questId: quest.id, heroIds: guild.rosterIds.slice(2 * at, 2 * at + 2) }), game);
     if (sent.rejection !== null) throw new Error(`dispatch refused: ${sent.rejection.reason}`);
     const [firstId, secondId] = Object.keys(documentOf(sent).world.parties) as [PartyId, PartyId];

@@ -464,7 +464,7 @@ describe('a refusal is stored, never thrown', () => {
     ['not JSON', 'not a save', 'malformed-json'],
     ['not a document', '{"meta":{}}', 'not-a-document'],
     ['a newer schema', '{"meta":{"version":99}}', 'unsupported-version'],
-    ['damaged', '{"meta":{"version":7},"world":{},"history":{}}', 'invalid'],
+    ['damaged', '{"meta":{"version":8},"world":{},"history":{}}', 'invalid'],
   ])('a save that is %s does not load, and the game in hand stays', (_name, text, reason) => {
     const before = started();
     const refused = play(before, { kind: 'load', text });
@@ -703,7 +703,7 @@ describe('fast forward in steps of at most 30 Turns (DL-96)', () => {
 });
 
 describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (DL-96)', () => {
-  /** A Party of the player's out on the longest Quest it can staff, back on the night of Year 1 Day 11, the 32nd Turn: partway through the second step. */
+  /** A Party of the player's out on the longest Quest it can staff, back on the night of Year 1 Day 17, the 50th Turn: partway through the second step. */
   const partyOut = (): GameState => withPartyOut(startedFrom('reducer-test'));
   /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Year 1 Day 31, the 91st Turn, in the fourth step. */
   const probeGame = (): GameState => {
@@ -728,7 +728,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
       stop: 'max-turns',
       turns: 90,
     },
-    { name: 'a Party out, back partway through a later step', game: partyOut, until: [], modules: noModules, stop: 'party-returned', turns: 32 },
+    { name: 'a Party out, back partway through a later step', game: partyOut, until: [], modules: noModules, stop: 'party-returned', turns: 50 },
     { name: 'pool-refreshed listed', game: released, until: ['pool-refreshed'], modules: noModules, stop: 'pool-refreshed', turns: 32 },
     { name: 'a cap not a multiple of 30', game: released, until: [], maxTurns: 100, modules: noModules, stop: 'max-turns', turns: 100 },
     { name: 'the probe installed, its module stop in a later step', game: probeGame, until: [], modules: [probe], stop: 'module', turns: 91 },

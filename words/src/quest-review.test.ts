@@ -17,7 +17,7 @@ const calibration: ReviewCalibration = {
   encounters: Object.values(content.encounters).map((it) => ({ key: it.key, cells: cells(), checks: it.checks.map((check) => ({ key: check.key, adds: [], cells: cells() })) })),
   templates: Object.values(content.questTemplates).map((it) => ({
     key: it.key,
-    rows: [{ level: 5, third: 'high', difficulty: [it.difficultyMax - 5, it.difficultyMax], best: { quests: 3, bands: { fail: 0.25, success: 0.35, strong: 0.4 }, size: 2.5, traitsDrawn: 0.01 } }],
+    rows: [{ level: 5, third: 'high', difficulty: [it.tierMax * 18 + 5, it.tierMax * 18 + 10], best: { quests: 3, bands: { fail: 0.25, success: 0.35, strong: 0.4 }, size: 2.5, traitsDrawn: 0.01 } }],
   })),
   coverage: Object.values(content.stats)
     .filter((it) => it.owner === 'hero')

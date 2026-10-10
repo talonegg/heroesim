@@ -1,19 +1,16 @@
 {
   "name": "The sickness at the mill",
   "sphereKeys": ["villages"],
-  "tags": ["recover","town","study"],
-  "difficultyMin": 10,
-  "difficultyMax": 30,
-  "durationDaysMin": 2,
-  "durationDaysMax": 3,
+  "tags": ["recover", "town", "study"],
+  "tierMin": 1, "tierMax": 1,
   "rewardPerDifficulty": 4,
   "fameEffect": 1,
-  "partySizeMin": 1,
-  "partySizeMax": 2,
-  "skillKeys": ["herbalism","field-surgery"],
+  "partySizeMin": 1, "partySizeMax": 2,
+  "skillKeys": ["herbalism", "field-surgery"],
   "requires": {},
   "lootTableKey": null,
-  "encounterKinds": ["social","lore"],
-  "encountersMin": 2,
-  "encountersMax": 2
+  "beats": [
+    { "line": "Words to be had.", "pool": { "kinds": ["social"] } },
+    { "line": "Something to be learned.", "pool": { "kinds": ["lore"] } }
+  ]
 }

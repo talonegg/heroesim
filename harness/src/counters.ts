@@ -334,6 +334,8 @@ export interface GameCounters {
   transfersBackSoon: number;
   /** `quest.taken` by the taking Guild's side (`sideOf`): the Quests, the Heroes sent and the Days away (DL-259). */
   questWeight: Record<string, QuestWeight>;
+  /** Quests by their Tier: offered, and each controller's taken, resolved, paid and looted (DL-262). */
+  questTiers: Record<string, TierTally>;
   /** Transfer Offers by the side of the Guild that made them, then of the Guild asked. */
   offers: Record<string, Record<string, OfferTally>>;
   /** Each Disposition's Rivals, by its key: every Disposition content holds, and any other a Rival has. */
@@ -1955,6 +1957,108 @@ export function questWeightCounters(document: WorldDocument): Record<string, Que
     weight.days += dayOf(numberField(entry, 'returnsOnTurn', what)) - dayOf(entry.turn);
   });
   return weights;
+}
+
+// ── The Tiers' readings (DL-262) ─────────────────────────────────────────────────────────────
+
+/** One controller's Quests of one Tier (DL-262): those taken, and those of them resolved. */
+export interface TierSideTally {
+  /** `quest.taken`: the Quests, the Heroes sent and the Days away, as `questWeightCounters` counts them. */
+  taken: number;
+  heroes: number;
+  days: number;
+  /** `quest.resolved`, the Days away of those Quests, and each by its band. */
+  resolved: number;
+  resolvedDays: number;
+  fail: number;
+  success: number;
+  strong: number;
+  /** The Wealth they paid, the XP their Heroes home took (`xpPerHero` each), and the Loot they left (`quest.loot`). */
+  wealth: number;
+  xp: number;
+  loot: number;
+}
+
+/** A Tier's Quests: those offered, every Guild's Board alike, and each controller's taken (DL-262). */
+export interface TierTally {
+  offered: number;
+  byController: Partial<Record<ControllerKind, TierSideTally>>;
+}
+
+export const noTierSide = (): TierSideTally => ({
+  taken: 0,
+  heroes: 0,
+  days: 0,
+  resolved: 0,
+  resolvedDays: 0,
+  fail: 0,
+  success: 0,
+  strong: 0,
+  wealth: 0,
+  xp: 0,
+  loot: 0,
+});
+
+/**
+ * Quests by their Tier (DL-262), by the Tier's number: `quest.offered`, which names it; `quest.taken`,
+ * which names it too, by the controller of the taking Guild, with the Heroes sent and the Days away
+ * (from the Day it was taken to the Day of the night it comes home); and `quest.resolved` and
+ * `quest.loot`, which name the Quest, joined to its Tier and Days through its `quest.taken`. The
+ * engine names every Quest's Tier, which the validator holds; an entry naming none, a test's, or the
+ * return of a Quest whose taking names none, is left out.
+ *
+ * @throws Error on an entry of a Quest of a Tier without its Heroes, return, band or XP, or naming no
+ * Guild the world holds
+ */
+export function questTierCounters(document: WorldDocument): Record<string, TierTally> {
+  const tiers: Record<string, TierTally> = {};
+  const tierOf = (tier: number): TierTally => (tiers[tier] ??= { offered: 0, byController: {} });
+  const tierIn = (entry: Entry): number | undefined => {
+    const tier = payloadField(entry, 'tier');
+    return typeof tier === 'number' ? tier : undefined;
+  };
+  for (const entry of entriesOf(document, 'quest.offered')) {
+    const tier = tierIn(entry);
+    if (tier !== undefined) tierOf(tier).offered += 1;
+  }
+  const taken = new Map<unknown, { tier: number; days: number }>();
+  entriesOf(document, 'quest.taken').forEach((entry, index) => {
+    const what = `quest.taken entry ${index}`;
+    const tier = tierIn(entry);
+    if (tier === undefined) return;
+    const days = dayOf(numberField(entry, 'returnsOnTurn', what)) - dayOf(entry.turn);
+    const side = (tierOf(tier).byController[guildOf(document, entry, `${index}`).controller.kind] ??= noTierSide());
+    side.taken += 1;
+    side.heroes += listLength(entry, 'heroIds', what);
+    side.days += days;
+    taken.set(payloadField(entry, 'questId'), { tier, days });
+  });
+  /** The controller's tally of the Quest an entry names, as its `quest.taken` set it. */
+  const sideOfQuest = (entry: Entry, what: string): { side: TierSideTally; days: number } | undefined => {
+    const quest = taken.get(payloadField(entry, 'questId'));
+    if (quest === undefined) return undefined;
+    const side = (tierOf(quest.tier).byController[guildOf(document, entry, what).controller.kind] ??= noTierSide());
+    return { side, days: quest.days };
+  };
+  entriesOf(document, 'quest.resolved').forEach((entry, index) => {
+    const what = `quest.resolved entry ${index}`;
+    const quest = sideOfQuest(entry, what);
+    if (quest === undefined) return;
+    const { side, days } = quest;
+    const band = payloadField(entry, 'band');
+    if (!isBand(band)) throw new Error(`${what} has no band`);
+    const home = listLength(entry, 'heroIds', what) - listLength(entry, 'deaths', what);
+    side.resolved += 1;
+    side.resolvedDays += days;
+    side[band] += 1;
+    side.wealth += numberField(entry, 'wealthDelta', what);
+    side.xp += numberField(entry, 'xpPerHero', what) * home;
+  });
+  entriesOf(document, 'quest.loot').forEach((entry, index) => {
+    const quest = sideOfQuest(entry, `quest.loot entry ${index}`);
+    if (quest !== undefined) quest.side.loot += 1;
+  });
+  return tiers;
 }
 
 /**

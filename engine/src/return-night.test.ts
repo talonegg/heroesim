@@ -22,7 +22,7 @@ import { copyWorld } from './world-copy.js';
 const deps: EngineDeps = testDeps({ rivalCount: 0 });
 
 /**
- * The player's Heroes sent two by two on `count` open Quests of one length, so that every Party comes home
+ * The player's Heroes sent two by two on `count` open Quests made one length, so that every Party comes home
  * the same night: the document as sent, and played to the afternoon before that night.
  */
 function eveOfReturns(seed: string, count: number): { sent: WorldDocument; eve: WorldDocument; parties: Party[] } {
@@ -31,8 +31,10 @@ function eveOfReturns(seed: string, count: number): { sent: WorldDocument; eve: 
   const open = start.world.board
     .map((id) => start.world.quests[id] as Quest)
     .filter(({ requirements }) => requirements.classKey === undefined && requirements.skillKey === undefined && requirements.partySizeMin <= 2 && 2 <= requirements.partySizeMax);
-  const quests = open.filter((quest) => open.filter((other) => other.durationTurns === quest.durationTurns).length >= count).slice(0, count);
-  if (quests.length < count) throw new Error(`no ${count} open Quests of one length for two each`);
+  const quests = open.slice(0, count);
+  if (quests.length < count) throw new Error(`no ${count} open Quests for two each`);
+  // Each as long as the first, so that every Party comes home the same night, whatever Days its Tier drew (DL-262).
+  for (const quest of quests) quest.durationTurns = (quests[0] as Quest).durationTurns;
   let sent = start;
   for (const [at, quest] of quests.entries()) {
     const taken = applyAction(sent, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: guild.rosterIds.slice(2 * at, 2 * at + 2) }, deps);

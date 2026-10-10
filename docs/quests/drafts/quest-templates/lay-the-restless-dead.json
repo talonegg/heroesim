@@ -1,20 +1,18 @@
 {
   "name": "Lay the restless dead",
   "sphereKeys": ["church"],
-  "tags": ["dark","fight","holy"],
-  "difficultyMin": 40,
-  "difficultyMax": 80,
-  "durationDaysMin": 3,
-  "durationDaysMax": 6,
+  "tags": ["dark", "fight", "holy"],
+  "tierMin": 3, "tierMax": 4,
   "rewardPerDifficulty": 4,
   "fameEffect": 3,
-  "partySizeMin": 2,
-  "partySizeMax": 4,
-  "skillKeys": ["benediction","warding"],
-  "requires": {"classKey":"healer"},
+  "partySizeMin": 2, "partySizeMax": 4,
+  "skillKeys": ["benediction", "warding"],
+  "requires": { "classKey": "healer" },
   "lootTableKey": "lesser-loot",
-  "encounterKinds": ["combat","arcane","lore"],
-  "encountersMin": 3,
-  "encountersMax": 4,
-  "finale": "the-last-rite"
+  "beats": [
+    { "line": "A fight on the way.", "pool": { "kinds": ["combat"] } },
+    { "line": "Something uncanny.", "pool": { "kinds": ["arcane"] } },
+    { "line": "Something to be learned.", "pool": { "kinds": ["lore"] } }
+  ],
+  "finale": "the-last-rite", "finaleLine": "The last of it."
 }

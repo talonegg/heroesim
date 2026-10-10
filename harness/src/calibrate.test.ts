@@ -9,6 +9,7 @@ import {
   checksAtLeast,
   coverageGrid,
   defaultCalibration,
+  difficultyRange,
   draftsDir,
   encounterDegrees,
   formatJson,
@@ -171,6 +172,18 @@ describe('coverageGrid', () => {
   });
 });
 
+describe('difficultyRange', () => {
+  test('runs from the bottom of the lowest Tier a template offers to the top of the highest, its overrides read (DL-262)', () => {
+    const barrow = deps.content.questTemplates['clear-the-barrow'] ?? expect.fail('clear-the-barrow');
+    const [, second, third] = deps.config.tiers;
+    expect(difficultyRange({ ...barrow, tierMin: 2, tierMax: 3 }, deps.config)).toEqual({ difficultyMin: second?.difficultyMin, difficultyMax: third?.difficultyMax });
+    expect(difficultyRange({ ...barrow, tierMin: 2, tierMax: 3, overrides: { '3': { difficultyMax: 99 } } }, deps.config)).toEqual({
+      difficultyMin: second?.difficultyMin,
+      difficultyMax: 99,
+    });
+  });
+});
+
 describe('thirdOf', () => {
   test("is the third of a template's difficulty range a difficulty falls in", () => {
     const template = { difficultyMin: 30, difficultyMax: 60 };
@@ -276,7 +289,8 @@ describe('the rates', { timeout: 60_000 }, () => {
     const tuning = tunedFactors(pool, aim, 60, only(finales));
     const tuned = tunedDeps(tuning);
     for (const template of Object.values(content.questTemplates).filter((it) => it.finale !== undefined)) {
-      const middle = Math.round((template.difficultyMin + template.difficultyMax) / 2);
+      const range = difficultyRange(template, drafts.config);
+      const middle = Math.round((range.difficultyMin + range.difficultyMax) / 2);
       const size = Math.min(Math.max(aim.size, template.partySizeMin), template.partySizeMax);
       const parties = partiesOf(aim.level, size);
       const finale = content.encounters[template.finale as string]!;
@@ -284,7 +298,7 @@ describe('the rates', { timeout: 60_000 }, () => {
       // At the aim over every Party, or over those that score on each Check where the aim is beyond the rest.
       const all = successOf(tuned, finale.key, middle, parties);
       const template0 = pool.world.quests[pool.world.board[0] as Quest['id']] as Quest;
-      const quest = { ...template0, difficulty: middle, encounterKeys: [finale.key], durationTurns: 3 };
+      const quest = { ...template0, difficulty: middle, encounterKeys: [finale.key], beatLines: ['The last of it.'], durationTurns: 3 };
       const scoring = parties.filter((party) => estimateQuest(pool.world, quest, party, tuned)?.encounters[0]?.checks.every((it, at) => !tunable[at] || it.capability > 0));
       const near = Math.min(Math.abs(all - aim.chance), Math.abs(successOf(tuned, finale.key, middle, scoring) - aim.chance));
       expect(near, `${finale.key} at ${middle}`).toBeLessThan(0.01);

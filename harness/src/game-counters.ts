@@ -54,6 +54,7 @@ import {
   noGrowth,
   noHeroes,
   noPartySize,
+  noTierSide,
   noPortraits,
   noPurchases,
   noSynergies,
@@ -75,6 +76,7 @@ import {
   playerSide,
   portraitCounters,
   progressionCounters,
+  questTierCounters,
   questWeightCounters,
   questingHeroes,
   questsResolvedByController,
@@ -116,6 +118,8 @@ import {
   type RivalTransferWay,
   type RosterCensus,
   type SaveSize,
+  type TierSideTally,
+  type TierTally,
   type TransferDirection,
   type TransferTally,
   type WealthFlows,
@@ -981,6 +985,53 @@ const partySizes: Declared<GameCounters['partySizes'], SweepTotals['partySizes']
         ['Controller: Party size', 'Quests resolved', 'Failed', 'Strong', 'XP a Hero', 'XP the Party took'],
         sizeRows,
         ['left', 'right', 'right', 'right', 'right', 'right'],
+      ),
+      '',
+    ];
+  },
+};
+
+const questTiers: Declared<GameCounters['questTiers'], SweepTotals['questTiers']> = {
+  key: 'questTiers',
+  kind: 'play',
+  read: (document) => questTierCounters(document),
+  zero: () => ({}),
+  section: 'quest-engine',
+  // A Quest's weight by its Tier (DL-257 items 1 and 7, DL-262): the Board's share of each Tier, and
+  // what each Tier's Quests asked of a Party and paid it a Day away, against the neutral factors.
+  lines(totals: SweepTotals) {
+    const tiers = Object.keys(totals.questTiers).sort((a, b) => Number(a) - Number(b));
+    const offered = sum(tiers.map((tier) => (totals.questTiers[tier] as TierTally).offered));
+    const rows = controllerKinds.flatMap((kind) => {
+      const sides = tiers.map((tier) => [tier, (totals.questTiers[tier] as TierTally).byController[kind] ?? noTierSide()] as const);
+      const all = noTierSide();
+      for (const [, side] of sides) addInto(all, side);
+      const cells = (side: TierSideTally): string[] => [
+        `${whole(side.taken)} (${percent(side.taken, all.taken)})`,
+        ratio(side.heroes, side.taken),
+        ratio(side.days, side.taken, 1),
+        percent(side.fail, side.resolved),
+        percent(side.strong, side.resolved),
+        ratio(side.wealth, side.resolvedDays, 1),
+        ratio(side.xp, side.resolvedDays, 1),
+        ratio(side.loot, side.resolved),
+      ];
+      return [
+        ...sides.map(([tier, side]) => {
+          const tally = totals.questTiers[tier] as TierTally;
+          return [`${kindLabel(kind)}: Tier ${tier}`, `${whole(tally.offered)} (${percent(tally.offered, offered)})`, ...cells(side)];
+        }),
+        [`${kindLabel(kind)}: every Tier`, whole(offered), ...cells(all)],
+      ];
+    });
+    return [
+      "Quests by Tier (DL-262): offered (`quest.offered`, every Guild's Board), and taken by the controller's Guilds " +
+        "(`quest.taken`), with the Party sent and the Days away; of those resolved, the bands, the Wealth and the XP the Party took a Day away, and the Loot a Quest:",
+      '',
+      markdownTable(
+        ['Controller: Tier', 'Offered', 'Taken', 'Mean Party', 'Mean Days', 'Failed', 'Strong', 'Wealth a Party-Day', 'XP a Party-Day', 'Loot a Quest'],
+        rows,
+        ['left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
       ),
       '',
     ];
@@ -2023,6 +2074,7 @@ export const gameCounters: readonly Counter[] = [
   encounters,
   synergies,
   partySizes,
+  questTiers,
   traitsByKey,
   injuriesByType,
   patronYears,

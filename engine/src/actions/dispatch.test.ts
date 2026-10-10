@@ -93,7 +93,7 @@ describe('dispatch', () => {
           [quest.patronId]: world.patrons[quest.patronId]?.name,
         },
         milestone: false,
-        payload: { questId, partyId, guildId: ids.playerGuild, heroIds: [rogue, mage], returnsOnTurn, reward: agreed, consumables: [] },
+        payload: { questId, partyId, guildId: ids.playerGuild, heroIds: [rogue, mage], returnsOnTurn, tier: quest.tier, reward: agreed, consumables: [] },
       },
     ]);
     // The reward agreed is the offer's, the Guildmaster's Negotiation applied, and the Quest carries it.

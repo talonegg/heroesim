@@ -1,20 +1,18 @@
 {
   "name": "Hold the border fort",
   "sphereKeys": ["crown"],
-  "tags": ["guard","fight","wilds"],
-  "difficultyMin": 50,
-  "difficultyMax": 90,
-  "durationDaysMin": 5,
-  "durationDaysMax": 9,
+  "tags": ["guard", "fight", "wilds"],
+  "tierMin": 3, "tierMax": 4,
   "rewardPerDifficulty": 4,
   "fameEffect": 4,
-  "partySizeMin": 3,
-  "partySizeMax": 4,
-  "skillKeys": ["tactics","shieldwork"],
-  "requires": {"classKey":"warrior"},
+  "partySizeMin": 3, "partySizeMax": 4,
+  "skillKeys": ["tactics", "shieldwork"],
+  "requires": { "classKey": "warrior" },
   "lootTableKey": "greater-loot",
-  "encounterKinds": ["combat","travel"],
-  "encountersMin": 3,
-  "encountersMax": 5,
-  "finale": "the-last-assault"
+  "beats": [
+    { "line": "A fight on the way.", "pool": { "kinds": ["combat"] } },
+    { "line": "A hard road.", "pool": { "kinds": ["travel"] } },
+    { "line": "A fight on the way.", "pool": { "kinds": ["combat"] } }
+  ],
+  "finale": "the-last-assault", "finaleLine": "The last of it."
 }

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { encounterKinds, facilityKeys, gearSlotKeys, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
+import { encounterKinds, facilityKeys, gearSlotKeys, tierLadder, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { contentSources, parseContent } from './index.js';
 import { contentDir, loadContent, readContentDir, readSource } from './node.js';
@@ -224,15 +224,14 @@ describe('loadContent()', () => {
       for (const it of templates) expect(it.skillKeys.length, it.key).toBeGreaterThan(0);
     });
 
-    // The ranges are content, not rules: the templates hold them (DL-25).
-    test('keep to INPUTS 4.2 and 4.3: 2 to 10 Days, a reward of 40 to 400, Fame 1 to 5, difficulty 10 to 100', () => {
+    // A Quest's difficulty, Days and reward are its Tier's, the ladder's in config (DL-257 item 1,
+    // DL-262); a template holds the Tiers it offers, its reward per difficulty and its Fame.
+    test('offer Tiers of the ladder, a reward of 4 to 5 a difficulty and Fame 1 to 5 (INPUTS 4.2 and 4.3)', () => {
       for (const it of templates) {
-        expect(it.durationDaysMin, it.key).toBeGreaterThanOrEqual(2);
-        expect(it.durationDaysMax, it.key).toBeLessThanOrEqual(10);
-        expect(it.difficultyMin, it.key).toBeGreaterThanOrEqual(10);
-        expect(it.difficultyMax, it.key).toBeLessThanOrEqual(100);
-        expect(Math.round(it.difficultyMin * it.rewardPerDifficulty), it.key).toBeGreaterThanOrEqual(40);
-        expect(Math.round(it.difficultyMax * it.rewardPerDifficulty), it.key).toBeLessThanOrEqual(400);
+        expect(it.tierMin, it.key).toBeGreaterThanOrEqual(1);
+        expect(it.tierMax, it.key).toBeLessThanOrEqual(tierLadder.length);
+        expect(it.rewardPerDifficulty, it.key).toBeGreaterThanOrEqual(4);
+        expect(it.rewardPerDifficulty, it.key).toBeLessThanOrEqual(5);
         expect(it.fameEffect, it.key).toBeGreaterThanOrEqual(1);
         expect(it.fameEffect, it.key).toBeLessThanOrEqual(5);
       }
@@ -247,11 +246,16 @@ describe('loadContent()', () => {
       expect(requiring.length).toBeLessThan(templates.length / 2);
     });
 
-    test('are drawn with 2 to 5 Encounters by difficulty (INPUTS 6.1)', () => {
+    test('are drawn with 2 to 5 Encounters at every Tier they offer, more at the higher (INPUTS 6.1, DL-262)', () => {
       for (const it of templates) {
-        expect(it.encountersMin, it.key).toBeGreaterThanOrEqual(2);
-        expect(it.encountersMax, it.key).toBeLessThanOrEqual(5);
-        expect(it.encountersMin, it.key).toBeLessThanOrEqual(it.encountersMax);
+        const counts = [];
+        for (let tier = it.tierMin; tier <= it.tierMax; tier += 1) {
+          const count = Math.min(tierLadder[tier - 1]?.beats ?? 0, it.beats.length + (it.finale === undefined ? 0 : 1));
+          expect(count, `${it.key} at Tier ${tier}`).toBeGreaterThanOrEqual(2);
+          expect(count, `${it.key} at Tier ${tier}`).toBeLessThanOrEqual(5);
+          counts.push(count);
+        }
+        expect(counts, it.key).toEqual([...counts].sort((a, b) => a - b));
       }
     });
   });
@@ -433,14 +437,14 @@ describe('loadContent()', () => {
     });
   });
 
-  // DL-52: the templates carry a Loot table chosen by difficulty band (INPUTS 7.4). Which
-  // templates carry one agrees with `defaultConfig.lootDifficultyThreshold`, which content cannot
-  // read: the harness's creation.test.ts holds that.
+  // DL-52: the templates carry a Loot table chosen by their Tiers (INPUTS 7.4, DL-262). That a
+  // table is named only where a template offers a Tier that pays Loot is the ladder's, which content
+  // cannot read: the harness's creation.test.ts holds that.
   describe('Loot tables', () => {
     const templates = Object.values(content.questTemplates);
     const tables = Object.values(content.lootTables);
 
-    test('are chosen by difficulty band: a harder template never names a lesser table than an easier one', () => {
+    test('are chosen by Tier: a template of higher Tiers never names a lesser table than one of lower', () => {
       // A table's rank is the mean worth of what one roll awards: its entries' quantity times price.
       const worth = (table: (typeof tables)[number]): number => {
         const total = table.entries.reduce((sum, entry) => sum + entry.weight, 0);
@@ -451,10 +455,12 @@ describe('loadContent()', () => {
         return value / total;
       };
       const rank = [...tables].sort((a, b) => worth(a) - worth(b)).map((it) => it.key);
+      // By the Tiers each offers, the lower first (DL-262); templates of the same Tiers in any order.
+      const rankOf = (it: (typeof templates)[number]): number => rank.indexOf(it.lootTableKey ?? '');
       const named = templates
         .filter((it) => it.lootTableKey !== null)
-        .sort((a, b) => a.difficultyMin - b.difficultyMin)
-        .map((it) => rank.indexOf(it.lootTableKey ?? ''));
+        .sort((a, b) => a.tierMin - b.tierMin || a.tierMax - b.tierMax || rankOf(a) - rankOf(b))
+        .map(rankOf);
 
       expect(rank.length).toBeGreaterThan(1);
       expect(named).not.toContain(-1);

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance } from '../advance.js';
-import { questBands, type EngineDeps, type GameConfig, type QuestBand } from '../config.js';
+import { defaultConfig, questBands, type EngineDeps, type GameConfig, type QuestBand } from '../config.js';
 import type { ContentSet, Degree, LootTable } from '../content-types.js';
 import { bestParties } from '../best-party.js';
 import { availableHeroes, staffableQuests } from '../controllers/rival.js';
@@ -58,7 +58,8 @@ function lootDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = tes
   return testDeps(
     {
       rivalCount: 0,
-      lootDifficultyThreshold: 25,
+      // Every Tier carries its template's table, as every test template with one did at a threshold of 25.
+      tiers: defaultConfig.tiers.map((row) => ({ ...row, loot: true })),
       lootOnBands: ['strong'],
       checkVariance: 0.2,
       skillBonusPerRating: 2,

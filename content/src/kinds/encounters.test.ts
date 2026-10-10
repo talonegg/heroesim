@@ -342,7 +342,7 @@ describe('tags, a Finale and the lore kind', () => {
     });
 
   test("loads an Encounter's tags and a template's Finale as written, and an Encounter with none has no tags", () => {
-    const files = barrowed((it) => (it.finale = 'hold-the-line'), ambushed((it) => (it.tags = ['escort', 'road-side'])));
+    const files = barrowed((it) => Object.assign(it, { finale: 'hold-the-line', finaleLine: 'Hold.' }), ambushed((it) => (it.tags = ['escort', 'road-side'])));
     const content = parse(files);
     expect(content.encounters['ambush-on-the-road']?.tags).toEqual(['escort', 'road-side']);
     expect(content.questTemplates['clear-the-barrow']?.finale).toBe('hold-the-line');
@@ -360,29 +360,29 @@ describe('tags, a Finale and the lore kind', () => {
   });
 
   test.each<[string, (it: Template) => void, RegExp]>([
-    ['a Finale that is not an Encounter', (it) => (it.finale = 'the-dragon'), /questTemplates\.clear-the-barrow\.finale: "the-dragon" is not an Encounter/],
+    ['a Finale that is not an Encounter', (it) => Object.assign(it, { finale: 'the-dragon', finaleLine: 'The dragon.' }), /questTemplates\.clear-the-barrow\.finale: "the-dragon" is not an Encounter/],
     ['a Finale that is not a string', (it) => ((it as unknown as Record<string, unknown>)['finale'] = ['hold-the-line']), /quest-templates\/clear-the-barrow\.json: finale is \["hold-the-line"\]; expected a string, or no such field/],
   ])("a template's %s is refused, naming its path", (_, change, problem) => {
     expect(refusalOf(() => parse(barrowed(change))).message).toMatch(problem);
   });
 
-  test('a kind whose every Encounter is a Finale, which is never drawn, is refused for each template that draws it', () => {
+  test('a Beat whose pool holds only Finales, which no Beat draws, is refused for each template that has one', () => {
     // The four arcane Encounters that are not Finales gone: the two left are the lay's and the vault's.
     const files = without(realFiles(), ['the-sealed-door', 'a-restless-power', 'the-hungry-ward', 'the-dead-light']);
     const { message } = refusalOf(() => parse(files));
-    expect(message).toMatch(/questTemplates\.lay-the-restless-dead\.encounterKinds: every Encounter of kind "arcane" is a Finale, which is never drawn/);
-    expect(message).toMatch(/questTemplates\.break-the-sealed-vault\.encounterKinds: every Encounter of kind "arcane" is a Finale/);
-    expect(message).not.toMatch(/clear-the-barrow\.encounterKinds/);
+    expect(message).toMatch(/questTemplates\.lay-the-restless-dead\.beats\.1\.pool may draw 0 Encounters, none a Finale; it needs 1/);
+    expect(message).toMatch(/questTemplates\.break-the-sealed-vault\.beats\.0\.pool may draw 0 Encounters/);
+    expect(message).not.toMatch(/clear-the-barrow\.beats/);
   });
 
-  test("a Finale may be of any kind, one its template's places are not drawn from", () => {
-    const files = barrowed((it) => (it.finale = 'a-riddle'), riddle(realFiles()));
+  test("a Finale may be of any kind, one its template's Beats do not draw", () => {
+    const files = barrowed((it) => Object.assign(it, { finale: 'a-riddle', finaleLine: 'A riddle.' }), riddle(realFiles()));
     expect(parse(files).questTemplates['clear-the-barrow']?.finale).toBe('a-riddle');
   });
 
   test('lore is a kind an Encounter, a template, a Synergy, a consumable and a Hero Trait may name', () => {
     let files = riddle(realFiles());
-    files = barrowed((it) => (it.encounterKinds = [...it.encounterKinds, 'lore']), files);
+    files = barrowed((it) => (it.beats = [...it.beats, { line: 'A riddle.', pool: { kinds: ['lore'] } }]), files);
     files = changed(files, 'synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).kinds = ['lore']));
     files = changed(files, 'items/', (json) => void Object.assign(json['whetstone'] ?? {}, { effect: { kind: 'bonus', flat: 3, kinds: ['lore'] } }));
     files = changed(files, 'hero-traits.json', (json) =>
@@ -390,14 +390,14 @@ describe('tags, a Finale and the lore kind', () => {
     );
     const content = parse(files);
     expect(content.encounters['a-riddle']?.kind).toBe('lore');
-    expect(content.questTemplates['clear-the-barrow']?.encounterKinds).toContain('lore');
+    expect(content.questTemplates['clear-the-barrow']?.beats.at(-1)?.pool.kinds).toEqual(['lore']);
     expect(content.synergies['sword-and-salve']?.kinds).toEqual(['lore']);
   });
 
-  test('a template drawing lore when content has no lore Encounter is refused, naming the kind', () => {
+  test('a template drawing lore when content has no lore Encounter is refused, naming the Beat', () => {
     const files = without(realFiles(), ['old-records', 'a-riddle-at-the-gate', 'the-cause-of-the-sickness', 'the-names-of-the-dead']);
-    expect(refusalOf(() => parse(barrowed((it) => (it.encounterKinds = ['lore']), files))).message).toMatch(
-      /questTemplates\.clear-the-barrow\.encounterKinds: no Encounter is of kind "lore"/,
+    expect(refusalOf(() => parse(barrowed((it) => (it.beats = [{ line: 'A riddle.', pool: { kinds: ['lore'] } }, ...it.beats]), files))).message).toMatch(
+      /questTemplates\.clear-the-barrow\.beats\.0\.pool may draw 0 Encounters/,
     );
   });
 });

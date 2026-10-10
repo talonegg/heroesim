@@ -131,6 +131,6 @@ describe('a folder with no row', () => {
   });
 
   test("is refused by the rules of the kinds that need its rows: the Quest templates' Encounters", () => {
-    expect(refusalOf(() => parse(withSourceJson(realFiles(), 'encounters/', {}))).message).toContain('no Encounter is of kind');
+    expect(refusalOf(() => parse(withSourceJson(realFiles(), 'encounters/', {}))).message).toContain('.beats.0.pool may draw 0 Encounters');
   });
 });

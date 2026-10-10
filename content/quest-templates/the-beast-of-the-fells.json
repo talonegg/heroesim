@@ -2,14 +2,17 @@
   "name": "The beast of the fells",
   "sphereKeys": ["villages"],
   "tags": ["hunt", "wilds", "fight"],
-  "difficultyMin": 35, "difficultyMax": 75,
-  "durationDaysMin": 3, "durationDaysMax": 7,
+  "tierMin": 2, "tierMax": 4,
   "rewardPerDifficulty": 4,
   "fameEffect": 3,
   "partySizeMin": 2, "partySizeMax": 4,
   "skillKeys": ["swordcraft", "stealth"],
   "requires": {},
   "lootTableKey": null,
-  "encounterKinds": ["travel", "combat", "stealth"],
-  "encountersMin": 2, "encountersMax": 4
+  "beats": [
+    { "line": "A hard road.", "pool": { "kinds": ["travel"] } },
+    { "line": "A fight on the way.", "pool": { "kinds": ["combat"] } },
+    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
+    { "line": "A hard road.", "pool": { "kinds": ["travel"] } }
+  ]
 }

@@ -477,7 +477,7 @@ describe('offerQuest', () => {
     expect(after.world.board.slice(0, -1)).toEqual(plain.world.board);
     expect(quest).toMatchObject({ patronId, status: 'offered', offeredOnTurn: 1 });
     expect(ofType(events, 'quest.offered')).toEqual([
-      expect.objectContaining({ participants: [questId, patronId], payload: { questId, patronId, templateKey: quest?.templateKey, moduleId: 'fx' } }),
+      expect.objectContaining({ participants: [questId, patronId], payload: { questId, patronId, templateKey: quest?.templateKey, tier: quest?.tier, moduleId: 'fx' } }),
     ]);
   });
 

@@ -191,6 +191,7 @@ export function applyDispatch(
       guildId,
       heroIds: [...heroIds],
       returnsOnTurn,
+      tier: quest.tier,
       reward: quest.reward,
       consumables: consumables.map(({ definitionKey, quantity }) => ({ definitionKey, quantity })),
     },

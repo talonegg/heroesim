@@ -1501,6 +1501,71 @@ describe("the Targets' counters (DL-259)", () => {
     expect(countGame(fixture('counters-quest-weight-none').document, shortYears).questWeight).toEqual({});
   });
 
+  test("Quests by Tier: offered, and each controller's taken, their Heroes and Days, and resolved, by band, with their Wealth, XP and Loot (DL-262)", () => {
+    const { document, player, rivals } = fixture('counters-quest-tiers');
+    const [a] = rivals;
+    // The first Board's offers, each at its Tier, as creation made them.
+    const created: Record<string, number> = {};
+    for (const entry of document.history.entries) {
+      if (entry.type === 'quest.offered') {
+        const { tier } = entry.payload as { tier: number };
+        created[tier] = (created[tier] ?? 0) + 1;
+      }
+    }
+    const offered = (turn: number, n: number, tier: number): void => {
+      const questId = makeId('quests', n);
+      add(document, turn, 'quest.offered', [questId], { questId, patronId: 'patron-000001', templateKey: 'clear-the-barrow', tier });
+    };
+    const sent = (turn: number, guild: Guild, n: number, tier: number, heroes: number, days: number): HeroId[] => {
+      const questId = makeId('quests', n);
+      const partyId = makeId('parties', n);
+      const heroIds = guild.rosterIds.slice(0, heroes);
+      const returnsOnTurn = (Math.floor(turn / 3) + days) * 3 + 2;
+      add(document, turn, 'quest.taken', [questId, partyId, ...heroIds, guild.id], { questId, partyId, guildId: guild.id, heroIds, returnsOnTurn, tier });
+      return heroIds;
+    };
+    const resolved = (turn: number, guild: Guild, n: number, heroIds: HeroId[], band: string, wealthDelta: number, xpPerHero: number, deaths: HeroId[] = []): void => {
+      const questId = makeId('quests', n);
+      const partyId = makeId('parties', n);
+      add(document, turn, 'quest.resolved', [questId, partyId, ...heroIds, guild.id], {
+        questId, partyId, guildId: guild.id, heroIds, templateKey: 'clear-the-barrow', band, successes: 1, encounterCount: 2,
+        wealthDelta, fameDelta: 0, xpPerHero, moraleDelta: 0, regardDelta: 0, injuries: [], deaths,
+      });
+    };
+    const loot = (turn: number, guild: Guild, n: number): void => {
+      const questId = makeId('quests', n);
+      add(document, turn, 'quest.loot', [questId, makeId('parties', n), guild.id], {
+        questId, partyId: makeId('parties', n), guildId: guild.id, lootTableKey: 'lesser-loot', definitionKey: 'whetstone', quantity: 1, itemId: null, stackId: null,
+      });
+    };
+    offered(3, 101, 2);
+    offered(3, 102, 3);
+    offered(3, 103, 3);
+    const first = sent(4, player, 101, 2, 2, 5);
+    const second = sent(4, a, 102, 3, 3, 8);
+    sent(7, player, 103, 3, 1, 10);
+    resolved(17, player, 101, first, 'strong', 300, 40);
+    loot(17, player, 101);
+    resolved(26, a, 102, second, 'fail', 0, 30, second.slice(0, 1));
+    document.world.turn = 30;
+
+    const tiers = countGame(document, shortYears).questTiers;
+
+    const side = (taken: number, heroes: number, days: number, extra: Partial<Record<string, number>> = {}) => ({
+      taken, heroes, days, resolved: 0, resolvedDays: 0, fail: 0, success: 0, strong: 0, wealth: 0, xp: 0, loot: 0, ...extra,
+    });
+    expect(tiers['2']).toEqual({
+      offered: (created['2'] ?? 0) + 1,
+      byController: { player: side(1, 2, 5, { resolved: 1, resolvedDays: 5, strong: 1, wealth: 300, xp: 80, loot: 1 }) },
+    });
+    expect(tiers['3']).toEqual({
+      offered: (created['3'] ?? 0) + 2,
+      // The Rival's Party of three lost one, so two took the XP; the player's third Quest is still away.
+      byController: { rival: side(1, 3, 8, { resolved: 1, resolvedDays: 8, fail: 1, xp: 60 }), player: side(1, 1, 10) },
+    });
+    for (const [tier, count] of Object.entries(created)) if (tier !== '2' && tier !== '3') expect(tiers[tier]).toEqual({ offered: count, byController: {} });
+  });
+
   test('Transfers back to a Guild that had sold the Hero fewer than 90 Days after that sale (DL-69 item 4)', () => {
     const { document, rivals } = fixture('counters-ping-pong');
     const [a, b] = rivals;

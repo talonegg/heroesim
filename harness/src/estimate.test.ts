@@ -118,8 +118,9 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
       const sample = compareSample(seed, drawn, seeds, moraleIn(drawn, deps.content));
       return sample.moraleIn.map((it, at) => it.rate - (sample.compared[at]?.rate ?? 0));
     };
-    // estimate-0023: a Morale loss on the way takes a Hero below a band's floor, and their form with it.
-    expect(rates('estimate-0023').some((gap) => gap !== 0)).toBe(true);
+    // estimate-0011: a Morale loss on the way takes a Hero below a band's floor, and their form with it
+    // (the sample at the first Board's first Quest, which the Tier engine draws anew, DL-262).
+    expect(rates('estimate-0011').some((gap) => gap !== 0)).toBe(true);
     // estimate-0003: every resolution loses Morale, and no Hero's band moves, so nothing changes; a
     // Morale consequence draws nothing, and the seeds meet the same rolls.
     expect(rates('estimate-0003').every((gap) => gap === 0)).toBe(true);
