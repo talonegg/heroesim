@@ -6,7 +6,7 @@
 // and giving a stand-in, so that reading goes on and every problem is reported at once. A row's
 // fields are read in the order its kind writes them, and a field no kind reads is refused.
 
-import type { ContentFileName } from '../files.js';
+import { isFolder, rowFile, type ContentSource } from '../files.js';
 
 /** A field's value read from a row, and the fields of the objects it holds, by which a tool finds every field's name. */
 export interface Field<Value> {
@@ -178,13 +178,14 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * How a content file is read into its place in the content set (DL-243): a kind's `file`, the key of
- * the set it fills, and its value; `empty` when its file is missing or not of its shape, so that the
- * rest are read and every problem reported.
+ * How a kind's content is read into its place in the content set (DL-243): its `source`, one file or
+ * a folder of one file a row (DL-260), the key of the set it fills, and its value; `empty` when its
+ * source is missing or not of its shape, so that the rest are read and every problem reported. A
+ * folder's rows come to `read` as one object by key, as a file's would.
  */
 export interface KindReader<Key extends string, Value> {
   key: Key;
-  file: ContentFileName;
+  source: ContentSource;
   read(json: unknown, problems: string[]): Value;
   /** The fields of the objects it holds, for a tool that reads every field's name. */
   readonly holds: readonly Readonly<Record<string, Field<unknown>>>[];
@@ -192,42 +193,44 @@ export interface KindReader<Key extends string, Value> {
 
 /**
  * A table of rows keyed by content key, each read by `fields` and refusing any other, `what` naming a
- * row, or by `shape`; its key taken from where it is stored.
+ * row, or by `shape`; its key taken from where it is stored: its member's name in a file, or its
+ * file's name in a folder, where a refusal names the row's file (DL-260).
  */
 export function table<Key extends string, Row extends { key: string }>(
   key: Key,
-  file: ContentFileName,
+  source: ContentSource,
   fields: Fields<Omit<Row, 'key'>>,
   what: string,
 ): KindReader<Key, Record<string, Row>>;
 export function table<Key extends string, Row extends { key: string }>(
   key: Key,
-  file: ContentFileName,
+  source: ContentSource,
   shape: RowShape<Omit<Row, 'key'>>,
 ): KindReader<Key, Record<string, Row>>;
 export function table<Key extends string, Row extends { key: string }>(
   key: Key,
-  file: ContentFileName,
+  source: ContentSource,
   given: Fields<Omit<Row, 'key'>> | RowShape<Omit<Row, 'key'>>,
   what?: string,
 ): KindReader<Key, Record<string, Row>> {
   const shape = what === undefined ? (given as RowShape<Omit<Row, 'key'>>) : rowOf(given as Fields<Omit<Row, 'key'>>, what);
   return {
     key,
-    file,
+    source,
     read(json, problems) {
       const rows: Record<string, Row> = {};
       if (json === undefined) return rows;
       if (!isObject(json)) {
-        problems.push(`${file}: must be an object of rows keyed by content key`);
+        problems.push(`${source}: must be an object of rows keyed by content key`);
         return rows;
       }
       for (const [rowKey, raw] of Object.entries(json)) {
+        const file = isFolder(source) ? rowFile(source, rowKey) : source;
         if (!isObject(raw)) {
-          problems.push(`${file}: ${rowKey} must be an object`);
+          problems.push(file === source ? `${source}: ${rowKey} must be an object` : `${file}: must be an object`);
           continue;
         }
-        rows[rowKey] = { key: rowKey, ...shape.read(new RowReader(file, [rowKey], raw, problems)) } as Row;
+        rows[rowKey] = { key: rowKey, ...shape.read(new RowReader(file, file === source ? [rowKey] : [], raw, problems)) } as Row;
       }
       return rows;
     },
@@ -241,7 +244,7 @@ export function table<Key extends string, Row extends { key: string }>(
  */
 export function single<Key extends string, Value>(
   key: Key,
-  file: ContentFileName,
+  file: `${string}.json`,
   fields: Fields<Value>,
   what: string,
   notAnObject: string,
@@ -249,7 +252,7 @@ export function single<Key extends string, Value>(
 ): KindReader<Key, Value> {
   return {
     key,
-    file,
+    source: file,
     read(json, problems) {
       if (json === undefined) return empty();
       if (!isObject(json)) {
@@ -273,7 +276,8 @@ export class RowReader {
   private readonly read = new Set<string>();
 
   constructor(
-    private readonly file: ContentFileName,
+    /** The file read, as a refusal names it: `stats.json`, `items/short-sword.json`. */
+    private readonly file: string,
     private readonly prefix: readonly string[],
     private readonly raw: Record<string, unknown>,
     /** Where the problems found are recorded. */

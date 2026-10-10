@@ -7,7 +7,7 @@
 // This entry is pure — text in, content out — so a browser can use it (M7-S1). The Node entry,
 // `@heroesim/content/node`, reads the files from disk and calls it.
 
-export { contentFiles, contentSetId, parseContent, readContent, type ContentFileName } from './parse.js';
+export { contentSetId, contentSources, isFolder, parseContent, placeOf, readContent, rowFile, rowFilesIn, sourceFiles, type ContentSource } from './parse.js';
 export { validateContent } from './validate.js';
 export { ContentError } from './kinds/error.js';
 export { growthSumTolerance } from './kinds/classes.js';

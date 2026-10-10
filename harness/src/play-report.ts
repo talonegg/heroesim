@@ -19,7 +19,7 @@ export interface PlayReportContext {
   startedAt: Date;
   /** The milestone whose run this is, as its report is named: `m3`. */
   milestone: string;
-  /** The draft content files played in place of the core's (`loadDrafts`); none when absent. */
+  /** The draft content files and folders played in place of the core's (`loadDrafts`); none when absent. */
   drafted?: string[];
   /** The config values played in place of `defaultConfig`'s (`HEROESIM_CONFIG`); none when absent. */
   configured?: Readonly<Record<string, unknown>>;

@@ -5,7 +5,7 @@
 // kind; a kind says only what its rows are. Traits are the one kind (`traits-kind.ts`); Encounters
 // come when the owner asks.
 
-import type { ContentFileName } from '@heroesim/content';
+import type { ContentSource } from '@heroesim/content';
 import type { ContentJson, JsonPath } from '@heroesim/content/uses';
 
 /** A JSON object: a row. */
@@ -15,7 +15,7 @@ export type Row = Record<string, unknown>;
 export interface KindList {
   id: string;
   title: string;
-  file: ContentFileName;
+  file: ContentSource;
 }
 
 /** A field of a row's form. `key` and `effects` are the editor's own; the rest are plain values. */
@@ -53,7 +53,7 @@ export interface ListForm {
 /** One use of a row's key elsewhere in content. */
 export interface Use {
   entry: string;
-  file: ContentFileName;
+  file: ContentSource;
   path: JsonPath;
   at: string;
   /** Whether it refuses the row's removal; one that does not, the editor takes out itself. */

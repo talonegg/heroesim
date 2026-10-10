@@ -605,8 +605,8 @@ describe('sweepPlay', () => {
 
     test('names the draft content files it played in place of the core files, and none when it played the core', () => {
       expect(report).toContain(` · content \`core\` version ${deps.content.version} · config version`);
-      const drafted = playReport(sweep, { ...context, drafted: ['encounters.json', 'items.json'] });
-      expect(drafted).toContain(` · content \`core\` version ${deps.content.version} with the drafts of \`encounters.json\`, \`items.json\` · config version`);
+      const drafted = playReport(sweep, { ...context, drafted: ['encounters/', 'items/'] });
+      expect(drafted).toContain(` · content \`core\` version ${deps.content.version} with the drafts of \`encounters/\`, \`items/\` · config version`);
     });
 
     test('names the config it changed from the defaults, and nothing when it changed none (DL-162)', () => {

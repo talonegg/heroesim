@@ -1,0 +1,63 @@
+{
+  "name": "Hold the line",
+  "kind": "combat",
+  "tags": ["guard","fight"],
+  "checks": [
+    {
+      "key": "wall",
+      "name": "Shield wall",
+      "score": ["sum",["top","party",3,["stat","constitution"]],["weighted",[["constitution",0.5],["strength",0.5]]]],
+      "skills": ["shieldwork"],
+      "flat": 9.74,
+      "difficultyFactor": 0.243,
+      "variance": 0.4
+    },
+    {
+      "key": "command",
+      "name": "Command",
+      "score": ["max","party",["stat","leadership"]],
+      "skills": ["tactics"],
+      "flat": 4.02,
+      "difficultyFactor": 0.1,
+      "variance": 0.4
+    },
+    {
+      "key": "stamina",
+      "name": "Stamina",
+      "score": ["min","party",["stat","endurance"]],
+      "skills": [],
+      "flat": 2.02,
+      "difficultyFactor": 0.05,
+      "variance": 0.4
+    }
+  ],
+  "pass": ["at-least",2,"wall","command","stamina"],
+  "consequences": {
+    "success": [{"kind":"regard","between":"party","delta":1}],
+    "triumph": [{"kind":"regard","between":"party","delta":2}],
+    "setback": [
+      {
+        "kind": "injury",
+        "typeKey": "bruised-ribs",
+        "chance": 0.15,
+        "count": 1,
+        "among": ["where","party",["class","warrior"]],
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      }
+    ],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "bruised-ribs",
+        "chance": 0.25,
+        "count": 2,
+        "among": ["where","party",["class","warrior"]],
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"death","chance":0.03,"guardedBy":["constitution"]},
+      {"kind":"trait","traitKey":"battle-shy","chance":0.08}
+    ]
+  }
+}

@@ -57,7 +57,7 @@ describe('a weight', () => {
     ['classes.json', 'warrior'],
     ['backgrounds.json', 'farm-born'],
     ['spheres.json', 'crown'],
-    ['quest-templates.json', 'clear-the-barrow'],
+    ['quest-templates/', 'clear-the-barrow'],
   ];
 
   test('is absent from a row that has none, which reads as having none', () => {
@@ -69,7 +69,7 @@ describe('a weight', () => {
   test.each(rowOfEach)('is read from a row of %s when it has one, and a positive number is accepted', (file, key) => {
     const files = withJson(file, (json) => void Object.assign((json as Record<string, object>)[key] as object, { weight: 2.5 }));
     const set = parse(files);
-    const table = { 'classes.json': set.classes, 'backgrounds.json': set.backgrounds, 'spheres.json': set.spheres, 'quest-templates.json': set.questTemplates }[file as string] as Record<string, { weight?: number }>;
+    const table = { 'classes.json': set.classes, 'backgrounds.json': set.backgrounds, 'spheres.json': set.spheres, 'quest-templates/': set.questTemplates }[file as string] as Record<string, { weight?: number }>;
 
     expect(table[key]?.weight).toBe(2.5);
   });
@@ -78,13 +78,13 @@ describe('a weight', () => {
     ['classes.json', 'classes', 'warrior'],
     ['backgrounds.json', 'backgrounds', 'farm-born'],
     ['spheres.json', 'spheres', 'crown'],
-    ['quest-templates.json', 'questTemplates', 'clear-the-barrow'],
+    ['quest-templates/', 'questTemplates', 'clear-the-barrow'],
   ] as const)('of %s that is 0, negative or not a number is refused, naming it', (file, table, key) => {
     for (const weight of [0, -1]) {
       const files = withJson(file, (json) => void Object.assign((json as Record<string, object>)[key] as object, { weight }));
       expect(refusalOf(() => parse(files)).message).toContain(`${table}.${key}.weight is ${weight}; it is a number above 0, or absent for 1`);
     }
     const text = withJson(file, (json) => void Object.assign((json as Record<string, object>)[key] as object, { weight: 'heavy' }));
-    expect(refusalOf(() => parse(text)).message).toContain(`${key}.weight is "heavy"`);
+    expect(refusalOf(() => parse(text)).message).toContain(file.endsWith('/') ? `${file}${key}.json: weight is "heavy"` : `${key}.weight is "heavy"`);
   });
 });

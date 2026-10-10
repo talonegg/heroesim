@@ -40,9 +40,9 @@ export type InjuryTypeKey = string;
 export type DispositionKey = string;
 /** An Encounter a Quest is drawn with (M4). */
 export type EncounterKey = string;
-/** A Loot table (M5-S5, `loot-tables.json`). */
+/** A Loot table (M5-S5, `loot-tables/`). */
 export type LootTableKey = string;
-/** An Item definition, for unique Items and common stacks alike (M5-S1, `items.json`). */
+/** An Item definition, for unique Items and common stacks alike (M5-S1, `items/`). */
 export type ItemDefinitionKey = string;
 /** A tag an Item definition carries (M5-S1): a kebab-case word for display and later rules. */
 export type ItemTagKey = string;
@@ -267,7 +267,7 @@ export interface QuestTemplateRequires {
 }
 
 /**
- * A kind of Quest a Patron offers (R21; `quest-templates.json`, M2-S3). A Patron's templates are
+ * A kind of Quest a Patron offers (R21; `quest-templates/`, M2-S3). A Patron's templates are
  * the ones whose `sphereKeys` hold the Patron's Sphere, looked up when the Board is drawn and
  * never stored (pre-M0 review D3). The Quest Generator copies what a Quest carries from its
  * template, so a template may change under a live save without altering Quests already offered.
@@ -564,7 +564,7 @@ export type Consequence =
 export type ConsequenceKind = Consequence['kind'];
 
 /**
- * One typed step of a Quest (M4-S1, `encounters.json`), resolved by its Checks (M4-S2; v1.1.4-S2).
+ * One typed step of a Quest (M4-S1, `encounters/`), resolved by its Checks (M4-S2; v1.1.4-S2).
  * Its `consequences` are applied by its Degree: a Triumph's are `triumph`, or `success` when it has
  * none, and a Setback's `setback`, or `failure` when it has none, so an Encounter written before
  * v1.1.4 runs as it did.
@@ -764,7 +764,7 @@ export interface ConsumableDefinition extends ItemDefinitionBase {
 }
 
 /**
- * An Item definition (M5-S1, `items.json`): the row a unique Item or a stack names by
+ * An Item definition (M5-S1, `items/`): the row a unique Item or a stack names by
  * `definitionKey`. Gear has a slot and Stat modifiers and no effect; a consumable an effect and no
  * slot. Content validation refuses a row with the other kind's fields.
  */
@@ -784,7 +784,7 @@ export interface LootEntry {
 }
 
 /**
- * A Loot table (M5-S5, R32, INPUTS 7.4, `loot-tables.json`): what a Quest whose template names it
+ * A Loot table (M5-S5, R32, INPUTS 7.4, `loot-tables/`): what a Quest whose template names it
  * may leave behind. The Quest Engine draws one entry on a band in `lootOnBands` and the Guild's
  * holding receives it (`quest-engine/loot.ts`). At least one entry, each definition once.
  */

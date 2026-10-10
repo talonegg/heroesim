@@ -1,0 +1,66 @@
+{
+  "name": "The Warden's seal",
+  "kind": "arcane",
+  "tags": ["delve","study"],
+  "checks": [
+    {
+      "key": "unbinding",
+      "name": "Unbinding",
+      "score": ["sum",["where","party",["class","mage"]],["weighted",[["arcana",0.5],["spelllore",0.5]]]],
+      "skills": ["runecraft","warding"],
+      "flat": 2.8,
+      "difficultyFactor": 0.052
+    },
+    {
+      "key": "holding",
+      "name": "Holding the power",
+      "score": ["max","party",["stat","power"]],
+      "skills": ["evocation"],
+      "flat": 3.71,
+      "difficultyFactor": 0.07
+    },
+    {
+      "key": "shielding",
+      "name": "Shielding",
+      "score": ["min","party",["stat","resistance"]],
+      "skills": [],
+      "flat": 1.53,
+      "difficultyFactor": 0.029
+    },
+    {
+      "key": "cipher",
+      "name": "The cipher",
+      "score": ["max","party",["stat","intelligence"]],
+      "skills": [],
+      "flat": 3.58,
+      "difficultyFactor": 0.067
+    }
+  ],
+  "pass": ["at-least",3,"unbinding","holding","shielding","cipher"],
+  "consequences": {
+    "success": [{"kind":"wealth","factor":1.1}],
+    "triumph": [{ "kind": "wealth", "factor": 1.2 }, { "kind": "trait", "traitKey": "lettered", "chance": 0.05 }],
+    "setback": [
+      {
+        "kind": "injury",
+        "typeKey": "eye-wound",
+        "chance": 0.1,
+        "count": 1,
+        "exposedBy": ["resistance"],
+        "guardedBy": ["resistance"]
+      }
+    ],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "eye-wound",
+        "chance": 0.2,
+        "count": 2,
+        "exposedBy": ["resistance"],
+        "guardedBy": ["resistance"]
+      },
+      {"kind":"death","chance":0.05,"guardedBy":["resistance"]},
+      {"kind":"morale","delta":-3,"steadiedBy":["courage","willpower"]}
+    ]
+  }
+}

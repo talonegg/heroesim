@@ -1,41 +1,49 @@
-// The content's files as the editor reads and writes them: each file's text and its JSON value, under
-// a repository's root. A change is written into the file's own text (`editJson`, the portrait tool's),
-// so `git diff` shows only what changed. And the edit session's adapter for a content kind's rows and
-// their uses in other content (`contentFiles`, DL-244).
+// The content's files as the editor reads and writes them: each file's text, and each source's JSON
+// value, under a repository's root. A folder's value is its rows' by key, and a change to it is written
+// to each row's own file, a row added making its file and a row removed deleting it (DL-260). A change
+// is written into the file's own text (`editJson`, the portrait tool's), so `git diff` shows only what
+// changed. And the edit session's adapter for a content kind's rows and their uses in other content
+// (`contentFiles`, DL-244).
 
-import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { contentFiles as contentFileNames, type ContentFileName } from '@heroesim/content';
+import { contentSources, isFolder, rowFile, sourceFiles } from '@heroesim/content';
+import { readContentDir } from '@heroesim/content/node';
 import type { ContentJson } from '@heroesim/content/uses';
 import { editJson, textChecks, versionPath } from '@heroesim/content/write';
 import type { Kind, Row, UseKind } from './kind.js';
-import { Refused, type SessionAdapter } from './session.js';
+import { Refused, type SessionAdapter, type Written } from './session.js';
 
 /** This repository's root, three folders above this file. */
 export const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
-/** A content file's path under a root. */
-export function contentPath(root: string, file: ContentFileName): string {
-  return path.join(root, 'content', file);
+/** A content file's path under a root, from its path in the content directory (`items/short-sword.json`). */
+export function contentPath(root: string, file: string): string {
+  return path.join(root, 'content', ...file.split('/'));
 }
 
-/** The content's files at `root`, as they are on disk: each one's text and its value. A file that is not there is left out. */
+/**
+ * The content at `root`, as it is on disk: each file's text, by its path in the content directory, and
+ * each source's value, a folder's its rows' by key. A source with a file that is not JSON is left out
+ * of the values, so that no edit is written to it: the content's checks name the file.
+ */
 export interface ContentOnDisk {
-  texts: Partial<Record<ContentFileName, string>>;
+  texts: Readonly<Record<string, string>>;
   values: ContentJson;
 }
 
 export function readContentFiles(root: string): ContentOnDisk {
-  const texts: Partial<Record<ContentFileName, string>> = {};
-  const values: Partial<Record<ContentFileName, unknown>> = {};
-  for (const file of contentFileNames) {
-    const full = contentPath(root, file);
-    if (!existsSync(full)) continue;
-    const text = readFileSync(full, 'utf8');
-    texts[file] = text;
+  const texts = readContentDir(path.join(root, 'content'));
+  const values: Record<string, unknown> = {};
+  for (const source of contentSources) {
+    const files = sourceFiles(source, texts);
+    if (files.length === 0) {
+      if (isFolder(source)) values[source] = {};
+      continue;
+    }
     try {
-      values[file] = JSON.parse(text);
+      const parsed = files.map(([name, text]): [string, unknown] => [name.slice(source.length, -'.json'.length), JSON.parse(text)]);
+      values[source] = isFolder(source) ? Object.fromEntries(parsed) : parsed[0]?.[1];
     } catch {
       // Left out: the content's checks name a file that is not JSON.
     }
@@ -43,20 +51,55 @@ export function readContentFiles(root: string): ContentOnDisk {
   return { texts, values };
 }
 
-/** The files of `values` that differ from `disk`'s, each with its new text in its old text's layout. */
-export function changedTexts(disk: ContentOnDisk, values: ContentJson): Partial<Record<ContentFileName, string>> {
-  const changed: Partial<Record<ContentFileName, string>> = {};
-  for (const file of contentFileNames) {
-    const value = values[file];
-    if (value === undefined || JSON.stringify(value) === JSON.stringify(disk.values[file])) continue;
+/**
+ * The files of `values` that differ from `disk`'s, by their path in the content directory: each with its
+ * new text in its old text's layout, a new row's laid out as the tool lays out a new file, or `null`
+ * for the file of a row removed, which goes (DL-260).
+ */
+export function changedTexts(disk: ContentOnDisk, values: ContentJson): Record<string, string | null> {
+  const changed: Record<string, string | null> = {};
+  const write = (file: string, value: unknown): void => {
     changed[file] = editJson(disk.texts[file] ?? '', value, { keepLines: true });
+  };
+  for (const source of contentSources) {
+    const value = values[source];
+    const was = disk.values[source];
+    if (value === undefined || JSON.stringify(value) === JSON.stringify(was)) continue;
+    if (!isFolder(source)) {
+      write(source, value);
+      continue;
+    }
+    const before = (was ?? {}) as Record<string, unknown>;
+    const after = value as Record<string, unknown>;
+    for (const [key, row] of Object.entries(after)) {
+      if (!Object.hasOwn(before, key) || JSON.stringify(row) !== JSON.stringify(before[key])) write(rowFile(source, key), row);
+    }
+    for (const key of Object.keys(before)) if (!Object.hasOwn(after, key)) changed[rowFile(source, key)] = null;
   }
   return changed;
 }
 
-/** Every content file's text, those of `changed` in place of their own: what the content's checks read. */
-export function textsWith(disk: ContentOnDisk, changed: Partial<Record<ContentFileName, string>>): Record<string, string> {
-  return { ...disk.texts, ...changed } as Record<string, string>;
+/** Every content file's text, those of `changed` in place of their own and those it removes gone: what the content's checks read. */
+export function textsWith(disk: ContentOnDisk, changed: Readonly<Record<string, string | null>>): Record<string, string> {
+  const texts: Record<string, string> = { ...disk.texts };
+  for (const [file, text] of Object.entries(changed)) {
+    if (text === null) delete texts[file];
+    else texts[file] = text;
+  }
+  return texts;
+}
+
+/** The value of the file `file`, by its path in the content directory, in `content`: a source's, or a folder's row's; `undefined` where it has none. */
+function valueOf(content: ContentJson, file: string): unknown {
+  for (const source of contentSources) {
+    if (file === source) return content[source];
+    if (isFolder(source) && file.startsWith(source)) {
+      const rows = content[source] as Readonly<Record<string, unknown>> | undefined;
+      const key = file.slice(source.length, -'.json'.length);
+      return rows !== undefined && Object.hasOwn(rows, key) ? rows[key] : undefined;
+    }
+  }
+  return undefined;
 }
 
 // ── The content files' adapter ──────────────────────────────────────────────────────────────────
@@ -191,9 +234,13 @@ export function contentFiles(kind: Kind, uses: UseKind | null = null): SessionAd
 
     finishing(root, content, edits) {
       const disk = readContentFiles(root);
-      const changed = contentFileNames.filter((file) => content[file] !== undefined && JSON.stringify(content[file]) !== JSON.stringify(disk.values[file]));
+      const changed = Object.keys(changedTexts(disk, content));
+      const written = (file: string): Written | null => {
+        const value = valueOf(content, file);
+        return value === undefined ? null : { text: disk.texts[file] ?? '', value, keepLines: true };
+      };
       return {
-        files: Object.fromEntries(changed.map((file) => [contentPath(root, file), { text: disk.texts[file] ?? '', value: content[file], keepLines: true }])),
+        files: Object.fromEntries(changed.map((file) => [contentPath(root, file), written(file)])),
         changed,
         wrote: changed.join(', ') || 'nothing',
         version: changed.length === 0 ? null : { file: versionPath(root), name: 'content version', why: `the content editor's Finish of ${today()} (${summary(edits)})` },

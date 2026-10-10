@@ -75,7 +75,7 @@ describe('a refused removal names every use', () => {
     const text = await command(['traits', 'remove', 'fresh', '--root', dir]);
     expect(text.code).toBe(1);
     expect(text.err).toContain('used at injuries.json: broken-arm.leavesTrait');
-    expect(text.err).toContain('used at encounters.json: ambush-on-the-road.consequences.triumph.1');
+    expect(text.err).toContain('used at encounters/ambush-on-the-road.json: consequences.triumph.1');
     expect(text.err).toContain('used at synergies.json: shield-wall.requires.1.1.1.2');
   });
 });
@@ -99,8 +99,8 @@ describe('assign and unassign', () => {
   const cases: [string, string, string[], string][] = [
     ['excludes', 'lame', ['trait=one-eyed'], 'hero-traits.json: one-eyed.excludes.0'],
     ['injury-leaves-trait', 'lame', ['injury=broken-arm'], 'injuries.json: broken-arm.leavesTrait'],
-    ['encounter-trait', 'one-eyed', ['encounter=ambush-on-the-road', 'degree=failure', 'chance=0.1'], 'encounters.json: ambush-on-the-road.consequences.failure.2'],
-    ['encounter-has-trait', 'scarred', ['encounter=ambush-on-the-road', 'path=checks.0.score.1'], 'encounters.json: ambush-on-the-road.checks.0.score.1.2'],
+    ['encounter-trait', 'one-eyed', ['encounter=ambush-on-the-road', 'degree=failure', 'chance=0.1'], 'encounters/ambush-on-the-road.json: consequences.failure.2'],
+    ['encounter-has-trait', 'scarred', ['encounter=ambush-on-the-road', 'path=checks.0.score.1'], 'encounters/ambush-on-the-road.json: checks.0.score.1.2'],
     ['synergy-has-trait', 'scarred', ['synergy=shield-wall'], 'synergies.json: shield-wall.requires.1.1.1.2'],
     ['biography-sentences', 'short-winded', ['sentence={He} wheezes on the stairs.'], 'descriptions.json: heroBiography.traits.short-winded.3'],
     ['portrait-callings', 'well-liked', ['calling=explorer', 'side=suits'], 'descriptions.json: callings.explorer.suits.0'],
@@ -177,9 +177,9 @@ describe('assign and unassign', () => {
 
     const finished = await json<{ changed: string[]; contentVersion: { from: number; to: number } }>(dir, 'traits', 'finish');
     expect(finished.code).toBe(0);
-    expect([...finished.json.changed].sort()).toEqual(['descriptions.json', 'encounters.json', 'injuries.json', 'portrait-appearances.json']);
+    expect([...finished.json.changed].sort()).toEqual(['descriptions.json', 'encounters/ambush-on-the-road.json', 'injuries.json', 'portrait-appearances.json']);
     expect(finished.json.contentVersion.to).toBe(finished.json.contentVersion.from + 1);
-    expect(readContentJson<Record<string, { consequences: { triumph: unknown[] } }>>(dir, 'encounters.json')['ambush-on-the-road']?.consequences.triumph.at(-1)).toEqual({
+    expect(readContentJson<Record<string, { consequences: { triumph: unknown[] } }>>(dir, 'encounters/')['ambush-on-the-road']?.consequences.triumph.at(-1)).toEqual({
       kind: 'trait',
       traitKey: 'scarred',
       chance: 0.05,
@@ -245,13 +245,13 @@ describe('assign and unassign', () => {
     expect((await json(dir, 'traits', 'assign', 'scarred', 'encounter-has-trait', ...at)).code).toBe(0);
     const twice = await json<Failure>(dir, 'traits', 'assign', 'scarred', 'encounter-has-trait', ...at);
     expect(twice.code).toBe(1);
-    expect(twice.json.problems).toEqual(['encounters.json: ambush-on-the-road.checks.0.score.1 is filtered by "scarred" already']);
+    expect(twice.json.problems).toEqual(['encounters/ambush-on-the-road.json: checks.0.score.1 is filtered by "scarred" already']);
 
     // Wrapped round one-eyed's filter, which is wrapped round scarred's: the new one, not the moved one.
     expect((await json(dir, 'traits', 'assign', 'one-eyed', 'encounter-has-trait', ...at)).code).toBe(0);
     const again = await json<Assigned>(dir, 'traits', 'assign', 'scarred', 'encounter-has-trait', ...at);
-    expect(again.json.added.map((use) => use.at)).toEqual(['encounters.json: ambush-on-the-road.checks.0.score.1.2']);
-    expect(again.json.uses.map((use) => use.at)).toContain('encounters.json: ambush-on-the-road.checks.0.score.1.1.1.2');
+    expect(again.json.added.map((use) => use.at)).toEqual(['encounters/ambush-on-the-road.json: checks.0.score.1.2']);
+    expect(again.json.uses.map((use) => use.at)).toContain('encounters/ambush-on-the-road.json: checks.0.score.1.1.1.2');
   });
 
   test('a change that changes nothing is not held', async () => {

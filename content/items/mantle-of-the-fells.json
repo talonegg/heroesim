@@ -1,0 +1,9 @@
+{
+  "name": "Mantle of the Fells",
+  "kind": "gear",
+  "unique": true,
+  "slot": "armour",
+  "statModifiers": { "endurance": 3, "constitution": 2, "adaptability": 1 },
+  "buyPrice": null,
+  "tags": ["relic"]
+}

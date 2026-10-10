@@ -1,0 +1,20 @@
+{
+  "name": "The counting-house job",
+  "sphereKeys": ["underworld"],
+  "tags": ["recover","town","dark"],
+  "difficultyMin": 45,
+  "difficultyMax": 85,
+  "durationDaysMin": 3,
+  "durationDaysMax": 6,
+  "rewardPerDifficulty": 4.5,
+  "fameEffect": 3,
+  "partySizeMin": 2,
+  "partySizeMax": 4,
+  "skillKeys": ["lockpicking","stealth","trapcraft"],
+  "requires": {"skillKey":"lockpicking"},
+  "lootTableKey": "greater-loot",
+  "encounterKinds": ["stealth","social"],
+  "encountersMin": 3,
+  "encountersMax": 5,
+  "finale": "the-strongroom"
+}

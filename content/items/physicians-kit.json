@@ -1,0 +1,8 @@
+{
+  "name": "Physician's kit",
+  "kind": "consumable",
+  "unique": false,
+  "effect": { "kind": "heal", "days": 10 },
+  "buyPrice": 70,
+  "tags": ["tool"]
+}

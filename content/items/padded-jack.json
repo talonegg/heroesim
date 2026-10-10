@@ -1,0 +1,9 @@
+{
+  "name": "Padded jack",
+  "kind": "gear",
+  "unique": false,
+  "slot": "armour",
+  "statModifiers": { "constitution": 1 },
+  "buyPrice": 40,
+  "tags": ["plain"]
+}

@@ -1,9 +1,8 @@
 // For the content kinds' tests (DL-243): the shipped files read once, and content built from them in
 // memory with one thing broken, read and checked as `parseContent` reads and checks the files. Only
-// the files a test changes are read again; the rest stand as shipped.
+// the kinds whose files a test changes are read again; the rest stand as shipped. A folder's rows are
+// changed as one object by key, as a file's are, and written back a file a row (DL-260).
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type {
   Background,
   Class,
@@ -24,17 +23,15 @@ import type {
   Stat,
   Synergy,
 } from '@heroesim/engine/content';
-import { contentFiles, parseContent, readKind, type ContentFileName } from '../parse.js';
+import { readContentDir } from '../node.js';
+import { isFolder, parseContent, readKind, rowFile, sourceFiles, type ContentSource } from '../parse.js';
 import { validateContent } from '../validate.js';
 import { ContentError } from './error.js';
 import { contentKinds } from './index.js';
 
-/** This package's directory, where the core content files sit. */
-const contentDir = join(import.meta.dirname, '..', '..');
-
 export type Rows<Row> = Record<string, Omit<Row, 'key'>>;
 
-/** Each content file as its JSON is written. */
+/** Each content source as its JSON is written: a folder's, its rows by key. */
 export interface Files {
   'stats.json': Rows<Stat>;
   'classes.json': Rows<Class>;
@@ -45,21 +42,21 @@ export interface Files {
   'backgrounds.json': Rows<Background>;
   'spheres.json': Rows<Sphere>;
   'names.json': Names;
-  'quest-templates.json': Rows<QuestTemplate>;
+  'quest-templates/': Rows<QuestTemplate>;
   'injuries.json': Rows<InjuryType>;
   'dispositions.json': Rows<Disposition>;
-  'encounters.json': Record<string, EncounterRow>;
+  'encounters/': Record<string, EncounterRow>;
   'synergies.json': Record<string, SynergyRow>;
   /** Written loosely: a row is gear or a consumable, and the tests give one the other's fields. */
-  'items.json': Record<string, Record<string, unknown>>;
-  'loot-tables.json': Rows<LootTable>;
+  'items/': Record<string, Record<string, unknown>>;
+  'loot-tables/': Rows<LootTable>;
   'portraits.json': Portraits;
   'portrait-appearances.json': PortraitAppearances;
   'descriptions.json': Descriptions;
   'version.json': { version: unknown; changelog: unknown; [field: string]: unknown };
 }
 
-/** An Encounter as `encounters.json` writes it. */
+/** An Encounter as its file in `encounters/` writes it. */
 export type EncounterRow = Omit<Encounter, 'key'>;
 
 /** A Synergy as `synergies.json` writes it: its requirement as conditions on the Party. */
@@ -67,10 +64,8 @@ export type SynergyRow = Omit<Synergy, 'key'>;
 
 export type Template = Omit<QuestTemplate, 'key'>;
 
-/** The shipped files' text, read once. */
-export const shippedTexts: Readonly<Record<ContentFileName, string>> = Object.freeze(
-  Object.fromEntries(contentFiles.map((name) => [name, readFileSync(join(contentDir, name), 'utf8')])) as Record<ContentFileName, string>,
-);
+/** The shipped files' text, by their path in the content directory, read once. */
+export const shippedTexts: Readonly<Record<string, string>> = Object.freeze(readContentDir());
 
 /** The shipped content, read and checked once; a test takes a copy (`structuredClone`) to change. */
 export const shipped: ContentSet = parseContent(shippedTexts);
@@ -90,8 +85,8 @@ export function parse(files: Readonly<Record<string, string>>): ContentSet {
   const problems: string[] = [];
   const set: Record<string, unknown> = structuredClone(shipped) as unknown as Record<string, unknown>;
   for (const kind of contentKinds) {
-    const text = files[kind.file];
-    if (text !== shippedTexts[kind.file]) set[kind.key] = readKind(kind, text, problems);
+    const same = JSON.stringify(sourceFiles(kind.source, files)) === JSON.stringify(sourceFiles(kind.source, shippedTexts));
+    if (!same) set[kind.key] = readKind(kind, files, problems);
   }
   if (problems.length > 0) throw new ContentError(problems);
   return validateContent(set as unknown as ContentSet);
@@ -102,15 +97,29 @@ export function withJson<File extends keyof Files>(file: File, change: (json: Fi
   return changed(realFiles(), file, change);
 }
 
-/** `files` with one of them changed as JSON, so that several may be changed in turn. */
+/** `files` with one of them changed as JSON, so that several may be changed in turn: a folder's rows as one object by key. */
 export function changed<File extends keyof Files>(files: Record<string, string>, file: File, change: (json: Files[File]) => void): Record<string, string> {
-  const json = JSON.parse(files[file] ?? '') as Files[File];
+  const json = sourceJson(files, file) as Files[File];
   change(json);
-  return { ...files, [file]: JSON.stringify(json, null, 2) };
+  return withSourceJson(files, file, json);
 }
 
-/** The real files with one of them replaced by raw text. */
-export function withText(file: keyof Files, text: string): Record<string, string> {
+/** The JSON of the source `source` in `files`: its file's, or its folder's rows' by key. */
+export function sourceJson(files: Readonly<Record<string, string>>, source: ContentSource): unknown {
+  if (!isFolder(source)) return JSON.parse(files[source] ?? '');
+  return Object.fromEntries(sourceFiles(source, files).map(([name, text]) => [name.slice(source.length, -'.json'.length), JSON.parse(text)]));
+}
+
+/** `files` with the source `source` holding `json`: its file, or its folder a file a row, the rows it no longer holds gone. */
+export function withSourceJson(files: Readonly<Record<string, string>>, source: ContentSource, json: unknown): Record<string, string> {
+  if (!isFolder(source)) return { ...files, [source]: JSON.stringify(json, null, 2) };
+  const kept = Object.fromEntries(Object.entries(files).filter(([name]) => !sourceFiles(source, files).some(([row]) => row === name)));
+  const rows = Object.entries(json as Record<string, unknown>).map(([key, row]) => [rowFile(source, key), JSON.stringify(row, null, 2)]);
+  return { ...kept, ...Object.fromEntries(rows) };
+}
+
+/** The real files with one of them, a source's file or a folder's row's, replaced by raw text. */
+export function withText(file: Exclude<keyof Files, `${string}/`> | `${string}/${string}.json`, text: string): Record<string, string> {
   return { ...realFiles(), [file]: text };
 }
 
@@ -126,7 +135,7 @@ export function refusalOf(run: () => unknown): ContentError {
 }
 
 export const warrior = (json: Files['classes.json']) => json['warrior'] as Omit<Class, 'key'>;
-export const barrow = (json: Files['quest-templates.json']) => json['clear-the-barrow'] as Template;
+export const barrow = (json: Files['quest-templates/']) => json['clear-the-barrow'] as Template;
 export const stat = (json: Files['stats.json'], key: string) => json[key] as Omit<Stat, 'key'>;
 
 /** A picture's row, as it is written in `portrait-appearances.json`. */
@@ -188,8 +197,8 @@ export const pictureRowOf = (json: PortraitAppearances, key: string): PictureRow
 
 /** The real files with no Loot table, and no template naming one. */
 export function withoutLoot(): Record<string, string> {
-  const templates = withJson('quest-templates.json', (json) => {
+  const templates = withJson('quest-templates/', (json) => {
     for (const it of Object.values(json)) it.lootTableKey = null;
   });
-  return { ...templates, 'loot-tables.json': '{}' };
+  return withSourceJson(templates, 'loot-tables/', {});
 }

@@ -269,6 +269,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-257 | 2026-10-10 | v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a … |  | [decision-log](../decision-log.md) |
 | DL-258 | 2026-10-10 | v1.2.0-S1 built: the glossary's Tier, Beat, Deadly and Death factor |  | [decision-log](../decision-log.md) |
 | DL-259 | 2026-10-10 | v1.2.0-S2 built: the harness's Targets, their counters and the baseline they read, and the player's … |  | [decision-log](../decision-log.md) |
+| DL-260 | 2026-10-10 | v1.2.0-S3 built: content in folders, Quest templates, Encounters, Items and Loot tables a file a row |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

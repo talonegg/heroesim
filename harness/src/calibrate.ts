@@ -22,8 +22,8 @@
 //   its value (not those that only choose or filter by it), the gate's "every Hero Stat read by at
 //   least three Checks across at least two kinds".
 //
-// Draft content is calibrated before it is in `content/`: a directory of content files, each in
-// place of the core file of its name (`loadDrafts`, content's Node entry). `npm run harness -- calibrate`
+// Draft content is calibrated before it is in `content/`: a directory of content files and folders,
+// each in place of the core's of its name (`loadDrafts`, content's Node entry; a folder whole, DL-260). `npm run harness -- calibrate`
 // (calibrate.harness.test.ts) writes the report and its data under `docs/quests/`.
 
 import { join } from 'node:path';

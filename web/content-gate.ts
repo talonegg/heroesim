@@ -8,17 +8,22 @@
 // with its module runner (`--configLoader runner` in package.json's scripts): the default loader
 // leaves a workspace package to Node, which cannot resolve its `.js` imports of `.ts` files.
 
+import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { contentFiles, parseContent } from '@heroesim/content';
+import { contentSources, isFolder, parseContent } from '@heroesim/content';
 import type { Plugin } from 'vite';
 
-/** Validates every content file in `dir` (`parseContent`); throws the `ContentError` naming each problem. */
+/**
+ * Validates every content file in `dir` (`parseContent`), each kind's one file or its folder's rows
+ * (DL-260); throws the `ContentError` naming each problem.
+ */
 export async function validateContentDir(dir: string): Promise<void> {
-  const names = new Set<string>(contentFiles);
   const files: Record<string, string> = {};
-  for (const name of await readdir(dir)) {
-    if (names.has(name)) files[name] = await readFile(path.join(dir, name), 'utf8');
+  for (const source of contentSources) {
+    if (!existsSync(path.join(dir, source))) continue;
+    const names = isFolder(source) ? (await readdir(path.join(dir, source))).filter((name) => name.endsWith('.json')).map((name) => `${source}${name}`) : [source];
+    for (const name of names) files[name] = await readFile(path.join(dir, name), 'utf8');
   }
   parseContent(files);
 }

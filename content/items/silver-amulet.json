@@ -1,0 +1,9 @@
+{
+  "name": "Silver amulet",
+  "kind": "gear",
+  "unique": false,
+  "slot": "trinket",
+  "statModifiers": { "willpower": 2, "spirit": 1 },
+  "buyPrice": 120,
+  "tags": ["fine"]
+}

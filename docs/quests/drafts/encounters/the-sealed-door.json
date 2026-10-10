@@ -1,0 +1,50 @@
+{
+  "name": "The sealed door",
+  "kind": "arcane",
+  "tags": ["delve","study"],
+  "checks": [
+    {
+      "key": "unpicking",
+      "name": "Unpicking the ward",
+      "score": ["max","party",["weighted",[["arcana",0.6],["spelllore",0.4]]]],
+      "skills": ["runecraft","warding"],
+      "flat": 4.16,
+      "difficultyFactor": 0.104,
+      "variance": 0.4
+    },
+    {
+      "key": "insight",
+      "name": "Insight",
+      "score": ["max","party",["stat","intelligence"]],
+      "skills": [],
+      "flat": 3.75,
+      "difficultyFactor": 0.094,
+      "variance": 0.4
+    }
+  ],
+  "pass": ["and","unpicking","insight"],
+  "consequences": {
+    "success": [{"kind":"xp","factor":1.1}],
+    "triumph": [{"kind":"xp","factor":1.2}],
+    "setback": [
+      {
+        "kind": "injury",
+        "typeKey": "eye-wound",
+        "chance": 0.06,
+        "count": 1,
+        "exposedBy": ["resistance"],
+        "guardedBy": ["resistance"]
+      }
+    ],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "eye-wound",
+        "chance": 0.12,
+        "count": 1,
+        "exposedBy": ["resistance"],
+        "guardedBy": ["resistance"]
+      }
+    ]
+  }
+}

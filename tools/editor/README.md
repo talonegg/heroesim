@@ -55,7 +55,7 @@ checks and names their problems.
 | `traits change <key>` | Changes the fields given; the key never changes |
 | `traits remove <key>` | Removes a Trait; refused while it is used, naming every use |
 | `traits assign <key> <entry> [<field>=<value> ...]` | Adds a use of a Trait in other content, through the register's entry; `--target <json or @file>` gives the fields too |
-| `traits unassign <key> <entry> <at>` | Takes a use out, by its place as `uses` gives it (`injuries.json: deep-cut.leavesTrait`, or `deep-cut.leavesTrait`) |
+| `traits unassign <key> <entry> <at>` | Takes a use out, by its place as `uses` gives it (`injuries.json: deep-cut.leavesTrait`, `encounters/hold-the-line.json: consequences.failure.2`, or the path alone, `deep-cut.leavesTrait`, `hold-the-line.consequences.failure.2`) |
 | `traits update <key> <entry> <at> [<field>=<value> ...]` | Changes a use in place, by its place as `uses` gives it: a trait consequence's `chance` or `among`, a Biography sentence's words; `--target <json or @file>` gives the values too |
 | `traits pending` | The pending edits |
 | `traits discard [<key>]` | Drops one Trait's pending edits, or all |
@@ -128,7 +128,7 @@ that is not there is refused, naming the Trait's uses, and a value as it is alre
 
 ```sh
 npm run edit -- traits uses battle-shy
-npm run edit -- traits update battle-shy encounter-trait "encounters.json: hold-the-line.consequences.failure.2" chance=0.1
+npm run edit -- traits update battle-shy encounter-trait "encounters/hold-the-line.json: consequences.failure.2" chance=0.1
 npm run edit -- traits update lame biography-sentences heroBiography.traits.lame.1 --target @sentence.json
 ```
 
@@ -141,7 +141,10 @@ file (`configFile`, `src/config-kind.ts`). The steps below are the session's, fo
 
 1. It writes each changed file into its own layout (`editJson`, of content's write module
    `@heroesim/content/write`, keeping a row on one line where it was), so `git diff` shows only what
-   changed.
+   changed. A kind in a folder of one file a row (Quest templates, Encounters, Items and Loot tables,
+   `content/encounters/` and the rest; DL-260) is written row by row: a row changed in its own file,
+   a row added as a new file named by its key, laid out as the tool lays out a new file, and a row
+   removed by deleting its file. A key changed is a row removed and another added.
 2. It raises the version by one, with a line of its changelog saying why: the content version in
    `content/version.json`, naming the edits, or the config version (see The config kind).
 3. It runs `npm test`, its lines shown as they come (on stderr, or on the page).
@@ -153,7 +156,8 @@ It never commits: read `git diff`, and commit it yourself. The test run is a dep
 scratch copy rather than the whole suite inside itself.
 
 - **Its journal is a lock.** Before it writes a file it writes `.editor/finish.json`, whole or not at
-  all: the bytes of every file it will write, the content version and its process. While that process
+  all: the bytes of every file it will write or delete, or that it was not there, the content version
+  and its process. While that process
   runs, every command is refused as `busy`, the doctor saying so in its report, and so is every call
   of the page's API but the two that report, `GET /api/finish` and `GET /api/doctor`; the page's
   controls wait, and a "Finish" started from the page fails as `busy`, nothing written. The journal

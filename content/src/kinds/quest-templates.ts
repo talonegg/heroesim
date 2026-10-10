@@ -1,4 +1,4 @@
-// The Quest templates (`quest-templates.json`): the kinds of Quest the Patrons offer, found by
+// The Quest templates (`quest-templates/`, a file each): the kinds of Quest the Patrons offer, found by
 // Sphere when the Board is drawn (DL-20), each with its ranges, its reward and Fame, what it requires,
 // its Loot table, the kinds and count of Encounters it is drawn with, and its Finale, named
 // rather than drawn (DL-160).
@@ -12,7 +12,7 @@ const encounterKindChoices: Record<EncounterKind, true> = choicesOf(encounterKin
 
 export const questTemplatesKind = table<'questTemplates', QuestTemplate>(
   'questTemplates',
-  'quest-templates.json',
+  'quest-templates/',
   {
     name: text,
     sphereKeys: strings,

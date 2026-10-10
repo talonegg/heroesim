@@ -1,4 +1,4 @@
-// The Encounters (`encounters.json`): an Encounter's kind and tags (DL-160), its one to four
+// The Encounters (`encounters/`, a file each): an Encounter's kind and tags (DL-160), its one to four
 // Checks, each scored by a Num Query (ADR-0010, DL-148 item 7), the pass formula that combines them,
 // and its consequences by Degree, each one of a closed union of kinds with exactly its fields (DL-148
 // items 14 and 25). The old form is no longer read (DL-192).
@@ -50,7 +50,7 @@ const consequences = listOfRows(rowOfKinds(consequence));
 
 export const encountersKind = table<'encounters', Encounter>(
   'encounters',
-  'encounters.json',
+  'encounters/',
   {
     name: text,
     kind: oneOf(encounterKindChoices),

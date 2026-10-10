@@ -64,7 +64,7 @@ function checkGrowth(where: string, growth: Readonly<Record<string, number>>, pr
 /** The Classes' order: a list of Class keys; that each Class is listed once is the rules'. */
 export const classOrderKind: KindReader<'classOrder', ClassKey[]> = {
   key: 'classOrder',
-  file: 'class-order.json',
+  source: 'class-order.json',
   read(json, problems) {
     if (json === undefined) return [];
     if (!Array.isArray(json) || !json.every((key) => typeof key === 'string')) {

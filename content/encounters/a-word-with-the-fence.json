@@ -1,0 +1,30 @@
+{
+  "name": "A word with the fence",
+  "kind": "social",
+  "tags": ["town","dark","talk"],
+  "checks": [
+    {
+      "key": "haggling",
+      "name": "Haggling",
+      "score": ["max","party",["weighted",[["diplomacy",0.5],["wits",0.5]]]],
+      "skills": [],
+      "flat": 2.71,
+      "difficultyFactor": 0.068
+    },
+    {
+      "key": "reading",
+      "name": "Reading him",
+      "score": ["max","party",["stat","perception"]],
+      "skills": [],
+      "flat": 3.36,
+      "difficultyFactor": 0.084
+    }
+  ],
+  "pass": ["and","haggling","reading"],
+  "consequences": {
+    "success": [{"kind":"wealth","factor":1.05}],
+    "triumph": [{"kind":"wealth","factor":1.15}],
+    "setback": [{"kind":"wealth","factor":0.95}],
+    "failure": [{"kind":"wealth","factor":0.85},{"kind":"fame","delta":-1}]
+  }
+}

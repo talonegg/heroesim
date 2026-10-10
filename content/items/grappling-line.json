@@ -1,0 +1,8 @@
+{
+  "name": "Grappling line",
+  "kind": "consumable",
+  "unique": false,
+  "effect": { "kind": "reroll", "kinds": ["travel", "stealth"] },
+  "buyPrice": 45,
+  "tags": ["tool"]
+}

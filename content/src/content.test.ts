@@ -1,9 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { encounterKinds, facilityKeys, gearSlotKeys, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
-import { contentFiles, parseContent } from './index.js';
-import { contentDir, loadContent } from './node.js';
+import { contentSources, parseContent } from './index.js';
+import { contentDir, loadContent, readContentDir, readSource } from './node.js';
 
 // The core content set as the Node entry loads it from this package's directory.
 
@@ -259,11 +259,10 @@ describe('loadContent()', () => {
   // (DL-162, DL-165): each in Checks scored by Queries over the Party, with a pass formula.
   describe('Encounters', () => {
     const encounters = Object.values(content.encounters);
-    /** Each Encounter as `encounters.json` writes it: the new form. */
-    const written = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<
-      string,
-      { checks: Record<string, unknown>[]; pass?: unknown; consequences: Record<string, unknown[]> }
-    >;
+    /** Each Encounter as its file in `encounters/` writes it: the new form. */
+    const written = Object.fromEntries(
+      Object.entries(readSource(contentDir, 'encounters/')).map(([name, text]) => [name.slice('encounters/'.length, -'.json'.length), JSON.parse(text)]),
+    ) as Record<string, { checks: Record<string, unknown>[]; pass?: unknown; consequences: Record<string, unknown[]> }>;
     const finales = new Set(Object.values(content.questTemplates).flatMap((it) => (it.finale === undefined ? [] : [it.finale])));
 
     // Drawn in their places: every kind has at least two that are no template's Finale (DL-162).
@@ -493,14 +492,33 @@ describe('loadContent()', () => {
 
 describe('the pure entry and the Node entry', () => {
   test('ignore files that are not content, as a glob of the directory would include', () => {
-    const files = Object.fromEntries(
-      [...contentFiles, 'package.json', 'tsconfig.json'].map((name) => [
-        name,
-        readFileSync(join(contentDir, name), 'utf8'),
-      ]),
-    );
+    const files = {
+      ...readContentDir(),
+      ...Object.fromEntries(['package.json', 'tsconfig.json'].map((name) => [name, readFileSync(join(contentDir, name), 'utf8')])),
+      'src/kinds/rows.json': '{ "not": "content" }',
+      'items/nested/short-sword.json': '{ "not": "a row" }',
+    };
 
     expect(parseContent(files)).toEqual(loadContent());
+  });
+});
+
+// DL-260: Quest templates, Encounters, Items and Loot tables are each a folder of one file a row,
+// named by its key, and the rest one file each, as each kind declares.
+describe('the content directory', () => {
+  test('holds the four folders and the other kinds as one file each', () => {
+    expect(contentSources.filter((source) => source.endsWith('/'))).toEqual(['quest-templates/', 'encounters/', 'items/', 'loot-tables/']);
+    for (const source of contentSources) expect(existsSync(join(contentDir, source)), source).toBe(true);
+    for (const source of ['quest-templates', 'encounters', 'items', 'loot-tables']) expect(existsSync(join(contentDir, `${source}.json`)), source).toBe(false);
+  });
+
+  test("reads each folder's rows from their own files, named by their keys, in key order", () => {
+    const content = loadContent();
+    for (const [place, source] of [['questTemplates', 'quest-templates/'], ['encounters', 'encounters/'], ['items', 'items/'], ['lootTables', 'loot-tables/']] as const) {
+      const keys = Object.keys(readSource(contentDir, source)).map((name) => name.slice(source.length, -'.json'.length));
+      expect(Object.keys(content[place]), place).toEqual([...keys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
+      expect(keys.length, place).toBeGreaterThan(0);
+    }
   });
 });
 

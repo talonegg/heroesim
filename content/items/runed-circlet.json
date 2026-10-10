@@ -1,0 +1,9 @@
+{
+  "name": "Runed circlet",
+  "kind": "gear",
+  "unique": false,
+  "slot": "trinket",
+  "statModifiers": { "arcana": 3, "spelllore": 2 },
+  "buyPrice": 300,
+  "tags": ["masterwork"]
+}

@@ -70,7 +70,7 @@ describe('the kinds', () => {
     const places = Object.keys(shipped).filter((place) => place !== 'id');
 
     expect(contentKinds.map((kind) => kind.key)).toEqual(places);
-    expect(new Set(contentKinds.map((kind) => kind.file)).size).toBe(contentKinds.length);
+    expect(new Set(contentKinds.map((kind) => kind.source)).size).toBe(contentKinds.length);
     expect(contentRules.map((kind) => kind.key)).toEqual(places.filter((place) => place !== 'version'));
   });
 });

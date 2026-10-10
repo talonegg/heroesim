@@ -1,0 +1,9 @@
+{
+  "name": "Officer's sash",
+  "kind": "gear",
+  "unique": false,
+  "slot": "trinket",
+  "statModifiers": { "leadership": 2, "courage": 1 },
+  "buyPrice": 110,
+  "tags": ["fine"]
+}

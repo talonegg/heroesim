@@ -1,0 +1,34 @@
+{
+  "name": "A hostile reeve",
+  "kind": "social",
+  "tags": ["town"],
+  "checks": [
+    {
+      "key": "parley",
+      "name": "Parley",
+      "score": ["max","party",["weighted",[["diplomacy",0.6],["charisma",0.4]]]],
+      "skills": [],
+      "flat": 2.66,
+      "difficultyFactor": 0.066
+    },
+    {
+      "key": "firm",
+      "name": "Standing firm",
+      "score": ["avg","party",["weighted",[["courage",0.5],["charisma",0.5]]]],
+      "skills": [],
+      "flat": 2.51,
+      "difficultyFactor": 0.063
+    }
+  ],
+  "pass": ["and","parley","firm"],
+  "consequences": {
+    "success": [{"kind":"fame","delta":1}],
+    "triumph": [{"kind":"fame","delta":2}],
+    "setback": [{"kind":"morale","delta":-1,"steadiedBy":["adaptability"]}],
+    "failure": [
+      {"kind":"fame","delta":-1},
+      {"kind":"regard","between":"party","delta":-1},
+      {"kind":"morale","delta":-2,"steadiedBy":["adaptability"]}
+    ]
+  }
+}

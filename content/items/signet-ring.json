@@ -1,0 +1,9 @@
+{
+  "name": "Signet ring",
+  "kind": "gear",
+  "unique": false,
+  "slot": "trinket",
+  "statModifiers": { "diplomacy": 2, "charisma": 1 },
+  "buyPrice": 105,
+  "tags": ["fine"]
+}

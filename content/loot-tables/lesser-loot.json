@@ -1,0 +1,16 @@
+{
+  "entries": [
+    { "definitionKey": "whetstone", "weight": 160, "quantityMin": 1, "quantityMax": 3 },
+    { "definitionKey": "lockpicks", "weight": 160, "quantityMin": 1, "quantityMax": 3 },
+    { "definitionKey": "healing-draught", "weight": 160, "quantityMin": 1, "quantityMax": 3 },
+    { "definitionKey": "grappling-line", "weight": 100, "quantityMin": 1, "quantityMax": 2 },
+    { "definitionKey": "blessed-candle", "weight": 80, "quantityMin": 1, "quantityMax": 2 },
+    { "definitionKey": "physicians-kit", "weight": 80, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "arming-sword", "weight": 70, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "mail-shirt", "weight": 70, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "silver-amulet", "weight": 60, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "barrow-kings-blade", "weight": 1, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "mantle-of-the-fells", "weight": 1, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "abbots-reliquary", "weight": 1, "quantityMin": 1, "quantityMax": 1 }
+  ]
+}

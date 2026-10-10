@@ -345,3 +345,58 @@ Verified 2026-10-10 at 0f6d53e: the bands and sources, the standard error and th
 `transfersShort` sought a dead Hero's Guild in `hero.died`'s participants, which name only the Hero and
 the Quest, and now follows the Hero, its fixture corrected, with tests killing the ten mutants that
 survived; no reading moved (the Generator keeps its seller at `rivalRosterMin`, the quick run identical).
+
+## DL-260 — v1.2.0-S3 built: content in folders, Quest templates, Encounters, Items and Loot tables a file a row
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257 item 8 (Q19 b, Q22 b) moves Quest templates, Encounters, Items and Loot tables to
+one file per row, through a loader any kind can use, so that S9's editor commands and S10's skills
+write a row without touching the rest. Each kind's content was one JSON file, the page's bundle taking
+`content/*.json` and the editor writing whole files (DL-243, DL-244).
+
+**Decision.**
+
+1. **A kind declares its source** (`content/src/files.ts`, `kinds/`): one file, `stats.json`, or a
+   folder of one file a row named by its key, `items/`. `contentSources`, derived from the kinds,
+   replaces the list of files; moving a kind later is its one line. Content's files are named by their
+   path in the content directory, `items/short-sword.json`.
+2. **The readers.** A folder's rows are read as one object by key, a refusal naming the row's file:
+   `items/short-sword.json: slot is missing`. The Node entry reads a folder's `.json` files
+   (`readSource`, `readContentDir`), a drafted folder taken whole in place of the core's (`loadDrafts`).
+   The page's bundle finds them by `import.meta.glob`'s pattern, `../../content/*/*.json`, no list kept;
+   the build compacts and validates them as before.
+3. **The row order.** A folder has none, so its rows are read in key order, by code unit, the order
+   the engine draws in (DL-19 item 3). The old files were in authored order.
+4. **The editor** writes a folder's rows each to its own file through the edit session: a row changed
+   in its file, added as a new file (`formatJson`), removed by deleting its file, a key changed by
+   both. The journal holds every such file's bytes or its absence, so a test that fails or a "Finish"
+   cut off puts every file back. A use's place names the row's file:
+   `encounters/hold-the-line.json: consequences.failure.2`; the path alone still finds it.
+5. **The move,** by a script run once: each row's text kept, two spaces in; a row on one line opened
+   out a field a line, each field's text kept; LF. The drafts in `docs/quests/drafts/` moved the same.
+   136 files: 12 Quest templates, 29 Encounters, 26 Items, 2 Loot tables and the drafts' 67.
+6. **Words.** `approach.md` §4, the Content kind entry, the editor's README, the register, the
+   `trait-assign` skill and `HEROESIM_DRAFTS` say what is true now.
+
+*Judgement calls, for the owner to see.*
+- **Key order, not the authored order** (item 3). Play is unchanged: the engine sorts every draw by key
+  (`neutral --expect` identical). Three things read content's order and now read key order: the
+  harness's `estimate` and `calibrate` samples, which draw by index, and the order of the Items' and
+  Loot tables' rows in a run report. A list beside the rows would have kept the old order, at the cost
+  of a file every addition must touch.
+- **A folder with no row holds none,** as git keeps no empty folder: `items/: missing` is no refusal,
+  where `items.json: missing` was. Items and Loot tables may hold none; a missing `encounters/` or
+  `quest-templates/` is refused by their rules ("no Quest template names it", "no Encounter is of
+  kind").
+- The rules' refusals name the table and key, `items.short-sword.buyPrice`, as before, not the file.
+- A row in a folder within a folder (`items/old/x.json`) is not read.
+- The result's `changed` names the files written, `encounters/hold-the-line.json`, as it named
+  `encounters.json`.
+
+**Consequences.** S9's Quest template and Encounter commands are kinds whose list is a folder. A
+merge of two drafts touches only their rows' files.
+
+**Evidence.** The commit `v1.2.0-S3 (DL-260)`. The content read at `08387a7` and after the move: deep-equal,
+and identical with the four tables in key order, the drafts too. `neutral --expect` identical alone:
+`harness/reports/v1.2.0-s3-neutral-2026-10-10`. The epic's S3 boxes.

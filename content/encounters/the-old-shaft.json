@@ -1,0 +1,49 @@
+{
+  "name": "The old shaft",
+  "kind": "travel",
+  "tags": ["delve","dark"],
+  "checks": [
+    {
+      "key": "climb",
+      "name": "The climb",
+      "score": ["min","party",["weighted",[["strength",0.5],["dexterity",0.5]]]],
+      "skills": [],
+      "flat": 2.85,
+      "difficultyFactor": 0.071
+    },
+    {
+      "key": "rope",
+      "name": "The rope",
+      "score": ["max","party",["stat","strength"]],
+      "skills": [],
+      "flat": 4.71,
+      "difficultyFactor": 0.118
+    }
+  ],
+  "pass": ["or","climb","rope"],
+  "consequences": {
+    "success": [],
+    "triumph": [{"kind":"xp","factor":1.1}],
+    "setback": [
+      {
+        "kind": "injury",
+        "typeKey": "bruised-ribs",
+        "chance": 0.1,
+        "count": 1,
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      }
+    ],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "broken-arm",
+        "chance": 0.12,
+        "count": 1,
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"death","chance":0.02,"guardedBy":["dexterity"]}
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "entries": [
+    { "definitionKey": "healing-draught", "weight": 130, "quantityMin": 2, "quantityMax": 4 },
+    { "definitionKey": "physicians-kit", "weight": 120, "quantityMin": 1, "quantityMax": 2 },
+    { "definitionKey": "grappling-line", "weight": 90, "quantityMin": 1, "quantityMax": 3 },
+    { "definitionKey": "blessed-candle", "weight": 90, "quantityMin": 1, "quantityMax": 3 },
+    { "definitionKey": "arming-sword", "weight": 60, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "mail-shirt", "weight": 60, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "silver-amulet", "weight": 60, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "masterwork-blade", "weight": 80, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "plate-harness", "weight": 80, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "runed-circlet", "weight": 80, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "barrow-kings-blade", "weight": 3, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "vault-wardens-staff", "weight": 3, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "mantle-of-the-fells", "weight": 3, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "lantern-of-stannary", "weight": 3, "quantityMin": 1, "quantityMax": 1 },
+    { "definitionKey": "abbots-reliquary", "weight": 3, "quantityMin": 1, "quantityMax": 1 }
+  ]
+}

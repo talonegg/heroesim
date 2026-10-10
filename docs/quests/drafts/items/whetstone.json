@@ -1,0 +1,8 @@
+{
+  "name": "Whetstone",
+  "kind": "consumable",
+  "unique": false,
+  "effect": {"kind":"bonus","flat":3,"kinds":["combat"]},
+  "buyPrice": 25,
+  "tags": ["tool"]
+}

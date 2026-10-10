@@ -1,0 +1,8 @@
+{
+  "name": "Set of lockpicks",
+  "kind": "consumable",
+  "unique": false,
+  "effect": {"kind":"bonus","flat":3,"kinds":["stealth"]},
+  "buyPrice": 25,
+  "tags": ["tool"]
+}

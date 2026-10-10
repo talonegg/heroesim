@@ -1,0 +1,40 @@
+{
+  "name": "The long march",
+  "kind": "travel",
+  "tags": ["escort","guard"],
+  "checks": [
+    {
+      "key": "pace",
+      "name": "The pace",
+      "score": ["min","party",["weighted",[["endurance",0.7],["constitution",0.3]]]],
+      "skills": [],
+      "flat": 1.79,
+      "difficultyFactor": 0.045
+    },
+    {
+      "key": "care",
+      "name": "Care on the road",
+      "score": ["max","party",["stat","knowledge"]],
+      "skills": ["field-surgery","herbalism"],
+      "flat": 3.54,
+      "difficultyFactor": 0.088
+    }
+  ],
+  "pass": ["and","pace","care"],
+  "consequences": {
+    "success": [],
+    "triumph": [{"kind":"xp","factor":1.1}],
+    "setback": [{"kind":"morale","delta":-1,"steadiedBy":["endurance","willpower"]}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "lung-fever",
+        "chance": 0.12,
+        "count": 1,
+        "exposedBy": ["endurance"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"morale","delta":-2,"steadiedBy":["endurance","willpower"]}
+    ]
+  }
+}

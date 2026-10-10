@@ -12,7 +12,7 @@
 // themselves (`through`, which the drift test checks are there).
 
 import { degrees } from '@heroesim/engine/content';
-import type { ContentFileName } from '../parse.js';
+import { placeOf, type ContentSource } from '../parse.js';
 import {
   at,
   copyOf,
@@ -42,9 +42,9 @@ export const traitFiles: Readonly<Record<TraitList, 'guildmaster-traits.json' | 
 /** One use of a Trait's key in content: the entry that found it, and where it stands. */
 export interface TraitUse {
   entry: string;
-  file: ContentFileName;
+  file: ContentSource;
   path: JsonPath;
-  /** The place in words, as a refusal names it: `injuries.json: deep-cut.leavesTrait`. */
+  /** The place in words, as a refusal names it: `injuries.json: deep-cut.leavesTrait`, `encounters/the-long-march.json: consequences.failure.0`. */
   at: string;
 }
 
@@ -62,7 +62,7 @@ export interface ContentEntry {
   place: 'content';
   id: string;
   title: string;
-  files: readonly ContentFileName[];
+  files: readonly ContentSource[];
   /** Whose keys it holds. */
   lists: readonly TraitList[];
   /** What the key does there: which rule reads it. */
@@ -113,8 +113,8 @@ export type RegisterEntry = ContentEntry | EngineEntry;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────────────────────
 
-function use(entry: string, file: ContentFileName, path: JsonPath): TraitUse {
-  return { entry, file, path, at: `${file}: ${pathText(path)}` };
+function use(entry: string, file: ContentSource, path: JsonPath): TraitUse {
+  return { entry, file, path, at: placeOf(file, path) };
 }
 
 /** A target's field, a non-empty string, or a refusal naming it. */
@@ -167,7 +167,7 @@ function listOf(content: ContentJson, key: string): TraitList {
  * without it: a `where` it filters is its Set unfiltered; an `and` or an `or` of three or more keeps
  * the rest, and of two becomes the other. Anywhere else it is refused: the owner says how the Query reads without it.
  */
-function withoutHasTrait(content: ContentJson, file: ContentFileName, path: JsonPath): ContentChange {
+function withoutHasTrait(content: ContentJson, file: ContentSource, path: JsonPath): ContentChange {
   const root = copyOf(content, file);
   const parentPath = path.slice(0, -1);
   const index = path.at(-1);
@@ -186,7 +186,7 @@ function withoutHasTrait(content: ContentJson, file: ContentFileName, path: Json
     }
   }
   throw new UseRefusal(
-    `${file}: ${pathText(path)} stands where its Query means something else without it: ask the owner how the Query should read, rather than take it out`,
+    `${placeOf(file, path)} stands where its Query means something else without it: ask the owner how the Query should read, rather than take it out`,
   );
 }
 
@@ -194,18 +194,18 @@ function withoutHasTrait(content: ContentJson, file: ContentFileName, path: Json
  * The file `file` with the Set Query at `path` filtered to the Heroes holding `key`: `["where", <Set>,
  * ["has-trait", key]]`; refused where that Set is filtered by the key already.
  */
-function filteredByTrait(entry: string, content: ContentJson, file: ContentFileName, path: JsonPath, key: string): AddedUse {
+function filteredByTrait(entry: string, content: ContentJson, file: ContentSource, path: JsonPath, key: string): AddedUse {
   const root = copyOf(content, file);
   const set = at(root, path);
-  if (!isSetQuery(set)) throw new UseRefusal(`${file}: ${pathText(path)} is not a Set Query ("party", where, top or bottom)`);
-  if (Array.isArray(set) && set[0] === 'where' && hasTrait(key)(set[2])) throw new UseRefusal(`${file}: ${pathText(path)} is filtered by "${key}" already`);
+  if (!isSetQuery(set)) throw new UseRefusal(`${placeOf(file, path)} is not a Set Query ("party", where, top or bottom)`);
+  if (Array.isArray(set) && set[0] === 'where' && hasTrait(key)(set[2])) throw new UseRefusal(`${placeOf(file, path)} is filtered by "${key}" already`);
   setAt(root, path, ['where', set, ['has-trait', key]], file);
   return { change: { [file]: root }, use: use(entry, file, [...path, 2]) };
 }
 
 /** Refuses a row of `file` that is not there. */
-function queryRow(content: ContentJson, file: ContentFileName, key: string): void {
-  if (!isObject(at(content[file], [key]))) throw new UseRefusal(`${file}: ${key} is not there`);
+function queryRow(content: ContentJson, file: ContentSource, key: string): void {
+  if (!isObject(at(content[file], [key]))) throw new UseRefusal(`${placeOf(file, [key])} is not there`);
 }
 
 // ── The content ────────────────────────────────────────────────────────────────────────────────
@@ -306,18 +306,18 @@ const encounterTraitConsequence: ContentEntry = {
   place: 'content',
   id: 'encounter-trait',
   title: "An Encounter's trait consequence",
-  files: ['encounters.json'],
+  files: ['encounters/'],
   lists: ['hero'],
   reads: 'A Trait earned on a Quest (DL-148 item 25): positive in a `triumph` list, granted on a strong success; negative in a `failure` list, on a Hero that Encounter injured. Read by the resolver (`earned-trait`).',
   finds: 'Each `{ "kind": "trait" }` consequence, in any of an Encounter\'s lists, whose `traitKey` is the key.',
   blocksRemoval: true,
   find(content, key) {
-    return entriesOf(content['encounters.json']).flatMap(([encounter, row]) =>
+    return entriesOf(content['encounters/']).flatMap(([encounter, row]) =>
       degrees.flatMap((degree) => {
         const list = at(row, ['consequences', degree]);
         return (Array.isArray(list) ? list : []).flatMap((consequence, index) =>
           isObject(consequence) && consequence.kind === 'trait' && consequence.traitKey === key
-            ? [use('encounter-trait', 'encounters.json', [encounter, 'consequences', degree, index])]
+            ? [use('encounter-trait', 'encounters/', [encounter, 'consequences', degree, index])]
             : [],
         );
       }),
@@ -333,37 +333,37 @@ const encounterTraitConsequence: ContentEntry = {
       if (degree !== 'triumph' && degree !== 'failure') throw new UseRefusal('the target\'s degree is "triumph" or "failure"');
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: an Encounter grants a Hero Trait`);
       const chance = chanceOf(target.chance, "the target's chance");
-      const root = copyOf(content, 'encounters.json');
-      const consequences = objectAt(root, [encounter, 'consequences'], 'encounters.json');
+      const root = copyOf(content, 'encounters/');
+      const consequences = objectAt(root, [encounter, 'consequences'], 'encounters/');
       if (degree === 'triumph' && !Array.isArray(consequences.triumph)) consequences.triumph = structuredClone(Array.isArray(consequences.success) ? consequences.success : []);
-      const list = listAt(root, [encounter, 'consequences', degree], 'encounters.json');
-      if (list.some((each) => isObject(each) && each.kind === 'trait' && each.traitKey === key)) throw new UseRefusal(`encounters.json: ${encounter}.consequences.${degree} gives "${key}" already`);
+      const list = listAt(root, [encounter, 'consequences', degree], 'encounters/');
+      if (list.some((each) => isObject(each) && each.kind === 'trait' && each.traitKey === key)) throw new UseRefusal(`${placeOf('encounters/', [encounter, 'consequences', degree])} gives "${key}" already`);
       list.push({ kind: 'trait', traitKey: key, chance, ...(target.among === undefined ? {} : { among: target.among }) });
-      return { change: { 'encounters.json': root }, use: use('encounter-trait', 'encounters.json', [encounter, 'consequences', degree, list.length - 1]) };
+      return { change: { 'encounters/': root }, use: use('encounter-trait', 'encounters/', [encounter, 'consequences', degree, list.length - 1]) };
     },
   },
   update: {
     how: "The consequence's `chance` or `among`, or both, are set in its place; an `among` of `null` takes it out, so that any Hero of the Party may take the Trait.",
     fields: { chance: 'optional: the chance, above 0 and at most 1', among: 'optional: a Set Query of who may take it, or `null` for any Hero' },
     apply(content, found, values) {
-      const root = copyOf(content, 'encounters.json');
-      const consequence = objectAt(root, found.path, 'encounters.json');
-      if (consequence.kind !== 'trait') throw new UseRefusal(`encounters.json: ${pathText(found.path)} is not a trait consequence`);
+      const root = copyOf(content, 'encounters/');
+      const consequence = objectAt(root, found.path, 'encounters/');
+      if (consequence.kind !== 'trait') throw new UseRefusal(`${placeOf('encounters/', found.path)} is not a trait consequence`);
       if (values.chance !== undefined) consequence.chance = chanceOf(values.chance, 'the chance');
       if (values.among === null) delete consequence.among;
       else if (values.among !== undefined) consequence.among = values.among;
-      return { 'encounters.json': root };
+      return { 'encounters/': root };
     },
   },
   remove: {
     how: "The consequence is taken out of its list. A `triumph` list left equal to the `success` list goes with it, as the Encounter's Triumph then reads the `success` list.",
     apply(content, found) {
-      const root = copyOf(content, 'encounters.json');
-      removeAt(root, found.path, 'encounters.json');
+      const root = copyOf(content, 'encounters/');
+      removeAt(root, found.path, 'encounters/');
       // A Triumph's list `add` copied from the Success's, and the same again, goes: it means nothing more.
       const consequences = at(root, found.path.slice(0, -2));
       if (found.path.at(-2) === 'triumph' && isObject(consequences) && JSON.stringify(consequences.triumph) === JSON.stringify(consequences.success)) delete consequences.triumph;
-      return { 'encounters.json': root };
+      return { 'encounters/': root };
     },
   },
 };
@@ -379,14 +379,14 @@ const encounterHasTrait: ContentEntry = {
   place: 'content',
   id: 'encounter-has-trait',
   title: "has-trait in an Encounter's Queries",
-  files: ['encounters.json'],
+  files: ['encounters/'],
   lists: ['hero'],
   reads: "A `[\"has-trait\", key]` predicate in any Query of an Encounter: a Check's score, a harm's `among`, a trait consequence's `among`. Read by the Query evaluator (`has-trait`).",
   finds: 'Each `["has-trait", key]` anywhere in an Encounter.',
   blocksRemoval: true,
   find(content, key) {
-    return entriesOf(content['encounters.json']).flatMap(([encounter, row]) =>
-      pathsWhere(row, hasTrait(key), [encounter]).map((path) => use('encounter-has-trait', 'encounters.json', path)),
+    return entriesOf(content['encounters/']).flatMap(([encounter, row]) =>
+      pathsWhere(row, hasTrait(key), [encounter]).map((path) => use('encounter-has-trait', 'encounters/', path)),
     );
   },
   add: {
@@ -395,8 +395,8 @@ const encounterHasTrait: ContentEntry = {
     apply(content, key, target) {
       const encounter = named(target, 'encounter');
       if (listOf(content, key) !== 'hero') throw new UseRefusal(`"${key}" is not a Hero Trait: a Query reads a Hero's Traits`);
-      queryRow(content, 'encounters.json', encounter);
-      return filteredByTrait('encounter-has-trait', content, 'encounters.json', [encounter, ...targetPath(target, 'path')], key);
+      queryRow(content, 'encounters/', encounter);
+      return filteredByTrait('encounter-has-trait', content, 'encounters/', [encounter, ...targetPath(target, 'path')], key);
     },
   },
   update: null,

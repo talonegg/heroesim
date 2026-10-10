@@ -884,10 +884,11 @@ values in another, the same session over two kinds of file (DL-244).
 _Avoid_: Draft, Transaction (for the whole)
 
 **Content kind**:
-One kind of content, in its module of `content/src/kinds/`: the file it is written in, the shape of
-its rows and how they are read, their defaults, and its rules with their refusals (DL-243). Content is
-read kind by kind and then checked kind by kind, every refusal naming its file or table and key; the
-page reads with the kinds' readers alone. A Trait's effects are each described once by their fields,
+One kind of content, in its module of `content/src/kinds/`: the file it is written in, or the folder
+of one file a row named by its key (DL-260), the shape of its rows and how they are read, their
+defaults, and its rules with their refusals (DL-243). Content is read kind by kind and then checked
+kind by kind, every refusal naming its file or table and key; the page reads with the kinds' readers
+alone. A Trait's effects are each described once by their fields,
 and read, checked and offered in the content editor's forms from that description. The content
 editor's Traits edit two content kinds, the Guildmaster's and the Hero's.
 _Avoid_: Schema (for one kind)

@@ -1,0 +1,9 @@
+{
+  "name": "Plate harness",
+  "kind": "gear",
+  "unique": false,
+  "slot": "armour",
+  "statModifiers": { "constitution": 3, "endurance": 2, "dexterity": -1 },
+  "buyPrice": 300,
+  "tags": ["masterwork"]
+}

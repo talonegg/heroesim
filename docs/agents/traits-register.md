@@ -13,8 +13,8 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 | --- | --- | --- | --- | --- | --- | --- |
 | `excludes` | guildmaster-traits.json, hero-traits.json | guildmaster, hero | no | yes | yes | no |
 | `injury-leaves-trait` | injuries.json | hero | yes | yes | yes | no |
-| `encounter-trait` | encounters.json | hero | yes | yes | yes | yes |
-| `encounter-has-trait` | encounters.json | hero | yes | yes | yes | no |
+| `encounter-trait` | encounters/ | hero | yes | yes | yes | yes |
+| `encounter-has-trait` | encounters/ | hero | yes | yes | yes | no |
 | `synergy-has-trait` | synergies.json | hero | yes | yes | yes | no |
 | `biography-sentences` | descriptions.json | guildmaster, hero | yes | yes | yes | yes |
 | `portrait-callings` | descriptions.json | guildmaster | yes | yes | yes | no |
@@ -59,7 +59,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 
 ### `encounter-trait`: An Encounter's trait consequence
 
-- **Where:** `content/encounters.json`, holding Hero Traits' keys.
+- **Where:** `content/encounters/`, holding Hero Traits' keys.
 - **What reads it:** A Trait earned on a Quest (DL-148 item 25): positive in a `triumph` list, granted on a strong success; negative in a `failure` list, on a Hero that Encounter injured. Read by the resolver (`earned-trait`).
 - **Its uses of a key:** Each `{ "kind": "trait" }` consequence, in any of an Encounter's lists, whose `traitKey` is the key.
 - **Removal:** a use here refuses the Trait's removal, naming it.
@@ -69,7 +69,7 @@ Every place a Trait is used: 8 in content, where a Trait's key stands, and 12 ru
 
 ### `encounter-has-trait`: has-trait in an Encounter's Queries
 
-- **Where:** `content/encounters.json`, holding Hero Traits' keys.
+- **Where:** `content/encounters/`, holding Hero Traits' keys.
 - **What reads it:** A `["has-trait", key]` predicate in any Query of an Encounter: a Check's score, a harm's `among`, a trait consequence's `among`. Read by the Query evaluator (`has-trait`).
 - **Its uses of a key:** Each `["has-trait", key]` anywhere in an Encounter.
 - **Removal:** a use here refuses the Trait's removal, naming it.

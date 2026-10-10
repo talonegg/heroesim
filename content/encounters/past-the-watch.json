@@ -1,0 +1,40 @@
+{
+  "name": "Past the watch",
+  "kind": "stealth",
+  "tags": ["town"],
+  "checks": [
+    {
+      "key": "quiet-feet",
+      "name": "Quiet feet",
+      "score": ["min","party",["stat","dexterity"]],
+      "skills": ["stealth"],
+      "flat": 1.68,
+      "difficultyFactor": 0.042
+    },
+    {
+      "key": "timing",
+      "name": "Timing",
+      "score": ["max","party",["weighted",[["wits",0.5],["perception",0.5]]]],
+      "skills": [],
+      "flat": 3.21,
+      "difficultyFactor": 0.08
+    }
+  ],
+  "pass": ["and","quiet-feet","timing"],
+  "consequences": {
+    "success": [],
+    "triumph": [{"kind":"xp","factor":1.1}],
+    "setback": [{"kind":"fame","delta":-1}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "deep-cut",
+        "chance": 0.15,
+        "count": 1,
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"fame","delta":-1}
+    ]
+  }
+}

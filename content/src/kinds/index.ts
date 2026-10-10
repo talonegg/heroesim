@@ -5,6 +5,7 @@
 // carries the readers alone.
 
 import type { ContentSet } from '@heroesim/engine/content';
+import type { ContentSource } from '../files.js';
 import { backgroundsKind, backgroundsRules } from './backgrounds.js';
 import { classesKind, classesRules, classOrderKind, classOrderRules } from './classes.js';
 import { descriptionsKind, descriptionsRules } from './descriptions.js';
@@ -60,6 +61,16 @@ const readers: { [Place in ContentPlace]: KindReader<Place, ContentSet[Place]> }
 
 /** The readers, in the order of the content set's places. */
 export const contentKinds: readonly AnyKindReader[] = Object.values(readers);
+
+/**
+ * Where each kind sits in the content directory, as its kind declares (DL-260): one file, or a folder
+ * of one file a row. In the order of the content set's places, the content version's file last
+ * (DL-186 item 14).
+ */
+export const contentSources: readonly ContentSource[] = [
+  ...contentKinds.filter((kind) => kind.key !== 'version').map((kind) => kind.source),
+  readers.version.source,
+];
 
 /** The rules, in the order of the content set's places; the content version's are its reader's. */
 export const contentRules: readonly KindRules[] = [

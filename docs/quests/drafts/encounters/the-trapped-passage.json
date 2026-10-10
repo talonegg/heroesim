@@ -1,0 +1,52 @@
+{
+  "name": "The trapped passage",
+  "kind": "stealth",
+  "tags": ["delve"],
+  "checks": [
+    {
+      "key": "spotting",
+      "name": "Spotting",
+      "score": ["max","party",["stat","perception"]],
+      "skills": ["trapcraft"],
+      "flat": 4.26,
+      "difficultyFactor": 0.107,
+      "variance": 0.4
+    },
+    {
+      "key": "disarming",
+      "name": "Disarming",
+      "score": ["max","party",["stat","dexterity"]],
+      "skills": ["trapcraft","lockpicking"],
+      "flat": 4.39,
+      "difficultyFactor": 0.11,
+      "variance": 0.4
+    }
+  ],
+  "pass": ["and","spotting","disarming"],
+  "consequences": {
+    "success": [{"kind":"wealth","factor":1.1}],
+    "triumph": [{"kind":"wealth","factor":1.15}],
+    "setback": [
+      {
+        "kind": "injury",
+        "typeKey": "deep-cut",
+        "chance": 0.08,
+        "count": 1,
+        "exposedBy": ["perception"],
+        "guardedBy": ["dexterity"]
+      }
+    ],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "broken-arm",
+        "chance": 0.15,
+        "count": 1,
+        "among": ["bottom","party",1,["stat","perception"]],
+        "exposedBy": ["perception"],
+        "guardedBy": ["dexterity"]
+      },
+      {"kind":"death","chance":0.03,"guardedBy":["dexterity"]}
+    ]
+  }
+}

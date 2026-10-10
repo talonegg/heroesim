@@ -7,7 +7,7 @@ import { RowReader, type KindReader } from './read.js';
 
 export const versionKind: KindReader<'version', number> = {
   key: 'version',
-  file: 'version.json',
+  source: 'version.json',
   read(json, problems) {
     if (json === undefined) return 0;
     if (typeof json !== 'object' || json === null || Array.isArray(json)) {

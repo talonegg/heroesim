@@ -1,0 +1,42 @@
+{
+  "name": "Short of supplies",
+  "kind": "travel",
+  "tags": ["escort","guard"],
+  "checks": [
+    {
+      "key": "forage",
+      "name": "Foraging",
+      "score": ["max","party",["weighted",[["knowledge",0.4],["adaptability",0.6]]]],
+      "skills": ["herbalism"],
+      "flat": 5.45,
+      "difficultyFactor": 0.136,
+      "variance": 0.4
+    },
+    {
+      "key": "making-do",
+      "name": "Making do",
+      "score": ["avg","party",["stat","adaptability"]],
+      "skills": [],
+      "flat": 4.25,
+      "difficultyFactor": 0.106,
+      "variance": 0.4
+    }
+  ],
+  "pass": ["or","forage","making-do"],
+  "consequences": {
+    "success": [],
+    "triumph": [{"kind":"xp","factor":1.1}],
+    "setback": [{"kind":"morale","delta":-2,"steadiedBy":["endurance","willpower"]}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "lung-fever",
+        "chance": 0.08,
+        "count": 1,
+        "exposedBy": ["endurance"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"morale","delta":-3,"steadiedBy":["endurance","willpower"]}
+    ]
+  }
+}

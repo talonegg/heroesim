@@ -1,0 +1,9 @@
+{
+  "name": "Mail shirt",
+  "kind": "gear",
+  "unique": false,
+  "slot": "armour",
+  "statModifiers": { "constitution": 2, "endurance": 1 },
+  "buyPrice": 120,
+  "tags": ["fine"]
+}

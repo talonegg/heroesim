@@ -1,0 +1,9 @@
+{
+  "name": "The Lantern of Stannary",
+  "kind": "gear",
+  "unique": true,
+  "slot": "trinket",
+  "statModifiers": { "perception": 3, "wits": 2 },
+  "buyPrice": null,
+  "tags": ["relic"]
+}

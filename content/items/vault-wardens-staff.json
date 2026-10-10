@@ -1,0 +1,9 @@
+{
+  "name": "The Vault Warden's staff",
+  "kind": "gear",
+  "unique": true,
+  "slot": "weapon",
+  "statModifiers": { "arcana": 3, "power": 3 },
+  "buyPrice": null,
+  "tags": ["relic"]
+}

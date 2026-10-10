@@ -8,11 +8,11 @@ import { parse, withJson, refusalOf, barrow, type Template } from './content.tes
 describe('a Quest template', () => {
   // DL-193: a Quest template carries no `demands`.
   test('with demands is refused, as a field a Quest template does not have', () => {
-    const files = withJson('quest-templates.json', (json) => {
+    const files = withJson('quest-templates/', (json) => {
       Object.assign(barrow(json), { demands: [['strength', 1]] });
     });
 
-    expect(refusalOf(() => parse(files)).message).toMatch(/clear-the-barrow\.demands is not a field of a Quest template/);
+    expect(refusalOf(() => parse(files)).message).toMatch(/clear-the-barrow\.json: demands is not a field of a Quest template/);
   });
 
   test.each<[string, (it: Template) => void, RegExp]>([
@@ -24,7 +24,7 @@ describe('a Quest template', () => {
     ['a Party of no Heroes', (it) => (it.partySizeMin = 0), /partySizeMin is 0/],
     ['a tag that is not kebab-case', (it) => void it.tags.push('Dark Places'), /tags: "Dark Places"/],
   ])('with %s is refused, naming the template', (_, change, problem) => {
-    const files = withJson('quest-templates.json', (json) => change(barrow(json)));
+    const files = withJson('quest-templates/', (json) => change(barrow(json)));
 
     const { message } = refusalOf(() => parse(files));
 
@@ -33,20 +33,20 @@ describe('a Quest template', () => {
   });
 
   test('requiring anything but a Class or a Skill is refused, naming the field', () => {
-    const files = withJson('quest-templates.json', (json) => {
+    const files = withJson('quest-templates/', (json) => {
       Object.assign(barrow(json).requires, { level: 3 });
     });
 
     expect(refusalOf(() => parse(files)).message).toMatch(
-      /quest-templates\.json: clear-the-barrow\.requires\.level is not a field/,
+      /quest-templates\/clear-the-barrow\.json: requires\.level is not a field/,
     );
   });
 
   test('naming a Loot table content lacks is refused, naming the template and the table', () => {
-    const files = withJson('quest-templates.json', (json) => {
+    const files = withJson('quest-templates/', (json) => {
       Object.assign(barrow(json), { lootTableKey: 'barrow-hoard' });
     });
-    const notAKey = withJson('quest-templates.json', (json) => {
+    const notAKey = withJson('quest-templates/', (json) => {
       Object.assign(barrow(json), { lootTableKey: 7 });
     });
 
@@ -54,12 +54,12 @@ describe('a Quest template', () => {
       'questTemplates.clear-the-barrow.lootTableKey: "barrow-hoard" is not a Loot table',
     );
     expect(refusalOf(() => parse(notAKey)).message).toMatch(
-      /quest-templates\.json: clear-the-barrow\.lootTableKey is 7; expected a string or null/,
+      /quest-templates\/clear-the-barrow\.json: lootTableKey is 7; expected a string or null/,
     );
   });
 
   test('that leaves a Sphere with none is refused, naming the Sphere', () => {
-    const files = withJson('quest-templates.json', (json) => {
+    const files = withJson('quest-templates/', (json) => {
       for (const [key, it] of Object.entries(json)) {
         if (it.sphereKeys.includes('villages')) delete json[key];
       }
@@ -78,7 +78,7 @@ describe("a Quest template's Encounters", () => {
     ['a count range upside down', (it) => (it.encountersMin = 5), /encountersMin 5 is greater than encountersMax 4/],
     ['a count of no Encounters', (it) => (it.encountersMin = 0), /encountersMin is 0/],
   ])('with %s is refused, naming the template', (_, change, problem) => {
-    const files = withJson('quest-templates.json', (json) => change(barrow(json)));
+    const files = withJson('quest-templates/', (json) => change(barrow(json)));
 
     const { message } = refusalOf(() => parse(files));
 
@@ -87,15 +87,15 @@ describe("a Quest template's Encounters", () => {
   });
 
   test('with a kind that is not one of the six is refused, naming the field', () => {
-    const files = withJson('quest-templates.json', (json) => {
+    const files = withJson('quest-templates/', (json) => {
       Object.assign(barrow(json), { encounterKinds: ['combat', 'naval'] });
     });
 
-    expect(refusalOf(() => parse(files)).message).toMatch(/clear-the-barrow\.encounterKinds is \["combat","naval"\]/);
+    expect(refusalOf(() => parse(files)).message).toMatch(/clear-the-barrow\.json: encounterKinds is \["combat","naval"\]/);
   });
 
   test('with a kind content has no Encounter of is refused, naming the kind', () => {
-    const files = withJson('encounters.json', (json) => {
+    const files = withJson('encounters/', (json) => {
       for (const [key, it] of Object.entries(json)) if (it.kind === 'stealth') delete json[key];
     });
 
@@ -105,7 +105,7 @@ describe("a Quest template's Encounters", () => {
   });
 
   test('with no Sphere, a negative reward or a negative fame is refused, each worded and named', () => {
-    const files = withJson('quest-templates.json', (json) => {
+    const files = withJson('quest-templates/', (json) => {
       Object.assign(barrow(json), { sphereKeys: [], rewardPerDifficulty: -2, fameEffect: -1 });
     });
 

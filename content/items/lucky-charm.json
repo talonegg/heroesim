@@ -1,0 +1,9 @@
+{
+  "name": "Lucky charm",
+  "kind": "gear",
+  "unique": false,
+  "slot": "trinket",
+  "statModifiers": { "courage": 1 },
+  "buyPrice": 40,
+  "tags": ["plain"]
+}

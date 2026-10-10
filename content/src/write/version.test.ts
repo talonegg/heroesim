@@ -1,8 +1,8 @@
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import { contentDir, loadContent } from '../node.js';
+import { contentDir, loadContent, readContentDir } from '../node.js';
 import { transaction } from './transaction.js';
 import { raiseContentVersion, raisedVersion, readContentVersion, versionPath } from './version.js';
 
@@ -14,11 +14,14 @@ afterEach(() => {
   for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-/** A scratch root holding a copy of this package's content files, `version.json` among them. */
+/** A scratch root holding a copy of this package's content files, `version.json` among them, its folders' rows too (DL-260). */
 function scratchRoot(): string {
   const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-version-'));
   made.push(dir);
-  cpSync(contentDir, path.join(dir, 'content'), { recursive: true, filter: (source) => source === contentDir || source.endsWith('.json') });
+  for (const [name, text] of Object.entries(readContentDir())) {
+    mkdirSync(path.dirname(path.join(dir, 'content', name)), { recursive: true });
+    writeFileSync(path.join(dir, 'content', name), text);
+  }
   return dir;
 }
 

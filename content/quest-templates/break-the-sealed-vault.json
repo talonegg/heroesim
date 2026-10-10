@@ -1,0 +1,16 @@
+{
+  "name": "Break the sealed vault",
+  "sphereKeys": ["scholars"],
+  "tags": ["delve", "dark", "recover", "study"],
+  "difficultyMin": 60, "difficultyMax": 100,
+  "durationDaysMin": 5, "durationDaysMax": 10,
+  "rewardPerDifficulty": 4,
+  "fameEffect": 5,
+  "partySizeMin": 3, "partySizeMax": 5,
+  "skillKeys": ["warding", "runecraft"],
+  "requires": { "classKey": "mage" },
+  "lootTableKey": "greater-loot",
+  "encounterKinds": ["arcane", "stealth", "combat", "lore"],
+  "encountersMin": 4, "encountersMax": 5,
+  "finale": "the-wardens-seal"
+}

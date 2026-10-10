@@ -61,10 +61,10 @@ const contentDir = path.join(repoRoot, 'content');
 /**
  * The content's JSON bundled as data, without the indentation and line breaks it is written with
  * (v1.1.3-S7, DL-134 item 9, DL-143): `src/content.ts` takes each file as text, which Vite would
- * bundle as written, about 24 kB of whitespace in an 800 kB script. Only the files of `content/`
- * taken `?raw` are read here, and each is parsed, so a file that is not JSON fails the build. What
- * `parseContent` makes of the text is the same either way (`src/content.test.ts`). The content
- * version's file is bundled with its changelog empty (v1.1.6-S4, DL-186 item 14): the changelog is for
+ * bundle as written, about 24 kB of whitespace in an 800 kB script. Only the files of `content/` and
+ * of its folders (DL-260) taken `?raw` are read here, and each is parsed, so a file that is not JSON
+ * fails the build. What `parseContent` makes of the text is the same either way
+ * (`src/content.test.ts`). The content version's file is bundled with its changelog empty (v1.1.6-S4, DL-186 item 14): the changelog is for
  * the people who read the file, some 5 kB the page never shows.
  */
 const compactContent: Plugin = {
@@ -72,7 +72,8 @@ const compactContent: Plugin = {
   enforce: 'pre',
   async load(id) {
     const [file = '', query] = id.split('?');
-    if (query !== 'raw' || path.extname(file) !== '.json' || path.dirname(path.resolve(file)) !== contentDir) return null;
+    const folder = path.dirname(path.resolve(file));
+    if (query !== 'raw' || path.extname(file) !== '.json' || (folder !== contentDir && path.dirname(folder) !== contentDir)) return null;
     const written = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>;
     const bundled = path.basename(file) === 'version.json' ? { ...written, changelog: [] } : written;
     return `export default ${JSON.stringify(JSON.stringify(bundled))};`;
@@ -149,7 +150,7 @@ export default defineConfig({
   },
   server: {
     fs: {
-      // The content files and the pictures sit beside web/: ../content/*.json (src/content.ts) and
+      // The content files and the pictures sit beside web/: ../content/ (src/content.ts) and
       // ../media/ (src/media.ts).
       allow: [repoRoot],
     },

@@ -1,0 +1,19 @@
+{
+  "name": "A quiet word",
+  "sphereKeys": ["underworld"],
+  "tags": ["talk","town"],
+  "difficultyMin": 15,
+  "difficultyMax": 45,
+  "durationDaysMin": 2,
+  "durationDaysMax": 4,
+  "rewardPerDifficulty": 5,
+  "fameEffect": 1,
+  "partySizeMin": 1,
+  "partySizeMax": 2,
+  "skillKeys": ["stealth","lockpicking"],
+  "requires": {},
+  "lootTableKey": null,
+  "encounterKinds": ["social","stealth"],
+  "encountersMin": 2,
+  "encountersMax": 3
+}

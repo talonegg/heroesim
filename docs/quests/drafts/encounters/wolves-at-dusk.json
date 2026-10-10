@@ -1,0 +1,51 @@
+{
+  "name": "Wolves at dusk",
+  "kind": "combat",
+  "tags": ["hunt","wilds"],
+  "checks": [
+    {
+      "key": "spears",
+      "name": "Spears",
+      "score": ["ranked","party",["weighted",[["weaponry",0.5],["dexterity",0.5]]],[1,0.5,0.25]],
+      "skills": ["swordcraft"],
+      "flat": 5.56,
+      "difficultyFactor": 0.139,
+      "variance": 0.4
+    },
+    {
+      "key": "watch",
+      "name": "The watch",
+      "score": ["max","party",["stat","perception"]],
+      "skills": [],
+      "flat": 3.88,
+      "difficultyFactor": 0.097,
+      "variance": 0.4
+    }
+  ],
+  "pass": ["and","spears","watch"],
+  "consequences": {
+    "success": [{"kind":"xp","factor":1.1}],
+    "triumph": [{"kind":"xp","factor":1.2}],
+    "setback": [
+      {
+        "kind": "injury",
+        "typeKey": "deep-cut",
+        "chance": 0.1,
+        "count": 1,
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      }
+    ],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "deep-cut",
+        "chance": 0.2,
+        "count": 1,
+        "exposedBy": ["perception"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}
+    ]
+  }
+}

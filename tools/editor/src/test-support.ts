@@ -4,10 +4,11 @@
 // command line without running this suite inside itself; most tests read the same script in this
 // process, `plantedTests`, and a few run it through npm (DL-234).
 
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import type { ContentFileName } from '@heroesim/content';
+import { isFolder, rowFilesIn, rowFile, type ContentSource } from '@heroesim/content';
+import { readSource } from '@heroesim/content/node';
 import { formatJson } from '@heroesim/content/write';
 import { afterEach, inject } from 'vitest';
 import { run, type Deps } from './cli.js';
@@ -72,14 +73,22 @@ export function plantOutcome(dir: string, outcome: 'pass' | 'fail' | 'hang'): vo
   git(dir, 'commit', '--quiet', '--allow-empty', '-am', `the planted tests ${outcome}`);
 }
 
-/** Reads a content file of a scratch repository as JSON. */
-export function readContentJson<T = Record<string, unknown>>(dir: string, file: ContentFileName): T {
-  return JSON.parse(readFileSync(path.join(dir, 'content', file), 'utf8')) as T;
+/** Reads a content source of a scratch repository as JSON: a file's, or a folder's rows' by key (DL-260). */
+export function readContentJson<T = Record<string, unknown>>(dir: string, file: ContentSource): T {
+  if (!isFolder(file)) return JSON.parse(readFileSync(path.join(dir, 'content', file), 'utf8')) as T;
+  const texts = readSource(path.join(dir, 'content'), file);
+  return Object.fromEntries(rowFilesIn(file, Object.keys(texts)).map(([key, name]) => [key, JSON.parse(texts[name] ?? '')])) as T;
 }
 
-/** Writes a content file of a scratch repository, as the portrait tool lays out a new one. */
-export function writeContentJson(dir: string, file: ContentFileName, value: unknown): void {
-  writeFileSync(path.join(dir, 'content', file), formatJson(value));
+/** Writes a content source of a scratch repository, as the portrait tool lays out a new file: a folder a file a row, the rows it no longer holds removed. */
+export function writeContentJson(dir: string, file: ContentSource, value: unknown): void {
+  if (!isFolder(file)) {
+    writeFileSync(path.join(dir, 'content', file), formatJson(value));
+    return;
+  }
+  const folder = path.join(dir, 'content', file);
+  for (const name of readdirSync(folder)) if (name.endsWith('.json')) rmSync(path.join(folder, name));
+  for (const [key, row] of Object.entries(value as Record<string, unknown>)) writeFileSync(path.join(dir, 'content', ...rowFile(file, key).split('/')), formatJson(row));
 }
 
 /**
@@ -126,7 +135,7 @@ export async function json<T = Record<string, unknown>>(dir: string, ...argv: st
  * `shield-wall` requiring three Warriors; committed.
  */
 export function plantQueries(dir: string): void {
-  const encounters = readContentJson<Record<string, Record<string, unknown>>>(dir, 'encounters.json');
+  const encounters = readContentJson<Record<string, Record<string, unknown>>>(dir, 'encounters/');
   const ambush = encounters['ambush-on-the-road'] ?? {};
   encounters['ambush-on-the-road'] = {
     name: ambush.name,
@@ -134,7 +143,7 @@ export function plantQueries(dir: string): void {
     checks: [{ key: 'front', name: 'The front', score: ['max', ['where', 'party', ['class', 'warrior']], ['stat', 'strength']], skills: [], difficultyFactor: 0.2 }],
     consequences: ambush.consequences,
   };
-  writeContentJson(dir, 'encounters.json', encounters);
+  writeContentJson(dir, 'encounters/', encounters);
   const synergies = readContentJson<Record<string, Record<string, unknown>>>(dir, 'synergies.json');
   (synergies['shield-wall'] ?? {}).requires = [['>=', ['count', ['where', 'party', ['class', 'warrior']]], 3]];
   writeContentJson(dir, 'synergies.json', synergies);

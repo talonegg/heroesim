@@ -1,7 +1,7 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { contentDir } from '@heroesim/content/node';
+import { contentDir, readSource } from '@heroesim/content/node';
 import { defaultConfig, degrees, describeQuery, estimateQuest, type EngineDeps, type NumQuery, type Quest } from '@heroesim/engine';
 import { afterAll, describe, expect, test } from 'vitest';
 import {
@@ -29,18 +29,48 @@ import { runShard } from './shard.js';
 // `npm run harness -- calibrate` (calibrate.harness.test.ts), which writes docs/quests/calibration.md.
 
 const scratch = mkdtempSync(join(tmpdir(), 'heroesim-calibrate-'));
+
+/** The rows of the folder `source` in the content directory `dir`, by key (DL-260). */
+function rowsOf(dir: string, source: `${string}/`): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(readSource(dir, source)).map(([name, text]) => [name.slice(source.length, -'.json'.length), JSON.parse(text) as unknown]));
+}
+
+/** `rows` written into the folder `source` of `dir`, a file a row. */
+function writeRows(dir: string, source: `${string}/`, rows: Record<string, unknown>): void {
+  mkdirSync(join(dir, source), { recursive: true });
+  for (const [key, row] of Object.entries(rows)) writeFileSync(join(dir, source, `${key}.json`), JSON.stringify(row), 'utf8');
+}
+
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
 describe('loadDrafts', () => {
   test('takes each content file the directory holds in place of the core file of its name, and validates the whole', () => {
-    const encounters = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<string, { name: string }>;
-    (encounters['ambush-on-the-road'] as { name: string }).name = 'Ambush in the drafts';
-    writeFileSync(join(scratch, 'encounters.json'), JSON.stringify(encounters), 'utf8');
-    writeFileSync(join(scratch, 'notes.json'), '{}', 'utf8');
-    const { content, drafted } = loadDrafts(scratch);
-    expect(drafted).toEqual(['encounters.json']);
-    expect(content.encounters['ambush-on-the-road']?.name).toBe('Ambush in the drafts');
+    const drafts = mkdtempSync(join(scratch, 'skills-'));
+    const skills = JSON.parse(readFileSync(join(contentDir, 'skills.json'), 'utf8')) as Record<string, { name: string }>;
+    (skills['stealth'] as { name: string }).name = 'Stealth in the drafts';
+    writeFileSync(join(drafts, 'skills.json'), JSON.stringify(skills), 'utf8');
+    writeFileSync(join(drafts, 'notes.json'), '{}', 'utf8');
+    const { content, drafted } = loadDrafts(drafts);
+    expect(drafted).toEqual(['skills.json']);
+    expect(content.skills['stealth']?.name).toBe('Stealth in the drafts');
     expect(content.questTemplates).toEqual(deps.content.questTemplates);
+  });
+
+  // DL-260: a folder drafted is taken whole, in place of the core's.
+  test("takes a folder the directory holds in place of the core's folder of its name, whole", () => {
+    const drafts = mkdtempSync(join(scratch, 'encounters-'));
+    const encounters = rowsOf(contentDir, 'encounters/') as Record<string, { name: string }>;
+    (encounters['ambush-on-the-road'] as { name: string }).name = 'Ambush in the drafts';
+    writeRows(drafts, 'encounters/', encounters);
+    const { content, drafted } = loadDrafts(drafts);
+    expect(drafted).toEqual(['encounters/']);
+    expect(content.encounters['ambush-on-the-road']?.name).toBe('Ambush in the drafts');
+    expect(Object.keys(content.encounters)).toEqual(Object.keys(deps.content.encounters));
+    expect(content.questTemplates).toEqual(deps.content.questTemplates);
+
+    const fewer = mkdtempSync(join(scratch, 'fewer-'));
+    writeRows(fewer, 'items/', Object.fromEntries(Object.entries(rowsOf(contentDir, 'items/')).filter(([key]) => key !== 'short-sword')));
+    expect(loadDrafts(fewer).content.items['short-sword']).toBeUndefined();
   });
 
   // The verification (DL-162): a directory named in error would otherwise run the core content as the drafts.
@@ -79,7 +109,7 @@ describe('loadDrafts', () => {
 
   test("the drafts in docs/quests/drafts load and meet the coverage gate (the epic's S9)", () => {
     const { content, drafted } = loadDrafts(draftsDir);
-    expect(drafted).toContain('encounters.json');
+    expect(drafted).toContain('encounters/');
     expect(coverageGrid(content).filter((it) => !it.met).map((it) => it.statKey)).toEqual([]);
   });
 });
@@ -91,9 +121,9 @@ describe('a play shard with drafts (HEROESIM_DRAFTS)', { timeout: 60_000 }, () =
     const job = { seeds: ['seed-0001'], config: deps.config, years, validate: false, policy: defaultPolicyConfig };
     // Drafts that differ from the core, which holds the drafts' gear: every Check twice as hard.
     const dir = mkdtempSync(join(scratch, 'harder-'));
-    const encounters = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<string, { checks: { difficultyFactor: number }[] }>;
+    const encounters = rowsOf(contentDir, 'encounters/') as Record<string, { checks: { difficultyFactor: number }[] }>;
     for (const encounter of Object.values(encounters)) for (const check of encounter.checks) check.difficultyFactor *= 2;
-    writeFileSync(join(dir, 'encounters.json'), JSON.stringify(encounters), 'utf8');
+    writeRows(dir, 'encounters/', encounters);
     const drafted = await runShard({ ...job, drafts: dir });
     const here = await recordGame('seed-0001', { config: deps.config, content: loadDrafts(dir).content }, { years });
     expect(drafted.games[0]?.measures.fingerprint).toBe(here.record.measures.fingerprint);
@@ -152,7 +182,7 @@ describe('thirdOf', () => {
 describe('formatJson', () => {
   test('writes JSON that reads back as written, a Query on one line', () => {
     const { content } = loadDrafts(draftsDir);
-    const json = JSON.parse(readFileSync(join(draftsDir, 'encounters.json'), 'utf8')) as unknown;
+    const json = rowsOf(draftsDir, 'encounters/');
     const text = formatJson(json);
     expect(JSON.parse(text)).toEqual(json);
     const score = JSON.stringify(content.encounters['the-strongroom']?.checks[0]?.score);
@@ -263,7 +293,7 @@ describe('the rates', { timeout: 60_000 }, () => {
 
   test('a small calibration has every cell, each a chance of each Degree, and its spot-check holds to the resolver', () => {
     const settings = { ...defaultCalibration, levels: [1, 5], sizes: [1, 3], difficulties: [30, 70], pool: 30, parties: 6, questsPerTemplate: 2, spotSamples: 2, spotSeeds: 400 };
-    const result = calibrate(settings, drafts, ['encounters.json']);
+    const result = calibrate(settings, drafts, ['encounters/']);
     expect(result.encounters).toHaveLength(Object.keys(content.encounters).length);
     for (const encounter of result.encounters) {
       expect(encounter.cells).toHaveLength(2 * 2 * 2);

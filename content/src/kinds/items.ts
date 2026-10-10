@@ -1,4 +1,4 @@
-// The Item definitions (DL-48; `items.json`): the fields every Item has, then its `kind`'s.
+// The Item definitions (DL-48; `items/`, a file each): the fields every Item has, then its `kind`'s.
 // Gear has a `slot`, one of the three, and Stat modifiers; a consumable an effect, one of a closed
 // union of kinds with exactly its fields. A row with the other kind's field is refused as it is read,
 // naming the field and why; the rules catch the same in a set built in memory.
@@ -75,7 +75,7 @@ const itemRow: RowShape<Omit<ItemDefinition, 'key'>> = {
   holds: [common, gear, consumable],
 };
 
-export const itemsKind = table<'items', ItemDefinition>('items', 'items.json', itemRow);
+export const itemsKind = table<'items', ItemDefinition>('items', 'items/', itemRow);
 
 /**
  * The Items' rules (DL-48). Every Item: a price that is a whole number above 0, or `null` for

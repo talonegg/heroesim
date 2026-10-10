@@ -1,0 +1,15 @@
+{
+  "name": "Clear the barrow",
+  "sphereKeys": ["crown"],
+  "tags": ["delve", "dark", "fight"],
+  "difficultyMin": 30, "difficultyMax": 70,
+  "durationDaysMin": 3, "durationDaysMax": 6,
+  "rewardPerDifficulty": 4,
+  "fameEffect": 3,
+  "partySizeMin": 2, "partySizeMax": 4,
+  "skillKeys": ["swordcraft", "benediction"],
+  "requires": {},
+  "lootTableKey": null,
+  "encounterKinds": ["combat", "stealth", "travel"],
+  "encountersMin": 2, "encountersMax": 4
+}

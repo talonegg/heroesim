@@ -321,7 +321,7 @@ async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Pr
     case 'update': {
       const key = arg(options, 0, 'a key');
       const entry = arg(options, 1, 'an entry of the register');
-      // The place is the words before the first value: a place holds no "=", and may hold a space (`encounters.json: …`).
+      // The place is the words before the first value: a place holds no "=", and may hold a space (`encounters/hold-the-line.json: …`).
       const words = options.args.slice(2);
       const first = words.findIndex((word) => word.includes('='));
       const at = (first < 0 ? words : words.slice(0, first)).join(' ');

@@ -1,0 +1,15 @@
+{
+  "name": "Guard the caravan",
+  "sphereKeys": ["merchants"],
+  "tags": ["escort", "guard", "wilds"],
+  "difficultyMin": 20, "difficultyMax": 55,
+  "durationDaysMin": 3, "durationDaysMax": 7,
+  "rewardPerDifficulty": 4,
+  "fameEffect": 2,
+  "partySizeMin": 2, "partySizeMax": 4,
+  "skillKeys": ["tactics", "trapcraft"],
+  "requires": {},
+  "lootTableKey": null,
+  "encounterKinds": ["travel", "combat"],
+  "encountersMin": 2, "encountersMax": 4
+}
