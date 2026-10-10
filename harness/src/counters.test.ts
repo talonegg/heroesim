@@ -1623,7 +1623,7 @@ describe("the Targets' counters (DL-259)", () => {
         moved(h2, a, b), // A below
         event(4, 'hero.recruited', [pooled, a.id], { heroId: pooled, guildId: a.id, fee: 80 }),
         moved(h3, a, b), // A below again, after hiring back to its minimum
-        event(5, 'hero.died', [k1, b.id], { heroId: k1, questId: makeId('quests', 1) }),
+        event(5, 'hero.died', [k1, makeId('quests', 1)], { heroId: k1, questId: makeId('quests', 1) }),
         event(5, 'hero.retired', [h4, a.id], { heroId: h4, guildId: a.id, age: 60 }),
         moved(k1, b, a), // B, 4 + 3 - 1 Heroes: not below
       ],
@@ -1632,5 +1632,80 @@ describe("the Targets' counters (DL-259)", () => {
     advanced(short, document, [event(7, 'guild.upkeep-paid', [player.id], { guildId: player.id, amount: 10, wealthAfter: 0 })], before);
 
     expect(short.value()).toBe(2);
+  });
+
+  test("a Death on the Transfer Generator's night counts against its Guild, which hero.died names only through its Hero", () => {
+    const { document, rivals } = fixture('counters-short-death');
+    const [a, b] = rivals;
+    const min = shortYears.config.rivalRosterMin;
+    const before = structuredClone(document);
+    const bGuild = before.world.guilds[b.id] as Guild;
+    bGuild.rosterIds = bGuild.rosterIds.slice(0, min + 1);
+    const [k1, k2] = bGuild.rosterIds;
+    if (k1 === undefined || k2 === undefined) throw new Error('A Roster too small');
+    const questId = makeId('quests', 1);
+    const short = observerOf('transfersShort');
+
+    advanced(
+      short,
+      document,
+      [
+        // As `questsConclude` emits it: the Hero and the Quest, not the Guild.
+        event(5, 'hero.died', [k2, questId], { heroId: k2, questId }),
+        event(5, 'hero.transferred', [k1, b.id, a.id], { heroId: k1, fromGuildId: b.id, toGuildId: a.id, fee: 100, offerId: null }), // B, 5 - 1 - 1: below
+      ],
+      before,
+    );
+
+    expect(short.value()).toBe(1);
+  });
+
+  test("a recruit and a Retirement on the Turn move the seller's Roster, and the player's Guild as seller is not counted", () => {
+    const { document, player, rivals } = fixture('counters-short-moves');
+    const [a, b] = rivals;
+    const min = shortYears.config.rivalRosterMin;
+    const before = structuredClone(document);
+    const [aGuild, bGuild, mine] = [before.world.guilds[a.id] as Guild, before.world.guilds[b.id] as Guild, before.world.guilds[player.id] as Guild];
+    aGuild.rosterIds = aGuild.rosterIds.slice(0, min + 1);
+    bGuild.rosterIds = bGuild.rosterIds.slice(0, min + 1);
+    mine.rosterIds = mine.rosterIds.slice(0, min);
+    const [h1, h2] = aGuild.rosterIds;
+    const [k1, k2] = bGuild.rosterIds;
+    const [p1] = mine.rosterIds;
+    if (h1 === undefined || h2 === undefined || k1 === undefined || k2 === undefined || p1 === undefined) throw new Error('Rosters too small');
+    const pooled = makeId('heroes', 900);
+    const moved = (heroId: HeroId, from: Guild, to: Guild): Entry =>
+      event(4, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+    const short = observerOf('transfersShort');
+
+    // A: 5 - 1 + 1 - 1, at its minimum each time.
+    advanced(short, document, [moved(h1, a, b), event(4, 'hero.recruited', [pooled, a.id], { heroId: pooled, guildId: a.id, fee: 80 }), moved(h2, a, b)], before);
+    expect(short.value()).toBe(0);
+    // B: 5 - 1 retired - 1, below.
+    advanced(short, document, [event(5, 'hero.retired', [k2, b.id], { heroId: k2, guildId: b.id, age: 60 }), moved(k1, b, a)], before);
+    expect(short.value()).toBe(1);
+    // The player's Guild below `rivalRosterMin`: not a Rival seller, DL-69 item 4's line not its.
+    advanced(short, document, [moved(p1, player, a)], before);
+    expect(short.value()).toBe(1);
+  });
+
+  test("ping-pong reads the buyer's last sale of the Hero, not its first", () => {
+    const { document, rivals } = fixture('counters-ping-pong-last');
+    const [a, b] = rivals;
+    const [h1] = a.rosterIds;
+    if (h1 === undefined) throw new Error('A Roster too small');
+    const transferred = (day: number, from: Guild, to: Guild): void => {
+      add(document, day * 3 + 1, 'hero.transferred', [h1, from.id, to.id], { heroId: h1, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+    };
+    transferred(1, a, b);
+    transferred(200, b, a); // back to A 199 Days after its sale
+    transferred(300, a, b); // back to B 100 Days after its sale
+    transferred(350, b, a); // back to A 50 Days after its last sale, 349 after its first
+    document.world.turn = 1_200;
+
+    const counted = countGame(document, shortYears);
+
+    expect(counted.transfersBack).toBe(3);
+    expect(counted.transfersBackSoon).toBe(1);
   });
 });

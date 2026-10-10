@@ -2047,8 +2047,8 @@ export function playerWealthMonths(world: World, deps: EngineDeps): number | nul
  * The Transfers among `events`, an `advance`'s, that left a Rival seller's Roster below
  * `rivalRosterMin` (DL-69 item 4): each Roster followed from `before`, the world the Turn began
  * with, through the Turn's entries in order, a Hero recruited or transferred in adding one and a Hero
- * transferred out, dead, retired or gone from a folded Guild taking one. A Guild not in `before` is
- * not followed.
+ * transferred out, dead (on the Roster the Turn's entries left them on), retired or gone from a
+ * folded Guild taking one. A Guild not in `before` is not followed.
  */
 export function transfersShort(before: World, events: readonly Entry[], config: EngineDeps['config']): number {
   if (!events.some((entry) => entry.type === 'hero.transferred')) return 0;
@@ -2060,13 +2060,20 @@ export function transfersShort(before: World, events: readonly Entry[], config: 
     sizes.set(guildId, size);
     return size;
   };
+  // Each Hero's Guild as the Turn's entries move them: `hero.died` names the Hero and the Quest, not the Guild.
+  const movedTo = new Map<unknown, unknown>();
+  const heroGuild = (heroId: unknown): unknown =>
+    movedTo.has(heroId) ? movedTo.get(heroId) : isId('heroes', heroId) && Object.hasOwn(before.heroes, heroId) ? before.heroes[heroId as HeroId]?.guildId : undefined;
   let short = 0;
   for (const entry of events) {
-    if (entry.type === 'hero.recruited') move(payloadField(entry, 'guildId'), 1);
-    else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild') move(payloadField(entry, 'guildId'), -1);
-    else if (entry.type === 'hero.died') move(entry.participants.find((id) => isId('guilds', id)), -1);
+    if (entry.type === 'hero.recruited') {
+      move(payloadField(entry, 'guildId'), 1);
+      movedTo.set(payloadField(entry, 'heroId'), payloadField(entry, 'guildId'));
+    } else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild') move(payloadField(entry, 'guildId'), -1);
+    else if (entry.type === 'hero.died') move(heroGuild(payloadField(entry, 'heroId')), -1);
     else if (entry.type === 'hero.transferred') {
       move(payloadField(entry, 'toGuildId'), 1);
+      movedTo.set(payloadField(entry, 'heroId'), payloadField(entry, 'toGuildId'));
       const fromGuildId = payloadField(entry, 'fromGuildId');
       const seller = isId('guilds', fromGuildId) && Object.hasOwn(before.guilds, fromGuildId) ? before.guilds[fromGuildId as GuildId] : undefined;
       if (move(fromGuildId, -1) < config.rivalRosterMin && seller?.controller.kind === 'rival') short += 1;

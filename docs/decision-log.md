@@ -340,3 +340,8 @@ fails no run.
 
 **Evidence.** The commit `v1.2.0-S2 (DL-259)`. The reports `harness/reports/v1.2.0-s2-neutral-2026-10-10` and
 `harness/reports/v1.2.0-s2-gate-2026-10-10`, the latter committed as the baseline. The epic's S2 boxes.
+Verified 2026-10-10 at 0f6d53e: the bands and sources, the standard error and the baseline read (all
+47 reports, none crashing) held, and the counters matched a hand count of a three-year game;
+`transfersShort` sought a dead Hero's Guild in `hero.died`'s participants, which name only the Hero and
+the Quest, and now follows the Hero, its fixture corrected, with tests killing the ten mutants that
+survived; no reading moved (the Generator keeps its seller at `rivalRosterMin`, the quick run identical).

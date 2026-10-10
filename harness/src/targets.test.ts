@@ -50,6 +50,53 @@ describe('the bands', () => {
   });
 });
 
+describe('what each target reads', () => {
+  /** Totals holding only what the targets read, as a report's JSON would. */
+  const totals = {
+    games: 10,
+    endings: { bankruptcy: 1, 'roster-wiped': 2, survived: 7 },
+    rankings: [
+      { games: 10, fame: [10], wealth: [10] },
+      { games: 10, fame: [4, 6], wealth: [7, 3] },
+      { games: 8, fame: [2, 6], wealth: [1, 7] },
+    ],
+    questsResolved: { player: { fail: 2, success: 3, strong: 5 } },
+    rivalFolds: { steady: 20, miserly: 5 },
+    heroesDied: { player: 45, rival: 300 },
+    playerWealthMonths: [{ games: 10, months: 1000 }, { games: 10, months: 1000 }, { games: 10, months: 60 }, { games: 8, months: 120 }],
+    rosters: Array.from({ length: 12 }, (_, year) => ({ games: 10, player: { levels: year === 10 ? 90 : 1, heroes: 10 } })),
+    highestLevels: { player: { games: Array.from({ length: 20 }, (_, year) => (year === 19 ? 8 : 10)), levels: Array.from({ length: 20 }, (_, year) => (year === 19 ? 120 : 1)), highest: [] } },
+    rivalsAtFloor: { steady: { starts: 40, hoarding: 10 } },
+    transfersBack: 3,
+    transfers: { in: { transfers: 0, fees: 0 }, out: { transfers: 0, fees: 0 }, 'rival-to-rival': { transfers: 30, fees: 0 } },
+    transfersBackSoon: 2,
+    transfersShort: 5,
+  } as unknown as SweepTotals;
+  const read = (key: string): number | null => {
+    const ratio = targets(['steady']).find((target) => target.key === key)?.ratio(totals);
+    return ratio === null || ratio === undefined ? null : ratio.n / ratio.of;
+  };
+
+  test('each its own sums, as its label says', () => {
+    expect(read('bankruptOrWiped')).toBe(0.3);
+    // The year-starts after 1 year or more: (4 + 2) / 18 by Fame, (7 + 1) / 18 by Wealth.
+    expect(read('firstByFame')).toBe(6 / 18);
+    expect(read('firstByWealth')).toBe(8 / 18);
+    expect(read('failed')).toBe(0.2);
+    expect(read('strong')).toBe(0.5);
+    expect(read('rivalFolds')).toBe(2.5);
+    expect(read('deaths')).toBe(4.5);
+    // After 2 years or more: (60 + 120) / 18.
+    expect(read('wealthMonths')).toBe(10);
+    expect(read('meanLevel')).toBe(9);
+    expect(read('highestLevel')).toBe(15);
+    expect(read('hoarding:steady')).toBe(0.25);
+    expect(read('transfersBack')).toBe(0.1);
+    expect(read('transfersBackSoon')).toBe(0.2);
+    expect(read('transfersShort')).toBe(0.5);
+  });
+});
+
 describe('the standard error', () => {
   test("of a mean over games: the games' standard deviation over the root of their count", () => {
     // 1 and 3: a mean of 2, a standard deviation of √2, over √2 games.
@@ -96,6 +143,15 @@ describe("a sweep's Targets", () => {
     expect(row('deaths')?.standardError).toBeCloseTo(1, 12);
     const bands = totals.questsResolved.player;
     expect(row('failed')?.measured).toBe(bands.fail / (bands.fail + bands.success + bands.strong));
+  });
+
+  test("totals the highest Levels over the games in which the side had a Hero by then: summed, and the greatest", () => {
+    const series: (number | null)[][] = [
+      [null, 5, 7],
+      [3, 4, 9],
+    ];
+    const levelled = sweep.games.map((game, index): GameRecord => ({ ...game, observations: { ...game.observations, highestLevels: { player: series[index] ?? [] } } }));
+    expect(sweepTotals({ ...sweep, games: levelled }, turnsPerYear).highestLevels['player']).toEqual({ games: [1, 2, 2], levels: [3, 9, 16], highest: [3, 5, 9] });
   });
 
   test("leaves out a measure the run has not reached: year 10's mean Level, year 20's highest", () => {
