@@ -256,6 +256,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-244 | 2026-10-10 | v1.1.9-S11 built: the editor's edit session |  | [decision-log](../decision-log.md) |
 | DL-245 | 2026-10-10 | v1.1.9-S9's fixture: `withReturn` through the engine, on the owner's word |  | [decision-log](../decision-log.md) |
 | DL-246 | 2026-10-10 | v1.1.9-S12 built: the engine's tests pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
+| DL-247 | 2026-10-10 | v1.1.9-S13 built: the page's tests pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

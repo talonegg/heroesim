@@ -3,24 +3,21 @@ import {
   addStack,
   ageOf,
   applyAction,
-  createWorld,
   defaultConfig,
   guildmasterOf,
   holdings,
   marketStock,
-  playerGuild,
   sellPrice,
   signingFee,
   signingRefusal,
   unattachedHeroes,
-  type Guild,
-  type WorldDocument,
 } from '@heroesim/engine';
 import { createItem } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { faceted } from './facets';
+import { newDocument, playerOf } from './game.test-support';
 import { defaultHeroOrder } from './selectors';
 import { calendarFor } from './reducer';
 import { marketView, offersView, poolView } from './trade-views';
@@ -35,22 +32,11 @@ vi.mock('./reducer', async (importOriginal) => {
 // the engine selector it comes from.
 
 const deps = { config: defaultConfig, content };
-const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' };
-
-function newGame(seed = 'trade-views'): WorldDocument {
-  return createWorld(seed, setup, deps).document;
-}
-
-function player(document: WorldDocument): Guild {
-  const guild = playerGuild(document.world);
-  if (guild === undefined) throw new Error('no player');
-  return guild;
-}
 
 describe('marketView', () => {
   test("lists what the Market has for sale at the engine's prices, and what the Guild holds with what each sells for", () => {
-    const document = structuredClone(newGame());
-    const guild = player(document);
+    const document = structuredClone(newDocument('trade-views'));
+    const guild = playerOf(document);
     addStack(document.world, 'whetstone', 3, { kind: 'guild', id: guild.id });
     addStack(document.world, 'arming-sword', 1, { kind: 'guild', id: guild.id });
     const [hero] = guild.rosterIds;
@@ -82,7 +68,7 @@ describe('marketView', () => {
 
 describe("the Market as tables (DL-106; the review's B3)", () => {
   test('names each kind for sale, the gear slots in their order then consumables, counting its kinds of Item', () => {
-    const view = marketView(newGame());
+    const view = marketView(newDocument('trade-views'));
     const kinds = faceted(view.forSale, view.facets, {}).facets.kind.options;
 
     expect(kinds.map((kind) => kind.key)).toEqual(['weapon', 'armour', 'trinket', 'consumable'].filter((key) => kinds.some((kind) => kind.key === key)));
@@ -95,7 +81,7 @@ describe("the Market as tables (DL-106; the review's B3)", () => {
   });
 
   test('filters by kind, one or several, for display; each kind its count of everything for sale (DL-206 items 26 to 29)', () => {
-    const view = marketView(newGame());
+    const view = marketView(newDocument('trade-views'));
     const kindOf = view.facets.kind;
     expect(kindOf.label).toBe('Show for sale');
     const kinds = faceted(view.forSale, view.facets, {}).facets.kind.options;
@@ -116,8 +102,8 @@ describe("the Market as tables (DL-106; the review's B3)", () => {
   });
 
   test("gives what the Guild holds its kind and what it does, in the Market's words, beside what each sells for", () => {
-    const document = structuredClone(newGame());
-    const guild = player(document);
+    const document = structuredClone(newDocument('trade-views'));
+    const guild = playerOf(document);
     addStack(document.world, 'whetstone', 3, { kind: 'guild', id: guild.id });
     addStack(document.world, 'arming-sword', 1, { kind: 'guild', id: guild.id });
 
@@ -130,8 +116,8 @@ describe("the Market as tables (DL-106; the review's B3)", () => {
   });
 
   test('says a kind and an effect as a cell does, beginning with a capital: a Unique Item is named so (DL-125 item 9)', () => {
-    const document = structuredClone(newGame());
-    const guild = player(document);
+    const document = structuredClone(newDocument('trade-views'));
+    const guild = playerOf(document);
     addStack(document.world, 'healing-draught', 1, { kind: 'guild', id: guild.id });
     createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: guild.id });
 
@@ -144,8 +130,8 @@ describe("the Market as tables (DL-106; the review's B3)", () => {
   });
 
   test("gives each held Item's content key, and whether it is a Unique Item, whose picture Sell shows (DL-125 item 8)", () => {
-    const document = structuredClone(newGame());
-    const guild = player(document);
+    const document = structuredClone(newDocument('trade-views'));
+    const guild = playerOf(document);
     addStack(document.world, 'healing-draught', 1, { kind: 'guild', id: guild.id });
     createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: guild.id });
 
@@ -158,8 +144,8 @@ describe("the Market as tables (DL-106; the review's B3)", () => {
 
 describe('poolView', () => {
   test('lists the Unattached pool with the signing fee the player pays, and whether each would sign for its Fame', () => {
-    const document = structuredClone(newGame());
-    const guild = player(document);
+    const document = structuredClone(newDocument('trade-views'));
+    const guild = playerOf(document);
     guild.fame = 0;
     const [first] = unattachedHeroes(document.world);
     if (first === undefined) throw new Error('an empty pool');
@@ -186,7 +172,7 @@ describe('poolView', () => {
 
 describe("the Unattached pool by Class (DL-186 item 24)", () => {
   test("lists the Warriors, Rogues, Mages and Healers in that order, not A to Z, ties in the Roster's default order", () => {
-    const document = newGame();
+    const document = newDocument('trade-views');
     const heroes = unattachedHeroes(document.world);
     // Each Class in the pool, at two Levels each, so that the ties are real.
     heroes.forEach((hero, index) => {
@@ -197,9 +183,7 @@ describe("the Unattached pool by Class (DL-186 item 24)", () => {
     const rows = poolView(document, 'class').rows;
     const order = defaultHeroOrder(document);
 
-    expect(new Set(rows.map((row) => row.className))).toEqual(new Set(['Warrior', 'Rogue', 'Mage', 'Healer']));
     expect(rows.map((row) => row.heroId)).toEqual([...heroes].sort(order).map((hero) => hero.id));
-    expect([...new Set(rows.map((row) => row.className))]).toEqual(['Warrior', 'Rogue', 'Mage', 'Healer']);
     for (let index = 1; index < rows.length; index += 1) {
       const [before, after] = [rows[index - 1], rows[index]];
       if (before?.className === after?.className) expect(before?.level ?? 0).toBeGreaterThanOrEqual(after?.level ?? 0);
@@ -209,7 +193,7 @@ describe("the Unattached pool by Class (DL-186 item 24)", () => {
 
 describe("the Unattached pool as rows (DL-106; the review's B8)", () => {
   test("orders the pool by Class in the content's declared order, or by fee, lowest first, ties as the pool lists them: display only", () => {
-    const document = newGame();
+    const document = newDocument('trade-views');
     const listed = poolView(document).rows;
     const at = (heroId: string): number => listed.findIndex((row) => row.heroId === heroId);
 
@@ -229,8 +213,8 @@ describe("the Unattached pool as rows (DL-106; the review's B8)", () => {
   });
 
   test('says whether each Hero would sign for the Guild now, beside the pool’s own words, for the row to be set back', () => {
-    const document = structuredClone(newGame());
-    player(document).fame = 0;
+    const document = structuredClone(newDocument('trade-views'));
+    playerOf(document).fame = 0;
     const [first, second] = unattachedHeroes(document.world);
     if (first === undefined || second === undefined) throw new Error('an empty pool');
     first.level = 4;
@@ -245,8 +229,8 @@ describe("the Unattached pool as rows (DL-106; the review's B8)", () => {
 
 describe('offersView', () => {
   test("lists each Transfer Offer standing for the player's Heroes: who offers what for whom, and until when", () => {
-    const document = newGame();
-    const guild = player(document);
+    const document = newDocument('trade-views');
+    const guild = playerOf(document);
     const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id);
     const heroId = guild.rosterIds[0];
     if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
@@ -274,8 +258,8 @@ describe('offersView', () => {
   });
 
   test('reads the calendar once, however many Offers stand (DL-214)', () => {
-    let document = newGame();
-    const guild = player(document);
+    let document = newDocument('trade-views');
+    const guild = playerOf(document);
     const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id);
     if (rival === undefined) throw new Error('no Rival');
     for (const heroId of guild.rosterIds.slice(0, 2)) {

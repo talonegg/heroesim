@@ -1,6 +1,5 @@
 // @vitest-environment node
 import {
-  advance,
   ageOf,
   baseStat,
   createWorld,
@@ -29,29 +28,12 @@ import {
   hallView,
   patronsView,
 } from './world-views';
+import { newDocument, newGameSetup as setup, playedDocument, playerOf } from './game.test-support';
 
 // The views of the wider world (DL-73): every number beside the engine selector or
 // document field it comes from, as `selectors.test.ts` does for part 1's.
 
 const deps = { config: defaultConfig, content };
-const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' };
-
-function newGame(seed = 'world-views'): WorldDocument {
-  return createWorld(seed, setup, deps).document;
-}
-
-function played(turns: number, seed = 'world-views-played'): WorldDocument {
-  let document = newGame(seed);
-  for (let turn = 0; turn < turns; turn += 1) document = advance(document, deps).document;
-  return document;
-}
-
-function player(document: WorldDocument): Guild {
-  const guild = playerGuild(document.world);
-  if (guild === undefined) throw new Error('no player');
-  return guild;
-}
-
 function rival(document: WorldDocument): Guild {
   const guild = Object.values(document.world.guilds).find((each) => each.controller.kind === 'rival');
   if (guild === undefined) throw new Error('no Rival');
@@ -61,7 +43,7 @@ function rival(document: WorldDocument): Guild {
 describe("the Guilds as one table, the Rankings in it (DL-106; the review's B4)", () => {
   /** A new game whose five Guilds have the names, Fame, Wealth and Roster sizes given, in the world's order. */
   function arranged(rows: readonly [name: string, fame: number, wealth: number, heroes: number][]): WorldDocument {
-    const document = structuredClone(newGame());
+    const document = structuredClone(newDocument('world-views'));
     Object.values(document.world.guilds).forEach((guild, index) => {
       const [name, fame, wealth, heroes] = rows[index] ?? ['', 0, 0, 0];
       Object.assign(guild, { name, fame, wealth, rosterIds: guild.rosterIds.slice(0, heroes) });
@@ -70,7 +52,7 @@ describe("the Guilds as one table, the Rankings in it (DL-106; the review's B4)"
   }
 
   test("gives every Guild in play its place by Fame, its Disposition, Fame, Wealth, Heroes and Upkeep, in the Rankings' order, the player's marked", () => {
-    const document = played(12);
+    const document = playedDocument('world-views-played', 12).document;
 
     const table = guildsTable(document, 'fame');
 
@@ -157,7 +139,7 @@ describe("the Guilds as one table, the Rankings in it (DL-106; the review's B4)"
   });
 
   test('lists a folded Guild apart, with the Day it folded and no place, out of the Rankings', () => {
-    const document = structuredClone(newGame());
+    const document = structuredClone(newDocument('world-views'));
     const folded = rival(document);
     folded.foldedOnTurn = 7;
 
@@ -171,8 +153,8 @@ describe("the Guilds as one table, the Rankings in it (DL-106; the review's B4)"
 
 describe('hallView', () => {
   test("gives each facility's grade, what it does and the next grade's Improvement and cost, and the Guild's Upkeep", () => {
-    const document = structuredClone(newGame());
-    const guild = player(document);
+    const document = structuredClone(newDocument('world-views'));
+    const guild = playerOf(document);
     guild.hall.quarters = 3;
 
     const view = hallView(document);
@@ -192,7 +174,7 @@ describe('hallView', () => {
   });
 
   test("is another Guild's when named, which the player cannot build", () => {
-    const document = newGame();
+    const document = newDocument('world-views');
     const other = rival(document);
 
     expect(hallView(document, other.id)).toMatchObject({ guildId: other.id, guildName: other.name, mine: false });
@@ -200,24 +182,26 @@ describe('hallView', () => {
   });
 
   test("gives each facility's top grade from the Improvements content defines, for its pips (the review's B9)", () => {
-    const document = structuredClone(newGame());
-    player(document).hall.infirmary = 1;
+    const document = structuredClone(newDocument('world-views'));
+    playerOf(document).hall.infirmary = 1;
 
     const rows = hallView(document)?.facilities ?? [];
 
-    // `improvements.json` defines three grades of each facility.
+    // The top grade is the highest the Improvements content defines for the facility.
+    const topOf = (facility: string): number =>
+      Math.max(...Object.values(content.improvements).flatMap((row) => (row.facility === facility ? [row.grade] : [])));
     expect(rows.map(({ facility, grade, top }) => [facility, grade, top])).toEqual([
-      ['infirmary', 1, 3],
-      ['trainingYard', 0, 3],
-      ['quarters', 0, 3],
+      ['infirmary', 1, topOf('infirmary')],
+      ['trainingYard', 0, topOf('trainingYard')],
+      ['quarters', 0, topOf('quarters')],
     ]);
   });
 });
 
 describe('guildmasterView', () => {
   test('gives Stats and what each bears on, Traits and what each does, and Regard as bands for Patrons, the Roster and the other Guilds', () => {
-    const document = newGame();
-    const guild = player(document);
+    const document = newDocument('world-views');
+    const guild = playerOf(document);
     const guildmaster = guildmasterOf(guild, document.world);
     if (guildmaster === undefined) throw new Error('no Guildmaster');
 
@@ -252,7 +236,8 @@ describe('guildmasterView', () => {
       { ...setup, guildmasterBirthplace: 'Harrowgate', guildmasterBiography: 'Once a quartermaster of the river levies.' },
       deps,
     ).document;
-    // Every Guildmaster's blanks are written as they enter play (DL-132): an older save may hold one empty.
+    // A blank is left out: a Guildmaster's blanks are written as they enter play (DL-132), and the schema still allows
+    // an empty string (the engine's validator checks the Attribute is a string), which the view shows none of.
     const player = playerGuild(document.world);
     const mine = player === undefined ? undefined : document.world.guildmasters[player.guildmasterId];
     if (mine !== undefined) mine.appearance = '';
@@ -267,28 +252,20 @@ describe('guildmasterView', () => {
   });
 
   test("gives the Guild, for its Banner, and the sex and Portrait's key, for the Portrait: the player's and every Rival's chosen to fit them", () => {
-    const document = newGame();
-    const keys: (string | null | undefined)[] = [];
+    const document = newDocument('world-views');
     for (const guild of Object.values(document.world.guilds)) {
       const guildmaster = guildmasterOf(guild, document.world);
       if (guildmaster === undefined) throw new Error('no Guildmaster');
       const view = guildmasterView(document, guild.id);
       expect(view?.guildId).toBe(guild.id);
       expect(view?.sex).toBe(guildmaster.sex);
-      keys.push(view?.portraitKey);
+      // The key the engine chose to fit them, read as it is.
+      expect(view?.portraitKey).toBe(guildmaster.portraitKey);
     }
-    // The player's first, a male of 41, then the Rivals', each of their sex and age.
-    expect(keys).toEqual(['gm-male-10', 'gm-male-19', 'gm-female-12', 'gm-male-16', 'gm-male-05']);
-    // The key a save of schema 5 holds is read as it is.
-    const later = structuredClone(document);
-    const guildmaster = guildmasterOf(player(later), later.world);
-    if (guildmaster === undefined) throw new Error('no Guildmaster');
-    Object.assign(guildmaster, { portraitKey: 'gm-male-09' });
-    expect(guildmasterView(later)?.portraitKey).toBe('gm-male-09');
   });
 
   test('gives the Sex capitalised, and the Age as a label (DL-111 item 9)', () => {
-    const document = structuredClone(newGame());
+    const document = structuredClone(newDocument('world-views'));
     for (const sex of ['male', 'female'] as const) {
       const player = Object.values(document.world.guilds).find((guild) => guild.controller.kind === 'player');
       const guildmaster = player === undefined ? undefined : document.world.guildmasters[player.guildmasterId];
@@ -342,7 +319,7 @@ describe('guildmasterView', () => {
       wiped.world.ended = { turn: 902, reason: 'roster-wiped' };
       expect(guildmasterView(wiped)?.retirement).toBe('Never retired: the game ended with the Roster wiped out on Year 1 Day 301.');
 
-      const folded = newGame();
+      const folded = newDocument('world-views');
       const other = rival(folded);
       other.foldedOnTurn = 3 * 45 + 2;
       expect(guildmasterView(folded, other.id)?.retirement).toBe('Never retired: the Guild folded on Year 1 Day 46.');
@@ -378,13 +355,13 @@ describe('guildmasterView', () => {
     });
 
     test("gives a Rival's Guildmaster's too, on its Guild's page", () => {
-      const document = newGame();
+      const document = newDocument('world-views');
       expect(guildmasterView(document, rival(document).id)?.retirement).toMatch(/^Retires at 61 on the night of Year \d+ Day \d+: in \d+ Years\.$/);
     });
   });
 
   test("is another Guild's Guildmaster when named", () => {
-    const document = newGame();
+    const document = newDocument('world-views');
     const other = rival(document);
 
     expect(guildmasterView(document, other.id)?.name).toBe(guildmasterOf(other, document.world)?.name);
@@ -392,8 +369,8 @@ describe('guildmasterView', () => {
   });
 
   test("marks each Regard that is neutral, for the page to fold (the review's C8)", () => {
-    const document = structuredClone(newGame());
-    const guild = player(document);
+    const document = structuredClone(newDocument('world-views'));
+    const guild = playerOf(document);
     const guildmaster = guildmasterOf(guild, document.world);
     const [patron] = Object.values(document.world.patrons);
     const [hero] = guild.rosterIds;
@@ -412,8 +389,8 @@ describe('guildmasterView', () => {
 
 describe('patronsView', () => {
   test("gives each Patron's Sphere and Regard for the player's Guild as a band", () => {
-    const document = played(9);
-    const guild = player(document);
+    const document = playedDocument('world-views-played', 9).document;
+    const guild = playerOf(document);
 
     expect(patronsView(document).map(({ patronId, name, sphere, regard }) => ({ patronId, name, sphere, regard }))).toEqual(
       Object.values(document.world.patrons).map((patron) => ({
@@ -426,8 +403,8 @@ describe('patronsView', () => {
   });
 
   test("gives, beside their Regard for the player's Guild, the player's Guildmaster's Regard for them and their Quests on the Board now, and marks a row neutral when both Regards are (the review's B5)", () => {
-    const document = structuredClone(played(9));
-    const guild = player(document);
+    const document = structuredClone(playedDocument('world-views-played', 9).document);
+    const guild = playerOf(document);
     const guildmaster = guildmasterOf(guild, document.world);
     const [cold, liked, ...rest] = Object.values(document.world.patrons);
     if (guildmaster === undefined || cold === undefined || liked === undefined) throw new Error('no Guildmaster or Patrons');
@@ -461,9 +438,9 @@ describe('patronsView', () => {
 
 describe('guildPage', () => {
   test("gives another Guild's Roster with the Transfer fee the player's Guild would pay for each Hero, its Hall and its Guildmaster", () => {
-    const document = newGame();
+    const document = newDocument('world-views');
     const other = rival(document);
-    const buyer = guildmasterOf(player(document), document.world);
+    const buyer = guildmasterOf(playerOf(document), document.world);
 
     const page = guildPage(document, other.id);
 
@@ -481,9 +458,9 @@ describe('guildPage', () => {
   });
 
   test("says whose it is, its Background, Fame and Wealth; the player's own has no fees (the review's B10)", () => {
-    const document = newGame();
+    const document = newDocument('world-views');
     const other = rival(document);
-    const mine = player(document);
+    const mine = playerOf(document);
 
     expect(guildPage(document, other.id)).toMatchObject({
       mine: false,

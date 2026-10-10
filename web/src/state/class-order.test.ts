@@ -1,7 +1,8 @@
 // @vitest-environment node
-import { createWorld, defaultConfig, playerGuild, unattachedHeroes, type Hero, type WorldDocument } from '@heroesim/engine';
+import { playerGuild, unattachedHeroes, type Hero } from '@heroesim/engine';
 import { describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
+import { newDocument } from './game.test-support';
 import { defaultHeroOrder, orderWords, reverseOrderName } from './selectors';
 import { poolView } from './trade-views';
 
@@ -18,12 +19,6 @@ vi.mock('../content', async (importOriginal) => {
 });
 
 const declared = ['Mage', 'Healer', 'Warrior', 'Rogue'];
-const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' };
-
-function newGame(): WorldDocument {
-  return createWorld('class-order', setup, { config: defaultConfig, content }).document;
-}
-
 /** The Classes in the order `names` first shows them. */
 function classesIn(names: readonly string[]): string[] {
   return [...new Set(names)];
@@ -33,7 +28,7 @@ describe("the page's Class order with classes.json's keys reversed and an order 
   test('is the declared order, Mage, Healer, Warrior, Rogue: the default Hero order, the Unattached pool and the sort button', () => {
     expect(Object.values(content.classes).map((each) => each.name)).toEqual(['Healer', 'Mage', 'Rogue', 'Warrior']);
 
-    const document = newGame();
+    const document = newDocument('class-order');
     const heroes = [...(playerGuild(document.world)?.rosterIds ?? []), ...unattachedHeroes(document.world).map((hero) => hero.id)].map(
       (heroId) => document.world.heroes[heroId] as Hero,
     );

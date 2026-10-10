@@ -62,8 +62,26 @@ beforeAll(() => {
   differs = released('differs', true);
 });
 
-/** The command line in `dir`, git real and GitHub's record `runs` (or the API failing, with `null`). */
-function run(dir: string, argv: string[], runs: (sha: string) => CheckRun[] | null) {
+/** git as a merge whose tree is its second parent's would answer, for whatever commit is named. */
+const merged = (args: readonly string[]): string | null =>
+  (/^rev-parse --verify --quiet \S+\^\{commit\}$/.test(args.join(' '))
+    ? 'm'
+    : { 'rev-parse --verify --quiet m^2': 'p', 'rev-parse m^{tree}': 't', 'rev-parse p^{tree}': 't' }[args.join(' ')]) ?? null;
+
+/** `spawn` for `main` whose git answers as `merged` does, in no repository at all; `other` answers every other command. */
+const fakeGit =
+  (other: (command: string, args: readonly string[]) => { status: number; stdout: string }) =>
+  (command: string, args: readonly string[]): { status: number; stdout: string } => {
+    if (command !== 'git') return other(command, args);
+    const answer = merged(args);
+    return answer === null ? { status: 1, stdout: '' } : { status: 0, stdout: answer };
+  };
+
+/**
+ * The command line in `dir`, git real (or, with `fake`, answering as `merged` does: the tests of GitHub's record
+ * need no trees) and GitHub's record `runs` (or the API failing, with `null`).
+ */
+function run(dir: string, argv: string[], runs: (sha: string) => CheckRun[] | null, fake = false) {
   const output = path.join(dir, '.git', 'github-output');
   const summary = path.join(dir, '.git', 'github-summary');
   writeFileSync(output, '');
@@ -75,7 +93,7 @@ function run(dir: string, argv: string[], runs: (sha: string) => CheckRun[] | nu
     env: { GITHUB_REPOSITORY: 'owner/heroesim', GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: summary },
     cwd: dir,
     spawn: (command, args, options) => {
-      if (command === 'git') return spawnSync(command, [...args], { ...options, cwd: dir });
+      if (command === 'git') return fake ? fakeGit(() => ({ status: 1, stdout: '' }))(command, args) : spawnSync(command, [...args], { ...options, cwd: dir });
       asked.push([command, ...args]);
       const sha = /head_sha=([0-9a-f]+)/.exec(args.join(' '))?.[1] ?? '';
       const answer = runs(sha);
@@ -124,17 +142,12 @@ describe('the tree compared, by git', () => {
   });
 
   test("GitHub's record unread, or saying nothing passed: the tests run", () => {
-    expect(run(same.dir, ['push', same.merge], () => null).output).toBe('run=true\n');
-    expect(run(same.dir, ['push', same.merge], () => []).output).toBe('run=true\n');
+    expect(run(same.dir, ['push', same.merge], () => null, true).output).toBe('run=true\n');
+    expect(run(same.dir, ['push', same.merge], () => [], true).output).toBe('run=true\n');
   });
 });
 
 describe("GitHub's record of check", () => {
-  /** git as a merge whose tree is its second parent's would answer. */
-  const merged = (args: readonly string[]): string | null =>
-    ({ 'rev-parse --verify --quiet HEAD^{commit}': 'm', 'rev-parse --verify --quiet m^2': 'p', 'rev-parse m^{tree}': 't', 'rev-parse p^{tree}': 't' })[
-      args.join(' ')
-    ] ?? null;
   const decided = (runs: CheckRun[] | null, event = 'push') => decide({ event, commit: 'HEAD', git: merged, checkRuns: () => runs });
 
   test('passed means a push run of the tip, completed with success', () => {
@@ -190,11 +203,10 @@ describe("GitHub's record of check", () => {
       argv: ['push', same.merge],
       env: { GITHUB_OUTPUT: output },
       cwd: same.dir,
-      spawn: (command, args, options) => {
-        if (command === 'git') return spawnSync(command, [...args], { ...options, cwd: same.dir });
+      spawn: fakeGit((command) => {
         asked.push(command);
         return { status: 0, stdout: JSON.stringify({ workflow_runs: passedOn(same.tip) }) };
-      },
+      }),
       log: () => {},
       warn: () => {},
     });
@@ -210,7 +222,7 @@ describe("GitHub's record of check", () => {
         argv: ['push', same.merge],
         env: { GITHUB_REPOSITORY: 'owner/heroesim', GITHUB_OUTPUT: output },
         cwd: same.dir,
-        spawn: (command, args, options) => (command === 'git' ? spawnSync(command, [...args], { ...options, cwd: same.dir }) : { status: 0, stdout: answer }),
+        spawn: fakeGit(() => ({ status: 0, stdout: answer })),
         log: () => {},
         warn: () => {},
       });

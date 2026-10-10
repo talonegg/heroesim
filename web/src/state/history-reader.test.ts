@@ -2,10 +2,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { advance, createWorld, defaultConfig, playerGuild, type EngineEventOf, type EntityId, type Entry, type TurnEvent, type WorldDocument } from '@heroesim/engine';
+import { playerGuild, type EngineEventOf, type EntityId, type Entry, type TurnEvent, type WorldDocument } from '@heroesim/engine';
 import ts from 'typescript';
 import { describe, expect, test } from 'vitest';
-import { content } from '../content';
+import { playedDocument } from './game.test-support';
 import {
   appendedOf,
   awayAt,
@@ -23,13 +23,9 @@ import {
 // and the few lookups the History view makes. It reads the History shared by reference and never
 // copies it (ADR-0008), and no other page module reads the History's own lists.
 
-const deps = { config: defaultConfig, content };
-const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' };
-
 /** A game of `turns` Turns, its History frozen deep, as a test of a reader that never writes. */
 function playedFrozen(turns: number): WorldDocument {
-  let document = createWorld('history-reader', setup, deps).document;
-  for (let turn = 0; turn < turns; turn += 1) document = advance(document, deps).document;
+  const { document } = playedDocument('history-reader', turns);
   const freeze = (value: unknown): void => {
     if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return;
     Object.freeze(value);
@@ -40,7 +36,7 @@ function playedFrozen(turns: number): WorldDocument {
 }
 
 describe('the reader reads the shared History by reference and never copies it (ADR-0008)', () => {
-  const document = playedFrozen(240);
+  const document = playedFrozen(90);
   const { history } = document;
   const own = new Set<object>(history.entries);
   const guild = playerGuild(document.world);

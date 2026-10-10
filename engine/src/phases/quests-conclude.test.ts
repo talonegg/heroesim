@@ -1007,6 +1007,27 @@ describe('the Quest named on what its return causes', () => {
     );
   });
 
+  test("a History with an Encounter's entry that names no Degree, no deciding Check or no Checks rolled is refused, naming each entry (DL-247)", () => {
+    const document = played.get('named-a') as WorldDocument;
+    const { entries } = document.history;
+    const encounters = entries.flatMap((entry, position) => (entry.type === 'quest.encounter' ? [position] : []));
+    /** One field taken out of each of the first three Encounters' entries. */
+    const stripped = new Map<number, string>(['degree', 'decidedBy', 'checks'].map((field, at) => [encounters[at] as number, field]));
+    expect(stripped.size).toBe(3);
+    const history = createHistory();
+    entries.forEach((entry, position) => {
+      const field = stripped.get(position);
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      if (field !== undefined) delete payload[field];
+      append(history, { ...entry, payload } as Entry);
+    });
+
+    const loaded = deserialise(serialise({ ...document, history }), deps);
+
+    const failures = loaded.ok || loaded.reason.kind !== 'invalid' ? [] : loaded.reason.failures.map(({ check, id }) => ({ check, id }));
+    expect(failures).toEqual([...stripped.keys()].map((position) => ({ check: 'entry-field-missing', id: `$.history.entries[${position}]` })));
+  });
+
   test("nothing else moves: the same seed's events give the History of 86c7afa, entry for entry, but for the new fields and participants (the questId, DL-112, and the founding Wealth, DL-120) and the Rivals' Parties", () => {
     const fingerprints = seeds.map((seed) => {
       const events = emitted.get(seed) as TurnEvent[];

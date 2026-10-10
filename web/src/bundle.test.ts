@@ -1,11 +1,12 @@
 // @vitest-environment node
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { checkBundle } from '../scripts/check-bundle.mjs';
 import config from '../vite.config.js';
 
 // The production build and the bundle gate (DL-64). `npm run build -w web` is `vite build`
@@ -37,6 +38,13 @@ function run(args: string[], env: NodeJS.ProcessEnv = process.env): { status: nu
   return { status: child.status, output: `${child.stdout}${child.stderr}` };
 }
 
+/** The gate run in this process on `dir`, as its command line runs it: what it says, and its exit code. */
+function gateOf(dir: string): { status: number; output: string } {
+  const said: string[] = [];
+  const status = checkBundle(dir, { log: (line) => said.push(line), warn: (line) => said.push(line) });
+  return { status, output: said.join('\n') };
+}
+
 /** The environment `npm run build` sees: Vitest's own NODE_ENV=test would build React for development. */
 function buildEnvironment(): NodeJS.ProcessEnv {
   const env = { ...process.env };
@@ -49,12 +57,17 @@ function buildEnvironment(): NodeJS.ProcessEnv {
 describe('the production build', { timeout: 120_000 }, () => {
   let outDir: string;
   let built: { status: number | null; output: string };
+  /** The one script's file name, and its text. */
+  let script = '';
+  let text = '';
 
   // The build is the hook's, whose time the describe's timeout does not set: 10 s by default, which a
   // build under the whole suite's load passed (DL-205).
   beforeAll(() => {
     outDir = temporaryDir();
     built = run([vite, 'build', '--configLoader', 'runner', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'error'], buildEnvironment());
+    script = readdirSync(path.join(outDir, 'assets')).find((file) => /^index-[\w-]+\.js$/.test(file)) ?? '';
+    text = script === '' ? '' : readFileSync(path.join(outDir, 'assets', script), 'utf8');
   }, 120_000);
 
   test('builds', () => {
@@ -74,9 +87,7 @@ describe('the production build', { timeout: 120_000 }, () => {
 
   test("inlines each of media/'s Silhouettes into the one script, and every picture is a hashed file beside it", () => {
     const assets = readdirSync(path.join(outDir, 'assets'));
-    const [script = ''] = assets.filter((file) => /^index-[\w-]+\.js$/.test(file));
     const silhouettes = readdirSync(mediaDir, { recursive: true, encoding: 'utf8' }).filter((file) => file.endsWith('silhouette.svg'));
-    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
 
     expect(silhouettes.length).toBeGreaterThan(0);
     // Each Silhouette, and the neutral one `media.ts` draws for a sex no folder knows.
@@ -94,8 +105,6 @@ describe('the production build', { timeout: 120_000 }, () => {
   // DL-134 item 9, DL-143: the content's JSON is bundled as data, not as it is written,
   // so its indentation and line breaks do not count against the script's 850 kB.
   test("bundles each content file's JSON without its whitespace", () => {
-    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
-    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
     const bundled = (json: string): boolean => text.includes(json) || text.includes(JSON.stringify(json).slice(1, -1));
     for (const file of ['spheres.json', 'skills.json', 'dispositions.json']) {
       const written = readFileSync(path.join(contentDir, file), 'utf8');
@@ -109,15 +118,11 @@ describe('the production build', { timeout: 120_000 }, () => {
   // DL-157: the content package's manifests are no content, and each
   // picture's URL resolves against the script's address, worked out once.
   test("bundles neither of the content package's manifests", () => {
-    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
-    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
     expect(text).not.toContain('@heroesim/content');
     expect(text).not.toContain('compilerOptions');
   });
 
   test("works out the script's address once, and resolves every picture's URL against it", () => {
-    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
-    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
     const pictures = readdirSync(path.join(outDir, 'assets')).filter((file) => file.endsWith('.webp'));
     expect(text.match(/document\.baseURI/g)).toHaveLength(1);
     expect(pictures.length).toBeGreaterThanOrEqual(80);
@@ -131,8 +136,6 @@ describe('the production build', { timeout: 120_000 }, () => {
   // bundles with the content, but its changelog is for the people who read the file, and is bundled
   // empty; and the tools' write module, `@heroesim/content/write`, is in no built file.
   test("bundles the content version without its changelog, and none of content's write module", () => {
-    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
-    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
     const written = JSON.parse(readFileSync(path.join(contentDir, 'version.json'), 'utf8')) as { version: number; changelog: string[] };
     const bundled = JSON.stringify({ version: written.version, changelog: [] });
     expect(text.includes(bundled) || text.includes(JSON.stringify(bundled).slice(1, -1))).toBe(true);
@@ -147,8 +150,6 @@ describe('the production build', { timeout: 120_000 }, () => {
   // DL-186 item 15, DL-204: the defaults' values are data, `engine/src/config.json`,
   // which the engine imports; its changelog is for the people who read the file, and is bundled empty.
   test("bundles the defaults' values without their changelog", () => {
-    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
-    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
     const written = JSON.parse(readFileSync(path.join(webDir, '..', 'engine', 'src', 'config.json'), 'utf8')) as { changelog: string[] };
     expect(written.changelog.length).toBeGreaterThan(10);
     for (const entry of written.changelog) expect(text.includes(entry.slice(0, 40)), entry).toBe(false);
@@ -158,8 +159,6 @@ describe('the production build', { timeout: 120_000 }, () => {
   // DL-192: the old form of an Encounter and a Synergy is no longer read, so the words
   // its refusals were written in, which v1.1.5's parser and register held, are in no built file.
   test("holds none of the words the old content form's refusals were written in", () => {
-    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
-    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
     const marks = ['names no Class and no Skill', 'a count is a whole number from 1', 'what a Synergy requires', 'with no Query to filter', 'in the old form'];
     expect(marks.filter((mark) => text.includes(mark))).toEqual([]);
   });
@@ -167,8 +166,6 @@ describe('the production build', { timeout: 120_000 }, () => {
   // DL-243 (DL-152): the page reads content with the kinds' readers and checks none of it, so the
   // script carries the readers' words and none of the kinds' rules'. Each is first found in its own source.
   test("carries the content kinds' readers and none of their rules", () => {
-    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
-    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
     const kinds = path.join(contentDir, 'src', 'kinds');
     const marks = [
       ['read.ts', 'is not a field of'],
@@ -180,11 +177,6 @@ describe('the production build', { timeout: 120_000 }, () => {
     for (const [file, mark] of marks) expect(readFileSync(path.join(kinds, file), 'utf8'), mark).toContain(mark);
     expect(text).toContain(marks[0][1]);
     expect(marks.slice(1).filter(([, mark]) => text.includes(mark))).toEqual([]);
-  });
-
-  test('builds a script under the 850 kB the gate allows', () => {
-    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
-    expect(statSync(path.join(outDir, 'assets', script)).size).toBeLessThan(scriptLimit);
   });
 
   // DL-150 item 7, the epic's Gate: "The editor is in no file of the built game", checked
@@ -251,12 +243,13 @@ describe('a Node built-in the page imports', { timeout: 120_000 }, () => {
     expect(built.status).not.toBe(0);
   });
 
-  test('and the same page without it builds', async () => {
-    expect(buildProbe("(globalThis as Record<string, unknown>).probe = () => 'x';\n").status).toBe(0);
+  test('and lets a module that is no Node built-in through', async () => {
     expect(await refusalOf('probe-module')).toBe('');
   });
 });
 
+// The rows ask the gate in this process (`checkBundle`, DL-247); its command line, which `npm run build`
+// runs, is run on the real build above, for its message and exit code, and with no build to check.
 describe('the bundle gate', () => {
   const page = '<script defer src="./assets/index.js"></script>';
 
@@ -279,7 +272,7 @@ describe('the bundle gate', () => {
       ].join('\n'),
     );
 
-    expect(run([gate, dir]).status).toBe(0);
+    expect(gateOf(dir).status).toBe(0);
   });
 
   test.each([
@@ -298,7 +291,7 @@ describe('the bundle gate', () => {
     ['fetch( between two MIME patterns', "const accept = 'text/*'; const go = () => fetch('/api/probe'); const any = '*/*';", 'contains fetch('],
     ['a URL between two MIME patterns', "const a = 'image/*'; const b = 'https://example.com/x'; const c = '*/*';", 'contains the URL https://example.com/x'],
   ])('fails a bundle containing %s', (_name, script, complaint) => {
-    const gated = run([gate, bundleOf(script)]);
+    const gated = gateOf(bundleOf(script));
 
     expect(gated.output).toContain(complaint);
     expect(gated.status).toBe(1);
@@ -310,7 +303,7 @@ describe('the bundle gate', () => {
     ['the page', 'a stylesheet link', { html: `<link rel="stylesheet" href="https://example.com/x.css">${page}` }, ['index.html'], 'contains the URL https://example.com/x.css'],
     ['the page', 'a fetch', { html: `<script>fetch('/api')</script>${page}` }, ['index.html'], 'contains fetch('],
   ])('reads %s too: fails one holding %s', (_where, _what, files, file, complaint) => {
-    const gated = run([gate, bundleOf('const quiet = 1;', files)]);
+    const gated = gateOf(bundleOf('const quiet = 1;', files));
 
     expect(gated.output).toContain(`${path.join(...file)}: ${complaint}`);
     expect(gated.status).toBe(1);
@@ -331,11 +324,11 @@ describe('the bundle gate', () => {
   });
 
   test("holds no stylesheet to the script's limit", () => {
-    expect(run([gate, bundleOf('const quiet = 1;', { css: `.a{content:'${'0'.repeat(scriptLimit)}'}` })]).status).toBe(0);
+    expect(gateOf(bundleOf('const quiet = 1;', { css: `.a{content:'${'0'.repeat(scriptLimit)}'}` })).status).toBe(0);
   });
 
   test("passes minified React's `{node:n}` object key, which is not a specifier", () => {
-    expect(run([gate, bundleOf('const x = {node:n};')]).status).toBe(0);
+    expect(gateOf(bundleOf('const x = {node:n};')).status).toBe(0);
   });
 
   test('fails when there is no build to check', () => {

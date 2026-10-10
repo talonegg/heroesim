@@ -1309,8 +1309,9 @@ function historyTurnOrder({ world, history }: WorldDocument, from: number): Vali
 
 /**
  * An entry holds what its type requires where the shape, which reads any payload, cannot say it
- * (DL-246): a Guild's founding names its founding Wealth (DL-120 item 4), and an entry of a cause a
- * Quest's return makes names the Quest (`questCauses`, DL-112 item 2).
+ * (DL-246): a Guild's founding names its founding Wealth (DL-120 item 4), an entry of a cause a
+ * Quest's return makes names the Quest (`questCauses`, DL-112 item 2), and an Encounter's names its
+ * Degree, the Check that decided it and its Checks rolled (DL-152, DL-247).
  */
 function entryFieldMissing({ history }: WorldDocument, from: number): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
@@ -1324,6 +1325,9 @@ function entryFieldMissing({ history }: WorldDocument, from: number): Validation
     const causes: readonly string[] | undefined = rowOf(questCauses, entry.type);
     if (causes?.includes(payload.cause as string) === true && typeof payload.questId !== 'string') {
       failures.push({ check: 'entry-field-missing', id, detail: `${id} is caused by ${q(payload.cause)}, a Quest's return, and names no Quest` });
+    }
+    if (entry.type === 'quest.encounter' && (typeof payload.degree !== 'string' || typeof payload.decidedBy !== 'string' || !Array.isArray(payload.checks))) {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} records an Encounter and names no Degree, deciding Check or Checks rolled` });
     }
   }
   return failures;

@@ -48,11 +48,12 @@ describe('the Class icons', () => {
     expect(svg?.getAttribute('fill')).toBe('none');
     expect(svg?.querySelectorAll('path').length).toBeGreaterThan(0);
     expect(container.innerHTML).not.toMatch(/href|url\(/);
+    // No colour written in a drawing: the strokes are the text colour.
+    expect(container.innerHTML).not.toMatch(/#[0-9a-f]{3,6}|rgb|hsl/i);
   });
 
   test('a Class with none shows the plain mark, and each name another drawing', () => {
     const plain = render(<ClassMark icon={null} className="Rogue" />).container.innerHTML;
-    expect(plain).toContain('M12 4l8 8-8 8-8-8z');
     for (const icon of classIcons) expect(render(<ClassMark icon={icon} className="Rogue" />).container.innerHTML).not.toBe(plain);
   });
 });

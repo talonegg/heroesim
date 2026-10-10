@@ -1,15 +1,17 @@
 // Games in a given state, for the page's tests (DL-73). Tests outside `state/` take
 // only types from the engine, so the setups that need its values live here:
-// a Transfer Offer standing, rules behind this release's, Items held, Wealth, Heroes dead, retired
-// and gone from the world (DL-74); the Roster released, and a Party out, for fast forward's steps
-// (DL-96). Never imported by the page, so never bundled.
+// a Transfer Offer standing, rules behind this release's, Items held, Wealth, Heroes dead and
+// retired (DL-74); the Roster released, and a Party out, for fast forward's steps (DL-96); and the
+// helpers the state tests share. Never imported by the page, so never bundled.
 
 import {
   bestParties,
   addStack,
+  advance,
   applyAction,
   availableHeroes,
   configVersion,
+  createWorld,
   dayOf,
   defaultConfig,
   durationDaysOf,
@@ -40,9 +42,11 @@ import {
   type RegardBand,
   type Resolution,
   type SlotKey,
+  type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
 import { append, createItem, playReturnNight, xpForLevel } from '@heroesim/engine/testing';
+import { expect } from 'vitest';
 import { content } from '../content';
 import { gameReducer, initialGameState, playDeps, type GameState, type Play } from './reducer';
 
@@ -64,15 +68,49 @@ export function started(seed = 'app-test'): GameState {
   });
 }
 
-function documentOf(state: GameState): WorldDocument {
+/** The game in hand's document; a test with no game in hand fails here. */
+export function documentOf(state: GameState): WorldDocument {
   if (state.document === null) throw new Error('no game in hand');
   return state.document;
 }
 
-function playerOf(document: WorldDocument): Guild {
+/** The player's Guild in `document`. */
+export function playerOf(document: WorldDocument): Guild {
   const guild = playerGuild(document.world);
   if (guild === undefined) throw new Error("no player's Guild");
   return guild;
+}
+
+/** An entity id, which a sentence the player reads never shows: the player types none (DL-65 item 6). */
+export const anId = /\b(guild|guildmaster|hero|patron|quest|party|offer|item|stack)-\d{6}\b/i;
+
+/** What a line of narration in the page must be: one line, a full stop, no id, nothing left unfilled. */
+export function expectASentence(line: string): void {
+  expect(line).toMatch(/^[A-Z0-9].*\.$/);
+  expect(line).not.toContain('\n');
+  expect(line).not.toMatch(/undefined|null|NaN|\[object/);
+  expect(line).not.toMatch(anId);
+}
+
+/** The new game's setup the page's tests found: The Lantern, led by Ada Vell. */
+export const newGameSetup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' };
+
+/** A new game's document from `seed`, as the engine creates it under the default rules and the page's content. */
+export function newDocument(seed: string): WorldDocument {
+  return createWorld(seed, newGameSetup, { config: defaultConfig, content }).document;
+}
+
+/** A new game from `seed` played `turns` Turns by the engine's `advance`, and the events of the last of them. */
+export function playedDocument(seed: string, turns: number): { document: WorldDocument; log: TurnEvent[] } {
+  const deps = { config: defaultConfig, content };
+  let document = newDocument(seed);
+  let log: TurnEvent[] = [];
+  for (let turn = 0; turn < turns; turn += 1) {
+    const result = advance(document, deps);
+    document = result.document;
+    log = result.events;
+  }
+  return { document, log };
 }
 
 /** `state` with its world changed by `change` on a copy: the document the page holds is never written to. */
@@ -116,6 +154,28 @@ export function selling(state: GameState, stock: Readonly<Record<string, number>
     for (const stack of holdings(document.world, { kind: 'market' }).stacks) delete document.world.stacks[stack.id];
     for (const [key, quantity] of Object.entries(stock)) addStack(document.world, key as ItemDefinitionKey, quantity, { kind: 'market' });
   });
+}
+
+/**
+ * `state` with `purchases` Whetstones bought at the Market one at a time, then `sales` of them sold one at
+ * a time, each a row of the player's ledger, a purchase an expense and a sale an income: the rows a
+ * ledger pages by, with no Turn played. The Guild is given the Wealth to buy them.
+ */
+export function withTrades(state: GameState, purchases: number, sales = 0): GameState {
+  const taken = (at: GameState, action: Play): GameState => {
+    const after = played(at, action);
+    if (after.rejection !== null) throw new Error(`${action.kind} refused: ${after.rejection.reason}`);
+    return after;
+  };
+  let next = selling(withWealth(state, 100_000), { whetstone: purchases });
+  for (let bought = 0; bought < purchases; bought += 1) next = taken(next, { kind: 'buy', definitionKey: 'whetstone', quantity: 1 });
+  for (let sold = 0; sold < sales; sold += 1) {
+    const document = documentOf(next);
+    const [stack] = holdings(document.world, { kind: 'guild', id: playerOf(document).id }).stacks.filter((each) => each.definitionKey === 'whetstone');
+    if (stack === undefined) throw new Error('no Whetstone to sell');
+    next = taken(next, { kind: 'sell', stackId: stack.id, quantity: 1 });
+  }
+  return next;
 }
 
 /**
@@ -240,8 +300,8 @@ export interface ReturnTold {
   fame?: number;
   xp?: number;
   /**
-   * The Encounters, each written as before the Degree (DL-152), with no Degree, unless it is told one: then as
-   * since, decided by its one Check; form decided it, and so the Encounter, when it is told so.
+   * The Encounters, each decided by its Encounter's first Check, at the Degree it is told or, told none, a
+   * Success or a Failure as its outcome (DL-152, DL-247); form decided it, and so the Encounter, when it is told so.
    */
   encounters?: readonly {
     encounterKey?: string;
@@ -359,14 +419,14 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
   });
 
   const encounterKeyOf = (key: string | undefined): string => key ?? Object.keys(content.encounters)[0] ?? '';
-  const encounters = (told.encounters ?? []).map(({ encounterKey, outcome, degree, formDecided, injured = [], died = [] }, index): EncounterResult => {
+  const encounters = (told.encounters ?? []).map(({ encounterKey, outcome, degree = outcome, formDecided, injured = [], died = [] }, index): EncounterResult => {
     const key = encounterKeyOf(encounterKey);
     const rolled = { roll: 10, target: 10, margin: 0 };
-    // Decided by the Encounter's first Check, as the resolver names it; an Encounter told no Degree is
-    // one written before the Degree (DL-152), with none.
+    // Decided by the Encounter's first Check, as the resolver names it.
     const decidedBy = content.encounters[key]?.checks[0]?.key ?? key;
-    const degreed = degree === undefined ? {} : { degree, decidedBy, ...(formDecided === undefined ? {} : { formDecided }), checks: [{ key: decidedBy, capability: 10, ...rolled, degree, ...(formDecided === undefined ? {} : { formDecided }) }] };
-    return { index, encounterKey: key, kind: 'combat', ...rolled, outcome, ...degreed, injured: injured.map(hero), died: died.map(hero) } as EncounterResult;
+    const formed = formDecided === undefined ? {} : { formDecided };
+    const checks = [{ key: decidedBy, capability: 10, ...rolled, degree, ...formed }];
+    return { index, encounterKey: key, kind: 'combat', ...rolled, outcome, degree, decidedBy, ...formed, checks, injured: injured.map(hero), died: died.map(hero) };
   });
   const survivors = heroIds.filter((heroId) => !deaths.includes(heroId));
   const moraleByHero: Record<HeroId, number> = {};
@@ -471,34 +531,24 @@ export interface Named {
 
 /**
  * `state` with the player's first Hero dead and second retired, each off the Roster as the engine
- * leaves them, and a Hero of the Unattached pool gone from the world, whose History alone remains,
- * as it does for a Hero who left the pool: the Heroes the page opens from no Roster and no pool.
+ * leaves them: the Heroes the page opens from no Roster and no pool. A Hero gone from the world is
+ * none a current game holds: the engine deletes only a Hero no entry names (DL-211).
  */
-export function withTheGone(state: GameState): { state: GameState; dead: Named; retired: Named; gone: Named } {
+export function withTheGone(state: GameState): { state: GameState; dead: Named; retired: Named } {
   let dead: Named | undefined;
   let retired: Named | undefined;
-  let gone: Named | undefined;
   const next = changed(state, (document, player) => {
     const { world } = document;
     const [deadId, retiredId] = player.rosterIds;
     const deadHero = deadId === undefined ? undefined : world.heroes[deadId];
     const retiredHero = retiredId === undefined ? undefined : world.heroes[retiredId];
-    const poolHero = Object.values(world.heroes).find((hero) => hero.unattachedSince !== null);
-    if (deadHero === undefined || retiredHero === undefined || poolHero === undefined) throw new Error('expected two Heroes and a pool');
+    if (deadHero === undefined || retiredHero === undefined) throw new Error('expected two Heroes');
     deadHero.diedOnTurn = world.turn;
     retiredHero.retiredOnTurn = world.turn;
     player.rosterIds = player.rosterIds.filter((id) => id !== deadHero.id && id !== retiredHero.id);
-    // Gone from the world as a save made before DL-211 holds a pool Hero who left: named by their
-    // arrival and leaving alone, which the engine records for no Hero never hired (DL-211).
-    const { id, name, classKey } = poolHero;
-    const labels = { [id]: name };
-    append(document.history, { turn: world.turn, type: 'hero.generated', participants: [id], labels, milestone: false, payload: { heroId: id, guildId: null, classKey } });
-    append(document.history, { turn: world.turn, type: 'hero.left-pool', participants: [id], labels, milestone: false, payload: { heroId: id } });
-    delete world.heroes[poolHero.id];
     dead = { id: deadHero.id, name: deadHero.name };
     retired = { id: retiredHero.id, name: retiredHero.name };
-    gone = { id: poolHero.id, name: poolHero.name };
   });
-  if (dead === undefined || retired === undefined || gone === undefined) throw new Error('unreachable');
-  return { state: next, dead, retired, gone };
+  if (dead === undefined || retired === undefined) throw new Error('unreachable');
+  return { state: next, dead, retired };
 }

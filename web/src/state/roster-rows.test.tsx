@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
 import { rosterList, section } from '../views/page.test-support';
-import { played, started } from './game.test-support';
+import { documentOf, played, started } from './game.test-support';
 import type * as Selectors from './selectors';
 import { rosterRows, rosterSortChoices, sortedRoster } from './selectors';
 
@@ -31,12 +31,6 @@ beforeEach(() => {
 });
 
 afterEach(cleanup);
-
-/** The game's document. */
-function documentOf(state: ReturnType<typeof started>): Engine.WorldDocument {
-  if (state.document === null) throw new Error('no game');
-  return state.document;
-}
 
 describe("the Roster's rows, built once for a document", () => {
   test('are the same rows for the same document, built once, and new rows for a new one', () => {

@@ -35,10 +35,6 @@ describe('the bundled content set', () => {
 describe('the content gate', () => {
   const contentDir = path.join(import.meta.dirname, '..', '..', 'content');
 
-  test('passes the content the page bundles', async () => {
-    await expect(validateContentDir(contentDir)).resolves.toBeUndefined();
-  });
-
   test("fails the build on content the checks refuse, which the page's reader alone would take", async () => {
     const scratch = await mkdtemp(path.join(tmpdir(), 'heroesim-gate-'));
     try {

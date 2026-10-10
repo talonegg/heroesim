@@ -1,8 +1,9 @@
 // @vitest-environment node
-import { createWorld, defaultConfig, guildmasterOf, playerGuild, type Guild, type Hero, type WorldDocument } from '@heroesim/engine';
+import { defaultConfig, guildmasterOf, type Hero, type WorldDocument } from '@heroesim/engine';
 import { heroReading } from '@heroesim/words';
 import { describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
+import { newDocument, playerOf } from './game.test-support';
 import { readingOf } from './reading';
 import { headerView, heroPage } from './selectors';
 
@@ -22,17 +23,11 @@ vi.mock('@heroesim/engine', async (importOriginal) => {
   };
 });
 
-const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' };
-
-function newGame(seed = 'reading'): WorldDocument {
-  return structuredClone(createWorld(seed, setup, { config: defaultConfig, content }).document);
-}
-
 describe("the player's reading", () => {
   test("reads the document through the player's Guild and Guildmaster, under the rules it plays under and the page's content", () => {
-    const document = newGame();
+    const document = structuredClone(newDocument('reading'));
     const reading = readingOf(document);
-    const guild = playerGuild(document.world) as Guild;
+    const guild = playerOf(document);
 
     expect(reading.guild).toBe(guild);
     expect(reading.guildmaster).toBe(guildmasterOf(guild, document.world));
@@ -42,7 +37,7 @@ describe("the player's reading", () => {
   });
 
   test('is derived once a document, and its config checked once a config, however many selectors read it', () => {
-    const document = newGame('reading-once');
+    const document = structuredClone(newDocument('reading-once'));
     checked.times = 0;
 
     const reading = readingOf(document);
@@ -58,7 +53,7 @@ describe("the player's reading", () => {
   });
 
   test('is read afresh for a document given other rules or another world', () => {
-    const document = newGame('reading-afresh');
+    const document = structuredClone(newDocument('reading-afresh'));
     const before = readingOf(document);
 
     document.meta.config = { ...document.meta.config, turnsPerYear: 21 };
@@ -71,8 +66,8 @@ describe("the player's reading", () => {
   });
 
   test("takes a test's own content or config, and keeps neither as the document's own", () => {
-    const document = newGame('reading-given');
-    const hero = document.world.heroes[(playerGuild(document.world) as Guild).rosterIds[0] as Hero['id']] as Hero;
+    const document = structuredClone(newDocument('reading-given'));
+    const hero = document.world.heroes[(playerOf(document)).rosterIds[0] as Hero['id']] as Hero;
     const own = readingOf(document);
     const renamed = { ...content, classes: { ...content.classes, [hero.classKey]: { ...content.classes[hero.classKey], name: 'Hedge knight' } } } as typeof content;
 

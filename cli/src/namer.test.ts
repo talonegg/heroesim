@@ -111,6 +111,9 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     target: 18,
     margin: -3.5,
     outcome: 'failure',
+    degree: 'failure',
+    decidedBy: 'steel',
+    checks: [{ key: 'steel', capability: 15, roll: 14.5, target: 18, margin: -3.5, degree: 'failure' }],
     injured: [heroId],
     died: [],
   }),
@@ -317,12 +320,8 @@ describe('narrateLine', () => {
     const withSynergies = { ...samples['quest.resolved'], payload: { ...samples['quest.resolved'].payload, synergyKeys: ['shield-wall', 'sword-and-salve'] } };
     expect(narrateLine(withSynergies, content, calendar)).toMatch(/and failed: Wealth 0, Fame -2\. Synergies: Shield wall, Sword and salve\.$/);
     expect(narrateLine({ ...withSynergies, payload: { ...withSynergies.payload, synergyKeys: [] } }, content, calendar)).toMatch(/Fame -2\.$/);
-    // The sample is an entry written before an Encounter's Degree: it reads as its outcome, a Failure or a Success.
     expect(narrateLine(samples['quest.encounter'], content, calendar)).toBe(
-      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Failure: Brenna Ashcombe (hero-000007) was injured.`,
-    );
-    expect(narrateLine({ ...samples['quest.encounter'], payload: { ...samples['quest.encounter'].payload, outcome: 'success', injured: [] } }, content, calendar)).toBe(
-      `party-000004 came through ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Success.`,
+      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Failure, decided by ${content.encounters['ambush-on-the-road']?.checks[0]?.name}: Brenna Ashcombe (hero-000007) was injured.`,
     );
     expect(narrateLine(samples['guild.improved'], content, calendar)).toBe(
       `The Kestrel Guild built ${content.improvements['training-yard-2']?.name} for 500 Wealth: its training yard is now grade 2.`,
@@ -394,10 +393,6 @@ describe('narrateLine', () => {
     // A Check form moved across the Success line, in an Encounter it did not decide: no sentence.
     const other: CheckRoll = { key: 'other', ...roll, degree: 'success', formDecided: 'raised' };
     expect(line({ ...base, checks: [other, front] })).toBe(plain);
-    // An entry written before the Degree and form were recorded has no such sentence.
-    const older = { ...base };
-    Reflect.deleteProperty(older, 'checks');
-    expect(line(older)).not.toMatch(/spirits/);
     for (const sentence of ['Low spirits told against them.', 'Their high spirits carried them through.']) {
       expect(sentence).not.toMatch(/Brenna|hero-/);
     }

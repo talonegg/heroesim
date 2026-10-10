@@ -1152,3 +1152,70 @@ weighed 1.1 at neutral, which B-8 caught and one Board does not, so the two exac
 200 Boards (red from 1.02); the engine's coverage run for run against `3f6cd99` the same, 95.86% of
 branches, the new guard alone uncovered; 17 shrink mutants red or green as the full-size test was, but
 two the 12-Turn year never met, a stop and a firing, so the probe there stops and fires within it.
+
+## DL-247 — v1.1.9-S13 built: the page's tests pruned, on the owner's batch
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, approving the page's batch
+(`prune-web.md`) on 2026-10-10, all as recommended but two items answered after their impact was
+explained; the application by the agents (Sonnet the mechanical lines, Opus the rest)
+
+**Context.** DL-231 item 4 prunes each package as one batch the owner approves. The page's list held
+the lead's sections A–E and three slices (state, views, top-level), with kind, evidence, subsuming
+test and verdict, and ten questions.
+
+**Decision.**
+
+1. **The answers.**
+   1. The narration's variants (A): `words/src/narrate.test.ts` holds W1–W14, each a literal
+      sentence with its slots, rule 9's Level (W13) moved, not lost; then the page's copies go, one
+      sentence end to end kept (`quest.taken`, as text and as segments). The CLI's copies are S14's.
+   2. Refusals (A.4): the page's 85-row table stays this release; the six within-file removals go
+      against it.
+   3. An Encounter's entry with no Degree (state O1, views O3): the tests keep the rows with a
+      Degree, and `degree`, `decidedBy` and `checks` are required on `quest.encounter`: the type,
+      the validator (`entry-field-missing`), a test that an entry missing any of them is refused,
+      and `encounterDegree`'s fallback removed, its two readers reading the field. No schema raise.
+   4. `withTheGone`'s Hero gone from the world (state O2): dropped in every file; dead and retired
+      stay with every check.
+   5. A blank appearance (world-views O3, views/guildmaster): the tests stay, their "older save"
+      comments say what is true now.
+   6. Availability's invariant: 730 Turns to 180, both premises still met.
+   7. The bundle gate in this process: `check-bundle.mjs` exports `scanBundle` and `checkBundle`,
+      its command line unchanged; the pattern rows ask it in the test's process, the real build, the
+      size message and exit code and the missing build still spawn it.
+   8. Content pins: Classes, picture counts and the Stat lists by area read from content.
+   9. The Item and Trait effect words (T13) stay.
+   10. `app.test.tsx`'s two walks split by where each region is drawn: 9 cases and 12 cases, the
+       30 s limit gone.
+2. **The rest as listed.** Removed: 57 tests (and five table rows), each named with its subsuming test in the
+   scratchpad's `s13-removals.md`. Shrunk: about 40. Rewritten: about 43. Moved into
+   `words`: 14 rows. The 10,000 Turns cut by one helper, `withTrades`, a ledger of purchases and
+   sales with no Turn played, for the three treasury tests; the treasury ledger one seed of two
+   Years, the reducer's year on the game's own 90-Turn year, and the shared games (history's,
+   hero-page's, saves') played once and only read (ADR-0008). Helpers once: `documentOf`,
+   `playerOf`, `newDocument`, `playedDocument`, `expectASentence`, `anId` in
+   `state/game.test-support.ts`; `idle`, `views`, `renderGame`, `startNewGame`, `refuseStorage`,
+   `described`, `wealth`, `openFirstHero` in `views/page.test-support.ts`.
+3. **S12's carried line.** C-16, the transfer lock, held for 2 Days in its test, not 30.
+
+*Judgement calls, for the owner to see:*
+- **Sentences that now name the deciding Check.** With `degree` required, `withReturn` writes an
+  Encounter told no Degree at its outcome's Degree, decided by its first Check, as the resolver
+  names it; the narration then says ", decided by Steel" for an Ambush on the road. Three tests that
+  read an entry with no Degree as its outcome say it now: `quest-return.test.ts`'s "a failure with
+  an Injury", and the words and CLI samples' sentence; the CLI's two lines of the old reading went.
+- **`history.ts`'s "Hero, no longer in the world"** stays in the code, as answer 4 said, uncovered.
+- **Removed beside the list:** treasury's describe-level `categoriesShown` and the reducer's year
+  timeouts and their comments, all left without a user.
+- **H4 settled as one shape.** The narration's `expectASentence` is shared by namer and stops;
+  refusals keep their own (a refusal may quote), reading the shared `anId` with `/i`.
+- **A view takes no engine value** (DL-73): new-game's Stat words read the page's own setup
+  (`statsWords`), which the imports rule caught in the first run.
+- **Story ids in the page's tests:** none left before this batch (`3c798f3`); the baseline moves
+  only for the production lines rewritten here.
+
+**Consequences.** A save whose Encounter entry lacks its Degree, deciding Check or Checks is refused
+as invalid. `npm test` builds the page twice, not three times. The page's tests no longer re-pin the
+narration `words` holds.
+
+**Evidence.** The page alone (`--project web`), before at `6d40440` and after: 1,583 tests, 296.9 s tests' time, 29.6 s wall → 1,383 tests, 231.0 s, 25.6 s. Coverage, S1 → after: the page's lines 98.0% → 97.8%, branches 87.4% → 88.2%, functions 97.8% → 97.5%, statements 96.4% → 96.1%; newly uncovered: the gone-Hero guard (`history.ts` :698, answer 4), the History's "Newer" handler, `advance`'s refusal of a Turn count not whole in the reducer and one Namer lambda, each for the verifier to trace; `words` 97.4% → 98.1% of lines. `npm test` passes; lint, typecheck clean; `neutral --expect` identical, alone (`v1.1.9-s13-neutral`); the doctor no drift before and after. The story-id baseline falls to 1,615. Planted: the validator's new check switched off, the refusal test red.

@@ -85,19 +85,6 @@ describe('useGame', () => {
     expect(result.current[0].stoppedBecause).not.toBeNull();
   });
 
-  test('a tap after the first has settled is taken', async () => {
-    const { result } = await startedGame();
-    const before = result.current[0];
-
-    act(() => result.current[1]({ kind: 'advance' }));
-    await waitFor(() => expect(result.current[0].busy).toBe(false));
-    act(() => result.current[1]({ kind: 'advance' }));
-    await waitFor(() => expect(result.current[0].busy).toBe(false));
-
-    expect(advance).toHaveBeenCalledTimes(2);
-    expect(turnOf(result.current[0])).toBe(turnOf(before) + 2);
-  });
-
   // Each of these plays steps of the real engine, each after a paint: under the whole suite's load,
   // longer than waitFor's second and the default 5 s (DL-164).
   test('a fast forward is steps of at most 30 Turns, each settled after the step before it is rendered', { timeout: 30_000 }, async () => {
@@ -110,15 +97,15 @@ describe('useGame', () => {
       return engine.fastForward(...args);
     });
     try {
-      act(() => result.current[1]({ kind: 'fastForward', until: [], maxTurns: 5 * fastForwardStepTurns }));
+      act(() => result.current[1]({ kind: 'fastForward', until: [], maxTurns: 3 * fastForwardStepTurns }));
       expect(result.current[0]).toMatchObject({ busy: true, forwarding: null });
       expect(fastForward).not.toHaveBeenCalled();
 
-      // Five steps of the real engine, each after a paint: longer than waitFor's second under load.
+      // Three steps of the real engine, each after a paint: longer than waitFor's second under load.
       await waitFor(() => expect(result.current[0].busy).toBe(false), { timeout: 20_000 });
 
-      expect(vi.mocked(fastForward).mock.calls.map(([, options]) => options.maxTurns)).toEqual([30, 30, 30, 30, 30]);
-      expect(rendered).toEqual([null, 30, 60, 90, 120]);
+      expect(vi.mocked(fastForward).mock.calls.map(([, options]) => options.maxTurns)).toEqual([30, 30, 30]);
+      expect(rendered).toEqual([null, 30, 60]);
       expect(result.current[0]).toMatchObject({ forwarding: null, stoppedBecause: { kind: 'max-turns' } });
     } finally {
       vi.mocked(fastForward).mockImplementation(engine.fastForward);
@@ -156,12 +143,12 @@ describe('useGame', () => {
     try {
       act(() => {
         result.current[1]({ kind: 'stop' });
-        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 4 * fastForwardStepTurns });
+        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 3 * fastForwardStepTurns });
       });
-      // Four steps of the real engine, each after a paint, as above.
+      // Three steps of the real engine, each after a paint, as above.
       await waitFor(() => expect(result.current[0].busy).toBe(false), { timeout: 20_000 });
 
-      expect(rendered).toEqual([null, 30, 60, 90]);
+      expect(rendered).toEqual([null, 30, 60]);
     } finally {
       vi.mocked(fastForward).mockImplementation(engine.fastForward);
     }
@@ -188,12 +175,12 @@ describe('useGame', () => {
     try {
       act(() => {
         result.current[1]({ kind: 'stop' });
-        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 4 * fastForwardStepTurns });
+        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 3 * fastForwardStepTurns });
       });
-      // Four steps of the real engine, each after a paint, as above.
+      // Three steps of the real engine, each after a paint, as above.
       await waitFor(() => expect(result.current[0].busy).toBe(false), { timeout: 20_000 });
 
-      expect(rendered).toEqual([null, 30, 60, 90]);
+      expect(rendered).toEqual([null, 30, 60]);
     } finally {
       vi.mocked(fastForward).mockImplementation(engine.fastForward);
     }

@@ -1,9 +1,9 @@
-import type { GuildId, Sex, WorldDocument } from '@heroesim/engine';
+import type { GuildId, Sex } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
 import { mediaFiles, neutralSilhouette } from '../media';
-import { carryingUnique, changed, holding, holdingUnique, started } from '../state/game.test-support';
+import { carryingUnique, changed, documentOf, holding, holdingUnique, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { openView, rosterList, section } from './page.test-support';
 import { GuildBanner, ItemPicture, Portrait, PortraitThumb, PortraitThumbnail } from './pictures';
@@ -238,11 +238,6 @@ test('a Unique Item with no picture is the chest', () => {
 });
 
 // ── Where each picture goes (DL-125 items 2, 7 and 8) ───────────────────────────────────────
-
-function documentOf(state: GameState): WorldDocument {
-  if (state.document === null) throw new Error('no game in hand');
-  return state.document;
-}
 
 /**
  * The player's Guildmaster, of `sex`, and with `portraitKey` as a save of schema 5 holds it:

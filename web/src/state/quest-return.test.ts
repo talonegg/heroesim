@@ -11,7 +11,7 @@ import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { cameHome, changed, partyOut, played, started, withPartyOut, withReturn, withWealth, type Written } from './game.test-support';
+import { cameHome, changed, documentOf, partyOut, played, started, withPartyOut, withReturn, withWealth, type Written } from './game.test-support';
 import { historyFilter } from './history';
 import { partOfAReturn } from './history-reader';
 import { narrateSegments, narrateText, narrationFor, textOf } from './namer';
@@ -36,20 +36,18 @@ vi.mock('./reducer', async (importOriginal) => {
 
 const base = withPartyOut(started('quest-return'));
 
-function documentOf(written: Written): WorldDocument {
-  if (written.state.document === null) throw new Error('no game in hand');
-  return written.state.document;
-}
+// A Party home from its Quest, one game the tests below read and none plays on or writes to (ADR-0008).
+const cameHomeState = cameHome(started('reducer-test'));
 
 /** The return written, read back. */
 function read(written: Written): QuestReturn {
-  const found = questReturn(documentOf(written), { partyId: written.party.partyId, questId: written.party.questId });
+  const found = questReturn(documentOf(written.state), { partyId: written.party.partyId, questId: written.party.questId });
   if (found === null) throw new Error('no return read');
   return found;
 }
 
 function nameOf(written: Written, heroId: string): string {
-  return documentOf(written).world.heroes[heroId as never]?.name ?? '';
+  return documentOf(written.state).world.heroes[heroId as never]?.name ?? '';
 }
 
 describe('questReturn', () => {
@@ -65,7 +63,7 @@ describe('questReturn', () => {
     });
     const { party } = written;
     const report = read(written);
-    const document = documentOf(written);
+    const document = documentOf(written.state);
 
     expect(report.quest).toBe(content.questTemplates[party.templateKey]?.name);
     expect(report.patron).toEqual({ patronId: party.patronId, name: document.world.patrons[party.patronId]?.name });
@@ -109,8 +107,8 @@ describe('questReturn', () => {
       fame: -2,
       xp: 10,
       encounters: [
-        { encounterKey: 'ambush-on-the-road', outcome: 'success' },
-        { encounterKey: 'ambush-on-the-road', outcome: 'failure', injured: [1] },
+        { encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'success' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'failure', degree: 'failure', injured: [1] },
       ],
       used: [{ definitionKey: 'whetstone', encounterIndex: 1 }],
       injuries: [{ hero: 1, typeKey: 'broken-arm', healsOnTurn: heals }],
@@ -125,13 +123,14 @@ describe('questReturn', () => {
     expect(report.band).toBe('fail');
     expect(report.bandWords).toBe('Failure');
     expect(report.reward).toEqual({ wealth: 0, fame: -2, xp: 10 });
-    // Written as before Degrees (DL-152), with no Degree: each reads as its outcome, a Success or a Failure.
+    // Each at its Degree, decided by the Encounter's first Check, as withReturn writes it (DL-152, DL-247).
+    const decider = content.encounters['ambush-on-the-road']?.checks[0]?.name;
     expect(report.encounters.map((encounter) => [encounter.outcome, encounter.degree, encounter.sentence, encounter.used.map((used) => used.sentence)])).toEqual([
-      ['success', 'success', "The Lantern's Party came through Ambush on the road (Encounter 1), a Success.", []],
+      ['success', 'success', `The Lantern's Party came through Ambush on the road (Encounter 1), a Success, decided by ${decider}.`, []],
       [
         'failure',
         'failure',
-        `The Lantern's Party failed at Ambush on the road (Encounter 2), a Failure: ${second} was injured.`,
+        `The Lantern's Party failed at Ambush on the road (Encounter 2), a Failure, decided by ${decider}: ${second} was injured.`,
         ["The Lantern's Party used one Whetstone on Encounter 2: +2 to its Check."],
       ],
     ]);
@@ -139,8 +138,8 @@ describe('questReturn', () => {
     const [one, two] = report.outcomes;
     expect(one?.words).toEqual(['gained 10 XP', 'Morale went from 50 to 44, steady']);
     expect(one?.injury).toBeNull();
-    expect(two?.injury).toEqual({ name: 'Broken arm', heals: nightOfTurn(heals, documentOf(written).meta.config) });
-    expect(two?.words).toEqual(['gained 10 XP', 'Morale went from 52 to 46, steady', `injured: Broken arm, healing on ${nightOfTurn(heals, documentOf(written).meta.config)}`]);
+    expect(two?.injury).toEqual({ name: 'Broken arm', heals: nightOfTurn(heals, documentOf(written.state).meta.config) });
+    expect(two?.words).toEqual(['gained 10 XP', 'Morale went from 52 to 46, steady', `injured: Broken arm, healing on ${nightOfTurn(heals, documentOf(written.state).meta.config)}`]);
     expect(first).not.toBe('');
   });
 
@@ -307,7 +306,7 @@ describe('questReturn', () => {
   });
 
   test('a return the engine played: every part is its History’s, read by the Quest', () => {
-    const home = cameHome(started('reducer-test'));
+    const home = cameHomeState;
     const document = home.document as WorldDocument;
     const outcome = home.log.find((event): event is EngineEventOf<'quest.resolved'> => event.type === 'quest.resolved' && event.participants.includes(playerGuild(document.world)?.id as never));
     if (outcome === undefined) throw new Error('no return in the last play');
@@ -361,7 +360,7 @@ describe('the return’s entry (DL-111 item 2)', () => {
       loot: [{ definitionKey: 'whetstone', quantity: 2 }],
       morale: partyOut(base).heroIds.map((_, hero) => ({ hero, cause: 'strong-success' as const, before: 60, after: 65, bandAfter: 'steady' as const })),
     });
-    const document = documentOf(written);
+    const document = documentOf(written.state);
     const key = { partyId: written.party.partyId, questId: written.party.questId };
     const entry = returnEntry(document, key);
     const outcome = document.history.entries.find((each) => each.type === 'quest.resolved' && (each.payload as { partyId: string }).partyId === key.partyId);
@@ -392,11 +391,11 @@ describe('the entry reads its Hero lines without building the whole report (DL-1
     const narrated = vi.mocked(narrateSegments);
 
     narrated.mockClear();
-    const report = questReturn(documentOf(written), key);
+    const report = questReturn(documentOf(written.state), key);
     expect(narrated.mock.calls.length).toBeGreaterThan(0);
 
     narrated.mockClear();
-    const entry = returnEntry(documentOf(written), key);
+    const entry = returnEntry(documentOf(written.state), key);
     expect(narrated.mock.calls).toHaveLength(0);
     expect(entry?.heroes.map((hero) => hero.sentence)).toEqual(report?.outcomes.map((outcome) => `${outcome.name}: ${outcome.words.join('; ')}.`));
   });
@@ -414,7 +413,7 @@ describe('the entry reads its Hero lines without building the whole report (DL-1
     const calendars = vi.mocked(calendarFor);
 
     calendars.mockClear();
-    const entry = returnEntry(documentOf(written), key);
+    const entry = returnEntry(documentOf(written.state), key);
     expect(entry?.heroes.filter((hero) => hero.sentence.includes('healing on'))).toHaveLength(2);
     expect(calendars).toHaveBeenCalledTimes(1);
   });
@@ -433,7 +432,7 @@ describe('a Trait earned on the Quest (DL-148 items 25 and 27)', () => {
     expect(second?.words).toContain(`earned the Trait ${content.heroTraits['one-eyed']?.name}`);
     expect(first?.trait).toBeNull();
 
-    const after = documentOf(written);
+    const after = documentOf(written.state);
     const guild = playerGuild(after.world);
     if (guild === undefined) throw new Error("no player's Guild");
     const night = after.history.entries.filter((entry) => entry.turn === written.turn && historyFilter(after, guild.id)(entry));
@@ -462,7 +461,7 @@ describe('the player’s Guild’s History gathers a return’s parts under its 
       ],
       gear: [{ hero: 0, definitionKey: 'short-sword', slot: 'weapon' }],
     });
-    const after = documentOf(written);
+    const after = documentOf(written.state);
     const shows = historyFilter(after, guild.id);
     const night = after.history.entries.filter((entry) => entry.turn === written.turn);
     const shown = night.filter(shows).map((entry) => (entry.type === 'hero.levelled' ? `${entry.type} ${(entry.payload as { heroId: string }).heroId}` : entry.type));
@@ -477,7 +476,7 @@ describe('the player’s Guild’s History gathers a return’s parts under its 
 
 describe('returnsIn', () => {
   test("gives the player's Parties home in the last play, in the order they came home; no Rival's, and none when none came home", () => {
-    const home = cameHome(started('reducer-test'));
+    const home = cameHomeState;
     const document = home.document as WorldDocument;
     const guildId = playerGuild(document.world)?.id;
     const outcomes = home.log.filter((event): event is EngineEventOf<'quest.resolved'> => event.type === 'quest.resolved');

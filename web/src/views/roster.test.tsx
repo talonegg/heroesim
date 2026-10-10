@@ -1,10 +1,10 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
-import { App } from '../app';
+import { content } from '../content';
 import { mediaFiles } from '../media';
 import { carrying, carryingUnique, changed, holding, started, withOffer, withPartyOut, withRichRivals, withTraitNews } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { rosterList, section } from './page.test-support';
+import { idle, openFirstHero, renderGame, rosterList, section, wealth } from './page.test-support';
 import { help } from './section';
 
 // The Roster redesigned (DL-106; the review's B7, B8 and E4): compact Hero cards, a Hero's
@@ -14,17 +14,9 @@ import { help } from './section';
 
 afterEach(cleanup);
 
-async function idle(): Promise<void> {
-  await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-function render_(state: GameState): void {
-  render(<App initial={state} />);
-}
-
-function wealth(): number {
-  return Number(screen.getByTestId('wealth').textContent);
-}
+/** The Classes' names in content's declared order, the order the page lists them by (DL-186 item 24). */
+const classNames = content.classOrder.map((key) => content.classes[key]?.name ?? key);
+const anyClass = classNames.join('|');
 
 /** The Roster's cards, each a list item. */
 function cards(): HTMLElement[] {
@@ -38,19 +30,6 @@ function chip(scope: HTMLElement, words: string | RegExp): HTMLElement {
   return found;
 }
 
-/**
- * Opens the first Hero to join the Roster of `state`, the one the setups change, and gives their name
- * and page: the Roster lists by the default order (DL-169), not the order of joining.
- */
-function openFirstHero(state: GameState): { name: string; page: () => HTMLElement } {
-  const world = state.document?.world;
-  const player = Object.values(world?.guilds ?? {}).find((guild) => guild.controller.kind === 'player');
-  const first = player === undefined ? undefined : world?.heroes[player.rosterIds[0] as never];
-  if (first === undefined) throw new Error('an empty Roster');
-  fireEvent.click(within(rosterList()).getByRole('button', { name: first.name }));
-  return { name: first.name, page: () => within(section('Roster')).getByRole('article') };
-}
-
 describe("the Roster's Hero cards", () => {
   test('give each Hero their name, Class, Level and Age, a Morale chip, and where they are, injured or away by an icon and its words', () => {
     const state = changed(withPartyOut(started()), (document, player) => {
@@ -59,14 +38,14 @@ describe("the Roster's Hero cards", () => {
       hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
       hero.morale = 12;
     });
-    render_(state);
+    renderGame(state);
 
     const all = cards();
     expect(all.length).toBeGreaterThan(2);
     for (const card of all) {
       expect(within(card).getByRole('button').className).toBe('link');
       // "Age" as a label, capitalised (DL-111 item 9).
-      expect(card.textContent).toMatch(/(Warrior|Rogue|Mage|Healer) · Level \d+ · Age \d+/);
+      expect(card.textContent).toMatch(new RegExp(`(${anyClass}) · Level \\d+ · Age \\d+`));
       expect(chip(card, /^Morale \d+, (wretched|low|steady|high|elated)$/).querySelector('svg')).not.toBeNull();
     }
     const injured = all.find((card) => card.textContent?.includes('Injured, healing on the night of Year 1 Day 7') === true) as HTMLElement;
@@ -82,11 +61,11 @@ describe("the Roster's Hero cards", () => {
 describe("a Hero's page (the review's B7)", () => {
   test('is a line and chips, the Stats in four area blocks each with its Outlook as a chip, and what gear lifts in the accent', async () => {
     const held = holding(started(), 'arming-sword', 1);
-    render_(held);
+    renderGame(held);
     const { name, page } = openFirstHero(held);
     // The keyboard is on their name.
     expect(document.activeElement).toBe(within(page()).getByRole('heading', { level: 3, name }));
-    expect(within(page()).getByText(/^(Warrior|Rogue|Mage|Healer) · Level \d+ · Age \d+ · (Female|Male) · .+ · of The Lantern$/)).toBeDefined();
+    expect(within(page()).getByText(new RegExp(`^(${anyClass}) · Level \\d+ · Age \\d+ · (Female|Male) · .+ · of The Lantern$`))).toBeDefined();
     const state = within(page()).getByRole('list', { name: `${name}'s State` });
     expect(within(state).getByText(/^Morale \d+, (wretched|low|steady|high|elated)$/)).toBeDefined();
     expect(within(state).getByText('At the Hall')).toBeDefined();
@@ -123,7 +102,7 @@ describe("a Hero's page (the review's B7)", () => {
       first.traits = ['lame'];
       first.stats['dexterity'] = 12;
     });
-    render_(state);
+    renderGame(state);
     const { name, page } = openFirstHero(state);
 
     const chips = within(page()).getByRole('list', { name: `${name}'s State` });
@@ -141,7 +120,7 @@ describe("a Hero's page (the review's B7)", () => {
       if (first === undefined) throw new Error('an empty Roster');
       first.traits = ['battle-tried'];
     });
-    render_(state);
+    renderGame(state);
     const { name, page } = openFirstHero(state);
 
     const chips = within(page()).getByRole('list', { name: `${name}'s State` });
@@ -151,7 +130,7 @@ describe("a Hero's page (the review's B7)", () => {
   // A Trait earned on a Quest and one lost to another, among the Hero's Milestones.
   test('lists a Trait earned and a Trait lost among the Milestones', () => {
     const news = withTraitNews(started());
-    render_(news);
+    renderGame(news);
     const { name, page } = openFirstHero(news);
 
     const heading = within(page()).getByRole('heading', { name: 'Milestones' });
@@ -170,7 +149,7 @@ describe("a Hero's page (the review's B7)", () => {
       if (hero === undefined || second === undefined) throw new Error('two Heroes wanted');
       hero.regard[second] = { value: 8, since: 0, reason: 'test' };
     });
-    render_(state);
+    renderGame(state);
     const heroes = cards().length;
     const { name, page } = openFirstHero(state);
 
@@ -183,7 +162,7 @@ describe("a Hero's page (the review's B7)", () => {
 
   test('a Transfer out asks first, with the fee and what it costs; "Keep them" leaves the Hero where they are', () => {
     const rich = withRichRivals(started());
-    render_(rich);
+    renderGame(rich);
     const { name, page } = openFirstHero(rich);
     const before = wealth();
     const opener = within(page()).getByRole('button', { name: `Transfer ${name}…` });
@@ -216,7 +195,7 @@ describe("a Hero's page (the review's B7)", () => {
 
 describe('Transfer Offers (the review’s E4)', () => {
   test('Accept asks first, with the fee and what letting the Hero go costs; "Keep them" leaves the offer standing', () => {
-    render_(withOffer(started()));
+    renderGame(withOffer(started()));
     const offers = section('Transfer Offers');
     const accept = within(offers).getByRole('button', { name: /^Accept .+'s Offer for .+…$/ });
     const [, whose = ''] = /^Accept (.+)…$/.exec(accept.getAttribute('aria-label') ?? '') ?? [];
@@ -258,14 +237,14 @@ describe("the Unattached pool as rows (the review's B8)", () => {
       if (pooled === undefined) throw new Error('an empty pool');
       pooled.level = 4;
     });
-    render_(state);
+    renderGame(state);
     const table = within(section('Unattached pool')).getByRole('table', { name: 'Heroes in the Unattached pool' });
 
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age', 'Background', 'Fee', 'Signs', 'Recruit']);
     const all = rows();
     expect(all.length).toBeGreaterThan(3);
     for (const { name, cells: [kind, level, age, , fee, signs], row } of all) {
-      expect(kind).toMatch(/^(Warrior|Rogue|Mage|Healer)$/);
+      expect(classNames).toContain(kind);
       expect([level, age, fee].every((number) => /^\d+$/.test(number ?? ''))).toBe(true);
       expect(signs).toMatch(/^(Yes|Needs Fame \d+)$/);
       expect(row.className).toBe(signs === 'Yes' ? '' : 'is-set-back');
@@ -289,7 +268,7 @@ describe("the Unattached pool as rows (the review's B8)", () => {
       pooled.level = 4;
       name = pooled.name;
     });
-    render_(state);
+    renderGame(state);
 
     fireEvent.click(within(section('Unattached pool')).getByRole('button', { name }));
     const page = within(section('Unattached pool')).getByRole('article');
@@ -298,16 +277,15 @@ describe("the Unattached pool as rows (the review's B8)", () => {
   });
 
   test('orders its rows by Class or by fee from their headings, display only, again to the pool’s own order, and keeps the order in this browser', () => {
-    render_(started());
+    renderGame(started());
     const listed = rows().map(({ name }) => name);
     const header = (label: string): HTMLElement => within(section('Unattached pool')).getByRole('columnheader', { name: label });
 
     fireEvent.click(within(header('Class')).getByRole('button', { name: 'Order by Class' }));
     expect(header('Class').getAttribute('aria-sort')).toBe('ascending');
     const byClass = rows().map(({ cells }) => cells[0] ?? '');
-    // In the content's declared order, Warrior, Rogue, Mage, Healer, not A to Z (DL-186 item 24).
-    const declared = ['Warrior', 'Rogue', 'Mage', 'Healer'];
-    expect(byClass).toEqual([...byClass].sort((a, b) => declared.indexOf(a) - declared.indexOf(b)));
+    // In the content's declared order, not A to Z (DL-186 item 24).
+    expect(byClass).toEqual([...byClass].sort((a, b) => classNames.indexOf(a) - classNames.indexOf(b)));
 
     fireEvent.click(within(header('Fee')).getByRole('button', { name: 'Order by Fee' }));
     expect(header('Fee').getAttribute('aria-sort')).toBe('ascending');
@@ -318,7 +296,7 @@ describe("the Unattached pool as rows (the review's B8)", () => {
 
     // Kept for the next time the page opens in this browser.
     cleanup();
-    render_(started());
+    renderGame(started());
     expect(within(section('Unattached pool')).getByRole('columnheader', { name: 'Fee' }).getAttribute('aria-sort')).toBe('ascending');
 
     fireEvent.click(within(section('Unattached pool')).getByRole('button', { name: 'Order by Fee' }));
@@ -327,7 +305,7 @@ describe("the Unattached pool as rows (the review's B8)", () => {
   });
 
   test("a Hero's name opens their page in place, and back returns the keyboard to their row", () => {
-    render_(started());
+    renderGame(started());
     const [first] = rows();
     if (first === undefined) throw new Error('an empty pool');
 
@@ -339,24 +317,6 @@ describe("the Unattached pool as rows (the review's B8)", () => {
     fireEvent.click(within(page).getByRole('button', { name: 'Back to the pool' }));
     expect(document.activeElement).toBe(within(section('Unattached pool')).getByRole('button', { name: first.name }));
   });
-
-  test('a browser that refuses its storage lists the pool in its own order', () => {
-    const blocked = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      get() {
-        throw new Error('storage blocked');
-      },
-    });
-    try {
-      render_(started());
-      expect(within(section('Unattached pool')).getByRole('columnheader', { name: 'Class' }).getAttribute('aria-sort')).toBeNull();
-      fireEvent.click(within(section('Unattached pool')).getByRole('button', { name: 'Order by Class' }));
-      expect(within(section('Unattached pool')).getByRole('columnheader', { name: 'Class' }).getAttribute('aria-sort')).toBe('ascending');
-    } finally {
-      if (blocked !== undefined) Object.defineProperty(globalThis, 'localStorage', blocked);
-    }
-  });
 });
 
 // DL-169 items 6 to 11: the Roster as Tiles or a Table, its columns chosen in a panel on a
@@ -364,10 +324,14 @@ describe("the Unattached pool as rows (the review's B8)", () => {
 // step, each Hero's Traits and Items, and every choice kept in this browser, never in the save.
 
 /** The Stats as content lists them, by area: what the Table's columns follow. */
-const physical = ['Strength', 'Dexterity', 'Weaponry', 'Constitution', 'Endurance'];
-const mental = ['Intelligence', 'Knowledge', 'Perception', 'Wits', 'Courage', 'Willpower'];
-const magical = ['Arcana', 'Power', 'Spelllore', 'Spirit', 'Resistance'];
-const social = ['Leadership', 'Charisma', 'Diplomacy', 'Adaptability'];
+const statsOf = (area: string): string[] =>
+  Object.values(content.stats)
+    .filter((stat) => stat.owner === 'hero' && stat.area === area)
+    .map((stat) => stat.name);
+const physical = statsOf('physical');
+const mental = statsOf('mental');
+const magical = statsOf('magical');
+const social = statsOf('social');
 const heroColumns = ['Class', 'Level', 'Age', 'Morale', 'Where', 'Traits', 'Items'];
 
 /**
@@ -484,7 +448,7 @@ function asPhone(): () => void {
 
 describe('the Roster as Tiles or a Table (DL-169 item 6)', () => {
   test('opens in Tiles the first time, switches to the Table and back, and keeps the last choice in this browser', () => {
-    render_(started());
+    renderGame(started());
     // A choice of one, announced so (DL-206 item 27, DL-213).
     const group = within(section('Roster')).getByRole('radiogroup', { name: 'Show the Roster as' });
     expect(within(group).getByRole('radio', { name: 'Tiles' }).getAttribute('aria-checked')).toBe('true');
@@ -501,7 +465,7 @@ describe('the Roster as Tiles or a Table (DL-169 item 6)', () => {
     expect(within(section('Unattached pool')).getByRole('table', { name: 'Heroes in the Unattached pool' })).toBeDefined();
 
     cleanup();
-    render_(started());
+    renderGame(started());
     expect(rosterTable()).toBeDefined();
     showAs('Tiles');
     expect(cards()).toHaveLength(4);
@@ -510,7 +474,7 @@ describe('the Roster as Tiles or a Table (DL-169 item 6)', () => {
 
   test("the tiles add each Trait with what it does and each Item the Hero carries, its effect in a tooltip and the screen reader's words, and no Stat", () => {
     const { state, warrior } = stocked();
-    render_(changed(state, (document, player) => {
+    renderGame(changed(state, (document, player) => {
       const first = document.world.heroes[player.rosterIds[0] as never];
       if (first !== undefined) first.traits = ['lame', 'battle-tried'];
     }));
@@ -539,7 +503,7 @@ describe('the Roster as Tiles or a Table (DL-169 item 6)', () => {
 
 describe("the Roster's Table (DL-169 items 7 to 9)", () => {
   test('has Name with its thumbnail pinned, then Class, Level, Age, Morale, where the Hero is, Traits, Items and the 20 Stats', () => {
-    render_(withPartyOut(started()));
+    renderGame(withPartyOut(started()));
     showAs('Table');
 
     expect(headings()).toEqual(['Name', ...heroColumns, ...physical, ...mental, ...magical, ...social]);
@@ -549,7 +513,7 @@ describe("the Roster's Table (DL-169 items 7 to 9)", () => {
       expect(within(name).getByRole('button').className).toBe('link');
     }
     const [first] = tableNames();
-    expect(cellOf(first ?? '', 'class').textContent).toMatch(/^(Warrior|Rogue|Mage|Healer)$/);
+    expect(classNames).toContain(cellOf(first ?? '', 'class').textContent);
     expect(cellOf(first ?? '', 'level').textContent).toMatch(/^\d+$/);
     expect(cellOf(first ?? '', 'age').textContent).toMatch(/^\d+$/);
     expect(cellOf(first ?? '', 'morale').textContent).toMatch(/^\d+, (wretched|low|steady|high|elated)$/);
@@ -563,7 +527,7 @@ describe("the Roster's Table (DL-169 items 7 to 9)", () => {
 
   test("shows each Stat's effective value, raised in green with a ▲ and lowered in red with a ▼, the base and each source in its tooltip and the screen reader's words, and a net change of nothing plain", () => {
     const { state, warrior, mage } = stocked();
-    render_(state);
+    renderGame(state);
     showAs('Table');
 
     const weaponry = cellOf(warrior, 'weaponry');
@@ -593,7 +557,7 @@ describe("the Roster's Table (DL-169 items 7 to 9)", () => {
 
   test("gives the Traits and Items by name, each effect in a tooltip and the screen reader's words; None for a Hero with neither", () => {
     const { state, warrior, mage } = stocked();
-    render_(state);
+    renderGame(state);
     showAs('Table');
 
     const lame = within(cellOf(warrior, 'traits')).getByText('Lame');
@@ -610,7 +574,7 @@ describe("the Roster's Table (DL-169 items 7 to 9)", () => {
 
   test("a Hero's name opens their page in place, unchanged, and back returns the keyboard to their name in the Table", () => {
     const { state, warrior } = stocked();
-    render_(state);
+    renderGame(state);
     showAs('Table');
 
     fireEvent.click(within(rosterTable()).getByRole('button', { name: warrior }));
@@ -646,7 +610,7 @@ describe('Unique Items on the Roster (DL-182 item 4)', () => {
 
   test("on the Tiles, a Hero carrying a Unique Item shows its picture before its name in its chip, the chest's Silhouette, and their tile the gold glow; a Hero with only Common Items, or none, neither", () => {
     const { state, warrior, mage } = lit();
-    render_(state);
+    renderGame(state);
 
     const tile = tileOf(mage);
     expect(tile.className).toBe('card hero-card carries-unique');
@@ -675,19 +639,19 @@ describe('Unique Items on the Roster (DL-182 item 4)', () => {
 
   test("on the Tiles, the glow adds no words: the screen reader reads a glowing tile as it reads one without (DL-182 item 4)", () => {
     const { state, mage } = lit();
-    render_(state);
+    renderGame(state);
     const tile = tileOf(mage);
     for (const name of ['aria-label', 'aria-describedby', 'title', 'role']) expect(tile.hasAttribute(name), name).toBe(false);
     const glowing = read(tile);
     cleanup();
     // The same Hero without the Lantern: no glow, and the same words but the Item's own.
-    render_(stocked().state);
+    renderGame(stocked().state);
     expect(glowing).toBe(`${read(tileOf(mage))}The Lantern of Stannary: Perception +3, Wits +2`);
   });
 
   test("in the Table, the row of a Hero carrying a Unique Item has the gold glow and no picture, its Items cell naming the Item; the others neither; on a phone's tabs too", () => {
     const { state, warrior, mage } = lit();
-    render_(state);
+    renderGame(state);
     showAs('Table');
 
     const row = rowOf(mage);
@@ -703,7 +667,7 @@ describe('Unique Items on the Roster (DL-182 item 4)', () => {
 
     const restore = asPhone();
     try {
-      render_(state);
+      renderGame(state);
       const tabs = within(section('Roster')).getByRole('tablist', { name: 'Columns of the Table' });
       for (const tab of within(tabs).getAllByRole('tab')) {
         fireEvent.click(tab);
@@ -720,7 +684,7 @@ describe('Unique Items on the Roster (DL-182 item 4)', () => {
 describe('no Potential on the Roster (data-model rule 9)', () => {
   test('neither the tiles nor the Table show Potential or its hint', () => {
     const { state } = stocked();
-    render_(state);
+    renderGame(state);
     const roster = (): HTMLElement => within(section('Roster')).getByRole('list', { name: 'Heroes on the Roster' });
 
     for (const shown of [roster(), (showAs('Table'), rosterTable())]) {
@@ -733,7 +697,7 @@ describe('no Potential on the Roster (data-model rule 9)', () => {
 
 describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
   test('groups its boxes as Hero and the four areas, every column on; a box hides its column, All and None a group, and Reset shows every one; Name always shows', () => {
-    render_(started());
+    renderGame(started());
     showAs('Table');
     const button = within(section('Roster')).getByRole('button', { name: 'Columns' });
     expect(button.getAttribute('aria-expanded')).toBe('false');
@@ -768,7 +732,7 @@ describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
 
     // Kept for the next time the page opens in this browser.
     cleanup();
-    render_(started());
+    renderGame(started());
     expect(headings()).toEqual(['Name']);
     fireEvent.click(within(section('Roster')).getByRole('button', { name: 'Columns' }));
     fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Columns' })).getByRole('button', { name: 'Reset the columns' }));
@@ -777,7 +741,7 @@ describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
   });
 
   test('is not offered on the tiles', () => {
-    render_(started());
+    renderGame(started());
     expect(within(section('Roster')).queryByRole('button', { name: 'Columns' })).toBeNull();
   });
 });
@@ -787,7 +751,7 @@ describe("the Table's tabs, on a phone (DL-169 item 7)", () => {
     const restore = asPhone();
     try {
       localStorage.setItem('heroesim.rosterColumns', 'strength,traits');
-      render_(started());
+      renderGame(started());
       showAs('Table');
       expect(within(section('Roster')).queryByRole('button', { name: 'Columns' })).toBeNull();
       const tabs = within(section('Roster')).getByRole('tablist', { name: 'Columns of the Table' });
@@ -803,7 +767,7 @@ describe("the Table's tabs, on a phone (DL-169 item 7)", () => {
       expect(localStorage.getItem('heroesim.rosterTab')).toBe('social');
 
       cleanup();
-      render_(started());
+      renderGame(started());
       expect(within(section('Roster')).getByRole('tab', { name: 'Social' }).getAttribute('aria-selected')).toBe('true');
       expect(headings()).toEqual(['Name', ...social]);
     } finally {
@@ -817,7 +781,7 @@ describe("the Table's tabs, on a phone (DL-169 item 7)", () => {
       localStorage.setItem('heroesim.rosterColumns', social.map((name) => name.toLowerCase()).join(','));
       localStorage.setItem('heroesim.rosterTab', 'social');
       localStorage.setItem('heroesim.rosterView', 'table');
-      render_(started());
+      renderGame(started());
       expect(headings()).toEqual(['Name']);
       expect(within(section('Roster')).getByText('The columns of this tab are hidden: show them from Columns on a wider screen.')).toBeDefined();
     } finally {
@@ -828,7 +792,7 @@ describe("the Table's tabs, on a phone (DL-169 item 7)", () => {
 
 describe("the Roster's sort (DL-169 item 10)", () => {
   test('offers Default, Name, Class, Level, Age, Morale, When free and each Stat by area, the default order first', () => {
-    render_(started());
+    renderGame(started());
     const select = sortBy();
     expect(select.value).toBe('default');
     expect(Array.from(select.options).map((option) => option.textContent)).toEqual(['Default', 'Name', 'Class', 'Level', 'Age', 'Morale', 'When free', ...physical, ...mental, ...magical, ...social]);
@@ -836,11 +800,11 @@ describe("the Roster's sort (DL-169 item 10)", () => {
     expect(direction().textContent).toBe('Default order');
     // The default order: Class in the content's order.
     const classes = cards().map((card) => /^(\w+) ·/.exec(card.querySelector('.hero-card__line')?.textContent ?? '')?.[1]);
-    expect(classes).toEqual(['Warrior', 'Rogue', 'Mage', 'Healer']);
+    expect(classes).toEqual(classNames);
   });
 
   test('says in its help what sorts it: "Sort by", or any heading but Traits and Items, which have no sort (S10, the close review)', () => {
-    render_(started());
+    renderGame(started());
     showAs('Table');
 
     const unsorted = within(rosterTable())
@@ -859,7 +823,7 @@ describe("the Roster's sort (DL-169 item 10)", () => {
 
   test('sorts both views from the dropdown, the direction from its button; the headings in step, one pressed again reversing; ties in the default order', () => {
     const { state } = stocked();
-    render_(changed(state, (document, player) => {
+    renderGame(changed(state, (document, player) => {
       // Two Heroes of Level 3, two of Level 1: the ties go to the default order whichever way.
       const heroes = player.rosterIds.map((id) => document.world.heroes[id]);
       for (const [index, hero] of heroes.entries()) if (hero !== undefined) hero.level = index < 2 ? 3 : 1;
@@ -910,7 +874,7 @@ describe("the Roster's sort (DL-169 item 10)", () => {
   });
 
   test("names the direction's button by its action, then its state, the shown words kept and its tooltip read once (#52's judgement call 4, DL-185)", () => {
-    render_(started());
+    renderGame(started());
     const roster = within(section('Roster'));
     expect(roster.getByRole('button', { name: 'Reverse the order, now default order' })).toBe(direction());
     expect(direction().textContent).toBe('Default order');
@@ -935,50 +899,23 @@ describe("the Roster's sort (DL-169 item 10)", () => {
   });
 
   test('keeps the sort and its direction in this browser', () => {
-    render_(started());
+    renderGame(started());
     fireEvent.change(sortBy(), { target: { value: 'morale' } });
     fireEvent.click(direction());
     expect(localStorage.getItem('heroesim.rosterOrder')).toBe('morale:ascending');
 
     cleanup();
-    render_(started());
+    renderGame(started());
     expect(sortBy().value).toBe('morale');
     expect(direction().textContent).toBe('Lowest first');
   });
 });
 
-describe("the Roster's choices in a browser that refuses its storage (DL-169 item 11)", () => {
-  test('opens as by default, and its choices still work while the page is open', () => {
-    localStorage.setItem('heroesim.rosterView', 'table');
-    localStorage.setItem('heroesim.rosterOrder', 'name:descending');
-    const blocked = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      get() {
-        throw new Error('storage blocked');
-      },
-    });
-    try {
-      render_(started());
-      expect(cards()).toHaveLength(4);
-      expect(sortBy().value).toBe('default');
-      expect(direction().textContent).toBe('Default order');
-
-      showAs('Table');
-      fireEvent.click(within(section('Roster')).getByRole('button', { name: 'Columns' }));
-      fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Columns' })).getByRole('checkbox', { name: 'Age' }));
-      expect(headings()).not.toContain('Age');
-      fireEvent.change(sortBy(), { target: { value: 'name' } });
-      expect(tableNames()).toEqual([...tableNames()].sort());
-    } finally {
-      if (blocked !== undefined) Object.defineProperty(globalThis, 'localStorage', blocked);
-    }
-  });
-
+describe("the Roster's choices kept in this browser (DL-169 item 11)", () => {
   test('keeps its choices under its four keys in this browser, and nothing else of them', () => {
     const restore = asPhone();
     try {
-      render_(started());
+      renderGame(started());
       showAs('Table');
       fireEvent.change(sortBy(), { target: { value: 'strength' } });
       fireEvent.click(within(section('Roster')).getByRole('tab', { name: 'Mental' }));
@@ -986,7 +923,7 @@ describe("the Roster's choices in a browser that refuses its storage (DL-169 ite
       restore();
     }
     cleanup();
-    render_(started());
+    renderGame(started());
     fireEvent.click(within(section('Roster')).getByRole('button', { name: 'Columns' }));
     fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Columns' })).getByRole('checkbox', { name: 'Age' }));
 
@@ -997,13 +934,12 @@ describe("the Roster's choices in a browser that refuses its storage (DL-169 ite
   });
 });
 
-// DL-171: a Stat moved by sources whose net change is nothing, a
-// browser that keeps stale or corrupt choices, and a window that crosses 600px while the Table is open.
+// DL-171: a Stat moved by sources whose net change is nothing, and a window that crosses 600px while the Table is open.
 
 describe("the Roster's Table, a Stat whose net change is nothing (DL-169 item 8)", () => {
   test("is plain, its figure alone, the sources and the bound still in its tooltip and the screen reader's words", () => {
     const { state, warrior } = stocked();
-    render_(
+    renderGame(
       changed(carrying(state, 'signet-ring', 'trinket'), (document, player) => {
         const first = document.world.heroes[player.rosterIds[0] as never];
         if (first === undefined) throw new Error('no Hero');
@@ -1077,7 +1013,7 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
 
   test('by Class, in the order content declares, and by At the Hall, Injured and Away, each with its count; a choice with none greyed', () => {
     const { state, heroes } = filtering();
-    render_(state);
+    renderGame(state);
     expect(words(classes())).toEqual(['All', 'Warrior 2', 'Rogue 1', 'Mage 1', 'Healer 0']);
     expect(within(classes()).getByRole('button', { name: 'Healer 0' }).classList.contains('is-empty')).toBe(true);
     const at = (where: At): number => count(heroes, (hero) => hero.at === where);
@@ -1091,7 +1027,7 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
 
   test('each group shows its name, Class and Where, before its chips, and is named by it (DL-213)', () => {
     const { state } = filtering();
-    render_(state);
+    renderGame(state);
     for (const [group, name] of [
       [classes(), 'Class'],
       [availability(), 'Where'],
@@ -1106,7 +1042,7 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
 
   test('a Hero shown when they match both; several choices of a filter show either; each count against the other filter; "Showing" says how many', () => {
     const { state, heroes } = filtering();
-    render_(state);
+    renderGame(state);
     press(classes(), 'Warrior');
     const warriors = heroes.filter((hero) => hero.className === 'Warrior');
     expect(tileNames().sort()).toEqual(warriors.map((hero) => hero.name).sort());
@@ -1139,7 +1075,7 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
 
   test('the Table shows the same Heroes, in the sort in force, and keeps the filters across the switch', () => {
     const { state, heroes } = filtering();
-    render_(state);
+    renderGame(state);
     press(availability(), 'At the Hall');
     press(availability(), 'Away');
     const shown = heroes.filter((hero) => hero.at !== 'Injured').map((hero) => hero.name);
@@ -1157,7 +1093,7 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
     const restore = asPhone();
     try {
       const { state, heroes } = filtering();
-      render_(state);
+      renderGame(state);
       showAs('Table');
       press(classes(), 'Warrior');
       const warriors = heroes.filter((hero) => hero.className === 'Warrior').map((hero) => hero.name);
@@ -1174,7 +1110,7 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
 
   test('says so when no Hero matches, in tiles and Table, the filters still there to change', () => {
     const { state } = filtering();
-    render_(state);
+    renderGame(state);
     press(classes(), 'Healer');
     expect(within(section('Roster')).queryByRole('list', { name: 'Heroes on the Roster' })).toBeNull();
     expect(showing()).toBe('No Hero on the Roster matches the filters.');
@@ -1188,7 +1124,7 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
 
   test('the lead keeps the whole Roster\'s count under a filter, and "Showing" is said as it changes, in a live region', () => {
     const { state } = filtering();
-    render_(state);
+    renderGame(state);
     press(classes(), 'Warrior');
     expect(within(section('Roster')).getByText('4 Heroes on the Roster.')).toBeDefined();
     const line = within(section('Roster')).getByTestId('roster-shown');
@@ -1202,7 +1138,7 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
 
   test('"Showing" counts one Hero shown as well as several', () => {
     const { state, heroes } = filtering();
-    render_(state);
+    renderGame(state);
     press(classes(), 'Rogue');
     expect(tileNames()).toEqual(heroes.filter((hero) => hero.className === 'Rogue').map((hero) => hero.name));
     expect(showing()).toBe('Showing 1 of 4 Heroes.');
@@ -1218,7 +1154,7 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
       if (hero?.injury === null || hero?.injury === undefined) throw new Error('no Injury');
       hero.injury.healsOnTurn = document.world.turn;
     });
-    render_(state);
+    renderGame(state);
     press(availability(), 'Injured');
     fireEvent.click(within(rosterList()).getByRole('button', { name: injured.name }));
     for (let turn = 0; turn < 3; turn += 1) {
@@ -1233,7 +1169,7 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
 
   test("closing the page of a Hero who left the Roster while it was open returns the keyboard to the Roster's heading (DL-213)", async () => {
     const rich = withRichRivals(started());
-    render_(rich);
+    renderGame(rich);
     const { name, page } = openFirstHero(rich);
     fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name}…` }));
     const ask = within(page()).getByRole('group', { name: `Transfer ${name}?` });
@@ -1247,50 +1183,13 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
 
   test('are not kept: the Roster opened again shows everyone', () => {
     const { state } = filtering();
-    render_(state);
+    renderGame(state);
     press(classes(), 'Warrior');
     expect(tileNames()).toHaveLength(2);
     cleanup();
-    render_(state);
+    renderGame(state);
     expect(tileNames()).toHaveLength(4);
     expect(within(classes()).getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true');
-  });
-});
-
-describe("the Roster's choices kept stale or corrupt in this browser (DL-169 item 11)", () => {
-  test('open as by default: an unknown view, sort, direction or tab is forgotten, and an unknown column is left out', () => {
-    localStorage.setItem('heroesim.rosterView', 'grid');
-    localStorage.setItem('heroesim.rosterOrder', 'potential:descending');
-    localStorage.setItem('heroesim.rosterColumns', 'luck,,strength,Strength');
-    localStorage.setItem('heroesim.rosterTab', 'skills');
-    render_(started());
-
-    const group = within(section('Roster')).getByRole('radiogroup', { name: 'Show the Roster as' });
-    expect(within(group).getByRole('radio', { name: 'Tiles' }).getAttribute('aria-checked')).toBe('true');
-    expect(cards()).toHaveLength(4);
-    expect(sortBy().value).toBe('default');
-    expect(direction().textContent).toBe('Default order');
-    showAs('Table');
-    expect(headings()).toEqual(['Name', ...heroColumns, ...physical.filter((name) => name !== 'Strength'), ...mental, ...magical, ...social]);
-
-    // A sort the page knows, in a direction it does not.
-    cleanup();
-    localStorage.setItem('heroesim.rosterOrder', 'strength:sideways');
-    render_(started());
-    expect(sortBy().value).toBe('default');
-    expect(direction().textContent).toBe('Default order');
-
-    // On a phone, the unknown tab is the first.
-    cleanup();
-    const restore = asPhone();
-    try {
-      render_(started());
-      const tabs = within(section('Roster')).getByRole('tablist', { name: 'Columns of the Table' });
-      expect(within(tabs).getByRole('tab', { name: 'Hero' }).getAttribute('aria-selected')).toBe('true');
-      expect(headings()).toEqual(['Name', ...heroColumns]);
-    } finally {
-      restore();
-    }
   });
 });
 
@@ -1317,7 +1216,7 @@ describe("the Roster's Table as the window crosses 600px (DL-169 item 7)", () =>
       });
     try {
       localStorage.setItem('heroesim.rosterView', 'table');
-      render_(started());
+      renderGame(started());
       expect(within(section('Roster')).getByRole('button', { name: 'Columns' })).toBeDefined();
       expect(within(section('Roster')).queryByRole('tablist', { name: 'Columns of the Table' })).toBeNull();
 

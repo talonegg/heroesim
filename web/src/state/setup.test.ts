@@ -63,7 +63,7 @@ describe("the Traits the new-game form offers, as they stand against those chose
     const view = traitPicksView([]);
 
     expect(view.budget).toEqual({
-      budget: 1,
+      budget: defaultConfig.guildmasterTraitBudget,
       spent: 0,
       left: 1,
       over: false,
@@ -184,7 +184,6 @@ describe("what else the form offers for the Guildmaster, and the engine's refusa
     const { guildmasterStartingAgeMin: min, guildmasterStartingAgeMax: max } = defaultConfig;
     expect(choices.ages).toEqual(Array.from({ length: max - min + 1 }, (_, index) => min + index));
     expect(choices.agesWords).toBe(`${min} to ${max}`);
-    expect(choices.traitsWords).toBe('Up to 2 Traits, costing no more than the budget of 1 in all: a buff costs, and a penalty refunds.');
     expect(choices.attributes).toEqual([
       { attribute: 'birthplace', label: 'Birthplace', maxLength: 60, boundWords: 'At most 60 characters' },
       { attribute: 'appearance', label: 'Appearance', maxLength: 280, boundWords: 'At most 280 characters' },
@@ -267,27 +266,29 @@ describe('the Stats "Choose myself" sets, within the Stat points', () => {
 
   test("start at 10 each, all 50 Stat points spent, each said in the Guildmaster view's words, in its order", () => {
     const view = statPicksView(startingStats());
+    const { guildmasterStatMin: min, guildmasterStatMax: max, guildmasterStatPoints: points } = defaultConfig;
+    // The points are shared out evenly among the five Stats.
+    const each = points / 5;
 
-    expect(startingStats()).toEqual({ inspiration: 10, influence: 10, negotiation: 10, coaching: 10, judgement: 10 });
+    expect(startingStats()).toEqual({ inspiration: each, influence: each, negotiation: each, coaching: each, judgement: each });
     expect(view.points).toEqual({
-      points: 50,
-      spent: 50,
+      points,
+      spent: points,
       left: 0,
       over: false,
       leftWords: 'Stat points left: 0',
-      spentWords: 'The Stats spend 50 of 50 Stat points.',
+      spentWords: `The Stats spend ${points} of ${points} Stat points.`,
       unspentWords: null,
     });
     expect(view.stats.map(({ name, value, min, max, bearsOn }) => [name, value, min, max, bearsOn])).toEqual([
-      ['Inspiration', 10, 5, 15, 'The Morale baseline of the Heroes'],
-      ['Influence', 10, 5, 15, "The Regard a Patron's Quest earns"],
-      ['Negotiation', 10, 5, 15, 'The reward agreed and the fees paid'],
-      ['Coaching', 10, 5, 15, 'The XP of the training yard'],
-      ['Judgement', 10, 5, 15, 'How sharp the Potential hints read'],
+      ['Inspiration', each, min, max, 'The Morale baseline of the Heroes'],
+      ['Influence', each, min, max, "The Regard a Patron's Quest earns"],
+      ['Negotiation', each, min, max, 'The reward agreed and the fees paid'],
+      ['Coaching', each, min, max, 'The XP of the training yard'],
+      ['Judgement', each, min, max, 'How sharp the Potential hints read'],
     ]);
     // With every point spent, none can be raised until one is lowered.
     expect(view.stats.every((pick) => !pick.canRaise && pick.canLower)).toBe(true);
-    expect(statsWords()).toBe('Each 5 to 15, sharing 50 Stat points; each starts at 10.');
   });
 
   test('a point taken from one may be given to another, never past 15 or below 5, and points left unspent are noted as lost', () => {

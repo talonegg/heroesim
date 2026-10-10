@@ -6,7 +6,7 @@ import { media } from '../media';
 import { createSaves } from '../saves';
 import { memoryStore } from '../saves.test-support';
 import type { GameAction } from '../state/reducer';
-import { guildmasterPreview, setupFormChoices, startingStats, writtenDescription, type SetupFields } from '../state/setup';
+import { guildmasterPreview, setupFormChoices, startingStats, statPicksView, statsWords, writtenDescription, type SetupFields } from '../state/setup';
 import { NewGame } from './new-game';
 import { openView } from './page.test-support';
 
@@ -429,9 +429,10 @@ describe('the Stats "Choose myself" sets, within the Stat points', () => {
     named();
     chosen();
 
-    expect(within(part('Stats')).getByText('Each 5 to 15, sharing 50 Stat points; each starts at 10.')).toBeDefined();
+    // The words the page's setup gives under the game's rules, which a view reads as it takes no engine value (DL-73).
+    expect(within(part('Stats')).getByText(statsWords())).toBeDefined();
     expect(points()).toContain('Stat points left: 0');
-    expect(points()).toContain('The Stats spend 50 of 50 Stat points.');
+    expect(points()).toContain(statPicksView(startingStats()).points.spentWords);
     const rows = within(within(part('Stats')).getByRole('list', { name: 'Guildmaster Stats' })).getAllByRole('listitem');
     expect(rows.map((row) => row.textContent)).toEqual([
       'Inspiration−10+The Morale baseline of the Heroes',
@@ -539,12 +540,13 @@ describe('when the Guildmaster retires (DL-113 item 5)', () => {
 });
 
 // DL-125 items 3 and 6: the Portrait chosen from the owner's pictures, and the Guildmaster
-// chosen for the player shown before "Start the game". The core has 20 pictures of each sex.
+// chosen for the player shown before "Start the game". The pictures of each sex are the content's.
 // The grid (DL-149 item 4) offers no draw, and shows no picture before a sex is chosen.
 describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, in the new-game form", () => {
-  /** The names of the 20 pictures of a sex, by its word, as the form offers them. */
-  function twenty(sexWord: 'Female' | 'Male'): string[] {
-    return Array.from({ length: 20 }, (_, n) => `${sexWord} Portrait ${n + 1}`);
+  /** The names of the pictures of a sex, by its word, as the form offers them: one for each the content lists. */
+  function picturesOf(sexWord: 'Female' | 'Male'): string[] {
+    const count = content.portraits.guildmaster[sexWord === 'Female' ? 'female' : 'male'].length;
+    return Array.from({ length: count }, (_, n) => `${sexWord} Portrait ${n + 1}`);
   }
 
   /** The Portrait's radio buttons, by the words each is named by. */
@@ -572,7 +574,7 @@ describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, 
     expect(within(part('Portrait')).queryByRole('group', { name: 'Pictures shown' })).toBeNull();
 
     fireEvent.change(sexField(), { target: { value: 'female' } });
-    expect(portraitNames()).toEqual(twenty('Female'));
+    expect(portraitNames()).toEqual(picturesOf('Female'));
     expect(within(part('Portrait')).queryByTestId('portrait-unsexed')).toBeNull();
     const thumbnail = portraitRadio('Female Portrait 1').closest('label')?.querySelector('[data-testid="portrait-thumbnail"]');
     // Each from its thumbnail, never the full picture.
@@ -581,7 +583,7 @@ describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, 
     expect(thumbnail?.getAttribute('aria-hidden')).toBe('true');
 
     fireEvent.change(sexField(), { target: { value: 'male' } });
-    expect(portraitNames()).toEqual(twenty('Male'));
+    expect(portraitNames()).toEqual(picturesOf('Male'));
     expect(within(part('Portrait')).queryByRole('group', { name: 'Pictures shown' })).toBeNull();
   });
 

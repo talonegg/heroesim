@@ -8,7 +8,6 @@ import {
   defaultConfig,
   holdings,
   marketStock,
-  nextUpkeepDay,
   offeredQuests,
   playerGuild,
   unattachedHeroes,
@@ -22,9 +21,9 @@ import {
 } from '@heroesim/engine';
 import { createProbe, makeId } from '@heroesim/engine/testing';
 import { beforeAll, describe, expect, test } from 'vitest';
-import { nightOfDay, whenOfTurn } from '@heroesim/words';
+import { whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { changed, played, started, withWealth } from './game.test-support';
+import { changed, documentOf, played, playerOf, started, withTrades, withWealth } from './game.test-support';
 import { initialGameState, playDeps, type GameState } from './reducer';
 import { countdownView } from './selectors';
 import { faceted, type FacetChoices } from './facets';
@@ -185,8 +184,9 @@ function playedGame(seed: string, years: number): { start: WorldDocument; now: W
 
 describe('the ledger misses nothing', () => {
   // Played before the tests rather than as they are collected, so that the run, which starts the files
-  // that took longest first, counts the games' time (DL-234).
-  const seeds = ['ledger-1', 'ledger-2', 'ledger-3'];
+  // that took longest first, counts the games' time (DL-234). One game of two Years: its seed brings up
+  // every category on both sides, which the test after the first holds.
+  const seeds = ['ledger-1'];
   const games: ({ seed: string } & ReturnType<typeof playedGame>)[] = [];
   beforeAll(() => {
     games.push(...seeds.map((seed) => ({ seed, ...playedGame(seed, 2) })));
@@ -215,7 +215,7 @@ describe('the ledger misses nothing', () => {
     },
   );
 
-  test('the games bring up every category, for the player’s Guild and for the Rivals', () => {
+  test('the game brings up every category, for the player’s Guild and for the Rivals', () => {
     const player = (document: WorldDocument) => playerGuild(document.world)?.id ?? '';
     const categories = (rivals: boolean) =>
       new Set(
@@ -233,15 +233,9 @@ describe('the ledger misses nothing', () => {
 
 // ── The Treasury part ────────────────────────────────────────────────────────────────────────
 
-function documentOf(state: GameState): WorldDocument {
-  if (state.document === null) throw new Error('no game');
-  return state.document;
-}
-
+/** The player's Guild's id in the game in hand. */
 function mine(state: GameState): GuildId {
-  const guild = playerGuild(documentOf(state).world);
-  if (guild === undefined) throw new Error("no player's Guild");
-  return guild.id;
+  return playerOf(documentOf(state)).id;
 }
 
 const both: FacetChoices<'flow' | 'category'> = {};
@@ -272,7 +266,6 @@ describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor', () => {
     expect(view?.wealth).toBe(guild.wealth);
     expect(view?.upkeep.total).toBe(parts.total);
     expect(view?.upkeep.sentence).toBe(`Upkeep of The Lantern: ${parts.total} Wealth every ${config.upkeepEveryDays} Days`);
-    expect(view?.upkeep.next).toBe(nightOfDay(nextUpkeepDay(document.world.turn, config), config));
     expect(view?.upkeep.next).toBe('the night of Year 1 Day 10');
     expect(view?.upkeep.parts).toEqual([
       { label: 'Wages', value: String(parts.wages) },
@@ -456,8 +449,8 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
   });
 
   test('pages what is shown by 20, newest first; a page past the last reads as the last', () => {
-    // Most of a year of Upkeep: over 20 rows.
-    const state = played(withWealth(started('treasury-pages'), 100_000), { kind: 'advance', turns: 900 });
+    // Eleven purchases and eleven sales: over 20 rows, with no Turn played.
+    const state = withTrades(started('treasury-pages'), 11, 11);
     const document = documentOf(state);
     const all = ledgerOf(document, mine(state));
     expect(all.length).toBeGreaterThan(20);
@@ -482,17 +475,5 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
     expect(view?.filters.category.options).toEqual([]);
     expect(view?.filters.flow.options.map((option) => option.count)).toEqual([0, 0]);
     expect(view?.totals).toMatchObject({ income: 0, expense: 0, net: 0 });
-  });
-
-  test('a save whose founding names no Wealth, as one made before DL-120, has no opening row, and a ledger with nothing to show has one empty page', () => {
-    const state = changed(started('treasury-older'), (document) => {
-      for (const entry of document.history.entries) {
-        if (entry.type === 'guild.founded') delete (entry.payload as { wealth?: number }).wealth;
-      }
-    });
-    const view = treasuryPage(documentOf(state), both, 0)?.ledger;
-    expect(view?.rows).toEqual([]);
-    expect(view?.opens).toBe(false);
-    expect(view?.pages).toBe(1);
   });
 });

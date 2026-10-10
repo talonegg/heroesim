@@ -13,6 +13,7 @@ import { makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import type { Refusal, RefusalKind } from '@heroesim/words';
 import { content } from '../content';
+import { anId } from './game.test-support';
 import { rejectionSentence } from './namer';
 import type { LoadRejection, NoGame, PlayRejection } from './reducer';
 
@@ -347,22 +348,19 @@ const exactly: Record<keyof Samples, string> = {
   'declineTransfer offer-not-found': "No such Transfer Offer stands for The Lantern's Heroes.",
 };
 
-/** An entity id, which a refusal never shows: the player types none (DL-65 item 6). */
-const anId = /\b(guild|guildmaster|hero|patron|quest|party|offer|item|stack)-\d{6}\b/i;
-
-/** A sentence: something said, from a capital or a quotation, to a full stop, with no hole left in it. */
-function expectASentence(sentence: string): void {
+/**
+ * A refusal's sentence: something said, from a capital or a quotation, to a full stop, with no hole
+ * left in it. A refusal may quote what the player typed, so its shape is its own, not the narration's
+ * `expectASentence`.
+ */
+function expectARefusal(sentence: string): void {
   expect(sentence).toMatch(/^[A-Z"].*\S\.$/s);
   expect(sentence).not.toMatch(/undefined|null|NaN|\[object|\$\{/);
 }
 
 describe('the words for every refusal', () => {
-  test.each(kinds)('%s renders as a sentence in the world it was refused in', (kind) => {
-    expectASentence(rejectionSentence(samples[kind], document, content));
-  });
-
   test.each(kinds)('%s renders as a sentence with no world to name from', (kind) => {
-    expectASentence(rejectionSentence(samples[kind], null, content));
+    expectARefusal(rejectionSentence(samples[kind], null, content));
   });
 
   test.each(kinds)("%s says exactly what the table says, less the CLI's ids and pointers", (kind) => {
@@ -387,14 +385,6 @@ describe('with no world to name from', () => {
 });
 
 describe('what the words name', () => {
-  test('a Hero and a Guild by their names, not their ids', () => {
-    const sentence = rejectionSentence(samples['dispatch hero-not-on-roster'], document, content);
-
-    expect(sentence).toContain(rivalHero.name);
-    expect(sentence).toContain(player.name);
-    expect(sentence).not.toContain(rivalHero.id);
-  });
-
   test('a Trait content lacks by the key chosen', () => {
     expect(rejectionSentence({ action: 'newGame', reason: 'unknown-trait', traitKey: 'brave' }, null, content)).toBe(
       'No Guildmaster Trait is called "brave".',
@@ -405,37 +395,5 @@ describe('what the words name', () => {
     const older = { action: 'load', reason: 'unsupported-version', documentVersion: 4, schemaVersion: 5, message: 'The save is schema version 4' } as const;
 
     expect(rejectionSentence(older, null, content)).toBe('This game was saved by an older Heroesim and cannot be loaded.');
-  });
-
-  test('a save of schema 5, as v1.1.2 wrote it, in the same words (DL-135 item 7)', () => {
-    const older = { action: 'load', reason: 'unsupported-version', documentVersion: 5, schemaVersion: 6, message: 'The save is schema version 5' } as const;
-
-    expect(rejectionSentence(older, null, content)).toBe('This game was saved by an older Heroesim and cannot be loaded.');
-  });
-
-  test('a Quest by its template, and Items by their content names', () => {
-    const template = content.questTemplates[quest.templateKey];
-
-    expect(rejectionSentence(samples['dispatch quest-not-offered'], document, content)).toContain(template?.name);
-    expect(rejectionSentence(samples['buy not-in-market'], document, content)).toContain(content.items['runed-circlet']?.name);
-  });
-
-  test('a Transfer refused by the side the other Guild was asked to take', () => {
-    const partWith = rejectionSentence(samples['transferIn transfer-refused'], document, content);
-    const take = rejectionSentence(samples['transferOut transfer-refused'], document, content);
-
-    expect(partWith).toContain(`${rival.name} will not part with ${rivalHero.name}`);
-    expect(take).toContain(`${rival.name} will not take ${hero.name}`);
-  });
-
-  test('an ending refuses a Turn and an action in the words the CLI adds to each', () => {
-    const turn = rejectionSentence({ action: 'advance', reason: 'game-ended', ending }, document, content);
-    const action = rejectionSentence({ action: 'recruit', reason: 'game-ended', ending }, document, content);
-
-    expect(turn).toMatch(/No Turn follows\.$/);
-    expect(action).toMatch(/Nothing more can be done in it\.$/);
-    expect(action).toContain(`${player.name} went bankrupt`);
-    // The page names dates, never Turn numbers: the date the header gives for the same ending (DL-210).
-    expect(action).toMatch(/^The game ended on Year 1 Day 181: /);
   });
 });

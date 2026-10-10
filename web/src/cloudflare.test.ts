@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, test } from 'vitest';
 import { main, pagesRefusal, tokenRefusal, tokenWarningDays, type Fetch } from '../scripts/cloudflare.mjs';
-import { pagesProject, productionBranch } from '../scripts/deploy.mjs';
+import { pagesProject } from '../scripts/deploy.mjs';
 
 // What CI asks Cloudflare before a deploy and every day (DL-124 items 5 and 10): that Pages
 // publishes `main` as production, so that a deploy is never a preview, and that the token is
@@ -37,7 +37,6 @@ describe('before a deploy, Pages', () => {
   test('is read with the token, and passes when it publishes main as production', async () => {
     const { fetch, asked, headers } = cloudflare({ [project]: pagesSays('main') });
 
-    expect(productionBranch).toBe('main');
     await expect(pagesRefusal({ env, fetch })).resolves.toBeNull();
     expect(asked).toEqual([project]);
     expect(headers[0]).toEqual({ Authorization: `Bearer ${token}` });

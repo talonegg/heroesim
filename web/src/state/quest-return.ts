@@ -14,7 +14,6 @@
 // now is the engine's `regardBand` of `patronRegardFor`.
 
 import {
-  encounterDegree,
   patronRegardFor,
   regardBand,
   type Degree,
@@ -253,7 +252,7 @@ function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null
     .map((entry): ReturnEncounter => ({
       key: `encounter-${entry.payload.index}`,
       outcome: entry.payload.outcome,
-      degree: encounterDegree(entry.payload),
+      degree: entry.payload.degree,
       ...lineOf(entry, narration),
       used: expended.filter((use) => 'encounterIndex' in use.payload && use.payload.encounterIndex === entry.payload.index).map((use) => lineOf(use, narration)),
     }));

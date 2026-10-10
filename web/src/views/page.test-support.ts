@@ -4,10 +4,72 @@
 // parts are tabs under its heading, and a part is found by opening its tab: its panel, named by the
 // tab. Never imported by the page.
 
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { createElement } from 'react';
+import { expect, vi } from 'vitest';
+import { App } from '../app';
+import type { GameState } from '../state/reducer';
 
 /** Each view's heading. The Guildmaster's button in the navigation is named by the Guildmaster's name. */
 export type ViewName = 'Guildmaster' | 'Guild' | 'Roster' | 'Board' | 'Rankings' | 'Market' | 'History';
+
+/** The seven views in the navigation's order (DL-112 item 5). */
+export const views: readonly ViewName[] = ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'];
+
+/** Waits until the page has settled the play it took: `main` no longer busy. */
+export async function idle(): Promise<void> {
+  await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
+}
+
+/** Renders the whole page on `state`, the game in hand. */
+export function renderGame(state: GameState): void {
+  render(createElement(App, { initial: state }));
+}
+
+/** The player's Wealth, as the status bar shows it. */
+export function wealth(): number {
+  return Number(screen.getByTestId('wealth').textContent);
+}
+
+/** The sentence that says what a region or group is for: its accessible description. */
+export function described(element: HTMLElement): string {
+  const ids = element.getAttribute('aria-describedby')?.split(' ') ?? [];
+  return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
+}
+
+/** Every storage access refused, as a private window or blocked site data does. */
+export function refuseStorage(): void {
+  vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    throw new DOMException('The operation is insecure.', 'SecurityError');
+  });
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+  });
+}
+
+/**
+ * Fills the new-game form by hand, the seed when one is given, and presses "Start the game". The
+ * play settles afterwards; a test waits for it with `idle()`.
+ */
+export function startNewGame({ guildName, guildmasterName, seed }: { guildName: string; guildmasterName: string; seed?: string }): void {
+  fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: guildName } });
+  fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: guildmasterName } });
+  if (seed !== undefined) fireEvent.change(screen.getByLabelText('Seed'), { target: { value: seed } });
+  fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
+}
+
+/**
+ * Opens the first Hero to join the Roster of `state`, the one the setups change, and gives their name
+ * and page: the Roster lists by the default order (DL-169), not the order of joining.
+ */
+export function openFirstHero(state: GameState): { name: string; page: () => HTMLElement } {
+  const world = state.document?.world;
+  const player = Object.values(world?.guilds ?? {}).find((guild) => guild.controller.kind === 'player');
+  const first = player === undefined ? undefined : world?.heroes[player.rosterIds[0] as never];
+  if (first === undefined) throw new Error('an empty Roster');
+  fireEvent.click(within(rosterList()).getByRole('button', { name: first.name }));
+  return { name: first.name, page: () => within(section('Roster')).getByRole('article') };
+}
 
 /** The Guild's parts, each a tab under its heading (Stores and Treasury, DL-116). */
 export type GuildPartName = 'Home' | 'Hall' | 'Stores' | 'Treasury';

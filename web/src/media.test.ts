@@ -82,10 +82,6 @@ function webpSize(bytes: Buffer): { width: number; height: number } | null {
 }
 
 describe('media/', () => {
-  test('is read: it holds files', () => {
-    expect(files.length).toBeGreaterThan(0);
-  });
-
   test('names every folder and file in lower case and hyphens', () => {
     const badFolders = folders.filter((folder) => !folder.split('/').every((part) => lowerAndHyphens.test(part)));
     const badFiles = files.filter((file) => {
@@ -152,10 +148,6 @@ describe('media/', () => {
   // 120 kB (DL-134 item 9), which `npm run portraits -- check` holds too.
   test('holds each Portrait picture as WebP, 480 × 640, of at most 120 kB', () => {
     const pictures = files.filter(isPortraitPicture);
-    // The owner's two and the 38 the portrait tool took in (DL-143): gm-female-01 to 20 and gm-male-01 to 20.
-    const twenty = (sex: Sex): string[] =>
-      Array.from({ length: 20 }, (_, index) => `portraits/guildmasters/${sex}/gm-${sex}-${String(index + 1).padStart(2, '0')}.webp`);
-    expect(pictures).toEqual([...twenty('female'), ...twenty('male')]);
     for (const file of pictures) {
       const bytes = readFileSync(path.join(mediaDir, file));
       expect(bytes.length, file).toBeLessThanOrEqual(120_000);

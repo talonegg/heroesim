@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
 import { started, withPartyOut, withWealth } from '../state/game.test-support';
-import { navButton, openView } from './page.test-support';
+import { idle, navButton, openView } from './page.test-support';
 
 // The home view's report of a Party home is `quest-report.test.tsx`'s, which took the place
 // of the outcome cards' tests.
@@ -26,10 +26,6 @@ describe("the Guild's parts", () => {
     return within(within(guild()).getByRole('tablist', { name: 'The Guild’s parts' })).getAllByRole('tab');
   }
 
-  async function idle(): Promise<void> {
-    await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-  }
-
   test('are tabs under the heading, Home open at first; a tab opens its part by pointer', () => {
     render(<App initial={started()} />);
 
@@ -43,11 +39,8 @@ describe("the Guild's parts", () => {
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Hall' }));
 
     expect(tabs().map((tab) => tab.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false']);
-    const hall = within(guild()).getByRole('tabpanel', { name: 'Hall' });
-    expect(within(hall).getAllByTestId('facility')).toHaveLength(3);
+    expect(within(guild()).getByRole('tabpanel', { name: 'Hall' })).toBeDefined();
     expect(within(guild()).queryByRole('tabpanel', { name: 'Home' })).toBeNull();
-    // The Upkeep sentence left the Hall for the Treasury.
-    expect(within(hall).queryByText(/^Upkeep of The Lantern:/)).toBeNull();
 
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Stores' }));
     expect(within(guild()).getByRole('tabpanel', { name: 'Stores' })).toBeDefined();

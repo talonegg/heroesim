@@ -6,7 +6,6 @@
 import type { MoraleBand, RegardBand } from './config.js';
 import type {
   ClassKey,
-  Degree,
   EncounterKey,
   ImprovementKey,
   InjuryTypeKey,
@@ -195,21 +194,12 @@ export type QuestTaken = Entry<
  * the roll, the target it had to reach, the margin between them (the roll less
  * `checkDegrees.success` times the target, the same at its default of 1), the outcome, and whom its
  * consequences injured or killed. Also its Degree (DL-152), the Check that decided it, whose roll,
- * target, margin and outcome those are, and each of its Checks rolled; an entry written before
- * DL-152 has none of the three, and reads as its outcome, a Success or a Failure (`encounterDegree`).
- * One per Encounter reached, in sequence order (`index` from 0), all before the Quest's
- * `quest.resolved`. Names the Quest, the Party and the Guild.
+ * target, margin and outcome those are, and each of its Checks rolled: the three are required, and
+ * the validator refuses an entry without any of them (DL-247). One per Encounter reached, in
+ * sequence order (`index` from 0), all before the Quest's `quest.resolved`. Names the Quest, the
+ * Party and the Guild.
  */
-export type QuestEncounter = Entry<
-  'quest.encounter',
-  Omit<EncounterResult, 'degree' | 'decidedBy' | 'checks'> &
-    Partial<Pick<EncounterResult, 'degree' | 'decidedBy' | 'checks'>> & { questId: QuestId; partyId: PartyId; guildId: GuildId }
->;
-
-/** The Degree a `quest.encounter` entry records (v1.1.4-S2), or, for one written before, its outcome's. */
-export function encounterDegree(payload: Pick<QuestEncounter['payload'], 'degree' | 'outcome'>): Degree {
-  return payload.degree ?? (payload.outcome === 'success' ? 'success' : 'failure');
-}
+export type QuestEncounter = Entry<'quest.encounter', EncounterResult & { questId: QuestId; partyId: PartyId; guildId: GuildId }>;
 
 /**
  * Whether form decided whether a `quest.encounter` entry's Encounter succeeded, and which way

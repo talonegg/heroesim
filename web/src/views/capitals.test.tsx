@@ -6,7 +6,7 @@ import { content } from '../content';
 import { cameHome, carrying, carryingUnique, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withTraitNews, withWorldNews, type Named } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { poolView } from '../state/trade-views';
-import { closeMenu, openGuildPart, openMenu, openView, rosterList, section, time, type GuildPartName, type ViewName } from './page.test-support';
+import { closeMenu, openGuildPart, openMenu, openView, rosterList, section, time, views, type GuildPartName } from './page.test-support';
 
 // The page's words (DL-125 item 9, DL-128): every standalone text begins with a capital,
 // as `docs/agents/ui-text.md` writes the rule. Each view and the Guild's four parts are drawn over a
@@ -117,7 +117,7 @@ class Reader {
 
 /** Opens and reads each view, and each of the Guild's parts. */
 function readEveryView(reader: Reader): void {
-  for (const view of ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'] as const satisfies readonly ViewName[]) {
+  for (const view of views) {
     openView(view);
     reader.read(view);
   }
@@ -129,12 +129,12 @@ function readEveryView(reader: Reader): void {
 
 /**
  * A game with something in every part: a Rival folded and another's Guildmaster succeeded; six
- * Turns played; a Hero dead, one retired and one gone from the pool; one injured and one with no
+ * Turns played; a Hero dead and one retired; one injured and one with no
  * Skill; a Guildmaster with no Trait; a Party out; a Unique Item and a Consumable held; older rules,
  * which the game menu offers to adopt; and a Transfer Offer, which stopped the last play.
  */
 function busyGame(): { state: GameState; gone: Named[] } {
-  const { state: played6, dead, retired, gone } = withTheGone(played(withWorldNews(started('capitals')), { kind: 'advance', turns: 6 }));
+  const { state: played6, dead, retired } = withTheGone(played(withWorldNews(started('capitals')), { kind: 'advance', turns: 6 }));
   const changed6 = changed(played6, (document, player) => {
     const [first, second] = player.rosterIds.flatMap((heroId) => document.world.heroes[heroId] ?? []);
     if (first === undefined || second === undefined) throw new Error('expected two Heroes on the Roster');
@@ -159,7 +159,7 @@ function busyGame(): { state: GameState; gone: Named[] } {
   const offerIds = Object.keys(document.world.offers) as OfferId[];
   const player = Object.values(document.world.guilds).find((guild) => guild.controller.kind === 'player');
   if (player === undefined) throw new Error("no player's Guild");
-  return { state: { ...offered, stoppedBecause: { kind: 'transfer-offer', guildId: player.id, offerIds } }, gone: [dead, retired, gone] };
+  return { state: { ...offered, stoppedBecause: { kind: 'transfer-offer', guildId: player.id, offerIds } }, gone: [dead, retired] };
 }
 
 describe('every standalone text begins with a capital (DL-125 item 9)', { timeout: 30_000 }, () => {
@@ -269,7 +269,7 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
       reader.read(`The History of ${choice.textContent ?? ''}`);
     }
 
-    // The pages of a Hero dead, retired and gone from the world, found in the History.
+    // The pages of a Hero dead and one retired, found in the History.
     for (const hero of gone) {
       fireEvent.change(within(section('History')).getByRole('searchbox', { name: 'Find someone in the History by name' }), { target: { value: hero.name } });
       fireEvent.click(within(section('History')).getByRole('button', { name: `Read ${hero.name}` }));

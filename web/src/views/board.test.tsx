@@ -1,13 +1,13 @@
-import type { GuildId, Hero, HeroId, PartyId, Quest, QuestId, WorldDocument } from '@heroesim/engine';
+import type { GuildId, Hero, HeroId, PartyId, Quest, QuestId } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { chanceWords, shownPercent } from '@heroesim/words';
 import { App } from '../app';
-import { changed, estimateOf, holding, started } from '../state/game.test-support';
+import { changed, documentOf, estimateOf, holding, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { defaultHeroOrder } from '../state/selectors';
 import { Icon } from './icons';
-import { inHistory, navButton, openView, section } from './page.test-support';
+import { idle, inHistory, navButton, openView, section, startNewGame } from './page.test-support';
 
 // The Board's Quest cards and the Party builder (DL-104), through the page as a player uses
 // them: a card of two lines that unfolds to its details, the Board ordered, each Hero's row in the
@@ -17,15 +17,6 @@ import { inHistory, navButton, openView, section } from './page.test-support';
 // engine); here they are read as the page shows them.
 
 afterEach(cleanup);
-
-async function idle(): Promise<void> {
-  await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-function documentOf(state: GameState): WorldDocument {
-  if (state.document === null) throw new Error('no game');
-  return state.document;
-}
 
 /** The Board's Quests, in its order. */
 function questsOf(state: GameState): Quest[] {
@@ -270,30 +261,6 @@ describe('the Board', () => {
     fireEvent.change(within(section('Board')).getByRole('combobox', { name: 'Order' }), { target: { value: 'posted' } });
     expect(rewards()).toEqual([96, 188, 207, 216, 92, 378]);
     expect(localStorage.getItem('heroesim.boardOrder')).toBe('posted');
-  });
-
-  test('a browser that keeps a Board order it does not know, or refuses its storage, shows the Board as posted', () => {
-    localStorage.setItem('heroesim.boardOrder', 'by-moonlight');
-    render(<App initial={started()} />);
-    expect((within(section('Board')).getByRole('combobox', { name: 'Order' }) as HTMLSelectElement).value).toBe('posted');
-    cleanup();
-
-    const blocked = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      get() {
-        throw new Error('storage blocked');
-      },
-    });
-    try {
-      render(<App initial={started()} />);
-      const order = within(section('Board')).getByRole('combobox', { name: 'Order' }) as HTMLSelectElement;
-      expect(order.value).toBe('posted');
-      fireEvent.change(order, { target: { value: 'reward' } });
-      expect((within(section('Board')).getByRole('combobox', { name: 'Order' }) as HTMLSelectElement).value).toBe('reward');
-    } finally {
-      if (blocked !== undefined) Object.defineProperty(globalThis, 'localStorage', blocked);
-    }
   });
 });
 
@@ -698,10 +665,7 @@ describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
     chooseSome();
 
     fireEvent.click(within(section('This game')).getByRole('button', { name: 'Start a new game' }));
-    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Second Lamp' } });
-    fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: 'Bran Tull' } });
-    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'app-test' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
+    startNewGame({ guildName: 'The Second Lamp', guildmasterName: 'Bran Tull', seed: 'app-test' });
     await idle();
 
     // The same seed: the same Board, its Quests by the same ids, and nothing chosen for them.

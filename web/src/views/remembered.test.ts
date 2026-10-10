@@ -1,6 +1,7 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { useLayoutEffect } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { refuseStorage } from './page.test-support';
 import { preferences, rememberedGuildPart, rememberedList, rememberedPreference, rememberList, rememberPreference, useRemembered } from './remembered';
 
 const viewKey = preferences.view.key;
@@ -51,12 +52,7 @@ describe('the view and the Guild part remembered', () => {
   });
 
   test('a browser that refuses storage opens the Guild at its Home', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new DOMException('The operation is insecure.', 'SecurityError');
-    });
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
-    });
+    refuseStorage();
 
     rememberGuildPart('hall');
     expect(rememberedView()).toBe('guild');
@@ -79,37 +75,15 @@ describe("a list remembered, as the Roster's hidden columns are (DL-169 item 11)
   });
 
   test('a browser that refuses storage reads nothing kept, and keeps nothing', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new DOMException('The operation is insecure.', 'SecurityError');
-    });
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
-    });
+    refuseStorage();
 
     rememberList('heroesim.test', ['class']);
     expect(rememberedList('heroesim.test', choices)).toBeNull();
   });
 });
 
-/** Every storage access refused, as a private window or blocked site data does. */
-function refuseStorage(): void {
-  vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-    throw new DOMException('The operation is insecure.', 'SecurityError');
-  });
-  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-    throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
-  });
-}
-
 describe('the table of the nine viewing preferences (DL-186 item 25)', () => {
   const table = Object.entries(preferences);
-
-  test('is nine, each under a key of its own, prefixed "heroesim."', () => {
-    expect(table).toHaveLength(9);
-    const keys = table.map(([, { key }]) => key);
-    expect(new Set(keys).size).toBe(keys.length);
-    for (const key of keys) expect(key).toMatch(/^heroesim\.[A-Za-z]+$/);
-  });
 
   test("keeps the keys a player's browser already holds", () => {
     expect(table.map(([, { key }]) => key).sort()).toEqual(
@@ -201,12 +175,6 @@ describe('useRemembered', () => {
     const [first = '', second = ''] = preferences.rosterColumns.choices;
     act(() => result.current[1]([first, second]));
     expect(localStorage.getItem(preferences.rosterColumns.key)).toBe(`${first},${second}`);
-  });
-
-  test('the Guild part reads the Hall view kept before the Guild had parts', () => {
-    localStorage.setItem(viewKey, 'hall');
-    const { result } = renderHook(() => useRemembered(preferences.guildPart, rememberedGuildPart));
-    expect(result.current[0]).toBe('hall');
   });
 
   test('storage refused, it opens on the default and a set still changes the page', () => {

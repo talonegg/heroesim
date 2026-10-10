@@ -98,7 +98,9 @@ describe('colour contrast, WCAG AA', () => {
 
 describe('faces, headings and motion', () => {
   test('headings are in the system serif stack and body text in system-ui: no face is fetched', () => {
-    expect(css).toContain(`--serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;`);
+    const serif = /--serif:([^;]*;)/.exec(css)?.[1] ?? '';
+    expect(serif).toMatch(/serif;$/);
+    expect(serif).not.toContain('url(');
     expect(css).toMatch(/--sans: system-ui,/);
     expect(css).not.toMatch(/@font-face|@import|url\(/);
   });

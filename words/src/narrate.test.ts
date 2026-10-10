@@ -1,6 +1,9 @@
 import { loadContent } from '@heroesim/content/node';
 import {
   milestoneTypes,
+  type CheckRoll,
+  type Encounter,
+  type EncounterCheck,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
@@ -96,6 +99,9 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     target: 18,
     margin: -3.5,
     outcome: 'failure',
+    degree: 'failure',
+    decidedBy: 'steel',
+    checks: [{ key: 'steel', capability: 15, roll: 14.5, target: 18, margin: -3.5, degree: 'failure' }],
     injured: [heroId],
     died: [otherHeroId],
   }),
@@ -249,6 +255,9 @@ const aldred = `<hero:${otherHeroId}|Aldred Barrowby>`;
 const maud = `<name:${patronId}|Lady Maud>`;
 const osric = `<name:${guildmasterId}|Osric Vane>`;
 const barrow = `<quest:${questId}|${named(content.questTemplates, 'clear-the-barrow')}>`;
+const caravan = named(content.questTemplates, 'guard-the-caravan');
+const draught = named(content.items, 'healing-draught');
+const shirt = named(content.items, 'mail-shirt');
 
 /** Every event type's sentence: its words, and each slot where it stands. */
 const sentences: { [Type in EngineEventType]: string } = {
@@ -266,7 +275,7 @@ const sentences: { [Type in EngineEventType]: string } = {
   'quest.offered': `${maud} offered ${barrow}.`,
   'quest.expired': `${maud}'s ${barrow} expired untaken.`,
   'quest.taken': `${kestrel} sent <party:${partyId} with ${brenna}, ${aldred}> on <quest:${questId}>, back on the night of Year 1 Day 8, carrying ${named(content.items, 'whetstone')} ×2.`,
-  'quest.encounter': `<party:${partyId} of ${kestrel}> failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Failure: ${brenna} was injured and ${aldred} was killed.`,
+  'quest.encounter': `<party:${partyId} of ${kestrel}> failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Failure, decided by ${content.encounters['ambush-on-the-road']?.checks[0]?.name}: ${brenna} was injured and ${aldred} was killed.`,
   'quest.resolved': `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${named(content.questTemplates, 'guard-the-caravan')}> and succeeded strongly: Wealth +150, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}.`,
   'quest.loot': `${kestrel} found Loot on <quest:${questId}>: ${named(content.items, 'barrow-kings-blade')}<ids:item-000006>.`,
   'hero.injured': `${brenna} was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Year 1 Day 14.`,
@@ -354,16 +363,82 @@ describe('the variations of a sentence', () => {
     ['a consumable that bonused a Check', varied('item.expended', { effect: 'bonus', encounterIndex: 2, flat: 3 } as never), /used one .+ on Encounter 3: \+3 to its Check\.$/],
     ['a consumable that tried an Encounter again', varied('item.expended', { effect: 'reroll', encounterIndex: 0, firstRoll: 4 } as never), /used one .+ to try Encounter 1 again\.$/],
     ['gear with neither id', varied('item.equipped', { stackId: null }), /<ids:> in /],
+    // Each branch of a word table the samples leave out, word for word (DL-231 item 4: `words` holds
+    // the narration's sentences; the front ends hold one sentence end to end each).
+    ['a Quest that failed', varied('quest.resolved', { band: 'fail', wealthDelta: 0, fameDelta: -2, synergyKeys: [] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and failed: Wealth 0, Fame -2.`],
+    ['a Quest that succeeded', varied('quest.resolved', { band: 'success', wealthDelta: 120, fameDelta: 3, synergyKeys: [] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded: Wealth +120, Fame +3.`],
+    ['an Injury healed 5 Days sooner', varied('item.expended', { days: 5 } as never), `${kestrel}'s <party:${partyId}> used one ${draught} on ${brenna}: their Injury heals 5 Days sooner.`],
+    ["a Patron's Regard after a Quest of theirs failed", varied('patron.regard-changed', { cause: 'quest-failure', questId } as never), `${maud}'s Regard for ${kestrel} fell from neutral to cool after a Quest of theirs failed.`],
+    ["a Patron's Regard through a Module", varied('patron.regard-changed', { cause: 'module', moduleId: 'probe' } as never), `${maud}'s Regard for ${kestrel} fell from neutral to cool through a Module.`],
+    ["a Hero's Regard after a Quest together", varied('hero.regard-changed', { cause: 'shared-quest', questId } as never), `${brenna}'s Regard for ${aldred} rose from warm to close after a Quest together.`],
+    ["a Hero's Regard as time passed apart", varied('hero.regard-changed', { cause: 'decay' } as never), `${brenna}'s Regard for ${aldred} rose from warm to close as time passed apart.`],
+    ['gear back from a Hero who died', varied('item.returned', { cause: 'died' }), `${shirt}<ids:${stackId}> went back to ${kestrel} from ${brenna}, who died.`],
+    ['gear back from a Hero who retired', varied('item.returned', { cause: 'retired' }), `${shirt}<ids:${stackId}> went back to ${kestrel} from ${brenna}, who retired.`],
+    ['gear back from a Hero who was transferred', varied('item.returned', { cause: 'transferred' }), `${shirt}<ids:${stackId}> went back to ${kestrel} from ${brenna}, who was transferred.`],
+    ['an Offer that expired unanswered', varied('guild.transfer-offer-expired', { cause: 'expired' }), `${wardens}'s Offer for ${brenna}<ids:${offerId}> expired unanswered.`],
+    ['an Offer that lapsed as a Guild folded', varied('guild.transfer-offer-expired', { cause: 'guild-folded' }), `${wardens}'s Offer for ${brenna}<ids:${offerId}> lapsed as a Guild folded.`],
+    ['a Guild folded by Retirement', varied('guild.folded', { reason: 'retirement' }), `${kestrel} lost its Guildmaster to Retirement and folded.`],
+    ['a Guild folded bankrupt', varied('guild.folded', { reason: 'bankruptcy' }), `${kestrel} went bankrupt and folded.`],
+    ['the game ended by Retirement', varied('game.ended', { reason: 'retirement' }), `The game ended: ${kestrel} lost its Guildmaster to Retirement.`],
+    ['the training yard built, which is', varied('guild.improved', { facility: 'trainingYard', improvementKey: 'training-yard-2' }), `${kestrel} built ${named(content.improvements, 'training-yard-2')} for 500 Wealth: its training yard is now grade 2.`],
+    // Data-model rule 9: a Level gained says never the points Potential took, even when it took them all.
+    ['a Level gained whose every point Potential took', varied('hero.levelled', { level: 20, statDeltas: {}, pointsLost: 3 }), `${brenna} reached Level 20.`],
   ] as const)('%s', (_name, event, sentence) => {
-    expect(said(event as EngineEventOf<EngineEventType>)).toMatch(sentence);
+    if (typeof sentence === 'string') expect(said(event as EngineEventOf<EngineEventType>)).toBe(sentence);
+    else expect(said(event as EngineEventOf<EngineEventType>)).toMatch(sentence);
+  });
+
+  test("an Encounter's Degree, and the Check that decided it by content's name: of several, one named as its Encounter, one renamed", () => {
+    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
+    const [front] = ambush.checks as [EncounterCheck];
+    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
+    const payload = {
+      ...samples['quest.encounter'].payload,
+      degree: 'setback' as const,
+      decidedBy: 'nerve',
+      checks: [
+        { key: front.key, ...roll, roll: 30, margin: 12, degree: 'triumph' as const },
+        { key: 'nerve', ...roll, degree: 'setback' as const },
+      ],
+    };
+    const withChecks = (checks: EncounterCheck[], pass?: Encounter['pass']): typeof content => ({ ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks, ...(pass === undefined ? {} : { pass }) } } });
+    const line = (event: EngineEventOf<'quest.encounter'>, rows: typeof content): string => sentenceText(narrate(event, rows, calendar), shown);
+    const several = withChecks([front, { ...front, key: 'nerve', name: 'Nerve' }], ['and', front.key, 'nerve']);
+
+    expect(line({ ...samples['quest.encounter'], payload }, several)).toBe(`<party:${partyId} of ${kestrel}> failed at ${ambush.name} (Encounter 2), a Setback, decided by Nerve: ${brenna} was injured and ${aldred} was killed.`);
+    const one = { ...payload, decidedBy: front.key, degree: 'triumph' as const, outcome: 'success' as const, injured: [], died: [], checks: payload.checks.slice(0, 1) };
+    expect(line({ ...samples['quest.encounter'], payload: one }, withChecks([{ ...front, name: ambush.name }]))).toBe(`<party:${partyId} of ${kestrel}> came through ${ambush.name} (Encounter 2), a Triumph.`);
+    expect(line({ ...samples['quest.encounter'], payload: one }, withChecks([{ ...front, name: 'Steel' }]))).toBe(`<party:${partyId} of ${kestrel}> came through ${ambush.name} (Encounter 2), a Triumph, decided by Steel.`);
+  });
+
+  test("form's sentence: once, for the Party, naming no one, when form decided the Encounter either way, and none when it moved a Check that did not decide it", () => {
+    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
+    const front: CheckRoll = { key: 'front', ...roll, degree: 'setback' };
+    const base = { ...samples['quest.encounter'].payload, degree: 'setback' as const, decidedBy: 'front', checks: [front] };
+    const line = (payload: EngineEventOf<'quest.encounter'>['payload']): Sentence => narrate({ ...samples['quest.encounter'], payload }, content, calendar);
+    const plain = sentenceText(line(base), shown);
+    const won = { ...base, outcome: 'success' as const, degree: 'success' as const, injured: [], died: [], checks: [{ ...front, degree: 'success' as const }] };
+    const raised = line({ ...won, formDecided: 'raised', checks: [{ ...front, degree: 'success', formDecided: 'raised' }] });
+
+    expect(sentenceText(raised, shown)).toBe(`<party:${partyId} of ${kestrel}> came through ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Success, decided by front. Their high spirits carried them through.`);
+    // A Check form moved across the Success line, in an Encounter it did not decide: no sentence.
+    const other: CheckRoll = { key: 'other', ...roll, degree: 'success', formDecided: 'raised' };
+    expect(sentenceText(line({ ...base, checks: [other, front] }), shown)).toBe(plain);
+    expect(plain).not.toMatch(/spirits/);
+    // The form sentence is words alone: no slot follows where it begins.
+    const at = raised.findIndex((part) => part.kind === 'text' && part.text.includes('high spirits'));
+    expect(at).toBeGreaterThan(0);
+    expect(raised.slice(at + 1)).toEqual([]);
   });
 
   test("a module's own event, by its Module, its type and whom it concerns, a Hero as a Hero", () => {
-    const moduleEvent = (type: string, participants: string[]): ModuleEvent =>
-      ({ type, turn: 9, participants, labels: Object.fromEntries(participants.flatMap((id) => (labels[id] === undefined ? [] : [[id, labels[id]]]))), milestone: false, payload: {} }) as unknown as ModuleEvent;
+    const moduleEvent = (type: string, participants: string[], payload: unknown = {}): ModuleEvent =>
+      ({ type, turn: 9, participants, labels: Object.fromEntries(participants.flatMap((id) => (labels[id] === undefined ? [] : [[id, labels[id]]]))), milestone: false, payload }) as unknown as ModuleEvent;
 
     expect(sentenceText(narrate(moduleEvent('probe.fired', [heroId, patronId, guildId]), content, calendar), shown)).toBe(`The probe Module recorded probe.fired for ${brenna}, ${maud} and ${kestrel}.`);
     expect(sentenceText(narrate(moduleEvent('weather.storm-broke', []), content, calendar), shown)).toBe('The weather Module recorded weather.storm-broke.');
+    // A payload of any shape: the sentence reads none of it.
+    expect(sentenceText(narrate(moduleEvent('ledger.balanced', [guildId], [1, 'two', { three: null }]), content, calendar), shown)).toBe(`The ledger Module recorded ledger.balanced for ${kestrel}.`);
     expect(sentenceText(narrate(moduleEvent('mystery', ['hero-000099', 'not-an-id']), content, calendar), shown)).toBe('A Module recorded mystery for <hero:hero-000099> and <name:not-an-id>.');
     const parts = narrate(moduleEvent('mystery', ['not-an-id']), content, calendar);
     expect(parts.find((part) => part.kind === 'name')).toMatchObject({ table: null, id: 'not-an-id', label: undefined });

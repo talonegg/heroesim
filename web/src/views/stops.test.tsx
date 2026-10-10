@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { changed, holding, started, withPartyOut, withRosterReleased } from '../state/game.test-support';
-import { navButton, openView, section, time } from './page.test-support';
+import { described, idle, navButton, openView, section, time } from './page.test-support';
 
 // The page's side of #32: the split button's opt-in stops, "until a Quest you can staff
 // appears" (`quest-staffable`) beside "until new Heroes join the pool"; the words that say
@@ -11,16 +11,6 @@ import { navButton, openView, section, time } from './page.test-support';
 // through the page's own controls.
 
 afterEach(cleanup);
-
-async function idle(): Promise<void> {
-  await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-/** The sentence that says what a region or group is for: its accessible description. */
-function described(element: HTMLElement): string {
-  const ids = element.getAttribute('aria-describedby')?.split(' ') ?? [];
-  return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
-}
 
 /** The status bar's other ways to fast forward, opened. */
 function otherWays(): HTMLElement {
@@ -65,7 +55,7 @@ describe('the ways to fast forward (#32)', () => {
     expect(described(section('Home'))).toContain('the Bankruptcy countdown while your Guild is below the floor');
   });
 
-  test('with a Party out, "until a Quest you can staff appears" stops before it is home, and each Quest it names opens its Party on the Board', async () => {
+  test('with a Party out, "until a Quest you can staff appears" stops before it is home, naming a Quest it offers a Party for', async () => {
     render(<App initial={withPartyOut(started('reducer-test'))} />);
 
     fireEvent.click(within(otherWays()).getByRole('button', { name: 'Fast forward until a Quest you can staff appears' }));
@@ -78,14 +68,6 @@ describe('the ways to fast forward (#32)', () => {
     const [first] = within(screen.getByTestId('stop')).getAllByRole('button', { name: /^Choose a Party for .+, offered by .+, for \d+ Wealth$/ });
     const questName = first?.querySelector('.quest-button__name')?.textContent ?? '';
     expect(sentence).toContain(questName);
-
-    fireEvent.click(first as HTMLElement);
-
-    expect(navButton('Board').getAttribute('aria-current')).toBe('page');
-    const heading = document.activeElement as HTMLElement;
-    expect(heading.tagName).toBe('H3');
-    expect(heading.textContent).toBe(questName);
-    expect(within(heading.closest('article') as HTMLElement).getByRole('form', { name: `A Party for ${questName}` })).toBeDefined();
   });
 });
 

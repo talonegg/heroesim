@@ -8,9 +8,6 @@ import { afterAll, afterEach, describe, expect, test, vi } from 'vitest';
 import {
   addresses,
   deploy,
-  pagesProject,
-  productionBranch,
-  workerConfig,
   wranglerCommands,
   type DeployOptions,
   type Spawn,
@@ -56,11 +53,17 @@ function git(args: string[]): { status: number | null; stdout: string } {
   return { status: child.status, stdout: child.stdout };
 }
 
+/** The list `repositoryFiles` gives, read once for the file: the tests below only read the repository. */
+let listedFiles: string[] | undefined;
+
 /** Every file in the repository and every file one `git add .` from it: tracked, or untracked and not ignored. */
 function repositoryFiles(): string[] {
-  const listed = git(['ls-files', '--cached', '--others', '--exclude-standard', '-z']);
-  expect(listed.status).toBe(0);
-  return [...new Set(listed.stdout.split('\0').filter((file) => file !== ''))];
+  if (listedFiles === undefined) {
+    const listed = git(['ls-files', '--cached', '--others', '--exclude-standard', '-z']);
+    expect(listed.status).toBe(0);
+    listedFiles = [...new Set(listed.stdout.split('\0').filter((file) => file !== ''))];
+  }
+  return listedFiles;
 }
 
 const temporaries: string[] = [];
@@ -119,7 +122,6 @@ describe('the deploy command', () => {
       // a preview that never reaches https://heroesims.pages.dev (v1's DL-30 item 3).
       pages: ['-y', 'wrangler@4', 'pages', 'deploy', 'dist', '--project-name', 'heroesims', '--branch', 'main'],
     });
-    expect([pagesProject, workerConfig, productionBranch]).toEqual(['heroesims', 'wrangler.jsonc', 'main']);
   });
 
   test('writes the production branch once, as one constant: main, whatever the release line (DL-124)', () => {
@@ -158,20 +160,16 @@ describe("the Worker's configuration", () => {
 
 describe("the page's addresses", () => {
   test("are the Worker's full address, on the owner's subdomain, and the Pages project's", () => {
-    expect(addresses.worker).toMatch(/^https:\/\/heroesim\.[a-z0-9]([a-z0-9-]*[a-z0-9])?\.workers\.dev$/);
     expect(addresses.worker).toBe('https://heroesim.magical-potato.workers.dev');
     expect(addresses.pages).toBe('https://heroesims.pages.dev');
   });
 
-  // The deploy guide, docs/deploy.md, holds what INPUTS 7.8 held, the archived inputs being frozen (DL-217).
-  test('are both in the README and in the deploy guide', () => {
+  // The deploy guide's are the test "the deploy guide names both addresses" (docs/deploy.md, DL-217).
+  test('are both in the README', () => {
     const readme = readText('README.md');
-    const guide = readText('docs/deploy.md');
 
     expect(readme).toContain(addresses.worker);
     expect(readme).toContain(addresses.pages);
-    expect(guide).toContain(addresses.worker);
-    expect(guide).toContain(addresses.pages);
   });
 });
 
@@ -769,9 +767,10 @@ describe('the repository holds no deploy credential', () => {
     const probes = ['.wrangler/cache/pages.json', 'web/.wrangler/cache/pages.json', 'web/.wrangler/tmp/bundle.js'];
 
     expect(ignored).toContain('.wrangler/');
-    for (const probe of probes) {
-      expect(git(['check-ignore', '--no-index', '--quiet', probe]).status, probe).toBe(0);
-    }
+    // One spawn for the three: git prints each path it ignores.
+    const checked = git(['check-ignore', '--no-index', ...probes]);
+    expect(checked.status).toBe(0);
+    expect(checked.stdout.split(/\r?\n/).filter((line) => line !== '')).toEqual(probes);
   });
 
   test('no file sits under a .wrangler/ directory', () => {
@@ -919,7 +918,6 @@ describe('the deploy workflow (DL-122, DL-124)', () => {
     expect(guard).toContain('git merge-base --is-ancestor HEAD "origin/$branch"');
     expect(guard).toContain('ALLOW_OLDER: ${{ inputs.allow_older == true }}');
     expect(guard).toMatch(/if \[ "\$ALLOW_OLDER" = "true" \]; then\n[^\n]*rollback[^\n]*\n {10}else\n {12}node web\/scripts\/release\.mjs newest "\$tag"/);
-    expect(productionBranch).toBe('main');
   });
 
   test('checks, runs the browser specs, reads Pages, deploys, then reads both addresses live, one run at a time', () => {

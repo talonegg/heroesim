@@ -1,9 +1,7 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
-import { App } from '../app';
 import { holding, holdingUnique, started, withOffer, withRichRivals, withWealth } from '../state/game.test-support';
-import type { GameState } from '../state/reducer';
-import { historyLines, inHistory, navButton, openDebugHistory, rosterList, section, sentenceOf } from './page.test-support';
+import { historyLines, idle, inHistory, openDebugHistory, openFirstHero, renderGame, rosterList, section, sentenceOf, wealth } from './page.test-support';
 
 // The plays part 2 adds, driven through the page's own controls (DL-73): the CLI's
 // `buy`, `sell`, `build`, `recruit`, `equip`, `unequip`, `transfer --to`, `transfer --in`, `accept`
@@ -12,14 +10,6 @@ import { historyLines, inHistory, navButton, openDebugHistory, rosterList, secti
 // region is found by opening its view first (DL-103).
 
 afterEach(cleanup);
-
-async function idle(): Promise<void> {
-  await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-function wealth(): number {
-  return Number(screen.getByTestId('wealth').textContent);
-}
 
 /** The refusal's sentence, without its Dismiss button. */
 function refusal(): string {
@@ -41,10 +31,6 @@ function debugSays(pattern: RegExp): void {
   logSays(pattern);
 }
 
-function render_(state: GameState): void {
-  render(<App initial={state} />);
-}
-
 /** A table's row by what its row heading names: an Item, a Hero. */
 function rowOf(scope: HTMLElement, name: string): HTMLElement {
   const row = within(scope).getByRole('rowheader', { name }).closest('tr');
@@ -61,7 +47,7 @@ function cells(row: HTMLElement): string[] {
 
 describe('the Market', () => {
   test('buys what it has for sale at its price, and the Guild then holds it', async () => {
-    render_(started());
+    renderGame(started());
     const sword = rowOf(section('Market'), 'Short sword');
     // Kind, Effect, Price, Stock.
     const price = Number(cells(sword)[2]);
@@ -78,7 +64,7 @@ describe('the Market', () => {
   });
 
   test('sells from a stack the Guild holds for what the Market pays', async () => {
-    render_(holding(started(), 'whetstone', 3));
+    renderGame(holding(started(), 'whetstone', 3));
     const sale = rowOf(section('Sell'), 'Whetstone');
     const each = Number(cells(sale)[3]);
     const before = wealth();
@@ -93,7 +79,7 @@ describe('the Market', () => {
 
   test("sells a unique Item the Guild holds, one of its own with no quantity to choose (the CLI's `sell --item`)", async () => {
     const blade = "The Barrow King's blade";
-    render_(holdingUnique(started(), 'barrow-kings-blade'));
+    renderGame(holdingUnique(started(), 'barrow-kings-blade'));
     const sale = rowOf(section('Sell'), blade);
     // Kind, Effect, Held, Sells for.
     expect(cells(sale)[0]).toBe('Weapon Gear, Unique Item');
@@ -113,7 +99,7 @@ describe('the Market', () => {
   });
 
   test("says why a purchase is refused, in the engine's terms", async () => {
-    render_(withWealth(started(), 10));
+    renderGame(withWealth(started(), 10));
 
     fireEvent.click(within(rowOf(section('Market'), 'Plate harness')).getByRole('button', { name: 'Buy Plate harness' }));
     await idle();
@@ -125,7 +111,7 @@ describe('the Market', () => {
 
 describe('the Hall', () => {
   test("builds a facility's next grade for its cost, and then offers the one after", async () => {
-    render_(started());
+    renderGame(started());
     const infirmary = (): HTMLElement =>
       within(section('Hall'))
         .getAllByTestId('facility')
@@ -143,20 +129,11 @@ describe('the Hall', () => {
     expect(within(infirmary()).getByRole('button', { name: 'Build Infirmary ward for 500 Wealth' })).toBeDefined();
     logSays(/^The Lantern built Sickroom for 200 Wealth: its infirmary is now grade 1\.$/);
   });
-
-  test('says why a grade cannot be built', async () => {
-    render_(withWealth(started(), 50));
-
-    fireEvent.click(within(section('Hall')).getByRole('button', { name: 'Build Dormitory for 200 Wealth' }));
-    await idle();
-
-    expect(refusal()).toBe("The next grade of The Lantern's quarters costs 200 Wealth; The Lantern has 50.");
-  });
 });
 
 describe('the Unattached pool', () => {
   test('recruits a Hero for the signing fee shown, onto the Roster', async () => {
-    render_(started());
+    renderGame(started());
     const pool = section('Unattached pool');
     const [row] = within(pool).getAllByTestId('pool-row');
     if (row === undefined) throw new Error('an empty pool');
@@ -176,7 +153,7 @@ describe('the Unattached pool', () => {
   });
 
   test('says why a Hero will not sign, and recruits from their page too', async () => {
-    render_(withWealth(started(), 0));
+    renderGame(withWealth(started(), 0));
     const pool = section('Unattached pool');
     const [name] = within(pool)
       .getAllByRole('button')
@@ -195,17 +172,10 @@ describe('the Unattached pool', () => {
 });
 
 describe("a Hero's page on the player's Roster", () => {
-  function openFirstHero(): { name: string; page: () => HTMLElement } {
-    const [first] = within(rosterList()).getAllByRole('button');
-    const name = first?.textContent ?? '';
-    if (first === undefined) throw new Error('an empty Roster');
-    fireEvent.click(first);
-    return { name, page: () => within(section('Roster')).getByRole('article') };
-  }
-
   test('equips gear the Guild holds, and unequips it', async () => {
-    render_(holding(started(), 'arming-sword', 1));
-    const { name, page } = openFirstHero();
+    const game = holding(started(), 'arming-sword', 1);
+    renderGame(game);
+    const { name, page } = openFirstHero(game);
     /** The Hero's weapon slot, as their gear lists it. */
     const weapon = (): HTMLElement =>
       within(within(page()).getByRole('list', { name: `${name}'s Gear` }))
@@ -233,8 +203,9 @@ describe("a Hero's page on the player's Roster", () => {
 
   test("equips a unique Item the Guild holds, and unequips it back to the Guild (the CLI's `equip --item`)", async () => {
     const blade = "The Barrow King's blade";
-    render_(holdingUnique(started(), 'barrow-kings-blade'));
-    const { name, page } = openFirstHero();
+    const game = holdingUnique(started(), 'barrow-kings-blade');
+    renderGame(game);
+    const { name, page } = openFirstHero(game);
     const weapon = (): HTMLElement =>
       within(within(page()).getByRole('list', { name: `${name}'s Gear` }))
         .getAllByRole('listitem')
@@ -258,8 +229,9 @@ describe("a Hero's page on the player's Roster", () => {
   });
 
   test('transfers the Hero to the Guild chosen, for the fee it would pay, once asked and confirmed', async () => {
-    render_(withRichRivals(started()));
-    const { name, page } = openFirstHero();
+    const game = withRichRivals(started());
+    renderGame(game);
+    const { name, page } = openFirstHero(game);
     // "Transfer…" asks first, stating the fee and what it costs (the review's E4).
     fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name}…` }));
     const ask = within(page()).getByRole('group', { name: `Transfer ${name}?` });
@@ -284,8 +256,9 @@ describe("a Hero's page on the player's Roster", () => {
   });
 
   test('says why a Guild will not take the Hero', async () => {
-    render_(started());
-    const { name, page } = openFirstHero();
+    const game = started();
+    renderGame(game);
+    const { name, page } = openFirstHero(game);
 
     fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name}…` }));
     fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name} to The Ashford Guild` }));
@@ -297,7 +270,7 @@ describe("a Hero's page on the player's Roster", () => {
 
 describe("another Guild's Roster", () => {
   test('takes a Hero in for the Transfer fee shown', async () => {
-    render_(started());
+    renderGame(started());
     fireEvent.click(within(section('Guilds')).getByRole('button', { name: 'Open The Ashford Guild' }));
     const page = within(section('Guilds')).getByRole('article');
     const [row] = within(page).getAllByTestId('guild-hero');
@@ -315,7 +288,7 @@ describe("another Guild's Roster", () => {
   });
 
   test("offers the same from a Rival Hero's page, and says why a Guild will not part with them", async () => {
-    render_(started());
+    renderGame(started());
     fireEvent.click(within(section('Guilds')).getByRole('button', { name: 'Open The Old Weir Guild' }));
     const [heroButton] = within(section('Guilds')).getAllByRole('button').filter((button) => button.className === 'link');
     const name = heroButton?.textContent ?? '';
@@ -333,20 +306,8 @@ describe("another Guild's Roster", () => {
 });
 
 describe('Transfer Offers', () => {
-  test('are not drawn while none stands, and the Roster in the navigation carries no dot, until a Rival makes one', () => {
-    const { unmount } = render(<App initial={started()} />);
-    section('Roster');
-    expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
-    expect(navButton('Roster').textContent).toBe('Roster');
-    unmount();
-
-    render_(withOffer(started()));
-    expect(within(section('Transfer Offers')).getAllByRole('listitem')).toHaveLength(1);
-    expect(navButton('Roster').textContent).toBe('Roster, a Transfer Offer waits');
-  });
-
   test('accepts an offer, once asked and confirmed: the Hero goes to the Guild that made it, for its fee', async () => {
-    render_(withOffer(started()));
+    renderGame(withOffer(started()));
     const offers = section('Transfer Offers');
     const sentence = within(offers).getByText(/ offers \d+ Wealth for .+, until the night of Year \d+ Day \d+\.$/).textContent ?? '';
     const [, guildName = '', fee = '', name = ''] = /^(.+) offers (\d+) Wealth for (.+), until/.exec(sentence) ?? [];
@@ -366,7 +327,7 @@ describe('Transfer Offers', () => {
   });
 
   test('declines an offer: the Hero stays', async () => {
-    render_(withOffer(started()));
+    renderGame(withOffer(started()));
     const offers = section('Transfer Offers');
     const [, guildName = '', name = ''] = /^(.+) offers \d+ Wealth for (.+), until/.exec(within(offers).getAllByRole('listitem')[0]?.textContent ?? '') ?? [];
 
