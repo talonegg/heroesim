@@ -807,3 +807,59 @@ DL-244's sense too ("Finish" undone and cut off for this kind); of 58 mutations 
 equivalent and 17 were killed by tests added; fixed, test first: the API's one long-lived editor never
 named the files a "Finish" cut off put back and its `recover` named them again, now an editor a call
 naming `recovered` as the command line does.
+
+## DL-268 — v1.2.0-S10 built: the drafting skills, `quest-draft` and `encounter-draft`, each writing a draft for review before "Finish"
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257 item 8 (Q16 c): editor commands and two skills are the only way Quest templates
+and Encounters change. S9 built the commands and `quests doctor` (DL-267). The shipped Encounters'
+targets were set by the harness's calibration (DL-162), tuned at DL-166 item 2's aim.
+
+**Decision.**
+
+1. **`quest-draft`** (`.claude/skills/quest-draft/SKILL.md`): from a brief, a template's fields from
+   its peers; at least three consecutive Tiers (Q25 c); its Beats written in the order the Tiers play
+   them, a Tier of k Beats playing the first k − 1 and the Finale (DL-262), each Tier's story written
+   out and read whole; lines by `ui-text.md`; pools by kind, tag or name, each large enough
+   (`shortBeats`); overrides only where the brief asks, named with their reason; the edits through
+   `quests …`; `quests doctor`; a review draft in the scratchpad (each Tier's figures, whether it may
+   be Deadly, the story it plays with each Beat's pool and draws); "Finish" only on the owner's
+   approval, else `discard`.
+2. **The hand-off:** a pool too short or unfitting, a Finale of its own, or a scene no Encounter
+   plays goes to `encounter-draft` in the same session: its steps 1–3, then the template, then its
+   calibration and doctor, since a Finale is aimed by its template and the doctor fails an Encounter
+   nothing plays.
+3. **`encounter-draft`** (`.claude/skills/encounter-draft/SKILL.md`): kind, tags, one to four Checks
+   with a placeholder target, the pass formula and consequences by Degree from its peers; a Death only
+   where the brief kills, scaled by the Tier (DL-265); an earned Trait left to `trait-assign` after
+   "Finish". **Its targets by the calibration**, as DL-166 item 2 set the shipped ones: a scratch
+   copy of both folders with the pending rows, `HEROESIM_DRAFTS=<copy> HEROESIM_TUNE=0.56
+   HEROESIM_FLAT=0.4 HEROESIM_CALIBRATION_OUT=<scratch> npm run harness -- calibrate`, the drafted
+   Encounter's numbers alone put in with `encounters check change`; then an untuned run read for its
+   rows beside its peers'. Then the doctor, a review draft, and "Finish" or `discard`.
+4. **The docs:** `docs/agents/quests.md` names the skills as built; AGENTS.md's line already named
+   them.
+
+*Judgement calls, for the owner to see.*
+- **The calibration is not a sweep**, but a harness run: it runs alone, as rule 6 says, and always
+  with `HEROESIM_CALIBRATION_OUT`, so `docs/quests/calibration.md` is never written over.
+- **The tuned numbers go in through the editor,** never by copying the tuned file: the tuning writes
+  every Encounter of the copy, the shipped ones retuned under today's config, which are not wanted.
+- **Two runs,** tune then read: the review's figures are those of the pending content beside the
+  shipped Encounters, not of the retuned copy.
+- **No helper code:** the skills drive S9's commands and the harness as they stand.
+
+**Consequences.** S11 writes the content through these skills. Nothing in content, engine or config
+changed: no play change, no sweep.
+
+**Evidence.** The commit `v1.2.0-S10 (DL-268)`. The trial on the repository, then discarded: the brief
+"Raise the drowned bell" (a fen village's bell tolling under the mere); `encounters add
+the-drowned-bell` (travel; The dive, The toll, Raising the bell, at least 2 of 3; a Death of 3% on a
+Failure), `quests add raise-the-drowned-bell` (Tiers 2–4, three Beats, the Finale),
+`quests override set … 2 beats=2`; tuned at its template's middle, 55: 3.46 + 0.094, 2.36 + 0.064,
+5.43 + 0.148 × difficulty, put in by three `check change`s; read: 48% at 60 at Level 5 with Parties
+of 3, its travel peers 55% and 57%; `quests doctor` ok with 6 pending edits; both drafts written for
+review. `encounters discard` first was refused (the template's Finale names it); `quests discard`
+then `encounters discard` left no pending edit, `.editor/` empty and `git diff -- content` empty.
+The epic's S10 box.

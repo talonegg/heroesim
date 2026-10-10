@@ -19,11 +19,12 @@ npm run --silent edit -- encounters <command> --json
 
 | Skill | Run it to | It changes |
 | --- | --- | --- |
-| `quest-draft` | draft a template's Tiers, Beats, lines and pools from a brief | the Quest templates, through `quests …` and `finish` |
-| `encounter-draft` | draft an Encounter's Checks, consequences and tags | the Encounters, through `encounters …` and `finish` |
+| `quest-draft` | draft a template from a brief: its Tiers, its Beats' lines and pools in the order each Tier plays them, overrides and Finale | the Quest templates, through `quests …` and `finish` |
+| `encounter-draft` | draft an Encounter from a brief: its Checks, pass formula, consequences and tags, its targets set by the harness's calibration (DL-166) | the Encounters, through `encounters …` and `finish` |
 
-Both write a draft for the owner's review before "Finish"; until they are built (DL-257 item 8), the
-commands alone are the route. Ask Claude Code for one by name, or say
+Both hold their edits pending, run the doctor, and write a draft to the session's scratchpad for the
+owner's review; "Finish" runs only on the owner's approval (DL-268). `quest-draft` hands an Encounter
+the content lacks to `encounter-draft`, in the same session. Ask Claude Code for one by name, or say
 what you want done to a template or an Encounter. Each works on the current branch, from the
 repository's root.
 

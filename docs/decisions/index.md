@@ -277,6 +277,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-265 | 2026-10-11 | v1.2.0-S7 built: Death by Tier, `deathFactor` and each Tier's `deathScale` read, and the Deadly … |  | [decision-log](../decision-log.md) |
 | DL-266 | 2026-10-11 | v1.2.0-S8 built: the Party floor of two, no Party's most, `schemaVersion` 9; content version 39 |  | [decision-log](../decision-log.md) |
 | DL-267 | 2026-10-11 | v1.2.0-S9 built: the editor's Quest templates and Encounters, `quests …` and `encounters …`, and … |  | [decision-log](../decision-log.md) |
+| DL-268 | 2026-10-11 | v1.2.0-S10 built: the drafting skills, `quest-draft` and `encounter-draft`, each writing a draft … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
