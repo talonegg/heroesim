@@ -33,12 +33,18 @@ these nine sentences the player finds themselves saying. Each epic names the sen
 ## The twelve parts
 
 1. **The calendar.** Three Turns a Day, the rhythm unchanged (principle 10). Quests are fewer, longer
-   and weightier, so each one matters. In time, the Quests a Guild is offered grow
-   with its Fame and its Patrons' Regard (part 7).
+   and weightier, so each one matters (DL-257).
+   - A Quest template offers Tiers. A higher Tier is longer, harder and richer in Wealth, XP and
+     Loot, and has more Beats: lines of its story, each with an Encounter drawn from a pool. The
+     Tiers' figures are a ladder in config that a template may override.
+   - The shared Board offers the Tiers that fit the world's mean Level, and a Tier may ask a Guild for
+     a minimum of Fame. The Board may grow over the Years, up to a cap.
+   - In time, the Quests a Guild is offered grow with its Fame and its Patrons' Regard (part 7).
 2. **The Hero's career.**
    - A Hero ages, Declines, retires or dies, as today.
-   - Death is rare and falls on the hardest Quests, and a Quest shows its danger. One setting, the
-     Death factor, scales every Death chance in content, so the rate is tuned without code.
+   - Death is rare and falls on the hardest Tiers, and the Board marks a Quest that can kill Deadly.
+     One setting, the Death factor, and each Tier's Death scale multiply every Death chance in
+     content, so the rate is tuned without code (DL-257).
    - A Career stage is worked out from age, Level and record: Prospect, Regular, Veteran, Champion
      or Retired. It is shown on the tile and the Hero's page. Ambitions and the Legacy review read
      it, and no other rule does.
@@ -58,8 +64,10 @@ these nine sentences the player finds themselves saying. Each epic names the sen
    - Later, a Mentor: a veteran paired with a junior, whose growth leans toward the Mentor's
      strengths, and a Trait, good or bad, may pass on. A Mentor at home is a Hero not on a Quest.
 5. **Selection.**
-   - Party minimums of three or more, and a cap on the Parties a Guild has out at once.
-   - XP is not divided by the Party, so a bigger Party costs nothing.
+   - Every Party is two Heroes or more, a template asking for more where its work needs it. No
+     template has a maximum and nothing caps the Parties out (DL-257).
+   - XP is divided by the Party sent, so each Hero beyond the work's need costs the others (DL-182).
+   - Later, a Party smaller than its template's floor may go, at a greater difficulty or cost.
    - One Captain for each Guild, named by the player. The Party the Captain goes with gains Morale
      and effectiveness, and the Roster gains a little Morale while the Captain is at home.
    - Regard moves both ways. Failures and Deaths sour a Party, Heroes competing for a place or the

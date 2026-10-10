@@ -7382,8 +7382,7 @@ targets describe the automatic policy's games over 20 years.
    failed, 13.7% success and 71.5% strong at M8). As recommended.
 5. **Rival folds a game (agenda 12d).** 1.5 to 3.5, confirming DL-69 item 4's band (2.78 at M8) —
    against the recommended 1 to 2.
-6. **The player's Hero Deaths a game (agenda 12e).** 25 to 40, keeping about M8's 34 (33.6) —
-   against the recommended 15 to 25.
+6. **The player's Hero Deaths a game (agenda 12e).** *Superseded by DL-257 item 7, 2026-10-10; its text is in [superseded/DL-83.md](superseded/DL-83.md).*
 7. **The player's Wealth curve (agenda 12f).** After year 2, Wealth held at 6 to 12 months' Upkeep
    (about three years' Upkeep at year 10 and five at year 20 at M8) — against the recommended 1 to 6
    months.

@@ -92,7 +92,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-80 | 2026-09-28 | M8 verification corrections: a read-only view by every route of reading, a hook's events settled as … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-81 | 2026-09-28 | M8 close: the first build's 1,000 × 20 tagged run, byte identity with `m7-web` read from inside it … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-82 | 2026-09-28 | Random Events and the module contract: the owner's inputs as a blocking INPUTS §8 table, the … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-83 | 2026-09-28 | Balance targets and the economy: target bands for the automatic policy's games with M8 as the … | item 1 in part by DL-181 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-83 | 2026-09-28 | Balance targets and the economy: target bands for the automatic policy's games with M8 as the … | item 1 in part by DL-181; item 6 by DL-257 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-84 | 2026-09-28 | Saves, History and performance: data-model §7 rebaselined on M8's figures, saves compressed … | item 2 in part by DL-254 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-85 | 2026-09-28 | Game rules and design gaps: Fame left dormant, the Hero asked before a Transfer, a Board that grows … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-86 | 2026-09-28 | Process, harness and documents: v1.0.0 cut at `m8-modules` and new work on `v1.1-dev`, production … | item 2 in part by DL-99 | [DL-086-098-v1.0](archive/DL-086-098-v1.0.md) |
@@ -265,7 +265,8 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-253 | 2026-10-10 | v1.1.9: approach, data model and requirements say what is true at v1.1.9 |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
 | DL-254 | 2026-10-10 | v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a … |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
 | DL-255 | 2026-10-10 | A merge of docs, records and the release pipeline alone releases nothing: no tag, no deploy |  | [decision-log](../decision-log.md) |
-| DL-256 | 2026-10-10 | The `v1.2` line: the Guild as an institution, from an independent design brief; the owner's answers … |  | [decision-log](../decision-log.md) |
+| DL-256 | 2026-10-10 | The `v1.2` line: the Guild as an institution, from an independent design brief; the owner's answers … | item 2 in part by DL-257 | [decision-log](../decision-log.md) |
+| DL-257 | 2026-10-10 | v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

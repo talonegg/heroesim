@@ -119,6 +119,7 @@ Quests failed (20–30%). Of the brief's nine playtest sentences, one could be s
 2. **Scarcity, then Fatigue.** Fewer, longer, weightier Quests, Party minimums of three or more, a
    cap on Parties out and XP undivided; Fatigue in the next release. In time, a Guild's Quests grow
    with its Fame and its Patrons' Regard.
+   *Superseded in part by DL-257, 2026-10-10: a floor of two; no cap; XP divided. The record: [superseded/DL-256.md](decisions/archive/superseded/DL-256.md).*
 3. **The ending.** The game ends at the Guildmaster's Retirement (R34) with a Legacy review. There is
    no dynasty.
 4. **The playtest** closes each epic, scored by the nine sentences.
@@ -179,4 +180,68 @@ above.
 for Items); the model page is the Guild Management Design, `docs/management-design.md` (the glossary
 avoids Model for the World State); and item 20's area scores are a summary figure for each Stat area,
 named when the tile is designed.
+
+## DL-257 — v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a Party floor of two, and content built to grow; nothing tuned
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, answering Q1–Q26 on
+2026-10-10 (the epic's §6); the defaults, the stories and their order are the agent's, approved by
+Q24 and Q26
+
+**Context.** DL-256 made `v1.2.0` the line's first release: fewer, longer, weightier Quests, Party
+minimums, the Death factor, rewards rebalanced. The engine at `0443c58` refills a Board of 6 each
+morning, draws durations apart from difficulty and prices a Quest by difficulty alone. Party sizes
+live in the templates, from 1–2 to 3–5. XP is divided by the Party, and no setting scales Death. The
+owner was grilled in four rounds.
+
+**Decision.**
+
+1. **Tiers** (Q4, Q9, Q13, Q24). A template offers consecutive Tiers of a five-row ladder in config:
+   for each, a difficulty band, days, Beats, Loot, `rewardFactor`, `xpFactor`, `deathScale` and
+   `fameMinimum`. A template may override any figure for any Tier. A Quest's days sit in its Tier's at
+   the place its difficulty sits in its band. Built in full now, for much more content later.
+2. **Beats** (Q14). A template is an ordered list of Beats, each a narrative line and an Encounter
+   pool by kind, tag or name. A Quest plays its Tier's count of them, one Encounter drawn from each,
+   none twice; a Finale is last.
+3. **The Board** (Q7, Q15, #22). Tiers are drawn around 1 + ⌊the world's mean Level ÷
+   `levelsPerTier`⌋, the same for every Guild. A Guild below a Tier's `fameMinimum` may not take it;
+   the minimums are 0.
+4. **The growing Board** (Q3, Q10). Its size is the smaller of a cap and a start plus growth by the
+   Year, at 6, 0 and 6: the rule built, play unchanged.
+5. **Death** (Q5, Q17). An Encounter's Death chance × `deathFactor` (1) × its Tier's `deathScale`: 0
+   for Tiers 1–3, 1 for 4–5. A Quest that can kill is marked Deadly on the Board card (Q18), with no
+   figure in the Party builder.
+6. **Parties** (Q1, Q2, Q8). Templates at a minimum of 1 are written at 2, and the rest keep theirs.
+   No template has a maximum, and nothing caps the Parties out. XP stays divided by the Party sent
+   (DL-182 stands).
+7. **Nothing tuned** (Q6, Q11, Q12, Q23).
+   - Every DL-83 band is reported against v1.1.9's figure, none to be met.
+   - `gate.json` drops the player's Bankruptcies for the Targets and keeps its correctness and
+     performance lines.
+   - The reward and XP factors keep a Party's Wealth and XP a Day away at v1.1.9's.
+   - The player's Deaths are reported against DL-256 item 10's 3–8 a game, which supersedes DL-83
+     item 6's 25–40.
+   - #51 and #22's premium wait for the release that tunes the economy.
+8. **Content built to grow** (Q16, Q19, Q22). Quest templates, Encounters, Items and Loot tables move
+   to one file per row, through a loader any kind can use. Editor commands and the skills
+   `quest-draft` and `encounter-draft` are the only way Quest templates and Encounters change, with
+   `quests doctor`.
+9. **Words** (Q21). Tier and Beat enter the glossary, the entries avoiding them rewritten, with
+   Deadly and Death factor.
+10. **The aim** (Q20): "He needs another year of development" and "I need to give him a chance".
+11. **The backlog** gains Parties below the floor at a penalty, Unique Items from the hardest Tiers,
+    and tuning the Board's growth and the Fame minimums.
+12. **The plan**: the epic `docs/planning/epics/v1.2.0-release.md`, S1–S13, with #19 and #40.
+
+*Judgement calls, for the owner to see.*
+- The world's mean Level is that of every Hero on a Roster, the player's and the Rivals' alike.
+- A Tier's Loot flag replaces `lootDifficultyThreshold`, the ladder's Tier 3 starting above its 35.
+- The Board card shows the name, Tier, Deadly, days and reward; the narrative is in the Party builder.
+- DL-256's Consequences said this entry would supersede DL-182's XP split and DL-83's Deaths band.
+  The split stands (Q8). The band becomes item 10's 3–8, its figure taken as written, reported only.
+
+**Consequences.** DL-256 item 2 is superseded in part, and DL-83 item 6 in full. `plan.md` §3 makes `v1.2.0` "Now".
+Play changes from S5. A playtest that cannot reach its second year is the owner's to decide at the
+close.
+
+**Evidence.** The commit `v1.2.0 (DL-257)`. The epic's §5 lists the facts checked at `0443c58`.
 

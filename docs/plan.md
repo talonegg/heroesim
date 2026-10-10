@@ -80,21 +80,15 @@ default, as the first build's `INPUTS-REQUIRED.md` §8 asked), names the design'
 and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.md)). The economy pass
 (#51) is spread across the releases that change what it tunes.
 
-- **Now: none open.** `v1.1.9` was released on 2026-10-10 (§2). `v1.2.0` is next, and its epic is
-  planned on the owner's word.
+- **Now: `v1.2.0`, fewer, weightier Quests** ([its epic](./planning/epics/v1.2.0-release.md),
+  DL-257): tiered Quest templates with Beats, the Board's Tiers following the world's mean Level, Death
+  by Tier and the Deadly mark, a Party floor of two, content in one file per row, and the editor's
+  commands and skills to write it. Nothing is tuned: every DL-83 target is reported against
+  `v1.1.9`'s. It takes in #19, #22's Board scaling and #40.
 - **Short term: choices that cost something.**
-  1. `v1.2.0`, fewer, weightier Quests:
-     - fewer and longer Quests, Party minimums of three or more, and a cap on the Parties a Guild has
-       out;
-     - XP no longer divided by the Party;
-     - the Death factor, with Death rare and on the hardest Quests and a Quest's danger shown;
-     - rewards rebalanced to DL-83's targets as restated: #51's late Bankruptcies, the Quests' volume
-       and the Market's size and draws by slot (DL-168 items 2, 9 and 12).
-
-     It takes in #22, #40 and #19.
-  2. `v1.2.1`, Fatigue and the Captain, the Roster's Tiles, Table and phone views as the design's
+  1. `v1.2.1`, Fatigue and the Captain, the Roster's Tiles, Table and phone views as the design's
      part 11 sets them, and #51's form factors. It takes in #41.
-  3. `v1.2.2`, Rivals who compete, and Fame raising the stakes. It takes in #21, #25 and #51's Rival
+  2. `v1.2.2`, Rivals who compete, and Fame raising the stakes. It takes in #21, #25 and #51's Rival
      income.
 - **Medium term: the management core,** in this order:
   - Contracts: #51's wage, and the harness's policy deciding renewals (#20).
@@ -105,6 +99,8 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
     pre-M0 review D9; #31), #24 and #49.
   - Ambitions and Career stages.
   - Relationships that can sour (#26).
+  - A Party smaller than its template's floor, sent at a greater difficulty or cost (DL-257).
+  - Unique Items as a rare drop of the hardest Tiers (DL-257).
   - Poaching (#27), then Mentors.
   - Career statistics and the Rankings' history.
 - **Long term: reputation and legacy.**
@@ -132,6 +128,10 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
   - Patron pictures, drawn on a `patron-portraits` stream, through the portrait tool (DL-135
     item 10).
 - **Alongside, their place decided as each release closes:**
+  - The targets reset and tuned against, once more of the line is built (DL-257): DL-83's bands as
+    restated; #51's Quests' volume, Wealth and the Market's size or draws by slot (DL-168 items 9 and
+    12); #22's strong-success premium; the Death band (DL-256 item 10); the Tiers' factors, the
+    Board's growth and the Fame minimums.
   - Taken into the release that touches their code: #16, #46 and #52, and `loot.ts`'s comment,
     which still cites principle 2's fourth pull (DL-256).
   - The Transfer Generator's Roster bound removed: its own bids keep a Rival's Roster at or below
