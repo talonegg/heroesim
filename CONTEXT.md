@@ -318,25 +318,26 @@ _Avoid_: Mission, Commission, Job, Contract, Task
 **Quest template**:
 A content row a Quest is drawn from: its Spheres, Skills, requirements, the ranges
 of its difficulty, duration and Party size, its reward and Fame effect, its tags, its Loot
-table, its Tiers and its Beats, with any Finale. A Quest copies what it carries at generation, so a
+table, its kinds of Encounter and any Finale. A Quest copies what it carries at generation, so a
 changed template never alters a Quest already offered (DL-25). Its tags weight the draw of its
 Encounters: within a kind, an Encounter is drawn `encounterTagWeight` times as often for each tag
 it shares with the template (DL-148 item 22, DL-160); they are kept too for
-Random Events' conditions (DL-82).
+Random Events' conditions (DL-82). To be built: its Tiers and its Beats, in the place of its ranges
+of difficulty and duration and its kinds of Encounter (DL-257 items 1 and 2).
 _Avoid_: Quest type, Blueprint, Archetype
 
 **Tier**:
-One of the ladder's grades of a Quest template, numbered from 1 up, each longer, richer and with
-more Beats than the one below. A template offers consecutive Tiers, and a Quest is posted at one,
-copying its figures (DL-257 items 1 and 3). The ladder's figures are settings that a template may
-override, and the Board offers the Tiers that fit the world's mean Level. To be built.
+One rung of the ladder of Quests, numbered from 1 up, each longer, richer and with more Beats than
+the one below. A Quest template offers consecutive Tiers, and a Quest is posted at one, copying its
+figures (DL-257 items 1 and 3). The ladder's figures are settings that a template may override, and
+the Board draws its Tiers around the world's mean Level. To be built.
 _Avoid_: Level (a Hero's is another thing), Grade, Rank
 
 **Beat**:
 A line of a Quest template's narrative, with the pool its Encounter is drawn from, by kind, tag or
 name. A Quest plays its Tier's count of Beats in order, one Encounter drawn from each and none
 twice, a Finale last (DL-257 item 2). To be built.
-_Avoid_: Scene, Step, Stage, Encounter (what a Beat draws is another thing)
+_Avoid_: Scene, Step, Encounter (what a Beat draws is another thing)
 
 **Stat demand**:
 A Hero Stat a piece of work asked for, with a weight; a Quest template's or an Encounter's
@@ -446,7 +447,7 @@ How well a Quest went: failure, success or strong success, read from the share o
 Encounters the Party came through at Success or better (DL-42). A strong success needs every
 Encounter at Success or better and half of them Triumphs: DL-83's margin, made a share of
 Triumphs (DL-148 item 8, DL-152). By DL-85 it pays a premium (to be built).
-_Avoid_: Result, Grade, Tier (a Quest's is another thing)
+_Avoid_: Result, Grade, Tier (the one a Quest is posted at is another thing)
 
 **Chance band**:
 The word an estimated chance is shown in: Hopeless below 10%, Unlikely to 35%, Even to 65%, Likely

@@ -258,16 +258,18 @@ Encounter avoided "Beat".
 
 1. **Four entries** in `CONTEXT.md`: Tier and Beat after Quest template, Deadly and Death factor
    after Finale, each marked "To be built" and citing DL-257.
-2. **Quest template's entry** names its Tiers and its Beats, in the place of "its kinds of Encounter".
-3. **Five avoid lists** (Level, Morale band, Regard band, Degree, Quest band) read "Tier (a Quest's is
-   another thing)". Encounter's drops Beat.
+2. **Quest template's entry** names its Tiers and its Beats as to be built, in the place of its ranges
+   of difficulty and duration and its kinds of Encounter.
+3. **Five avoid lists**: Level's, Morale band's, Regard band's and Degree's read "Tier (a Quest's is
+   another thing)", Quest band's "Tier (the one a Quest is posted at is another thing)". Encounter's
+   drops Beat.
 4. **The Guild Management Design's table of words** gains Tier and Beat with their clashes, its count
    of clashes five to seven, and Deadly in the words that raise none.
 5. **No other live page** lists Tier or Beat as a word to avoid: `docs/agents/ui-text.md` and the
    rest hold none. No code changes.
 
 *Judgement calls, for the owner to see.*
-- Tier and Beat each avoid a few near words (Grade, Rank, Scene, Step, Stage), and Beat avoids
+- Tier and Beat each avoid a few near words (Grade, Rank, Scene, Step), and Beat avoids
   Encounter, the step it draws. Deadly avoids Lethal, Dangerous and Fatal, Death factor Death rate,
   Mortality and Lethality.
 - Milestone's "a Campaign beat" is left as it is: lower case, a Campaign's own, no glossary term.
@@ -276,3 +278,7 @@ Encounter avoided "Beat".
 goes at the story that builds it (S5 for Tier and Beat, S7 for Deadly and the Death factor, S12 for the page).
 
 **Evidence.** The commit `v1.2.0-S1 (DL-258)`. The epic's S1 boxes are ticked.
+Verified 2026-10-10 at 1c08a21: the Quest template's entry claimed Tiers and Beats it does not carry yet
+and now marks them to be built; Quest band's avoid list, Tier's "grades" (Grade is avoided, and an
+Improvement raises a grade) and Beat's "Stage" (a clash for the line's Career stage) were reworded or
+dropped; no live page or player-facing text uses "tier" or "beat" in another sense.
