@@ -9,7 +9,6 @@ import {
   addStack,
   applyAction,
   defaultConfig,
-  playerGuild,
   serialise,
   transferFee,
   type Guild,
@@ -21,17 +20,11 @@ import {
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
-import { exitCodes, playground } from '../play.test-support.js';
+import { exitCodes, playground, thePlayer } from '../play.test-support.js';
 
 const content = loadContent();
 
 const { play, current, document } = playground('heroesim-transfer-', content);
-
-function thePlayer(world: World): Guild {
-  const guild = playerGuild(world);
-  if (guild === undefined) throw new Error("No player's Guild");
-  return guild;
-}
 
 function guildOf(world: World, guildId: string): Guild {
   const guild = world.guilds[guildId as GuildId];

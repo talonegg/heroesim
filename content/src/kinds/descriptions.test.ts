@@ -1,7 +1,17 @@
+import {
+  createWorld,
+  defaultConfig,
+  describeGuildmaster,
+  descriptiveAttributeMaxLength,
+  descriptiveAttributes,
+  sexes,
+  type DescriptiveAttribute,
+} from '@heroesim/engine';
 import { type PortraitAppearance } from '@heroesim/engine/content';
+import { describeHero } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { longestDescriptions } from '../index.js';
-import { shipped, realFiles, parse, withJson, changed, refusalOf, heroRow, pictureRowOf } from './content.test-support.js';
+import { shipped, parse, withJson, changed, refusalOf, heroRow, pictureRowOf } from './content.test-support.js';
 
 // The descriptions' refusals, and the longest texts they write (DL-243). Each is triggered by content built in memory from the shipped files with one
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
@@ -195,12 +205,6 @@ describe("the Biography's sentences from a picture, and a Hero's (DL-134 items 4
 });
 
 describe("what a Guildmaster's descriptive Attributes are written from (DL-125 item 6)", () => {
-  test('are required as a file', () => {
-    const files = realFiles();
-    delete files['descriptions.json'];
-    expect(refusalOf(() => parse(files)).message).toContain('descriptions.json: missing');
-  });
-
   test('are refused with a field missing, unknown or of the wrong type, each named', () => {
     const files = withJson('descriptions.json', (json) => {
       const young = json.appearance.female['young'] as unknown as Record<string, unknown>;
@@ -290,9 +294,11 @@ describe("what a Guildmaster's descriptive Attributes are written from (DL-125 i
       json.biography.origins['young']?.push('{He} left {birthplace} young.');
     });
     const { message } = refusalOf(() => parse(files));
+    // The sentence added is the last of the shipped list's.
+    const added = shipped.descriptions.biography.origins['young']?.length;
     expect(message).toContain('descriptions.biography.successors is empty');
     expect(message).toContain(
-      'descriptions.biography.origins.young.5: {birthplace} is followed by a comma or a full stop, since a Birthplace may hold a comma',
+      `descriptions.biography.origins.young.${added}: {birthplace} is followed by a comma or a full stop, since a Birthplace may hold a comma`,
     );
   });
 
@@ -302,9 +308,11 @@ describe("what a Guildmaster's descriptive Attributes are written from (DL-125 i
     });
 
     const { message } = refusalOf(() => parse(files));
-    expect(message).toMatch(/descriptions\.birthplaces\.35 is 68 characters; a Birthplace holds at most 60/);
-    expect(message).toContain('descriptions.birthplaces.36 is "the Crane Marshes"; it is a place\'s name, trimmed, beginning with a capital');
-    expect(message).toContain('descriptions.birthplaces.37 is " "');
+    // The four added follow the shipped list's last.
+    const first = shipped.descriptions.birthplaces.length;
+    expect(message).toContain(`descriptions.birthplaces.${first} is 68 characters; a Birthplace holds at most 60`);
+    expect(message).toContain(`descriptions.birthplaces.${first + 1} is "the Crane Marshes"; it is a place's name, trimmed, beginning with a capital`);
+    expect(message).toContain(`descriptions.birthplaces.${first + 2} is " "`);
     expect(message).toContain('descriptions.birthplaces: "Hob\'s Ferry" is listed twice');
   });
 
@@ -353,5 +361,110 @@ describe("what a Guildmaster's descriptive Attributes are written from (DL-125 i
     // "She was born in " 16 + 60 + "." 1 = 77; then "C.", "Su." (a successor's, in the Background's
     // place), "Mmm." "Tt." "E." and five spaces.
     expect(longestDescriptions(tiny).biography).toBe(77 + 2 + 3 + 4 + 3 + 2 + 5);
+  });
+});
+
+// The engine writing over the shipped content, where both packages meet (DL-125 item 6, DL-135
+// item 6): the validator reads the engine's bounds and its count of Trait sentences (DL-186 item 6)
+// to prove nothing written passes them; these hold the engine's writing to the validator's longest.
+describe('what the engine writes over the shipped content', () => {
+  const deps = { config: defaultConfig, content: shipped };
+  const longest = longestDescriptions(shipped);
+  const backgroundsOf = (owner: 'guild' | 'hero') => Object.values(shipped.backgrounds).filter((row) => row.owner === owner).map((row) => row.key);
+
+  test("a Guildmaster's: nothing past the longest the validator proves, of every sex, each age band's first and last age, Background and Trait", () => {
+    const { guildmasterStartingAgeMin: youngest, guildmasterStartingAgeMax: oldest } = defaultConfig;
+    // Each band's first and last age a new Guildmaster may have.
+    const ages = shipped.descriptions.ageBands.flatMap((band, at, bands) => {
+      const next = bands[at + 1];
+      const from = Math.max(band.from, youngest);
+      const to = Math.min(next === undefined ? oldest : next.from - 1, oldest);
+      return from <= to ? [from, to] : [];
+    });
+    const guildBackgrounds = backgroundsOf('guild');
+    const guildmasterTraits = Object.keys(shipped.guildmasterTraits);
+    const seen: Record<DescriptiveAttribute, number> = { birthplace: 0, appearance: 0, biography: 0 };
+    let index = 0;
+    for (const sex of sexes) {
+      for (const age of ages) {
+        for (const backgroundKey of guildBackgrounds) {
+          for (const n of [0, 1, 2, 3, 4]) {
+            index += 1;
+            const traitKeys = [guildmasterTraits[index % guildmasterTraits.length], guildmasterTraits[(index + 3) % guildmasterTraits.length]].filter(
+              (key) => key !== undefined,
+            );
+            const written = describeGuildmaster({ seed: `core-${index}`, n, sex, age, backgroundKey, traitKeys, portraitKey: null }, deps);
+            for (const attribute of descriptiveAttributes) {
+              const length = [...written[attribute]].length;
+              expect(length, `${attribute} of ${JSON.stringify({ sex, age, backgroundKey, n })}`).toBeGreaterThan(0);
+              expect(length).toBeLessThanOrEqual(longest[attribute]);
+              seen[attribute] = Math.max(seen[attribute], length);
+            }
+            expect(written.biography).not.toMatch(/[{}]/);
+          }
+        }
+      }
+    }
+    expect(index).toBe(sexes.length * ages.length * guildBackgrounds.length * 5);
+    // The longest proved are bounds, not the lengths met: a sample comes near them.
+    expect(seen.appearance).toBeGreaterThan(longest.appearance - 60);
+    expect(longest.appearance).toBeLessThanOrEqual(descriptiveAttributeMaxLength.appearance);
+    expect(longest.biography).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
+  });
+
+  test("a Hero's: nothing past the longest the validator proves, of every sex, age, Background and Class, with and without Traits", () => {
+    const heroBackgrounds = backgroundsOf('hero');
+    const heroTraits = Object.keys(shipped.heroTraits);
+    const seen = { appearance: 0, biography: 0 };
+    let index = 0;
+    // One world's stream, drawn on from request to request, as the pool's Heroes are described.
+    const state = createWorld('hero-bounds', { guildName: 'G', guildmasterName: 'M', createdAt: 'test' }, deps).document.world.rng['hero-descriptions'];
+    for (const sex of sexes) {
+      for (let age = 16; age <= 60; age += 4) {
+        for (const backgroundKey of heroBackgrounds) {
+          for (const classKey of Object.keys(shipped.classes)) {
+            index += 1;
+            const traitKeys = [heroTraits[index % heroTraits.length], heroTraits[(index + 1) % heroTraits.length]].filter((key) => key !== undefined).slice(0, index % 3);
+            const { appearance, biography } = describeHero(state, shipped, { sex, age, backgroundKey, classKey, traitKeys, portraitKey: null });
+            expect(appearance).not.toBe('');
+            expect(biography).not.toBe('');
+            expect(biography).not.toMatch(/[{}]/);
+            expect([...appearance].length).toBeLessThanOrEqual(longest.appearance);
+            expect([...biography].length).toBeLessThanOrEqual(longest.heroBiography);
+            seen.appearance = Math.max(seen.appearance, [...appearance].length);
+            seen.biography = Math.max(seen.biography, [...biography].length);
+          }
+        }
+      }
+    }
+    expect(index).toBe(sexes.length * 12 * heroBackgrounds.length * Object.keys(shipped.classes).length);
+    expect(longest.heroBiography).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
+    expect(seen.biography).toBeGreaterThan(0);
+  });
+
+  test('every Guildmaster and Hero of 10 new games has three texts within their bounds, a Guildmaster with a picture that fits or none, a Hero the Silhouette (DL-135 item 8)', () => {
+    let pictured = 0;
+    for (let index = 0; index < 10; index += 1) {
+      const { document } = createWorld(`world-${index}`, { guildName: 'G', guildmasterName: 'M', createdAt: 'test' }, deps);
+      for (const guildmaster of Object.values(document.world.guildmasters)) {
+        // A picture's narrative is the Appearance (DL-127 item 4); every Guildmaster may have one.
+        if (guildmaster.portraitKey !== null) {
+          pictured += 1;
+          expect(guildmaster.appearance).toBe(shipped.portraitAppearances.portraits[guildmaster.portraitKey]?.narrative);
+        }
+        for (const attribute of descriptiveAttributes) {
+          expect(guildmaster[attribute]).not.toBe('');
+          expect([...guildmaster[attribute]].length).toBeLessThanOrEqual(descriptiveAttributeMaxLength[attribute]);
+        }
+      }
+      for (const hero of Object.values(document.world.heroes)) {
+        expect(hero.portraitKey).toBeNull();
+        expect(hero.appearance).not.toBe('');
+        expect(hero.biography).not.toBe('');
+        expect([...hero.appearance].length).toBeLessThanOrEqual(descriptiveAttributeMaxLength.appearance);
+        expect([...hero.biography].length).toBeLessThanOrEqual(longest.heroBiography);
+      }
+    }
+    expect(pictured).toBeGreaterThan(10);
   });
 });

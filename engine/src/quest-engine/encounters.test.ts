@@ -8,7 +8,7 @@ import { plannedStreams, testContent, testDeps, testWorld } from '../world.test-
 import { drawSequence, encounterCount, endsWithFinale, finaleKeys, sequenceFor, sequencePlan, tagWeight } from './encounters.js';
 
 // How many Encounters a Quest has, and how its sequence is drawn, at generation or, for a
-// Quest generated before M4, when it resolves (DL-42). DL-160: the draw within a kind weighted by
+// Quest whose Encounters content no longer defines, when it resolves (DL-42, data-model rule 5). DL-160: the draw within a kind weighted by
 // the tags an Encounter shares with its template, and a template's Finale, always last (DL-148 items
 // 22 and 23).
 
@@ -225,7 +225,7 @@ describe('sequenceFor', () => {
     const twin = world();
     const before = structuredClone(at.rng) as Record<string, unknown>;
 
-    const sequence = sequenceFor(at, { templateKey: 'clear-the-barrow', difficulty: 70, encounterKeys: [] }, deps);
+    const sequence = sequenceFor(at, { templateKey: 'clear-the-barrow', difficulty: 70, encounterKeys: ['gone'] }, deps);
 
     const expected = drawSequence(streamOf(twin, 'encounters'), sequencePlan(barrow, testContent), 4, deps.config);
     expect(sequence.map((encounter) => encounter.key)).toEqual(expected);
@@ -246,7 +246,7 @@ describe('sequenceFor', () => {
   });
 
   test('for a template content no longer defines, is one Encounter drawn among all of content', () => {
-    const sequence = sequenceFor(world(), { templateKey: 'long-gone', difficulty: 30, encounterKeys: [] }, deps);
+    const sequence = sequenceFor(world(), { templateKey: 'long-gone', difficulty: 30, encounterKeys: ['gone'] }, deps);
     expect(sequence).toHaveLength(1);
     expect(Object.keys(testContent.encounters)).toContain(sequence[0]?.key);
   });

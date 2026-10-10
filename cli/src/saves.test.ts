@@ -76,17 +76,6 @@ describe('opening a save', () => {
     });
   });
 
-  test('refuses a save whose config breaks a rule, naming the setting (DL-193)', () => {
-    const text = edited((saved) => {
-      saved.meta.config.boardSize = -2;
-    });
-
-    const opened = openSave(text, content);
-
-    expect(opened).toMatchObject({ ok: false, reason: { kind: 'unsound-config', problems: [{ setting: 'boardSize' }] } });
-    expect(!opened.ok && opened.reason.message).toBe("The game's config is unsound: boardSize is -2; it is a whole number, at least 0");
-  });
-
   test("plays under the save's own config, filled forward with the current defaults", () => {
     const text = edited((saved) => {
       saved.meta.config.turnsPerYear = 30;

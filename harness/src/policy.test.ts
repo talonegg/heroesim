@@ -325,7 +325,8 @@ describe('automaticPolicy', () => {
       openBoard(quests);
       const top = quests.at(-1) as Quest;
       const next = quests.at(-2) as Quest;
-      top.encounterKeys = [];
+      // Its Encounters are none the content in use defines (data-model rule 5).
+      top.encounterKeys = ['no-such-encounter'];
       expect(bestParties(document.world, guild, fewest).party(top, availableHeroes(document.world, guild))?.estimate).toBeNull();
       // Every other Quest unlikely, but likelier than none.
       chances.of = () => 0.05;

@@ -103,15 +103,15 @@ const engineTests = {
 
 /**
  * content: the engine's types and values, by its content entry, `@heroesim/engine/content` (DL-243),
- * and Node built-ins only in its Node entry; its tests may take the engine's main entry too. The
- * engine imports nothing back, so the graph stays acyclic (pre-M0 review A3 as refined by DL-186
- * item 6; ADR-0007).
+ * and Node built-ins only in its Node entry; its tests may take the engine's main entry and its test
+ * entry too (DL-248). The engine imports nothing back, so the graph stays acyclic (pre-M0 review A3
+ * as refined by DL-186 item 6; ADR-0007).
  */
 function contentImports({ node, tests = false }) {
   return {
     patterns: [
       {
-        regex: tests ? '^@heroesim/(?!(engine|engine/content)$)' : '^@heroesim/(?!engine/content$)',
+        regex: tests ? '^@heroesim/(?!(engine|engine/content|engine/testing)$)' : '^@heroesim/(?!engine/content$)',
         message:
           "Content imports no package but the engine's content entry, `@heroesim/engine/content`, and that by " +
           'name (approach §5, DL-243).',

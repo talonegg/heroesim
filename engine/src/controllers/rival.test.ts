@@ -425,7 +425,8 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
   test('a Quest whose Encounters are drawn on the way has no estimate: the fewest it allows, by Hero id', () => {
     const { world, rival, deps } = scene('greedy-unknown', testDeps({}, withDispositions({ partyMargin: 0.05 })));
     const [quest] = openBoard(world, [10, 90, 90, 90, 90, 90], [2, 4]) as [Quest];
-    quest.encounterKeys = [];
+    // Content defines none of its Encounters (data-model rule 5).
+    quest.encounterKeys = ['no-such-encounter'];
 
     expect(dispatchOf(world, rival, deps)?.heroIds).toEqual(byId(availableHeroes(world, rival)).slice(0, 2).map((hero) => hero.id));
   });

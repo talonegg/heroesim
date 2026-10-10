@@ -654,6 +654,8 @@ describe('document-shape', () => {
       (d) => set(item(d, ids.item), 'holder', { kind: 'hero', id: ids.partyHero }),
       `${itemPath}.holder.slot`,
     ],
+    // DL-248: every Quest is drawn with one Encounter or more.
+    ['a Quest with no Encounters', (d) => set(quest(d, ids.offeredQuest), 'encounterKeys', []), `$.world.quests["${ids.offeredQuest}"].encounterKeys`],
   ])('%s is refused, and no other check runs on it', (_, mutate, path) => {
     expect(refusals(mutate)).toEqual([failure('document-shape', path)]);
   });

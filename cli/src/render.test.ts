@@ -3,7 +3,6 @@ import {
   createWorld,
   defaultConfig,
   playerGuild,
-  rankings,
   unattachedHeroes,
   type Guild,
   type GuildId,
@@ -100,8 +99,6 @@ describe('renderRankings: shared places (DL-95)', () => {
       expect.stringMatching(new RegExp(`^ {6}4  ${g4}  `)),
     ]);
     expect(lines.some((line) => line.includes(g5 ?? 'none'))).toBe(false);
-    // The engine's own ranks stay one to a Guild, ties by Guild id.
-    expect(rankings(document.world, 'fame').map(({ rank }) => rank)).toEqual([1, 2, 3, 4]);
   });
 });
 
@@ -315,7 +312,8 @@ describe("show's layouts of the readings (DL-241)", () => {
     const document = newGame();
     const [first, second, third] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest, Quest];
     first.requirements = { partySizeMin: 1, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
-    second.encounterKeys = [];
+    // Its Encounters are none the content in use defines (data-model rule 5).
+    second.encounterKeys = ['no-such-encounter'];
     const reading = playerReading(document, playDeps(document));
     const quests = boardReading(reading);
 
@@ -327,8 +325,9 @@ describe("show's layouts of the readings (DL-241)", () => {
     expect(lines[4]?.split(/\s{2,}/)).toEqual([one.id, one.name, one.patron, String(one.difficulty), String(one.days), String(one.reward), String(one.fame), '1 to 4', 'Mage, Lockpicking', 'Year 1 Day 3']);
     const rows = lines.filter((line) => line.startsWith(one.id) || line.startsWith(two.id)).map((line) => line.split(/\s{2,}/));
     expect(rows[2]).toEqual([one.id, one.skills.join(', '), capitalised(one.encounters.map((encounter) => encounter.kind).join(', '))]);
-    // Drawn on the way, its Skills that help are its template's (DL-42).
-    expect(rows[3]).toEqual([two.id, two.skills.length === 0 ? 'None' : two.skills.join(', '), 'Drawn on the way']);
+    // An Encounter content does not define, by its key; no Skill is known to help, since its Encounters'
+    // Checks name them, not its template (DL-42, DL-248).
+    expect(rows[3]).toEqual([two.id, 'None', 'No-such-encounter']);
 
     const block = (quest: QuestReading): string[] => lines.slice(lines.indexOf(`${quest.id}, ${quest.name}`));
     const encounter = one.encounters[0];
@@ -336,6 +335,6 @@ describe("show's layouts of the readings (DL-241)", () => {
     const best = bestPartyReading(reading, third);
     if (best === null || best.chance === null) throw new Error('no Best Party');
     expect(block(three)).toContain(`  Your best Party: ${chanceWords[best.chance.band]} (${best.chance.percent}% if no one falls), ${listed(best.names)}.`);
-    expect(block(two).slice(1, 3)).toEqual(['  Its Encounters are drawn on the way.', expect.stringMatching(/^ {2}(Your best Party: .+; its chance is not known until its Encounters are drawn|No Party of your free Heroes meets its requirements)\.$/)]);
+    expect(block(two).slice(1, 3)).toEqual(['  no-such-encounter', expect.stringMatching(/^ {2}(Your best Party: .+; its chance is not known until its Encounters are drawn|No Party of your free Heroes meets its requirements)\.$/)]);
   });
 });

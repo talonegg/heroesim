@@ -530,7 +530,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       fameEffect: 2,
       durationTurns: 9,
       skillKeys: [],
-      encounterKeys: [],
+      encounterKeys: ['hold-the-line'],
       requirements: { partySizeMin: 1, partySizeMax: 3 },
       lootTableKey: null,
       status: 'taken',

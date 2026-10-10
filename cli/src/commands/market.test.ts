@@ -14,17 +14,11 @@ import {
 import { count, createItem, findStack, marketHolder } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
-import { exitCodes, playground } from '../play.test-support.js';
+import { exitCodes, playground, thePlayer } from '../play.test-support.js';
 
 const content = loadContent();
 
 const { play, current, saved, document } = playground('heroesim-market-', content);
-
-function player(): Guild {
-  const guild = playerGuild(document().world);
-  if (guild === undefined) throw new Error("No player's Guild");
-  return guild;
-}
 
 /**
  * A new world whose player's Guild holds `wealth` and 3 Healing draughts, and whose Market holds 4
@@ -70,7 +64,7 @@ describe('the Market', () => {
     expect(run.out).toContain('Bought 3 × Padded jack for 120 Wealth, 40 each.');
     expect(run.out).toContain('The Test has 880 Wealth left.');
     const { world, history } = document();
-    expect(player().wealth).toBe(880);
+    expect(thePlayer(document().world).wealth).toBe(880);
     expect(findStack(world, 'padded-jack', { kind: 'guild', id: guild.id })?.quantity).toBe(3);
     expect(findStack(world, 'padded-jack', marketHolder)?.quantity).toBe(1);
     expect(count(history, 'item.bought')).toBe(1);
@@ -93,7 +87,7 @@ describe('the Market', () => {
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain('Sold 2 × Healing draught to the Market for 30 Wealth, 15 each.');
     expect(run.out).toContain('The Test has 130 Wealth.');
-    expect(player().wealth).toBe(130);
+    expect(thePlayer(document().world).wealth).toBe(130);
     expect(findStack(document().world, 'healing-draught', marketHolder)?.quantity).toBe(2);
     expect(count(document().history, 'item.sold')).toBe(1);
   });
@@ -105,7 +99,7 @@ describe('the Market', () => {
     const run = play(['sell', '--item', blade]);
 
     expect(run.out).toContain("Sold The Barrow King's blade to the Market for 300 Wealth, 300 each.");
-    expect(player().wealth).toBe(300);
+    expect(thePlayer(document().world).wealth).toBe(300);
   });
 
   test.each([
@@ -125,7 +119,7 @@ describe('the Market', () => {
     expect(saved()).toBe(before);
   });
 
-  test('refuses selling more than a stack holds, and a bad command line, writing nothing', () => {
+  test('refuses selling more than a stack holds, writing nothing', () => {
     const { draughts } = newWorld(150);
     const before = saved();
 
@@ -133,8 +127,6 @@ describe('the Market', () => {
 
     expect(tooMany.code).toBe(exitCodes.refused);
     expect(tooMany.err).toContain(`That stack of Healing draught (${draughts}) holds 3; 4 cannot be sold from it.`);
-    expect(play(['sell', '--stack', draughts, '--quantity', 'all']).code).toBe(exitCodes.usage);
-    expect(play(['buy']).code).toBe(exitCodes.usage);
     expect(saved()).toBe(before);
   });
 });

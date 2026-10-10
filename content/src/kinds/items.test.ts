@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { validateContent } from '../index.js';
-import { shipped, realFiles, parse, withJson, refusalOf, withoutLoot, type Files } from './content.test-support.js';
+import { shipped, parse, withJson, refusalOf, withoutLoot, type Files } from './content.test-support.js';
 
 // The Item definitions' refusals (DL-243). Each is triggered by content built in memory from the shipped files with one
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
@@ -63,11 +63,7 @@ describe('an Item definition', () => {
     expect(refusalOf(() => parse(withJson('items.json', change))).message).toMatch(problem);
   });
 
-  test('the file is required, and may hold none, when no Loot table names one', () => {
-    const files = realFiles();
-    delete files['items.json'];
-
-    expect(refusalOf(() => parse(files)).message).toContain('items.json: missing');
+  test('the file may hold none, when no Loot table names one', () => {
     expect(parse({ ...withoutLoot(), 'items.json': '{}' }).items).toEqual({});
   });
 

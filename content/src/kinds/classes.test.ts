@@ -8,16 +8,17 @@ import { shippedTexts, realFiles, parse, withJson, withText, refusalOf, warrior 
 
 // The Classes' order, declared (DL-186 item 24): each Class once, in the order every list shows them.
 describe("the Classes' order", () => {
-  test('is the Warrior, Rogue, Mage and Healer, kept when classes.json lists its keys in another order', () => {
-    expect(parse(realFiles()).classOrder).toEqual(['warrior', 'rogue', 'mage', 'healer']);
+  test('is the order class-order.json lists, kept when classes.json lists its keys in another order', () => {
+    const order = JSON.parse(shippedTexts['class-order.json']) as string[];
+    expect(parse(realFiles()).classOrder).toEqual(order);
     const reordered = withText(
       'classes.json',
       JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(shippedTexts['classes.json']) as Record<string, unknown>).reverse()), null, 2),
     );
     const set = parse(reordered);
 
-    expect(Object.keys(set.classes)).toEqual(['healer', 'mage', 'rogue', 'warrior']);
-    expect(set.classOrder).toEqual(['warrior', 'rogue', 'mage', 'healer']);
+    expect(Object.keys(set.classes)).toEqual(Object.keys(JSON.parse(shippedTexts['classes.json']) as object).reverse());
+    expect(set.classOrder).toEqual(order);
   });
 
   test.each([
@@ -28,11 +29,7 @@ describe("the Classes' order", () => {
     expect(refusalOf(() => parse(withJson('class-order.json', change))).message).toContain(problem);
   });
 
-  test('is refused without its file, or as anything but a list of keys', () => {
-    const { 'class-order.json': _order, ...files } = realFiles();
-    void _order;
-
-    expect(refusalOf(() => parse(files)).message).toContain('class-order.json: missing');
+  test('is refused as anything but a list of keys', () => {
     expect(refusalOf(() => parse(withText('class-order.json', '{"warrior": 1}'))).message).toContain('class-order.json: must be a list of Class keys');
   });
 });
@@ -97,7 +94,9 @@ describe("a Class's icon", () => {
   // DL-212: one of `classIcons`, or absent for the plain mark; the check names the Class.
   test('is named by each shipped Class, each a different one of the set, and a Class without one reads as having none', () => {
     const set = parse(realFiles());
-    expect(Object.values(set.classes).map((it) => it.icon)).toEqual(['sword-and-shield', 'crossed-daggers', 'tome', 'palm']);
+    const icons = Object.values(set.classes).map((it) => it.icon);
+    expect(icons.every((icon) => icon !== undefined && (classIcons as readonly string[]).includes(icon))).toBe(true);
+    expect(new Set(icons).size).toBe(icons.length);
     const files = withJson('classes.json', (json) => void delete (json['rogue'] as { icon?: string }).icon);
     expect(parse(files).classes['rogue']?.icon).toBeUndefined();
   });

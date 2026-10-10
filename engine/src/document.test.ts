@@ -165,7 +165,7 @@ const quest: Quest = {
   fameEffect: 2,
   durationTurns: 12,
   skillKeys: ['swordplay'],
-  encounterKeys: [],
+  encounterKeys: ['hold-the-line'],
   requirements: { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'swordplay' },
   lootTableKey: null,
   status: 'taken',

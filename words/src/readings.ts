@@ -375,7 +375,7 @@ export interface QuestReading {
   expiresOnTurn: number;
   /** The Skills its Encounters' Checks read (`skillsThatHelp`, DL-70), by name. */
   skills: string[];
-  /** Its Encounters, drawn when it was posted, in order; none while they are drawn on the way (DL-42). */
+  /** Its Encounters, drawn when it was posted, in order: one or more (DL-248). */
   encounters: EncounterReading[];
 }
 

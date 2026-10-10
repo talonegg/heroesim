@@ -1224,3 +1224,75 @@ lost the gone-Hero guard (answer 4) and two the record missed, the History's "Ol
 (treasury :487), now tested, the reducer's and Namer's misses being older; 26 shrink mutants red or green as the full-size
 test was; the gate's command line the same, old and new, on the real build and seven inputs; the state slice's S2–S4 (240 →
 90, 90 → 6, 90 → 9 Turns) and R6 (:407), approved but not applied, applied.
+
+## DL-248 — v1.1.9-S14 built: the tests of cli, words and content pruned, on the owner's batch
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, approving the batch for
+`cli`, `words` and `content` (`prune-cli-words-content.md`) on 2026-10-10 with six answers; the
+application by the agents (Sonnet the mechanical lines, Opus the rest)
+
+**Context.** DL-231 item 4 prunes each package as one batch the owner approves. This list held the
+epic's two particular lines (§1.1 the descriptions test out of `cli`, §1.2 the content's duplicate
+Query refusals), 53 pins of content data, 14 duplicates, 7 redundant tests, 5 pins of a default,
+7 old-save tests, 6 slow tests and 3 helpers, each with its evidence and verdict.
+
+**Decision.**
+
+1. **The descriptions' proof, in content (D1–D5).** Content's tests may import the engine's testing
+   entry (`@heroesim/engine/testing`), in ESLint's rule and `content/src/imports.test.ts`, which still
+   refuse it to content's own code. The engine's writing over the shipped content is held in
+   `content/src/kinds/descriptions.test.ts` beside `longestDescriptions`: a Guildmaster's at each age
+   band's first and last age (240 requests where it made 1,200, the sample still within 60 of the
+   longest), a Hero's as it was, and 10 new worlds where there were 100 twice. D2 is removed and
+   `cli/src/descriptions.test.ts` goes.
+2. **B14 removed; R3 shrunk.** The CLI's refusal table keeps three rows: a Hero with the id the
+   commands take, a command slot and an entry slot. `words` holds every kind's words and slots.
+3. **One test of a save's version refused (O3).** The newer schema's is kept, as the refused-load
+   table's row naming both versions, and the older schema's two tests go (O2 and DL-135 item 7's).
+4. **The Query refusals (Q1).** 83 rows of the kinds' tests that repeat `query-refusals.test.ts` go;
+   four rows stay as the parse path's wiring, and the one with no twin, "a Stat less a Level", joins
+   that table. Q2, `withQuery` copying only the rows it changes over a deep-frozen set, saved 0.2 s of
+   the file's 1.4 s, under the 0.5 s asked, so it was measured and not kept.
+5. **A Quest holds one Encounter or more.** A current game cannot hold a Quest with none: a template
+   names one kind or more and a count from 1 (`quest-templates.ts`' `checkEncounterDraw`), and the
+   Quest Generator stores every draw. The validator now refuses a Quest with none (`document-shape`,
+   a field kind `list-of-one-or-more`), with a test. The branch it made dead goes: `skillsThatHelp`
+   reads the Encounters' Checks alone, never the template's `skillKeys`, and the front ends' "drawn on
+   the way" for a Quest with no Encounters (the CLI's `show board`, the page's Board card). A Quest
+   whose stored Encounters content no longer defines (data-model rule 5) still draws its sequence when
+   it resolves and has no estimate; the tests that stood for the dead case now stand for that one.
+6. **The rest as listed.** Removed, shrunk and rewritten as each verdict says (the removals and
+   their subsuming tests in the scratchpad's `s14-removals.md`); the CLI's sentence tests moved into
+   `words/src/narrate.test.ts` where `words` lacked them (a floor of 50, two Synergies, a common Item
+   sold), one CLI sentence end to end kept (`hero.healed`), and `advance.test.ts` gone for the
+   Namer's stop slots. The story ids of §8 were already gone (`3c798f3`).
+
+*Judgement calls, for the owner to see:*
+- **O3 kept the newer refusal,** as the brief's condition asked: the newer schema's words (the
+  engine's message) are pinned in no `words` test, nor are the older's, which stay in the CLI's
+  `context.ts`. The CLI's "This game was saved by an older Heroesim…" branch is now untested in the
+  CLI; the page's own copy keeps its test.
+- **Item 5 in the validator, not the type.** A non-empty tuple type made 32 type errors, most of them
+  tests passing `string[]`; the field's comment says one or more.
+- **Item 5 reached the front ends.** Their branches for a Quest with no Encounters were dead too, so
+  they went with the engine's, and four tests (`render`, the page's `selectors`, the harness's
+  `policy`, the engine's `rival`) now give a Quest an Encounter content lacks instead of none.
+- **S4:** no seed moves the probe's first stop, which falls every 30 Days, so the test sets the
+  probe slice's own `probeStopEveryDays` to 3 (286 ms to 91 ms).
+- **B13:** `history`'s word that is no id and `recruit`'s two id refusals stay where they are: they
+  are refused by the command, not by `args`.
+
+**Consequences.** A save holding a Quest with no Encounters is refused as invalid; no schema raise.
+A Quest's `skillKeys` is read by no rule. DL-42 item 7 and DL-70 item 1 are superseded in part.
+
+**Evidence.**
+Each project alone, before at `c4783bf` and after (tests, tests' time, wall): `cli` 436, 12.3 s,
+6.0 s → 355, 8.4 s, 4.9 s; `words` 515, 1.2 s, 1.6 s → 513, 1.0 s, 1.7 s; `content` 845, 13.3 s,
+4.0 s → 761, 12.3 s, 4.1 s. Q2's file alone, three runs: 1.25–1.32 s, rewritten 1.08–1.30 s.
+Coverage (lines, branches, functions, statements), S1 → after: `cli` 95.2/82.2/97.3/92.7 →
+96.8/86.4/97.4/94.3; `content` 98.3/91.9/99.8/96.7 → 98.7/91.6/99.8/97.1, its branches as at
+`c4783bf`; `words` 97.4/84.4/92.9/96.2 → 98.1/85.5/95.1/96.9. Newly uncovered against `c4783bf`,
+line by line: `cli/src/commands/preview.ts`'s two "drawn on the way" lines (O5 removed; live under
+rule 5), and `cli/src/context.ts`'s older-schema sentence (item 3). `npm test` passes; lint and
+typecheck clean; `neutral --expect` identical, alone (`v1.1.9-s14-neutral`); the doctor no drift
+before and after.

@@ -758,6 +758,7 @@ describe('a Query, held in memory', () => {
     ]],
     // Accepted.
     ['a Stat less a number', 'score', ['sum', 'party', ['-', ['stat', 'strength'], 2]], []],
+    ['a Stat less a Level', 'score', ['sum', 'party', ['-', ['stat', 'strength'], ['level']]], []],
     ['a sum less a count of Heroes filtered by a Stat', 'score', ['-', ['sum', 'party', ['stat', 'strength']], ['count', ['where', 'party', ['<', ['stat', 'wits'], 8]]]], []],
     ['a sum less the best Hero\'s Skill', 'score', ['-', ['sum', 'party', ['stat', 'strength']], ['of', ['best', 'party', ['stat', 'wits']], ['skill', 'tactics']]], []],
     ['a filter on a Stat subtracted', 'score', ['count', ['where', 'party', ['>=', ['-', 10, ['stat', 'wits']], 1]]], []],

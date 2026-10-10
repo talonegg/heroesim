@@ -5,7 +5,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { deserialise, serialise, type ContentSet, type WorldDocument } from '@heroesim/engine';
+import { deserialise, playerGuild, serialise, type ContentSet, type Guild, type World, type WorldDocument } from '@heroesim/engine';
 import { afterEach, beforeEach } from 'vitest';
 import type { CliIo } from './context.js';
 import { main } from './main.js';
@@ -35,6 +35,20 @@ export function playIn(dir: string, argv: readonly string[], io: Partial<Pick<Cl
     random: io.random ?? (() => 0),
   });
   return { code, out, err };
+}
+
+/** The player's Guild of `world`. */
+export function thePlayer(world: World): Guild {
+  const guild = playerGuild(world);
+  if (guild === undefined) throw new Error("No player's Guild");
+  return guild;
+}
+
+/** The line of `output` that starts with `id`: a row of a table keyed by id. */
+export function rowOf(output: string, id: string): string {
+  const row = output.split('\n').find((line) => line.startsWith(id));
+  if (row === undefined) throw new Error(`No row for ${id} in:\n${output}`);
+  return row;
 }
 
 /** A test file's scratch directory, made before each test and removed after it, and its save. */

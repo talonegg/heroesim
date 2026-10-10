@@ -423,8 +423,9 @@ export interface Quest {
   fameEffect: number;
   /** durationDays × 3, from the template's range. */
   durationTurns: number;
+  /** The template's Skills, kept with the row; the Checks read their Encounters' Skills (DL-42, DL-248). */
   skillKeys: SkillKey[];
-  /** Drawn at generation from M4; empty before. */
+  /** Drawn at generation, in the order met: one or more, which the validator holds (DL-248). */
   encounterKeys: EncounterKey[];
   requirements: QuestRequirements;
   lootTableKey: LootTableKey | null;

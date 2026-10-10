@@ -1,6 +1,6 @@
 import { type Disposition } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
-import { realFiles, parse, withJson, withText, refusalOf, type Files } from './content.test-support.js';
+import { realFiles, parse, shipped, withJson, withText, refusalOf, type Files } from './content.test-support.js';
 
 // The Dispositions' refusals (DL-243). Each is triggered by content built in memory from the shipped files with one
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
@@ -56,7 +56,7 @@ describe('a Disposition', () => {
       };
     });
 
-    expect(Object.keys(parse(files).dispositions).sort()).toEqual(['ambitious', 'cautious', 'miserly', 'reckless', 'steady']);
+    expect(Object.keys(parse(files).dispositions).sort()).toEqual([...Object.keys(shipped.dispositions), 'cautious'].sort());
   });
 });
 

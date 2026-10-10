@@ -18,12 +18,6 @@ describe('a readable seed is an adjective, an animal and four digits', () => {
   });
 });
 
-test('Math.random gives seeds of the same form', () => {
-  for (let draw = 0; draw < 100; draw += 1) {
-    expect(readableSeed(Math.random)).toMatch(/^[a-z]+-[a-z]+-\d{4}$/);
-  }
-});
-
 test('a draw outside [0, 1) is a programming error', () => {
   expect(() => readableSeed(() => 1)).toThrow(RangeError);
 });

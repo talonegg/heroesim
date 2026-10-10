@@ -51,7 +51,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-39 | 2026-09-26 | M2 close: verification, the timing tests, and which harness run a tag carries |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-40 | 2026-09-26 | M3 close: the M3 counters, what they read, and the M3 run |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-41 | 2026-09-26 | M3's balance pass: a Rival keeps sixty Upkeeps before it recruits; the wage for Levels stays 20 |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-42 | 2026-09-26 | Encounters, the drawn sequence, the Check and its two seams, and the Quest Engine's balance (M4-S1 … | item 9 in part by DL-44; in part by DL-70 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-42 | 2026-09-26 | Encounters, the drawn sequence, the Check and its two seams, and the Quest Engine's balance (M4-S1 … | item 9 in part by DL-44; in part by DL-70; item 7 in part by DL-248 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-43 | 2026-09-26 | Requirements by reason, Patron Regard and the Board, the Guildmaster's Stats and Traits, and … | item 7 in part by DL-85; item 8 in part by DL-87 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-44 | 2026-09-26 | Merging M4-S2's Quest Engine with M4-S5's Guildmaster rules: one effective Stats selector, content … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-45 | 2026-09-26 | Synergies: the row, the match, how a bonus combines, the Quest's record and the preview (M4-S3) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -79,7 +79,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-67 | 2026-09-27 | Saves kept in the browser: gzip in IndexedDB, one path from a save's text to the game, the … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-68 | 2026-09-27 | The deploy, prepared: one command from this machine, wrangler fetched when it runs, and a test that … | in part by DL-122; item 1 in part by DL-88 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-69 | 2026-09-27 | M6 close: the M6 counters, the Dispositions retuned and a season's Transfer lock (`configVersion` … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-70 | 2026-09-26 | M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-70 | 2026-09-26 | M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that … | item 1 in part by DL-248 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-71 | 2026-09-27 | M6 close verification corrections: errata to DL-63 and DL-69; tests that kill 32 mutants of the M6 … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-72 | 2026-09-27 | Merging the main line (M0 to M6 complete) into M7: both sides kept whole, no version changes |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-73 | 2026-09-27 | The web's views, part 2: the rest of the CLI in the browser, one engine selector for the rules … | item 4 in part by DL-99; item 8 in part by DL-74 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -257,6 +257,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-245 | 2026-10-10 | v1.1.9-S9's fixture: `withReturn` through the engine, on the owner's word |  | [decision-log](../decision-log.md) |
 | DL-246 | 2026-10-10 | v1.1.9-S12 built: the engine's tests pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
 | DL-247 | 2026-10-10 | v1.1.9-S13 built: the page's tests pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
+| DL-248 | 2026-10-10 | v1.1.9-S14 built: the tests of cli, words and content pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

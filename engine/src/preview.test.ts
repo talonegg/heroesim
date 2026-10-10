@@ -139,7 +139,7 @@ describe('previewDispatch', () => {
     expect(preview?.chances?.encounters.map((it) => it.encounterKey)).toEqual(setting.quest.encounterKeys);
     expect(preview?.chances?.ifNoOneFalls).toBe(true);
     expect(previewDispatch(world, request(setting, []), deps)?.chances).toBeNull();
-    setting.quest.encounterKeys = [];
+    setting.quest.encounterKeys = ['no-such-encounter'];
     expect(previewDispatch(world, request(setting, party), deps)?.chances).toBeNull();
   });
 
@@ -153,7 +153,7 @@ describe('previewDispatch', () => {
     warrior.partyId = null;
 
     const drawn = previewDispatch(world, request(setting, [setting.warrior, ...party]), deps);
-    (world.quests[setting.quest.id] as Quest).encounterKeys = [];
+    (world.quests[setting.quest.id] as Quest).encounterKeys = ['no-such-encounter'];
     const onTheWay = previewDispatch(world, request(setting, [setting.warrior, ...party]), deps);
 
     expect(drawn?.synergies.find(({ synergy }) => synergy.key === 'a-full-company')?.encounters).toBe(3);
@@ -246,10 +246,11 @@ describe('skillsThatHelp', () => {
     ]);
   });
 
-  test("gives a Quest drawn before M4 its own Skills, and leaves out a key content lacks (rule 5)", () => {
+  test("leaves out a key content lacks (rule 5), and names none, not its template's, for a Quest whose Encounters content lacks (DL-248)", () => {
     const { quest } = proposal();
+    const gone: Quest = { ...quest, encounterKeys: ['no-such-encounter'], skillKeys: ['swordcraft'] };
 
-    expect(skillsThatHelp({ ...quest, encounterKeys: [], skillKeys: ['swordcraft', 'no-such-skill'] }, testContent)).toEqual(['swordcraft']);
+    expect(skillsThatHelp(gone, testContent)).toEqual([]);
     expect(skillsThatHelp({ ...quest, encounterKeys: ['no-such-encounter', 'the-flooded-ford'] }, testContent)).toEqual(['tactics']);
   });
 });
@@ -272,6 +273,6 @@ describe('statsRead', () => {
     const encounters = { ...testContent.encounters, odd };
 
     expect(statsRead({ encounterKeys: ['no-such-encounter', 'odd'] }, { ...testContent, encounters })).toEqual(['wits', 'perception', 'strength']);
-    expect(statsRead({ encounterKeys: [] }, testContent)).toEqual([]);
+    expect(statsRead({ encounterKeys: ['no-such-encounter'] }, testContent)).toEqual([]);
   });
 });

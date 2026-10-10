@@ -7,13 +7,6 @@ import { realFiles, parse, withJson, refusalOf, guildmasterRow, heroRow, withPic
 // can find it.
 
 describe('the Portraits (DL-125 item 3)', () => {
-  test('are required as a file, which may list none', () => {
-    const files = realFiles();
-    delete files['portraits.json'];
-
-    expect(refusalOf(() => parse(files)).message).toContain('portraits.json: missing');
-  });
-
   // A Guildmaster's and a Hero's picture has its row (DL-134 item 10); a Patron's none yet.
   test('are accepted with a picture of each role and sex', () => {
     let files = withPicture(ownersTwo(realFiles()), 'guildmaster', 'female', 'gm-female-02', guildmasterRow());

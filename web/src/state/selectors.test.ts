@@ -333,17 +333,18 @@ describe("the Board's Quest cards (DL-104)", () => {
     expect(after).not.toEqual(before);
   });
 
-  test('a Quest whose Encounters are drawn on the way counts none, and its Skills are its own', () => {
+  test("a Quest whose Encounters content no longer defines names each by its key, no Skill that helps, not its template's, and no chance (DL-248)", () => {
     const document = board(([first]) => {
       if (first === undefined) throw new Error('an empty Board');
-      first.encounterKeys = [];
+      // Data-model rule 5: its Encounters are none the content in use defines.
+      first.encounterKeys = ['no-such-encounter'];
       first.skillKeys = ['herbalism', 'field-surgery'];
     });
 
     const [card] = boardView(document);
 
-    expect(card?.encounters).toEqual([]);
-    expect(card?.skills).toEqual(['Herbalism', 'Field surgery']);
+    expect(card?.encounters).toEqual([{ encounterKey: 'no-such-encounter', name: 'no-such-encounter', kind: null, checks: [], one: false }]);
+    expect(card?.skills).toEqual([]);
     // The best Party is named, its chance not known until its Encounters are drawn.
     expect(bestPartyView(document).get(card?.questId as QuestId)).toMatchObject({ chance: null });
   });

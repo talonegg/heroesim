@@ -381,6 +381,10 @@ describe('the variations of a sentence', () => {
     ['a Guild folded bankrupt', varied('guild.folded', { reason: 'bankruptcy' }), `${kestrel} went bankrupt and folded.`],
     ['the game ended by Retirement', varied('game.ended', { reason: 'retirement' }), `The game ended: ${kestrel} lost its Guildmaster to Retirement.`],
     ['the training yard built, which is', varied('guild.improved', { facility: 'trainingYard', improvementKey: 'training-yard-2' }), `${kestrel} built ${named(content.improvements, 'training-yard-2')} for 500 Wealth: its training yard is now grade 2.`],
+    ['a Quest with two Synergies, each by name', varied('quest.resolved', { synergyKeys: ['shield-wall', 'sword-and-salve'] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded strongly: Wealth +150, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}, ${named(content.synergies, 'sword-and-salve')}.`],
+    // A floor that is not 0 is named as it is, so a save playing under other rules reads true.
+    ['a Bankruptcy floor of 50', varied('guild.below-floor', { wealth: 40, floor: 50, dueDay: 13 }), `${kestrel}'s Wealth, 40, fell below the Bankruptcy floor of 50: Bankruptcy on the night of Year 1 Day 14 unless it is back to 50 or more on a night by then.`],
+    ['one common Item sold, by its name alone', varied('item.sold', { cause: 'sale', definitionKey: 'healing-draught', quantity: 1, unitPrice: 15, proceeds: 15, itemIds: [] }), `${kestrel} sold ${draught}<ids:> at the Market for 15 Wealth.`],
     // Data-model rule 9: a Level gained says never the points Potential took, even when it took them all.
     ['a Level gained whose every point Potential took', varied('hero.levelled', { level: 20, statDeltas: {}, pointsLost: 3 }), `${brenna} reached Level 20.`],
   ] as const)('%s', (_name, event, sentence) => {

@@ -160,7 +160,7 @@ describe('the Best Party module (DL-237)', () => {
     counted.nights = 0;
     expect(module.chance(harder, [a, b, c, d])).toEqual(expected);
     expect(counted.nights).toBe(0);
-    expect(module.chance({ ...long, encounterKeys: [] }, [a])).toBeNull();
+    expect(module.chance({ ...long, encounterKeys: ['no-such-encounter'] }, [a])).toBeNull();
     expect(() => module.chance(long, [a, a])).toThrow(`A Party names ${a.id} twice`);
     expect(() => module.chance({ ...long, difficulty: 0 }, [a])).toThrow(RangeError);
   });

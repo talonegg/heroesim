@@ -31,9 +31,9 @@
 // It assumes no one falls (`ifNoOneFalls`): no Hero is hurt or killed on the way, and no Morale an
 // Encounter costs or gives moves anyone's form, so every Encounter is met by the whole Party as it
 // comes home, as the resolver meets it when no harm lands. The front ends say "if no one falls". The
-// Encounters are the Quest's own, drawn when it was posted (`storedSequence`); a Quest without
-// them, generated before M4, draws its sequence on the way and has no estimate. A Party of no one
-// meets none of them, and fails.
+// Encounters are the Quest's own, drawn when it was posted (`storedSequence`); a Quest whose
+// Encounters content no longer defines (data-model rule 5) draws its sequence on the way and has no
+// estimate. A Party of no one meets none of them, and fails.
 
 import { checkProposedParty, type ConsumableRequest } from '../actions/dispatch.js';
 import { chanceBandNames, type ChanceBand, type GameConfig, type QuestBand } from '../config.js';

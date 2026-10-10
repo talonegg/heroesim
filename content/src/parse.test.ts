@@ -1,5 +1,6 @@
 import { type Sphere } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
+import { contentFiles } from './index.js';
 import { realFiles, parse, withJson, withText, refusalOf } from './kinds/content.test-support.js';
 
 // The reading of content's files as a whole: the content as shipped, a file missing, not JSON, or with a key twice, and a field no kind knows (DL-243). Each is triggered by content built in memory from the shipped files with one
@@ -39,11 +40,11 @@ describe('a duplicate key, found in the raw text because JSON.parse keeps only t
 });
 
 describe('a file', () => {
-  test('that is missing is refused, naming the file', () => {
+  test.each(contentFiles)('%s that is missing is refused, naming the file', (name) => {
     const files = realFiles();
-    delete files['spheres.json'];
+    delete files[name];
 
-    expect(refusalOf(() => parse(files)).message).toContain('spheres.json: missing');
+    expect(refusalOf(() => parse(files)).message).toContain(`${name}: missing`);
   });
 
   test('that is not JSON is refused, naming the file', () => {

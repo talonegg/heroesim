@@ -241,7 +241,7 @@ export interface QuestCard {
   /**
    * Its Encounters, drawn when it was posted, in the order it meets them, each with its Checks' names
    * and what they read (v1.1.4-S6, DL-148 item 16), in place of the template's demands, which no view
-   * shows; none when they are drawn on the way.
+   * shows: one or more (DL-248).
    */
   encounters: EncounterView[];
   /**

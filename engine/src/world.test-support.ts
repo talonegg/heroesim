@@ -1066,7 +1066,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     fameEffect: 2,
     durationTurns: 9,
     skillKeys: ['swordcraft'],
-    encounterKeys: [],
+    encounterKeys: ['hold-the-line'],
     requirements: { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'swordcraft' },
     lootTableKey: null,
   });

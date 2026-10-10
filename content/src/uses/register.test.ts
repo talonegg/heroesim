@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest';
 import { contentFiles, parseContent, type ContentFileName } from '../index.js';
 import { contentDir } from '../node.js';
 import { generatedPart, registerDoc, withGeneratedPart, docBegins, docEnds } from './doc.js';
-import { at, setAt, UseRefusal, type ContentJson } from './json.js';
+import { at, pathText, setAt, UseRefusal, type ContentJson } from './json.js';
 import { contentEntries, engineEntriesOf, register, rulesFor, usesOf, type ContentEntry, type TraitUse } from './register.js';
 
 // The register of a Trait's uses (DL-150 item 14): each content entry finds the uses the
@@ -74,21 +74,42 @@ describe('the register', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  test("finds the shipped content's uses of a Trait, entry by entry", () => {
+  // The uses of every shipped Trait, whatever the content editor has assigned: each use found
+  // stands where it says and names the key, and every place in the files that names the key is
+  // within a use found (the Traits' own rows apart).
+  test("finds the shipped content's uses of every Trait, and every place that names it", () => {
     const content = shipped();
-    expect(usesOf(content, 'scarred').map((use) => use.at)).toEqual([
-      'injuries.json: deep-cut.leavesTrait',
-      ...sentences(content, 'heroBiography', 'scarred'),
-      'portrait-appearances.json: features.scar.shows.0',
-    ]);
-    expect(usesOf(content, 'miser').map((use) => use.at)).toEqual([
-      'guildmaster-traits.json: well-liked.excludes.0',
-      'guildmaster-traits.json: spendthrift.excludes.1',
-      ...sentences(content, 'biography', 'miser'),
-      'descriptions.json: callings.merchant.suits.1',
-    ]);
-    expect(sentences(content, 'heroBiography', 'scarred').length).toBeGreaterThan(1);
-    expect(new Set(usesOf(content, 'mistrusts-magic').map((use) => use.entry))).toEqual(new Set(['biography-sentences', 'portrait-callings']));
+    const keys = ['hero-traits.json', 'guildmaster-traits.json'].flatMap((file) => Object.keys(content[file as ContentFileName] as object));
+    const names = (value: unknown, key: string, file: string, path: (string | number)[] = []): (string | number)[][] => {
+      const here = value === key && path.length > 0 ? [path] : [];
+      if (Array.isArray(value)) return [...here, ...value.flatMap((item, index) => names(item, key, file, [...path, index]))];
+      if (typeof value !== 'object' || value === null) return here;
+      return [
+        ...here,
+        ...Object.entries(value).flatMap(([name, item]) => [
+          ...(name === key && !(path.length === 0 && file.endsWith('-traits.json')) ? [[...path, name]] : []),
+          ...names(item, key, file, [...path, name]),
+        ]),
+      ];
+    };
+    const prefix = (short: readonly (string | number)[], long: readonly (string | number)[]) => short.every((step, index) => long[index] === step);
+    const problems: string[] = [];
+
+    expect(keys.length).toBeGreaterThan(0);
+    for (const key of keys) {
+      const uses = usesOf(content, key);
+      for (const use of uses) {
+        const value = at(content[use.file], use.path);
+        if (use.at !== `${use.file}: ${pathText(use.path)}`) problems.push(`${key}: ${use.at} is not where it stands`);
+        if (!use.path.includes(key) && !JSON.stringify(value).includes(`"${key}"`)) problems.push(`${key}: ${use.at} does not name it`);
+      }
+      for (const file of contentFiles) {
+        for (const place of names(content[file], key, file)) {
+          if (!uses.some((use) => use.file === file && (prefix(use.path, place) || prefix(place, use.path)))) problems.push(`${key}: ${file}: ${pathText(place)} is no use found`);
+        }
+      }
+    }
+    expect(problems).toEqual([]);
     expect(usesOf(content, 'no-such-trait')).toEqual([]);
   });
 

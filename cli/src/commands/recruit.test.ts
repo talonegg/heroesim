@@ -16,7 +16,7 @@ import {
 import { makeId } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
-import { exitCodes, playground } from '../play.test-support.js';
+import { exitCodes, playground, rowOf } from '../play.test-support.js';
 
 const content = loadContent();
 
@@ -40,13 +40,6 @@ function newWorld(): { guild: Guild; hero: Hero; fee: number } {
   const [hero] = unattachedHeroes(created.world);
   if (guild === undefined || hero === undefined) throw new Error('The world is incomplete');
   return { guild, hero, fee: signingFee(hero, depsOf(created), guildmasterOf(guild, created.world)) };
-}
-
-/** The line of `output` that starts with `id`: a row of a table keyed by id. */
-function rowOf(output: string, id: string): string {
-  const row = output.split('\n').find((line) => line.startsWith(id));
-  if (row === undefined) throw new Error(`No row for ${id} in:\n${output}`);
-  return row;
 }
 
 describe('recruit', () => {
@@ -96,7 +89,6 @@ describe('recruit', () => {
     expect(missing.err).toContain('hero-000999');
     expect(play(['recruit', '--hero', 'guild-000001']).code).toBe(exitCodes.usage);
     expect(play(['recruit', '--hero', 'Brenna']).code).toBe(exitCodes.usage);
-    expect(play(['recruit']).code).toBe(exitCodes.usage);
     expect(saved()).toBe(before);
   });
 });
@@ -197,17 +189,5 @@ describe('the views', () => {
     }
     // The two orders differ on this save: the player's Guild, first created, is last by Fame and first by Wealth.
     expect(rankings(world, 'fame').at(-1)?.guildId).toBe(rankings(world, 'wealth')[0]?.guildId);
-  });
-
-  test('show hero says when a Hero whose row stayed left the pool', () => {
-    const { hero } = newWorld();
-    edit((edited) => Object.assign(edited.world.heroes[hero.id] ?? {}, { unattachedSince: null, leftPoolOnTurn: 0 }));
-
-    const run = play(['show', 'hero', hero.id]);
-
-    expect(run.code).toBe(exitCodes.ok);
-    // The date, the Turn beside it (DL-206 item 33, DL-210).
-    expect(run.out).toMatch(/Left the pool\s+Year 1 Day 1 \(Turn 0\)/);
-    expect(run.out).not.toContain('Unattached');
   });
 });

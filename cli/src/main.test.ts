@@ -30,9 +30,9 @@ import {
 } from '@heroesim/engine';
 import { count, makeId, nightOf } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
-import { chanceWords, shownPercent } from '@heroesim/words';
+import { chanceWords, shownPercent, traitEffectWords } from '@heroesim/words';
 import { beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, playground, type Run } from './play.test-support.js';
+import { exitCodes, playground, rowOf, type Run } from './play.test-support.js';
 import { narrateLine } from './namer.js';
 
 const content = loadContent();
@@ -65,11 +65,16 @@ function newDemo(...more: string[]): Run {
   return play(['new', '--seed', 'demo', '--guild', 'The Test', '--master', 'Ada', ...more]);
 }
 
-/** The line of `output` that starts with `id`: a row of a table keyed by id. */
-function rowOf(output: string, id: string): string {
-  const row = output.split('\n').find((line) => line.startsWith(id));
-  if (row === undefined) throw new Error(`No row for ${id} in:\n${output}`);
-  return row;
+/** The first Quest on the Board the player's first Heroes can take: no Class or Skill asked, and a size they make. */
+function openQuest(world: WorldDocument['world']): { questId: QuestId; heroIds: HeroId[] } {
+  const roster = world.guilds[playerId]?.rosterIds ?? [];
+  for (const questId of world.board) {
+    const { requirements } = world.quests[questId] as Quest;
+    if (requirements.classKey === undefined && requirements.skillKey === undefined) {
+      return { questId, heroIds: roster.slice(0, requirements.partySizeMin) };
+    }
+  }
+  throw new Error('No open Quest on the Board');
 }
 
 describe('new', () => {
@@ -177,25 +182,40 @@ describe('new', () => {
     for (const label of ['Birthplace', 'Appearance', 'Biography']) expect(lines.some((line) => line.startsWith(label)), label).toBe(true);
   });
 
+  // Traits and Portraits the refusals name are read from content, which the content editor and the
+  // portrait tool change: two Traits that exclude each other, two that cost more than the budget
+  // together, and the Guildmaster Portraits by sex (`portrait.test.ts` holds the rest).
+  const traits = Object.values(content.guildmasterTraits);
+  const pairs = traits.flatMap((one) => traits.filter((other) => other.key !== one.key).map((other) => [one, other] as const));
+  const excluding = pairs.find(([one, other]) => one.excludes.includes(other.key));
+  const overBudget = pairs.find(
+    ([one, other]) => !one.excludes.includes(other.key) && !other.excludes.includes(one.key) && one.cost + other.cost > defaultConfig.guildmasterTraitBudget,
+  );
+  if (excluding === undefined || overBudget === undefined) throw new Error('The content has no such pair of Guildmaster Traits');
+  const portraitChoices = (['female', 'male'] as const)
+    .flatMap((sex) => content.portraits.guildmaster[sex].map((key) => `${key} (${sex})`))
+    .join(', ');
+
   test.each<[string, string[], string]>([
     ['an age below the range', ['--age', '20'], 'A Guildmaster starts aged 21 to 50, in whole Years; --age 20 is not.'],
     ['an age above the range', ['--age', '51'], 'A Guildmaster starts aged 21 to 50, in whole Years; --age 51 is not.'],
-    ['a Trait content lacks', ['--traits', 'brave'], 'No Guildmaster Trait is called "brave". Choose from: miser (Miser, refunds 2),'],
-    ['a Hero Trait', ['--traits', 'scarred'], 'Scarred is not a Guildmaster Trait. Choose from: miser (Miser, refunds 2),'],
+    ['a Trait content lacks', ['--traits', 'brave'], 'No Guildmaster Trait is called "brave". Choose from:'],
+    ['a Hero Trait', ['--traits', 'scarred'], `${content.heroTraits['scarred']?.name} is not a Guildmaster Trait. Choose from:`],
     ['a Trait twice', ['--traits', 'miser,miser'], 'Miser is chosen twice.'],
     ['too many Traits', ['--traits', 'miser,old-soldier,mistrusts-magic'], 'A Guildmaster holds at most 2 Traits; 3 are chosen.'],
-    ['an excluded pair', ['--traits', 'thrifty,spendthrift'], 'Thrifty and Spendthrift exclude each other: a Guildmaster holds one or the other.'],
+    [
+      'an excluded pair',
+      ['--traits', `${excluding[0].key},${excluding[1].key}`],
+      `${excluding[0].name} and ${excluding[1].name} exclude each other: a Guildmaster holds one or the other.`,
+    ],
     [
       'Traits over the budget',
-      ['--traits', 'thrifty,old-soldier'],
-      'Those Traits cost 3 points and the budget is 1: a buff costs points and a penalty refunds them.',
+      ['--traits', `${overBudget[0].key},${overBudget[1].key}`],
+      `Those Traits cost ${overBudget[0].cost + overBudget[1].cost} points and the budget is ${defaultConfig.guildmasterTraitBudget}: a buff costs points and a penalty refunds them.`,
     ],
     ['a Birthplace too long', ['--birthplace', 'x'.repeat(61)], 'The Birthplace is 61 characters long; it holds at most 60.'],
     ['a Biography too long', ['--biography', 'x'.repeat(1001)], 'The Biography is 1001 characters long; it holds at most 1000.'],
-    // The core lists its 40 pictures: gm-female-01 to 20 and gm-male-01 to 20 (`portrait.test.ts` holds the rest).
-    ['a Portrait content lacks', ['--portrait', 'gm-male-99'], 'No Guildmaster Portrait is called "gm-male-99". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
-    ['a Portrait not in the form of a key', ['--portrait', 'GM Female 1'], 'No Guildmaster Portrait is called "GM Female 1". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
-    ['a Portrait of the other sex', ['--sex', 'female', '--portrait', 'gm-male-01'], "That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female: choose a Portrait of that Sex, or leave out --sex."],
+    ['a Portrait content lacks', ['--portrait', 'gm-male-99'], `No Guildmaster Portrait is called "gm-male-99". Choose from: ${portraitChoices}.`],
   ])('refuses %s with its own sentence as a bad command line, writing nothing', (_, flags, sentence) => {
     const run = newDemo(...flags);
 
@@ -379,7 +399,6 @@ describe('show', () => {
 
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toMatch(/^Id\s+Patron\s+Sex\s+Sphere\s/m);
-    expect(patrons).toHaveLength(defaultConfig.patronCount);
     expect(new Set(patrons.map(({ sex }) => sex))).toEqual(new Set(['female', 'male']));
     for (const patron of patrons) {
       const row = rowOf(run.out, patron.id);
@@ -539,29 +558,6 @@ describe('advance', () => {
     expect(run.code).toBe(exitCodes.refused);
     expect(run.err).toContain('The game ended on Year 1 Day 1 (Turn 0): The Test went bankrupt. No Turn follows.');
     expect(saved()).toBe(original);
-  });
-
-  test('plays on a save made before the Board existed, filling its Board on the first morning', () => {
-    // An M1 save: no board stream, no Quests.
-    edit((edited) => {
-      Reflect.deleteProperty(edited.world.rng, 'board');
-      edited.world.board = [];
-      edited.world.quests = {};
-      edited.meta.content.version = 1;
-    });
-
-    const run = play(['advance', '--turns', '3']);
-
-    expect(run.code).toBe(exitCodes.ok);
-    // The morning's offers, in the CLI's words (DL-33).
-    expect(run.out).toMatch(/offered .+ \(quest-\d{6}\)\./);
-    expect(document().world.board).toHaveLength(defaultConfig.boardSize);
-    expect(Object.hasOwn(document().world.rng, 'board')).toBe(true);
-  });
-
-  test('refuses a bad --turns as a bad command line', () => {
-    expect(play(['advance', '--turns', '0']).code).toBe(exitCodes.usage);
-    expect(document().world.turn).toBe(0);
   });
 
   test("prints the Bankruptcy countdown after the Turns while the player's Guild is below the floor, under the save's grace (DL-95)", () => {
@@ -774,18 +770,6 @@ describe('dispatch', () => {
     newDemo();
   });
 
-  /** The first Quest on the Board the player's first Heroes can take: no Class or Skill asked, and a size they make. */
-  function openQuest(world: WorldDocument['world']): { questId: QuestId; heroIds: HeroId[] } {
-    const roster = world.guilds[playerId]?.rosterIds ?? [];
-    for (const questId of world.board) {
-      const { requirements } = world.quests[questId] as Quest;
-      if (requirements.classKey === undefined && requirements.skillKey === undefined) {
-        return { questId, heroIds: roster.slice(0, requirements.partySizeMin) };
-      }
-    }
-    throw new Error('No open Quest on the Board');
-  }
-
   test('sends the Party the engine sends, saves it, and prints the Party, the return Day and the Rivals reminder', () => {
     const before = document();
     const { questId, heroIds } = openQuest(before.world);
@@ -876,10 +860,6 @@ describe('dispatch', () => {
       `(${questId}) needs a Party of ${partySizeMin} to ${partySizeMax} Heroes (${roster.length} named).`,
     );
     expect(saved()).toBe(original);
-  });
-
-  test('refuses a word that is not an id as a bad command line', () => {
-    expect(play(['dispatch', '--quest', 'the-barrow', '--heroes', 'hero-000001']).code).toBe(exitCodes.usage);
   });
 
   // DL-50: the player's Guild is given three healing draughts and a whetstone by hand.
@@ -1039,31 +1019,8 @@ describe("every date under the save's own calendar, not this release's (DL-210)"
     expect(play(['advance']).err).toContain('The game ended on Year 2 Day 2 (Turn 11): The Test went bankrupt. No Turn follows.');
   });
 
-  // The calendar is the one the save plays under, its `meta.config` checked and filled forward
-  // (`playDeps`, DL-186 item 12), never the raw `meta.config` (the review, DL-210): a save that lacks
-  // the setting reads this release's Year in every line, as its rules do.
-  test("a save that lacks turnsPerYear: this release's Year, filled forward, in the stop and the refusal", () => {
-    edit((edited) => {
-      const config: Record<string, unknown> = { ...edited.meta.config, bankruptcyGraceDays: 3 };
-      delete config['turnsPerYear'];
-      edited.meta.config = config as unknown as WorldDocument['meta']['config'];
-      (edited.world.guilds[playerId] as Guild).wealth = -1_000_000;
-    });
-
-    expect(play(['advance', '--until', 'pool-refreshed']).out).toContain('Bankruptcy on the night of Year 1 Day 4 unless its Wealth recovers by then.');
-    expect(document().meta.config).not.toHaveProperty('turnsPerYear');
-    expect(play(['advance', '--turns', '20']).out).toContain('The game ended on Year 1 Day 4 (Turn 11): The Test went bankrupt.');
-    expect(play(['advance']).err).toContain('The game ended on Year 1 Day 4 (Turn 11): The Test went bankrupt. No Turn follows.');
-  });
-
   test("dispatch: the Party's return", () => {
-    const { world } = document();
-    const roster = world.guilds[playerId]?.rosterIds ?? [];
-    const questId = world.board.find((id) => {
-      const { requirements } = world.quests[id] as Quest;
-      return requirements.classKey === undefined && requirements.skillKey === undefined;
-    }) as QuestId;
-    const heroIds = roster.slice(0, (world.quests[questId] as Quest).requirements.partySizeMin);
+    const { questId, heroIds } = openQuest(document().world);
 
     const run = play(['dispatch', '--quest', questId, '--heroes', heroIds.join(',')]);
 
@@ -1147,7 +1104,7 @@ describe('save and load', () => {
     [
       'a file from a newer schema',
       (text: string) => fromTheFuture(text),
-      'version 999',
+      `version 999 and this engine reads version ${schemaVersion}`,
     ],
     [
       'a file the validator refuses',
@@ -1171,55 +1128,6 @@ describe('save and load', () => {
     expect(saved()).toBe(original);
   });
 
-  test("a save of schema 4, as v1.1.1 wrote it, is refused in words, by load and by any command that opens it (DL-125 item 10.2)", () => {
-    newDemo();
-    const original = saved();
-    const parsed = JSON.parse(original) as {
-      meta: { version: number };
-      world: { guildmasters: Record<string, object>; patrons: Record<string, object> };
-    };
-    parsed.meta.version = 4;
-    for (const guildmaster of Object.values(parsed.world.guildmasters)) Reflect.deleteProperty(guildmaster, 'portraitKey');
-    for (const patron of Object.values(parsed.world.patrons)) Reflect.deleteProperty(patron, 'sex');
-    const older = join(dir(), 'older.json');
-    writeFileSync(older, JSON.stringify(parsed));
-
-    const run = play(['load', older]);
-
-    expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toBe(`This game was saved by an older Heroesim and cannot be loaded: ${older}.\n`);
-    expect(run.out).toBe('');
-    expect(saved()).toBe(original);
-
-    const shown = play(['show', '--save', older]);
-    expect(shown.code).toBe(exitCodes.refused);
-    expect(shown.err).toContain('This game was saved by an older Heroesim and cannot be loaded');
-  });
-
-  test("a save of schema 5, as v1.1.2 wrote it, is refused in the owner's words, and replacing it with a new game works (DL-135 item 7)", () => {
-    newDemo();
-    const parsed = JSON.parse(saved()) as { meta: { version: number }; world: { heroes: Record<string, object> } };
-    parsed.meta.version = 5;
-    for (const hero of Object.values(parsed.world.heroes)) {
-      for (const field of ['portraitKey', 'appearance', 'biography']) Reflect.deleteProperty(hero, field);
-    }
-    const older = JSON.stringify(parsed);
-    writeFileSync(join(dir(), '.saves', 'current.json'), older);
-
-    for (const argv of [['show'], ['show', 'guildmaster'], ['advance']]) {
-      const run = play(argv);
-      expect(run.code, argv.join(' ')).toBe(exitCodes.refused);
-      expect(run.err).toBe(`This game was saved by an older Heroesim and cannot be loaded: ${join(dir(), '.saves', 'current.json')}.\n`);
-    }
-    expect(saved()).toBe(older);
-
-    // The save is kept until the player replaces it: a new game over it, which then loads.
-    expect(newDemo().code).toBe(exitCodes.refused);
-    expect(newDemo('--force').code).toBe(exitCodes.ok);
-    expect(JSON.parse(saved())).toMatchObject({ meta: { version: schemaVersion } });
-    expect(play(['show']).code).toBe(exitCodes.ok);
-  });
-
   test('a save whose config breaks a rule is refused at load, naming the setting, and left as it was (DL-193)', () => {
     newDemo();
     edit((edited) => {
@@ -1234,17 +1142,6 @@ describe('save and load', () => {
 `);
     }
     expect(saved()).toBe(original);
-  });
-
-  test('the newer-schema refusal names both versions', () => {
-    newDemo();
-    const bad = join(dir(), 'future.json');
-    writeFileSync(bad, fromTheFuture(saved()));
-
-    const run = play(['load', bad]);
-
-    expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain(`version 999 and this engine reads version ${schemaVersion}`);
   });
 
   test('load refuses a file that is not there, and save --as a save that is not there', () => {
@@ -1313,7 +1210,11 @@ describe('--modules: the test-only probe on new, advance and load', () => {
 
   test('advance --turns stops early when the probe asks to stop, and says so (DL-77 item 6)', () => {
     newWithProbe();
-    // The engine's own Turns with the probe installed, to its first stop: the afternoon of Year 1 Day 31.
+    // The probe asks for a stop every `probeStopEveryDays` Days, a tunable of its slice that a game
+    // keeps (its default is 30): three, so that the first stop is the afternoon of Day 4.
+    const everyDays = 3;
+    edit((edited) => void Object.assign(edited.world.modules['probe'] ?? {}, { probeStopEveryDays: everyDays }));
+    // The engine's own Turns with the probe installed, to its first stop.
     let expected = document();
     let stoppedBecause = null;
     while (stoppedBecause === null) {
@@ -1323,13 +1224,13 @@ describe('--modules: the test-only probe on new, advance and load', () => {
     }
     const turn = expected.world.turn;
 
-    const run = play(['advance', '--turns', '100', '--modules', 'probe']);
+    const run = play(['advance', '--turns', '20', '--modules', 'probe']);
 
     expect(stoppedBecause).toEqual({ kind: 'module', moduleId: 'probe' });
-    expect([turn, dayOf(turn)]).toEqual([91, 30]);
+    expect(dayOf(turn)).toBe(everyDays);
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(saved()).toBe(serialise(expected));
-    expect(run.out).toContain(`Played ${turn} Turns. Now Turn ${turn} (Year 1 Day 31, afternoon).`);
+    expect(run.out).toContain(`Played ${turn} Turns. Now Turn ${turn} (Year 1 Day ${everyDays + 1}, afternoon).`);
     expect(run.out).toContain('Stopped: the probe Module asked to stop.');
   });
 
@@ -1407,10 +1308,11 @@ describe('show guildmaster, show patrons and preview', () => {
     const [patronId] = Object.keys(world.patrons) as EntityId[];
     const [heroId] = guild.rosterIds;
     const rival = world.guilds[makeId('guilds', 2)] as Guild;
+    const traitKeys = ['old-soldier', 'thrifty'];
     edit((edited) => {
       const guildmaster = edited.world.guildmasters[guildmasterId];
       if (guildmaster === undefined) throw new Error('No Guildmaster');
-      guildmaster.traits = ['old-soldier', 'thrifty'];
+      guildmaster.traits = [...traitKeys];
       guildmaster.regard[patronId as EntityId] = { value: 13.25, since: 0, reason: 'quest.resolved' };
       guildmaster.regard[heroId as EntityId] = { value: -7.5, since: 0, reason: 'quest.resolved' };
       // A Transfer writes Regard between Guildmasters; the view reads it for a Guild through its Guildmaster.
@@ -1425,8 +1327,12 @@ describe('show guildmaster, show patrons and preview', () => {
     for (const stat of Object.values(content.stats).filter((row) => row.owner === 'guildmaster')) {
       expect(run.out).toMatch(new RegExp(`^${stat.name}\\s+${master?.stats[stat.key]}\\s`, 'm'));
     }
-    expect(run.out).toMatch(/^Old soldier\s+\+1 Weaponry to Warriors$/m);
-    expect(run.out).toMatch(/^Thrifty\s+Upkeep ×0\.9$/m);
+    // The Guildmaster's Traits, each with its effects in the words the page and the CLI share.
+    const rows = run.out.split('\n').map((line) => line.replace(/\s+/g, ' '));
+    for (const key of traitKeys) {
+      const trait = content.guildmasterTraits[key];
+      expect(rows).toContain(`${trait?.name} ${traitEffectWords(trait?.effects ?? [], content)}`);
+    }
 
     const patrons = section(run.out, 'Regard for Patrons');
     const heroes = section(run.out, 'Regard for Heroes on the Roster');
@@ -1470,14 +1376,12 @@ describe('show guildmaster, show patrons and preview', () => {
     const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
     const lines = (run: Run) => run.out.split('\n');
 
-    // Chosen to fit them from the core's pictures of the sex (DL-141): its 20 of each sex, or
-    // the Silhouette where none fits their age. Under the seed 'demo' they are a man of 39, and gm-male-14's
-    // row is of a man of 38 to 48.
+    // Chosen to fit them from the core's pictures of the sex (DL-141), or the Silhouette where none
+    // fits their age: the key the engine gives a Guildmaster under the same setup.
     const bare = lines(play(['show', 'guildmaster']));
-    const sex = bare.find((line) => line.startsWith('Sex'))?.replace(/^Sex\s+/, '').toLowerCase() ?? '';
-    expect(['female', 'male']).toContain(sex);
+    const made = createWorld('demo', { guildName: 'The Test', guildmasterName: 'Ada', createdAt: clock.toISOString() }, { config: defaultConfig, content }).document.world;
     const held = document().world.guildmasters[guildmasterId]?.portraitKey;
-    expect([`gm-${sex}-14`, null]).toContain(held);
+    expect(held).toBe(made.guildmasters[(made.guilds[playerId] as Guild).guildmasterId]?.portraitKey);
     expect(bare[bare.findIndex((line) => line.startsWith('Sex')) + 1]).toMatch(new RegExp(`^Portrait\\s+${held ?? 'None: the Silhouette'}$`));
 
     edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: null }));
@@ -1613,15 +1517,10 @@ describe('show guildmaster, show patrons and preview', () => {
 
   test("dispatch prints the reward agreed, the player's Guildmaster's Negotiation applied", () => {
     const { world } = document();
-    const roster = world.guilds[playerId]?.rosterIds ?? [];
-    const questId = (world.board as QuestId[]).find((id) => {
-      const { requirements } = world.quests[id] as Quest;
-      return requirements.classKey === undefined && requirements.skillKey === undefined;
-    });
-    if (questId === undefined) throw new Error('No open Quest on the Board');
+    const { questId, heroIds } = openQuest(world);
     const quest = world.quests[questId] as Quest;
 
-    const run = play(['dispatch', '--quest', questId, '--heroes', roster.slice(0, quest.requirements.partySizeMin).join(',')]);
+    const run = play(['dispatch', '--quest', questId, '--heroes', heroIds.join(',')]);
 
     expect(run.code).toBe(exitCodes.ok);
     const agreed = document().world.quests[questId]?.reward;
@@ -1688,14 +1587,6 @@ describe('preview lists the Synergies a proposed Party would have', () => {
     expect(synergies(run.out)).toEqual(['  None: this Party meets no Synergy.']);
   });
 
-  test('says a Quest drawn before M4 has its Encounters drawn on the way', () => {
-    const { questId, heroIds } = proposed([], 'warrior', 'warrior', 'warrior');
-
-    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
-
-    expect(synergies(run.out)).toEqual(["  Shield wall: ×1.15 on combat Encounters; this Quest's Encounters are drawn on the way."]);
-  });
-
   // DL-148 item 12: one line for the Party's Morale, from its mean form, naming no Hero.
   test.each([
     [[60, 60], 'Makes no difference'],
@@ -1733,16 +1624,15 @@ describe('the command line', () => {
     expect(run.err).toContain('EISDIR');
   });
 
-  test.each([[[]], [['play']], [['show', '--verbose']], [['show', 'bazaar']], [['new', '--seed', 'x']]])(
-    '%j prints the usage and exits non-zero',
-    (argv) => {
-      const run = play(argv);
+  // `args.test.ts` holds what each bad command line is refused for; this is the wiring: the usage
+  // goes to stderr and the exit is a usage error.
+  test('a command line args refuses prints the usage and exits non-zero', () => {
+    const run = play(['play']);
 
-      expect(run.code).toBe(exitCodes.usage);
-      expect(run.err).toContain('Usage: heroesim <command> [flags]');
-      expect(run.out).toBe('');
-    },
-  );
+    expect(run.code).toBe(exitCodes.usage);
+    expect(run.err).toContain('Usage: heroesim <command> [flags]');
+    expect(run.out).toBe('');
+  });
 
   test('help prints the usage', () => {
     const run = play(['help']);
@@ -1754,12 +1644,12 @@ describe('the command line', () => {
     for (const part of ['requirement', 'cannot go', 'Synergies', 'Morale', 'chances', 'consumables', 'reward', 'dispatch would send']) expect(preview).toContain(part);
   });
 
-  test("help gives new's ages as the rules do: 21 to 50, retiring at 61 (DL-113 item 4)", () => {
+  test("help gives new's ages as the rules do, and the age a Guildmaster retires at (DL-113 item 4)", () => {
     const { out } = play(['help']);
     const newHelp = out.slice(out.indexOf('  new '), out.indexOf('  show ')).replace(/\s+/g, ' ');
+    const { guildmasterStartingAgeMin, guildmasterStartingAgeMax, guildmasterRetirementAge } = defaultConfig;
 
-    expect(newHelp).toContain('their age, 21 to 50 (a Guildmaster retires at 61);');
-    expect(newHelp).not.toContain('30 to 45');
+    expect(newHelp).toContain(`their age, ${guildmasterStartingAgeMin} to ${guildmasterStartingAgeMax} (a Guildmaster retires at ${guildmasterRetirementAge});`);
   });
 
   test("help gives new's --stats: every Guildmaster Stat or none, by key, within the rules' range and points", () => {
@@ -1767,8 +1657,9 @@ describe('the command line', () => {
     const newHelp = out.slice(out.indexOf('  new '), out.indexOf('  show ')).replace(/\s+/g, ' ');
 
     expect(newHelp).toContain('[--stats <stat=n,stat=n,...>]');
+    const { guildmasterStatMin, guildmasterStatMax, guildmasterStatPoints } = defaultConfig;
     expect(newHelp).toContain(
-      '--stats sets every Guildmaster Stat or none, by key, as inspiration=12,influence=8,...: each 5 to 15, sharing 50 Stat points in all, and any left over are lost.',
+      `--stats sets every Guildmaster Stat or none, by key, as inspiration=12,influence=8,...: each ${guildmasterStatMin} to ${guildmasterStatMax}, sharing ${guildmasterStatPoints} Stat points in all, and any left over are lost.`,
     );
     for (const key of ['inspiration', 'influence', 'negotiation', 'coaching', 'judgement']) expect(newHelp).toContain(key);
     // The rest of the help keeps "drawn from the seed" (DL-149 item 7).

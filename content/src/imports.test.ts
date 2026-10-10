@@ -30,6 +30,19 @@ function sources(pkg: string, withTests = true): { file: string; ast: ts.SourceF
     }));
 }
 
+/** One ESLint over the repository's config, for the subpaths' probes below. */
+const eslint = new ESLint({ cwd: root });
+
+/** The errors ESLint reports on `code` as though it stood at `<pkg>/src/<file>`. */
+async function errorsIn(code: string, pkg: string, file: string): Promise<ESLint.LintResult['messages']> {
+  const [result] = await eslint.lintText(code, { filePath: join(root, pkg, 'src', file) });
+  return (result?.messages ?? []).filter((message) => message.severity === 2);
+}
+
+/** The errors on a probe at `<pkg>/src/<file>` that imports `x` from `specifier`. */
+const lint = (pkg: string, specifier: string, file = 'subpath-probe.ts') =>
+  errorsIn(`import { x } from '${specifier}';\nexport { x };\n`, pkg, file);
+
 /** Every import and re-export in a file: where from, and whether it carries types only. */
 function importsOf(ast: ts.SourceFile): { from: string; typeOnly: boolean }[] {
   const found: { from: string; typeOnly: boolean }[] = [];
@@ -92,14 +105,25 @@ describe("content's types come from the engine's content entry, @heroesim/engine
     expect(fromEngine.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['node.ts', 'parse.ts', 'uses/register.ts', 'validate.ts', ...kinds].sort());
   });
 
-  // DL-243: content's view of the engine is its content entry; a test may also take the main entry.
-  test("every import of another package is of the engine's content entry by name, a test's of the engine too", () => {
+  // DL-243: content's view of the engine is its content entry; a test may also take the main entry,
+  // and the testing entry, which proves the engine's writing within the bounds content proves
+  // (`kinds/descriptions.test.ts`, DL-248).
+  test("every import of another package is of the engine's content entry by name, a test's of the engine and its testing entry too", () => {
     for (const { file, ast } of sources('content')) {
-      const allowed = file.endsWith('.test.ts') ? ['@heroesim/engine/content', '@heroesim/engine'] : ['@heroesim/engine/content'];
+      const allowed = file.endsWith('.test.ts')
+        ? ['@heroesim/engine/content', '@heroesim/engine', '@heroesim/engine/testing']
+        : ['@heroesim/engine/content'];
       for (const it of importsOf(ast).filter((each) => each.from.startsWith('@heroesim/'))) {
         expect(allowed, `${file} imports ${it.from}`).toContain(it.from);
       }
     }
+  });
+
+  test("ESLint lets a test take the engine's testing entry, and refuses it to content's own code", { timeout: 30_000 }, async () => {
+    expect(await lint('content', '@heroesim/engine/testing', 'subpath-probe.test.ts')).toEqual([]);
+    const errors = await lint('content', '@heroesim/engine/testing');
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe('@typescript-eslint/no-restricted-imports');
   });
 
   // DL-186 item 6: content may take the engine's values, so it repeats none of them.
@@ -214,14 +238,6 @@ describe('the TypeScript project references', () => {
 // Content's Node entry is one of the two subpaths any package exports (DL-14 item 7); the
 // other is its register of a Trait's uses, below.
 describe('@heroesim/content/node', { timeout: 30_000 }, () => {
-  const eslint = new ESLint({ cwd: root });
-  const lint = async (pkg: string, specifier: string, file = 'subpath-probe.ts') => {
-    const [result] = await eslint.lintText(`import { x } from '${specifier}';\nexport { x };\n`, {
-      filePath: join(root, pkg, 'src', file),
-    });
-    return (result?.messages ?? []).filter((message) => message.severity === 2);
-  };
-
   test.each(['cli', 'harness'])('may be imported by %s, which runs on Node', async (pkg) => {
     expect(await lint(pkg, '@heroesim/content/node')).toEqual([]);
   });
@@ -257,14 +273,6 @@ describe('@heroesim/content/node', { timeout: 30_000 }, () => {
 // The register of a Trait's uses (DL-150 item 14), content's second subpath, is the tools':
 // the game never imports it, so no byte of it is in the page's script.
 describe('@heroesim/content/uses', { timeout: 30_000 }, () => {
-  const eslint = new ESLint({ cwd: root });
-  const lint = async (pkg: string, specifier: string) => {
-    const [result] = await eslint.lintText(`import { x } from '${specifier}';\nexport { x };\n`, {
-      filePath: join(root, pkg, 'src', 'subpath-probe.ts'),
-    });
-    return (result?.messages ?? []).filter((message) => message.severity === 2);
-  };
-
   test.each(['tools/editor', 'tools/portraits'])('may be imported by %s', async (pkg) => {
     expect(await lint(pkg, '@heroesim/content/uses')).toEqual([]);
   });
@@ -284,14 +292,6 @@ describe('@heroesim/content/uses', { timeout: 30_000 }, () => {
 // The tools' write module (DL-186 item 14), content's third subpath: Node's, and the tools'
 // alone, so no byte of it is in the page's script and no front end or the harness writes content.
 describe('@heroesim/content/write', { timeout: 30_000 }, () => {
-  const eslint = new ESLint({ cwd: root });
-  const lint = async (pkg: string, specifier: string, file = 'subpath-probe.ts') => {
-    const [result] = await eslint.lintText(`import { x } from '${specifier}';\nexport { x };\n`, {
-      filePath: join(root, pkg, 'src', file),
-    });
-    return (result?.messages ?? []).filter((message) => message.severity === 2);
-  };
-
   test.each(['tools/editor', 'tools/portraits'])('may be imported by %s', async (pkg) => {
     expect(await lint(pkg, '@heroesim/content/write')).toEqual([]);
   });
@@ -310,10 +310,8 @@ describe('@heroesim/content/write', { timeout: 30_000 }, () => {
 
   test('may use Node, as the Node entry may, where the rest of content may not', async () => {
     const node = "import { readFileSync } from 'node:fs';\nexport const x = readFileSync;\n";
-    const [write] = await eslint.lintText(node, { filePath: join(root, 'content', 'src', 'write', 'subpath-probe.ts') });
-    const [pure] = await eslint.lintText(node, { filePath: join(root, 'content', 'src', 'subpath-probe.ts') });
-    expect((write?.messages ?? []).filter((message) => message.severity === 2)).toEqual([]);
-    expect((pure?.messages ?? []).filter((message) => message.severity === 2)).toHaveLength(1);
+    expect(await errorsIn(node, 'content', 'write/subpath-probe.ts')).toEqual([]);
+    expect(await errorsIn(node, 'content', 'subpath-probe.ts')).toHaveLength(1);
   });
 
   test('is no export of the pure entry, which the page imports', () => {

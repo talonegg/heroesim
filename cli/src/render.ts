@@ -688,7 +688,7 @@ function questLines(quest: QuestReading, reading: PlayerReading): string[] {
   const row = rowOf(reading.world.quests, quest.id);
   return [
     `${quest.id}, ${quest.name}`,
-    ...(quest.encounters.length === 0 ? ['  Its Encounters are drawn on the way.'] : lines),
+    ...lines,
     `  ${bestPartyWords(row === undefined ? null : bestPartyReading(reading, row))}`,
   ];
 }
@@ -703,11 +703,9 @@ function bestPartyWords(best: BestPartyReading | null): string {
 
 /**
  * The kinds of a Quest's Encounters in the order it meets them (M4-S1), so the player can see what
- * kind of work it is; a Quest drawn before M4 has its sequence drawn when it resolves (DL-42). An
- * Encounter content does not define is named by its key.
+ * kind of work it is. An Encounter content does not define is named by its key (data-model rule 5).
  */
 function encounterKindsOf(quest: QuestReading): string {
-  if (quest.encounters.length === 0) return 'Drawn on the way';
   return capitalised(quest.encounters.map((encounter) => encounter.kind ?? encounter.encounterKey).join(', '));
 }
 

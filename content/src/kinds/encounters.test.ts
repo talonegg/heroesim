@@ -180,24 +180,17 @@ describe("a Check's score that subtracts a Stat", () => {
     });
   const at = (rest: string) => new RegExp(`encounters\\.ambush-on-the-road\\.checks\\.0\\.score${rest.replace(/[.[\]()]/g, (char) => `\\${char}`)}: "-" subtracts a Stat a Hero adds`);
 
-  test.each<[string, unknown, RegExp]>([
-    ['a Val subtracting a Stat', ['sum', 'party', ['-', ['level'], ['stat', 'strength']]], at('.2.2')],
-    ['a Val subtracting a weighted', ['max', 'party', ['-', 20, ['weighted', [['wits', 1]]]]], at('.2.2')],
-    ['a Val subtracting a sum of Stats', ['of', ['best', 'party', ['level']], ['-', 10, ['+', 1, ['stat', 'wits']]]], at('.2.2')],
-    ['a Num subtracting a sum of a Stat', ['-', 40, ['sum', 'party', ['stat', 'strength']]], at('.2')],
-    ['a Num subtracting the best Hero\'s Stat', ['+', 5, ['-', ['count', 'party'], ['of', ['best', 'party', ['level']], ['stat', 'wits']]]], at('.2.2')],
-    ['a Num subtracting a ranked Stat', ['-', 30, ['ranked', 'party', ['stat', 'courage'], [1]]], at('.2')],
-    ['a Num subtracting the least of a Stat', ['-', 30, ['least', 3, ['min', 'party', ['stat', 'courage']]]], at('.2')],
-  ])('with %s is refused, naming its path', (_, score, problem) => {
-    expect(refusalOf(() => parse(scored(score))).message).toMatch(problem);
+  // The Query's own refusals are held word for word in query-refusals.test.ts; one refused and one
+  // accepted show the parse path's wiring.
+  test('with a Num subtracting a sum of a Stat is refused, naming its path', () => {
+    const score = ['-', 40, ['sum', 'party', ['stat', 'strength']]];
+
+    expect(refusalOf(() => parse(scored(score))).message).toMatch(at('.2'));
   });
 
-  test.each<[string, unknown]>([
-    ['a Stat less a number', ['sum', 'party', ['-', ['stat', 'strength'], 2]]],
-    ['a Stat less a Level', ['sum', 'party', ['-', ['stat', 'strength'], ['level']]]],
-    ['a sum less a count of Heroes filtered by a Stat', ['-', ['sum', 'party', ['stat', 'strength']], ['count', ['where', 'party', ['<', ['stat', 'wits'], 8]]]]],
-    ['a sum less the best Hero\'s Skill', ['-', ['sum', 'party', ['stat', 'strength']], ['of', ['best', 'party', ['stat', 'wits']], ['skill', 'tactics']]]],
-  ])('with %s is accepted', (_, score) => {
+  test('with a Stat less a Level is accepted', () => {
+    const score = ['sum', 'party', ['-', ['stat', 'strength'], ['level']]];
+
     expect(parse(scored(score)).encounters['ambush-on-the-road']?.checks[0]?.score).toEqual(score);
   });
 
@@ -205,49 +198,6 @@ describe("a Check's score that subtracts a Stat", () => {
     const condition = ['>=', ['-', 40, ['sum', 'party', ['stat', 'strength']]], 1];
     const files = withJson('synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).requires = [condition] as SynergyRow['requires']));
     expect(parse(files).synergies['sword-and-salve']?.requires).toEqual([condition]);
-  });
-
-  // DL-162: a negative weight in a `weighted`, or a Stat times a negative constant,
-  // inverts form as a `-` does, so each is refused in a Check's score, naming its path.
-  const negative = (rest: string, what: string) =>
-    new RegExp(`encounters\\.ambush-on-the-road\\.checks\\.0\\.score${rest.replace(/[.[\]()]/g, (char) => `\\${char}`)}: ${what}`);
-  const weightedRefusal = (rest: string) => negative(rest, 'weighted gives "\\w+" a negative weight; form would then raise the score of a hurt or low-spirited Hero');
-  const timesRefusal = (rest: string) => negative(rest, '"\\*" multiplies a Stat a Hero adds by a negative number; form would then raise the score of a hurt or low-spirited Hero');
-  const mayRefusal = (rest: string) => negative(rest, '"\\*" multiplies a Stat a Hero adds by a number that may be negative; form would then raise the score of a hurt or low-spirited Hero');
-  const rankedRefusal = (rest: string) => negative(rest, '"ranked" gives a negative weight to a value that reads a Stat a Hero adds; form would then raise the score of a hurt or low-spirited Hero');
-  const best = ['max', 'party', ['stat', 'wits']];
-
-  test.each<[string, unknown, RegExp]>([
-    ['a weighted with a negative weight', ['sum', 'party', ['weighted', [['strength', 0.6], ['wits', -0.4]]]], weightedRefusal('.2.1.1.1')],
-    ['a weighted of one negative weight, deep in a Num', ['+', 3, ['max', 'party', ['weighted', [['courage', -1]]]]], weightedRefusal('.2.2.1.0.1')],
-    ['a Val of a Stat times a negative number', ['sum', 'party', ['*', -1, ['stat', 'strength']]], timesRefusal('.2')],
-    ['a Val of a Stat times a negative sum of numbers', ['avg', 'party', ['*', ['-', 1, 3], ['+', ['stat', 'wits'], 2]]], timesRefusal('.2')],
-    ['a Num of a sum of a Stat times a negative number', ['+', 20, ['*', ['sum', 'party', ['stat', 'strength']], -0.5]], timesRefusal('.2')],
-    ['a Num of the best Hero\'s Stat times a negative number', ['*', -2, ['of', ['best', 'party', ['level']], ['stat', 'wits']]], timesRefusal('')],
-    // The verification (DL-162): the sign is carried through the tree, not read of constants alone.
-    ['a Stat times minus the count of the Party', ['*', ['*', -1, ['count', 'party']], best], timesRefusal('')],
-    ['a Stat times nought less the count of the Party', ['*', ['-', 0, ['count', 'party']], best], timesRefusal('')],
-    ['a Stat times a count less 3, which may be negative', ['*', ['-', ['count', 'party'], 3], best], mayRefusal('')],
-    ['a Stat negated thrice', ['*', -1, ['*', -1, ['*', -1, best]]], timesRefusal('.2.2')],
-    ['a Stat negated, then subtracted', ['-', 10, ['*', -1, ['-', 0, best]]], negative('.2.2.2', '"-" subtracts a Stat a Hero adds; form would then raise the score of a hurt or low-spirited Hero')],
-    ['a ranked with a negative weight', ['ranked', 'party', ['stat', 'wits'], [1, -0.5]], rankedRefusal('.3')],
-  ])('with %s is refused, naming its path', (_, score, problem) => {
-    expect(refusalOf(() => parse(scored(score))).message).toMatch(problem);
-  });
-
-  test.each<[string, unknown]>([
-    ['a weighted of positive and zero weights', ['sum', 'party', ['weighted', [['strength', 0.6], ['wits', 0]]]]],
-    ['a Stat times a positive number', ['sum', 'party', ['*', 0.5, ['stat', 'strength']]]],
-    ['a Level times a negative number', ['+', ['sum', 'party', ['stat', 'strength']], ['sum', 'party', ['*', -1, ['level']]]]],
-    ['a count times a negative number', ['+', ['sum', 'party', ['stat', 'strength']], ['*', -2, ['count', ['where', 'party', ['<', ['stat', 'wits'], 8]]]]]],
-    ['a Stat times a product of two negative numbers', ['sum', 'party', ['*', -1, -2, ['stat', 'strength']]]],
-    ['a Stat negated twice', ['*', -1, ['*', -1, ['sum', 'party', ['stat', 'strength']]]]],
-    ['a Stat subtracted from nought, then negated', ['*', -1, ['-', 0, best]]],
-    ['a negative weight, negated', ['*', -1, ['max', 'party', ['weighted', [['wits', -1]]]]]],
-    ['a Stat times the count of the Party', ['*', ['count', 'party'], best]],
-    ['a Stat times a count less nought', ['*', ['-', ['count', 'party'], 0], best]],
-  ])('with %s is accepted', (_, score) => {
-    expect(parse(scored(score)).encounters['ambush-on-the-road']?.checks[0]?.score).toEqual(score);
   });
 
   test('a raw Check, read without form, may weigh a Stat negatively', () => {

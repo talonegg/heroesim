@@ -1,6 +1,6 @@
 import { type LootTable } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
-import { realFiles, parse, withJson, refusalOf, withoutLoot, type Files } from './content.test-support.js';
+import { parse, withJson, refusalOf, withoutLoot, type Files } from './content.test-support.js';
 
 // The Loot tables' refusals (DL-243). Each is triggered by content built in memory from the shipped files with one
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
@@ -30,11 +30,7 @@ describe('a Loot table', () => {
     expect(refusalOf(() => parse(withJson('loot-tables.json', change))).message).toMatch(problem);
   });
 
-  test('the file is required, and may hold none when no template names one', () => {
-    const files = realFiles();
-    delete files['loot-tables.json'];
-
-    expect(refusalOf(() => parse(files)).message).toContain('loot-tables.json: missing');
+  test('the file may hold none when no template names one', () => {
     expect(parse(withoutLoot()).lootTables).toEqual({});
   });
 });

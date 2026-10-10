@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { validateContent } from './index.js';
-import { shipped, realFiles, parse, withJson, refusalOf, type Files } from './kinds/content.test-support.js';
+import { shipped, parse, withJson, refusalOf, type Files } from './kinds/content.test-support.js';
 
 // The rules every table of content shares: its keys, its draw weights, and every problem reported at once (DL-243). Each is triggered by content built in memory from the shipped files with one
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
@@ -60,11 +60,10 @@ describe('a weight', () => {
     ['quest-templates.json', 'clear-the-barrow'],
   ];
 
-  test('is on no shipped row, and a row without one reads as having none', () => {
-    const set = parse(realFiles());
-    for (const table of [set.classes, set.backgrounds, set.spheres, set.questTemplates]) {
-      for (const row of Object.values(table)) expect(row.weight).toBeUndefined();
-    }
+  test('is absent from a row that has none, which reads as having none', () => {
+    const files = withJson('classes.json', (json) => void delete (json['warrior'] as { weight?: number }).weight);
+
+    expect(parse(files).classes['warrior']?.weight).toBeUndefined();
   });
 
   test.each(rowOfEach)('is read from a row of %s when it has one, and a positive number is accepted', (file, key) => {

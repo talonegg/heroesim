@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { realFiles, parse, withJson, refusalOf, type Files } from './content.test-support.js';
+import { parse, withJson, refusalOf, type Files } from './content.test-support.js';
 
 // The content version's refusals (DL-243). Each is triggered by content built in memory from the shipped files with one
 // thing broken, read and checked as `parseContent` does, and names the offending key, so an author
@@ -13,13 +13,6 @@ describe('the content version', () => {
     });
 
     expect(parse(files).version).toBe(7);
-  });
-
-  test('is refused without its file, naming it', () => {
-    const { 'version.json': _version, ...files } = realFiles();
-    void _version;
-
-    expect(refusalOf(() => parse(files)).message).toContain('version.json: missing');
   });
 
   test.each([

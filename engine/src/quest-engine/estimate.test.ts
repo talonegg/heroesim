@@ -240,7 +240,6 @@ describe('the estimate', () => {
     const streams = structuredClone(s.world.rng);
     expect(estimated(s).ifNoOneFalls).toBe(true);
     expect(s.world.rng).toEqual(streams);
-    expect(estimateQuest(s.world, { ...s.quest, encounterKeys: [] }, s.heroes, s.deps)).toBeNull();
     expect(estimateQuest(s.world, { ...s.quest, encounterKeys: ['no-such-encounter'] }, s.heroes, s.deps)).toBeNull();
     // A key content lacks is left out, as the resolver leaves it out.
     expect(estimateQuest(s.world, { ...s.quest, encounterKeys: ['no-such-encounter', 'one'] }, s.heroes, s.deps)?.encounters.map((it) => it.encounterKey)).toEqual(['one']);
@@ -287,7 +286,7 @@ describe('the estimate', () => {
     // A Hero outside the pool is brought home on the call.
     expect(partyEstimator(s.world, s.deps)(s.quest, [a, b], { pool: [a] })).toEqual(estimateQuest(s.world, s.quest, [a, b], s.deps));
     expect(() => estimate(s.quest, [a, a])).toThrow(`A Party names ${a.id} twice`);
-    expect(estimate({ ...s.quest, encounterKeys: [] }, [a])).toBeNull();
+    expect(estimate({ ...s.quest, encounterKeys: ['no-such-encounter'] }, [a])).toBeNull();
     expect(() => estimate({ ...s.quest, difficulty: 0 }, [a])).toThrow(RangeError);
   });
 

@@ -162,21 +162,4 @@ describe('equip and unequip', () => {
     }
     expect(saved()).toBe(before);
   });
-
-  test('refuses a bad command line as a usage error, and writes nothing', () => {
-    const { hero, blades, relic } = stocked();
-    const before = saved();
-
-    for (const argv of [
-      ['equip', '--hero', hero.id],
-      ['equip', '--hero', hero.id, '--stack', blades, '--item', relic],
-      ['equip', '--hero', hero.id, '--item', blades],
-      ['equip', '--hero', 'brenna', '--stack', blades],
-      ['unequip', '--hero', hero.id],
-      ['unequip', '--hero', hero.id, '--slot', 'belt'],
-    ]) {
-      expect(play(argv).code, argv.join(' ')).toBe(exitCodes.usage);
-    }
-    expect(saved()).toBe(before);
-  });
 });

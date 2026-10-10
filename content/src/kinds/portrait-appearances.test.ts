@@ -10,12 +10,6 @@ import { realFiles, parse, withJson, changed, refusalOf, guildmasterRow, heroRow
 // its role's fields, and `features` in the place of `keywords`
 // (DL-134 items 3 and 10, DL-135 item 2).
 describe('the Appearances mapped to pictures (DL-126 item 2, DL-127)', () => {
-  test('are required as a file', () => {
-    const files = realFiles();
-    delete files['portrait-appearances.json'];
-    expect(refusalOf(() => parse(files)).message).toContain('portrait-appearances.json: missing');
-  });
-
   test("are refused with a row whose key names no picture, another role's included", () => {
     const files = changed(ownersTwo(realFiles()), 'portrait-appearances.json', (json) => {
       (json.portraits as unknown as Record<string, PictureRow>)['gm-male-09'] = guildmasterRow();

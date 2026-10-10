@@ -59,8 +59,8 @@ export interface EncounterReading {
 
 /**
  * `quest`'s Encounters, drawn when it was posted, in the order it meets them, each with its Checks'
- * names and what they read (v1.1.4-S6); none while they are drawn on the way. An Encounter content
- * does not define is named by its key and reads nothing (data-model rule 5).
+ * names and what they read (v1.1.4-S6). An Encounter content does not define is named by its key and
+ * reads nothing (data-model rule 5).
  */
 export function encounterReadings(quest: Pick<Quest, 'encounterKeys'>, content: QueryNames & Pick<ContentSet, 'encounters'>): EncounterReading[] {
   return quest.encounterKeys.map((encounterKey) => {

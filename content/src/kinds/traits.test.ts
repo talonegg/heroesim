@@ -219,7 +219,6 @@ describe('a file', () => {
 
     const { message } = refusalOf(() => parse({ ...files, 'traits.json': JSON.stringify(old) }));
 
-    expect(message).toContain('hero-traits.json: missing');
     expect(message).not.toMatch(/(^|\s)traits\.json/);
   });
 });

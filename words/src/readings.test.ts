@@ -475,14 +475,6 @@ describe("a Quest's reading", () => {
     expect(told).toBeGreaterThan(0);
   });
 
-  test('gives none of the Encounters of a Quest saved before they were drawn when posted: they are drawn on the way (DL-42)', () => {
-    const document = newGame();
-    const quest = document.world.quests[document.world.board[0] as Quest['id']] as Quest;
-    quest.encounterKeys = [];
-
-    expect(boardReading(playerReading(document, deps))[0]?.encounters).toEqual([]);
-  });
-
   test("gives the Best Party of the player's free Heroes, by name, with the chance it was chosen by; none when no Party meets the requirements", () => {
     const document = newGame();
     const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];

@@ -449,9 +449,11 @@ describe('questsConclude', () => {
     withValid({ ...eve, world }, deps);
   });
 
-  test('resolves a Quest with no Encounter stored, as one whose Encounters content no longer defines (rule 5), through a sequence drawn from the encounters stream', () => {
+  test('resolves a Quest whose Encounters content no longer defines (rule 5) through a sequence drawn from the encounters stream', () => {
     const deps = soloDeps({}, harmlessContent);
-    const { eve, party, quest } = sentAway('pre-m4', deps, { encounterKeys: [] });
+    const { eve, party, quest } = sentAway('content-gone', deps);
+    // The save names an Encounter the content in use no longer defines.
+    (eve.world.quests[quest.id] as Quest).encounterKeys = ['gone'];
     const template = deps.content.questTemplates[quest.templateKey];
     if (template === undefined) throw new Error('No template');
     const encountersBefore = structuredClone(eve.world.rng.encounters);
