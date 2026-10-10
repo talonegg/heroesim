@@ -20,6 +20,8 @@ export declare function newestTag(tags: readonly string[]): string | null;
 export declare function nextRelease(branch: string, tags: readonly string[]): { tag: string; refusal?: undefined } | { refusal: string; tag?: undefined };
 /** Why `tag` may not deploy, or `null` when it is the newest release tag. */
 export declare function deployRefusal(tag: string, tags: readonly string[]): string | null;
+/** Whether a merge changing `paths` is a record only, and so releases nothing (DL-255). */
+export declare function isRecordOnly(paths: readonly string[]): boolean;
 
 export interface ReleaseMainOptions {
   readonly argv?: readonly string[];

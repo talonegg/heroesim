@@ -8,7 +8,7 @@ is mechanical first; story-rich modules such as Campaigns and Scenarios come lat
 followed it a patch at a time: the page redesigned, then pictures, richer Quests and the tools.
 Every release is a row of [`docs/plan.md`](docs/plan.md) §2's ledger, and what comes next is its
 §3, Random Events, the first module, among it. `main` is production: only a release branch's pull request
-moves it, and merging one releases. Agents start from [`AGENTS.md`](AGENTS.md).
+moves it, and merging one releases, unless it holds records alone ([`docs/deploy.md`](docs/deploy.md)). Agents start from [`AGENTS.md`](AGENTS.md).
 
 ## Play
 

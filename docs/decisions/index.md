@@ -133,7 +133,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-121 | 2026-09-30 | M9-F7 built: "Debug: Whole History", the Days before a Retirement under a year and why none came … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-122 | 2026-09-30 | A release deploys from CI: pushing a `v*` tag on the release branch runs the checks, `npm run … | item 2 in part by DL-124; item 5 in part by DL-124 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-123 | 2026-09-30 | v1.1.0 released: `v1.1-release` created and tagged `m9-redesign` and `v1.1.0`, deployed from CI to … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-124 | 2026-09-30 | Production is `main`: a release branch's PR to `main` is raised by CI, merging it releases the next … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-124 | 2026-09-30 | Production is `main`: a release branch's PR to `main` is raised by CI, merging it releases the next … | item 2 in part by DL-255; item 3 in part by DL-255 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-125 | 2026-09-30 | Pictures and words for v1.1.2: a `media/` folder, Portraits of the Guildmaster, Heroes and Patrons … |  | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
 | DL-126 | 2026-09-30 | DL-125's two open items answered: the owner's pictures set the style, and each picture's Appearance … | item 2 in part by DL-127 | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
 | DL-127 | 2026-09-30 | A picture's Appearance in two parts, keywords for the engine and a narrative for the page, with no … |  | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
@@ -264,6 +264,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-252 | 2026-10-10 | v1.1.9-S16's close: the Gate, the copy line anchored at this close, and the after-report |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
 | DL-253 | 2026-10-10 | v1.1.9: approach, data model and requirements say what is true at v1.1.9 |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
 | DL-254 | 2026-10-10 | v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a … |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-255 | 2026-10-10 | A merge of docs, records and the release pipeline alone releases nothing: no tag, no deploy |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

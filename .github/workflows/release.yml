@@ -5,7 +5,9 @@ name: release
 # merge, pushes it, and calls deploy.yml for it. It refuses a push to `main` that merged no pull
 # request from a release branch `v#.#-release`, a merge whose tree differs from that pull
 # request's head, and a tag older than the newest release. A tag pushed with the workflow's own
-# token starts no workflow, so deploy.yml runs once, called from here.
+# token starts no workflow, so deploy.yml runs once, called from here. A merge whose changes since
+# the newest release tag are records alone (release.mjs `record`), once those refusals pass,
+# releases nothing: no tag, so no deploy (DL-255).
 on:
   push:
     branches:
@@ -74,6 +76,11 @@ jobs:
             exit 0
           fi
           tag="$(node web/scripts/release.mjs next "$BRANCH")"
+          if [ "$(node web/scripts/release.mjs record HEAD)" = record ]; then
+            echo "#$NUMBER merged $BRANCH, whose changes since the newest release tag are records alone: no tag is made and nothing is deployed (DL-255)." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git tag -a "$tag" -m "$tag: $BRANCH, merged into main by #$NUMBER"
@@ -85,6 +92,7 @@ jobs:
   # on the release branch's tip (DL-235).
   deploy:
     needs: tag
+    if: needs.tag.outputs.tag != ''
     permissions:
       contents: write
       actions: read
