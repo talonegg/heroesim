@@ -5,13 +5,14 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { journalPath, writeAtomically } from './finish-journal.js';
 import { pendingPath } from './session.js';
 import { serve } from './server.js';
-import { command, json, plantOutcome, plantedTests, readContentJson, scratch, scratchRepository, status } from './test-support.js';
+import { command, json, plantOutcome, plantQuests, plantedTests, readContentJson, scratch, scratchRepository, status } from './test-support.js';
 
 // The Quest templates' and Encounters' commands (DL-257 item 8, DL-267), each driven through both of
 // their adapters, the command line (`npm run edit -- quests …`, `encounters …`) and the page's API
 // (`/api/quests/…`, `/api/encounters/…`), on two scratch copies of the repository side by side: the
 // same JSON from each, the same answer's kind (exit 0, 1 or 2; 200, 422 or 409, or 400), and the same
-// pending edits left behind. A refused change names its reason and holds nothing.
+// pending edits left behind. A refused change names its reason and holds nothing. The templates the
+// tests read are planted (`plantedQuests`, DL-272).
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
@@ -44,6 +45,7 @@ async function pair(): Promise<{
   const cliDir = scratch();
   const { dir: apiDir, remove } = scratchRepository();
   cleanups.push(remove);
+  for (const dir of [cliDir, apiDir]) plantQuests(dir);
   const page = await serve({ root: apiDir, port: 0, runTests: plantedTests });
   cleanups.push(() => page.close());
   const pending = (dir: string): string | null => (existsSync(pendingPath(dir, 'quests')) ? readFileSync(pendingPath(dir, 'quests'), 'utf8') : null);

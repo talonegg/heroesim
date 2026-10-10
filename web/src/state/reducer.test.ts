@@ -30,7 +30,7 @@ import {
 import { makeId } from '@heroesim/engine/testing';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
-import { changed, documentOf, played as play, playerOf, started as startedFrom, withPartyOut, withRosterReleased } from './game.test-support';
+import { changed, documentOf, played as play, playerOf, started as startedFrom, turnsUntilHome, withPartyHomeInALaterStep, withPartyOut, withRosterReleased } from './game.test-support';
 import {
   fastForwardStepTurns,
   gameReducer,
@@ -703,8 +703,8 @@ describe('fast forward in steps of at most 30 Turns (DL-96)', () => {
 });
 
 describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (DL-96)', () => {
-  /** A Party of the player's out on the longest Quest it can staff, back on the night of Year 1 Day 17, the 50th Turn: partway through the second step. */
-  const partyOut = (): GameState => withPartyOut(startedFrom('reducer-test'));
+  /** A Party of the player's out on the longest Quest it can staff, home partway through the second or third step (DL-272). */
+  const partyOut = (): GameState => withPartyHomeInALaterStep('reducer-test', fastForwardStepTurns);
   /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Year 1 Day 31, the 91st Turn, in the fourth step. */
   const probeGame = (): GameState => {
     const made = gameReducer(gameReducer(initialGameState, { ...newGame, seed: 'reducer-test' }, [probe]), { kind: 'settle' }, [probe]);
@@ -718,7 +718,8 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     maxTurns?: number;
     modules: readonly Module[];
     stop: StopReason['kind'];
-    turns: number;
+    /** The Turns it plays: a number, or read from the game, the Turns until its Party is home. */
+    turns: number | 'home';
   }[] = [
     {
       name: "the player's Roster released to the pool, Wealth to spare: a year of the game's own rules, 90 Turns, to max-turns",
@@ -728,7 +729,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
       stop: 'max-turns',
       turns: 90,
     },
-    { name: 'a Party out, back partway through a later step', game: partyOut, until: [], modules: noModules, stop: 'party-returned', turns: 50 },
+    { name: 'a Party out, back partway through a later step', game: partyOut, until: [], modules: noModules, stop: 'party-returned', turns: 'home' },
     { name: 'pool-refreshed listed', game: released, until: ['pool-refreshed'], modules: noModules, stop: 'pool-refreshed', turns: 32 },
     { name: 'a cap not a multiple of 30', game: released, until: [], maxTurns: 100, modules: noModules, stop: 'max-turns', turns: 100 },
     { name: 'the probe installed, its module stop in a later step', game: probeGame, until: [], modules: [probe], stop: 'module', turns: 91 },
@@ -749,9 +750,10 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     return fastForward(document, { guildId: guild.id, until, maxTurns }, playDeps(document, modules));
   }
 
-  test.each(cases)('$name', ({ game, until, maxTurns, modules, stop, turns }) => {
+  test.each(cases)('$name', ({ game, until, maxTurns, modules, stop, turns: told }) => {
     const text = serialise(documentOf(game()));
     const start = loaded(text, modules);
+    const turns = told === 'home' ? turnsUntilHome(start) : told;
     vi.clearAllMocks();
 
     const states = stepped(start, { kind: 'fastForward', until, ...(maxTurns === undefined ? {} : { maxTurns }) }, modules);

@@ -135,7 +135,30 @@ export function refusalOf(run: () => unknown): ContentError {
 }
 
 export const warrior = (json: Files['classes.json']) => json['warrior'] as Omit<Class, 'key'>;
-export const barrow = (json: Files['quest-templates/']) => json['clear-the-barrow'] as Template;
+
+/** The rows `barrow` has planted, so that a test reading the barrow twice keeps its own change. */
+const plantedBarrows = new WeakSet<object>();
+
+/**
+ * The barrow's row, its Tiers and Beats planted the first time it is read: Tiers 2 to 3, three Beats
+ * each drawn by kind alone, no Finale and no override; so that a test of a template's rules rests on
+ * this fixture and not on the template as shipped (DL-272).
+ */
+export const barrow = (json: Files['quest-templates/']): Template => {
+  const it = json['clear-the-barrow'] as Template;
+  if (plantedBarrows.has(it)) return it;
+  plantedBarrows.add(it);
+  for (const field of ['finale', 'finaleLine', 'overrides'] as const) Reflect.deleteProperty(it, field);
+  return Object.assign(it, {
+    tierMin: 2,
+    tierMax: 3,
+    beats: [
+      { line: 'A fight on the way.', pool: { kinds: ['combat'] } },
+      { line: 'Somewhere not to be seen.', pool: { kinds: ['stealth'] } },
+      { line: 'A hard road.', pool: { kinds: ['travel'] } },
+    ],
+  });
+};
 export const stat = (json: Files['stats.json'], key: string) => json[key] as Omit<Stat, 'key'>;
 
 /** A picture's row, as it is written in `portrait-appearances.json`. */

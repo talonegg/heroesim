@@ -260,6 +260,46 @@ export function withPartyOut(state: GameState, atHome = 0): GameState {
 }
 
 /**
+ * What `make` gives for the first of the seeds `seed`, `seed-1`, `seed-2`, … that meets `meets`: so that
+ * a test states the condition its game must meet and finds a game meeting it, as the e2e's Board does,
+ * resting on no Quest or Encounter as shipped (DL-272). Throws naming `condition` when none of `tries`
+ * seeds meets it.
+ */
+export function firstSeedWhere<Made>(seed: string, make: (seed: string) => Made, meets: (made: Made) => boolean, condition: string, tries = 40): Made {
+  for (let at = 0; at < tries; at += 1) {
+    const made = make(at === 0 ? seed : `${seed}-${at}`);
+    if (meets(made)) return made;
+  }
+  throw new Error(`No seed of ${tries} from ${seed} gives ${condition}`);
+}
+
+/** The Turns from `state`'s Turn to the night the player's one Party out comes home. */
+export function turnsUntilHome(state: GameState): number {
+  const document = documentOf(state);
+  const parties = Object.values(document.world.parties).filter((party) => party.guildId === playerOf(document).id);
+  const [party] = parties;
+  if (party === undefined || parties.length > 1) throw new Error(`expected one Party of the player's out, not ${parties.length}`);
+  return party.returnsOnTurn - document.world.turn;
+}
+
+/**
+ * `withPartyOut` on the first game from `seed` whose Party comes home partway through a fast forward's
+ * second or third step of `step` Turns: after the first step, before the third ends, and not at a step's
+ * end (DL-96, DL-272).
+ */
+export function withPartyHomeInALaterStep(seed: string, step: number): GameState {
+  return firstSeedWhere(
+    seed,
+    (each) => withPartyOut(started(each)),
+    (state) => {
+      const turns = turnsUntilHome(state);
+      return turns > step && turns < 3 * step && turns % step !== 0;
+    },
+    'a Party home partway through the second or third step',
+  );
+}
+
+/**
  * S5's estimate for `heroIds` of `state`'s player on `questId`, carrying `carried`: for a
  * view's test to hold the page's chances to, since a view imports no engine value.
  */

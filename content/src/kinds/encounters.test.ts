@@ -1,4 +1,4 @@
-import { type Encounter } from '@heroesim/engine/content';
+import { type Encounter, type QuestBeat } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { realFiles, parse, withJson, changed, refusalOf, barrow, type Files, type EncounterRow, type SynergyRow, type Template } from './content.test-support.js';
 
@@ -332,6 +332,20 @@ describe('tags, a Finale and the lore kind', () => {
   const ambushed = (change: (it: EncounterRow) => void) => withJson('encounters/', (json) => change(json['ambush-on-the-road'] as EncounterRow));
   /** `files` with the barrow's template changed. */
   const barrowed = (change: (it: Template) => void, files = realFiles()) => changed(files, 'quest-templates/', (json) => change(barrow(json)));
+  /**
+   * `files` with an Encounter planted under `key`: one combat Check, and `tags` if given; drawn by a pool
+   * of combat or of its tags, so that a test of tags and Finales rests on no Encounter as shipped (DL-272).
+   */
+  const planted = (files: Record<string, string>, key: string, tags?: string[]) =>
+    changed(files, 'encounters/', (json) => {
+      json[key] = {
+        name: 'A planted fight',
+        kind: 'combat',
+        ...(tags === undefined ? {} : { tags }),
+        checks: [{ key: 'fight', name: 'The fight', score: ['avg', 'party', ['stat', 'strength']], skills: [], difficultyFactor: 0.1 }],
+        consequences: { success: [], failure: [{ kind: 'morale', delta: -1 }] },
+      } as unknown as EncounterRow;
+    });
   /** `files` without the Encounters keyed `keys`. */
   const without = (files: Record<string, string>, keys: string[]) =>
     changed(files, 'encounters/', (json) => keys.forEach((key) => Reflect.deleteProperty(json, key)));
@@ -342,12 +356,12 @@ describe('tags, a Finale and the lore kind', () => {
     });
 
   test("loads an Encounter's tags and a template's Finale as written, and an Encounter with none has no tags", () => {
-    const files = barrowed((it) => Object.assign(it, { finale: 'hold-the-line', finaleLine: 'Hold.' }), ambushed((it) => (it.tags = ['escort', 'road-side'])));
+    const files = barrowed((it) => Object.assign(it, { finale: 'a-planted-finale', finaleLine: 'Hold.' }), planted(planted(realFiles(), 'a-planted-ambush', ['escort', 'road-side']), 'a-planted-finale'));
     const content = parse(files);
-    expect(content.encounters['ambush-on-the-road']?.tags).toEqual(['escort', 'road-side']);
-    expect(content.questTemplates['clear-the-barrow']?.finale).toBe('hold-the-line');
-    const untagged = parse(ambushed((it) => delete it.tags));
-    expect(untagged.encounters['ambush-on-the-road']).not.toHaveProperty('tags');
+    expect(content.encounters['a-planted-ambush']?.tags).toEqual(['escort', 'road-side']);
+    expect(content.questTemplates['clear-the-barrow']?.finale).toBe('a-planted-finale');
+    const untagged = parse(barrowed(() => undefined, planted(realFiles(), 'a-planted-ambush')));
+    expect(untagged.encounters['a-planted-ambush']).not.toHaveProperty('tags');
     expect(untagged.questTemplates['clear-the-barrow']).not.toHaveProperty('finale');
   });
 
@@ -367,11 +381,22 @@ describe('tags, a Finale and the lore kind', () => {
   });
 
   test('a Beat whose pool holds only Finales, which no Beat draws, is refused for each template that has one', () => {
-    // The four arcane Encounters that are not Finales gone: the two left are the lay's and the vault's.
-    const files = without(realFiles(), ['the-sealed-door', 'a-restless-power', 'the-hungry-ward', 'the-dead-light']);
+    // A tag only the barrow's Finale carries, and two templates planted from the barrow, each with one
+    // Beat drawing by that tag alone; the barrow's own Beats draw by kind.
+    const files = changed(planted(realFiles(), 'a-planted-finale', ['planted']), 'quest-templates/', (json) => {
+      const it = Object.assign(barrow(json), { finale: 'a-planted-finale', finaleLine: 'The end.' });
+      const drawing = (at: number): Template => {
+        const copy = structuredClone(it);
+        for (const field of ['finale', 'finaleLine'] as const) Reflect.deleteProperty(copy, field);
+        (copy.beats[at] as QuestBeat).pool = { tags: ['planted'] };
+        return copy;
+      };
+      json['a-planted-vault'] = drawing(0);
+      json['a-planted-rite'] = drawing(1);
+    });
     const { message } = refusalOf(() => parse(files));
-    expect(message).toMatch(/questTemplates\.lay-the-restless-dead\.beats\.1\.pool may draw 0 Encounters, none a Finale; it needs 1/);
-    expect(message).toMatch(/questTemplates\.break-the-sealed-vault\.beats\.0\.pool may draw 0 Encounters/);
+    expect(message).toMatch(/questTemplates\.a-planted-vault\.beats\.0\.pool may draw 0 Encounters, none a Finale; it needs 1/);
+    expect(message).toMatch(/questTemplates\.a-planted-rite\.beats\.1\.pool may draw 0 Encounters/);
     expect(message).not.toMatch(/clear-the-barrow\.beats/);
   });
 

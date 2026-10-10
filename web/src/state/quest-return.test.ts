@@ -13,7 +13,7 @@ import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { cameHome, changed, documentOf, partyOut, played, started, withPartyOut, withReturn, withReturns, withWealth, type Written } from './game.test-support';
+import { cameHome, changed, documentOf, firstSeedWhere, partyOut, played, started, withPartyOut, withReturn, withReturns, withWealth, type Written } from './game.test-support';
 import { historyFilter } from './history';
 import { partOfAReturn } from './history-reader';
 import { narrateSegments, narrateText, textOf } from './namer';
@@ -37,7 +37,20 @@ vi.mock('./reducer', async (importOriginal) => {
   return { ...actual, calendarFor: vi.fn(actual.calendarFor) };
 });
 
-const base = withPartyOut(started('quest-return'));
+/**
+ * A Party of three Heroes or more out, and one Hero at home: the first game from quest-return that
+ * gives one (DL-272), since a Death's lines read a Party mate's Regard and the grief of the one at home.
+ */
+const base = firstSeedWhere(
+  'quest-return',
+  (seed) => withPartyOut(started(seed)),
+  (state) => {
+    const document = documentOf(state);
+    const party = Object.values(document.world.parties).flatMap((each) => each.heroIds);
+    return party.length >= 3 && playerGuild(document.world)?.rosterIds.filter((heroId) => !party.includes(heroId)).length === 1;
+  },
+  'a Party of three or more out and one Hero at home',
+);
 
 // A Party home from its Quest, one game the tests below read and none plays on or writes to (ADR-0008).
 const cameHomeState = cameHome(started('reducer-test'));

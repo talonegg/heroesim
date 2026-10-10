@@ -121,6 +121,14 @@ describe("the doctor's checks", () => {
   });
 });
 
+/** An Encounter planted in a scratch copy: one Check, drawn by no pool that does not name it or its kind. */
+const planted = {
+  name: 'A planted ward',
+  kind: 'arcane',
+  checks: [{ key: 'ward', name: 'The ward', score: ['avg', 'party', ['stat', 'arcana']], skills: [], difficultyFactor: 0.1 }],
+  consequences: { success: [], failure: [{ kind: 'morale', delta: -1 }] },
+};
+
 describe('the report, through both adapters', () => {
   test('is clean on the content, exit 0, its lines like the Traits doctor’s', async () => {
     const dir = scratch();
@@ -147,14 +155,19 @@ describe('the report, through both adapters', () => {
 
   test('fails on content its own checks refuse though the content’s pass, with nothing pending, exit 1', async () => {
     const dir = scratch();
-    // The arcane pools drawing combat: the arcane Encounters, none a Finale, met by no Quest.
-    const templates = readContentJson<Record<string, { beats: { pool: Record<string, unknown> }[] }>>(dir, 'quest-templates/');
-    for (const template of Object.values(templates)) for (const each of template.beats) if (JSON.stringify(each.pool) === '{"kinds":["arcane"]}') each.pool = { kinds: ['combat'] };
+    // An Encounter planted that no pool names, every pool naming the Encounters the content holds, none a
+    // Finale: met by no Quest, whatever the content as shipped (DL-272).
+    const encounters = readContentJson<Record<string, unknown>>(dir, 'encounters/');
+    const templates = readContentJson<Record<string, { finale?: string; beats: { pool: Record<string, unknown> }[] }>>(dir, 'quest-templates/');
+    const finales = new Set(Object.values(templates).map((template) => template.finale));
+    const named = Object.keys(encounters).filter((key) => !finales.has(key));
+    for (const template of Object.values(templates)) for (const each of template.beats) each.pool = { encounters: named };
     writeContentJson(dir, 'quest-templates/', templates);
+    writeContentJson(dir, 'encounters/', { ...encounters, 'a-planted-ward': planted });
     const report = await json<QuestsDoctor>(dir, 'quests', 'doctor');
     expect(report.code).toBe(1);
     expect(report.json).toMatchObject({ ok: false, content: { ok: true }, pending: { ok: true, edits: 0 }, quests: { drawn: { ok: false } } });
-    expect(report.json.quests.drawn.problems).toContain("encounters/the-sealed-door.json: no Beat a Tier plays may draw it, and it is no Finale, so no Quest meets it");
+    expect(report.json.quests.drawn.problems).toContain("encounters/a-planted-ward.json: no Beat a Tier plays may draw it, and it is no Finale, so no Quest meets it");
   });
 
   test('names a pending edit that leaves an Encounter no Quest meets, exit 1, the API answering its report', async () => {

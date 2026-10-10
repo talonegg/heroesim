@@ -1,8 +1,9 @@
 import type { Quest } from '@heroesim/engine';
+import { whenOfTurn } from '@heroesim/words';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from './app';
-import { changed, played, started, withOffer, withOlderRules, withPartyOut, withRosterReleased, withWealth } from './state/game.test-support';
+import { changed, documentOf, firstSeedWhere, played, started, turnsUntilHome, withOffer, withOlderRules, withPartyHomeInALaterStep, withPartyOut, withRosterReleased, withWealth } from './state/game.test-support';
 import { fastForwardStepTurns, initialGameState, type GameState } from './state/reducer';
 import { download } from './views/download';
 import {
@@ -269,16 +270,23 @@ describe('the home view (DL-103)', () => {
   });
 
   test("shows the report of the Party that came home, in the Came home cards' place: its band, Wealth, Fame, XP and Injuries, as its History says", async () => {
-    // A Party out on a Quest made as hard as a Quest is, so that it comes home hurt: the
-    // Party sent is the one most likely to come through (DL-157), and on this seed's own Quest it does.
-    // The seed is report-o: the Encounter tags bring report-d's Party home unhurt (DL-160), the
-    // balance pass report-f's to report-k's (DL-166), and the Party floor of two report-l's to report-n's (DL-266).
-    const hard = changed(withPartyOut(started('report-o')), (document, player) => {
-      for (const party of Object.values(document.world.parties)) {
-        if (party.guildId === player.id) (document.world.quests[party.questId] as Quest).difficulty = 100;
-      }
-    });
-    render(<App initial={hard} />);
+    // A Party out on a Quest made as hard as a Quest is, so that it comes home hurt: the first game
+    // from report-o whose Party, played ahead, comes home with an Injury (DL-272).
+    const hardFrom = (seed: string): GameState =>
+      changed(withPartyOut(started(seed)), (document, player) => {
+        for (const party of Object.values(document.world.parties)) {
+          if (party.guildId === player.id) (document.world.quests[party.questId] as Quest).difficulty = 100;
+        }
+      });
+    const comesHomeInjured = (out: GameState): boolean => {
+      const heroIds = Object.values(out.document?.world.parties ?? {}).flatMap((party) => party.heroIds);
+      let next = out;
+      for (let tries = 0; tries < 5 && next.stoppedBecause?.kind !== 'party-returned'; tries += 1) next = played(next, { kind: 'fastForward', until: [] });
+      return next.stoppedBecause?.kind === 'party-returned' && heroIds.some((heroId) => (next.document?.world.heroes[heroId]?.injury ?? null) !== null);
+    };
+    // Played ahead on a game of its own, since playing on shares the game it starts from.
+    const seed = firstSeedWhere('report-o', (each) => each, (each) => comesHomeInjured(hardFrom(each)), 'a Party home with an Injury');
+    render(<App initial={hardFrom(seed)} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await idle();
@@ -299,7 +307,7 @@ describe('the home view (DL-103)', () => {
     const wealth = /^Wealth ([+-]?\d+)$/.exec(within(report).getByText(/^Wealth /).textContent ?? '')?.[1];
     const fame = /^Fame ([+-]?\d+)$/.exec(within(report).getByText(/^Fame /).textContent ?? '')?.[1];
     expect(within(report).getByText(/^XP \+\d+ each$/)).toBeDefined();
-    // This seed's Party comes home with an Injury: named, with the night it heals.
+    // The Party comes home with an Injury: named, with the night it heals.
     expect(within(report).getByText(/^Injured: .+, healing on the night of Year \d+ Day \d+$/)).toBeDefined();
     // The same outcome, as the History narrates it, new, on the player's Guild.
     const line = inHistory(new RegExp(`^The Lantern's Party came home from ${quest} and \\w+.*: Wealth ${wealth?.replace('+', '\\+')}, Fame ${fame?.replace('+', '\\+')}\\.`));
@@ -469,10 +477,12 @@ describe('fast forward in steps, with progress and a Stop (DL-96)', () => {
   }
 
   test('between steps the status bar shows the Turns played, the Day reached and the countdown below the floor; plays wait, and the game in hand stands', async () => {
-    // A Party out on a Quest of sixteen Days, home on the 50th Turn, in the second step; Wealth below
-    // the floor since its first Day, before the fast forward, so its countdown stands and no new crossing
-    // stops it (DL-101).
-    render(<App initial={withWealth(withPartyOut(started('reducer-test')), -100, 0)} />);
+    // A Party out, home partway through the second or third step, before the night of Day 31 (DL-272);
+    // Wealth below the floor since its first Day, before the fast forward, so its countdown stands and no
+    // new crossing stops it (DL-101).
+    const out = withPartyHomeInALaterStep('reducer-test', fastForwardStepTurns);
+    const home = whenOfTurn(documentOf(out).world.turn + turnsUntilHome(out), documentOf(out).meta.config);
+    render(<App initial={withWealth(out, -100, 0)} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
 
@@ -497,10 +507,10 @@ describe('fast forward in steps, with progress and a Stop (DL-96)', () => {
 
     expect(screen.queryByTestId('progress')).toBeNull();
     expect(within(screen.getByTestId('stop')).getByText("Stopped: The Lantern's Party came home.")).toBeDefined();
-    expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 17, night');
+    expect(screen.getByTestId('time').textContent).toBe(home);
     // The History marks both steps' entries new: all it gained in the fast forward.
     const { entries, fresh } = summary(wholeHistory());
-    expect(fresh).toBe(entries - (withPartyOut(started('reducer-test')).document?.history.entries.length ?? 0));
+    expect(fresh).toBe(entries - documentOf(out).history.entries.length);
   });
 
   test('Stop leaves the game, the log and the sentence as its step left them, and "Fast forward again" goes on from there', async () => {

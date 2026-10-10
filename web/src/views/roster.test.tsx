@@ -977,27 +977,26 @@ describe("the Roster's filters (DL-206 items 25 to 29)", () => {
   }
 
   /**
-   * The Lantern with a Party out, its Heroes' Classes set Warrior, Rogue, Warrior, Mage in the order
-   * they joined (no Healer), and the first at home injured; with each Hero's name, Class and where.
+   * The Lantern with a Party out and a Hero at home, the first at home injured and set a Warrior, and the
+   * others' Classes set Rogue, Warrior, Mage in the order they joined (no Healer): so the injured Hero is
+   * a Warrior whoever the Party took (DL-272); with each Hero's name, Class and where.
    */
   function filtering(): { state: GameState; heroes: Filtered[] } {
     const heroes: Filtered[] = [];
-    const classes = ['warrior', 'rogue', 'warrior', 'mage'] as const;
-    const names: Readonly<Record<(typeof classes)[number], string>> = { warrior: 'Warrior', rogue: 'Rogue', mage: 'Mage' };
-    const state = changed(withPartyOut(started()), (document, player) => {
-      let injured = false;
-      player.rosterIds.forEach((id, at) => {
+    const others = ['rogue', 'warrior', 'mage'] as const;
+    const names: Readonly<Record<'warrior' | (typeof others)[number], string>> = { warrior: 'Warrior', rogue: 'Rogue', mage: 'Mage' };
+    const state = changed(withPartyOut(started(), 1), (document, player) => {
+      const injured = player.rosterIds.find((id) => document.world.heroes[id]?.partyId === null);
+      if (injured === undefined) throw new Error('no Hero at home to injure');
+      const otherIds = player.rosterIds.filter((id) => id !== injured);
+      for (const id of player.rosterIds) {
         const hero = document.world.heroes[id];
-        const classKey = classes[at % classes.length] ?? 'warrior';
-        if (hero === undefined) return;
+        if (hero === undefined) continue;
+        const classKey = id === injured ? 'warrior' : (others[otherIds.indexOf(id) % others.length] ?? 'warrior');
         hero.classKey = classKey;
-        if (!injured && hero.partyId === null) {
-          hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
-          injured = true;
-        }
+        if (id === injured) hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
         heroes.push({ name: hero.name, className: names[classKey], at: hero.partyId !== null ? 'Away' : hero.injury !== null ? 'Injured' : 'At the Hall' });
-      });
-      if (!injured) throw new Error('no Hero at home to injure');
+      }
     });
     return { state, heroes };
   }

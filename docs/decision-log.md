@@ -1070,3 +1070,47 @@ reckless, steady, 4.00, 4.00, 3.13, 3.75, 3.75, at year 2 5.00, 4.94, 4.13, 4.75
 Guild-year 219.75 → 267.38 the player's, the Rivals' 112.63, 119.00, 61.38, 111.63 → 147.88, 142.63,
 110.88, 145.13; the mean Party 2.07 → 2.02; Deaths 0 → 0 and the Rivals' 2 → 0; Bankruptcies 0 and 0.
 The epic's S14 boxes.
+
+## DL-272 — v1.2.0-S11 built: the content written, twelve Quest templates over three Tiers or more, their Beats' lines and pools; content 40
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257; the batch "b"; the tests "b"); the agent's build
+
+**Context.** S11 writes the content the Tier engine plays: every template at least three consecutive
+Tiers (Q25 c), its Beats' lines and pools in the order a lower Tier plays them. Sonnet drafted the
+twelve through `quest-draft`, Opus reviewed them; 43 pending edits. The owner, on the batch's one
+question (Tier 1 thin): "b", Guard the caravan and Recover the strongbox widened down to Tier 1. The
+first "Finish" failed 21 tests that read the shipped templates and put the files back; asked, the
+owner answered "b": make them independent of the shipped content, then Finish again.
+
+**Decision.**
+
+1. **The batch**, through the editor only: each template's `tierMin`/`tierMax`, Beats (lines, pools,
+   order) and the four Finale lines. No new Encounter, no override, no other field. Tiers before →
+   after: A quiet word 1–2 → 1–3; Escort the tithe 1 → 1–3; The sickness at the mill 1 → 1–4; Clear
+   the barrow 2–3 → 2–4; Guard the caravan 2–3 → 1–4; Recover the strongbox 2–3 → 1–5; Survey the old
+   workings 2–3 → 2–5; The beast of the fells 2–4 → 2–5; Break the sealed vault 4–5 → 3–5; Hold the
+   border fort, Lay the restless dead, The counting-house job 3–4 → 3–5. Templates a Tier: 5, 8, 12,
+   10, 7 (were 3, 6, 8, 5, 1). Every Beat played at its template's top Tier; Tiers 1–3 never Deadly.
+2. **The tests made independent** (the owner's "b"), each still catching what it caught:
+   - content: `barrow` (`content.test-support.ts`) plants the barrow's Tiers and Beats (2 to 3, three
+     Beats by kind, no Finale or override); `encounters.test.ts` plants its own Encounters for tags and
+     a Finale, and two templates whose Beat draws only a Finale, in place of the arcane pools;
+   - editor: `plantQuests` (`test-support.ts`) plants the six templates the commands' tests read;
+     the doctor's test plants an Encounter no pool names;
+   - web: `firstSeedWhere` and `withPartyHomeInALaterStep` (`game.test-support.ts`) choose a seed by a
+     stated condition, as the e2e's Board does: a Party home partway through a later step (the
+     reducer's and the page's steps), one home injured (the report), a Party of three and one at home
+     (`quest-return`), Heroes injured and away (`availability`); the Roster's filter fixture injures
+     the first at home and makes them a Warrior. Turns, Days and the History counted from the game.
+3. **"Finish"** wrote the twelve files and content 39 → 40.
+
+*Judgement calls, for the owner to see.*
+- **Open points the owner saw, left:** the Loot gap (eight templates with no Loot table offer Tier 3
+  or higher); nine Beats drawing one Encounter (The trapped passage alone makes Clear the barrow's
+  Tier 4 and Survey's 4–5 Deadly); no beast Encounter.
+- **The other web tests the first Finish failed** (`quest-return` 3, the Roster's filter, the
+  report's Injury) passed on S14's Board, but rested on the same content; made independent too.
+
+**Consequences.** The tests rest on their own fixtures; "Finish" and the quick run follow.
+
+**Evidence.** The commit `v1.2.0-S11 (DL-272): the content-pinned tests made independent`: each rewritten test red under the mutation it guards, then restored.
