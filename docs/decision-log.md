@@ -1219,3 +1219,8 @@ as invalid. `npm test` builds the page twice, not three times. The page's tests 
 narration `words` holds.
 
 **Evidence.** The page alone (`--project web`), before at `6d40440` and after: 1,583 tests, 296.9 s tests' time, 29.6 s wall → 1,383 tests, 231.0 s, 25.6 s. Coverage, S1 → after: the page's lines 98.0% → 97.8%, branches 87.4% → 88.2%, functions 97.8% → 97.5%, statements 96.4% → 96.1%; newly uncovered: the gone-Hero guard (`history.ts` :698, answer 4), the History's "Newer" handler, `advance`'s refusal of a Turn count not whole in the reducer and one Namer lambda, each for the verifier to trace; `words` 97.4% → 98.1% of lines. `npm test` passes; lint, typecheck clean; `neutral --expect` identical, alone (`v1.1.9-s13-neutral`); the doctor no drift before and after. The story-id baseline falls to 1,615. Planted: the validator's new check switched off, the refusal test red.
+Verified 2026-10-10 at f9db896: all 60 bugs planted for the removals turned a subsuming test red; against `6d40440` coverage
+lost the gone-Hero guard (answer 4) and two the record missed, the History's "Older" (R7, R8) and the opening row's guard
+(treasury :487), now tested, the reducer's and Namer's misses being older; 26 shrink mutants red or green as the full-size
+test was; the gate's command line the same, old and new, on the real build and seven inputs; the state slice's S2–S4 (240 →
+90, 90 → 6, 90 → 9 Turns) and R6 (:407), approved but not applied, applied.

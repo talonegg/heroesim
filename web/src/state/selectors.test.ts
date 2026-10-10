@@ -1115,7 +1115,7 @@ describe("the Roster's Table's columns (DL-169 item 7)", () => {
 
 describe('heroPage', () => {
   test('shows its Milestones first, newest first; its History, a page at a time, is the History view\'s', () => {
-    const document = playedDocument('selectors-played', 240).document;
+    const document = playedDocument('selectors-played', 90).document;
     // The busiest Hero of the world: a Rival's, whose Guild sends Parties while the player's rests.
     const hero = Object.values(document.world.heroes).reduce((most, each) =>
       entriesFor(document.history, each.id).length > entriesFor(document.history, most.id).length ? each : most,
@@ -1370,10 +1370,10 @@ describe('after a send (DL-104)', () => {
   test('is none after a play that sent no Party of the player’s, a Rival’s among them, and before a game', () => {
     const state = started('selectors');
     expect(sentView(state)).toBeNull();
-    // A month of Turns: the Rivals send Parties in the afternoons.
-    const month = playedThrough(state, { kind: 'advance', turns: 90 });
-    expect(month.log.some((event) => event.type === 'quest.taken')).toBe(true);
-    expect(sentView(month)).toBeNull();
+    // Two Days of Turns: the Rivals send Parties in the afternoons.
+    const later = playedThrough(state, { kind: 'advance', turns: 6 });
+    expect(later.log.some((event) => event.type === 'quest.taken')).toBe(true);
+    expect(sentView(later)).toBeNull();
     expect(sentView(initialGameState)).toBeNull();
   });
 });
@@ -1412,12 +1412,12 @@ describe('the log and why time stopped', () => {
 });
 
 describe('the progress of a fast forward between its steps (DL-96)', () => {
-  /** A fast forward between steps: the game held 90 Turns on from `document`, played under its own rules. */
+  /** A fast forward between steps: the game held 9 Turns on from `document`, played under its own rules. */
   function between(document: WorldDocument): GameState {
     const own = { config: { ...defaultConfig, ...document.meta.config }, content };
     let played = document;
-    for (let turn = 0; turn < 90; turn += 1) played = advance(played, own).document;
-    return { ...initialGameState, document, busy: true, forwarding: { until: [], turnsPlayed: 90, document: played, events: [] } };
+    for (let turn = 0; turn < 9; turn += 1) played = advance(played, own).document;
+    return { ...initialGameState, document, busy: true, forwarding: { until: [], turnsPlayed: 9, document: played, events: [] } };
   }
 
   test('is none while no fast forward is between its steps', () => {
@@ -1426,14 +1426,14 @@ describe('the progress of a fast forward between its steps (DL-96)', () => {
   });
 
   test('gives the Turns played and the Day reached from the game the last step left, not the game in hand', () => {
-    expect(progressView(between(newDocument('selectors')))).toEqual({ sentence: 'Played 90 Turns so far. Now Year 1 Day 31, morning.', countdown: null });
+    expect(progressView(between(newDocument('selectors')))).toEqual({ sentence: 'Played 9 Turns so far. Now Year 1 Day 4, morning.', countdown: null });
   });
 
   test("gives the Year under the game's own turnsPerYear (DL-97)", () => {
     const document = structuredClone(newDocument('selectors'));
-    document.meta.config = { ...document.meta.config, turnsPerYear: 30 };
+    document.meta.config = { ...document.meta.config, turnsPerYear: 6 };
 
-    expect(progressView(between(document))?.sentence).toBe('Played 90 Turns so far. Now Year 4 Day 1, morning.');
+    expect(progressView(between(document))?.sentence).toBe('Played 9 Turns so far. Now Year 2 Day 2, morning.');
   });
 
   test("gives the countdown while the player's Guild is below the floor in that game, under the game's own grace", () => {
@@ -1444,7 +1444,7 @@ describe('the progress of a fast forward between its steps (DL-96)', () => {
 
     expect(state.forwarding === null ? null : countdownView(state.forwarding.document)).not.toBeNull();
     expect(progressView(state)).toEqual({
-      sentence: 'Played 90 Turns so far. Now Year 1 Day 31, morning.',
+      sentence: 'Played 9 Turns so far. Now Year 1 Day 4, morning.',
       countdown:
         'The Lantern has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day 61 unless Wealth is back ' +
         'to 0 or more on a night by then, after any Upkeep due.',

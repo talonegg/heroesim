@@ -364,17 +364,6 @@ describe('the whole History, the debug view (DL-112 item 7)', () => {
     expect(rows.some((row) => row.kind === 'entry' && row.line.type === 'quest.encounter')).toBe(true);
   });
 
-  test('is not among the choices; the world is, after the player’s Guild', () => {
-    const guild = playerOf(document);
-    const rivals = Object.values(document.world.guilds).filter((each) => each.id !== guild.id && each.foldedOnTurn === null);
-
-    expect(historyChoices(document)).toEqual([
-      { whose: null, label: 'The Lantern', mine: true },
-      { whose: 'world', label: 'The World History', mine: false },
-      ...rivals.map((rival) => ({ whose: rival.id, label: rival.name, mine: false })),
-    ]);
-  });
-
   test('the search still finds anyone in the whole History', () => {
     const [folded] = Object.values(document.world.guilds).filter((guild) => guild.foldedOnTurn !== null);
     const hero = Object.values(document.world.heroes).find((each) => each.guildId !== playerOf(document).id);

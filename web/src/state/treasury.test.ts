@@ -476,4 +476,14 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
     expect(view?.filters.flow.options.map((option) => option.count)).toEqual([0, 0]);
     expect(view?.totals).toMatchObject({ income: 0, expense: 0, net: 0 });
   });
+
+  test('a Guild the History holds no founding for has no opening row, and a ledger with nothing to show has one empty page', () => {
+    const document = documentOf(started('treasury-empty'));
+    expect(ledgerOf(document, 'guild-999999' as GuildId)).toEqual([]);
+    const ledger = treasuryAccounts(document)?.ledger;
+    if (ledger === undefined) throw new Error('no player’s Guild');
+
+    const view = ledgerPage({ ...ledger, changes: [], opening: null }, { rows: [], filtered: false }, 0);
+    expect(view).toMatchObject({ rows: [], page: 0, pages: 1, shown: 0, opens: false });
+  });
 });

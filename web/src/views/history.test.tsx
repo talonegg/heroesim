@@ -86,11 +86,13 @@ describe('one view, opened on the player’s Guild', () => {
     expect(title()).toBe('The World History');
   });
 
-  test('pages twenty entries at a time; "Newest" returns to the top, the page and the keyboard', () => {
+  test('pages twenty entries at a time; "Older" turns one on, and "Newest" returns to the top, the page and the keyboard', () => {
     renderGame(played(started(), { kind: 'advance', turns: 12 }));
     const history = (): HTMLElement => section('History');
     openDebugHistory();
 
+    fireEvent.click(within(history()).getByRole('button', { name: 'Older' }));
+    expect(within(history()).getByText(/^Page 2 of \d+, /)).toBeDefined();
     fireEvent.click(within(history()).getByRole('button', { name: 'Oldest' }));
     // The oldest group opens with the world's first entry.
     const [oldest] = historyLines(history()).slice(-1).map((line) => line.closest('ol')?.querySelector('li.entry') as HTMLElement);
