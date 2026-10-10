@@ -863,3 +863,4 @@ of 3, its travel peers 55% and 57%; `quests doctor` ok with 6 pending edits; bot
 review. `encounters discard` first was refused (the template's Finale names it); `quests discard`
 then `encounters discard` left no pending edit, `.editor/` empty and `git diff -- content` empty.
 The epic's S10 box.
+Verified 2026-10-11 at 4f6355b: both skills followed literally on a second brief (`break-the-smugglers-ring`, Tiers 2–4, tag, kind and named pools, no Finale, Tier 2 `daysMax` 6; `the-tide-ledger`, lore, tuned to 3.18 + 0.08 and 1.61 + 0.04, 57% at 60, its lore peers 54–60%), every command as written, then discarded, `git diff -- content docs/quests` empty; the tuning rewrote all 29 copies, 13 shipped Checks' numbers moved, so the editor route holds; fixed: the shell named (PowerShell strips a JSON argument's quotes), a new Encounter's place in shipped pools and a Finale's leaving them named for the draft, the template's calibration rows added to its draft.

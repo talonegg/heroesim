@@ -19,6 +19,8 @@ the content lacks is `encounter-draft`'s (step 4).
 `--root <dir>` to every command. Every command below is `npm run --silent edit -- quests … --json`.
 **The scratchpad** is the session's scratchpad directory, or the system's temp folder, outside the
 repository: row files and the review draft go there.
+**The shell** is a POSIX one (Claude Code's Bash tool): Windows PowerShell strips the double quotes
+from a JSON argument such as `'pool={"kinds":["social"]}'`.
 
 ## 1. The doctor
 
@@ -64,9 +66,11 @@ and each Tier above adds the Beats after. Write the Beats in that order:
 4. **A pool** is what a Beat may draw, by `kinds`, `tags` and named `encounters` (a kind and a tag
    both given: an Encounter of the kind that shares a tag). `encounters list --json` gives each
    Encounter's kind and tags. A pool must hold one Encounter, and one more for each earlier Beat whose
-   pool shares an Encounter with it (`shortBeats`); a Finale is in no pool.
+   pool shares an Encounter with it (`shortBeats`); a Finale is in no pool, not even one whose kinds
+   and tags match it (`quests show` leaves it out of the draws).
 5. **The Finale** is the Encounter the story ends on, named, with its line. It must be an Encounter no
-   pool names: in practice one of its own.
+   pool names: in practice one of its own. An Encounter made a Finale leaves every pool that drew it by
+   kind or tag, the shipped templates' too.
 
 Done when: every Tier's story is written out and reads whole, and each Beat has a pool.
 
@@ -131,7 +135,8 @@ Then write `<scratchpad>/quest-draft-<key>.md` from `quests show <key>` and `--j
   and an Encounter its Beats or Finale may draw with a Death chance: `encounters show <key>`);
 - **the story each Tier plays**: its lines in order, the Finale's last, each with its pool and the
   Encounters it may draw;
-- any Encounter `encounter-draft` drafted for it, with its own draft's path;
+- any Encounter `encounter-draft` drafted for it, with its own draft's path, and where its review
+  calibration ran, this template's rows in its "## The templates";
 - the doctor's reading, and `quests pending`'s list.
 
 Show the owner the draft, and ask: approve, change, or drop it. A change returns to the step it

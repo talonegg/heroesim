@@ -24,6 +24,8 @@ fails an Encounter no Beat or Finale plays.
 `--root <dir>` to every command. Every command below is `npm run --silent edit -- encounters … --json`.
 **The scratchpad** is the session's scratchpad directory, or the system's temp folder, outside the
 repository: row files, the calibration's copies and reports, and the review draft go there.
+**The shell** is a POSIX one (Claude Code's Bash tool): step 4's `VAR=value npm …` lines need it, and
+Windows PowerShell strips the double quotes from a JSON argument such as `--pass '["and","a","b"]'`.
 
 ## 1. The doctor
 
@@ -40,9 +42,11 @@ ones the owner has said to keep.
   case words joined by hyphens, fixed once made; `encounters show <key> --json` exits 1, `refused`, "is
   not an Encounter", where it is free.
 - **Its kind**, one of `combat`, `travel`, `social`, `arcane`, `stealth`, `lore`, and **its tags**,
-  taken from those the templates carry (`quests list`): a template sharing one draws it
+  taken from those the templates carry (`quests list --json`): a template sharing one draws it
   `encounterTagWeight` times as often. A Beat's pool draws it by kind and tag, or by name; a Finale is
-  named by its template and drawn by no pool.
+  named by its template and drawn by no pool. **A kind and tags put it in the shipped templates'
+  pools** that draw by them (`drawnBy`, step 3): each such Beat then plays it, a change to that
+  template's play, named in the draft (step 5).
 - **Its Checks**, one to four, each a `key`, a `name` the narration and the Board show, a `score` (a
   Query over the Party: the best Hero's Stat, the least of the Party's, the best few with falling
   weights, a Class's or a Skill's Hero), the `skills` that help it, and a target: write
@@ -163,7 +167,8 @@ first (`quest-draft`), or its kind and tags are those a pool draws.
 Then write `<scratchpad>/encounter-draft-<key>.md` from `encounters show <key>` and the review
 calibration:
 
-- the brief; its name, kind and tags; the Beats that may draw it, or the template it ends;
+- the brief; its name, kind and tags; the Beats that may draw it, or the template it ends, the
+  shipped templates' Beats among them marked as changed;
 - **each Check**: its name, what its score reads in words, its Skills, its target (`flat` + factor ×
   difficulty, and its value at 60); the pass formula in words;
 - **its consequences** by Degree, in words, a Death marked with the Tiers it can fall at;
