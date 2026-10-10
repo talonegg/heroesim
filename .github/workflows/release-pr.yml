@@ -4,8 +4,10 @@ name: release-pr
 # request to `main`, or updates the open one, naming the tag its merge will release
 # (web/scripts/release.mjs). Merging it is the release (release.yml); leaving it open holds the
 # next release while commits gather. A branch whose merge would release nothing, an older line's,
-# gets no pull request. The pull request's head carries this push's `check`. Needs the repository
-# setting "Allow GitHub Actions to create and approve pull requests".
+# gets no pull request. A branch whose changes since the newest release tag are records alone
+# gets one titled "Record from <branch> (no release)": its merge makes no tag (DL-255). The pull
+# request's head carries this push's `check`. Needs the repository setting "Allow GitHub Actions
+# to create and approve pull requests".
 on:
   push:
     branches:
@@ -47,8 +49,21 @@ jobs:
             echo "Merging $BRANCH would release nothing (above): no pull request."
             exit 0
           fi
-          title="Release $tag from $BRANCH"
-          body="$(cat <<EOF
+          # A statement of its own, so that a judgement that fails fails the step (DL-255).
+          verdict="$(node web/scripts/release.mjs record HEAD)"
+          if [ "$verdict" = record ]; then
+            title="Record from $BRANCH (no release)"
+            body="$(cat <<EOF
+          Merging this releases nothing: every change since the newest release tag lies in \`docs/\`, a Markdown file, \`harness/reports/\`, \`.github/\` or \`web/scripts/release.mjs\` with its types and test, so \`release.yml\` makes no tag and runs no deploy, and the newest release stays as it is (DL-255).
+
+          $ahead commit(s) from \`$BRANCH\`. Merge with a merge commit. A later push to \`$BRANCH\` that changes anything else makes this a release, and its title says which.
+
+          Raised by \`release-pr.yml\`.
+          EOF
+          )"
+          else
+            title="Release $tag from $BRANCH"
+            body="$(cat <<EOF
           Merging this releases **$tag**: \`release.yml\` tags the merge and deploys it to the Worker and to Pages, after the checks, the browser specs and a read of the Pages production branch, then runs the live check on both addresses and publishes the record as the tag's GitHub Release (DL-124).
 
           $ahead commit(s) from \`$BRANCH\`. Merge with a merge commit. To hold the release, leave this open: later pushes to \`$BRANCH\` update it.
@@ -56,6 +71,7 @@ jobs:
           Raised by \`release-pr.yml\`.
           EOF
           )"
+          fi
           number="$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
           if [ -n "$number" ]; then
             gh pr edit "$number" --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"

@@ -26,5 +26,5 @@ Each measure runs alone, with nothing else running.
 - **The game's figures.** These are a year's fast forward, a save's load and the bundle's size. The
   first two come from a `neutral` report's measures, and the bundle from `npm run build`.
 
-[v1.1.9's measures](../../docs/planning/epics/v1.1.9-measures.md) are the baseline, and later the
+[v1.1.9's measures](../../docs/planning/archive/v1.1.9-measures.md) are its baseline and its
 after-report.

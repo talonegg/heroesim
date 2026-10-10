@@ -133,7 +133,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-121 | 2026-09-30 | M9-F7 built: "Debug: Whole History", the Days before a Retirement under a year and why none came … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-122 | 2026-09-30 | A release deploys from CI: pushing a `v*` tag on the release branch runs the checks, `npm run … | item 2 in part by DL-124; item 5 in part by DL-124 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-123 | 2026-09-30 | v1.1.0 released: `v1.1-release` created and tagged `m9-redesign` and `v1.1.0`, deployed from CI to … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-124 | 2026-09-30 | Production is `main`: a release branch's PR to `main` is raised by CI, merging it releases the next … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-124 | 2026-09-30 | Production is `main`: a release branch's PR to `main` is raised by CI, merging it releases the next … | item 2 in part by DL-255; item 3 in part by DL-255 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-125 | 2026-09-30 | Pictures and words for v1.1.2: a `media/` folder, Portraits of the Guildmaster, Heroes and Patrons … |  | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
 | DL-126 | 2026-09-30 | DL-125's two open items answered: the owner's pictures set the style, and each picture's Appearance … | item 2 in part by DL-127 | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
 | DL-127 | 2026-09-30 | A picture's Appearance in two parts, keywords for the engine and a narrative for the page, with no … |  | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
@@ -240,30 +240,31 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-228 | 2026-10-09 | Delivery tracked by release alone; Random Events the first module but not necessarily next |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
 | DL-229 | 2026-10-09 | One 50 × 20 baseline on v1.1.8, and the harness's reports cut to those cited live |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
 | DL-230 | 2026-10-09 | The engine's two twenty-year boxes out of `npm test`, into `npm run harness` |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
-| DL-231 | 2026-10-09 | v1.1.9 planned: the tests and the harness faster and leaner, play and the design unchanged | item 6 in part by DL-235 | [decision-log](../decision-log.md) |
-| DL-232 | 2026-10-09 | v1.1.9 widened to the architecture review's twelve candidates |  | [decision-log](../decision-log.md) |
-| DL-233 | 2026-10-09 | v1.1.9-S1 built: coverage, the measures, the time limits apart, and the baseline |  | [decision-log](../decision-log.md) |
-| DL-234 | 2026-10-09 | v1.1.9-S2 built: the suite's structure |  | [decision-log](../decision-log.md) |
-| DL-235 | 2026-10-09 | v1.1.9-S3 built: CI on Node 26 alone, and a deploy that tests a tree once |  | [decision-log](../decision-log.md) |
-| DL-236 | 2026-10-09 | v1.1.9: three tests that failed under load fixed on the owner's word |  | [decision-log](../decision-log.md) |
-| DL-237 | 2026-10-10 | v1.1.9-S4 built: the Best Party module |  | [decision-log](../decision-log.md) |
-| DL-238 | 2026-10-10 | v1.1.9-S5 built: a Guild's actions on one copy, and the save in one walk |  | [decision-log](../decision-log.md) |
-| DL-239 | 2026-10-10 | v1.1.9-S6 built: the harness's counters declared once, and play observed |  | [decision-log](../decision-log.md) |
-| DL-240 | 2026-10-10 | v1.1.9-S7 built: refusals behind the Namer |  | [decision-log](../decision-log.md) |
-| DL-241 | 2026-10-10 | v1.1.9-S8 built: readings in `words`, and the player's reading |  | [decision-log](../decision-log.md) |
-| DL-242 | 2026-10-10 | v1.1.9-S9 built: the History reader |  | [decision-log](../decision-log.md) |
-| DL-243 | 2026-10-10 | v1.1.9-S10 built: content kinds, effect kinds by their fields, and content's own entry |  | [decision-log](../decision-log.md) |
-| DL-244 | 2026-10-10 | v1.1.9-S11 built: the editor's edit session |  | [decision-log](../decision-log.md) |
-| DL-245 | 2026-10-10 | v1.1.9-S9's fixture: `withReturn` through the engine, on the owner's word |  | [decision-log](../decision-log.md) |
-| DL-246 | 2026-10-10 | v1.1.9-S12 built: the engine's tests pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
-| DL-247 | 2026-10-10 | v1.1.9-S13 built: the page's tests pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
-| DL-248 | 2026-10-10 | v1.1.9-S14 built: the tests of cli, words and content pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
-| DL-249 | 2026-10-10 | v1.1.9-S15 built: the tests of the harness, the tools and the e2e specs pruned, on the owner's … |  | [decision-log](../decision-log.md) |
-| DL-250 | 2026-10-10 | v1.1.9-S16's review: its findings fixed, test first |  | [decision-log](../decision-log.md) |
-| DL-251 | 2026-10-10 | v1.1.9-S16: the coverage of the tools' support files, and `neutral`'s ten processes |  | [decision-log](../decision-log.md) |
-| DL-252 | 2026-10-10 | v1.1.9-S16's close: the Gate, the copy line anchored at this close, and the after-report |  | [decision-log](../decision-log.md) |
-| DL-253 | 2026-10-10 | v1.1.9: approach, data model and requirements say what is true at v1.1.9 |  | [decision-log](../decision-log.md) |
-| DL-254 | 2026-10-10 | v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a … |  | [decision-log](../decision-log.md) |
+| DL-231 | 2026-10-09 | v1.1.9 planned: the tests and the harness faster and leaner, play and the design unchanged | item 6 in part by DL-235 | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-232 | 2026-10-09 | v1.1.9 widened to the architecture review's twelve candidates |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-233 | 2026-10-09 | v1.1.9-S1 built: coverage, the measures, the time limits apart, and the baseline |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-234 | 2026-10-09 | v1.1.9-S2 built: the suite's structure |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-235 | 2026-10-09 | v1.1.9-S3 built: CI on Node 26 alone, and a deploy that tests a tree once |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-236 | 2026-10-09 | v1.1.9: three tests that failed under load fixed on the owner's word |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-237 | 2026-10-10 | v1.1.9-S4 built: the Best Party module |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-238 | 2026-10-10 | v1.1.9-S5 built: a Guild's actions on one copy, and the save in one walk |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-239 | 2026-10-10 | v1.1.9-S6 built: the harness's counters declared once, and play observed |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-240 | 2026-10-10 | v1.1.9-S7 built: refusals behind the Namer |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-241 | 2026-10-10 | v1.1.9-S8 built: readings in `words`, and the player's reading |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-242 | 2026-10-10 | v1.1.9-S9 built: the History reader |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-243 | 2026-10-10 | v1.1.9-S10 built: content kinds, effect kinds by their fields, and content's own entry |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-244 | 2026-10-10 | v1.1.9-S11 built: the editor's edit session |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-245 | 2026-10-10 | v1.1.9-S9's fixture: `withReturn` through the engine, on the owner's word |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-246 | 2026-10-10 | v1.1.9-S12 built: the engine's tests pruned, on the owner's batch |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-247 | 2026-10-10 | v1.1.9-S13 built: the page's tests pruned, on the owner's batch |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-248 | 2026-10-10 | v1.1.9-S14 built: the tests of cli, words and content pruned, on the owner's batch |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-249 | 2026-10-10 | v1.1.9-S15 built: the tests of the harness, the tools and the e2e specs pruned, on the owner's … |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-250 | 2026-10-10 | v1.1.9-S16's review: its findings fixed, test first |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-251 | 2026-10-10 | v1.1.9-S16: the coverage of the tools' support files, and `neutral`'s ten processes |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-252 | 2026-10-10 | v1.1.9-S16's close: the Gate, the copy line anchored at this close, and the after-report |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-253 | 2026-10-10 | v1.1.9: approach, data model and requirements say what is true at v1.1.9 |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-254 | 2026-10-10 | v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a … |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
+| DL-255 | 2026-10-10 | A merge of docs, records and the release pipeline alone releases nothing: no tag, no deploy |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

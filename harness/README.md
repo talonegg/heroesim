@@ -69,7 +69,9 @@ The tree keeps only the reports that a test, `gate.json`, a live document or the
 entries cite. The rest leave it at a release's record (DL-223). The baseline is the closing
 `gate` of the latest release that changed play, or one the owner asks for, as v1.1.8's (DL-229); the
 previous one leaves the tree (`docs/agents/documentation.md`). Those v1.1.8's close removed, the
-v1.1.6 baselines among them, are read from git at `efa515b` (DL-229). The 84 committed before 2026-10-08 that nothing live cited are
+v1.1.6 baselines among them, are read from git at `efa515b` (DL-229). Those v1.1.9's record
+removed, its stories' `neutral` runs, S1's baseline and v1.1.8's `neutral` reference among them, are
+read from git at `fb55a8c`. The 84 committed before 2026-10-08 that nothing live cited are
 read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists them, and
 `git show b6d455c:harness/reports/<name>` prints one.
 

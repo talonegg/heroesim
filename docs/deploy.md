@@ -15,7 +15,7 @@ One build of the page, gated, is uploaded to both addresses (INPUTS 7.8; DL-88, 
   deployed until Cloudflare retires Pages.
 
 **A release is a merged pull request** (DL-122, DL-124). `main` is production: only a release
-branch's pull request moves it, and each merge releases.
+branch's pull request moves it, and each merge releases unless it is a record (DL-255, below).
 1. Work lands on a dev branch, the line's `v#.#-dev` or a patch's own `v1.1.N-dev`, and the line's
    `v#.#-release` is moved to it. `check` runs on every push to either: lint, typecheck and the
    tests on `.node-version`, the floor (DL-235), and the browser specs in Chromium at three widths.
@@ -40,6 +40,17 @@ branch's pull request moves it, and each merge releases.
    - it publishes the record as the tag's GitHub Release.
 
    Leaving the pull request open holds the next release while commits gather.
+
+**A record releases nothing** (DL-255). When every path that differs between the newest release
+tag and the branch's tip lies in `docs/`, `harness/reports/` or `.github/`, is a Markdown file
+(`*.md`), or is `web/scripts/release.mjs`, its types or its test, the merge is a record:
+`node web/scripts/release.mjs record <commit>` prints `record`, and otherwise `release`. A rename
+counts both its paths. `release-pr.yml` titles such a pull request "Record from `<branch>` (no
+release)". Merging it, `release.yml` refuses as it would a release's merge (a push to `main` that
+merged no one release branch's pull request, a tree other than that pull request's head, an older
+line's branch), then makes no tag and calls no deploy, and says so in the run's summary; the newest
+release stays production. If the judgement itself fails, the run fails, and nothing is tagged. A
+merge that changes anything else releases, and its tag holds the records merged before it.
 
 If `main` ever takes a commit that no release branch holds (a direct push, or a pull request
 from elsewhere), every later release is refused, because `main` differs from the pull request's
