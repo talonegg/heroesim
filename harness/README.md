@@ -31,8 +31,8 @@ Sweeps run one at a time, with nothing else running, since a 20-year game's proc
 1.3 GB (DL-184).
 
 The current `neutral` baseline, every play-neutral story's `--expect`, is
-`29c09fb4ea34f50addee9f8bd12ed8de40db1a3bd01655d5338795e97914d662` (`m9-v118-s8-neutral`, v1.1.8's close,
-DL-226: schema 7, config version 17, content version 37, as at v1.1.7-S6, DL-212). The 4 × 2 quick check
+`29c09fb4ea34f50addee9f8bd12ed8de40db1a3bd01655d5338795e97914d662` (`v1.1.9-s16-neutral`, v1.1.9's close,
+DL-252: schema 7, config version 17, content version 37, as at v1.1.7-S6, DL-212). The 4 × 2 quick check
 at the same versions is `38d1c0d4a48765086d39026c84e559d8e84008fb12205309a33db8aabeb5112a`. Each changes
 only with a DL entry, as at a story that changes play or the save's shape or raises the content version
 or the config version, both of which every save records (with `meta.config`). The full `gate`'s, 50 × 20,
@@ -97,8 +97,8 @@ played once more, alone, its last save's length and fingerprint the same as its 
 bands are set on its run, 50 games of 20 years, and read "not comparable" on a run of another shape:
 the player's Bankruptcies, at most 3 of 50; the save after 20 years, its gzipped mean under
 30 MiB; and the per-Turn copy's share of a Turn, the mean time of the copy (`copyWorld`, timed as
-each year ended) over the mean time of `advance`, at most 25% over its baseline share, 0.253 (0.847 ms
-over 3.346 ms, measured at v1.1.6-S17's full gate, DL-203), so at most 0.31625 (DL-206 item 17, DL-207),
+each year ended) over the mean time of `advance`, at most 25% over its baseline share, 0.390 (1.438 ms
+over 3.688 ms, measured at v1.1.9's closing full gate, DL-252), so at most 0.4875 (DL-206 item 17, DL-207),
 printed as it is applied, and the share printed to as many places as show it above the limit when it
 fails; a run with no copy times or no `advance` times reads "not comparable", naming the times missing
 and printing those measured. The report prints both times and the share. The Traits earned a player's Hero career and the save's uncompressed size are not lines of the

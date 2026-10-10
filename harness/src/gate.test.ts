@@ -134,16 +134,16 @@ describe('a run checked against the Gate, line by line', () => {
     expect(checkGate(shaped, ended).pass).toBe(true);
   });
 
-  // DL-206 item 17: the copy's share of a Turn, its baseline read from the shipped spec, 0.253; a run at
-  // its limit, 0.31625, passes, one over it fails.
+  // DL-206 item 17: the copy's share of a Turn, its baseline read from the shipped spec, 0.390 (DL-252);
+  // a run at its limit, 0.4875, passes, one over it fails.
   test("the shipped spec's copy line reads its baseline share", () => {
     const shipped: GateSpec = { ...spec, run: shaped.run };
     const copyLine = (copyMs: number[]) => checkGate(shipped, passing((run) => ((run.totals.worlds[0] as { copyMs: number[] }).copyMs = copyMs))).lines.at(-1);
-    // `advance`'s mean is 4 ms: the limit, 0.31625, is a copy of 1.265 ms, printed as it is applied.
-    expect(copyLine([1.265, 1.265])).toMatchObject({ verdict: 'pass', limit: 'share at most 0.31625 (0.253 + 25%)' });
-    expect(copyLine([1.265, 1.265])?.measured).toMatch(/^share 0\.31625: /);
-    expect(copyLine([1.2, 1.3])).toMatchObject({ verdict: 'pass' });
-    expect(copyLine([1.27, 1.27])).toMatchObject({ verdict: 'fail' });
+    // `advance`'s mean is 4 ms: the limit, 0.4875, is a copy of 1.95 ms, printed as it is applied.
+    expect(copyLine([1.95, 1.95])).toMatchObject({ verdict: 'pass', limit: 'share at most 0.4875 (0.390 + 25%)' });
+    expect(copyLine([1.95, 1.95])?.measured).toMatch(/^share 0\.4875: /);
+    expect(copyLine([1.9, 2.0])).toMatchObject({ verdict: 'pass' });
+    expect(copyLine([1.96, 1.96])).toMatchObject({ verdict: 'fail' });
   });
 
   // The review of v1.1.7 S1–S4 (DL-207, DL-210): a failing share never prints as the limit it failed.
@@ -155,15 +155,15 @@ describe('a run checked against the Gate, line by line', () => {
       const line = copyLine(copyMs);
       return { verdict: line?.verdict, share: shown(line?.measured, /^share ([\d.]+):/), limit: shown(line?.limit, /^share at most ([\d.]+) /) };
     };
-    // A share of 0.3163 (a copy of 1.2652 ms over 4 ms): over 0.31625, so it fails, and prints so.
-    expect(copyLine(1.2652)).toMatchObject({ verdict: 'fail', limit: 'share at most 0.31625 (0.253 + 25%)' });
-    expect(copyLine(1.2652)?.measured).toMatch(/^share 0\.3163: /);
-    for (const copyMs of [1.2652, 1.26501, 1.265004, 1.2650004, 1.4]) {
+    // A share of 0.4876 (a copy of 1.9504 ms over 4 ms): over 0.4875, so it fails, and prints so.
+    expect(copyLine(1.9504)).toMatchObject({ verdict: 'fail', limit: 'share at most 0.4875 (0.390 + 25%)' });
+    expect(copyLine(1.9504)?.measured).toMatch(/^share 0\.4876: /);
+    for (const copyMs of [1.9504, 1.95001, 1.950004, 1.9500004, 2.2]) {
       const { verdict, share, limit } = read(copyMs);
       expect(verdict).toBe('fail');
       expect(share).toBeGreaterThan(limit);
     }
-    for (const copyMs of [1.265, 1.26499, 1.264996, 1.2649996, 1]) {
+    for (const copyMs of [1.95, 1.94999, 1.949996, 1.9499996, 1.5]) {
       const { verdict, share, limit } = read(copyMs);
       expect(verdict).toBe('pass');
       expect(share).toBeLessThanOrEqual(limit);

@@ -50,8 +50,8 @@
     },
     "copyShare": {
       "growth": 0.25,
-      "baselineShare": 0.253,
-      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", restated by the owner as the copy's share of a Turn (DL-206 item 17, DL-205's finding that the copy's milliseconds follow the machine's load): the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, over the mean time of advance, may grow at most 25% over its baseline share without a DL entry; the baseline measured at v1.1.6-S17's full gate (DL-203; its report in git history, the harness README): copy mean 0.847 ms over 1,000 copies, advance mean 3.346 ms, share 0.253, at most 0.31625, kept as the anchor by the owner (DL-229); v1.1.8's closing full gate (DL-229): share 0.241, copy mean 1.346 ms, advance mean 5.586 ms"
+      "baselineShare": 0.39,
+      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", restated by the owner as the copy's share of a Turn (DL-206 item 17, DL-205's finding that the copy's milliseconds follow the machine's load): the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, over the mean time of advance, may grow at most 25% over its baseline share without a DL entry; the baseline measured at v1.1.9's closing full gate (harness/reports/v1.1.9-gate-2026-10-10.md): copy mean 1.438 ms over 1,000 copies, advance mean 3.688 ms, share 0.390, at most 0.4875, anchored there by the owner (DL-252), since advance is 34% faster by design (the Best Party module, DL-237) and copyWorld unchanged"
     }
   },
   "estimate": {
@@ -69,6 +69,7 @@
     "The bands are set on the run above: on a run of another shape they read not comparable. The estimate's two limits are checked by npm run harness -- estimate, not by a gate run.",
     "S17 added the per-Turn copy's time line (DL-186 item 11, DL-203), its baseline set from S17's full gate by its verification; v1.1.7-S1 made it the copy's share of a Turn (DL-206 item 17, DL-207).",
     "v1.1.7-S8 moved the baseline from v1.1.5's closing sweep to v1.1.6's closing full gate, and the sources whose numbers were v1.1.5's with it; no limit changed, each baseline's value the same at both closes, and the copy line as S1 set it (DL-214).",
-    "v1.1.8's close moved the baseline from v1.1.6's closing full gate to its own, a clean run of the same games as v1.1.7's close, the one report the spec names; the copy line's anchor kept at S17's 0.253, and no limit changed (DL-229)."
+    "v1.1.8's close moved the baseline from v1.1.6's closing full gate to its own, a clean run of the same games as v1.1.7's close, the one report the spec names; the copy line's anchor kept at S17's 0.253, and no limit changed (DL-229).",
+    "v1.1.9's close kept the baseline, v1.1.9 changing no play, and anchored the copy line at its own closing full gate on the owner's answer, the growth unchanged (DL-252)."
   ]
 }

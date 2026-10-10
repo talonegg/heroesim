@@ -261,6 +261,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-249 | 2026-10-10 | v1.1.9-S15 built: the tests of the harness, the tools and the e2e specs pruned, on the owner's … |  | [decision-log](../decision-log.md) |
 | DL-250 | 2026-10-10 | v1.1.9-S16's review: its findings fixed, test first |  | [decision-log](../decision-log.md) |
 | DL-251 | 2026-10-10 | v1.1.9-S16: the coverage of the tools' support files, and `neutral`'s ten processes |  | [decision-log](../decision-log.md) |
+| DL-252 | 2026-10-10 | v1.1.9-S16's close: the Gate, the copy line anchored at this close, and the after-report |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

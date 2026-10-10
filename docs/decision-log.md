@@ -1493,3 +1493,76 @@ longer starts more processes than the machine holds.
 
 **Evidence.** The commit `v1.1.9-S16 (DL-251)`. Both tests red first (the three tools' support
 files counted; 12 and 50 seeds starting 12 and 50 processes), then green.
+
+## DL-252 — v1.1.9-S16's close: the Gate, the copy line anchored at this close, and the after-report
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, answering the copy line's
+failure with (a): its share anchored at this release's closing full gate, the growth kept; the rest by
+the agent, as the delivery guide's close and the documentation guide say
+
+**Context.** The close runs the Gate line by line (the epic). Its full `gate` played v1.1.8's games,
+but its copy line failed: a share of 0.3900 against at most 0.31625 (v1.1.6-S17's 0.253 + 25%).
+- The copy's mean was 1.438 ms, against v1.1.8's 1.346.
+- `advance`'s mean was 3.688 ms, against 5.586: 34% faster by design, through the Best Party module
+  (DL-237).
+- `world-copy.ts` is unchanged this release. One game's profile spends 15.8 s in `copyWorld`,
+  against the baseline's 16.4 s.
+
+**Decision.**
+
+1. **The copy line's anchor.** `gate.json`'s `copyShare.baselineShare` is 0.390, from `v1.1.9-gate`
+   (1.438 ms over 3.688 ms). The growth stays 0.25, so the limit is 0.4875. Its source says so, and
+   `gate.test.ts` and the harness README hold the new anchor. The committed report, checked again
+   against the spec, passes every line: the copy line reads 0.3900, at most 0.4875.
+2. **The baseline stays** (DL-229 item 2, `docs/agents/documentation.md`), since v1.1.9 changes no
+   play.
+   - `gate.json`'s baseline is still `v1.1.8-gate`, whose fingerprint the close played.
+   - The README's `neutral` reference is now `v1.1.9-s16-neutral` (`29c09fb4…`, schema 7, config
+     version 17, content version 37).
+   - `m9-v118-s8-neutral` leaves the tree at the release's record (DL-223).
+3. **The Gate, line by line:**
+   - *Three full `npm test` runs:* each 6,021 passed, 4 skipped and none failed, in 266 files; walls
+     of 81.8, 78.1 and 78.2 s.
+   - *The full `gate`* (`v1.1.9-gate`), alone in 8 processes, 895 s:
+     - the fingerprint `5dbfdaf4…`, v1.1.8's;
+     - refusals, invalid, stopped, unfinished and round trips all 0, and the replay identical;
+     - the Bankruptcies 0 of 50, and the saves a mean of 17.51 MiB and a max of 20.64 MiB;
+     - the copy line as in item 1.
+   - *The engine's twenty-year boxes,* alone: 2 files and 6 tests, 3,273 s.
+   - *The boxes kept apart* (`resolve.harness`, `patron-offers.harness`): 3 tests. *The speed run:* 2.
+   - *Coverage,* alone: every test passes. Against S1's, three figures are below it, each explained
+     in the after-report:
+     - `content`'s branches, 91.9% to 91.6%;
+     - `web`'s lines, 98.0% to 97.9%;
+     - the portrait tool's lines, 95.3% to 95.2%, counted the baseline's way. With its
+       `test-support.ts` left out, it reads 95.0% and 76.3% both before and after.
+   - *Every check:* lint and typecheck clean. `npm run e2e` (the build, check-bundle at 830.35 kB
+     within 850, and 84 specs) passes. The doctor reads no drift (104 reads), the content passes and
+     no edit is pending.
+   - *The content and the design:* as S10 (DL-243) and the two amendments (DL-235, DL-238) recorded
+     them.
+4. **The after-report** is the last section of
+   [`v1.1.9-measures.md`](./planning/epics/v1.1.9-measures.md). Its headline figures, before and
+   after:
+   - the suite's wall, 114–115 s to 77–82 s, and its tests' time, 1,608–1,650 s to 765–849 s;
+   - the `gate`, 1,423.5 s to 891.9 s, and `neutral`, 413.9 s to 224.8 s;
+   - one game, 102.5 s to 62.7 s, and the quest estimate's share of it, 49.0% to 26.6%;
+   - a year's fast forward, 3,161 ms to 1,763 ms;
+   - CI, 22–29 billed minutes to 15 (S3's push, DL-235). A run after S15's e2e workers is pending
+     the owner's push.
+
+*Judgement calls, for the owner to see:*
+- **The baseline kept, not moved** to `v1.1.9-gate`: that is DL-229 item 2's rule for a release that
+  changes no play. Only the copy line names this close's report, which is committed.
+- **S16's first box is left unticked:** the coverage line needs the owner's acceptance of the three
+  drops.
+- **The tools measured both ways** by a second coverage run without the new exclude, with the config
+  restored after it.
+- **The `neutral` reference** is the release's last `neutral` (S16's, at `67f3d55`) rather than a new
+  run: nothing after it changes play.
+
+**Consequences.** A faster `advance` no longer fails the copy line, which now measures the copy
+against this release's Turn. The release awaits the owner's word (the delivery guide's step 3).
+
+**Evidence.** `harness/reports/v1.1.9-gate-2026-10-10.md` and its JSON; `v1.1.9-measures.md`; the
+epic's S16 box. `gate.test.ts` was red on the old anchor first, then green.
