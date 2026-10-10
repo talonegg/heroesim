@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
-import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, encounterKinds, schemaVersion, type EngineDeps, type RegardBand, type WorldDocument } from '@heroesim/engine';
+import { encounterKinds, schemaVersion, type RegardBand, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test, vi } from 'vitest';
 import {
   controllerKinds,
@@ -19,6 +18,7 @@ import {
   type WorldSize,
 } from './counters.js';
 import { copyTimes } from './gate.js';
+import { content, coreDeps as deps, tickingClock, twentyDays as years } from './harness.test-support.js';
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
@@ -36,18 +36,10 @@ vi.mock('./counters.js', async (importOriginal) => {
   return { ...actual, observeFameGate: vi.fn(actual.observeFameGate) };
 });
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-const years = 60 / deps.config.turnsPerYear;
-
-/** A clock that advances one millisecond a read, so timings are known. */
-function tickingClock(): () => number {
-  let t = 0;
-  return () => (t += 1);
-}
-
 const seeds = seedNames(2);
 const sweep = await sweepPlay(seeds, deps, { years, validate: true, now: tickingClock() });
+/** The Turns the sweep's Fame gate observed, its replay's among them, if it observed any. */
+const turnsObserved = vi.mocked(observeFameGate).mock.calls.length;
 
 describe('sweepPlay', () => {
   const totals = sweepTotals(sweep, deps.config.turnsPerYear);
@@ -90,12 +82,10 @@ describe('sweepPlay', () => {
       expect(replayedGame([], 'seed-0001')).toBeUndefined();
     });
 
-    test('plays bare: the sweep observes each of its Turns, the replay none', async () => {
-      vi.mocked(observeFameGate).mockClear();
-      const once = await sweepPlay(['seed-0001'], deps, { years });
-      expect(once.replay).toMatchObject({ identical: true, advance: { count: 60 } });
-      expect(vi.mocked(observeFameGate)).toHaveBeenCalledTimes(once.games[0]?.turnsPlayed ?? 0);
-      expect(once.games[0]?.turnsPlayed).toBe(60);
+    test('plays bare: the sweep observes each of its Turns, the replay none', () => {
+      expect(sweep.replay).toMatchObject({ identical: true, advance: { count: 60 } });
+      expect(sweep.games.map((game) => game.turnsPlayed)).toEqual([60, 60]);
+      expect(turnsObserved).toBe(120);
     });
   });
 
@@ -116,8 +106,11 @@ describe('sweepPlay', () => {
     expect(changed.replay).toMatchObject({ seed: 'seed-0001', identical: false, length: changed.games[0]?.measures.serialisedLength });
   });
 
-  test('plays the same games when it shares the seeds among child processes', { timeout: 120_000 }, async () => {
-    const parallel = await sweepPlayInParallel(seeds, deps, { years, validate: true, workers: 2 });
+  // Each seed is a child of its own, at most `workers` at once, the next as one ends: three seeds in two
+  // processes come back in seed order.
+  test('plays the same games when it shares the seeds among child processes, one seed a child, more seeds than processes', { timeout: 120_000 }, async () => {
+    const three = seedNames(3);
+    const parallel = await sweepPlayInParallel(three, deps, { years, validate: true, workers: 2 });
     const played = (of: PlaySweep) =>
       of.games.map(({ seed, counters, observations, turnsPlayed, ranFullLength, refusals, invalid, measures }) => ({
         seed,
@@ -133,21 +126,17 @@ describe('sweepPlay', () => {
         fingerprint: measures.fingerprint,
       }));
     expect(parallel.workers).toBe(2);
-    expect(played(parallel)).toEqual(played(sweep));
-    expect(parallel.advance.count).toBe(120);
+    expect(parallel.games.map((game) => game.seed)).toEqual(three);
+    expect(played(parallel).slice(0, seeds.length)).toEqual(played(sweep));
+    expect(parallel.advance.count).toBe(180);
+    expect(parallel.validation.count).toBe(180);
     expect(parallel.replay).toMatchObject({ seed: 'seed-0001', identical: true, length: sweep.replay?.length });
   });
 
-  // Each seed is a child of its own, at most `workers` at once, the next as one ends.
-  test('plays the same games with more seeds than processes, one seed a child, and skips the replay when asked', { timeout: 120_000 }, async () => {
-    const three = seedNames(3);
-    const serial = await sweepPlay(three, deps, { years, replay: false });
-    const parallel = await sweepPlayInParallel(three, deps, { years, workers: 2, replay: false });
-    expect(serial.replay).toBeNull();
-    expect(parallel.replay).toBeNull();
-    expect(parallel.workers).toBe(2);
-    expect(parallel.games.map((game) => [game.seed, game.measures.fingerprint])).toEqual(serial.games.map((game) => [game.seed, game.measures.fingerprint]));
-    expect(parallel.advance.count).toBe(180);
+  test('skips the replay when asked', async () => {
+    const once = await sweepPlay(['seed-0001'], deps, { years, replay: false });
+    expect(once.replay).toBeNull();
+    expect(once.advance.count).toBe(60);
   });
 
   test("totals the games' counters", () => {
@@ -155,8 +144,6 @@ describe('sweepPlay', () => {
     // Two short games: no founding Guildmaster reaches 65.
     expect(totals.rivalSuccessions).toBe(0);
     expect(totals.endings).toEqual({ retirement: 0, bankruptcy: 0, 'roster-wiped': 0, survived: 2 });
-    const taken = sweep.games.reduce((sum, game) => sum + game.counters.questsTaken.player, 0);
-    expect(totals.questsTaken.player).toBe(taken);
     expect(totals.questsTaken.rival).toBeGreaterThan(0);
     expect(totals.yearsSurvived).toMatchObject({ min: years, max: years });
     expect(totals.refusals).toBe(0);
@@ -175,20 +162,10 @@ describe('sweepPlay', () => {
     expect(totals.signingRefused).toBe(0);
   });
 
-  test("totals M4's counters: each game's Encounters, Synergies and Injuries summed, and no year or Regard to count yet", () => {
-    const sumOf = (read: (game: GameRecord) => number): number => sweep.games.reduce((total, game) => total + read(game), 0);
+  test("totals M4's counters: each game's Encounters, Synergies and Injuries, a Quest's Synergies for each resolved and an Injury's type for each Hero injured, and no year or Regard to count yet", () => {
     for (const kind of controllerKinds) {
-      for (const encounterKind of encounterKinds) {
-        expect(totals.encounters[kind][encounterKind]).toEqual({
-          success: sumOf((game) => game.counters.encounters[kind][encounterKind].success),
-          failure: sumOf((game) => game.counters.encounters[kind][encounterKind].failure),
-          injured: sumOf((game) => game.counters.encounters[kind][encounterKind].injured),
-          died: sumOf((game) => game.counters.encounters[kind][encounterKind].died),
-        });
-      }
       const resolved = totals.questsResolved[kind];
       expect(totals.synergies[kind].quests).toBe(resolved.fail + resolved.success + resolved.strong);
-      expect(totals.synergies[kind].applied).toBe(sumOf((game) => game.counters.synergies[kind].applied));
       const injuries = Object.values(totals.injuriesByType[kind]).reduce((a, b) => a + b, 0);
       expect(injuries).toBe(totals.heroesInjured[kind]);
     }
@@ -199,20 +176,8 @@ describe('sweepPlay', () => {
     expect(totals.regardAtCountedYear.games).toBe(0);
   });
 
-  test("totals M5's counters: each game's Wealth, Loot, consumables, gear and the player's Quests by difficulty summed", () => {
-    const sumOf = (read: (game: GameRecord) => number): number => sweep.games.reduce((total, game) => total + read(game), 0);
-    for (const kind of controllerKinds) {
-      for (const field of ['signing', 'items', 'itemsBought', 'improvements', 'upkeep', 'questRewards'] as const) {
-        expect(totals.wealth[kind][field], `${kind} ${field}`).toBe(sumOf((game) => game.counters.wealth[kind][field]));
-      }
-      expect(totals.wealth[kind].sales.fold).toBe(sumOf((game) => game.counters.wealth[kind].sales.fold));
-      expect(totals.consumables[kind].quests).toBe(totals.synergies[kind].quests);
-      expect(totals.consumables[kind].expended).toBe(sumOf((game) => game.counters.consumables[kind].expended));
-      expect(totals.gear[kind].equipped).toBe(sumOf((game) => game.counters.gear[kind].equipped));
-      for (const table of Object.keys(content.lootTables)) {
-        expect(totals.loot[kind][table]?.awards ?? 0).toBe(sumOf((game) => game.counters.loot[kind][table]?.awards ?? 0));
-      }
-    }
+  test("totals M5's counters: each game's Wealth, Loot, consumables, gear and the player's Quests by difficulty, consumables counted on every Quest resolved", () => {
+    for (const kind of controllerKinds) expect(totals.consumables[kind].quests).toBe(totals.synergies[kind].quests);
     // The policy recruits and buys armour in the first Days, and pays the first Upkeep.
     expect(totals.wealth.player.signing).toBeGreaterThan(0);
     expect(totals.wealth.player.items).toBeGreaterThan(0);
@@ -223,13 +188,7 @@ describe('sweepPlay', () => {
     expect(totals.playerQuestsByYear.reduce((total, tally) => total + tally.quests, 0)).toBe(byBand);
   });
 
-  test("totals M6's counters: each game's Transfers, offers, Dispositions and purchases summed, and the Rivals and Rankings as the year began", () => {
-    const sumOf = (read: (game: GameRecord) => number): number => sweep.games.reduce((total, game) => total + read(game), 0);
-    for (const direction of transferDirections) {
-      expect(totals.transfers[direction].transfers).toBe(sumOf((game) => game.counters.transfers[direction].transfers));
-      expect(totals.transfers[direction].fees).toBe(sumOf((game) => game.counters.transfers[direction].fees));
-    }
-    for (const way of rivalTransferWays) expect(totals.rivalTransfers[way].transfers).toBe(sumOf((game) => game.counters.rivalTransfers[way].transfers));
+  test("totals M6's counters: each game's Transfers, offers, Dispositions and purchases, each fee paid by one Guild and taken by another, and the Rivals and Rankings as the year began", () => {
     const r2r = rivalTransferWays.reduce((total, way) => total + totals.rivalTransfers[way].transfers, 0);
     expect(r2r).toBe(totals.transfers['rival-to-rival'].transfers);
     // Every Transfer's fee is spent by one Guild and taken by another.

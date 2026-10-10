@@ -4,29 +4,21 @@
 // command line without running this suite inside itself; most tests read the same script in this
 // process, `plantedTests`, and a few run it through npm (DL-234).
 
-import { execFileSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { ContentFileName } from '@heroesim/content';
 import { formatJson } from '@heroesim/content/write';
-import { afterAll, afterEach } from 'vitest';
+import { afterEach, inject } from 'vitest';
 import { run, type Deps } from './cli.js';
 import { repositoryRoot } from './content-files.js';
 import { isBoundaryProbe } from './reads.js';
+import { git } from './template.test-support.js';
 import { failuresIn, type TestRunner } from './tests-run.js';
 
-export const root = repositoryRoot;
+export { git };
 
-/**
- * Runs git in a scratch repository, and gives its output. Never its automatic maintenance: on Linux a
- * commit leaves `git maintenance run --auto --detach` behind it, holding `.git/objects/maintenance.lock`
- * a moment after the commit ends, and a copy of the template taken in that moment fails with ENOENT
- * on the lock it saw go (DL-167). Git for Windows runs it before the commit ends.
- */
-export function git(dir: string, ...args: string[]): string {
-  return execFileSync('git', ['-c', 'maintenance.auto=false', '-c', 'core.autocrlf=false', '-c', 'user.name=editor test', '-c', 'user.email=test@example.invalid', ...args], { cwd: dir, encoding: 'utf8' });
-}
+export const root = repositoryRoot;
 
 /** `git status --porcelain` of a scratch repository, untracked files named one by one. */
 export function status(dir: string): string {
@@ -34,77 +26,18 @@ export function status(dir: string): string {
 }
 
 /**
- * The planted `npm test`: it prints a Vitest-like line and passes, or fails, as `test-outcome.txt`
- * says; or, for "hang", writes `tests-started.txt` and fails only 20 s later, so that a test may kill
- * the "Finish" waiting on it.
- */
-const plantedTest = `import { readFileSync, writeFileSync } from 'node:fs';
-const outcome = readFileSync('test-outcome.txt', 'utf8').trim();
-console.log(' RUN  the planted tests');
-if (outcome === 'hang') {
-  writeFileSync('tests-started.txt', String(process.pid));
-  await new Promise((resolve) => setTimeout(resolve, 20000));
-  process.exit(1);
-}
-if (outcome === 'fail') {
-  console.log(' FAIL  |content| src/planted.test.ts > a planted test fails');
-  console.log('   × a planted test fails');
-  process.exit(1);
-}
-console.log(' ✓ src/planted.test.ts (1 test)');
-`;
-
-/**
- * The scratch copies' first state, made once for each test file that asks for one: its content, its
- * doc and its planted `npm test`, committed. Each copy is a copy of its folder, `.git` and all, so that
- * a test spawns no git to make one: three git commands for each test took most of the editor's tests'
- * time, and more under the whole suite's load (DL-164). Removed after the file's tests.
- */
-let template: string | undefined;
-afterAll(() => {
-  if (template !== undefined) rmSync(template, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-  template = undefined;
-});
-
-function templateRepository(): string {
-  if (template !== undefined) return template;
-  const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-editor-template-'));
-  cpSync(path.join(root, 'content'), path.join(dir, 'content'), {
-    recursive: true,
-    filter: (source) => {
-      const relative = path.relative(path.join(root, 'content'), source).replace(/\\/g, '/');
-      // The checks' source the drift check reads: the driver and the content kinds (DL-243), their tests left out.
-      const kind = relative.startsWith('src/kinds/') && !relative.endsWith('.test.ts');
-      return relative === '' || relative.endsWith('.json') || ['src', 'src/validate.ts', 'src/kinds'].includes(relative) || kind;
-    },
-  });
-  cpSync(path.join(root, 'docs', 'agents', 'traits-register.md'), path.join(dir, 'docs', 'agents', 'traits-register.md'));
-  writeFileSync(path.join(dir, 'package.json'), `${JSON.stringify({ name: 'scratch', private: true, scripts: { test: 'node planted-test.mjs' } }, null, 2)}\n`);
-  writeFileSync(path.join(dir, 'planted-test.mjs'), plantedTest);
-  writeFileSync(path.join(dir, 'test-outcome.txt'), 'pass\n');
-  // The defaults' values, which the config kind writes (DL-204), committed; the rest of engine/src/ ignored.
-  cpSync(path.join(root, 'engine', 'src', 'config.json'), path.join(dir, 'engine', 'src', 'config.json'));
-  writeFileSync(path.join(dir, '.gitignore'), '.editor/\ntests-started.txt\nengine/src/*\n!engine/src/config.json\n');
-  // No template: git's sample hooks are files each copy would copy for nothing.
-  git(dir, 'init', '--quiet', '--template=');
-  git(dir, 'add', '--all');
-  git(dir, 'commit', '--quiet', '-m', 'scratch');
-  template = dir;
-  return dir;
-}
-
-/**
  * A scratch copy of this repository's content (its JSON, `version.json` among it, and the source of
- * its checks, which the drift check reads) and `docs/agents/traits-register.md`, committed, with a planted `npm test` that
- * passes; removed by the function it returns with. Its `engine/src/config.json` is committed, which
- * the config kind writes (DL-204). With `engine`, the rest of `engine/src/` too, which only the
+ * its checks, which the drift check reads) and `docs/agents/traits-register.md`, committed, with a
+ * planted `npm test` that passes: a copy of the run's template, `.git` and all
+ * (`template.test-support.ts`); removed by the function it returns with. Its `engine/src/config.json`
+ * is committed, which the config kind writes (DL-204). With `engine`, the rest of `engine/src/` too, which only the
  * drift check reads (the doctor's, `drift.ts`): copied beside the commit and ignored by git, since
  * the editor never writes it, as copying and committing its files for every test took most of the
  * editor's tests' time (DL-164).
  */
 export function scratchRepository(options: { engine?: boolean } = {}): { dir: string; remove: () => void } {
   const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-editor-'));
-  cpSync(templateRepository(), dir, { recursive: true, preserveTimestamps: true });
+  cpSync(inject('editorTemplate'), dir, { recursive: true, preserveTimestamps: true });
   if (options.engine === true) {
     // engine/src/boundary.test.ts writes and deletes probe files in engine/src/ while other tests run.
     cpSync(path.join(root, 'engine', 'src'), path.join(dir, 'engine', 'src'), {

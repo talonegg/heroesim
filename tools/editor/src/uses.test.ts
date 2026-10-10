@@ -112,14 +112,14 @@ describe('assign and unassign', () => {
   });
 
   /** A scratch copy with the Queries planted, whose Check, harm and Synergy a `has-trait` may filter. */
-  function prepared(options: { engine?: boolean } = {}): string {
-    const dir = scratch(options);
+  function prepared(): string {
+    const dir = scratch();
     plantQueries(dir);
     return dir;
   }
 
   test.each(cases)('%s: a use added, pending, then taken out', async (id, key, words, at) => {
-    const dir = prepared({ engine: true });
+    const dir = prepared();
     const before = (await json<{ uses: { at: string }[] }>(dir, 'traits', 'uses', key)).json.uses.map((use) => use.at);
     const assigned = await json<Assigned>(dir, 'traits', 'assign', key, id, ...words);
 
@@ -137,8 +137,7 @@ describe('assign and unassign', () => {
     expect(unassigned.code).toBe(0);
     expect(unassigned.json).toMatchObject({ ok: true, at, pending: 2 });
     expect((await json<{ uses: { at: string }[] }>(dir, 'traits', 'uses', key)).json.uses.map((use) => use.at)).toEqual(before);
-    expect((await json<{ ok: boolean }>(dir, 'traits', 'doctor')).json.ok).toBe(true);
-    // The two leave the content as it was: "Finish" writes nothing (the verification of the skill runs).
+    // The two leave the content as it was: "Finish" writes nothing.
     expect(await writes(dir)).toMatchObject({ changed: [], contentVersion: null });
     expect(status(dir)).toBe('');
   });

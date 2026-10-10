@@ -91,7 +91,8 @@ export default defineConfig({
         },
       })),
       // The portrait tool (v1.1.3-S2) runs on Node and drives Chromium, through the Playwright the
-      // page's specs install, to draw its pictures; its tests launch it, so each is given long.
+      // page's specs install, to draw its pictures; its tests launch it, so each is given long. Its
+      // scratch copies' template is made once a run, in its global setup, as the editor's is (DL-249).
       {
         test: {
           ...processes,
@@ -99,6 +100,7 @@ export default defineConfig({
           root: './tools/portraits',
           environment: 'node',
           include: ['src/**/*.test.ts'],
+          globalSetup: ['./src/template.test-support.ts'],
           testTimeout: 120_000,
           hookTimeout: 120_000,
         },
@@ -112,6 +114,7 @@ export default defineConfig({
           root: './tools/editor',
           environment: 'node',
           include: ['src/**/*.test.ts'],
+          globalSetup: ['./src/template.test-support.ts'],
           testTimeout: 60_000,
           hookTimeout: 60_000,
         },

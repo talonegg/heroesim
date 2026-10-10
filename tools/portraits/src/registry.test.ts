@@ -1,7 +1,8 @@
+import { existsSync } from 'node:fs';
 import { sexes as engineSexes } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { isSex, keyOf, nextKey, parseKey, parseRegistry, picturePaths, readRegistry, retire, sexes, type Registry } from './registry.js';
-import { hashBits } from './fingerprint.js';
+import { fingerprintTrims, hashBits } from './fingerprint.js';
 import { root } from './test-support.js';
 
 // The register (DL-135 item 11): every key ever issued, never issued twice.
@@ -68,18 +69,19 @@ describe('keys', () => {
 });
 
 describe('the register as shipped', () => {
-  test('holds the 40 Guildmaster pictures, live, their fingerprints taken, and the distance tuned on the owner\'s 40', () => {
+  // Properties of the register, whatever pictures it holds; its own numbers, the distance and its
+  // tuning, are its data (DL-136).
+  test('names each picture by a key of its role and sex, live or retired, a live one on disk, each fingerprint taken by the method it names', () => {
     const shipped = readRegistry(root);
-    const numbered = (prefix: string): string[] => Array.from({ length: 20 }, (_, index) => `${prefix}-${String(index + 1).padStart(2, '0')}`);
-    expect(Object.keys(shipped.portraits).sort()).toEqual([...numbered('gm-female'), ...numbered('gm-male')]);
+    expect(shipped.fingerprint.bits).toBe(hashBits);
     for (const [key, each] of Object.entries(shipped.portraits)) {
-      expect(each.status, key).toBe('live');
-      expect(each.hash, key).toMatch(/^[0-9a-f]{128}$/);
-      expect(each.trimmed, key).toHaveLength(9);
+      expect(parseKey(key), key).toMatchObject({ role: each.role, sex: each.sex });
+      expect(['live', 'retired'], key).toContain(each.status);
+      expect(each.hash, key).toMatch(new RegExp(`^[0-9a-f]{${shipped.fingerprint.bits / 4}}$`));
+      expect(each.trimmed, key).toHaveLength(fingerprintTrims.length);
+      if (each.status === 'live') expect(existsSync(picturePaths(root, each.role, each.sex, key).picture), key).toBe(true);
     }
-    expect(shipped.fingerprint.bits).toBe(512);
-    expect(shipped.fingerprint.similarWithin).toBe(104);
-    expect(shipped.fingerprint.tuning).toContain("The owner's 40 (DL-136)");
+    expect(Object.values(shipped.portraits).some((each) => each.status === 'live')).toBe(true);
   });
 
   test('refuses a register of the wrong shape, naming each problem', () => {

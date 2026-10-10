@@ -123,11 +123,11 @@ describe('the Succession probe over a few seeds', () => {
     for (const game of games) expect(report).toContain(game.seed);
   });
 
-  // Child processes, each starting tsx and loading the content, as sweep.test.ts's: given as long. Since
-  // DL-186 item 20: each seed is a child of its own, at most `workers` at once, the next as
-  // one ends, as the play sweep's are: three seeds in two processes come back in seed order.
-  test('plays the same games shared among child processes, one seed a child, more seeds than processes', { timeout: 120_000 }, async () => {
-    const parallel = await probeInParallel(seeds, shortYears, { years, age: successionProbeAge, workers: 2 });
-    expect(parallel).toEqual(games);
+  // A child process, starting tsx and loading the content, as sweep.test.ts's: given as long. The
+  // probe's job carries its age to the child; how seeds are shared among children is the play
+  // sweep's, held by sweep.test.ts and children.test.ts (DL-186 item 20).
+  test('plays the same game in a child process, the probe its job names', { timeout: 120_000 }, async () => {
+    const parallel = await probeInParallel(seeds.slice(0, 1), shortYears, { years, age: successionProbeAge, workers: 1 });
+    expect(parallel).toEqual(games.slice(0, 1));
   });
 });

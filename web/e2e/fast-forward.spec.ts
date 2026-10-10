@@ -173,7 +173,7 @@ async function withWealth(page: Page, testInfo: TestInfo, wealth: number): Promi
   return made;
 }
 
-test("falling below the Bankruptcy floor stops a fast forward unasked; the home view warns, with the ways to the Market's Sell and the Board", async ({
+test("falling below the Bankruptcy floor stops a fast forward unasked; the home view warns, with the ways to the Market's Sell and the Board", { tag: '@one-width' }, async ({
   page,
 }, testInfo) => {
   test.setTimeout(120_000);

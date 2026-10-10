@@ -13,10 +13,10 @@
 // writes. Two adapters fill it: the content files (`contentFiles`, a content kind's rows, with the
 // uses of their keys in other content as its extension) and the config file (`configFile`).
 
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { editJson, NotUndone, raisedVersion, readContentVersion, transaction, Undone } from '@heroesim/content/write';
-import { beginJournal, Busy, busyProblems, endJournal, finishingHere, journalState, releaseJournal, restoreJournal, writeAtomically } from './finish-journal.js';
+import { beginJournal, Busy, busyProblems, clearPending, endJournal, finishingHere, journalState, markJournalDone, releaseJournal, restoreJournal, type Done } from './finish-journal.js';
 import type { Use } from './kind.js';
 import { npmTest, type TestResult, type TestRunner } from './tests-run.js';
 
@@ -144,9 +144,12 @@ export class EditSession<E, W> {
   }
 
   #save(edits: readonly E[]): void {
-    const file = pendingPath(this.root, this.adapter.name);
-    if (edits.length === 0) rmSync(file, { force: true });
-    else writeAtomically(file, `${JSON.stringify({ kind: this.adapter.name, edits }, null, 2)}\n`);
+    clearPending(this.#pending(edits));
+  }
+
+  /** The file of pending edits holding `edits`, and its text: `null` where there are none and it goes. */
+  #pending(edits: readonly E[]): Done {
+    return { pending: pendingPath(this.root, this.adapter.name), text: edits.length === 0 ? null : `${JSON.stringify({ kind: this.adapter.name, edits }, null, 2)}\n` };
   }
 
   /** The files with `edits` made, unchecked; refused where one does not apply, naming it where it is among the first `held`. */
@@ -206,9 +209,10 @@ export class EditSession<E, W> {
   /**
    * Writes the pending edits, raises the adapter's version by one and runs the tests (DL-150 item
    * 11). The edits are checked first. If any test fails every file is put back and the edits stay
-   * pending (`Undone`); on success the edits it read are cleared. Never commits. The journal holds
-   * the lock throughout, and every file's bytes before, for a "Finish" cut off; a file not put back
-   * (`NotUndone`) keeps it, for the next call to put back.
+   * pending (`Undone`); on success the journal is marked done, then the edits it read are cleared.
+   * Never commits. The journal holds the lock throughout, and every file's bytes before, for a
+   * "Finish" cut off; a file not put back (`NotUndone`) keeps it, for the next call to put back; and
+   * one cut off once it is marked done is completed by the next call, its files kept (DL-249).
    */
   async finish({ runTests = npmTest, onLine = () => {}, reason = '' }: FinishOptions = {}): Promise<SessionFinished> {
     const edits = this.edits();
@@ -226,8 +230,9 @@ export class EditSession<E, W> {
     }
     const before = (file: string): string | null => (existsSync(file) ? readFileSync(file).toString('base64') : null);
     beginJournal(this.root, { contentVersion: readContentVersion(this.root), edits: edits.length, files: Object.fromEntries(Object.keys(files).map((file) => [file, before(file)])) });
+    let finished: SessionFinished;
     try {
-      const finished = await transaction(async (transaction) => {
+      finished = await transaction(async (transaction) => {
         for (const [file, written] of Object.entries(files)) transaction.write(file, editJson(written.text, written.value, { keepLines: written.keepLines }));
         onLine(`Wrote ${plan.wrote}${version === null || plan.version === null ? '' : `; ${plan.version.name} ${version.from} → ${version.to}`}. Running the tests…`);
         const tests = await runTests(this.root, onLine);
@@ -236,10 +241,6 @@ export class EditSession<E, W> {
         }
         return { ok: true as const, edits: edits.length, changed: plan.changed, version, tests };
       });
-      // Only the edits it read: none can be made while it runs, but any after them stay.
-      this.#save(this.#edits().slice(edits.length));
-      endJournal(this.root);
-      return finished;
     } catch (error) {
       // A file not put back keeps the journal, the only copy of its bytes before: this process lets
       // its lock go, and the next call puts the files back from it (DL-161).
@@ -247,5 +248,19 @@ export class EditSession<E, W> {
       else endJournal(this.root);
       throw error;
     }
+    // Passed: the journal is marked done before the edits it read are cleared, so that a "Finish"
+    // cut off between the two keeps its files, and the next call clears the edits (DL-249). Only the
+    // edits it read: none can be made while it runs, but any after them stay.
+    try {
+      const done = this.#pending(this.#edits().slice(edits.length));
+      markJournalDone(this.root, done);
+      clearPending(done);
+      endJournal(this.root);
+    } catch (error) {
+      // The journal kept for the next call: completed once marked done, or else its files put back.
+      releaseJournal(this.root);
+      throw error;
+    }
+    return finished;
   }
 }

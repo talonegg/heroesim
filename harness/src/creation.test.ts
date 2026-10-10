@@ -1,8 +1,8 @@
-import { loadContent } from '@heroesim/content/node';
-import { createWorld, defaultConfig, playerGuild, validate, type EngineDeps, type Guild, type WorldSetup } from '@heroesim/engine';
+import { createWorld, defaultConfig, playerGuild, type Guild, type WorldSetup } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { creationReport, harnessSetup, sweepCreation, type CreationSweep } from './creation.js';
 import { expectChosenAsNone, picturesAside } from './guildmaster-chosen.test-support.js';
+import { content, coreDeps as deps, tickingClock } from './harness.test-support.js';
 import { playGame } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
@@ -10,31 +10,14 @@ import { seedNames } from './seeds.js';
 // Ordinary tests, run by `npm test`: the engine against the real content, and the creation sweep
 // on a handful of seeds. The full sweep is create.harness.test.ts, behind HEROESIM_HARNESS.
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-
-/** A clock that advances one millisecond a read, so timings are known. */
-function tickingClock(): () => number {
-  let t = 0;
-  return () => (t += 1);
-}
-
-describe('createWorld with the core content', () => {
-  // The engine's own test (create.test.ts) uses its fixture
-  // content; this one uses the content the game ships.
-  test.each(seedNames(5))('returns a document the validator accepts, with no warning (%s)', (seed) => {
-    const { document } = createWorld(seed, harnessSetup, deps);
-    expect(validate(document, deps)).toEqual({ ok: true, warnings: [] });
-  });
-});
-
 // DL-113 item 6: the sweep's player's Guildmaster is 30, so that every sweep game can run
 // its twenty years; any age up to 41 plays the same, since age decides nothing but Retirement.
 describe("the harness's player's Guildmaster, 30", () => {
   test('harnessSetup gives the age 30, and every game played starts with the Guildmaster at 30', () => {
     expect(harnessSetup.guildmasterAge).toBe(30);
     for (const seed of seedNames(3)) {
-      const { world } = playGame(seed, deps, { years: 30 / deps.config.turnsPerYear }).document;
+      // One Turn: the game's world is created with harnessSetup before its first.
+      const { world } = playGame(seed, deps, { years: 1 / deps.config.turnsPerYear }).document;
       const player = playerGuild(world) as Guild;
       expect(world.guildmasters[player.guildmasterId]?.ageAtEntry, seed).toBe(30);
     }

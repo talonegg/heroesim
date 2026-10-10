@@ -4,14 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { region, thisGame } from './support';
 
-// The measure (M7-S4's first box, DL-67): a twenty-year save from `npm run harness:sample`
-// (harness/samples/twenty-years.json, gitignored, M2-S12) through IndexedDB in a real browser, the
+// The measure (DL-67): a twenty-year save from `npm run harness:sample`
+// (harness/samples/twenty-years.json, gitignored, DL-34) through IndexedDB in a real browser, the
 // built page in Playwright's Chromium, driven through its own controls. The round trip is a save
 // (serialise, gzip, the write committed) and a load after the page is reloaded (the read, gunzip,
 // deserialise, and the game shown). Each is timed in the page, from the button's click to the DOM
 // showing it done, `rounds` times. The storage alone (IndexedDB and gzip, no engine) is timed too,
 // and the compressed size read from IndexedDB. Run with `npm run measure -w web`. The saves are the
-// game menu's (M9-S3, DL-103).
+// game menu's (DL-103).
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const samplePath = path.join(repoRoot, 'harness', 'samples', 'twenty-years.json');

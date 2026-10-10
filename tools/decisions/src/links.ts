@@ -5,7 +5,7 @@
 // the page are not followed, nor a link inside code.
 
 import path from 'node:path';
-import { repositoryFiles, repositoryPaths } from './citations.js';
+import { ofKinds, repositoryFiles, repositoryPaths } from './citations.js';
 
 export interface BrokenLink {
   file: string;
@@ -56,8 +56,8 @@ export function brokenLinksIn(text: string, file: string, exists: (target: strin
   return broken;
 }
 
-/** The broken relative links in the repository's Markdown under `root`. */
-export function brokenLinksInRepository(root: string): BrokenLink[] {
+/** The broken relative links in the repository's Markdown under `root`: among `files`, its files as read, or read now. */
+export function brokenLinksInRepository(root: string, files: readonly { file: string; text: string }[] = repositoryFiles(root, ['.md'])): BrokenLink[] {
   const present = repositoryPaths(root);
-  return repositoryFiles(root, ['.md']).flatMap(({ file, text }) => brokenLinksIn(text, file, (target) => present.has(target.replace(/\/$/, ''))));
+  return ofKinds(files, ['.md']).flatMap(({ file, text }) => brokenLinksIn(text, file, (target) => present.has(target.replace(/\/$/, ''))));
 }

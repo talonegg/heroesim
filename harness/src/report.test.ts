@@ -6,7 +6,6 @@ import {
   fixed,
   localDate,
   localTimestamp,
-  machine,
   markdownTable,
   percent,
   reportPath,
@@ -67,9 +66,4 @@ describe('where a report goes', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
-});
-
-test('machine names the Node version it runs on', () => {
-  expect(machine()).toMatchObject({ node: process.version, arch: process.arch });
-  expect(machine().cores).toBeGreaterThan(0);
 });

@@ -1,8 +1,6 @@
-import { loadContent } from '@heroesim/content/node';
 import {
   applyAction,
   applyActions,
-  defaultConfig,
   serialise,
   type EngineDeps,
   type GuildAction,
@@ -10,18 +8,15 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
+import { coreDeps as deps, twentyDays as years } from './harness.test-support.js';
 import { playGame } from './play.js';
 import { automaticPolicy } from './policy.js';
 
 // A Guild's actions in a Turn applied on one copy (DL-238, ADR-0011 as amended), held to the same
 // actions applied one by one through `applyAction` over played games: the policy's list each Turn,
 // each of its actions twice in a row, and the Turn before's list with this Turn's reversed after it,
-// so that the lists hold refusals of many kinds between actions done.
-
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-/** Twenty Days: long enough for Parties to leave and come home, and short for `npm test`. */
-const years = 60 / deps.config.turnsPerYear;
+// so that the lists hold refusals of many kinds between actions done. One game's lists meet the three
+// guards below with room to spare (77 lists, 110 actions done, 6 kinds of refusal).
 
 /** `actions` applied one by one to `document` through `applyAction`: the document they leave, and each one's outcome. */
 function oneByOne(document: WorldDocument, actions: readonly GuildAction[], given: EngineDeps) {
@@ -36,9 +31,9 @@ function oneByOne(document: WorldDocument, actions: readonly GuildAction[], give
 }
 
 describe('A list of actions applied at once', () => {
-  test.each(['actions-a', 'actions-b', 'actions-c'])(
-    'equals the same actions applied one by one, refusals included: the documents to the byte, and every outcome and event (%s)',
-    (seed) => {
+  test(
+    'equals the same actions applied one by one, refusals included: the documents to the byte, and every outcome and event',
+    () => {
       const reasons = new Set<string>();
       let done = 0;
       let lists = 0;
@@ -62,7 +57,7 @@ describe('A list of actions applied at once', () => {
         return chosen;
       };
 
-      const game = playGame(seed, deps, { years, choose });
+      const game = playGame('actions-a', deps, { years, choose });
 
       expect(game.refusals).toEqual([]);
       expect(lists).toBeGreaterThan(20);

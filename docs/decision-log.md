@@ -1301,3 +1301,71 @@ held are now Namer rows (eight added), the fourth never caught before either; P3
 in `synergies.test.ts`; the preview's "drawn on the way" lines live under rule 5, O5 their only
 cover, now a CLI test; coverage against `c4783bf` lost only item 3's sentence; 18 of 19 shrink
 mutants as the full-size test, S4 missing a cap of 21 to 90 Turns.
+
+## DL-249 — v1.1.9-S15 built: the tests of the harness, the tools and the e2e specs pruned, on the owner's batch; the editor's "Finish" completed once its tests pass
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, approving the batch for
+the harness, the tools and the e2e specs (`prune-harness-tools-e2e.md`) on 2026-10-10 as recommended,
+and the editor's "Finish" fix (a); the application by the agents (Sonnet the mechanical lines, Opus
+the rest)
+
+**Context.** DL-231 item 4 prunes each package as one batch the owner approves. This list held the
+epic's three particular lines (the `play-a` game played once, the portrait tool's template once a
+run, e2e's copies and workers, Q29), 11 pins, 11 duplicates, 8 redundant tests, 17 slow tests and 7
+helpers. S11's verification (DL-244) found a gap in the editor's "Finish": it cleared the pending
+edits and then ended its journal, so a kill between the two put back files whose edits were gone.
+
+**Decision.**
+
+1. **The answers.** The Gate's limits and baseline leave `gate.test.ts` as pins (T1, Q10 b): the spec
+   whole and approved, its baseline report on disk, its fingerprint 64 hex digits, its run the gate
+   profile's. `settings.test.ts` keeps each run's shape and kind (T5–T7), the gate's games and years
+   held equal to `gate.json`'s, neutral's workers equal to its games; delivery rule 6 holds the 8
+   workers and the 10 seeds. Kept: R6, write-once's copy check. Removed: R4, E10, E11. T3 a property
+   (`git check-ignore`). E8 shrunk to the keyboard and the layout at three widths; E13 at one width.
+2. **The particular lines.** `play-a` played 4 times, not 17, in a `beforeAll` (validated, bare,
+   watched, recorded), each test reading them. The portrait tool's and the editor's templates are
+   made once a run in each project's global setup (`template.test-support.ts`) and given by `inject`.
+   e2e: `fullyParallel`, 2 workers on CI; a test tagged `@one-width` runs at the desktop's alone.
+3. **The rest as listed.** Removed or merged: D1, R1, R5, T4, the sum lines of R2, T2's two lines,
+   E1–E7's removals (`party-and-pool.spec.ts`, `smoke.spec.ts` gone). Shrunk: S1 (one seed, 12 years,
+   a Rival's Guildmaster at 50), S2–S13 as listed, D2 one test. Rewritten: T8, T9, T10, T11, E12.
+   Helpers once: `harness.test-support.ts` (`coreDeps`, `twentyDays`, `tickingClock`, `observerOf`),
+   the portrait tool's `scratch` and `cli`, the editor's `scratch` in two more files, and the
+   decisions tests' repository read once a worker (`repositoryTextsOnce`). Each removal and its
+   subsuming test is in the scratchpad's `s15-removals.md`.
+4. **"Finish" completed once passed.** Once its tests pass, "Finish" marks its journal done, holding
+   what the file of pending edits is to be, then clears the edits and ends the journal. A journal
+   found cut off with the mark is completed (`restoreJournal`): that file left as the mark says, the
+   files kept, none put back. Without the mark it is put back as before. This closes the gap found
+   in S11's verification (DL-244).
+
+*Judgement calls, for the owner to see:*
+- **The mark holds the pending file's text,** not a count, so completing it twice leaves the same
+  edits. Every way a journal is resumed completes a marked one, `recover --force` and Ctrl+C among
+  them, and says nothing, as no file is put back.
+- **S10 kept one seed,** `actions-a`: 77 lists, 110 actions done, 6 kinds of refusal.
+- **The tag, not `testIgnore`,** puts E7 and E13 at one width, since E13 shares its file.
+- **The repository read once** (S14) saved no time measurable alone (2.5 s, then 3.1 s); the functions
+  now take the files read, which the CLI leaves to them.
+- **The gate's run against its profile** is held twice, in `gate.test.ts` and `settings.test.ts`, as T1
+  and T6 each said.
+- **Story ids in e2e's support and the three Playwright configs** rewritten too, 30 lines.
+- **The two empty specs** went by `git rm` on the owner's word after a sub-agent's `rm` was refused.
+
+**Consequences.** CI's e2e runs two workers. A "Finish" cut off after its tests passed keeps its
+work. The story-id baseline falls to 1,585.
+
+**Evidence.** Each alone, before at `d4ad96a` and after (tests, tests' time, wall): harness 342,
+73.8 s, 17.3 s → 331, 41.4 s, 11.3 s; portraits 64, 34.5 s, 16.7 s → 64, 34.1 s, 18.4 s; editor 148,
+137.3 s, 29.7 s → 150, 139.8 s, 28.7 s (then 152); decisions 42, 2.5 s, 2.5 s → 42, 3.0 s, 3.1 s;
+measure 15 unchanged. e2e: 115 tests, 215.6 s on one worker → 84, 182.5 s on one, 100.5 s on two,
+fully parallel. Coverage (lines, branches, functions, statements), S1 → after: harness
+95.6/82.7/94.5/93.4 → 96.1/82.7/95.5/94.1; editor 95.9/84.2/97.7/92.7 → 96.3/85.0/98.1/93.1;
+decisions 97.6/92.5/96.3/94.5 → 97.7/92.7/96.6/94.6; portraits 95.3/76.4/95.4/92.6 →
+95.2/76.4/94.9/92.4. Newly uncovered against `d4ad96a`: `module-report.ts`'s replay cell (S7, no
+module sweep replays), `shard.ts`'s in-process run with modules (S4, the child runs it),
+`sweep.ts`'s parallel default of `validate` (D2), and the portrait tool's `cli` helper, counted as
+source by its file's name; the new lines of `session.ts` and `finish-journal.ts` all covered (the editor alone). The shrinks' bugs planted after the shrink, each red: S1, S4, S6, S10,
+S11, S13, D2 twice. `npm test` passes; lint, typecheck clean; `neutral --expect` identical, alone
+(`v1.1.9-s15-neutral`).

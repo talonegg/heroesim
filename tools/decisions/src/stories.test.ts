@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { repositoryRoot } from './cli.js';
 import { baselinePath, historyLines, historyPattern, isSource, linesMatching, storyBaseline, storyIdsAsData, storyPattern, storyReport } from './stories.js';
-import { scratchRepository } from './test-support.js';
+import { repositoryTextsOnce, scratchRepository } from './test-support.js';
 
 // The ids below are built, so that this file cites as few as it can; the rule leaves it out (`storyIdsAsData`), its fixtures being data.
 const v = (story: string): string => `v1.1.4-${story}`;
@@ -51,7 +51,7 @@ describe('story ids in the source', () => {
   });
 
   test("this repository's source tells no history by a story, and cites stories on as many lines as its baseline", () => {
-    const report = storyReport(repositoryRoot);
+    const report = storyReport(repositoryRoot, repositoryTextsOnce());
     expect(report.history).toEqual([]);
     expect(report.cited).toBe(report.baseline);
   });

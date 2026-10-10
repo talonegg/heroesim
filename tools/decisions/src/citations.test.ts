@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { describe, expect, test } from 'vitest';
 import { citationsIn, unknownCitations, unknownInRepository } from './citations.js';
 import { repositoryRoot } from './cli.js';
-import { scratchRepository, smallLog } from './test-support.js';
+import { repositoryTextsOnce, scratchRepository, smallLog } from './test-support.js';
 
 // An id no entry holds, built so that this file cites none.
 const planted = `DL-${9}${9}${9}`;
@@ -51,6 +51,6 @@ describe('citations', () => {
   });
 
   test('every DL-nn this repository cites is an entry', () => {
-    expect(unknownInRepository(repositoryRoot)).toEqual([]);
+    expect(unknownInRepository(repositoryRoot, repositoryTextsOnce())).toEqual([]);
   });
 });

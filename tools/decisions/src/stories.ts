@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { repositoryFiles } from './citations.js';
+import { ofKinds, repositoryFiles } from './citations.js';
 
 export interface StoryLine {
   file: string;
@@ -76,13 +76,13 @@ export function storyBaseline(root: string): number {
   return lines;
 }
 
-/** The repository's source files the rule reads. */
-export function sourceFiles(root: string): { file: string; text: string }[] {
-  return repositoryFiles(root, sourceExtensions).filter(({ file }) => isSource(file));
+/** The repository's source files the rule reads: among `files`, its files as read, or read now. */
+export function sourceFiles(root: string, files: readonly { file: string; text: string }[] = repositoryFiles(root, sourceExtensions)): { file: string; text: string }[] {
+  return ofKinds(files, sourceExtensions).filter(({ file }) => isSource(file));
 }
 
-/** The source under `root`: the lines narrating history by a story, and the count citing one beside its baseline. */
-export function storyReport(root: string): { history: StoryLine[]; cited: number; baseline: number } {
-  const files = sourceFiles(root);
+/** The source under `root`: the lines narrating history by a story, and the count citing one beside its baseline; among `read`, its files as read, if given. */
+export function storyReport(root: string, read?: readonly { file: string; text: string }[]): { history: StoryLine[]; cited: number; baseline: number } {
+  const files = sourceFiles(root, read);
   return { history: historyLines(files), cited: linesMatching(files, storyPattern).length, baseline: storyBaseline(root) };
 }

@@ -2,10 +2,10 @@ import { EventEmitter } from 'node:events';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { NotUndone, readContentVersion, Undone } from '@heroesim/content/write';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { configFile, configPath, type ConfigEdit } from './config-kind.js';
 import { contentFiles, type Edit } from './content-files.js';
-import { Busy, journalPath, journalState, onSignals, writeAtomically } from './finish-journal.js';
+import { Busy, endJournal, journalPath, journalState, markJournalDone, onSignals, writeAtomically } from './finish-journal.js';
 import { EditSession, pendingPath, Refused, type SessionAdapter } from './session.js';
 import { scratch, status } from './test-support.js';
 import { traitsKind } from './traits-kind.js';
@@ -13,6 +13,13 @@ import type { TestResult, TestRunner } from './tests-run.js';
 
 // The edit session (DL-244): its "Finish", its undoing and the resuming of one cut off, tested once
 // here, at its interface, for each of its two adapters, the content files and the config file.
+
+// The journal's marking and ending, watched as they are, so that a test can read the disk as a kill
+// leaves it between a passed "Finish"'s steps.
+vi.mock('./finish-journal.js', async (importOriginal) => {
+  const journal = await importOriginal<typeof import('./finish-journal.js')>();
+  return { ...journal, markJournalDone: vi.fn(journal.markJournalDone), endJournal: vi.fn(journal.endJournal) };
+});
 
 /** A process number no process holds. */
 const gonePid = 2 ** 22 + 7;
@@ -240,6 +247,71 @@ describe.each(trials)('the edit session over $name', (each) => {
       expect(status(dir)).toBe('');
       expect(journalState(dir)).toBe('none');
     }
+  });
+
+  test('a "Finish" cut off after its tests passed, before or after it cleared the edits it read, is completed by the next call: its files kept, the edits cleared once', async () => {
+    for (const point of ['before the clearing', 'after the clearing'] as const) {
+      const dir = scratch();
+      hold(each.open(dir), each.edit);
+      const version = each.version(dir);
+      const pending = pendingPath(dir, each.open(dir).adapter.name);
+      // The disk as a kill leaves it at that point: the journal, the pending edits and the files written.
+      let cut: { journal: string; pending: string | null; files: Buffer[] } | undefined;
+      const snapshot = (): void => {
+        cut = { journal: readFileSync(journalPath(dir), 'utf8'), pending: existsSync(pending) ? readFileSync(pending, 'utf8') : null, files: bytesOf(dir, each.written) };
+      };
+      if (point === 'before the clearing') {
+        const mark = vi.mocked(markJournalDone).getMockImplementation();
+        vi.mocked(markJournalDone).mockImplementationOnce((...args) => {
+          mark?.(...args);
+          snapshot();
+        });
+      } else {
+        const end = vi.mocked(endJournal).getMockImplementation();
+        vi.mocked(endJournal).mockImplementationOnce((root) => {
+          snapshot();
+          end?.(root);
+        });
+      }
+      expect((await each.open(dir).finish({ runTests: passing, reason: each.reason })).version).toEqual({ from: version, to: version + 1 });
+      if (cut === undefined) throw new Error(`"Finish" never came ${point}`);
+      writeAtomically(journalPath(dir), JSON.stringify({ ...(JSON.parse(cut.journal) as object), pid: gonePid }));
+      if (cut.pending === null) rmSync(pending, { force: true });
+      else writeAtomically(pending, cut.pending);
+      each.written.forEach((file, index) => writeFileSync(path.join(dir, file), cut?.files[index] ?? ''));
+      expect(journalState(dir), point).toBe('cut-off');
+      expect(existsSync(pending), point).toBe(point === 'before the clearing');
+
+      const next = each.open(dir);
+      expect(next.edits(), point).toEqual([]);
+      expect(next.recovered, point).toEqual([]);
+      expect(bytesOf(dir, each.written), point).toEqual(cut.files);
+      expect(each.version(dir), point).toBe(version + 1);
+      expect(journalState(dir), point).toBe('none');
+      // Nothing left to finish: the version is raised once.
+      const again = await next.finish({ runTests: () => Promise.reject(new Error('no test run with nothing pending')), reason: each.reason });
+      expect(again, point).toEqual({ ok: true, edits: 0, changed: [], version: null, tests: null });
+      expect(each.version(dir), point).toBe(version + 1);
+    }
+  });
+
+  test('a "Finish" whose tests passed but whose journal cannot be marked done keeps its journal, and the next call puts its files back, the edits still pending', async () => {
+    const dir = scratch();
+    const before = bytesOf(dir, each.written);
+    hold(each.open(dir), each.edit);
+    vi.mocked(markJournalDone).mockImplementationOnce(() => {
+      throw new Error('the disk is full');
+    });
+
+    const failed = await each.open(dir).finish({ runTests: passing, reason: each.reason }).catch((error: unknown) => error);
+
+    expect(failed).toEqual(new Error('the disk is full'));
+    expect(journalState(dir)).toBe('cut-off');
+    const next = each.open(dir);
+    expect(next.edits()).toEqual([each.edit]);
+    expect(next.recovered.map((file) => relative(dir, file)).sort()).toEqual(each.written);
+    expect(bytesOf(dir, each.written)).toEqual(before);
+    expect(() => markJournalDone(dir, { pending: pendingPath(dir, next.adapter.name), text: null })).toThrow(/is gone: "Finish" cannot mark it done/);
   });
 
   test('an edit the checks refuse is not held; and "Finish" checks the pending edits again, refusing them before it writes a file or runs the tests', async () => {

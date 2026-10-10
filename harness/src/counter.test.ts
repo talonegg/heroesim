@@ -1,8 +1,8 @@
-import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, timeOfDay, type EngineDeps } from '@heroesim/engine';
+import { timeOfDay } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { kindOf, sections, sweepTotals, type Counter } from './counter.js';
 import { gameCounters, type SweepTotals } from './game-counters.js';
+import { content, coreDeps, twentyDays } from './harness.test-support.js';
 import { coreCounters } from './module-report.js';
 import { playReport } from './play-report.js';
 import { machine, whole } from './report.js';
@@ -13,10 +13,8 @@ import { sweepPlay, sweepPlayInParallel } from './sweep.js';
 // The harness's counters, each declared once (DL-239): a counter is gathered, totalled, compared and
 // reported from its declaration, and nothing else is written for it.
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-/** Twenty Days: long enough for Parties to leave and come home, and short for `npm test`. */
-const years = 60 / deps.config.turnsPerYear;
+const deps = coreDeps;
+const years = twentyDays;
 const seeds = seedNames(2);
 
 /** A total of `totals`, by a key no core counter has. */

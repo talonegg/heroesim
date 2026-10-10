@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { describe, expect, test } from 'vitest';
 import { repositoryRoot } from './cli.js';
 import { brokenLinksIn, brokenLinksInRepository } from './links.js';
-import { scratchRepository } from './test-support.js';
+import { repositoryTextsOnce, scratchRepository } from './test-support.js';
 
 describe('links', () => {
   const present = new Set(['docs/plan.md', 'docs/adr', 'README.md']);
@@ -63,6 +63,6 @@ describe('links', () => {
   });
 
   test("this repository's Markdown has no broken relative link", () => {
-    expect(brokenLinksInRepository(repositoryRoot)).toEqual([]);
+    expect(brokenLinksInRepository(repositoryRoot, repositoryTextsOnce())).toEqual([]);
   });
 });

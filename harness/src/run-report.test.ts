@@ -2,10 +2,9 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, type EngineDeps } from '@heroesim/engine';
 import { afterAll, describe, expect, test } from 'vitest';
 import { checkGate, readGateSpec } from './gate.js';
+import { content, coreDeps, twentyDays } from './harness.test-support.js';
 import { defaultPolicyConfig } from './policy.js';
 import { coreCounters } from './module-report.js';
 import { machine, whole } from './report.js';
@@ -16,9 +15,8 @@ import { sweepFingerprint, sweepPlay, type PlaySweep } from './sweep.js';
 
 // DL-186 item 13: a play sweep's JSON report beside its Markdown, and two runs compared.
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-const years = 60 / deps.config.turnsPerYear;
+const deps = coreDeps;
+const years = twentyDays;
 const sweep = await sweepPlay(seedNames(2), deps, { years, validate: true });
 const context = { milestone: 'm9-v116-s2', profile: 'neutral' as const, startedAt: new Date(2026, 9, 5, 12), settings: ['HEROESIM_SEEDS=2'], machine: machine(), config: deps.config, content };
 const report = runReport(sweep, context);

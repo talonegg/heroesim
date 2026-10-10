@@ -377,13 +377,11 @@ describe('automaticPolicy', () => {
     test('only when Wealth is strictly above the threshold and covers the fee', () => {
       const at = recruiting(0);
       at.guild.wealth = at.threshold;
-      expect(defaultPolicyConfig.recruitWealthMultiple).toBe(3);
-      expect(at.threshold).toBe(60);
       expect(automaticPolicy(at.document, deps, noBuilding)).toEqual([]);
 
-      const above = recruiting(61);
+      const above = recruiting(at.threshold + 1);
       const fees = unattachedHeroes(above.document.world).map((hero) => signingFee(hero, deps));
-      expect(Math.min(...fees)).toBeGreaterThan(61);
+      expect(Math.min(...fees)).toBeGreaterThan(at.threshold + 1);
       expect(automaticPolicy(above.document, deps, noBuilding)).toEqual([]);
     });
 
@@ -413,8 +411,7 @@ describe('automaticPolicy', () => {
       expect(automaticPolicy(document, gated, noBuilding)).toEqual([]);
     });
 
-    test('only while the Roster is below the limit, 8 unless the policy says otherwise', () => {
-      expect(defaultPolicyConfig.rosterLimit).toBe(8);
+    test('only while the Roster is below the limit the policy sets', () => {
       const { document, guild } = recruiting(10_000);
       expect(guild.rosterIds).toHaveLength(4);
       expect(automaticPolicy(document, deps, { ...noBuilding, rosterLimit: 5 })).toHaveLength(1);
@@ -433,16 +430,16 @@ describe('automaticPolicy', () => {
     }
 
     test("the infirmary's next grade, in place of a recruit, only while Wealth exceeds three times its cost", () => {
-      expect(defaultPolicyConfig.buildWealthMultiple).toBe(3);
-      const at = building(3 * 200);
+      const multiple = defaultPolicyConfig.buildWealthMultiple;
+      const at = building(multiple * 200);
       expect(automaticPolicy(at.document, deps).map((action) => action.kind)).toEqual(['recruit']);
 
-      const above = building(3 * 200 + 1);
+      const above = building(multiple * 200 + 1);
       expect(automaticPolicy(above.document, deps)).toEqual([{ kind: 'build', guildId: above.guild.id, facility: 'infirmary' }]);
 
-      const second = building(3 * 500 + 1, 1);
+      const second = building(multiple * 500 + 1, 1);
       expect(automaticPolicy(second.document, deps)).toEqual([{ kind: 'build', guildId: second.guild.id, facility: 'infirmary' }]);
-      expect(automaticPolicy(building(3 * 500, 1).document, deps).map((action) => action.kind)).toEqual(['recruit']);
+      expect(automaticPolicy(building(multiple * 500, 1).document, deps).map((action) => action.kind)).toEqual(['recruit']);
     });
 
     test('nothing past the top grade, and no other facility: then it recruits', () => {
@@ -504,12 +501,12 @@ describe('automaticPolicy', () => {
     const buying = (guildId: string, definitionKey: string) => ({ kind: 'buy', guildId, definitionKey, quantity: 1 });
 
     test('one piece, the dearest armour on the Market whose price Wealth is above three times, in place of a recruit', () => {
-      expect(defaultPolicyConfig.buyWealthMultiple).toBe(3);
-      const rich = shopping(3 * 300 + 1);
+      const multiple = defaultPolicyConfig.buyWealthMultiple;
+      const rich = shopping(multiple * 300 + 1);
       expect(automaticPolicy(rich.document, deps)).toEqual([buying(rich.guild.id, 'plate-harness')]);
-      const at = shopping(3 * 300);
+      const at = shopping(multiple * 300);
       expect(automaticPolicy(at.document, deps)).toEqual([buying(at.guild.id, 'mail-shirt')]);
-      const poor = shopping(3 * 40);
+      const poor = shopping(multiple * 40);
       expect(automaticPolicy(poor.document, deps)).not.toContainEqual(expect.objectContaining({ kind: 'buy' }));
     });
 
@@ -545,7 +542,7 @@ describe('automaticPolicy', () => {
     });
 
     test('the armour it buys is worn: its first choice the next Turn puts it on a bare Hero (DL-54)', () => {
-      const { document, guild } = shopping(3 * 300 + 1);
+      const { document, guild } = shopping(defaultPolicyConfig.buyWealthMultiple * 300 + 1);
       const [first] = guild.rosterIds;
       if (first === undefined) throw new Error('An empty Roster');
       let current = document;
@@ -685,7 +682,7 @@ describe('automaticPolicy', () => {
     }
 
     test('buys, when nothing else is bought, the consumable it has fewest of, as many as it lacks and the Market has', () => {
-      expect(defaultPolicyConfig.consumableStock).toBe(2);
+      const stock = defaultPolicyConfig.consumableStock;
       const { document, guild, policy } = stocking(10_000, [
         ['whetstone', 5],
         ['healing-draught', 1],
@@ -694,11 +691,11 @@ describe('automaticPolicy', () => {
       const vault = { kind: 'guild', id: guild.id } as const;
       addStack(document.world, 'healing-draught', 1, vault);
       addStack(document.world, 'physicians-kit', 1, vault);
-      // Fewest held: whetstone, none; two lacking, and the Market has five.
-      expect(automaticPolicy(document, deps, policy)).toEqual([{ kind: 'buy', guildId: guild.id, definitionKey: 'whetstone', quantity: 2 }]);
+      // Fewest held: whetstone, none; the stock lacking, and the Market has five.
+      expect(automaticPolicy(document, deps, policy)).toEqual([{ kind: 'buy', guildId: guild.id, definitionKey: 'whetstone', quantity: stock }]);
 
-      // With two whetstones held, the healing draught and the physician's kit each lack one: the lower key.
-      addStack(document.world, 'whetstone', 2, vault);
+      // With the stock of whetstones held, the healing draught and the physician's kit each lack one: the lower key.
+      addStack(document.world, 'whetstone', stock, vault);
       const [action] = automaticPolicy(document, deps, policy);
       expect(action).toEqual({ kind: 'buy', guildId: guild.id, definitionKey: 'healing-draught', quantity: 1 });
       const result = action === undefined ? null : applyAction(document, action, deps);
@@ -726,9 +723,8 @@ describe('automaticPolicy', () => {
       expect(automaticPolicy(document, deps, unreserved)).toEqual([]);
       guild.wealth = 151;
       expect(automaticPolicy(document, deps, unreserved)).toHaveLength(1);
-      // And, once paid, leave more than twenty Upkeeps, the policy's reserve for consumables.
-      expect(defaultPolicyConfig.consumableReserveUpkeeps).toBe(20);
-      const reserve = 20 * upkeep(guild, document.world, deps.config, deps.content);
+      // And, once paid, leave more than the policy's reserve of Upkeeps for consumables.
+      const reserve = defaultPolicyConfig.consumableReserveUpkeeps * upkeep(guild, document.world, deps.config, deps.content);
       expect(reserve + 50).toBeGreaterThan(3 * 50); // so the reserve, not the multiple, is the bar
       guild.wealth = reserve + 50;
       expect(automaticPolicy(document, deps, { ...policy, consumableStock: 4 })).toEqual([]);

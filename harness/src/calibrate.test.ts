@@ -84,11 +84,11 @@ describe('loadDrafts', () => {
   });
 });
 
-// Three games of forty Days, one through a shard: three seconds alone, more than the default 5 s under
-// the whole suite's load (DL-164).
+// Three games of twenty Days, two through a shard, under the whole suite's load given long (DL-164):
+// the drafts' Checks, twice as hard, differ from the core's once the first Quest resolves.
 describe('a play shard with drafts (HEROESIM_DRAFTS)', { timeout: 60_000 }, () => {
   test('plays the content with the drafts its job names, as this process plays it, and otherwise the core', async () => {
-    const years = 120 / deps.config.turnsPerYear;
+    const years = 60 / deps.config.turnsPerYear;
     const job = { seeds: ['seed-0001'], config: deps.config, years, validate: false, policy: defaultPolicyConfig };
     // Drafts that differ from the core, which holds the drafts' gear: every Check twice as hard.
     const dir = mkdtempSync(join(scratch, 'harder-'));

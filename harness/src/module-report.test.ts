@@ -1,7 +1,6 @@
-import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, type EngineDeps } from '@heroesim/engine';
 import { createProbe } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
+import { coreDeps as deps, twentyDays as years } from './harness.test-support.js';
 import { coreCounters, counterDeltas, moduleReport, nightsPlayed } from './module-report.js';
 import { fixed, machine } from './report.js';
 import { seedNames } from './seeds.js';
@@ -11,9 +10,6 @@ import { sweepFingerprint, sweepPlay } from './sweep.js';
 
 // DL-78: the report of a module run, on two short sweeps of the same seeds.
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-const years = 60 / deps.config.turnsPerYear;
 const seeds = seedNames(2);
 
 describe('coreCounters', () => {
@@ -63,8 +59,9 @@ test('nightsPlayed counts the nights among Turns 1 to n, Turn 2 the first', () =
   expect([0, 1, 2, 3, 4, 5, 6, 60].map(nightsPlayed)).toEqual([0, 0, 1, 1, 1, 2, 2, 20]);
 });
 
-const installed = await sweepPlay(seeds, { ...deps, modules: [createProbe({ probeFireBelow: 1 })] }, { years, validate: true });
-const without = await sweepPlay(seeds, deps, { years, validate: true });
+// No replay: the report prints none, and no test reads one.
+const installed = await sweepPlay(seeds, { ...deps, modules: [createProbe({ probeFireBelow: 1 })] }, { years, validate: true, replay: false });
+const without = await sweepPlay(seeds, deps, { years, validate: true, replay: false });
 
 describe('moduleReport', () => {
   const context = { deps, moduleIds: ['probe'], machine: machine(), startedAt: new Date(2026, 8, 27, 12, 0, 0) };
@@ -106,8 +103,8 @@ describe('moduleReport', () => {
     expect(report).toContain('| Games the validator refused | 0 | 0 |');
   });
 
-  test('refuses two sweeps of different seeds', async () => {
-    const other = await sweepPlay(seedNames(1), deps, { years });
+  test('refuses two sweeps of different seeds', () => {
+    const other = { ...without, seeds: ['seed-0001'], games: without.games.slice(0, 1) };
 
     expect(() => moduleReport(installed, other, context)).toThrow(RangeError);
   });

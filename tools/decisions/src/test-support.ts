@@ -1,6 +1,19 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { repositoryTexts } from './citations.js';
+import { repositoryRoot } from './cli.js';
+
+let texts: { file: string; text: string }[] | undefined;
+
+/**
+ * This repository's text files, read once a worker: the tests of its citations, links and story ids
+ * each read them all, and the project's files share their modules (DL-249, DL-234 item 7).
+ */
+export function repositoryTextsOnce(): readonly { file: string; text: string }[] {
+  texts ??= repositoryTexts(repositoryRoot);
+  return texts;
+}
 
 /** A scratch repository holding `files` (repository-relative path → text); `remove` deletes it. */
 export function scratchRepository(files: Readonly<Record<string, string>>): { dir: string; remove: () => void } {

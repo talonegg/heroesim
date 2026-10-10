@@ -1,14 +1,14 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { contentChecks, editJson, readContentVersion, Undone } from '@heroesim/content/write';
-import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { chromiumInstalled, launchChromium, type Chromium } from './chromium.js';
 import { check } from './check.js';
 import { run } from './cli.js';
 import { DraftError } from './errors.js';
 import { picturePaths, type Registry } from './registry.js';
 import { apply, writeRun } from './runs.js';
-import { git, noisePng, readJson, root, scratchRepository, status, upload, writeJson } from './test-support.js';
+import { git, noisePng, readJson, root, scratch, status, upload, writeJson } from './test-support.js';
 import { writeRows } from './write-rows.js';
 
 // `write-rows` and `apply`: each one transaction on a scratch copy of the repository,
@@ -17,15 +17,6 @@ import { writeRows } from './write-rows.js';
 const committedMale = picturePaths(root, 'guildmaster', 'male', 'gm-male-01').picture;
 const committedFemale = picturePaths(root, 'guildmaster', 'female', 'gm-female-01').picture;
 
-const scratches: (() => void)[] = [];
-afterEach(() => {
-  for (const remove of scratches.splice(0)) remove();
-});
-function scratch(): string {
-  const { dir, remove } = scratchRepository();
-  scratches.push(remove);
-  return dir;
-}
 
 /**
  * A scratch copy held back to the owner's two pictures of v1.1.2, gm-female-01 and gm-male-01, and

@@ -1,29 +1,19 @@
 // For the tool's tests: a scratch copy of the parts of this repository the tool reads and writes,
 // made a git repository of its own, so a test can change it and read `git status` after.
 
-import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { crc32, deflateSync } from 'node:zlib';
 import { formatJson } from '@heroesim/content/write';
-import { afterAll } from 'vitest';
-import { repositoryRoot } from './cli.js';
+import { afterEach, inject } from 'vitest';
+import { repositoryRoot, run } from './cli.js';
+import { git } from './template.test-support.js';
+
+export { git };
 
 /** The repository the tests read: this one. */
 export const root = repositoryRoot;
-
-/**
- * Runs git in a scratch repository, and gives its output. Never its automatic maintenance, which on
- * Linux outlives the commit, detached, and writes in `.git/objects` while the test goes on (DL-167).
- */
-export function git(dir: string, ...args: string[]): string {
-  return execFileSync(
-    'git',
-    ['-c', 'maintenance.auto=false', '-c', 'core.autocrlf=false', '-c', 'user.name=portrait tool test', '-c', 'user.email=test@example.invalid', ...args],
-    { cwd: dir, encoding: 'utf8' },
-  );
-}
 
 /** `git status --porcelain` of a scratch repository, untracked files named one by one. */
 export function status(dir: string): string {
@@ -31,51 +21,38 @@ export function status(dir: string): string {
 }
 
 /**
- * The scratch copies' first state, made once for each test file that asks for one, and removed after
- * its tests: each copy is a copy of its folder, `.git` and all, as the editor's tests make theirs
- * (DL-164), so that a test spawns no git to make one: adding and committing the pictures for each
- * test took most of the tool's tests' time (DL-234).
- */
-let template: string | undefined;
-afterAll(() => {
-  if (template !== undefined) rmSync(template, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-  template = undefined;
-});
-
-/**
  * A scratch copy of this repository's `content/` (its JSON, the content version's `version.json`
- * among it), `media/` and the inbox, committed; removed by the function it returns with.
+ * among it), `media/` and the inbox, committed: a copy of the run's template, `.git` and all
+ * (`template.test-support.ts`); removed by the function it returns with.
  */
 export function scratchRepository(): { dir: string; remove: () => void } {
-  template ??= templateRepository();
   const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-portraits-'));
-  cpSync(template, dir, { recursive: true, preserveTimestamps: true });
+  cpSync(inject('portraitTemplate'), dir, { recursive: true, preserveTimestamps: true });
   return { dir, remove: () => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) };
 }
 
-function templateRepository(): string {
-  const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-portraits-template-'));
-  const copy = (relative: string): void => cpSync(path.join(root, relative), path.join(dir, relative), { recursive: true });
-  cpSync(path.join(root, 'content'), path.join(dir, 'content'), {
-    recursive: true,
-    filter: (source) => {
-      const relative = path.relative(path.join(root, 'content'), source).replace(/\\/g, '/');
-      return relative === '' || relative.endsWith('.json');
-    },
-  });
-  copy('media/portraits');
-  copy('media/banners');
-  copy('media/items');
-  for (const role of ['guildmaster', 'hero']) {
-    mkdirSync(path.join(dir, 'media', 'inbox', role), { recursive: true });
-    writeFileSync(path.join(dir, 'media', 'inbox', role, '.gitkeep'), '');
-  }
-  writeFileSync(path.join(dir, '.gitignore'), 'media/inbox/**\n!media/inbox/*/\n!media/inbox/*/.gitkeep\n');
-  // No template of git's own: its sample hooks are files each copy would copy for nothing.
-  git(dir, 'init', '--quiet', '--template=');
-  git(dir, 'add', '--all');
-  git(dir, 'commit', '--quiet', '-m', 'scratch');
+const scratches: (() => void)[] = [];
+afterEach(() => {
+  for (const remove of scratches.splice(0)) remove();
+});
+
+/** Runs `remove` after the test. */
+export function removeAfterTest(remove: () => void): void {
+  scratches.push(remove);
+}
+
+/** A scratch copy, removed after the test. */
+export function scratch(): string {
+  const { dir, remove } = scratchRepository();
+  removeAfterTest(remove);
   return dir;
+}
+
+/** A command line's exit code and its JSON. */
+export async function cli<T = Record<string, unknown>>(...argv: string[]): Promise<{ code: number; json: T }> {
+  let out = '';
+  const code = await run([...argv, '--json'], { out: (text) => (out += text), err: () => undefined });
+  return { code, json: JSON.parse(out) as T };
 }
 
 /** Reads a JSON file of a scratch repository. */

@@ -1,4 +1,3 @@
-import { loadContent } from '@heroesim/content/node';
 import {
   advance,
   applyAction,
@@ -28,7 +27,7 @@ import {
 import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { harnessSetup } from './creation.js';
-import { counterOf, type Gatherer } from './counter.js';
+import type { Gatherer } from './counter.js';
 import {
   copiesTimed,
   heroFieldsLength,
@@ -50,24 +49,16 @@ import {
   questsTakenByController,
   regardSnapshot,
   savedLength,
-  type GameObservations,
   type HeroesSeen,
   type SaveSize,
   type WorldSize,
 } from './counters.js';
-import { countGame, gameCounters } from './game-counters.js';
+import { countGame } from './game-counters.js';
+import { content, coreDeps, observerOf } from './harness.test-support.js';
 
 // The counter, against the core content: the player's Quests and the Rivals' counted apart.
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-
-/** A new observer of the core's counter `key`, gathered from the World State as a game is played (DL-239). */
-function observerOf<K extends keyof GameObservations>(key: K): Gatherer<GameObservations[K]> {
-  const observe = counterOf(gameCounters, key)?.observe;
-  if (observe === undefined) throw new Error(`No counter ${key} is observed`);
-  return observe() as Gatherer<GameObservations[K]>;
-}
+const deps = coreDeps;
 
 /**
  * Tells `observers` of `document` as a census reads it: as the world is created on Turn 0, and as a

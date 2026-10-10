@@ -1,17 +1,22 @@
-// "Finish"'s journal and lock (v1.1.4-S12's verification, DL-161): before "Finish" writes a file it
-// writes `.editor/finish.json`, atomically, holding the bytes every file it will write held before
-// (or that it was not there), the content version, the process finishing and how many edits it read.
-// While that process lives the journal is a lock: every command, and every call of the page's API,
-// refuses with `Busy`. When "Finish" ends, passed or put back, the journal goes. A journal whose
-// process is gone is a Finish cut off, by a crash or a kill, with content written and untested: the
-// next command restores every file from it before it does anything (`recover`), and says so. Ctrl+C
-// and SIGTERM put the files back at once (`onSignals`).
+// "Finish"'s journal and lock (DL-161): before "Finish" writes a file it writes `.editor/finish.json`,
+// atomically, holding the bytes every file it will write held before (or that it was not there), the
+// content version, the process finishing and how many edits it read. While that process lives the
+// journal is a lock: every command, and every call of the page's API, refuses with `Busy`. When
+// "Finish" ends, passed or put back, the journal goes. A journal whose process is gone is a Finish cut
+// off, by a crash or a kill, with content written and untested: the next command restores every file
+// from it before it does anything (`recover`), and says so. Ctrl+C and SIGTERM put the files back at
+// once (`onSignals`).
+//
+// Once the tests pass, "Finish" marks the journal done, holding what the pending edits are to be,
+// before it clears the edits it read: a "Finish" cut off after the mark has passed, so the next
+// command completes it, leaving the pending edits as the mark says and the files as they are, and
+// never puts back files whose edits are cleared (DL-249).
 //
 // A process number is given again (Windows does so soon): a journal whose number an unrelated
 // process now holds reads as a "Finish" running, for ever. The busy refusal names the journal's
 // process and when it began, and `traits recover --force` puts its files back whatever its number
-// says (v1.1.4-S14). A "Finish" whose files could not all be put back keeps its journal, and lets
-// only its own lock go, so the next command tries again (`releaseJournal`).
+// says (DL-167). A "Finish" whose files could not all be put back keeps its journal, and lets only
+// its own lock go, so the next command tries again (`releaseJournal`).
 
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -25,6 +30,14 @@ export interface Journal {
   edits: number;
   /** Each file "Finish" writes, by its full path: its bytes before, in base64, or `null` where it was not there. */
   files: Record<string, string | null>;
+  /** Set once the tests pass: what the pending edits are to be. */
+  done?: Done;
+}
+
+/** What a "Finish" whose tests passed leaves pending: the kind's file of pending edits, and its text, `null` where the file goes. */
+export interface Done {
+  pending: string;
+  text: string | null;
 }
 
 /** A command refused because "Finish" is running. */
@@ -112,7 +125,7 @@ export function beginJournal(root: string, journal: Omit<Journal, 'pid' | 'start
   writeAtomically(journalPath(root), `${JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), ...journal } satisfies Journal)}\n`);
 }
 
-/** Lets this process's lock go and keeps the journal, for the next command to put its files back (v1.1.4-S14). */
+/** Lets this process's lock go and keeps the journal, for the next command to put its files back, or to complete it once it is done (DL-167). */
 export function releaseJournal(root: string): void {
   finishing.delete(same(root));
 }
@@ -128,10 +141,32 @@ export function endJournal(root: string): void {
   finishing.delete(same(root));
 }
 
-/** Every file of a root's journal put back as it was, the journal removed; the files put back. None where there is no journal. */
+/** Marks a root's journal done, atomically: from here on, a "Finish" cut off is completed, not put back. */
+export function markJournalDone(root: string, done: Done): void {
+  const journal = readJournal(root);
+  if (journal === null) throw new Error(`${journalPath(root)} is gone: "Finish" cannot mark it done`);
+  writeAtomically(journalPath(root), `${JSON.stringify({ ...journal, done } satisfies Journal)}\n`);
+}
+
+/** Leaves the pending edits as a "Finish" that passed leaves them: the same whether they were cleared already or not. */
+export function clearPending({ pending, text }: Done): void {
+  if (text === null) rmSync(pending, { force: true });
+  else writeAtomically(pending, text);
+}
+
+/**
+ * Every file of a root's journal put back as it was, the journal removed; the files put back. None
+ * where there is no journal. A journal marked done is completed instead: the pending edits left as
+ * it says, the files kept, none put back.
+ */
 export function restoreJournal(root: string): string[] {
   const journal = readJournal(root);
   if (journal === null) return [];
+  if (journal.done !== undefined) {
+    clearPending(journal.done);
+    endJournal(root);
+    return [];
+  }
   for (const [file, bytes] of Object.entries(journal.files)) {
     if (bytes === null) rmSync(file, { force: true });
     else {
