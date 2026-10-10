@@ -108,3 +108,15 @@ export function contentFieldNames(): Set<string> {
   for (const kind of contentKinds) kind.holds.forEach(visit);
   return names;
 }
+
+/**
+ * The fields of a row of the table read from `source`, in the order its kind writes them, each with
+ * whether a row may leave it out: for a tool that writes a row whole (the content editor's Quest
+ * templates and Encounters, DL-267). `null` where `source` is no table of one shape.
+ */
+export function rowFields(source: ContentSource): { name: string; optional: boolean }[] | null {
+  const kind = contentKinds.find((each) => each.source === source);
+  const [fields, ...others] = kind?.holds ?? [];
+  if (fields === undefined || others.length > 0) return null;
+  return Object.entries(fields).map(([name, field]) => ({ name, optional: field.optional === true }));
+}

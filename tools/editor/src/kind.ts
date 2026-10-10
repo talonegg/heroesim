@@ -1,9 +1,9 @@
 // A kind of content the editor edits (DL-150 item 12): one or more lists of keyed rows, each list a
-// content file, and the forms its rows are made in; and, as its extension, the uses of a row's key in
-// other content (`UseKind`). The edit session (`session.ts`, DL-244) holds the pending edits, checks
-// them and finishes, through the content files' adapter (`content-files.ts`), the same for every
-// kind; a kind says only what its rows are. Traits are the one kind (`traits-kind.ts`); Encounters
-// come when the owner asks.
+// content file or a folder of one file a row, and the forms its rows are made in; and, as its
+// extension, the uses of a row's key in other content (`UseKind`). The edit session (`session.ts`,
+// DL-244) holds the pending edits, checks them and finishes, through the content files' adapter
+// (`content-files.ts`), the same for every kind; a kind says only what its rows are. Two kinds: the
+// Traits (`traits-kind.ts`), and the Quest templates with the Encounters (`quests-kind.ts`, DL-267).
 
 import type { ContentSource } from '@heroesim/content';
 import type { ContentJson, JsonPath } from '@heroesim/content/uses';
@@ -11,11 +11,13 @@ import type { ContentJson, JsonPath } from '@heroesim/content/uses';
 /** A JSON object: a row. */
 export type Row = Record<string, unknown>;
 
-/** One list of a kind: its rows are the members of one content file. */
+/** One list of a kind: its rows are the members of one content file, or the files of one folder. */
 export interface KindList {
   id: string;
   title: string;
   file: ContentSource;
+  /** The command family that edits it, where it is not the kind's name: `encounters` (DL-267). */
+  command?: string;
 }
 
 /** A field of a row's form. `key` and `effects` are the editor's own; the rest are plain values. */
@@ -89,14 +91,19 @@ export interface Kind {
   name: string;
   title: string;
   lists: readonly KindList[];
+  /**
+   * Whether each list is keyed apart, so that one key may stand in two lists: a Quest template's and
+   * an Encounter's (DL-267). Otherwise a key is one row's in all of them, as a Trait's is.
+   */
+  keysApart?: true;
   /** The forms, their choices read from `content`. */
   forms(content: ContentJson): ListForm[];
   /** A row from a form's values, `previous` giving any not given, in its list's field order; each problem where a value is not of its field's type. */
   rowFrom(list: string, values: Readonly<Record<string, unknown>>, previous: Row | undefined): { row: Row; problems: string[] };
   /** The content with `key`'s row in `list` set to `row`, or removed where it is `null`, and what the kind keeps beside it changed with it. */
   put(content: ContentJson, list: string, key: string, row: Row | null): ContentJson;
-  /** Every use of `key` in `content`. */
-  uses(content: ContentJson, key: string): Use[];
+  /** Every use of `key` in `content`: of its row in `list`, where the lists are keyed apart. */
+  uses(content: ContentJson, key: string, list?: string): Use[];
   /** The rules that read the row `row` of `list`. */
   rules(list: string, row: Row): Rule[];
   /** A row's words for a search and a table: its effects, say. */

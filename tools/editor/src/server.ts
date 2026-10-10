@@ -13,10 +13,18 @@
 //   POST   /api/finish               start "Finish"; 409 while one runs
 //   GET    /api/finish               its state, its lines so far and its result
 //
+// The Quest templates' and Encounters' commands (DL-267), each the command line's own through their
+// one core (`quests-commands.ts`), its input the body's JSON object, its answer the command's JSON:
+//
+//   GET    /api/<family>/<command>[?key=<key>]   a command that changes nothing: list, show, pending, doctor
+//   POST   /api/<family>/<command…>              the rest: add, beat/add, override/set, finish, …
+//
+// where <family> is `quests` or `encounters`. Their "Finish" answers once its tests end.
+//
 // A refusal is `{ ok: false, kind, problems, uses? }`, with 422, or 409 for a removal refused by its
 // uses and for any call while "Finish" runs (`busy`), but the two that report on it, GET /api/finish
-// and GET /api/doctor, which answer throughout. A "Finish" started here while another runs fails with
-// the kind `busy`, nothing written (v1.1.4-S14).
+// and GET /api/doctor, which answer throughout; 400 for a call the API cannot read (`usage`). A
+// "Finish" started here while another runs fails with the kind `busy`, nothing written (v1.1.4-S14).
 //
 // Only this page may call it (the verification of v1.1.4-S12): a request is refused (403) unless its
 // Host is 127.0.0.1:<port> or localhost:<port>, so a name rebound to this machine reaches nothing, and
@@ -32,8 +40,11 @@ import { NotUndone, Undone } from '@heroesim/content/write';
 import { doctor } from './doctor.js';
 import { Editor, Refused, type Finished } from './editor.js';
 import { Busy } from './finish-journal.js';
+import { commands, families, reads, runCommand, type Family } from './quests-commands.js';
+import { QuestsEditor } from './quests-editor.js';
 import { npmTest, type TestRunner } from './tests-run.js';
 import { readContentFiles } from './content-files.js';
+import { UsageError } from './usage-error.js';
 
 /** The page's files, beside this package's source. */
 export const pageDir = fileURLToPath(new URL('../page/', import.meta.url));
@@ -86,6 +97,7 @@ async function body(request: IncomingMessage): Promise<Record<string, unknown>> 
 /** Serves the page and its API for the repository at `root`, on `port` (0 for any free one). */
 export async function serve({ root, port = 4180, runTests = npmTest }: { root: string; port?: number; runTests?: TestRunner }): Promise<Served> {
   const editor = new Editor(root);
+  const quests = new QuestsEditor(root);
   let finish: FinishState = { state: 'idle', lines: [], result: null, problems: [] };
   let running: Promise<void> = Promise.resolve();
 
@@ -101,6 +113,16 @@ export async function serve({ root, port = 4180, runTests = npmTest }: { root: s
     const method = request.method ?? 'GET';
     const parts = url.pathname.split('/').filter((part) => part !== '').slice(1).map(decodeURIComponent);
     const [what, key] = parts;
+    if ((families as readonly string[]).includes(what ?? '') && key !== undefined) {
+      const family = what as Family;
+      const command = parts.slice(1).join(' ');
+      // A command it does not know is the core's to refuse, as the command line's is.
+      const read = reads.includes(command);
+      if (commands[family].includes(command) && read !== (method === 'GET')) return send(response, 405, { ok: false, kind: 'usage', problems: [`${family} ${command} is a ${read ? 'GET' : 'POST'}`] });
+      const input = method === 'GET' ? Object.fromEntries(url.searchParams) : await body(request);
+      const result = await runCommand(family, command, input, quests, { runTests, onLine: () => {} });
+      return send(response, 200, result.json);
+    }
     if (what === 'traits' && key === undefined && method === 'GET') return send(response, 200, everything());
     if (what === 'traits' && key === undefined && method === 'POST') {
       const { list, key: newKey, ...fields } = await body(request);
@@ -171,7 +193,9 @@ export async function serve({ root, port = 4180, runTests = npmTest }: { root: s
       else if (error instanceof Refused) {
         const status = error.uses.length > 0 ? 409 : 422;
         send(response, status, { ok: false, kind: 'refused', problems: error.problems, ...(error.uses.length > 0 ? { uses: error.uses } : {}) });
-      } else if (error instanceof BadRequest) send(response, 400, { ok: false, kind: 'usage', problems: [error.message] });
+      } else if (error instanceof BadRequest || error instanceof UsageError) send(response, 400, { ok: false, kind: 'usage', problems: [error.message] });
+      else if (error instanceof Undone) send(response, 422, { ok: false, kind: 'undone', problems: [...error.problems] });
+      else if (error instanceof NotUndone) send(response, 500, { ok: false, kind: 'not-undone', problems: [...error.problems, ...error.left.map((file) => `not put back: ${file}`)] });
       else send(response, 500, { ok: false, kind: 'failed', problems: [error instanceof Error ? error.message : String(error)] });
     });
   });

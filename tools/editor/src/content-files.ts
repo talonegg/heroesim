@@ -171,7 +171,8 @@ function today(): string {
 export function contentFiles(kind: Kind, uses: UseKind | null = null): SessionAdapter<Edit, ContentJson> {
   /** `edit` made on `content`, or a refusal naming why. */
   function apply(content: ContentJson, edit: Edit): ContentJson {
-    const held = listOf(kind, content, edit.key);
+    // The list holding the key: the edit's own where the lists are keyed apart (DL-267).
+    const held = kind.keysApart === true ? (rowOf(kind, content, edit.list, edit.key) === undefined ? null : edit.list) : listOf(kind, content, edit.key);
     switch (edit.op) {
       case 'add':
         if (held !== null) throw new Refused([`"${edit.key}" is a key already, in ${held}`]);
@@ -185,7 +186,7 @@ export function contentFiles(kind: Kind, uses: UseKind | null = null): SessionAd
       }
       case 'remove': {
         if (held !== edit.list) throw new Refused([`"${edit.key}" is not a key of ${edit.list}`]);
-        const blocking = kind.uses(content, edit.key).filter((use) => use.blocksRemoval);
+        const blocking = kind.uses(content, edit.key, edit.list).filter((use) => use.blocksRemoval);
         if (blocking.length > 0) {
           throw new Refused([`"${edit.key}" is used, and is not removed while it is: change or unassign each use first`, ...blocking.map((use) => `used at ${use.at}`)], blocking);
         }
@@ -218,7 +219,8 @@ export function contentFiles(kind: Kind, uses: UseKind | null = null): SessionAd
           content = apply(content, edit);
         } catch (error) {
           if (index < held && error instanceof Refused) {
-            throw new Refused([`The pending edit ${index + 1} (${edit.op} ${edit.key}) no longer applies; discard it with \`${kind.name} discard ${edit.key}\``, ...error.problems], error.uses);
+            const command = kind.lists.find((list) => list.id === edit.list)?.command ?? kind.name;
+            throw new Refused([`The pending edit ${index + 1} (${edit.op} ${edit.key}) no longer applies; discard it with \`${command} discard ${edit.key}\``, ...error.problems], error.uses);
           }
           throw error;
         }

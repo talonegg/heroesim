@@ -738,3 +738,65 @@ the floor greedily before the margin, and names no Party below it nor of one fre
 nothing else caps one; 18 mutations all red; tests added for the floor at margins 0 and 1 and for at
 most n(n + 1)/2 + 1 Parties weighed of 20 Heroes (57 to 90 of 211); the profile reproduced,
 `1e68aeb6…`, its rise from v1.1.9 the Rivals' Rosters (a mean of 20 against 10 by Year 10), not code.
+
+## DL-267 — v1.2.0-S9 built: the editor's Quest templates and Encounters, `quests …` and `encounters …`, and `quests doctor`
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257 item 8 (Q16 c): editor commands and two skills are the only way Quest templates
+and Encounters change, with `quests doctor`. At `d2ddd6d` the editor edited the Traits and the tuning
+values; S3 put both kinds in folders (DL-260), and S5–S8 gave a template its Tiers, Beats, overrides,
+Finale and a floor of two (DL-262, DL-266).
+
+**Decision.**
+
+1. **One kind, two lists** (`tools/editor/src/quests-kind.ts`): the Quest templates and the
+   Encounters, each a folder, keyed apart (`Kind.keysApart`), on the content files' adapter. Their
+   edits are held together in `.editor/quests.json`, since a Beat's pool reads the Encounters: an
+   Encounter added and a Beat that draws it are checked as one, and either family's `finish` writes
+   both and raises the content version once.
+2. **The commands** (`quests-commands.ts`, `quests-editor.ts`): `quests list`, `show`, `add`,
+   `change`, `remove`, `tiers`, `beat add|change|move|remove`, `override set|clear`,
+   `finale set|clear`; `encounters list`, `show`, `add`, `change`, `remove`,
+   `check add|change|remove` (with `--pass`), `consequence add|change|remove`; and both families'
+   `pending`, `discard`, `finish`, `recover`. The Traits' forms: `--row <json or @file>`, `--name`,
+   `<field>=<value>` read as JSON where it is JSON; new `--tags a,b` and `--no-tags`. `null` takes out
+   a field a row may leave out. A part's change is held as a change of the fields it touched; a change
+   of nothing is not held; places count from 0, as the refusals name them. Every refusal names why:
+   the content's checks', or the editor's (a place not there, a figure no Tier has, an Encounter a
+   pool or a Finale names, each use listed).
+3. **`quests doctor`** (`quests-doctor.ts`): the content's checks; every Beat's pool large enough for
+   its draws (`shortBeats`); every Tier offered a Tier of the ladder playing from one Beat to its Beats
+   and Finale; every Encounter drawn by some pool or a Finale; every Finale placed (an Encounter, with
+   its line, named by no pool, played last); the pending edits held to all of them. A Beat no Tier
+   plays is noted, not failed. Exit 1 on a problem.
+4. **Both adapters:** the command line and the page's JSON API (`GET` or `POST /api/<family>/<command…>`),
+   one core giving the same JSON; each command is tested through both, side by side.
+5. **Read for it:** content's `rowFields(source)`, a row's fields in order, each optional or not
+   (`Field.optional`); the engine's `beatsDrawn`, exported from `@heroesim/engine/content`. No play
+   change, no content change.
+6. **The rule:** AGENTS.md's "Quest templates and Encounters", `docs/agents/quests.md`, and
+   `delivery.md`'s rule 2 naming `quests doctor`; the editor's README; CONTEXT.md's Content editor and
+   Edit session.
+
+*Judgement calls, for the owner to see.*
+- **"Both adapters."** In the editor the words name the edit session's two adapters, the content
+  files and the config file (DL-244); these commands write content files alone, so the config file's
+  cannot carry them. They are read as the commands' two front ends, the command line and the page's
+  API. The page has no control for them, as it has none for `assign` or the config kind.
+- **One session for both lists:** `pending` lists both families' edits; `discard` drops its own.
+- **Keys apart:** an Encounter may share a template's key, as content allows.
+- **An emptied Degree list stays** `[]`, since a Degree with no list reads another's.
+- **Two notes, not problems:** `escort-the-tithe` beats.2 and `survey-the-old-workings` beats.3 are
+  played at no Tier they offer, for S11.
+- **The order:** the code was drafted before its tests. Each test was then shown red with the core
+  stubbed, and 20 mutations of the code went red, two only once their tests were strengthened.
+
+**Consequences.** S10's skills run these commands, and S11 writes the content through them. Nothing
+in content changed, so no sweep: play is unchanged.
+
+**Evidence.** The commit `v1.2.0-S9 (DL-267)`. `tools/editor/src/quests.test.ts` (17 tests, each
+command through both adapters), `quests-doctor.test.ts` (8), content's `kinds.test.ts` (`rowFields`,
+red first). `quests doctor` clean: 38 Beats of 12 templates, 23 Tiers, 29 Encounters, 4 Finales, two
+notes. A scratch session on the repository (a Beat added, an override set, shown, discarded) left
+`git diff` of the content empty. The epic's S9 boxes.

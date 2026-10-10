@@ -30,6 +30,10 @@ Pictures come into the game, and their rows and sentences are analysed and appli
 
 Traits are added, changed, removed and assigned to other content only through the content editor (`npm run edit`), its commands, or the skills `trait-find`, `trait-edit` and `trait-assign`; never by hand, and never in a saved game. Run `npm run edit -- traits doctor` before and after, and at the close of every story that touches the engine (`engine/src/`) or the content's checks (`content/src/validate.ts` and the content kinds, `content/src/kinds/`). See `docs/agents/traits.md`.
 
+### Quest templates and Encounters
+
+Quest templates and Encounters are added, changed and removed only through the content editor's commands (`npm run edit -- quests …`, `encounters …`) or the skills `quest-draft` and `encounter-draft`; never by hand, and never in a saved game. Run `npm run edit -- quests doctor` before and after, and at the close of every story that touches the engine (`engine/src/`) or the content's checks. See `docs/agents/quests.md`.
+
 ### Tuning values
 
 The game's tuning values are data, `engine/src/config.json`, in sections, with the config version and its changelog. A value changes only through the content editor's config kind (`npm run edit -- config show`, `config set <setting> <value>`, `config finish --reason "<why> (DL-NNN)"`), which checks it with the engine's `checkConfig`, raises the config version and runs the tests; never by hand. See `docs/agents/config.md`.

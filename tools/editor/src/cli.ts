@@ -1,6 +1,8 @@
 // The content editor's command line (v1.1.4-S12, DL-150 item 7), run as `npm run edit -- traits
-// <command>`, the commands under its page and the Trait skills' only way to change a Trait, and as
-// `npm run edit -- config <command>`, the only way to change a tuning value (v1.1.6-S18, DL-204).
+// <command>`, the commands under its page and the Trait skills' only way to change a Trait; as
+// `npm run edit -- config <command>`, the only way to change a tuning value (v1.1.6-S18, DL-204); and
+// as `npm run edit -- quests <command>` and `encounters <command>`, the only way to change a Quest
+// template or an Encounter (DL-257 item 8, DL-267), whose commands are `quests-commands.ts`'s.
 // As the portrait tool's, every command takes `--root <dir>`, the repository to work on (this one by
 // default), and `--json`, which prints one JSON object on stdout for a skill to read. The exit code is
 // 0 for success, 1 for a check that failed or a change refused or undone, and 2 for a command line
@@ -15,10 +17,13 @@ import { doctor, doctorText } from './doctor.js';
 import { Editor, Refused, type RowView } from './editor.js';
 import { Busy } from './finish-journal.js';
 import type { Use } from './kind.js';
+import { families, inputFromLine, parts, runCommand, type Family } from './quests-commands.js';
+import { QuestsEditor } from './quests-editor.js';
 import { npmTest, type TestRunner } from './tests-run.js';
 import { writeTraitsDoc } from './traits-doc.js';
+import { UsageError } from './usage-error.js';
 
-export const usage = `Usage: npm run edit -- [traits <command> | config <command>] [--root <dir>] [--json]
+export const usage = `Usage: npm run edit -- [traits | config | quests | encounters <command>] [--root <dir>] [--json]
 
   (no command)                    Open the editor's page, served from this repository
   traits list                     Every Trait of both lists, with the pending edits made
@@ -58,6 +63,53 @@ export const usage = `Usage: npm run edit -- [traits <command> | config <command
                                   its changelog saying why, run npm test; the file is put back if a
                                   test fails (docs/agents/config.md)
 
+  quests list                     Every Quest template, with the pending edits made
+  quests show <key>               One: its fields, each Tier it offers as it plays, its Beats and the
+                                  Encounters each pool may draw, its Finale
+  quests add <key> --row <json or @file> [--name <n>] [--tags a,b | --no-tags]
+                                  Add a Quest template, pending; its key is fixed
+  quests change <key>             Change its fields, pending; the same flags as add, null taking out
+                                  a field a template may leave out
+  quests remove <key>             Remove a Quest template, pending
+  quests tiers <key> <min> <max>  Set the Tiers it offers
+  quests beat add <key> [<at>] line=<text> pool=<json>
+                                  Add a Beat, at its end or at <at>, from 0; or --row <json or @file>
+  quests beat change <key> <at> [line=<text>] [pool=<json>]
+                                  Change a Beat's line or pool, the pool given whole
+  quests beat move <key> <from> <to>
+                                  Move a Beat
+  quests beat remove <key> <at>   Remove a Beat
+  quests override set <key> <tier> <figure>=<value> ...
+                                  Set a Tier's figures for this template, over the ladder's
+  quests override clear <key> <tier> [<figure> ...]
+                                  Clear the figures named, or the Tier's whole override
+  quests finale set <key> <encounter> line=<text>
+                                  Set its Finale, played last, and its line
+  quests finale clear <key>       Take its Finale out
+  quests pending | discard [<key>] | finish | recover [--force]
+                                  As the Traits'; Quest templates and Encounters share one session
+  quests doctor                   Every pool large enough, every Tier its Beats, every Encounter drawn
+                                  or a Finale, the Finales placed; the content's checks; the pending
+                                  edits
+
+  encounters list | show <key> | remove <key>
+  encounters add <key> --row <json or @file> [--name <n>] [--tags a,b | --no-tags]
+  encounters change <key>         As the Quest templates'; remove is refused while a pool or a
+                                  Finale names it, naming each
+  encounters check add <key> [<field>=<value> ...] [--pass <json or @file>]
+  encounters check change <key> <check> [<field>=<value> ...] [--pass <json or @file>]
+  encounters check remove <key> <check> [--pass <json or @file>]
+                                  Add, change or remove a Check, its pass formula given with it
+                                  where it changes (--pass null takes it out)
+  encounters consequence add <key> <degree> [<at>] [<field>=<value> ...]
+  encounters consequence change <key> <degree> <at> [<field>=<value> ...]
+  encounters consequence remove <key> <degree> <at>
+                                  Add, change or remove a consequence of a Degree: failure, setback,
+                                  success or triumph
+  encounters pending | discard [<key>] | finish | recover [--force]
+
+  A part's fields may be given as --row <json or @file> too (tools/editor/README.md).
+
 A skill runs them as \`npm run --silent edit -- traits <command> --json\`, so that stdout is the JSON alone.
 
 Exit codes: 0 done, 1 failed or refused (nothing changed), 2 a command line not understood.`;
@@ -73,7 +125,7 @@ export interface Deps {
   runTests: TestRunner;
 }
 
-export class UsageError extends Error {}
+export { UsageError } from './usage-error.js';
 
 export interface Parsed {
   kind: string;
@@ -89,6 +141,8 @@ export interface Parsed {
   target: Record<string, unknown>;
   /** Why `config finish` raises the config version (v1.1.6-S18); `null` where not given. */
   reason: string | null;
+  /** An Encounter's pass formula, given with a change of its Checks (DL-267); `undefined` where not given, `null` to take it out. */
+  pass: unknown;
 }
 
 function parseJson(flag: string, text: string): unknown {
@@ -101,7 +155,7 @@ function parseJson(flag: string, text: string): unknown {
 }
 
 export function parse(argv: readonly string[]): Parsed {
-  const parsed: Parsed = { kind: '', command: '', args: [], json: false, force: false, root: repositoryRoot, port: 4180, fields: {}, target: {}, reason: null };
+  const parsed: Parsed = { kind: '', command: '', args: [], json: false, force: false, root: repositoryRoot, port: 4180, fields: {}, target: {}, reason: null, pass: undefined };
   const value = (flag: string, index: number): string => {
     const next = argv[index + 1];
     if (next === undefined || next.startsWith('--')) throw new UsageError(`${flag} wants a value`);
@@ -128,6 +182,13 @@ export function parse(argv: readonly string[]): Parsed {
         .map((each) => each.trim())
         .filter((each) => each !== '');
     } else if (arg === '--no-excludes') flags.excludes = [];
+    else if (arg === '--tags') {
+      flags.tags = value(arg, index++)
+        .split(',')
+        .map((each) => each.trim())
+        .filter((each) => each !== '');
+    } else if (arg === '--no-tags') flags.tags = [];
+    else if (arg === '--pass') parsed.pass = parseJson(arg, value(arg, index++));
     else if (arg === '--effects') flags.effects = parseJson(arg, value(arg, index++));
     else if (arg === '--row') {
       const given = parseJson(arg, value(arg, index++));
@@ -146,6 +207,8 @@ export function parse(argv: readonly string[]): Parsed {
   parsed.fields = { ...row, ...flags };
   if (parsed.force && parsed.command !== 'recover') throw new UsageError('--force is traits recover\'s alone');
   if (parsed.reason !== null && !(parsed.kind === 'config' && parsed.command === 'finish')) throw new UsageError("--reason is config finish's alone");
+  if (parsed.pass !== undefined && !(parsed.kind === 'encounters' && parsed.command === 'check')) throw new UsageError("--pass is encounters check's alone");
+  if (Object.hasOwn(flags, 'tags') && !(families as readonly string[]).includes(parsed.kind)) throw new UsageError("--tags and --no-tags are the Quest templates' and Encounters' alone");
   if (!existsSync(parsed.root)) throw new UsageError(`--root ${parsed.root} does not exist`);
   // "Finish" runs `npm test` in the root, which would climb to a package.json above one without its own.
   if (!existsSync(path.join(parsed.root, 'package.json'))) throw new UsageError(`--root ${parsed.root} holds no package.json: it is not a copy of the repository`);
@@ -251,8 +314,22 @@ async function dispatchConfig(options: Parsed, deps: Deps, io: Io, editor: Confi
   }
 }
 
+/** The Quest templates' and Encounters' commands (DL-267): the command line's input to their core, `quests-commands.ts`. */
+async function dispatchQuests(options: Parsed, deps: Deps, io: Io, editor: QuestsEditor): Promise<Result> {
+  const family = options.kind as Family;
+  const [part, ...rest] = [options.command, ...options.args];
+  const twoWords = parts.includes(part ?? '');
+  const command = twoWords ? `${part ?? ''} ${rest[0] ?? ''}`.trim() : options.command;
+  const words = twoWords ? rest.slice(1) : options.args;
+  const input = inputFromLine(family, command, words, { fields: options.fields, pass: options.pass, force: options.force });
+  return runCommand(family, command, input, editor, { runTests: deps.runTests, onLine: options.json ? () => {} : (line) => io.err(line) });
+}
+
 async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Promise<Result> {
-  if (options.kind !== 'traits') throw new UsageError(options.kind === '' ? 'a kind is wanted: traits or config' : `${options.kind} is not a kind the editor knows: traits or config`);
+  if (options.kind !== 'traits') {
+    const kinds = 'traits, config, quests or encounters';
+    throw new UsageError(options.kind === '' ? `a kind is wanted: ${kinds}` : `${options.kind} is not a kind the editor knows: ${kinds}`);
+  }
   switch (options.command) {
     case 'list': {
       const rows = editor.rows();
@@ -394,8 +471,13 @@ export async function run(argv: readonly string[], io: Io, deps: Deps = { runTes
       io.out(usage);
       return 0;
     }
-    const editor = options.kind === 'config' ? new ConfigEditor(options.root) : new Editor(options.root);
-    const result = editor instanceof ConfigEditor ? await dispatchConfig(options, deps, io, editor) : await dispatch(options, deps, io, editor);
+    const editor = options.kind === 'config' ? new ConfigEditor(options.root) : (families as readonly string[]).includes(options.kind) ? new QuestsEditor(options.root) : new Editor(options.root);
+    const result =
+      editor instanceof ConfigEditor
+        ? await dispatchConfig(options, deps, io, editor)
+        : editor instanceof QuestsEditor
+          ? await dispatchQuests(options, deps, io, editor)
+          : await dispatch(options, deps, io, editor);
     // A "Finish" cut off is put back by whatever command came next, which says so.
     if (editor.recovered.length > 0 && options.command !== 'recover') {
       if (typeof result.json === 'object' && result.json !== null) result.json = { ...result.json, recovered: editor.recovered };

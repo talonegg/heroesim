@@ -14,4 +14,4 @@ export { growthSumTolerance } from './kinds/classes.js';
 export { longestDescriptions, type LongestDescriptions } from './kinds/descriptions.js';
 export { contentWarnings, hookMaxLength, hooksMax, narrativeMaxLength, picturesWanted } from './kinds/portrait-appearances.js';
 export { guildmasterTraitEffects, heroTraitEffects, type EffectField } from './kinds/trait-effects.js';
-export { contentFieldNames } from './kinds/index.js';
+export { contentFieldNames, rowFields } from './kinds/index.js';

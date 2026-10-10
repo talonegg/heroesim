@@ -29,10 +29,12 @@ name its path, or use `rg -u`.
 1. **The owner's word** before a push, a merge, a GitHub post, a release, a branch cut, a move of
    Dependabot's `target-branch` (DL-147 item 6) or anything else that leaves this machine. A word
    for one is not a word for the next.
-2. **Traits** change only through `npm run edit` or the trait skills (`docs/agents/traits.md`).
-   Run `npm run edit -- traits doctor` before the first change and after the last of every story
-   that touches `engine/src/` or the content's checks (`content/src/validate.ts` and the content
-   kinds, `content/src/kinds/`), and record both readings.
+2. **Traits** change only through `npm run edit` or the trait skills (`docs/agents/traits.md`),
+   and **Quest templates and Encounters** only through its `quests` and `encounters` commands or
+   their skills (`docs/agents/quests.md`). Run `npm run edit -- traits doctor` and
+   `npm run edit -- quests doctor` before the first change and after the last of every story that
+   touches `engine/src/` or the content's checks (`content/src/validate.ts` and the content kinds,
+   `content/src/kinds/`), and record both readings of each.
 3. **Tuning values** change only through the content editor's config kind
    (`docs/agents/config.md`). A new setting is added by hand as that page says.
 4. **A test a config or tuning change fails** is never rewritten to pass. Report it to the owner:

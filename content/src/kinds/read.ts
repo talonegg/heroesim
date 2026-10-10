@@ -13,6 +13,8 @@ export interface Field<Value> {
   read(row: RowReader, field: string): Value;
   /** The fields of the objects this field holds: an object's, a list's items', or each kind's of a union. */
   readonly holds: readonly Readonly<Record<string, Field<unknown>>>[];
+  /** Whether a row may leave it out (`optional`, `withDefault`), for a tool that takes a field out of a row (DL-267). */
+  readonly optional?: true;
 }
 
 /** Each field of a row of type `Row`, by its name, in the order the row is written; an optional field's reader may give `undefined`. */
@@ -38,7 +40,7 @@ export const integerOrNull = plain((row, field) => row.integerOrNull(field));
 /** A string, or `null`: present either way. */
 export const textOrNull = plain((row, field) => row.stringOrNull(field));
 /** A string, or no such field: refused, when it is there, as "a string, or no such field". */
-export const optionalText = plain((row, field) => row.optionalString(field));
+export const optionalText: Field<string | undefined> = { ...plain((row, field) => row.optionalString(field)), optional: true };
 
 /** A value of any type, as it stands: a Query, a pass formula, held by the kind's rules. */
 export function anything<Value>(): Field<Value> {
@@ -67,12 +69,12 @@ export function choicesOf<Choice extends string>(list: readonly Choice[]): Recor
 
 /** `field`, or `undefined` when the row has none: an optional field, left out of the row it is read into. */
 export function optional<Value>(field: Field<Value>): Field<Value | undefined> {
-  return { read: (row, name) => row.optional(name, (each) => field.read(row, each)), holds: field.holds };
+  return { read: (row, name) => row.optional(name, (each) => field.read(row, each)), holds: field.holds, optional: true };
 }
 
 /** `field`, or `value()` when the row has none: an optional field with a default. */
 export function withDefault<Value>(field: Field<Value>, value: () => Value): Field<Value> {
-  return { read: (row, name) => row.optional(name, (each) => field.read(row, each)) ?? value(), holds: field.holds };
+  return { read: (row, name) => row.optional(name, (each) => field.read(row, each)) ?? value(), holds: field.holds, optional: true };
 }
 
 /** The value of each of `fields` read from `row`, in their order, leaving out each optional field the row has none of. */

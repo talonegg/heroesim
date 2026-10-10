@@ -871,8 +871,8 @@ _Avoid_: AI, Bot, Autoplayer
 **Content editor**:
 The owner's local page and commands for changing the content the game ships, `npm run edit`; never
 part of the deployed game, and never touching a saved game. A kind of content is edited as a list
-of keyed rows through its forms; Traits are the first kind (DL-150 items 7 to 12, DL-161). Each
-change is checked with the content's checks and held as a pending edit until "Finish", which writes
+of keyed rows, through its forms or its commands: the Traits (DL-150 items 7 to 12, DL-161), and the
+Quest templates with the Encounters, by commands alone (DL-267). Each change is checked with the content's checks and held as a pending edit until "Finish", which writes
 the files, raises the content version by one and runs the tests, putting every file back if one
 fails. It never commits.
 _Avoid_: Mod tool, Admin page, Trait editor (for the whole)
@@ -881,8 +881,9 @@ _Avoid_: Mod tool, Admin page, Trait editor (for the whole)
 The content editor's pending edits of one kind, from the first edit to "Finish": each checked with the
 kind's checks as it is made and held between commands, and "Finish", which writes the files, raises a
 version, the content's or the config's, by one, runs the tests and puts every file back if one fails.
-A "Finish" cut off is put back by the next command. The Traits are edited in one, and the tuning
-values in another, the same session over two kinds of file (DL-244).
+A "Finish" cut off is put back by the next command. The Traits are edited in one, the Quest templates
+and Encounters together in another, and the tuning values in a third, the same session over two kinds
+of file (DL-244, DL-267).
 _Avoid_: Draft, Transaction (for the whole)
 
 **Content kind**:
