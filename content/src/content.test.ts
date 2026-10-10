@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { encounterKinds, facilityKeys, gearSlotKeys, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
@@ -518,6 +519,29 @@ describe('the content directory', () => {
       const keys = Object.keys(readSource(contentDir, source)).map((name) => name.slice(source.length, -'.json'.length));
       expect(Object.keys(content[place]), place).toEqual([...keys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
       expect(keys.length, place).toBeGreaterThan(0);
+    }
+  });
+
+  // DL-260's verification: a folder's rows are its `.json` files alone, as the page's bundle finds
+  // them by `*.json`; another file there, a system's or an editor's, and a folder within it are not
+  // read. A source of the other shape, a file where a folder is declared or a folder where a file
+  // is, is no source.
+  test("reads a folder's .json files alone, and a source of the wrong shape as none", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'heroesim-sources-'));
+    try {
+      mkdirSync(join(dir, 'items', 'old'), { recursive: true });
+      writeFileSync(join(dir, 'items', 'whetstone.json'), '{}');
+      writeFileSync(join(dir, 'items', 'notes.txt'), 'not a row');
+      writeFileSync(join(dir, 'items', '.DS_Store'), 'not a row');
+      writeFileSync(join(dir, 'items', 'old', 'short-sword.json'), '{}');
+      writeFileSync(join(dir, 'loot-tables'), '{}');
+      mkdirSync(join(dir, 'stats.json'));
+
+      expect(readSource(dir, 'items/')).toEqual({ 'items/whetstone.json': '{}' });
+      expect(readSource(dir, 'loot-tables/')).toEqual({});
+      expect(readSource(dir, 'stats.json')).toEqual({});
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

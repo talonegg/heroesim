@@ -81,7 +81,7 @@ describe('an Encounter', () => {
 });
 
 // DL-148 items 7 and 8: an Encounter written in the new form, `checks` and `pass`, with
-// consequences by Degree. `encounters.json` may hold either form; the old one still loads.
+// consequences by Degree. An Encounter's file may hold either form; the old one still loads.
 describe('an Encounter in the new form', () => {
   /** A Check as the new form writes it. */
   const checkRow = (key: string, fields: Record<string, unknown> = {}): Record<string, unknown> => ({

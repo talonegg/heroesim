@@ -10,8 +10,8 @@ import { runSettings, settingsSet } from './settings.js';
 // The calibration (DL-162), collected only by the harness-run project and run only when
 // HEROESIM_PROBE names it: `npm run harness -- calibrate` (main.ts sets the probe from the word), or
 // `HEROESIM_PROBE=calibrate npm run harness`. It calibrates the shipped content, or that content with
-// the drafts of HEROESIM_DRAFTS (a directory of content files, each in place of the core file of its
-// name, such as `docs/quests/drafts`; unset, blank or `none`, the content alone),
+// the drafts of HEROESIM_DRAFTS (a directory of content files and folders, each in place of the core's
+// of its name, a folder whole (DL-260), such as `docs/quests/drafts`; unset, blank or `none`, the content alone),
 // HEROESIM_PARTIES random Parties a cell (120 by default) and HEROESIM_SEEDS seeds a spot-check sample (4,000 by default), and writes
 // `calibration.md` and `calibration.json` beside the drafts' directory (`docs/quests/`), or into
 // HEROESIM_CALIBRATION_OUT.

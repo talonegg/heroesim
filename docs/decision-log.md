@@ -399,4 +399,4 @@ merge of two drafts touches only their rows' files.
 
 **Evidence.** The commit `v1.2.0-S3 (DL-260)`. The content read at `08387a7` and after the move: deep-equal,
 and identical with the four tables in key order, the drafts too. `neutral --expect` identical alone:
-`harness/reports/v1.2.0-s3-neutral-2026-10-10`. The epic's S3 boxes.
+`harness/reports/v1.2.0-s3-neutral-2026-10-10`. The epic's S3 boxes. Verified 2026-10-11 at 9f054b3: the content read by 08387a7's own code deep-equal to the content now, the four tables in key order, the drafts too; every missing folder still refused through the rules, a stray non-JSON file or a nested folder ignored as the bundle's pattern ignores it; 18 mutants, five surviving until tests of a row that is not JSON, a folder's non-JSON files, a source of the wrong shape and the build's gate over a folder's row killed four, the fifth equivalent; found that the key order moves the estimate probe's samples, its Morale-in limit 1.61 points in the authored order and 4.84 in key order, beyond its 3, left for the owner.

@@ -64,4 +64,24 @@ describe('the content gate', () => {
       await rm(scratch, { recursive: true, force: true });
     }
   });
+
+  // DL-260's verification: the gate reads a folder's rows as the Node entry does, so it passes the
+  // content as it is and refuses a row the checks refuse, naming the row's file.
+  test("passes the content, and refuses a folder's row the checks refuse, naming its file", async () => {
+    await expect(validateContentDir(contentDir)).resolves.toBeUndefined();
+    const scratch = await mkdtemp(path.join(tmpdir(), 'heroesim-gate-'));
+    try {
+      for (const [name, text] of Object.entries(readContentDir(contentDir))) {
+        await mkdir(path.dirname(path.join(scratch, name)), { recursive: true });
+        await writeFile(path.join(scratch, name), text);
+      }
+      const row = JSON.parse(await readFile(path.join(scratch, 'items', 'short-sword.json'), 'utf8')) as Record<string, unknown>;
+      delete row['slot'];
+      await writeFile(path.join(scratch, 'items', 'short-sword.json'), JSON.stringify(row));
+
+      await expect(validateContentDir(scratch)).rejects.toThrow(/items\/short-sword\.json: slot is missing/);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+  });
 });

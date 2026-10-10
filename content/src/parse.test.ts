@@ -101,7 +101,9 @@ describe("a folder's row", () => {
   test('that is not JSON is refused, naming its file', () => {
     const files = withText('encounters/the-long-march.json', '{ "name": "The long march", }');
 
-    expect(refusalOf(() => parse(files)).message).toContain('encounters/the-long-march.json: not valid JSON');
+    const problems = refusalOf(() => parse(files)).problems.filter((problem) => problem.startsWith('encounters/the-long-march.json'));
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('encounters/the-long-march.json: not valid JSON');
   });
 
   test('with a key twice is refused, naming its file and the line', () => {
