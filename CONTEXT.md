@@ -253,7 +253,7 @@ _Avoid_: Point buy, Pool (alone), Points (alone), Stat budget
 **Level**:
 A Hero's rank of experience. XP earned from Quests and training raises it, and each Level
 raises Stats along the Class's growth profile.
-_Avoid_: Rank, Tier, Grade
+_Avoid_: Rank, Tier (a Quest's is another thing), Grade
 
 **XP**:
 Experience points, earned from Quests and training, that raise a Hero's Level. A Quest's XP is
@@ -293,7 +293,7 @@ _Avoid_: Happiness, Mood, Loyalty
 **Morale band**:
 One of the named ranges a Hero's Morale falls in. A Hero's Form on a Quest is the first rule to
 read them (DL-154); Random Events are to read them too (DL-82).
-_Avoid_: Mood, Tier
+_Avoid_: Mood, Tier (a Quest's is another thing)
 
 **Regard**:
 The opinion one entity holds of another, whether Hero, Guild, Guildmaster or Patron.
@@ -302,7 +302,7 @@ _Avoid_: Reputation, Opinion, Affinity, Standing
 **Regard band**:
 One of the named ranges a Regard value falls in; a History entry is recorded when a value
 crosses one.
-_Avoid_: Tier, Level (of Regard)
+_Avoid_: Tier (a Quest's is another thing), Level (of Regard)
 
 **Relationship**:
 A score between two entities computed from the Regard each holds for the other.
@@ -318,12 +318,25 @@ _Avoid_: Mission, Commission, Job, Contract, Task
 **Quest template**:
 A content row a Quest is drawn from: its Spheres, Skills, requirements, the ranges
 of its difficulty, duration and Party size, its reward and Fame effect, its tags, its Loot
-table, its kinds of Encounter and any Finale. A Quest copies what it carries at generation, so a
+table, its Tiers and its Beats, with any Finale. A Quest copies what it carries at generation, so a
 changed template never alters a Quest already offered (DL-25). Its tags weight the draw of its
 Encounters: within a kind, an Encounter is drawn `encounterTagWeight` times as often for each tag
 it shares with the template (DL-148 item 22, DL-160); they are kept too for
 Random Events' conditions (DL-82).
 _Avoid_: Quest type, Blueprint, Archetype
+
+**Tier**:
+One of the ladder's grades of a Quest template, numbered from 1 up, each longer, richer and with
+more Beats than the one below. A template offers consecutive Tiers, and a Quest is posted at one,
+copying its figures (DL-257 items 1 and 3). The ladder's figures are settings that a template may
+override, and the Board offers the Tiers that fit the world's mean Level. To be built.
+_Avoid_: Level (a Hero's is another thing), Grade, Rank
+
+**Beat**:
+A line of a Quest template's narrative, with the pool its Encounter is drawn from, by kind, tag or
+name. A Quest plays its Tier's count of Beats in order, one Encounter drawn from each and none
+twice, a Finale last (DL-257 item 2). To be built.
+_Avoid_: Scene, Step, Stage, Encounter (what a Beat draws is another thing)
 
 **Stat demand**:
 A Hero Stat a piece of work asked for, with a weight; a Quest template's or an Encounter's
@@ -348,7 +361,7 @@ kind, `combat`, `travel`, `social`, `arcane`, `stealth` or `lore` (for Intellige
 riddles, records and clues, DL-160), and may carry tags, as a Quest template does. The kind
 is data, written in lower case inside a sentence ("on lore Encounters"); `lore` names a kind of
 Encounter, never a Background.
-_Avoid_: Beat, Scene, Event
+_Avoid_: Scene, Event
 
 **Check**:
 The comparison of a Party's capability against an Encounter's difficulty. Its score is a Query
@@ -378,7 +391,7 @@ How a Check came out, read from its roll against its target: a **Triumph**, a Su
 one. An Encounter takes the Degree its pass formula gives: the worst of an `and`, the best of an
 `or`, the k-th best of an `at-least` k; the Check that set it decided it. A strong success needs
 Triumphs (DL-148 item 8, DL-152).
-_Avoid_: Tier, Grade, Result (alone)
+_Avoid_: Tier (a Quest's is another thing), Grade, Result (alone)
 
 **Form**:
 How much of themselves a Hero brings to a Check on a Quest: a factor on the Stats they add to a
@@ -416,12 +429,24 @@ templates are to have one (DL-148 items 22 and 23, DL-160, the four written in
 DL-166).
 _Avoid_: Boss, Climax, Final Encounter
 
+**Deadly**:
+The mark on a Quest whose Tier and Encounters can kill a Hero: one of its Encounters has a Death
+chance, and its Tier's Death scale is above 0. The Board shows it on the Quest's card (DL-257
+item 5). To be built.
+_Avoid_: Lethal, Dangerous, Fatal
+
+**Death factor**:
+The one setting, `deathFactor`, that scales every Death chance in content, beside each Tier's own
+Death scale: an Encounter's chance is multiplied by both. The rate of Death is tuned by it without
+code (DL-257 item 5). To be built.
+_Avoid_: Death rate, Mortality, Lethality
+
 **Quest band**:
 How well a Quest went: failure, success or strong success, read from the share of its
 Encounters the Party came through at Success or better (DL-42). A strong success needs every
 Encounter at Success or better and half of them Triumphs: DL-83's margin, made a share of
 Triumphs (DL-148 item 8, DL-152). By DL-85 it pays a premium (to be built).
-_Avoid_: Result, Grade, Tier
+_Avoid_: Result, Grade, Tier (a Quest's is another thing)
 
 **Chance band**:
 The word an estimated chance is shown in: Hopeless below 10%, Unlikely to 35%, Even to 65%, Likely

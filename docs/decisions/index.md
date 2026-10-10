@@ -267,6 +267,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-255 | 2026-10-10 | A merge of docs, records and the release pipeline alone releases nothing: no tag, no deploy |  | [decision-log](../decision-log.md) |
 | DL-256 | 2026-10-10 | The `v1.2` line: the Guild as an institution, from an independent design brief; the owner's answers … | item 2 in part by DL-257 | [decision-log](../decision-log.md) |
 | DL-257 | 2026-10-10 | v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a … |  | [decision-log](../decision-log.md) |
+| DL-258 | 2026-10-10 | v1.2.0-S1 built: the glossary's Tier, Beat, Deadly and Death factor |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

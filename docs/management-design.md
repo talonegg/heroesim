@@ -124,7 +124,7 @@ these nine sentences the player finds themselves saying. Each epic names the sen
 
 ## Words this line adds
 
-Each word enters [`CONTEXT.md`](../CONTEXT.md) in the epic that builds it, before its code. Five
+Each word enters [`CONTEXT.md`](../CONTEXT.md) in the epic that builds it, before its code. Seven
 clash with today's glossary, which is changed first (principle 13):
 
 | Word | What it is to mean | The clash |
@@ -133,7 +133,9 @@ clash with today's glossary, which is changed first (principle 13):
 | Reputation | The Regard a Sphere's Patrons hold for a Guild, combined into one figure | Avoided for Regard: becomes "Reputation (a Guild's in a Sphere is another thing)" |
 | Career stage | Prospect, Regular, Veteran, Champion or Retired | "Career" is avoided for Calling |
 | Worker | The glossary's word for what the owner calls staff | "Staff" is avoided for Worker, so Worker stays |
+| Tier | One of a Quest template's grades, each longer, richer and with more Beats | Avoided for Level, Morale band, Regard band, Degree and Quest band: each becomes "Tier (a Quest's is another thing)" |
+| Beat | A line of a Quest template's narrative, with the pool its Encounter is drawn from | Avoided for Encounter: Encounter drops it |
 | Rivals, a Regard band | Two Heroes who regard each other badly, beside friends | Rival names a Rival Guild: the band takes another word, or becomes "Rival (a Hero's is another thing)" |
 
 The other words this line adds raise no clash: Captain, Fatigue, Ambition, Training focus, Mentor,
-Private offer, Death factor, Legacy review and Aim.
+Private offer, Deadly, Death factor, Legacy review and Aim.

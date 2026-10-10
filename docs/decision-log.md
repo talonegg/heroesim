@@ -245,3 +245,34 @@ close.
 
 **Evidence.** The commit `v1.2.0 (DL-257)`. The epic's §5 lists the facts checked at `0443c58`.
 
+
+## DL-258 — v1.2.0-S1 built: the glossary's Tier, Beat, Deadly and Death factor
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257 item 9 (Q21 a) put Tier and Beat in the glossary, with Deadly and Death factor,
+before any code reads them (principle 13). Five entries avoided "Tier" for another thing, and
+Encounter avoided "Beat".
+
+**Decision.**
+
+1. **Four entries** in `CONTEXT.md`: Tier and Beat after Quest template, Deadly and Death factor
+   after Finale, each marked "To be built" and citing DL-257.
+2. **Quest template's entry** names its Tiers and its Beats, in the place of "its kinds of Encounter".
+3. **Five avoid lists** (Level, Morale band, Regard band, Degree, Quest band) read "Tier (a Quest's is
+   another thing)". Encounter's drops Beat.
+4. **The Guild Management Design's table of words** gains Tier and Beat with their clashes, its count
+   of clashes five to seven, and Deadly in the words that raise none.
+5. **No other live page** lists Tier or Beat as a word to avoid: `docs/agents/ui-text.md` and the
+   rest hold none. No code changes.
+
+*Judgement calls, for the owner to see.*
+- Tier and Beat each avoid a few near words (Grade, Rank, Scene, Step, Stage), and Beat avoids
+  Encounter, the step it draws. Deadly avoids Lethal, Dangerous and Fatal, Death factor Death rate,
+  Mortality and Lethality.
+- Milestone's "a Campaign beat" is left as it is: lower case, a Campaign's own, no glossary term.
+
+**Consequences.** S2 onwards may use the four words in docs, comments and text. A word's "To be built"
+goes at the story that builds it (S5 for Tier and Beat, S7 for Deadly and the Death factor, S12 for the page).
+
+**Evidence.** The commit `v1.2.0-S1 (DL-258)`. The epic's S1 boxes are ticked.
