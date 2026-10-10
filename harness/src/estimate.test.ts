@@ -1,6 +1,6 @@
-import { passOf } from '@heroesim/engine';
+import { passOf, type Hero } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { compareSample, drawSample, estimateChecks, estimateMoraleTolerance, estimateProbe, estimateReport, estimateTolerance, harmless, moraleHeld, moraleIn, questsStream, unhurt, widest, type Compared, type Sample } from './estimate.js';
+import { compareSample, drawSample, estimateChecks, estimateMoraleTolerance, estimateProbe, estimateReport, estimateTolerance, harmless, moraleHeld, moraleIn, questsStream, unhurt, widest, type Compared, type Drawn, type Sample } from './estimate.js';
 import { coreDeps as deps } from './harness.test-support.js';
 import { machine } from './report.js';
 
@@ -125,18 +125,34 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
 
   test("measures Morale's consequences: a loss that moves a Hero's band moves the resolver's rates, and nothing else does", () => {
     const base = { ...deps, content: harmless(deps.content) };
-    const rates = (seed: string) => {
+    const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0);
+    /** The most Morale each of `drawn`'s Encounters moves a Hero by, its Morale consequences put back: the largest of its Degrees'. */
+    const moraleMoved = (drawn: Drawn) => {
+      const { content } = moraleIn(drawn, deps.content);
+      return drawn.quest.encounterKeys.map((key) =>
+        Math.max(0, ...Object.values(content.encounters[key]?.consequences ?? {}).map((list) => sum((list ?? []).flatMap((it) => (it.kind === 'morale' ? [Math.abs(it.delta)] : []))))),
+      );
+    };
+    // The first sample whose Quest carries a Morale consequence in an Encounter before its last, so that a
+    // band it moves is read by the Checks after it: chosen by that, not by its seed (DL-273).
+    const seed = Array.from({ length: 40 }, (_, at) => `estimate-${String(at + 1).padStart(4, '0')}`).find((each) => moraleMoved(drawSample(each, base)).slice(0, -1).some((moved) => moved > 0));
+    if (seed === undefined) throw new Error('No sample of 40 carries a Morale consequence before its last Encounter');
+    /** The gaps between the resolver's rates with Morale in and with none, every Hero of the Party at `morale` as they set out. */
+    const rates = (morale: number) => {
       const drawn = drawSample(seed, base);
+      for (const heroId of drawn.party.heroIds) (drawn.world.heroes[heroId] as Hero).morale = morale;
       const seeds = Array.from({ length: 500 }, (_, at) => questsStream(`${seed}/seed-${String(at + 1).padStart(4, '0')}`));
       const sample = compareSample(seed, drawn, seeds, moraleIn(drawn, deps.content));
       return sample.moraleIn.map((it, at) => it.rate - (sample.compared[at]?.rate ?? 0));
     };
-    // estimate-0011: a Morale loss on the way takes a Hero below a band's floor, and their form with it
-    // (the sample at the first Board's first Quest, which the Tier engine draws anew, DL-262).
-    expect(rates('estimate-0011').some((gap) => gap !== 0)).toBe(true);
-    // estimate-0003: every resolution loses Morale, and no Hero's band moves, so nothing changes; a
-    // Morale consequence draws nothing, and the seeds meet the same rolls.
-    expect(rates('estimate-0003').every((gap) => gap === 0)).toBe(true);
+    const { steady, high } = deps.config.moraleBands;
+    // At the steady band's floor: a Morale loss on the way takes a Hero below it, and their form with it.
+    expect(rates(steady).some((gap) => gap !== 0)).toBe(true);
+    // Midway up the band, further from either floor than every Morale consequence of the Quest together: no
+    // Hero's band moves, so nothing changes; a Morale consequence draws nothing, and the seeds meet the same rolls.
+    const middle = Math.floor((steady + high) / 2);
+    expect(sum(moraleMoved(drawSample(seed, base)))).toBeLessThan(Math.min(middle - steady, high - middle));
+    expect(rates(middle).every((gap) => gap === 0)).toBe(true);
   });
 
   // S7's verification (DL-173): the Morale check and its report read the second measure, not the first,

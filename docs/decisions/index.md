@@ -282,6 +282,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-270 | 2026-10-11 | v1.2.0-S13: the release's review and its findings fixed |  | [decision-log](../decision-log.md) |
 | DL-271 | 2026-10-11 | v1.2.0-S14 built: the Board's Tiers unlocked by each Guild's best four, each Tier's `unlockLevel` … |  | [decision-log](../decision-log.md) |
 | DL-272 | 2026-10-11 | v1.2.0-S11 built: the content written, twelve Quest templates over three Tiers or more, their … |  | [decision-log](../decision-log.md) |
+| DL-273 | 2026-10-11 | v1.2.0: Survey the old workings and Clear the barrow offered from Tier 1, on the owner's answers … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

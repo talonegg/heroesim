@@ -36,7 +36,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { capitalised, chanceWords, dateOfTurn, heroReading, listed, shownPercent, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { partiesOutView } from './digest';
-import { newDocument, played as playedThrough, playedDocument, playerOf, started } from './game.test-support';
+import { firstSeedWhere, newDocument, played as playedThrough, playedDocument, playerOf, started } from './game.test-support';
 import { readingOf } from './reading';
 import { initialGameState, type GameState } from './reducer';
 import {
@@ -345,8 +345,22 @@ describe("the Board's Quest cards (DL-104)", () => {
   // DL-237: `rebase` makes a new document of the same world under other rules, so a module opened
   // under the old rules answers no question of it.
   test('names, for the document rebase makes of the same world under the current rules, the Best Party by those rules', () => {
-    const document = newDocument('best-rebased');
-    const older: WorldDocument = { ...document, meta: { ...document.meta, configVersion: configVersion - 1, config: { ...document.meta.config, playerPartyMargin: 1 } } };
+    // The first world from best-rebased whose Board has a Quest the two rules staff with different Heroes,
+    // by the engine's own Best Party (DL-273).
+    const older = firstSeedWhere(
+      'best-rebased',
+      (seed): WorldDocument => {
+        const document = newDocument(seed);
+        return { ...document, meta: { ...document.meta, configVersion: configVersion - 1, config: { ...document.meta.config, playerPartyMargin: 1 } } };
+      },
+      (made) => {
+        const guild = playerOf(made);
+        const heroes = availableHeroes(made.world, guild);
+        const staffed = (config: typeof defaultConfig) => made.world.board.map((id) => bestParties(made.world, guild, { config, content }).party(made.world.quests[id] as Quest, heroes)?.heroIds ?? null);
+        return JSON.stringify(staffed(made.meta.config)) !== JSON.stringify(staffed(defaultConfig));
+      },
+      'a Quest the two rules staff with different Heroes',
+    );
     const before = bestPartyView(older);
     const rebased = applyAction(older, { kind: 'rebase' }, deps);
     if (!rebased.ok) throw new Error(rebased.rejection.reason);
@@ -1140,19 +1154,27 @@ describe("the Roster's Table's columns (DL-169 item 7)", () => {
 
 describe('heroPage', () => {
   test('shows its Milestones first, newest first; its History, a page at a time, is the History view\'s', () => {
-    const document = playedDocument('selectors-played', 90).document;
-    // The busiest Hero of the world: a Rival's, whose Guild sends Parties while the player's rests.
-    const hero = Object.values(document.world.heroes).reduce((most, each) =>
-      entriesFor(document.history, each.id).length > entriesFor(document.history, most.id).length ? each : most,
+    const milestones = (made: WorldDocument, hero: Hero) => entriesFor(made.history, hero.id).filter((entry) => entry.milestone).length;
+    const mostMilestones = (made: WorldDocument) => Object.values(made.world.heroes).reduce((most, each) => (milestones(made, each) > milestones(made, most) ? each : most));
+    // The first world from selectors-played, 90 Turns played, in which a Hero has two Milestones or more,
+    // and the Hero with the most, the player's resting while the Rivals send Parties (DL-273).
+    const document = firstSeedWhere(
+      'selectors-played',
+      (seed) => playedDocument(seed, 90).document,
+      (made) => milestones(made, mostMilestones(made)) >= 2,
+      'a Hero with two Milestones or more',
     );
+    const hero = mostMilestones(document);
     const all = entriesFor(document.history, hero.id);
     const page = heroPage(document, hero.id);
 
+    expect(page?.milestones.length).toBeGreaterThanOrEqual(2);
     expect(page?.milestones.every((line) => line.milestone)).toBe(true);
     expect(page?.milestones).toHaveLength(all.filter((entry) => entry.milestone).length);
     expect(page?.milestones[0]?.when).toBe(whenOfTurn(all.find((entry) => entry.milestone)?.turn ?? 0, document.meta.config));
     expect(page).not.toHaveProperty('history');
-  });
+    // A game of 90 Turns a seed until one meets it: some seconds alone, more than 5 under the whole suite's load.
+  }, 30_000);
 
   // DL-148 item 27, DL-150 item 5: a Trait gained or lost is a Milestone, on the Hero's page.
   test("shows a Trait gained and a Trait lost among its Milestones, in the History's words", () => {

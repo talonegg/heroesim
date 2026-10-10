@@ -1126,3 +1126,62 @@ moved: offered by Tier 29.6, 67.8, 1.4, 1.2, 0 → 30.4, 66.7, 2.9, 0, 0%; the p
 267.38 → 259.88 the player's; the Rivals' 147.88, 142.63, 110.88, 145.13 → 148.50, 142.63, 113.25,
 151.38. Mean Party 2.02 → 2.03; Deaths 0 and 0; Bankruptcies and folds 0. `compare` with S2's gate too
 (`5dbfdaf4…`, 20 years, not like for like). The epic's S11 boxes.
+
+## DL-273 — v1.2.0: Survey the old workings and Clear the barrow offered from Tier 1, on the owner's answers (c, a); content 41
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers of 2026-10-11 ("c"; the batch "a"); the agent's build
+
+**Context.** DL-271's fallback draws a Patron with no template open at the Board's top Tier among all
+its templates, each at its lowest Tier. After S11 (DL-272) the Scholars and the Crown had none at Tier
+1, so while the top Tier was 1 they offered the vault and the fort at Tier 3, the survey and the barrow
+at 2. Asked, the owner chose "c": keep the fallback, and give the Scholars and the Crown a Tier 1
+template. Sonnet drafted it through `quest-draft`, 4 pending edits; the owner, on the batch: "a",
+approve as is, Finish.
+
+**Decision.**
+
+1. **The batch**, through the editor only: Survey the old workings (Scholars) Tiers 2–5 → 1–5, its
+   second Beat "An old ward still guards the way into the workings." → "An old ward guards the way into
+   the workings, and is read and passed."; Clear the barrow (Crown) 2–4 → 1–4, its second Beat "The
+   barrow's mouth is entered quietly, past old traps." → "…, past old traps, and the way within is
+   marked out." No pool, override or other field; Tier 1 is the ladder's, 2 Beats, neither Deadly.
+   Templates a Tier: 7, 8, 12, 10, 7 (Tier 1 had 5). Every Patron's sphere now has a Tier 1 template, so the
+   fallback draws nothing while that holds; DL-271's rule stands.
+2. **The tests made independent** (DL-272's "b"): the first "Finish" failed 11 tests that rested on a
+   first Board holding a Tier 2 or 3 Quest, or on a seed. Each now chooses its game by a stated
+   condition or plants it, its name and intent kept:
+   - web: `startedWithEveryTier` (`game.test-support.ts`), a new game under rules opening every Tier,
+     as the e2e's Board (DL-272), for a Party home in a later step (reducer, app), a Party of three
+     with one at home (`quest-return`) and one at home (the report's Death line); the Board's test
+     reads its Quest by the heading's id, two Quests of a template sharing a name; the rebase test
+     takes a world the two rules staff differently by the engine's Best Party; the Hero page a world
+     with a Hero of two Milestones or more, that Hero;
+   - harness: `likeliestLowest` based at the first band top of the ladder the player's margin leaves
+     uncertain, not the Board's hardest; the sweep fixture's Tier 5 given the takings of a Tier the
+     game took; the estimate's Morale test, on the first sample with a Morale consequence before its
+     last Encounter, plants the Party's Morale at the steady floor and midway up the band, in place of
+     the seeds estimate-0011 and 0003.
+3. **"Finish"** wrote the two files, content 40 → 41, its `npm test` passing.
+
+*Judgement calls, for the owner to see.*
+- **One commit** for the tests and the content (S11 made two); each changed test file passes on
+  content 40 and on 41.
+- **Two mutations survive,** as they did before: a Party mate counted at home (the engine gives them
+  no `roster-death`) and a choice kept for a Quest gone (the page shows none).
+
+**Consequences.** Every first Board is Tier 1 (1,200 Quests of 200 new worlds, seven templates), and
+in two years no Tier 3 is offered: S11 offered 253 (2.9%), every one the fallback's, since the top Tier
+never passed 2. Tier 1's share of offers rises, its Days shorter, so more Quests a Guild-year; Deaths 0,
+as at S11. The bundle is 845,738 bytes of 850,000 (845,686 before).
+
+**Evidence.** The commit `v1.2.0 (DL-273)`. `neutral v1.2.0-s14c-quick` (4 × 2,
+`harness/reports/v1.2.0-s14c-quick-2026-10-11`, `bf261a18…`): refusals 0, the replay identical, the top
+Tier 1, 2, 2 at year-starts 0 to 2. `compare` with S11's quick (`eb2a646d…`), 314 counters moved:
+offered by Tier 30.4, 66.7, 2.9% → 46.4, 53.6, 0%; the player took 40.6, 57.9, 1.5 → 56.1, 43.9, 0; the
+Rivals 22.0, 76.2, 1.8 → 39.0, 61.0, 0. Quests a Guild-year 259.88 → 290.25 the player's; the Rivals'
+148.50, 142.63, 113.25, 151.38 → 164.63, 154.25, 125.00, 161.75. Mean Party 2.03 → 2.02; Deaths 0 and 0;
+Bankruptcies and folds 0. Mutations, each red then restored: Morale left out, a Morale consequence
+drawing a roll, no Hero's own Morale kept (estimate); reward before chance, a Quest staffed that cannot
+be (policy); Tier 5 left untaken (sweep); the steps going on after a stop (reducer, app); the away Hero's
+grief, one Hero's fall said "each" (quest-return, report); a Quest never expiring (Board); Milestones
+oldest first; a reading kept by world whatever its rules (rebase).

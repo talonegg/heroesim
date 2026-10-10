@@ -20,6 +20,7 @@ import {
   isMilestone,
   offeredQuests,
   playerGuild,
+  serialise,
   type ConsumableRequest,
   type ConsumableUse,
   type Degree,
@@ -99,6 +100,19 @@ export const newGameSetup = { guildName: 'The Lantern', guildmasterName: 'Ada Ve
 /** A new game's document from `seed`, as the engine creates it under the default rules and the page's content. */
 export function newDocument(seed: string): WorldDocument {
   return createWorld(seed, newGameSetup, { config: defaultConfig, content }).document;
+}
+
+/**
+ * The default rules with every Tier unlocked from Level 0, which a game carries as its rules: so that a
+ * new game's first Board may draw each Tier a template offers, its longer and harder Quests among them,
+ * whatever Tiers the opening's best fours unlock (DL-271, DL-273), as the e2e's Board does (DL-272).
+ */
+export const everyTierOpen = { ...defaultConfig, tiers: defaultConfig.tiers.map((tier) => ({ ...tier, unlockLevel: 0 })) };
+
+/** A new game of The Lantern, led by Ada Vell, from `seed`, as `started` gives, under rules opening every Tier: loaded as its save. */
+export function startedWithEveryTier(seed: string): GameState {
+  const { document } = createWorld(seed, newGameSetup, { config: everyTierOpen, content });
+  return played(initialGameState, { kind: 'load', text: serialise(document) });
 }
 
 /** A new game from `seed` played `turns` Turns by the engine's `advance`, and the events of the last of them. */
@@ -283,14 +297,14 @@ export function turnsUntilHome(state: GameState): number {
 }
 
 /**
- * `withPartyOut` on the first game from `seed` whose Party comes home partway through a fast forward's
- * second or third step of `step` Turns: after the first step, before the third ends, and not at a step's
- * end (DL-96, DL-272).
+ * `withPartyOut` on the first game from `seed`, every Tier open, whose Party comes home partway through a
+ * fast forward's second or third step of `step` Turns: after the first step, before the third ends, and
+ * not at a step's end (DL-96, DL-272, DL-273).
  */
 export function withPartyHomeInALaterStep(seed: string, step: number): GameState {
   return firstSeedWhere(
     seed,
-    (each) => withPartyOut(started(each)),
+    (each) => withPartyOut(startedWithEveryTier(each)),
     (state) => {
       const turns = turnsUntilHome(state);
       return turns > step && turns < 3 * step && turns % step !== 0;

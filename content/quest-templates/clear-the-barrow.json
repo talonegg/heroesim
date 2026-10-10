@@ -2,7 +2,7 @@
   "name": "Clear the barrow",
   "sphereKeys": ["crown"],
   "tags": ["delve", "dark", "fight"],
-  "tierMin": 2,
+  "tierMin": 1,
   "tierMax": 4,
   "rewardPerDifficulty": 4,
   "fameEffect": 3,
@@ -12,7 +12,7 @@
   "lootTableKey": null,
   "beats": [
     { "line": "The way to the barrow is long and hard going.", "pool": { "kinds": ["travel"], "tags": ["wilds", "dark", "delve"] } },
-    { "line": "The barrow's mouth is entered quietly, past old traps.", "pool": { "kinds": ["stealth"], "tags": ["delve"] } },
+    { "line": "The barrow's mouth is entered quietly, past old traps, and the way within is marked out.", "pool": { "kinds": ["stealth"], "tags": ["delve"] } },
     { "line": "The barrow's dead rise, and must be fought back into the dark.", "pool": { "kinds": ["combat"], "tags": ["dark", "fight"] } },
     { "line": "A cold light burns at the barrow's heart, and must be quenched.", "pool": { "kinds": ["arcane"], "tags": ["dark"] } }
   ]

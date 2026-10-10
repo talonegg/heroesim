@@ -13,7 +13,7 @@ import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { cameHome, changed, documentOf, firstSeedWhere, partyOut, played, started, withPartyOut, withReturn, withReturns, withWealth, type Written } from './game.test-support';
+import { cameHome, changed, documentOf, firstSeedWhere, partyOut, played, started, startedWithEveryTier, withPartyOut, withReturn, withReturns, withWealth, type Written } from './game.test-support';
 import { historyFilter } from './history';
 import { partOfAReturn } from './history-reader';
 import { narrateSegments, narrateText, textOf } from './namer';
@@ -38,12 +38,13 @@ vi.mock('./reducer', async (importOriginal) => {
 });
 
 /**
- * A Party of three Heroes or more out, and one Hero at home: the first game from quest-return that
- * gives one (DL-272), since a Death's lines read a Party mate's Regard and the grief of the one at home.
+ * A Party of three Heroes or more out, and one Hero at home: the first game from quest-return, every Tier
+ * open, that gives one (DL-272, DL-273), since a Death's lines read a Party mate's Regard and the grief of
+ * the one at home.
  */
 const base = firstSeedWhere(
   'quest-return',
-  (seed) => withPartyOut(started(seed)),
+  (seed) => withPartyOut(startedWithEveryTier(seed)),
   (state) => {
     const document = documentOf(state);
     const party = Object.values(document.world.parties).flatMap((each) => each.heroIds);

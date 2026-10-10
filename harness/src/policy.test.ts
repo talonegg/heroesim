@@ -237,17 +237,25 @@ describe('automaticPolicy', () => {
 
   describe('chooses its Quests by their chance (DL-168 item 2)', () => {
     /**
-     * The Board opened and its Quests alike, then at `base`, the Board's hardest difficulty, the first
-     * eased to half of it and the rest made half as hard again: the first the likeliest and the lowest
-     * reward, and none so easy that the player's margin makes every Party certain.
+     * The Board opened and its Quests alike, then at `base`, the first of the ladder's band tops at which
+     * the player's margin leaves a Quest of the Board uncertain (DL-273), the first eased to half of it and
+     * the rest made half as hard again: the first the likeliest and the lowest reward, and none so easy
+     * that the player's margin makes every Party certain.
      */
     function likeliestLowest() {
       const { document, guild, quests } = scene();
-      const base = Math.max(...quests.map((quest) => quest.difficulty));
       openBoard(quests);
       alike(quests);
       const [easy] = quests;
       if (easy === undefined) throw new Error('No Quest');
+      const heroes = availableHeroes(document.world, guild);
+      const base = deps.config.tiers
+        .map((tier) => tier.difficultyMax)
+        .find((difficulty) => {
+          easy.difficulty = difficulty;
+          return chanceOf(document, guild, easy, heroes) < 1;
+        });
+      if (base === undefined) throw new Error("No band top of the ladder leaves a Quest uncertain at the player's margin");
       for (const quest of quests) quest.difficulty = base * 1.5;
       easy.difficulty = base / 2;
       return { document, guild, quests, easy, base };

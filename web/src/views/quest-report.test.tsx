@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { changed, started, withPartyOut, withReturn, type ReturnTold, type Written } from '../state/game.test-support';
+import { changed, firstSeedWhere, startedWithEveryTier, withPartyOut, withReturn, type ReturnTold, type Written } from '../state/game.test-support';
 import { questReturn, type QuestReturn } from '../state/quest-return';
 import { QuestReport } from './quest-report';
 
@@ -10,7 +10,20 @@ import { QuestReport } from './quest-report';
 
 afterEach(cleanup);
 
-const base = withPartyOut(started('quest-report'));
+/**
+ * A Party out and one Hero at home: the first game from quest-report, every Tier open, that gives one, since
+ * a Death's line counts the Heroes at home whose Morale it moved (DL-273).
+ */
+const base = firstSeedWhere(
+  'quest-report',
+  (seed) => withPartyOut(startedWithEveryTier(seed)),
+  ({ document }) => {
+    const party = Object.values(document?.world.parties ?? {}).flatMap((each) => each.heroIds);
+    const guild = Object.values(document?.world.guilds ?? {}).find((each) => each.controller.kind === 'player');
+    return guild?.rosterIds.filter((heroId) => !party.includes(heroId)).length === 1;
+  },
+  'a Party out and one Hero at home',
+);
 
 function reportOf(written: Written): QuestReturn {
   const document = written.state.document;

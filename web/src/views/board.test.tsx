@@ -733,7 +733,9 @@ describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
 
   test('goes when its Quest leaves the Board', async () => {
     render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
-    const questName = within(firstCard()).getByRole('heading', { level: 3 }).textContent ?? '';
+    // The Quest by its heading's id, since two Quests of one template share a name (DL-273).
+    const questHeading = within(firstCard()).getByRole('heading', { level: 3 }).id;
+    expect(questHeading).not.toBe('');
     chooseSome();
 
     // The first Quest's last Day is today: a Day on, it has left the Board, and its choice with it.
@@ -742,7 +744,7 @@ describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
       await idle();
     }
     const board = openView('Board');
-    expect(within(board).queryByRole('heading', { level: 3, name: questName })).toBeNull();
+    expect(within(board).getAllByRole('heading', { level: 3 }).map((heading) => heading.id)).not.toContain(questHeading);
     for (const card of within(board).getAllByRole('article')) expect(within(card).queryByRole('form')).toBeNull();
   });
 

@@ -367,6 +367,9 @@ describe('sweepPlay', () => {
 
     const [first, second] = sweep.games as [GameRecord, GameRecord];
     const grades = { infirmary: [1, 1], trainingYard: [1], quarters: [1, 1, 1] };
+    /** The takings of the first Tier the first game took a Quest of, whichever Tiers its Board offered (DL-273). */
+    const taken = Object.values(first.counters.questTiers).find((tier) => Object.keys(tier.byController).length > 0)?.byController;
+    if (taken === undefined) throw new Error('The first game took no Quest');
     /** The first game's counters with a number in every counter: those a game of 20 Days leaves `null` or empty, filled. */
     const template: GameCounters = {
       ...first.counters,
@@ -386,8 +389,8 @@ describe('sweepPlay', () => {
       offers: { player: { steady: noOffers() } },
       moduleEvents: { 'probe.fired': 1 },
       moduleEffects: { probe: { 'hero.injured': 1 } },
-      // Tier 5, which a game this short may offer and leave untaken, given Tier 2's takings.
-      questTiers: { ...first.counters.questTiers, 5: { offered: 1, byController: structuredClone(first.counters.questTiers['2']?.byController ?? {}) } },
+      // Tier 5, which a game this short may offer and leave untaken, given the takings of a Tier it took.
+      questTiers: { ...first.counters.questTiers, 5: { offered: 1, byController: structuredClone(taken) } },
     };
     const games = [numbered(template, 1), numbered(template, 10_000)].map((counters, index) => ({ ...(index === 0 ? first : second), counters }));
     const summed = sweepTotals({ ...sweep, games }, deps.config.turnsPerYear);
