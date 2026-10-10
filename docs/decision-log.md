@@ -1296,3 +1296,8 @@ line by line: `cli/src/commands/preview.ts`'s two "drawn on the way" lines (O5 r
 rule 5), and `cli/src/context.ts`'s older-schema sentence (item 3). `npm test` passes; lint and
 typecheck clean; `neutral --expect` identical, alone (`v1.1.9-s14-neutral`); the doctor no drift
 before and after.
+Verified 2026-10-10 at a71c1f1: 55 of 59 bugs red; three CLI command words only R3's rows
+held are now Namer rows (eight added), the fourth never caught before either; P32's order now held
+in `synergies.test.ts`; the preview's "drawn on the way" lines live under rule 5, O5 their only
+cover, now a CLI test; coverage against `c4783bf` lost only item 3's sentence; 18 of 19 shrink
+mutants as the full-size test, S4 missing a cap of 21 to 90 Turns.

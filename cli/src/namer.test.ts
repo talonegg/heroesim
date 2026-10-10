@@ -336,6 +336,15 @@ describe("the CLI's Namer", () => {
     ['the Board to look at', { kind: 'command', command: 'show-board' }, ' (show board)'],
     ['the pool to look at', { kind: 'command', command: 'show-pool' }, ' (show pool)'],
     ['an Offer to answer', { kind: 'command', command: 'answer-offer' }, ' Answer with accept --offer <id> or decline --offer <id> (show offers).'],
+    // Every other command a refusal points to (DL-240), which the refusals' table holds in words alone (DL-248).
+    ["another Guild's Roster to look at", { kind: 'command', command: 'show-rosters' }, ' (show roster <guildId>)'],
+    ['the Market to look at', { kind: 'command', command: 'show-market' }, ' (show market)'],
+    ['the Offers to look at', { kind: 'command', command: 'show-offers' }, ' (show offers)'],
+    ['what the Roster holds', { kind: 'command', command: 'roster-holds' }, ': show roster lists what it holds'],
+    ['what the Market holds', { kind: 'command', command: 'market-holds' }, ' (show market lists what it holds)'],
+    ['who the pool holds', { kind: 'command', command: 'pool-holds' }, '; show pool lists who is'],
+    ["the Guildmaster's name to give", { kind: 'command', command: 'name-guildmaster' }, ': --master <name>'],
+    ['a Portrait of the Sex to choose', { kind: 'command', command: 'portrait-sex' }, ': choose a Portrait of that Sex, or leave out --sex'],
   ])('names %s', (_name, slot, words) => {
     expect(cliNamer(slot)).toBe(words);
   });

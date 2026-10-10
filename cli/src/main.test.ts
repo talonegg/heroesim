@@ -1587,6 +1587,18 @@ describe('preview lists the Synergies a proposed Party would have', () => {
     expect(synergies(run.out)).toEqual(['  None: this Party meets no Synergy.']);
   });
 
+  // Data-model rule 5: a Quest whose Encounters content no longer defines draws them when it
+  // resolves (DL-42, DL-248), so neither what a Synergy reaches nor the chances are known.
+  test('says a Quest whose Encounters content no longer defines has them drawn on the way, its chances not known', () => {
+    const { questId, heroIds } = proposed(['no-such-encounter'], 'warrior', 'warrior', 'warrior');
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(synergies(run.out)).toEqual(["  Shield wall: ×1.15 on combat Encounters; this Quest's Encounters are drawn on the way."]);
+    expect(run.out).toContain("Chances\n  Not known: this Quest's Encounters are drawn on the way.\n");
+  });
+
   // DL-148 item 12: one line for the Party's Morale, from its mean form, naming no Hero.
   test.each([
     [[60, 60], 'Makes no difference'],

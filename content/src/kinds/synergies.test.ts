@@ -59,7 +59,11 @@ describe('a Synergy', () => {
   });
 
   test('with its requirement as conditions on the Party, is read as written; and an empty list is refused', () => {
-    const written = [['>=', ['count', ['where', 'party', ['class', 'warrior']]], 2]];
+    // Two conditions, so that their order is held too.
+    const written = [
+      ['>=', ['count', ['where', 'party', ['class', 'warrior']]], 2],
+      ['>=', ['count', ['where', 'party', ['class', 'healer']]], 1],
+    ];
     const files = withJson('synergies.json', (json) => void (salve(json).requires = written as unknown as SynergyRow['requires']));
     const empty = withJson('synergies.json', (json) => void (salve(json).requires = [] as unknown as SynergyRow['requires']));
 
