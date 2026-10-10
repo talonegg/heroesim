@@ -523,3 +523,29 @@ S2 → S5: the player's Quests a Guild-year 378 → 284, its Party 1.66 → 1.54
 failed 19.9% → 18.1%, Deaths a game 1.75 → 1.25, Wealth at Year 2 15.6 → 22.3 months of Upkeep;
 Bankruptcies 0 and 0. Offered by Tier: 20.9%, 38.6%, 29.4%, 9.9%, 1.1%; the player took 35.8%,
 48.3%, 14.9%, 0.9%, 0. Tests 6,192 (6,188 passed, 4 skipped); lint, typecheck and the build pass.
+
+## DL-263 — v1.2.0: the owner's answers on the estimate probe's sample after S3, and S4's neutral box
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner
+
+**Context.** S3's verification (DL-260) found `npm run harness -- estimate`, run alone, failing its
+Morale-in limit: a Quest's success out by 4.84 points (sample estimate-0150) against 3 (DL-173),
+where the old file order passes at 1.61. Play is unchanged; the probe picks its core Encounter and
+lends Morale by position, and S3 read the folders' rows in key order. S4 (DL-261) raised the config
+version, so its `neutral` fingerprint moved by the save's config record alone, with play shown
+unchanged by `compare` (0 of 547 counters moved) and the year-end saves' lengths.
+
+**Decision.**
+
+1. **The estimate probe keeps the key-order sample** (the owner: "S3 decision: a"). The owner decides
+   at the close whether the Morale-in limit is widened or the probe made to account for Morale; S5's
+   Tiers move the sample again before then. No test or limit changes until that answer.
+2. **S4's `neutral --expect` box is met as play unchanged** (the owner: "accept s4 neutral change"),
+   the fingerprint moved by `configVersion` and `meta.config` alone, as DL-202 and DL-208 found.
+
+**Consequences.** S13's Gate reads the estimate's two limits against the owner's answer at the
+close. A story that raises the config version proves play unchanged by `compare`, not by the
+fingerprint.
+
+**Evidence.** DL-260's Verified line and its reports `v1.2.0-s3v-estimate-2026-10-11` and
+`v1.2.0-s3v-estimate-old-order-2026-10-11` (not committed); DL-261's Evidence. The epic's S4 boxes.

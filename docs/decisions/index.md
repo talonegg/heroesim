@@ -272,6 +272,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-260 | 2026-10-10 | v1.2.0-S3 built: content in folders, Quest templates, Encounters, Items and Loot tables a file a row |  | [decision-log](../decision-log.md) |
 | DL-261 | 2026-10-11 | v1.2.0-S4 built: the growing Board, `boardSizeStart`, `boardGrowthPerYear` and `boardSizeMax` in … |  | [decision-log](../decision-log.md) |
 | DL-262 | 2026-10-11 | v1.2.0-S5 built: the Tier engine, the `questTiers` ladder with `levelsPerTier` and … |  | [decision-log](../decision-log.md) |
+| DL-263 | 2026-10-11 | v1.2.0: the owner's answers on the estimate probe's sample after S3, and S4's neutral box |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
