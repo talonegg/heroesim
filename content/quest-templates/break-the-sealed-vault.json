@@ -2,7 +2,8 @@
   "name": "Break the sealed vault",
   "sphereKeys": ["scholars"],
   "tags": ["delve", "dark", "recover", "study"],
-  "tierMin": 4, "tierMax": 5,
+  "tierMin": 3,
+  "tierMax": 5,
   "rewardPerDifficulty": 4,
   "fameEffect": 5,
   "partySizeMin": 3,
@@ -10,10 +11,11 @@
   "requires": { "classKey": "mage" },
   "lootTableKey": "greater-loot",
   "beats": [
-    { "line": "Something uncanny.", "pool": { "kinds": ["arcane"] } },
-    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
-    { "line": "A fight on the way.", "pool": { "kinds": ["combat"] } },
-    { "line": "Something to be learned.", "pool": { "kinds": ["lore"] } }
+    { "line": "The outer wards stir as the Party draws near.", "pool": { "kinds": ["arcane"] } },
+    { "line": "The vault's old records are read for a way in.", "pool": { "encounters": ["old-records", "a-riddle-at-the-gate"] } },
+    { "line": "The stair down is laid with old traps, and is crossed with care.", "pool": { "kinds": ["stealth"], "tags": ["delve"] } },
+    { "line": "The vault's keepers wake and bar the last stair.", "pool": { "kinds": ["combat"], "tags": ["dark", "guard"] } }
   ],
-  "finale": "the-wardens-seal", "finaleLine": "The last of it."
+  "finale": "the-wardens-seal",
+  "finaleLine": "The Warden's seal is unbound at last, and the vault stands open."
 }

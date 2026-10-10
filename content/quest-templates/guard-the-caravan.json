@@ -2,7 +2,8 @@
   "name": "Guard the caravan",
   "sphereKeys": ["merchants"],
   "tags": ["escort", "guard", "wilds"],
-  "tierMin": 2, "tierMax": 3,
+  "tierMin": 1,
+  "tierMax": 4,
   "rewardPerDifficulty": 4,
   "fameEffect": 2,
   "partySizeMin": 2,
@@ -10,8 +11,9 @@
   "requires": {},
   "lootTableKey": null,
   "beats": [
-    { "line": "A hard road.", "pool": { "kinds": ["travel"] } },
-    { "line": "A fight on the way.", "pool": { "kinds": ["combat"] } },
-    { "line": "A hard road.", "pool": { "kinds": ["travel"] } }
+    { "line": "The heavy carts leave the market town, over the fells and through the fords.", "pool": { "kinds": ["travel"], "tags": ["wilds", "water"] } },
+    { "line": "Trouble strikes from the roadside, but is beaten off, and the carts roll on to the next town.", "pool": { "kinds": ["combat"], "tags": ["escort", "wilds"] } },
+    { "line": "Beyond the town the road runs long and supplies run low, but the carts reach their journey's end.", "pool": { "kinds": ["travel"], "tags": ["escort", "guard"] } },
+    { "line": "On the road home, raiders fall on the carts at the high pass, and the line must hold.", "pool": { "kinds": ["combat"], "tags": ["guard"] } }
   ]
 }

@@ -1,5 +1,5 @@
 {
-  "version": 39,
+  "version": 40,
   "changelog": [
     "2 from M2-S3, which added the Quest templates.",
     "3 from M2-S9, which added the Dispositions.",
@@ -40,6 +40,7 @@
     "36 from v1.1.6-S16, which adds the optional `weight` of a Class, Background, Quest template and Sphere and the optional `purchaseOrder`, `gearSlotOrder` and `buildOrder` of a Disposition, none yet written, every game as it was (DL-202).",
     "37 from v1.1.7-S6, which gives each Class its `icon`, the name of the drawing shown before a Hero's name (DL-206 items 22 to 24, DL-212).",
     "38 from v1.2.0-S5, which writes each Quest template in Tiers and Beats, `tierMin`, `tierMax`, `beats` and a Finale's `finaleLine`, in place of its difficulty, Days and Encounter kinds and counts, by a script: each to the Tiers whose bands' middles its difficulty spanned, a Beat with a working line for each Encounter kind (DL-257 items 1 and 2, DL-262).",
-    "39 from v1.2.0-S8, which writes each Quest template's least Party at 2 where it was 1 and takes out its `partySizeMax`, a Party having no most, by a script (DL-257 item 6, DL-266)."
+    "39 from v1.2.0-S8, which writes each Quest template's least Party at 2 where it was 1 and takes out its `partySizeMax`, a Party having no most, by a script (DL-257 item 6, DL-266).",
+    "40 from the content editor's Finish of 2026-10-11 (changed a-quiet-word, break-the-sealed-vault, clear-the-barrow, escort-the-tithe, guard-the-caravan, hold-the-border-fort, lay-the-restless-dead, recover-the-strongbox, survey-the-old-workings, the-beast-of-the-fells, the-counting-house-job, the-sickness-at-the-mill)."
   ]
 }

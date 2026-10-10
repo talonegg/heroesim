@@ -1101,8 +1101,10 @@ owner answered "b": make them independent of the shipped content, then Finish ag
      stated condition, as the e2e's Board does: a Party home partway through a later step (the
      reducer's and the page's steps), one home injured (the report), a Party of three and one at home
      (`quest-return`), Heroes injured and away (`availability`); the Roster's filter fixture injures
-     the first at home and makes them a Warrior. Turns, Days and the History counted from the game.
-3. **"Finish"** wrote the twelve files and content 39 → 40.
+     the first at home and makes them a Warrior. Turns, Days and the History counted from the game;
+   - e2e: `board.spec.ts`'s game carries rules opening every Tier from Level 0, since no first Board
+     offers a Deadly Tier now (the fallback's lowest Tiers are 3 at most).
+3. **"Finish"** wrote the twelve files, content 39 → 40, its `npm test` passing.
 
 *Judgement calls, for the owner to see.*
 - **Open points the owner saw, left:** the Loot gap (eight templates with no Loot table offer Tier 3
@@ -1111,6 +1113,15 @@ owner answered "b": make them independent of the shipped content, then Finish ag
 - **The other web tests the first Finish failed** (`quest-return` 3, the Roster's filter, the
   report's Injury) passed on S14's Board, but rested on the same content; made independent too.
 
-**Consequences.** The tests rest on their own fixtures; "Finish" and the quick run follow.
+**Consequences.** The first Board offers no Deadly Quest: in two years no Tier above 3 is offered (S14's
+fallback offered the vault at Tier 4, now 3). Tier 3 rises a little, Tier 2 falls; Deaths 0, as at S14.
+The bundle is 845,686 bytes of 850,000 (840,728 before).
 
-**Evidence.** The commit `v1.2.0-S11 (DL-272): the content-pinned tests made independent`: each rewritten test red under the mutation it guards, then restored.
+**Evidence.** The commits `v1.2.0-S11 (DL-272)`: the tests (`ef1313b`), each red under its mutation
+and restored; the content. `neutral v1.2.0-s11-quick` (4 × 2, `harness/reports/v1.2.0-s11-quick-2026-10-11`,
+`eb2a646d…`): refusals 0, the replay identical. `compare` with S14's quick (`e8fc5184…`), 329 counters
+moved: offered by Tier 29.6, 67.8, 1.4, 1.2, 0 → 30.4, 66.7, 2.9, 0, 0%; the player took 40.1, 59.6,
+0.3, 0 → 40.6, 57.9, 1.5, 0; the Rivals 19.4, 79.1, 0.8, 0.7 → 22.0, 76.2, 1.8, 0. Quests a Guild-year
+267.38 → 259.88 the player's; the Rivals' 147.88, 142.63, 110.88, 145.13 → 148.50, 142.63, 113.25,
+151.38. Mean Party 2.02 → 2.03; Deaths 0 and 0; Bankruptcies and folds 0. `compare` with S2's gate too
+(`5dbfdaf4…`, 20 years, not like for like). The epic's S11 boxes.

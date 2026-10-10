@@ -2,7 +2,8 @@
   "name": "Survey the old workings",
   "sphereKeys": ["scholars"],
   "tags": ["delve", "dark", "study"],
-  "tierMin": 2, "tierMax": 3,
+  "tierMin": 2,
+  "tierMax": 5,
   "rewardPerDifficulty": 4,
   "fameEffect": 2,
   "partySizeMin": 2,
@@ -10,9 +11,10 @@
   "requires": {},
   "lootTableKey": null,
   "beats": [
-    { "line": "A hard road.", "pool": { "kinds": ["travel"] } },
-    { "line": "Something uncanny.", "pool": { "kinds": ["arcane"] } },
-    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
-    { "line": "Something to be learned.", "pool": { "kinds": ["lore"] } }
+    { "line": "The road to the old workings is long and runs through broken country.", "pool": { "kinds": ["travel"], "tags": ["wilds", "water"] } },
+    { "line": "An old ward still guards the way into the workings.", "pool": { "kinds": ["arcane"], "tags": ["delve"] } },
+    { "line": "On the walls the old miners' marks and records are read and copied down.", "pool": { "encounters": ["a-riddle-at-the-gate", "old-records"] } },
+    { "line": "The deepest passages are mapped, past traps laid long ago.", "pool": { "kinds": ["stealth"], "tags": ["delve"] } },
+    { "line": "In the lowest gallery something old and restless stirs, and must be faced.", "pool": { "kinds": ["arcane"], "tags": ["dark"] } }
   ]
 }

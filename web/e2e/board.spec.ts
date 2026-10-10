@@ -11,8 +11,8 @@ import { expectNoHorizontalOverflow, openView, region } from './support';
 // with no figure, DL-257 item 5, Q18 b), its Days and its reward; the builder opens on the Quest's
 // narrative, its Beats' lines in order, and says the least Party it takes, with no Death figure.
 //
-// The game is a new one whose first Board holds a Deadly Quest and one that is not, found seed by seed
-// in the saved content, so that the spec holds whatever Quests the content's templates draw; it is
+// The game is a new one, its rules opening every Tier, whose first Board holds a Deadly Quest and one
+// that is not, found seed by seed in the saved content, so that the spec holds whatever Quests the content's templates draw; it is
 // written as a save and opened with "Load a save file", and each card is held to its Quest's row.
 
 const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-10-11T09:00:00.000Z' };
@@ -34,9 +34,16 @@ function savedContent(): ContentSet {
 
 const content = savedContent();
 
-/** The first new game, seed by seed, whose first Board holds a Deadly Quest and one that is not. */
+/**
+ * The defaults with every Tier unlocked from Level 0, which a game carries as its rules: so that a new
+ * game's first Board may draw each Tier a template offers, a Deadly one among them, whatever Tiers the
+ * opening's best fours unlock (DL-271, DL-272).
+ */
+const everyTierOpen = { ...defaultConfig, tiers: defaultConfig.tiers.map((tier) => ({ ...tier, unlockLevel: 0 })) };
+
+/** The first new game, seed by seed, every Tier open, whose first Board holds a Deadly Quest and one that is not. */
 function aBoardWithADeadlyQuest(): WorldDocument {
-  const deps = { config: defaultConfig, content };
+  const deps = { config: everyTierOpen, content };
   for (let index = 0; index < 200; index += 1) {
     const { document } = createWorld(`e2e-board-${index}`, setup, deps);
     const deadly = questsOf(document).map((quest) => isDeadly(quest, content, defaultConfig));

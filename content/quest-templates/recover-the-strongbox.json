@@ -2,7 +2,8 @@
   "name": "Recover the strongbox",
   "sphereKeys": ["merchants"],
   "tags": ["recover", "water"],
-  "tierMin": 2, "tierMax": 3,
+  "tierMin": 1,
+  "tierMax": 5,
   "rewardPerDifficulty": 4.5,
   "fameEffect": 2,
   "partySizeMin": 2,
@@ -10,8 +11,10 @@
   "requires": {},
   "lootTableKey": null,
   "beats": [
-    { "line": "A hard road.", "pool": { "kinds": ["travel"] } },
-    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
-    { "line": "A hard road.", "pool": { "kinds": ["travel"] } }
+    { "line": "The strongbox went into the river with a wrecked cart, and the Party goes to find it.", "pool": { "kinds": ["travel"], "tags": ["water", "wilds"] } },
+    { "line": "Whoever fished it out keeps it in a river-town hideout, and the Party takes it back unseen.", "pool": { "kinds": ["stealth"], "tags": ["town"] } },
+    { "line": "The box is carried home to its owners, and trouble finds the Party on the road.", "pool": { "kinds": ["combat"], "tags": ["escort", "wilds"] } },
+    { "line": "Its owners will not pay until the box is proved whole.", "pool": { "encounters": ["a-hostile-reeve", "the-patrons-steward"] } },
+    { "line": "The one who told the thieves where the cart would be is followed unseen through the town.", "pool": { "kinds": ["stealth"], "tags": ["town"] } }
   ]
 }
