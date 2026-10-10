@@ -5,18 +5,20 @@ import type { Guild, Hero, Quest, World } from './document.js';
 import {
   beatsDrawn,
   beatsPlayed,
-  centreTier,
+  bestFourLevel,
+  boardTopTier,
   daysAt,
   deathScaleOf,
   difficultyBand,
   inBeatPool,
   isDeadly,
-  meanLevel,
   offeredTiers,
   scaledDeathChance,
   shortBeats,
+  templatesOpenAt,
   tierFigures,
   tierWeights,
+  unlockedTier,
 } from './tiers.js';
 
 // DL-257 items 1 to 3, DL-262: the Tier a Quest is drawn at, and the figures it is drawn and paid by.
@@ -34,6 +36,7 @@ function ladder(count: number): TierRow[] {
     xpFactor: 2 + index,
     deathScale: index >= 3 ? 1 : 0,
     fameMinimum: 0,
+    unlockLevel: 3 * index,
   }));
 }
 
@@ -58,31 +61,67 @@ function worldOf(guilds: [folded: boolean, levels: number[]][], pool: number[] =
   return { guilds: Object.fromEntries(rows.map((row) => [row.id, row])), heroes } as unknown as Pick<World, 'guilds' | 'heroes'>;
 }
 
-describe('meanLevel', () => {
-  test('is the mean Level of every Hero on the Roster of a Guild in play, the player and the Rivals alike', () => {
-    expect(meanLevel(worldOf([[false, [1, 2, 3]], [false, [6]]]))).toBe(3);
+/** The first Guild of `world`, as `bestFourLevel` reads it. */
+const firstGuild = (world: Pick<World, 'guilds'>): Pick<Guild, 'rosterIds'> => Object.values(world.guilds)[0] as Guild;
+
+describe('bestFourLevel', () => {
+  test("is the mean Level of the Guild's best unlockHeroes Heroes, the rest left out", () => {
+    const world = worldOf([[false, [1, 7, 2, 9, 3, 5]]]);
+    expect(bestFourLevel(firstGuild(world), world, config({ unlockHeroes: 4 }))).toBe(6);
+    expect(bestFourLevel(firstGuild(world), world, config({ unlockHeroes: 2 }))).toBe(8);
+    expect(bestFourLevel(firstGuild(world), world, config({ unlockHeroes: 1 }))).toBe(9);
   });
 
-  test('leaves out a folded Guild and the Unattached pool', () => {
-    expect(meanLevel(worldOf([[false, [2, 4]], [true, [20, 20]]], [30, 30]))).toBe(3);
+  test('divides by unlockHeroes on a Roster of fewer, a missing Hero counted at Level 0', () => {
+    const world = worldOf([[false, [12, 4]]]);
+    expect(bestFourLevel(firstGuild(world), world, config({ unlockHeroes: 4 }))).toBe(4);
+    const none = worldOf([[false, []]]);
+    expect(bestFourLevel(firstGuild(none), none, config({ unlockHeroes: 4 }))).toBe(0);
   });
 
-  test('is 0 with no Hero on a Roster in play', () => {
-    expect(meanLevel(worldOf([]))).toBe(0);
-    expect(meanLevel(worldOf([[false, []], [true, [9]]], [9]))).toBe(0);
+  test('counts a Hero away or injured, as it reads only the Roster and the Levels', () => {
+    const world = worldOf([[false, [8, 8, 8, 8]]]);
+    for (const hero of Object.values(world.heroes)) Object.assign(hero, { partyId: 'party-000001', injury: { typeKey: 'broken-arm', healsOnTurn: 99 } });
+    expect(bestFourLevel(firstGuild(world), world, config({ unlockHeroes: 4 }))).toBe(8);
+  });
+
+  test('passes over a Roster id the world has no Hero for', () => {
+    const world = worldOf([[false, [8, 8, 8, 8]]]);
+    const guild = { rosterIds: [...firstGuild(world).rosterIds, 'hero-999999' as Hero['id']] };
+    expect(bestFourLevel(guild, world, config({ unlockHeroes: 4 }))).toBe(8);
   });
 });
 
-describe('centreTier', () => {
-  test('is 1 + the floor of the mean Level over levelsPerTier', () => {
-    const at = (mean: number): number => centreTier(mean, config({ levelsPerTier: 3 }));
-    expect([0, 1, 2.99, 3, 5.99, 6, 9, 12].map(at)).toEqual([1, 1, 1, 2, 2, 3, 4, 5]);
+describe('unlockedTier', () => {
+  test('is the highest Tier whose unlockLevel the Level reaches, each threshold a boundary', () => {
+    // The test ladder's unlockLevels are 0, 3, 6, 9 and 12.
+    const at = (level: number): number => unlockedTier(level, config());
+    expect([0, 2.99, 3, 5.75, 6, 8.99, 9, 11.99, 12, 40].map(at)).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
   });
 
-  test("is the ladder's last at most", () => {
-    expect(centreTier(100, config({ levelsPerTier: 3 }))).toBe(5);
-    expect(centreTier(100, config({ tiers: ladder(2) }))).toBe(2);
-    expect(centreTier(4, config({ levelsPerTier: 1.5 }))).toBe(3);
+  test('is Tier 1 at least, and reads a ladder whose unlockLevels repeat to the highest of them', () => {
+    const flat = ladder(3).map((row) => ({ ...row, unlockLevel: row.unlockLevel === 0 ? 0 : 5 }));
+    expect(unlockedTier(4, config({ tiers: flat }))).toBe(1);
+    expect(unlockedTier(5, config({ tiers: flat }))).toBe(3);
+    expect(unlockedTier(-1, config())).toBe(1);
+  });
+});
+
+describe('boardTopTier', () => {
+  test('is the highest Tier any Guild in play has unlocked by its best four, the player and the Rivals alike', () => {
+    const world = worldOf([[false, [3, 3, 3, 3]], [false, [9, 9, 6, 6, 1]], [false, [20]]]);
+    // Best fours 3, 7.5 and 5: Tiers 2, 3 and 2.
+    expect(boardTopTier(world, config({ unlockHeroes: 4 }))).toBe(3);
+  });
+
+  test('leaves out a folded Guild and the Unattached pool', () => {
+    const world = worldOf([[false, [3, 3, 3, 3]], [true, [12, 12, 12, 12]]], [12, 12, 12, 12]);
+    expect(boardTopTier(world, config({ unlockHeroes: 4 }))).toBe(2);
+  });
+
+  test('is Tier 1 with no Guild in play, or none with a Hero', () => {
+    expect(boardTopTier(worldOf([]), config())).toBe(1);
+    expect(boardTopTier(worldOf([[false, []], [true, [12, 12, 12, 12]]]), config())).toBe(1);
   });
 });
 
@@ -100,21 +139,47 @@ describe('offeredTiers', () => {
 });
 
 describe('tierWeights', () => {
-  test('weighs each Tier offered by its distance from the centre', () => {
-    const weights = config({ tierDrawWeights: [1, 0.5, 0.2] });
-    expect(tierWeights([1, 2, 3, 4, 5], 3, weights)).toEqual([0.2, 0.5, 1, 0.5, 0.2]);
-    expect(tierWeights([2, 3, 4], 2, weights)).toEqual([1, 0.5, 0.2]);
+  const weights = config({ tierDrawWeights: [1, 0.5, 0.2] });
+
+  test('weighs the top Tier 1, one below 0.5, two below 0.2, and the last weight held for every Tier further below', () => {
+    expect(tierWeights([1, 2, 3, 4, 5], 5, weights)).toEqual([0.2, 0.2, 0.2, 0.5, 1]);
+    expect(tierWeights([2, 3, 4], 4, weights)).toEqual([0.2, 0.5, 1]);
+    expect(tierWeights([1, 2], 5, weights)).toEqual([0.2, 0.2]);
   });
 
-  test('gives a Tier past the list a weight of 0', () => {
-    expect(tierWeights([1, 2, 3, 4, 5], 1, config({ tierDrawWeights: [1, 0.5] }))).toEqual([1, 0.5, 0, 0, 0]);
+  test('weighs a Tier above the top 0', () => {
+    expect(tierWeights([1, 2, 3, 4, 5], 3, weights)).toEqual([0.2, 0.5, 1, 0, 0]);
+    expect(tierWeights([1, 2, 3, 4, 5], 1, weights)).toEqual([1, 0, 0, 0, 0]);
+    expect(tierWeights([2, 3, 4], 2, config({ tierDrawWeights: [1] }))).toEqual([1, 0, 0]);
   });
 
-  test('holds the centre inside the Tiers offered, so the nearest weighs the centre’s', () => {
-    const weights = config({ tierDrawWeights: [1, 0.5, 0.2] });
+  test('weighs a template wholly above the top at its lowest Tier alone, drawn only where its Patron has no other', () => {
     expect(tierWeights([3], 1, weights)).toEqual([1]);
-    expect(tierWeights([3, 4, 5], 1, weights)).toEqual([1, 0.5, 0.2]);
-    expect(tierWeights([1, 2], 5, weights)).toEqual([0.5, 1]);
+    expect(tierWeights([3, 4, 5], 2, weights)).toEqual([1, 0, 0]);
+  });
+});
+
+describe('templatesOpenAt', () => {
+  const templates = [
+    { key: 'low', tierMin: 1, tierMax: 2 },
+    { key: 'middle', tierMin: 2, tierMax: 4 },
+    { key: 'high', tierMin: 4, tierMax: 5 },
+  ];
+  const keys = (top: number, from = templates): string[] => templatesOpenAt(from, top, config()).map((template) => template.key);
+
+  test('keeps the templates offering a Tier at or below the top, in their order', () => {
+    expect(keys(1)).toEqual(['low']);
+    expect(keys(3)).toEqual(['low', 'middle']);
+    expect(keys(5)).toEqual(['low', 'middle', 'high']);
+  });
+
+  test('keeps every template where none offers a Tier at or below the top', () => {
+    expect(keys(1, templates.slice(1))).toEqual(['middle', 'high']);
+  });
+
+  test("reads a template's Tiers held on the ladder", () => {
+    expect(keys(5, [{ key: 'past', tierMin: 7, tierMax: 9 }])).toEqual(['past']);
+    expect(keys(1, [{ key: 'past', tierMin: 7, tierMax: 9 }, { key: 'low', tierMin: 1, tierMax: 1 }])).toEqual(['low']);
   });
 });
 

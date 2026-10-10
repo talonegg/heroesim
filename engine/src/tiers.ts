@@ -1,8 +1,10 @@
-// The Tier engine (DL-257 items 1 to 3, DL-262): which Tier of the config's ladder a Quest is drawn at,
-// and the figures it is drawn and paid by. The Board's draw centres on the world's mean Level, the same
-// for every Guild (#22's Board scaling), and weighs each Tier a template offers by its distance from
-// that centre. A Quest's difficulty sits in its Tier's band and its Days at the same place in its
-// Tier's days, so a harder Quest of a Tier is a longer one (Q4 a). Pure: nothing here draws or writes.
+// The Tier engine (DL-257 items 1 to 3, DL-262, DL-271): which Tier of the config's ladder a Quest is
+// drawn at, and the figures it is drawn and paid by. Each Guild in play unlocks the Tiers whose unlock
+// Level the mean Level of its best four reaches; the shared Board offers Tiers up to the highest any
+// Guild has unlocked, its top Tier, the same for every Guild (#22's Board scaling), and weighs each
+// Tier a template offers by its distance below that top, so the lower Tiers stay on offer all game. A
+// Quest's difficulty sits in its Tier's band and its Days at the same place in its Tier's days, so a
+// harder Quest of a Tier is a longer one (Q4 a). Pure: nothing here draws or writes.
 //
 // The engine stays total whatever content or a save holds: a Tier past the ladder reads the ladder's
 // last, a template's Tiers are clipped to the ladder, and a Tier wanting more Beats than its template
@@ -10,32 +12,45 @@
 
 import type { GameConfig, TierRow } from './config.js';
 import type { ContentSet, Encounter, EncounterKey, QuestBeat, QuestBeatPool, QuestTemplate } from './content-types.js';
-import { rowOf, type Quest, type World } from './document.js';
+import { rowOf, type Guild, type Quest, type World } from './document.js';
 import { clamp } from './generators/draw.js';
 
 /**
- * The world's mean Level (DL-257 item 3): the mean of every Hero on the Roster of a Guild in play, the
- * player's and the Rivals' alike, a Hero away or injured counted, the Unattached pool not; 0 when no
- * Guild in play has a Hero.
+ * The mean Level of `guild`'s best four (DL-271): its `unlockHeroes` Heroes of the highest Level on its
+ * Roster, a Hero away or injured counted. A place its Roster cannot fill counts as Level 0, the sum
+ * divided by `unlockHeroes` whatever the Roster holds, so that one strong Hero does not unlock a Tier
+ * alone. A Roster id the world has no Hero for is passed over.
  */
-export function meanLevel(world: Pick<World, 'guilds' | 'heroes'>): number {
-  let heroes = 0;
-  let levels = 0;
-  for (const guild of Object.values(world.guilds)) {
-    if (guild.foldedOnTurn !== null) continue;
-    for (const heroId of guild.rosterIds) {
-      const hero = rowOf(world.heroes, heroId);
-      if (hero === undefined) continue;
-      heroes += 1;
-      levels += hero.level;
-    }
-  }
-  return heroes === 0 ? 0 : levels / heroes;
+export function bestFourLevel(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroes'>, config: Pick<GameConfig, 'unlockHeroes'>): number {
+  const levels = guild.rosterIds.flatMap((heroId) => {
+    const hero = rowOf(world.heroes, heroId);
+    return hero === undefined ? [] : [hero.level];
+  });
+  const best = levels.sort((a, b) => b - a).slice(0, config.unlockHeroes);
+  return best.reduce((total, level) => total + level, 0) / config.unlockHeroes;
 }
 
-/** The Tier the Board's draw centres on (DL-257 item 3): 1 + ⌊`mean` ÷ `levelsPerTier`⌋, held on the ladder. */
-export function centreTier(mean: number, config: Pick<GameConfig, 'tiers' | 'levelsPerTier'>): number {
-  return clamp(1 + Math.floor(mean / config.levelsPerTier), 1, config.tiers.length);
+/** The highest Tier whose `unlockLevel` `level` reaches (DL-271): Tier 1 at least, whose is 0. */
+export function unlockedTier(level: number, config: Pick<GameConfig, 'tiers'>): number {
+  let unlocked = 1;
+  config.tiers.forEach((row, index) => {
+    if (row.unlockLevel <= level) unlocked = Math.max(unlocked, index + 1);
+  });
+  return unlocked;
+}
+
+/**
+ * The Board's top Tier (DL-271): the highest Tier any Guild in play has unlocked by its best four
+ * (`bestFourLevel`, `unlockedTier`), the player's and the Rivals' alike, the Unattached pool not;
+ * Tier 1 with no Guild in play. Read once for a refresh of the Board, which no draw changes.
+ */
+export function boardTopTier(world: Pick<World, 'guilds' | 'heroes'>, config: Pick<GameConfig, 'tiers' | 'unlockHeroes'>): number {
+  let top = 1;
+  for (const guild of Object.values(world.guilds)) {
+    if (guild.foldedOnTurn !== null) continue;
+    top = Math.max(top, unlockedTier(bestFourLevel(guild, world, config), config));
+  }
+  return top;
 }
 
 /** The Tiers `template` offers, from its `tierMin` to its `tierMax`, held on the ladder: one at least. */
@@ -47,13 +62,30 @@ export function offeredTiers(template: Pick<QuestTemplate, 'tierMin' | 'tierMax'
 }
 
 /**
- * Each of `offered`'s weights in the draw of a Quest's Tier (DL-262): `tierDrawWeights` at its distance
- * from `centre`, held inside the Tiers offered, so the nearest offered Tier weighs the centre's and a
- * template wholly above or below the centre is still drawn; a distance past the list weighs 0.
+ * Each of `offered`'s weights in the draw of a Quest's Tier (DL-271): a Tier above `top`, the Board's top
+ * Tier, weighs 0; one at or below it weighs `tierDrawWeights` at its distance below the top, the last
+ * weight held for every Tier further below, so none of them weighs 0 and the lower Tiers stay on offer.
+ * A template whose every Tier is above the top, drawn only where its Patron has none open
+ * (`templatesOpenAt`), weighs its lowest Tier 1 and the rest 0.
  */
-export function tierWeights(offered: readonly number[], centre: number, config: Pick<GameConfig, 'tierDrawWeights'>): number[] {
-  const held = clamp(centre, offered[0] ?? centre, offered.at(-1) ?? centre);
-  return offered.map((tier) => config.tierDrawWeights[Math.abs(tier - held)] ?? 0);
+export function tierWeights(offered: readonly number[], top: number, config: Pick<GameConfig, 'tierDrawWeights'>): number[] {
+  const weights = config.tierDrawWeights;
+  if (offered.every((tier) => tier > top)) return offered.map((_, index) => (index === 0 ? 1 : 0));
+  return offered.map((tier) => (tier > top ? 0 : (weights[Math.min(top - tier, weights.length - 1)] ?? 0)));
+}
+
+/**
+ * The templates a Quest is drawn among at the Board's top Tier `top` (DL-271), in their order: those
+ * offering a Tier at or below it (`offeredTiers`), or every one of `templates` where none does, each
+ * then drawn at its lowest Tier (`tierWeights`), so a Patron with no template open yet still posts.
+ */
+export function templatesOpenAt<Template extends Pick<QuestTemplate, 'tierMin' | 'tierMax'>>(
+  templates: readonly Template[],
+  top: number,
+  config: Pick<GameConfig, 'tiers'>,
+): Template[] {
+  const open = templates.filter((template) => (offeredTiers(template, config)[0] ?? 1) <= top);
+  return open.length === 0 ? [...templates] : open;
 }
 
 /**

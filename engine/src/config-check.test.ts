@@ -21,6 +21,7 @@ const tierRow = (step: number): TierRow => ({
   xpFactor: 1.5,
   deathScale: 0,
   fameMinimum: 0,
+  unlockLevel: 0,
 });
 
 /** The settings a config with `changes` breaks the rules of. */
@@ -171,14 +172,23 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   questDifficultyMin: { refused: [0, 10.5], allowed: [1, defaultConfig.questDifficultyMax] },
   questDifficultyMax: maxOf('questDifficultyMin', 'questDifficultyMax'),
   encounterTagWeight: { refused: [0.99, 0, -3, Number.NaN, Number.POSITIVE_INFINITY], allowed: [1, 3.5] },
-  // One Tier or more, each sound, its bands no lower than the Tier's below (DL-262), held by 'the Tier ladder'.
+  // One Tier or more, each sound, its bands and unlock Levels no lower than the Tier's below, Tier 1's
+  // unlock Level 0 (DL-262, DL-271), held by 'the Tier ladder'.
   tiers: {
-    refused: [[], 'tiers', [{ ...tierRow(0), beats: 0 }], [tierRow(1), tierRow(0)], [{ ...tierRow(0), extra: 1 }]],
-    allowed: [[tierRow(0)], defaultConfig.tiers, [tierRow(0), tierRow(0)]],
+    refused: [
+      [],
+      'tiers',
+      [{ ...tierRow(0), beats: 0 }],
+      [tierRow(1), tierRow(0)],
+      [{ ...tierRow(0), extra: 1 }],
+      [{ ...tierRow(0), unlockLevel: 3 }],
+      [tierRow(0), { ...tierRow(0), unlockLevel: 6 }, { ...tierRow(0), unlockLevel: 3 }],
+    ],
+    allowed: [[tierRow(0)], defaultConfig.tiers, [tierRow(0), tierRow(0)], [tierRow(0), { ...tierRow(0), unlockLevel: 4 }, { ...tierRow(0), unlockLevel: 4 }]],
   },
-  levelsPerTier: finiteAbove(0),
-  // The centre's weight above 0, so a draw always lands on a Tier (DL-262).
-  tierDrawWeights: { refused: [[], [0, 1], [1, -0.5], [1, Number.NaN], 1], allowed: [[1], [0.01, 0, 0], [1, 0.5, 0.2, 0.1, 5]] },
+  // Every weight above 0, so that no Tier at or below the Board's top Tier is ever left out (DL-271).
+  tierDrawWeights: { refused: [[], [0, 1], [1, -0.5], [1, Number.NaN], 1, [1, 0], [0.01, 0, 0]], allowed: [[1], [0.01, 0.01], [1, 0.5, 0.2, 0.1, 5]] },
+  unlockHeroes: wholeFrom(1),
   deathFactor: finiteFrom(0),
   checkVariance: share,
   skillBonusPerRating: finiteFrom(0),
@@ -428,6 +438,8 @@ describe('the Tier ladder (DL-262)', () => {
     expect(tierRowProblems({ ...tierRow(0), xpFactor: Number.NaN })).toEqual(['xpFactor is NaN; it is a finite number, at least 0']);
     expect(tierRowProblems({ ...tierRow(0), deathScale: Number.POSITIVE_INFINITY })).toEqual(['deathScale is Infinity; it is a finite number, at least 0']);
     expect(tierRowProblems({ ...tierRow(0), fameMinimum: 1.5 })).toEqual(['fameMinimum is 1.5; it is a whole number, at least 0']);
+    expect(tierRowProblems({ ...tierRow(0), unlockLevel: -1 })).toEqual(['unlockLevel is -1; it is a whole number, at least 0']);
+    expect(tierRowProblems({ ...tierRow(0), unlockLevel: 2.5 })).toEqual(['unlockLevel is 2.5; it is a whole number, at least 0']);
   });
 
   test('a Tier row lacking a field, or holding one a Tier has not, is named; one that is no object is named whole', () => {
@@ -454,20 +466,32 @@ describe('the Tier ladder (DL-262)', () => {
     expect(broken({ tiers: [tierRow(0), { ...tierRow(1), daysMin: 1, daysMax: 2, rewardFactor: 0.5, beats: 1 }] })).toEqual([]);
   });
 
+  test("Tier 1's unlock Level is 0, and each Tier's at least the Tier's below (DL-271)", () => {
+    const [first] = checkConfig({ ...defaultConfig, tiers: [{ ...tierRow(0), unlockLevel: 2 }, { ...tierRow(0), unlockLevel: 3 }] });
+    expect(first?.message).toMatch(/; Tier 1: unlockLevel is 2; it is 0, so that Tier 1 is always on offer$/);
+    const [falling] = checkConfig({ ...defaultConfig, tiers: [tierRow(0), { ...tierRow(0), unlockLevel: 6 }, { ...tierRow(0), unlockLevel: 5 }] });
+    expect(falling?.message).toMatch(/; Tier 3: unlockLevel is 5; it is at least Tier 2's, 6$/);
+    expect(broken({ tiers: [tierRow(0), tierRow(0), { ...tierRow(0), unlockLevel: 1 }] })).toEqual([]);
+  });
+
   test('an empty ladder, or one that is no list, is refused', () => {
     expect(checkConfig({ ...defaultConfig, tiers: [] })[0]?.message).toBe(
-      'tiers is []; it is a list of one or more Tiers, each an object of difficultyMin, difficultyMax, daysMin, daysMax, beats, loot, rewardFactor, xpFactor, deathScale, fameMinimum',
+      'tiers is []; it is a list of one or more Tiers, each an object of difficultyMin, difficultyMax, daysMin, daysMax, beats, loot, rewardFactor, xpFactor, deathScale, fameMinimum, unlockLevel',
     );
     expect(broken({ tiers: { 1: tierRow(0) } })).toEqual(['tiers']);
   });
 
-  test("the draw weights name the centre's first, above 0", () => {
-    expect(checkConfig({ ...defaultConfig, tierDrawWeights: [0, 1] })).toEqual([
+  test("the draw weights name the top Tier's first, each above 0 (DL-271)", () => {
+    expect(checkConfig({ ...defaultConfig, tierDrawWeights: [1, 0] })).toEqual([
       {
         setting: 'tierDrawWeights',
-        message: "tierDrawWeights is [0,1]; it is a list of one weight or more, the centre's first, each a finite number of 0 or more, the first above 0",
+        message: "tierDrawWeights is [1,0]; it is a list of one weight or more, the top Tier's first, then each Tier further below it, the last held, each a finite number above 0",
       },
     ]);
+  });
+
+  test('the best four are one Hero or more', () => {
+    expect(checkConfig({ ...defaultConfig, unlockHeroes: 0 })).toEqual([{ setting: 'unlockHeroes', message: 'unlockHeroes is 0; it is a whole number, at least 1' }]);
   });
 });
 

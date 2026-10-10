@@ -10,6 +10,7 @@ import type { GameConfig } from '../config.js';
 import type { EngineEvent } from '../events.js';
 import { boardStream, generateQuest, templatesFor } from '../generators/quests.js';
 import { streamOf } from '../generators/draw.js';
+import { boardTopTier } from '../tiers.js';
 import { patronBoardWeight, regardOnOfferExpired } from '../regard.js';
 import { weightedPick } from '../rng.js';
 import { yearOf } from '../time.js';
@@ -66,7 +67,8 @@ function expireQuests(world: World, ctx: PhaseContext): EngineEvent[] {
  * Patrons whose Sphere some template serves, in proportion to `patronBoardWeight`: their mean
  * Regard across the Guilds in play, since every Guild draws from one Board (R22, M4-S5, DL-43).
  * The weights are read once, after this refresh's expiries and before its first draw: drawing moves
- * no Regard. With every Patron at neutral the draw is DL-25's uniform one, draw for draw. One draw for the Patron,
+ * no Regard. With every Patron at neutral the draw is DL-25's uniform one, draw for draw. The Board's
+ * top Tier is read once too (`boardTopTier`, DL-271): no draw moves a Level. One draw for the Patron,
  * then the Quest Generator's own, all from `board`.
  */
 function fillBoard(world: World, ctx: PhaseContext): EngineEvent[] {
@@ -78,11 +80,12 @@ function fillBoard(world: World, ctx: PhaseContext): EngineEvent[] {
   if (patrons.length === 0 || world.board.length >= size) return [];
 
   const weights = patrons.map((patron) => patronBoardWeight(patron, world, config));
+  const topTier = boardTopTier(world, config);
   const state = streamOf(world, boardStream);
   const events: EngineEvent[] = [];
   while (world.board.length < size) {
     const patron = weightedPick(state, patrons, weights);
-    events.push(...generateQuest(world, patron, { config, content }, { stream: boardStream }).events);
+    events.push(...generateQuest(world, patron, { config, content }, { stream: boardStream, topTier }).events);
   }
   return events;
 }

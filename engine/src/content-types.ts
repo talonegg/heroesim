@@ -12,7 +12,7 @@
 // Content is read, never written: nothing in the engine mutates a row.
 
 import type { FacilityKey, Sex } from './document.js';
-import type { TierRow } from './config.js';
+import type { TierOverride } from './config.js';
 
 // Content keys. A key names a content row; the World State stores keys, never rows. They are
 // plain strings: type safety over them comes from content validation at load, not from the
@@ -316,9 +316,9 @@ export interface QuestTemplate {
   finaleLine?: string;
   /**
    * Figures of the ladder it changes for a Tier it offers, by the Tier's number (`"3"`): any of a
-   * Tier row's, the rest the ladder's (`tierFigures`).
+   * Tier row's but its unlock Level (`TierOverride`, DL-271), the rest the ladder's (`tierFigures`).
    */
-  overrides?: Record<string, Partial<TierRow>>;
+  overrides?: Record<string, Partial<TierOverride>>;
   /**
    * Its weight in the draw of the Quest template of a new Quest, a number above 0; 1 when absent
    * (v1.1.6-S16, DL-186 item 16, DL-202). Rows all at 1 are drawn as equally likely.

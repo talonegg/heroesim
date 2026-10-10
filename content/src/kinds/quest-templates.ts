@@ -4,7 +4,7 @@
 // its Finale, named rather than drawn (DL-160), and the ladder's figures it overrides (DL-257, DL-262);
 // its least Party, two or more, and no most (DL-257 item 6, DL-266).
 
-import type { EncounterKind, QuestBeat, QuestBeatPool, QuestTemplate, QuestTemplateRequires, TierRow } from '@heroesim/engine/content';
+import type { EncounterKind, QuestBeat, QuestBeatPool, QuestTemplate, QuestTemplateRequires, TierOverride, TierRow } from '@heroesim/engine/content';
 import { encounterKinds, inBeatPool, shortBeats, tierLadder, tierRowProblems } from '@heroesim/engine/content';
 import {
   boolean,
@@ -34,7 +34,8 @@ const partyFloor = 2;
 const beatPool = { kinds: optional(oneOfEach(encounterKindChoices)), tags: optional(strings), encounters: optional(strings) };
 
 /**
- * A Tier's override: any of a Tier row's fields, the rest the ladder's. Each number is read as a number,
+ * A Tier's override: any of a Tier row's fields but its unlock Level, the world's (`TierOverride`,
+ * DL-271), the rest the ladder's. Each number is read as a number,
  * whole or not, and the row it makes is held to the ladder's rules (`tierRowProblems`), which name a
  * count that is not whole as the config's check does.
  */
@@ -71,7 +72,7 @@ export const questTemplatesKind = table<'questTemplates', QuestTemplate>(
     // Its Finale, none when absent (DL-160), and its line, given together.
     finale: optionalText,
     finaleLine: optionalText,
-    overrides: optional(byKey(object<Partial<TierRow>>(tierOverride, "a Tier's override"))),
+    overrides: optional(byKey(object<Partial<TierOverride>>(tierOverride, "a Tier's override"))),
     weight: optional(number),
   },
   'a Quest template',

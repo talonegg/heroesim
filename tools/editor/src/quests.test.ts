@@ -308,7 +308,9 @@ describe('the Quest templates, through both adapters', () => {
     expect(last.json.row.row).not.toHaveProperty('overrides');
 
     const refusals: [readonly string[], string, Record<string, unknown>, string][] = [
-      [['set', 'a-quiet-word', '2', 'colour=3'], 'set', { key: 'a-quiet-word', tier: 2, values: { colour: 3 } }, '"colour" is not a figure of a Tier'],
+      [['set', 'a-quiet-word', '2', 'colour=3'], 'set', { key: 'a-quiet-word', tier: 2, values: { colour: 3 } }, '"colour" is not a figure a template overrides'],
+      // The unlock Level is the world's, no template's (DL-271).
+      [['set', 'a-quiet-word', '2', 'unlockLevel=1'], 'set', { key: 'a-quiet-word', tier: 2, values: { unlockLevel: 1 } }, '"unlockLevel" is not a figure a template overrides'],
       [['set', 'a-quiet-word', '4', 'daysMax=20'], 'set', { key: 'a-quiet-word', tier: 4, values: { daysMax: 20 } }, 'questTemplates.a-quiet-word.overrides.4: Tier 4 is not one it offers, 1 to 2'],
       [['set', 'a-quiet-word', '2', 'daysMin=9'], 'set', { key: 'a-quiet-word', tier: 2, values: { daysMin: 9 } }, 'questTemplates.a-quiet-word.overrides.2:'],
       [['clear', 'a-quiet-word', '1'], 'clear', { key: 'a-quiet-word', tier: 1 }, 'Tier 1 has no override'],

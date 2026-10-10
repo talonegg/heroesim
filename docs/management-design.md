@@ -37,8 +37,8 @@ these nine sentences the player finds themselves saying. Each epic names the sen
    - A Quest template offers Tiers. A higher Tier is longer, harder and richer in Wealth, XP and
      Loot, and has more Beats: lines of its story, each with an Encounter drawn from a pool. The
      Tiers' figures are a ladder in config that a template may override.
-   - The shared Board offers the Tiers that fit the world's mean Level, and a Tier may ask a Guild for
-     a minimum of Fame. The Board may grow over the Years, up to a cap.
+   - The shared Board offers the Tiers up to the one the strongest Guild's four best Heroes have
+     unlocked, the lower Tiers kept, and a Tier may ask a Guild for a minimum of Fame (DL-271). The Board may grow over the Years, up to a cap.
    - In time, the Quests a Guild is offered grow with its Fame and its Patrons' Regard (part 7).
 2. **The Hero's career.**
    - A Hero ages, Declines, retires or dies, as today.

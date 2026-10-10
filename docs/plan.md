@@ -81,7 +81,7 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
 (#51) is spread across the releases that change what it tunes.
 
 - **Now: `v1.2.0`, fewer, weightier Quests** ([its epic](./planning/epics/v1.2.0-release.md),
-  DL-257): tiered Quest templates with Beats, the Board's Tiers following the world's mean Level, Death
+  DL-257): tiered Quest templates with Beats, the Board's Tiers unlocked by each Guild's best four, Death
   by Tier and the Deadly mark, a Party floor of two, content in one file per row, and the editor's
   commands and skills to write it. Nothing is tuned: every DL-83 target is reported against
   `v1.1.9`'s. It takes in #19, #22's Board scaling and #40.

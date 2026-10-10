@@ -205,6 +205,7 @@ owner was grilled in four rounds.
 3. **The Board** (Q7, Q15, #22). Tiers are drawn around 1 + ⌊the world's mean Level ÷
    `levelsPerTier`⌋, the same for every Guild. A Guild below a Tier's `fameMinimum` may not take it;
    the minimums are 0.
+   *Superseded in part by DL-271, 2026-10-11: the Tiers up to the highest any Guild in play has unlocked by its best four, the lower kept; the Fame minimum stands. The record: [superseded/DL-257.md](decisions/archive/superseded/DL-257.md).*
 4. **The growing Board** (Q3, Q10). Its size is the smaller of a cap and a start plus growth by the
    Year, at 6, 0 and 6: the rule built, play unchanged.
 5. **Death** (Q5, Q17). An Encounter's Death chance × `deathFactor` (1) × its Tier's `deathScale`: 0
@@ -478,6 +479,7 @@ counts, and `lootDifficultyThreshold` gave Loot.
    hold each row whole (`tierRowProblems`) and its band not below the Tier's beneath, its Days free to
    overlap, as tuning (corrected at the close, DL-270).
    `lootDifficultyThreshold` is gone, a Tier's `loot` in its place. Config version 19.
+   *Superseded in part by DL-271, 2026-10-11: `levelsPerTier` gone, each Tier's `unlockLevel` and `unlockHeroes` in its place. The record: [superseded/DL-262.md](decisions/archive/superseded/DL-262.md).*
 2. **The template** (`content/src/kinds/quest-templates.ts`): `tierMin`/`tierMax` within the ladder;
    `beats`, each a line and a pool (kinds, tags or named Encounters; a Finale in none); `finale` with
    `finaleLine`; `overrides` by Tier, each merged row held by the ladder's rules. A pool too small to
@@ -488,6 +490,7 @@ counts, and `lootDifficultyThreshold` gave Loot.
    `levelsPerTier`⌋, the Tier drawn by its distance among those the template offers; the difficulty
    within the band, the Days at its place in the Tier's Days; the first k−1 Beats and the Finale, or
    the first k; reward × `rewardFactor`; Loot by `loot`. XP × `xpFactor`, read live at resolution.
+   *Superseded in part by DL-271, 2026-10-11: the Tier drawn up to the Board's top Tier by its distance below it, not around the centre. The record: [superseded/DL-262.md](decisions/archive/superseded/DL-262.md).*
 4. **The Quest** carries `tier` and `beatLines`; `schemaVersion` 8, a save of 7 refused (rule 5); the
    validator holds a line an Encounter. `quest.offered` and `quest.taken` name the Tier.
 5. **The factors** (Q23 a), each v1.1.9's figure a Day at the Tier's difficulties over v1.2.0's at
@@ -1000,3 +1003,70 @@ so unchanged; R1's figures as its reports give them; the corrections facts); 27 
 6 killed by tests added (an untuned file rewritten, a sound ladder refused, the by-year words, an
 unescaped name, the 20- and 25-year slice words), 1 equivalent; the flaky test, `release.test.ts`'s
 git repositories, 4.3 to 4.6 s of a 5 s default, timing out under load, given 30 s.
+
+## DL-271 — v1.2.0-S14 built: the Board's Tiers unlocked by each Guild's best four, each Tier's `unlockLevel` and `unlockHeroes` in place of `levelsPerTier`; config version 21
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answer of 2026-10-11 (b, the Board only); the agent's build
+
+**Context.** DL-257 item 3 and DL-262 drew a Quest's Tier around 1 + ⌊the world's mean Level ÷
+`levelsPerTier`⌋, the Tiers above the centre weighed as the Tiers below. The owner: "lower tier story
+should still be offered through the game, the higher tiers are unlocked based on average level of top
+4 heroes per guild"; offered a per-Guild gate (a), the Board only (b) or per-Guild hidden cards (c),
+b.
+
+**Decision.**
+
+1. **The unlock** (`engine/src/tiers.ts`). A Guild's best four (`bestFourLevel`) is the mean Level of
+   its `unlockHeroes` best Heroes on its Roster, away or injured counted, the sum divided by
+   `unlockHeroes` whatever the Roster holds, a missing Hero at Level 0, so one strong Hero unlocks
+   nothing alone. It unlocks the highest Tier whose `unlockLevel` that reaches (`unlockedTier`).
+2. **The Board's top Tier** (`boardTopTier`): the highest any Guild in play has unlocked, the player's
+   and the Rivals' alike; Tier 1 with none. Read once a refresh (`fillBoard`, `QuestOptions.topTier`).
+3. **The draw.** A Tier above the top weighs 0; one at or below it `tierDrawWeights` at its distance
+   below the top, the last held (`tierWeights`), so the lower Tiers stay on offer. The template is
+   drawn among the Patron's open at the top (`templatesOpenAt`); where none is, among all of them, as
+   before, each at its lowest Tier. Three `board` draws a Quest, as before. No per-Guild gate; the
+   Fame minimum (DL-264) stands.
+4. **Settings,** config version 21: each `questTiers` row's `unlockLevel`, at 0, 3, 6, 9 and 12, the
+   thresholds `levelsPerTier` 3 gave, whole, Tier 1's 0, none below the Tier's beneath;
+   `unlockHeroes` 4, whole, 1 or more; `levelsPerTier` gone. `tierDrawWeights` keeps 1, 0.5, 0.2,
+   each now above 0. No template overrides `unlockLevel` (`TierOverride`, `tierOverrideFields`).
+5. **The report:** `tierUnlocks`, the Board's top Tier and each side's best four and unlocked Tier as
+   each year begins.
+6. **Words:** CONTEXT.md's Tier, R21, the management design, `plan.md` §3, `config.md`, the editor's
+   README, `quest-draft`. No player's text named the mean Level.
+
+*Judgement calls, for the owner to see.*
+- **The fallback, as designed,** offers at the top Tier 1 the Scholars' vault at Tier 4, Deadly, and
+  the Crown's fort at 3: 108 and 120 offers in year 1 of the quick run, the Rivals taking 31 at Tier
+  4, no Death. A narrower one, the templates whose lowest Tier is the nearest above the top, was built
+  and run (no Tier above 2 offered) but moved 9 web tests' seed fixtures; set back, the owner's to
+  choose. S11's batch starts the vault at Tier 3, not Deadly.
+- **No glossary term:** Tier's entry says "the mean Level of its four best Heroes".
+- **Every draw weight above 0**, not only the first, so the rule, not the defaults, keeps the lower
+  Tiers offered. `config-check.test.ts`'s cases changed with it.
+- **DL-262 items 1 and 3 superseded in part too:** they built DL-257 item 3's centre.
+- **Pins moved by the Tier draw,** no default: `quests.test.ts`'s `board-a` Board (its 6th Quest
+  Tier 3, difficulty 56 → Tier 2, 38; at Turn 90 quest-000061 Tier 5, 91 → 4, 73, 62 the restless
+  dead at 3 → the tithe at 1, 64 the beast at 3 → the sickness at 1; the stream as it was);
+  `quests-conclude`'s fingerprints bcbd90c0…, d56833fb…, 209f07bd… → 4aa6fab2…, d59db236…,
+  88664527…; `resolve`'s 8d9793bc… → d1d94ff7…;
+  `policy.test.ts`'s `likeliestLowest` based at the Board's hardest difficulty, its first Quest now a
+  Tier 1 of 21 that the player's margin makes certain beside the rest. Tests whose premise is every
+  Tier open unlock them (`levelled`). No test pinned a default this story changed.
+
+**Consequences.** DL-257 item 3 and DL-262 items 1 and 3 are superseded in part. In the quick run no
+Tier above 2 is offered after year 1: the best fours reach 4.13 to 5.00 by year 2, Tier 3's 6 not
+yet, where S8's spread drew Tier 3 at half the centre's weight. Tuning `unlockLevel` is DL-257 item
+11's; S11's wider Tiers open more templates at Tier 1.
+
+**Evidence.** The commit `v1.2.0-S14 (DL-271)`. `neutral v1.2.0-s14-quick` (4 × 2,
+`harness/reports/v1.2.0-s14-quick-2026-10-11`): refusals 0, invalid 0, the replay identical,
+`e8fc5184…`. `compare` with S8's quick (`62fab24b…`), 388 counters moved of 623: offered by Tier
+18.1, 39.9, 29.7, 10.5, 1.7% → 29.6, 67.8, 1.4, 1.2, 0; the player took 33.1, 52.0, 13.9, 0.9, 0.1% →
+40.1, 59.6, 0.3, 0, 0; the Rivals 10.0, 49.4, 32.9, 7.2, 0.5% → 19.4, 79.1, 0.8, 0.7, 0. The top Tier
+1, 2, 2 at year-starts 0 to 2 in every game; best four at year 1, the player and ambitious, miserly,
+reckless, steady, 4.00, 4.00, 3.13, 3.75, 3.75, at year 2 5.00, 4.94, 4.13, 4.75, 4.94. Quests a
+Guild-year 219.75 → 267.38 the player's, the Rivals' 112.63, 119.00, 61.38, 111.63 → 147.88, 142.63,
+110.88, 145.13; the mean Party 2.07 → 2.02; Deaths 0 → 0 and the Rivals' 2 → 0; Bankruptcies 0 and 0.
+The epic's S14 boxes.

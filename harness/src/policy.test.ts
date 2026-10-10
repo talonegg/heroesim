@@ -237,16 +237,17 @@ describe('automaticPolicy', () => {
 
   describe('chooses its Quests by their chance (DL-168 item 2)', () => {
     /**
-     * The Board opened and its Quests alike at `base`, the first's difficulty, then the first eased to
-     * half of it and the rest made half as hard again: the first the likeliest and the lowest reward.
+     * The Board opened and its Quests alike, then at `base`, the Board's hardest difficulty, the first
+     * eased to half of it and the rest made half as hard again: the first the likeliest and the lowest
+     * reward, and none so easy that the player's margin makes every Party certain.
      */
     function likeliestLowest() {
       const { document, guild, quests } = scene();
+      const base = Math.max(...quests.map((quest) => quest.difficulty));
       openBoard(quests);
       alike(quests);
       const [easy] = quests;
       if (easy === undefined) throw new Error('No Quest');
-      const base = easy.difficulty;
       for (const quest of quests) quest.difficulty = base * 1.5;
       easy.difficulty = base / 2;
       return { document, guild, quests, easy, base };

@@ -334,7 +334,9 @@ the one below. A Quest template offers consecutive Tiers, and a Quest is posted 
 difficulty in the Tier's band and its Days at the same place in the Tier's, its reward and XP by the
 Tier's factors and its Loot as the Tier says (DL-257 items 1 and 3, DL-262). A Guild whose Fame is
 below the Tier's Fame minimum may not take its Quests (DL-264). The ladder's figures are settings,
-`tiers`, that a template may override, and the Board draws its Tiers around the world's mean Level.
+`tiers`, that a template may override. A Guild unlocks a Tier when the mean Level of its four best
+Heroes reaches the Tier's unlock Level, and the one Board offers Tiers up to the highest any Guild in
+play has unlocked, the lower Tiers kept on offer all game (DL-271).
 _Avoid_: Level (a Hero's is another thing), Grade, Rank
 
 **Beat**:

@@ -12,7 +12,7 @@
 
 import { placeOf, rowFields, type ContentSource } from '@heroesim/content';
 import type { ContentJson } from '@heroesim/content/uses';
-import { beatsDrawn, degrees, inBeatPool, tierFields, tierLadder, type Encounter, type QuestBeatPool, type TierRow } from '@heroesim/engine/content';
+import { beatsDrawn, degrees, inBeatPool, tierFields, tierLadder, tierOverrideFields, type Encounter, type QuestBeatPool, type TierRow } from '@heroesim/engine/content';
 import type { Kind, Row, Use } from './kind.js';
 import { Refused } from './session.js';
 
@@ -227,7 +227,9 @@ export function beatRemoved(row: Row, at: number | undefined): Row {
 /** A Tier's override, refused where `tier` is no whole number, or a figure none of a Tier's. */
 function figuresChecked(tier: number | undefined, names: readonly string[]): number {
   if (tier === undefined || !Number.isSafeInteger(tier)) throw new Refused([`Tier ${String(tier)} is not a Tier: a whole number, 1 to ${tierLadder.length}`]);
-  for (const name of names) if (!(tierFields as readonly string[]).includes(name)) throw new Refused([`"${name}" is not a figure of a Tier: ${tierFields.join(', ')}`]);
+  for (const name of names) {
+    if (!(tierOverrideFields as readonly string[]).includes(name)) throw new Refused([`"${name}" is not a figure a template overrides: ${tierOverrideFields.join(', ')}`]);
+  }
   return tier;
 }
 

@@ -63,6 +63,8 @@
 
 import {
   baseStat,
+  bestFourLevel,
+  boardTopTier,
   callingClashes,
   compareByCodeUnit,
   copyWorld,
@@ -81,6 +83,7 @@ import {
   relationshipBandCounts,
   timeOfDay,
   turnsPerDay,
+  unlockedTier,
   unsignableHeroes,
   upkeep,
   writeOnce,
@@ -1533,6 +1536,8 @@ export interface GameObservations {
   rivalsAtFloor: Record<string, FloorTally>[];
   /** The player's Wealth in months of its Upkeep as each year begins (`playerWealthMonths`, DL-259): index as `rosters`. */
   playerWealthMonths: (number | null)[];
+  /** The Board's top Tier and each side's best four as each year begins (`tierUnlocks`, DL-271): index as `rosters`. */
+  tierUnlocks: TierUnlocks[];
   /** The Transfers that left a Rival seller's Roster below `rivalRosterMin` (`transfersShort`, DL-259). */
   transfersShort: number;
 }
@@ -2138,6 +2143,37 @@ export function rivalsAtFloor(world: World, deps: EngineDeps): Record<string, Fl
     if (guild.rosterIds.length <= deps.config.rivalRosterMin && guild.wealth > hoardingUpkeeps * upkeep(guild, world, deps.config, deps.content)) tally.hoarding += 1;
   }
   return tallies;
+}
+
+/** One side's Guilds in play as a year begins (DL-271): how many, their best fours' Levels summed, and how many had unlocked each Tier, index k Tier k + 1. */
+export interface UnlockTally {
+  guilds: number;
+  levels: number;
+  unlocked: number[];
+}
+
+/** The Board's top Tier as a year begins, and each side's Guilds' best fours and the Tiers they had unlocked (DL-271). */
+export interface TierUnlocks {
+  top: number;
+  sides: Record<string, UnlockTally>;
+}
+
+/**
+ * The Board's top Tier in `world` (`boardTopTier`), and for each side (`sideOf`: the player's Guild, and
+ * each Disposition's Rivals) its Guilds in play, the mean Level of each one's best four
+ * (`bestFourLevel`) and the Tier it unlocks (`unlockedTier`, DL-271).
+ */
+export function tierUnlocks(world: World, deps: EngineDeps): TierUnlocks {
+  const sides: Record<string, UnlockTally> = {};
+  for (const guild of guildsInPlay(world)) {
+    const level = bestFourLevel(guild, world, deps.config);
+    const tally = (sides[sideOf(guild)] ??= { guilds: 0, levels: 0, unlocked: deps.config.tiers.map(() => 0) });
+    tally.guilds += 1;
+    tally.levels += level;
+    const tier = unlockedTier(level, deps.config);
+    tally.unlocked[tier - 1] = (tally.unlocked[tier - 1] ?? 0) + 1;
+  }
+  return { top: boardTopTier(world, deps.config), sides };
 }
 
 /**

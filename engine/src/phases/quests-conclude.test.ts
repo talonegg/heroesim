@@ -1076,11 +1076,12 @@ describe('the Quest named on what its return causes', () => {
     // Tiers and Beats (DL-262; ae34d056…, 83073fb4… and 20a8de88…), which change every Quest's figures
     // and Encounters and name its Tier on its offer and its taking; and no Quest with a most Party
     // (DL-266; d9c65ed6… and fa5362b7…, the third's game unchanged), which lets the Rivals' Best
-    // Parties grow past it.
+    // Parties grow past it; and the Board's Tiers unlocked by each Guild's best four (DL-271; bcbd90c0…,
+    // d56833fb… and 209f07bd…), which draws each Quest's template and Tier anew.
     expect(fingerprints).toEqual([
-      'bcbd90c08dd62889860c8643aba7abc178187ab405a8421f9d646fe6871ebfb0',
-      'd56833fb7400d93b5318f929c0c34e2fac0a658bb7117ddd1a5a7eb44fd4072d',
-      '209f07bdc782e3125ef8715622565e4118684ec036403dccc311b994fe9d6994',
+      '4aa6fab27234f409f0ac01e3536c93ec13dcb6debc6d9406529142233a25f634',
+      'd59db23614a6257893e8a6abdef780cf84c09d700756955ce3203821773e0f02',
+      '886645274c526d3c3e17d866e88d7f28e2eb295c170a541ac7001b6aee585b20',
     ]);
   });
 

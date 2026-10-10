@@ -30,7 +30,7 @@ npm run edit -- config finish --reason "<why> (DL-NNN)"
 - **`set`** reads the value as JSON where it is JSON (`25`, `0.5`, `{"female":1,"male":3}`,
   `["strong"]`) and as text where not (`warm`), an object's keys in the file's order whatever order
   they are given in. A list is set whole: the Tier ladder as `config set tiers '[{…}, …]'`, every
-  Tier's ten fields given (DL-262). Each edit is checked at once with the engine's
+  Tier's eleven fields given (DL-262, DL-271). Each edit is checked at once with the engine's
   `checkConfig`, with every pending edit made, and refused, naming the
   setting, where a rule refuses it: `boardSizeStart is -1; it is a whole number, at least 0`. A setting
   another's rule reads is named too: a Min set above its Max names the Max. A Tier ladder changed is

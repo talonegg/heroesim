@@ -8,12 +8,12 @@ import { append } from '../history.js';
 import { next, type StreamName } from '../rng.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
 import { plannedStreams, testContent, testDeps, testWorld, withValid } from '../world.test-support.js';
-import { beatsPlayed, daysAt, meanLevel, offeredTiers, tierFigures } from '../tiers.js';
+import { beatsPlayed, boardTopTier, daysAt, offeredTiers, tierFigures } from '../tiers.js';
 import { generatePatron } from './patrons.js';
 import { generateQuest, templatesFor } from './quests.js';
 
 // The Quest Generator (DL-25), and the Tier, difficulty, Days and Beats it draws a Quest at (DL-257
-// items 1 to 3, DL-262).
+// items 1 to 3, DL-262, DL-271).
 
 function withPatron(seed: string, deps: EngineDeps, sphereKey = 'crown', streams?: readonly string[]) {
   const world = testWorld(seed, deps, streams);
@@ -34,11 +34,11 @@ function withTemplate(key: string, changes: Partial<QuestTemplate>): ContentSet 
   return { ...testContent, questTemplates: { ...testContent.questTemplates, [key]: { ...template, ...changes } } };
 }
 
-/** `world` with a Guild in play whose one Hero is at `level`: the world's mean Level, as the centre reads it. */
+/** `world` with a Guild in play of four Heroes at `level`: its best four at `level`, as the Board's top Tier reads it. */
 function levelled(world: World, level: number): void {
-  const heroId = 'hero-999999' as HeroId;
-  world.heroes[heroId] = { id: heroId, level } as Hero;
-  world.guilds['guild-999999' as GuildId] = { id: 'guild-999999', rosterIds: [heroId], foldedOnTurn: null } as unknown as Guild;
+  const heroIds = [1, 2, 3, 4].map((n) => `hero-99999${n}` as HeroId);
+  for (const heroId of heroIds) world.heroes[heroId] = { id: heroId, level } as Hero;
+  world.guilds['guild-999999' as GuildId] = { id: 'guild-999999', rosterIds: heroIds, foldedOnTurn: null } as unknown as Guild;
 }
 
 /** Pairs of `a` and `b`, as many as the shorter. */
@@ -48,6 +48,8 @@ describe('generateQuest', () => {
   test("draws each of the Patron's Sphere's templates, and only those (D3)", () => {
     const deps = testDeps();
     const { world, patron } = withPatron('sphere', deps, 'crown');
+    // Every Tier unlocked, so that every template of the Sphere is open (DL-271).
+    levelled(world, 12);
 
     const drawn = new Set(quests(world, patron, deps, 60).map((quest) => quest.templateKey));
 
@@ -120,6 +122,7 @@ describe('generateQuest', () => {
     const loot = (flags: boolean[]): Map<string, (string | null)[]> => {
       const deps = testDeps({ tiers: flags.map((flag, index) => tier({ difficultyMin: 10 + 10 * index, difficultyMax: 20 + 10 * index, loot: flag })) });
       const { world, patron } = withPatron('loot', deps, 'underworld');
+      levelled(world, 12);
       const seen = new Map<string, (string | null)[]>();
       for (const quest of quests(world, patron, deps, 60)) {
         const key = `${quest.templateKey} ${quest.tier}`;
@@ -137,10 +140,10 @@ describe('generateQuest', () => {
     expect(Object.fromEntries(loot([false, false, true, false]))).toMatchObject({ 'the-counting-house-job 3': ['greater-loot'], 'the-counting-house-job 4': [null] });
   });
 
-  test("draws the Tier around the centre the world's mean Level sets, by tierDrawWeights", () => {
+  test("draws the Tier at or below the Board's top Tier the best four unlock, by tierDrawWeights by its distance below the top", () => {
     const tally = (level: number, tierDrawWeights: number[]): Record<number, number> => {
-      const deps = testDeps({ levelsPerTier: 3, tierDrawWeights });
-      const { world, patron } = withPatron(`centre-${level}`, deps, 'villages');
+      const deps = testDeps({ tierDrawWeights });
+      const { world, patron } = withPatron(`top-${level}`, deps, 'villages');
       levelled(world, level);
       const counts: Record<number, number> = {};
       for (const quest of quests(world, patron, deps, 600)) {
@@ -148,31 +151,54 @@ describe('generateQuest', () => {
       }
       return counts;
     };
-    // The beast offers Tiers 2 to 4. At weights [1] alone, every Quest is at the centre held inside them.
-    expect(Object.keys(tally(1, [1]))).toEqual(['2']);
-    expect(Object.keys(tally(6, [1]))).toEqual(['3']);
-    expect(Object.keys(tally(9, [1]))).toEqual(['4']);
-    expect(Object.keys(tally(30, [1]))).toEqual(['4']);
-    // At the centre 3, Tiers 2 and 4 each about half as often as 3.
-    const around = tally(6, [1, 0.5]);
-    expect(Object.keys(around)).toEqual(['2', '3', '4']);
-    for (const side of [2, 4]) {
-      const ratio = (around[side] ?? 0) / (around[3] ?? 1);
-      expect(ratio, `Tier ${side}`).toBeGreaterThan(0.35);
-      expect(ratio, `Tier ${side}`).toBeLessThan(0.65);
+    // The beast offers Tiers 2 to 4; the default ladder unlocks Tier 2 at Level 3, Tier 3 at 6, Tier 4 at 9.
+    // Weights of 1 and a near 0 below it: almost every Quest at the top.
+    const top = (level: number): string[] => Object.entries(tally(level, [1, 0.0001])).filter(([, n]) => n > 5).map(([tier]) => tier);
+    expect(top(3)).toEqual(['2']);
+    expect(top(6)).toEqual(['3']);
+    expect(top(9)).toEqual(['4']);
+    // At the top 5, above the beast's highest, each of its Tiers weighs by its distance below 5: here alike.
+    expect(top(30)).toEqual(['2', '3', '4']);
+    // At the top 4, Tier 3 about half as often as 4, and Tier 2, two below, the last weight held, as often as 3.
+    const below = tally(9, [1, 0.5]);
+    expect(Object.keys(below)).toEqual(['2', '3', '4']);
+    for (const lower of [2, 3]) {
+      const ratio = (below[lower] ?? 0) / (below[4] ?? 1);
+      expect(ratio, `Tier ${lower}`).toBeGreaterThan(0.35);
+      expect(ratio, `Tier ${lower}`).toBeLessThan(0.65);
     }
+    // At the top 3, Tier 4 is never drawn.
+    expect(Object.keys(tally(6, [1, 0.5]))).toEqual(['2', '3']);
   });
 
-  test('draws a template offering only Tiers above the centre at the nearest of them', () => {
+  test("reads the Board's top Tier from the world when no top is given, and the top given in its place", () => {
+    const deps = testDeps({ tierDrawWeights: [1, 0.0001] });
+    const { world, patron } = withPatron('top-given', deps, 'villages');
+    levelled(world, 9);
+    expect(boardTopTier(world, deps.config)).toBe(4);
+    const beast = { templateKey: 'the-beast-of-the-fells' };
+    const tiers = (options: Parameters<typeof generateQuest>[3]): number[] => Array.from({ length: 20 }, () => generateQuest(world, patron, deps, options).quest.tier);
+    expect(tiers(beast).filter((tier) => tier === 4).length).toBeGreaterThan(18);
+    expect(new Set(tiers({ ...beast, topTier: 2 }))).toEqual(new Set([2]));
+  });
+
+  test('never draws a template whose Tiers are all above the top while its Patron has one that is not', () => {
     const deps = testDeps();
-    const { world, patron } = withPatron('above', deps, 'scholars');
-    expect(meanLevel(world)).toBe(0);
-    const tiers = new Set(quests(world, patron, deps, 200).filter((quest) => quest.templateKey === 'break-the-sealed-vault').map((quest) => quest.tier));
-    // The vault offers 4 and 5; the centre is 1, held inside them at 4, and 5 is one away.
-    expect([...tiers].sort()).toEqual([4, 5]);
-    const only: EngineDeps = { config: deps.config, content: withTemplate('break-the-sealed-vault', { tierMin: 3, tierMax: 3 }) };
-    const at = withPatron('only-three', only, 'scholars');
-    for (const quest of quests(at.world, at.patron, only, 40)) if (quest.templateKey === 'break-the-sealed-vault') expect(quest.tier).toBe(3);
+    const { world, patron } = withPatron('above', deps, 'villages');
+    expect(boardTopTier(world, deps.config)).toBe(1);
+    // The villages' sickness offers Tier 1 alone; the beast, Tiers 2 to 4, waits for Tier 2 to unlock.
+    expect(new Set(quests(world, patron, deps, 200).map((quest) => `${quest.templateKey} ${quest.tier}`))).toEqual(new Set(['the-sickness-at-the-mill 1']));
+    levelled(world, 3);
+    expect(new Set(quests(world, patron, deps, 200).map((quest) => quest.templateKey))).toEqual(new Set(['the-sickness-at-the-mill', 'the-beast-of-the-fells']));
+  });
+
+  test('draws among every template of a Patron none of whose templates is open at the top, each at its lowest Tier', () => {
+    const deps = testDeps();
+    const { world, patron } = withPatron('fallback', deps, 'scholars');
+    expect(boardTopTier(world, deps.config)).toBe(1);
+    // The scholars' survey offers Tiers 2 and 3, the vault 4 and 5: neither is open at Tier 1.
+    const drawn = new Set(quests(world, patron, deps, 200).map((quest) => `${quest.templateKey} ${quest.tier}`));
+    expect(drawn).toEqual(new Set(['survey-the-old-workings 2', 'break-the-sealed-vault 4']));
   });
 
   test('takes exactly three board draws, the template, the Tier and the difficulty; two with a template given; one with a Tier too', () => {
@@ -192,6 +218,10 @@ describe('generateQuest', () => {
       expect(drawsOf({})).toBe(3);
       expect(drawsOf({ templateKey: 'clear-the-barrow' })).toBe(2);
       expect(drawsOf({ templateKey: 'clear-the-barrow', tier: 3 })).toBe(1);
+      // Whatever the top: a template open at it, or none (the fallback), still three draws.
+      expect(drawsOf({ topTier: 5 })).toBe(3);
+      expect(drawsOf({ topTier: 1 })).toBe(3);
+      expect(drawsOf({ templateKey: 'hold-the-border-fort', topTier: 1 })).toBe(2);
     }
   });
 
@@ -307,7 +337,7 @@ describe('generateQuest', () => {
     const deps = testDeps();
     for (const sphere of Object.keys(testContent.spheres)) {
       const { world, patron } = withPatron(`beats-${sphere}`, deps, sphere);
-      levelled(world, 6);
+      levelled(world, 12);
       for (const quest of quests(world, patron, deps, 150)) {
         const template = testContent.questTemplates[quest.templateKey];
         if (template === undefined) throw new Error(`No template ${quest.templateKey}`);
@@ -369,15 +399,15 @@ describe('generateQuest', () => {
       ['recover-the-strongbox', 'patron-000007', 2, 37, 21, 243],
       ['escort-the-tithe', 'patron-000004', 1, 12, 9, 65],
       ['guard-the-caravan', 'patron-000007', 2, 29, 15, 190],
-      ['survey-the-old-workings', 'patron-000009', 3, 56, 30, 457],
+      ['survey-the-old-workings', 'patron-000009', 2, 38, 21, 249],
     ]);
     while (document.world.turn < 90) document = advance(document, deps).document;
     expect(document.history.byType['quest.offered']).toHaveLength(66);
     expect(board()).toEqual([
-      ['quest-000061', 'break-the-sealed-vault', 'patron-000009', 5, 91, 54, 928],
-      ['quest-000062', 'lay-the-restless-dead', 'patron-000008', 3, 56, 30, 457],
+      ['quest-000061', 'break-the-sealed-vault', 'patron-000009', 4, 73, 42, 710],
+      ['quest-000062', 'escort-the-tithe', 'patron-000008', 1, 20, 12, 109],
       ['quest-000063', 'recover-the-strongbox', 'patron-000003', 2, 39, 21, 256],
-      ['quest-000064', 'the-beast-of-the-fells', 'patron-000010', 3, 46, 24, 375],
+      ['quest-000064', 'the-sickness-at-the-mill', 'patron-000010', 1, 10, 9, 54],
       ['quest-000065', 'hold-the-border-fort', 'patron-000011', 3, 52, 27, 424],
       ['quest-000066', 'recover-the-strongbox', 'patron-000003', 2, 32, 18, 210],
     ]);

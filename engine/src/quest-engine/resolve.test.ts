@@ -1312,7 +1312,8 @@ describe('a Finale and Loot', () => {
 // none of its pool, `exposedBy`, `guardedBy`, `steadiedBy`, a Death on the hurt, Traits positive and
 // negative. The fingerprint was recorded against resolve.ts before the move, so it holds the
 // resolutions and the `quests` stream after them to the draw, each scene's Quest carrying its Loot table
-// as its Tier says (DL-262), which the scenes' Loot draws read.
+// as its Tier says (DL-262), which the scenes' Loot draws read, and its Tier drawn up to the Board's top
+// Tier (DL-271; 8d9793bc… before it).
 describe('harm and earned Traits across seeds, draw for draw', () => {
   const earned = (traitKey: string, fields: Partial<TraitConsequence> = {}): TraitConsequence => ({ kind: 'trait', traitKey, chance: 0.6, ...fields });
   const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 0.7, count: 1, ...fields });
@@ -1370,6 +1371,6 @@ describe('harm and earned Traits across seeds, draw for draw', () => {
     }
     expect([...seen.degrees].sort()).toEqual(['failure', 'setback', 'success', 'triumph']);
     expect(Math.min(seen.injuries, seen.deaths, seen.positive, seen.negative)).toBeGreaterThan(0);
-    expect(createHash('sha256').update(JSON.stringify(resolutions)).digest('hex')).toBe('8d9793bcf3cc9c875ab9fc8627da40e85a1644edfd7cb6183f06067c54f46cc0');
+    expect(createHash('sha256').update(JSON.stringify(resolutions)).digest('hex')).toBe('d1d94ff799486005decad797feadd798c574b6009f8e456406d5db8bee9db80f');
   });
 });

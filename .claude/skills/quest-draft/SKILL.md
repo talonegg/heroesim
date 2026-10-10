@@ -45,7 +45,9 @@ the owner has said to keep.
   brief's danger and length sit on the ladder. The ladder is `npm run edit -- config show`'s
   `questTiers`: each Tier's difficulty band, Days, Beats, Loot, factors, `deathScale` and
   `fameMinimum`. A Tier with `deathScale` above 0 makes a Quest Deadly where an Encounter it may draw
-  has a Death chance (DL-265).
+  has a Death chance (DL-265). Its `unlockLevel` is the world's, no template's: the Board offers a
+  Tier once some Guild's four best Heroes reach it, so a template whose `tierMin` is above Tier 1
+  waits for that unless none of its Patron's templates is open yet (DL-271).
 
 Done when: every field has a value from the brief or a peer, and the owner's brief says nothing the
 fields contradict.

@@ -1648,6 +1648,43 @@ describe("the Targets' counters (DL-259)", () => {
     ]);
   });
 
+  test("the Board's top Tier, and each side's best four and the Tier it unlocks, as each year begins (DL-271)", () => {
+    const { document, player, rivals } = fixture('counters-unlocks');
+    const { world } = document;
+    const [a, b] = rivals;
+    const levels = (guild: Guild, ...given: number[]): void => {
+      guild.rosterIds.forEach((heroId, index) => {
+        (world.heroes[heroId] as Hero).level = given[index] ?? 1;
+      });
+    };
+    expect([player, a, b].map((guild) => guild.rosterIds.length >= 4)).toEqual([true, true, true]);
+    levels(player, 3, 3, 3, 3);
+    levels(a, 1, 1, 1, 1);
+    levels(b, 2, 2, 2, 2);
+    const unlocks = observerOf('tierUnlocks');
+    census(document, shortYears, unlocks);
+    world.turn = 30;
+    levels(a, 9, 9, 6, 6);
+    b.foldedOnTurn = 20;
+    census(document, shortYears, unlocks);
+
+    const tiers = (counts: Record<number, number>): number[] => [1, 2, 3, 4, 5].map((tier) => counts[tier] ?? 0);
+    expect(unlocks.value()).toEqual([
+      {
+        top: 2,
+        sides: {
+          player: { guilds: 1, levels: 3, unlocked: tiers({ 2: 1 }) },
+          ambitious: { guilds: 1, levels: 1, unlocked: tiers({ 1: 1 }) },
+          miserly: { guilds: 1, levels: 2, unlocked: tiers({ 1: 1 }) },
+        },
+      },
+      {
+        top: 3,
+        sides: { player: { guilds: 1, levels: 3, unlocked: tiers({ 2: 1 }) }, ambitious: { guilds: 1, levels: 7.5, unlocked: tiers({ 3: 1 }) } },
+      },
+    ]);
+  });
+
   test("the player's Wealth in months of its Upkeep as each year begins, a month a twelfth of a year's Upkeeps", () => {
     const { document, player } = fixture('counters-months');
     const { world } = document;

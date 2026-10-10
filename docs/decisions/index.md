@@ -266,12 +266,12 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-254 | 2026-10-10 | v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a … |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
 | DL-255 | 2026-10-10 | A merge of docs, records and the release pipeline alone releases nothing: no tag, no deploy |  | [decision-log](../decision-log.md) |
 | DL-256 | 2026-10-10 | The `v1.2` line: the Guild as an institution, from an independent design brief; the owner's answers … | item 2 in part by DL-257 | [decision-log](../decision-log.md) |
-| DL-257 | 2026-10-10 | v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a … |  | [decision-log](../decision-log.md) |
+| DL-257 | 2026-10-10 | v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a … | item 3 in part by DL-271 | [decision-log](../decision-log.md) |
 | DL-258 | 2026-10-10 | v1.2.0-S1 built: the glossary's Tier, Beat, Deadly and Death factor |  | [decision-log](../decision-log.md) |
 | DL-259 | 2026-10-10 | v1.2.0-S2 built: the harness's Targets, their counters and the baseline they read, and the player's … |  | [decision-log](../decision-log.md) |
 | DL-260 | 2026-10-10 | v1.2.0-S3 built: content in folders, Quest templates, Encounters, Items and Loot tables a file a row |  | [decision-log](../decision-log.md) |
 | DL-261 | 2026-10-11 | v1.2.0-S4 built: the growing Board, `boardSizeStart`, `boardGrowthPerYear` and `boardSizeMax` in … |  | [decision-log](../decision-log.md) |
-| DL-262 | 2026-10-11 | v1.2.0-S5 built: the Tier engine, the `questTiers` ladder with `levelsPerTier` and … |  | [decision-log](../decision-log.md) |
+| DL-262 | 2026-10-11 | v1.2.0-S5 built: the Tier engine, the `questTiers` ladder with `levelsPerTier` and … | item 1 in part by DL-271; item 3 in part by DL-271 | [decision-log](../decision-log.md) |
 | DL-263 | 2026-10-11 | v1.2.0: the owner's answers on the estimate probe's sample after S3, and S4's neutral box |  | [decision-log](../decision-log.md) |
 | DL-264 | 2026-10-11 | v1.2.0-S6 built: the Fame minimum, `fame-below-minimum` refused by dispatch and passed by by every … |  | [decision-log](../decision-log.md) |
 | DL-265 | 2026-10-11 | v1.2.0-S7 built: Death by Tier, `deathFactor` and each Tier's `deathScale` read, and the Deadly … |  | [decision-log](../decision-log.md) |
@@ -280,6 +280,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-268 | 2026-10-11 | v1.2.0-S10 built: the drafting skills, `quest-draft` and `encounter-draft`, each writing a draft … |  | [decision-log](../decision-log.md) |
 | DL-269 | 2026-10-11 | v1.2.0-S12 built: the Board card's Tier and Deadly mark, the Party builder's Beats, and the CLI's … |  | [decision-log](../decision-log.md) |
 | DL-270 | 2026-10-11 | v1.2.0-S13: the release's review and its findings fixed |  | [decision-log](../decision-log.md) |
+| DL-271 | 2026-10-11 | v1.2.0-S14 built: the Board's Tiers unlocked by each Guild's best four, each Tier's `unlockLevel` … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

@@ -158,9 +158,10 @@ Loot and Campaigns are kept as features serving Reputation and History.
   Fame effect, requirements (its least Party, and any Class or Skill it needs), the Encounters drawn for
   it when it is posted with its Beats' lines, the Turn its offer expires, and, when its Tier awards
   Loot, a Loot table. It copies these from its Quest template, so a changed template never alters a
-  Quest already offered (DL-25). Its Tier is drawn among those its template offers, around the
-  world's mean Level, and sets its difficulty band, its Days, its Beats, its Loot and its reward and
-  XP factors (DL-257, DL-262).
+  Quest already offered (DL-25). Its Tier is drawn among those its template offers, up to the
+  highest Tier any Guild in play has unlocked by the mean Level of its four best Heroes, the lower
+  Tiers kept on offer (DL-271), and sets its difficulty band, its Days, its Beats, its Loot and its
+  reward and XP factors (DL-257, DL-262).
 - R22. The Board refreshes each morning with Quests drawn from the Patrons, each Patron weighted
   by their mean Regard for the Guilds in play (DL-43), up to its size, which may grow with the
   Years to a cap (DL-261). Every Guild draws from the one Board, the player's first.

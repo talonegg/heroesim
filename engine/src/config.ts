@@ -194,25 +194,26 @@ export interface GameConfig {
    */
   encounterTagWeight: number;
 
-  // ── `questTiers`: the Tier ladder and the Tier a Quest is drawn at (DL-257 items 1 and 3, DL-262) ─
+  // ── `questTiers`: the Tier ladder and the Tier a Quest is drawn at (DL-257 items 1 and 3, DL-262, DL-271) ─
   /**
    * The Tier ladder, Tier n its nth row (`TierRow`), at least one: what a Quest of each Tier is worth,
-   * how long and how hard it is and how many Beats it plays. A template offers some consecutive
-   * Tiers of it and may override any figure for any of them (`tierFigures`). Each row's bands
-   * at least the row's below.
+   * how long and how hard it is, how many Beats it plays and the Level that unlocks it. A template
+   * offers some consecutive Tiers of it and may override any figure but the unlock Level for any of
+   * them (`tierFigures`). Each row's bands and unlock Level at least the row's below.
    */
   tiers: readonly TierRow[];
   /**
-   * The Levels a Tier spans in the world's mean Level: the Board's draw centres on Tier 1 +
-   * ⌊mean Level ÷ this⌋, the ladder's last at most (`centreTier`, DL-257 item 3, #22).
-   */
-  levelsPerTier: number;
-  /**
-   * A Tier's weight in its Quest's draw by its distance from the centre, the centre's first: a
-   * distance past the list weighs 0. Among the Tiers a template offers, the centre held inside them
-   * (`tierWeights`), so the first is above 0.
+   * A Tier's weight in its Quest's draw by its distance below the Board's top Tier (`boardTopTier`),
+   * the top's first, the last held for every Tier further below; a Tier above the top weighs 0
+   * (`tierWeights`, DL-271). Each above 0, so every Tier at or below the top stays on offer.
    */
   tierDrawWeights: readonly number[];
+  /**
+   * How many of a Guild's best Heroes by Level its unlocked Tier reads (`bestFourLevel`, DL-271): the
+   * mean Level of its best this many, a place its Roster cannot fill counted at Level 0, so that one
+   * strong Hero does not unlock a Tier alone.
+   */
+  unlockHeroes: number;
   /**
    * What every Death chance in content is multiplied by, beside its Quest's Tier's `deathScale`
    * (`CONTEXT.md` Death factor, DL-257 item 5, DL-265): the chance a Death lands is the Encounter's
@@ -559,7 +560,8 @@ export type QuestBand = (typeof questBands)[number];
 
 /**
  * One rung of the Tier ladder, `tiers` (DL-257 items 1, 3 and 5, DL-262): every figure a Quest of the
- * Tier is drawn and paid by, each of which a template may override for a Tier it offers.
+ * Tier is drawn and paid by, each of which a template may override for a Tier it offers
+ * (`TierOverride`), and the Level that unlocks it (DL-271).
  */
 export interface TierRow {
   /** The band a Quest's difficulty is drawn in, held inside the difficulty scale. */
@@ -579,9 +581,18 @@ export interface TierRow {
   deathScale: number;
   /** The Fame a Guild needs to take a Quest of it: `dispatch` refuses a Guild below it (`fameRefusal`, DL-257 item 3, DL-264). */
   fameMinimum: number;
+  /**
+   * The Level a Guild's best four (`bestFourLevel`) reach to unlock it (`unlockedTier`), the Board
+   * offering Tiers up to the highest any Guild in play has unlocked (`boardTopTier`, DL-271); Tier 1's
+   * is 0. The world's, so no template overrides it.
+   */
+  unlockLevel: number;
 }
 
-/** A Tier row's fields, in the order `config.json` writes them: every one a row holds, and a template may override. */
+/** What a template may override of a Tier row (DL-257 item 1): every figure but its unlock Level, which is the world's (DL-271). */
+export type TierOverride = Omit<TierRow, 'unlockLevel'>;
+
+/** A Tier row's fields, in the order `config.json` writes them: every one a row holds. */
 export const tierFields = Object.freeze([
   'difficultyMin',
   'difficultyMax',
@@ -593,7 +604,11 @@ export const tierFields = Object.freeze([
   'xpFactor',
   'deathScale',
   'fameMinimum',
+  'unlockLevel',
 ] as const satisfies readonly (keyof TierRow)[]);
+
+/** The fields of a Tier row a template may override (`TierOverride`), in `tierFields`' order. */
+export const tierOverrideFields = Object.freeze(tierFields.filter((field): field is keyof TierOverride => field !== 'unlockLevel'));
 
 /** The named ranges Morale falls in, lowest first (M2-S6, pre-M0 review A7). */
 export const moraleBandNames = ['wretched', 'low', 'steady', 'high', 'elated'] as const;

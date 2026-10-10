@@ -4,7 +4,8 @@
 // a live save without altering Quests already offered (data-model §3.2), but for its overrides of the
 // Tier's XP factor, Death scale and Fame minimum, read live (DL-262, DL-264, DL-265). The draw order
 // and the formulas are DL-25's, with a Quest's Tier among them (DL-257 items 1 to 3, DL-262);
-// changing them changes every seed's Board.
+// changing them changes every seed's Board. Which Tiers it may be drawn at is the Board's top Tier's
+// (DL-271).
 
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, QuestTemplate, QuestTemplateKey, SphereKey } from '../content-types.js';
@@ -13,7 +14,7 @@ import { eventEmitter } from '../emit.js';
 import type { QuestOffered } from '../events.js';
 import { beatPlan, drawBeats, encounterStream } from '../quest-engine/encounters.js';
 import { int, weightedPick, type StreamName } from '../rng.js';
-import { centreTier, daysAt, difficultyBand, meanLevel, offeredTiers, tierFigures, tierWeights } from '../tiers.js';
+import { boardTopTier, daysAt, difficultyBand, offeredTiers, templatesOpenAt, tierFigures, tierWeights } from '../tiers.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
 import { pickByWeight, sortedRows, streamOf, type DrawsFrom } from './draw.js';
 
@@ -24,10 +25,15 @@ export interface QuestOptions extends DrawsFrom {
   /** One of the Patron's templates; drawn from them by their weights (`pickByWeight`, DL-202) when omitted. */
   templateKey?: QuestTemplateKey;
   /**
-   * One of the Tiers `templateKey`'s template offers (`offeredTiers`), given only with it; drawn around
-   * the world's centre (`tierWeights`) when omitted (DL-262).
+   * One of the Tiers `templateKey`'s template offers (`offeredTiers`), given only with it; drawn up to
+   * the Board's top Tier (`tierWeights`) when omitted (DL-262, DL-271).
    */
   tier?: number;
+  /**
+   * The Board's top Tier (`boardTopTier`), read once by a caller drawing several Quests at once, as the
+   * Board's refresh does; read from `world` when omitted (DL-271).
+   */
+  topTier?: number;
   /**
    * The stream the Encounter sequence is drawn from: `encounters` when omitted. A module's
    * `offerQuest` names its own stream here and as `stream`, so no core stream moves (M8-S2, DL-77).
@@ -54,11 +60,11 @@ export function templatesFor(content: Pick<ContentSet, 'questTemplates'>, sphere
  * `options.stream` (`board` by default) and from no other stream, and returns it with its
  * `quest.offered` event for the caller to append. In draw order (DL-25, DL-262):
  *
- * 1. the template, among the Patron's by their weights, one draw (`pickByWeight`, DL-202; none when
- *    `templateKey` is given);
- * 2. the Tier, among those the template offers (`offeredTiers`), weighted by its distance from the
- *    centre the world's mean Level sets (`centreTier`, `tierWeights`), one `weightedPick` (none when
- *    `tier` is given);
+ * 1. the template, among the Patron's open at the Board's top Tier (`boardTopTier`, `templatesOpenAt`:
+ *    those offering a Tier at or below it, or all where none does) by their weights, one draw
+ *    (`pickByWeight`, DL-202; none when `templateKey` is given);
+ * 2. the Tier, among those the template offers (`offeredTiers`), weighted by its distance below the
+ *    top, a Tier above it 0 (`tierWeights`, DL-271), one `weightedPick` (none when `tier` is given);
  * 3. the difficulty, `int` over the Tier's band held inside `questDifficultyMin/Max` (`difficultyBand`),
  *    the Tier's figures being the ladder's with the template's overrides (`tierFigures`).
  *
@@ -103,9 +109,10 @@ export function generateQuest(
   // Checked for every template the Patron offers before any draw, so a throw changes nothing.
   const plans = new Map(offered.map((template) => [template.key, beatPlan(template, content)]));
 
-  const template = givenTemplate ?? pickByWeight(state, offered);
+  const top = options.topTier ?? boardTopTier(world, config);
+  const template = givenTemplate ?? pickByWeight(state, templatesOpenAt(offered, top, config));
   const tiers = offeredTiers(template, config);
-  const tier = options.tier ?? weightedPick(state, tiers, tierWeights(tiers, centreTier(meanLevel(world), config), config));
+  const tier = options.tier ?? weightedPick(state, tiers, tierWeights(tiers, top, config));
   const figures = tierFigures(template, tier, config);
   const difficulty = int(state, ...difficultyBand(figures, config));
   // The Encounters beside the Board's draws, from their own stream (M4-S1, DL-42).

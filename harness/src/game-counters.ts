@@ -92,6 +92,7 @@ import {
   savedDocumentLength,
   successionCount,
   synergyCounters,
+  tierUnlocks,
   transferCounters,
   transferDirections,
   transfersShort,
@@ -120,7 +121,9 @@ import {
   type SaveSize,
   type TierSideTally,
   type TierTally,
+  type TierUnlocks,
   type TransferDirection,
+  type UnlockTally,
   type TransferTally,
   type WealthFlows,
   type WorldSize,
@@ -184,6 +187,8 @@ export interface GameTotals {
   playerWealthMonths: { games: number; months: number }[];
   /** The Transfers that left a Rival seller below `rivalRosterMin` (DL-259). */
   transfersShort: number;
+  /** As each year begins, over the games in play then: the Board's top Tier, index k counting the games at Tier k + 1, and each side's best fours (DL-271). */
+  tierUnlocks: ({ games: number; top: number[] } & Pick<TierUnlocks, 'sides'>)[];
 }
 
 /** A side's highest Levels by year, over the games: index k by the end of year k + 1. */
@@ -1036,6 +1041,49 @@ const questTiers: Declared<GameCounters['questTiers'], SweepTotals['questTiers']
         ['Controller: Tier', 'Offered', 'Taken', 'Mean Party', 'Mean Days', 'Failed', 'Strong', 'Wealth a Party-Day', 'XP a Party-Day', 'Loot a Quest', 'Deaths', 'Deaths a Quest'],
         rows,
         ['left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
+      ),
+      '',
+    ];
+  },
+};
+
+// What sets the Board's Tiers (DL-271): the top Tier, and each side's best four and the Tier it unlocks,
+// as each year begins.
+const unlocks: Declared<GameObservations['tierUnlocks'], SweepTotals['tierUnlocks']> = {
+  key: 'tierUnlocks',
+  kind: 'play',
+  observe: () => census(({ document, deps }) => tierUnlocks(document.world, deps)),
+  zero: () => [],
+  total: ({ observations }) => observations.tierUnlocks.map(({ top, sides }) => ({ games: 1, top: oneHot(top), sides })),
+  section: 'quest-engine',
+  lines(totals: SweepTotals) {
+    const tiers = Math.max(0, ...totals.tierUnlocks.flatMap((year) => [year.top.length, ...Object.values(year.sides).map((side) => side.unlocked.length)]));
+    const tierNumbers = Array.from({ length: tiers }, (_, index) => index + 1);
+    const counted = (counts: readonly number[], of: number): string[] =>
+      tierNumbers.map((tier) => `${whole(counts[tier - 1] ?? 0)} (${percent(counts[tier - 1] ?? 0, of)})`);
+    const meanTier = (counts: readonly number[], of: number): string => ratio(counts.reduce((total, n, index) => total + n * (index + 1), 0), of);
+    const topRows = totals.tierUnlocks.map((year, after) => [whole(after), whole(year.games), meanTier(year.top, year.games), ...counted(year.top, year.games)]);
+    const sideRows = totals.tierUnlocks.flatMap((year, after) => {
+      const sides = Object.keys(year.sides).sort((a, b) => (a === playerSide ? -1 : b === playerSide ? 1 : compareByCodeUnit(a, b)));
+      return sides.map((side) => {
+        const tally = year.sides[side] as UnlockTally;
+        return [whole(after), capitalised(sideLabel(side)), whole(tally.guilds), ratio(tally.levels, tally.guilds), meanTier(tally.unlocked, tally.guilds), ...counted(tally.unlocked, tally.guilds)];
+      });
+    });
+    const tierHeads = tierNumbers.map((tier) => `Tier ${tier}`);
+    return [
+      "The Board's top Tier as each year began (DL-271), by the years played before it (0 is the new world), over the games in play then: " +
+        "the highest Tier any Guild in play had unlocked, the Board offering every Tier up to it; the games at each:",
+      '',
+      markdownTable(['After years', 'Games', 'Mean top Tier', ...tierHeads], topRows, ['right', 'right', 'right', ...tierHeads.map(() => 'right' as const)]),
+      '',
+      "Each side's Guilds in play as each year began: the mean Level of each one's best four (its `unlockHeroes` Heroes of the highest Level, " +
+        'a place its Roster cannot fill at Level 0), the mean of the Tier each had unlocked (the highest whose `unlockLevel` its best four reached), and the Guilds at each:',
+      '',
+      markdownTable(
+        ['After years', 'Side', 'Guilds', 'Best four', 'Mean unlocked Tier', ...tierHeads],
+        sideRows,
+        ['right', 'left', 'right', 'right', 'right', ...tierHeads.map(() => 'right' as const)],
       ),
       '',
     ];
@@ -2079,6 +2127,7 @@ export const gameCounters: readonly Counter[] = [
   synergies,
   partySizes,
   questTiers,
+  unlocks,
   traitsByKey,
   injuriesByType,
   patronYears,

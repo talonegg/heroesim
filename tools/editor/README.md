@@ -242,7 +242,7 @@ changed on the row as the pending edits leave it, and held as a change of the fi
 | `quests beat change <key> <at> [line=<text>] [pool=<json>]` | Changes a Beat's line or pool, the pool given whole |
 | `quests beat move <key> <from> <to>` | Moves a Beat |
 | `quests beat remove <key> <at>` | Removes a Beat |
-| `quests override set <key> <tier> <figure>=<value> ...` | Sets a Tier's figures for the template: `difficultyMin`, `difficultyMax`, `daysMin`, `daysMax`, `beats`, `loot`, `rewardFactor`, `xpFactor`, `deathScale`, `fameMinimum` |
+| `quests override set <key> <tier> <figure>=<value> ...` | Sets a Tier's figures for the template: `difficultyMin`, `difficultyMax`, `daysMin`, `daysMax`, `beats`, `loot`, `rewardFactor`, `xpFactor`, `deathScale`, `fameMinimum`; not `unlockLevel`, the world's (DL-271) |
 | `quests override clear <key> <tier> [<figure> ...]` | Clears the figures named, or the Tier's whole override |
 | `quests finale set <key> <encounter> line=<text>` | Sets its Finale, played last, and its line |
 | `quests finale clear <key>` | Takes its Finale out |
