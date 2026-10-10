@@ -6,8 +6,8 @@ import { partiesOutView } from './digest';
 import { changed, documentOf, played, playerOf, started, withOffer, withPartyOut, withReturn } from './game.test-support';
 import { saveFileName } from './game-file';
 import { historyView } from './history';
-import { narrationFor } from './namer';
 import { questReturn } from './quest-return';
+import { readingOf } from './reading';
 import { playDeps, type GameState } from './reducer';
 import { rejectionSentence } from './namer';
 import { boardView, countdownView, headerView, heroPage, linesOf, partyRows, rosterRows, sentView } from './selectors';
@@ -105,13 +105,13 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
     expect(groups.some((group) => Number(group.key) >= turnsPerYear)).toBe(true);
     const entries: Entry[] = document.history.entries.filter((entry) => entry.turn >= turnsPerYear);
     expect(entries.length).toBeGreaterThan(0);
-    for (const [index, line] of linesOf(entries, narrationFor(document, content)).entries()) expect(line.when).toBe(whenIn((entries[index] as Entry).turn));
+    for (const [index, line] of linesOf(entries, readingOf(document).narration).entries()) expect(line.when).toBe(whenIn((entries[index] as Entry).turn));
     // A sentence's own date: a Party sent on the first afternoon comes back in another Year than this release's would say.
     const sent = document.history.entries
       .filter((entry): entry is EngineEventOf<'quest.taken'> => entry.type === 'quest.taken')
       .find((entry) => entry.payload.returnsOnTurn >= turnsPerYear);
     if (sent === undefined) throw new Error('no Party sent');
-    expect(linesOf([sent], narrationFor(document, content))[0]?.sentence).toContain(`back on ${nightIn(sent.payload.returnsOnTurn)}`);
+    expect(linesOf([sent], readingOf(document).narration)[0]?.sentence).toContain(`back on ${nightIn(sent.payload.returnsOnTurn)}`);
     expect(saveFileName(document)).toBe(`heroesim-dates-year-2-day-1.json`);
   });
 
@@ -219,7 +219,7 @@ describe('every date the page shows reads the config the game plays under, fille
         heroPage(document, away)?.where.words ?? '',
         ...rosterRows(document).entries.map((entry) => entry.row.whereabouts),
         ...historyView(document, game.out.log, 'all', 0).groups.map((group) => group.when),
-        ...linesOf(document.history.entries, narrationFor(document, content)).map((line) => `${line.when}: ${line.sentence}`),
+        ...linesOf(document.history.entries, readingOf(document).narration).map((line) => `${line.when}: ${line.sentence}`),
         saveFileName(document),
         JSON.stringify(questReturn(document, { partyId: written.party.partyId, questId: written.party.questId })),
         ...(treasuryOf(document)?.rows.map((row) => row.when) ?? []),

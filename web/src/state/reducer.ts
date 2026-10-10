@@ -372,7 +372,7 @@ const checkedDeps = new WeakMap<object, EngineDeps>();
 /**
  * The deps a game plays under, the engine's `playDeps`: its own config, filled forward with the
  * current defaults (D3) and checked, once a config (`checkedDeps`), and the modules installed, none
- * unless given (M8-S4). The selectors, which run no hook, give none. A game in hand was loaded,
+ * unless given. The selectors, which run no hook, give none. A game in hand was loaded,
  * checked by `deserialise`, or made or rebased under `defaultConfig`, so its config is sound; one
  * that is not is a bug, and throws.
  */

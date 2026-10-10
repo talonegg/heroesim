@@ -23,7 +23,7 @@ import { regardSnapshot, savedLength, type GameObservations } from './counters.j
 import { harnessSetup } from './creation.js';
 import { gameCounters } from './game-counters.js';
 import { content, coreDeps as deps, observerOf, twentyDays as years } from './harness.test-support.js';
-import { measureDocument, playerTransferred, playGame, readAdvance, recordGame, runConfig, seenInPlay, type PlayedGame, type PlayObserver } from './play.js';
+import { playerTransferred, playGame, readAdvance, recordGame, runConfig, seenInPlay, type PlayedGame, type PlayObserver } from './play.js';
 import { playReport } from './play-report.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { machine } from './report.js';
@@ -587,7 +587,7 @@ describe('the harness assertion (DL-69): no hero.transferred names the player\'s
   });
 });
 
-describe('recordGame and measureDocument', () => {
+describe("recordGame's measures", () => {
   test("gzip the last year's save in zlib's thread pool, not on the game's thread (DL-239)", async () => {
     const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 21 } };
     vi.mocked(gzip).mockClear();
@@ -620,19 +620,15 @@ describe('recordGame and measureDocument', () => {
     expect(record.measures.roundTrips).toBe(true);
 
     const { document } = bare;
-    const measures = await measureDocument(document, deps);
-    expect(measures.historyEntries).toBe(document.history.entries.length);
-    expect(measures.serialisedLength).toBe(serialise(document).length);
-    expect(measures.serialisedLength).toBe(record.measures.serialisedLength);
+    expect(record.measures.historyEntries).toBe(document.history.entries.length);
+    expect(record.measures.serialisedLength).toBe(serialise(document).length);
   });
 
   test("fingerprint the last document: SHA-256 of its save, in hex, the same for the same game (DL-76)", async () => {
     const { record } = recorded;
     const { document } = bare;
+    const fingerprint = createHash('sha256').update(serialise(document)).digest('hex');
 
-    const { fingerprint } = await measureDocument(document, deps);
-
-    expect(fingerprint).toBe(createHash('sha256').update(serialise(document)).digest('hex'));
     expect(record.measures.fingerprint).toBe(fingerprint);
     expect((await recordGame('play-b', deps, { years })).record.measures.fingerprint).not.toBe(fingerprint);
   });

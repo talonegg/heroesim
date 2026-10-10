@@ -667,8 +667,8 @@ export interface Disposition {
   transferAppetite: number;
   /**
    * How much more than this a Hero must raise the estimated chance of success to be added to its
-   * Party past the Quest's `partySizeMin`, from 0 to 1 (v1.1.4-S6, DL-148 item 17, the Best Party; more
-   * than, v1.1.5-S6, DL-175): 0 sends every Hero who raises it at all, up to `partySizeMax`; 1 never
+   * Party past the Quest's `partySizeMin`, from 0 to 1 (the Best Party, DL-148 item 17; strictly more,
+   * DL-175): 0 sends every Hero who raises it at all, up to `partySizeMax`; 1 never
    * more than the fewest the Quest allows.
    */
   partyMargin: number;

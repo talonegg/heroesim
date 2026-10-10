@@ -1,8 +1,8 @@
-// What the views read (M7-S3, DL-66): each function takes the game in hand and returns plain rows
+// What the views read (DL-66): each function takes the game in hand and returns plain rows
 // of words and numbers for a component to lay out. Nothing in `web/` computes a rule (ADR-0007,
 // principle 12), so every number here is a document field or the answer of an engine selector
 // (`rankingPlaces`, `bankruptcyCountdown`, `statBreakdown`, `carriedGear`, `previewDispatch`,
-// `skillsThatHelp`, `entriesFor`); where a view needed an answer no selector gave, the selector went
+// `skillsThatHelp`); where a view needed an answer no selector gave, the selector went
 // into the engine (`previewDispatch`, `skillsThatHelp`, `dispatchRefusal`, `rankingPlaces`,
 // `bankruptcyCountdown`), never here.
 //
@@ -28,7 +28,6 @@ import {
   descriptiveAttributeLabels,
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
-  entriesFor,
   guildmasterOf,
   guildmasterTraitCost,
   guildmasterTraitsOf,
@@ -113,6 +112,7 @@ import { availabilityOf } from './availability';
 import { content } from '../content';
 import { narrateText, questNamer, rejectionSentence, sentenceWords, type Narration } from './namer';
 import type { Facets } from './facets';
+import { newestEntries } from './history-reader';
 import { classMarkOf, type ClassMarked, placeWords, transferCostWords } from './names';
 import { readingOf, type PageReading } from './reading';
 import type { GameState } from './reducer';
@@ -260,7 +260,7 @@ export interface EncounterView extends EncounterReading {
 }
 
 /**
- * The Party the engine would send from the player's free Heroes (the Best Party, v1.1.4-S6), as the card
+ * The Party the engine would send from the player's free Heroes (the Best Party, DL-148 item 17), as the card
  * gives it: its chance in a word and the Heroes' names; its chance `null` while the Quest's
  * Encounters are drawn on the way; or, when no Party of them meets the Quest's requirements, `null`.
  */
@@ -1125,7 +1125,7 @@ export function linesOf(entries: readonly Entry[], narration: Narration): LogLin
  * line, their State as chips, their Stats by area with what lifts each, their gear, Skills and, on a
  * Roster, Relationships; and what is the page's own, their Class's mark, where they are, what the
  * player can do with them and their Milestones, newest first. Their History, a page at a time, is
- * `historyView`'s (`history.ts`, M9-S5). `null` for a Hero the world does not hold.
+ * `historyView`'s (`history.ts`). `null` for a Hero the world does not hold.
  */
 export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView | null {
   const { world, history } = document;
@@ -1134,7 +1134,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
   const reading = readingOf(document);
   const read = heroReading(reading, hero);
 
-  // Who the Hero is in one line, and their State as chips (M9-S6, the review's B7). A Hero in the
+  // Who the Hero is in one line, and their State as chips. A Hero in the
   // pool or gone from it names no Guild; `where` says where they are.
   const who = [
     read.className,
@@ -1196,7 +1196,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
         neutral: regard === 'neutral' && relationship === 'neutral',
       })) ?? null,
     milestones: linesOf(
-      entriesFor(history, hero.id).filter((entry) => entry.milestone),
+      newestEntries(history, hero.id, (entry) => entry.milestone),
       reading.narration,
     ),
     actions: heroActions(hero, read, reading),
@@ -1205,8 +1205,8 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
 
 /**
  * Each of a Hero's Stats as a Check reads it beside its base, keyed by Stat: the engine's
- * `statBreakdown` (the Guildmaster's Class bonus, the Hero's gear, M5-S2, and their Hero Traits' Stat
- * changes, v1.1.4-S7, applied; v1.1.6-S13), what the Party builder shows, as a Hero's page does.
+ * `statBreakdown` (the Guildmaster's Class bonus, the Hero's gear and their Hero Traits' Stat
+ * changes applied), what the Party builder shows, as a Hero's page does.
  */
 function statValues(hero: Hero, world: World): Map<string, { base: number; effective: number }> {
   return new Map(Object.entries(statBreakdown(hero, world, content)).map(([key, { base, effective }]) => [key, { base, effective }]));

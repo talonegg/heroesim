@@ -25,6 +25,7 @@ import {
   type Degree,
   type EncounterOutcome,
   type EncounterResult,
+  type EngineEvent,
   type FormDecided,
   type Guild,
   type Hero,
@@ -291,10 +292,8 @@ export interface ReturningParty {
  * in the Party, from 0; what is not told and the night's rules do not give did not happen.
  */
 export interface ReturnTold {
-  /** The Party: the player's one out in the world when not given. */
-  party?: ReturningParty;
-  /** The night it comes home: the Party's `returnsOnTurn` when not given. */
-  turn?: number;
+  /** The Party, out in the world and home on its own night: the player's one out when not given. */
+  party?: PartyId;
   band: QuestBand;
   wealth?: number;
   fame?: number;
@@ -343,13 +342,13 @@ export interface Written {
   turn: number;
 }
 
-/** The player's Party out in the world, as `withReturn` plays a return for it. */
-export function partyOut(state: GameState): ReturningParty {
+/** A Party out in the world, as `withReturn` plays a return for it: `partyId`'s, or the player's one out when not given. */
+export function partyOut(state: GameState, partyId?: PartyId): ReturningParty {
   const document = documentOf(state);
   const player = playerOf(document);
-  const party = Object.values(document.world.parties).find((each) => each.guildId === player.id);
+  const party = partyId === undefined ? Object.values(document.world.parties).find((each) => each.guildId === player.id) : document.world.parties[partyId];
   const quest = party === undefined ? undefined : document.world.quests[party.questId];
-  if (party === undefined || quest === undefined) throw new Error("no Party of the player's out");
+  if (party === undefined || quest === undefined) throw new Error(partyId === undefined ? "no Party of the player's out" : `no Party ${partyId} out`);
   return { partyId: party.id, questId: quest.id, heroIds: [...party.heroIds], patronId: quest.patronId, templateKey: quest.templateKey };
 }
 
@@ -363,24 +362,45 @@ export function partyOut(state: GameState): ReturningParty {
  * then leave the world, the dead leave the Roster, and the world stands at the night of the return.
  */
 export function withReturn(state: GameState, told: ReturnTold): Written {
-  const party = told.party ?? partyOut(state);
-  const turn = told.turn ?? documentOf(state).world.parties[party.partyId]?.returnsOnTurn;
+  return withReturns(state, [told])[0] as Written;
+}
+
+/**
+ * `state` with several Parties' returns played by the engine on their one night, each as `withReturn`
+ * plays one: the outcomes applied in Party id order, then the night's Levels and gear once, as the engine
+ * plays a night (DL-250). Each return is read by its own `Written`, all of one state.
+ */
+export function withReturns(state: GameState, tolds: readonly ReturnTold[]): Written[] {
+  const parties = tolds.map((told) => partyOut(state, told.party));
+  const turn = documentOf(state).world.parties[(parties[0] as ReturningParty).partyId]?.returnsOnTurn;
   if (turn === undefined) throw new Error('no night to come home on');
-  const { partyId, questId, heroIds, patronId, templateKey } = party;
-  const hero = (at: number | HeroId): HeroId => (typeof at === 'number' ? (heroIds[at] as HeroId) : at);
+  let prepared = state;
+  const returns = tolds.map((told, at) => {
+    const party = parties[at] as ReturningParty;
+    const ready = preparedFor(prepared, told, party);
+    prepared = ready.state;
+    return { partyId: party.partyId, resolution: resolutionOf(told, party, turn, ready.uses) };
+  });
+  const document = documentOf(prepared);
+  const night = playReturnNight(document, returns, playDeps(document), turn);
+  tolds.forEach((told, at) => checkMorale(told, parties[at] as ReturningParty, night.events));
+  return parties.map((party) => ({ state: { ...prepared, document: night.document }, party, turn }));
+}
+
+/** A told Hero by their place in the Party, or by their id. */
+function heroOf(party: ReturningParty): (at: number | HeroId) => HeroId {
+  return (at) => (typeof at === 'number' ? (party.heroIds[at] as HeroId) : at);
+}
+
+/** `state` set so the night's rules give what `told` says of `party`'s return, and the consumables its Party used. */
+function preparedFor(state: GameState, told: ReturnTold, party: ReturningParty): { state: GameState; uses: ConsumableUse[] } {
+  const { partyId, heroIds, patronId } = party;
+  const hero = heroOf(party);
   const deaths = (told.deaths ?? []).map(hero);
   const uses: ConsumableUse[] = [];
   const prepared = changed(state, (document, player) => {
     const { world } = document;
     const config = { ...defaultConfig, ...document.meta.config };
-    // A Party the test names that the world does not hold: its row and its Quest's, as `takeQuest` leaves them.
-    if (!Object.hasOwn(world.parties, partyId)) {
-      const template = Object.values(world.quests).find((quest) => quest.templateKey === templateKey) ?? Object.values(world.quests)[0];
-      if (template === undefined) throw new Error('no Quest to copy');
-      world.quests[questId] = { ...structuredClone(template), id: questId, patronId, templateKey };
-      world.parties[partyId] = { id: partyId, guildId: player.id, questId, heroIds: [...heroIds], departedOnTurn: world.turn, returnsOnTurn: turn };
-      for (const heroId of heroIds) Object.assign(world.heroes[heroId] as Hero, { partyId });
-    }
     // Each Hero's Morale as the night finds it: the first change told of them starts from it.
     for (const { hero: at, before } of [...(told.morale ?? [])].reverse()) Object.assign(world.heroes[hero(at)] as Hero, { morale: before });
     // A told Level is reached tonight: the Level before it, and the XP that reaches it with the Quest's.
@@ -417,7 +437,14 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
       (world.heroes[hero(at)] as Hero).regard[hero(mate)] = { value: shortOf(bandBefore, bandAfter), since: 0, reason: 'test' };
     }
   });
+  return { state: prepared, uses };
+}
 
+/** The Quest Engine's resolution `told` gives of `party`'s return on the night `turn`, with the consumables it used. */
+function resolutionOf(told: ReturnTold, party: ReturningParty, turn: number, uses: readonly ConsumableUse[]): Resolution {
+  const { heroIds } = party;
+  const hero = heroOf(party);
+  const deaths = (told.deaths ?? []).map(hero);
   const encounterKeyOf = (key: string | undefined): string => key ?? Object.keys(content.encounters)[0] ?? '';
   const encounters = (told.encounters ?? []).map(({ encounterKey, outcome, degree = outcome, formDecided, injured = [], died = [] }, index): EncounterResult => {
     const key = encounterKeyOf(encounterKey);
@@ -435,7 +462,7 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
   }
   const [loot, ...more] = told.loot ?? [];
   if (more.length > 0) throw new Error('a Quest draws one Loot');
-  const resolution: Resolution = {
+  return {
     outcome: {
       band: told.band,
       successes: (told.encounters ?? []).filter((each) => each.outcome === 'success').length,
@@ -452,14 +479,16 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
     },
     encounters,
     traits: (told.traits ?? []).map(({ hero: at, traitKey, encounterIndex }) => ({ heroId: hero(at), traitKey, encounterIndex, encounterKey: encounterKeyOf(told.encounters?.[encounterIndex]?.encounterKey) })),
-    consumables: uses,
+    consumables: [...uses],
     loot: loot === undefined ? null : { lootTableKey: 'lesser-loot', definitionKey: loot.definitionKey, quantity: loot.quantity, unique: content.items[loot.definitionKey]?.unique === true },
   };
-  const document = documentOf(prepared);
-  const night = playReturnNight(document, partyId, resolution, playDeps(document), turn);
-  // Each Morale change told is one the engine wrote, so a test tells only a return the rules give.
+}
+
+/** Each Morale change told of `party`'s return is one the engine wrote, so a test tells only a return the rules give. */
+function checkMorale(told: ReturnTold, party: ReturningParty, events: readonly EngineEvent[]): void {
+  const hero = heroOf(party);
   for (const { hero: at, cause, before, after, bandAfter } of told.morale ?? []) {
-    const wrote = night.events.some(
+    const wrote = events.some(
       (event) =>
         event.type === 'hero.morale-changed' &&
         event.payload.heroId === hero(at) &&
@@ -470,7 +499,6 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
     );
     if (!wrote) throw new Error(`the engine wrote no ${cause} Morale change of ${hero(at)} from ${before} to ${after}, ${bandAfter}`);
   }
-  return { state: { ...prepared, document: night.document }, party, turn };
 }
 
 /** Every Rival rich enough to hire: whether one takes a Hero is then its Roster's and its Disposition's to say. */

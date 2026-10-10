@@ -13,7 +13,7 @@
 // marked where the sentence puts its slot, from the event's own ids (principle 5), never found by
 // reading the sentence back; the plain sentence is the segments' words.
 //
-// It lives in `state/` because it reads engine values (`entriesFor`), which only `state/` may import.
+// It lives in `state/` because it reads engine values (`defaultConfig`), which only `state/` may import.
 // A Quest carries no label, so its name comes from `questName`, which the caller reads from the world
 // and the History (`questNamer` below).
 //
@@ -21,7 +21,7 @@
 // as "that Hero", "that Quest", and says the page's own refusals: no game in hand, and a save that
 // does not load.
 
-import { defaultConfig, entriesFor, type ContentSet, type EngineEventOf, type QuestId, type TableName, type TurnEvent, type WorldDocument } from '@heroesim/engine';
+import { defaultConfig, type ContentSet, type EngineEventOf, type Entry, type QuestId, type TableName, type TurnEvent, type WorldDocument } from '@heroesim/engine';
 import {
   capitalised,
   nameIn,
@@ -33,6 +33,7 @@ import {
   type Namer,
   type Sentence,
 } from '@heroesim/words';
+import { newestEntries } from './history-reader';
 import { calendarFor, type LoadRejection, type NoGame, type PlayRejection } from './reducer';
 
 /** What a sentence reads beyond its event: content's names, a Quest's name by its id, and the game's calendar. */
@@ -195,6 +196,12 @@ export function resolvedWords(event: EngineEventOf<'quest.resolved'>, { content 
 
 // ── Quests by name ───────────────────────────────────────────────────────────────────────────
 
+/** The template an entry names, as `quest.offered`, `quest.resolved` and `quest.expired` do; `undefined` for none. */
+function templateKeyOf(entry: Entry | undefined): string | undefined {
+  const key = (entry?.payload as { templateKey?: unknown } | undefined)?.templateKey;
+  return typeof key === 'string' ? key : undefined;
+}
+
 /**
  * A Quest's name from `document`: its template's, from its row while the world holds one, else
  * from the History, whose `quest.offered` names the template of every Quest ever posted, and whose
@@ -205,18 +212,9 @@ export function questNamer(document: WorldDocument, content: ContentSet): (quest
   const { world, history } = document;
   return (questId) => {
     const row = Object.hasOwn(world.quests, questId) ? world.quests[questId] : undefined;
-    const templateKey =
-      row?.templateKey ??
-      entriesFor(history, questId)
-        .map((entry) => (entry.payload as { templateKey?: unknown }).templateKey)
-        .find((key): key is string => typeof key === 'string');
+    const templateKey = row?.templateKey ?? templateKeyOf(newestEntries(history, questId, (entry) => templateKeyOf(entry) !== undefined, 1)[0]);
     return templateKey === undefined ? 'a Quest' : nameIn(content.questTemplates, templateKey);
   };
-}
-
-/** The narration for `document`: its content's names, its Quests' names and its calendar. */
-export function narrationFor(document: WorldDocument, content: ContentSet): Narration {
-  return { content, questName: questNamer(document, content), calendar: calendarFor(document) };
 }
 
 // ── Refusals ─────────────────────────────────────────────────────────────────────────────────

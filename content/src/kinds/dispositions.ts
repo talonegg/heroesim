@@ -1,4 +1,4 @@
-// The Dispositions (M2-S9, M6-S1, DL-56; `dispositions.json`): at least one, since the Guild Generator
+// The Dispositions (DL-56; `dispositions.json`): at least one, since the Guild Generator
 // deals one to every Rival; each appetite, and the `partyMargin` (DL-157), a fraction from 0 to 1, each
 // threshold a multiple of 0 or more, and the orders it buys and builds in, each when written a
 // permutation of its keys (DL-202).

@@ -54,8 +54,7 @@ export function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refuse
 
 /**
  * Why the save at `path` does not load, in a sentence. A save of an older schema than this engine
- * reads, as a `v1.1.1` save is since schema 5 and a `v1.1.2` save since schema 6, is refused in the
- * owner's words, the page's too (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7); the rest
+ * reads is refused in the owner's words, the page's too (DL-125 item 10.2, DL-135 item 7); the rest
  * name the engine's reason.
  */
 function loadRefusalWords(reason: Exclude<ReadSave, { ok: true }>['reason'], path: string): string {

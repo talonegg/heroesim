@@ -1,7 +1,8 @@
 // The page's one reader of the History (DL-242): a Quest's return, a Guild's Wealth, a scope's page,
 // and the lookups the History view makes. It is the only page module that reads the History's
-// entries and its indexes (`history-reader.test.ts` holds the rest to it); the History view, the
-// Quest report, the Treasury and the rail read through it.
+// entries and its indexes, itself or through the engine's `entriesFor` (`history-reader.test.ts` holds
+// the rest to it, DL-250); the History view, the Quest report, the Treasury, the rail, a Hero's
+// Milestones and a Quest's name read through it.
 //
 // It reads the History shared by reference and never copies it (ADR-0008): every entry it gives is
 // the History's own object, which is how the last play's events are found among its entries. Which
@@ -53,8 +54,8 @@ export function namedEntities(history: History): EntityId[] {
   return Object.keys(history.byEntity) as EntityId[];
 }
 
-/** `entityId`'s newest entries, newest first, of those `shows` keeps, at most `limit`. */
-export function newestEntries(history: History, entityId: EntityId, shows: (entry: Entry) => boolean, limit: number): Entry[] {
+/** `entityId`'s newest entries, newest first, of those `shows` keeps, at most `limit`: every one when no limit is given. */
+export function newestEntries(history: History, entityId: EntityId, shows: (entry: Entry) => boolean, limit = Number.POSITIVE_INFINITY): Entry[] {
   const positions = positionsOf(history, entityId);
   const found: Entry[] = [];
   for (let index = positions.length - 1; index >= 0 && found.length < limit; index -= 1) {

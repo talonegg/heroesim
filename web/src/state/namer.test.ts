@@ -21,7 +21,8 @@ import { narrate as sentenceOf, type Slot } from '@heroesim/words';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { anId, expectASentence } from './game.test-support';
-import { narrateSegments, narrateText, narrationFor, pageNamer, questNamer, resolvedWords, textOf, type Narration, type Segment } from './namer';
+import { narrateSegments, narrateText, pageNamer, questNamer, resolvedWords, textOf, type Narration, type Segment } from './namer';
+import { readingOf } from './reading';
 
 // The page's Namer (DL-186 item 1) filling the narration's sentences (`@heroesim/words`):
 // every sentence below is the page's as it was before the narration moved, word for word.
@@ -409,7 +410,7 @@ describe('a played game narrates', () => {
   });
 
   test('every entry of its History as a sentence, Quests named from the History once their rows are gone', () => {
-    const narrated = narrationFor(document, content);
+    const narrated = readingOf(document).narration;
     const types = new Set(document.history.entries.map((entry) => entry.type));
 
     for (const entry of document.history.entries) expectASentence(narrateText(entry as never, narrated));

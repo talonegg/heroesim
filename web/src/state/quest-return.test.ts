@@ -1,21 +1,24 @@
 // @vitest-environment node
 import {
   entriesFor,
+  offeredQuests,
   playerGuild,
   unattachedHeroes,
   type EngineEventOf,
   type HeroId,
+  type PartyId,
   type WorldDocument,
 } from '@heroesim/engine';
 import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { cameHome, changed, documentOf, partyOut, played, started, withPartyOut, withReturn, withWealth, type Written } from './game.test-support';
+import { cameHome, changed, documentOf, partyOut, played, started, withPartyOut, withReturn, withReturns, withWealth, type Written } from './game.test-support';
 import { historyFilter } from './history';
 import { partOfAReturn } from './history-reader';
-import { narrateSegments, narrateText, narrationFor, textOf } from './namer';
+import { narrateSegments, narrateText, textOf } from './namer';
 import { questReturn, reportSections, returnEntry, returnsIn, type QuestReturn } from './quest-return';
+import { readingOf } from './reading';
 import { calendarFor } from './reducer';
 
 // A Quest's return read from the History (DL-111 items 2 and 3, DL-112 item 8): by its Party
@@ -270,14 +273,26 @@ describe('questReturn', () => {
   });
 
   test('two Parties home the same night for the same Patron: each has its own Regard line, the band it moved into or the band now', () => {
-    const document = base.document as WorldDocument;
+    // Two Quests of one Patron and one length on the Board, each taken the same morning by two of the
+    // Roster, so both Parties come home the same night and the engine plays both outcomes on it (DL-250).
+    const game = started('two-home');
+    const document = documentOf(game);
     const guild = playerGuild(document.world);
     if (guild === undefined) throw new Error("no player's Guild");
-    const first = withReturn(base, { band: 'strong', wealth: 200, xp: 50, patronRegard: { bandBefore: 'neutral', bandAfter: 'warm' } });
-    // A second Party of the Heroes at home, on another Quest of the same Patron, home the same night.
-    const athome = guild.rosterIds.filter((heroId) => !first.party.heroIds.includes(heroId));
-    const party = { ...first.party, partyId: makeId('parties', 900), questId: makeId('quests', 900), heroIds: athome.slice(0, 1) };
-    const second = withReturn(first.state, { party, turn: first.turn, band: 'success', wealth: 90, xp: 30 });
+    const open = offeredQuests(document.world).filter(({ requirements }) => requirements.classKey === undefined && requirements.skillKey === undefined && requirements.partySizeMin <= 2 && 2 <= requirements.partySizeMax);
+    const pair = open.flatMap((quest) => open.filter((other) => other.id > quest.id && other.patronId === quest.patronId && other.durationTurns === quest.durationTurns).map((other) => [quest, other]))[0];
+    if (pair === undefined) throw new Error('no two Quests of one Patron and one length on the Board');
+    const sent = pair.reduce((state, quest, at) => played(state, { kind: 'dispatch', questId: quest.id, heroIds: guild.rosterIds.slice(2 * at, 2 * at + 2) }), game);
+    if (sent.rejection !== null) throw new Error(`dispatch refused: ${sent.rejection.reason}`);
+    const [firstId, secondId] = Object.keys(documentOf(sent).world.parties) as [PartyId, PartyId];
+    const [first, second] = withReturns(sent, [
+      { party: firstId, band: 'strong', wealth: 200, xp: 50, patronRegard: { bandBefore: 'neutral', bandAfter: 'warm' } },
+      { party: secondId, band: 'success', wealth: 90, xp: 30 },
+    ]);
+    if (first === undefined || second === undefined) throw new Error('two returns');
+    // The night's outcomes as the engine writes them, in Party id order.
+    const night = documentOf(second.state).history.entries.filter((entry) => entry.turn === first.turn && entry.type === 'quest.resolved');
+    expect(night.map((entry) => entry.participants[1])).toEqual([firstId, secondId]);
     // The Patron's Regard for the Guild now, a value in the warm band (`regardBands`: warm from 4, close from 12).
     const now = changed(second.state, (next) => {
       const patron = next.world.patrons[first.party.patronId];
@@ -302,7 +317,7 @@ describe('questReturn', () => {
       band: 'warm',
       sentence: `${patron}'s Regard for The Lantern did not move into a new band with this Quest: it is warm now.`,
     });
-    expect(two.heroes.map((hero) => hero.heroId)).toEqual(party.heroIds);
+    expect(two.heroes.map((hero) => hero.heroId)).toEqual(second.party.heroIds);
   });
 
   test('a return the engine played: every part is its History’s, read by the Quest', () => {
@@ -368,7 +383,7 @@ describe('the return’s entry (DL-111 item 2)', () => {
 
     expect(entry?.key).toEqual(key);
     expect(entry?.bandSaid).toBe('succeeded strongly');
-    expect(`${textOf(entry?.lead ?? [])}${entry?.bandSaid}${textOf(entry?.rest ?? [])}`).toBe(narrateText(outcome as never, narrationFor(document, content)));
+    expect(`${textOf(entry?.lead ?? [])}${entry?.bandSaid}${textOf(entry?.rest ?? [])}`).toBe(narrateText(outcome as never, readingOf(document).narration));
     expect(textOf(entry?.rest ?? [])).toBe(': Wealth +180, Fame +4.');
     expect(entry?.heroesWords).toBe(`${written.party.heroIds.length} Heroes`);
     expect(entry?.heroes.map((hero) => hero.sentence)).toEqual([

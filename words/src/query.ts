@@ -47,7 +47,7 @@ export function shownPercent(chance: number): number {
   return Math.min(95, Math.max(5, twentieths * 5));
 }
 
-/** One of a Quest's Encounters as the Board shows it (v1.1.4-S6, DL-148 item 16): each Check's name and what it reads. */
+/** One of a Quest's Encounters as the Board shows it (DL-148 item 16): each Check's name and what it reads. */
 export interface EncounterReading {
   encounterKey: string;
   name: string;
@@ -59,7 +59,7 @@ export interface EncounterReading {
 
 /**
  * `quest`'s Encounters, drawn when it was posted, in the order it meets them, each with its Checks'
- * names and what they read (v1.1.4-S6). An Encounter content does not define is named by its key and
+ * names and what they read (DL-148 item 16). An Encounter content does not define is named by its key and
  * reads nothing (data-model rule 5).
  */
 export function encounterReadings(quest: Pick<Quest, 'encounterKeys'>, content: QueryNames & Pick<ContentSet, 'encounters'>): EncounterReading[] {

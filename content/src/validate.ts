@@ -1,4 +1,4 @@
-// The content schema's rules across rows: what a single row's shape cannot show (M1-S4), the driver of
+// The content schema's rules across rows: what a single row's shape cannot show, the driver of
 // the content kinds' rules (DL-243). `parseContent` runs this on every set it builds; a set assembled
 // in memory, by a test or a later module, runs it directly. Each kind's rules are its own (`kinds/`):
 // every Query, an Encounter's Checks' scores and a Synergy's requirements among them, held to its

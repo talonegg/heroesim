@@ -16,7 +16,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { capitalised } from '@heroesim/words';
-import { addInto, readCounters, type Counter, type Gatherer, type ReportContext } from './counter.js';
+import { addInto, type Counter, type Gatherer, type ReportContext } from './counter.js';
 import {
   consumableCounters,
   consumableEffects,
@@ -1914,26 +1914,3 @@ export const gameCounters: readonly Counter[] = [
   worlds,
 ];
 
-/**
- * Every counter a finished game's History gives (`Counter.read`), by key: what a game's record holds as
- * its `counters`. `playerQuestDifficulty`, the difficulty of each Quest the player's Guild took by
- * Quest id, which no entry records (the play loop keeps it), gives the player's Quests by difficulty
- * (DL-62); without it those two counters are `null`. `afternoons`, the play loop's sight of the
- * Rivals' afternoons (DL-69), gives each Disposition's mean difficulty taken and parts the afternoon's
- * Transfers between two Rivals by the seller's debt; without it no difficulty is counted and every such
- * Transfer counts as `afternoon`.
- *
- * @throws Error on an entry the engine would not have made: one naming no Guild the world holds,
- * a `quest.resolved` without a band, an ending without a reason, a `hero.retired` without an age,
- * a `quest.encounter` without a kind or outcome, a `hero.injured` without a type, and the like
- */
-export function countGame(
-  document: WorldDocument,
-  deps: EngineDeps,
-  playerQuestDifficulty?: ReadonlyMap<string, number>,
-  afternoons?: RivalAfternoons,
-  counters: readonly Counter[] = gameCounters,
-): GameCounters {
-  const seen = { ...(playerQuestDifficulty === undefined ? {} : { playerQuestDifficulty }), ...(afternoons === undefined ? {} : { afternoons }) };
-  return readCounters(counters, document, deps, seen) as unknown as GameCounters;
-}

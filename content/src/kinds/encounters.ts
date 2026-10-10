@@ -1,4 +1,4 @@
-// The Encounters (M4-S1; `encounters.json`): an Encounter's kind and tags (DL-160), its one to four
+// The Encounters (`encounters.json`): an Encounter's kind and tags (DL-160), its one to four
 // Checks, each scored by a Num Query (ADR-0010, DL-148 item 7), the pass formula that combines them,
 // and its consequences by Degree, each one of a closed union of kinds with exactly its fields (DL-148
 // items 14 and 25). The old form is no longer read (DL-192).
@@ -89,7 +89,7 @@ export const encounterChecksMax = 4;
  * kebab-case once, named, scored by a Num Query (`queryProblems`), helped by Skills that exist, and
  * aimed at a target above 0 (`checkTarget`); a pass formula naming every Check once (`checkPass`),
  * which one Check may leave out; and consequences by Degree, each within its kind's bounds, an Injury
- * naming a type content defines. An unknown Stat, Skill or Injury type is refused (M4-S1).
+ * naming a type content defines. An unknown Stat, Skill or Injury type is refused.
  */
 export const encountersRules: KindRules = {
   key: 'encounters',

@@ -1,5 +1,5 @@
 // The content set's files, as they sit in the content directory. Pure: the page's script reads them
-// too (M7-S1).
+// too.
 
 /** The content set this package holds, as `meta.content` records it. */
 export const contentSetId = 'core';

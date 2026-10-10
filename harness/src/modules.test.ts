@@ -11,9 +11,8 @@ import {
 import { createProbe } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { effectEventTypes, moduleCounters } from './counters.js';
-import { countGame } from './game-counters.js';
 import { harnessSetup } from './creation.js';
-import { coreDeps as deps, twentyDays as years } from './harness.test-support.js';
+import { coreDeps as deps, countGame, twentyDays as years } from './harness.test-support.js';
 import { harnessModules, idsOf, modulesFor } from './modules.js';
 import { playGame } from './play.js';
 import { runShard } from './shard.js';

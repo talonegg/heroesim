@@ -1373,3 +1373,82 @@ Verified 2026-10-10 at 844810e: 42 planted bugs red, every removal's (D1, R1, R2
 T4, T8, E1–E6, E9–E11), every shrink's and the mark's; a completion clearing by count is equivalent,
 never reachable. S4's, S7's and D2's lost lines given cheap tests; the portrait tool's `cli` helper
 counts as source only by its file's name (`test-support.ts`).
+
+## DL-250 — v1.1.9-S16's review: its findings fixed, test first
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the agents (Opus), fixing the close's
+review findings as the session's brief lists them; two are left for the owner
+
+**Context.** The close's review of `26cd276..138a812`, in four areas (the engine; content and
+`words`; the page and the CLI; the harness, the tools and the config), found 11 low findings and no
+high or medium one. Nine are fixed here. The other two are the owner's to decide.
+
+**Decision.**
+
+1. **A return night only as the game plays one.** The testing entry's `playReturnNight` (DL-245)
+   takes every Party coming home on the night (`Returning`: a Party and its resolution). It applies
+   their outcomes in Party id order, as `questsConclude` does, then the night's Levels and gear once.
+   It refuses three Turns: one already played (the world's Turn or before it), one that is not a
+   night, and a night that is not every Party's `returnsOnTurn`. Each refusal has its own test, and
+   so does the order.
+2. **`withReturn`'s Party the world does not hold, gone.** The page's fixture names a Party out in
+   the world by its id (`told.party`), always home on its own night (`told.turn` gone).
+   `withReturns` plays several Parties on one night.
+   - The test "two Parties home the same night for the same Patron" (`quest-return.test.ts`) now
+     sends two Parties through the page the same morning, on two Quests of one Patron and one
+     length (seed `two-home`), and plays both returns on one night.
+   - Its Regard lines are asserted unchanged. It also asserts that the History holds the two
+     outcomes in Party id order.
+   - It no longer plays a second return after the first night's Levels, on a Quest of no Days
+     whose row did not list its Party (DL-245 item 3).
+3. **Comments.** 44 lines this release wrote or rewrote now cite their DL entry, or drop the story
+   id where they already cite an entry or none decided the line. They are in `engine/src/controllers`,
+   `content-types.ts`, `content/src/kinds`, `parse.ts`, `validate.ts`, `files.ts`, `words/src/query.ts`,
+   `cli/src/render.ts`, `context.ts` and the page's `state/`. `context.ts` and `history.test-support.ts`
+   no longer tell history. The chooser's doc comment names its third reader, the margin a Guild's
+   Best Party is chosen at (DL-175). The story-id baseline falls from 1,585 to 1,541.
+4. **Unused re-exports.** No package, tool or harness file used these names from the entries:
+   - `questReading` and `refusalKind` leave `@heroesim/words`'s entry;
+   - `EffectKind` and `EffectKinds` leave `@heroesim/content`'s;
+   - `questReading` is now private to `readings.ts`, where only `boardReading` calls it.
+5. **`narrationFor` gone.** Its five test files (dates, digest, namer, quest-return and stops) read
+   `readingOf(document).narration`, what the page gives players. No assertion changed.
+6. **The History reader, the page's only reader of the History's index (DL-242 item 2).**
+   - A Hero's Milestones (`heroPage`) and a Quest's name from the History (`questNamer`) read through
+     the reader's `newestEntries`, whose limit is now optional, not the engine's `entriesFor`.
+   - The line test refuses an import of the engine's index readers (`entriesFor`, `entriesBetween`)
+     outside the reader. It went red on those two modules before they moved.
+7. **`measureDocument` and `countGame` gone from production.**
+   - `countGame` moves to `harness.test-support.ts`, over `readCounters` as `recordGame` reads them.
+     The counters' and the modules' tests use it there.
+   - `play.test.ts`'s two tests of the measures hold `recordGame`'s measures to the document
+     directly.
+   - DL-239 says "`countGame` stays … for the tests and the sample". That is a past record, so it is
+     not corrected. The sample has read `endingOf` since S6 (`7b70ab2`).
+
+*Judgement calls, for the owner to see:*
+- **Several Parties a call,** rather than only a refusal of a second Party on a played night: it is
+  the only way a test can tell two returns on one night as the engine writes them. The callers of
+  one Party give a list of one.
+- **"Already played" is `turn <= world.turn`,** since `advance` moves the world's Turn and then plays
+  it. It replaces the old guard (`turn < world.turn`).
+- **Another Party due that night,** a Rival's, is still not played by the fixture.
+- **`newestEntries` was given an optional limit** rather than adding the review's `entriesNaming`. A
+  Quest's name reads one entry: the newest that names a template.
+- **The headers' milestone ids** (`M1-S4`, `M4-S1`, …) are dropped where no DL entry beside them
+  decided the line. The entries already there stay.
+- **Left to the owner:**
+  - `vitest.config.ts`'s coverage exclude counts three tools' `test-support.ts` files as source
+    (harness finding 1).
+  - `neutral`'s processes grow with `HEROESIM_SEEDS` (harness finding 2).
+
+**Consequences.** No play, save, words or content changed. A fixture's return is one the engine
+could write.
+
+**Evidence.** The commit `v1.1.9-S16 (DL-250)`.
+- Red first:
+  - `return-night.test.ts`'s six tests on the list form;
+  - each refusal and the order red alone with its guard taken out;
+  - the reader's line test red on `selectors.ts` and `namer.ts`.
+- `npm test`, lint and typecheck pass. The doctor reads no drift before and after.
+- `neutral --expect` is identical, alone (`v1.1.9-s16-neutral`).

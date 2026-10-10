@@ -1,4 +1,4 @@
-// The Injury types (M2-S5; `injuries.json`) an Encounter's injury consequence names (M4-S1): at least
+// The Injury types (`injuries.json`) an Encounter's injury consequence names: at least
 // one, each healing in a Day or more, and leaving no Trait or a Hero Trait content defines.
 
 import type { InjuryType } from '@heroesim/engine/content';

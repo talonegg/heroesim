@@ -1,4 +1,4 @@
-// The Item definitions (M5-S1, DL-48; `items.json`): the fields every Item has, then its `kind`'s.
+// The Item definitions (DL-48; `items.json`): the fields every Item has, then its `kind`'s.
 // Gear has a `slot`, one of the three, and Stat modifiers; a consumable an effect, one of a closed
 // union of kinds with exactly its fields. A row with the other kind's field is refused as it is read,
 // naming the field and why; the rules catch the same in a set built in memory.
@@ -36,7 +36,7 @@ import { checkEncounterKinds, checkRowKeys, checkTags, type KindRules } from './
 const encounterKindChoices: Record<EncounterKind, true> = choicesOf(encounterKinds);
 const itemKinds: Record<ItemKind, true> = { gear: true, consumable: true };
 
-/** A consumable's effect (M5-S1): one of the closed union's kinds with exactly its fields. */
+/** A consumable's effect (DL-48): one of the closed union's kinds with exactly its fields. */
 const consumableEffect: Union<ConsumableEffect['kind'], ConsumableEffect> = {
   by: 'kind',
   kinds: {
@@ -78,7 +78,7 @@ const itemRow: RowShape<Omit<ItemDefinition, 'key'>> = {
 export const itemsKind = table<'items', ItemDefinition>('items', 'items.json', itemRow);
 
 /**
- * The Items' rules (M5-S1, DL-48). Every Item: a price that is a whole number above 0, or `null` for
+ * The Items' rules (DL-48). Every Item: a price that is a whole number above 0, or `null` for
  * Loot only; tags in kebab-case, none twice. Gear: a slot of the three and no effect; Stat modifiers,
  * at least one, each on a Hero Stat, each a whole number other than 0. A consumable: not unique, since
  * it is expended from a stack; no slot and no modifiers; an effect within its kind's bounds.

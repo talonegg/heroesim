@@ -3,8 +3,8 @@ import { applyAction, createWorld, defaultConfig, playerGuild, type OfferId, typ
 import { describe, expect, test } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { narrationFor } from './namer';
 import { expectASentence } from './game.test-support';
+import { readingOf } from './reading';
 import { stopText } from './stops';
 
 // Why time stopped, in the page's words: the narration's sentence (`narrateStop` in
@@ -32,14 +32,14 @@ describe('stopText', () => {
   ];
 
   test.each(stops)('puts %j in words', (stop, words) => {
-    const line = stopText(stop, document, 1080, narrationFor(document, content));
+    const line = stopText(stop, document, 1080, readingOf(document).narration);
 
     expect(line).toMatch(words);
     expectASentence(line);
   });
 
   test('counts the Parties, names each Quest and Hero, and gives no command, the button standing for it (DL-209)', () => {
-    const narration = narrationFor(document, content);
+    const narration = readingOf(document).narration;
     const said = (stop: StopReason): string => stopText(stop, document, 1080, narration);
     const parties = ['party-000004', 'party-000005', 'party-000006'] as PartyId[];
 
@@ -66,7 +66,7 @@ describe('stopText', () => {
     const [offer] = Object.values(offered.document.world.offers);
     if (offer === undefined) throw new Error('no offer');
 
-    const line = stopText({ kind: 'transfer-offer', guildId: player.id, offerIds: [offer.id] }, offered.document, 1080, narrationFor(offered.document, content));
+    const line = stopText({ kind: 'transfer-offer', guildId: player.id, offerIds: [offer.id] }, offered.document, 1080, readingOf(offered.document).narration);
 
     expect(offer.toGuildId).toBe(rival.id);
     expect(line).toBe(

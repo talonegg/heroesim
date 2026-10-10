@@ -1,4 +1,4 @@
-// The Loot tables (M5-S5, DL-52; `loot-tables.json`): each at least one entry, each entry an Item
+// The Loot tables (DL-52; `loot-tables.json`): each at least one entry, each entry an Item
 // content defines, listed once in its table, with a weight above 0 and a quantity range of whole
 // numbers from 1, not upside down; a unique Item's quantity is 1, since a unique Item is an
 // individual (data-model §3.3).

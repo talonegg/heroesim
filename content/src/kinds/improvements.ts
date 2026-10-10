@@ -1,4 +1,4 @@
-// The Hall Improvements (M3-S6; `improvements.json`): each raises a Hall facility, costs a whole number
+// The Hall Improvements (`improvements.json`): each raises a Hall facility, costs a whole number
 // of Wealth above 0, and each facility's grades run 1, 2, 3, … once each, with no gap, so that `build`
 // finds the next grade of any facility by its number. A facility no row names cannot be built; none
 // need be.

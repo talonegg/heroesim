@@ -87,6 +87,9 @@ const srcDir = fileURLToPath(new URL('..', import.meta.url));
 /** The History's own lists, which the reader alone reads. */
 const lists = new Set(['entries', 'byEntity', 'byType', 'milestones']);
 
+/** The engine's readers of the History's index, which the reader alone imports (DL-242, DL-250). */
+const indexReaders = new Set(['entriesFor', 'entriesBetween']);
+
 /**
  * Whether `node` names the History: an expression ending in `history`, as `document.history` does, or
  * a name the file gave the History (`aliases`).
@@ -112,7 +115,8 @@ function historyAliasesOf(ast: ts.SourceFile): Set<string> {
 
 /**
  * Where `source` reads one of the History's lists: `byEntity` or `byType` of anything, since nothing
- * else has them; `entries` or `milestones` of the History, read, read by key or taken apart.
+ * else has them; `entries` or `milestones` of the History, read, read by key or taken apart; or
+ * imports one of the engine's readers of its index (`indexReaders`), under any name.
  */
 function historyReadsOf(source: string, file = 'probe.ts'): string[] {
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
@@ -130,6 +134,8 @@ function historyReadsOf(source: string, file = 'probe.ts'): string[] {
         const key = element.propertyName ?? element.name;
         if (ts.isIdentifier(key) && lists.has(key.text)) found.push(element.getText());
       }
+    } else if (ts.isImportSpecifier(node) && indexReaders.has((node.propertyName ?? node.name).text)) {
+      found.push(node.getText());
     }
     ts.forEachChild(node, visit);
   };
@@ -172,6 +178,9 @@ describe('the page reads the History only through the reader (DL-242)', () => {
     ['history.entries()', 0],
     ['view.milestones', 0],
     ['const { entries } = view;', 0],
+    ["import { entriesFor } from '@heroesim/engine';", 1],
+    ["import { entriesBetween as between, type Entry } from '@heroesim/engine';", 1],
+    ["import { entryAt } from './history-reader';", 0],
   ])('%s reads the History %d times', (source, times) => {
     expect(historyReadsOf(source)).toHaveLength(times);
   });

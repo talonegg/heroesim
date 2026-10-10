@@ -1,4 +1,4 @@
-// The Synergies (M4-S3, DL-45; `synergies.json`): each requires one or more conditions on the Party,
+// The Synergies (DL-45; `synergies.json`): each requires one or more conditions on the Party,
 // each a Query (DL-148 item 20, `queryProblems`); adds a `flat` above 0, a `factor` above 1 or both, a
 // Synergy being a bonus and a factor in content a multiplier; and names, if any, one or more Encounter
 // kinds, none twice. The old form, a count for each Class and a list of Skills, is no longer read

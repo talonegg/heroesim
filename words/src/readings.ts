@@ -380,7 +380,7 @@ export interface QuestReading {
 }
 
 /** `quest` as the Board gives it: its terms, what it requires, the Skills that help and its Encounters (DL-148 item 16). */
-export function questReading({ world, content }: PlayerReading, quest: Quest): QuestReading {
+function questReading({ world, content }: PlayerReading, quest: Quest): QuestReading {
   const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
   return {
     id: quest.id,

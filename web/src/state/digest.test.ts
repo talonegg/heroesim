@@ -6,9 +6,9 @@ import { cameHome as partyHome, changed, documentOf, played, playerOf, started, 
 import { initialGameState, type GameState } from './reducer';
 import { boardView, rosterRows, sortedRoster } from './selectors';
 import { historyView, leftOutOfYourGuild } from './history';
-import { narrateText, narrationFor } from './namer';
+import { narrateText } from './namer';
+import { readingOf } from './reading';
 import { whenOfTurn } from '@heroesim/words';
-import { content } from '../content';
 
 // What the shell reads (DL-103): the counts on the navigation, the home view's digest and the
 // History rail. Every number is a document field, an engine selector's answer or the last play's
@@ -16,7 +16,7 @@ import { content } from '../content';
 
 /** The last play's events, each as the History narrates it. */
 function sentencesOf(state: GameState): string[] {
-  const narration = narrationFor(documentOf(state), content);
+  const narration = readingOf(documentOf(state)).narration;
   return state.log.map((event) => narrateText(event, narration));
 }
 
@@ -124,7 +124,7 @@ describe('railView', () => {
     const state = played(started(), { kind: 'advance', turns: 3 });
     const document = documentOf(state);
     const guild = playerOf(documentOf(state));
-    const narration = narrationFor(document, content);
+    const narration = readingOf(document).narration;
     const history = entriesFor(document.history, guild.id)
       .filter((entry) => !leftOutOfYourGuild.has(entry.type))
       .map((entry) => ({ when: whenOfTurn(entry.turn, document.meta.config), sentence: narrateText(entry as never, narration) }));

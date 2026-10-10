@@ -15,5 +15,5 @@ export { marketHolder } from './market.js';
 export { createProbe } from './modules/probe.js';
 export { chanceBand } from './quest-engine/estimate.js';
 export { xpForLevel } from './progression.js';
-export { playReturnNight } from './return-night.js';
+export { playReturnNight, type Returning } from './return-night.js';
 export { nightOf } from './time.js';

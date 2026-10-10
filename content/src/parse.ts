@@ -1,5 +1,5 @@
-// Text in, content out (M1-S4): the driver of the content kinds' readers (DL-243). Pure: no file
-// system, so a browser bundle can use it (M7-S1). Each file is read by its kind (`kinds/`): an object
+// Text in, content out: the driver of the content kinds' readers (DL-243). Pure: no file
+// system, so a browser bundle can use it. Each file is read by its kind (`kinds/`): an object
 // keyed by content key, whose rows do not repeat their key, or a file of its own shape; every field
 // present, of its type, and no field the kind does not know. Then the whole set is validated
 // (`validate.ts`).

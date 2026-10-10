@@ -72,7 +72,7 @@ export interface EffectKind<Effect> {
 /** Each kind of a list's effects, keyed by the engine's union. */
 export type EffectKinds<Effect extends { kind: string }> = { [Kind in Effect['kind']]: EffectKind<Extract<Effect, { kind: Kind }>> };
 
-/** A Guildmaster Trait's effects (M4-S5, DL-43). */
+/** A Guildmaster Trait's effects (DL-43). */
 export const guildmasterTraitEffects: EffectKinds<GuildmasterTraitEffect> = {
   classStatBonus: {
     label: 'A Class Stat bonus',

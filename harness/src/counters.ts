@@ -623,7 +623,7 @@ export interface MarketTally {
 export const noPurchases = (): MarketTally => ({ purchases: 0, items: 0, cost: 0 });
 
 /**
- * What the play loop saw of the Rivals' afternoons that no entry records (DL-69), for `countGame`:
+ * What the play loop saw of the Rivals' afternoons that no entry records (DL-69), for the counters' reading:
  * the difficulty of each Quest a Rival took, by Quest id, from the Quest's row as the afternoon began;
  * and the History positions of the `hero.transferred` entries of an afternoon whose selling Guild was
  * in debt (`belowFloorSince` set) as it began, which is when a Rival's `debtTransfer` may sell.

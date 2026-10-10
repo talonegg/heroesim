@@ -1,4 +1,4 @@
-// What content that breaks its schema throws, read or checked (M1-S4).
+// What content that breaks its schema throws, read or checked.
 
 /**
  * Content that breaks the schema. The message lists every problem found, one per line, and

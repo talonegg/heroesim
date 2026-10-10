@@ -1,6 +1,6 @@
-// The Quest templates (M2-S3; `quest-templates.json`): the kinds of Quest the Patrons offer, found by
+// The Quest templates (`quest-templates.json`): the kinds of Quest the Patrons offer, found by
 // Sphere when the Board is drawn (DL-20), each with its ranges, its reward and Fame, what it requires,
-// its Loot table, the kinds and count of Encounters it is drawn with (M4-S1), and its Finale, named
+// its Loot table, the kinds and count of Encounters it is drawn with, and its Finale, named
 // rather than drawn (DL-160).
 
 import type { EncounterKind, QuestTemplate, QuestTemplateRequires } from '@heroesim/engine/content';
@@ -77,7 +77,7 @@ export const questTemplatesRules: KindRules = {
 };
 
 /**
- * What a Quest template's Encounter sequence is drawn by (M4-S1): at least one kind, none twice,
+ * What a Quest template's Encounter sequence is drawn by: at least one kind, none twice,
  * each with an Encounter in content to draw, and a count range from 1 that is not upside down. An
  * Encounter some template names as its Finale is never drawn, so a kind needs one that is no Finale;
  * and a Finale, if the template names one, is an Encounter content defines, of any kind, since it is

@@ -10,7 +10,7 @@
 //
 // A Hero, a Roster's and the pool's rows and the Board are the readings of `@heroesim/words`
 // (DL-241), laid out here: the readings hold what the player sees, what their Guildmaster sees and
-// pays (R8), Potential never (data-model rule 9) and Regard as its band (M4-S4, M4-S5).
+// pays (R8), Potential never (data-model rule 9) and Regard as its band (DL-46).
 
 import {
   ageOf,
@@ -370,7 +370,7 @@ export function renderRoster(reading: PlayerReading, guild: Guild): string[] {
 
 /**
  * `show pool`: the Unattached Heroes, each with the signing fee and, when there is a player's Guild,
- * whether they would sign for it: `Yes`, or the Fame they ask of it (M3-S5), since a Hero of a higher
+ * whether they would sign for it: `Yes`, or the Fame they ask of it, since a Hero of a higher
  * Level will not sign for a Guild whose Fame is below what their Level asks (`poolReading`).
  */
 export function renderPool(reading: PlayerReading): string[] {
@@ -386,8 +386,8 @@ export function renderPool(reading: PlayerReading): string[] {
  * `show hero <id>`: the Hero's reading laid out (`heroReading`): their Attributes, Portrait,
  * Appearance and Biography, State, Stats, gear, Skills and, on a Roster, Relationships. Each Stat's
  * base and the effective value a Quest's Check reads, then its Potential hint under "Outlook", never
- * Potential (rule 9); Regard and Relationships as bands, never as numbers (M4-S4, DL-46); and for a
- * Hero on another Guild's Roster, the Transfer fee the player's Guild would pay to take them (M6-S2).
+ * Potential (rule 9); Regard and Relationships as bands, never as numbers (DL-46); and for a
+ * Hero on another Guild's Roster, the Transfer fee the player's Guild would pay to take them.
  * Its dates by `calendar`, each with its Turn (DL-210).
  */
 export function renderHero(hero: HeroReading, calendar: Calendar): string[] {
@@ -627,7 +627,7 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
 /**
  * `show board`: the Quests on offer in the Board's order (`boardReading`), each with its template's
  * name, its Patron, its terms, what it requires and the last date it stays on offer; then the Skills
- * that help in its Encounters' Checks and the kinds of those Encounters (M4-S1); then each Quest's
+ * that help in its Encounters' Checks and the kinds of those Encounters; then each Quest's
  * Encounters with each Check's name and what it reads, and the player's Best Party with its chance
  * (DL-148 items 15 to 17), every Quest asked of the reading's one Best Party module (DL-237).
  */
@@ -702,7 +702,7 @@ function bestPartyWords(best: BestPartyReading | null): string {
 }
 
 /**
- * The kinds of a Quest's Encounters in the order it meets them (M4-S1), so the player can see what
+ * The kinds of a Quest's Encounters in the order it meets them, so the player can see what
  * kind of work it is. An Encounter content does not define is named by its key (data-model rule 5).
  */
 function encounterKindsOf(quest: QuestReading): string {

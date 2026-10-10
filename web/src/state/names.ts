@@ -1,4 +1,4 @@
-// How the views name things (M7-S3): a Class's mark, an ordinal, a place in the Rankings. Words
+// How the views name things: a Class's mark, an ordinal, a place in the Rankings. Words
 // only; no rule. Shared by `selectors.ts`, `world-views.ts` and `trade-views.ts` (DL-73). A row of
 // the world by its id, a content row's name, a list, a signed number, a capital and a Trait's effects
 // are `@heroesim/words`', which the CLI reads too (DL-186 item 1, DL-241), and so is a night.

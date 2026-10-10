@@ -1,6 +1,6 @@
 // On which page of a History an entry stands, for the History's page-edge tests (DL-120 item
-// 10). The page's code called it for "Read it in the History" until DL-118 took that away (item
-// 5, DL-119 finding 5); it lives here now, with the index of the scope it read, as an oracle of the
+// 10), which the page's code never asks (DL-118 item 5, DL-119 finding 5): with the index of the
+// scope it read, an oracle of the
 // pages' edges read apart from `historyView`: `historyPageSize` entries counted from the newest; past
 // them, in the player's Guild's History, the return a page's last Loot, Injury or Death stands beside;
 // and every step of a Party whose outcome the page holds, save in the World History and the

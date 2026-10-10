@@ -53,8 +53,7 @@ import {
   type SaveSize,
   type WorldSize,
 } from './counters.js';
-import { countGame } from './game-counters.js';
-import { content, coreDeps, observerOf } from './harness.test-support.js';
+import { content, coreDeps, countGame, observerOf } from './harness.test-support.js';
 
 // The counter, against the core content: the player's Quests and the Rivals' counted apart.
 

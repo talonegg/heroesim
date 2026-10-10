@@ -370,7 +370,7 @@ export function staffableQuests(world: World, guild: Guild, deps: EngineDeps): Q
 
 /**
  * A Party of `available`, `guild`'s free Heroes, that `dispatch` would send on `quest` as it stands,
- * or `null` when there is none (M9-S1, DL-101). The search is the Best Party's own first step, the Party
+ * or `null` when there is none (DL-101). The search is the Best Party's own first step, the Party
  * its requirements take (`requiredParty`), and the verdict is `dispatch`'s own (`dispatchRefusal`,
  * with no consumables), so no second copy of the rule decides what can be staffed: a check
  * `dispatch` gains is a check here at once.
@@ -378,7 +378,7 @@ export function staffableQuests(world: World, guild: Guild, deps: EngineDeps): Q
  * It misses no Party: `dispatch` asks of free Heroes on the Roster only the Quest's requirements
  * (`unmetRequirements`: a size, a Class and a Skill), and `requiredParty` names a Party whenever one
  * of `available` meets them, which `stops.test.ts` holds against every Party of a Roster. The Best
- * Party is named exactly when it names one, choosing who by the chance estimate (v1.1.4-S6), which cannot
+ * Party is named exactly when it names one, choosing who by the chance estimate (DL-148 item 17), which cannot
  * change whether a Party can go; so the stops ask no estimate of every Quest on the Board each Turn
  * (DL-157). Reads, never writes, and draws nothing.
  */
@@ -400,7 +400,7 @@ function staffingParty(world: World, guild: Guild, quest: Quest, available: read
  * picks among them, one draw however many there are. The Party is the Best Party (`bestParties`,
  * opened over the world as it stands after the draw, DL-237), for the Quest chosen only: which Quests
  * it can staff is the Best Party's first step (`requiredParty`), which the estimate cannot change
- * (v1.1.4-S6, DL-157).
+ * (DL-157).
  */
 function preferredQuest(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): DispatchAction | null {
   const available = availableHeroes(world, guild);

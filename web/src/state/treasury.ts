@@ -7,8 +7,8 @@
 // engine wrote it when the Wealth moved (DL-112's context: every change to a Guild's Wealth has an
 // event that carries the amount); the ledger opens with the Wealth the Guild was founded with, which
 // its `guild.founded` carries (DL-120 item 4, DL-121); and Upkeep's figures are the engine's `upkeepParts` and
-// `nextUpkeepDay` (M9-F1, DL-114 item 3). The ledger reads a Guild's Wealth through the page's History
-// reader (`wealthChanges`, DL-242), never the History view's scopes or filters (M9-F4's), since every
+// `nextUpkeepDay` (DL-114 item 3). The ledger reads a Guild's Wealth through the page's History
+// reader (`wealthChanges`, DL-242), never the History view's scopes or filters, since every
 // Wealth event names its Guild.
 
 import {

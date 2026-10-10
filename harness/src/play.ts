@@ -476,11 +476,6 @@ async function measureSave(save: Written, deps: EngineDeps, now: () => number, g
   };
 }
 
-/** Serialises `document`, loads it back, times both, fingerprints the save and, when `gzip` is set, measures it gzipped. */
-export function measureDocument(document: WorldDocument, deps: EngineDeps, now: () => number = () => performance.now(), gzip = false): Promise<DocumentMeasures> {
-  return measureSave(written(document, now), deps, now, gzip);
-}
-
 /**
  * SHA-256 of a save's text, in hex: `DocumentMeasures.fingerprint`'s, and the replay's (`sweep.ts`),
  * which compares two games by it so as not to hold the first game's text (DL-181).

@@ -259,6 +259,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-247 | 2026-10-10 | v1.1.9-S13 built: the page's tests pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
 | DL-248 | 2026-10-10 | v1.1.9-S14 built: the tests of cli, words and content pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
 | DL-249 | 2026-10-10 | v1.1.9-S15 built: the tests of the harness, the tools and the e2e specs pruned, on the owner's … |  | [decision-log](../decision-log.md) |
+| DL-250 | 2026-10-10 | v1.1.9-S16's review: its findings fixed, test first |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
