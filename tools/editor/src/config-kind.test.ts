@@ -118,6 +118,23 @@ describe('set', () => {
     expect(status(dir)).toBe('');
   });
 
+  // The ladder is read by the content's Quest templates too (DL-262), so a ladder they cannot play is
+  // refused as it is set, not by "Finish"'s tests (DL-270).
+  test('refuses a Tier ladder the Quest templates cannot play, naming each, and holds nothing', async () => {
+    const dir = scratch();
+    const tiers = readConfig(dir).sections.questTiers?.tiers as Record<string, unknown>[];
+    const longer = tiers.map((row, index) => (index === 0 ? { ...row, beats: 4 } : row));
+    const refused = await json<Failure>(dir, 'config', 'set', 'tiers', JSON.stringify(longer));
+    expect(refused.code).toBe(1);
+    expect(refused.json.problems).toContain('questTemplates.escort-the-tithe: Tier 1 plays 4 Beats, more than its 3 Beats');
+    expect(refused.json.problems.every((problem) => problem.startsWith('questTemplates.'))).toBe(true);
+    expect((await json<{ edits: unknown[] }>(dir, 'config', 'pending')).json.edits).toEqual([]);
+
+    const fewer = tiers.slice(0, 4);
+    expect((await json<Failure>(dir, 'config', 'set', 'tiers', JSON.stringify(fewer))).json.problems).toContain('questTemplates.break-the-sealed-vault.tierMax is 5; the ladder has 4 Tiers');
+    expect(status(dir)).toBe('');
+  });
+
   test('refuses a setting the file lacks', async () => {
     const dir = scratch();
     const unknown = await json<Failure>(dir, 'config', 'set', 'gearSlots', '3');

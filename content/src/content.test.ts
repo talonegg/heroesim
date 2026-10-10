@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { tierFigures } from '@heroesim/engine';
 import { encounterKinds, facilityKeys, gearSlotKeys, tierLadder, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { contentSources, parseContent } from './index.js';
@@ -248,11 +249,11 @@ describe('loadContent()', () => {
       expect(requiring.length).toBeLessThan(templates.length / 2);
     });
 
-    test('are drawn with 2 to 5 Encounters at every Tier they offer, more at the higher (INPUTS 6.1, DL-262)', () => {
+    test('are drawn with 2 to 5 Encounters at every Tier they offer, more at the higher, overrides read (INPUTS 6.1, DL-262)', () => {
       for (const it of templates) {
         const counts = [];
         for (let tier = it.tierMin; tier <= it.tierMax; tier += 1) {
-          const count = Math.min(tierLadder[tier - 1]?.beats ?? 0, it.beats.length + (it.finale === undefined ? 0 : 1));
+          const count = Math.min(tierFigures(it, tier, { tiers: tierLadder }).beats, it.beats.length + (it.finale === undefined ? 0 : 1));
           expect(count, `${it.key} at Tier ${tier}`).toBeGreaterThanOrEqual(2);
           expect(count, `${it.key} at Tier ${tier}`).toBeLessThanOrEqual(5);
           counts.push(count);

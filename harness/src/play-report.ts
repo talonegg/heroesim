@@ -8,6 +8,7 @@ import { configVersion, schemaVersion, type EngineDeps } from '@heroesim/engine'
 import { sections, sweepTotals, type ReportContext, type Section } from './counter.js';
 import { harnessSetup } from './creation.js';
 import { copyTimes, gateSection, readGateSpec, type GateResult, type GateSpec } from './gate.js';
+import { defaultYears } from './play.js';
 import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
 import { summarise, type Summary } from './stats.js';
 import { sweepFingerprint, type PlaySweep } from './sweep.js';
@@ -131,12 +132,17 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
     fixed(summary.max, digits),
   ];
 
+  // DL-83 item 18's slice is a game's first `defaultYears`; a run of other years says how it stands to it.
+  const sliceWords =
+    sweep.years === defaultYears
+      ? 'the slice measured (DL-83 item 18)'
+      : `${sweep.years < defaultYears ? 'short of' : 'past'} DL-83 item 18's slice, their first ${defaultYears}`;
   const lines = [
     `# ${milestone.toUpperCase()} harness report: play`,
     '',
     `Run begun ${localTimestamp(startedAt)} · ${whole(count)} seeds, ${range} · up to ${yearsText} years ` +
-      `(${whole(sweep.years * config.turnsPerYear)} Turns) each · the first ${yearsText} years of games that run 20 to 35 years, the slice ` +
-      `measured (DL-83 item 18) · content \`${content.id}\` version ${content.version}` +
+      `(${whole(sweep.years * config.turnsPerYear)} Turns) each · the first ${yearsText} years of games that run 20 to 35 years, ${sliceWords} · ` +
+      `content \`${content.id}\` version ${content.version}` +
       `${drafted.length === 0 ? '' : ` with the drafts of ${drafted.map((name) => `\`${name}\``).join(', ')}`} · ` +
       `config version ${configVersion}, schema version ${schemaVersion}` +
       `${Object.keys(configured).length === 0 ? '' : `, the defaults changed by \`${JSON.stringify(configured)}\``} · ` +

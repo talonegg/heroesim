@@ -12,7 +12,11 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { readContent } from '@heroesim/content';
+import { readContentDir } from '@heroesim/content/node';
+import { ladderProblems } from '@heroesim/content/write';
 import { checkConfig, flattenConfig } from '@heroesim/engine';
+import type { ContentSet, TierRow } from '@heroesim/engine/content';
 import { EditSession, Refused, type SessionAdapter } from './session.js';
 import { npmTest, type TestResult, type TestRunner } from './tests-run.js';
 
@@ -128,14 +132,27 @@ export const configFile: SessionAdapter<ConfigEdit, ConfigWorking> = {
     return { text, json, sections };
   },
 
-  problems(_root, { sections }) {
+  problems(root, { json, sections }) {
     let flat: Record<string, unknown>;
     try {
       flat = flattenConfig(sections);
     } catch (error) {
       return [error instanceof Error ? error.message : String(error)];
     }
-    return checkConfig(flat).map((problem) => problem.message);
+    const problems = checkConfig(flat).map((problem) => problem.message);
+    if (problems.length > 0) return problems;
+    // A Tier ladder changed is held to the Quest templates that read it (DL-262), as the content's
+    // check holds them to the ladder on disk (DL-270); content that cannot be read is the content's
+    // checks' to name.
+    const ladder = flat.tiers as TierRow[];
+    if (JSON.stringify(ladder) === JSON.stringify(flattenConfig(json.sections).tiers)) return [];
+    let templates: ContentSet['questTemplates'];
+    try {
+      templates = readContent(readContentDir(path.join(root, 'content'))).questTemplates;
+    } catch {
+      return [];
+    }
+    return ladderProblems(templates, ladder);
   },
 
   finishing(root, { text, json, sections }, edits, reason) {

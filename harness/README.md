@@ -32,11 +32,11 @@ Sweeps run one at a time, with nothing else running, since a 20-year game's proc
 
 The last `neutral` baseline is
 `661789f1d2811cfac869463d6dd1a0164874e3222f13690ba6adf9c43bdf2d6f` (`v1.2.0-s4-neutral`, DL-261: schema 7,
-config version 18, content version 37, v1.1.9's games). Play has changed since (the Tiers, DL-262; Death
-by Tier, DL-265; the Party floor, DL-266): the last 4 × 2 quick check, at schema 9, config version 20 and
-content version 39, is `62fab24b0a9a2f6b868de54cdf072ff5208ec2ecad63bf4221c4715a39e28b3b`
-(`v1.2.0-s8-quick`), and the next `neutral` run at its versions sets the baseline every play-neutral
-story's `--expect` reads. Each changes only with a DL entry, as at a story that changes play or the
+config version 18, content version 37, v1.1.9's games). The Tiers (DL-262), Death by Tier (DL-265) and
+the Party floor (DL-266) change play, so it is no longer `--expect`'s: the 4 × 2 quick check at schema 9,
+config version 20 and content version 39 is `62fab24b0a9a2f6b868de54cdf072ff5208ec2ecad63bf4221c4715a39e28b3b`
+(`v1.2.0-s8-quick`), and the next `neutral` run at the release's versions sets the baseline every
+play-neutral story's `--expect` reads. Each changes only with a DL entry, as at a story that changes play or the
 save's shape or raises the content version or the config version, both of which every save records
 (with `meta.config`). The full `gate`'s, 50 × 20, is
 `5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b` (`v1.1.8-gate`, v1.1.8's close, the
@@ -85,8 +85,8 @@ A play sweep's reports open, after the Summary and the Gate, with its Targets (`
 DL-259): the owner's target bands for the automatic policy's games (DL-83, the player's Deaths by
 DL-256 item 10) and DL-69 item 4's lines for the Rivals, each declared once with the entry that set
 it, and the Quest weight, the player's and each Disposition's. Each is measured with its standard
-error over the games, set beside the value of the run report `HEROESIM_BASELINE` names (v1.1.9's
-closing gate unless set; `none` for none), and marked inside or outside its band. None fails a run
+error over the games, set beside the value of the run report `HEROESIM_BASELINE` names
+(`v1.2.0-s2-gate-2026-10-10`, the open release's baseline gate, unless set, DL-270; `none` for none), and marked inside or outside its band. None fails a run
 (DL-257 item 7). The core-only run carries them until a module is on by default (DL-82 item 18).
 
 ## Counters

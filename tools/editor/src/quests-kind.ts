@@ -163,6 +163,15 @@ export function tiersOf(row: Row): TierView[] {
   return tiers;
 }
 
+/**
+ * How many of `row`'s Beats, from the first, some Tier it offers plays (`tiersOf`): a Tier of k Beats
+ * plays the first k - 1 and the Finale, or the first k (DL-262 item 3), so a Beat past these draws
+ * no Encounter into any Quest.
+ */
+export function playedBeats(row: Row): number {
+  return Math.max(0, ...tiersOf(row).map((tier) => tier.beats.length));
+}
+
 // ── A part of a row changed ─────────────────────────────────────────────────────────────────────
 
 /** `given` as an index into a list of `size`, from 0; up to `size` itself where `end` is allowed; refused, naming the list's indices, where it is not one. */

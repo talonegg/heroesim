@@ -1,8 +1,8 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { EngineDeps } from '@heroesim/engine';
 import { expect, test } from 'vitest';
-import { calibrate, calibrationReport, defaultCalibration, defaultTuningAim, draftsDir, formatJson, heroPool, loadDrafts, tunedFactors, type TuningAim } from './calibrate.js';
+import { calibrate, calibrationReport, defaultCalibration, defaultTuningAim, draftsDir, heroPool, loadDrafts, tunedFactors, writeTunedEncounters, type TuningAim } from './calibrate.js';
 import { runConfig } from './play.js';
 import { machine, print, writeReport } from './report.js';
 import { runSettings, settingsSet } from './settings.js';
@@ -40,23 +40,7 @@ test.runIf(probe !== null)('the content is calibrated, and the estimate holds to
     const { content } = loadDrafts(draftDir);
     const deps: EngineDeps = { config: runConfig(configured), content };
     const pool = heroPool(`calibrate-level-${aim.level}`, aim.level, settings.pool, deps);
-    const factors = tunedFactors(pool, aim, settings.parties, deps);
-    // Each drafted Encounter's own file in the drafts' `encounters/` (DL-260).
-    for (const name of readdirSync(join(draftDir, 'encounters')).filter((each) => each.endsWith('.json'))) {
-      const path = join(draftDir, 'encounters', name);
-      const key = name.slice(0, -'.json'.length);
-      const encounter = JSON.parse(readFileSync(path, 'utf8')) as { checks: { key: string; flat?: number; difficultyFactor: number }[] };
-      encounter.checks = encounter.checks.map((it) => {
-        const tuning = factors[key]?.[it.key];
-        if (tuning === undefined) return it;
-        // The flat term written before the factor, as a target reads: flat + factor × difficulty; the
-        // other fields after them, in their own order.
-        const after = Object.fromEntries(Object.entries(it).filter(([field]) => !['key', 'name', 'score', 'skills', 'flat', 'difficultyFactor'].includes(field)));
-        const { key: checkKey, name, score, skills } = it as typeof it & { name: unknown; score: unknown; skills: unknown };
-        return { key: checkKey, name, score, skills, ...(tuning.flat === undefined ? {} : { flat: tuning.flat }), difficultyFactor: tuning.difficultyFactor, ...after };
-      });
-      writeFileSync(path, formatJson(encounter), 'utf8');
-    }
+    writeTunedEncounters(draftDir, tunedFactors(pool, aim, settings.parties, deps));
   }
 
   const { content, drafted } = loadDrafts(draftDir);

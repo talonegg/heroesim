@@ -119,20 +119,17 @@ export const questTemplatesRules: KindRules = {
  * What a Quest template's Tiers and Beats are checked by (DL-257 items 1 and 2, DL-262), against the
  * default ladder (`tierLadder`):
  *
- * - its Tiers, from 1 and not upside down, none past the ladder;
+ * - its Tiers, from 1 and not upside down, and those the ladder holds (`templateLadderProblems`);
  * - its Beats, one or more, each with a line and a pool giving one criterion or more among kinds,
  *   tags and named Encounters, none of them an empty list, a kind or name twice, a tag no Encounter
  *   carries, a name content lacks or a Finale;
  * - each pool able to give its Beat an Encounter whatever the Beats before it drew (`shortBeats`), as
  *   the engine's draw needs, a Finale never in one;
- * - its Finale and its line given together, the Finale an Encounter content defines;
- * - for each Tier it offers, as many Beats as the Tier plays, its Finale counted, and each override
- *   of a Tier it offers, of a sound Tier row once merged with the ladder's (`tierRowProblems`).
+ * - its Finale and its line given together, the Finale an Encounter content defines.
  */
 function checkBeats(where: string, template: QuestTemplate, set: Parameters<KindRules['check']>[0], problems: string[]): void {
   const { tierMin, tierMax, beats, finale, finaleLine } = template;
   checkRange(where, 'tier', tierMin, tierMax, 1, problems);
-  if (tierMax > tierLadder.length) problems.push(`${where}.tierMax is ${tierMax}; the ladder has ${tierLadder.length} Tiers`);
 
   if (beats.length === 0) problems.push(`${where}.beats is empty: a Quest plays one Beat at least`);
   const finales = new Set(Object.values(set.questTemplates).flatMap((it) => (it.finale === undefined ? [] : [it.finale])));
@@ -165,16 +162,29 @@ function checkBeats(where: string, template: QuestTemplate, set: Parameters<Kind
   if ((finale === undefined) !== (finaleLine === undefined)) problems.push(`${where}: finale and finaleLine are given together or not at all`);
   if (finale !== undefined && !Object.hasOwn(set.encounters, finale)) problems.push(`${where}.finale: "${finale}" is not an Encounter`);
   if (finaleLine?.trim() === '') problems.push(`${where}.finaleLine is empty`);
+  problems.push(...templateLadderProblems(where, template, tierLadder));
+}
 
-  const offered = (tier: number): boolean => Number.isSafeInteger(tier) && tier >= Math.max(1, tierMin) && tier <= Math.min(tierMax, tierLadder.length);
+/**
+ * What a Quest template is checked by against `ladder` (DL-262): no Tier past it; each override of a
+ * Tier it offers, of a sound Tier row once merged with the ladder's (`tierRowProblems`); and for each
+ * Tier it offers, as many Beats as the Tier plays, its Finale counted. The content's check reads the
+ * default ladder; the editor's config kind a pending one, so that a ladder no template can play is
+ * refused as it is set (DL-270).
+ */
+export function templateLadderProblems(where: string, template: QuestTemplate, ladder: readonly TierRow[]): string[] {
+  const { tierMin, tierMax, beats, finale } = template;
+  const problems: string[] = [];
+  if (tierMax > ladder.length) problems.push(`${where}.tierMax is ${tierMax}; the ladder has ${ladder.length} Tiers`);
+  const offered = (tier: number): boolean => Number.isSafeInteger(tier) && tier >= Math.max(1, tierMin) && tier <= Math.min(tierMax, ladder.length);
   const overrides = template.overrides ?? {};
   for (const key of Object.keys(overrides)) {
     if (!offered(Number(key)) || String(Number(key)) !== key) problems.push(`${where}.overrides.${key}: Tier ${key} is not one it offers, ${tierMin} to ${tierMax}`);
   }
   const f = finale === undefined ? 0 : 1;
-  for (let tier = Math.max(1, tierMin); tier <= Math.min(tierMax, tierLadder.length); tier += 1) {
+  for (let tier = Math.max(1, tierMin); tier <= Math.min(tierMax, ladder.length); tier += 1) {
     const override = own(overrides, String(tier));
-    const figures = { ...(tierLadder[tier - 1] as TierRow), ...override };
+    const figures = { ...(ladder[tier - 1] as TierRow), ...override };
     if (override !== undefined) for (const problem of tierRowProblems(figures)) problems.push(`${where}.overrides.${tier}: ${problem}`);
     if (figures.beats > beats.length + f) {
       problems.push(
@@ -182,4 +192,10 @@ function checkBeats(where: string, template: QuestTemplate, set: Parameters<Kind
       );
     }
   }
+  return problems;
+}
+
+/** Each Quest template of `templates` against `ladder` (`templateLadderProblems`), named as the content's check names it. */
+export function ladderProblems(templates: Readonly<Record<string, QuestTemplate>>, ladder: readonly TierRow[]): string[] {
+  return Object.entries(templates).flatMap(([key, template]) => templateLadderProblems(`questTemplates.${key}`, template, ladder));
 }

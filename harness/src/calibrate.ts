@@ -26,6 +26,7 @@
 // each in place of the core's of its name (`loadDrafts`, content's Node entry; a folder whole, DL-260). `npm run harness -- calibrate`
 // (calibrate.harness.test.ts) writes the report and its data under `docs/quests/`.
 
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { contentDir, loadDrafts } from '@heroesim/content/node';
 import {
@@ -718,6 +719,32 @@ export function tunedFactors(pool: Pool, aim: TuningAim, parties: number, deps: 
   return tuned;
 }
 
+/**
+ * `factors` (`tunedFactors`) written into the drafted Encounters' files of `dir`'s `encounters/`
+ * folder, a file a row (DL-260): each tuned Check's flat term before its factor, as a target reads
+ * (flat + factor × difficulty), its other fields after them in their own order, the file ending in a
+ * newline as the drafts are written. A file of an Encounter `factors` does not name is not rewritten.
+ * Refuses a `dir` with no `encounters/` folder.
+ */
+export function writeTunedEncounters(dir: string, factors: Readonly<Record<string, Readonly<Record<CheckKey, CheckTuning>>>>): void {
+  const folder = join(dir, 'encounters');
+  if (!existsSync(folder)) throw new Error(`The drafts directory ${dir} has no encounters/ folder, so there is nothing to tune (HEROESIM_TUNE).`);
+  for (const name of readdirSync(folder).filter((each) => each.endsWith('.json'))) {
+    const path = join(folder, name);
+    const key = name.slice(0, -'.json'.length);
+    if (factors[key] === undefined) continue;
+    const encounter = JSON.parse(readFileSync(path, 'utf8')) as { checks: { key: string; flat?: number; difficultyFactor: number }[] };
+    encounter.checks = encounter.checks.map((it) => {
+      const tuning = factors[key]?.[it.key];
+      if (tuning === undefined) return it;
+      const after = Object.fromEntries(Object.entries(it).filter(([field]) => !['key', 'name', 'score', 'skills', 'flat', 'difficultyFactor'].includes(field)));
+      const { key: checkKey, name: checkName, score, skills } = it as typeof it & { name: unknown; score: unknown; skills: unknown };
+      return { key: checkKey, name: checkName, score, skills, ...(tuning.flat === undefined ? {} : { flat: tuning.flat }), difficultyFactor: tuning.difficultyFactor, ...after };
+    });
+    writeFileSync(path, `${formatJson(encounter)}\n`, 'utf8');
+  }
+}
+
 /** The least factor, and the least scale on an Encounter's factors, a tuning tries. */
 const factorLeast = 0.0001;
 const scaleLeast = 0.05;
@@ -902,8 +929,10 @@ export function calibrationReport(
 }
 
 /**
- * `value` as JSON written the way content's files are: an object over `width` characters on one line
- * opened a field to a line, and everything else, a Query among them, on one line.
+ * `value` as JSON written the way the drafts' files are (`docs/quests/drafts/`), without the final
+ * newline: an object over `width` characters on one line opened a field to a line, and everything
+ * else, a Query among them, on one line. Content's own files are written by content's `formatJson`
+ * (`content/src/write/json-format.ts`), which spaces a line differently.
  */
 export function formatJson(value: unknown, width = 110, indent = ''): string {
   const flat = JSON.stringify(value);

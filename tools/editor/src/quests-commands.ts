@@ -258,6 +258,8 @@ export async function runCommand(family: Family, command: string, input: Command
     case 'finale set': {
       const encounter = read.text('encounter', 'the Encounter played as its Finale');
       const line = read.text('line', "the Finale's line, as line=<text>");
+      const others = Object.keys(read.values('', false));
+      if (others.length > 0) throw new UsageError(`${family} ${command} takes line=<text> alone, not ${others.join(', ')}`);
       return changed(editor, 'Finale set', editor.alter(family, key(), () => finaleSet(encounter, line)));
     }
     case 'finale clear':

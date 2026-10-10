@@ -129,6 +129,11 @@ describe('reading, through both adapters', () => {
     const drawn = await both(['encounters', 'show', 'the-flooded-ford'], 'GET', '/api/encounters/show?key=the-flooded-ford');
     expect(drawn.json.uses).toEqual([]);
     expect(drawn.json.drawnBy).toContain('hold-the-border-fort beats.1');
+    // Only a Beat some Tier of its template plays draws (DL-262 item 3): Escort the tithe's Tier 1
+    // plays its first two Beats of three, so its social beats.2 draws nothing.
+    const social = await both(['encounters', 'show', 'a-hostile-reeve'], 'GET', '/api/encounters/show?key=a-hostile-reeve');
+    expect(social.json.drawnBy).not.toContain('escort-the-tithe beats.2');
+    expect(social.json.drawnBy).toContain('a-quiet-word beats.0');
 
     const text = await command(['encounters', 'show', 'the-last-rite', '--root', cliDir]);
     expect(text.out).toContain('the-last-rite — The last rite: arcane, tagged dark, holy; 3 Checks; 1 use; a Finale');
@@ -174,6 +179,8 @@ describe('the Quest templates, through both adapters', () => {
     const refusals: [string, Record<string, unknown>, string][] = [
       ['taken', { ...crossing }, '"cross-the-river" is a key already, in quests'],
       ['Cross!', { ...crossing }, '"Cross!" is not a key'],
+      // The content's own rule for a key (kebabCase), so the editor refuses what the check would.
+      ['2-bells', { ...crossing }, '"2-bells" is not a key: lower case letters and digits, joined by hyphens, starting with a letter'],
       ['solo', { ...crossing, partySizeMin: 1 }, 'questTemplates.solo.partySizeMin is 1; it is at least 2'],
       ['capped', { ...crossing, partySizeMax: 4 }, 'quest-templates/capped.json: partySizeMax'],
       ['short', { ...crossing, beats: [{ line: 'The ford.', pool: { tags: ['water'] } }, { line: 'Again.', pool: { tags: ['water'] } }] }, 'questTemplates.short.beats.1.pool may draw 1 Encounter, none a Finale; it needs 2'],
@@ -332,6 +339,14 @@ describe('the Quest templates, through both adapters', () => {
     expect(none.json.problems).toEqual(['it has no Finale to clear']);
     const noLine = await both(['quests', 'finale', 'set', 'a-quiet-word', 'the-last-rite'], 'POST', '/api/quests/finale/set', { key: 'a-quiet-word', encounter: 'the-last-rite' });
     expect(noLine).toEqual({ code: 2, json: { ok: false, kind: 'usage', problems: ["quests finale set wants the Finale's line, as line=<text>"] } });
+    // A field it does not take is refused, not dropped (DL-270).
+    const extra = await both(['quests', 'finale', 'set', 'a-quiet-word', 'the-last-rite', 'line=Late.', 'pool={"kinds":["social"]}'], 'POST', '/api/quests/finale/set', {
+      key: 'a-quiet-word',
+      encounter: 'the-last-rite',
+      line: 'Late.',
+      values: { pool: { kinds: ['social'] } },
+    });
+    expect(extra).toEqual({ code: 2, json: { ok: false, kind: 'usage', problems: ['quests finale set takes line=<text> alone, not pool'] } });
     const missing = await both(['quests', 'finale', 'set', 'a-quiet-word', 'no-such-encounter', 'line=Nothing.'], 'POST', '/api/quests/finale/set', { key: 'a-quiet-word', encounter: 'no-such-encounter', line: 'Nothing.' });
     expect(problemsOf(missing.json)).toContain('questTemplates.a-quiet-word.finale: "no-such-encounter" is not an Encounter');
   });

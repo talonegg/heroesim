@@ -1,9 +1,10 @@
 // The Quest Generator (M2-S3, approach §1). A Quest is drawn for a Patron from the templates of
 // the Patron's Sphere, found in content at draw time and never stored on the Patron (pre-M0
 // review D3), and copies from its template everything it carries, so a template may change under
-// a live save without altering Quests already offered (data-model §3.2). The draw order and the
-// formulas are DL-25's, with a Quest's Tier among them (DL-257 items 1 to 3, DL-262); changing them
-// changes every seed's Board.
+// a live save without altering Quests already offered (data-model §3.2), but for its overrides of the
+// Tier's XP factor, Death scale and Fame minimum, read live (DL-262, DL-264, DL-265). The draw order
+// and the formulas are DL-25's, with a Quest's Tier among them (DL-257 items 1 to 3, DL-262);
+// changing them changes every seed's Board.
 
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, QuestTemplate, QuestTemplateKey, SphereKey } from '../content-types.js';

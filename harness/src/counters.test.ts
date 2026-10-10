@@ -1754,6 +1754,27 @@ describe("the Targets' counters (DL-259)", () => {
     expect(short.value()).toBe(1);
   });
 
+  // DL-69 item 4's lines are the Rivals': a share of the Transfers between Rivals counts only those back
+  // between Rivals (DL-270).
+  test('counts a Transfer back only between Rivals, not one to or from the player', () => {
+    const { document, player, rivals } = fixture('counters-ping-pong-player');
+    const [a] = rivals;
+    const [h1] = a.rosterIds;
+    if (h1 === undefined) throw new Error('A Roster too small');
+    const transferred = (day: number, from: Guild, to: Guild): void => {
+      add(document, day * 3 + 1, 'hero.transferred', [h1, from.id, to.id], { heroId: h1, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+    };
+    transferred(1, a, player);
+    transferred(2, player, a); // back to A, from the player
+    transferred(3, a, player); // back to the player
+    document.world.turn = 600;
+
+    const counted = countGame(document, shortYears);
+
+    expect(counted.transfersBack).toBe(0);
+    expect(counted.transfersBackSoon).toBe(0);
+  });
+
   test("ping-pong reads the buyer's last sale of the Hero, not its first", () => {
     const { document, rivals } = fixture('counters-ping-pong-last');
     const [a, b] = rivals;

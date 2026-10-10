@@ -326,8 +326,8 @@ weight.
   the month to the owner).
 - The Rankings' shares count every year-start after 1 year or more, the census after the last year
   among them.
-- The highest Level by year 20 is the mean over the games of the player's highest. The greatest of
-  any game is in the by-year table.
+- The highest Level by year 20 is the mean of the player's highest over the games still in play at
+  year 20 (corrected at the close, DL-270). The greatest of any game is in the by-year table.
 - Hoarding counts a Rival at `rivalRosterMin` Heroes or fewer, DL-69's "4 or fewer". Ping-pong is
   fewer than 90 Days after the buyer's last sale of the Hero, DL-69 item 6's "(< 90)". A Guild
   founded on the Turn of a Transfer is not followed.
@@ -475,7 +475,8 @@ counts, and `lootDifficultyThreshold` gave Loot.
 
 1. **The ladder,** `tiers` in a `questTiers` section after `board` (§2's figures), one row a Tier
    (`TierRow`, `tierFields`), with `levelsPerTier` 3 and `tierDrawWeights` 1, 0.5, 0.2. The rules
-   (`tierRowProblems`) hold each row whole and its band and Days not below the Tier's beneath.
+   hold each row whole (`tierRowProblems`) and its band not below the Tier's beneath, its Days free to
+   overlap, as tuning (corrected at the close, DL-270).
    `lootDifficultyThreshold` is gone, a Tier's `loot` in its place. Config version 19.
 2. **The template** (`content/src/kinds/quest-templates.ts`): `tierMin`/`tierMax` within the ladder;
    `beats`, each a line and a pool (kinds, tags or named Encounters; a Finale in none); `finale` with
@@ -878,9 +879,10 @@ showed the Tier or the Beats, and the card no Deadly.
 **Decision.**
 
 1. **The reading** (`words/src/readings.ts`, DL-241): `QuestReading` gains `tier` and `beats`, the
-   Quest's `beatLines` in the order it plays them, a Finale's last. The words both front ends share:
-   `tierWords` ("Tier 3"), `deadlyWords` (the mark "Deadly", meaning "a Hero may die on this Quest")
-   and `partyFloorWords` ("A Party of at least 2").
+   Quest's `beatLines` in the order it plays them, a Finale's last. The words: `tierWords` ("Tier 3"),
+   the page's alone, the CLI's table giving the number under its Tier heading; and, both front ends',
+   `deadlyWords` (the mark "Deadly", meaning "a Hero may die on this Quest") and `partyFloorWords`
+   ("A Party of at least 2") (corrected at the close, DL-270).
 2. **The card** (`board.tsx`; `QuestCard` gains `tier`, `deadly` and `beats`): its chips lead with the
    Tier, Deadly where the Quest can kill (red, the alert icon, its title "A Hero may die on this
    Quest", no figure), the Days and the reward; then, as before, the difficulty, the Fame, the Party
@@ -921,4 +923,74 @@ Year 1 Day 3]` became `[Tier 4] [Deadly] [13 Days away] [661 Wealth] [Difficulty
 The beast of the fells is Tier 4 and not Deadly, none of its Encounters killing; `show board` gained
 Tier and Deadly after Patron and moved Difficulty after Reward; the first builder opens on "Beats",
 "Words to be had." and "Somewhere not to be seen."; `preview` gained its Beats. The epic's S12 box.
-Verified 2026-10-11 at fd9421d: the rows re-derived (`s12-board-5`'s `show board` and `preview` as listed), every new word by `ui-text.md` and the glossary, one source in `words` for both front ends, the e2e's seed search (139 of its 200 seeds qualify, seed 0 the first; none found fails naming why); 35 mutations of the reading, card, builder and CLI, 30 red at once, 5 surviving the unit tests (the mark's icon dropped or swapped, a Death figure in a Deadly Quest's builder as text, a tooltip or an `aria-label`) killed by tests added: the builder's no-Death check now on a Deadly Quest, reading tooltips and screen-reader labels too, and the mark's alert icon held; the e2e now holds the card's lead and the Beats visible at each width (the mark and Beats hidden at the phone's width, red there).
+Verified 2026-10-11 at fd9421d: the rows re-derived (`s12-board-5`'s `show board` and `preview` as listed), every new word by `ui-text.md` and the glossary, one source in `words` for both front ends (but
+`tierWords`, the page's alone, and "2 or more" and "2 or more Heroes", each front end's own: corrected at the close, DL-270), the e2e's seed search (139 of its 200 seeds qualify, seed 0 the first; none found fails naming why); 35 mutations of the reading, card, builder and CLI, 30 red at once, 5 surviving the unit tests (the mark's icon dropped or swapped, a Death figure in a Deadly Quest's builder as text, a tooltip or an `aria-label`) killed by tests added: the builder's no-Death check now on a Deadly Quest, reading tooltips and screen-reader labels too, and the mark's alert icon held; the e2e now holds the card's lead and the Beats visible at each width (the mark and Beats hidden at the phone's width, red there).
+
+## DL-270 — v1.2.0-S13: the release's review and its findings fixed
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** The close begins with a review of the release's commits, `0badc22..f30f18a`, read only:
+2 bugs, 6 risks, 13 findings in the docs and 12 nits, each checked against the code or a report. A
+bug is fixed test first; a risk of balance is the owner's. S11's batch stays pending, untouched.
+
+**Decision.**
+
+1. **The bundle's content version.** `compactContent` (now `web/compact-content.ts`) empties the
+   changelog of `content/version.json` alone, by its full path; a folder's row keyed `version` is
+   bundled as written, where it gained a field the page's reader refuses.
+2. **The calibration's write-back.** `writeTunedEncounters` (`calibrate.ts`) writes each tuned
+   drafted Encounter with its final newline, leaves an Encounter it does not tune unwritten, and
+   refuses a drafts directory with no `encounters/` folder, naming it.
+3. **What a Quest meets.** `quests doctor` and `encounters show`'s `drawnBy` read only the Beats a
+   Tier of their template plays (`playedBeats`, DL-262 item 3), so an Encounter only a trailing Beat
+   draws is one "no Quest meets". The content's check has no such rule; its pool rule, every Beat's,
+   and the doctor's stay alike. S11's batch passes it.
+4. **A Tier ladder held to the templates.** The content's ladder rules, unchanged, are one function
+   (`templateLadderProblems`, `ladderProblems`), which the config kind runs on a changed `tiers`
+   against the templates on disk, so `config set tiers` refuses a ladder a template cannot play.
+   `config.md` names what is left: a ladder and a `quests` edit pending at once meet only at "Finish".
+5. **The Targets' default baseline** is `v1.2.0-s2-gate-2026-10-10`, which holds every counter the
+   Targets read (DL-259), in `settings.ts`, `environment.md` and the harness README.
+6. **Year 20's highest Level** stays the mean over the games still in play at year 20, now said in
+   its row, the by-year table and DL-259: DL-83 item 22 measures the pace of progression, which a game
+   ended early does not show, as item 21's year-10 mean reads only the games in play.
+7. **The review page's Beats** read each pool whole: its kinds or "Any", tagged its tags, or the
+   Encounters it names. A pool of tags or names is listed, and a change of either shown.
+8. **Smaller fixes.** `quests finale set` refuses a field but `line`; a key is content's `kebabCase`,
+   a letter first; a Transfer back is counted between Rivals only, DL-69 item 4's lines being the
+   Rivals'; a run shorter than DL-83 item 18's slice says so; content's test of the Encounters a Tier
+   draws reads the overrides.
+9. **The words.** Live pages and comments say what is true: a template's live figures (XP factor,
+   Death scale, Fame minimum; CONTEXT.md, data-model.md, the engine), the estimate's Party and Days,
+   a Quest's Days, `HEROESIM_DRAFTS`, the editor's `null` and `--no-tags`, the encounters commands
+   and a Trait's use (`quests.md`), the root README. `loot.ts` cites the pillars (DL-256 item 1) and
+   `plan.md` §3's item goes. Three facts of this release's entries are corrected in place, each
+   marked: DL-262 item 1 (the ladder's Days may overlap, as `checkConfig` holds), DL-259 (year 20's
+   mean) and DL-269 (`tierWords` the page's alone).
+
+*Judgement calls, for the owner to see.*
+- **The Rivals' Rosters (R1), not tuned or changed.** A Rival hires while its Wealth exceeds
+  `recruitThreshold` Upkeeps, with no Roster cap, a rule this release left alone; its Wealth rose
+  (16,121 a Rival at year 2 in S2's quick run, 22,950 in S5's) and S7 took almost every Rival Death
+  below Tier 4 away. On S8's one profiled game, `v1.2.0-s8-profile`, the Rivals hold 20.3 Heroes and
+  120,829 Wealth each at year 10 (v1.1.9's close profile: 11.3 and 42,738), `ambitious` a mean of
+  29.85 Heroes over its year-starts and `steady` 20.95 (7.81 and 5.33 there, where a `reckless` Rival
+  grew instead). The world's mean Level counts every Hero on a Roster (DL-257's call), so these
+  Rosters set the Board's centre: the Rivals' mean Level 7.05 over 81 Heroes at year 10 against the
+  player's 8.38 over 8. The timing is within the spread of identical games, so DL-266's "not code" is
+  plausible, not established. For the close: read the full gate's Rival Rosters before its speed
+  lines; Rival income or a Roster cap is tuning, reported not tuned (DL-257 item 7).
+- **DL-262's Days:** the record corrected, not the rule: `checkConfig` calls overlapping Days tuning.
+- **`docs/quests/calibration.md`** is kept as it is: a dated report of content version 31, headed by
+  its run, a record DL-218 keeps rather than a live page.
+- **Rankings' "Ladder"** is qualified in CONTEXT.md, not made a term.
+
+**Consequences.** No play, content or config change: the engine's edits are comments, and the
+harness's are its reports' words and a counter the policy never moves, so no sweep. A drafted
+Encounter tuned in place keeps its newline; a ladder that would fail "Finish" fails `config set`.
+
+**Evidence.** The commit `v1.2.0-S13 (DL-270)`. Tests first, 14 red then green: `web/src/content.test.ts`
+1, `calibrate.test.ts` 2, `quests-doctor.test.ts` 1, `quests.test.ts` 3, `config-kind.test.ts` 1,
+`settings.test.ts` 1, `targets.test.ts` 1, `quest-review.test.ts` 1, `counters.test.ts` 1,
+`sweep.test.ts` 1. The review: the session's scratchpad, `s13-review.md`. The epic's S13 Status.

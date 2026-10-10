@@ -132,8 +132,7 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
     restated; #51's Quests' volume, Wealth and the Market's size or draws by slot (DL-168 items 9 and
     12); #22's strong-success premium; the Death band (DL-256 item 10); the Tiers' factors, the
     Board's growth and the Fame minimums.
-  - Taken into the release that touches their code: #16, #46 and #52, and `loot.ts`'s comment,
-    which still cites principle 2's fourth pull (DL-256).
+  - Taken into the release that touches their code: #16, #46 and #52.
   - The Transfer Generator's Roster bound removed: its own bids keep a Rival's Roster at or below
     `rivalRosterMax` (DL-59), kept only as a development measure to constrain testing load
     (DL-185).

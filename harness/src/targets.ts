@@ -208,7 +208,7 @@ export function targets(dispositions: readonly string[]): Target[] {
     },
     {
       key: 'highestLevel',
-      what: `The highest Level a Hero of the player's has reached by year ${sliceYears}, the mean of the games`,
+      what: `The highest Level a Hero of the player's has reached by year ${sliceYears}, the mean over the games still in play at year ${sliceYears}`,
       source: 'DL-83 item 22',
       unit: 'number',
       band: { atLeast: 14, atMost: 17 },
@@ -235,7 +235,7 @@ export function targets(dispositions: readonly string[]): Target[] {
     ),
     {
       key: 'transfersBack',
-      what: 'Transfers back to a Guild that had sold the Hero, a share of those between Rivals',
+      what: 'Transfers between Rivals back to one that had sold the Hero, a share of those between Rivals',
       source: 'DL-69 item 4',
       unit: 'share',
       band: { under: 0.15 },
@@ -247,7 +247,7 @@ export function targets(dispositions: readonly string[]): Target[] {
     },
     {
       key: 'transfersBackSoon',
-      what: 'Transfers back to a Guild that had sold the Hero fewer than 90 Days before, a game',
+      what: 'Transfers between Rivals back to one that had sold the Hero fewer than 90 Days before, a game',
       source: 'DL-69 item 4',
       unit: 'number',
       band: { atMost: 0 },

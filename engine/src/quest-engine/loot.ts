@@ -1,5 +1,5 @@
-// Loot (M5-S5, R32, INPUTS 7.4, principle 2's fourth pull, DL-52): Items awarded by a Quest's
-// outcome. A Quest carries the Loot table of its template when its Tier's `loot` is true (the Quest
+// Loot (M5-S5, R32, INPUTS 7.4, DL-52), a feature serving the pillars Reputation and History (DL-256
+// item 1): Items awarded by a Quest's outcome. A Quest carries the Loot table of its template when its Tier's `loot` is true (the Quest
 // Generator's copy, DL-262); on a band in `lootOnBands` one entry
 // of it goes to the holding of the Guild whose Party came home. Every Guild alike (ADR-0002).
 //

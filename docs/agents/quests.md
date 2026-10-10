@@ -45,6 +45,10 @@ repository's root.
   below two (DL-266). Nothing is held.
 - **A Tier's figures** are the ladder's in config; a template overrides one for one Tier with
   `quests override`. The ladder itself is a tuning value, changed as `config.md` says.
+- **A Trait's use in an Encounter is `trait-assign`'s** (`traits.md`): a `trait` consequence, and a
+  `has-trait` in a Check's score or a consequence's `among`. The `encounters` commands would write
+  one, since the content's checks take it (a `trait` consequence is refused only in `success` and
+  `setback`), so never give one through them, in a row, a Check or a consequence.
 - **A new consequence kind, Check field or Beat criterion** is an engine change, made on the owner's
   request.
 - **Nothing is committed or pushed** by the editor or a skill. Read `git diff`, and commit it yourself.
@@ -54,8 +58,8 @@ repository's root.
 
 1. **The doctor.** `npm run --silent edit -- quests doctor --json` runs the content's checks and its
    own: every Beat's pool may draw its Encounter, every Tier offered plays its Beats, every Encounter
-   is drawn by some pool or is a Finale, every Finale is placed; and holds the pending edits to all
-   of them. Run it before acting and again after "Finish". It must report `"ok": true` both times.
+   is drawn by the pool of some Beat a Tier plays or is a Finale, every Finale is placed; and holds
+   the pending edits to all of them. Run it before acting and again after "Finish". It must report `"ok": true` both times.
    Edits already pending are named to the owner before more are added. A note (`!`), a Beat no Tier
    of its template plays, fails nothing: tell the owner.
 2. **When the doctor fails,** read each problem: its file and path (`quest-templates/x.json:

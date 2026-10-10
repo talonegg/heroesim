@@ -683,7 +683,7 @@ const highestLevels: Declared<HighestLevels, SweepTotals['highestLevels']> = {
     };
     return [
       'The highest Level a Hero of each side has reached by the end of each year (year 1 is the first), on a Roster or levelling on one: ' +
-        'the mean over the games in which the side had a Hero by then, the greatest of any game in brackets:',
+        'the mean over the games still in play that year in which the side had a Hero by then, the greatest of any game in brackets:',
       '',
       markdownTable(
         ['Year', ...sides.map((side) => capitalised(sideLabel(side)))],

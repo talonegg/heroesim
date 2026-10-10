@@ -19,6 +19,7 @@ import {
   statsAdded,
   thirdOf,
   tunedFactors,
+  writeTunedEncounters,
 } from './calibrate.js';
 import { drawer } from './estimate.js';
 import { coreDeps as deps, twentyDays as years } from './harness.test-support.js';
@@ -200,6 +201,36 @@ describe('formatJson', () => {
     expect(JSON.parse(text)).toEqual(json);
     const score = JSON.stringify(content.encounters['the-strongroom']?.checks[0]?.score);
     expect(text.split('\n').some((line) => line.includes(`"score": ${score}`))).toBe(true);
+  });
+});
+
+// DL-162's tuning writes each drafted Encounter's file back (DL-260): with a final newline, as the
+// drafts are written, and a file whose numbers the tuning keeps byte for byte as it was.
+describe('writeTunedEncounters', () => {
+  test('writes each tuned file ending in a newline, its numbers in, and leaves a file it does not tune as it was', () => {
+    const dir = join(scratch, 'tuned-drafts');
+    const rows = rowsOf(draftsDir, 'encounters/') as Record<string, { checks: { key: string; flat?: number; difficultyFactor: number }[] }>;
+    const [kept, moved, untuned] = Object.keys(rows).sort();
+    if (kept === undefined || moved === undefined || untuned === undefined) throw new Error('fewer than three drafted Encounters');
+    mkdirSync(join(dir, 'encounters'), { recursive: true });
+    const texts = Object.fromEntries([kept, moved, untuned].map((key) => [key, `${formatJson(rows[key])}\n`]));
+    for (const [key, text] of Object.entries(texts)) writeFileSync(join(dir, 'encounters', `${key}.json`), text);
+    const keptChecks = Object.fromEntries((rows[kept]?.checks ?? []).map((it) => [it.key, { difficultyFactor: it.difficultyFactor, ...(it.flat === undefined ? {} : { flat: it.flat }) }]));
+    const movedChecks = Object.fromEntries((rows[moved]?.checks ?? []).map((it) => [it.key, { difficultyFactor: 0.123 }]));
+
+    writeTunedEncounters(dir, { [kept]: keptChecks, [moved]: movedChecks });
+
+    const read = (key: string): string => readFileSync(join(dir, 'encounters', `${key}.json`), 'utf8');
+    expect(read(kept)).toBe(texts[kept]);
+    expect(read(untuned)).toBe(texts[untuned]);
+    expect(read(moved).endsWith('}\n')).toBe(true);
+    expect((JSON.parse(read(moved)) as { checks: { difficultyFactor: number }[] }).checks.every((it) => it.difficultyFactor === 0.123)).toBe(true);
+  });
+
+  test("refuses a drafts directory without an encounters folder, naming it", () => {
+    const dir = join(scratch, 'no-encounters');
+    mkdirSync(dir, { recursive: true });
+    expect(() => writeTunedEncounters(dir, {})).toThrow(/no encounters\/ folder/);
   });
 });
 

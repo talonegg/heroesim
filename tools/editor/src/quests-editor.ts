@@ -8,9 +8,10 @@
 // change of the fields it touched, made on the row as the pending edits leave it.
 
 import type { ContentJson } from '@heroesim/content/uses';
+import { kebabCase } from '@heroesim/content/write';
 import { contentFiles, type Edit } from './content-files.js';
 import type { Row, Use } from './kind.js';
-import { beatsOf, encounterUses, finalesOf, poolDraws, questsKind, rowIn, rowsOf, rowWord, tiersOf, type QuestList, type TierView } from './quests-kind.js';
+import { beatsOf, encounterUses, finalesOf, playedBeats, poolDraws, questsKind, rowIn, rowsOf, rowWord, tiersOf, type QuestList, type TierView } from './quests-kind.js';
 import { EditSession, Refused } from './session.js';
 import { npmTest, type TestRunner } from './tests-run.js';
 import type { Finished } from './editor.js';
@@ -32,12 +33,11 @@ export interface QuestView {
   /** A template's: each Tier it offers as it plays, and its Beats. */
   tiers?: TierView[];
   beats?: BeatView[];
-  /** An Encounter's: where a pool names it or a template names it as its Finale, which refuse its removal, and the Beats whose pools may draw it. */
+  /** An Encounter's: where a pool names it or a template names it as its Finale, which refuse its removal, and the Beats some Tier plays whose pools may draw it (`playedBeats`). */
   uses?: Use[];
   drawnBy?: string[];
 }
 
-const keyPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export class QuestsEditor {
   readonly #session: EditSession<Edit, ContentJson>;
@@ -113,7 +113,11 @@ export class QuestsEditor {
     }
     const drawnBy = finales.has(key)
       ? []
-      : rowsOf(content, 'quests').flatMap(([template, each]) => beatsOf(each).flatMap((beat, index) => (poolDraws(content, beat.pool, finales).includes(key) ? [`${template} beats.${index}`] : [])));
+      : rowsOf(content, 'quests').flatMap(([template, each]) =>
+          beatsOf(each)
+            .slice(0, playedBeats(each))
+            .flatMap((beat, index) => (poolDraws(content, beat.pool, finales).includes(key) ? [`${template} beats.${index}`] : [])),
+        );
     return { key, list, row, pending, uses: encounterUses(content, key), drawnBy };
   }
 
@@ -123,7 +127,7 @@ export class QuestsEditor {
   add(list: QuestList, key: string, values: Readonly<Record<string, unknown>>): QuestView {
     // Refused while "Finish" runs, and one cut off put back, before anything else.
     this.recover();
-    if (!keyPattern.test(key)) throw new Refused([`"${key}" is not a key: lower case letters and digits, joined by hyphens`]);
+    if (!kebabCase.test(key)) throw new Refused([`"${key}" is not a key: lower case letters and digits, joined by hyphens, starting with a letter`]);
     if (Object.hasOwn(values, 'key') && values.key !== key) throw new Refused(['a key is given once, as the row is added, not among its fields']);
     const { key: _key, ...fields } = values;
     void _key;

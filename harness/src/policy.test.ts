@@ -75,7 +75,7 @@ function scene(seed = 'policy'): { document: WorldDocument; guild: Guild; quests
   return { document, guild, quests };
 }
 
-/** Opens every Quest on the Board to a Party of `min` to 4, rewards rising in Board order. */
+/** Opens every Quest on the Board to a Party of `min` or more (no most, DL-266), rewards rising in Board order. */
 function openBoard(quests: Quest[], min = 2): void {
   quests.forEach((quest, index) => {
     quest.requirements = { partySizeMin: min };

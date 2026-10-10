@@ -33,8 +33,14 @@ npm run edit -- config finish --reason "<why> (DL-NNN)"
   Tier's ten fields given (DL-262). Each edit is checked at once with the engine's
   `checkConfig`, with every pending edit made, and refused, naming the
   setting, where a rule refuses it: `boardSizeStart is -1; it is a whole number, at least 0`. A setting
-  another's rule reads is named too: a Min set above its Max names the Max. Nothing is written to
-  the file before `finish`; the edits are held in `.editor/config.json`, which git ignores.
+  another's rule reads is named too: a Min set above its Max names the Max. A Tier ladder changed is
+  held to the Quest templates on disk as well, by the content's own ladder rules: a Tier past the
+  ladder, an override unsound once merged, a Tier playing more Beats than a template has
+  (`questTemplates.x: Tier 1 plays 4 Beats, more than its 3 Beats`; DL-270). Edits pending in the
+  `quests` kind are not read here, nor a pending ladder by `quests doctor`: with both pending, only
+  the second "Finish"'s tests hold them together, so finish one kind before editing the other.
+  Nothing is written to the file before `finish`; the edits are held in
+  `.editor/config.json`, which git ignores.
 - **`finish`** checks the settings again, writes `config.json` in its own layout (only the changed
   values, the version and the changelog's new line change), raises `version` by one with the line
   `<version> from <reason>: <setting> <was> to <value>, ….`, and runs `npm test`. If a test fails, the

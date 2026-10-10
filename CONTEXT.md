@@ -321,8 +321,9 @@ _Avoid_: Mission, Commission, Job, Contract, Task
 A content row a Quest is drawn from: its Spheres, Skills, requirements and least Party, the Tiers it
 offers, its reward per difficulty and Fame effect, its tags, its Loot table, its Beats, any Finale,
 and any figure of the ladder it overrides for a Tier it offers (DL-257 items 1 and 2, DL-262). A
-Quest copies what it carries at generation, so a changed template never alters a Quest already
-offered (DL-25). Its tags weight the draw of its Encounters: an Encounter is drawn from a Beat's
+Quest copies what it carries at generation, so a changed template alters no Quest already offered
+(DL-25), but for the overrides of its Tier's XP factor, Death scale and Fame minimum, read as the Quest
+is dispatched or resolved (DL-262, DL-264, DL-265). Its tags weight the draw of its Encounters: an Encounter is drawn from a Beat's
 pool `encounterTagWeight` times as often for each tag it shares with the template (DL-148 item 22,
 DL-160); they are kept too for Random Events' conditions (DL-82).
 _Avoid_: Quest type, Blueprint, Archetype
@@ -799,7 +800,7 @@ _Avoid_: Reputation, Prestige, Renown, Standing
 **Rankings**:
 Every Guild in play ordered by Fame or by Wealth; a folded Guild is out of them (R10, DL-28).
 Ordering by any other Guild statistic is a later feature (requirements §2).
-_Avoid_: League, Leaderboard, Ladder, Score
+_Avoid_: League, Leaderboard, Ladder (for the Rankings; the Tiers' ladder is another thing), Score
 
 ### Endings
 

@@ -235,7 +235,7 @@ changed on the row as the pending edits leave it, and held as a change of the fi
 | `quests list` | Every Quest template: its Tiers, least Party, Beats and Finale |
 | `quests show <key>` | One: its fields; each Tier it offers with its figures (the ladder's, and the template's overrides) and the Beats it plays, then its Finale; each Beat's line, pool and the Encounters it may draw |
 | `quests add <key>` | Adds a template, its fields as `--row <json or @file>`, `--name` and `--tags a,b` or `--no-tags`; its key, lower case and hyphens, is fixed |
-| `quests change <key>` | Changes the fields given, the same flags; `null` takes out a field a template may leave out (`weight`, `overrides`, `finale`) |
+| `quests change <key>` | Changes the fields given, the same flags; `null` takes out a field a template may leave out (`weight`, `overrides`, and `finale` with `finaleLine`, the two together, or `quests finale clear`); `--no-tags` writes no tags, `[]` |
 | `quests remove <key>` | Removes a template |
 | `quests tiers <key> <min> <max>` | Sets the Tiers it offers |
 | `quests beat add <key> [<at>] line=<text> pool=<json>` | Adds a Beat at its end, or at `<at>`, from 0 |
@@ -247,8 +247,8 @@ changed on the row as the pending edits leave it, and held as a change of the fi
 | `quests finale set <key> <encounter> line=<text>` | Sets its Finale, played last, and its line |
 | `quests finale clear <key>` | Takes its Finale out |
 | `quests doctor` | See below |
-| `encounters list`, `show <key>` | Every Encounter, or one: its fields, Checks, pass formula and consequences, where a pool or a Finale names it, and the Beats that may draw it |
-| `encounters add <key>`, `change <key>` | As the templates'; `null` takes out `tags` or `pass` |
+| `encounters list`, `show <key>` | Every Encounter, or one: its fields, Checks, pass formula and consequences, where a pool or a Finale names it, and the Beats some Tier plays that may draw it |
+| `encounters add <key>`, `change <key>` | As the templates'; `null` takes out `tags` or `pass`, where `--no-tags` writes `[]` |
 | `encounters remove <key>` | Removes an Encounter; refused while a pool names it or a template plays it as its Finale, naming each use |
 | `encounters check add <key> [<field>=<value> ...]` | Adds a Check, its key new among them |
 | `encounters check change <key> <check> [<field>=<value> ...]` | Changes a Check's fields, `null` taking one out |
@@ -287,7 +287,8 @@ the pending edits to both, and exits 1 on a problem:
   for each earlier Beat sharing its pool, a Finale never drawn (the engine's `shortBeats`);
 - **every Tier offered plays its Beats**: a Tier of the ladder, playing one Beat at least and no
   more than the template has, its Finale counted;
-- **every Encounter is drawn by some Beat's pool or is a Finale**, so that some Quest meets it;
+- **every Encounter is drawn by the pool of some Beat a Tier plays, or is a Finale**, so that some
+  Quest meets it (a Beat no Tier plays draws nothing);
 - **every Finale is placed**: an Encounter, given with its line, named by no pool, and played last
   at every Tier.
 

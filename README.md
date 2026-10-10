@@ -26,10 +26,11 @@ The Portraits' pictures in `media/portraits/` are converted, registered and chec
 portrait tool, `npm run portraits -- <command>`, described in
 [`tools/portraits/README.md`](tools/portraits/README.md) (DL-135 item 11).
 
-## Traits
+## Traits, Quest templates and Encounters
 
 Traits are added, changed and removed through the content editor, `npm run edit`, a local page with
-commands underneath, described in [`tools/editor/README.md`](tools/editor/README.md) (DL-150).
+commands underneath, described in [`tools/editor/README.md`](tools/editor/README.md) (DL-150); Quest
+templates and Encounters through its `quests` and `encounters` commands (DL-267).
 
 ## Harness
 

@@ -11,9 +11,9 @@
 // - and, for half the samples, Whetstones, lockpicks, grappling lines and blessed candles carried.
 //
 // The Party is estimated as it is about to be sent, then sent by `dispatch` (the Quest's requirements
-// set to any Party of one to four, and the Guild's Fame raised to its Tier's Fame minimum, DL-264) and
-// the world advanced, every phase played, to the afternoon before the night it comes home: the Quest
-// lasts its template's two to ten Days, so each Hero's
+// set to a Party of one or more with no most, DL-266, and the Guild's Fame raised to its Tier's Fame
+// minimum, DL-264) and the world advanced, every phase played, to the afternoon before the night it
+// comes home: the Quest lasts its Tier's Days (DL-262), so each Hero's
 // Morale has drifted toward their baseline, their Regard decayed, before the resolver meets them, as
 // `questsConclude` would meet them that night (v1.1.4-S5's verification). The Rivals play their own
 // Guilds meanwhile, and the player's Guild, which no policy plays here, does nothing.

@@ -11,10 +11,10 @@
 // run, 50 games of 20 years: on a run of another shape (the `neutral` profile's 10, a short trial)
 // they read "not comparable", neither passing nor failing. The Traits a career and the save's
 // uncompressed size are the report's to print, not the Gate's to hold (the owner's answers, DL-188),
-// and the player's Bankruptcies the report's Targets' (DL-257 item 7). The copy's line holds the mean of the copy times the sweep took as each year ended over the
-// mean of `advance`, within `growth` of its baseline share, a share so that the machine's speed cancels
-// (the owner's answers, DL-203 answer 3 and DL-206 item 17); a run with no copy times or no `advance`
-// times reads "not comparable".
+// and the player's Bankruptcies the report's Targets' (DL-257 item 7). The copy's line holds the mean
+// of the copy times the sweep took as each year ended over the mean of `advance`, within `growth` of
+// its baseline share, a share so that the machine's speed cancels (the owner's answers, DL-203 answer 3
+// and DL-206 item 17); a run with no copy times or no `advance` times reads "not comparable".
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

@@ -174,7 +174,7 @@ export interface GameConfig {
    * The Board's size (DL-257 item 4, DL-261): each morning's refresh draws Quests until the Board
    * holds the smaller of `boardSizeMax` and `boardSizeStart` plus `boardGrowthPerYear` for each
    * whole Year played, floored to a whole Board (`boardSizeAt`), and never more. A Board that grows
-   * with the world, its pace and cap tuned without code; at 6, 0 and 6 it is the Board of six it was.
+   * with the world, its pace and cap tuned without code.
    */
   boardSizeStart: number;
   /** Quests the Board gains a Year, a part of one adding a Quest each time the parts make a whole one. */

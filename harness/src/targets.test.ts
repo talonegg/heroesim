@@ -154,6 +154,15 @@ describe("a sweep's Targets", () => {
     expect(sweepTotals({ ...sweep, games: levelled }, turnsPerYear).highestLevels['player']).toEqual({ games: [1, 2, 2], levels: [3, 9, 16], highest: [3, 5, 9] });
   });
 
+  // A game's series is carried to its last year alone (`carryHighestLevels`), so a game that ended
+  // early, a Bankruptcy or a wiped Roster, is not in year 20's mean, and the row says so (DL-270).
+  test("measures year 20's highest Level over the games in play then, and says so", () => {
+    const series: (number | null)[][] = [[3, 6, 8], [4]];
+    const levelled = sweep.games.map((game, index): GameRecord => ({ ...game, observations: { ...game.observations, highestLevels: { player: series[index] ?? [] } } }));
+    expect(sweepTotals({ ...sweep, games: levelled }, turnsPerYear).highestLevels['player']).toEqual({ games: [2, 1, 1], levels: [7, 6, 8], highest: [4, 6, 8] });
+    expect(row('highestLevel')?.what).toBe("The highest Level a Hero of the player's has reached by year 20, the mean over the games still in play at year 20");
+  });
+
   test("leaves out a measure the run has not reached: year 10's mean Level, year 20's highest", () => {
     expect(row('meanLevel')).toMatchObject({ measured: null, standardError: null, inside: null });
     expect(row('highestLevel')).toMatchObject({ measured: null, inside: null });

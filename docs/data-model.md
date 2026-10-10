@@ -230,9 +230,11 @@ partyIds:       PartyId[]                   at most one (`maxPartiesPerQuest`); 
                                             Parties on one Quest is a candidate (plan.md §3, DL-89)
 ```
 The Board is `world.board: QuestId[]`, ordered, holding the offered Quests. The fields copied from
-the template at generation make a Quest row self-contained, but for its Tier's XP factor, which
-the Quest Engine reads from the game's config and the template as it resolves (DL-262): a template may change under a live
-save without altering Quests already offered, and no content migration is needed.
+the template at generation make a Quest row self-contained, but for three of its Tier's figures,
+read from the game's config and the template's overrides as they are needed (`tierFigures`): the XP
+factor as it resolves (DL-262), the Death scale, times `deathFactor`, as it resolves and for its
+Deadly mark (DL-265), and the Fame minimum as a Party is sent (DL-264). Otherwise a template may change
+under a live save without altering Quests already offered, and no content migration is needed.
 
 **parties**
 ```

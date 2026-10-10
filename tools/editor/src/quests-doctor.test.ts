@@ -75,8 +75,8 @@ describe("the doctor's checks", () => {
   test('name an Encounter no pool may draw that is no Finale', () => {
     const checks = questChecks(content({ hunt: { tierMin: 1, tierMax: 1, beats: [beat({ kinds: ['combat'] }), beat({ kinds: ['combat'] })], finale: 'last', finaleLine: 'The end.' } }, encounters));
     expect(checks.drawn.problems).toEqual([
-      'encounters/march.json: no Beat\'s pool may draw it, and it is no Finale, so no Quest meets it',
-      'encounters/riddle.json: no Beat\'s pool may draw it, and it is no Finale, so no Quest meets it',
+      'encounters/march.json: no Beat a Tier plays may draw it, and it is no Finale, so no Quest meets it',
+      'encounters/riddle.json: no Beat a Tier plays may draw it, and it is no Finale, so no Quest meets it',
     ]);
   });
 
@@ -103,6 +103,17 @@ describe("the doctor's checks", () => {
     });
   });
 
+  // A Tier of k Beats plays the first k - 1 and the Finale, or the first k (DL-262 item 3), so an
+  // Encounter only a trailing Beat's pool draws is met by no Quest.
+  test('name an Encounter drawn only by a Beat no Tier of its template plays', () => {
+    const checks = questChecks(content({ hunt: { tierMin: 1, tierMax: 1, beats: [beat({ kinds: ['combat'] }), beat({ kinds: ['travel'] }), beat({ kinds: ['lore'] })], finale: 'last', finaleLine: 'The end.' } }, encounters));
+    expect(checks.notes).toEqual(['quest-templates/hunt.json: beats.1 to beats.2 are played at no Tier it offers (Tier 1 draws 1 Beat at most)']);
+    expect(checks.drawn.problems).toEqual([
+      'encounters/march.json: no Beat a Tier plays may draw it, and it is no Finale, so no Quest meets it',
+      'encounters/riddle.json: no Beat a Tier plays may draw it, and it is no Finale, so no Quest meets it',
+    ]);
+  });
+
   test('note, without failing, a Beat no Tier of its template plays', () => {
     const checks = questChecks(content({ hunt: { tierMin: 1, tierMax: 2, beats: [beat({ kinds: ['combat'] }), beat({ kinds: ['travel'] }), beat({ kinds: ['lore'] }), beat({ kinds: ['combat'] })] } }, encounters));
     expect(checks.notes).toEqual(['quest-templates/hunt.json: beats.3 is played at no Tier it offers (Tiers 1 to 2 draw 3 Beats at most)']);
@@ -125,7 +136,7 @@ describe('the report, through both adapters', () => {
         '✓ The content passes its checks',
         `✓ Every Beat's pool may draw its Encounter: ${viaCli.json.quests.pools.count} Beats of ${viaCli.json.quests.templates} Quest templates`,
         `✓ Every Tier offered plays its Beats: ${viaCli.json.quests.tiers.count} Tiers of ${viaCli.json.quests.templates} Quest templates`,
-        `✓ Every Encounter is drawn by a Beat's pool or is a Finale: ${viaCli.json.quests.drawn.count} Encounters`,
+        `✓ Every Encounter is drawn by a Beat a Tier plays or is a Finale: ${viaCli.json.quests.drawn.count} Encounters`,
         `✓ The Finales are placed: ${viaCli.json.quests.finales.count}, each an Encounter with its line, named by no pool, played last`,
         '✓ No pending edits',
       ]);
@@ -143,12 +154,13 @@ describe('the report, through both adapters', () => {
     const report = await json<QuestsDoctor>(dir, 'quests', 'doctor');
     expect(report.code).toBe(1);
     expect(report.json).toMatchObject({ ok: false, content: { ok: true }, pending: { ok: true, edits: 0 }, quests: { drawn: { ok: false } } });
-    expect(report.json.quests.drawn.problems).toContain("encounters/the-sealed-door.json: no Beat's pool may draw it, and it is no Finale, so no Quest meets it");
+    expect(report.json.quests.drawn.problems).toContain("encounters/the-sealed-door.json: no Beat a Tier plays may draw it, and it is no Finale, so no Quest meets it");
   });
 
   test('names a pending edit that leaves an Encounter no Quest meets, exit 1, the API answering its report', async () => {
     const dir = scratch();
-    // One template whose Beats reach every kind, its last the only one to draw the lore Encounters, serving every Sphere.
+    // One template whose Beats reach every kind, its one Tier playing them all, its last the only one to
+    // draw the lore Encounters, serving every Sphere.
     const spheres = Object.keys(readContentJson(dir, 'spheres.json'));
     const only = {
       name: 'Every road',
@@ -163,13 +175,14 @@ describe('the report, through both adapters', () => {
       requires: {},
       lootTableKey: null,
       beats: ['combat', 'travel', 'social', 'arcane', 'stealth', 'lore'].map((kind) => beat({ kinds: [kind] }, `A ${kind} Beat.`)),
+      overrides: { 1: { beats: 6 } },
     };
     writeContentJson(dir, 'quest-templates/', { 'every-road': only });
     git(dir, 'add', '--all');
     git(dir, 'commit', '--quiet', '-m', 'one template');
     expect((await json<QuestsDoctor>(dir, 'quests', 'doctor')).json.ok).toBe(true);
 
-    expect((await json(dir, 'quests', 'beat', 'remove', 'every-road', '5')).code).toBe(0);
+    expect((await json(dir, 'quests', 'beat', 'change', 'every-road', '5', 'pool={"kinds":["combat"]}')).code).toBe(0);
     const page = await serve({ root: dir, port: 0, runTests: plantedTests });
     try {
       const viaCli = await json<QuestsDoctor>(dir, 'quests', 'doctor');
@@ -178,7 +191,7 @@ describe('the report, through both adapters', () => {
       expect(viaCli.code).toBe(1);
       expect(viaCli.json.ok).toBe(false);
       expect(viaCli.json.content.ok).toBe(true);
-      expect(viaCli.json.pending.problems).toContain("encounters/old-records.json: no Beat's pool may draw it, and it is no Finale, so no Quest meets it");
+      expect(viaCli.json.pending.problems).toContain("encounters/old-records.json: no Beat a Tier plays may draw it, and it is no Finale, so no Quest meets it");
       expect(questsDoctorText(viaCli.json).at(-1 - viaCli.json.pending.problems.length)).toBe('✗ The pending edits fail');
     } finally {
       await page.close();

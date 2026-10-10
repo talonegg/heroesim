@@ -5,6 +5,7 @@ import path from 'node:path';
 import { readContent } from '@heroesim/content';
 import { loadContent, readContentDir } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
+import { compactContent } from '../compact-content';
 import { contentGate, validateContentDir } from '../content-gate';
 import { bundledFiles, content, fileNameOf } from './content';
 
@@ -28,7 +29,7 @@ describe('the bundled content set', () => {
     ['../../content/stats.json', 'stats.json'],
     ['../../content/items/short-sword.json', 'items/short-sword.json'],
     ['C:\\JHH\\source\\heroesim\\content\\encounters\\the-long-march.json', 'encounters/the-long-march.json'],
-    ['/content/loot-tables.json', 'loot-tables.json'],
+    ['/content/loot-tables/the-hoard.json', 'loot-tables/the-hoard.json'],
     ['C:\\JHH\\source\\heroesim\\content\\names.json', 'names.json'],
   ])('takes the file name from the bundler key %s', (key, name) => {
     expect(fileNameOf(key)).toBe(name);
@@ -80,6 +81,33 @@ describe('the content gate', () => {
       await writeFile(path.join(scratch, 'items', 'short-sword.json'), JSON.stringify(row));
 
       await expect(validateContentDir(scratch)).rejects.toThrow(/items\/short-sword\.json: slot is missing/);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+  });
+});
+
+// DL-186 item 14: the content version's file is bundled with its changelog empty; a folder's row
+// keyed `version` is a row like any other, bundled as written (DL-260).
+describe('the compacted content', () => {
+  test("empties the content version's changelog, and bundles a folder's row named version.json as written", async () => {
+    const scratch = await mkdtemp(path.join(tmpdir(), 'heroesim-compact-'));
+    try {
+      const version = { contentVersion: 3, changelog: ['3: a line'] };
+      const row = { key: 'version', name: 'A row keyed version' };
+      await mkdir(path.join(scratch, 'encounters'), { recursive: true });
+      await writeFile(path.join(scratch, 'version.json'), JSON.stringify(version, null, 2));
+      await writeFile(path.join(scratch, 'encounters', 'version.json'), JSON.stringify(row, null, 2));
+      const load = compactContent(scratch).load as unknown as (id: string) => Promise<string | null>;
+      const bundled = async (id: string): Promise<unknown> => {
+        const code = await load.call({}, id);
+        if (code === null) throw new Error(`${id} was not compacted`);
+        return JSON.parse(JSON.parse(code.replace(/^export default /, '').replace(/;$/, '')) as string);
+      };
+
+      expect(await bundled(`${path.join(scratch, 'version.json')}?raw`)).toEqual({ ...version, changelog: [] });
+      expect(await bundled(`${path.join(scratch, 'encounters', 'version.json')}?raw`)).toEqual(row);
+      expect(await load.call({}, path.join(scratch, 'version.json'))).toBeNull();
     } finally {
       await rm(scratch, { recursive: true, force: true });
     }

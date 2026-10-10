@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { contentDir, loadContent, loadDrafts } from '@heroesim/content/node';
-import { degrees, encounterKinds, type Encounter } from '@heroesim/engine/content';
+import { degrees, encounterKinds, type Encounter, type QuestBeat } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { consequenceWords, passWords, reviewPage, type ReviewCalibration, type ReviewCell } from './quest-review.js';
 
@@ -77,6 +77,29 @@ describe('the review page', () => {
   test('says a negative earned Trait falls on the Failure Degree only', () => {
     expect(page).toContain('a negative one falls only on a Hero the same Encounter injured at the Degree Failure (not a Setback)');
     expect(page).not.toMatch(/failed Encounter/i);
+  });
+
+  // A Beat's pool may give kinds, tags or named Encounters (DL-262): each read whole, so that a pool of
+  // tags or names alone is listed, and a change of its tags or names is a change (DL-270).
+  test("words each Beat's pool whole, by kinds, tags and names, and names a change of any of them", () => {
+    const [key, template] = Object.entries(content.questTemplates).find(([each]) => Object.hasOwn(core.questTemplates, each)) ?? [];
+    if (key === undefined || template === undefined) throw new Error('no template both in the drafts and the core');
+    const beats: QuestBeat[] = [
+      { line: 'By the water.', pool: { tags: ['water'] } },
+      { line: 'An ambush.', pool: { encounters: ['ambush-on-the-road'] } },
+      { line: 'The wilds.', pool: { kinds: ['combat', 'travel'], tags: ['wilds', 'town'] } },
+      { line: 'Either.', pool: { kinds: ['lore'], encounters: ['hold-the-line'] } },
+    ];
+    const pooled = { ...content, questTemplates: { ...content.questTemplates, [key]: { ...template, beats } } };
+    const words = 'Any tagged water, Ambush on the road, Combat or Travel tagged wilds or town, Lore or Hold the line';
+    const meta = reviewPage({ content: pooled, core: { ...core, questTemplates: { ...core.questTemplates, [key]: { ...template, beats: beats.slice(0, 1) } } }, calibration, notes: {}, made: '2026-10-03' });
+    expect(meta).toContain(` · Beats ${words} · `);
+    expect(meta).toContain(`Beats Any tagged water → ${words}`);
+
+    // The same kinds, a tag changed.
+    const before = [{ line: 'By the water.', pool: { tags: ['town'] } }, ...beats.slice(1)];
+    const retagged = reviewPage({ content: pooled, core: { ...core, questTemplates: { ...core.questTemplates, [key]: { ...template, beats: before } } }, calibration, notes: {}, made: '2026-10-03' });
+    expect(retagged).toContain(`Beats Any tagged town, Ambush on the road, Combat or Travel tagged wilds or town, Lore or Hold the line → ${words}`);
   });
 
   test('with fragment, is the title, the style and the content alone, in that order, padding only the block ends', () => {

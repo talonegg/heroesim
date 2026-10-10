@@ -1222,8 +1222,9 @@ export const pingPongDays = 90;
 
 /**
  * `hero.transferred` by direction, by how a Transfer between two Rivals happened (`rivalTransferWays`),
- * by the selling and the buying side, and the Transfers that took a Hero to a Guild that had sold them
- * before, and of those the ones fewer than `pingPongDays` after that Guild's last sale of them.
+ * by the selling and the buying side, and the Transfers between Rivals that took a Hero to a Rival that
+ * had sold them before, and of those the ones fewer than `pingPongDays` after its last sale of them:
+ * DL-69 item 4's lines are the Rivals' (DL-270).
  */
 export function transferCounters(
   document: WorldDocument,
@@ -1255,7 +1256,7 @@ export function transferCounters(
     addTransfer(((transfersBySide[sideOf(from)] ??= {})[sideOf(to)] ??= noTransfers()), fee);
     const sellers = soldBy.get(heroId) ?? new Map<GuildId, number>();
     const sold = sellers.get(to.id);
-    if (sold !== undefined) {
+    if (sold !== undefined && direction === 'rival-to-rival') {
       transfersBack += 1;
       if (dayOf(entry.turn) - dayOf(sold) < pingPongDays) transfersBackSoon += 1;
     }

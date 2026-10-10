@@ -415,8 +415,9 @@ export interface Patron {
 
 /**
  * The fields copied from the template at generation make a Quest self-contained: a template
- * may change under a live save without altering Quests already offered. A Quest row is removed
- * when it expires or resolves; the History keeps its record.
+ * may change under a live save without altering Quests already offered, but for its overrides of the
+ * Tier's XP factor, Death scale and Fame minimum, read live (`tierFigures`; DL-262, DL-264, DL-265).
+ * A Quest row is removed when it expires or resolves; the History keeps its record.
  */
 export interface Quest {
   id: QuestId;

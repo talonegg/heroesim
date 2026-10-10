@@ -1,12 +1,12 @@
 // `quests doctor` (DL-257 item 8, DL-267): the Quest templates and Encounters held to what a Quest
 // plays (DL-262), beside the content's checks, and the pending edits held to both. Every Beat's pool
 // may draw its Encounter whatever the Beats before it drew; every Tier a template offers plays as many
-// Beats as it has, one at least; every Encounter is drawn by some Beat's pool or is a Finale, so that
-// some Quest meets it; and every Finale is placed: an Encounter, with its line, named by no pool,
-// played last. It notes, without failing, a Beat no Tier of its template plays. Like every command it
-// first puts back the files of a "Finish" cut off, and says so; while one runs it says that, and
-// checks no edit. The skills run it before and after they act, and each story that touches the engine
-// or the content's checks at its close.
+// Beats as it has, one at least; every Encounter is drawn by the pool of some Beat a Tier plays, or is
+// a Finale, so that some Quest meets it; and every Finale is placed: an Encounter, with its line, named
+// by no pool, played last. It notes, without failing, a Beat no Tier of its template plays. Like every
+// command it first puts back the files of a "Finish" cut off, and says so; while one runs it says
+// that, and checks no edit. The skills run it before and after they act, and each story that touches
+// the engine or the content's checks at its close.
 
 import { placeOf } from '@heroesim/content';
 import type { ContentJson } from '@heroesim/content/uses';
@@ -15,7 +15,7 @@ import { shortBeats, tierLadder } from '@heroesim/engine/content';
 import { readContentFiles } from './content-files.js';
 import { Busy } from './finish-journal.js';
 import { QuestsEditor } from './quests-editor.js';
-import { beatsOf, finalesOf, poolDraws, questSources, rowsOf, tiersOf } from './quests-kind.js';
+import { beatsOf, finalesOf, playedBeats, poolDraws, questSources, rowsOf, tiersOf } from './quests-kind.js';
 
 /** One of the doctor's checks: whether it passed, what it counted, and each problem. */
 export interface QuestCheck {
@@ -64,7 +64,7 @@ export function questChecks(content: ContentJson): QuestChecks {
     const beats = beatsOf(row);
     beatCount += beats.length;
     const draws = beats.map((beat) => poolDraws(content, beat.pool, finales));
-    for (const each of draws) for (const encounter of each) drawnAnywhere.add(encounter);
+    for (const each of draws.slice(0, playedBeats(row))) for (const encounter of each) drawnAnywhere.add(encounter);
     for (const { beat, size, needs } of shortBeats(draws)) {
       pools.push(`${at(key, ['beats', beat, 'pool'])} may draw ${plural(size, 'Encounter')}, none a Finale; it needs ${needs}${needs > 1 ? ', one for each Beat before it sharing its pool, and one more' : ''}`);
     }
@@ -81,7 +81,7 @@ export function questChecks(content: ContentJson): QuestChecks {
       if (!(tier.figures.beats >= 1)) tiers.push(`${at(key)}: Tier ${tier.tier} plays ${String(tier.figures.beats)} Beats; a Quest plays one at least`);
       else if (tier.figures.beats > most) tiers.push(`${at(key)}: Tier ${tier.tier} plays ${tier.figures.beats} Beats, more than its ${plural(beats.length, 'Beat')}${finale === null ? '' : ' and its Finale'}`);
     }
-    const played = Math.max(0, ...offered.map((tier) => tier.beats.length));
+    const played = playedBeats(row);
     if (offered.length > 0 && played < beats.length) {
       const unplayed = played === beats.length - 1 ? `beats.${played} is` : `beats.${played} to beats.${beats.length - 1} are`;
       const first = offered[0]?.tier ?? 0;
@@ -101,7 +101,7 @@ export function questChecks(content: ContentJson): QuestChecks {
   }
 
   const drawn = encounters.flatMap(([key]) =>
-    finales.has(key) || drawnAnywhere.has(key) ? [] : [`${placeOf(questSources.encounters, [key])}: no Beat's pool may draw it, and it is no Finale, so no Quest meets it`],
+    finales.has(key) || drawnAnywhere.has(key) ? [] : [`${placeOf(questSources.encounters, [key])}: no Beat a Tier plays may draw it, and it is no Finale, so no Quest meets it`],
   );
   return {
     templates: templates.length,
@@ -154,7 +154,7 @@ export function questsDoctorText(report: QuestsDoctor): string[] {
     ...line(report.content.ok, 'The content passes its checks', 'The content fails its checks', report.content.problems),
     ...line(quests.pools.ok, `Every Beat's pool may draw its Encounter: ${plural(quests.pools.count, 'Beat')} of ${templates}`, "A Beat's pool is too small", quests.pools.problems),
     ...line(quests.tiers.ok, `Every Tier offered plays its Beats: ${plural(quests.tiers.count, 'Tier')} of ${templates}`, 'A Tier offered cannot play its Beats', quests.tiers.problems),
-    ...line(quests.drawn.ok, `Every Encounter is drawn by a Beat's pool or is a Finale: ${plural(quests.drawn.count, 'Encounter')}`, 'An Encounter no Quest meets', quests.drawn.problems),
+    ...line(quests.drawn.ok, `Every Encounter is drawn by a Beat a Tier plays or is a Finale: ${plural(quests.drawn.count, 'Encounter')}`, 'An Encounter no Quest meets', quests.drawn.problems),
     ...line(quests.finales.ok, `The Finales are placed: ${quests.finales.count}, each an Encounter with its line, named by no pool, played last`, 'A Finale is not placed', quests.finales.problems),
     ...quests.notes.map((note) => `! ${note}`),
     ...line(

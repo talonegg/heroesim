@@ -81,7 +81,7 @@ export interface MilestoneSettings {
   validate: boolean;
   /** `HEROESIM_REPLAY`: replay one seed after the sweep. */
   replay: boolean;
-  /** `HEROESIM_DRAFTS`: a directory of draft content files played in place of the core's; `null` for none. */
+  /** `HEROESIM_DRAFTS`: a directory of draft content files and folders played in place of the core's, a folder whole (DL-260); `null` for none. */
   drafts: string | null;
   /** `HEROESIM_CONFIG`: config values played in place of `defaultConfig`'s. */
   config: Partial<GameConfig>;
@@ -160,7 +160,7 @@ export const variables: Readonly<Record<string, { readBy: readonly (RunKind | 'v
   HEROESIM_WORKERS: { readBy: ['milestone', 'modules', 'succession'], means: 'the child processes a sweep plays in, at most that many at once' },
   HEROESIM_VALIDATE: { readBy: ['milestone', 'modules', 'succession'], means: '1 or 0: validate after every advance' },
   HEROESIM_REPLAY: { readBy: ['milestone'], means: "1 or 0: replay one seed once, alone, after the play sweep, and compare its last save with its shard's record" },
-  HEROESIM_DRAFTS: { readBy: ['milestone', 'calibrate'], means: 'a directory of draft content files, each in place of the core file of its name' },
+  HEROESIM_DRAFTS: { readBy: ['milestone', 'calibrate'], means: "a directory of draft content files and folders, each in place of the core's of its name, a folder whole" },
   HEROESIM_CONFIG: { readBy: ['milestone', 'calibrate'], means: 'a JSON object of config values played in place of the defaults' },
   HEROESIM_POLICY: { readBy: ['milestone'], means: "a JSON object of the automatic policy's values played in place of its defaults" },
   HEROESIM_BASELINE: { readBy: ['milestone'], means: "the run report whose values the Targets set beside the run's, a path or a name in harness/reports/, or none" },
@@ -298,10 +298,10 @@ function expectedOf(env: Env): string | null {
 }
 
 /**
- * The run report the Targets read their baseline from (DL-259): v1.1.9's closing full gate, the last
- * release's play, unless `HEROESIM_BASELINE` names another.
+ * The run report the Targets read their baseline from (DL-259): the open release's baseline full
+ * gate, v1.1.9's games with every counter the Targets read (DL-270), unless `HEROESIM_BASELINE` names another.
  */
-export const defaultBaseline = 'v1.1.9-gate-2026-10-10';
+export const defaultBaseline = 'v1.2.0-s2-gate-2026-10-10';
 
 /** `HEROESIM_BASELINE`: a report's path or name, `defaultBaseline` when unset or blank; `null` for `none`, whatever its case. */
 function baselineOf(env: Env): string | null {

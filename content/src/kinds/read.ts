@@ -57,7 +57,7 @@ export function oneOf<Choice extends string>(choices: Readonly<Record<Choice, tr
   return plain((row, field) => row.oneOf(field, choices));
 }
 
-/** A list of strings, each one of `choices`, such as a Quest template's Encounter kinds. */
+/** A list of strings, each one of `choices`, such as a Beat pool's Encounter kinds. */
 export function oneOfEach<Choice extends string>(choices: Readonly<Record<Choice, true>>): Field<Choice[]> {
   return plain((row, field) => row.oneOfEach(field, choices));
 }
@@ -373,7 +373,7 @@ export class RowReader {
     return undefined;
   }
 
-  /** A list of strings, each one of `choices`, such as a Quest template's Encounter kinds. */
+  /** A list of strings, each one of `choices`, such as a Beat pool's Encounter kinds. */
   oneOfEach<Choice extends string>(field: string, choices: Readonly<Record<Choice, true>>): Choice[] {
     const value = this.field(field);
     const isChoice = (item: unknown): item is Choice => typeof item === 'string' && Object.hasOwn(choices, item);

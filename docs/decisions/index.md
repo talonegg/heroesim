@@ -279,6 +279,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-267 | 2026-10-11 | v1.2.0-S9 built: the editor's Quest templates and Encounters, `quests …` and `encounters …`, and … |  | [decision-log](../decision-log.md) |
 | DL-268 | 2026-10-11 | v1.2.0-S10 built: the drafting skills, `quest-draft` and `encounter-draft`, each writing a draft … |  | [decision-log](../decision-log.md) |
 | DL-269 | 2026-10-11 | v1.2.0-S12 built: the Board card's Tier and Deadly mark, the Party builder's Beats, and the CLI's … |  | [decision-log](../decision-log.md) |
+| DL-270 | 2026-10-11 | v1.2.0-S13: the release's review and its findings fixed |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
