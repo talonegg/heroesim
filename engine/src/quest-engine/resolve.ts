@@ -88,7 +88,7 @@ import { chooseEarner, moraleOf, strike, type Candidates } from './harm.js';
 import { drawLoot, type FinaleOutcome, type LootDraw } from './loot.js';
 import { queryParty, type OnQuest, type QueryParty } from './query.js';
 import { synergiesOn } from './synergy.js';
-import { tierFigures } from '../tiers.js';
+import { deathScaleOf, scaledDeathChance, tierFigures } from '../tiers.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
 export interface QuestInjury {
@@ -278,6 +278,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
   const state = streamOf(world, 'quests');
   const sequence = sequenceFor(world, quest, deps);
   const kit = kitOf(world, party, deps.content);
+  const deathScale = deathScaleOf(quest, deps.content, config);
 
   const working: Working = {
     alive: [...heroes],
@@ -317,7 +318,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       decided = passDegree(pass, degreesOf(encounter, results));
     }
     const harm: Harm = { injured: [], died: [] };
-    const applying: Applying = { state, guild, world, encounterIndex: index, encounterKey: encounter.key, degree: decided.degree };
+    const applying: Applying = { state, guild, world, encounterIndex: index, encounterKey: encounter.key, degree: decided.degree, deathScale };
     for (const consequence of consequencesOf(encounter, decided.degree)) {
       apply(consequence, working, harm, applying, deps);
     }
@@ -455,6 +456,8 @@ interface Applying {
   encounterIndex: number;
   encounterKey: EncounterKey;
   degree: Degree;
+  /** What a Death's chance is multiplied by on this Quest: `deathFactor` × its Tier's `deathScale` (`deathScaleOf`, DL-265). */
+  deathScale: number;
 }
 
 /** What has happened to the Party so far, as the Queries read it: who is hurt, and each Hero's Morale. */
@@ -486,7 +489,10 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
       return;
     }
     case 'death': {
-      const dead = strike(consequence, candidatesOf(working, harm), () => partyNow(working, at, deps), state, deps);
+      // The chance times the Quest's Death scale, held at 1, before the Hero's guard (DL-265); a scale
+      // of 0 kills no one, its two draws taken all the same, so the Tier never shifts a later draw.
+      const scaled = { ...consequence, chance: scaledDeathChance(consequence.chance, at.deathScale) };
+      const dead = strike(scaled, candidatesOf(working, harm), () => partyNow(working, at, deps), state, deps);
       if (dead !== undefined) {
         working.deaths.push(dead.id);
         working.alive = working.alive.filter((hero) => hero.id !== dead.id);

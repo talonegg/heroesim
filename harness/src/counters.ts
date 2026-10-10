@@ -1977,6 +1977,8 @@ export interface TierSideTally {
   wealth: number;
   xp: number;
   loot: number;
+  /** The Heroes who died on them (`quest.resolved`'s `deaths`): Death by Tier (DL-257 item 5, DL-265). */
+  deaths: number;
 }
 
 /** A Tier's Quests: those offered, every Guild's Board alike, and each controller's taken (DL-262). */
@@ -1997,15 +1999,16 @@ export const noTierSide = (): TierSideTally => ({
   wealth: 0,
   xp: 0,
   loot: 0,
+  deaths: 0,
 });
 
 /**
  * Quests by their Tier (DL-262), by the Tier's number: `quest.offered`, which names it; `quest.taken`,
  * which names it too, by the controller of the taking Guild, with the Heroes sent and the Days away
  * (from the Day it was taken to the Day of the night it comes home); and `quest.resolved` and
- * `quest.loot`, which name the Quest, joined to its Tier and Days through its `quest.taken`. The
- * engine names every Quest's Tier, which the validator holds; an entry naming none, a test's, or the
- * return of a Quest whose taking names none, is left out.
+ * `quest.loot`, which name the Quest, joined to its Tier and Days through its `quest.taken`; the Deaths
+ * are `quest.resolved`'s (DL-265). The engine names every Quest's Tier, which the validator holds; an
+ * entry naming none, a test's, or the return of a Quest whose taking names none, is left out.
  *
  * @throws Error on an entry of a Quest of a Tier without its Heroes, return, band or XP, or naming no
  * Guild the world holds
@@ -2047,12 +2050,14 @@ export function questTierCounters(document: WorldDocument): Record<string, TierT
     const { side, days } = quest;
     const band = payloadField(entry, 'band');
     if (!isBand(band)) throw new Error(`${what} has no band`);
-    const home = listLength(entry, 'heroIds', what) - listLength(entry, 'deaths', what);
+    const deaths = listLength(entry, 'deaths', what);
+    const home = listLength(entry, 'heroIds', what) - deaths;
     side.resolved += 1;
     side.resolvedDays += days;
     side[band] += 1;
     side.wealth += numberField(entry, 'wealthDelta', what);
     side.xp += numberField(entry, 'xpPerHero', what) * home;
+    side.deaths += deaths;
   });
   entriesOf(document, 'quest.loot').forEach((entry, index) => {
     const quest = sideOfQuest(entry, `quest.loot entry ${index}`);

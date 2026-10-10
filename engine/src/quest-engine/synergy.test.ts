@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { advance } from '../advance.js';
-import type { EngineDeps } from '../config.js';
+import { defaultConfig, type EngineDeps } from '../config.js';
 import type { ContentSet, Encounter, EncounterKind, Synergy } from '../content-types.js';
 import { encounterKinds } from '../content-types.js';
 import { createWorld } from '../create.js';
@@ -32,7 +32,14 @@ import { applyAction } from '../actions/action.js';
 // DL-192; a test that needs others writes them. The config values a Check relies on are pinned, and
 // every document the engine makes here is asserted valid.
 
-const pinned = { rivalCount: 0, checkVariance: 0, skillBonusPerRating: 2, bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 } };
+const pinned = {
+  rivalCount: 0,
+  checkVariance: 0,
+  skillBonusPerRating: 2,
+  bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
+  // Every Tier's Death at a scale of 1, as these Quests' Deaths were written before Tiers (DL-265).
+  tiers: defaultConfig.tiers.map((tier) => ({ ...tier, deathScale: 1 })),
+};
 const deps = testDeps(pinned);
 /** The same, with no Synergies: what the Check would be without this story. */
 const bare = testDeps(pinned, { ...testContent, synergies: {} });

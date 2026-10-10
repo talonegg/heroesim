@@ -213,6 +213,12 @@ export interface GameConfig {
    * (`tierWeights`), so the first is above 0.
    */
   tierDrawWeights: readonly number[];
+  /**
+   * What every Death chance in content is multiplied by, beside its Quest's Tier's `deathScale`
+   * (`CONTEXT.md` Death factor, DL-257 item 5, DL-265): the chance a Death lands is the Encounter's
+   * times both, held at 1 (`scaledDeathChance`). At 0 no Quest kills and none is Deadly.
+   */
+  deathFactor: number;
 
   // ── `quest`: the Quest Engine (INPUTS 6.2, DL-42) ──────────────────────────────────────────
   /**

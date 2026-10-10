@@ -179,6 +179,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   levelsPerTier: finiteAbove(0),
   // The centre's weight above 0, so a draw always lands on a Tier (DL-262).
   tierDrawWeights: { refused: [[], [0, 1], [1, -0.5], [1, Number.NaN], 1], allowed: [[1], [0.01, 0, 0], [1, 0.5, 0.2, 0.1, 5]] },
+  deathFactor: finiteFrom(0),
   checkVariance: share,
   skillBonusPerRating: finiteFrom(0),
   bandBySuccessShare: {

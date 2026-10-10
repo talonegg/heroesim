@@ -630,8 +630,8 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
  * `show board`: the Quests on offer in the Board's order (`boardReading`), each with its template's
  * name, its Patron, its terms, what it requires and the last date it stays on offer; then the Skills
  * that help in its Encounters' Checks and the kinds of those Encounters; then each Quest's
- * Encounters with each Check's name and what it reads, and the player's Best Party with its chance
- * (DL-148 items 15 to 17), every Quest asked of the reading's one Best Party module (DL-237).
+ * Encounters with each Check's name and what it reads, whether it is Deadly (DL-265), and the
+ * player's Best Party with its chance (DL-148 items 15 to 17), every Quest asked of the reading's one Best Party module (DL-237).
  */
 export function renderBoard(reading: PlayerReading): string[] {
   const { world, calendar } = reading;
@@ -678,8 +678,9 @@ export function renderBoard(reading: PlayerReading): string[] {
 
 /**
  * A Quest's Encounters as the Board gives them: each with its kind and each Check's name and what it
- * reads, an Encounter of one Check of its own name on one line; then the Best Party of the player's
- * free Heroes and its chance, if no one falls, or why the player's Guild may not take the Quest.
+ * reads, an Encounter of one Check of its own name on one line; then whether it is Deadly, with no
+ * figure (DL-265); then the Best Party of the player's free Heroes and its chance, if no one falls,
+ * or why the player's Guild may not take the Quest.
  */
 function questLines(quest: QuestReading, reading: PlayerReading): string[] {
   const lines = quest.encounters.flatMap((encounter) => {
@@ -694,6 +695,7 @@ function questLines(quest: QuestReading, reading: PlayerReading): string[] {
   return [
     `${quest.id}, ${quest.name}`,
     ...lines,
+    ...(quest.deadly ? ['  Deadly: a Hero may die on this Quest.'] : []),
     `  ${closed !== null ? refusalLine(closed, { world, content, calendar }) : bestPartyWords(row === undefined ? null : bestPartyReading(reading, row))}`,
   ];
 }

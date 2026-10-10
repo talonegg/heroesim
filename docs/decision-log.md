@@ -607,3 +607,58 @@ Verified 2026-10-11 at 30380c3: every chooser of a Quest searched, Fame at the m
 none moving between a choice and its dispatch, the sentence per ui-text.md, 20 mutations each red;
 fixed, test first: the estimate probe sent its sample's Party whatever the Tier's Fame minimum, which
 a non-zero minimum refuses (158 of 200 samples above Tier 1), now raising the Guild's Fame to it.
+
+## DL-265 — v1.2.0-S7 built: Death by Tier, `deathFactor` and each Tier's `deathScale` read, and the Deadly reading; config version 20
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257 item 5 (Q5 c, Q17 b, Q18 b): an Encounter's Death chance × `deathFactor` (1) ×
+its Tier's `deathScale` (0 for Tiers 1–3, 1 for 4–5); a Quest that can kill marked Deadly, with no
+figure in the Party builder. S5 (DL-262) put `deathScale` in every `questTiers` row, read by no rule.
+
+**Decision.**
+
+1. **The setting:** `deathFactor`, a finite number of 0 or more, in `questTiers` after
+   `tierDrawWeights`, at 1. Config version 20.
+2. **The chance** (`engine/src/tiers.ts`): `deathScaleOf` is `deathFactor` × the Tier's `deathScale`,
+   the template's override read through `tierFigures`, live as the XP factor is;
+   `scaledDeathChance` is the Encounter's chance times it, held at 1. `resolveQuest` reads the scale
+   once a Quest and gives `strike` the scaled chance.
+3. **The draws:** `strike` already takes its two draws whether or not a Death lands (DL-186 item 4),
+   so a scale of 0 kills no one and shifts no later draw: the Tier changes what a draw decides,
+   never how many are taken.
+4. **Deadly** (`isDeadly`, exported): the Quest's Death scale is above 0 and one of its Encounters,
+   drawn at posting, has a Death chance above 0 at any Degree; an Encounter content no longer defines
+   is passed over. The words' `QuestReading.deadly` carries it; the CLI's `show board` says "Deadly: a
+   Hero may die on this Quest." after the Quest's Encounters. The page's card is S12's.
+5. **The report:** Quests by Tier gain Deaths and Deaths a Quest, by controller, from
+   `quest.resolved`'s `deaths` (the same Heroes `hero.died` names, with the Quest's Tier at hand).
+6. **The words:** CONTEXT.md's Deadly and Death factor, requirements R24, the harness README's last
+   quick fingerprint.
+
+*Judgement calls, for the owner to see.*
+- **Held at 1 before the guard:** a chance scaled past 1 is 1, then the Hero's guard by `guardedBy`
+  lowers it, so a strong Hero still shrugs some off.
+- **Deadly reads a Triumph's or a Success's Death too**, and a chance of 0 is no Death chance.
+- **The review page** (`npm run quest-review`) still gives content's chances, unscaled: it reviews
+  Encounters, not Quests.
+- **Tests whose Deaths fell at Tiers 1–3** (an engine change, not a default's pin) were given Death at
+  every Tier, their assertions unchanged: the resolver's shared scene (`pinned`), the consumables' and
+  the Synergies' configs, and content's `certainHarmContent` and three Quests of
+  `quests-conclude.test.ts` through `deadlyAtEveryTier` (template overrides). They are 8 in
+  `resolve.test.ts` (the harm fingerprint of 300 seeds among them), 9 in `quests-conclude.test.ts`
+  (the History of 86c7afa among them), and one each in `consumables`, `synergy`, `gear` and
+  `hero-regard`. Each passes as before with the scale at 1, which proves the draws unmoved. No test
+  pinned a default this story changed.
+
+**Consequences.** Below Tier 4 no Hero dies, and the quick run's player takes almost no Quest of Tier 4
+or 5: its Deaths fall to 0 a game against DL-256 item 10's 3–8, reported, not tuned (DL-257 item 7).
+`deathFactor` and the scales are DL-257 item 11's to tune; S12 shows Deadly on the card.
+
+**Evidence.** The commit `v1.2.0-S7 (DL-265)`. `neutral v1.2.0-s7-quick` (4 × 2,
+`harness/reports/v1.2.0-s7-quick-2026-10-11`): refusals 0, the replay identical, `e919219b…`. `compare`
+with S6's quick run: 381 counters moved of 599; Deaths, the player's 5 → 0 and the Rivals' 14 → 1 (that
+one at Tier 4); Quests taken, the player's 2,269 → 2,256 and the Rivals' 4,056 → 4,467; Bankruptcies
+and folds 0. Deaths by Tier, Tiers 1–5: the player 0, 0, 0, 0, 0 of 801, 1,113, 316, 25 and 1 taken;
+the Rivals 0, 0, 0, 1, 0 of 1,009, 1,884, 1,308, 247 and 19. The player's Deaths a game 0.00 (S6 1.25,
+S2's quick 1.75, S2's gate 4.28 over 20 years). The epic's S7 boxes.

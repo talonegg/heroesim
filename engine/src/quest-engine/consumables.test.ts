@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import type { EngineDeps, GameConfig } from '../config.js';
+import { defaultConfig, type EngineDeps, type GameConfig } from '../config.js';
 import type { Consequence, ContentSet, Encounter, EncounterKind, InjuryType } from '../content-types.js';
 import type { Hero, Party, Quest, World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
@@ -24,6 +24,8 @@ const pinned: Partial<GameConfig> = {
   xpPerDifficultyPoint: 1,
   xpBandFactor: { fail: 0.5, success: 1, strong: 1 },
   infirmaryHealFactor: [1, 1 / 2, 1 / 3],
+  // Every Tier's Death at a scale of 1, as these Quests' Deaths were written before Tiers (DL-265).
+  tiers: defaultConfig.tiers.map((tier) => ({ ...tier, deathScale: 1 })),
 };
 
 /** An Encounter keyed `key` of `kind`: Strength, `sum`, no Skills, which `pass` or fail any Party of 8s. */

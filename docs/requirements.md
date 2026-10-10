@@ -170,9 +170,10 @@ Loot and Campaigns are kept as features serving Reputation and History.
 - R24. The Quest Engine assesses a Quest against the Party: its Stats, Skills, Traits, Form,
   Relationship, Synergies and Consumables. It produces the outcome: XP, Injuries or Death, Morale
   and Regard changes, reward or penalty, Fame effect, Loot, and the typed events the front ends
-  narrate and the World Engine feeds back into the world. A Hero's Stats change through the Levels
-  that XP brings, through ageing and through their Traits' effects, and a Hero gains a Trait as R16
-  says (DL-148, DL-150).
+  narrate and the World Engine feeds back into the world. A Death's chance is its Encounter's times
+  the Death factor and the Quest's Tier's Death scale, held at 1, and a Quest that can kill is
+  Deadly (DL-257 item 5, DL-265). A Hero's Stats change through the Levels that XP brings, through
+  ageing and through their Traits' effects, and a Hero gains a Trait as R16 says (DL-148, DL-150).
 - R25. A Quest is a sequence of Encounters met in order, any Finale last. An Encounter holds one
   to four Checks, each a Query over the Party written in content (ADR-0010). Each Check and
   Encounter comes out a Degree, Triumph, Success, Setback or Failure, and the share of Encounters

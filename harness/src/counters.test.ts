@@ -1501,7 +1501,7 @@ describe("the Targets' counters (DL-259)", () => {
     expect(countGame(fixture('counters-quest-weight-none').document, shortYears).questWeight).toEqual({});
   });
 
-  test("Quests by Tier: offered, and each controller's taken, their Heroes and Days, and resolved, by band, with their Wealth, XP and Loot (DL-262)", () => {
+  test("Quests by Tier: offered, and each controller's taken, their Heroes and Days, and resolved, by band, with their Wealth, XP, Loot and Deaths (DL-262, DL-265)", () => {
     const { document, player, rivals } = fixture('counters-quest-tiers');
     const [a] = rivals;
     // The first Board's offers, each at its Tier, as creation made them.
@@ -1552,7 +1552,7 @@ describe("the Targets' counters (DL-259)", () => {
     const tiers = countGame(document, shortYears).questTiers;
 
     const side = (taken: number, heroes: number, days: number, extra: Partial<Record<string, number>> = {}) => ({
-      taken, heroes, days, resolved: 0, resolvedDays: 0, fail: 0, success: 0, strong: 0, wealth: 0, xp: 0, loot: 0, ...extra,
+      taken, heroes, days, resolved: 0, resolvedDays: 0, fail: 0, success: 0, strong: 0, wealth: 0, xp: 0, loot: 0, deaths: 0, ...extra,
     });
     expect(tiers['2']).toEqual({
       offered: (created['2'] ?? 0) + 1,
@@ -1560,8 +1560,8 @@ describe("the Targets' counters (DL-259)", () => {
     });
     expect(tiers['3']).toEqual({
       offered: (created['3'] ?? 0) + 2,
-      // The Rival's Party of three lost one, so two took the XP; the player's third Quest is still away.
-      byController: { rival: side(1, 3, 8, { resolved: 1, resolvedDays: 8, fail: 1, xp: 60 }), player: side(1, 1, 10) },
+      // The Rival's Party of three lost one, its Death counted, so two took the XP; the player's third Quest is still away.
+      byController: { rival: side(1, 3, 8, { resolved: 1, resolvedDays: 8, fail: 1, xp: 60, deaths: 1 }), player: side(1, 1, 10) },
     });
     for (const [tier, count] of Object.entries(created)) if (tier !== '2' && tier !== '3') expect(tiers[tier]).toEqual({ offered: count, byController: {} });
   });

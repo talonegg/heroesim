@@ -10,6 +10,7 @@ import {
   effectiveStats,
   estimateQuest,
   guildmasterOf,
+  isDeadly,
   judgedHintBands,
   playerGuild,
   potentialHint,
@@ -487,6 +488,30 @@ describe("a Quest's reading", () => {
     }
     expect(quests[0]).toMatchObject({ classRequired: 'Mage', skillRequired: 'Lockpicking' });
     expect(quests[1]).toMatchObject({ classRequired: null, skillRequired: null });
+  });
+
+  test('says a Quest is Deadly when its Tier scales Death above 0 and one of its Encounters has a Death chance (DL-265)', () => {
+    const document = newGame();
+    const [first] = document.world.board.map((id) => document.world.quests[id] as Quest);
+    if (first === undefined) throw new Error('an empty Board');
+    const kills = (key: string): boolean =>
+      Object.values(content.encounters[key]?.consequences ?? {}).some((list) => list?.some((it) => it.kind === 'death' && it.chance > 0) === true);
+    const killer = Object.keys(content.encounters).find(kills);
+    const safe = Object.keys(content.encounters).find((key) => !kills(key));
+    if (killer === undefined || safe === undefined) throw new Error('No Encounter that kills, or none that does not');
+    const deadlyOf = (tier: number, encounterKeys: string[], config: GameConfig = defaultConfig): boolean => {
+      Object.assign(first, { tier, encounterKeys, beatLines: encounterKeys.map(() => 'A line') });
+      // No template in content overrides a Tier's Death scale, so the ladder's is read.
+      const reading = boardReading(playerReading(document, { config, content })).find((it) => it.id === first.id);
+      return reading?.deadly as boolean;
+    };
+
+    expect([1, 2, 3, 4, 5].map((tier) => deadlyOf(tier, [safe, killer]))).toEqual([false, false, false, true, true]);
+    expect(deadlyOf(5, [safe])).toBe(false);
+    expect(deadlyOf(5, [safe, killer], { ...defaultConfig, deathFactor: 0 })).toBe(false);
+    for (const reading of boardReading(playerReading(document, deps))) {
+      expect(reading.deadly).toBe(isDeadly(document.world.quests[reading.id] as Quest, content, defaultConfig));
+    }
   });
 
   test("gives the Skills that help as the Skills its Encounters' Checks read, not its template's (DL-70)", () => {

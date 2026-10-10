@@ -816,6 +816,22 @@ export function withEncounters(
 }
 
 /**
+ * `content` (the test content by default) with every Quest template's Tiers scaling Death at 1 (its
+ * `overrides`' `deathScale`), frozen: for a test whose Deaths land at their Encounters' chance whatever
+ * Tier its Quest was drawn at, as they did before Tiers (DL-265).
+ */
+export function deadlyAtEveryTier(content: ContentSet = testContent): ContentSet {
+  const tiers = defaultConfig.tiers.map((_, index) => String(index + 1));
+  const questTemplates = Object.fromEntries(
+    Object.entries(content.questTemplates).map(([key, row]): [string, QuestTemplate] => [
+      key,
+      { ...structuredClone(row), overrides: Object.fromEntries(tiers.map((tier) => [tier, { ...row.overrides?.[tier], deathScale: 1 }])) },
+    ]),
+  );
+  return deepFreeze({ ...content, questTemplates });
+}
+
+/**
  * `content` (the test content by default) with `weights` set on every Disposition, frozen: for a
  * test that must say what every Rival does whichever Disposition it was dealt (DL-56), as
  * a test once pinned `recruitWealthMultiple` and `buildWealthMultiple` in the config.
@@ -843,16 +859,19 @@ export const harmlessContent: ContentSet = withEncounters({ success: [], failure
 
 /**
  * Every failed Check kills one Hero and then injures one of the living with `broken-arm`, each
- * certainly, so a Party of two or more sent through one failed Encounter loses one Hero and brings
- * one home hurt; a success costs nothing. For tests of harm, which make the Check fail.
+ * certainly, at every Tier (`deadlyAtEveryTier`), so a Party of two or more sent through one failed
+ * Encounter loses one Hero and brings one home hurt; a success costs nothing. For tests of harm, which
+ * make the Check fail.
  */
-export const certainHarmContent: ContentSet = withEncounters({
-  success: [],
-  failure: [
-    { kind: 'death', chance: 1 },
-    { kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 },
-  ],
-});
+export const certainHarmContent: ContentSet = deadlyAtEveryTier(
+  withEncounters({
+    success: [],
+    failure: [
+      { kind: 'death', chance: 1 },
+      { kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 },
+    ],
+  }),
+);
 
 /**
  * An empty world at Turn 0 with a stream for each of `names`, seeded from `seed`: the core's

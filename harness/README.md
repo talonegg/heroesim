@@ -32,9 +32,9 @@ Sweeps run one at a time, with nothing else running, since a 20-year game's proc
 
 The last `neutral` baseline is
 `661789f1d2811cfac869463d6dd1a0164874e3222f13690ba6adf9c43bdf2d6f` (`v1.2.0-s4-neutral`, DL-261: schema 7,
-config version 18, content version 37, v1.1.9's games). v1.2.0-S5 changed play (the Tiers, DL-262): its
-4 × 2 quick check, at schema 8, config version 19 and content version 38, is
-`7e0eed8f4829dc9818d7167e0f2629dc30068af26d62a140bda85df3d774fe74` (`v1.2.0-s5-quick`), and the next
+config version 18, content version 37, v1.1.9's games). Play has changed since (the Tiers, DL-262; Death
+by Tier, DL-265): the last 4 × 2 quick check, at schema 8, config version 20 and content version 38, is
+`e919219b7494a60b725cc356804f894b4eebe83ce8196c8ee4fa0f6f2d6bf221` (`v1.2.0-s7-quick`), and the next
 `neutral` run at its versions sets the baseline every play-neutral story's `--expect` reads. Each changes
 only with a DL entry, as at a story that changes play or the save's shape or raises the content version
 or the config version, both of which every save records (with `meta.config`). The full `gate`'s, 50 × 20,

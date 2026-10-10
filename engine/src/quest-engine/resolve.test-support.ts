@@ -26,8 +26,10 @@ export const pinned = {
   hurtCheckFactor: 0.85,
   xpPerDifficultyPoint: 1,
   xpBandFactor: { fail: 0.5, success: 1, strong: 1 },
-  // Every Tier's XP at a factor of 1, as the scenes' XP was worked out before Tiers (DL-262).
-  tiers: defaultConfig.tiers.map((tier) => ({ ...tier, xpFactor: 1 })),
+  // Every Tier's XP and Death at a factor of 1, as the scenes' XP and harm were worked out before
+  // Tiers (DL-262, DL-265).
+  tiers: defaultConfig.tiers.map((tier) => ({ ...tier, xpFactor: 1, deathScale: 1 })),
+  deathFactor: 1,
   infirmaryHealFactor: [1, 1 / 2, 1 / 3],
 };
 

@@ -432,14 +432,14 @@ _Avoid_: Boss, Climax, Final Encounter
 
 **Deadly**:
 The mark on a Quest whose Tier and Encounters can kill a Hero: one of its Encounters has a Death
-chance, and its Tier's Death scale is above 0. The Board shows it on the Quest's card (DL-257
-item 5). To be built.
+chance, and its Tier's Death scale times the Death factor is above 0. It gives no figure. The
+Board shows it (DL-257 item 5, DL-265).
 _Avoid_: Lethal, Dangerous, Fatal
 
 **Death factor**:
 The one setting, `deathFactor`, that scales every Death chance in content, beside each Tier's own
-Death scale: an Encounter's chance is multiplied by both. The rate of Death is tuned by it without
-code (DL-257 item 5). To be built.
+Death scale, `deathScale`: an Encounter's chance is multiplied by both, and held at 1. The rate of
+Death is tuned by it without code; at 0 no Quest kills (DL-257 item 5, DL-265).
 _Avoid_: Death rate, Mortality, Lethality
 
 **Quest band**:

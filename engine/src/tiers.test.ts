@@ -1,8 +1,23 @@
 import { describe, expect, test } from 'vitest';
 import { defaultConfig, type GameConfig, type TierRow } from './config.js';
-import type { Encounter, QuestBeat, QuestTemplate } from './content-types.js';
-import type { Guild, Hero, World } from './document.js';
-import { beatsDrawn, beatsPlayed, centreTier, daysAt, difficultyBand, inBeatPool, meanLevel, offeredTiers, shortBeats, tierFigures, tierWeights } from './tiers.js';
+import type { Consequence, ContentSet, Encounter, QuestBeat, QuestTemplate } from './content-types.js';
+import type { Guild, Hero, Quest, World } from './document.js';
+import {
+  beatsDrawn,
+  beatsPlayed,
+  centreTier,
+  daysAt,
+  deathScaleOf,
+  difficultyBand,
+  inBeatPool,
+  isDeadly,
+  meanLevel,
+  offeredTiers,
+  scaledDeathChance,
+  shortBeats,
+  tierFigures,
+  tierWeights,
+} from './tiers.js';
 
 // DL-257 items 1 to 3, DL-262: the Tier a Quest is drawn at, and the figures it is drawn and paid by.
 
@@ -220,5 +235,108 @@ describe('shortBeats', () => {
   test('counts no earlier Beat whose pool is apart from it', () => {
     expect(shortBeats([['a'], ['b'], ['c']])).toEqual([]);
     expect(shortBeats([['a', 'b'], ['c'], ['a', 'b']])).toEqual([]);
+  });
+});
+
+// DL-257 item 5, DL-265: Death by Tier, and the Deadly mark.
+
+/** An Encounter keyed `key` whose Failure carries `failure`, and whose Triumph `triumph` where given. */
+function harmful(key: string, failure: Consequence[], triumph?: Consequence[]): Encounter {
+  return {
+    key,
+    name: key,
+    kind: 'combat',
+    checks: [],
+    consequences: { success: [], failure, ...(triumph === undefined ? {} : { triumph }) },
+  } as unknown as Encounter;
+}
+
+const tierContent = {
+  questTemplates: {
+    plain: { key: 'plain' },
+    spared: { key: 'spared', overrides: { '4': { deathScale: 0 } } },
+    doomed: { key: 'doomed', overrides: { '2': { deathScale: 0.5 } } },
+  },
+  encounters: {
+    ambush: harmful('ambush', [{ kind: 'morale', delta: -3 }, { kind: 'death', chance: 0.03 }]),
+    brawl: harmful('brawl', [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.5, count: 1 }]),
+    harmless: harmful('harmless', [{ kind: 'death', chance: 0 }]),
+    glory: harmful('glory', [], [{ kind: 'death', chance: 0.01 }]),
+  },
+} as unknown as Pick<ContentSet, 'questTemplates' | 'encounters'>;
+
+const questAt = (tier: number, encounterKeys: string[], templateKey = 'plain') => ({ templateKey, tier, encounterKeys }) as unknown as Pick<Quest, 'templateKey' | 'tier' | 'encounterKeys'>;
+
+describe('deathScaleOf', () => {
+  test("is deathFactor times the Tier's deathScale", () => {
+    expect([1, 2, 3, 4, 5].map((tier) => deathScaleOf(questAt(tier, []), tierContent, config({ deathFactor: 1 })))).toEqual([0, 0, 0, 1, 1]);
+    expect([1, 3, 4, 5].map((tier) => deathScaleOf(questAt(tier, []), tierContent, config({ deathFactor: 2.5 })))).toEqual([0, 0, 2.5, 2.5]);
+    const scaled = config({ deathFactor: 3, tiers: ladder(5).map((row, index) => ({ ...row, deathScale: index / 2 })) });
+    expect([1, 2, 3, 4, 5].map((tier) => deathScaleOf(questAt(tier, []), tierContent, scaled))).toEqual([0, 1.5, 3, 4.5, 6]);
+  });
+
+  test("reads the template's override of a Tier's deathScale", () => {
+    expect(deathScaleOf(questAt(4, [], 'spared'), tierContent, config({ deathFactor: 2 }))).toBe(0);
+    expect(deathScaleOf(questAt(5, [], 'spared'), tierContent, config({ deathFactor: 2 }))).toBe(2);
+    expect(deathScaleOf(questAt(2, [], 'doomed'), tierContent, config({ deathFactor: 2 }))).toBe(1);
+  });
+
+  test('is 0 for every Tier at a deathFactor of 0', () => {
+    expect([1, 2, 3, 4, 5].map((tier) => deathScaleOf(questAt(tier, [], 'doomed'), tierContent, config({ deathFactor: 0 })))).toEqual([0, 0, 0, 0, 0]);
+  });
+});
+
+describe('scaledDeathChance', () => {
+  test('is the chance times the scale', () => {
+    expect(scaledDeathChance(0.03, 1)).toBe(0.03);
+    expect(scaledDeathChance(0.04, 2)).toBe(0.08);
+    expect(scaledDeathChance(0.5, 0.5)).toBe(0.25);
+  });
+
+  test('is 0 at a scale of 0, whatever the chance', () => {
+    expect([0, 0.03, 1].map((chance) => scaledDeathChance(chance, 0))).toEqual([0, 0, 0]);
+  });
+
+  test('is held at 1', () => {
+    expect(scaledDeathChance(0.5, 3)).toBe(1);
+    expect(scaledDeathChance(1, 1.01)).toBe(1);
+    expect(scaledDeathChance(0.05, 1000)).toBe(1);
+  });
+});
+
+describe('isDeadly', () => {
+  test('is a Quest whose Tier scales Death above 0 and one of whose Encounters has a Death chance', () => {
+    expect(isDeadly(questAt(4, ['brawl', 'ambush']), tierContent, config())).toBe(true);
+    expect(isDeadly(questAt(5, ['ambush']), tierContent, config())).toBe(true);
+  });
+
+  test("is not a Quest whose Tier's deathScale is 0, whatever its Encounters", () => {
+    expect([1, 2, 3].map((tier) => isDeadly(questAt(tier, ['ambush', 'glory']), tierContent, config()))).toEqual([false, false, false]);
+  });
+
+  test('is not a Quest none of whose Encounters has a Death chance above 0', () => {
+    expect(isDeadly(questAt(4, ['brawl', 'harmless']), tierContent, config())).toBe(false);
+    expect(isDeadly(questAt(5, []), tierContent, config())).toBe(false);
+  });
+
+  test("reads a Death in any Degree's list, a Triumph's too", () => {
+    expect(isDeadly(questAt(4, ['brawl', 'glory']), tierContent, config())).toBe(true);
+  });
+
+  test("reads the template's override of the Tier's deathScale", () => {
+    expect(isDeadly(questAt(4, ['ambush'], 'spared'), tierContent, config())).toBe(false);
+    expect(isDeadly(questAt(5, ['ambush'], 'spared'), tierContent, config())).toBe(true);
+    expect(isDeadly(questAt(2, ['ambush'], 'doomed'), tierContent, config())).toBe(true);
+  });
+
+  test('is no Quest at a deathFactor of 0', () => {
+    expect([1, 2, 3, 4, 5].map((tier) => isDeadly(questAt(tier, ['ambush'], 'doomed'), tierContent, config({ deathFactor: 0 })))).toEqual([
+      false, false, false, false, false,
+    ]);
+  });
+
+  test('passes over an Encounter content no longer defines, and a template it no longer defines reads the ladder', () => {
+    expect(isDeadly(questAt(4, ['gone']), tierContent, config())).toBe(false);
+    expect(isDeadly(questAt(4, ['gone', 'ambush'], 'gone'), tierContent, config())).toBe(true);
   });
 });

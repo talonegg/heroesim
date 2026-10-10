@@ -17,6 +17,7 @@ import { effectiveStats, playerGuild } from '../selectors.js';
 import { dayOf, nightOf, timeOfDay } from '../time.js';
 import {
   certainHarmContent,
+  deadlyAtEveryTier,
   harmlessContent,
   plannedStreams,
   testContent,
@@ -375,7 +376,7 @@ describe('questsConclude', () => {
   test("a quest.encounter names the Heroes its consequences hurt, and the Encounters' Morale moves each Hero home", () => {
     const deps = soloDeps(
       { moraleMin: 0, moraleMax: 100 },
-      withEncounters({ success: [{ kind: 'morale', delta: 2 }], failure: [{ kind: 'death', chance: 1 }, { kind: 'morale', delta: -3 }] }),
+      deadlyAtEveryTier(withEncounters({ success: [{ kind: 'morale', delta: 2 }], failure: [{ kind: 'death', chance: 1 }, { kind: 'morale', delta: -3 }] })),
     );
     const { eve, heroIds } = sentAway('named', deps, { size: 3, difficulty: 5000, encounterKeys: ['hold-the-line', 'hold-the-line'] });
 
@@ -730,14 +731,14 @@ describe('questsConclude writes Regard once for each resolved Quest (DL-44)', ()
       checks: base.checks.map((it) => ({ ...structuredClone(it), difficultyFactor })),
       consequences: { success: [], failure },
     });
-    const content: ContentSet = {
+    const content: ContentSet = deadlyAtEveryTier({
       ...harmlessContent,
       encounters: {
         ...harmlessContent.encounters,
         'sure-pass': row('sure-pass', 1e-6, []),
         'sure-death': row('sure-death', 1e6, [{ kind: 'death', chance: 1 }]),
       },
-    };
+    });
     const deps = soloDeps(
       {
         ...regardPins,
@@ -881,7 +882,8 @@ describe('the Quest named on what its return causes', () => {
       moraleCheckFactor: { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 },
       hurtCheckFactor: 1,
     },
-    withEncounters({ failure: [{ kind: 'death', chance: 0.15 }, { kind: 'morale', delta: -2 }] }),
+    // Its Deaths at every Tier, as they fell when the History was recorded (DL-265).
+    deadlyAtEveryTier(withEncounters({ failure: [{ kind: 'death', chance: 0.15 }, { kind: 'morale', delta: -2 }] })),
   );
   const seeds = ['named-a', 'named-b', 'named-c'] as const;
   /** Every event each game emitted, those its History does not record among them (DL-211). */

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
-import type { EngineDeps } from '../config.js';
+import { defaultConfig, type EngineDeps } from '../config.js';
 import {
   degrees,
   type Consequence,
@@ -21,6 +21,7 @@ import { streamOf } from '../generators/draw.js';
 import { chance, int, next } from '../rng.js';
 import { demandsCheck, encounterCapability as capability, onlyCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { capability as checkCapability } from './check.js';
+import { meanShare } from './harm.js';
 import { drawLoot } from './loot.js';
 import { queryParty } from './query.js';
 import { questBand, resolveQuest } from './resolve.js';
@@ -364,6 +365,73 @@ describe('resolveQuest', () => {
     expect(() => resolveQuest(world, { ...quest, difficulty: 0 }, party, deps)).toThrow(/difficulty/);
     expect(() => resolveQuest(world, quest, { ...party, heroIds: [makeId('heroes', 999)] }, deps)).toThrow(/hero-000999/);
     expect(() => resolveQuest(world, { ...quest, encounterKeys: ['odd'] }, party, deps)).toThrow(/frostbite/);
+  });
+});
+
+// DL-257 item 5, DL-265: a Death's chance is times `deathFactor` and its Quest's Tier's `deathScale`,
+// held at 1, its two draws taken whatever it comes to.
+describe('Death by Tier', () => {
+  /**
+   * One Hero sent at Tier `tier` through one Encounter they fail, whose Failure is `death`, under a
+   * `deathFactor` and every Tier's `deathScale` at `scale`; with the `quests` stream's draw that
+   * decides whether the Death lands, the second after the Check's.
+   */
+  function deathAt(seed: string, death: Consequence, { factor = 1, scale = 1, tier = 4 } = {}) {
+    const content = contentWith(encounter('grave', false, [death]));
+    const base = scene(seed, content, ['grave'], { size: 1 });
+    const deps: EngineDeps = { ...base.deps, config: { ...base.deps.config, deathFactor: factor, tiers: base.deps.config.tiers.map((row) => ({ ...row, deathScale: scale })) } };
+    const quest = { ...base.quest, tier };
+    const twin = structuredClone(streamOf(base.world, 'quests'));
+    next(twin);
+    const u = next(twin);
+    const { outcome } = resolveQuest(base.world, quest, base.party, deps);
+    return { u, died: outcome.deaths.length > 0, stream: streamOf(base.world, 'quests'), member: queryParty(base.heroes, base.world, deps).members[0], deps };
+  }
+  const seeds = Array.from({ length: 60 }, (_, index) => `death-by-tier-${index}`);
+
+  test("lands below the Encounter's chance times deathFactor times the Tier's deathScale", () => {
+    const runs = seeds.map((seed) => deathAt(seed, { kind: 'death', chance: 0.4 }, { factor: 1.5, scale: 0.5 }));
+    for (const { u, died } of runs) expect(died).toBe(u < 0.4 * 1.5 * 0.5);
+    // Both ways among the seeds, so the line is where it is said to be.
+    expect(new Set(runs.map((run) => run.died))).toEqual(new Set([true, false]));
+    expect(runs.some(({ u }) => u >= 0.3 && u < 0.4)).toBe(true);
+  });
+
+  test('a deathScale of 0 kills no one, at a chance of 1, and takes the same draws as one that kills', () => {
+    for (const seed of seeds.slice(0, 10)) {
+      const spared = deathAt(seed, { kind: 'death', chance: 1 }, { scale: 0 });
+      const killed = deathAt(seed, { kind: 'death', chance: 1 }, { scale: 1 });
+      expect([spared.died, killed.died]).toEqual([false, true]);
+      expect(spared.stream).toEqual(killed.stream);
+    }
+  });
+
+  test('a deathFactor of 0 kills no one, at a Tier whose deathScale is above 0', () => {
+    for (const seed of seeds.slice(0, 10)) expect(deathAt(seed, { kind: 'death', chance: 1 }, { factor: 0, scale: 1 }).died).toBe(false);
+  });
+
+  test("reads the Quest's own Tier: the default ladder's Tiers 1 to 3 kill no one, 4 and 5 as content says", () => {
+    const run = (seed: string, tier: number) => {
+      const content = contentWith(encounter('grave', false, [{ kind: 'death', chance: 1 }]));
+      const base = scene(seed, content, ['grave'], { size: 1 });
+      const deps: EngineDeps = { ...base.deps, config: { ...base.deps.config, tiers: defaultConfig.tiers, deathFactor: defaultConfig.deathFactor } };
+      return resolveQuest(base.world, { ...base.quest, tier }, base.party, deps).outcome.deaths.length;
+    };
+    expect([1, 2, 3, 4, 5].map((tier) => run(`death-tier-${tier}`, tier))).toEqual([0, 0, 0, 1, 1]);
+  });
+
+  test('the chance is held at 1 before the Hero guards it', () => {
+    // At 0.5 × 2.2 held to 1, the Hero's guard by Constitution is the chance; unheld it would be 1.1 × the guard.
+    const runs = seeds.map((seed) => deathAt(seed, { kind: 'death', chance: 0.5, guardedBy: ['constitution'] }, { factor: 2.2 }));
+    const [first] = runs;
+    if (first === undefined) throw new Error('No run');
+    if (first.member === undefined) throw new Error('No Hero');
+    const share = meanShare(first.member, ['constitution'], first.deps.content) as number;
+    const kept = 1 - first.deps.config.guardRange * share;
+    expect(kept).toBeGreaterThan(0);
+    expect(kept * 1.1).toBeLessThan(1);
+    for (const { u, died } of runs) expect(died).toBe(u < kept);
+    expect(runs.some(({ u }) => u >= kept && u < 1.1 * kept)).toBe(true);
   });
 });
 

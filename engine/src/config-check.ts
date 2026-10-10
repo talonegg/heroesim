@@ -378,6 +378,8 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   tiers: tierLadder,
   levelsPerTier: finite({ above: 0 }),
   tierDrawWeights: drawWeights,
+  // A chance is never scaled below 0; one scaled past 1 is held at 1 (DL-265).
+  deathFactor: finite({ min: 0 }),
 
   // A roll never reaches below nothing (DL-156).
   checkVariance: share,

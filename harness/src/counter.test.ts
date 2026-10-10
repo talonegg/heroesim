@@ -137,3 +137,25 @@ describe("the core's counters", () => {
     expect(ofKind('module')).toEqual(['moduleEvents', 'moduleEffects']);
   });
 });
+
+// DL-265: Death by Tier, a column of the Quests by Tier.
+describe('the Quests by Tier', () => {
+  test("give each controller's Deaths at each Tier, and a Quest's", () => {
+    const counter = gameCounters.find((it) => it.key === 'questTiers');
+    if (counter?.lines === undefined) throw new Error('No questTiers counter');
+    const side = (resolved: number, deaths: number) => ({
+      taken: resolved, heroes: 2 * resolved, days: 10 * resolved, resolved, resolvedDays: 10 * resolved, fail: 0, success: resolved, strong: 0, wealth: 0, xp: 0, loot: 0, deaths,
+    });
+    const totals = { questTiers: { '3': { offered: 40, byController: { player: side(20, 0) } }, '4': { offered: 10, byController: { player: side(8, 2), rival: side(4, 1) } } } };
+
+    const lines = counter.lines(totals as unknown as SweepTotals, {} as never).flatMap((text) => text.split('\n'));
+    const cells = (label: string): string[] | undefined => lines.find((line) => line.startsWith(`| ${label} `))?.split('|').map((cell) => cell.trim()).slice(1, -1);
+
+    const head = cells('Controller: Tier');
+    expect(head?.slice(-2)).toEqual(['Deaths', 'Deaths a Quest']);
+    expect(cells("The player's Guild: Tier 3")?.slice(-2)).toEqual(['0', '0.000']);
+    expect(cells("The player's Guild: Tier 4")?.slice(-2)).toEqual(['2', '0.250']);
+    expect(cells('The Rivals: Tier 4')?.slice(-2)).toEqual(['1', '0.250']);
+    expect(cells("The player's Guild: every Tier")?.slice(-2)).toEqual(['2', '0.071']);
+  });
+});

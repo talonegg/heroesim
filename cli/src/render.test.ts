@@ -361,4 +361,23 @@ describe("show's layouts of the readings (DL-241)", () => {
     expect(lastOf(one)).toMatch(/^ {2}Your best Party: /);
     expect(lastOf(two)).toBe(`  ${two.name} (${two.id}) is a Tier 2 Quest, open to a Guild of 7 Fame or more; The Test has 0, 7 short.`);
   });
+
+  // DL-265: a Quest whose Tier and Encounters can kill a Hero is marked Deadly, with no figure.
+  test('show board marks a Deadly Quest, after its Encounters, and no other', () => {
+    const document = newGame();
+    const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
+    const killer = Object.values(content.encounters).find((encounter) => encounter.consequences.failure.some((it) => it.kind === 'death' && it.chance > 0));
+    if (killer === undefined) throw new Error('No Encounter that kills');
+    for (const [quest, tier] of [[first, 4], [second, 3]] as const) Object.assign(quest, { tier, encounterKeys: [killer.key], beatLines: ['A line'] });
+    const reading = playerReading(document, playDeps(document));
+    const lines = renderBoard(reading);
+    const blockOf = (quest: Quest): string[] => {
+      const from = lines.findIndex((line) => line.startsWith(`${quest.id}, `));
+      const to = lines.indexOf('', from);
+      return lines.slice(from, to === -1 ? undefined : to);
+    };
+
+    expect(blockOf(first).slice(-2, -1)).toEqual(['  Deadly: a Hero may die on this Quest.']);
+    expect(blockOf(second).some((line) => line.includes('Deadly'))).toBe(false);
+  });
 });

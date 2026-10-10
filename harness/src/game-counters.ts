@@ -998,7 +998,8 @@ const questTiers: Declared<GameCounters['questTiers'], SweepTotals['questTiers']
   zero: () => ({}),
   section: 'quest-engine',
   // A Quest's weight by its Tier (DL-257 items 1 and 7, DL-262): the Board's share of each Tier, and
-  // what each Tier's Quests asked of a Party and paid it a Day away, against the neutral factors.
+  // what each Tier's Quests asked of a Party and paid it a Day away, against the neutral factors; and
+  // the Heroes each Tier killed, Death by Tier (DL-257 item 5, DL-265).
   lines(totals: SweepTotals) {
     const tiers = Object.keys(totals.questTiers).sort((a, b) => Number(a) - Number(b));
     const offered = sum(tiers.map((tier) => (totals.questTiers[tier] as TierTally).offered));
@@ -1015,6 +1016,8 @@ const questTiers: Declared<GameCounters['questTiers'], SweepTotals['questTiers']
         ratio(side.wealth, side.resolvedDays, 1),
         ratio(side.xp, side.resolvedDays, 1),
         ratio(side.loot, side.resolved),
+        whole(side.deaths),
+        ratio(side.deaths, side.resolved, 3),
       ];
       return [
         ...sides.map(([tier, side]) => {
@@ -1026,12 +1029,13 @@ const questTiers: Declared<GameCounters['questTiers'], SweepTotals['questTiers']
     });
     return [
       "Quests by Tier (DL-262): offered (`quest.offered`, every Guild's Board), and taken by the controller's Guilds " +
-        "(`quest.taken`), with the Party sent and the Days away; of those resolved, the bands, the Wealth and the XP the Party took a Day away, and the Loot a Quest:",
+        "(`quest.taken`), with the Party sent and the Days away; of those resolved, the bands, the Wealth and the XP the Party took a Day away, the Loot a Quest, " +
+        "and the Heroes who died on them (`quest.resolved`'s `deaths`, DL-265), in all and a Quest:",
       '',
       markdownTable(
-        ['Controller: Tier', 'Offered', 'Taken', 'Mean Party', 'Mean Days', 'Failed', 'Strong', 'Wealth a Party-Day', 'XP a Party-Day', 'Loot a Quest'],
+        ['Controller: Tier', 'Offered', 'Taken', 'Mean Party', 'Mean Days', 'Failed', 'Strong', 'Wealth a Party-Day', 'XP a Party-Day', 'Loot a Quest', 'Deaths', 'Deaths a Quest'],
         rows,
-        ['left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
+        ['left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
       ),
       '',
     ];

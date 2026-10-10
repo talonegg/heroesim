@@ -9,8 +9,8 @@
 // has plays those it has. Content's check refuses each of those first (DL-262).
 
 import type { GameConfig, TierRow } from './config.js';
-import type { Encounter, EncounterKey, QuestBeat, QuestBeatPool, QuestTemplate } from './content-types.js';
-import { rowOf, type World } from './document.js';
+import type { ContentSet, Encounter, EncounterKey, QuestBeat, QuestBeatPool, QuestTemplate } from './content-types.js';
+import { rowOf, type Quest, type World } from './document.js';
 import { clamp } from './generators/draw.js';
 
 /**
@@ -66,6 +66,47 @@ export function tierFigures(template: Pick<QuestTemplate, 'overrides'> | undefin
   const row = config.tiers[held - 1] as TierRow;
   const override = template?.overrides === undefined ? undefined : rowOf(template.overrides, String(held));
   return override === undefined ? row : { ...row, ...override };
+}
+
+/**
+ * What `quest`'s Encounters' Death chances are multiplied by (DL-257 item 5, DL-265): `deathFactor`
+ * times its Tier's `deathScale`, its template's override read (`tierFigures`), live as the XP factor is.
+ */
+export function deathScaleOf(
+  quest: Pick<Quest, 'templateKey' | 'tier'>,
+  content: Pick<ContentSet, 'questTemplates'>,
+  config: Pick<GameConfig, 'tiers' | 'deathFactor'>,
+): number {
+  return config.deathFactor * tierFigures(rowOf(content.questTemplates, quest.templateKey), quest.tier, config).deathScale;
+}
+
+/** An Encounter's Death `chance` times its Quest's `scale` (`deathScaleOf`), held at 1, as a chance is (DL-265). */
+export function scaledDeathChance(chance: number, scale: number): number {
+  return Math.min(1, chance * scale);
+}
+
+/** Whether `encounter` has a Death chance above 0 at any Degree. */
+function canKill(encounter: Pick<Encounter, 'consequences'>): boolean {
+  const { triumph = [], success, setback = [], failure } = encounter.consequences;
+  return [triumph, success, setback, failure].some((list) => list.some((it) => it.kind === 'death' && it.chance > 0));
+}
+
+/**
+ * Whether `quest` is Deadly (`CONTEXT.md` Deadly, DL-257 item 5, DL-265): its Death scale
+ * (`deathScaleOf`) is above 0 and one of its Encounters, drawn at its posting, has a Death chance
+ * above 0, so a Hero may die on it. An Encounter content no longer defines is passed over (data-model
+ * rule 5). The Board's mark; it gives no figure.
+ */
+export function isDeadly(
+  quest: Pick<Quest, 'templateKey' | 'tier' | 'encounterKeys'>,
+  content: Pick<ContentSet, 'questTemplates' | 'encounters'>,
+  config: Pick<GameConfig, 'tiers' | 'deathFactor'>,
+): boolean {
+  if (!(deathScaleOf(quest, content, config) > 0)) return false;
+  return quest.encounterKeys.some((key) => {
+    const encounter = rowOf(content.encounters, key);
+    return encounter !== undefined && canKill(encounter);
+  });
 }
 
 /** A Tier's difficulty band held inside the difficulty scale, as the Quest Generator draws it. */

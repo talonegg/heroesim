@@ -1,5 +1,5 @@
 {
-  "version": 19,
+  "version": 20,
   "changelog": [
     "2 from M2-S12's first balance pass (DL-35).",
     "3 from M3's wage for Levels (DL-36).",
@@ -19,7 +19,8 @@
     "16 from v1.1.6-S18, which moves the defaults' values into this file, `engine/src/config.json`, in sections, every value as it was (DL-204).",
     "17 from v1.1.7-S2, which adds `guildmasterSexWeights`, at 1 and 1 the draw it had before (DL-206, DL-208).",
     "18 from v1.2.0-S4, which replaces `boardSize` with `boardSizeStart`, `boardGrowthPerYear` and `boardSizeMax`, at 6, 0 and 6 the Board of six it was, and adds `foundingFame`, at 0 the Fame every Guild was founded with (DL-257 item 4, #40, DL-261).",
-    "19 from v1.2.0-S5, which adds the Tier ladder, `tiers`, with `levelsPerTier` and `tierDrawWeights` in a `questTiers` section, each Tier's reward and XP factors neutral a Party-Day against v1.1.9, and removes `lootDifficultyThreshold`, a Tier's `loot` in its place (DL-257 items 1 and 3, #22, DL-262)."
+    "19 from v1.2.0-S5, which adds the Tier ladder, `tiers`, with `levelsPerTier` and `tierDrawWeights` in a `questTiers` section, each Tier's reward and XP factors neutral a Party-Day against v1.1.9, and removes `lootDifficultyThreshold`, a Tier's `loot` in its place (DL-257 items 1 and 3, #22, DL-262).",
+    "20 from v1.2.0-S7, which adds `deathFactor`, at 1, and makes each Tier's `deathScale` read: an Encounter's Death chance is times both, so Tiers 1 to 3 kill no one (DL-257 item 5, DL-265)."
   ],
   "sections": {
     "world": {
@@ -95,7 +96,8 @@
         { "difficultyMin": 82, "difficultyMax": 100, "daysMin": 16, "daysMax": 20, "beats": 5, "loot": true, "rewardFactor": 2.55, "xpFactor": 2.51, "deathScale": 1, "fameMinimum": 0 }
       ],
       "levelsPerTier": 3,
-      "tierDrawWeights": [1, 0.5, 0.2]
+      "tierDrawWeights": [1, 0.5, 0.2],
+      "deathFactor": 1
     },
     "quest": {
       "checkVariance": 0.4,

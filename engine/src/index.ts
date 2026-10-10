@@ -395,7 +395,7 @@ export {
 export { deserialise, serialise, type LoadRefusal, type LoadResult, type Migration, type SavedDocument } from './serialise.js';
 export type { ModuleStopReason, PlayedTurn, StopCondition, StopReason, StopReasonKind } from './stops.js';
 export { ageOf, dayOf, durationDaysOf, retirementTurn, retiresOn, timeOfDay, turnsPerDay, yearOf, type Aged, type TimeOfDay } from './time.js';
-export { difficultyBand, offeredTiers, tierFigures } from './tiers.js';
+export { difficultyBand, isDeadly, offeredTiers, tierFigures } from './tiers.js';
 export { traitOf, type BonusTarget, type HeroTraitContent, type TraitContent } from './traits.js';
 export { offersTo } from './transfer.js';
 export {

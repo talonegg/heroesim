@@ -20,6 +20,7 @@ import {
   durationDaysOf,
   fameRefusal,
   guildmasterOf,
+  isDeadly,
   itemDefinition,
   judgedHintBands,
   moraleBand,
@@ -380,10 +381,12 @@ export interface QuestReading {
   skills: string[];
   /** Its Encounters, drawn when it was posted, in order: one or more (DL-248). */
   encounters: EncounterReading[];
+  /** Whether it is Deadly: its Tier scales Death above 0 and one of its Encounters may kill (`isDeadly`, DL-265). No figure. */
+  deadly: boolean;
 }
 
 /** `quest` as the Board gives it: its terms, what it requires, the Skills that help and its Encounters (DL-148 item 16). */
-function questReading({ world, content }: PlayerReading, quest: Quest): QuestReading {
+function questReading({ world, content, deps }: PlayerReading, quest: Quest): QuestReading {
   const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
   return {
     id: quest.id,
@@ -401,6 +404,7 @@ function questReading({ world, content }: PlayerReading, quest: Quest): QuestRea
     expiresOnTurn: quest.expiresOnTurn,
     skills: skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)),
     encounters: encounterReadings(quest, content),
+    deadly: isDeadly(quest, content, deps.config),
   };
 }
 
