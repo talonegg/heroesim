@@ -1577,3 +1577,67 @@ comparison to report against report, 411.1 s, and gave the History reader's unre
 Hero's coming home a test each.
 Verified 2026-10-10 at `1d1668b` with content's new rows: 21 bugs planted in its checks, each red and
 restored; `npm run coverage` alone, 6,034 passed, leaves content's 8 group C arms of the 27.
+
+## DL-253 — v1.1.9: approach, data model and requirements say what is true at v1.1.9
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, answering the three docs
+reviews with (a): apply them now, before the release, as one story, `playDeps` in approach §3 and
+data-model §2 only what the save stores; the wording by the agent
+
+**Context.** Three read-only reviews checked `docs/approach.md`, `docs/data-model.md` and
+`docs/requirements.md` against the code at 2d9445f and found claims no longer true, amendment notes
+and story ids, facts restated from their homes, and missing facts. `principles.md` §10 repeated
+R3's error, "Quests every Turn".
+
+**Decision.**
+
+1. **`approach.md`.** The diagram has the World State's sections, Best Party, the Transfer Generator
+   among the Generators, no unbuilt feature listed as a Module, and the words, tools and measures.
+   The Guild State Engine is Upkeep, the Bankruptcy floor and the Fame floor. The Fast-forward stops
+   are a link to the glossary. §3's contract is restated as built: `fastForward`, `applyActions`,
+   `playDeps`, `deserialise`'s `LoadDeps`, the three entries, and the History's exception
+   (ADR-0008). §3 holds the play config: `playDeps`, `checkConfig`, the refusal at load, `rebase`.
+   §4 lists the content by its kinds. §5 has `tools/measure`, the words' role and the ESLint
+   boundaries. §6, a pointer to history, is cut. §7 says what CI and a release prove. §8 links the
+   rules' homes. The diagrams are linked, and the dates, the amendments and "v2" are gone.
+2. **`data-model.md`.** §1: a world is copied once per action or list of actions too (DL-238), and
+   the copy's mechanics are ADR-0011's. §2 says what `meta` stores and links approach §3. §3.1 loses
+   the date's words and the deals at creation. §3.2's notes are what is stored: the Portraits'
+   choosing is CONTEXT's, and the schema's history is gone. Also corrected: `encounterKeys` (one or
+   more), `skillKeys` (read by no rule), a dead Hero's `guildId`, a Hero's Regard. §3.4 is rewritten.
+   §4 says what `emit` and `append` do, the required fields (DL-246) and the readers (DL-242).
+   Rules 1, 2, 6, 8 and 10 are stated as built; rule 8 names every row removed, Parties among them.
+   §6's validator is two tables by the code's check names, the nine refusals and five warnings it
+   lacked added. §7's write-once rows are corrected. §8's index keys are typed and its purpose said.
+3. **`requirements.md`.** R2, R3, R5, R7 to R9, R12, R14 to R16, R21, R22, R24 to R26, R29, R30
+   and R32 to R38 are rewritten to what is built. The stub Quest Engine, the "first build" and every
+   amendment note are gone, and copied tuning values with them. The scope table is "Built" and
+   "Later", with rows for Portraits, mid-Quest reports and grades 4 to 6. §5 is a pointer to
+   `plan.md` §3. N1, N2, N7, N9 and N10 are corrected. Every R and N number is kept.
+4. **`principles.md` §10** gives the Turn's rhythm as R3 does.
+5. **`engine/src/stops.ts`**: two comments that quoted approach §2's old words cite DL-33.
+
+*Judgement calls, for the owner to see:*
+- **Numbers.** Every section, rule, R and N number is kept. approach.md's §6 is cut, since only the
+  archives cite it, and §7 and §8 keep their numbers, so §6 is a gap.
+- **Applied with a change.** Requirements R15: a Check's bonus reads its own Skills, not its
+  Encounter's (`check.ts:89`). Data-model rule 8 adds the Party, which `questsConclude` removes.
+  The play config's paragraph, which the data-model review put in its §2, is approach §3's, as the
+  owner placed it; data-model §2 links it.
+- **The deals at creation** leave data-model §3.1 for no other page: they are a rule of generation,
+  held by `generators/draw.ts` and DL-208, not of the save's shape.
+- **Not applied.** The requirements review's "add grades 4 to 6 to `plan.md` §3": that page is
+  outside this story, and the scope table now holds the fact. Its optional split of R8 is not
+  taken. The data-model review's three code comments (`document.ts` ages, a Regard's reason,
+  `validate.ts`'s "first build") are outside it too.
+- **For the owner.** Data-model §7 says only the CLI's saves are to be gzipped, as `plan.md` §3
+  (#33) does; the harness writes no save. `principles.md` keeps "v2" in its title.
+- **Capitals.** Module, Hook, Effect, Gear and Consumable are capitalised in the pages' prose;
+  "event" and "action" stay lower case, as CONTEXT writes them.
+
+**Consequences.** The pages state what is true at v1.1.9, each fact in one place. The suggestions
+applied: approach 41, data model 65, requirements 51.
+
+**Evidence.** The commit `v1.1.9 (DL-253)`. Sizes (working copy) before → after: approach 11,472
+→ 11,399; data model 37,257 → 30,998; requirements 21,974 → 18,299; principles 5,415 → 5,488.
+`engine/src/document.test.ts` passes on the rewritten page (45 tests).

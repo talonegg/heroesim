@@ -39,9 +39,9 @@ import { unattachedHeroes } from './selectors.js';
  *   Quests its free Heroes could staff that they could not before the Turn (M9-S1, DL-85 item 8's
  *   "a Quest I can staff appears"). Opt-in.
  * - `transfer-offer`: Transfer Offers for Heroes of the watched Guild arrived this Turn, in the
- *   order they were made (M6-S2, approach §2: "a Transfer offer arrives", DL-57).
+ *   order they were made (M6-S2, DL-33, DL-57).
  * - `module`: an installed module asked for time to stop at one of its hooks this Turn, naming
- *   itself (M8-S2, approach §2: "a module asks for a decision", DL-77); the first to ask, in
+ *   itself (M8-S2, DL-33, DL-77); the first to ask, in
  *   registration order. Whoever is watching, as `ended` is.
  * - `max-turns`: fast forward played the Turns it was allowed.
  * - `pool-refreshed`: Heroes entered the Unattached pool this Turn, in id order.
