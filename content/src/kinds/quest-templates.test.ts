@@ -21,7 +21,9 @@ describe('a Quest template', () => {
     ['a Sphere that does not exist', (it) => void it.sphereKeys.push('the-sea'), /sphereKeys.*"the-sea"/],
     ['a required Class that does not exist', (it) => (it.requires = { classKey: 'bard' }), /requires\.classKey.*"bard"/],
     ['a required Skill that does not exist', (it) => (it.requires = { skillKey: 'lute' }), /requires\.skillKey.*"lute"/],
-    ['a Party of no Heroes', (it) => (it.partySizeMin = 0), /partySizeMin is 0/],
+    ['a Party of no Heroes', (it) => (it.partySizeMin = 0), /partySizeMin is 0; it is at least 2/],
+    // DL-257 item 6: every Party is two Heroes or more.
+    ['a Party of one', (it) => (it.partySizeMin = 1), /partySizeMin is 1; it is at least 2/],
     ['a tag that is not kebab-case', (it) => void it.tags.push('Dark Places'), /tags: "Dark Places"/],
   ])('with %s is refused, naming the template', (_, change, problem) => {
     const files = withJson('quest-templates/', (json) => change(barrow(json)));
@@ -30,6 +32,15 @@ describe('a Quest template', () => {
 
     expect(message).toContain('questTemplates.clear-the-barrow');
     expect(message).toMatch(problem);
+  });
+
+  // DL-257 item 6: a Quest template has no greatest Party.
+  test('with partySizeMax is refused, as a field a Quest template does not have', () => {
+    const files = withJson('quest-templates/', (json) => {
+      Object.assign(barrow(json), { partySizeMax: 4 });
+    });
+
+    expect(refusalOf(() => parse(files)).message).toMatch(/clear-the-barrow\.json: partySizeMax is not a field of a Quest template/);
   });
 
   test('requiring anything but a Class or a Skill is refused, naming the field', () => {

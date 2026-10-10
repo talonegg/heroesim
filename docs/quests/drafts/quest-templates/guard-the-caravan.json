@@ -5,7 +5,7 @@
   "tierMin": 2, "tierMax": 3,
   "rewardPerDifficulty": 4,
   "fameEffect": 2,
-  "partySizeMin": 2, "partySizeMax": 4,
+  "partySizeMin": 2,
   "skillKeys": ["tactics", "trapcraft"],
   "requires": {},
   "lootTableKey": null,

@@ -42,7 +42,7 @@ import { appliesOn, synergiesFor } from './quest-engine/synergy.js';
 
 /** One of a Quest's requirements, and whether the proposed Party meets it. */
 export type RequirementStatus =
-  | { requirement: 'party-size'; met: boolean; size: number; partySizeMin: number; partySizeMax: number }
+  | { requirement: 'party-size'; met: boolean; size: number; partySizeMin: number }
   | { requirement: 'class'; met: boolean; classKey: ClassKey }
   | { requirement: 'skill'; met: boolean; skillKey: SkillKey };
 
@@ -172,11 +172,11 @@ export function previewDispatch(world: World, request: DispatchRequest, deps: En
 
 /** Each requirement the Quest has, met unless `unmetRequirements` names it. */
 function requirementsOf(quest: Quest, heroes: readonly Hero[]): RequirementStatus[] {
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
+  const { partySizeMin, classKey, skillKey } = quest.requirements;
   const unmet = unmetRequirements(quest, heroes);
   const met = (kind: RequirementKind): boolean => !unmet.some((it) => it.requirement === kind);
   return [
-    { requirement: 'party-size', met: met('party-size'), size: heroes.length, partySizeMin, partySizeMax },
+    { requirement: 'party-size', met: met('party-size'), size: heroes.length, partySizeMin },
     ...(classKey === undefined ? [] : [{ requirement: 'class' as const, met: met('class'), classKey }]),
     ...(skillKey === undefined ? [] : [{ requirement: 'skill' as const, met: met('skill'), skillKey }]),
   ];

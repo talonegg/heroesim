@@ -5,7 +5,7 @@
   "tierMin": 3, "tierMax": 4,
   "rewardPerDifficulty": 4,
   "fameEffect": 4,
-  "partySizeMin": 3, "partySizeMax": 4,
+  "partySizeMin": 3,
   "skillKeys": ["tactics", "shieldwork"],
   "requires": { "classKey": "warrior" },
   "lootTableKey": "greater-loot",

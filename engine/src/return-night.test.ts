@@ -30,7 +30,7 @@ function eveOfReturns(seed: string, count: number): { sent: WorldDocument; eve: 
   const guild = playerGuild(start.world) as Guild;
   const open = start.world.board
     .map((id) => start.world.quests[id] as Quest)
-    .filter(({ requirements }) => requirements.classKey === undefined && requirements.skillKey === undefined && requirements.partySizeMin <= 2 && 2 <= requirements.partySizeMax);
+    .filter(({ requirements }) => requirements.classKey === undefined && requirements.skillKey === undefined && requirements.partySizeMin <= 2);
   const quests = open.slice(0, count);
   if (quests.length < count) throw new Error(`no ${count} open Quests for two each`);
   // Each as long as the first, so that every Party comes home the same night, whatever Days its Tier drew (DL-262).

@@ -172,7 +172,7 @@ const templateLoot: Readonly<Record<string, string>> = {
 };
 
 /**
- * A Quest template of `sphere` from the Tiers it offers and its Party size as `[min, max]`, and its
+ * A Quest template of `sphere` from the Tiers it offers and its least Party size, and its
  * Skills, a space-separated list. The reward is four Wealth per difficulty and the Fame effect 2, as
  * INPUTS 4.2's defaults put them. Its Beats are `templateBeats`', each a line naming its kind and a
  * pool of that kind, and its Loot table `templateLoot`'s.
@@ -181,7 +181,7 @@ function questTemplate(
   key: string,
   sphere: SphereKey,
   [tierMin, tierMax]: [number, number],
-  [partySizeMin, partySizeMax]: [number, number],
+  partySizeMin: number,
   skills: string,
   requires: QuestTemplateRequires = {},
 ): [string, QuestTemplate] {
@@ -198,7 +198,6 @@ function questTemplate(
       rewardPerDifficulty: 4,
       fameEffect: 2,
       partySizeMin,
-      partySizeMax,
       skillKeys: skills.split(' '),
       requires,
       lootTableKey: templateLoot[key] ?? null,
@@ -458,31 +457,31 @@ export const testContent: ContentSet = deepFreeze({
       ...patronNames('female', 'Orabel Quint'),
     ],
   },
-  // key, Sphere, Tiers and Party size ranges; then Skills, requirements.
+  // key, Sphere, Tiers and least Party; then Skills, requirements.
   questTemplates: Object.fromEntries([
-    questTemplate('clear-the-barrow', 'crown', [2, 3], [2, 4],
+    questTemplate('clear-the-barrow', 'crown', [2, 3], 2,
       'swordcraft benediction'),
-    questTemplate('hold-the-border-fort', 'crown', [3, 4], [3, 4],
+    questTemplate('hold-the-border-fort', 'crown', [3, 4], 3,
       'tactics shieldwork', { classKey: 'warrior' }),
-    questTemplate('escort-the-tithe', 'church', [1, 1], [1, 3],
+    questTemplate('escort-the-tithe', 'church', [1, 1], 1,
       'tactics field-surgery'),
-    questTemplate('lay-the-restless-dead', 'church', [3, 4], [2, 4],
+    questTemplate('lay-the-restless-dead', 'church', [3, 4], 2,
       'benediction warding', { classKey: 'healer' }),
-    questTemplate('guard-the-caravan', 'merchants', [2, 3], [2, 4],
+    questTemplate('guard-the-caravan', 'merchants', [2, 3], 2,
       'tactics trapcraft'),
-    questTemplate('recover-the-strongbox', 'merchants', [2, 3], [1, 3],
+    questTemplate('recover-the-strongbox', 'merchants', [2, 3], 1,
       'lockpicking trapcraft'),
-    questTemplate('the-beast-of-the-fells', 'villages', [2, 4], [2, 4],
+    questTemplate('the-beast-of-the-fells', 'villages', [2, 4], 2,
       'swordcraft stealth'),
-    questTemplate('the-sickness-at-the-mill', 'villages', [1, 1], [1, 2],
+    questTemplate('the-sickness-at-the-mill', 'villages', [1, 1], 1,
       'herbalism field-surgery'),
-    questTemplate('survey-the-old-workings', 'scholars', [2, 3], [2, 3],
+    questTemplate('survey-the-old-workings', 'scholars', [2, 3], 2,
       'runecraft trapcraft'),
-    questTemplate('break-the-sealed-vault', 'scholars', [4, 5], [3, 5],
+    questTemplate('break-the-sealed-vault', 'scholars', [4, 5], 3,
       'warding runecraft', { classKey: 'mage' }),
-    questTemplate('a-quiet-word', 'underworld', [1, 2], [1, 2],
+    questTemplate('a-quiet-word', 'underworld', [1, 2], 1,
       'stealth lockpicking'),
-    questTemplate('the-counting-house-job', 'underworld', [3, 4], [2, 4],
+    questTemplate('the-counting-house-job', 'underworld', [3, 4], 2,
       'lockpicking stealth', { skillKey: 'lockpicking' }),
   ]),
   // key, Days to heal, the Trait it leaves: some leave a Hero Trait, some none.
@@ -1093,7 +1092,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     skillKeys: ['swordcraft'],
     encounterKeys: ['hold-the-line'],
     beatLines: ['A combat Beat.'],
-    requirements: { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'swordcraft' },
+    requirements: { partySizeMin: 1, classKey: 'warrior', skillKey: 'swordcraft' },
     lootTableKey: null,
   });
   world.quests[takenQuest] = {
@@ -1109,7 +1108,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     id: offeredQuest,
     templateKey: 'escort-the-tithe',
     patronId: secondPatron,
-    requirements: { partySizeMin: 2, partySizeMax: 4 },
+    requirements: { partySizeMin: 2 },
     status: 'offered',
     offeredOnTurn: 39,
     expiresOnTurn: 48,

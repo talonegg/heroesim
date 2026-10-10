@@ -207,7 +207,7 @@ function partyOf(heroes: readonly Hero[], size: number, draw: () => number, firs
 /** A Quest of `encounterKeys` at `difficulty`, as the estimate and the resolver read one: a day long. */
 function questOf(template: Quest, difficulty: number, encounterKeys: string[]): Quest {
   const beatLines = encounterKeys.map(() => 'A Beat of the calibration.');
-  return { ...template, difficulty, encounterKeys, beatLines, durationTurns: 3, lootTableKey: null, requirements: { partySizeMin: 1, partySizeMax: 5 } };
+  return { ...template, difficulty, encounterKeys, beatLines, durationTurns: 3, lootTableKey: null, requirements: { partySizeMin: 1 } };
 }
 
 // --- The rates --------------------------------------------------------------------------------------
@@ -255,7 +255,7 @@ export interface TemplateRow {
   difficulty: [number, number];
   /** The best Party from a Roster: its rates, its mean size, and the positive Earned Traits a Quest draws. */
   best: BandRates & { size: number; traitsDrawn: number };
-  /** Random Parties of each size the template allows, meeting its requirements. */
+  /** Random Parties of each size the template allows, its least or more, meeting its requirements. */
   bySize: Record<number, BandRates>;
 }
 
@@ -263,7 +263,8 @@ export interface TemplateCalibration {
   key: string;
   name: string;
   finale: string | null;
-  sizes: [number, number];
+  /** Its least Party; none is the most (DL-257 item 6, DL-266). */
+  sizeMin: number;
   /** Quests whose Roster could not staff them in 50 draws, left out. */
   unstaffed: number;
   rows: TemplateRow[];
@@ -424,7 +425,7 @@ export function calibrateTemplates(pools: readonly Pool[], settings: Calibration
       key: template.key,
       name: template.name,
       finale: template.finale ?? null,
-      sizes: [template.partySizeMin, template.partySizeMax],
+      sizeMin: template.partySizeMin,
       unstaffed: 0,
       rows: [],
     }),
@@ -466,7 +467,7 @@ export function calibrateTemplates(pools: readonly Pool[], settings: Calibration
         row.best.size += best.heroIds.length;
         row.best.traitsDrawn += traitsDrawn(best.estimate, content);
         for (const size of settings.sizes) {
-          if (size < template.partySizeMin || size > template.partySizeMax) continue;
+          if (size < template.partySizeMin) continue;
           const rates = (row.bySize[size] ??= { quests: 0, bands: noBands() });
           for (let p = 0; p < sizeParties; p += 1) {
             const party = partyOf(pool.heroes, size, draw, requiredOf(quest, pool.heroes, draw));
@@ -633,8 +634,8 @@ export const defaultTuningAim: Readonly<Omit<TuningAim, 'chance'>> = Object.free
 
 /**
  * Where `encounter` is tuned: at `aim`, but a Finale (v1.1.4-S9's verification) at the middle of its
- * template's difficulties under `config` (`difficultyRange`), with Parties of the aim's size brought
- * within the template's sizes; the first template's, when it ends more than one.
+ * template's difficulties under `config` (`difficultyRange`), with Parties of the aim's size raised to
+ * at least the template's least; the first template's, when it ends more than one.
  */
 export function aimOf(encounter: Encounter, aim: TuningAim, content: ContentSet, config: GameConfig): TuningAim {
   const template = Object.values(content.questTemplates).find((it) => it.finale === encounter.key);
@@ -643,7 +644,7 @@ export function aimOf(encounter: Encounter, aim: TuningAim, content: ContentSet,
   return {
     ...aim,
     difficulty: Math.round((difficultyMin + difficultyMax) / 2),
-    size: Math.min(Math.max(aim.size, template.partySizeMin), template.partySizeMax),
+    size: Math.max(aim.size, template.partySizeMin),
   };
 }
 
@@ -856,10 +857,10 @@ export function calibrationReport(
   for (const template of templates) {
     lines.push(`### ${template.name}`, '');
     lines.push(
-      `Parties of ${template.sizes[0]} to ${template.sizes[1]}${template.finale === null ? '' : `; its Finale ${encounters.find((it) => it.key === template.finale)?.name ?? template.finale}`}${template.unstaffed > 0 ? `; ${template.unstaffed} Quests no Roster drawn could staff, left out` : ''}.`,
+      `Parties of ${template.sizeMin} or more${template.finale === null ? '' : `; its Finale ${encounters.find((it) => it.key === template.finale)?.name ?? template.finale}`}${template.unstaffed > 0 ? `; ${template.unstaffed} Quests no Roster drawn could staff, left out` : ''}.`,
       '',
     );
-    const sizes = settings.sizes.filter((size) => size >= template.sizes[0] && size <= template.sizes[1]);
+    const sizes = settings.sizes.filter((size) => size >= template.sizeMin);
     lines.push(
       markdownTable(
         ['Level', 'Third', 'Difficulty', 'Quests', 'Best Party', 'Its size', 'Traits drawn', ...sizes.map((size) => `${size} at random`)],

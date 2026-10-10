@@ -291,7 +291,7 @@ describe('the rates', { timeout: 60_000 }, () => {
     for (const template of Object.values(content.questTemplates).filter((it) => it.finale !== undefined)) {
       const range = difficultyRange(template, drafts.config);
       const middle = Math.round((range.difficultyMin + range.difficultyMax) / 2);
-      const size = Math.min(Math.max(aim.size, template.partySizeMin), template.partySizeMax);
+      const size = Math.max(aim.size, template.partySizeMin);
       const parties = partiesOf(aim.level, size);
       const finale = content.encounters[template.finale as string]!;
       const tunable = finale.checks.map((check) => check.raw !== true && check.difficultyFactor > 0);

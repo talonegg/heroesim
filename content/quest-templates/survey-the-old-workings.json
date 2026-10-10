@@ -5,7 +5,7 @@
   "tierMin": 2, "tierMax": 3,
   "rewardPerDifficulty": 4,
   "fameEffect": 2,
-  "partySizeMin": 2, "partySizeMax": 3,
+  "partySizeMin": 2,
   "skillKeys": ["runecraft", "trapcraft"],
   "requires": {},
   "lootTableKey": null,

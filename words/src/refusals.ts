@@ -111,13 +111,13 @@ function command(name: CommandSlot['command']): CommandSlot {
 }
 
 /**
- * A requirement a Party misses, in words: `a Party of 2 to 4 Heroes (1 named)`, `a Healer in the
+ * A requirement a Party misses, in words: `a Party of at least 2 Heroes (1 named)`, `a Healer in the
  * Party`, `a Hero with Lockpicking in the Party`. A dispatch's refusal and the CLI's preview say it.
  */
 export function requirementWords(unmet: UnmetRequirement, content: ContentSet): string {
   switch (unmet.requirement) {
     case 'party-size':
-      return `a Party of ${unmet.partySizeMin} to ${unmet.partySizeMax} Heroes (${unmet.size} named)`;
+      return `a Party of at least ${unmet.partySizeMin} Heroes (${unmet.size} named)`;
     case 'class':
       return `a ${nameIn(content.classes, unmet.classKey)} in the Party`;
     case 'skill':

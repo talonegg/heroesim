@@ -125,7 +125,7 @@ describe("the player's reading", () => {
     const [open, closed] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
     open.tier = 1;
     closed.tier = 2;
-    for (const quest of [open, closed]) quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+    for (const quest of [open, closed]) quest.requirements = { partySizeMin: 1 };
     const fame = player(document).fame;
     const tiers = defaultConfig.tiers.map((row, index) => ({ ...row, fameMinimum: index === 1 ? fame + 3 : 0 }));
     const reading = playerReading(document, { config: { ...defaultConfig, tiers }, content });
@@ -465,7 +465,7 @@ describe("a Quest's reading", () => {
     const document = newGame();
     const [first] = document.world.board.map((id) => document.world.quests[id] as Quest);
     if (first === undefined) throw new Error('an empty Board');
-    first.requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+    first.requirements = { partySizeMin: 2, classKey: 'mage', skillKey: 'lockpicking' };
 
     const quests = boardReading(playerReading(document, deps));
 
@@ -481,7 +481,6 @@ describe("a Quest's reading", () => {
         reward: quest.reward,
         fame: quest.fameEffect,
         partySizeMin: quest.requirements.partySizeMin,
-        partySizeMax: quest.requirements.partySizeMax,
         expiresOnTurn: quest.expiresOnTurn,
         encounters: encounterReadings(quest, content),
       });
@@ -531,8 +530,8 @@ describe("a Quest's reading", () => {
   test("gives the Best Party of the player's free Heroes, by name, with the chance it was chosen by; none when no Party meets the requirements", () => {
     const document = newGame();
     const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
-    first.requirements = { partySizeMin: 1, partySizeMax: 4 };
-    second.requirements = { partySizeMin: 1, partySizeMax: 4, classKey: 'no-such-class' };
+    first.requirements = { partySizeMin: 1 };
+    second.requirements = { partySizeMin: 1, classKey: 'no-such-class' };
     // One Hero away: the Best Party is of the free Heroes only.
     const [away] = heroes(document) as [Hero];
     away.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };

@@ -5,7 +5,7 @@
   "tierMin": 1, "tierMax": 2,
   "rewardPerDifficulty": 5,
   "fameEffect": 1,
-  "partySizeMin": 1, "partySizeMax": 2,
+  "partySizeMin": 2,
   "skillKeys": ["stealth", "lockpicking"],
   "requires": {},
   "lootTableKey": null,

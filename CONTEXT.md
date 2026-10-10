@@ -41,8 +41,10 @@ Guild's finances support (DL-185).
 _Avoid_: Team, Squad, Stable
 
 **Party**:
-The Heroes a Guild assigns to one Quest, existing for that Quest's duration. A Party once
-dispatched is never called home (DL-89); only its Guild's fold disbands it early (DL-28).
+The Heroes a Guild assigns to one Quest, existing for that Quest's duration: no fewer than its
+Quest's least Party, two Heroes or more, and no most; nothing caps the Parties a Guild has out
+(DL-257 item 6, DL-266). A Party once dispatched is never called home (DL-89); only its Guild's
+fold disbands it early (DL-28).
 _Avoid_: Team, Squad, Band
 
 **Patron**:
@@ -316,7 +318,7 @@ the Quest Engine.
 _Avoid_: Mission, Commission, Job, Contract, Task
 
 **Quest template**:
-A content row a Quest is drawn from: its Spheres, Skills, requirements and Party size, the Tiers it
+A content row a Quest is drawn from: its Spheres, Skills, requirements and least Party, the Tiers it
 offers, its reward per difficulty and Fame effect, its tags, its Loot table, its Beats, any Finale,
 and any figure of the ladder it overrides for a Tier it offers (DL-257 items 1 and 2, DL-262). A
 Quest copies what it carries at generation, so a changed template never alters a Quest already
@@ -346,7 +348,7 @@ weights summed to one (DL-06, DL-42). Gone: a Quest's are shown nowhere and read
 by no rule (DL-148 items 16 and 17, DL-157), an Encounter's went with content's old form
 (DL-192), and a Quest template's and a Quest's too (DL-193). What a Check reads
 is its Query (ADR-0010); the Board shows it.
-_Avoid_: Requirement (a Quest's requirements are its Party size and any Class or Skill it needs),
+_Avoid_: Requirement (a Quest's requirements are its least Party and any Class or Skill it needs),
 Weighting
 
 **Quest Engine**:
@@ -463,8 +465,8 @@ _Avoid_: Odds (for the word), Rating, Difficulty
 **Best Party**:
 The Party the engine would send on a Quest from a Guild's free Heroes (`bestParties`, DL-237):
 first those its Class and Skill requirements take, then whoever most raises the estimated chance of
-success up to its least Party size, then each Hero who raises it by more than the Guild's
-**Party margin** (DL-175), up to its greatest. A Rival sends it, at its Disposition's margin; the Board shows the
+success up to its least Party, then each Hero who raises it by more than the Guild's
+**Party margin** (DL-175), bounded by the free Heroes alone (DL-266). A Rival sends it, at its Disposition's margin; the Board shows the
 player's, "Your best Party", at the configuration's `playerPartyMargin`, and the harness's policy
 sends that (DL-148 item 17, DL-157).
 _Avoid_: Strongest Party, Optimal Party, Recommended Party

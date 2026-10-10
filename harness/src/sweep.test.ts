@@ -386,6 +386,8 @@ describe('sweepPlay', () => {
       offers: { player: { steady: noOffers() } },
       moduleEvents: { 'probe.fired': 1 },
       moduleEffects: { probe: { 'hero.injured': 1 } },
+      // Tier 5, which a game this short may offer and leave untaken, given Tier 2's takings.
+      questTiers: { ...first.counters.questTiers, 5: { offered: 1, byController: structuredClone(first.counters.questTiers['2']?.byController ?? {}) } },
     };
     const games = [numbered(template, 1), numbered(template, 10_000)].map((counters, index) => ({ ...(index === 0 ? first : second), counters }));
     const summed = sweepTotals({ ...sweep, games }, deps.config.turnsPerYear);

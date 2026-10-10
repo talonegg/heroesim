@@ -235,9 +235,9 @@ describe('resolveQuest', () => {
   // DL-182 item 1: the Quest's XP split across the Party sent, each share rounded down.
   describe('the XP split', () => {
     const content = contentWith(encounter('pass', true), encounter('miss', false));
-    /** The share each Hero of a Party of 1 to 5 (content's largest) takes of a Quest of 41 through `keys`. */
+    /** The share each Hero of a Party of 1 to 7 takes of a Quest of 41 through `keys`: no Party has a greatest size (DL-257 item 6). */
     const shares = (keys: string[]) =>
-      [1, 2, 3, 4, 5].map((size) => {
+      [1, 2, 3, 4, 5, 6, 7].map((size) => {
         const { world, quest, party, deps } = scene(`split-${size}`, content, keys, { size, difficulty: 41 });
         expect(party.heroIds).toHaveLength(size);
         return resolveQuest(world, quest, party, deps).outcome;
@@ -245,22 +245,22 @@ describe('resolveQuest', () => {
 
     test('divides the XP by the size of the Party sent, rounded down, a Party of one taking it whole: a strong success', () => {
       const outcomes = shares(['pass', 'pass', 'pass']);
-      expect(outcomes.map((it) => it.band)).toEqual(['strong', 'strong', 'strong', 'strong', 'strong']);
-      // 41 × 1 × 1: 41, 20.5, 13.67, 10.25 and 8.2, each rounded down.
-      expect(outcomes.map((it) => it.xpPerHero)).toEqual([41, 20, 13, 10, 8]);
+      expect(outcomes.map((it) => it.band)).toEqual(Array(7).fill('strong'));
+      // 41 × 1 × 1: 41, 20.5, 13.67, 10.25, 8.2, 6.83 and 5.86, each rounded down.
+      expect(outcomes.map((it) => it.xpPerHero)).toEqual([41, 20, 13, 10, 8, 6, 5]);
     });
 
     test('and a plain success', () => {
       const outcomes = shares(['pass', 'pass', 'miss']);
-      expect(outcomes.map((it) => it.band)).toEqual(['success', 'success', 'success', 'success', 'success']);
-      expect(outcomes.map((it) => it.xpPerHero)).toEqual([41, 20, 13, 10, 8]);
+      expect(outcomes.map((it) => it.band)).toEqual(Array(7).fill('success'));
+      expect(outcomes.map((it) => it.xpPerHero)).toEqual([41, 20, 13, 10, 8, 6, 5]);
     });
 
     test('and a failure, its half XP split too', () => {
       const outcomes = shares(['pass', 'miss', 'miss']);
-      expect(outcomes.map((it) => it.band)).toEqual(['fail', 'fail', 'fail', 'fail', 'fail']);
-      // 41 × 0.5: 20.5, 10.25, 6.83, 5.125 and 4.1, each rounded down; a Party of one loses the half point as before.
-      expect(outcomes.map((it) => it.xpPerHero)).toEqual([20, 10, 6, 5, 4]);
+      expect(outcomes.map((it) => it.band)).toEqual(Array(7).fill('fail'));
+      // 41 × 0.5: 20.5, 10.25, 6.83, 5.125, 4.1, 3.42 and 2.93, each rounded down; a Party of one loses the half point as before.
+      expect(outcomes.map((it) => it.xpPerHero)).toEqual([20, 10, 6, 5, 4, 3, 2]);
     });
 
     test('counts a Hero who dies in the divisor: their share is lost, not passed to those who come home', () => {

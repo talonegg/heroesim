@@ -39,7 +39,7 @@ function requirementLines({ requirements }: DispatchPreview, deps: EngineDeps): 
     const verdict = status.met ? 'met' : 'missed';
     switch (status.requirement) {
       case 'party-size':
-        return `  A Party of ${status.partySizeMin} to ${status.partySizeMax}: ${verdict} (${status.size} named)`;
+        return `  A Party of at least ${status.partySizeMin}: ${verdict} (${status.size} named)`;
       case 'class':
         return `  A ${nameIn(content.classes, status.classKey)}: ${verdict}`;
       case 'skill':

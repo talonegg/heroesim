@@ -94,8 +94,8 @@ function created(seed: string, deps: EngineDeps): WorldDocument {
 function openQuest(world: World, size: number): Quest | undefined {
   return world.board
     .map((id) => world.quests[id] as Quest)
-    .find(({ requirements: { classKey, skillKey, partySizeMin, partySizeMax } }) =>
-      classKey === undefined && skillKey === undefined && partySizeMin <= size && size <= partySizeMax,
+    .find(({ requirements: { classKey, skillKey, partySizeMin } }) =>
+      classKey === undefined && skillKey === undefined && partySizeMin <= size,
     );
 }
 

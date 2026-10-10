@@ -267,8 +267,8 @@ describe("the Quest's outcome lists the Synergies that applied", () => {
     });
     const open = start.world.board
       .map((id) => start.world.quests[id] as Quest)
-      .find(({ requirements: { classKey, skillKey, partySizeMin, partySizeMax } }) =>
-        classKey === undefined && skillKey === undefined && partySizeMin <= 2 && 2 <= partySizeMax,
+      .find(({ requirements: { classKey, skillKey, partySizeMin } }) =>
+        classKey === undefined && skillKey === undefined && partySizeMin <= 2,
       );
     if (open === undefined) throw new Error('No open Quest for two on the first Board');
     const sent = applyAction(withValid(start, gameDeps), { kind: 'dispatch', guildId: guild.id, questId: open.id, heroIds }, gameDeps);

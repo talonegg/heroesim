@@ -668,3 +668,67 @@ moved tests each red without their Death at every Tier and each about a Death; D
 reproduced, `e919219b…`; of 30 mutations 25 red, the default `deathFactor` moved living as no test
 pins a default (DL-231 Q10 b), and 4 killed by tests added: Deadly read from a Setback's or a
 Success's list alone, a Quest of two Deaths, and Deaths a Quest over those resolved, not taken.
+
+## DL-266 — v1.2.0-S8 built: the Party floor of two, no Party's most, `schemaVersion` 9; content version 39
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257 item 6 (Q1 b, Q2, Q8 a): templates at a least Party of 1 are written at 2, the
+rest keep theirs; no template has a most; nothing caps the Parties out; XP stays divided by the Party
+sent (DL-182). At `639ba67` every template and Quest carried `partySizeMin` and `partySizeMax`,
+dispatch refused a Party above the most, and the Best Party (DL-237) stopped there.
+
+**Decision.**
+
+1. **The content.** The four templates at 1 (A quiet word, Escort the tithe, Recover the strongbox,
+   The sickness at the mill) are at 2; `partySizeMax` is out of all twelve and their drafts. The
+   editor has no Quest-template command yet (S9's), so a script run once made the change, each
+   file's text otherwise kept. Content version 39.
+2. **The check.** A template's `partySizeMin` is at least 2 (the content kind's `partyFloor`), and
+   `partySizeMax` is refused as a field it does not have.
+3. **The Quest.** `QuestRequirements` loses `partySizeMax`, so the save's shape changes:
+   `schemaVersion` 9, a save of 8 refused (rule 5).
+4. **The dispatch.** `unmetRequirements` refuses a Party below `partySizeMin` alone; its
+   `party-size` and `previewDispatch`'s carry `size` and `partySizeMin`. The words: "a Party of at
+   least 2 Heroes (1 named)" in the refusal, "A Party of at least 2" in the CLI's preview and the
+   page's Party builder, "2 or more" in the CLI's Board and "2 or more Heroes" on the card (S12 makes
+   the card), "Parties of 2 or more" on the review page.
+5. **The Best Party.** It adds the Hero who most raises the chance while that Hero raises it by more
+   than the Guild's margin (`playerPartyMargin`, a Disposition's `partyMargin`; no new setting),
+   bounded by the Heroes given alone. Still greedy: each Hero added weighs a Party for each Hero left,
+   at most n(n + 1)/2 + 1 Parties of n Heroes, never every Party; `requiredParty` names a Party
+   whenever the Heroes reach the least.
+6. **XP** stays divided by the Party sent: the split's test runs to a Party of 7.
+7. **No cap on Parties out** (Q2): none in the engine (`maxPartiesPerQuest` is one Party a Quest),
+   the harness's player sends while a Hero and a Quest are left. A Rival's "at most one dispatch an
+   afternoon" (`rivalChoices`) is how a Rival chooses, not a cap, and stays.
+8. **Every reader** of `partySizeMax`: engine, words, CLI, page, harness (calibrate, estimate),
+   CONTEXT.md's Party, Quest template and Best Party, R21, R23, data-model.md.
+
+*Judgement calls, for the owner to see.*
+- **The floor in the content check:** 2, a constant of the content kind, not a setting.
+- **The test content keeps its least Parties of 1** (engine fixtures, not content); only the most went.
+- **`schemaVersion` 9** (rule 5): the Quest's requirements lost a field.
+- **Tests moved with the rule** (an engine change, no default changed): the History of 86c7afa's
+  prints for two of three seeds (`quests-conclude.test.ts`); a Best Party test's margin 0 to 1 and
+  its least 1 to 2, so Parties still share no Hero; a pair sent by the first two of a Best Party
+  (`fast-forward.test.ts`); the page's Party out leaving two at home for the stop tests
+  (`withPartyOut`'s `atHome`); a Hero signed before the Party leaves (`capitals.test.tsx`); the
+  report's seed `report-l` to `report-o`, whose Party still comes home hurt; the Loot counter's
+  player sending every free Hero.
+
+**Consequences.** Every Party is two Heroes or more. With the margins at 0.05 and 0.1 the Parties
+grow by about half a Hero, not to every Hero free: fewer Quests are taken, more succeed, and Rosters
+earn less (reported, not tuned, DL-257 item 7). S12 writes the card's words in full.
+
+**Evidence.** The commit `v1.2.0-S8 (DL-266)`. `neutral v1.2.0-s8-quick` (4 × 2, alone,
+`harness/reports/v1.2.0-s8-quick-2026-10-11`): refusals 0, the replay identical, `62fab24b…`.
+`compare` with S7's quick run: 377 counters moved of 600; with S2's gate 576 of 683. S7 → S8, the
+player: mean Party 1.54 → 2.07, Quests a Guild-year 282.00 → 219.75, failed 18.5% → 5.6%, strong
+45.1% → 65.2%, Days away 6.03 → 6.04, Quest rewards 420,989 → 383,422; the Rivals' mean Party
+1.65 → 2.13, Quests taken 4,467 → 3,237; Deaths, the player's 0 → 0 and the Rivals' 1 → 2 (Tier 4);
+Bankruptcies and folds 0. The profile, one game of 20 years in
+one process under `--cpu-prof` (`v1.2.0-s8-profile`): `advance` a mean of 2.803 ms, `copyWorld`
+0.876 ms, a share of 0.313 against the line's 0.4875 (v1.1.9's close 1.861 ms and 0.302, before
+S5's Tiers); the game 80.5 s, the estimate 29.8%, the Rivals 31.0%, `copyWorld` 28.1%; the quick
+run's `advance` 1.768 → 1.534 ms from S7. The epic's S8 boxes.

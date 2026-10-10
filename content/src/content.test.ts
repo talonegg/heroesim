@@ -237,8 +237,10 @@ describe('loadContent()', () => {
       }
     });
 
-    test('ask for a Party the starting Roster of four can field, a few with a Class or Skill required', () => {
+    test('ask for a Party of two or more the starting Roster of four can field, a few with a Class or Skill required (DL-257 item 6)', () => {
+      for (const it of templates) expect(it.partySizeMin, it.key).toBeGreaterThanOrEqual(2);
       for (const it of templates) expect(it.partySizeMin, it.key).toBeLessThanOrEqual(4);
+      for (const it of templates) expect(it, it.key).not.toHaveProperty('partySizeMax');
       const requiring = templates.filter(
         (it) => it.requires.classKey !== undefined || it.requires.skillKey !== undefined,
       );

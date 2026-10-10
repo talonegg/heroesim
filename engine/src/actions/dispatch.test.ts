@@ -184,37 +184,46 @@ describe('dispatch', () => {
       }
     });
 
-    test('requirement-unmet naming party-size: too few or too many, with partySizeMin and partySizeMax; any size within is accepted', () => {
-      const { document, ids, rogue, mage, healer } = built();
-      const { partySizeMin, partySizeMax } = questOf(document.world, ids.offeredQuest).requirements;
-      expect([partySizeMin, partySizeMax]).toEqual([2, 4]);
+    test('requirement-unmet naming party-size: too few, with partySizeMin; a Party of one refused on a Quest of two (DL-257 item 6)', () => {
+      const { document, ids, rogue } = built();
+      const { requirements } = questOf(document.world, ids.offeredQuest);
+      expect(requirements).toEqual({ partySizeMin: 2 });
       const request = (heroIds: HeroId[]): DispatchRequest => ({
         guildId: ids.playerGuild,
         questId: ids.offeredQuest,
         heroIds,
       });
-      const refusal = (size: number, max = partySizeMax) => ({
+      const refusal = (size: number) => ({
         action: 'dispatch',
         reason: 'requirement-unmet',
         questId: ids.offeredQuest,
-        unmet: [{ requirement: 'party-size', size, partySizeMin, partySizeMax: max }],
+        unmet: [{ requirement: 'party-size', size, partySizeMin: 2 }],
       });
 
       expect(rejected(document, request([]))).toEqual(refusal(0));
       expect(rejected(document, request([rogue]))).toEqual(refusal(1));
-      const small = structuredClone(document);
-      questOf(small.world, ids.offeredQuest).requirements.partySizeMax = 2;
-      expect(rejected(withValid(small, deps), request([rogue, mage, healer]))).toEqual(refusal(3, 2));
+    });
 
-      expect(applyAction(document, { kind: 'dispatch', ...request([rogue, mage]) }, deps).ok).toBe(true);
-      expect(applyAction(document, { kind: 'dispatch', ...request([rogue, mage, healer]) }, deps).ok).toBe(true);
+    test('any size at or above partySizeMin is accepted: no Quest has a greatest (DL-257 item 6)', () => {
+      // A Roster of eight, the first in a Party: seven free Heroes.
+      const { document, ids } = buildDocument({ rosterSize: 8 });
+      withValid(document, deps);
+      const free = (document.world.guilds[ids.playerGuild] as Guild).rosterIds.slice(1);
+      expect(free).toHaveLength(7);
+      for (const size of [2, 3, 4, 5, 7]) {
+        const heroIds = free.slice(0, size);
+        const result = applyAction(document, { kind: 'dispatch', guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds }, deps);
+        if (!result.ok) throw new Error(`A Party of ${size} refused: ${result.rejection.reason}`);
+        const party = Object.values(withValid(result.document, deps).world.parties).find((it) => it.questId === ids.offeredQuest);
+        expect(party?.heroIds, `a Party of ${size}`).toEqual(heroIds);
+      }
     });
 
     test('requirement-unmet: naming each requirement the Party misses, class and skill, in that order', () => {
       const { document, ids, rogue, mage, healer } = built();
       const demanding = structuredClone(document);
       const quest = questOf(demanding.world, ids.offeredQuest);
-      quest.requirements = { partySizeMin: 1, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+      quest.requirements = { partySizeMin: 1, classKey: 'mage', skillKey: 'lockpicking' };
       withValid(demanding, deps);
       const request = (heroIds: HeroId[]): DispatchRequest => ({
         guildId: ids.playerGuild,
@@ -238,9 +247,9 @@ describe('dispatch', () => {
       expect(applyAction(demanding, { kind: 'dispatch', ...request([mage, rogue]) }, deps).ok).toBe(true);
 
       // Every requirement missed at once: the size, the Class and the Skill.
-      quest.requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+      quest.requirements = { partySizeMin: 2, classKey: 'mage', skillKey: 'lockpicking' };
       expect(rejected(demanding, request([healer]))).toEqual(
-        unmet({ requirement: 'party-size', size: 1, partySizeMin: 2, partySizeMax: 4 }, needsMage, needsLockpicking),
+        unmet({ requirement: 'party-size', size: 1, partySizeMin: 2 }, needsMage, needsLockpicking),
       );
     });
 
@@ -483,9 +492,9 @@ function playTo(document: WorldDocument, turn: number, playDeps: EngineDeps = de
  */
 function openQuest(world: World, size: number, minDays: number): Quest {
   const fits = (quest: Quest): boolean => {
-    const { classKey, skillKey, partySizeMin, partySizeMax } = quest.requirements;
+    const { classKey, skillKey, partySizeMin } = quest.requirements;
     const open = classKey === undefined && skillKey === undefined;
-    return open && partySizeMin <= size && size <= partySizeMax && durationDaysOf(quest) >= minDays;
+    return open && partySizeMin <= size && durationDaysOf(quest) >= minDays;
   };
   const quest = world.board.map((id) => questOf(world, id)).find(fits);
   if (quest === undefined) throw new Error(`No Quest on the Board at Turn ${world.turn} takes a Party of ${size}`);

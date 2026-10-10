@@ -33,7 +33,7 @@ function heroesOf(state: GameState): Hero[] {
 
 /**
  * A new game whose first Quest is made to order: difficulty 54 on a Board of 19 to 89, 5 Days away,
- * 243 Wealth, Fame 2, a Party of 1 to 3 with a Hero with Herbalism among them, on its last Day; it
+ * 243 Wealth, Fame 2, a Party of 1 or more with a Hero with Herbalism among them, on its last Day; it
  * meets Past the watch, Ambush on the road, The trapped passage, Hold the line and The long march,
  * stealth, combat, stealth, combat and travel, whose Checks read Dexterity, Wits, Perception,
  * Weaponry, Strength, Courage, Constitution, Endurance, Leadership and Willpower, in that order.
@@ -54,7 +54,7 @@ function madeToOrder(from: GameState = started()): GameState {
     first.durationTurns = 15;
     first.reward = 243;
     first.fameEffect = 2;
-    first.requirements = { partySizeMin: 1, partySizeMax: 3, skillKey: 'herbalism' };
+    first.requirements = { partySizeMin: 1, skillKey: 'herbalism' };
     first.expiresOnTurn = 2;
     first.encounterKeys = ['past-the-watch', 'ambush-on-the-road', 'the-trapped-passage', 'hold-the-line', 'the-long-march'];
   });
@@ -121,7 +121,7 @@ describe('a Quest card', () => {
       '5 Days away',
       '243 Wealth',
       'Fame ±2',
-      '1 to 3 Heroes',
+      '1 or more Heroes',
       'Needs a Hero with Herbalism',
       'Leaves today',
     ]);
@@ -138,7 +138,7 @@ describe('a Quest card', () => {
   test('says "Your best Party:" with a chance word and who, or that no Party of the free Heroes meets the requirements', () => {
     const state = changed(madeToOrder(), (document) => {
       const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
-      second.requirements = { partySizeMin: 1, partySizeMax: 2, classKey: 'no-such-class' };
+      second.requirements = { partySizeMin: 1, classKey: 'no-such-class' };
     });
     render(<App initial={state} />);
     const [first, second] = within(section('Board')).getAllByRole('article') as [HTMLElement, HTMLElement];
@@ -464,7 +464,7 @@ describe('the Party builder', () => {
     const verdict = within(form).getByRole('status');
 
     expect(checklist()).toEqual([
-      ['is-missed', 'A Party of 1 to 3 (0 chosen): missed'],
+      ['is-missed', 'A Party of at least 1 (0 chosen): missed'],
       ['is-missed', 'A Hero with Herbalism: missed'],
     ]);
     expect(verdict.className).toBe('banner banner--bad');
@@ -477,7 +477,7 @@ describe('the Party builder', () => {
     fireEvent.click(within(healer).getByRole('checkbox'));
 
     expect(checklist()).toEqual([
-      ['is-met', 'A Party of 1 to 3 (1 chosen): met'],
+      ['is-met', 'A Party of at least 1 (1 chosen): met'],
       ['is-met', 'A Hero with Herbalism: met'],
     ]);
     expect(verdict.className).toBe('banner banner--good');

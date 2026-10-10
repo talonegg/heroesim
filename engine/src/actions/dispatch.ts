@@ -91,12 +91,12 @@ export interface HeroUnavailable extends Rejection<'dispatch', 'hero-unavailable
 export type RequirementKind = 'party-size' | 'class' | 'skill';
 
 /**
- * One requirement of a Quest a Party misses, named by `requirement`: its size is outside the
- * Quest's bounds (any size within them is accepted), or no Hero in it is of the Class, or holds the
- * Skill, the Quest requires.
+ * One requirement of a Quest a Party misses, named by `requirement`: its size is below the Quest's
+ * least (any size at or above it is accepted, no Quest having a most, DL-257 item 6, DL-266), or no
+ * Hero in it is of the Class, or holds the Skill, the Quest requires.
  */
 export type UnmetRequirement =
-  | { requirement: 'party-size'; size: number; partySizeMin: number; partySizeMax: number }
+  | { requirement: 'party-size'; size: number; partySizeMin: number }
   | { requirement: 'class'; classKey: ClassKey }
   | { requirement: 'skill'; skillKey: SkillKey };
 
@@ -224,11 +224,9 @@ export function unmetRequirements(
   quest: Pick<Quest, 'requirements'>,
   party: readonly Pick<Hero, 'classKey' | 'skills'>[],
 ): UnmetRequirement[] {
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
+  const { partySizeMin, classKey, skillKey } = quest.requirements;
   const unmet: UnmetRequirement[] = [];
-  if (party.length < partySizeMin || party.length > partySizeMax) {
-    unmet.push({ requirement: 'party-size', size: party.length, partySizeMin, partySizeMax });
-  }
+  if (party.length < partySizeMin) unmet.push({ requirement: 'party-size', size: party.length, partySizeMin });
   if (classKey !== undefined && !party.some((hero) => hero.classKey === classKey)) {
     unmet.push({ requirement: 'class', classKey });
   }

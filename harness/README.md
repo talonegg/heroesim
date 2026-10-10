@@ -33,12 +33,13 @@ Sweeps run one at a time, with nothing else running, since a 20-year game's proc
 The last `neutral` baseline is
 `661789f1d2811cfac869463d6dd1a0164874e3222f13690ba6adf9c43bdf2d6f` (`v1.2.0-s4-neutral`, DL-261: schema 7,
 config version 18, content version 37, v1.1.9's games). Play has changed since (the Tiers, DL-262; Death
-by Tier, DL-265): the last 4 × 2 quick check, at schema 8, config version 20 and content version 38, is
-`e919219b7494a60b725cc356804f894b4eebe83ce8196c8ee4fa0f6f2d6bf221` (`v1.2.0-s7-quick`), and the next
-`neutral` run at its versions sets the baseline every play-neutral story's `--expect` reads. Each changes
-only with a DL entry, as at a story that changes play or the save's shape or raises the content version
-or the config version, both of which every save records (with `meta.config`). The full `gate`'s, 50 × 20,
-is `5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b` (`v1.1.8-gate`, v1.1.8's close, the
+by Tier, DL-265; the Party floor, DL-266): the last 4 × 2 quick check, at schema 9, config version 20 and
+content version 39, is `62fab24b0a9a2f6b868de54cdf072ff5208ec2ecad63bf4221c4715a39e28b3b`
+(`v1.2.0-s8-quick`), and the next `neutral` run at its versions sets the baseline every play-neutral
+story's `--expect` reads. Each changes only with a DL entry, as at a story that changes play or the
+save's shape or raises the content version or the config version, both of which every save records
+(with `meta.config`). The full `gate`'s, 50 × 20, is
+`5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b` (`v1.1.8-gate`, v1.1.8's close, the
 Gate's baseline in `gate.json`, DL-229; the same games as v1.1.7's close, DL-214).
 
 ## Settings

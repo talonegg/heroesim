@@ -361,7 +361,7 @@ describe('the estimate', () => {
     hero.morale = 19;
     const questId = world.board[0] as Quest['id'];
     const quest = world.quests[questId] as Quest;
-    Object.assign(quest, { durationTurns: 5 * turnsPerDay, encounterKeys: ['march'], lootTableKey: null, requirements: { partySizeMin: 1, partySizeMax: 4 } });
+    Object.assign(quest, { durationTurns: 5 * turnsPerDay, encounterKeys: ['march'], lootTableKey: null, requirements: { partySizeMin: 1 } });
     const estimate = estimateQuest(world, quest, [hero], deps);
     const asTheySetOut = capability(queryParty([hero], world, deps), { kind: 'travel' }, deps.content.encounters.march?.checks[0] as EncounterCheck, world, deps);
 

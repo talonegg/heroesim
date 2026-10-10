@@ -258,7 +258,7 @@ export function drawSample(seed: string, deps: EngineDeps): Drawn {
   const sampled: EngineDeps = { ...deps, content: { ...content, encounters: { ...content.encounters, ...Object.fromEntries(written.map((it) => [it.key, it])) } } };
   const questId = world.board[0] as Quest['id'];
   const beatLines = sequence.map(() => 'A Beat of the probe.');
-  Object.assign(world.quests[questId] as Quest, { difficulty, encounterKeys: sequence, beatLines, lootTableKey: null, requirements: { partySizeMin: 1, partySizeMax: 4 } });
+  Object.assign(world.quests[questId] as Quest, { difficulty, encounterKeys: sequence, beatLines, lootTableKey: null, requirements: { partySizeMin: 1 } });
   const carried = draw() < 0.5 ? [] : carriable.filter(() => draw() < 0.5).map((definitionKey) => ({ definitionKey, quantity: 1 + below(3) }));
   for (const { definitionKey, quantity } of carried) addStack(world, definitionKey, quantity, { kind: 'guild', id: guild.id });
   const estimate = estimateQuest(world, world.quests[questId] as Quest, heroes, sampled, carried);

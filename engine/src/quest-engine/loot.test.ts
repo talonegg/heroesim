@@ -205,8 +205,8 @@ function sent(seed: string, deps: EngineDeps, lootTableKey: string | null, { riv
   const heroIds = guild.rosterIds.slice(0, 2);
   const open = start.world.board
     .map((id) => start.world.quests[id] as Quest)
-    .find(({ requirements: { classKey, skillKey, partySizeMin, partySizeMax } }) =>
-      classKey === undefined && skillKey === undefined && partySizeMin <= 2 && 2 <= partySizeMax,
+    .find(({ requirements: { classKey, skillKey, partySizeMin } }) =>
+      classKey === undefined && skillKey === undefined && partySizeMin <= 2,
     );
   if (open === undefined) throw new Error(`No open Quest on ${seed}'s first Board`);
   const result = applyAction(start, { kind: 'dispatch', guildId: guild.id, questId: open.id, heroIds }, deps);
@@ -305,7 +305,7 @@ describe("questsConclude's Loot", () => {
     const heroIds = guild.rosterIds.filter((id) => document.world.heroes[id]?.partyId === null).slice(0, 2);
     const open = document.world.board
       .map((id) => document.world.quests[id] as Quest)
-      .find(({ requirements: r }) => r.classKey === undefined && r.skillKey === undefined && r.partySizeMin <= 2 && 2 <= r.partySizeMax);
+      .find(({ requirements: r }) => r.classKey === undefined && r.skillKey === undefined && r.partySizeMin <= 2);
     if (open === undefined) throw new Error('No open Quest');
     for (const lootTableKey of ['the-blade', 'blade-or-whetstones']) {
       const again = applyAction(structuredClone(document), { kind: 'dispatch', guildId: first.guildId, questId: open.id, heroIds }, deps);
@@ -342,8 +342,8 @@ describe("questsConclude's Loot", () => {
 type Regime = 'easiest' | 'hardest';
 
 /**
- * Plays a world from `seed` for `days` Days, the player sending, each afternoon, every free Hero the
- * Quest allows on the easiest or the hardest Quest on the Board they can staff, and returns the mean
+ * Plays a world from `seed` for `days` Days, the player sending, each afternoon, every free Hero, no
+ * Quest having a most (DL-266), on the easiest or the hardest Quest on the Board they can staff, and returns the mean
  * difficulty of the Quests the player resolved and the Loot the player's Guild was awarded.
  */
 function season(seed: string, regime: Regime, days: number, deps: EngineDeps): { meanDifficulty: number; loot: number } {
@@ -361,7 +361,7 @@ function season(seed: string, regime: Regime, days: number, deps: EngineDeps): {
       const available = availableHeroes(world, guild);
       const party = bestParties(world, guild, deps).party(quest, available)?.heroIds ?? [];
       const rest = available.map((hero) => hero.id).filter((id) => !party.includes(id));
-      const heroIds = [...party, ...rest].slice(0, quest.requirements.partySizeMax);
+      const heroIds = [...party, ...rest];
       const result = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds }, deps);
       if (result.ok) {
         document = result.document;

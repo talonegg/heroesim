@@ -155,7 +155,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 ### 3.4 Quests
 
 - R21. A Quest carries its Patron, its Tier, difficulty, tags, duration in Days, reward in Wealth,
-  Fame effect, requirements (Party size, and any Class or Skill it needs), the Encounters drawn for
+  Fame effect, requirements (its least Party, and any Class or Skill it needs), the Encounters drawn for
   it when it is posted with its Beats' lines, the Turn its offer expires, and, when its Tier awards
   Loot, a Loot table. It copies these from its Quest template, so a changed template never alters a
   Quest already offered (DL-25). Its Tier is drawn among those its template offers, around the
@@ -165,8 +165,9 @@ Loot and Campaigns are kept as features serving Reputation and History.
   by their mean Regard for the Guilds in play (DL-43), up to its size, which may grow with the
   Years to a cap (DL-261). Every Guild draws from the one Board, the player's first.
 - R23. A Party is dispatched from the Roster with Consumables assigned. The Party is
-  unavailable while away. A Guild whose Fame is below the Fame minimum of a Quest's Tier may not
-  take it (DL-257 item 3, DL-264).
+  unavailable while away. It is no fewer than its Quest's least Party, two Heroes or more, with
+  no most, and nothing caps the Parties a Guild has out (DL-257 item 6, DL-266). A Guild whose
+  Fame is below the Fame minimum of a Quest's Tier may not take it (DL-257 item 3, DL-264).
 - R24. The Quest Engine assesses a Quest against the Party: its Stats, Skills, Traits, Form,
   Relationship, Synergies and Consumables. It produces the outcome: XP, Injuries or Death, Morale
   and Regard changes, reward or penalty, Fame effect, Loot, and the typed events the front ends

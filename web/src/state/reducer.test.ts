@@ -464,7 +464,7 @@ describe('a refusal is stored, never thrown', () => {
     ['not JSON', 'not a save', 'malformed-json'],
     ['not a document', '{"meta":{}}', 'not-a-document'],
     ['a newer schema', '{"meta":{"version":99}}', 'unsupported-version'],
-    ['damaged', '{"meta":{"version":8},"world":{},"history":{}}', 'invalid'],
+    ['damaged', '{"meta":{"version":9},"world":{},"history":{}}', 'invalid'],
   ])('a save that is %s does not load, and the game in hand stays', (_name, text, reason) => {
     const before = started();
     const refused = play(before, { kind: 'load', text });
@@ -786,7 +786,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
 
   // DL-101: the new stops, through the reducer's `fastForward` and the page's sentence.
   test("until a Quest the Heroes at home can staff: with a Party out it stops where one call would, before the Party is home", () => {
-    const text = serialise(documentOf(withPartyOut(startedFrom('reducer-test'))));
+    const text = serialise(documentOf(withPartyOut(startedFrom('reducer-test'), 2)));
     const start = loaded(text, noModules);
     const party = Object.values(documentOf(start).world.parties)[0];
     vi.clearAllMocks();

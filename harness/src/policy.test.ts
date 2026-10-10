@@ -78,7 +78,7 @@ function scene(seed = 'policy'): { document: WorldDocument; guild: Guild; quests
 /** Opens every Quest on the Board to a Party of `min` to 4, rewards rising in Board order. */
 function openBoard(quests: Quest[], min = 2): void {
   quests.forEach((quest, index) => {
-    quest.requirements = { partySizeMin: min, partySizeMax: 4 };
+    quest.requirements = { partySizeMin: min };
     quest.reward = 100 + 10 * index;
   });
 }
@@ -201,7 +201,7 @@ describe('automaticPolicy', () => {
     const hero = hurt === undefined ? undefined : document.world.heroes[hurt];
     if (hurt === undefined || hero === undefined) throw new Error('No Hero');
     hero.injury = { typeKey: 'bruised-ribs', healsOnTurn: 30 };
-    (quests.at(-1) as Quest).requirements = { partySizeMin: 4, partySizeMax: 4 };
+    (quests.at(-1) as Quest).requirements = { partySizeMin: 4 };
 
     const sent = dispatches(automaticPolicy(document, deps));
 
@@ -290,7 +290,7 @@ describe('automaticPolicy', () => {
       const { document, guild, quests, easy, base } = likeliestLowest();
       const next = quests[1] as Quest;
       next.difficulty = base;
-      easy.requirements = { partySizeMin: 4, partySizeMax: 4 };
+      easy.requirements = { partySizeMin: 4 };
       const all = availableHeroes(document.world, guild);
       expect(chanceOf(document, guild, easy, all, fewest)).toBeGreaterThan(chanceOf(document, guild, next, all, fewest));
       const [hurt] = guild.rosterIds;

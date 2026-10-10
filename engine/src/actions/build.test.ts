@@ -275,7 +275,7 @@ describe('what a grade built does', () => {
       const [questId] = document.world.board;
       const quest = questId === undefined ? undefined : document.world.quests[questId];
       if (quest === undefined) throw new Error('An empty Board');
-      quest.requirements = { partySizeMin: 1, partySizeMax: 1 };
+      quest.requirements = { partySizeMin: 1 };
       const heroIds = bestParties(document.world, guild, hurt).party(quest, availableHeroes(document.world, guild))?.heroIds ?? null;
       if (heroIds === null) throw new Error('No Party');
       const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds }, hurt);

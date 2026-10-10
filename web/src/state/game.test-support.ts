@@ -239,9 +239,10 @@ export function withRosterReleased(state: GameState, wealth = 1_000_000): GameSt
  * A Party of the player's out on the longest Quest on the Board the Roster can staff, sent by the
  * page's own dispatch: while it is out no decision is needed, so a fast forward stops when it
  * comes home (or for an offer, or at the end). The Party is the Best Party at the player's margin of 1,
- * the fewest the Quest allows, so that Heroes stay at home to staff what comes next.
+ * the fewest the Quest allows, so that Heroes stay at home to staff what comes next: at least
+ * `atHome` of them, for a test that needs a Party of them, two or more (DL-266).
  */
-export function withPartyOut(state: GameState): GameState {
+export function withPartyOut(state: GameState, atHome = 0): GameState {
   const document = documentOf(state);
   const available = availableHeroes(document.world, playerOf(document));
   const deps = playDeps(document);
@@ -249,7 +250,7 @@ export function withPartyOut(state: GameState): GameState {
   const [longest] = offeredQuests(document.world)
     .flatMap((quest) => {
       const heroIds = bestParties(document.world, playerOf(document), fewest).party(quest, available)?.heroIds ?? null;
-      return heroIds === null ? [] : [{ quest, heroIds }];
+      return heroIds === null || available.length - heroIds.length < atHome ? [] : [{ quest, heroIds }];
     })
     .sort((a, b) => durationDaysOf(b.quest) - durationDaysOf(a.quest));
   if (longest === undefined) throw new Error('no Quest on the Board the Roster can staff');

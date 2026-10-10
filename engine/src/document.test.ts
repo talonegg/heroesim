@@ -168,7 +168,7 @@ const quest: Quest = {
   skillKeys: ['swordplay'],
   encounterKeys: ['hold-the-line'],
   beatLines: ['A fight on the way.'],
-  requirements: { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'swordplay' },
+  requirements: { partySizeMin: 1, classKey: 'warrior', skillKey: 'swordplay' },
   lootTableKey: null,
   status: 'taken',
   offeredOnTurn: 27,

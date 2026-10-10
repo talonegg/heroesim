@@ -311,7 +311,7 @@ describe("show's layouts of the readings (DL-241)", () => {
   test("show board lays out the Board's readings: a row of terms each, the Skills that help and the Encounters' kinds, then each Quest's Encounters and its Best Party", () => {
     const document = newGame();
     const [first, second, third] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest, Quest];
-    first.requirements = { partySizeMin: 1, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+    first.requirements = { partySizeMin: 1, classKey: 'mage', skillKey: 'lockpicking' };
     // Its Encounters are none the content in use defines (data-model rule 5).
     second.encounterKeys = ['no-such-encounter'];
     const reading = playerReading(document, playDeps(document));
@@ -322,7 +322,7 @@ describe("show's layouts of the readings (DL-241)", () => {
     expect(lines[0]).toBe(`Board: ${quests.length} Quests on offer, Turn 0 (Year 1 Day 1, morning)`);
     expect(lines[2]?.split(/\s{2,}/)).toEqual(['Id', 'Quest', 'Patron', 'Difficulty', 'Days', 'Reward', 'Fame', 'Party', 'Requires', 'On offer through']);
     const [one, two, three] = quests as [QuestReading, QuestReading, QuestReading];
-    expect(lines[4]?.split(/\s{2,}/)).toEqual([one.id, one.name, one.patron, String(one.difficulty), String(one.days), String(one.reward), String(one.fame), '1 to 4', 'Mage, Lockpicking', 'Year 1 Day 3']);
+    expect(lines[4]?.split(/\s{2,}/)).toEqual([one.id, one.name, one.patron, String(one.difficulty), String(one.days), String(one.reward), String(one.fame), '1 or more', 'Mage, Lockpicking', 'Year 1 Day 3']);
     const rows = lines.filter((line) => line.startsWith(one.id) || line.startsWith(two.id)).map((line) => line.split(/\s{2,}/));
     expect(rows[2]).toEqual([one.id, one.skills.join(', '), capitalised(one.encounters.map((encounter) => encounter.kind).join(', '))]);
     // An Encounter content does not define, by its key; no Skill is known to help, since its Encounters'
@@ -342,7 +342,7 @@ describe("show's layouts of the readings (DL-241)", () => {
   test("show board says, in place of a Quest's best Party, that its Tier's Fame minimum is above the Guild's Fame", () => {
     const document = newGame();
     const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
-    for (const quest of [first, second]) quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+    for (const quest of [first, second]) quest.requirements = { partySizeMin: 1 };
     first.tier = 1;
     second.tier = 2;
     const deps = playDeps(document);

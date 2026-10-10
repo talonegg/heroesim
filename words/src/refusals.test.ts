@@ -78,7 +78,7 @@ const samples: Samples = {
     reason: 'requirement-unmet',
     questId: quest.id,
     unmet: [
-      { requirement: 'party-size', size: 1, partySizeMin: 2, partySizeMax: 4 },
+      { requirement: 'party-size', size: 1, partySizeMin: 2 },
       { requirement: 'class', classKey: 'healer' },
     ],
   },
@@ -226,7 +226,7 @@ const exactly: Record<RefusalKind, string> = {
   'dispatch fame-below-minimum': `${board} is a Tier 3 Quest, open to a Guild of 20 Fame or more; ${lantern} has 12, 8 short.`,
   'dispatch hero-not-on-roster': `${stranger} is not on the Roster of ${lantern}.`,
   'dispatch hero-unavailable': `${brenna} is injured and cannot go.`,
-  'dispatch requirement-unmet': `${board} needs a Party of 2 to 4 Heroes (1 named) and a ${named(content.classes, 'healer')} in the Party.`,
+  'dispatch requirement-unmet': `${board} needs a Party of at least 2 Heroes (1 named) and a ${named(content.classes, 'healer')} in the Party.`,
   'dispatch not-consumable': `${sword} is Gear, not a Consumable: a Party carries Consumables only.`,
   'dispatch not-held-by-guild': `${lantern} holds no ${whetstone} to carry.`,
   'dispatch insufficient-quantity': `${lantern} holds 1 of ${whetstone}, not the 3 asked.`,
@@ -381,7 +381,7 @@ describe('a Transfer refused or locked (DL-69, DL-214)', () => {
 
 describe('a requirement a Party misses, in one wording for the refusal and the preview', () => {
   test.each([
-    [{ requirement: 'party-size', size: 5, partySizeMin: 2, partySizeMax: 4 } as const, 'a Party of 2 to 4 Heroes (5 named)'],
+    [{ requirement: 'party-size', size: 1, partySizeMin: 2 } as const, 'a Party of at least 2 Heroes (1 named)'],
     [{ requirement: 'class', classKey: 'healer' } as const, `a ${named(content.classes, 'healer')} in the Party`],
     [{ requirement: 'skill', skillKey: 'lockpicking' } as const, `a Hero with ${named(content.skills, 'lockpicking')} in the Party`],
     [{ requirement: 'class', classKey: 'no-such-class' } as const, 'a no-such-class in the Party'],

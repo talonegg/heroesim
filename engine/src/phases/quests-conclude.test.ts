@@ -130,8 +130,8 @@ function sentAway(
   const heroIds = guild.rosterIds.slice(0, size);
   const open = start.world.board
     .map((id) => start.world.quests[id] as Quest)
-    .find(({ requirements: { classKey, skillKey, partySizeMin, partySizeMax } }) =>
-      classKey === undefined && skillKey === undefined && partySizeMin <= size && size <= partySizeMax,
+    .find(({ requirements: { classKey, skillKey, partySizeMin } }) =>
+      classKey === undefined && skillKey === undefined && partySizeMin <= size,
     );
   if (open === undefined) throw new Error(`No open Quest for ${size} on ${seed}'s first Board`);
   for (const [definitionKey, quantity] of consumables) addStack(start.world, definitionKey, quantity, { kind: 'guild', id: guild.id });
@@ -1074,10 +1074,12 @@ describe('the Quest named on what its return causes', () => {
     // Party sent (DL-182, DL-184; f1e65b3b…, 096c92a2… and a72002b4…), which changes each
     // `hero.xp-gained`'s amount and with it the Levels, their Stats and the wage; and the Quests in
     // Tiers and Beats (DL-262; ae34d056…, 83073fb4… and 20a8de88…), which change every Quest's figures
-    // and Encounters and name its Tier on its offer and its taking.
+    // and Encounters and name its Tier on its offer and its taking; and no Quest with a most Party
+    // (DL-266; d9c65ed6… and fa5362b7…, the third's game unchanged), which lets the Rivals' Best
+    // Parties grow past it.
     expect(fingerprints).toEqual([
-      'd9c65ed6e3fc4870a168a83d6e71bec3baed4f5b38e03dc663bb300cedba46ae',
-      'fa5362b780fa2a83e6fb85610b80fae4178a53141001d90314aac5c4ad40f370',
+      'bcbd90c08dd62889860c8643aba7abc178187ab405a8421f9d646fe6871ebfb0',
+      'd56833fb7400d93b5318f929c0c34e2fac0a658bb7117ddd1a5a7eb44fd4072d',
       '209f07bdc782e3125ef8715622565e4118684ec036403dccc311b994fe9d6994',
     ]);
   });

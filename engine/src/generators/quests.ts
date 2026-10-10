@@ -143,12 +143,11 @@ export function generateQuest(
   return { quest, events: [event] };
 }
 
-/** The template's Party size and, where it has them, its required Class and Skill. */
+/** The template's least Party size and, where it has them, its required Class and Skill. */
 function requirementsOf(template: QuestTemplate): QuestRequirements {
   const { classKey, skillKey } = template.requires;
   return {
     partySizeMin: template.partySizeMin,
-    partySizeMax: template.partySizeMax,
     ...(classKey === undefined ? {} : { classKey }),
     ...(skillKey === undefined ? {} : { skillKey }),
   };

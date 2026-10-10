@@ -125,7 +125,7 @@ const samples: Samples = {
     reason: 'requirement-unmet',
     questId: quest.id,
     unmet: [
-      { requirement: 'party-size', size: 1, partySizeMin: 2, partySizeMax: 4 },
+      { requirement: 'party-size', size: 1, partySizeMin: 2 },
       { requirement: 'class', classKey: 'healer' },
       { requirement: 'skill', skillKey: 'lockpicking' },
     ],
@@ -283,7 +283,7 @@ const exactly: Record<keyof Samples, string> = {
   'dispatch hero-not-on-roster': `${rivalHero.name} is not on the Roster of The Lantern.`,
   'dispatch hero-unavailable': `${hero.name} is injured and cannot go.`,
   'dispatch requirement-unmet':
-    `${questName} needs a Party of 2 to 4 Heroes (1 named) and a ${named(content.classes, 'healer')} in the Party ` +
+    `${questName} needs a Party of at least 2 Heroes (1 named) and a ${named(content.classes, 'healer')} in the Party ` +
     `and a Hero with ${named(content.skills, 'lockpicking')} in the Party.`,
   'dispatch not-consumable': `${sword} is Gear, not a Consumable: a Party carries Consumables only.`,
   'dispatch not-held-by-guild': `The Lantern holds no ${whetstone} to carry.`,

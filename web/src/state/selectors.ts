@@ -227,7 +227,7 @@ export interface QuestCard {
   days: number;
   reward: number;
   fame: number;
-  /** `2 to 4 Heroes`. */
+  /** `2 or more Heroes`: a Party has no most (DL-266). */
   party: string;
   /** The Class and the Skill it requires beyond its Party size, `a Mage`, `a Hero with Lockpicking`: none, often. */
   needs: string[];
@@ -319,7 +319,7 @@ function questCards(document: WorldDocument): QuestCard[] {
     days: quest.days,
     reward: quest.reward,
     fame: quest.fame,
-    party: `${quest.partySizeMin} to ${quest.partySizeMax} Heroes`,
+    party: `${quest.partySizeMin} or more Heroes`,
     needs: [...(quest.classRequired === null ? [] : [`a ${quest.classRequired}`]), ...(quest.skillRequired === null ? [] : [`a Hero with ${quest.skillRequired}`])],
     lastDay: dayOf(quest.expiresOnTurn),
     until: `Until ${dateOfTurn(quest.expiresOnTurn, calendar)}`,
@@ -539,7 +539,7 @@ export function previewView(
     requirements: preview.requirements.map((status) => {
       switch (status.requirement) {
         case 'party-size':
-          return { words: `A Party of ${status.partySizeMin} to ${status.partySizeMax} (${status.size} chosen)`, met: status.met };
+          return { words: `A Party of at least ${status.partySizeMin} (${status.size} chosen)`, met: status.met };
         case 'class':
           return { words: `A ${nameIn(content.classes, status.classKey)}`, met: status.met };
         case 'skill':

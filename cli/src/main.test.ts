@@ -845,20 +845,19 @@ describe('dispatch', () => {
     }
   });
 
-  test('refuses a Party larger than the Quest takes, naming its bounds, writing nothing', () => {
+  test('refuses a Party smaller than the Quest takes, naming its least, writing nothing (DL-257 item 6)', () => {
     const { world } = document();
     const roster = world.guilds[playerId]?.rosterIds ?? [];
-    const questId = world.board.find((id) => (world.quests[id]?.requirements.partySizeMax ?? 0) < roster.length);
-    if (questId === undefined) throw new Error('Every Quest on the Board takes the whole Roster');
-    const { partySizeMin, partySizeMax } = (world.quests[questId] as Quest).requirements;
+    const questId = world.board.find((id) => world.quests[id]?.requirements.classKey === undefined && world.quests[id]?.requirements.skillKey === undefined);
+    if (questId === undefined) throw new Error('Every Quest on the Board requires a Class or a Skill');
+    const { partySizeMin } = (world.quests[questId] as Quest).requirements;
+    expect(partySizeMin).toBeGreaterThanOrEqual(2);
     const original = saved();
 
-    const run = play(['dispatch', '--quest', questId, '--heroes', roster.join(',')]);
+    const run = play(['dispatch', '--quest', questId, '--heroes', roster.slice(0, 1).join(',')]);
 
     expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain(
-      `(${questId}) needs a Party of ${partySizeMin} to ${partySizeMax} Heroes (${roster.length} named).`,
-    );
+    expect(run.err).toContain(`(${questId}) needs a Party of at least ${partySizeMin} Heroes (1 named).`);
     expect(saved()).toBe(original);
   });
 
@@ -1434,14 +1433,14 @@ describe('show guildmaster, show patrons and preview', () => {
     const others = heroes.filter((hero) => hero.classKey !== 'healer').slice(0, 2);
     if (questId === undefined || healer === undefined || others.length < 2) throw new Error('The demo world has changed');
     edit((edited) => {
-      (edited.world.quests[questId] as Quest).requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'healer' };
+      (edited.world.quests[questId] as Quest).requirements = { partySizeMin: 2, classKey: 'healer' };
     });
     const original = saved();
 
     const without = play(['preview', '--quest', questId, '--heroes', others.map((hero) => hero.id).join(',')]);
 
     expect(without).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(without.out).toMatch(/^ {2}A Party of 2 to 4: met \(2 named\)$/m);
+    expect(without.out).toMatch(/^ {2}A Party of at least 2: met \(2 named\)$/m);
     expect(without.out).toMatch(/^ {2}A Healer: missed$/m);
     expect(without.out).toContain('Dispatch would refuse it: it needs a Healer in the Party.');
     expect(saved()).toBe(original);
@@ -1545,7 +1544,7 @@ describe('preview lists the Synergies a proposed Party would have', () => {
       quest.encounterKeys = encounterKeys;
       // A line for each, as the validator holds a Quest's Beats' lines to its Encounters (DL-262).
       quest.beatLines = encounterKeys.map(() => 'A Beat.');
-      quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+      quest.requirements = { partySizeMin: 1 };
       heroIds.forEach((id, index) => {
         const hero = edited.world.heroes[id] as Hero;
         hero.classKey = classKeys[index] ?? 'warrior';

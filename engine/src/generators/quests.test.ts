@@ -75,13 +75,13 @@ describe('generateQuest', () => {
         tags: template.tags,
         fameEffect: template.fameEffect,
         skillKeys: template.skillKeys,
-        requirements: { partySizeMin: template.partySizeMin, partySizeMax: template.partySizeMax, ...template.requires },
+        requirements: { partySizeMin: template.partySizeMin, ...template.requires },
         status: 'offered',
         offeredOnTurn: 0,
         partyIds: [],
       });
       expect(Object.keys(quest.requirements).sort()).toEqual(
-        ['partySizeMin', 'partySizeMax', ...Object.keys(template.requires)].sort(),
+        ['partySizeMin', ...Object.keys(template.requires)].sort(),
       );
       // Copies, sharing nothing with content, so a row never changes with its template.
       expect(quest.tags).not.toBe(template.tags);

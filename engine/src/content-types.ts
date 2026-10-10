@@ -289,8 +289,8 @@ export interface QuestTemplate {
   rewardPerDifficulty: number;
   /** The Fame a Quest of this kind moves, won or lost (M2-S5). */
   fameEffect: number;
+  /** The fewest Heroes a Party of it may be, 2 or more; none is the most (DL-257 item 6, DL-266). */
   partySizeMin: number;
-  partySizeMax: number;
   /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
   skillKeys: SkillKey[];
   requires: QuestTemplateRequires;
@@ -688,7 +688,7 @@ export interface Disposition {
   /**
    * How much more than this a Hero must raise the estimated chance of success to be added to its
    * Party past the Quest's `partySizeMin`, from 0 to 1 (the Best Party, DL-148 item 17; strictly more,
-   * DL-175): 0 sends every Hero who raises it at all, up to `partySizeMax`; 1 never
+   * DL-175): 0 sends every free Hero who raises it at all, no Quest having a most (DL-266); 1 never
    * more than the fewest the Quest allows.
    */
   partyMargin: number;

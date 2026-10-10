@@ -662,7 +662,7 @@ export function renderBoard(reading: PlayerReading): string[] {
         String(quest.days),
         String(quest.reward),
         String(quest.fame),
-        `${quest.partySizeMin} to ${quest.partySizeMax}`,
+        `${quest.partySizeMin} or more`,
         [quest.classRequired, quest.skillRequired].filter((name) => name !== null).join(', '),
         dateOfTurn(quest.expiresOnTurn, calendar),
       ]),

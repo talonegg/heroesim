@@ -370,8 +370,8 @@ export interface QuestReading {
   days: number;
   reward: number;
   fame: number;
+  /** The fewest Heroes it takes; none is the most (DL-257 item 6, DL-266). */
   partySizeMin: number;
-  partySizeMax: number;
   /** The Class and the Skill it requires beyond its Party size, by name; `null` for none. */
   classRequired: string | null;
   skillRequired: string | null;
@@ -387,7 +387,7 @@ export interface QuestReading {
 
 /** `quest` as the Board gives it: its terms, what it requires, the Skills that help and its Encounters (DL-148 item 16). */
 function questReading({ world, content, deps }: PlayerReading, quest: Quest): QuestReading {
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
+  const { partySizeMin, classKey, skillKey } = quest.requirements;
   return {
     id: quest.id,
     name: nameIn(content.questTemplates, quest.templateKey),
@@ -398,7 +398,6 @@ function questReading({ world, content, deps }: PlayerReading, quest: Quest): Qu
     reward: quest.reward,
     fame: quest.fameEffect,
     partySizeMin,
-    partySizeMax,
     classRequired: classKey === undefined ? null : nameIn(content.classes, classKey),
     skillRequired: skillKey === undefined ? null : nameIn(content.skills, skillKey),
     expiresOnTurn: quest.expiresOnTurn,

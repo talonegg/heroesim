@@ -1,7 +1,8 @@
 // The Quest templates (`quest-templates/`, a file each): the kinds of Quest the Patrons offer, found by
 // Sphere when the Board is drawn (DL-20), each with the Tiers of the config's ladder it offers, its
 // reward and Fame, what it requires, its Loot table, its Beats, each a line and a pool of Encounters,
-// its Finale, named rather than drawn (DL-160), and the ladder's figures it overrides (DL-257, DL-262).
+// its Finale, named rather than drawn (DL-160), and the ladder's figures it overrides (DL-257, DL-262);
+// its least Party, two or more, and no most (DL-257 item 6, DL-266).
 
 import type { EncounterKind, QuestBeat, QuestBeatPool, QuestTemplate, QuestTemplateRequires, TierRow } from '@heroesim/engine/content';
 import { encounterKinds, inBeatPool, shortBeats, tierLadder, tierRowProblems } from '@heroesim/engine/content';
@@ -25,6 +26,9 @@ import {
 import { checkRange, checkReferences, checkRowKeys, checkTags, checkWeight, own, repeated, type KindRules } from './rules.js';
 
 const encounterKindChoices: Record<EncounterKind, true> = choicesOf(encounterKinds);
+
+/** The fewest Heroes a Quest template may ask for: every Party is two or more (DL-257 item 6). */
+const partyFloor = 2;
 
 /** A Beat's pool: by kind, by tag and by name, each optional, at least one given (`checkBeats`). */
 const beatPool = { kinds: optional(oneOfEach(encounterKindChoices)), tags: optional(strings), encounters: optional(strings) };
@@ -59,7 +63,6 @@ export const questTemplatesKind = table<'questTemplates', QuestTemplate>(
     rewardPerDifficulty: number,
     fameEffect: integer,
     partySizeMin: integer,
-    partySizeMax: integer,
     skillKeys: strings,
     // An optional Class and an optional Skill, and nothing else.
     requires: object<QuestTemplateRequires>({ classKey: optionalText, skillKey: optionalText }, 'what a Quest template requires'),
@@ -85,7 +88,10 @@ export const questTemplatesRules: KindRules = {
       if (template.sphereKeys.length === 0) problems.push(`${where}.sphereKeys is empty: no Patron offers it`);
       checkReferences(`${where}.sphereKeys`, template.sphereKeys, spheres, 'a Sphere', problems);
       checkTags(`${where}.tags`, template.tags, problems);
-      checkRange(where, 'partySize', template.partySizeMin, template.partySizeMax, 1, problems);
+      // Every Party is two Heroes or more, and none has a most (DL-257 item 6, DL-266).
+      if (!(template.partySizeMin >= partyFloor)) {
+        problems.push(`${where}.partySizeMin is ${template.partySizeMin}; it is at least ${partyFloor}`);
+      }
       if (!(template.rewardPerDifficulty >= 0)) {
         problems.push(`${where}.rewardPerDifficulty is ${template.rewardPerDifficulty}; it is a number of 0 or more`);
       }

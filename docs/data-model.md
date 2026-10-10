@@ -220,7 +220,8 @@ encounterKeys:  EncounterKey[]              one or more, drawn at generation in 
                                             (DL-160, DL-248, DL-262)
 beatLines:      string[]                    each Encounter's Beat's line, or its Finale's, as
                                             many as encounterKeys (DL-262)
-requirements:   { partySizeMin, partySizeMax, classKey?, skillKey? }   copied from the template
+requirements:   { partySizeMin, classKey?, skillKey? }   copied from the template: the least
+                                            Party, with no most (DL-257 item 6, DL-266)
 lootTableKey:   string | null               the template's, copied at generation when its Tier's
                                             loot is true, else null (DL-52, DL-262)
 status:         "offered" | "taken" | "resolved"
@@ -407,7 +408,7 @@ A new document's `meta.version` is the engine's `schemaVersion`. On load, the mi
 brings an older document forward, one step per version; where no chain leads from its version, the
 load is refused, naming both versions. The chain is empty (`migrations`, `serialise.ts`), so a save
 of any older schema is refused, and a front end says an older Heroesim saved it (DL-125 item 10.2,
-DL-130, DL-135 item 7, DL-193, DL-262). Then each installed Module migrates its own slice, reading its
+DL-130, DL-135 item 7, DL-193, DL-262, DL-266). Then each installed Module migrates its own slice, reading its
 version from inside it (DL-76); then the validator runs; then the game's config is checked
 ([`approach.md`](./approach.md) §3).
 

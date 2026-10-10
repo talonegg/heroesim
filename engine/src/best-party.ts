@@ -41,8 +41,10 @@ export interface BestParties {
    *    and two go only when no one Hero has both.
    * 2. It adds the Hero who most raises the chance until it reaches `partySizeMin`.
    * 3. It keeps adding the Hero who most raises it while that Hero raises it by more than the Guild's
-   *    margin (its Disposition's `partyMargin`; for a Guild with none, `playerPartyMargin`), up to
-   *    `partySizeMax`: by more than nothing at a margin of 0 (DL-175).
+   *    margin (its Disposition's `partyMargin`; for a Guild with none, `playerPartyMargin`): by more
+   *    than nothing at a margin of 0 (DL-175). No Quest has a most, so only the margin and the Heroes
+   *    given bound it (DL-257 item 6, DL-266). Each Hero added weighs one Party for each Hero left, so a
+   *    search of n Heroes weighs at most n(n + 1)/2 + 1 Parties, never every Party of them.
    *
    * Of Heroes who raise it alike, the one who most raises the chance of a strong success goes, then
    * the lowest Hero id, so the rule is deterministic, whatever the order of `heroes`; a Quest whose
@@ -107,7 +109,7 @@ function stampOf(world: World): string {
 /** The Best Party's rule (`BestParties.party`), each Party weighed by `chanceOf`. */
 function search(quest: Pick<Quest, 'id' | 'requirements'>, available: readonly Hero[], margin: number, chanceOf: (party: readonly Hero[]) => Chance): BestParty | null {
   if (requiredParty(quest, available) === null) return null;
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
+  const { partySizeMin, classKey, skillKey } = quest.requirements;
   const party: Hero[] = [];
   const left = (): Hero[] => available.filter((hero) => !party.includes(hero));
   // Of `candidates`, the Hero whose joining leaves the Party the best chance, and that chance.
@@ -137,7 +139,7 @@ function search(quest: Pick<Quest, 'id' | 'requirements'>, available: readonly H
   let chance = chanceOf(party);
   // No Hero can raise the chance by more than what is left of it below 1, so none is asked once that
   // cannot pass the margin.
-  while (party.length < partySizeMax && party.length < available.length && 1 - chance.success > margin) {
+  while (party.length < available.length && 1 - chance.success > margin) {
     const next = best(left());
     if (!(next.chance.success - chance.success > margin)) break;
     party.push(next.hero);
@@ -186,7 +188,7 @@ function partyMarginOf(guild: Pick<Guild, 'controller'>, deps: Pick<EngineDeps, 
  * asks no estimate, so the Board can be searched with it every Turn.
  */
 export function requiredParty(quest: Pick<Quest, 'requirements'>, available: readonly Hero[]): Hero[] | null {
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
+  const { partySizeMin, classKey, skillKey } = quest.requirements;
   const ofClass = (hero: Hero): boolean => classKey === undefined || hero.classKey === classKey;
   const withSkill = (hero: Hero): boolean => skillKey === undefined || Object.hasOwn(hero.skills, skillKey);
   const party: Hero[] = [];
@@ -203,7 +205,7 @@ export function requiredParty(quest: Pick<Quest, 'requirements'>, available: rea
     }
   }
   const size = Math.max(partySizeMin, party.length);
-  if (size > partySizeMax || size > available.length) return null;
+  if (size > available.length) return null;
   for (const hero of available) {
     if (party.length >= size) break;
     if (!party.includes(hero)) party.push(hero);

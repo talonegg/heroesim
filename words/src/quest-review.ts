@@ -326,7 +326,7 @@ export function reviewPage(input: ReviewInput, { fragment = false }: { fragment?
     return [
       `<section class="card" id="tpl-${esc(template.key)}">`,
       `<h3>${esc(template.name)} <a class="id" href="#tpl-${esc(template.key)}">#tpl-${esc(template.key)}</a></h3>`,
-      `<p class="meta">Tiers ${template.tierMin}–${template.tierMax} · Parties of ${template.partySizeMin} to ${template.partySizeMax} · Beats ${beatKinds(template).join(', ')} · ${esc(tagWords(template.tags))}</p>`,
+      `<p class="meta">Tiers ${template.tierMin}–${template.tierMax} · Parties of ${template.partySizeMin} or more · Beats ${beatKinds(template).join(', ')} · ${esc(tagWords(template.tags))}</p>`,
       changes.length === 0 ? '<p>Unchanged.</p>' : `<p>Changed: ${esc(changes.join('; '))}.</p>`,
       notes.templates?.[template.key] === undefined ? '' : `<p>${esc(notes.templates[template.key] as string)}</p>`,
       table(['Best Party', 'Difficulty', 'Quests', 'Fail', 'Success', 'Strong', 'Its size'], rows, `The best Party of a Roster of ${settings.roster}, if no one falls`),

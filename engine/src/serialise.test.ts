@@ -231,7 +231,7 @@ describe('deserialise', () => {
   });
 
   test('a structurally broken document is refused, not thrown on', () => {
-    const reason = refusal(deserialise('{"meta":{"version":8},"world":[],"history":null}', deps));
+    const reason = refusal(deserialise('{"meta":{"version":9},"world":[],"history":null}', deps));
     expect(reason.kind).toBe('invalid');
   });
 
@@ -317,6 +317,20 @@ describe('the migration chain', () => {
 // ── Older saves: refused (DL-125 item 10.2, DL-135 item 7; DL-193) ────
 
 describe('a save of an older schema', () => {
+  /** `document` as schema 8 wrote it: `meta.version` 8, and each Quest's requirements with a greatest Party, `partySizeMax`. */
+  function asVersion8(document: WorldDocument): string {
+    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { quests: Record<string, { requirements: object }> } };
+    parsed.meta.version = 8;
+    for (const quest of Object.values(parsed.world.quests)) Object.assign(quest.requirements, { partySizeMax: 4 });
+    return JSON.stringify(parsed);
+  }
+
+  test("of schema 8, its Quests' requirements with a greatest Party, is refused as unsupported-version, naming both versions (DL-266)", () => {
+    const text = asVersion8(createWorld('version-8', setup, testDeps()).document);
+
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 8, schemaVersion: 9 });
+  });
+
   /** `document` as schema 7 wrote it: `meta.version` 7, and each Quest without its Tier or its Beats' lines. */
   function asVersion7(document: WorldDocument): string {
     const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { quests: Record<string, object> } };
@@ -330,7 +344,7 @@ describe('a save of an older schema', () => {
   test("of schema 7, its Quests without a Tier, is refused as unsupported-version, naming both versions, not as invalid (DL-262)", () => {
     const text = asVersion7(createWorld('version-7', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 7, schemaVersion: 8 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 7, schemaVersion: 9 });
   });
 
   /**
@@ -352,7 +366,7 @@ describe('a save of an older schema', () => {
   test('of schema 6, as v1.1.5 wrote it, is refused as unsupported-version, naming both versions, not as invalid (DL-193)', () => {
     const text = asVersion6(createWorld('version-6', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 6, schemaVersion: 8 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 6, schemaVersion: 9 });
   });
 
   /**
@@ -371,11 +385,11 @@ describe('a save of an older schema', () => {
   test('of schema 5, as v1.1.2 wrote it, is refused as unsupported-version, naming both versions, not as invalid (DL-135 item 7)', () => {
     const text = asVersion5(createWorld('version-5', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 8 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 9 });
   });
 
   test("of schema 5 with a Hero's three fields is refused the same way: the version, not the shape, refuses it", () => {
-    expect(refusal(deserialise(withVersion(built(), 5), deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 8 });
+    expect(refusal(deserialise(withVersion(built(), 5), deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 9 });
   });
 
   /**
@@ -395,14 +409,14 @@ describe('a save of an older schema', () => {
   test('of schema 4, as v1.1.1 wrote it, is refused as unsupported-version, naming both versions, not as invalid', () => {
     const text = asVersion4(createWorld('version-4', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 4, schemaVersion: 8 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 4, schemaVersion: 9 });
   });
 
   test.each([1, 2, 3])('of schema %i is refused the same way: no migration leads from it', (version) => {
     expect(refusal(deserialise(withVersion(built(), version), deps))).toMatchObject({
       kind: 'unsupported-version',
       documentVersion: version,
-      schemaVersion: 8,
+      schemaVersion: 9,
     });
   });
 });

@@ -222,9 +222,12 @@ export interface Injury {
   healsOnTurn: Turn;
 }
 
+/**
+ * What a Party must be to take a Quest: at least `partySizeMin` Heroes, with no greatest (DL-257
+ * item 6, DL-266), and any Class and Skill it needs.
+ */
 export interface QuestRequirements {
   partySizeMin: number;
-  partySizeMax: number;
   classKey?: ClassKey;
   skillKey?: SkillKey;
 }
@@ -494,9 +497,10 @@ export interface Stack {
  * `biography`, refusing every older save likewise (DL-135 item 7, DL-142); 7, `meta`'s
  * `configVersion`, taking `schemaVersion`, `configVersion` and `gearSlots` from the config and
  * `demands` from Quests, refusing every older save likewise (DL-193); 8, Quests' `tier` and
- * `beatLines`, refusing every older save likewise (DL-257, DL-262).
+ * `beatLines`, refusing every older save likewise (DL-257, DL-262); 9, `partySizeMax` taken from
+ * Quests' requirements, refusing every older save likewise (DL-257 item 6, DL-266).
  */
-export const schemaVersion = 8;
+export const schemaVersion = 9;
 
 export interface Meta {
   /** Schema version of this document: `schemaVersion` when it was written. */

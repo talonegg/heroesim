@@ -5,7 +5,7 @@
   "tierMin": 2, "tierMax": 3,
   "rewardPerDifficulty": 4,
   "fameEffect": 3,
-  "partySizeMin": 2, "partySizeMax": 4,
+  "partySizeMin": 2,
   "skillKeys": ["swordcraft", "benediction"],
   "requires": {},
   "lootTableKey": null,

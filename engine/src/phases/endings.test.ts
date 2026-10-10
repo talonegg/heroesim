@@ -533,7 +533,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       skillKeys: [],
       encounterKeys: ['hold-the-line'],
       beatLines: ['A combat Beat.'],
-      requirements: { partySizeMin: 1, partySizeMax: 3 },
+      requirements: { partySizeMin: 1 },
       lootTableKey: null,
       status: 'taken',
       offeredOnTurn: 0,

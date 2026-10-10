@@ -5,7 +5,7 @@
   "tierMin": 1, "tierMax": 1,
   "rewardPerDifficulty": 4,
   "fameEffect": 1,
-  "partySizeMin": 1, "partySizeMax": 2,
+  "partySizeMin": 2,
   "skillKeys": ["herbalism", "field-surgery"],
   "requires": {},
   "lootTableKey": null,

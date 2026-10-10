@@ -271,9 +271,9 @@ describe('the home view (DL-103)', () => {
   test("shows the report of the Party that came home, in the Came home cards' place: its band, Wealth, Fame, XP and Injuries, as its History says", async () => {
     // A Party out on a Quest made as hard as a Quest is, so that it comes home hurt: the
     // Party sent is the one most likely to come through (DL-157), and on this seed's own Quest it does.
-    // The seed is report-l: the Encounter tags bring report-d's Party home unhurt (DL-160), and the
-    // balance pass brings report-f's to report-k's home unhurt (DL-166).
-    const hard = changed(withPartyOut(started('report-l')), (document, player) => {
+    // The seed is report-o: the Encounter tags bring report-d's Party home unhurt (DL-160), the
+    // balance pass report-f's to report-k's (DL-166), and the Party floor of two report-l's to report-n's (DL-266).
+    const hard = changed(withPartyOut(started('report-o')), (document, player) => {
       for (const party of Object.values(document.world.parties)) {
         if (party.guildId === player.id) (document.world.quests[party.questId] as Quest).difficulty = 100;
       }

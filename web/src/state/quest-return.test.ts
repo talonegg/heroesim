@@ -279,7 +279,7 @@ describe('questReturn', () => {
     const document = documentOf(drawn);
     const guild = playerGuild(document.world);
     if (guild === undefined) throw new Error("no player's Guild");
-    const open = offeredQuests(document.world).filter(({ requirements }) => requirements.classKey === undefined && requirements.skillKey === undefined && requirements.partySizeMin <= 2 && 2 <= requirements.partySizeMax);
+    const open = offeredQuests(document.world).filter(({ requirements }) => requirements.classKey === undefined && requirements.skillKey === undefined && requirements.partySizeMin <= 2);
     const pair = open.flatMap((quest) => open.filter((other) => other.id > quest.id && other.patronId === quest.patronId).map((other) => [quest, other]))[0];
     if (pair === undefined) throw new Error('no two Quests of one Patron on the Board');
     // As long as each other whatever Days their Tiers drew (DL-262).
