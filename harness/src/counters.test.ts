@@ -1546,7 +1546,7 @@ describe("the Targets' counters (DL-259)", () => {
     sent(7, player, 103, 3, 1, 10);
     resolved(17, player, 101, first, 'strong', 300, 40);
     loot(17, player, 101);
-    resolved(26, a, 102, second, 'fail', 0, 30, second.slice(0, 1));
+    resolved(26, a, 102, second, 'fail', 0, 30, second.slice(0, 2));
     document.world.turn = 30;
 
     const tiers = countGame(document, shortYears).questTiers;
@@ -1560,8 +1560,8 @@ describe("the Targets' counters (DL-259)", () => {
     });
     expect(tiers['3']).toEqual({
       offered: (created['3'] ?? 0) + 2,
-      // The Rival's Party of three lost one, its Death counted, so two took the XP; the player's third Quest is still away.
-      byController: { rival: side(1, 3, 8, { resolved: 1, resolvedDays: 8, fail: 1, xp: 60, deaths: 1 }), player: side(1, 1, 10) },
+      // The Rival's Party of three lost two, each Death counted, so one took the XP; the player's third Quest is still away.
+      byController: { rival: side(1, 3, 8, { resolved: 1, resolvedDays: 8, fail: 1, xp: 30, deaths: 2 }), player: side(1, 1, 10) },
     });
     for (const [tier, count] of Object.entries(created)) if (tier !== '2' && tier !== '3') expect(tiers[tier]).toEqual({ offered: count, byController: {} });
   });

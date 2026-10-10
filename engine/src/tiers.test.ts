@@ -323,6 +323,16 @@ describe('isDeadly', () => {
     expect(isDeadly(questAt(4, ['brawl', 'glory']), tierContent, config())).toBe(true);
   });
 
+  test("reads each Degree's list on its own: a Death at a Triumph, a Success, a Setback or a Failure alone", () => {
+    const death: Consequence = { kind: 'death', chance: 0.02 };
+    const lists = { triumph: [], success: [], setback: [], failure: [] };
+    for (const degree of ['triumph', 'success', 'setback', 'failure'] as const) {
+      const only = { key: degree, consequences: { ...lists, [degree]: [death] } } as unknown as Encounter;
+      const content = { ...tierContent, encounters: { [degree]: only } } as unknown as Pick<ContentSet, 'questTemplates' | 'encounters'>;
+      expect(isDeadly(questAt(4, [degree]), content, config()), degree).toBe(true);
+    }
+  });
+
   test("reads the template's override of the Tier's deathScale", () => {
     expect(isDeadly(questAt(4, ['ambush'], 'spared'), tierContent, config())).toBe(false);
     expect(isDeadly(questAt(5, ['ambush'], 'spared'), tierContent, config())).toBe(true);

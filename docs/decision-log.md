@@ -662,3 +662,9 @@ one at Tier 4); Quests taken, the player's 2,269 → 2,256 and the Rivals' 4,056
 and folds 0. Deaths by Tier, Tiers 1–5: the player 0, 0, 0, 0, 0 of 801, 1,113, 316, 25 and 1 taken;
 the Rivals 0, 0, 0, 1, 0 of 1,009, 1,884, 1,308, 247 and 19. The player's Deaths a game 0.00 (S6 1.25,
 S2's quick 1.75, S2's gate 4.28 over 20 years). The epic's S7 boxes.
+Verified 2026-10-11 at 3c64efe: `strike` the only path to a Death, so every Death is scaled; the 21
+moved tests each red without their Death at every Tier and each about a Death; Deaths by Tier equal
+`hero.died` Quest by Quest in played games, none below Tier 4 at the defaults; the quick run
+reproduced, `e919219b…`; of 30 mutations 25 red, the default `deathFactor` moved living as no test
+pins a default (DL-231 Q10 b), and 4 killed by tests added: Deadly read from a Setback's or a
+Success's list alone, a Quest of two Deaths, and Deaths a Quest over those resolved, not taken.

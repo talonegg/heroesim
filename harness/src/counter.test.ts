@@ -143,8 +143,9 @@ describe('the Quests by Tier', () => {
   test("give each controller's Deaths at each Tier, and a Quest's", () => {
     const counter = gameCounters.find((it) => it.key === 'questTiers');
     if (counter?.lines === undefined) throw new Error('No questTiers counter');
+    // Two of each side's Quests still away, so a Quest's Deaths are over those resolved, not those taken.
     const side = (resolved: number, deaths: number) => ({
-      taken: resolved, heroes: 2 * resolved, days: 10 * resolved, resolved, resolvedDays: 10 * resolved, fail: 0, success: resolved, strong: 0, wealth: 0, xp: 0, loot: 0, deaths,
+      taken: resolved + 2, heroes: 2 * resolved, days: 10 * resolved, resolved, resolvedDays: 10 * resolved, fail: 0, success: resolved, strong: 0, wealth: 0, xp: 0, loot: 0, deaths,
     });
     const totals = { questTiers: { '3': { offered: 40, byController: { player: side(20, 0) } }, '4': { offered: 10, byController: { player: side(8, 2), rival: side(4, 1) } } } };
 
