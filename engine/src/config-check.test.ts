@@ -19,13 +19,13 @@ describe('the rules', () => {
 
   test('a setting missing is named, as missing', () => {
     const config: Record<string, unknown> = { ...defaultConfig };
-    delete config['boardSize'];
-    expect(checkConfig(config)).toEqual([{ setting: 'boardSize', message: 'boardSize is missing; it is a whole number, at least 0' }]);
+    delete config['boardSizeStart'];
+    expect(checkConfig(config)).toEqual([{ setting: 'boardSizeStart', message: 'boardSizeStart is missing; it is a whole number, at least 0' }]);
   });
 
   test('a problem names its setting, its value and what it is to be, in GameConfig\'s order', () => {
-    expect(checkConfig({ ...defaultConfig, checkVariance: 2, boardSize: -1 })).toEqual([
-      { setting: 'boardSize', message: 'boardSize is -1; it is a whole number, at least 0' },
+    expect(checkConfig({ ...defaultConfig, checkVariance: 2, boardSizeStart: -1 })).toEqual([
+      { setting: 'boardSizeStart', message: 'boardSizeStart is -1; it is a whole number, at least 0' },
       { setting: 'checkVariance', message: 'checkVariance is 2; it is a share from 0 to 1' },
     ]);
   });
@@ -140,13 +140,19 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   hallMaintenancePerGrade: wholeFrom(0),
   bankruptcyFloor: anyWhole,
   bankruptcyGraceDays: wholeFrom(0),
-  fameFloor: wholeFrom(0),
+  // No higher than `foundingFame`, whose rule reads it (DL-261): its edges above 0 are 'the Board's size and the founding Fame'.
+  fameFloor: { refused: [-1, 0.5, Number.POSITIVE_INFINITY], allowed: [0] },
+  // At least `fameFloor` (DL-261), held by 'the Board's size and the founding Fame'.
+  foundingFame: wholeFrom(0),
   signingFeeBase: wholeFrom(0),
   signingFeePerLevel: wholeFrom(0),
   signingFeeStatDivisor: finiteAbove(0),
   unattachedStayDays: wholeFrom(0),
   fameRequiredPerLevel: finiteFrom(0),
-  boardSize: wholeFrom(0),
+  boardSizeStart: wholeFrom(0),
+  boardGrowthPerYear: finiteFrom(0),
+  // At least `boardSizeStart` (DL-261).
+  boardSizeMax: { refused: [defaultConfig.boardSizeStart - 1, defaultConfig.boardSizeMax + 0.5, Number.NaN], allowed: [defaultConfig.boardSizeStart, defaultConfig.boardSizeMax + 1] },
   questOfferDays: wholeFrom(1),
   questDifficultyMin: { refused: [0, 10.5], allowed: [1, defaultConfig.questDifficultyMax] },
   questDifficultyMax: maxOf('questDifficultyMin', 'questDifficultyMax'),
@@ -351,6 +357,35 @@ describe('a Min and its Max', () => {
   });
 });
 
+describe("the Board's size and the founding Fame (DL-261)", () => {
+  test('a Board starting above its cap is refused, the cap named with the start', () => {
+    expect(checkConfig({ ...defaultConfig, boardSizeStart: 7, boardSizeMax: 6 })).toEqual([
+      { setting: 'boardSizeMax', message: 'boardSizeMax is 6; it is a whole number, at least boardSizeStart (7)' },
+    ]);
+    expect(broken({ boardSizeStart: 6, boardSizeMax: 6 })).toEqual([]);
+    expect(broken({ boardSizeStart: 2, boardSizeMax: 9 })).toEqual([]);
+  });
+
+  test('the Board grows by a finite number of 0 or more a Year, a part of one Quest allowed, and starts and ends whole', () => {
+    expect(checkConfig({ ...defaultConfig, boardGrowthPerYear: -1 })).toEqual([
+      { setting: 'boardGrowthPerYear', message: 'boardGrowthPerYear is -1; it is a finite number, at least 0' },
+    ]);
+    expect(broken({ boardGrowthPerYear: Number.POSITIVE_INFINITY })).toEqual(['boardGrowthPerYear']);
+    expect(broken({ boardSizeStart: 2, boardGrowthPerYear: 0.5 })).toEqual([]);
+    expect(broken({ boardSizeStart: 2.5 })).toEqual(['boardSizeStart']);
+    expect(broken({ boardSizeMax: 7.5 })).toEqual(['boardSizeMax']);
+  });
+
+  test('a Guild is founded with whole Fame, never below the Fame floor', () => {
+    expect(checkConfig({ ...defaultConfig, fameFloor: 10, foundingFame: 5 })).toEqual([
+      { setting: 'foundingFame', message: 'foundingFame is 5; it is a whole number, at least fameFloor (10)' },
+    ]);
+    expect(broken({ fameFloor: 10, foundingFame: 10 })).toEqual([]);
+    expect(broken({ foundingFame: 25 })).toEqual([]);
+    expect(broken({ foundingFame: 2.5 })).toEqual(['foundingFame']);
+  });
+});
+
 describe('the bands, in their order', () => {
   test('the Morale bands, and the baseline, lie within moraleMin and moraleMax', () => {
     expect(broken({ moraleMin: defaultConfig.moraleBands.wretched + 1 })).toEqual(['moraleBands']);
@@ -393,25 +428,25 @@ describe('the lists a content release may outgrow: no rule reads the content (DL
 
 describe('playConfig', () => {
   test("is the defaults with the saved values over them, a setting the save lacks the default's, a field GameConfig lacks left out", () => {
-    const saved = { boardSize: 3, retiredField: 7 };
-    expect(playConfig(saved)).toEqual({ ok: true, config: { ...defaultConfig, boardSize: 3 } });
+    const saved = { boardSizeStart: 3, retiredField: 7 };
+    expect(playConfig(saved)).toEqual({ ok: true, config: { ...defaultConfig, boardSizeStart: 3 } });
   });
 
   test('refuses a saved value its rule refuses, naming each', () => {
-    const played = playConfig({ boardSize: 1.5, sellRatio: 1 });
-    expect(played).toMatchObject({ ok: false, refusal: { kind: 'unsound-config', problems: [{ setting: 'boardSize' }, { setting: 'sellRatio' }] } });
+    const played = playConfig({ boardSizeStart: 1.5, sellRatio: 1 });
+    expect(played).toMatchObject({ ok: false, refusal: { kind: 'unsound-config', problems: [{ setting: 'boardSizeStart' }, { setting: 'sellRatio' }] } });
     expect(!played.ok && played.refusal.message).toBe(
-      "The game's config is unsound: boardSize is 1.5; it is a whole number, at least 0; sellRatio is 1; it is a finite number, at least 0 and below 1",
+      "The game's config is unsound: boardSizeStart is 1.5; it is a whole number, at least 0; sellRatio is 1; it is a finite number, at least 0 and below 1",
     );
   });
 });
 
 describe('playDeps', () => {
   test("is the game's own config filled forward, the content, and the modules given, none unless given", () => {
-    const meta = { ...testMeta, config: { ...testMeta.config, boardSize: 4 } };
-    expect(playDeps({ meta }, content)).toEqual({ ok: true, deps: { config: { ...defaultConfig, boardSize: 4 }, content } });
+    const meta = { ...testMeta, config: { ...testMeta.config, boardSizeStart: 4 } };
+    expect(playDeps({ meta }, content)).toEqual({ ok: true, deps: { config: { ...defaultConfig, boardSizeStart: 4 }, content } });
     const modules = [{ id: 'a-module' }] as unknown as Module[];
-    expect(playDeps({ meta }, content, modules)).toEqual({ ok: true, deps: { config: { ...defaultConfig, boardSize: 4 }, content, modules } });
+    expect(playDeps({ meta }, content, modules)).toEqual({ ok: true, deps: { config: { ...defaultConfig, boardSizeStart: 4 }, content, modules } });
   });
 
   test("copies: the play config is not the save's, nor the defaults", () => {

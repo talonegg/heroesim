@@ -95,7 +95,7 @@ describe('runConfig', () => {
 
   test('refuses a setting its rule refuses, naming each', () => {
     expect(() => runConfig({ checkVariance: 2 })).toThrow(new RangeError('HEROESIM_CONFIG: checkVariance is 2; it is a share from 0 to 1'));
-    expect(() => runConfig({ boardSize: 1.5, sellRatio: 1 })).toThrow(/^HEROESIM_CONFIG: boardSize is 1\.5; .*; HEROESIM_CONFIG: sellRatio is 1; /);
+    expect(() => runConfig({ boardSizeStart: 1.5, sellRatio: 1 })).toThrow(/^HEROESIM_CONFIG: boardSizeStart is 1\.5; .*; HEROESIM_CONFIG: sellRatio is 1; /);
   });
 
   test('a game whose config breaks a rule is refused before its first Turn, naming the setting', () => {

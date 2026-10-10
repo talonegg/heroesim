@@ -7,9 +7,9 @@ import { count, entriesFor } from '../history.js';
 import { generateQuest } from '../generators/quests.js';
 import { patronBoardWeight } from '../regard.js';
 import { createStreams, pick } from '../rng.js';
-import { dayOf, timeOfDay } from '../time.js';
+import { dayOf, timeOfDay, yearOf } from '../time.js';
 import { plannedStreams, playWith, setup, streamsOutOfPlace, testContent, testDeps, withValid } from '../world.test-support.js';
-import { boardRefresh } from './board-refresh.js';
+import { boardRefresh, boardSizeAt } from './board-refresh.js';
 import { phaseContext } from './phase.js';
 
 /** Advances to a Turn, validating every document. */
@@ -30,11 +30,56 @@ function takeFromBoard(world: World, n: number): void {
   for (const questId of world.board.splice(0, n)) delete world.quests[questId];
 }
 
+describe('boardSizeAt (DL-261)', () => {
+  /** A Year of ten Days, so that a test plays several. */
+  const turnsPerYear = 30;
+
+  test("is the start, grown by the Years played and floored to a whole Board, never above the cap", () => {
+    const config = testDeps({ turnsPerYear, boardSizeStart: 2, boardGrowthPerYear: 1.5, boardSizeMax: 7 }).config;
+    // Years 0 to 5: 2, 3.5, 5, 6.5, 8 and 9.5 Quests' worth, each floored, the last two capped.
+    expect([0, 1, 2, 3, 4, 5].map((year) => boardSizeAt(year * turnsPerYear, config))).toEqual([2, 3, 5, 6, 7, 7]);
+  });
+
+  test('counts the Years played as the whole Years since Turn 0, as yearOf does: it grows on the first Turn of a Year', () => {
+    const config = testDeps({ turnsPerYear, boardSizeStart: 4, boardGrowthPerYear: 1, boardSizeMax: 10 }).config;
+    expect(boardSizeAt(0, config)).toBe(4);
+    expect(boardSizeAt(turnsPerYear - 1, config)).toBe(4);
+    expect(boardSizeAt(turnsPerYear, config)).toBe(5);
+    expect(boardSizeAt(3 * turnsPerYear + 7, config)).toBe(4 + yearOf(3 * turnsPerYear + 7, config));
+  });
+
+  test('a part of a Quest a Year adds a Quest each time the parts make a whole one', () => {
+    const config = testDeps({ turnsPerYear, boardSizeStart: 3, boardGrowthPerYear: 0.5, boardSizeMax: 6 }).config;
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8].map((year) => boardSizeAt(year * turnsPerYear, config))).toEqual([3, 3, 4, 4, 5, 5, 6, 6, 6]);
+  });
+
+  test('with no growth, is the start every Year: the defaults keep a Board of one size', () => {
+    const config = testDeps({ turnsPerYear, boardSizeStart: 5, boardGrowthPerYear: 0, boardSizeMax: 9 }).config;
+    expect([0, 1, 20].map((year) => boardSizeAt(year * turnsPerYear, config))).toEqual([5, 5, 5]);
+  });
+
+  test('a new world opens on the start, and a played Board grows each Year to the cap, refilled the first morning of the Year', () => {
+    const deps = testDeps({ ...noRivals, turnsPerYear, boardSizeStart: 2, boardGrowthPerYear: 1.5, boardSizeMax: 5 });
+    let document = created('growing', deps);
+    expect(document.world.board).toHaveLength(2);
+
+    const mornings: number[] = [];
+    for (let year = 1; year <= 3; year += 1) {
+      document = playTo(document, year * turnsPerYear, deps).document;
+      expect(timeOfDay(document.world.turn)).toBe('morning');
+      mornings.push(document.world.board.length);
+    }
+
+    expect(mornings).toEqual([3, 5, 5]);
+  });
+});
+
 describe('boardRefresh', () => {
-  test('refills the Board to boardSize every morning, and it never holds more', () => {
+  test("refills the Board to the Year's size every morning, and it never holds more", () => {
     const deps = testDeps(noRivals);
+    const size = boardSizeAt(0, deps.config);
     let document = created('refill', deps);
-    expect(document.world.board).toHaveLength(deps.config.boardSize);
+    expect(document.world.board).toHaveLength(size);
 
     for (let turn = 1; turn <= 30; turn += 1) {
       // Two Quests go each afternoon, as Rivals would take them.
@@ -46,17 +91,17 @@ describe('boardRefresh', () => {
       document = playTo(document, turn, deps).document;
       const { board } = document.world;
 
-      if (timeOfDay(turn) === 'morning') expect(board, `Turn ${turn}`).toHaveLength(deps.config.boardSize);
+      if (timeOfDay(turn) === 'morning') expect(board, `Turn ${turn}`).toHaveLength(size);
       else expect(board.length, `Turn ${turn}`).toBe(before);
-      expect(board.length).toBeLessThanOrEqual(deps.config.boardSize);
+      expect(board.length).toBeLessThanOrEqual(size);
       for (const questId of board) expect(document.world.quests[questId]?.status).toBe('offered');
     }
   });
 
-  test('draws nothing onto a Board already holding boardSize or more, and removes nothing unexpired', () => {
+  test("draws nothing onto a Board already holding the Year's size or more, and removes nothing unexpired", () => {
     const deps = testDeps(noRivals);
     const document = created('full', deps);
-    const smaller = testDeps({ ...noRivals, boardSize: 3 });
+    const smaller = testDeps({ ...noRivals, boardSizeStart: 3, boardSizeMax: 3 });
 
     const { document: morning, events } = playTo(document, 3, smaller);
 
@@ -96,7 +141,7 @@ describe('boardRefresh', () => {
       ...offered.map(() => 'quest.offered'),
     ]);
     expect(morning.world.board.some((id) => offered.includes(id))).toBe(false);
-    expect(morning.world.board).toHaveLength(deps.config.boardSize);
+    expect(morning.world.board).toHaveLength(boardSizeAt(morning.world.turn, deps.config));
   });
 
   test('reads questOfferDays from the config it is given', () => {
@@ -104,7 +149,7 @@ describe('boardRefresh', () => {
     const document = created('five-days', deps);
 
     expect(count(playTo(document, 14, deps).document.history, 'quest.expired')).toBe(0);
-    expect(count(playTo(document, 15, deps).document.history, 'quest.expired')).toBe(deps.config.boardSize);
+    expect(count(playTo(document, 15, deps).document.history, 'quest.expired')).toBe(boardSizeAt(0, deps.config));
   });
 
   test("advances the board stream and, for the new Quests' Encounter sequences, the encounters stream, and no other", () => {
@@ -118,7 +163,7 @@ describe('boardRefresh', () => {
 
     const morning = playTo(night, 9, deps).document;
 
-    expect(count(morning.history, 'quest.expired')).toBe(deps.config.boardSize);
+    expect(count(morning.history, 'quest.expired')).toBe(boardSizeAt(0, deps.config));
     expect(streamsOutOfPlace(before, morning.world.rng, ['board', 'encounters'])).toEqual([]);
   });
 
@@ -152,7 +197,7 @@ describe('boardRefresh', () => {
 
     const tally = tallyOffers(world, deps, rounds);
 
-    const drawn = rounds * deps.config.boardSize;
+    const drawn = rounds * boardSizeAt(world.turn, deps.config);
     expect(tally.get(shunned.id) ?? 0).toBe(0);
     expect(Math.abs((tally.get(favoured.id) ?? 0) / drawn - 2 / total)).toBeLessThan(0.015);
     for (const patron of rest) expect(Math.abs((tally.get(patron.id) ?? 0) / drawn - 1 / total), patron.id).toBeLessThan(0.01);
@@ -177,7 +222,7 @@ describe('boardRefresh', () => {
       offered.push(...boardRefresh(world, phaseContext(world, deps)).map((event) => event.participants[1]));
       // The same draws by `pick`, as DL-25's refresh made them: one draw for the Patron, then the Quest's.
       const state = again.rng.board;
-      while (again.board.length < deps.config.boardSize) {
+      while (again.board.length < boardSizeAt(again.turn, deps.config)) {
         const patron = pick(state, patrons);
         uniform.push(generateQuest(again, patron, deps).events[0]?.participants[1] ?? '');
       }

@@ -1131,14 +1131,14 @@ describe('save and load', () => {
   test('a save whose config breaks a rule is refused at load, naming the setting, and left as it was (DL-193)', () => {
     newDemo();
     edit((edited) => {
-      edited.meta.config.boardSize = -2;
+      edited.meta.config.boardSizeStart = -2;
     });
     const original = saved();
 
     for (const argv of [['show'], ['advance'], ['load', current()]]) {
       const run = play(argv);
       expect(run.code, argv.join(' ')).toBe(exitCodes.refused);
-      expect(run.err).toBe(`Cannot load ${current()}: The game's config is unsound: boardSize is -2; it is a whole number, at least 0.
+      expect(run.err).toBe(`Cannot load ${current()}: The game's config is unsound: boardSizeStart is -2; it is a whole number, at least 0.
 `);
     }
     expect(saved()).toBe(original);

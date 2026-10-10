@@ -262,14 +262,14 @@ describe('the rules a game plays under', () => {
     return saveText(state, ({ meta }) => {
       const config = meta['config'] as Record<string, unknown>;
       meta['configVersion'] = 1;
-      config['boardSize'] = defaultConfig.boardSize - 1;
+      config['boardSizeStart'] = defaultConfig.boardSizeStart - 1;
       delete config['transferLockDays'];
     });
   }
 
   test("are the save's own, filled forward with the current defaults, by the engine's playDeps", () => {
     const loaded = play(started(), { kind: 'load', text: olderRules(started()) });
-    const expected = { ...defaultConfig, boardSize: defaultConfig.boardSize - 1 };
+    const expected = { ...defaultConfig, boardSizeStart: defaultConfig.boardSizeStart - 1 };
 
     const advanced = play(loaded, { kind: 'advance' });
     expect(lastDeps(advance)).toEqual({ config: expected, content });
@@ -299,9 +299,9 @@ describe('the rules a game plays under', () => {
 
   test("a game in hand whose config breaks a rule is a bug, which the page's playDeps throws on, naming the setting (DL-193)", () => {
     const document = documentOf(started());
-    const unsound: WorldDocument = { ...document, meta: { ...document.meta, config: { ...document.meta.config, boardSize: -1 } } };
+    const unsound: WorldDocument = { ...document, meta: { ...document.meta, config: { ...document.meta.config, boardSizeStart: -1 } } };
 
-    expect(() => playDeps(unsound)).toThrow("The game's config is unsound: boardSize is -1; it is a whole number, at least 0");
+    expect(() => playDeps(unsound)).toThrow("The game's config is unsound: boardSizeStart is -1; it is a whole number, at least 0");
   });
 
   test("rebase adopts the current defaults, not the save's own; a second rebase is refused", () => {

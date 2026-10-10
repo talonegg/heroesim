@@ -109,8 +109,8 @@ const samples: Samples = {
   'load unsound-config': {
     action: 'load',
     reason: 'unsound-config',
-    problems: [{ setting: 'boardSize', message: 'boardSize is -1; it is a whole number, at least 0' }],
-    message: "The game's config is unsound: boardSize is -1; it is a whole number, at least 0",
+    problems: [{ setting: 'boardSizeStart', message: 'boardSizeStart is -1; it is a whole number, at least 0' }],
+    message: "The game's config is unsound: boardSizeStart is -1; it is a whole number, at least 0",
   },
 
   'rebase already-current': { action: 'rebase', reason: 'already-current', configVersion },
@@ -272,7 +272,7 @@ const exactly: Record<keyof Samples, string> = {
   'load not-a-document': 'Cannot load the save: The save has no whole-number meta.version.',
   'load unsupported-version': 'Cannot load the save: The save is schema version 9.',
   'load invalid': 'Cannot load the save: The save fails the validator (shape): meta.seed.',
-  'load unsound-config': "Cannot load the save: The game's config is unsound: boardSize is -1; it is a whole number, at least 0.",
+  'load unsound-config': "Cannot load the save: The game's config is unsound: boardSizeStart is -1; it is a whole number, at least 0.",
 
   'rebase already-current': `This game already plays under this release's rules, configVersion ${configVersion}.`,
 

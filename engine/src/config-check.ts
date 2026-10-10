@@ -271,12 +271,17 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   bankruptcyFloor: whole(),
   bankruptcyGraceDays: whole({ min: 0 }),
   fameFloor: whole({ min: 0 }),
+  // A Guild founded below the floor would be raised to it the first night (DL-261).
+  foundingFame: whole({ min: 'fameFloor' }),
   signingFeeBase: whole({ min: 0 }),
   signingFeePerLevel: whole({ min: 0 }),
   signingFeeStatDivisor: finite({ above: 0 }),
   unattachedStayDays: whole({ min: 0 }),
   fameRequiredPerLevel: finite({ min: 0 }),
-  boardSize: whole({ min: 0 }),
+  // A Board holds a whole number of Quests; it grows towards its cap, never shrinks (DL-261).
+  boardSizeStart: whole({ min: 0 }),
+  boardGrowthPerYear: finite({ min: 0 }),
+  boardSizeMax: whole({ min: 'boardSizeStart' }),
   questOfferDays: whole({ min: 1 }),
   // A Quest's difficulty is above 0 (`resolveQuest`, `estimateQuest`).
   questDifficultyMin: whole({ min: 1 }),

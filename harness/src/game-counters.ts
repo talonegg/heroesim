@@ -1652,7 +1652,7 @@ const rankings: Declared<GameObservations['rankings'], SweepTotals['rankings']> 
     const rankingAlign = rankingHeader.map(() => 'right' as const);
     return [
       "The player's Guild's place in the Rankings (the engine's `rankings`, every Guild in play) as each year began, by the years " +
-        "played before it (0 is the new world), by Fame. In the new world every Guild stands at Fame 0, a tie the player's Guild wins " +
+        "played before it (0 is the new world), by Fame. In the new world every Guild stands at the founding Fame (`foundingFame`), a tie the player's Guild wins " +
         "by its id; the row 'After 1 year or more' leaves the new world out, as the Targets do (DL-86 item 12):",
       '',
       markdownTable(rankingHeader, rankingRows('fame'), rankingAlign),

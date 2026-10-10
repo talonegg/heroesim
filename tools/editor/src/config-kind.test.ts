@@ -103,8 +103,8 @@ describe('set', () => {
 
   test("refuses a value checkConfig refuses, naming the setting, and holds nothing", async () => {
     const dir = scratch();
-    const negative = await json<Failure>(dir, 'config', 'set', 'boardSize', '-1');
-    expect(negative).toEqual({ code: 1, json: { ok: false, kind: 'refused', problems: ['boardSize is -1; it is a whole number, at least 0'] } });
+    const negative = await json<Failure>(dir, 'config', 'set', 'boardSizeStart', '-1');
+    expect(negative).toEqual({ code: 1, json: { ok: false, kind: 'refused', problems: ['boardSizeStart is -1; it is a whole number, at least 0'] } });
 
     // A setting another's rule reads: a Max below its Min names the Max.
     const below = await json<Failure>(dir, 'config', 'set', 'rivalRosterMin', '9');
@@ -139,8 +139,8 @@ describe('set', () => {
   test('discard drops one setting\'s edit, or all', async () => {
     const dir = scratch();
     await json(dir, 'config', 'set', 'wagePerLevel', '25');
-    await json(dir, 'config', 'set', 'boardSize', '7');
-    expect((await json(dir, 'config', 'discard', 'boardSize')).json).toEqual({ ok: true, discarded: 1, left: 1 });
+    await json(dir, 'config', 'set', 'boardSizeMax', '7');
+    expect((await json(dir, 'config', 'discard', 'boardSizeMax')).json).toEqual({ ok: true, discarded: 1, left: 1 });
     expect((await json(dir, 'config', 'discard')).json).toEqual({ ok: true, discarded: 1, left: 0 });
   });
 });
@@ -207,7 +207,7 @@ describe('finish', () => {
 
   test('checks the settings again as the file is, refusing what checkConfig refuses', async () => {
     const dir = scratch();
-    await json(dir, 'config', 'set', 'boardSize', '7');
+    await json(dir, 'config', 'set', 'boardSizeMax', '7');
     // Another hand changes the file under the edit: a Min above its Max.
     const file = readConfig(dir);
     (file.sections.world as Record<string, unknown>).rivalRosterMin = 9;
@@ -239,7 +239,7 @@ describe("the Traits' journal and lock, shared", () => {
     const finished = await new ConfigEditor(dir).finish('a trial', async (root) => {
       during.traits = (await json<Failure>(root, 'traits', 'list')).json.kind;
       during.traitsFinish = (await json<Failure>(root, 'traits', 'finish')).json.kind;
-      during.config = (await json<Failure>(root, 'config', 'set', 'boardSize', '7')).json.kind;
+      during.config = (await json<Failure>(root, 'config', 'set', 'boardSizeMax', '7')).json.kind;
       return { ok: true, exitCode: 0, failures: [], tail: [] };
     });
     expect(during).toEqual({ traits: 'busy', traitsFinish: 'busy', config: 'busy' });
@@ -253,7 +253,7 @@ describe("the Traits' journal and lock, shared", () => {
     await json(dir, 'config', 'set', 'wagePerLevel', '25');
     const during: Record<string, string> = {};
     await new Editor(dir).finish(async (root) => {
-      during.set = (await json<Failure>(root, 'config', 'set', 'boardSize', '7')).json.kind;
+      during.set = (await json<Failure>(root, 'config', 'set', 'boardSizeMax', '7')).json.kind;
       during.finish = (await json<Failure>(root, 'config', 'finish', '--reason', 'a trial')).json.kind;
       return { ok: true, exitCode: 0, failures: [], tail: [] };
     });

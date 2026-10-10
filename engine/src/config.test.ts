@@ -53,6 +53,6 @@ describe('flattenConfig', () => {
   });
 
   test('refuses a setting in two sections, naming both', () => {
-    expect(() => flattenConfig({ quest: { boardSize: 6 }, board: { boardSize: 7 } })).toThrow('boardSize is in both quest and board');
+    expect(() => flattenConfig({ quest: { boardSizeMax: 6 }, board: { boardSizeMax: 7 } })).toThrow('boardSizeMax is in both quest and board');
   });
 });

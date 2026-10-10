@@ -180,16 +180,16 @@ describe('deserialise', () => {
 
   test('gives the deps to play the save under: its own config filled forward, the content and the modules', () => {
     const document = built();
-    const saved: Partial<GameConfig> = { ...document.meta.config, boardSize: 3 };
+    const saved: Partial<GameConfig> = { ...document.meta.config, boardSizeStart: 3 };
     delete saved.marketSize;
     document.meta = { ...document.meta, config: saved as GameConfig };
     const result = deserialise(serialise(document), { content: testContent });
-    expect(result.ok && result.deps).toEqual({ config: { ...defaultConfig, boardSize: 3 }, content: testContent });
+    expect(result.ok && result.deps).toEqual({ config: { ...defaultConfig, boardSizeStart: 3 }, content: testContent });
   });
 
   test.each([
     ['checkVariance', 2],
-    ['boardSize', 1.5],
+    ['boardSizeStart', 1.5],
     ['regardBands', { hostile: -20, cool: -4, neutral: -12, warm: 4, close: 12 }],
   ])('a save whose %s breaks its rule is refused as unsound-config, naming it (DL-193)', (setting, value) => {
     const document = built();

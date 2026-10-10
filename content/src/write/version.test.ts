@@ -101,9 +101,9 @@ describe('the content version', () => {
 // raises (DL-244).
 describe('a versioned value', () => {
   test('is raised by one with a line of its changelog saying why, its other fields kept in their order', () => {
-    const value = { version: 16, changelog: ['16 from a story.'], sections: { world: { boardSize: 6 } } };
-    const raised = raisedVersion(value, 'a trial: boardSize 6 to 7', 'config.json');
-    expect(raised).toEqual({ from: 16, to: 17, value: { version: 17, changelog: ['16 from a story.', '17 from a trial: boardSize 6 to 7.'], sections: { world: { boardSize: 6 } } } });
+    const value = { version: 16, changelog: ['16 from a story.'], sections: { world: { boardSizeMax: 6 } } };
+    const raised = raisedVersion(value, 'a trial: boardSizeMax 6 to 7', 'config.json');
+    expect(raised).toEqual({ from: 16, to: 17, value: { version: 17, changelog: ['16 from a story.', '17 from a trial: boardSizeMax 6 to 7.'], sections: { world: { boardSizeMax: 6 } } } });
     expect(Object.keys(raised.value)).toEqual(['version', 'changelog', 'sections']);
     expect(value.version).toBe(16);
   });

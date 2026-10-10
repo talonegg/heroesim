@@ -21,6 +21,7 @@ import { addStack } from '../items.js';
 import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild } from '../selectors.js';
 import { plannedStreams, testDeps, withDispositions, withValid } from '../world.test-support.js';
+import { boardSizeAt } from './board-refresh.js';
 import { phaseContext } from './phase.js';
 import { rivalControllers } from './rival-controllers.js';
 import { applyAction } from '../actions/action.js';
@@ -116,7 +117,7 @@ describe('rivalControllers', () => {
       // The morning's Board, as the player leaves it (Turn 0 is Day 0's morning; later mornings refill it).
       if (day > 0) document = withValid(advance(document, deps).document, deps);
       const morning = [...document.world.board];
-      expect(morning, `Day ${day}`).toHaveLength(deps.config.boardSize);
+      expect(morning, `Day ${day}`).toHaveLength(boardSizeAt(document.world.turn, deps.config));
 
       const { document: afternoon, events } = advance(document, deps);
       document = withValid(afternoon, deps);
@@ -131,7 +132,7 @@ describe('rivalControllers', () => {
         expect(document.history.byEntity[questId]?.some((position) => document.history.entries[position] === event)).toBe(true);
       }
       expect(document.world.board).toEqual(morning.filter((questId) => !taken.some((event) => event.payload.questId === questId)));
-      expect(document.world.board.length).toBeLessThan(deps.config.boardSize);
+      expect(document.world.board.length).toBeLessThan(boardSizeAt(document.world.turn, deps.config));
 
       document = withValid(advance(document, deps).document, deps); // the night
     }

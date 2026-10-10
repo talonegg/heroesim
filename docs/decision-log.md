@@ -400,3 +400,57 @@ merge of two drafts touches only their rows' files.
 **Evidence.** The commit `v1.2.0-S3 (DL-260)`. The content read at `08387a7` and after the move: deep-equal,
 and identical with the four tables in key order, the drafts too. `neutral --expect` identical alone:
 `harness/reports/v1.2.0-s3-neutral-2026-10-10`. The epic's S3 boxes. Verified 2026-10-11 at 9f054b3: the content read by 08387a7's own code deep-equal to the content now, the four tables in key order, the drafts too; every missing folder still refused through the rules, a stray non-JSON file or a nested folder ignored as the bundle's pattern ignores it; 18 mutants, five surviving until tests of a row that is not JSON, a folder's non-JSON files, a source of the wrong shape and the build's gate over a folder's row killed four, the fifth equivalent; found that the key order moves the estimate probe's samples, its Morale-in limit 1.61 points in the authored order and 4.84 in key order, beyond its 3, left for the owner.
+
+## DL-261 — v1.2.0-S4 built: the growing Board, `boardSizeStart`, `boardGrowthPerYear` and `boardSizeMax` in place of `boardSize`, and the founding Fame, `foundingFame`; config version 18
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257 item 4 (Q3, Q10 a) builds the growing Board with neutral defaults: the smaller of
+a cap and a start plus growth by the Year, at 6, 0 and 6. #40 (N9) asks for the Fame a Guild is
+founded with as a setting, in place of the constant `foundingFame = 0` in
+`engine/src/generators/guilds.ts`. The Board held `boardSize`, 6, each morning.
+
+**Decision.**
+
+1. **The Board's size** is `boardSizeAt(turn, config)` (`engine/src/phases/board-refresh.ts`): the
+   floor of `boardSizeStart` + `boardGrowthPerYear` × the Years played, never above `boardSizeMax`.
+   - *The Years played* are `yearOf(turn)`, the whole Years since Turn 0, as ages count them. A Year
+     begins on a morning (DL-210), so the Board grows at the first refresh of each Year; a new world
+     opens on `boardSizeStart`.
+   - *Growth may be a part of a Quest*: at 0.5 a Year the Board gains a Quest every second Year.
+2. **`boardSize` is gone,** its three settings in the `board` section in its place. Their rules:
+   `boardSizeStart` a whole number of 0 or more, `boardGrowthPerYear` a finite number of 0 or more,
+   `boardSizeMax` a whole number at least `boardSizeStart`, so a start above the cap names the cap:
+   `boardSizeMax is 6; it is a whole number, at least boardSizeStart (7)`.
+3. **`foundingFame`,** 0, in the `guilds` section after `fameFloor`, is the Fame of every Guild the
+   Guild Generator founds: the player's, each founding Rival's and a folded Rival's replacement. Its
+   rule: a whole number at least `fameFloor`. The constant is gone; it draws nothing.
+4. **Config version 18,** its changelog line citing this entry. A save of 17 plays with its
+   `boardSize` left out and the four settings at their defaults (`playConfig`).
+5. **Readers and words.** The engine's tests read `boardSizeAt`; the tests that used `boardSize` as a
+   sample setting (the CLI's, the page's, the harness's, the editor's) use `boardSizeStart` or
+   `boardSizeMax`; `docs/agents/config.md`, the editor's README, R22 and the harness's Rankings note
+   say what is true now. The Patron Regard box pins the three at 6, 0 and 6.
+
+*Judgement calls, for the owner to see.*
+- **A Board of 0 stays allowed,** as `boardSize`'s rule allowed it (a count is a whole number of 0 or
+  more) and a test of the first Board's draw uses one. The brief named "sizes below 1" as nonsense;
+  refusing them is a one-line change to the two rules.
+- **The floor of the sum,** not of the growth alone; the same while the start is whole. A growth not
+  exactly a binary fraction (0.29 × 100 is 28.999…) floors one Quest short of the decimal sum.
+- **`foundingFame` at least `fameFloor`,** where a lower one would be raised the first night: so
+  `fameFloor`'s own case allows 0 only, its edges above 0 held beside `foundingFame`'s.
+- **The neutral fingerprint moves by construction:** each save records `configVersion` and the
+  whole `meta.config`, as DL-202 and DL-208 found. Play is shown unchanged instead (Evidence).
+
+**Consequences.** A later release tunes the Board's growth and cap and the founding Fame in config
+(DL-257 item 11). `harness/README.md`'s `neutral` baseline is S4's; the full `gate`'s moves with its
+next run, and S5 onward compare with S2's gate.
+
+**Evidence.** The commit `v1.2.0-S4 (DL-261)`. `neutral v1.2.0-s4-neutral --expect 29c09fb4…` alone
+(`harness/reports/v1.2.0-s4-neutral-2026-10-11`): every line PASS but the fingerprint,
+`661789f1d2811cfac869463d6dd1a0164874e3222f13690ba6adf9c43bdf2d6f`; `compare` with S3's: the config's
+five keys alone, 0 counters moved of 547, the saves 12,400 bytes longer. With the settings put back (version 17,
+`boardSize` 6, the rules, `boardSizeAt` given 6, 0 and 6, Fame 0) the 4 × 2 quick check gave
+`38d1c0d4…`, the baseline, the files then restored by SHA-256; at the build, `7ae6defa…`. The epic's
+S4 boxes.

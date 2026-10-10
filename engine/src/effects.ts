@@ -84,8 +84,8 @@ export interface Injure {
 /**
  * Puts a Quest of `patronId`'s on the end of the Board, of `templateKey` or of a template drawn from
  * the Patron's, generated as the Board's refresh generates one but drawn from the module's own
- * stream, so no core stream moves. It may take the Board past `boardSize`, which only says how far
- * the morning's refresh fills it.
+ * stream, so no core stream moves. It may take the Board past its size (`boardSizeAt`), which only
+ * says how far the morning's refresh fills it.
  */
 export interface OfferQuest {
   kind: 'offerQuest';

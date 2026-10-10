@@ -31,7 +31,7 @@ npm run edit -- config finish --reason "<why> (DL-NNN)"
   `["strong"]`) and as text where not (`warm`), an object's keys in the file's order whatever order
   they are given in. Each edit is checked at once with the engine's
   `checkConfig`, with every pending edit made, and refused, naming the
-  setting, where a rule refuses it: `boardSize is -1; it is a whole number, at least 0`. A setting
+  setting, where a rule refuses it: `boardSizeStart is -1; it is a whole number, at least 0`. A setting
   another's rule reads is named too: a Min set above its Max names the Max. Nothing is written to
   the file before `finish`; the edits are held in `.editor/config.json`, which git ignores.
 - **`finish`** checks the settings again, writes `config.json` in its own layout (only the changed

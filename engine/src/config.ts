@@ -146,6 +146,12 @@ export interface GameConfig {
   bankruptcyGraceDays: number;
   /** Fame never falls below this, at least 0 (pre-M0 review D10.3: an explicit floor, not negative Fame; DL-210). */
   fameFloor: number;
+  /**
+   * The Fame every Guild is founded with, the player's and each Rival's, a replacement's too (#40,
+   * DL-261): a balance number, so a setting (N9), at least `fameFloor`. At 0 every Guild starts
+   * unknown and the Rankings open on a tie.
+   */
+  foundingFame: number;
 
   // ── `recruitment`: signing and the Unattached pool (INPUTS 3.7, 4.7, DL-27) ──────────────────
   /** A signing fee is this, plus the per-Level part, plus the Stats part (`signingFee`). */
@@ -164,8 +170,17 @@ export interface GameConfig {
   fameRequiredPerLevel: number;
 
   // ── `board`: the Board and its Quests' draw (INPUTS 4.1, 4.3, DL-25) ─────────────────────────
-  /** Each morning's refresh draws Quests until the Board holds this many, and never more. */
-  boardSize: number;
+  /**
+   * The Board's size (DL-257 item 4, DL-261): each morning's refresh draws Quests until the Board
+   * holds the smaller of `boardSizeMax` and `boardSizeStart` plus `boardGrowthPerYear` for each
+   * whole Year played, floored to a whole Board (`boardSizeAt`), and never more. A Board that grows
+   * with the world, its pace and cap tuned without code; at 6, 0 and 6 it is the Board of six it was.
+   */
+  boardSizeStart: number;
+  /** Quests the Board gains a Year, a part of one adding a Quest each time the parts make a whole one. */
+  boardGrowthPerYear: number;
+  /** The most the Board grows to, at least `boardSizeStart`. */
+  boardSizeMax: number;
   /** Days a Quest stays on offer, the Day it is drawn included; it expires the next morning. */
   questOfferDays: number;
   /**

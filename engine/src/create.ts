@@ -395,7 +395,7 @@ export interface CreatedWorld {
  * and their descriptive Attributes left blank written from `descriptions`, another (v1.1.2-S5), as
  * every Rival's are; then `rivalCount` Rival Guilds, each Guildmaster's Portrait chosen likewise, `patronCount` Patrons with their Spheres dealt
  * by weight, evenly while every weight is 1 (DL-208), and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the
- * morning's Board refresh, drawing `boardSize` Quests from `board` (DL-25), and its Market
+ * morning's Board refresh, drawing Turn 0's Board (`boardSizeAt`) from `board` (DL-25, DL-261), and its Market
  * refresh, drawing `marketSize` stacks from `market` (DL-51). Appends
  * `world.created` and every generator's events to the new History, but the pool's arrivals, which it
  * does not record (`record`, DL-211), and returns them all. Last, each

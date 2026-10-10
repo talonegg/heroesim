@@ -160,8 +160,8 @@ Loot and Campaigns are kept as features serving Reputation and History.
   table. It copies these from its Quest template, so a changed template never alters a Quest
   already offered (DL-25).
 - R22. The Board refreshes each morning with Quests drawn from the Patrons, each Patron weighted
-  by their mean Regard for the Guilds in play (DL-43). Every Guild draws from the one Board, the
-  player's first.
+  by their mean Regard for the Guilds in play (DL-43), up to its size, which may grow with the
+  Years to a cap (DL-261). Every Guild draws from the one Board, the player's first.
 - R23. A Party is dispatched from the Roster with Consumables assigned. The Party is
   unavailable while away.
 - R24. The Quest Engine assesses a Quest against the Party: its Stats, Skills, Traits, Form,
