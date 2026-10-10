@@ -7,6 +7,7 @@ import { negotiatedReward } from '../guildmaster.js';
 import { count } from '../history.js';
 import { addStack, holdings } from '../items.js';
 import { phaseContext } from '../phases/phase.js';
+import { previewDispatch } from '../preview.js';
 import { questsAdvance } from '../phases/quests-advance.js';
 import { playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
@@ -42,10 +43,10 @@ function heroOf(world: World, heroId: HeroId): Hero {
 }
 
 /** Dispatches and returns the rejection, asserting that nothing changed and nothing was thrown. */
-function rejected(document: WorldDocument, request: DispatchRequest): DispatchRejection {
+function rejected(document: WorldDocument, request: DispatchRequest, under: EngineDeps = deps): DispatchRejection {
   const before = serialise(document);
   const entries = document.history.entries.length;
-  const result = applyAction(document, { kind: 'dispatch', ...request }, deps);
+  const result = applyAction(document, { kind: 'dispatch', ...request }, under);
   expect(serialise(document)).toBe(before);
   expect(document.history.entries).toHaveLength(entries);
   if (result.ok) throw new Error('Expected a rejection');
@@ -257,6 +258,79 @@ describe('dispatch', () => {
       expect(applyAction(document, { kind: 'dispatch', guildId: ids.rivalGuild, questId: ids.offeredQuest, heroIds: pair }, deps).ok).toBe(
         true,
       );
+    });
+
+    // DL-264: a Guild below the Fame minimum of its Quest's Tier may not take it (DL-257 item 3).
+    describe('fame-below-minimum', () => {
+      /** The test deps with each Tier's Fame minimum as `minimums` gives it, in Tier order. */
+      const minimums = (values: number[], content = deps.content): EngineDeps =>
+        testDeps({ rivalCount: 0, tiers: deps.config.tiers.map((row, index) => ({ ...row, fameMinimum: values[index] ?? 0 })) }, content);
+
+      test("refuses a Guild whose Fame is below its Quest's Tier's minimum, naming the Tier, the minimum and the Fame; at the minimum it sends", () => {
+        const { document, ids, rogue, mage } = built();
+        const request = { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, mage] };
+        // The fixture's Quest is posted at Tier 2, and the player's Guild has 0 Fame.
+        expect(questOf(document.world, ids.offeredQuest).tier).toBe(2);
+        const fameShort = minimums([0, 5, 9, 9, 9]);
+
+        expect(rejected(document, request, fameShort)).toEqual({
+          action: 'dispatch',
+          reason: 'fame-below-minimum',
+          guildId: ids.playerGuild,
+          questId: ids.offeredQuest,
+          tier: 2,
+          fameMinimum: 5,
+          fame: 0,
+        });
+        const famous = structuredClone(document);
+        (famous.world.guilds[ids.playerGuild] as Guild).fame = 4;
+        expect(rejected(famous, request, fameShort)).toMatchObject({ reason: 'fame-below-minimum', fameMinimum: 5, fame: 4 });
+        (famous.world.guilds[ids.playerGuild] as Guild).fame = 5;
+        expect(applyAction(famous, { kind: 'dispatch', ...request }, fameShort).ok).toBe(true);
+        // Another Tier's minimum does not bind it.
+        expect(applyAction(document, { kind: 'dispatch', ...request }, minimums([9, 0, 9, 9, 9])).ok).toBe(true);
+      });
+
+      test("reads the template's own minimum for the Tier where it overrides the ladder's", () => {
+        const { document, ids, rogue, mage } = built();
+        const request = { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, mage] };
+        const template = deps.content.questTemplates['escort-the-tithe'];
+        if (template === undefined) throw new Error('No escort-the-tithe');
+        const overridden = { ...deps.content, questTemplates: { ...deps.content.questTemplates, 'escort-the-tithe': { ...template, overrides: { '2': { fameMinimum: 3 } } } } };
+
+        expect(rejected(document, request, minimums([0, 0, 0, 0, 0], overridden))).toMatchObject({ reason: 'fame-below-minimum', tier: 2, fameMinimum: 3 });
+        expect(rejected(document, request, minimums([0, 50, 0, 0, 0], overridden))).toMatchObject({ fameMinimum: 3 });
+      });
+
+      test('comes after the Guild and the Quest, and before the Heroes and the requirements', () => {
+        const { document, ids } = built();
+        const fameShort = minimums([5, 5, 5, 5, 5]);
+        const reason = (questId: QuestId, heroIds: HeroId[]): string =>
+          rejected(document, { guildId: ids.playerGuild, questId, heroIds }, fameShort).reason;
+
+        expect(reason(ids.takenQuest, [ids.rivalHero])).toBe('quest-not-offered');
+        expect(reason(ids.offeredQuest, [ids.rivalHero])).toBe('fame-below-minimum');
+        expect(reason(ids.offeredQuest, [])).toBe('fame-below-minimum');
+      });
+
+      test('previewDispatch says so: its verdict is the refusal, the rest of the preview as before', () => {
+        const { document, ids, rogue, mage } = built();
+        const request = { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, mage] };
+        const open = previewDispatch(document.world, request, deps);
+        const closed = previewDispatch(document.world, request, minimums([0, 5, 0, 0, 0]));
+
+        expect(open?.refusal).toBeNull();
+        expect(closed?.refusal).toEqual({
+          action: 'dispatch',
+          reason: 'fame-below-minimum',
+          guildId: ids.playerGuild,
+          questId: ids.offeredQuest,
+          tier: 2,
+          fameMinimum: 5,
+          fame: 0,
+        });
+        expect({ ...closed, refusal: null }).toEqual(open);
+      });
     });
 
     test('in order: the Guild, then the Quest, then each Hero, then the requirements, the size among them', () => {

@@ -6,7 +6,9 @@
 // Party it has weighed, so that a question asked again, or asked of fewer Heroes, weighs only the
 // Parties it has not weighed. It lives no longer than its world (DL-232 item 3): one `rivalChoices`
 // call, one `automaticPolicy` call, one document on the page. It is never module-global and never
-// stored in the document, and it refuses a question once its world has changed.
+// stored in the document, and it refuses a question once its world has changed. It weighs who would
+// go, not whether the Guild may take the Quest: each caller that offers a Quest passes by one whose
+// Tier's Fame minimum is above the Guild's Fame first (`fameRefusal`, DL-264).
 
 import type { EngineDeps } from './config.js';
 import { chooser } from './controllers/chooser.js';

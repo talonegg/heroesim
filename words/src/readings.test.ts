@@ -36,6 +36,7 @@ import {
   playerReading,
   poolNote,
   poolReading,
+  questClosed,
   rosterReading,
   signsWords,
   type HeroReading,
@@ -115,6 +116,33 @@ describe("the player's reading", () => {
     expect(reading.hintBands).toEqual(judgedHintBands(undefined, content, defaultConfig));
     const quest = document.world.quests[document.world.board[0] as Quest['id']] as Quest;
     expect(reading.bestParty(quest)).toBeNull();
+  });
+
+  // DL-264: the Board offers no Party for a Quest the player's Guild may not take.
+  test("a Quest whose Tier's Fame minimum is above the player's Guild's Fame: no Best Party, and the refusal dispatch would give", () => {
+    const document = newGame();
+    const [open, closed] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
+    open.tier = 1;
+    closed.tier = 2;
+    for (const quest of [open, closed]) quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+    const fame = player(document).fame;
+    const tiers = defaultConfig.tiers.map((row, index) => ({ ...row, fameMinimum: index === 1 ? fame + 3 : 0 }));
+    const reading = playerReading(document, { config: { ...defaultConfig, tiers }, content });
+
+    expect(reading.bestParty(open)).not.toBeNull();
+    expect(questClosed(reading, open)).toBeNull();
+    expect(reading.bestParty(closed)).toBeNull();
+    expect(bestPartyReading(reading, closed)).toBeNull();
+    expect(questClosed(reading, closed)).toEqual({
+      action: 'dispatch',
+      reason: 'fame-below-minimum',
+      guildId: player(document).id,
+      questId: closed.id,
+      tier: 2,
+      fameMinimum: fame + 3,
+      fame,
+    });
+    expect(questClosed(playerReading(document, deps), closed)).toBeNull();
   });
 });
 

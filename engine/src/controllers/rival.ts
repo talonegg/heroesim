@@ -14,7 +14,7 @@
 // stream, `world.rng.rivals`, and from no other (ADR-0009).
 
 import type { GuildAction } from '../actions/action.js';
-import { dispatchRefusal, unavailability, type DispatchAction } from '../actions/dispatch.js';
+import { dispatchRefusal, fameRefusal, unavailability, type DispatchAction } from '../actions/dispatch.js';
 import type { TransferInAction } from '../actions/transfer.js';
 import { bestParties, requiredParty } from '../best-party.js';
 import type { EngineDeps } from '../config.js';
@@ -49,8 +49,9 @@ import {
  *
  * 1. put the gear its Guild holds on its Heroes with the slot empty (`gearChoices`, M5-S2, DL-49),
  *    which moves no Wealth and sends no one;
- * 2. dispatch to the Quest its `questRiskAppetite` prefers among those it can staff
- *    (`preferredQuest`), drawing from `rivals` to choose among Quests of the same difficulty;
+ * 2. dispatch to the Quest its `questRiskAppetite` prefers among those it may take, by its Fame,
+ *    and can staff (`preferredQuest`), drawing from `rivals` to choose among Quests of the same
+ *    difficulty;
  * 3. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
  *    (`purchaseSteps`' order when it has none, as here, v1.1.6-S16, DL-202):
  *    - build the next grade of the first facility of its Hall, in its `buildOrder` (the Hall's order
@@ -376,7 +377,8 @@ export function staffableQuests(world: World, guild: Guild, deps: EngineDeps): Q
  * `dispatch` gains is a check here at once.
  *
  * It misses no Party: `dispatch` asks of free Heroes on the Roster only the Quest's requirements
- * (`unmetRequirements`: a size, a Class and a Skill), and `requiredParty` names a Party whenever one
+ * (`unmetRequirements`: a size, a Class and a Skill), and of the Guild only its Fame, which no Party
+ * changes (`fameRefusal`, DL-264); and `requiredParty` names a Party whenever one
  * of `available` meets them, which `stops.test.ts` holds against every Party of a Roster. The Best
  * Party is named exactly when it names one, choosing who by the chance estimate (DL-148 item 17), which cannot
  * change whether a Party can go; so the stops ask no estimate of every Quest on the Board each Turn
@@ -392,10 +394,12 @@ function staffingParty(world: World, guild: Guild, quest: Quest, available: read
 // ── The rule's parts ────────────────────────────────────────────────────────────────────────────
 
 /**
- * A dispatch to the Quest `disposition` prefers among those on the Board `guild` can staff now, or
- * `null` when it can staff none. The Quests it can staff are ranked by difficulty, easiest first,
- * and the one `questRiskAppetite` of the way along names the difficulty it wants: 0 the easiest
- * (DL-30's `steady`), 1 the hardest, 0.5 the middle, the place rounded to the nearest. Every Quest
+ * A dispatch to the Quest `disposition` prefers among those on the Board `guild` may take and can
+ * staff now, or `null` when there is none: a Quest of a Tier whose Fame minimum is above its Fame is
+ * passed over, as `dispatch` would refuse it (`fameRefusal`, DL-264). The Quests it can staff are
+ * ranked by difficulty, easiest first, and the one `questRiskAppetite` of the way along names the
+ * difficulty it wants: 0 the easiest (DL-30's `steady`), 1 the hardest, 0.5 the middle, the place
+ * rounded to the nearest. Every Quest
  * it can staff at that difficulty is a candidate, in Quest id order, and one draw from `rivals`
  * picks among them, one draw however many there are. The Party is the Best Party (`bestParties`,
  * opened over the world as it stands after the draw, DL-237), for the Quest chosen only: which Quests
@@ -405,7 +409,7 @@ function staffingParty(world: World, guild: Guild, quest: Quest, available: read
 function preferredQuest(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): DispatchAction | null {
   const available = availableHeroes(world, guild);
   if (available.length === 0) return null;
-  const staffable = offeredQuests(world).filter((quest) => requiredParty(quest, available) !== null);
+  const staffable = offeredQuests(world).filter((quest) => fameRefusal(guild, quest, deps) === null && requiredParty(quest, available) !== null);
   if (staffable.length === 0) return null;
   staffable.sort((a, b) => a.difficulty - b.difficulty || compareByCodeUnit(a.id, b.id));
   const place = Math.round(disposition.questRiskAppetite * (staffable.length - 1));

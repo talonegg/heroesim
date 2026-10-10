@@ -86,6 +86,7 @@ export {
   playerReading,
   poolNote,
   poolReading,
+  questClosed,
   rosterReading,
   signsWords,
   type BestPartyReading,

@@ -337,4 +337,28 @@ describe("show's layouts of the readings (DL-241)", () => {
     expect(block(three)).toContain(`  Your best Party: ${chanceWords[best.chance.band]} (${best.chance.percent}% if no one falls), ${listed(best.names)}.`);
     expect(block(two).slice(1, 3)).toEqual(['  no-such-encounter', expect.stringMatching(/^ {2}(Your best Party: .+; its chance is not known until its Encounters are drawn|No Party of your free Heroes meets its requirements)\.$/)]);
   });
+
+  // DL-264: a Quest the player's Guild may not take offers no Party; the line says why, in the refusals' words.
+  test("show board says, in place of a Quest's best Party, that its Tier's Fame minimum is above the Guild's Fame", () => {
+    const document = newGame();
+    const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
+    for (const quest of [first, second]) quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+    first.tier = 1;
+    second.tier = 2;
+    const deps = playDeps(document);
+    const tiers = deps.config.tiers.map((row, index) => ({ ...row, fameMinimum: index === 1 ? 7 : 0 }));
+    const reading = playerReading(document, { ...deps, config: { ...deps.config, tiers } });
+    const quests = boardReading(reading);
+    const lines = renderBoard(reading);
+    const [one, two] = quests as [QuestReading, QuestReading];
+    // A Quest's block runs from its heading to the blank line after it, its Best Party's line last.
+    const lastOf = (quest: QuestReading): string | undefined => {
+      const from = lines.indexOf(`${quest.id}, ${quest.name}`);
+      const to = lines.indexOf('', from);
+      return lines.slice(from, to === -1 ? undefined : to).at(-1);
+    };
+
+    expect(lastOf(one)).toMatch(/^ {2}Your best Party: /);
+    expect(lastOf(two)).toBe(`  ${two.name} (${two.id}) is a Tier 2 Quest, open to a Guild of 7 Fame or more; The Test has 0, 7 short.`);
+  });
 });

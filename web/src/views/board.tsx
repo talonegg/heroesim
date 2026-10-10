@@ -3,7 +3,7 @@
 // for its difficulty, the Days it takes, its reward, its Fame, its Party size, what else it needs
 // and the Day it leaves the Board, marked when that is today (the review's B2); then "Your best
 // Party" with a chance word, the Party the engine would send from the free Heroes (v1.1.4-S6, DL-148
-// items 15 and 17). Its name unfolds it: its Encounters, each Check's name and what it reads, in
+// items 15 and 17), or why the Guild may not take the Quest (DL-264). Its name unfolds it: its Encounters, each Check's name and what it reads, in
 // place of the template's demands (v1.1.4-S6, DL-148 item 16), the Skills that help, and its
 // difficulty on a meter placed against the Quests on the Board now, display only (C5, C6). The
 // player may order the Board by reward, difficulty or the Day each leaves, display only too, and the
@@ -303,6 +303,8 @@ function Quest({
         <p className="quest__best" data-testid="best-party">
           {best === null || best === undefined ? (
             'No Party of your free Heroes meets its requirements.'
+          ) : 'refused' in best ? (
+            best.refused
           ) : (
             <>
               Your best Party: <strong>{best.chance ?? 'not known until its Encounters are drawn'}</strong>, {best.names}

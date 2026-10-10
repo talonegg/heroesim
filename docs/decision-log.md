@@ -555,3 +555,51 @@ fingerprint.
 
 **Evidence.** DL-260's Verified line and its reports `v1.2.0-s3v-estimate-2026-10-11` and
 `v1.2.0-s3v-estimate-old-order-2026-10-11` (not committed); DL-261's Evidence. The epic's S4 boxes.
+
+## DL-264 — v1.2.0-S6 built: the Fame minimum, `fame-below-minimum` refused by dispatch and passed by by every chooser of a Quest
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257 item 3 (Q15 b): a Guild below a Tier's `fameMinimum` may not take its Quests;
+the minimums are 0. S5 (DL-262) put `fameMinimum` in every `questTiers` row, read by no rule.
+
+**Decision.**
+
+1. **The rule** (`fameRefusal`, `engine/src/actions/dispatch.ts`): a Guild whose Fame is below the
+   Fame minimum of its Quest's Tier, the template's override read (`tierFigures`, live as the XP
+   factor is), may not take it. `dispatch` refuses it as `fame-below-minimum`, naming the Guild, the
+   Quest, the Tier, the minimum and the Fame, after `quest-not-offered` and before the Heroes, since
+   no Party changes it. `previewDispatch` gives it as its verdict, being `dispatch`'s own checks.
+2. **Its sentence** (`words/src/refusals.ts`, DL-240): "A quiet word is a Tier 3 Quest, open to a
+   Guild of 20 Fame or more; The Lantern has 12, 8 short." The CLI's Namer adds the Quest's id; the
+   page's names "that Quest" and "that Guild" with no world.
+3. **The choosers pass it by:** a Rival's `preferredQuest` ranks only the Quests it may take; the
+   harness's player (`automaticPolicy`) weighs only those; `staffableQuests`, and so the Fast-forward
+   stops, by `dispatchRefusal`. The player's reading names no Best Party for it (`PlayerReading.
+   bestParty`), and the Board says why in the Best Party's place, in the refusal's words
+   (`questClosed` in `words`; the CLI's `show board`, the page's card).
+4. **No setting and no version:** the minimums stay 0, so the config version stays 19; with them
+   at 0 and Fame never below `fameFloor` (at least 0), no Quest is closed and play is unchanged.
+
+*Judgement calls, for the owner to see.*
+- **The Best Party module stays a search of who would go**, the Fame read by each caller that
+  offers a Quest; its "null exactly when `requiredParty` is" holds, and the calibration's probes ask
+  it of Quests no Guild takes.
+- **The Board's line for a closed Quest** is the refusal's sentence, where it said "No Party of your
+  free Heroes meets its requirements"; S12 words the card.
+- **The order:** after the Quest is found on the Board, before the Heroes; a Party of no one is
+  refused for the Fame.
+- **The proof's minimums** (0, 10, 40, 100, 200 for Tiers 1–5) are a trial through `HEROESIM_CONFIG`,
+  not a proposal; tuning them is DL-257 item 11's.
+
+**Consequences.** A Tier's Fame minimum works when a later release sets it. CONTEXT.md's Tier and
+Fame, requirements R23 and the TierRow's field say it.
+
+**Evidence.** The commit `v1.2.0-S6 (DL-264)`. Tests: the refusal, its order, a template's override
+and the preview (`dispatch.test.ts`); its words, the CLI's and the page's; a Rival and the harness's
+player passing a closed Quest by; the reading, `show board` and the card. `neutral
+v1.2.0-s6-quick` (4 × 2): play identical to S5's, `7e0eed8f…`, 0 of 576 counters moved.
+`neutral v1.2.0-s6-fame-quick` with the trial minimums: refusals 0, invalid 0, the replay
+identical, `cc178d34…`; against the first, 402 of 589 counters moved: the Rivals' Quests taken at
+Tiers 1, 3, 4 and 5 918 → 1,195, 1,194 → 1,086, 223 → 137 and 17 → 4, their Bankruptcies 0 → 6.
+The epic's S6 boxes.

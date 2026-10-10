@@ -151,6 +151,19 @@ describe('a Quest card', () => {
     expect(within(second).getByTestId('best-party').textContent).toBe('No Party of your free Heroes meets its requirements.');
   });
 
+  // DL-264: a Quest the player's Guild may not take, its Tier's Fame minimum above the Guild's Fame.
+  test("says, in place of a Quest's best Party, why the Guild may not take it", () => {
+    const state = changed(madeToOrder(), (document) => {
+      const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
+      const tiers = document.meta.config.tiers.map((row, index) => ({ ...row, fameMinimum: index + 1 === second.tier ? 9 : 0 }));
+      document.meta = { ...document.meta, config: { ...document.meta.config, tiers } };
+    });
+    render(<App initial={state} />);
+    const [, second] = within(section('Board')).getAllByRole('article') as [HTMLElement, HTMLElement];
+
+    expect(within(second).getByTestId('best-party').textContent).toMatch(/^.+ is a Tier \d Quest, open to a Guild of 9 Fame or more; .+ has \d+, \d+ short\.$/);
+  });
+
   test("unfolds from its name to its Encounters, each Check's name and what it reads, the Skills that help, and its difficulty against the Board", () => {
     render(<App initial={madeToOrder()} />);
     const card = firstCard();

@@ -56,6 +56,7 @@ import {
   nightOfTurn,
   poolNote,
   poolReading,
+  questClosed,
   readsAsOne,
   rosterReading,
   rowOf,
@@ -71,6 +72,7 @@ import {
   type QuestReading,
   type RosterRowReading,
 } from '@heroesim/words';
+import { refusalLine } from './namer.js';
 
 // ── Tables ───────────────────────────────────────────────────────────────────────────────────
 
@@ -677,7 +679,7 @@ export function renderBoard(reading: PlayerReading): string[] {
 /**
  * A Quest's Encounters as the Board gives them: each with its kind and each Check's name and what it
  * reads, an Encounter of one Check of its own name on one line; then the Best Party of the player's
- * free Heroes and its chance, if no one falls.
+ * free Heroes and its chance, if no one falls, or why the player's Guild may not take the Quest.
  */
 function questLines(quest: QuestReading, reading: PlayerReading): string[] {
   const lines = quest.encounters.flatMap((encounter) => {
@@ -686,10 +688,13 @@ function questLines(quest: QuestReading, reading: PlayerReading): string[] {
     return [`  ${encounter.name}${kind}`, ...encounter.checks.map((it) => `    ${it.name}: ${it.reads}`)];
   });
   const row = rowOf(reading.world.quests, quest.id);
+  // A Quest the Guild may not take offers no Party: why, in the refusals' words (DL-264).
+  const closed = row === undefined ? null : questClosed(reading, row);
+  const { world, content, calendar } = reading;
   return [
     `${quest.id}, ${quest.name}`,
     ...lines,
-    `  ${bestPartyWords(row === undefined ? null : bestPartyReading(reading, row))}`,
+    `  ${closed !== null ? refusalLine(closed, { world, content, calendar }) : bestPartyWords(row === undefined ? null : bestPartyReading(reading, row))}`,
   ];
 }
 

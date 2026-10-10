@@ -232,6 +232,26 @@ describe('steady: which Quest', () => {
     expect(dispatchOf(world, rival, deps)?.questId).toBe(third.id);
   });
 
+  // DL-264: a Rival chooses only what it may take, its Fame at least the minimum of the Quest's Tier.
+  test("passes over a Quest of a Tier whose Fame minimum is above its Fame, as dispatch would refuse it, for the easiest it may take", () => {
+    const { world, rival, deps } = scene('fame-minimum');
+    const quests = openBoard(world, [10, 20, 30, 40, 50, 60]);
+    // The easiest two posted at Tier 3, the rest at Tier 1; Tier 3's minimum one above the Rival's Fame.
+    quests.forEach((quest, index) => {
+      quest.tier = index < 2 ? 3 : 1;
+    });
+    const tiers = deps.config.tiers.map((row, index) => ({ ...row, fameMinimum: index === 2 ? rival.fame + 1 : 0 }));
+    const closed = { ...deps, config: { ...deps.config, tiers } };
+
+    expect(dispatchOf(world, rival, deps)?.questId).toBe(quests[0]?.id);
+    expect(dispatchOf(world, rival, closed)?.questId).toBe(quests[2]?.id);
+    expect(staffableQuests(world, rival, closed).map((quest) => quest.id)).toEqual(quests.slice(2).map((quest) => quest.id));
+    // Every Quest closed to it: it sends no one.
+    const shut = { ...deps, config: { ...deps.config, tiers: tiers.map((row) => ({ ...row, fameMinimum: rival.fame + 1 })) } };
+    expect(dispatchOf(world, rival, shut)).toBeUndefined();
+    expect(staffableQuests(world, rival, shut)).toEqual([]);
+  });
+
   test('takes nothing when it can staff nothing on the Board, or the Board is empty', () => {
     const { world, rival, deps } = scene('nothing');
     const size = availableHeroes(world, rival).length + 1;

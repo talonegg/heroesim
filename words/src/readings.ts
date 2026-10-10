@@ -18,6 +18,7 @@ import {
   carriedGear,
   descriptiveAttributeLabels,
   durationDaysOf,
+  fameRefusal,
   guildmasterOf,
   itemDefinition,
   judgedHintBands,
@@ -37,6 +38,7 @@ import {
   type BestParties,
   type ChanceBand,
   type EngineDeps,
+  type FameBelowMinimum,
   type Guild,
   type GuildId,
   type Guildmaster,
@@ -78,8 +80,9 @@ export interface PlayerReading {
   readonly hintBands: Readonly<Record<PotentialHint, number>>;
   /**
    * The Best Party of the player's free Heroes for `quest`, and the estimate it was chosen by; `null`
-   * when none meets the Quest's requirements, and with no player's Guild. Every question shares one
-   * Best Party module over the reading's world, opened at the first (DL-237).
+   * when none meets the Quest's requirements, when the Guild may not take the Quest (`questClosed`,
+   * DL-264), and with no player's Guild. Every question shares one Best Party module over the
+   * reading's world, opened at the first (DL-237).
    */
   bestParty(quest: Quest): BestParty | null;
 }
@@ -100,7 +103,7 @@ export function playerReading(document: Pick<WorldDocument, 'world'>, deps: Engi
     guildmaster,
     hintBands: judgedHintBands(guildmaster, content, config),
     bestParty(quest) {
-      if (guild === undefined) return null;
+      if (guild === undefined || fameRefusal(guild, quest, deps) !== null) return null;
       opened ??= { best: bestParties(world, guild, deps), available: availableHeroes(world, guild) };
       return opened.best.party(quest, opened.available);
     },
@@ -416,6 +419,15 @@ export interface BestPartyReading {
   names: string[];
   /** Its chance in a band and floored to 5% (`shownPercent`); `null` while the Quest's Encounters are drawn on the way. */
   chance: { band: ChanceBand; percent: number } | null;
+}
+
+/**
+ * Why the player's Guild may not take `quest`, which offers it no Party: its Fame below the Fame
+ * minimum of the Quest's Tier, as `dispatch` would refuse it (`fameRefusal`, DL-264); `null` when it
+ * may, and with no player's Guild. The Board says it in the Best Party's place, in the refusals' words.
+ */
+export function questClosed(reading: PlayerReading, quest: Quest): FameBelowMinimum | null {
+  return reading.guild === undefined ? null : fameRefusal(reading.guild, quest, reading.deps);
 }
 
 /** "Your best Party" for `quest` (`PlayerReading.bestParty`), its chance the estimate the rule chose it by; `null` for none. */

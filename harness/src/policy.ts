@@ -18,6 +18,7 @@ import {
   bestParties,
   cheapestUnattached,
   compareByCodeUnit,
+  fameRefusal,
   gearChoices,
   gearPurchase,
   holdings,
@@ -94,7 +95,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   v1.1.4-S6). Of the Quests it can staff, it sends the one whose Party has the highest chance of
  *   success by that estimate (the Best Party's), ties to the higher reward, then the lower Quest id;
  *   then chooses again, each Quest's Party and chance asked again of the Heroes left, until no Hero is
- *   left or no Quest can be staffed. A Quest it cannot staff is passed over. Each Party **carries one
+ *   left or no Quest can be staffed. A Quest it cannot staff is passed over, and a Quest of a Tier
+ *   whose Fame minimum is above the Guild's Fame, which it may not take (`fameRefusal`, DL-264). Each Party **carries one
  *   of each consumable** the Guild holds that could serve its Quest (`consumablesFor`, DL-62), while
  *   the Guild has one left after the Parties before it; the chance it is chosen by is the Party's
  *   carrying nothing, as the Best Party weighs it.
@@ -138,7 +140,8 @@ export function automaticPolicy(
   // The world does not change in this call, so one Best Party module answers every question (DL-237).
   const best = bestParties(world, guild, deps);
   let available = availableHeroes(world, guild);
-  let choices = staffed(best, offeredQuests(world), available);
+  // A Quest of a Tier whose Fame minimum is above the Guild's Fame is passed over: dispatch would refuse it (DL-264).
+  let choices = staffed(best, offeredQuests(world).filter((quest) => fameRefusal(guild, quest, deps) === null), available);
   const left = heldConsumables(world, guild, deps);
   for (let choice = likeliest(choices); choice !== undefined; choice = likeliest(choices)) {
     const { quest, heroIds } = choice;

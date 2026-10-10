@@ -165,7 +165,8 @@ Loot and Campaigns are kept as features serving Reputation and History.
   by their mean Regard for the Guilds in play (DL-43), up to its size, which may grow with the
   Years to a cap (DL-261). Every Guild draws from the one Board, the player's first.
 - R23. A Party is dispatched from the Roster with Consumables assigned. The Party is
-  unavailable while away.
+  unavailable while away. A Guild whose Fame is below the Fame minimum of a Quest's Tier may not
+  take it (DL-257 item 3, DL-264).
 - R24. The Quest Engine assesses a Quest against the Party: its Stats, Skills, Traits, Form,
   Relationship, Synergies and Consumables. It produces the outcome: XP, Injuries or Death, Morale
   and Regard changes, reward or penalty, Fame effect, Loot, and the typed events the front ends

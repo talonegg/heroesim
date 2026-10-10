@@ -571,7 +571,7 @@ export interface TierRow {
   xpFactor: number;
   /** What its Encounters' Death chances are scaled by (DL-257 item 5). */
   deathScale: number;
-  /** The Fame a Guild needs to take a Quest of it (DL-257 item 3). */
+  /** The Fame a Guild needs to take a Quest of it: `dispatch` refuses a Guild below it (`fameRefusal`, DL-257 item 3, DL-264). */
   fameMinimum: number;
 }
 

@@ -302,6 +302,25 @@ describe("the Board's Quest cards (DL-104)", () => {
     expect(Object.keys(boardView(document)[0] ?? {})).not.toContain('best');
   });
 
+  // DL-264: the Board offers no Party for a Quest the player's Guild may not take, and says why.
+  test("says, in place of a Quest's best Party, that its Tier's Fame minimum is above the Guild's Fame, in the refusal's words", () => {
+    const document = board((quests, it) => {
+      const [first, second] = quests as [Quest, Quest];
+      for (const quest of [first, second]) quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+      first.tier = 1;
+      second.tier = 2;
+      const tiers = defaultConfig.tiers.map((row, index) => ({ ...row, fameMinimum: index === 1 ? 7 : 0 }));
+      it.meta = { ...it.meta, config: { ...it.meta.config, tiers } };
+    });
+    const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
+    const name = content.questTemplates[second.templateKey]?.name;
+
+    const best = bestPartyView(document);
+
+    expect(best.get(first.id)).toMatchObject({ chance: expect.any(String) });
+    expect(best.get(second.id)).toEqual({ refused: `${name} is a Tier 2 Quest, open to a Guild of 7 Fame or more; ${playerOf(document).name} has 0, 7 short.` });
+  });
+
   // DL-237: the page's Best Party module lives as long as its document, keyed by the document's world.
   test('opens one Best Party module a document, which every question of it shares, and a new one for the next document', () => {
     const document = newDocument('best-shared');

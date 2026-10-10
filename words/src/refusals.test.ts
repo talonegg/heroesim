@@ -70,6 +70,7 @@ const samples: Samples = {
 
   'dispatch guild-folded': { action: 'dispatch', reason: 'guild-folded', guildId },
   'dispatch quest-not-offered': { action: 'dispatch', reason: 'quest-not-offered', questId: quest.id },
+  'dispatch fame-below-minimum': { action: 'dispatch', reason: 'fame-below-minimum', guildId, questId: quest.id, tier: 3, fameMinimum: 20, fame: 12 },
   'dispatch hero-not-on-roster': { action: 'dispatch', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId },
   'dispatch hero-unavailable': { action: 'dispatch', reason: 'hero-unavailable', heroId, because: 'injured' },
   'dispatch requirement-unmet': {
@@ -222,6 +223,7 @@ const exactly: Record<RefusalKind, string> = {
 
   'dispatch guild-folded': `${lantern} has folded and sends no one.`,
   'dispatch quest-not-offered': `${board} is not on the Board: it has been taken or has expired, or was never offered.`,
+  'dispatch fame-below-minimum': `${board} is a Tier 3 Quest, open to a Guild of 20 Fame or more; ${lantern} has 12, 8 short.`,
   'dispatch hero-not-on-roster': `${stranger} is not on the Roster of ${lantern}.`,
   'dispatch hero-unavailable': `${brenna} is injured and cannot go.`,
   'dispatch requirement-unmet': `${board} needs a Party of 2 to 4 Heroes (1 named) and a ${named(content.classes, 'healer')} in the Party.`,

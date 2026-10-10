@@ -228,6 +228,8 @@ const sentences: Sentences = {
   'dispatch guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and sends no one.`,
   'dispatch quest-not-offered': ({ questId }, setting) =>
     say`${quest(setting, questId)} is not on the Board: it has been taken or has expired, or was never offered.`,
+  'dispatch fame-below-minimum': ({ questId, guildId, tier, fameMinimum, fame }, setting) =>
+    say`${quest(setting, questId)} is a Tier ${tier} Quest, open to a Guild of ${fameMinimum} Fame or more; ${guild(setting, guildId)} has ${fame}, ${fameMinimum - fame} short.`,
   'dispatch hero-not-on-roster': ({ heroId, guildId }, setting) => say`${hero(setting, heroId)} is not on the Roster of ${guild(setting, guildId)}.`,
   'dispatch hero-unavailable': ({ heroId, because }, setting) => say`${hero(setting, heroId)} ${unavailableWords[because]} and cannot go.`,
   'dispatch requirement-unmet': ({ questId, unmet }, setting) =>

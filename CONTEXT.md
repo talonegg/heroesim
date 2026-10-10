@@ -329,9 +329,9 @@ _Avoid_: Quest type, Blueprint, Archetype
 One rung of the ladder of Quests, numbered from 1 up, each longer, richer and with more Beats than
 the one below. A Quest template offers consecutive Tiers, and a Quest is posted at one, its
 difficulty in the Tier's band and its Days at the same place in the Tier's, its reward and XP by the
-Tier's factors and its Loot as the Tier says (DL-257 items 1 and 3, DL-262). The ladder's figures
-are settings, `tiers`, that a template may override, and the Board draws its Tiers around the
-world's mean Level.
+Tier's factors and its Loot as the Tier says (DL-257 items 1 and 3, DL-262). A Guild whose Fame is
+below the Tier's Fame minimum may not take its Quests (DL-264). The ladder's figures are settings,
+`tiers`, that a template may override, and the Board draws its Tiers around the world's mean Level.
 _Avoid_: Level (a Hero's is another thing), Grade, Rank
 
 **Beat**:
@@ -788,10 +788,10 @@ kept for now only to constrain testing load and to be removed (DL-185, in the ba
 _Avoid_: Transfer window, Trade market
 
 **Fame**:
-A Guild's renown, rising and falling with Quest outcomes; never spent. It orders the Rankings
-and gates which Unattached Heroes will sign for a Guild (R10, pre-M0 review B4); dealings with
-Patrons, Contacts and Inciting Events will move it later. DL-85 accepts it as dormant for now:
-its further uses wait for Scouting and Contacts.
+A Guild's renown, rising and falling with Quest outcomes; never spent. It orders the Rankings,
+gates which Unattached Heroes will sign for a Guild (R10, pre-M0 review B4) and which Tiers' Quests
+it may take (DL-264); dealings with Patrons, Contacts and Inciting Events will move it later.
+DL-85 accepts it as dormant for now: its further uses wait for Scouting and Contacts.
 _Avoid_: Reputation, Prestige, Renown, Standing
 
 **Rankings**:
