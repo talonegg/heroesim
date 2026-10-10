@@ -66,7 +66,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['{engine,content,words,harness,cli,web}/src/**/*.{ts,tsx}', 'tools/*/src/**/*.ts'],
-      exclude: ['**/*.test.{ts,tsx}', '**/*.test-support.{ts,tsx}', '**/test-setup.ts'],
+      exclude: ['**/*.test.{ts,tsx}', '**/*.test-support.{ts,tsx}', '**/test-support.ts', '**/test-setup.ts'],
       reporter: ['text-summary', 'json-summary'],
       reportsDirectory: './coverage',
       reportOnFailure: true,

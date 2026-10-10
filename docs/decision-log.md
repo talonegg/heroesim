@@ -1456,3 +1456,40 @@ could write.
   History) on 2,359 nights of 7,513 Parties home together, Rivals' among them; nine mutations red,
   and one (the Levels played after each Party's outcome) survived, so a test now tells a Level to the
   first of two Parties and holds it after the second's outcome.
+
+## DL-251 — v1.1.9-S16: the coverage of the tools' support files, and `neutral`'s ten processes
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, answering the two findings
+DL-250 left (both (a)); the test's home and the ceiling's name by the agent
+
+**Context.** The close's review left two findings to the owner (DL-250). Coverage counted the
+editor's, the portrait tool's and the decisions tool's `test-support.ts` files as source, since the
+exclude named only `*.test-support.*` (DL-233). And `neutral` played one process a seed however many
+seeds it was given (DL-239 item 5), so `HEROESIM_SEEDS=50` would start 50 processes of about 1.3 GB
+each.
+
+**Decision.**
+
+1. **Coverage leaves out `**/test-support.ts`** beside `**/*.test-support.{ts,tsx}`
+   (`vitest.config.ts`). The close's after-report gives the three tools' figures with and without it,
+   against S1's.
+2. **`neutral` plays one process a seed up to 10,** and more seeds share the 10 (`seedsCeiling`,
+   `harness/src/settings.ts`). `HEROESIM_WORKERS` still overrides, and the default, 10 seeds in 10
+   processes, is unchanged. Rule 6 of `docs/agents/delivery.md` and the harness README say so.
+
+*Judgement calls, for the owner to see:*
+- **No run of 50 seeds.** That more seeds than processes play the same games is already shown by
+  `sweep.test.ts`'s "plays the same games when it shares the seeds among child processes, one seed a
+  child, more seeds than processes" (three seeds in two processes against the serial sweep). The
+  settings test shows 50 seeds start 10.
+- **The settings test's 12 seeds now start 10,** not 12: that line pinned the behaviour the owner's
+  answer changes, so it changed with it, red first.
+- **The exclude's test** is `tools/measure/src/coverage-config.test.ts`, the measures tool owning
+  coverage: every support file under a package's or a tool's source, by either name, is left out,
+  and the source beside them is counted.
+
+**Consequences.** The three tools' coverage reads their source alone. A `neutral` of many seeds no
+longer starts more processes than the machine holds.
+
+**Evidence.** The commit `v1.1.9-S16 (DL-251)`. Both tests red first (the three tools' support
+files counted; 12 and 50 seeds starting 12 and 50 processes), then green.

@@ -46,7 +46,8 @@ name its path, or use `rg -u`.
    loading tests of old saves. `schemaVersion` is raised only when the document's shape changes.
 6. **Sweeps** (`npm run harness -- …`) run one at a time, alone, nothing else running.
    - A `gate`, and every sweep but a `neutral`, runs with `HEROESIM_WORKERS=8`.
-   - A `neutral` runs with no `HEROESIM_WORKERS`: its profile plays one process a seed (DL-231 Q13).
+   - A `neutral` runs with no `HEROESIM_WORKERS`: its profile plays one process a seed up to 10,
+     more seeds sharing the 10 (DL-231 Q13, DL-251).
    - Run each in the background and wait for its completion notice; never poll in a loop.
    - A `neutral` run takes about 4 minutes, and a full `gate` about 25.
    - The quick check is `HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- neutral <name>`.

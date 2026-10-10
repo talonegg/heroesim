@@ -40,15 +40,15 @@ export type ProfileName = (typeof profileNames)[number];
 /**
  * Each run's own values when no variable sets them. The milestone's run plays on half the logical
  * processors (`null`); the `gate` on 8, the most a 27.6 GB machine holds of 20-year games (DL-174);
- * `neutral` on as many as its games (`seeds`), one process a game, since its 10 fit (DL-231 Q13). A
- * variable set overrides its profile's value.
+ * `neutral` one process a game up to 10 (`seeds`), more games sharing the 10, since 10 fit
+ * (DL-231 Q13, DL-251). A variable set overrides its profile's value.
  */
 export const profiles = Object.freeze({
   /** INPUTS 4.13: 1,000 worlds created (M1-S10) and 200 games of 20 years (DL-34 item 7). */
   milestone: { worlds: 1000, games: 200, years: defaultYears, workers: null },
   /** A release's Gate (DL-186 item 13): 50 games of 20 years in 8 processes, the replay played. */
   gate: { games: 50, years: defaultYears, workers: 8 },
-  /** A play-neutral story's proof (DL-186 item 30): 10 games of 20 years, a process each (DL-231 Q13). */
+  /** A play-neutral story's proof (DL-186 item 30): 10 games of 20 years, a process each (DL-231 Q13, DL-251). */
   neutral: { games: 10, years: defaultYears, workers: 'seeds' as const },
   /** M8-S3 (DL-78): 50 games, each with the modules and with none. */
   modules: { games: defaultModuleSeedCount, workers: null },
@@ -299,9 +299,12 @@ export function halfTheProcessors(): number {
   return Math.max(1, Math.floor(availableParallelism() / 2));
 }
 
-/** `HEROESIM_WORKERS`, or the profile's (`seeds`: as many as the run's `games`), or half the logical processors. */
+/** The most processes a profile that plays one a seed starts: `neutral`'s 10 (DL-251). */
+const seedsCeiling = 10;
+
+/** `HEROESIM_WORKERS`, or the profile's (`seeds`: one a game up to `seedsCeiling`), or half the logical processors. */
 function workersOf(env: Env, profile: number | 'seeds' | null, games = 0): number {
-  return count(env, 'HEROESIM_WORKERS', profile === 'seeds' ? games : (profile ?? halfTheProcessors()));
+  return count(env, 'HEROESIM_WORKERS', profile === 'seeds' ? Math.min(games, seedsCeiling) : (profile ?? halfTheProcessors()));
 }
 
 /**

@@ -84,10 +84,13 @@ describe('the profiles', () => {
     expect(neutral.workers).toBe(neutral.games);
   });
 
-  test('neutral plays as many processes as its seeds, however many it is given, unless HEROESIM_WORKERS says otherwise (DL-231 Q13)', () => {
+  test('neutral plays one process a seed up to 10, more seeds sharing the 10, unless HEROESIM_WORKERS says otherwise (DL-231 Q13, DL-251)', () => {
     expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '4', HEROESIM_YEARS: '2' })).toMatchObject({ games: 4, workers: 4 });
-    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '12' })).toMatchObject({ games: 12, workers: 12 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '10' })).toMatchObject({ games: 10, workers: 10 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '12' })).toMatchObject({ games: 12, workers: 10 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '50' })).toMatchObject({ games: 50, workers: 10 });
     expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_WORKERS: '8' })).toMatchObject({ games: 10, workers: 8 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '50', HEROESIM_WORKERS: '3' })).toMatchObject({ games: 50, workers: 3 });
     expect(settingsOf('milestone', { HEROESIM_PROFILE: 'gate', HEROESIM_SEEDS: '12' })).toMatchObject({ games: 12, workers: 8 });
   });
 
