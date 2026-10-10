@@ -82,9 +82,12 @@ test("each card leads with its Quest's Tier, Deadly where it can kill, its Days 
     const deadly = isDeadly(quest, content, defaultConfig);
     const lead = [`Tier ${quest.tier}`, ...(deadly ? ['Deadly'] : []), daysWords(quest), `${quest.reward} Wealth`];
     expect((await terms.allTextContents()).slice(0, lead.length)).toEqual(lead);
+    // Shown at this width, not merely in the page.
+    for (const [place] of lead.entries()) await expect(terms.nth(place)).toBeVisible();
     if (deadly) {
       // A mark, its title what it means, and no figure.
       const mark = card.locator('.chip', { hasText: /^Deadly$/ });
+      await expect(mark).toBeVisible();
       await expect(mark).toHaveAttribute('title', 'A Hero may die on this Quest');
       await expect(card).not.toContainText('%');
     } else {
@@ -107,6 +110,7 @@ test("the Party builder opens on the Quest's Beats' lines in order, says the lea
   const form = card.getByRole('form');
   const beats = form.getByTestId('beats');
   await expect(form.getByRole('heading', { level: 4 }).first()).toHaveText('Beats');
+  await expect(beats).toBeVisible();
   await expect(beats.getByRole('listitem')).toHaveText(quest.beatLines);
   const least = quest.requirements.partySizeMin;
   const floor = form.locator('.checklist li').first();

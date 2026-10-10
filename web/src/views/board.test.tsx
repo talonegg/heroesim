@@ -32,6 +32,13 @@ function heroesOf(state: GameState): Hero[] {
   return (guild?.rosterIds ?? []).map((id) => world.heroes[id] as Hero);
 }
 
+/** The key of an Encounter in content whose Failure may kill, which makes a Quest of Tier 4 Deadly (DL-265). */
+function anEncounterThatKills(): string {
+  const killer = Object.values(content.encounters).find((encounter) => encounter.consequences.failure.some((it) => it.kind === 'death' && it.chance > 0));
+  if (killer === undefined) throw new Error('No Encounter that kills');
+  return killer.key;
+}
+
 /** The first Quest's Beats' lines, made to order (`madeToOrder`). */
 const beatLines = ['Past the gate unseen.', 'Steel on the road.', 'A door that bites.', 'Hold until dawn.', 'The long way home.'];
 
@@ -174,11 +181,10 @@ describe('a Quest card', () => {
 
   // DL-257 item 5, Q18 b: a Quest that can kill is marked Deadly on its card, after its Tier, with no figure (DL-269).
   test('marks a Deadly Quest after its Tier, the mark saying what it means with no figure, and no other', () => {
-    const killer = Object.values(content.encounters).find((encounter) => encounter.consequences.failure.some((it) => it.kind === 'death' && it.chance > 0));
-    if (killer === undefined) throw new Error('No Encounter that kills');
+    const killer = anEncounterThatKills();
     const state = changed(madeToOrder(), (document) => {
       const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
-      Object.assign(second, { tier: 4, encounterKeys: [killer.key], beatLines: ['A line.'] });
+      Object.assign(second, { tier: 4, encounterKeys: [killer], beatLines: ['A line.'] });
     });
     render(<App initial={state} />);
     const [first, second] = within(section('Board')).getAllByRole('article') as [HTMLElement, HTMLElement];
@@ -189,6 +195,9 @@ describe('a Quest card', () => {
     const mark = within(second).getByText('Deadly').closest('.chip');
     expect(mark?.getAttribute('title')).toBe('A Hero may die on this Quest');
     expect(mark?.className).toContain('chip--bad');
+    // The alert icon beside the word (DL-269 item 2).
+    const alert = render(<Icon name="alert" />).container.querySelector('svg')?.innerHTML;
+    expect(mark?.querySelector('svg')?.innerHTML).toBe(alert);
     expect(second.textContent).not.toMatch(/\d+ ?%/);
     expect(termsOf(first)).not.toContain('Deadly');
   });
@@ -309,9 +318,21 @@ describe('the Board', () => {
 describe('the Party builder', () => {
   // DL-257, DL-269: the Quest's narrative, its Beats' lines in the order it plays them, at the head of the builder; the least Party in the checklist; no Death figure.
   test("opens on the Quest's Beats' lines in order, and says the least Party it takes in the requirements, with no Death figure", () => {
-    render(<App initial={madeToOrder()} />);
+    // A Deadly Quest, where a Death figure would be if the builder gave one (Q18 b).
+    const killer = anEncounterThatKills();
+    const state = changed(madeToOrder(), (document) => {
+      const first = document.world.quests[document.world.board[0] as QuestId] as Quest;
+      Object.assign(first, { tier: 4, encounterKeys: [...first.encounterKeys.slice(0, 4), killer] });
+    });
+    render(<App initial={state} />);
+    expect(within(firstCard()).getByText('Deadly')).toBeDefined();
+    // What the builder says, shown, read only by a screen reader, or in a tooltip.
+    const said = (form: HTMLElement): string =>
+      [form, ...form.querySelectorAll('*')].flatMap((element) => [element.getAttribute('title'), element.getAttribute('aria-label')]).join(' ') + ` ${form.textContent ?? ''}`;
+    const noDeath = /\bDeath\b|\bdie\b|\bDeadly\b/;
 
     const form = chooseForFirst();
+    expect(said(form)).not.toMatch(noDeath);
 
     const beats = within(form).getByTestId('beats');
     expect(beats.tagName).toBe('OL');
@@ -320,7 +341,14 @@ describe('the Party builder', () => {
     // Before the Heroes are chosen.
     expect(beats.compareDocumentPosition(within(form).getByRole('group', { name: 'Heroes' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(form).getByText(/^A Party of at least 1 \(0 chosen\)/)).toBeDefined();
-    expect(form.textContent).not.toMatch(/Death|die\b/);
+
+    // A Hero chosen: the floor met and the chances given, still with no Death figure.
+    const [box] = within(form).getAllByRole('checkbox').filter((it) => !(it as HTMLInputElement).disabled);
+    if (box === undefined) throw new Error('No Hero free to go');
+    fireEvent.click(box);
+    expect(within(form).getByText(/^A Party of at least 1 \(1 chosen\)/)).toBeDefined();
+    expect(within(form).getByTestId('chances')).toBeDefined();
+    expect(said(form)).not.toMatch(noDeath);
   });
 
   test("gives each Hero on the Roster a row: whether they can go, and why not and until when; Class and Level; the Stats the Quest's Checks read; the Skills it names; and no Hero's Morale (DL-148 item 12)", () => {
