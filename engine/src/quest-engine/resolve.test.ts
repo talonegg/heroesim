@@ -281,7 +281,7 @@ describe('resolveQuest', () => {
     });
 
     test('gives a Party of no Heroes a share of 0, not the Infinity of dividing by none, and JSON-safe', () => {
-      // `dispatch` sends no Party below the Quest's `partySizeMin`, which content holds at 1 or more, and
+      // `dispatch` sends no Party below the Quest's `partySizeMin`, which content holds at 2 or more (DL-266), and
       // nothing takes a Hero out of a Party; but the estimate's test resolves a Party of no one (a failure
       // meeting no Encounter), so the resolver keeps taking one (S13's verification, DL-184).
       const { world, quest, party, deps } = scene('split-empty', content, ['pass']);

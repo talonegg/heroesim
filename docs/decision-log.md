@@ -732,3 +732,9 @@ one process under `--cpu-prof` (`v1.2.0-s8-profile`): `advance` a mean of 2.803 
 0.876 ms, a share of 0.313 against the line's 0.4875 (v1.1.9's close 1.861 ms and 0.302, before
 S5's Tiers); the game 80.5 s, the estimate 29.8%, the Rivals 31.0%, `copyWorld` 28.1%; the quick
 run's `advance` 1.768 → 1.534 ms from S7. The epic's S8 boxes.
+Verified 2026-10-11 at 3aa2768: the Best Party weighs the estimate's chance of success alone, fills
+the floor greedily before the margin, and names no Party below it nor of one free Hero; no reader of
+`partySizeMax` is left but the check's refusal; the Rivals and the player send the Best Party, and
+nothing else caps one; 18 mutations all red; tests added for the floor at margins 0 and 1 and for at
+most n(n + 1)/2 + 1 Parties weighed of 20 Heroes (57 to 90 of 211); the profile reproduced,
+`1e68aeb6…`, its rise from v1.1.9 the Rivals' Rosters (a mean of 20 against 10 by Year 10), not code.

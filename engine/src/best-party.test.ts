@@ -220,6 +220,42 @@ describe('the Best Party module (DL-237)', () => {
     expect(largest).toBeGreaterThan(5);
   });
 
+  // DL-257 item 6, DL-266: the floor holds whatever the margin, and the search stays greedy with no most.
+  test('names no Party below partySizeMin, and none when too few Heroes are free, whatever the margin', () => {
+    for (const margin of [0, 1]) {
+      const { world, rival, quests, deps } = scene(`best-floor-${margin}`, [40, 60, 80, 90, 95, 99], margin);
+      const available = availableHeroes(world, rival);
+      const module = bestParties(world, rival, deps);
+      for (const quest of quests) {
+        quest.requirements = { partySizeMin: 2 };
+        const best = module.party(quest, available);
+        expect(best?.heroIds.length, `${margin} ${quest.id}`).toBeGreaterThanOrEqual(2);
+        // At a margin of 1 no Hero is added past the least.
+        if (margin === 1) expect(best?.heroIds, `${quest.id}`).toHaveLength(2);
+        expect(module.party(quest, available.slice(0, 1)), `${margin} ${quest.id} one Hero free`).toBeNull();
+      }
+    }
+  });
+
+  test('weighs at most n(n + 1)/2 + 1 Parties of n free Heroes, never every Party of them: a Roster of 20 at a margin of 0', () => {
+    const deps = testDeps({ rivalRosterMin: 20, rivalRosterMax: 20 }, withDispositions({ partyMargin: 0 }));
+    const { world } = createWorld('best-twenty', setup, deps).document;
+    const rival = Object.values(world.guilds).find((guild) => dispositionOf(guild) !== null) as Guild;
+    const available = availableHeroes(world, rival);
+    expect(available).toHaveLength(20);
+    const bound = (20 * 21) / 2 + 1;
+    for (const [index, questId] of world.board.entries()) {
+      const quest = world.quests[questId] as Quest;
+      quest.difficulty = [60, 80, 95, 100][index % 4] as number;
+      quest.requirements = { partySizeMin: 2 };
+      counted.estimates = 0;
+      const best = bestParties(world, rival, deps).party(quest, available);
+      expect(best?.heroIds.length, quest.id).toBeGreaterThanOrEqual(2);
+      expect(counted.estimates, quest.id).toBeGreaterThan(20);
+      expect(counted.estimates, quest.id).toBeLessThanOrEqual(bound);
+    }
+  });
+
   test('draws nothing and changes nothing: the world after its questions is the world before', () => {
     const { world, rival, quests, deps } = scene('best-pure', undefined, 0);
     const before = structuredClone(world);
