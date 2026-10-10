@@ -95,4 +95,5 @@ deploys nothing, so a workflow's change is first exercised by the next release.
 
 **Evidence.** The commit `v1.1.9 (DL-255)`, whose message holds the checks and the dry runs on this
 repository.
+Verified 2026-10-10 at 4a3d70f: 21 mutations red (one survivor closed by a test), and a scratch repository's tag, record merges and code merge dry-run through both workflows' blocks, found item 2's "a git failure fails the step" untrue (inside `[ "$(...)" = record ]` a failing judgement fell through to tagging and deploying), so both workflows now take the verdict as a statement of their own, test first; added a test that the base is the newest tag by number, and the record's pull request to delivery.md.
 

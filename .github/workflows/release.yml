@@ -76,7 +76,9 @@ jobs:
             exit 0
           fi
           tag="$(node web/scripts/release.mjs next "$BRANCH")"
-          if [ "$(node web/scripts/release.mjs record HEAD)" = record ]; then
+          # A statement of its own, so that a judgement that fails fails the step (DL-255).
+          verdict="$(node web/scripts/release.mjs record HEAD)"
+          if [ "$verdict" = record ]; then
             echo "#$NUMBER merged $BRANCH, whose changes since the newest release tag are records alone: no tag is made and nothing is deployed (DL-255)." | tee -a "$GITHUB_STEP_SUMMARY"
             echo "tag=" >> "$GITHUB_OUTPUT"
             exit 0

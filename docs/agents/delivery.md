@@ -156,6 +156,9 @@ name its path, or use `rg -u`.
    - the ledger's row in `plan.md` §2: date, pull request, merge commit, decisions, epic;
    - the epic's Status line.
 
+   The record, pushed to the release branch on the owner's word, raises a pull request "Record
+   from `<branch>` (no release)", whose merge releases nothing (`docs/deploy.md`, DL-255).
+
    Then archive, by the steps in `docs/agents/documentation.md`:
    - the epic, to `docs/planning/archive/`;
    - the release's DL entries, to `docs/decisions/archive/`;

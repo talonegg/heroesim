@@ -185,6 +185,12 @@ describe('the command line', () => {
     expect(record(['record', 'HEAD'], []).diff).toEqual(['git', 'diff', '--name-only', '--no-renames', '-z', 'v1.1.0', 'HEAD']);
   });
 
+  test('record judges since the newest release by number, not as git lists the tags', () => {
+    // git lists tags as text, v1.1.10 before v1.1.9: the base is newestTag's, never the last listed.
+    expect(record(['record', 'HEAD'], [], ['v1.1.10', 'v1.1.8', 'v1.1.9', 'm9-redesign']).diff).toEqual(['git', 'diff', '--name-only', '--no-renames', '-z', 'v1.1.10', 'HEAD']);
+    expect(record(['record', 'HEAD'], [], ['v1.1.11', 'v1.10.0', 'v1.2.0', 'v1.9.3']).diff).toEqual(['git', 'diff', '--name-only', '--no-renames', '-z', 'v1.10.0', 'HEAD']);
+  });
+
   test('record takes a base in place of the newest release tag', () => {
     expect(record(['record', 'abc123', 'v1.0.1'], ['README.md'])).toMatchObject({ status: 0, output: 'record' });
     expect(record(['record', 'abc123', 'v1.0.1'], []).diff).toEqual(['git', 'diff', '--name-only', '--no-renames', '-z', 'v1.0.1', 'abc123']);
@@ -261,10 +267,18 @@ describe('record, on a repository made here', () => {
 describe('the workflows, for a record', () => {
   const repoDir = fileURLToPath(new URL('../..', import.meta.url));
   const workflowText = (name: string): string => readFileSync(path.join(repoDir, '.github/workflows', name), 'utf8').replace(/\r\n/g, '\n');
+  // The verdict is a statement of its own, so that under the step's `bash -e` a judgement that fails
+  // fails the step: inside `[ "$(...)" = record ]` a failure would fall through to a release.
+  const judgement = '\n          verdict="$(node web/scripts/release.mjs record HEAD)"\n          if [ "$verdict" = record ]; then\n';
+  const judgedIn = (workflow: string): number => {
+    expect(workflow).not.toMatch(/\$\(node web\/scripts\/release\.mjs record [^)]*\)" =/);
+    expect(workflow.split('release.mjs record').length, 'one judgement').toBe(2);
+    return workflow.indexOf(judgement);
+  };
 
   test('release-pr.yml titles a record "Record from <branch> (no release)", and anything else a release', () => {
     const workflow = workflowText('release-pr.yml');
-    const judged = workflow.indexOf('if [ "$(node web/scripts/release.mjs record HEAD)" = record ]; then');
+    const judged = judgedIn(workflow);
     const recordTitle = workflow.indexOf('title="Record from $BRANCH (no release)"');
     const releaseTitle = workflow.indexOf('title="Release $tag from $BRANCH"');
 
@@ -278,7 +292,7 @@ describe('the workflows, for a record', () => {
 
   test('release.yml judges a record after its refusals, then makes no tag and calls no deploy', () => {
     const workflow = workflowText('release.yml');
-    const judged = workflow.indexOf('if [ "$(node web/scripts/release.mjs record HEAD)" = record ]; then');
+    const judged = judgedIn(workflow);
     const record = workflow.slice(judged, workflow.indexOf('\n          fi\n', judged));
 
     expect(judged).toBeGreaterThan(workflow.indexOf('git diff --quiet "$head" HEAD'));

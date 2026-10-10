@@ -49,7 +49,9 @@ jobs:
             echo "Merging $BRANCH would release nothing (above): no pull request."
             exit 0
           fi
-          if [ "$(node web/scripts/release.mjs record HEAD)" = record ]; then
+          # A statement of its own, so that a judgement that fails fails the step (DL-255).
+          verdict="$(node web/scripts/release.mjs record HEAD)"
+          if [ "$verdict" = record ]; then
             title="Record from $BRANCH (no release)"
             body="$(cat <<EOF
           Merging this releases nothing: every change since the newest release tag lies in \`docs/\`, a Markdown file, \`harness/reports/\`, \`.github/\` or \`web/scripts/release.mjs\` with its types and test, so \`release.yml\` makes no tag and runs no deploy, and the newest release stays as it is (DL-255).

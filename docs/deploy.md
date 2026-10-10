@@ -46,9 +46,11 @@ tag and the branch's tip lies in `docs/`, `harness/reports/` or `.github/`, is a
 (`*.md`), or is `web/scripts/release.mjs`, its types or its test, the merge is a record:
 `node web/scripts/release.mjs record <commit>` prints `record`, and otherwise `release`. A rename
 counts both its paths. `release-pr.yml` titles such a pull request "Record from `<branch>` (no
-release)". Merging it, `release.yml` keeps every refusal above, then makes no tag and calls no
-deploy, and says so in the run's summary; the newest release stays production. A merge that
-changes anything else releases, and its tag holds the records merged before it.
+release)". Merging it, `release.yml` refuses as it would a release's merge (a push to `main` that
+merged no one release branch's pull request, a tree other than that pull request's head, an older
+line's branch), then makes no tag and calls no deploy, and says so in the run's summary; the newest
+release stays production. If the judgement itself fails, the run fails, and nothing is tagged. A
+merge that changes anything else releases, and its tag holds the records merged before it.
 
 If `main` ever takes a commit that no release branch holds (a direct push, or a pull request
 from elsewhere), every later release is refused, because `main` differs from the pull request's
