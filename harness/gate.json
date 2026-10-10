@@ -37,11 +37,6 @@
       "identical": true,
       "source": "M2-S12 (DL-34), since v1.1.6-S3 (DL-189) one seed played once more, alone, its last save's length and fingerprint compared with those its shard recorded: two processes; seed-0001 identical at v1.1.8's closing full gate (DL-229), 142,008,748 characters"
     },
-    "playerBankruptcies": {
-      "max": 3,
-      "baseline": 0,
-      "source": "the owner's answer (DL-188): at most 3 of 50, the baseline and fifty seeds' ±3 (DL-166), as proposed; v1.1.8's closing full gate (DL-229): 0 of 50, as at v1.1.6's and v1.1.5's (DL-205, DL-184); DL-168 item 16's 3 to 7 decided what followed v1.1.5 and is not this line"
-    },
     "saveGzipped": {
       "meanMiB": 30,
       "baselineMeanMiB": 17.51,
@@ -70,6 +65,7 @@
     "S17 added the per-Turn copy's time line (DL-186 item 11, DL-203), its baseline set from S17's full gate by its verification; v1.1.7-S1 made it the copy's share of a Turn (DL-206 item 17, DL-207).",
     "v1.1.7-S8 moved the baseline from v1.1.5's closing sweep to v1.1.6's closing full gate, and the sources whose numbers were v1.1.5's with it; no limit changed, each baseline's value the same at both closes, and the copy line as S1 set it (DL-214).",
     "v1.1.8's close moved the baseline from v1.1.6's closing full gate to its own, a clean run of the same games as v1.1.7's close, the one report the spec names; the copy line's anchor kept at S17's 0.253, and no limit changed (DL-229).",
-    "v1.1.9's close kept the baseline, v1.1.9 changing no play, and anchored the copy line at its own closing full gate on the owner's answer, the growth unchanged (DL-252)."
+    "v1.1.9's close kept the baseline, v1.1.9 changing no play, and anchored the copy line at its own closing full gate on the owner's answer, the growth unchanged (DL-252).",
+    "v1.2.0 took the player's Bankruptcies out of the lines, at most 3 of 50 since DL-188, for the report's Targets, which set them against DL-83 item 2's band and fail no run: reported, not gated, in v1.2.0 (DL-257 item 7, the owner's answer Q11 a; DL-259)."
   ]
 }

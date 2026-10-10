@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import { commandLine, halfTheProcessors, probeNames, profileNames, runSettings, settingsSet, type Env, type RunSettings } from './settings.js';
+import { commandLine, defaultBaseline, halfTheProcessors, probeNames, profileNames, runSettings, settingsSet, type Env, type RunSettings } from './settings.js';
 import { readGateSpec } from './gate.js';
 
 // DL-186 item 13: every `HEROESIM_*` variable a harness run reads, through one parser.
@@ -34,6 +34,7 @@ describe('the milestone run', () => {
       drafts: null,
       config: {},
       policy: {},
+      baseline: defaultBaseline,
     });
     for (const count of [settings.worlds, settings.games, settings.years]) {
       expect(Number.isInteger(count)).toBe(true);
@@ -55,8 +56,10 @@ describe('the milestone run', () => {
       HEROESIM_POLICY: '{"rosterLimit":10,"buildWealthMultiple":2.5}',
       HEROESIM_EXPECT: 'E7AE171001C2C885586893B760678089A7400672568C0F53FA83713E6369F369',
       HEROESIM_HARNESS: '1',
+      HEROESIM_BASELINE: ' v1.2.0-s2-gate-2026-10-10 ',
     });
     expect(settings).toMatchObject({
+      baseline: 'v1.2.0-s2-gate-2026-10-10',
       milestone: 'v1.1.6-s2',
       worlds: 7,
       games: 7,
@@ -71,6 +74,9 @@ describe('the milestone run', () => {
     });
     expect(runSettings({ HEROESIM_SEEDS: ' ', HEROESIM_VALIDATE: '', HEROESIM_REPLAY: ' ', HEROESIM_CONFIG: '  ' })).toEqual(runSettings({}));
     expect(settingsOf('milestone', { HEROESIM_VALIDATE: 'false', HEROESIM_REPLAY: 'true' })).toMatchObject({ validate: false, replay: true });
+    // The Targets' baseline (DL-259): v1.1.9's closing gate unless named, none when `none`.
+    expect(defaultBaseline).toBe('v1.1.9-gate-2026-10-10');
+    expect(settingsOf('milestone', { HEROESIM_BASELINE: 'NONE' })).toMatchObject({ baseline: null });
   });
 });
 

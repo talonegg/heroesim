@@ -1,7 +1,8 @@
 // The play sweep as a Markdown report (M2-S12, DL-34): its frame (what was played, under what policy
-// and on what machine; the Summary's lines of the sweep itself; the Gate; each section's heading; the
-// Measures; and the refusals listed), and between them every counter's own rows and lines, as its
-// declaration gives them (`counter.ts`, DL-239), in the counters' order.
+// and on what machine; the Summary's lines of the sweep itself; the Gate; the Targets, `targets.ts`'s
+// (DL-259); each section's heading; the Measures; and the refusals listed), and between them every
+// counter's own rows and lines, as its declaration gives them (`counter.ts`, DL-239), in the counters'
+// order.
 
 import { configVersion, schemaVersion, type EngineDeps } from '@heroesim/engine';
 import { sections, sweepTotals, type ReportContext, type Section } from './counter.js';
@@ -10,6 +11,7 @@ import { copyTimes, gateSection, readGateSpec, type GateResult, type GateSpec } 
 import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
 import { summarise, type Summary } from './stats.js';
 import { sweepFingerprint, type PlaySweep } from './sweep.js';
+import { targetsOf, targetsSection, type TargetsReport } from './targets.js';
 
 export interface PlayReportContext {
   deps: EngineDeps;
@@ -27,6 +29,8 @@ export interface PlayReportContext {
   spec?: GateSpec;
   /** The run checked against the Gate (`checkGate`), for a profile's run; none when absent. */
   gate?: GateResult | null;
+  /** The Targets, as the JSON report holds them (DL-259); read against no baseline when absent. */
+  targets?: TargetsReport;
 }
 
 /**
@@ -77,6 +81,7 @@ const headings: Record<Section, readonly string[]> = {
 /** The sweep as a Markdown report. */
 export function playReport(sweep: PlaySweep, context: PlayReportContext): string {
   const { deps, machine, startedAt, milestone, drafted = [], configured = {}, policyChanged = {}, gate = null } = context;
+  const measured = context.targets ?? targetsOf(sweep, deps.config.turnsPerYear, null);
   const spec = context.spec ?? readGateSpec();
   const { config, content } = deps;
   const totals = sweepTotals(sweep, config.turnsPerYear);
@@ -130,7 +135,8 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
     `# ${milestone.toUpperCase()} harness report: play`,
     '',
     `Run begun ${localTimestamp(startedAt)} · ${whole(count)} seeds, ${range} · up to ${yearsText} years ` +
-      `(${whole(sweep.years * config.turnsPerYear)} Turns) each · content \`${content.id}\` version ${content.version}` +
+      `(${whole(sweep.years * config.turnsPerYear)} Turns) each · the first ${yearsText} years of games that run 20 to 35 years, the slice ` +
+      `measured (DL-83 item 18) · content \`${content.id}\` version ${content.version}` +
       `${drafted.length === 0 ? '' : ` with the drafts of ${drafted.map((name) => `\`${name}\``).join(', ')}`} · ` +
       `config version ${configVersion}, schema version ${schemaVersion}` +
       `${Object.keys(configured).length === 0 ? '' : `, the defaults changed by \`${JSON.stringify(configured)}\``} · ` +
@@ -166,13 +172,17 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
             : `\`${sweep.replay.seed}\`: ${sweep.replay.identical ? 'identical' : 'DIFFERENT'} (${whole(sweep.replay.length)} characters)`,
         ],
         ['Saves that load and serialise back identically', `${whole(roundTrips)} of ${whole(count)}`],
-        ["Fingerprint of every seed's last save", `\`${sweepFingerprint(sweep.games)}\``],
+        [
+          "Fingerprint of every seed's last save",
+          `\`${sweepFingerprint(sweep.games)}\`, each seed's own in the JSON report's \`games[].fingerprint\` (DL-188 item 6)`,
+        ],
         ['`advance` per Turn', `mean ${ms(sweep.advance.mean)} ms, p99 ${ms(sweep.advance.p99)} ms`],
         ['Total run time', `${fixed(sweep.totalMs / 1000, 1)} s, the games ${fixed(sweep.gamesMs / 1000, 1)} s of it`],
       ],
     ),
     '',
     ...(gate === null ? [] : gateSection(gate)),
+    ...targetsSection(measured),
     ...sections.flatMap((section) => [
       ...headings[section],
       ...sweep.counters.flatMap((counter) => (counter.section === section ? (counter.lines?.(totals, report) ?? []) : [])),

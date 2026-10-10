@@ -8,7 +8,9 @@ import {
   milestoneTypes,
   playerGuild,
   serialise,
+  turnsPerDay,
   unattachedHeroes,
+  upkeep,
   type EngineDeps,
   type EngineEventType,
   type EntityId,
@@ -1462,5 +1464,173 @@ describe("the Hero counters and the save's size (DL-134 item 9, DL-135 item 6)",
     };
     expect(savedLength(awkward)).toBe(JSON.stringify(awkward).length);
     expect(savedLength(awkward)).toBe(serialise(awkward as unknown as WorldDocument).length);
+  });
+});
+
+// The Targets' counters (DL-259): what the report's Targets read that no counter gave, each on a
+// small fixture game as above.
+describe("the Targets' counters (DL-259)", () => {
+  /** An entry of `type` at `turn`, as an `advance`'s events hold it, not appended to any History. */
+  const event = (turn: number, type: EngineEventType, participants: EntityId[], payload: object): Entry =>
+    ({ turn, type, participants, labels: {}, milestone: milestoneTypes[type], payload }) as Entry;
+
+  /** Tells `observer` of an `advance` that left `document` where it stands, with `events` as its own. */
+  const advanced = (observer: Gatherer<unknown>, document: WorldDocument, events: Entry[], before: WorldDocument = document): void =>
+    observer.advanced?.({ before, after: document, events, from: document.history.entries.length, deps: shortYears });
+
+  test("Quest weight: each side's Quests taken, the Heroes sent and the Days away, from quest.taken", () => {
+    const { document, player, rivals } = fixture('counters-quest-weight');
+    const [a] = rivals;
+    const taken = (turn: number, guild: Guild, n: number, heroes: number, days: number): void => {
+      const questId = makeId('quests', n);
+      const partyId = makeId('parties', n);
+      const heroIds = guild.rosterIds.slice(0, heroes);
+      // Home the night of the Day `days` after the Day it was taken on, as `returnNightOf` gives it.
+      const returnsOnTurn = (Math.floor(turn / 3) + days) * 3 + 2;
+      add(document, turn, 'quest.taken', [questId, partyId, ...heroIds, guild.id], { questId, partyId, guildId: guild.id, heroIds, returnsOnTurn });
+    };
+    taken(0, player, 1, 2, 4);
+    taken(1, a, 3, 3, 6);
+    taken(4, player, 2, 1, 3);
+    document.world.turn = 20;
+
+    expect(countGame(document, shortYears).questWeight).toEqual({
+      player: { quests: 2, heroes: 3, days: 7 },
+      ambitious: { quests: 1, heroes: 3, days: 6 },
+    });
+    expect(countGame(fixture('counters-quest-weight-none').document, shortYears).questWeight).toEqual({});
+  });
+
+  test('Transfers back to a Guild that had sold the Hero fewer than 90 Days after that sale (DL-69 item 4)', () => {
+    const { document, rivals } = fixture('counters-ping-pong');
+    const [a, b] = rivals;
+    const [h1, h2, h3] = a.rosterIds;
+    if (h1 === undefined || h2 === undefined || h3 === undefined) throw new Error('A Roster too small');
+    const transferred = (day: number, heroId: HeroId, from: Guild, to: Guild): void => {
+      add(document, day * 3 + 1, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+    };
+    transferred(1, h1, a, b);
+    transferred(2, h1, b, a); // back to A a Day after A sold them
+    transferred(2, h2, a, b);
+    transferred(92, h2, b, a); // back to A 90 Days after: not fewer
+    transferred(93, h1, a, b); // back to B 91 Days after B sold them
+    transferred(100, h3, a, b);
+    transferred(189, h3, b, a); // back to A 89 Days after
+    document.world.turn = 600;
+
+    const counted = countGame(document, shortYears);
+
+    expect(counted.transfersBack).toBe(4);
+    expect(counted.transfersBackSoon).toBe(2);
+  });
+
+  test("the highest Level each side has reached by each year: its Rosters every Turn and every hero.levelled, carried to the game's end", () => {
+    const { document, player, rivals } = fixture('counters-highest');
+    const { world } = document;
+    const [a, b] = rivals;
+    const levelOf = (heroId: HeroId | undefined, level: number): void => {
+      if (heroId === undefined) throw new Error('No such Hero');
+      (world.heroes[heroId] as Hero).level = level;
+    };
+    for (const guild of [player, a, b]) for (const heroId of guild.rosterIds) levelOf(heroId, 1);
+    levelOf(player.rosterIds[1], 3);
+    levelOf(a.rosterIds[0], 5);
+    levelOf(b.rosterIds[2], 2);
+    const highest = observerOf('highestLevels');
+    highest.created?.({ document, deps: shortYears, events: [] });
+
+    // Year 1: a hero.levelled of the player's to Level 4.
+    world.turn = 15;
+    const playerHero = firstHero(player);
+    levelOf(playerHero, 4);
+    advanced(highest, document, [event(14, 'hero.levelled', [playerHero, player.id], { heroId: playerHero, guildId: player.id, level: 4, statDeltas: {}, pointsLost: 0 })]);
+    // Year 2: an `ambitious` Hero at 7 on its Roster; a `miserly` Hero levelled to 9 and gone from its Roster the same Turn.
+    world.turn = 31;
+    levelOf(a.rosterIds[1], 7);
+    const gone = b.rosterIds[0] as HeroId;
+    b.rosterIds = b.rosterIds.slice(1);
+    // A Rival founded in year 2, its Disposition first seen then.
+    const c: Guild = { ...structuredClone(b), id: makeId('guilds', 90), foundedTurn: 30, controller: { kind: 'rival', disposition: 'reckless' } };
+    world.guilds[c.id] = c;
+    advanced(highest, document, [event(30, 'hero.levelled', [gone, b.id], { heroId: gone, guildId: b.id, level: 9, statDeltas: {}, pointsLost: 0 })]);
+    // The game stops in year 3, which nothing else announced.
+    world.turn = 75;
+    highest.ended?.({ document, deps: shortYears });
+
+    expect(highest.value()).toEqual({ player: [4, 4, 4], ambitious: [5, 7, 7], miserly: [2, 9, 9], reckless: [null, 2, 2] });
+  });
+
+  test('the Rivals at the Roster floor with more than 20 Upkeeps in hand, by Disposition, as each year begins (DL-69 item 4)', () => {
+    const { document, rivals } = fixture('counters-hoarding');
+    const { world } = document;
+    const [a, b] = rivals;
+    a.rosterIds = a.rosterIds.slice(0, shortYears.config.rivalRosterMin);
+    a.wealth = 20 * upkeep(a, world, shortYears.config, content) + 1;
+    b.wealth = 1_000_000;
+    expect(b.rosterIds.length).toBeGreaterThan(shortYears.config.rivalRosterMin);
+    const atFloor = observerOf('rivalsAtFloor');
+    census(document, shortYears, atFloor);
+    world.turn = 30;
+    a.wealth = 20 * upkeep(a, world, shortYears.config, content);
+    b.rosterIds = b.rosterIds.slice(0, 3);
+    census(document, shortYears, atFloor);
+    world.turn = 45; // no year-start
+    census(document, shortYears, atFloor);
+
+    expect(atFloor.value()).toEqual([
+      { ambitious: { starts: 1, hoarding: 1 }, miserly: { starts: 1, hoarding: 0 } },
+      { ambitious: { starts: 1, hoarding: 0 }, miserly: { starts: 1, hoarding: 1 } },
+    ]);
+  });
+
+  test("the player's Wealth in months of its Upkeep as each year begins, a month a twelfth of a year's Upkeeps", () => {
+    const { document, player } = fixture('counters-months');
+    const { world } = document;
+    const months = observerOf('playerWealthMonths');
+    const owed = upkeep(player, world, shortYears.config, content);
+    // A year of 30 Turns is 10 Days: one Upkeep a year.
+    expect(shortYears.config.turnsPerYear / turnsPerDay / shortYears.config.upkeepEveryDays).toBe(1);
+    player.wealth = owed * 3;
+    census(document, shortYears, months);
+    world.turn = 30;
+    player.wealth = -owed;
+    census(document, shortYears, months);
+
+    expect(months.value()).toEqual([36, -12]);
+  });
+
+  test('the Transfers that left their seller below rivalRosterMin, its Roster followed through the Turn from the world it began with', () => {
+    const { document, player, rivals } = fixture('counters-short');
+    const [a, b] = rivals;
+    const min = shortYears.config.rivalRosterMin;
+    const before = structuredClone(document);
+    const [aGuild, bGuild] = [before.world.guilds[a.id] as Guild, before.world.guilds[b.id] as Guild];
+    aGuild.rosterIds = aGuild.rosterIds.slice(0, min + 1);
+    bGuild.rosterIds = bGuild.rosterIds.slice(0, min);
+    const [h1, h2, h3, h4] = aGuild.rosterIds;
+    const [k1] = bGuild.rosterIds;
+    const pooled = makeId('heroes', 900);
+    if (h1 === undefined || h2 === undefined || h3 === undefined || h4 === undefined || k1 === undefined) throw new Error('Rosters too small');
+    const moved = (heroId: HeroId, from: Guild, to: Guild): Entry =>
+      event(4, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+    const short = observerOf('transfersShort');
+
+    advanced(
+      short,
+      document,
+      [
+        moved(h1, a, b), // A at its minimum: not below it
+        moved(h2, a, b), // A below
+        event(4, 'hero.recruited', [pooled, a.id], { heroId: pooled, guildId: a.id, fee: 80 }),
+        moved(h3, a, b), // A below again, after hiring back to its minimum
+        event(5, 'hero.died', [k1, b.id], { heroId: k1, questId: makeId('quests', 1) }),
+        event(5, 'hero.retired', [h4, a.id], { heroId: h4, guildId: a.id, age: 60 }),
+        moved(k1, b, a), // B, 4 + 3 - 1 Heroes: not below
+      ],
+      before,
+    );
+    advanced(short, document, [event(7, 'guild.upkeep-paid', [player.id], { guildId: player.id, amount: 10, wealthAfter: 0 })], before);
+
+    expect(short.value()).toBe(2);
   });
 });

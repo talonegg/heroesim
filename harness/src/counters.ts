@@ -54,12 +54,19 @@
 // v1.1.6-S17's (DL-186 item 11, DL-203), from the World State as each year ends (`observeWorld`): its
 // size in the save's characters, its rows live and write-once, and the time of the per-Turn copy,
 // `copyWorld`, taken there. Measures, not play counters: `compare` leaves them out.
+//
+// The Targets' (DL-259), what the report's Targets read that no counter gave: from the History, each
+// side's Quests taken with the Heroes sent and the Days away, and the Transfers back to a former seller
+// within `pingPongDays`; from the World State, the highest Level each side has reached by each year,
+// the Rivals at the Roster floor with Wealth to spare and the player's Wealth in months of its Upkeep
+// as each year begins, and the Transfers that left their seller below `rivalRosterMin`.
 
 import {
   baseStat,
   callingClashes,
   compareByCodeUnit,
   copyWorld,
+  dayOf,
   dispositionOf,
   encounterKinds,
   facilityKeys,
@@ -73,7 +80,9 @@ import {
   regardBandNames,
   relationshipBandCounts,
   timeOfDay,
+  turnsPerDay,
   unsignableHeroes,
+  upkeep,
   writeOnce,
   yearOf,
   type Controller,
@@ -321,6 +330,10 @@ export interface GameCounters {
   transfersBySide: Record<string, Record<string, TransferTally>>;
   /** Transfers that took a Hero to a Guild that had sold them before (DL-60's lock at work). */
   transfersBack: number;
+  /** Of those, the Transfers fewer than `pingPongDays` after that Guild's last sale of the Hero (DL-69 item 4, DL-259). */
+  transfersBackSoon: number;
+  /** `quest.taken` by the taking Guild's side (`sideOf`): the Quests, the Heroes sent and the Days away (DL-259). */
+  questWeight: Record<string, QuestWeight>;
   /** Transfer Offers by the side of the Guild that made them, then of the Guild asked. */
   offers: Record<string, Record<string, OfferTally>>;
   /** Each Disposition's Rivals, by its key: every Disposition content holds, and any other a Rival has. */
@@ -1202,20 +1215,25 @@ function addTransfer(tally: TransferTally, fee: number): void {
   tally.fees += fee;
 }
 
+/** A Transfer back to a Guild that had sold the Hero fewer Days than this after that sale is ping-pong (DL-69 item 4). */
+export const pingPongDays = 90;
+
 /**
  * `hero.transferred` by direction, by how a Transfer between two Rivals happened (`rivalTransferWays`),
  * by the selling and the buying side, and the Transfers that took a Hero to a Guild that had sold them
- * before.
+ * before, and of those the ones fewer than `pingPongDays` after that Guild's last sale of them.
  */
 export function transferCounters(
   document: WorldDocument,
   afternoons: RivalAfternoons | undefined,
-): Pick<GameCounters, 'transfers' | 'rivalTransfers' | 'transfersBySide' | 'transfersBack'> {
+): Pick<GameCounters, 'transfers' | 'rivalTransfers' | 'transfersBySide' | 'transfersBack' | 'transfersBackSoon'> {
   const transfers = { in: noTransfers(), out: noTransfers(), 'rival-to-rival': noTransfers() };
   const rivalTransfers = Object.fromEntries(rivalTransferWays.map((way) => [way, noTransfers()])) as Record<RivalTransferWay, TransferTally>;
   const transfersBySide: Record<string, Record<string, TransferTally>> = {};
   let transfersBack = 0;
-  const soldBy = new Map<string, Set<GuildId>>();
+  let transfersBackSoon = 0;
+  // Each Hero's sellers, and the Turn each last sold them.
+  const soldBy = new Map<string, Map<GuildId, number>>();
   positionedEntriesOf(document, 'hero.transferred').forEach(({ entry, position }, index) => {
     const { from, to, fee, heroId, offerId } = transferOf(document, entry, `hero.transferred entry ${index}`);
     const direction: TransferDirection =
@@ -1233,12 +1251,16 @@ export function transferCounters(
       addTransfer(rivalTransfers[way], fee);
     }
     addTransfer(((transfersBySide[sideOf(from)] ??= {})[sideOf(to)] ??= noTransfers()), fee);
-    const sellers = soldBy.get(heroId) ?? new Set<GuildId>();
-    if (sellers.has(to.id)) transfersBack += 1;
-    sellers.add(from.id);
+    const sellers = soldBy.get(heroId) ?? new Map<GuildId, number>();
+    const sold = sellers.get(to.id);
+    if (sold !== undefined) {
+      transfersBack += 1;
+      if (dayOf(entry.turn) - dayOf(sold) < pingPongDays) transfersBackSoon += 1;
+    }
+    sellers.set(from.id, entry.turn);
     soldBy.set(heroId, sellers);
   });
-  return { transfers, rivalTransfers, transfersBySide, transfersBack };
+  return { transfers, rivalTransfers, transfersBySide, transfersBack, transfersBackSoon };
 }
 
 function isOfferEndCause(value: unknown): value is TransferOfferEndCause {
@@ -1502,6 +1524,14 @@ export interface GameObservations {
   saves: SaveSize[];
   /** The World State as each year ended (`observeWorld`, v1.1.6-S17): index k is after k + 1 years. */
   worlds: WorldSize[];
+  /** The highest Level each side's Heroes have reached by each year (`observeHighestLevels`, DL-259). */
+  highestLevels: HighestLevels;
+  /** Each Disposition's Rivals at the Roster floor as each year begins (`rivalsAtFloor`, DL-259): index as `rosters`. */
+  rivalsAtFloor: Record<string, FloorTally>[];
+  /** The player's Wealth in months of its Upkeep as each year begins (`playerWealthMonths`, DL-259): index as `rosters`. */
+  playerWealthMonths: (number | null)[];
+  /** The Transfers that left a Rival seller's Roster below `rivalRosterMin` (`transfersShort`, DL-259). */
+  transfersShort: number;
 }
 
 /** Every Hero generated in a game, and their Portraits and texts (v1.1.3-S6; DL-134 item 9, DL-135 item 6). */
@@ -1894,4 +1924,153 @@ export function observeFameGate(gate: Record<ControllerKind, FameGate>, world: W
     tally.guildDays += 1;
     if (refusing > 0) tally.guildDaysWithAny += 1;
   }
+}
+
+// ── The Targets' readings (DL-259) ───────────────────────────────────────────────────────────
+
+/** One side's Quests taken: how many, the Heroes sent on them and the Days they were away (DL-259). */
+export interface QuestWeight {
+  quests: number;
+  heroes: number;
+  days: number;
+}
+
+export const noQuestWeight = (): QuestWeight => ({ quests: 0, heroes: 0, days: 0 });
+
+/**
+ * `quest.taken` by the taking Guild's side (`sideOf`): the Quests, the Heroes sent (`heroIds`) and
+ * the Days away, from the Day it was taken to the Day of the night it comes home (`returnsOnTurn`).
+ *
+ * @throws Error on an entry naming no Guild the world holds, or without its Heroes or return
+ */
+export function questWeightCounters(document: WorldDocument): Record<string, QuestWeight> {
+  const weights: Record<string, QuestWeight> = {};
+  entriesOf(document, 'quest.taken').forEach((entry, index) => {
+    const what = `quest.taken entry ${index}`;
+    const heroIds = payloadField(entry, 'heroIds');
+    if (!Array.isArray(heroIds)) throw new Error(`${what} has no heroIds`);
+    const weight = (weights[sideOf(guildOf(document, entry, `${index}`))] ??= noQuestWeight());
+    weight.quests += 1;
+    weight.heroes += heroIds.length;
+    weight.days += dayOf(numberField(entry, 'returnsOnTurn', what)) - dayOf(entry.turn);
+  });
+  return weights;
+}
+
+/**
+ * The highest Level each side's Heroes have reached by each year, by side (`sideOf`): index k by the
+ * end of year k + 1, `null` in the years before the side had a Hero on a Roster, and carried on to
+ * the game's end once it had (DL-83 items 20 and 22).
+ */
+export type HighestLevels = Record<string, (number | null)[]>;
+
+/** The year a world standing on `turn` has played into: the year of its last Turn played, the first for a new world. */
+const yearPlayed = (turn: number, turnsPerYear: number): number => Math.floor(Math.max(0, turn - 1) / turnsPerYear);
+
+/** `series` lengthened to reach `year`, each new year the last's, or `null` before any. */
+function carriedTo(series: (number | null)[], year: number): void {
+  while (series.length <= year) series.push(series.at(-1) ?? null);
+}
+
+/**
+ * Raises `highest`, as a game stands at `world`, to the Levels of every Hero on a Roster of a Guild
+ * in play and to each `hero.levelled` among `events`, the Turn's own, so that a Hero who levelled and
+ * left a Roster on the same Turn counts for the side they levelled on.
+ */
+export function observeHighestLevels(highest: HighestLevels, world: World, events: readonly Entry[], turnsPerYear: number): void {
+  const year = yearPlayed(world.turn, turnsPerYear);
+  const raise = (guild: Guild, level: number): void => {
+    const series = (highest[sideOf(guild)] ??= []);
+    carriedTo(series, year);
+    series[year] = Math.max(series[year] ?? 0, level);
+  };
+  for (const guild of guildsInPlay(world)) {
+    for (const heroId of guild.rosterIds) {
+      const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+      if (hero !== undefined) raise(guild, hero.level);
+    }
+  }
+  for (const entry of events) {
+    if (entry.type !== 'hero.levelled') continue;
+    const guildId = payloadField(entry, 'guildId');
+    const guild = isId('guilds', guildId) && Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId as GuildId] : undefined;
+    if (guild !== undefined) raise(guild, numberField(entry, 'level', 'A hero.levelled entry'));
+  }
+}
+
+/** Every series of `highest` carried on to the year a world standing on `turn` has played into: the game's end. */
+export function carryHighestLevels(highest: HighestLevels, turn: number, turnsPerYear: number): void {
+  const year = yearPlayed(turn, turnsPerYear);
+  for (const series of Object.values(highest)) carriedTo(series, year);
+}
+
+/** Upkeeps in hand above which a Rival at the Roster floor hoards (DL-69 item 4). */
+export const hoardingUpkeeps = 20;
+
+/** One Disposition's Rivals as a year begins: how many, and how many at the Roster floor with more than `hoardingUpkeeps` Upkeeps in hand. */
+export interface FloorTally {
+  starts: number;
+  hoarding: number;
+}
+
+/**
+ * Each Disposition's Rivals in play in `world`, and those at the Roster floor, `rivalRosterMin`
+ * Heroes or fewer, holding more Wealth than `hoardingUpkeeps` of their Upkeeps (`upkeep`): hoarding
+ * with a starving Roster (DL-69 item 4).
+ */
+export function rivalsAtFloor(world: World, deps: EngineDeps): Record<string, FloorTally> {
+  const tallies: Record<string, FloorTally> = {};
+  for (const guild of guildsInPlay(world)) {
+    const disposition = dispositionOf(guild);
+    if (disposition === null) continue;
+    const tally = (tallies[disposition] ??= { starts: 0, hoarding: 0 });
+    tally.starts += 1;
+    if (guild.rosterIds.length <= deps.config.rivalRosterMin && guild.wealth > hoardingUpkeeps * upkeep(guild, world, deps.config, deps.content)) tally.hoarding += 1;
+  }
+  return tallies;
+}
+
+/**
+ * The player's Wealth in months of its Upkeep (`upkeep`), a month a twelfth of a year's Upkeeps, one
+ * falling due every `upkeepEveryDays` (DL-83 item 7); `null` with no player's Guild in play or no
+ * Upkeep owed.
+ */
+export function playerWealthMonths(world: World, deps: EngineDeps): number | null {
+  const guild = playerGuild(world);
+  if (guild === undefined || guild.foldedOnTurn !== null) return null;
+  const owed = upkeep(guild, world, deps.config, deps.content);
+  const upkeepsAYear = deps.config.turnsPerYear / turnsPerDay / deps.config.upkeepEveryDays;
+  return owed <= 0 ? null : guild.wealth / ((owed * upkeepsAYear) / 12);
+}
+
+/**
+ * The Transfers among `events`, an `advance`'s, that left a Rival seller's Roster below
+ * `rivalRosterMin` (DL-69 item 4): each Roster followed from `before`, the world the Turn began
+ * with, through the Turn's entries in order, a Hero recruited or transferred in adding one and a Hero
+ * transferred out, dead, retired or gone from a folded Guild taking one. A Guild not in `before` is
+ * not followed.
+ */
+export function transfersShort(before: World, events: readonly Entry[], config: EngineDeps['config']): number {
+  if (!events.some((entry) => entry.type === 'hero.transferred')) return 0;
+  const sizes = new Map<unknown, number>();
+  const move = (guildId: unknown, by: number): number => {
+    const guild = isId('guilds', guildId) && Object.hasOwn(before.guilds, guildId) ? before.guilds[guildId as GuildId] : undefined;
+    if (guild === undefined) return Number.POSITIVE_INFINITY;
+    const size = (sizes.get(guildId) ?? guild.rosterIds.length) + by;
+    sizes.set(guildId, size);
+    return size;
+  };
+  let short = 0;
+  for (const entry of events) {
+    if (entry.type === 'hero.recruited') move(payloadField(entry, 'guildId'), 1);
+    else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild') move(payloadField(entry, 'guildId'), -1);
+    else if (entry.type === 'hero.died') move(entry.participants.find((id) => isId('guilds', id)), -1);
+    else if (entry.type === 'hero.transferred') {
+      move(payloadField(entry, 'toGuildId'), 1);
+      const fromGuildId = payloadField(entry, 'fromGuildId');
+      const seller = isId('guilds', fromGuildId) && Object.hasOwn(before.guilds, fromGuildId) ? before.guilds[fromGuildId as GuildId] : undefined;
+      if (move(fromGuildId, -1) < config.rivalRosterMin && seller?.controller.kind === 'rival') short += 1;
+    }
+  }
+  return short;
 }

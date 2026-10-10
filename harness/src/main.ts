@@ -8,22 +8,13 @@
 // with HEROESIM_HARNESS=1 set and the variables the words name; a variable set in the shell still overrides a profile's value, but not a word's.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { reportsDir } from './report.js';
-import { compareRuns, readRunReport } from './run-report.js';
+import { compareRuns, readRunReport, reportAt } from './run-report.js';
 import { commandLine } from './settings.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const vitest = join(root, 'node_modules', 'vitest', 'vitest.mjs');
-
-/** A report named on the command line: a path, or a name in harness/reports/, with or without `.json`. */
-function reportAt(named: string): string {
-  const found = [named, `${named}.json`, join(reportsDir, named), join(reportsDir, `${named}.json`)].find((path) => existsSync(path));
-  if (found === undefined) throw new RangeError(`No report at ${named}, nor in ${reportsDir}`);
-  return found;
-}
 
 const command = commandLine(process.argv.slice(2));
 if (command.kind === 'compare') {

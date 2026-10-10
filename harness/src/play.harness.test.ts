@@ -5,7 +5,7 @@ import { checkGate, gatePrinted, readGateSpec } from './gate.js';
 import { runConfig } from './play.js';
 import { defaultPolicyConfig } from './policy.js';
 import { machine, print, reportPath, writeReport } from './report.js';
-import { addCommand, jsonPathOf, runReport, writeRunReport } from './run-report.js';
+import { addCommand, fromRoot, jsonPathOf, readRunReport, reportAt, runReport, writeRunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
 import { runSettings, settingsSet } from './settings.js';
 import { playReport } from './play-report.js';
@@ -27,6 +27,9 @@ import { sweepPlayInParallel } from './sweep.js';
 // against `--expect` when given; it prints each line's verdict, writes them into both reports, and
 // on a pass prints the `git add -f` line that commits them (DL-186 item 28).
 //
+// Both reports set the Targets (DL-259) beside the run report HEROESIM_BASELINE names, read before any
+// game is played, so a mistyped name fails the run at once.
+//
 // HEROESIM_YEARS, HEROESIM_DRAFTS, HEROESIM_CONFIG, HEROESIM_POLICY, HEROESIM_WORKERS and
 // HEROESIM_REPLAY change the run as `settings.ts` says; the report says which.
 
@@ -36,8 +39,10 @@ const seeds = seedNames(run?.games ?? 0);
 
 test.runIf(run !== null)(`${seeds.length} games of ${run?.years ?? 0} years play to an ending or their last Turn`, { timeout: 24 * 60 * 60_000 }, async () => {
   if (run === null) return;
-  const { milestone, profile, expect: expected, years, workers, validate, replay, drafts, config: configured, policy: policyChanged } = run;
+  const { milestone, profile, expect: expected, years, workers, validate, replay, drafts, config: configured, policy: policyChanged, baseline: named } = run;
   const startedAt = new Date();
+  const baselinePath = named === null ? null : reportAt(named);
+  const baseline = baselinePath === null ? null : { path: fromRoot(baselinePath), run: readRunReport(baselinePath) };
   const drafted = drafts === null ? null : loadDrafts(drafts);
   const content = drafted?.content ?? loadContent();
   // Every setting checked before any game, a bad one refused by name (DL-193).
@@ -56,10 +61,11 @@ test.runIf(run !== null)(`${seeds.length} games of ${run?.years ?? 0} years play
     drafted: drafted?.drafted ?? [],
     configured,
     policyChanged,
+    baseline,
   });
   const spec = readGateSpec();
   json.gate = profile === null && expected === null ? null : checkGate(spec, json, expected);
-  const report = playReport(sweep, { deps, machine: machine(), startedAt, milestone, drafted: drafted?.drafted ?? [], configured, policyChanged, spec, gate: json.gate });
+  const report = playReport(sweep, { deps, machine: machine(), startedAt, milestone, drafted: drafted?.drafted ?? [], configured, policyChanged, spec, gate: json.gate, ...(json.targets === undefined ? {} : { targets: json.targets }) });
   const path = writeReport(reportPath(milestone, startedAt), report);
   writeRunReport(jsonPathOf(path), json);
   const { totals } = json;
@@ -72,7 +78,7 @@ test.runIf(run !== null)(`${seeds.length} games of ${run?.years ?? 0} years play
         `${totals.yearsSurvived.mean.toFixed(2)}; advance ${sweep.advance.mean.toFixed(3)} ms mean, ` +
         `${sweep.advance.p99.toFixed(3)} ms p99; validated: ${validate}; ${(sweep.totalMs / 1000).toFixed(1)} s in all`,
       `Fingerprint of every seed's last save (DL-76): ${json.fingerprint}`,
-      `Report: ${path}, and its JSON beside it`,
+      `Report: ${path}, and its JSON beside it; its Targets against ${baseline?.path ?? 'no baseline'}`,
       ...(json.gate === null ? [] : gatePrinted(json.gate)),
       ...(json.gate?.pass === true ? [`Commit the reports when a DL entry or a release's Gate cites them: ${addCommand(path)}`] : []),
     ].join('\n'),

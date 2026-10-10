@@ -25,6 +25,7 @@ import { seedNames } from './seeds.js';
 import { sweepTotals } from './counter.js';
 import { playReport } from './play-report.js';
 import { compareReplay, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, type PlaySweep } from './sweep.js';
+import { targetsOf, targetsSection } from './targets.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (DL-34).
@@ -582,7 +583,24 @@ describe('sweepPlay', () => {
     const report = playReport(sweep, context);
 
     test("gives the sweep's fingerprint, so two runs' saves compare in one line (DL-76)", () => {
-      expect(report).toContain(`| Fingerprint of every seed's last save | \`${sweepFingerprint(sweep.games)}\` |`);
+      expect(report).toContain(
+        `| Fingerprint of every seed's last save | \`${sweepFingerprint(sweep.games)}\`, each seed's own in the JSON report's \`games[].fingerprint\` (DL-188 item 6) |`,
+      );
+    });
+
+    test('names the slice of a game it measures (DL-83 item 18)', () => {
+      expect(report).toContain(' · the first 0.06 years of games that run 20 to 35 years, the slice measured (DL-83 item 18) · ');
+    });
+
+    test('sets its Targets after the Summary and before the Counters (DL-259)', () => {
+      expect(report).toContain(targetsSection(targetsOf(sweep, deps.config.turnsPerYear, null)).join('\n'));
+      expect(report.indexOf('## Targets')).toBeGreaterThan(report.indexOf('## Summary'));
+      expect(report.indexOf('## Targets')).toBeLessThan(report.indexOf('## Counters'));
+    });
+
+    test("gives the Rankings' shares without the new world's tie, saying so (DL-86 item 12)", () => {
+      expect(report).toContain("the row 'After 1 year or more' leaves the new world out");
+      expect(report.match(/\| After 1 year or more \| 0 \| — \|/g)).toHaveLength(2);
     });
 
     test('names the draft content files it played in place of the core files, and none when it played the core', () => {

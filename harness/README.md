@@ -58,8 +58,9 @@ or the seeds of each of the calibration's spot-check samples.
 
 Each run writes its Markdown report to `harness/reports/<name>-<date>.md`. A play sweep writes
 its JSON report beside it (`src/run-report.ts`): what it played (seeds, years, content, config and
-policy), its fingerprint, each game's line, its timings and its totals, the data the Gate and
-`compare` read.
+policy), its fingerprint, each game's line with its seed's own fingerprint (`games[].fingerprint`,
+DL-188 item 6), its timings, its totals and its Targets: the data the Gate, `compare` and a later
+run's Targets read.
 
 `harness/reports/` is ignored by Git. A report a DL entry or a release's Gate cites is committed, its
 Markdown and its JSON force-added (DL-186 item 28). A passing `gate` or `neutral` run prints the line:
@@ -74,6 +75,16 @@ removed, its stories' `neutral` runs, S1's baseline and v1.1.8's `neutral` refer
 read from git at `fb55a8c`. The 84 committed before 2026-10-08 that nothing live cited are
 read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists them, and
 `git show b6d455c:harness/reports/<name>` prints one.
+
+## Targets
+
+A play sweep's reports open, after the Summary and the Gate, with its Targets (`src/targets.ts`,
+DL-259): the owner's target bands for the automatic policy's games (DL-83, the player's Deaths by
+DL-256 item 10) and DL-69 item 4's lines for the Rivals, each declared once with the entry that set
+it, and the Quest weight, the player's and each Disposition's. Each is measured with its standard
+error over the games, set beside the value of the run report `HEROESIM_BASELINE` names (v1.1.9's
+closing gate unless set; `none` for none), and marked inside or outside its band. None fails a run
+(DL-257 item 7). The core-only run carries them until a module is on by default (DL-82 item 18).
 
 ## Counters
 
@@ -97,14 +108,14 @@ source (`src/gate.ts`). Its invariants hold on any run: no policy action refused
 stopped by a harness assertion, unfinished or failing its round trip; the replay identical: one seed
 played once more, alone, its last save's length and fingerprint the same as its shard recorded. Its
 bands are set on its run, 50 games of 20 years, and read "not comparable" on a run of another shape:
-the player's Bankruptcies, at most 3 of 50; the save after 20 years, its gzipped mean under
-30 MiB; and the per-Turn copy's share of a Turn, the mean time of the copy (`copyWorld`, timed as
+the save after 20 years, its gzipped mean under 30 MiB; and the per-Turn copy's share of a Turn, the mean time of the copy (`copyWorld`, timed as
 each year ended) over the mean time of `advance`, at most 25% over its baseline share, 0.390 (1.438 ms
 over 3.688 ms, measured at v1.1.9's closing full gate, DL-252), so at most 0.4875 (DL-206 item 17, DL-207),
 printed as it is applied, and the share printed to as many places as show it above the limit when it
 fails; a run with no copy times or no `advance` times reads "not comparable", naming the times missing
-and printing those measured. The report prints both times and the share. The Traits earned a player's Hero career and the save's uncompressed size are not lines of the
-Gate; the report prints them. The estimate probe reads its two limits from it. A `gate` or `neutral`
+and printing those measured. The report prints both times and the share. The Traits earned a player's Hero career, the save's uncompressed size and the player's
+Bankruptcies are not lines of the Gate; the report prints them, the Bankruptcies in its Targets
+(DL-257 item 7). The estimate probe reads its two limits from it. A `gate` or `neutral`
 run prints each line's verdict and writes them into both reports; it fails when a line fails.
 
 The spec binds: the owner approved its first draft on 2026-10-05 (DL-188), its `status` `approved`. Its

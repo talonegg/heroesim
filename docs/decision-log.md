@@ -282,3 +282,61 @@ Verified 2026-10-10 at 1c08a21: the Quest template's entry claimed Tiers and Bea
 and now marks them to be built; Quest band's avoid list, Tier's "grades" (Grade is avoided, and an
 Improvement raises a grade) and Beat's "Stage" (a clash for the line's Career stage) were reworded or
 dropped; no live page or player-facing text uses "tier" or "beat" in another sense.
+
+## DL-259 — v1.2.0-S2 built: the harness's Targets, their counters and the baseline they read, and the player's Bankruptcies out of the Gate
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257 item 7 (Q6, Q11 a) reports every DL-83 band against v1.1.9's figure, none to be
+met, and takes the player's Bankruptcies out of `harness/gate.json`. #19 asked for the bands in the
+report, a highest-Level counter, DL-69 item 4's scratch measures as counters, the Rankings without
+the new world's tie, the twenty-year slice named and per-seed fingerprints. The epic adds the Quest
+weight.
+
+**Decision.**
+
+1. **The Targets** (`harness/src/targets.ts`), each declared once with its source and band: the
+   player's Bankruptcy or wiped Roster (DL-83 item 2), first in the Rankings by Fame and by Wealth
+   (item 3, DL-91 item 2), Quests failed and strong (item 4), Rival folds (item 5), the player's
+   Deaths at 3 to 8 a game (DL-256 item 10), Wealth in months of Upkeep (item 7), the mean Level
+   after 10 years (item 21), the highest Level by year 20 (item 22), and DL-69 item 4's lines:
+   each Disposition's hoarding, Transfers back, back within 90 Days, and sellers left short.
+   - Each is a ratio of two sums of the totals: measured, its standard error over the games (each
+     game totalled alone, a cluster), the baseline's value, and inside or outside its band.
+   - Nothing fails a run. The section follows the Summary and the Gate; the JSON holds `targets`.
+2. **The baseline** is the run report `HEROESIM_BASELINE` names, a path or a name in
+   `harness/reports/`: v1.1.9's closing gate unless set, `none` for none. A target whose counter
+   the baseline's report lacks reads a dash there.
+3. **The Quest weight**: Quests a Guild-year, the mean Party and the mean Days away, the player's
+   and each Disposition's, beside the bands.
+4. **Six counters**, each declared once (DL-239) with a fixture test written first: `highestLevels`
+   (the Rosters every Turn and each `hero.levelled`), `playerWealthMonths` and `rivalsAtFloor` (as
+   each year begins), `questWeight` and `transfersBackSoon` (from the History), and
+   `transfersShort` (each seller's Roster followed through the Turn).
+5. **The rest of #19.** The Rankings tables gain a row "After 1 year or more", which says it leaves
+   the new world's tie out, as the Targets do. The header names the slice measured (DL-83 item 18).
+   The Summary names where each seed's fingerprint is: the JSON's `games[].fingerprint` (DL-188
+   item 6).
+6. **The Gate.** `playerBankruptcies` leaves `gate.json`, `GateSpec` and `checkGate`, and a note
+   cites DL-257.
+
+*Judgement calls, for the owner to see.*
+- A month of Upkeep is a twelfth of a year's Upkeeps, 3 of the 36 due every 10 Days, at the Upkeep
+  owed as the year begins. The band reads the mean over year-starts after 2 years or more (#19 left
+  the month to the owner).
+- The Rankings' shares count every year-start after 1 year or more, the census after the last year
+  among them.
+- The highest Level by year 20 is the mean over the games of the player's highest. The greatest of
+  any game is in the by-year table.
+- Hoarding counts a Rival at `rivalRosterMin` Heroes or fewer, DL-69's "4 or fewer". Ping-pong is
+  fewer than 90 Days after the buyer's last sale of the Hero, DL-69 item 6's "(< 90)". A Guild
+  founded on the Turn of a Transfer is not followed.
+- DL-69's "none" lines read as at most 0 a game, and its hoarding line as under 50%.
+- S2 plays v1.1.9's games, so its gate's values for the new counters are v1.1.9's too.
+
+**Consequences.** S5 to S13 set their Targets and `compare` against S2's gate
+(`HEROESIM_BASELINE=v1.2.0-s2-gate-2026-10-10`). The bands stay reported, not gated, in v1.2.0. A Bankruptcy
+fails no run.
+
+**Evidence.** The commit `v1.2.0-S2 (DL-259)`. The reports `harness/reports/v1.2.0-s2-neutral-2026-10-10` and
+`harness/reports/v1.2.0-s2-gate-2026-10-10`, the latter committed as the baseline. The epic's S2 boxes.
