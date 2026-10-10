@@ -191,8 +191,8 @@ export interface GameConfig {
    */
   checkVariance: number;
   /**
-   * Added to a Check's capability, for each of the Encounter's Skills, per rating point of the best
-   * rating any member holds (INPUTS 6.2: Skill rating × 2).
+   * Added to a Check's capability, for each of the Check's own Skills, per rating point of the best
+   * rating any member holds of it (INPUTS 6.2, DL-148 item 7).
    */
   skillBonusPerRating: number;
   /**

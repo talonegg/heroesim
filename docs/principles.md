@@ -1,4 +1,4 @@
-# Heroesim v2 — design principles
+# Heroesim — design principles
 
 Each principle names what goes wrong without it. When two principles conflict, the earlier one
 wins. Established 2026-09-24; see [`requirements.md`](./requirements.md) for what they apply to.

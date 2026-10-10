@@ -449,13 +449,13 @@ the page keeps it, with no guard on the uncompressed size (DL-188).
 
 The History dominates save size. Its levers are lean entries (ids and labels, never entity copies),
 rule 10 (drift is no entry), not recording the pool's comings and goings of a Hero never hired
-(DL-211), and compression on write: the page's saves are gzipped (DL-67); the CLI's are planned
-([`plan.md`](./plan.md) §3), and the harness's sample (`harness:sample`) is to be too (DL-84
-item 2). Archiving or dropping old entries is no lever: R36 forbids it,
-and no schema change is made for a leaner entry (DL-84). For the cost of a Turn, the write-once
-rows (dead, retired and gone Heroes, retired Guildmasters, folded Guilds) stay in their tables,
-frozen and shared by the copy, so the saved shape is unchanged (ADR-0011). A browser's
-`localStorage` holds about 5 MiB per origin, so the page saves to IndexedDB.
+(DL-211), and compression on write of the saves players make: the page's are gzipped (DL-67); the
+CLI's are planned ([`plan.md`](./plan.md) §3). The harness's sample (`harness:sample`) is a test
+fixture, not a player's save, and is not gzipped (DL-254). Archiving or dropping old entries is no
+lever: R36 forbids it, and no schema change is made for a leaner entry (DL-84). For the cost of a
+Turn, the write-once rows (dead, retired and gone Heroes, retired Guildmasters, folded Guilds) stay
+in their tables, frozen and shared by the copy, so the saved shape is unchanged (ADR-0011). A
+browser's `localStorage` holds about 5 MiB per origin, so the page saves to IndexedDB.
 
 ## 8. Type sketch
 

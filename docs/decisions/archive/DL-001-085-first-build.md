@@ -7530,6 +7530,7 @@ twenty-year round trip of 3.6 s against 1 (DL-67, M7-S4's open box). What left e
    No lean-entry schema change now — against the recommended lean entries with gzipped CLI saves.
    This recording set §7's save target on the one twenty-year save measured gzipped, 12.08 MiB
    (DL-67 item 8); the compressed mean over a run waits for the harness to gzip its saves.
+   *Superseded in part by DL-254 item 1, 2026-10-10: The harness's saves gzipped; now only the saves players make are (the page's, and the CLI's as planned), and the harness's sample, a test fixture, stays plain JSON. The record: [superseded/DL-84.md](superseded/DL-84.md).*
 3. **Band-crossing logging against principle 11 (agenda 41).** Both are named as exceptions:
    principle 11, R36 and data-model rule 10 are amended to exempt Regard changes and the Transfer's
    Morale cost, which are recorded only when they cross a band — against the recommendation (the

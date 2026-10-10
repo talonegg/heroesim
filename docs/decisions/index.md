@@ -93,7 +93,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-81 | 2026-09-28 | M8 close: the first build's 1,000 × 20 tagged run, byte identity with `m7-web` read from inside it … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-82 | 2026-09-28 | Random Events and the module contract: the owner's inputs as a blocking INPUTS §8 table, the … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-83 | 2026-09-28 | Balance targets and the economy: target bands for the automatic policy's games with M8 as the … | item 1 in part by DL-181 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-84 | 2026-09-28 | Saves, History and performance: data-model §7 rebaselined on M8's figures, saves compressed … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-84 | 2026-09-28 | Saves, History and performance: data-model §7 rebaselined on M8's figures, saves compressed … | item 2 in part by DL-254 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-85 | 2026-09-28 | Game rules and design gaps: Fame left dormant, the Hero asked before a Transfer, a Board that grows … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-86 | 2026-09-28 | Process, harness and documents: v1.0.0 cut at `m8-modules` and new work on `v1.1-dev`, production … | item 2 in part by DL-99 | [DL-086-098-v1.0](archive/DL-086-098-v1.0.md) |
 | DL-87 | 2026-09-28 | Content and vocabulary: content keys settled before Random Events, CONTEXT corrected and completed … |  | [DL-086-098-v1.0](archive/DL-086-098-v1.0.md) |
@@ -263,6 +263,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-251 | 2026-10-10 | v1.1.9-S16: the coverage of the tools' support files, and `neutral`'s ten processes |  | [decision-log](../decision-log.md) |
 | DL-252 | 2026-10-10 | v1.1.9-S16's close: the Gate, the copy line anchored at this close, and the after-report |  | [decision-log](../decision-log.md) |
 | DL-253 | 2026-10-10 | v1.1.9: approach, data model and requirements say what is true at v1.1.9 |  | [decision-log](../decision-log.md) |
+| DL-254 | 2026-10-10 | v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

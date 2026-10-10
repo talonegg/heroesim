@@ -1649,3 +1649,39 @@ named, the contract's actions and the words' entry, R4, R8, R15, R25, R32, R36, 
 restored: DL-82's default-on Modules, DL-84's content version shown and harness sample gzipped (the
 harness does write a save), the Hall grades' open prices, R37's same-story rule, N2's small group,
 the ADR criteria (`agents/documentation.md`); CONTEXT's Guild State Engine gains the Fame floor.
+
+## DL-254 — v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a fixture
+
+**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, answering DL-253's four
+follow-ups (1 a, 2 b, 3 a, 4 a); the wording by the agent
+
+**Context.** DL-253 left four things for the owner: whether the harness's sample is to be gzipped,
+as DL-84 item 2 planned; N2's line on a small group sharing a host; "v2" in `principles.md`'s title;
+and three code comments the data-model review found stale, outside that story.
+
+**Decision.**
+
+1. **Gzip is for the saves players make:** the page's, gzipped (DL-67), and the CLI's, planned
+   (`plan.md` §3, #33). The harness's sample (`harness:sample`, `harness/samples/twenty-years.json`)
+   is a test fixture, not a player's save, and stays plain JSON; DL-84 item 2's plan to gzip it is
+   dropped. `data-model.md` §7 says so. `harness:sample`'s code is unchanged.
+2. **N2 keeps its line** "A small group may later share a low-cost host, each player still siloed".
+3. **`principles.md`'s title** is "Heroesim — design principles", as the other three pages' titles
+   are. No link or citation names the title.
+4. **Three comments say what is true now.** `config.ts`'s `skillBonusPerRating`: each of the
+   Check's own Skills, not its Encounter's (DL-148 item 7). `document.ts`'s Guildmaster: a
+   descriptive Attribute left blank is written from content as every Guildmaster enters play
+   (DL-125 item 6, DL-132), not left `''`; a Portrait not chosen at setup is chosen to fit, a
+   Rival's Guildmaster's too (DL-134 item 5, DL-144), not the Silhouette. Comments only.
+
+*Judgement calls, for the owner to see:*
+- **The supersession.** Item 1 supersedes DL-84 item 2 in part: the note under the item and
+  `superseded/DL-84.md`. The harness's gzipped measure of a save in memory (DL-188) stands.
+- **The skill bonus's comment** drops "Skill rating × 2", a value `config.json` holds, and keeps its
+  citation of INPUTS 6.2.
+- **A story id less.** The Portrait comment's story id gives way to its DL entries, and the story
+  citations' baseline is lowered by one.
+
+**Consequences.** Nothing is left open of DL-253's follow-ups. No code, play or save changes.
+
+**Evidence.** The commit `v1.1.9 (DL-254)`, whose message holds the doctor's readings and the checks.
