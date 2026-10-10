@@ -164,7 +164,8 @@ scratch copy rather than the whole suite inside itself.
   once, before the process ends.
 - **Passed, then cut off** (DL-249): once its tests pass, "Finish" marks the journal done, then
   clears the edits it read and ends the journal. A "Finish" cut off after the mark is completed by
-  the next command instead: the edits it read cleared, if they are not already, and its files kept.
+  the next command instead, or at once by Ctrl+C or SIGTERM: the edits it read cleared, if they are
+  not already, and its files kept.
 - **A process number given again** (v1.1.4-S14): Windows soon gives a number to another process, and
   a journal whose number an unrelated process holds reads as a "Finish" running, every command
   refused as `busy`, `recover` too. The refusal names the journal's process and when it began. Where

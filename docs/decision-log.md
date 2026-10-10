@@ -1328,7 +1328,7 @@ edits and then ended its journal, so a kill between the two put back files whose
    made once a run in each project's global setup (`template.test-support.ts`) and given by `inject`.
    e2e: `fullyParallel`, 2 workers on CI; a test tagged `@one-width` runs at the desktop's alone.
 3. **The rest as listed.** Removed or merged: D1, R1, R5, T4, the sum lines of R2, T2's two lines,
-   E1–E7's removals (`party-and-pool.spec.ts`, `smoke.spec.ts` gone). Shrunk: S1 (one seed, 12 years,
+   E1–E6 and E9 (`party-and-pool.spec.ts`, `smoke.spec.ts` gone). Shrunk: S1 (one seed, 12 years,
    a Rival's Guildmaster at 50), S2–S13 as listed, D2 one test. Rewritten: T8, T9, T10, T11, E12.
    Helpers once: `harness.test-support.ts` (`coreDeps`, `twentyDays`, `tickingClock`, `observerOf`),
    the portrait tool's `scratch` and `cli`, the editor's `scratch` in two more files, and the
@@ -1369,3 +1369,7 @@ module sweep replays), `shard.ts`'s in-process run with modules (S4, the child r
 source by its file's name; the new lines of `session.ts` and `finish-journal.ts` all covered (the editor alone). The shrinks' bugs planted after the shrink, each red: S1, S4, S6, S10,
 S11, S13, D2 twice. `npm test` passes; lint, typecheck clean; `neutral --expect` identical, alone
 (`v1.1.9-s15-neutral`).
+Verified 2026-10-10 at 844810e: 42 planted bugs red, every removal's (D1, R1, R2, R4, R5, T1, T3,
+T4, T8, E1–E6, E9–E11), every shrink's and the mark's; a completion clearing by count is equivalent,
+never reachable. S4's, S7's and D2's lost lines given cheap tests; the portrait tool's `cli` helper
+counts as source only by its file's name (`test-support.ts`).

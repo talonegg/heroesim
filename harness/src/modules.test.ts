@@ -16,6 +16,7 @@ import { harnessSetup } from './creation.js';
 import { coreDeps as deps, twentyDays as years } from './harness.test-support.js';
 import { harnessModules, idsOf, modulesFor } from './modules.js';
 import { playGame } from './play.js';
+import { runShard } from './shard.js';
 import { seedNames } from './seeds.js';
 import { sweepTotals } from './counter.js';
 import { sweepPlay, sweepPlayInParallel, type PlaySweep } from './sweep.js';
@@ -128,17 +129,31 @@ describe('a sweep with a module installed', () => {
     expect(totals.moduleEvents).toEqual(fired === 0 ? {} : { 'probe.fired': fired });
   });
 
+  // Not validated, as a sweep is unless asked: a module run's child validates nothing by default.
   test('a child process installs the module its job names and plays the same games', { timeout: 120_000 }, async () => {
-    const parallel = await sweepPlayInParallel(['seed-0001'], { ...deps, modules: [probe] }, { years, validate: true, workers: 1, replay: false });
+    const parallel = await sweepPlayInParallel(['seed-0001'], { ...deps, modules: [probe] }, { years, workers: 1, replay: false });
     const played = (of: PlaySweep) => of.games.map(({ seed, counters, measures }) => ({ seed, counters, fingerprint: measures.fingerprint }));
 
     expect(played(parallel)).toEqual(played(sweep).slice(0, 1));
+    expect(parallel.validated).toBe(false);
+    expect(parallel.validation.count).toBe(0);
   });
 
   test('differs from the same seed with no module, whose save holds no slice', async () => {
     const none = await sweepPlay(['seed-0001'], deps, { years, replay: false });
 
     expect(none.games[0]?.measures.fingerprint).not.toBe(sweep.games[0]?.measures.fingerprint);
+  });
+
+  // The child's own code, `runShard`, in this process, where coverage reads it: one Turn is enough
+  // for the module's slice to be in the save.
+  test('a shard installs the modules its job names', async () => {
+    const job = { seeds: ['seed-0001'], config: deps.config, years: 1 / deps.config.turnsPerYear, validate: false, policy: sweep.policy };
+    const installed = await runShard({ ...job, modules: ['probe'] });
+    const none = await runShard(job);
+
+    expect(installed.games[0]?.turnsPlayed).toBe(1);
+    expect(installed.games[0]?.measures.fingerprint).not.toBe(none.games[0]?.measures.fingerprint);
   });
 
   test("refuses, before any child starts, a module that is not the harness's own", async () => {

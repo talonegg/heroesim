@@ -103,6 +103,15 @@ describe('moduleReport', () => {
     expect(report).toContain('| Games the validator refused | 0 | 0 |');
   });
 
+  test("names each sweep's replay, identical or not, and a dash for a sweep that played none", () => {
+    const replay = { seed: 'seed-0001', identical: true, length: 1, advance: installed.advance };
+    const replayed = moduleReport({ ...installed, replay }, { ...without, replay: { ...replay, identical: false } }, context);
+    const row = "| Byte equality, one seed played once more, alone, against its shard's record |";
+
+    expect(replayed).toContain(`${row} \`seed-0001\`: identical | \`seed-0001\`: DIFFERENT |`);
+    expect(report).toContain(`${row} — | — |`);
+  });
+
   test('refuses two sweeps of different seeds', () => {
     const other = { ...without, seeds: ['seed-0001'], games: without.games.slice(0, 1) };
 

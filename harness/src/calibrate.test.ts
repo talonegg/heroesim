@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { contentDir, loadContent } from '@heroesim/content/node';
+import { contentDir } from '@heroesim/content/node';
 import { defaultConfig, degrees, describeQuery, estimateQuest, type EngineDeps, type NumQuery, type Quest } from '@heroesim/engine';
 import { afterAll, describe, expect, test } from 'vitest';
 import {
@@ -20,6 +20,7 @@ import {
   tunedFactors,
 } from './calibrate.js';
 import { drawer } from './estimate.js';
+import { coreDeps as deps, twentyDays as years } from './harness.test-support.js';
 import { recordGame } from './play.js';
 import { defaultPolicyConfig } from './policy.js';
 import { runShard } from './shard.js';
@@ -27,7 +28,6 @@ import { runShard } from './shard.js';
 // DL-162: the calibration's parts, on small samples. The calibration proper is
 // `npm run harness -- calibrate` (calibrate.harness.test.ts), which writes docs/quests/calibration.md.
 
-const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 const scratch = mkdtempSync(join(tmpdir(), 'heroesim-calibrate-'));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
@@ -88,7 +88,6 @@ describe('loadDrafts', () => {
 // the drafts' Checks, twice as hard, differ from the core's once the first Quest resolves.
 describe('a play shard with drafts (HEROESIM_DRAFTS)', { timeout: 60_000 }, () => {
   test('plays the content with the drafts its job names, as this process plays it, and otherwise the core', async () => {
-    const years = 60 / deps.config.turnsPerYear;
     const job = { seeds: ['seed-0001'], config: deps.config, years, validate: false, policy: defaultPolicyConfig };
     // Drafts that differ from the core, which holds the drafts' gear: every Check twice as hard.
     const dir = mkdtempSync(join(scratch, 'harder-'));
