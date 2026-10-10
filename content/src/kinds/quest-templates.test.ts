@@ -82,6 +82,17 @@ describe('a Quest template', () => {
   });
 });
 
+/**
+ * A tag some Encounter carries and no combat Encounter does: a pool of combat and that tag may draw
+ * nothing, whatever Encounters the content holds (DL-272).
+ */
+const noCombatTag = ((): string => {
+  const encounters = Object.values(shipped.encounters);
+  const tag = encounters.flatMap((it) => it.tags ?? []).find((each) => !encounters.some((it) => it.kind === 'combat' && (it.tags ?? []).includes(each)));
+  if (tag === undefined) throw new Error('Every tag is carried by a combat Encounter');
+  return tag;
+})();
+
 describe("a Quest template's Tiers and Beats (DL-262)", () => {
   test('the shipped templates pass, each offering Tiers of the ladder, its Beats drawn from pools content fills', () => {
     for (const template of Object.values(shipped.questTemplates)) {
@@ -113,7 +124,7 @@ describe("a Quest template's Tiers and Beats (DL-262)", () => {
       (it) => (it.beats = [{ line: 'One.', pool: { encounters: ['hold-the-line'] } }, { line: 'Two.', pool: { encounters: ['hold-the-line', 'wolves-at-dusk'] } }, { line: 'Three.', pool: { encounters: ['wolves-at-dusk'] } }]),
       /beats\.2\.pool may draw 1 Encounter, none a Finale; it needs 2, one for each Beat before it sharing its pool, and one more/,
     ],
-    ['a pool with no Encounter that may be drawn', (it) => ((it.beats[0] as QuestBeat).pool = { kinds: ['combat'], tags: ['water'] }), /beats\.0\.pool may draw 0 Encounters, none a Finale; it needs 1/],
+    ['a pool with no Encounter that may be drawn', (it) => ((it.beats[0] as QuestBeat).pool = { kinds: ['combat'], tags: [noCombatTag] }), /beats\.0\.pool may draw 0 Encounters, none a Finale; it needs 1/],
     ['a Finale without its line', (it) => (it.finale = 'the-last-assault'), /finale and finaleLine are given together or not at all/],
     ['a Finale line without its Finale', (it) => (it.finaleLine = 'The end.'), /finale and finaleLine are given together or not at all/],
     ['a Finale whose line is empty', (it) => Object.assign(it, { finale: 'the-last-assault', finaleLine: '' }), /finaleLine is empty/],

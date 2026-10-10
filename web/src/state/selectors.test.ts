@@ -1154,27 +1154,29 @@ describe("the Roster's Table's columns (DL-169 item 7)", () => {
 
 describe('heroPage', () => {
   test('shows its Milestones first, newest first; its History, a page at a time, is the History view\'s', () => {
-    const milestones = (made: WorldDocument, hero: Hero) => entriesFor(made.history, hero.id).filter((entry) => entry.milestone).length;
-    const mostMilestones = (made: WorldDocument) => Object.values(made.world.heroes).reduce((most, each) => (milestones(made, each) > milestones(made, most) ? each : most));
-    // The first world from selectors-played, 90 Turns played, in which a Hero has two Milestones or more,
-    // and the Hero with the most, the player's resting while the Rivals send Parties (DL-273).
-    const document = firstSeedWhere(
-      'selectors-played',
-      (seed) => playedDocument(seed, 90).document,
-      (made) => milestones(made, mostMilestones(made)) >= 2,
-      'a Hero with two Milestones or more',
-    );
-    const hero = mostMilestones(document);
+    // A new game's Hero given two Milestones nine Turns apart, planted in its History, so that the test rests
+    // on no play of the content as shipped (DL-272).
+    const document = structuredClone(newDocument('selectors'));
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    const guildId = playerOf(document).id;
+    const at = (type: 'hero.trait-gained' | 'hero.trait-lost', payload: object) =>
+      append(document.history, { turn: document.world.turn, type, participants: [hero.id, guildId], labels: { [hero.id]: hero.name }, milestone: milestoneTypes[type], payload } as never);
+    const first = document.world.turn;
+    at('hero.trait-gained', { heroId: hero.id, traitKey: 'lame', questId: 'quest-000900' as QuestId, encounterIndex: 0, encounterKey: 'ambush-on-the-road' });
+    document.world.turn += 9;
+    at('hero.trait-lost', { heroId: hero.id, traitKey: 'lame', replacedBy: 'one-eyed' });
     const all = entriesFor(document.history, hero.id);
     const page = heroPage(document, hero.id);
 
     expect(page?.milestones.length).toBeGreaterThanOrEqual(2);
     expect(page?.milestones.every((line) => line.milestone)).toBe(true);
     expect(page?.milestones).toHaveLength(all.filter((entry) => entry.milestone).length);
+    // Newest first: the later of the two, then the earlier.
+    expect(page?.milestones.slice(0, 2).map((line) => line.when)).toEqual([whenOfTurn(first + 9, document.meta.config), whenOfTurn(first, document.meta.config)]);
     expect(page?.milestones[0]?.when).toBe(whenOfTurn(all.find((entry) => entry.milestone)?.turn ?? 0, document.meta.config));
     expect(page).not.toHaveProperty('history');
-    // A game of 90 Turns a seed until one meets it: some seconds alone, more than 5 under the whole suite's load.
-  }, 30_000);
+  });
 
   // DL-148 item 27, DL-150 item 5: a Trait gained or lost is a Milestone, on the Hero's page.
   test("shows a Trait gained and a Trait lost among its Milestones, in the History's words", () => {

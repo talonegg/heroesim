@@ -346,9 +346,11 @@ describe('tags, a Finale and the lore kind', () => {
         consequences: { success: [], failure: [{ kind: 'morale', delta: -1 }] },
       } as unknown as EncounterRow;
     });
-  /** `files` without the Encounters keyed `keys`. */
-  const without = (files: Record<string, string>, keys: string[]) =>
-    changed(files, 'encounters/', (json) => keys.forEach((key) => Reflect.deleteProperty(json, key)));
+  /** `files` without any Encounter of `kind`, whichever the content holds (DL-272). */
+  const withoutKind = (files: Record<string, string>, kind: string) =>
+    changed(files, 'encounters/', (json) => {
+      for (const [key, row] of Object.entries(json)) if ((row as EncounterRow).kind === kind) Reflect.deleteProperty(json, key);
+    });
   /** A lore Encounter keyed `a-riddle`, the sealed door's Check. */
   const riddle = (files: Record<string, string>) =>
     changed(files, 'encounters/', (json) => {
@@ -420,7 +422,7 @@ describe('tags, a Finale and the lore kind', () => {
   });
 
   test('a template drawing lore when content has no lore Encounter is refused, naming the Beat', () => {
-    const files = without(realFiles(), ['old-records', 'a-riddle-at-the-gate', 'the-cause-of-the-sickness', 'the-names-of-the-dead']);
+    const files = withoutKind(realFiles(), 'lore');
     expect(refusalOf(() => parse(barrowed((it) => (it.beats = [{ line: 'A riddle.', pool: { kinds: ['lore'] } }, ...it.beats]), files))).message).toMatch(
       /questTemplates\.clear-the-barrow\.beats\.0\.pool may draw 0 Encounters/,
     );

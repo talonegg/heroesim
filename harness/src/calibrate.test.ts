@@ -157,13 +157,15 @@ describe('coverageGrid', () => {
     expect([checksAtLeast, kindsAtLeast]).toEqual([3, 2]);
     const grid = coverageGrid(deps.content);
     expect(grid.map((it) => it.statKey)).toEqual(Object.values(deps.content.stats).filter((it) => it.owner === 'hero').map((it) => it.key));
-    // The core content: Endurance, the least read, by Hold the line's Stamina and The
-    // last assault's Holding out (combat) and The long march's Pace (travel); every Stat meets the gate.
-    const endurance = grid.find((it) => it.statKey === 'endurance');
+    // The core content: every Stat meets the gate.
+    expect(grid.filter((it) => !it.met)).toEqual([]);
+    // Three Encounters alone, whatever else the content holds (DL-272): Endurance read by Hold the line's
+    // Stamina and The last assault's Holding out (combat) and The long march's Pace (travel), meeting it.
+    const three = Object.fromEntries(['hold-the-line', 'the-last-assault', 'the-long-march'].map((key) => [key, deps.content.encounters[key] ?? expect.fail(key)]));
+    const endurance = coverageGrid({ ...deps.content, encounters: three }).find((it) => it.statKey === 'endurance');
     expect(endurance?.byKind.combat).toEqual(['hold-the-line/stamina', 'the-last-assault/holding-out']);
     expect(endurance?.byKind.travel).toEqual(['the-long-march/pace']);
     expect([endurance?.checks, endurance?.kinds, endurance?.met]).toEqual([3, 2, true]);
-    expect(grid.filter((it) => !it.met)).toEqual([]);
     // One Encounter alone meets it for no Stat: Ambush on the road's Steel reads Strength once, in combat.
     const ambush = deps.content.encounters['ambush-on-the-road'] ?? expect.fail('ambush-on-the-road');
     const alone = coverageGrid({ ...deps.content, encounters: { 'ambush-on-the-road': ambush } });

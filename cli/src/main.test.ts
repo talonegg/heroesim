@@ -32,7 +32,7 @@ import { count, makeId, nightOf } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { chanceWords, shownPercent, traitEffectWords } from '@heroesim/words';
 import { beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, playground, rowOf, type Run } from './play.test-support.js';
+import { exitCodes, openToTwo, playground, rowOf, type Run } from './play.test-support.js';
 import { narrateLine } from './namer.js';
 
 const content = loadContent();
@@ -607,18 +607,17 @@ describe('advance --until: fast forward', () => {
   const playDepsOf = (before: WorldDocument) => ({ config: { ...defaultConfig, ...before.meta.config }, content });
 
   /**
-   * Sends two of the player's four Heroes on the demo Board's seven-Day Guard the caravan, open to
-   * any two to four; the other two stay at home, and no decision is needed while the Party is out.
+   * Sends two of the player's four Heroes on the demo Board's longest Quest any two may take
+   * (`openToTwo`); the other two stay at home, and no decision is needed while the Party is out.
    */
-  function sendParty(): { partyId: string; returnsOnTurn: number } {
+  function sendParty(): { partyId: string; returnsOnTurn: number; questName: string } {
     const { world } = document();
-    const questId = world.board.find((id) => world.quests[id]?.templateKey === 'guard-the-caravan');
-    if (questId === undefined) throw new Error('The demo Board has changed');
+    const quest = openToTwo(world);
     const roster = world.guilds[playerId]?.rosterIds ?? [];
-    expect(play(['dispatch', '--quest', questId, '--heroes', roster.slice(0, 2).join(',')]).code).toBe(exitCodes.ok);
+    expect(play(['dispatch', '--quest', quest.id, '--heroes', roster.slice(0, 2).join(',')]).code).toBe(exitCodes.ok);
     const party = Object.values(document().world.parties)[0];
     if (party === undefined) throw new Error('No Party');
-    return { partyId: party.id, returnsOnTurn: party.returnsOnTurn };
+    return { partyId: party.id, returnsOnTurn: party.returnsOnTurn, questName: content.questTemplates[quest.templateKey]?.name ?? quest.templateKey };
   }
 
   test('party-returns stops on the night the Party comes home, printing why and every event since the last command', () => {
@@ -627,7 +626,7 @@ describe('advance --until: fast forward', () => {
     edit((edited) => {
       edited.meta.config = { ...edited.meta.config, unattachedStayDays: 2 };
     });
-    const { partyId, returnsOnTurn } = sendParty();
+    const { partyId, returnsOnTurn, questName } = sendParty();
     const before = document();
     const expected = fastForward(
       before,
@@ -643,7 +642,7 @@ describe('advance --until: fast forward', () => {
     expect(run.out).toContain(`Played ${returnsOnTurn} Turns. Now Turn ${returnsOnTurn} (Year 1 Day ${dayOf(returnsOnTurn) + 1}, night).`);
     expect(run.out).toContain(`Stopped: The Test's Party came home: ${partyId}.`);
     expect(run.out).toContain(`Events: ${expected.events.length}, oldest first`);
-    expect(run.out).toContain(`The Test's ${partyId} came home from Guard the caravan (quest-`);
+    expect(run.out).toContain(`The Test's ${partyId} came home from ${questName} (quest-`);
     // Each event's Turn, then its date (DL-206 item 33, DL-210).
     expect(run.out).toMatch(/^Turn\s+Date\s+What happened$/m);
     expect(run.out).toMatch(new RegExp(`^\\s*${returnsOnTurn} {2}Year 1 Day ${dayOf(returnsOnTurn) + 1}, night\\s+The Test's ${partyId} came home`, 'm'));

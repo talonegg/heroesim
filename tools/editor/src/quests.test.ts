@@ -95,6 +95,27 @@ const bridge = {
 
 const problemsOf = (answer: Json): string => (answer.problems as string[]).join('\n');
 
+/**
+ * The Encounters of the scratch copy `dir` of `kind`, sharing a tag of `tags` where given, none a Finale,
+ * in key order: what a pool of them may draw, read from the copy's content whatever it holds (DL-272).
+ */
+function drawable(dir: string, kind: string, tags?: readonly string[]): string[] {
+  const finales = new Set(Object.values(readContentJson<Record<string, { finale?: string }>>(dir, 'quest-templates/')).map((template) => template.finale));
+  const encounters = readContentJson<Record<string, { kind: string; tags?: string[] }>>(dir, 'encounters/');
+  const keys = Object.entries(encounters)
+    .filter(([key, encounter]) => !finales.has(key) && encounter.kind === kind && (tags === undefined || (encounter.tags ?? []).some((tag) => tags.includes(tag))))
+    .map(([key]) => key)
+    .sort();
+  expect(keys.length, `the ${kind} Encounters a pool may draw`).toBeGreaterThan(0);
+  return keys;
+}
+
+/** How many Quest templates the scratch copy `dir` holds, and how many Finales they play. */
+function templateCounts(dir: string): { templates: number; finales: number } {
+  const templates = Object.values(readContentJson<Record<string, { finale?: string }>>(dir, 'quest-templates/'));
+  return { templates: templates.length, finales: new Set(templates.flatMap((template) => (template.finale === undefined ? [] : [template.finale]))).size };
+}
+
 describe('reading, through both adapters', () => {
   test('quests list and show give every template and one, each Tier it offers as it plays and the Encounters each pool may draw', async () => {
     const { cliDir, both } = await pair();
@@ -109,7 +130,7 @@ describe('reading, through both adapters', () => {
       [3, 3, [0, 1], 'the-last-assault'],
       [4, 4, [0, 1, 2], 'the-last-assault'],
     ]);
-    expect(shown.json.beats[1]).toEqual({ at: 'beats.1', line: 'A hard road.', pool: { kinds: ['travel'] }, draws: ['lost-in-the-fells', 'short-of-supplies', 'the-flooded-ford', 'the-long-march', 'the-old-shaft'] });
+    expect(shown.json.beats[1]).toEqual({ at: 'beats.1', line: 'A hard road.', pool: { kinds: ['travel'] }, draws: drawable(cliDir, 'travel') });
 
     const text = await command(['quests', 'show', 'hold-the-border-fort', '--root', cliDir]);
     expect(text.out).toContain('Tier 4: difficulty 64 to 82, Days 12 to 16, plays 4 Beats: beats.0, beats.1, beats.2, the Finale the-last-assault');
@@ -185,7 +206,7 @@ describe('the Quest templates, through both adapters', () => {
       ['2-bells', { ...crossing }, '"2-bells" is not a key: lower case letters and digits, joined by hyphens, starting with a letter'],
       ['solo', { ...crossing, partySizeMin: 1 }, 'questTemplates.solo.partySizeMin is 1; it is at least 2'],
       ['capped', { ...crossing, partySizeMax: 4 }, 'quest-templates/capped.json: partySizeMax'],
-      ['short', { ...crossing, beats: [{ line: 'The ford.', pool: { tags: ['water'] } }, { line: 'Again.', pool: { tags: ['water'] } }] }, 'questTemplates.short.beats.1.pool may draw 1 Encounter, none a Finale; it needs 2'],
+      ['short', { ...crossing, beats: [{ line: 'The ford.', pool: { encounters: ['the-flooded-ford'] } }, { line: 'Again.', pool: { encounters: ['the-flooded-ford'] } }] },'questTemplates.short.beats.1.pool may draw 1 Encounter, none a Finale; it needs 2'],
     ];
     for (const [key, row, problem] of refusals) {
       const name = key === 'taken' ? 'cross-the-river' : key;
@@ -245,14 +266,14 @@ describe('the Quest templates, through both adapters', () => {
   });
 
   test('beat add, change, move and remove change its Beats, each refusal naming why', async () => {
-    const { both } = await pair();
+    const { cliDir, both } = await pair();
     const route = '/api/quests/beat';
     const added = await both(['quests', 'beat', 'add', 'a-quiet-word', 'line=A door left open.', 'pool={"kinds":["stealth"],"tags":["town"]}'], 'POST', `${route}/add`, {
       key: 'a-quiet-word',
       values: { line: 'A door left open.', pool: { kinds: ['stealth'], tags: ['town'] } },
     });
     expect(added.json.row.beats.map((beat: Json) => beat.line)).toEqual(['Words to be had.', 'Somewhere not to be seen.', 'Words to be had.', 'A door left open.']);
-    expect(added.json.row.beats[3].draws).toEqual(['among-the-crowd', 'past-the-watch']);
+    expect(added.json.row.beats[3].draws).toEqual(drawable(cliDir, 'stealth', ['town']));
 
     const first = await both(['quests', 'beat', 'add', 'a-quiet-word', '0', '--row', '{"line":"A name to find.","pool":{"kinds":["lore"]}}'], 'POST', `${route}/add`, {
       key: 'a-quiet-word',
@@ -522,10 +543,11 @@ describe('finishing, the doctor and recovery, through both adapters', () => {
   });
 
   test('doctor and recover answer through both', async () => {
-    const { both } = await pair();
+    const { cliDir, both } = await pair();
     const report = await both(['quests', 'doctor'], 'GET', '/api/quests/doctor');
     expect(report.code).toBe(0);
-    expect(report.json).toMatchObject({ ok: true, content: { ok: true }, pending: { ok: true, edits: 0 }, quests: { templates: 12, pools: { ok: true }, tiers: { ok: true }, drawn: { ok: true }, finales: { ok: true, count: 4 } } });
+    const { templates, finales } = templateCounts(cliDir);
+    expect(report.json).toMatchObject({ ok: true, content: { ok: true }, pending: { ok: true, edits: 0 }, quests: { templates, pools: { ok: true }, tiers: { ok: true }, drawn: { ok: true }, finales: { ok: true, count: finales } } });
     const recovered = await both(['encounters', 'recover'], 'POST', '/api/encounters/recover', {});
     expect(recovered.json).toEqual({ ok: true, recovered: [] });
     const elsewhere = await both(['encounters', 'doctor'], 'GET', '/api/encounters/doctor');
