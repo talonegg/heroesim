@@ -383,9 +383,32 @@ export interface QuestReading {
   encounters: EncounterReading[];
   /** Whether it is Deadly: its Tier scales Death above 0 and one of its Encounters may kill (`isDeadly`, DL-265). No figure. */
   deadly: boolean;
+  /** Its Tier, from 1 (DL-262): the card's and `show board`'s, after its name (DL-269). */
+  tier: number;
+  /**
+   * Its narrative: its Beats' lines in the order it plays them, one for each of its Encounters, a
+   * Finale's last (`Quest.beatLines`, DL-262). The Party builder's and the CLI's preview's (DL-269).
+   */
+  beats: string[];
 }
 
-/** `quest` as the Board gives it: its terms, what it requires, the Skills that help and its Encounters (DL-148 item 16). */
+/** A Quest's Tier as the Board names it: `Tier 3` (DL-257 item 1, DL-269). */
+export function tierWords(tier: number): string {
+  return `Tier ${tier}`;
+}
+
+/**
+ * The Deadly mark and what it means, with no figure (DL-257 item 5, Q18 b, DL-269): the card shows the
+ * mark, its title the meaning; the CLI says "Deadly: a Hero may die on this Quest."
+ */
+export const deadlyWords = { mark: 'Deadly', meaning: 'a Hero may die on this Quest' } as const;
+
+/** The least Party a Quest takes, as the Party builder's checklist and the CLI's preview say it: `A Party of at least 2` (DL-266). */
+export function partyFloorWords(partySizeMin: number): string {
+  return `A Party of at least ${partySizeMin}`;
+}
+
+/** `quest` as the Board gives it: its terms, what it requires, the Skills that help and its Encounters (DL-148 item 16), its Tier, whether it is Deadly and its Beats' lines (DL-269). */
 function questReading({ world, content, deps }: PlayerReading, quest: Quest): QuestReading {
   const { partySizeMin, classKey, skillKey } = quest.requirements;
   return {
@@ -404,6 +427,8 @@ function questReading({ world, content, deps }: PlayerReading, quest: Quest): Qu
     skills: skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)),
     encounters: encounterReadings(quest, content),
     deadly: isDeadly(quest, content, deps.config),
+    tier: quest.tier,
+    beats: [...quest.beatLines],
   };
 }
 

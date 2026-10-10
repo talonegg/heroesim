@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test } from 'vitest';
 import { chanceWords, shownPercent } from '@heroesim/words';
 import { App } from '../app';
+import { content } from '../content';
 import { changed, documentOf, estimateOf, holding, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { defaultHeroOrder } from '../state/selectors';
@@ -31,13 +32,16 @@ function heroesOf(state: GameState): Hero[] {
   return (guild?.rosterIds ?? []).map((id) => world.heroes[id] as Hero);
 }
 
+/** The first Quest's Beats' lines, made to order (`madeToOrder`). */
+const beatLines = ['Past the gate unseen.', 'Steel on the road.', 'A door that bites.', 'Hold until dawn.', 'The long way home.'];
+
 /**
- * A new game whose first Quest is made to order: difficulty 54 on a Board of 19 to 89, 5 Days away,
+ * A new game whose first Quest is made to order: Tier 2, difficulty 54 on a Board of 19 to 89, 5 Days away,
  * 243 Wealth, Fame 2, a Party of 1 or more with a Hero with Herbalism among them, on its last Day; it
  * meets Past the watch, Ambush on the road, The trapped passage, Hold the line and The long march,
  * stealth, combat, stealth, combat and travel, whose Checks read Dexterity, Wits, Perception,
- * Weaponry, Strength, Courage, Constitution, Endurance, Leadership and Willpower, in that order.
- * The last Hero on the Roster has Herbalism 2.
+ * Weaponry, Strength, Courage, Constitution, Endurance, Leadership and Willpower, in that order, each
+ * the Beat of a line of its own (`beatLines`). The last Hero on the Roster has Herbalism 2.
  */
 function madeToOrder(from: GameState = started()): GameState {
   return changed(from, (document, player) => {
@@ -56,7 +60,9 @@ function madeToOrder(from: GameState = started()): GameState {
     first.fameEffect = 2;
     first.requirements = { partySizeMin: 1, skillKey: 'herbalism' };
     first.expiresOnTurn = 2;
+    first.tier = 2;
     first.encounterKeys = ['past-the-watch', 'ambush-on-the-road', 'the-trapped-passage', 'hold-the-line', 'the-long-march'];
+    first.beatLines = beatLines;
   });
 }
 
@@ -116,10 +122,12 @@ describe('a Quest card', () => {
     const name = within(card).getByRole('heading', { level: 3 }).textContent ?? '';
     expect(within(card).getByText(patron?.name ?? '')).toBeDefined();
     const terms = within(card).getByRole('list', { name: `The terms of ${name}` });
+    // Its Tier, the Days and the reward first (DL-257, DL-269); not Deadly, so no mark.
     expect(within(terms).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Difficulty 54',
+      'Tier 2',
       '5 Days away',
       '243 Wealth',
+      'Difficulty 54',
       'Fame ±2',
       '1 or more Heroes',
       'Needs a Hero with Herbalism',
@@ -162,6 +170,27 @@ describe('a Quest card', () => {
     const [, second] = within(section('Board')).getAllByRole('article') as [HTMLElement, HTMLElement];
 
     expect(within(second).getByTestId('best-party').textContent).toMatch(/^.+ is a Tier \d Quest, open to a Guild of 9 Fame or more; .+ has \d+, \d+ short\.$/);
+  });
+
+  // DL-257 item 5, Q18 b: a Quest that can kill is marked Deadly on its card, after its Tier, with no figure (DL-269).
+  test('marks a Deadly Quest after its Tier, the mark saying what it means with no figure, and no other', () => {
+    const killer = Object.values(content.encounters).find((encounter) => encounter.consequences.failure.some((it) => it.kind === 'death' && it.chance > 0));
+    if (killer === undefined) throw new Error('No Encounter that kills');
+    const state = changed(madeToOrder(), (document) => {
+      const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
+      Object.assign(second, { tier: 4, encounterKeys: [killer.key], beatLines: ['A line.'] });
+    });
+    render(<App initial={state} />);
+    const [first, second] = within(section('Board')).getAllByRole('article') as [HTMLElement, HTMLElement];
+    const termsOf = (card: HTMLElement): string[] =>
+      [...card.querySelectorAll('.quest__chips > li')].map((item) => item.textContent ?? '');
+
+    expect(termsOf(second).slice(0, 2)).toEqual(['Tier 4', 'Deadly']);
+    const mark = within(second).getByText('Deadly').closest('.chip');
+    expect(mark?.getAttribute('title')).toBe('A Hero may die on this Quest');
+    expect(mark?.className).toContain('chip--bad');
+    expect(second.textContent).not.toMatch(/\d+ ?%/);
+    expect(termsOf(first)).not.toContain('Deadly');
   });
 
   test("unfolds from its name to its Encounters, each Check's name and what it reads, the Skills that help, and its difficulty against the Board", () => {
@@ -278,6 +307,22 @@ describe('the Board', () => {
 });
 
 describe('the Party builder', () => {
+  // DL-257, DL-269: the Quest's narrative, its Beats' lines in the order it plays them, at the head of the builder; the least Party in the checklist; no Death figure.
+  test("opens on the Quest's Beats' lines in order, and says the least Party it takes in the requirements, with no Death figure", () => {
+    render(<App initial={madeToOrder()} />);
+
+    const form = chooseForFirst();
+
+    const beats = within(form).getByTestId('beats');
+    expect(beats.tagName).toBe('OL');
+    expect(within(beats).getAllByRole('listitem').map((item) => item.textContent)).toEqual(beatLines);
+    expect(within(form).getAllByRole('heading', { level: 4 })[0]?.textContent).toBe('Beats');
+    // Before the Heroes are chosen.
+    expect(beats.compareDocumentPosition(within(form).getByRole('group', { name: 'Heroes' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(form).getByText(/^A Party of at least 1 \(0 chosen\)/)).toBeDefined();
+    expect(form.textContent).not.toMatch(/Death|die\b/);
+  });
+
   test("gives each Hero on the Roster a row: whether they can go, and why not and until when; Class and Level; the Stats the Quest's Checks read; the Skills it names; and no Hero's Morale (DL-148 item 12)", () => {
     let names: string[] = [];
     const state = changed(madeToOrder(), (document) => {

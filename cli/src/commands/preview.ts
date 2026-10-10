@@ -1,6 +1,7 @@
 // `preview --quest <id> --heroes <id,id> [--consumables <key:n,...>]` (M4-S5, pre-M0 review E6; M5-S3's
 // consumables): what a proposed Party of the player's Heroes would meet on a Quest from the Board,
-// and what it would carry, before it is sent. It changes nothing and writes nothing.
+// and what it would carry, before it is sent, after the Quest's narrative, its Beats' lines (DL-269).
+// It changes nothing and writes nothing.
 //
 // The CLI holds no rule: what the Party would meet is the engine's `previewDispatch` (DL-66,
 // so the browser shows the same): each requirement met or missed, each
@@ -23,13 +24,18 @@ import {
   type Synergy,
   type WorldDocument,
 } from '@heroesim/engine';
-import { chanceWords, consumableEffectWords, listed, nameIn, requirementWords, shownPercent, unavailableWords } from '@heroesim/words';
+import { chanceWords, consumableEffectWords, listed, nameIn, partyFloorWords, requirementWords, shownPercent, unavailableWords } from '@heroesim/words';
 import type { Command } from '../args.js';
 import { refusalLine } from '../namer.js';
 
 /** A Hero as the CLI names one: `Brenna Ashcombe (hero-000003)`. */
 function heroName(hero: Hero): string {
   return `${hero.name} (${hero.id})`;
+}
+
+/** The Quest's narrative: its Beats' lines in the order it plays them (`Quest.beatLines`), as the page's Party builder opens on them (DL-269). */
+function beatLines({ quest }: DispatchPreview): string[] {
+  return ['Beats', ...quest.beatLines.map((line) => `  ${line}`)];
 }
 
 /** Each of the Quest's requirements, met or missed by the Party. */
@@ -39,7 +45,7 @@ function requirementLines({ requirements }: DispatchPreview, deps: EngineDeps): 
     const verdict = status.met ? 'met' : 'missed';
     switch (status.requirement) {
       case 'party-size':
-        return `  A Party of at least ${status.partySizeMin}: ${verdict} (${status.size} named)`;
+        return `  ${partyFloorWords(status.partySizeMin)}: ${verdict} (${status.size} named)`;
       case 'class':
         return `  A ${nameIn(content.classes, status.classKey)}: ${verdict}`;
       case 'skill':
@@ -165,6 +171,7 @@ export function previewParty(
       `Preview: ${quest.id}, ${nameIn(deps.content.questTemplates, quest.templateKey)}, for ${guild.name}.`,
       `Party: ${heroes.length === 0 ? 'nobody' : heroes.map(heroName).join(', ')}.`,
     ],
+    beatLines(preview),
     requirementLines(preview, deps),
     heroLines(preview, guild.name),
     synergyLines(preview),

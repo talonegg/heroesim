@@ -864,3 +864,60 @@ review. `encounters discard` first was refused (the template's Finale names it);
 then `encounters discard` left no pending edit, `.editor/` empty and `git diff -- content` empty.
 The epic's S10 box.
 Verified 2026-10-11 at 4f6355b: both skills followed literally on a second brief (`break-the-smugglers-ring`, Tiers 2–4, tag, kind and named pools, no Finale, Tier 2 `daysMax` 6; `the-tide-ledger`, lore, tuned to 3.18 + 0.08 and 1.61 + 0.04, 57% at 60, its lore peers 54–60%), every command as written, then discarded, `git diff -- content docs/quests` empty; the tuning rewrote all 29 copies, 13 shipped Checks' numbers moved, so the editor route holds; fixed: the shell named (PowerShell strips a JSON argument's quotes), a new Encounter's place in shipped pools and a Finale's leaving them named for the draft, the template's calibration rows added to its draft.
+
+## DL-269 — v1.2.0-S12 built: the Board card's Tier and Deadly mark, the Party builder's Beats, and the CLI's the same through `words`
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+
+**Context.** DL-257's judgement call (Q18 b): the Board card shows the name, Tier, Deadly, days and
+reward, and the narrative is in the Party builder. A Quest carries its `tier` and `beatLines` (DL-262),
+the reading its Deadly (`QuestReading.deadly`, DL-265, the CLI's line after its Encounters); the card
+says why a Quest is closed (DL-264), and the builder "A Party of at least N" (DL-266). No front end
+showed the Tier or the Beats, and the card no Deadly.
+
+**Decision.**
+
+1. **The reading** (`words/src/readings.ts`, DL-241): `QuestReading` gains `tier` and `beats`, the
+   Quest's `beatLines` in the order it plays them, a Finale's last. The words both front ends share:
+   `tierWords` ("Tier 3"), `deadlyWords` (the mark "Deadly", meaning "a Hero may die on this Quest")
+   and `partyFloorWords` ("A Party of at least 2").
+2. **The card** (`board.tsx`; `QuestCard` gains `tier`, `deadly` and `beats`): its chips lead with the
+   Tier, Deadly where the Quest can kill (red, the alert icon, its title "A Hero may die on this
+   Quest", no figure), the Days and the reward; then, as before, the difficulty, the Fame, the Party
+   ("2 or more Heroes"), what else it needs and the Day it leaves. "Your best Party" and the
+   closed-Quest line (DL-264) are unchanged.
+3. **The Party builder** opens on "Beats", the Quest's lines as an ordered list, before the Heroes.
+   The least Party stays the checklist's first line, "A Party of at least 2 (0 chosen): missed", from
+   `partyFloorWords`. No Death figure.
+4. **The CLI:** `show board`'s table is Id, Quest, Patron, Tier, Deadly ("Yes" or "No"), Days, Reward,
+   Difficulty, Fame, Party, Requires, On offer through, the card's order; its Deadly line from
+   `deadlyWords`. `preview` gives a "Beats" section after its heading and before the requirements,
+   whose first line is `partyFloorWords`'. The usage says both.
+5. **e2e** (`web/e2e/board.spec.ts`, at the three widths): a new game whose first Board holds a
+   Deadly Quest and one that is not, found seed by seed in the saved content and loaded as a save;
+   each card's lead held to its Quest's row; a Deadly Quest's builder: "Beats" first with its lines in
+   order, the floor's line missed then met, the chances, and no "Death", "die" or "Deadly".
+
+*Judgement calls, for the owner to see.*
+- **The card keeps its other terms** after the five DL-257 names: the difficulty orders the
+  Board and the Party chip is DL-266's. Moving them into the unfolded details is the owner's to ask.
+- **Deadly is a chip** among the terms, red with the alert icon, its word carrying it (never colour
+  alone).
+- **No narrative on the card or in `show board`;** the builder and `preview` have it, paired as the
+  card and `show board` are.
+- **"A Party of at least N" is the checklist's line,** as S8 placed it, not a second line by the Beats.
+- **The CLI's Deadly cell is "Yes" or "No",** a table's cell where the page has a mark or none.
+- **The e2e finds its seed** rather than pinning one, so that it holds through S11's content.
+
+**Consequences.** Words and the page only: no engine, content or config change, no play change, no
+sweep, no doctor. S11's lines replace the working ones the listing shows (The beast of the fells
+plays "A hard road." twice).
+
+**Evidence.** The commit `v1.2.0-S12 (DL-269)`. Tests first, 10 red then green: `readings.test.ts`
+3, `render.test.ts` 2, `main.test.ts` 1, `selectors.test.ts` 1, `board.test.tsx` 3. The rows before
+and after, for the owner (seed `s12-board-5`, Turn 0, at `bcac8d4` and after): Break the sealed vault's
+chips `[Difficulty 68] [13 Days away] [661 Wealth] [Fame ±5] [3 or more Heroes] [Needs a Mage] [Until
+Year 1 Day 3]` became `[Tier 4] [Deadly] [13 Days away] [661 Wealth] [Difficulty 68] [Fame ±5] …`, and
+The beast of the fells is Tier 4 and not Deadly, none of its Encounters killing; `show board` gained
+Tier and Deadly after Patron and moved Difficulty after Reward; the first builder opens on "Beats",
+"Words to be had." and "Somewhere not to be seen."; `preview` gained its Beats. The epic's S12 box.

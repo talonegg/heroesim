@@ -320,9 +320,23 @@ describe("show's layouts of the readings (DL-241)", () => {
     const lines = renderBoard(reading);
 
     expect(lines[0]).toBe(`Board: ${quests.length} Quests on offer, Turn 0 (Year 1 Day 1, morning)`);
-    expect(lines[2]?.split(/\s{2,}/)).toEqual(['Id', 'Quest', 'Patron', 'Difficulty', 'Days', 'Reward', 'Fame', 'Party', 'Requires', 'On offer through']);
+    // The Quest, then its Tier, Deadly, Days and reward, as its card on the page (DL-269), then the rest of its terms.
+    expect(lines[2]?.split(/\s{2,}/)).toEqual(['Id', 'Quest', 'Patron', 'Tier', 'Deadly', 'Days', 'Reward', 'Difficulty', 'Fame', 'Party', 'Requires', 'On offer through']);
     const [one, two, three] = quests as [QuestReading, QuestReading, QuestReading];
-    expect(lines[4]?.split(/\s{2,}/)).toEqual([one.id, one.name, one.patron, String(one.difficulty), String(one.days), String(one.reward), String(one.fame), '1 or more', 'Mage, Lockpicking', 'Year 1 Day 3']);
+    expect(lines[4]?.split(/\s{2,}/)).toEqual([
+      one.id,
+      one.name,
+      one.patron,
+      String(one.tier),
+      one.deadly ? 'Yes' : 'No',
+      String(one.days),
+      String(one.reward),
+      String(one.difficulty),
+      String(one.fame),
+      '1 or more',
+      'Mage, Lockpicking',
+      'Year 1 Day 3',
+    ]);
     const rows = lines.filter((line) => line.startsWith(one.id) || line.startsWith(two.id)).map((line) => line.split(/\s{2,}/));
     expect(rows[2]).toEqual([one.id, one.skills.join(', '), capitalised(one.encounters.map((encounter) => encounter.kind).join(', '))]);
     // An Encounter content does not define, by its key; no Skill is known to help, since its Encounters'
@@ -379,5 +393,9 @@ describe("show's layouts of the readings (DL-241)", () => {
 
     expect(blockOf(first).slice(-2, -1)).toEqual(['  Deadly: a Hero may die on this Quest.']);
     expect(blockOf(second).some((line) => line.includes('Deadly'))).toBe(false);
+    // The table's Deadly column marks it too, a word and no figure (DL-269).
+    const cellsOf = (quest: Quest): string[] | undefined => lines.find((line) => line.startsWith(`${quest.id}  `))?.split(/\s{2,}/);
+    expect(cellsOf(first)?.slice(3, 5)).toEqual(['4', 'Yes']);
+    expect(cellsOf(second)?.slice(3, 5)).toEqual(['3', 'No']);
   });
 });

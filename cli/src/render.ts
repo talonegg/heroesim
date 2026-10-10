@@ -47,6 +47,7 @@ import {
   chanceWords,
   dateOfDay,
   dateOfTurn,
+  deadlyWords,
   facilityNames,
   kindWords,
   listed,
@@ -628,7 +629,9 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
 
 /**
  * `show board`: the Quests on offer in the Board's order (`boardReading`), each with its template's
- * name, its Patron, its terms, what it requires and the last date it stays on offer; then the Skills
+ * name, its Patron, its Tier, whether it is Deadly ("Yes" or "No", no figure), its Days and reward, as
+ * its card on the page leads with them (DL-269), the rest of its terms, what it requires and the last
+ * date it stays on offer; then the Skills
  * that help in its Encounters' Checks and the kinds of those Encounters; then each Quest's
  * Encounters with each Check's name and what it reads, whether it is Deadly (DL-265), and the
  * player's Best Party with its chance (DL-148 items 15 to 17), every Quest asked of the reading's one Best Party module (DL-237).
@@ -646,9 +649,11 @@ export function renderBoard(reading: PlayerReading): string[] {
         { heading: 'Id' },
         { heading: 'Quest' },
         { heading: 'Patron' },
-        { heading: 'Difficulty', align: 'right' },
+        { heading: 'Tier', align: 'right' },
+        { heading: 'Deadly' },
         { heading: 'Days', align: 'right' },
         { heading: 'Reward', align: 'right' },
+        { heading: 'Difficulty', align: 'right' },
         { heading: 'Fame', align: 'right' },
         { heading: 'Party' },
         { heading: 'Requires' },
@@ -658,9 +663,11 @@ export function renderBoard(reading: PlayerReading): string[] {
         quest.id,
         quest.name,
         quest.patron ?? quest.patronId,
-        String(quest.difficulty),
+        String(quest.tier),
+        quest.deadly ? 'Yes' : 'No',
         String(quest.days),
         String(quest.reward),
+        String(quest.difficulty),
         String(quest.fame),
         `${quest.partySizeMin} or more`,
         [quest.classRequired, quest.skillRequired].filter((name) => name !== null).join(', '),
@@ -695,7 +702,7 @@ function questLines(quest: QuestReading, reading: PlayerReading): string[] {
   return [
     `${quest.id}, ${quest.name}`,
     ...lines,
-    ...(quest.deadly ? ['  Deadly: a Hero may die on this Quest.'] : []),
+    ...(quest.deadly ? [`  ${deadlyWords.mark}: ${deadlyWords.meaning}.`] : []),
     `  ${closed !== null ? refusalLine(closed, { world, content, calendar }) : bestPartyWords(row === undefined ? null : bestPartyReading(reading, row))}`,
   ];
 }

@@ -1,6 +1,7 @@
 // The Board with the Party builder (M7-S3; M9-S4, DL-104; the CLI's `show board`, `preview` and
 // `dispatch`). Each Quest on offer is a compact card of two lines: its name and Patron, then chips
-// for its difficulty, the Days it takes, its reward, its Fame, its Party size, what else it needs
+// for its Tier, Deadly where it can kill (a mark with no figure), the Days it takes and its reward,
+// first as DL-257 and DL-269 set them, then its difficulty, its Fame, its Party size, what else it needs
 // and the Day it leaves the Board, marked when that is today (the review's B2); then "Your best
 // Party" with a chance word, the Party the engine would send from the free Heroes (v1.1.4-S6, DL-148
 // items 15 and 17), or why the Guild may not take the Quest (DL-264). Its name unfolds it: its Encounters, each Check's name and what it reads, in
@@ -10,7 +11,8 @@
 // order is kept in this browser, as the pool's is (DL-109 item 2, Q11). The Fame chip reads "Fame
 // ±2", its title saying it is won on a success and lost on a failure (Q9).
 //
-// "Choose a Party" opens the builder (DL-99 item 3, the review's C4): each Hero on the Roster as a
+// "Choose a Party" opens the builder (DL-99 item 3, the review's C4), which opens on the Quest's
+// narrative, its Beats' lines in order, with no Death figure (DL-269); then each Hero on the Roster as a
 // row saying whether they can go, and when not why and until when, their Class and Level, the
 // effective values of the Stats the Quest's Checks read, and the Skills it names that they have; no Hero's
 // Morale (v1.1.4-S3's verification, DL-148 item 12). A row opens the Hero's page in place of the Board; "Back to the Party" returns to
@@ -28,6 +30,7 @@
 // nothing here computes a rule.
 
 import type { EncounterKind, HeroId, ItemDefinitionKey, QuestId, WorldDocument } from '@heroesim/engine';
+import { capitalised, deadlyWords } from '@heroesim/words';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { carrying, choiceFor, partyBuilder, toggled, type PartyChoice, type PartyChoices } from '../state/party-choices';
 import type { GameAction, GameState } from '../state/reducer';
@@ -264,8 +267,15 @@ function Quest({
         </div>
         <ul className="chips quest__chips" aria-label={`The terms of ${card.name}`}>
           <li>
-            <Chip>Difficulty {card.difficulty}</Chip>
+            <Chip>{card.tier}</Chip>
           </li>
+          {card.deadly ? (
+            <li>
+              <Chip tone="bad" icon="alert" title={capitalised(deadlyWords.meaning)}>
+                {deadlyWords.mark}
+              </Chip>
+            </li>
+          ) : null}
           <li>
             <Chip>
               {card.days} {card.days === 1 ? 'Day' : 'Days'} away
@@ -276,6 +286,9 @@ function Quest({
               {card.reward}
               <VisuallyHidden> Wealth</VisuallyHidden>
             </Chip>
+          </li>
+          <li>
+            <Chip>Difficulty {card.difficulty}</Chip>
           </li>
           <li>
             <Chip tone="brass" icon="fame" title="Won on a success, lost on a failure">
@@ -417,6 +430,15 @@ function Builder({
         onSend(party, consumables);
       }}
     >
+      {/* The Quest's narrative first, its Beats' lines in the order it plays them (DL-257, DL-269). */}
+      <div className="beats">
+        <h4>Beats</h4>
+        <ol data-testid="beats">
+          {card.beats.map((line, index) => (
+            <li key={index}>{line}</li>
+          ))}
+        </ol>
+      </div>
       <fieldset className="party">
         <legend>Heroes</legend>
         {rows.length === 0 ? <p>The Roster is empty.</p> : null}

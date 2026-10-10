@@ -1454,6 +1454,27 @@ describe('show guildmaster, show patrons and preview', () => {
     expect(saved()).toBe(original);
   });
 
+  // DL-269: the Quest's narrative, its Beats' lines in the order it plays them, before its requirements, as the page's Party builder gives it.
+  test("preview gives the Quest's Beats' lines in order, under its heading and before the requirements", () => {
+    const { world } = document();
+    const [questId] = world.board as QuestId[];
+    const heroIds = (world.guilds[playerId]?.rosterIds ?? []).slice(0, 2);
+    if (questId === undefined) throw new Error('The demo world has changed');
+    edit((edited) => {
+      Object.assign(edited.world.quests[questId] as Quest, {
+        encounterKeys: ['past-the-watch', 'ambush-on-the-road', 'the-long-march'],
+        beatLines: ['Past the gate unseen.', 'Steel on the road.', 'The long way home.'],
+      });
+    });
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    const lines = run.out.split('\n');
+    expect(lines.slice(2, 8)).toEqual(['', 'Beats', '  Past the gate unseen.', '  Steel on the road.', '  The long way home.', '']);
+    expect(lines[8]).toBe('Requirements');
+  });
+
   // DL-148 item 15: each Encounter's chance and the Quest's in a word, with the estimate's percentage floored to 5.
   test('preview gives the chance of each Encounter and of the Quest, a word and the estimate floored to a multiple of 5%, if no one falls', () => {
     const { world } = document();

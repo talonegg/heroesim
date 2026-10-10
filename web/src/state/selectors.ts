@@ -93,6 +93,7 @@ import {
   nameIn,
   nightOfDay,
   nightOfTurn,
+  partyFloorWords,
   questClosed,
   readsAsOne,
   rosterReading,
@@ -102,6 +103,7 @@ import {
   signsWords,
   statPartsWords,
   statSourcesMoving,
+  tierWords,
   traitEffectWords,
   unavailableChipWords,
   unavailableWords,
@@ -223,6 +225,12 @@ export interface QuestCard {
   questId: QuestId;
   name: string;
   patron: string;
+  /** Its Tier, `Tier 3`: the card's first term, before Deadly, the Days and the reward (DL-257, DL-269). */
+  tier: string;
+  /** Whether it is Deadly (`QuestReading.deadly`, DL-265): the card's mark, with no figure (Q18 b). */
+  deadly: boolean;
+  /** Its narrative, its Beats' lines in the order it plays them (`QuestReading.beats`): the Party builder's, not the card's (DL-269). */
+  beats: string[];
   difficulty: number;
   days: number;
   reward: number;
@@ -315,6 +323,9 @@ function questCards(document: WorldDocument): QuestCard[] {
     questId: quest.id,
     name: quest.name,
     patron: quest.patron ?? 'a Patron',
+    tier: tierWords(quest.tier),
+    deadly: quest.deadly,
+    beats: quest.beats,
     difficulty: quest.difficulty,
     days: quest.days,
     reward: quest.reward,
@@ -539,7 +550,7 @@ export function previewView(
     requirements: preview.requirements.map((status) => {
       switch (status.requirement) {
         case 'party-size':
-          return { words: `A Party of at least ${status.partySizeMin} (${status.size} chosen)`, met: status.met };
+          return { words: `${partyFloorWords(status.partySizeMin)} (${status.size} chosen)`, met: status.met };
         case 'class':
           return { words: `A ${nameIn(content.classes, status.classKey)}`, met: status.met };
         case 'skill':

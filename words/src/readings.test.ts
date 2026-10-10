@@ -33,13 +33,16 @@ import { encounterReadings, shownPercent } from './query.js';
 import {
   bestPartyReading,
   boardReading,
+  deadlyWords,
   heroReading,
+  partyFloorWords,
   playerReading,
   poolNote,
   poolReading,
   questClosed,
   rosterReading,
   signsWords,
+  tierWords,
   type HeroReading,
   type PlayerReading,
 } from './readings.js';
@@ -483,10 +486,31 @@ describe("a Quest's reading", () => {
         partySizeMin: quest.requirements.partySizeMin,
         expiresOnTurn: quest.expiresOnTurn,
         encounters: encounterReadings(quest, content),
+        tier: quest.tier,
+        beats: quest.beatLines,
       });
     }
     expect(quests[0]).toMatchObject({ classRequired: 'Mage', skillRequired: 'Lockpicking' });
     expect(quests[1]).toMatchObject({ classRequired: null, skillRequired: null });
+  });
+
+  // DL-269: the Board's Tier, its Deadly mark and the least Party, worded once for the page and the CLI.
+  test('words a Tier, the Deadly mark with what it means and no figure, and the least Party', () => {
+    expect(tierWords(3)).toBe('Tier 3');
+    expect(deadlyWords).toEqual({ mark: 'Deadly', meaning: 'a Hero may die on this Quest' });
+    expect(partyFloorWords(2)).toBe('A Party of at least 2');
+  });
+
+  test("gives a Quest's Beats' lines in the order it plays them, one for each Encounter, the Finale's last (DL-262)", () => {
+    const document = newGame();
+    const [first] = document.world.board.map((id) => document.world.quests[id] as Quest);
+    if (first === undefined) throw new Error('an empty Board');
+    Object.assign(first, { encounterKeys: ['past-the-watch', 'ambush-on-the-road'], beatLines: ['The gate at dusk.', 'The road home.'] });
+
+    const reading = boardReading(playerReading(document, deps)).find((it) => it.id === first.id);
+
+    expect(reading?.beats).toEqual(['The gate at dusk.', 'The road home.']);
+    expect(reading?.encounters.map((it) => it.name)).toEqual(['Past the watch', 'Ambush on the road']);
   });
 
   test('says a Quest is Deadly when its Tier scales Death above 0 and one of its Encounters has a Death chance (DL-265)', () => {

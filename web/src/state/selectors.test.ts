@@ -13,6 +13,7 @@ import {
   entriesFor,
   estimateQuest,
   guildmasterOf,
+  isDeadly,
   milestoneTypes,
   rankingPlaces,
   rankings,
@@ -235,6 +236,10 @@ describe('boardView', () => {
         // The Board's chip, `Until Year 1 Day 6` (DL-210); `lastDay` stays the Day it sorts by.
         until: `Until ${dateOfTurn(quest.expiresOnTurn, document.meta.config)}`,
         party: `${quest.requirements.partySizeMin} or more Heroes`,
+        // Its Tier and whether it is Deadly, on the card; its Beats' lines, for the Party builder (DL-269).
+        tier: `Tier ${quest.tier}`,
+        deadly: isDeadly(quest, content, document.meta.config),
+        beats: quest.beatLines,
       });
       expect(card.skills).toEqual(skillsThatHelp(quest, content).map((key) => content.skills[key]?.name));
     }
